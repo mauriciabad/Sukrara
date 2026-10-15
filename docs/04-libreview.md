@@ -147,7 +147,8 @@ read-only `NostrSource` gains a device key (Keychain) and event publishing with 
 ## Cleanup (for the user's real account)
 
 *Done 2026-10-16: spike uploads switched off in both apps, spike device removed in LibreView, Juggluco's upload
-back on. (Not re-checked with a third export.)*
+back on. Verified with a final export: 0 rows from the spike device, and Juggluco's own history continuous
+(every 5 min, no gaps, no duplicates) through the spike window — it re-uploaded its backlog after being re-enabled.*
 
 1. Delete every spike entry from the app (sends LibreView deletes) — or `lv.py cleanup`.
 2. LibreView → Account settings → **My devices** → remove the **GlucoBridge** device: removes everything that
