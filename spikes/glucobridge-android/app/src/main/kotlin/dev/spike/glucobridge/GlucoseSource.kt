@@ -16,6 +16,12 @@ interface GlucoseSource {
     /** Short label for the UI, e.g. "Juggluco (localhost)" or "sensor XX0R…". */
     val name: String
 
+    /**
+     * Serve the xDrip+ web service on 127.0.0.1:17580 for Garmin watch apps (investigation 08). Only when we own
+     * the sensor: in the juggluco flavor, Juggluco's own server holds that port and must keep it.
+     */
+    val servesWatches: Boolean get() = false
+
     fun start(scope: CoroutineScope, sink: Sink)
     fun stop()
 

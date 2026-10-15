@@ -68,6 +68,8 @@ class BridgeService : Service() {
     private var advertising = false
 
     private lateinit var source: GlucoseSource
+    /** Investigation 08: xDrip+-compatible web service for Garmin Connect IQ apps. */
+    private lateinit var xdrip: XdripServer
     private val history = ArrayDeque<Bridge.Reading>()      // ascending, ≤ HISTORY_MINUTES entries
     @Volatile private var latestBytes = ByteArray(0)
 
@@ -82,7 +84,10 @@ class BridgeService : Service() {
         Spike.uploader.start(scope)
         startGattServer()
         startAdvertising()
+        xdrip = XdripServer(java.io.File(filesDir, "xdrip-requests.log"), store = java.io.File(filesDir, "readings.csv"))
+        xdrip.onRequest = { update { it.copy(watchPolledAt = xdrip.lastRequest?.first) } }
         source = createGlucoseSource(this)
+        if (source.servesWatches) xdrip.start()?.let { err -> update { it.copy(error = "xDrip server: $err") } }
         update { it.copy(source = source.name) }
         source.start(scope, sink)
     }
@@ -92,6 +97,7 @@ class BridgeService : Service() {
     override fun onDestroy() {
         Spike.store.onChange = null
         source.stop()
+        xdrip.stop()
         scope.cancel()
         stopAdvertising()
         gatt?.close()
@@ -104,6 +110,7 @@ class BridgeService : Service() {
     private val sink = object : GlucoseSource.Sink {
         override fun onReading(reading: Bridge.Reading) {
             synchronized(history) { insert(reading) }
+            xdrip.add(reading)
             latestBytes = Bridge.encode(reading)
             notifySubscribers()
             Log.i(tag, "reading ${reading.mgdl} rate ${reading.rate} -> ${subscribers.size} subscriber(s)")
@@ -112,6 +119,7 @@ class BridgeService : Service() {
 
         override fun onHistory(readings: List<Bridge.Reading>) {
             if (readings.isEmpty()) return
+            readings.forEach { xdrip.add(it) }
             val newest = synchronized(history) {
                 readings.forEach { insert(it) }
                 history.lastOrNull()
@@ -124,7 +132,10 @@ class BridgeService : Service() {
 
         override fun onStatus(state: String, error: String?) = update { it.copy(sourceDetail = state, error = error) }
 
-        override fun onSensor(serial: String, startEpoch: Long) = Spike.uploader.onSensor(serial, startEpoch)
+        override fun onSensor(serial: String, startEpoch: Long) {
+            xdrip.onSensor(serial, startEpoch)
+            Spike.uploader.onSensor(serial, startEpoch)
+        }
 
         override fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {
             if (history.isNotEmpty()) Spike.uploader.onHistory(history)
@@ -223,7 +234,8 @@ class BridgeService : Service() {
         val s = f(Bridge.status.value)
         Bridge.status.value = s
         val text = (s.latest?.let { "${it.mgdl} mg/dL ${it.rate?.let { r -> "%+.1f/min".format(r) } ?: ""} · " } ?: "") +
-            "${s.subscribed} subscribed · ${s.sourceDetail ?: s.source}"
+            "${s.subscribed} subscribed · ${s.watchPolledAt?.let { "watch ${(System.currentTimeMillis() - it) / 60000} min ago · " } ?: ""}" +
+            (s.sourceDetail ?: s.source)
         getSystemService(NotificationManager::class.java).notify(1, notification(text))
     }
 

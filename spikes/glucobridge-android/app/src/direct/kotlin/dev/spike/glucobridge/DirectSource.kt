@@ -10,12 +10,13 @@ import kotlinx.coroutines.CoroutineScope
 
 fun createGlucoseSource(context: Context): GlucoseSource = DirectSource(context)
 
-/** PoC 2: no Juggluco, no local web server — the app owns the sensor link itself. */
+/** PoC 2: no Juggluco — the app owns the sensor link itself (and, since 08, serves the xDrip web service). */
 class DirectSource(private val context: Context) : GlucoseSource {
     private var client: Libre3Client? = null
     private val pairing = runCatching { SensorPairing.load(context) }.getOrNull()
 
     override val name = pairing?.let { "sensor ${it.serial}" } ?: "sensor (not paired)"
+    override val servesWatches = true
 
     override fun start(scope: CoroutineScope, sink: GlucoseSource.Sink) {
         val p = pairing ?: return sink.onStatus("no pairing data",

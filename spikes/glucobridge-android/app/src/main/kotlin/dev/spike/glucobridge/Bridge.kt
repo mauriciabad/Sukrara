@@ -54,6 +54,8 @@ object Bridge {
         val advertising: Boolean = false,
         val subscribed: Int = 0,
         val error: String? = null,
+        /** Last request to the xDrip web service (epoch ms) — i.e. the Garmin watch polling through Garmin Connect. */
+        val watchPolledAt: Long? = null,
     )
 
     val status = MutableStateFlow(Status())

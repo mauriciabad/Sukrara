@@ -57,6 +57,9 @@ android {
         }
     }
 
+    // XdripServer logs via android.util.Log; let JVM unit tests run it (stubs return defaults).
+    testOptions { unitTests.isReturnDefaultValues = true }
+
     packaging {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"

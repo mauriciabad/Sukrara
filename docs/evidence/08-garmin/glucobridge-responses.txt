@@ -1,0 +1,46 @@
+### GET /sgv.json?count=72&brief_mode=true&interval=300
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 5559
+Access-Control-Allow-Origin: *
+Connection: close
+
+[{"date":1792102244000,"sgv":75,"delta":-0.250,"direction":"Flat","noise":1,"units_hint":"mgdl"},
+{"date":1792101945000,"sgv":72,"delta":-0.800,"direction":"Flat","noise":1},
+{"date":1792101649000,"sgv":72,"delta":-1.300,"direction":"Flat","noise":1},
+{"date":1792100997000,"sgv":77,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792100697000,"sgv":78,"delta":-2.000,"direction":"Flat","noise":1},
+{"date":1792100397000,"sgv":80,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792100097000,"sgv":81,"delta":-1.000,"direction":"Flat","noise":1},
+{
+
+### GET /sgv.json?all_data=Y&count=72.0&sensor=Y&interval=600&brief_mode=true
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 5675
+Access-Control-Allow-Origin: *
+Connection: close
+
+[{"date":1792102244000,"sgv":75,"delta":-0.250,"direction":"Flat","noise":1,"units_hint":"mgdl","sensor_status":"03-10-26 18:03 (12d 7h)"},
+{"date":1792101649000,"sgv":72,"delta":-1.300,"direction":"Flat","noise":1},
+{"date":1792100997000,"sgv":77,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792100397000,"sgv":80,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792099797000,"sgv":82,"delta":0.000,"direction":"Flat","noise":1},
+{"date":1792099197000,"sgv":83,"delta":-2.000,"direction":"Flat","noise":1},
+{"date":1792098597000,"sgv":85,"delta
+
+### GET /sgv.json?all_data=Y&count=12&sensor=Y&interval=300&brief_mode=true
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 984
+Access-Control-Allow-Origin: *
+Connection: close
+
+[{"date":1792102244000,"sgv":75,"delta":-0.250,"direction":"Flat","noise":1,"units_hint":"mgdl","sensor_status":"03-10-26 18:03 (12d 7h)"},
+{"date":1792101945000,"sgv":72,"delta":-0.800,"direction":"Flat","noise":1},
+{"date":1792101649000,"sgv":72,"delta":-1.300,"direction":"Flat","noise":1},
+{"date":1792100997000,"sgv":77,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792100697000,"sgv":78,"delta":-2.000,"direction":"Flat","noise":1},
+{"date":1792100397000,"sgv":80,"delta":-1.000,"direction":"Flat","noise":1},
+{"date":1792100097000,"sgv":81,"delta
+

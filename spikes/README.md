@@ -39,6 +39,10 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home P
 android install --apks=app/build/outputs/apk/juggluco/debug/app-juggluco-debug.apk --install-options=-g
 ```
 
+The `direct` flavor also serves the **xDrip+/Juggluco web service on `127.0.0.1:17580`** for Garmin watch apps
+([08](../docs/08-garmin.md)); force-stop Juggluco first, since it holds that port. `adb logcat -s GlucoBridge.Xdrip`
+shows one line per watch request.
+
 The `direct` flavor additionally needs:
 - a **Juggluco checkout** at `third_party/Juggluco` — it compiles Juggluco's portable Libre 3 security core (GPLv3)
   through a small JNI layer: `git clone https://github.com/j-kaltes/Juggluco third_party/Juggluco`

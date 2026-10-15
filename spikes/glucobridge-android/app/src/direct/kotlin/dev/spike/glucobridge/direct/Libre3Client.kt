@@ -86,8 +86,8 @@ internal class Libre3Client(
 
         /** The sensor stores one historic value per 5 minutes. */
         private const val HISTORY_STEP = 5
-        /** How far back to backfill on connect (minutes). */
-        private const val BACKFILL_MINUTES = 180
+        /** How far back to backfill on connect (minutes): 24 h, the span of CGM+'s watch graph (investigation 08). */
+        private const val BACKFILL_MINUTES = 24 * 60
     }
 
     private val handler = Handler(Looper.getMainLooper())

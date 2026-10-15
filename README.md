@@ -24,6 +24,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | 03 | 2026-10-15 | Nostr relays as the backbone of a no-hosting Nightscout alternative: remote + shared, E2E-encrypted, works with stock Home Assistant | [docs/03-nostr.md](docs/03-nostr.md) |
 | 04 | 2026-10-15 | Insulin, carbs, notes and glucose to LibreView (for the doctor) from the phone **and** the Mac, synced over BLE, ready for Nostr | [docs/04-libreview.md](docs/04-libreview.md) |
 | 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
+| 08 | 2026-10-16 | Glucose on a Garmin watch (watchface.io face, CGM+ app + datafield) from our own app, no Juggluco | [docs/08-garmin.md](docs/08-garmin.md) |
 
 ## Current conclusions
 
@@ -34,6 +35,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | …with **no shared network** (Mac offline, or Mac on home Wi-Fi + phone on mobile data)? | **Yes, proven over Bluetooth LE** with a small companion app (GlucoBridge) that relays Juggluco to the Mac: every reading delivered within ~1 s, also with the phone on mobile data and with the phone unplugged/screen-off for 17 min. |
 | Can the companion app read the sensor itself, dropping Juggluco? | **Yes, proven** (investigation 02). It resumed the sensor session on its own and delivered a reading a minute to the Mac, matching Juggluco's values exactly. Still needs a phone to activate a new sensor (NFC). |
 | Can the apps keep the doctor's LibreView fed (replacing Juggluco's upload)? | **Yes, proven** (investigation 04). Phone and Mac both upload treatments as one LibreView device; the phone also uploads sensor glucose. LibreView's own export showed each entry once, edits applied and deletes removed. Only one app may own the account's LibreView upload at a time. |
+| Can our app feed existing Garmin watch apps without Juggluco? | **Yes, proven** (investigation 08). An xDrip/Juggluco-compatible web server on the phone's `127.0.0.1:17580`, polled through Garmin Connect, drove the Instinct3 N face, the CGM+ app and the CGM+ datafield unchanged. The watch polls every 5 min. |
 | Recommended architecture | **Phone app = sensor reader + BLE GATT server; Mac app = BLE central** (Wi-Fi as a secondary transport). Both halves are now proven. |
 
 ## Try it (PoC 1, works today with Juggluco)
