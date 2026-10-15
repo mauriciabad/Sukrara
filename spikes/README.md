@@ -5,14 +5,16 @@ Throwaway proofs of concept. Findings live in [`../docs`](../docs); this file is
 ## `menubar/` — GlucoseBar (macOS, Swift)
 
 Menubar item: glucose number + continuous-angle trend arrow, colour by range, stale strikethrough, dropdown with a 3 h
-sparkline. Two transports run at once and are merged:
+sparkline. Transports run at once and are merged:
 - **Wi-Fi** → Juggluco's web server (auto-discovered on the local subnet, history + `/x/live` SSE),
-- **Bluetooth LE** → GlucoBridge on the phone.
+- **Bluetooth LE** → GlucoBridge on the phone,
+- **Nostr** → an encrypted CGM stream on public relays ([03](../docs/03-nostr.md)), when a follower link is configured.
 
 ```sh
 cd menubar
 swift run GlucoseBar                     # Wi-Fi auto-discovery + BLE
 swift run GlucoseBar -lan NO             # BLE only          (-ble NO: Wi-Fi only)
+swift run GlucoseBar -lan NO -ble NO -nostr-file ../nostr/secrets/follower-link.txt   # Nostr only
 swift run GlucoseBar -url http://<phone-ip>:17580 -secret '…' -unit mmol
 swift run GlucoseBar -preview /tmp/arrows.png    # render the arrow strip for all rates
 swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button + sparkline to PNGs
@@ -44,6 +46,31 @@ The `direct` flavor additionally needs:
 - this sensor's **pairing data**: `./tools/import-pairing.sh` (one-time, needs root on the phone)
 
 Without the Juggluco checkout the native build is skipped and only `assembleJugglucoDebug` works.
+
+## `nostr/` — CGM over Nostr (investigation 03)
+
+Protocol in [`nostr/PROTOCOL.md`](nostr/PROTOCOL.md). Python tooling (needs [`uv`](https://docs.astral.sh/uv/)):
+
+```sh
+cd nostr
+uv run relay_survey.py --expiry-wait                      # what public relays accept
+uv run keys.py new --password '…'                         # test identity → secrets/ (gitignored)
+uv run publisher.py --synthetic                           # desktop test uploader (or --juggluco <url>)
+uv run follower.py --link-file secrets/follower-link-desktop.txt --port 1337   # SQLite + Nightscout v1 API
+uv run api_check.py http://127.0.0.1:1337                  # replay real clients' request shapes
+uv run ha_check.py                                         # stock Home Assistant (Docker) + Nightscout integration
+```
+
+`nostr/android-publisher/` — **CGM Nostr** (`dev.spike.cgmnostr`, Kotlin): reads Juggluco on localhost and publishes
+the stream; shows the follower link as a QR code.
+
+```sh
+cd nostr/android-publisher
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.local/bin:$PATH"
+./gradlew assembleRelease && android install --apks=app/build/outputs/apk/release/app-release.apk --install-options=-g
+```
+Followers need the link shown in the app (text + QR). With a debug build (`assembleDebug`) you can also pull it:
+`adb shell run-as dev.spike.cgmnostr cat files/follower-link.txt > ../secrets/follower-link.txt`.
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 

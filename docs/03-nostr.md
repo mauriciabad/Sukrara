@@ -26,8 +26,8 @@ self-hosting and no technical knowledge** — install the apps, scan a QR code, 
 | A new device gets the last 12 h in seconds | follower backfilled **12 h in 8 s** from hourly chunks |
 | Stock Nightscout clients work unmodified | **Home Assistant 2026.10.1's built-in `nightscout` integration** set up against our adapter → `sensor.blood_sugar = 158 mg/dL` with delta/direction; 17/17 request-shape checks for HA, xDrip+, Nightguard, LoopFollow, M5 NightscoutMon, nightscout-clock, Garmin |
 | Key handling works with password managers | NIP-49 `ncryptsec` export/import round-trips |
-| Android publisher | *see [Android](#android-publisher)* |
-| Mac follower (native) | *see [Mac](#mac-follower)* |
+| A phone can publish it cheaply | Kotlin publisher on the Pixel: every reading on 4 relays, 12/12 chunks matching Juggluco exactly, **CPU 0.2 % of a core**, ~9 MB/day ([Android](#android-publisher)) |
+| A Mac can follow it natively | GlucoseBar + rust-nostr Swift: **0.2–0.5 s** reading → menubar, ~1.3 s CPU/hour, ~0 idle wakeups ([Mac](#mac-follower)) |
 
 Main risks found: **relay policies** (web-of-trust filters reject new keys, rate-limit bans), **mobile data volume**
 (~5.5 MB/day upload with 4 relays), and the pieces Nostr can't do (iOS background alarms, public HTTPS for
@@ -136,7 +136,34 @@ Where the adapter runs decides which clients can reach it:
 
 ## Android publisher
 
-*TODO — filled from the Android agent's measurements.*
+[`spikes/nostr/android-publisher`](../spikes/nostr/android-publisher) — "CGM Nostr" (`dev.spike.cgmnostr`), Kotlin,
+a separate app so it couldn't disturb GlucoBridge during PoC 2. Reads Juggluco on `127.0.0.1:17580` ("Local only"
+stays on), publishes per the protocol to **4 relays** (nos.lol, relay.primal.net, nostr.mom, relay.nostr.net —
+damus and offchain.pub dropped), shows the follower link as a **QR code** plus the NIP-49 `ncryptsec`.
+
+- **Crypto**: `org.rust-nostr:nostr-sdk` 0.45.0-alpha.7 (keys, signing, NIP-44, NIP-49, bech32). Its relay client was
+  *not* used: a ~200-line OkHttp relay layer gives per-relay pacing, live-first sending, OK tracking, and **no ping
+  timers** (a socket is opened when there's something to send; an OK must arrive within 15 s).
+- **Foreground service type `connectedDevice`**, not `dataSync` (Android 15+ caps `dataSync` at 6 h / 24 h).
+- **APK**: release 11.4 MB, arm64 only — 7.7 MB of it is rust-nostr's native lib. R8 needs keep rules for JNA.
+
+Verified on the Pixel:
+
+| | |
+|---|---|
+| History | **12/12 hourly chunks on all 4 relays**, every row equal to Juggluco's history (716 rows, 0 mismatched / missing) |
+| Live | every reading on every relay; **reading → relay → Mac ≈ 0.2–0.3 s median, 0.55 s worst**; phone-side publish → OK ≈ 170 ms |
+| Relay rejections | 0 on all 4 relays |
+| Power (31 min, screen off, release build) | **CPU 7.5 s/h (0.2 % of a core)**, no alarms, RSS 159 MB |
+| Network | ≈ 282 KB/h up, 110 KB/h down (incl. Juggluco loopback) → **≈ 9 MB/day** |
+
+Caveat: the phone was on the charger, so the device never entered Doze and batterystats records no mAh — a run off the
+charger is still needed. Fixes found while measuring: the status screen kept redrawing at 1 Hz while "visible" with the
+screen off (~3 % CPU) → now only while actually shown; the per-reading wakelock is released after 3 s.
+
+**Merging into GlucoBridge** (PoC 2's app) is mechanical: `CgmStream`, `RelayConnection`, `NostrPublisher` move as-is;
+`BridgeService.sink.onReading` → `publisher.onReading(…)`, `sink.onHistory` → `publisher.onHistory(…)`; no new
+permissions (GlucoBridge already runs as `connectedDevice` with INTERNET).
 
 ## Mac follower
 
