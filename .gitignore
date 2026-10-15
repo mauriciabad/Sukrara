@@ -33,3 +33,5 @@ local.properties
 .idea/
 *.iml
 captures/
+
+/tmp/

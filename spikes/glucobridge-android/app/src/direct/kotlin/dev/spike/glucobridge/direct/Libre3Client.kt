@@ -19,6 +19,7 @@ import android.os.Looper
 import android.util.Log
 import dev.spike.glucobridge.Bridge
 import dev.spike.glucobridge.GlucoseSource
+import dev.spike.glucobridge.libreview.LibreViewPayload
 import java.security.SecureRandom
 import java.util.UUID
 
@@ -381,18 +382,17 @@ internal class Libre3Client(
         if (lifeCount == lastLifeCount) return
         lastLifeCount = lifeCount
         sink.onStatus("live")
-        sink.onReading(Bridge.Reading(
-            epochSec = System.currentTimeMillis() / 1000,
-            mgdl = mgdl,
-            rate = if (rawRate == -32768) null else rawRate / 100.0,
-        ))
+        val now = System.currentTimeMillis() / 1000
+        val rate = if (rawRate == -32768) null else rawRate / 100.0
+        sink.onReading(Bridge.Reading(epochSec = now, mgdl = mgdl, rate = rate))
 
         // The packet also carries the matching 5-minute value, which fills the Mac's chart a bit faster.
         val histLifeCount = u16(10)
         val hist = u16(12)
-        if (hist in 39..501 && histLifeCount in 1..lifeCount) {
-            sink.onHistory(listOf(Bridge.Reading(pairing.startEpoch + 60L * (histLifeCount + 1), hist, null)))
-        }
+        val histPoint = if (hist in 39..501 && histLifeCount in 1..lifeCount)
+            LibreViewPayload.Glucose(histLifeCount, hist, pairing.startEpoch + 60L * (histLifeCount + 1)) else null
+        histPoint?.let { sink.onHistory(listOf(Bridge.Reading(it.epochSec, it.mgdl, null))) }
+        sink.onSensorGlucose(LibreViewPayload.Glucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
     }
 
     /** Encrypts a command and writes it to PatchControl (same framing as incoming packets). */
@@ -432,18 +432,19 @@ internal class Libre3Client(
         if (d.size < 4) return
         fun u16(o: Int) = (d[o].toInt() and 0xFF) or ((d[o + 1].toInt() and 0xFF) shl 8)
         val start = u16(0)
-        val out = ArrayList<Bridge.Reading>()
+        val out = ArrayList<LibreViewPayload.Glucose>()
         var i = 2
         var lifeCount = start
         while (i + 1 < d.size) {
             val v = u16(i)
-            if (v in 39..501) out += Bridge.Reading(pairing.startEpoch + 60L * (lifeCount + 1), v, null)
+            if (v in 39..501) out += LibreViewPayload.Glucose(lifeCount, v, pairing.startEpoch + 60L * (lifeCount + 1))
             i += 2
             lifeCount += HISTORY_STEP
         }
         if (out.isNotEmpty()) {
             Log.i(TAG, "history: ${out.size} values from lifeCount $start")
-            sink.onHistory(out)
+            sink.onHistory(out.map { Bridge.Reading(it.epochSec, it.mgdl, null) })
+            sink.onSensorGlucose(null, out)
         }
     }
 

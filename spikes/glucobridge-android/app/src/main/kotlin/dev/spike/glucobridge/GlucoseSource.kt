@@ -4,6 +4,7 @@
 package dev.spike.glucobridge
 
 import android.content.Context
+import dev.spike.glucobridge.libreview.LibreViewPayload
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -27,6 +28,10 @@ interface GlucoseSource {
 
         /** One-line state for the UI/notification; [error] is shown separately when non-null. */
         fun onStatus(state: String, error: String? = null)
+
+        /** Sensor-level detail for the LibreView upload (direct flavor only): serial + start, then readings by life count. */
+        fun onSensor(serial: String, startEpoch: Long) {}
+        fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {}
     }
 }
 

@@ -1,0 +1,137 @@
+{
+ "zone": "Asia/Nicosia",
+ "now": 1792083600,
+ "deviceId": "00000000-0000-4000-8000-000000000001",
+ "token": "TOKEN",
+ "treatments": [
+  {
+   "id": "6f1c2b9a-0d3e-4c5f-8a7b-0123456789ab",
+   "k": "rapid",
+   "a": 2.5,
+   "t": 1792067696,
+   "n": "",
+   "u": 1,
+   "del": false,
+   "o": "phone",
+   "lv": 0
+  },
+  {
+   "id": "0b0b0b0b-1111-4222-8333-00000000002a",
+   "k": "carbs",
+   "a": 60,
+   "t": 1792067400,
+   "n": "pasta",
+   "u": 2,
+   "del": false,
+   "o": "mac",
+   "lv": 0
+  },
+  {
+   "id": "ffffffff-ffff-4fff-bfff-ffffffffffff",
+   "k": "note",
+   "a": 0,
+   "t": 1792069200,
+   "n": "spike \"test\" \\ é\nline2",
+   "u": 3,
+   "del": true,
+   "o": "phone",
+   "lv": 2
+  },
+  {
+   "id": "12345678-9abc-4def-8123-456789abcdef",
+   "k": "long",
+   "a": 14,
+   "t": 1791993600,
+   "n": "",
+   "u": 4,
+   "del": false,
+   "o": "mac",
+   "lv": 1
+  },
+  {
+   "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   "k": "carbs",
+   "a": 20,
+   "t": 1792083000,
+   "n": "",
+   "u": 5,
+   "del": false,
+   "o": "phone",
+   "lv": 0
+  },
+  {
+   "id": "dddddddd-0000-4000-8000-000000000000",
+   "k": "rapid",
+   "a": 1,
+   "t": 1792083000,
+   "n": "",
+   "u": 6,
+   "del": true,
+   "o": "mac",
+   "lv": 0
+  }
+ ],
+ "recordNumbers": [
+  [
+   "6f1c2b9a-0d3e-4c5f-8a7b-0123456789ab",
+   1,
+   173429300163841
+  ],
+  [
+   "6f1c2b9a-0d3e-4c5f-8a7b-0123456789ab",
+   1,
+   173429300163841
+  ],
+  [
+   "0b0b0b0b-1111-4222-8333-00000000002a",
+   1,
+   281357177789444
+  ],
+  [
+   "0b0b0b0b-1111-4222-8333-00000000002a",
+   2,
+   183030992707332
+  ],
+  [
+   "ffffffff-ffff-4fff-bfff-ffffffffffff",
+   1,
+   280096312679696
+  ],
+  [
+   "ffffffff-ffff-4fff-bfff-ffffffffffff",
+   3,
+   84233311999504
+  ],
+  [
+   "12345678-9abc-4def-8123-456789abcdef",
+   1,
+   244090666150147
+  ],
+  [
+   "12345678-9abc-4def-8123-456789abcdef",
+   4,
+   113989242222851
+  ],
+  [
+   "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   1,
+   35673723409412
+  ],
+  [
+   "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   5,
+   51770241761284
+  ],
+  [
+   "dddddddd-0000-4000-8000-000000000000",
+   1,
+   73772758458113
+  ],
+  [
+   "dddddddd-0000-4000-8000-000000000000",
+   6,
+   174581543010305
+  ]
+ ],
+ "expectedPayload": "{\"DeviceData\":{\"deviceSettings\":{\"factoryConfig\":{\"UOM\":\"mg/dL\"},\"firmwareVersion\":\"3.3.0\",\"miscellaneous\":{\"selectedLanguage\":\"en-ES\",\"valueGlucoseTargetRangeLowInMgPerDl\":70,\"valueGlucoseTargetRangeHighInMgPerDl\":140,\"selectedTimeFormat\":\"24hr\",\"selectedCarbType\":\"grams of carbs\"},\"timestamp\":\"2026-10-15T20:00:00.000+03:00\"},\"header\":{\"device\":{\"hardwareDescriptor\":\"GlucoBridge-spike\",\"hardwareName\":\"GlucoBridge\",\"modelName\":\"com.freestylelibre3.app.de\",\"osType\":\"Android\",\"osVersion\":\"36\",\"uniqueIdentifier\":\"00000000-0000-4000-8000-000000000001\"}},\"measurementLog\":{\"capabilities\":[\"scheduledContinuousGlucose\",\"unscheduledContinuousGlucose\",\"currentGlucose\",\"insulin\",\"food\",\"generic-com.abbottdiabetescare.informatics.exercise\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.low\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.high\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedlow\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedhigh\",\"generic-com.abbottdiabetescare.informatics.customnote\",\"generic-com.abbottdiabetescare.informatics.sensorstart\",\"generic-com.abbottdiabetescare.informatics.sensorEnd\",\"generic-com.abbottdiabetescare.informatics.isfGlucoseAlarm\",\"generic-com.abbottdiabetescare.informatics.alarmSetting\",\"generic-com.abbottdiabetescare.informatics.bleDisconnect\",\"generic-com.abbottdiabetescare.informatics.bleReconnect\",\"generic-com.abbottdiabetescare.informatics.error\"],\"currentGlucoseEntries\":[],\"foodEntries\":[{\"foodType\":\"Lunch\",\"gramsCarbs\":60,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:30:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":183030992707332,\"timestamp\":\"2026-10-15T15:30:00+03:00\"},{\"foodType\":\"Snack\",\"gramsCarbs\":20,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T16:50:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":51770241761284,\"timestamp\":\"2026-10-15T19:50:00+03:00\"}],\"genericEntries\":[{\"type\":\"com.abbottdiabetescare.informatics.customnote\",\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T13:00:00Z\",\"text\":\"spike \\\"test\\\" \\\\ é\\nline2\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":151401259859216,\"timestamp\":\"2026-10-15T16:00:00+03:00\"}],\"insulinEntries\":[{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":244090666150147,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":113989242222851,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"RapidActing\",\"units\":2.5,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:34:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":173429300163841,\"timestamp\":\"2026-10-15T15:34:00+03:00\"}],\"scheduledContinuousGlucoseEntries\":[],\"unscheduledContinuousGlucoseEntries\":[]}},\"UserToken\":\"TOKEN\",\"Domain\":\"Libreview\",\"GatewayType\":\"FSLibreLink3.Android\"}"
+}

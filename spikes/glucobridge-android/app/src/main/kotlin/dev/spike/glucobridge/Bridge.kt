@@ -14,11 +14,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *
  * READING  (read, notify): u32 epoch s ‖ u16 mg/dL ‖ i16 rate×100 (0x8000 = unknown)            — 8 bytes, LE
  * HISTORY  (read, long):   u32 epoch s of newest ‖ u16 mg/dL per minute, newest first (0 = gap) — ≤ 4+2·180 bytes
+ * TREATMENTS (write, notify): one JSON message per write/notification — spikes/libreview/SPEC.md §2
  */
 object Bridge {
     val SERVICE: UUID = UUID.fromString("6c1f0001-5b8a-4d8e-9a3c-676c75636f42")
     val READING: UUID = UUID.fromString("6c1f0002-5b8a-4d8e-9a3c-676c75636f42")
     val HISTORY: UUID = UUID.fromString("6c1f0003-5b8a-4d8e-9a3c-676c75636f42")
+    val TREATMENTS: UUID = UUID.fromString("6c1f0004-5b8a-4d8e-9a3c-676c75636f42")
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     const val HISTORY_MINUTES = 180
 

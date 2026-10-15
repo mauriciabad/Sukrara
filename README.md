@@ -22,6 +22,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | 01 | 2026-10-15 | Getting live glucose onto a Mac: direct sensor BLE, Juggluco over Wi-Fi, and Bluetooth when there's no shared network | [docs/01-connectivity.md](docs/01-connectivity.md) |
 | 02 | 2026-10-15 | The phone app reads the sensor itself (no Juggluco), and what that costs in battery | [docs/02-direct-sensor.md](docs/02-direct-sensor.md) |
 | 03 | 2026-10-15 | Nostr relays as the backbone of a no-hosting Nightscout alternative: remote + shared, E2E-encrypted, works with stock Home Assistant | [docs/03-nostr.md](docs/03-nostr.md) |
+| 04 | 2026-10-15 | Insulin, carbs, notes and glucose to LibreView (for the doctor) from the phone **and** the Mac, synced over BLE, ready for Nostr | [docs/04-libreview.md](docs/04-libreview.md) |
 | 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
 
 ## Current conclusions
@@ -32,6 +33,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | Can Juggluco feed the Mac without internet? | **Yes, proven** over Wi-Fi (auto-discovery, ~0.3 s latency) and USB. Requires Juggluco's web server with "Local only" off. |
 | …with **no shared network** (Mac offline, or Mac on home Wi-Fi + phone on mobile data)? | **Yes, proven over Bluetooth LE** with a small companion app (GlucoBridge) that relays Juggluco to the Mac: every reading delivered within ~1 s, also with the phone on mobile data and with the phone unplugged/screen-off for 17 min. |
 | Can the companion app read the sensor itself, dropping Juggluco? | **Yes, proven** (investigation 02). It resumed the sensor session on its own and delivered a reading a minute to the Mac, matching Juggluco's values exactly. Still needs a phone to activate a new sensor (NFC). |
+| Can the apps keep the doctor's LibreView fed (replacing Juggluco's upload)? | **Yes, proven** (investigation 04). Phone and Mac both upload treatments as one LibreView device; the phone also uploads sensor glucose. LibreView's own export showed each entry once, edits applied and deletes removed. Only one app may own the account's LibreView upload at a time. |
 | Recommended architecture | **Phone app = sensor reader + BLE GATT server; Mac app = BLE central** (Wi-Fi as a secondary transport). Both halves are now proven. |
 
 ## Try it (PoC 1, works today with Juggluco)
@@ -55,7 +57,8 @@ Not a medical device — see the [disclaimer](#disclaimer).
 docs/                     reports (one per investigation), images, raw evidence logs
 spikes/
   menubar/                GlucoseBar — macOS menubar app (Swift, AppKit, CoreBluetooth). Wi-Fi + BLE transports
-  glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors:
+  libreview/              LibreView upload spec (SPEC.md) + reference/test tool (lv.py) — investigation 04
+  glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors; treatment log + LibreView upload:
                             juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
                             direct   = reads the Libre 3 sensor itself (PoC 2)
   statusbar-android/      GlucoStatus — Android status-bar experiments (Kotlin; app + LSPosed module in one APK)

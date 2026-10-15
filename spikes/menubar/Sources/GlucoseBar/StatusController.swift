@@ -27,6 +27,15 @@ final class StatusController: NSObject, NSMenuDelegate {
     var thresholds = Thresholds()
     var onRefresh: (() -> Void)?
 
+    // Treatments (spikes/libreview/SPEC.md). Section hidden while `treatments` is nil.
+    var treatments: (() -> [Treatment])?
+    var onLogTreatment: ((Treatment) -> Void)?
+    var onDeleteTreatment: ((String) -> Void)?
+    var onUploadNow: (() -> Void)?
+    var libreViewStatus: (() -> String)?
+    private let treatmentsHeader = NSMenuItem(), lvLine = NSMenuItem()
+    private var treatmentItems: [NSMenuItem] = []
+
     private(set) var snapshot: Snapshot?
     private var lastError: String?
     private var tick: Timer?, staleTimer: Timer?
@@ -42,6 +51,12 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(chartItem)
         menu.addItem(sourceLine)
         menu.addItem(errorLine)
+        menu.addItem(.separator())
+        for line in [treatmentsHeader, lvLine] { line.isEnabled = false }
+        menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l").target = self
+        menu.addItem(treatmentsHeader)
+        menu.addItem(lvLine)
+        menu.addItem(withTitle: "Upload to LibreView now", action: #selector(uploadNow), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh now", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -74,6 +89,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     func menuDidClose(_ menu: NSMenu) { tick?.invalidate(); tick = nil }
 
     private func render() {
+        renderTreatments()
         guard let button = item.button else { return }
         guard let snap = snapshot else {
             button.attributedTitle = NSAttributedString(string: lastError == nil ? "…" : "⚠︎")
@@ -119,6 +135,93 @@ final class StatusController: NSObject, NSMenuDelegate {
             if let button = item.button { dump(button, to: path) }
             dump(chart, to: path.replacingOccurrences(of: ".png", with: "-chart.png"))
         }
+    }
+
+    // MARK: treatments
+
+    func treatmentsChanged() { renderTreatments() }
+
+    private func renderTreatments() {
+        treatmentItems.forEach(menu.removeItem)
+        treatmentItems = []
+        let hidden = treatments == nil
+        for i in menu.items where i.action == #selector(logTreatment) || i.action == #selector(uploadNow) { i.isHidden = hidden }
+        treatmentsHeader.isHidden = hidden
+        lvLine.isHidden = hidden
+        guard let rows = treatments?() else { return }
+        let since = Int64(Date().timeIntervalSince1970) - 24 * 3600
+        let recent = rows.filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
+        treatmentsHeader.title = recent.isEmpty ? "No treatments in the last 24 h" : "Treatments (24 h)"
+        lvLine.title = libreViewStatus?() ?? ""
+        var at = menu.index(of: treatmentsHeader) + 1
+        for t in recent {
+            let row = NSMenuItem(title: Self.describe(t), action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            let del = NSMenuItem(title: "Delete", action: #selector(deleteTreatment(_:)), keyEquivalent: "")
+            del.target = self
+            del.representedObject = t.id
+            sub.addItem(del)
+            row.submenu = sub
+            menu.insertItem(row, at: at)
+            treatmentItems.append(row)
+            at += 1
+        }
+    }
+
+    /// "14:05  2.5 U rapid  ✓" — ✓ on LibreView, ⇡ waiting to upload.
+    static func describe(_ t: Treatment) -> String {
+        let time = Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened)
+        let what: String
+        switch t.k {
+        case "rapid", "long": what = String(format: "%.1f U %@", t.a, t.k)
+        case "carbs": what = "\(Int(t.a)) g carbs"
+        default: what = "note"
+        }
+        let note = t.n.isEmpty ? "" : (t.k == "note" ? ": " : " · ") + t.n
+        return "\(time)  \(what)\(note)  \(t.needsUpload ? "⇡" : "✓")"
+    }
+
+    @objc private func uploadNow() { onUploadNow?() }
+
+    @objc private func deleteTreatment(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        onDeleteTreatment?(id)
+    }
+
+    @objc private func logTreatment() {
+        let kinds = [("Rapid insulin", "rapid"), ("Long insulin", "long"), ("Carbs", "carbs"), ("Note", "note")]
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 112))
+        func label(_ s: String, _ y: CGFloat) {
+            let l = NSTextField(labelWithString: s)
+            l.frame = NSRect(x: 0, y: y + 3, width: 70, height: 17)
+            view.addSubview(l)
+        }
+        let kind = NSPopUpButton(frame: NSRect(x: 74, y: 84, width: 226, height: 26))
+        kind.addItems(withTitles: kinds.map(\.0))
+        let amount = NSTextField(frame: NSRect(x: 74, y: 56, width: 80, height: 22))
+        amount.placeholderString = "U or g"
+        let note = NSTextField(frame: NSRect(x: 74, y: 28, width: 226, height: 22))
+        note.placeholderString = "optional"
+        let when = NSDatePicker(frame: NSRect(x: 74, y: 0, width: 226, height: 24))
+        when.datePickerElements = [.yearMonthDay, .hourMinute]
+        when.dateValue = Date()
+        label("Kind", 86); label("Amount", 56); label("Note", 28); label("When", 0)
+        [kind, amount, note, when].forEach(view.addSubview)
+
+        let alert = NSAlert()
+        alert.messageText = "Log treatment"
+        alert.accessoryView = view
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = amount
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let k = kinds[kind.indexOfSelectedItem].1
+        let raw = Double(amount.stringValue.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let a = k == "note" ? 0 : k == "carbs" ? raw.rounded() : (raw * 10).rounded() / 10
+        guard k == "note" ? !note.stringValue.isEmpty : a > 0 else { return }
+        onLogTreatment?(Treatment(k: k, a: a, t: Int64(when.dateValue.timeIntervalSince1970), n: note.stringValue))
     }
 
     /// Debug aid: render a view to a PNG (no screen-recording permission needed).

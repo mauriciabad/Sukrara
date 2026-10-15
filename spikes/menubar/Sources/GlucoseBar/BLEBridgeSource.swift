@@ -9,14 +9,18 @@ import Foundation
 /// Protocol: see spikes/glucobridge-android/.../Bridge.kt
 ///   READING (read, notify): u32 epoch s ‖ u16 mg/dL ‖ i16 rate×100 (0x8000 = unknown)
 ///   HISTORY (read):         u32 epoch s of newest ‖ u16 mg/dL per minute, newest first (0 = gap)
+///   TREATMENTS (write, notify): one JSON message each way, see spikes/libreview/SPEC.md §2 (logic in TreatmentSync)
 final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     static let service = CBUUID(string: "6c1f0001-5b8a-4d8e-9a3c-676c75636f42")
     static let reading = CBUUID(string: "6c1f0002-5b8a-4d8e-9a3c-676c75636f42")
     static let history = CBUUID(string: "6c1f0003-5b8a-4d8e-9a3c-676c75636f42")
+    static let treatments = CBUUID(string: "6c1f0004-5b8a-4d8e-9a3c-676c75636f42")
 
     var onReading: ((Reading) -> Void)?
     var onHistory: (([Reading]) -> Void)?
     var onState: ((String) -> Void)?
+    /// Treatment sync over the same link; nil = glucose only.
+    var treatmentSync: TreatmentSync?
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
@@ -36,6 +40,7 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
             onState?("BLE: no data for \(Int(Date().timeIntervalSince(lastData)))s, reconnecting")
             central.cancelPeripheralConnection(p)
             peripheral = nil
+            MainActor.assumeIsolated { self.treatmentSync?.disconnected() }
             lastData = Date()
             scan()
         }
@@ -76,26 +81,48 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
 
     private func retry(_ why: String) {
         onState?("BLE: \(why)")
+        MainActor.assumeIsolated { self.treatmentSync?.disconnected() }
         peripheral = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.scan() }
     }
 
     func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
         guard let s = p.services?.first(where: { $0.uuid == Self.service }) else { return drop(p, "service missing") }
-        p.discoverCharacteristics([Self.reading, Self.history], for: s)
+        p.discoverCharacteristics([Self.reading, Self.history, Self.treatments], for: s)
     }
 
     func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         for ch in s.characteristics ?? [] {
             if ch.uuid == Self.history { p.readValue(for: ch) }          // long read (≤ 364 B) handled by CoreBluetooth
             if ch.uuid == Self.reading { p.setNotifyValue(true, for: ch); p.readValue(for: ch) }
+            if ch.uuid == Self.treatments, treatmentSync != nil { p.setNotifyValue(true, for: ch) }
         }
+    }
+
+    /// Treatment sync starts once its notifications are on, so no reply to our `pull` can be missed.
+    func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic, error: Error?) {
+        guard ch.uuid == Self.treatments, ch.isNotifying, error == nil else { return }
+        let max = p.maximumWriteValueLength(for: .withResponse)
+        MainActor.assumeIsolated {
+            self.treatmentSync?.connected(maxWrite: max) { [weak p] data in
+                guard let p, p.state == .connected else { return false }
+                p.writeValue(data, for: ch, type: .withResponse)
+                return true
+            }
+        }
+    }
+
+    func peripheral(_ p: CBPeripheral, didWriteValueFor ch: CBCharacteristic, error: Error?) {
+        guard ch.uuid == Self.treatments else { return }
+        MainActor.assumeIsolated { self.treatmentSync?.writeCompleted(error: error) }
     }
 
     private func drop(_ p: CBPeripheral, _ why: String) { central.cancelPeripheralConnection(p); onState?("BLE: \(why)") }
 
     func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
-        guard error == nil, let d = ch.value.map({ [UInt8]($0) }) else { return }
+        guard error == nil, let value = ch.value else { return }
+        if ch.uuid == Self.treatments { return MainActor.assumeIsolated { self.treatmentSync?.received(value) } }
+        let d = [UInt8](value)
         lastData = Date()
         func u32(_ o: Int) -> UInt32 { UInt32(d[o]) | UInt32(d[o + 1]) << 8 | UInt32(d[o + 2]) << 16 | UInt32(d[o + 3]) << 24 }
         func u16(_ o: Int) -> UInt16 { UInt16(d[o]) | UInt16(d[o + 1]) << 8 }

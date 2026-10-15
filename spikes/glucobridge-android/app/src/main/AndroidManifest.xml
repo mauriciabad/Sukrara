@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Juggluco's web server on 127.0.0.1 (cleartext, loopback only) -->
+    <!-- Juggluco's web server on 127.0.0.1 (cleartext, loopback only); LibreView (HTTPS) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -28,6 +28,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- adb-driven experiments only: DUMP is held by the shell, not by ordinary apps -->
+        <receiver
+            android:name=".DebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
         <service
             android:name=".BridgeService"
             android:exported="false"

@@ -73,6 +73,9 @@ dependencies {
   implementation(composeBom)
   androidTestImplementation(composeBom)
 
+  // Treatment log + LibreView payloads (investigation 04)
+  implementation(libs.kotlinx.serialization.json)
+
   // Core Android dependencies
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)

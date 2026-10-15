@@ -47,6 +47,25 @@ The `direct` flavor additionally needs:
 
 Without the Juggluco checkout the native build is skipped and only `assembleJugglucoDebug` works.
 
+## `libreview/` — treatments + LibreView upload (investigation 04)
+
+Both apps keep a treatment log (insulin / carbs / notes), sync it over a 4th GlucoBridge characteristic, and upload
+it (plus, in the `direct` flavor, sensor glucose) to LibreView. Wire formats: [`libreview/SPEC.md`](libreview/SPEC.md).
+
+```sh
+python3 -I libreview/lv.py fixture        # regenerate the golden payload both apps are tested against
+(cd glucobridge-android && ./gradlew testJugglucoDebugUnitTest)
+(cd menubar && swift run GlucoseBar -lvfixture ../libreview/fixture.json && swift run GlucoseBar -treatmentsselftest)
+```
+Configure (all off by default):
+- **phone**: GlucoBridge → LibreView → email + password, then the switches; or over adb (shell-only receiver):
+  `adb shell am broadcast -n dev.spike.glucobridge/.DebugReceiver -a dev.spike.glucobridge.CONFIG --ez upload true`
+- **Mac**: `security add-generic-password -s dev.spike.libreview -a <email> -w`, then
+  `defaults write dev.spike.GlucoseBar lvEmail <email>` and `… lvUpload -bool YES` (domain `GlucoseBar` when run via
+  `swift run`). The Mac uses the DeviceId the phone sends over BLE.
+- The account accepts one active device: a new one needs "take over" (`SetDevice:true`), which logs Juggluco's
+  LibreView upload out — switch Juggluco's *Send to LibreView* off first, and back on when done.
+
 ## `nostr/` — CGM over Nostr (investigation 03)
 
 Protocol in [`nostr/PROTOCOL.md`](nostr/PROTOCOL.md). Python tooling (needs [`uv`](https://docs.astral.sh/uv/)):

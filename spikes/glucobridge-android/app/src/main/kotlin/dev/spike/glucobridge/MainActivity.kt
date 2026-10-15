@@ -12,6 +12,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,12 +48,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        Spike.init(this)
         request.launch(permissions)  // starts the service once granted
         setContent {
             GlucoBridgeTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val s by Bridge.status.collectAsState()
-                    Column(Modifier.safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
+                           verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("GlucoBridge", style = MaterialTheme.typography.headlineMedium)
                         Text(s.latest?.let { "${it.mgdl} mg/dL  ${it.rate?.let { r -> "%+.2f mg/dL/min".format(r) } ?: ""}" } ?: "—",
                              style = MaterialTheme.typography.displaySmall)
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
                             Button(onClick = { request.launch(permissions) }) { Text("Start") }
                             OutlinedButton(onClick = { stopService(Intent(this@MainActivity, BridgeService::class.java)) }) { Text("Stop") }
                         }
+                        TreatmentsPanel()
                     }
                 }
             }

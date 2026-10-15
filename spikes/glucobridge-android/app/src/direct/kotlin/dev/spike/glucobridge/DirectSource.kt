@@ -23,6 +23,7 @@ class DirectSource(private val context: Context) : GlucoseSource {
         if (p.securityVersion != 0) return sink.onStatus("unsupported sensor",
             "security version ${p.securityVersion} (Lingo) is not implemented")
         val prefs = context.getSharedPreferences("direct", Context.MODE_PRIVATE)
+        sink.onSensor(p.serial, p.startEpoch)
         client = Libre3Client(context, p, sink, prefs).also { it.connect() }
     }
 

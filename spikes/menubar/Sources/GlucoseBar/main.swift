@@ -11,11 +11,25 @@ import AppKit
 //   lan     NO to disable the Juggluco web-server transport
 //   ble     NO to disable the GlucoBridge BLE transport
 //   nostr   cgmnostr:1?s=…&k=…&r=… follower link → CGM-over-Nostr transport (or `nostr-file <path>` holding it)
+//   lvUpload    YES to upload treatments to LibreView (spikes/libreview/SPEC.md); default NO
+//   lvEmail     LibreView login; password in the keychain:
+//               security add-generic-password -s dev.spike.libreview -a <email> -w
+//   lvTakeover  YES to log in with SetDevice:true (kicks LibreView's other active app); default NO
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 
 if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
+    exit(0)
+}
+if let path = defaults.string(forKey: "lvfixture") { exit(SelfTest.fixture(path) ? 0 : 1) }
+if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
+// Spike experiments: `GlucoseBar -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
+// instance (cmd add | edit {id,a,n} | delete {id} | upload | dump), like the phone's DebugReceiver.
+let debugNote = Notification.Name("dev.spike.GlucoseBar.debug")
+if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLine.arguments.count {
+    let msg = CommandLine.arguments[i + 1]     // not via UserDefaults: it would parse "{…}" as a plist
+    DistributedNotificationCenter.default().postNotificationName(debugNote, object: msg, userInfo: nil, deliverImmediately: true)
     exit(0)
 }
 
@@ -139,6 +153,55 @@ if let nostr {
         nostr.onReading = { store.ingest($0, from: $1) }
         nostr.onHistory = { store.ingest(history: $0, from: $1) }
         nostr.restart("launch")
+    }
+}
+
+// Treatments: local log, synced with the phone over BLE, uploaded to LibreView (spikes/libreview/SPEC.md).
+MainActor.assumeIsolated {
+    let treatments = TreatmentStore()
+    let sync = TreatmentSync(store: treatments)
+    let uploader = LibreViewUploader(store: treatments)
+    sync.log = log
+    uploader.log = log
+    uploader.onStatus = { status.treatmentsChanged() }
+    treatments.onChange.append { _ in status.treatmentsChanged() }
+    ble?.treatmentSync = sync          // nil when BLE is off (e.g. Nostr-only)
+    status.treatments = { treatments.rows }
+    status.libreViewStatus = { uploader.statusLine }
+    status.onLogTreatment = { t in
+        log("treatment logged: \(StatusController.describe(t))")
+        treatments.upsertLocal(t)
+    }
+    status.onDeleteTreatment = { treatments.delete($0) }
+    status.onUploadNow = { uploader.retry() }
+    status.treatmentsChanged()
+    uploader.kick()
+
+    DistributedNotificationCenter.default().addObserver(forName: debugNote, object: nil, queue: .main) { n in
+        MainActor.assumeIsolated {
+            guard let s = n.object as? String,
+                  let o = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return }
+            let id = o["id"] as? String ?? ""
+            switch o["cmd"] as? String {
+            case "add":
+                let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
+                                  t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
+                log("debug add \(t.id)")
+                treatments.upsertLocal(t)
+            case "edit":
+                guard var t = treatments.row(id) else { return }
+                if let a = o["a"] as? Double { t.a = a }
+                if let n = o["n"] as? String { t.n = n }
+                t.u = max(Treatment.nowMs(), t.u + 1)
+                treatments.upsertLocal(t)
+            case "delete": treatments.delete(id)
+            case "upload": uploader.retry()
+            case "dump":
+                for t in treatments.rows { log("debug row \(t.dict)") }
+                log("debug \(uploader.statusLine)")
+            default: break
+            }
+        }
     }
 }
 
