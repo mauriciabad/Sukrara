@@ -27,6 +27,7 @@ sensor.json
 .gradle/
 .kotlin/
 /spikes/glucobridge-android/app/build/
+/spikes/glucobridge-android/app/.cxx/
 /spikes/glucobridge-android/build/
 local.properties
 .idea/

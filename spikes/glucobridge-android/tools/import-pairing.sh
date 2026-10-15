@@ -1,4 +1,7 @@
 #!/bin/sh
+# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Spike helper: copy a sensor's pairing data from Juggluco into GlucoBridge, so the direct
 # flavor can resume the sensor's BLE session without NFC.
 #

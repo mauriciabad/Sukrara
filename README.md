@@ -69,7 +69,20 @@ Build instructions per spike: [spikes/README.md](spikes/README.md).
 - FreeStyle Libre is a trademark of Abbott. This project is not affiliated with Abbott or with Juggluco.
 - The sensor is read for interoperability with the author's own glucose data. Per-sensor pairing data is a secret
   and is never committed here.
-- The `direct` flavor **compiles [Juggluco](https://github.com/j-kaltes/Juggluco)'s GPLv3 sources**, which are fetched
-  separately and not included in this repo. Anything built from it is a GPLv3 derivative and must be distributed as
-  such, with source. The `juggluco` flavor and the Mac app have no such dependency.
-- License for this repo's own code: **not chosen yet** — so treat it as "readable, not reusable" until one is added.
+- The `direct` flavor also compiles [Juggluco](https://github.com/j-kaltes/Juggluco)'s GPLv3 sources, which are
+  fetched separately and not included in this repo.
+
+## License
+
+[GPL-3.0-or-later](LICENSE). Use it, change it, share it — but anything you build on it has to stay open source
+under the same terms, and if you distribute a binary you have to offer its source too.
+
+```
+Copyright (C) 2026 Maurici Abad
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version. It is distributed WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+```
