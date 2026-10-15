@@ -42,10 +42,10 @@ object Bridge {
 
     /** UI-visible state. */
     data class Status(
-        val juggluco: String = "not started",
+        val source: String = "not started",
+        val sourceDetail: String? = null,
         val latest: Reading? = null,
         val advertising: Boolean = false,
-        val centrals: Int = 0,
         val subscribed: Int = 0,
         val error: String? = null,
     )

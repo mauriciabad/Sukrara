@@ -53,8 +53,8 @@ class MainActivity : ComponentActivity() {
                         Text(s.latest?.let { "${it.mgdl} mg/dL  ${it.rate?.let { r -> "%+.2f mg/dL/min".format(r) } ?: ""}" } ?: "—",
                              style = MaterialTheme.typography.displaySmall)
                         s.latest?.let { Text("at " + DateFormat.getTimeInstance().format(Date(it.epochSec * 1000))) }
-                        Text("Juggluco (localhost): ${s.juggluco}")
-                        Text("BLE advertising: ${if (s.advertising) "on" else "off"} · centrals ${s.centrals} · subscribed ${s.subscribed}")
+                        Text("Source: ${s.source}" + (s.sourceDetail?.let { " — $it" } ?: ""))
+                        Text("BLE advertising: ${if (s.advertising) "on" else "off"} · Mac subscribed: ${s.subscribed}")
                         s.error?.let { Text("Error: $it", color = MaterialTheme.colorScheme.error) }
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Button(onClick = { request.launch(permissions) }) { Text("Start") }

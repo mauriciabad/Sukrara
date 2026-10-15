@@ -20,6 +20,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | # | Date | Topic | Report |
 |---|---|---|---|
 | 01 | 2026-10-15 | Getting live glucose onto a Mac: direct sensor BLE, Juggluco over Wi-Fi, and Bluetooth when there's no shared network | [docs/01-connectivity.md](docs/01-connectivity.md) |
+| 02 | 2026-10-15 | The phone app reads the sensor itself (no Juggluco), and what that costs in battery | [docs/02-direct-sensor.md](docs/02-direct-sensor.md) |
 
 ## Current conclusions
 
@@ -28,7 +29,8 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | Can a Mac read the Libre 3 sensor directly over Bluetooth? | **Yes, proven.** It authenticated and decrypted live 1-minute readings using Juggluco's open-source C port of the Libre 3 security. But a phone must still start the sensor (NFC) and hand over its pairing secrets, and the sensor talks to **one** device at a time — so it can't run alongside the phone. |
 | Can Juggluco feed the Mac without internet? | **Yes, proven** over Wi-Fi (auto-discovery, ~0.3 s latency) and USB. Requires Juggluco's web server with "Local only" off. |
 | …with **no shared network** (Mac offline, or Mac on home Wi-Fi + phone on mobile data)? | **Yes, proven over Bluetooth LE** with a small companion app (GlucoBridge) that relays Juggluco to the Mac: every reading delivered within ~1 s, also with the phone on mobile data and with the phone unplugged/screen-off for 17 min. |
-| Recommended architecture | **Phone app = sensor reader + BLE GATT server; Mac app = BLE central** (Wi-Fi as a secondary transport). PoC 1 uses Juggluco as the sensor reader today; PoC 2 (next) makes the phone app read the sensor itself. |
+| Can the companion app read the sensor itself, dropping Juggluco? | **Yes, proven** (investigation 02). It resumed the sensor session on its own and delivered a reading a minute to the Mac, matching Juggluco's values exactly. Still needs a phone to activate a new sensor (NFC). |
+| Recommended architecture | **Phone app = sensor reader + BLE GATT server; Mac app = BLE central** (Wi-Fi as a secondary transport). Both halves are now proven. |
 
 ## Try it (PoC 1, works today with Juggluco)
 
@@ -51,7 +53,9 @@ Not a medical device — see the [disclaimer](#disclaimer).
 docs/                     reports (one per investigation), images, raw evidence logs
 spikes/
   menubar/                GlucoseBar — macOS menubar app (Swift, AppKit, CoreBluetooth). Wi-Fi + BLE transports
-  glucobridge-android/    GlucoBridge — Android companion (Kotlin): Juggluco on localhost → BLE GATT server
+  glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors:
+                            juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
+                            direct   = reads the Libre 3 sensor itself (PoC 2, code not published)
   ble-scan/               tiny BLE advertisement scanner
 ```
 The direct Mac ↔ sensor experiment is summarized in the report but its code is not published.

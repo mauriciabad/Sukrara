@@ -15,6 +15,20 @@ android {
         versionName = "1.0"
     }
 
+    // PoC 1 (juggluco) and PoC 2 (direct) share everything except where glucose comes from.
+    flavorDimensions += "source"
+    productFlavors {
+        create("juggluco") {
+            dimension = "source"
+            versionNameSuffix = "-juggluco"
+        }
+        create("direct") {
+            dimension = "source"
+            versionNameSuffix = "-direct"
+            ndk { abiFilters += "arm64-v8a" }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -30,6 +44,17 @@ android {
       aidl = false
       buildConfig = false
       shaders = false
+    }
+
+    // Native Libre 3 security core, built from a local Juggluco checkout (see src/direct/cpp/CMakeLists.txt).
+    // Registered only when that checkout exists, so the juggluco flavor builds on a bare clone.
+    if (file("../../../third_party/Juggluco/Common/src/main/cpp/libre3/process").isDirectory) {
+        externalNativeBuild {
+            cmake {
+                path = file("src/direct/cpp/CMakeLists.txt")
+                version = "4.1.2"
+            }
+        }
     }
 
     packaging {

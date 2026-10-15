@@ -4,9 +4,13 @@
 # - Juggluco source checkout (reference)
 # - xbar plugin: the LibreLinkUp plugin this project replaces
 # - libre3-ble: direct Mac<->sensor experiment, kept private (see docs/01-connectivity.md)
+# - glucobridge "direct" flavor: the phone-side sensor client, same policy (see docs/02-direct-sensor.md).
+#   The "juggluco" flavor still builds from a bare clone: ./gradlew assembleJugglucoDebug
 /third_party/
 /xbar-plugins/
 /spikes/libre3-ble/
+/spikes/glucobridge-android/app/src/direct/
+/spikes/glucobridge-android/tools/
 
 # Sensor pairing secrets (PIN + saved authorization) — NEVER commit
 secrets/

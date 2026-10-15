@@ -14,7 +14,6 @@ import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
@@ -23,38 +22,36 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
- * Foreground service: follows Juggluco's web server on localhost (works with "Local only" ticked)
- * and re-publishes each reading over a BLE GATT server so a nearby Mac can read it with no shared network.
+ * Foreground service: takes readings from a [GlucoseSource] and publishes them over a BLE GATT
+ * server so a nearby Mac can read them with no shared network.
+ *
+ * Power notes (the phone is the battery-constrained side):
+ *  - advertise in LOW_POWER mode, and only while no central is connected;
+ *  - no polling, no wakelocks: everything is driven by source callbacks;
+ *  - the 364-byte history blob is built on demand (on a read request), not per reading.
  */
 @SuppressLint("MissingPermission") // permissions are requested by MainActivity before the service starts
 class BridgeService : Service() {
     private val tag = "GlucoBridge"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val juggluco = "http://127.0.0.1:17580"
 
     private lateinit var bt: BluetoothManager
     private var gatt: BluetoothGattServer? = null
     private var readingChar: BluetoothGattCharacteristic? = null
     private val connected = ConcurrentHashMap.newKeySet<BluetoothDevice>()
     private val subscribers = ConcurrentHashMap.newKeySet<BluetoothDevice>()
+    private var advertising = false
 
-    @Volatile private var history: List<Bridge.Reading> = emptyList()
+    private lateinit var source: GlucoseSource
+    private val history = ArrayDeque<Bridge.Reading>()      // ascending, ≤ HISTORY_MINUTES entries
     @Volatile private var latestBytes = ByteArray(0)
-    @Volatile private var historyBytes = ByteArray(0)
 
     override fun onBind(intent: Intent?) = null
 
@@ -64,17 +61,71 @@ class BridgeService : Service() {
         bt = getSystemService(BluetoothManager::class.java)
         startGattServer()
         startAdvertising()
-        scope.launch { jugglucoLoop() }
+        source = createGlucoseSource(this)
+        update { it.copy(source = source.name) }
+        source.start(scope, sink)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
+        source.stop()
         scope.cancel()
-        bt.adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+        stopAdvertising()
         gatt?.close()
-        update { it.copy(advertising = false, centrals = 0, subscribed = 0, juggluco = "stopped") }
+        update { it.copy(advertising = false, subscribed = 0, sourceDetail = "stopped") }
         super.onDestroy()
+    }
+
+    // MARK: glucose in
+
+    private val sink = object : GlucoseSource.Sink {
+        override fun onReading(reading: Bridge.Reading) {
+            synchronized(history) { insert(reading) }
+            latestBytes = Bridge.encode(reading)
+            notifySubscribers()
+            Log.i(tag, "reading ${reading.mgdl} rate ${reading.rate} -> ${subscribers.size} subscriber(s)")
+            update { it.copy(latest = reading, error = null) }
+        }
+
+        override fun onHistory(readings: List<Bridge.Reading>) {
+            if (readings.isEmpty()) return
+            val newest = synchronized(history) {
+                readings.forEach { insert(it) }
+                history.lastOrNull()
+            }
+            newest?.let { latestBytes = Bridge.encode(it) }
+            notifySubscribers()
+            Log.i(tag, "history +${readings.size} -> ${history.size} points")
+            update { it.copy(latest = newest ?: it.latest) }
+        }
+
+        override fun onStatus(state: String, error: String?) = update { it.copy(sourceDetail = state, error = error) }
+    }
+
+    /** Keep [history] ascending, deduplicated by minute, bounded. */
+    private fun insert(r: Bridge.Reading) {
+        val existing = history.indexOfLast { kotlin.math.abs(it.epochSec - r.epochSec) < 20 }
+        if (existing >= 0) {
+            if (r.rate != null || history.elementAt(existing).rate == null) history.set(existing, r)
+            return
+        }
+        if (history.isEmpty() || r.epochSec >= history.last().epochSec) history.addLast(r)
+        else {
+            val at = history.indexOfFirst { it.epochSec > r.epochSec }
+            history.add(at, r)
+        }
+        val cutoff = history.last().epochSec - Bridge.HISTORY_MINUTES * 60L
+        while (history.isNotEmpty() && history.first().epochSec < cutoff) history.removeFirst()
+    }
+
+    private fun notifySubscribers() {
+        val ch = readingChar ?: return
+        val value = latestBytes
+        for (d in subscribers) {
+            if (Build.VERSION.SDK_INT >= 33) gatt?.notifyCharacteristicChanged(d, ch, false, value)
+            else @Suppress("DEPRECATION") { ch.value = value; gatt?.notifyCharacteristicChanged(d, ch, false) }
+        }
     }
 
     // MARK: status + notification
@@ -83,7 +134,7 @@ class BridgeService : Service() {
         val s = f(Bridge.status.value)
         Bridge.status.value = s
         val text = (s.latest?.let { "${it.mgdl} mg/dL ${it.rate?.let { r -> "%+.1f/min".format(r) } ?: ""} · " } ?: "") +
-            "${s.centrals} connected · ${s.juggluco}"
+            "${s.subscribed} subscribed · ${s.sourceDetail ?: s.source}"
         getSystemService(NotificationManager::class.java).notify(1, notification(text))
     }
 
@@ -98,75 +149,6 @@ class BridgeService : Service() {
             .setContentIntent(open)
             .setOngoing(true)
             .build()
-    }
-
-    // MARK: Juggluco (localhost)
-
-    private suspend fun jugglucoLoop() {
-        while (scope.isActive) {
-            try {
-                update { it.copy(juggluco = "fetching history") }
-                history = fetchHistory()
-                history.lastOrNull()?.let { publish(it) }
-                update { it.copy(juggluco = "live", error = null) }
-                followLive()
-                update { it.copy(juggluco = "stream ended") }
-            } catch (e: Exception) {
-                Log.w(tag, "juggluco", e)
-                update { it.copy(juggluco = "unreachable", error = e.message) }
-            }
-            delay(5_000)
-        }
-    }
-
-    private fun open(path: String, readTimeoutMs: Int) =
-        (URL(juggluco + path).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 3_000
-            readTimeout = readTimeoutMs
-        }
-
-    private fun fetchHistory(): List<Bridge.Reading> {
-        val c = open("/api/v1/entries.json?count=${Bridge.HISTORY_MINUTES}&interval=0", 10_000)
-        val arr = JSONArray(c.inputStream.bufferedReader().use { it.readText() })
-        return (0 until arr.length()).map { arr.getJSONObject(it) }.map { o ->
-            val dir = o.optString("direction")
-            Bridge.Reading(o.getLong("date") / 1000, o.getInt("sgv"),
-                if (dir.isEmpty()) null else o.optDouble("delta") / 5) // Juggluco delta = rate × 5
-        }.sortedBy { it.epochSec }
-    }
-
-    /** Server-Sent Events: one `glucose` event per new 1-minute reading. Heartbeat every 20 s. */
-    private fun followLive() {
-        val c = open("/x/live", 60_000)
-        c.inputStream.bufferedReader().use { reader ->
-            var event = "message"
-            while (scope.isActive) {
-                val line = reader.readLine() ?: return
-                when {
-                    line.startsWith("event:") -> event = line.substringAfter(':').trim()
-                    line.startsWith("data:") && event == "glucose" -> {
-                        val o = JSONObject(line.substringAfter(':'))
-                        val r = Bridge.Reading(o.getLong("timestamp"), o.getInt("glucoseMgDl"),
-                            if (o.isNull("rateMgDlPerMinute")) null else o.getDouble("rateMgDlPerMinute"))
-                        history = (history.filter { r.epochSec - it.epochSec in 20..Bridge.HISTORY_MINUTES * 60L } + r)
-                        publish(r)
-                        event = "message"
-                    }
-                }
-            }
-        }
-    }
-
-    private fun publish(r: Bridge.Reading) {
-        latestBytes = Bridge.encode(r)
-        historyBytes = Bridge.encodeHistory(history)
-        val ch = readingChar
-        if (ch != null) for (d in subscribers) {
-            if (Build.VERSION.SDK_INT >= 33) gatt?.notifyCharacteristicChanged(d, ch, false, latestBytes)
-            else @Suppress("DEPRECATION") { ch.value = latestBytes; gatt?.notifyCharacteristicChanged(d, ch, false) }
-        }
-        Log.i(tag, "reading ${r.mgdl} rate ${r.rate} -> ${subscribers.size} subscriber(s)")
-        update { it.copy(latest = r) }
     }
 
     // MARK: BLE GATT server + advertising
@@ -190,14 +172,24 @@ class BridgeService : Service() {
 
     private val gattCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) connected += device
-            else { connected -= device; subscribers -= device; startAdvertising() }
+            if (newState == BluetoothGatt.STATE_CONNECTED) {
+                connected += device
+                stopAdvertising()           // a central is here; no need to keep the radio advertising
+            } else {
+                connected -= device
+                subscribers -= device
+                if (connected.isEmpty()) startAdvertising()
+            }
             Log.i(tag, "central ${device.address} state $newState")
-            update { it.copy(centrals = connected.size, subscribed = subscribers.size) }
+            update { it.copy(subscribed = subscribers.size) }
         }
 
         override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int, ch: BluetoothGattCharacteristic) {
-            val value = when (ch.uuid) { Bridge.READING -> latestBytes; Bridge.HISTORY -> historyBytes; else -> null }
+            val value = when (ch.uuid) {
+                Bridge.READING -> latestBytes
+                Bridge.HISTORY -> synchronized(history) { Bridge.encodeHistory(history.toList()) }
+                else -> null
+            }
             when {
                 value == null -> gatt?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, offset, null)
                 offset > value.size -> gatt?.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)
@@ -223,22 +215,34 @@ class BridgeService : Service() {
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
-        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) = update { it.copy(advertising = true) }
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            advertising = true
+            update { it.copy(advertising = true) }
+        }
         override fun onStartFailure(errorCode: Int) {
-            if (errorCode == ADVERTISE_FAILED_ALREADY_STARTED) return update { it.copy(advertising = true) }
+            advertising = errorCode == ADVERTISE_FAILED_ALREADY_STARTED
+            if (advertising) return update { it.copy(advertising = true) }
             update { it.copy(advertising = false, error = "advertise failed: $errorCode") }
         }
     }
 
     private fun startAdvertising() {
+        if (advertising) return
         val adv = bt.adapter?.bluetoothLeAdvertiser ?: return update { it.copy(error = "Bluetooth off / no advertiser") }
         val settings = AdvertiseSettings.Builder()
-            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)   // ~1 s interval: the Mac scans continuously
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
             .setConnectable(true)
             .setTimeout(0)
             .build()
         val data = AdvertiseData.Builder().addServiceUuid(ParcelUuid(Bridge.SERVICE)).setIncludeDeviceName(false).build()
         adv.startAdvertising(settings, data, advertiseCallback)
+    }
+
+    private fun stopAdvertising() {
+        if (!advertising) return
+        bt.adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+        advertising = false
+        update { it.copy(advertising = false) }
     }
 }

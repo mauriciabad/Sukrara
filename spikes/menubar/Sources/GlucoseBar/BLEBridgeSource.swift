@@ -18,9 +18,24 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
 
+    /// The phone pushes a reading every minute. CoreBluetooth sometimes keeps a peripheral in
+    /// `.connected` after the link is actually gone — no disconnect callback, no data — so treat
+    /// a long silence as a disconnect and start over. (Observed 2026-10-15.)
+    private var lastData = Date()
+    private var watchdog: Timer?
+    private let silenceLimit: TimeInterval = 150
+
     override init() {
         super.init()
         central = CBCentralManager(delegate: self, queue: .main)
+        watchdog = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            guard let self, let p = peripheral, Date().timeIntervalSince(lastData) > silenceLimit else { return }
+            onState?("BLE: no data for \(Int(Date().timeIntervalSince(lastData)))s, reconnecting")
+            central.cancelPeripheralConnection(p)
+            peripheral = nil
+            lastData = Date()
+            scan()
+        }
     }
 
     private func scan() {
@@ -44,6 +59,7 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
 
     func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
         onState?("BLE: connected")
+        lastData = Date()
         p.discoverServices([Self.service])
     }
 
@@ -77,6 +93,7 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
 
     func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
         guard error == nil, let d = ch.value.map({ [UInt8]($0) }) else { return }
+        lastData = Date()
         func u32(_ o: Int) -> UInt32 { UInt32(d[o]) | UInt32(d[o + 1]) << 8 | UInt32(d[o + 2]) << 16 | UInt32(d[o + 3]) << 24 }
         func u16(_ o: Int) -> UInt16 { UInt16(d[o]) | UInt16(d[o + 1]) << 8 }
         if ch.uuid == Self.reading, d.count >= 8 {
