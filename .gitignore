@@ -1,0 +1,30 @@
+.DS_Store
+
+# Not part of this repo (local only)
+# - Juggluco source checkout (reference)
+# - xbar plugin: the LibreLinkUp plugin this project replaces
+# - libre3-ble: direct Mac<->sensor experiment, kept private (see docs/01-connectivity.md)
+/third_party/
+/xbar-plugins/
+/spikes/libre3-ble/
+
+# Sensor pairing secrets (PIN + saved authorization) — NEVER commit
+secrets/
+info.dat
+
+# Swift / macOS builds
+.build/
+/spikes/*/build/
+/spikes/ble-scan/blescan
+*.o
+*.a
+
+# Android / Gradle
+.gradle/
+.kotlin/
+/spikes/glucobridge-android/app/build/
+/spikes/glucobridge-android/build/
+local.properties
+.idea/
+*.iml
+captures/
