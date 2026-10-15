@@ -1,0 +1,51 @@
+9:07:40 PM  nostr restart: launch (6 relays)
+9:07:41 PM  nostr nostr.mom: chunk 4 readings 9:00 PM–9:03 PM (154…152 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 8:00 PM–8:59 PM (182…154 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 7:00 PM–7:59 PM (189…183 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 6:00 PM–6:59 PM (169…188 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 5:00 PM–5:59 PM (133…169 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 4:00 PM–4:59 PM (95…132 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 3:00 PM–3:59 PM (72…95 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 2:00 PM–2:59 PM (74…72 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 1:00 PM–1:59 PM (99…74 mg/dL)
+9:07:41 PM  nostr nostr.mom: chunk 60 readings 12:00 PM–12:59 PM (137…99 mg/dL)
+9:07:41 PM  nostr nos.lol: chunk 60 readings 11:00 AM–11:59 AM (172…138 mg/dL)
+9:07:41 PM  nostr nos.lol: chunk 60 readings 10:00 AM–10:59 AM (189…173 mg/dL)
+9:07:41 PM  [Nostr · nos.lol] 150 mg/dL  rate -0.63/min  reading at 9:06:48 PM  latency 53.3s
+9:07:41 PM  nostr offchain.pub: chunk 47 readings 8:00 PM–8:46 PM (182…162 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 7:00 PM–7:59 PM (189…183 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 6:00 PM–6:59 PM (169…188 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 5:00 PM–5:59 PM (133…169 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 4:00 PM–4:59 PM (95…132 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 3:00 PM–3:59 PM (72…95 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 2:00 PM–2:59 PM (74…72 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 1:00 PM–1:59 PM (99…74 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 12:00 PM–12:59 PM (137…100 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 11:00 AM–11:59 AM (172…138 mg/dL)
+9:07:41 PM  nostr offchain.pub: chunk 60 readings 10:00 AM–10:59 AM (189…173 mg/dL)
+9:07:48 PM  [Nostr · nos.lol] 149 mg/dL  rate -0.63/min  reading at 9:07:48 PM  latency 0.3s
+9:08:48 PM  [Nostr · relay.primal.net] 149 mg/dL  rate -0.63/min  reading at 9:08:48 PM  latency 0.2s
+9:09:50 PM  [Nostr · nos.lol] 148 mg/dL  rate -0.63/min  reading at 9:09:48 PM  latency 2.1s
+9:10:48 PM  [Nostr · nostr.mom] 147 mg/dL  rate -0.64/min  reading at 9:10:48 PM  latency 0.3s
+9:11:48 PM  [Nostr · nos.lol] 147 mg/dL  rate -0.64/min  reading at 9:11:48 PM  latency 0.2s
+9:12:48 PM  [Nostr · nos.lol] 146 mg/dL  rate -0.64/min  reading at 9:12:48 PM  latency 0.3s
+9:13:48 PM  [Nostr · relay.primal.net] 145 mg/dL  rate -0.64/min  reading at 9:13:48 PM  latency 0.3s
+9:14:50 PM  [Nostr · relay.primal.net] 145 mg/dL  rate -0.64/min  reading at 9:14:48 PM  latency 2.2s
+9:15:48 PM  [Nostr · nostr.mom] 144 mg/dL  rate -0.65/min  reading at 9:15:48 PM  latency 0.3s
+9:16:48 PM  [Nostr · nos.lol] 144 mg/dL  rate -0.65/min  reading at 9:16:48 PM  latency 0.3s
+9:17:48 PM  [Nostr · nos.lol] 143 mg/dL  rate -0.65/min  reading at 9:17:48 PM  latency 0.3s
+9:17:48 PM  nostr stats (10 min): 124 KB rx, 36 decrypts, 6/6 up — nos.lol 27f/26K, relay.primal.net 26f/26K, relay.damus.io 2f/0K, offchain.pub 13f/18K, nostr.mom 26f/26K, relay.nostr.net 26f/26K
+9:18:48 PM  [Nostr · nos.lol] 142 mg/dL  rate -0.65/min  reading at 9:18:48 PM  latency 0.2s
+9:19:50 PM  [Nostr · relay.primal.net] 142 mg/dL  rate -0.65/min  reading at 9:19:48 PM  latency 2.1s
+9:20:48 PM  [Nostr · nos.lol] 141 mg/dL  rate -0.65/min  reading at 9:20:48 PM  latency 0.3s
+9:21:48 PM  [Nostr · nostr.mom] 140 mg/dL  rate -0.66/min  reading at 9:21:48 PM  latency 0.4s
+9:22:48 PM  [Nostr · nos.lol] 140 mg/dL  rate -0.66/min  reading at 9:22:48 PM  latency 0.3s
+9:23:48 PM  [Nostr · nos.lol] 139 mg/dL  rate -0.66/min  reading at 9:23:48 PM  latency 0.4s
+9:24:50 PM  [Nostr · relay.primal.net] 138 mg/dL  rate -0.66/min  reading at 9:24:48 PM  latency 2.2s
+9:25:48 PM  [Nostr · relay.nostr.net] 138 mg/dL  rate -0.66/min  reading at 9:25:48 PM  latency 0.3s
+9:26:48 PM  [Nostr · relay.primal.net] 137 mg/dL  rate -0.66/min  reading at 9:26:48 PM  latency 0.3s
+9:27:48 PM  [Nostr · relay.primal.net] 136 mg/dL  rate -0.66/min  reading at 9:27:48 PM  latency 0.4s
+9:28:05 PM  nostr stats (10 min): 23 KB rx, 10 decrypts, 6/6 up — nos.lol 10f/5K, relay.primal.net 11f/6K, relay.damus.io 0f/0K, offchain.pub 0f/0K, nostr.mom 11f/6K, relay.nostr.net 11f/6K
+9:28:48 PM  [Nostr · nos.lol] 136 mg/dL  rate -0.66/min  reading at 9:28:48 PM  latency 0.3s
+9:29:50 PM  [Nostr · nos.lol] 135 mg/dL  rate -0.66/min  reading at 9:29:48 PM  latency 2.1s
+9:30:48 PM  [Nostr · nostr.mom] 134 mg/dL  rate -0.66/min  reading at 9:30:48 PM  latency 0.4s

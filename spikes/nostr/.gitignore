@@ -1,0 +1,6 @@
+
+# Python / local databases
+.venv/
+__pycache__/
+*.db
+*.db-journal

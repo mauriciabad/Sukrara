@@ -6,6 +6,7 @@
 # Configure:  defaults write dev.spike.GlucoseBar url http://192.168.10.127:17580
 #             defaults write dev.spike.GlucoseBar unit mmol      # optional
 #             defaults write dev.spike.GlucoseBar secret '...'   # if Juggluco has an API secret
+#             defaults write dev.spike.GlucoseBar nostr 'cgmnostr:1?...'   # follow a CGM-over-Nostr stream
 set -e
 cd "$(dirname "$0")"
 swift build -c release

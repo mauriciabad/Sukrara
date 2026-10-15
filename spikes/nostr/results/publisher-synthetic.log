@@ -1,0 +1,76 @@
+20:49:47 publishing as npub16062ljgmxfuuj47k97csxm2qrjcz90rgkmgqvcszl9984t5d55mqcgwttl to 6 relays
+20:49:47 backfill: 13 hourly chunks queued
+20:49:47 live 160 mg/dL rate -0.57 t=20:49:47
+20:49:48 wss://offchain.pub rejected: Policy violated and pubkey is not in our web of trust. → policy, pausing 6 h
+20:49:48 wss://relay.damus.io rejected: banned: too many rate-limit violations, try again later → pausing 10 min
+20:50:47 live 160 mg/dL rate -0.58 t=20:50:47
+20:51:47 live 159 mg/dL rate -0.58 t=20:51:47
+20:52:47 live 158 mg/dL rate -0.58 t=20:52:47
+20:53:47 live 158 mg/dL rate -0.59 t=20:53:47
+20:54:47 stats {"wss://nos.lol": {"ok": 18, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 18, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 1, "dropped": 17, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 17, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 18, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 18, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+20:54:47 live 157 mg/dL rate -0.59 t=20:54:47
+20:55:48 live 157 mg/dL rate -0.59 t=20:55:47
+20:56:48 live 156 mg/dL rate -0.6 t=20:56:48
+20:57:48 live 155 mg/dL rate -0.6 t=20:57:48
+20:58:48 live 155 mg/dL rate -0.6 t=20:58:48
+20:59:47 stats {"wss://nos.lol": {"ok": 24, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 24, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 1, "dropped": 23, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 23, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 24, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 24, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+20:59:48 live 154 mg/dL rate -0.61 t=20:59:48
+21:00:48 live 154 mg/dL rate -0.61 t=21:00:48
+21:00:48 wss://relay.damus.io rejected: banned: too many rate-limit violations, try again later → pausing 10 min
+21:01:48 live 153 mg/dL rate -0.61 t=21:01:48
+21:02:48 live 152 mg/dL rate -0.62 t=21:02:48
+21:03:48 live 152 mg/dL rate -0.62 t=21:03:48
+21:04:47 stats {"wss://nos.lol": {"ok": 30, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 30, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 2, "dropped": 28, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 29, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 30, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 30, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:04:48 live 151 mg/dL rate -0.62 t=21:04:48
+21:05:48 live 151 mg/dL rate -0.62 t=21:05:48
+21:06:48 live 150 mg/dL rate -0.63 t=21:06:48
+21:07:48 live 149 mg/dL rate -0.63 t=21:07:48
+21:08:48 live 149 mg/dL rate -0.63 t=21:08:48
+21:09:48 stats {"wss://nos.lol": {"ok": 37, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 37, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 2, "dropped": 35, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 36, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 37, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 37, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:09:48 live 148 mg/dL rate -0.63 t=21:09:48
+21:10:48 live 147 mg/dL rate -0.64 t=21:10:48
+21:11:48 live 147 mg/dL rate -0.64 t=21:11:48
+21:11:48 wss://relay.damus.io rejected: banned: too many rate-limit violations, try again later → pausing 10 min
+21:12:48 live 146 mg/dL rate -0.64 t=21:12:48
+21:13:48 live 145 mg/dL rate -0.64 t=21:13:48
+21:14:48 stats {"wss://nos.lol": {"ok": 43, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 43, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 3, "dropped": 40, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 42, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 43, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 43, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:14:48 live 145 mg/dL rate -0.64 t=21:14:48
+21:15:48 live 144 mg/dL rate -0.65 t=21:15:48
+21:16:48 live 144 mg/dL rate -0.65 t=21:16:48
+21:17:48 live 143 mg/dL rate -0.65 t=21:17:48
+21:18:48 live 142 mg/dL rate -0.65 t=21:18:48
+21:19:48 stats {"wss://nos.lol": {"ok": 49, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 49, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 3, "dropped": 46, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 48, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 49, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 49, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:19:48 live 142 mg/dL rate -0.65 t=21:19:48
+21:20:48 live 141 mg/dL rate -0.65 t=21:20:48
+21:21:48 live 140 mg/dL rate -0.66 t=21:21:48
+21:22:48 live 140 mg/dL rate -0.66 t=21:22:48
+21:22:48 wss://relay.damus.io rejected: banned: too many rate-limit violations, try again later → pausing 10 min
+21:23:48 live 139 mg/dL rate -0.66 t=21:23:48
+21:24:48 stats {"wss://nos.lol": {"ok": 55, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 55, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 4, "dropped": 51, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 54, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 55, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 55, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:24:48 live 138 mg/dL rate -0.66 t=21:24:48
+21:25:48 live 138 mg/dL rate -0.66 t=21:25:48
+21:26:48 live 137 mg/dL rate -0.66 t=21:26:48
+21:27:48 live 136 mg/dL rate -0.66 t=21:27:48
+21:28:48 live 136 mg/dL rate -0.66 t=21:28:48
+21:29:48 stats {"wss://nos.lol": {"ok": 61, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 61, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 4, "dropped": 57, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 60, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 61, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 61, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:29:48 live 135 mg/dL rate -0.66 t=21:29:48
+21:30:48 live 134 mg/dL rate -0.66 t=21:30:48
+21:31:48 live 134 mg/dL rate -0.67 t=21:31:48
+21:32:48 live 133 mg/dL rate -0.67 t=21:32:48
+21:33:48 live 132 mg/dL rate -0.67 t=21:33:48
+21:33:48 wss://relay.damus.io rejected: banned: too many rate-limit violations, try again later → pausing 10 min
+21:34:48 stats {"wss://nos.lol": {"ok": 67, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 67, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 5, "dropped": 62, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 66, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 67, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 67, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:34:48 live 132 mg/dL rate -0.67 t=21:34:48
+21:35:48 live 131 mg/dL rate -0.67 t=21:35:48
+21:36:48 live 130 mg/dL rate -0.67 t=21:36:48
+21:37:48 live 130 mg/dL rate -0.67 t=21:37:48
+21:38:48 live 129 mg/dL rate -0.67 t=21:38:48
+21:39:48 stats {"wss://nos.lol": {"ok": 73, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 73, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 5, "dropped": 68, "up": true, "paused": true, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 72, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 73, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 73, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:39:48 live 128 mg/dL rate -0.67 t=21:39:48
+21:40:48 live 128 mg/dL rate -0.67 t=21:40:48
+21:41:48 live 127 mg/dL rate -0.67 t=21:41:48
+21:42:48 live 126 mg/dL rate -0.67 t=21:42:48
+21:43:48 live 126 mg/dL rate -0.67 t=21:43:48
+21:44:48 stats {"wss://nos.lol": {"ok": 79, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 79, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.damus.io": {"ok": 0, "fail": 5, "dropped": 74, "up": true, "paused": false, "err": "banned: too many rate-limit violations, try again later"}, "wss://offchain.pub": {"ok": 0, "fail": 1, "dropped": 78, "up": true, "paused": true, "err": "Policy violated and pubkey is not in our web of trust."}, "wss://nostr.mom": {"ok": 79, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.nostr.net": {"ok": 79, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}}
+21:44:48 live 125 mg/dL rate -0.66 t=21:44:48
+21:45:48 live 124 mg/dL rate -0.66 t=21:45:48

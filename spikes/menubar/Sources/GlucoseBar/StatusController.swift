@@ -29,7 +29,7 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     private(set) var snapshot: Snapshot?
     private var lastError: String?
-    private var tick: Timer?
+    private var tick: Timer?, staleTimer: Timer?
 
     override init() {
         super.init()
@@ -47,8 +47,6 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.delegate = self
         item.menu = menu
-        // Re-render periodically so staleness shows even if the source goes silent.
-        tick = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.render() }
         render()
     }
 
@@ -65,7 +63,15 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     @objc private func refresh() { onRefresh?() }
 
-    func menuWillOpen(_ menu: NSMenu) { render() }
+    // The "(n min ago)" line only ticks while the menu is open; closed, nothing runs between readings.
+    func menuWillOpen(_ menu: NSMenu) {
+        render()
+        let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.render() }
+        RunLoop.main.add(t, forMode: .common)     // .common: menus track in event-tracking mode
+        tick = t
+    }
+
+    func menuDidClose(_ menu: NSMenu) { tick?.invalidate(); tick = nil }
 
     private func render() {
         guard let button = item.button else { return }
@@ -82,6 +88,11 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         let age = Date().timeIntervalSince(snap.latest.date)
         let stale = age > thresholds.staleAfter
+        // Instead of polling: one timer for the moment the reading goes stale (re-armed by every new reading).
+        staleTimer?.invalidate()
+        staleTimer = stale ? nil : Timer.scheduledTimer(withTimeInterval: thresholds.staleAfter - age + 1,
+                                                        repeats: false) { [weak self] _ in self?.render() }
+        staleTimer?.tolerance = 10
         let rate = snap.rate
         let color = stale ? NSColor.secondaryLabelColor : thresholds.color(for: snap.latest.mgdl)
 

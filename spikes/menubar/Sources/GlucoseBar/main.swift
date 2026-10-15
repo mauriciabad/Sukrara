@@ -10,6 +10,7 @@ import AppKit
 //   unit    mgdl | mmol
 //   lan     NO to disable the Juggluco web-server transport
 //   ble     NO to disable the GlucoBridge BLE transport
+//   nostr   cgmnostr:1?s=…&k=…&r=… follower link → CGM-over-Nostr transport (or `nostr-file <path>` holding it)
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 
@@ -117,22 +118,35 @@ let store = MainActor.assumeIsolated { Store() }
 }
 
 let feed = MainActor.assumeIsolated { Feed() }
-if defaults.object(forKey: "lan") == nil || defaults.bool(forKey: "lan") {
+let lanEnabled = defaults.object(forKey: "lan") == nil || defaults.bool(forKey: "lan")
+if lanEnabled {
     MainActor.assumeIsolated { feed.restart("launch") }
 }
 
-let ble = BLEBridgeSource()
-if defaults.object(forKey: "ble") == nil || defaults.bool(forKey: "ble") {
+// Created only when enabled: CBCentralManager starts scanning as soon as Bluetooth reports powered on.
+let ble = defaults.object(forKey: "ble") == nil || defaults.bool(forKey: "ble") ? BLEBridgeSource() : nil
+if let ble {
     ble.onState = { log($0) }
     ble.onHistory = { pts in MainActor.assumeIsolated { store.ingest(history: pts, from: "Bluetooth · GlucoBridge") } }
     ble.onReading = { r in MainActor.assumeIsolated { store.ingest(r, from: "Bluetooth · GlucoBridge") } }
 }
 
-status.onRefresh = { MainActor.assumeIsolated { feed.restart("manual refresh") } }
+let nostrLink = defaults.string(forKey: "nostr")
+    ?? defaults.string(forKey: "nostr-file").flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+let nostr = MainActor.assumeIsolated { nostrLink.flatMap(NostrSource.init(link:)) }
+if let nostr {
+    MainActor.assumeIsolated {
+        nostr.onReading = { store.ingest($0, from: $1) }
+        nostr.onHistory = { store.ingest(history: $0, from: $1) }
+        nostr.restart("launch")
+    }
+}
 
-// After sleep the SSE socket is dead but URLSession would only notice after its 60 s idle timeout.
+status.onRefresh = { MainActor.assumeIsolated { if lanEnabled { feed.restart("manual refresh") }; nostr?.restart("manual refresh") } }
+
+// After sleep the SSE/WebSocket sockets are dead but URLSession would only notice after its idle timeout.
 NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
-    MainActor.assumeIsolated { feed.restart("system woke") }
+    MainActor.assumeIsolated { if lanEnabled { feed.restart("system woke") }; nostr?.restart("system woke") }
 }
 
 app.run()

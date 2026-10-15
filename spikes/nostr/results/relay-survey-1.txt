@@ -1,0 +1,15 @@
+expiry: published to 6 relays, waiting 75s…
+
+relay                            live  deliv  chunk stored repl  burst eph.st expiry / error
+wss://relay.damus.io             -     -      -     -      -     -     -      - TimeoutError: timed out during opening handshake 
+wss://nos.lol                    -     -      -     -      -     -     -      - TimeoutError: timed out during opening handshake 
+wss://relay.primal.net           -     -      -     -      -     -     -      - TimeoutError: timed out during opening handshake 
+wss://relay.nostr.band           -     -      -     -      -     -     -      - TimeoutError: timed out during opening handshake 
+wss://relay.snort.social         True  0.079  True  1      True  10    0      served after expiry  
+wss://nostr.mom                  True  0.121  True  1      True  10    11     gone (NIP-40 honored)  
+wss://offchain.pub               True  0.179  True  1      True  10    11     gone (NIP-40 honored)  
+wss://relay.nostr.bg             -     -      -     -      -     -     -      - gaierror: [Errno 8] nodename nor servname provided, or not known 
+wss://nostr.oxtr.dev             True  0.143  True  1      True  10    11     gone (NIP-40 honored)  
+wss://nostr.wine                 False None   False 0      False 0     0      - nip11: HTTPError restricted: sign up at https://nostr.wine to write chunk: restricted: sign up at https://nostr.wine to write
+wss://relay.nostr.net            True  0.08   True  1      True  10    11     gone (NIP-40 honored) nip11: HTTPError 
+wss://nostr-pub.wellorder.net    True  0.198  True  1      True  10    0      gone (NIP-40 honored)  
