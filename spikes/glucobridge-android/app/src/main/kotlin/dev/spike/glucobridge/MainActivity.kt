@@ -53,6 +53,11 @@ class MainActivity : ComponentActivity() {
                         Text(s.latest?.let { "${it.mgdl} mg/dL  ${it.rate?.let { r -> "%+.2f mg/dL/min".format(r) } ?: ""}" } ?: "—",
                              style = MaterialTheme.typography.displaySmall)
                         s.latest?.let { Text("at " + DateFormat.getTimeInstance().format(Date(it.epochSec * 1000))) }
+                        if (s.history.size > 1) {
+                            GlucoseChart(s.history)
+                            val span = (s.history.last().epochSec - s.history.first().epochSec) / 60
+                            Text("${s.history.size} readings over ${span / 60}h ${span % 60}m")
+                        }
                         Text("Source: ${s.source}" + (s.sourceDetail?.let { " — $it" } ?: ""))
                         Text("BLE advertising: ${if (s.advertising) "on" else "off"} · Mac subscribed: ${s.subscribed}")
                         s.error?.let { Text("Error: $it", color = MaterialTheme.colorScheme.error) }

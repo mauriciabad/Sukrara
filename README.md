@@ -55,7 +55,7 @@ spikes/
   menubar/                GlucoseBar — macOS menubar app (Swift, AppKit, CoreBluetooth). Wi-Fi + BLE transports
   glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors:
                             juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
-                            direct   = reads the Libre 3 sensor itself (PoC 2, code not published)
+                            direct   = reads the Libre 3 sensor itself (PoC 2)
   ble-scan/               tiny BLE advertisement scanner
 ```
 The direct Mac ↔ sensor experiment is summarized in the report but its code is not published.
@@ -67,7 +67,9 @@ Build instructions per spike: [spikes/README.md](spikes/README.md).
 - **Not a medical device.** Research prototypes; values may be wrong, late or missing. Don't make treatment
   decisions or rely on alarms from anything in this repo.
 - FreeStyle Libre is a trademark of Abbott. This project is not affiliated with Abbott or with Juggluco.
-- The direct-sensor experiment was run on a sensor the author owns, for interoperability with their own data; its
-  code and sensor pairing data are not part of this repo. [Juggluco](https://github.com/j-kaltes/Juggluco) (GPLv3) is
-  used as a separate app; none of its code is included here.
-- License for this repo's own code: not chosen yet.
+- The sensor is read for interoperability with the author's own glucose data. Per-sensor pairing data is a secret
+  and is never committed here.
+- The `direct` flavor **compiles [Juggluco](https://github.com/j-kaltes/Juggluco)'s GPLv3 sources**, which are fetched
+  separately and not included in this repo. Anything built from it is a GPLv3 derivative and must be distributed as
+  such, with source. The `juggluco` flavor and the Mac app have no such dependency.
+- License for this repo's own code: **not chosen yet** — so treat it as "readable, not reusable" until one is added.

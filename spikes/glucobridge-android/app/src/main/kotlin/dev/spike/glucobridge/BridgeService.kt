@@ -85,7 +85,7 @@ class BridgeService : Service() {
             latestBytes = Bridge.encode(reading)
             notifySubscribers()
             Log.i(tag, "reading ${reading.mgdl} rate ${reading.rate} -> ${subscribers.size} subscriber(s)")
-            update { it.copy(latest = reading, error = null) }
+            update { it.copy(latest = reading, history = snapshot(), error = null) }
         }
 
         override fun onHistory(readings: List<Bridge.Reading>) {
@@ -97,11 +97,13 @@ class BridgeService : Service() {
             newest?.let { latestBytes = Bridge.encode(it) }
             notifySubscribers()
             Log.i(tag, "history +${readings.size} -> ${history.size} points")
-            update { it.copy(latest = newest ?: it.latest) }
+            update { it.copy(latest = newest ?: it.latest, history = snapshot()) }
         }
 
         override fun onStatus(state: String, error: String?) = update { it.copy(sourceDetail = state, error = error) }
     }
+
+    private fun snapshot(): List<Bridge.Reading> = synchronized(history) { history.toList() }
 
     /** Keep [history] ascending, deduplicated by minute, bounded. */
     private fun insert(r: Bridge.Reading) {
@@ -171,16 +173,17 @@ class BridgeService : Service() {
     }
 
     private val gattCallback = object : BluetoothGattServerCallback() {
+        // NB: Android also reports the phone's *outgoing* links here (the sensor we read in the
+        // direct flavor), so "connected" is not a count of Macs. Only a CCCD write identifies a
+        // real client of ours — key everything off that.
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothGatt.STATE_CONNECTED) {
                 connected += device
-                stopAdvertising()           // a central is here; no need to keep the radio advertising
             } else {
                 connected -= device
-                subscribers -= device
-                if (connected.isEmpty()) startAdvertising()
+                if (subscribers.remove(device) && subscribers.isEmpty()) startAdvertising()
             }
-            Log.i(tag, "central ${device.address} state $newState")
+            Log.i(tag, "gatt-server peer ${device.address} state $newState")
             update { it.copy(subscribed = subscribers.size) }
         }
 
@@ -201,7 +204,12 @@ class BridgeService : Service() {
         override fun onDescriptorWriteRequest(device: BluetoothDevice, requestId: Int, d: BluetoothGattDescriptor,
                                               preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray) {
             if (d.uuid == Bridge.CCCD) {
-                if (value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) subscribers += device else subscribers -= device
+                if (value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                    subscribers += device
+                    stopAdvertising()       // a real client is subscribed; stop spending radio on adverts
+                } else if (subscribers.remove(device) && subscribers.isEmpty()) {
+                    startAdvertising()
+                }
             }
             if (responseNeeded) gatt?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
             update { it.copy(subscribed = subscribers.size) }

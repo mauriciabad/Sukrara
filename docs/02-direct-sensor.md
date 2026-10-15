@@ -17,8 +17,9 @@ pushed them to the Mac — with Juggluco force-stopped the entire time.
 |---|---|
 | First reading | 2026-10-15 19:59:47 — **83 mg/dL, −0.59 mg/dL/min**, delivered to the Mac the same second |
 | Steady state | a reading every minute for 7+ minutes, no disconnects, Mac latency ~1 s |
+| History | the sensor's own stored 5-minute values: **34 points (~3 h) in about a second** on connect |
 | Correctness | values matched Juggluco's own backfill exactly (80, 82, 83, 84 at 20:09–20:13) once it took the sensor back |
-| Sensor state | untouched — Juggluco reconnected afterwards and filled the gap by itself |
+| Sensor state | Juggluco reconnected afterwards and filled its gap by itself |
 
 Architecture now:
 
@@ -27,6 +28,11 @@ Libre 3 sensor ──BLE──▶ GlucoBridge (Android) ──BLE GATT──▶ 
 ```
 
 No Juggluco, no HTTP server, no network of any kind.
+
+![GlucoBridge reading the sensor directly](img/glucobridge-direct.png)
+
+*99 mg/dL at +0.40 mg/dL/min, 36 readings over 3 h — all from the sensor. "BLE advertising: off · Mac subscribed: 1"
+is the power optimisation below doing its job: a client is connected, so the phone stops advertising.*
 
 ## How it is built
 
@@ -45,6 +51,18 @@ Pairing data (which sensor, and the credentials to resume its session) is read f
 data directory. For the spike it is imported once from the app that activated the sensor; the real app will
 produce it during its own NFC activation. It is a per-sensor secret and never leaves the phone.
 
+## History
+
+A sensor-reading app starts with nothing and would take hours to fill a chart, because each packet only carries
+the current minute. The sensor also stores a value every 5 minutes, but it only sends them when **asked**.
+
+On connect GlucoBridge now reads the sensor's current position from its status packet, then requests the last
+3 hours of stored values. They arrive as a short burst of notifications (6 values each) and are merged into the
+same series as the live readings. Cost: well under a second.
+
+This is the one place the app writes to the sensor — the request is the same one Juggluco sends on every
+connection, so it is routine traffic, not a state change. Everything else is listen-only.
+
 ## Battery
 
 Design choices, and what they are worth:
@@ -53,7 +71,7 @@ Design choices, and what they are worth:
 |---|---|
 | **No scanning.** Connect to the sensor by address with `autoConnect`, so the Bluetooth controller does the waiting. | Measured: **zero BLE scan time** attributed to the app in `batterystats`. App-level scanning is one of the most expensive things a BLE app can do. |
 | **No wakelocks.** The notification callback does the work and returns. | Measured: **no partial wakelocks** held by the app. For comparison, Juggluco took **973 partial wakelocks** (~16 s cumulative) in the same battery session — it holds one for up to 30 s per reading. |
-| **Advertise only when the Mac is not connected**, in `ADVERTISE_MODE_LOW_POWER`. | The Mac scans continuously, so a slow advertising interval costs nothing; advertising while already connected is pure waste. |
+| **Advertise only while no Mac is subscribed**, in `ADVERTISE_MODE_LOW_POWER`. | The Mac scans continuously, so a slow advertising interval costs nothing; advertising to nobody is pure waste. See the trap below. |
 | **One persistent sensor connection** instead of connect-per-reading. | See the finding below — reconnecting is far more expensive than idling. |
 | History blob built on demand, not per reading. | Trivial, but it keeps the per-minute path to "decrypt, 8-byte notify". |
 
@@ -82,6 +100,16 @@ USB for the whole session (needed for the test tooling). A proper A/B — same h
 PoC 2 vs Juggluco alone — is the obvious next step. The CPU totals in `batterystats` are not comparable as they
 stand: they cover different time windows, and GlucoBridge's include Compose UI startups.
 
+### Trap: your own sensor link looks like an incoming client
+
+Stopping the adverts while a client is connected broke the Mac's ability to find the phone at all. Android reports
+the phone's **outgoing** connections — the sensor — through the *same* GATT-server callback as incoming clients, so
+connecting to the sensor made the app believe a Mac had arrived.
+
+The fix is to ignore connection events entirely and key off the subscription write, which only a real client of ours
+performs. The logs now distinguish the two peers plainly. Worth
+remembering for the real app — on Android, "a device connected to my GATT server" does not mean what it sounds like.
+
 ## Also fixed: the Mac could go deaf without noticing
 
 During the stable run the phone kept notifying every minute to a subscribed central, but the Mac stopped showing
@@ -99,7 +127,7 @@ evidence that data is flowing.
 - [ ] Verify the Mac watchdog actually recovers the link (the fix is written, not yet observed firing).
 - [ ] Sensor **activation** from the app (NFC) — currently pairing data is imported from another app, so a brand
       new sensor still needs one.
-- [ ] Backfill after a gap: requires sending commands *to* the sensor; everything so far is read-only.
+- [ ] Persist history across app restarts (it is in memory only; a restart re-fetches 3 h from the sensor).
 - [ ] Secure the phone↔Mac link (still unauthenticated) and survive Mac sleep.
 - [ ] Long soak: deep Doze, Bluetooth toggles, out-of-range and back.
 

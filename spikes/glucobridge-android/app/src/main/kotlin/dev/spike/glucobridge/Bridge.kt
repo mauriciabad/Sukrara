@@ -45,6 +45,7 @@ object Bridge {
         val source: String = "not started",
         val sourceDetail: String? = null,
         val latest: Reading? = null,
+        val history: List<Reading> = emptyList(),
         val advertising: Boolean = false,
         val subscribed: Int = 0,
         val error: String? = null,

@@ -1,0 +1,30 @@
+package dev.spike.glucobridge
+
+import android.content.Context
+import dev.spike.glucobridge.direct.Libre3Client
+import dev.spike.glucobridge.direct.SensorPairing
+import kotlinx.coroutines.CoroutineScope
+
+fun createGlucoseSource(context: Context): GlucoseSource = DirectSource(context)
+
+/** PoC 2: no Juggluco, no local web server — the app owns the sensor link itself. */
+class DirectSource(private val context: Context) : GlucoseSource {
+    private var client: Libre3Client? = null
+    private val pairing = runCatching { SensorPairing.load(context) }.getOrNull()
+
+    override val name = pairing?.let { "sensor ${it.serial}" } ?: "sensor (not paired)"
+
+    override fun start(scope: CoroutineScope, sink: GlucoseSource.Sink) {
+        val p = pairing ?: return sink.onStatus("no pairing data",
+            "Copy ${SensorPairing.FILE} into the app's files directory (see tools/import-pairing.sh)")
+        if (p.securityVersion != 0) return sink.onStatus("unsupported sensor",
+            "security version ${p.securityVersion} (Lingo) is not implemented")
+        val prefs = context.getSharedPreferences("direct", Context.MODE_PRIVATE)
+        client = Libre3Client(context, p, sink, prefs).also { it.connect() }
+    }
+
+    override fun stop() {
+        client?.close()
+        client = null
+    }
+}
