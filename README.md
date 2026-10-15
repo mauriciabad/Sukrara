@@ -22,6 +22,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | 01 | 2026-10-15 | Getting live glucose onto a Mac: direct sensor BLE, Juggluco over Wi-Fi, and Bluetooth when there's no shared network | [docs/01-connectivity.md](docs/01-connectivity.md) |
 | 02 | 2026-10-15 | The phone app reads the sensor itself (no Juggluco), and what that costs in battery | [docs/02-direct-sensor.md](docs/02-direct-sensor.md) |
 | 03 | 2026-10-15 | Nostr relays as the backbone of a no-hosting Nightscout alternative: remote + shared, E2E-encrypted, works with stock Home Assistant | [docs/03-nostr.md](docs/03-nostr.md) |
+| 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
 
 ## Current conclusions
 
@@ -57,6 +58,7 @@ spikes/
   glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors:
                             juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
                             direct   = reads the Libre 3 sensor itself (PoC 2)
+  statusbar-android/      GlucoStatus — Android status-bar experiments (Kotlin; app + LSPosed module in one APK)
   ble-scan/               tiny BLE advertisement scanner
 ```
 The direct Mac ↔ sensor experiment is summarized in the report but its code is not published.

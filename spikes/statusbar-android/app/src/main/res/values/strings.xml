@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">GlucoStatus</string>
+    <string name="xposed_description">Glucose number + trend in the status bar</string>
+</resources>

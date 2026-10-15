@@ -71,6 +71,25 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home P
 ```
 Followers need the link shown in the app (text + QR). With a debug build (`assembleDebug`) you can also pull it:
 `adb shell run-as dev.spike.cgmnostr cat files/follower-link.txt > ../secrets/follower-link.txt`.
+## `statusbar-android/` — GlucoStatus (Android, Kotlin)
+
+Glucose in the phone's status bar, every approach from [05](../docs/05-android-status-bar.md) switchable in one app:
+Live Update chip, number as notification icon, system icons via a root/adb helper (`SlotDaemon`), and an LSPosed
+module (libxposed API 102, scope System UI) that draws next to the clock. Data: Juggluco on localhost, or a demo sine.
+
+```sh
+cd statusbar-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.local/bin:$PATH"
+./gradlew assembleDebug && adb install -r -g app/build/outputs/apk/debug/app-debug.apk
+adb shell cmd notification allow_listener dev.spike.glucostatus/dev.spike.glucostatus.ChipYieldListener
+# drive it from adb (Config field names as boolean extras; injected values are pinned for 2 min)
+adb shell am broadcast -n dev.spike.glucostatus/.DebugReceiver --ez demo true --ez slot true --ez hook true
+adb shell am broadcast -n dev.spike.glucostatus/.DebugReceiver --ei mgdl 187 --ef rate -1.2 --es hookPosition slot:wifi
+adb shell am broadcast -n dev.spike.glucostatus/.DebugReceiver --ez restartSystemUi true   # root: reload the hook
+tools/hook-safety.sh arm|disarm|kill|unkill      # guard rails while experimenting with the hook
+swift tools/gen-slot-drawables.swift GoogleSansFlex.ttf app/src/main/res/drawable   # regenerate sb_* icons
+```
+3a needs root granted to GlucoStatus in KernelSU (or run `SlotDaemon` over adb); 3b needs the module enabled in LSPosed.
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 

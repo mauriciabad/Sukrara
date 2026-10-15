@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drop: placeholder small icon while the dynamic number icon is off. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2.5C12,2.5 5.5,10 5.5,14.5A6.5,6.5 0 0,0 18.5,14.5C18.5,10 12,2.5 12,2.5Z"/>
+</vector>
