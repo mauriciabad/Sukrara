@@ -195,7 +195,8 @@ The app is ad-hoc signed, hence the `xattr`. Allow Bluetooth. To follow end-to-e
 then in the menubar **Follow someone…**, paste, and Allow on the phone. On the Mac, the link's web page also has an
 **Open in Sukrara** button. Nearby pairing over
 Bluetooth works the same way with a match code. (The Mac also picks up the phone's older, unencrypted Bluetooth link
-with no setup; turn that off in the phone's Settings → Mac once you follow over the encrypted path.)
+with no setup. It is read-only: entries from the Mac go only over the encrypted path. Turn it off in the phone's
+Settings → Mac once you follow over the encrypted path.)
 
 ## Repository layout
 

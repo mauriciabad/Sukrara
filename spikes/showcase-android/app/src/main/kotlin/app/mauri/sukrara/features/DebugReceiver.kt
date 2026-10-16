@@ -19,7 +19,7 @@ import org.json.JSONObject
  *
  *   am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver \
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
- *       [--ez macBle B] [--ez macLinkEntries B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
+ *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
  *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
  *       [--ez hookColor B] [--ez hideNotifIcon B] [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
@@ -42,7 +42,7 @@ class DebugReceiver : BroadcastReceiver() {
             s.copy(
                 nostr = b("nostr", s.nostr), nostrIntervalMin = n("nostrInterval", s.nostrIntervalMin),
                 libreview = b("libreview", s.libreview), libreviewIntervalMin = n("libreviewInterval", s.libreviewIntervalMin),
-                macBle = b("macBle", s.macBle), macLinkEntries = b("macLinkEntries", s.macLinkEntries), bleFollowers = b("bleFollowers", s.bleFollowers),
+                macBle = b("macBle", s.macBle), bleFollowers = b("bleFollowers", s.bleFollowers),
                 chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
                 hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon),
