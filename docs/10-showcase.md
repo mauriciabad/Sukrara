@@ -433,6 +433,13 @@ own GATT client for the sensor and shared the link ("ACL holders: … tk.glucoda
 its now-outdated pairing. After `am force-stop tk.glucodata` the next connection authorized and stayed up. The
 app's texts now say to *Pause app* **and** *Force stop* Juggluco before a takeover.
 
+**Open on scan (v0.11.2).** Like LibreLink, holding the phone against a Libre sensor now opens Sukrara when it isn't
+already in front. It's an NfcV `TECH_DISCOVERED` filter on an activity alias (`.ui.NfcLaunch` → `MainActivity`), so
+it only opens the app: it never starts or takes over a sensor (that still needs the Sensor screen, whose reader mode
+takes the tap first while it's open). The switch *Open Sukrara when you scan a sensor* on the Sensor screen is the
+alias' enabled state (`PackageManager.setComponentEnabledSetting`), on by default. Juggluco doesn't register for NFC
+dispatch, so no "open with" chooser appears on the user's phone.
+
 ## Short invites and private profiles (v0.11.0)
 
 *2026-10-17. Investigation 14 brought into Sukrara (Android + Mac). Kept and left out, with reasons:

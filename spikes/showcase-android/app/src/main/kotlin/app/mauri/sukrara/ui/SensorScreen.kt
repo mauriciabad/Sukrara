@@ -73,6 +73,7 @@ fun SensorScreen(onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var outcome by remember { mutableStateOf<Outcome?>(null) }
     var nfcOn by remember { mutableStateOf(nfc?.isEnabled == true) }
+    var launchOnScan by remember { mutableStateOf(NfcLaunch.isOn(ctx)) }
 
     // Sukrara's own LibreView setup (Treatments & LibreView) already knows the account: learn its receiver ID up
     // front, so a sensor started by LibreLink or Juggluco moves over with a single tap.
@@ -153,6 +154,11 @@ fun SensorScreen(onBack: () -> Unit) {
                 outcome = Outcome.Done("Signed in", msg)
             }
             null -> Unit
+        }
+
+        if (nfc != null) Toggle("Open Sukrara when you scan a sensor", launchOnScan,
+            sub = "Holding the phone against a Libre sensor opens Sukrara when it isn't already open") {
+            NfcLaunch.set(ctx, it); launchOnScan = it
         }
 
         if (pairing != null) TextButton(onClick = {

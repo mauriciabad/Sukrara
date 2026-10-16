@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A FreeStyle Libre sensor is an ISO 15693 (NfcV) tag: tapping one opens Sukrara (ui/NfcLaunch) -->
+<resources>
+    <tech-list>
+        <tech>android.nfc.tech.NfcV</tech>
+    </tech-list>
+</resources>
