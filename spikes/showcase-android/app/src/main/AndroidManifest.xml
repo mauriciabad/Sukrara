@@ -89,6 +89,16 @@
         <receiver
             android:name=".follower.WatchdogReceiver"
             android:exported="false" />
+        <!-- Investigation 15: glucose alerts. The channels' sound URIs point at this provider, which SystemUI opens on
+             every alert (pack + random variant chosen at play time). Exported without a permission so SystemUI can
+             read it (NotificationRecord's grant check); it only serves the bundled alert sounds. -->
+        <provider
+            android:name=".alerts.AlertSoundProvider"
+            android:authorities="${applicationId}.alertsound"
+            android:exported="true" />
+        <receiver
+            android:name=".alerts.AlertCheckReceiver"
+            android:exported="false" />
         <!-- adb-only feature switches (battery lab, investigation 11): DUMP is held by the shell, not by apps -->
         <receiver
             android:name=".features.DebugReceiver"

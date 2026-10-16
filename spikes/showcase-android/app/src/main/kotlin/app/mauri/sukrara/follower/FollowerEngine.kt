@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.os.SystemClock
+import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.core.EventLog
 import app.mauri.sukrara.core.Notifications
 import app.mauri.sukrara.core.Proto
@@ -48,10 +50,8 @@ data class FollowerUi(
     val lastReject: String? = null,
     val epoch: Int = 0,
     val devices: List<String> = emptyList(),
-    val low: Int = 65,
+    val low: Int = 65,       // the alert thresholds, for the chart's range lines
     val high: Int = 185,
-    val noDataMin: Int = 20,
-    val alarmsOn: Boolean = true,
     val testUnfiltered: Boolean = false,
     val canWrite: Boolean = false,
     val ble: String = "off",
@@ -92,9 +92,6 @@ class FollowerEngine(private val ctx: Context) {
     private var lastAcceptedAt = 0L
     private var subscribedDevices: List<String> = emptyList()
     private var subscribedWriters: List<String> = emptyList()
-    private var alarmKind: String? = null
-    private var alarmAt = 0L
-    private var noDataAlerted = false
     private var lastRejectLogAt = 0L
 
     private val _ui = MutableStateFlow(FollowerUi())
@@ -303,7 +300,7 @@ class FollowerEngine(private val ctx: Context) {
                 .put("since", since), st?.devices ?: emptyList()))
         }, ::onEvent)
         p.subscribe("live", { listOf(authorsOrAll(JSONObject()
-            .put("kinds", JSONArray().put(Proto.LIVE))
+            .put("kinds", JSONArray().put(Proto.LIVE).put(Proto.ALERT))
             .put("since", Proto.nowS() - 120), st?.devices ?: emptyList())) }, ::onEvent)
         subscribeTreatments()
         log.i("subscribed: roster + chunks (#c) + live + treatments, authors ${s.devices.map { it.take(12) }}${if (s.testUnfiltered) " [TEST: no authors filter]" else ""}")
@@ -404,7 +401,7 @@ class FollowerEngine(private val ctx: Context) {
         scope.launch(serial) {
             when (ev.optInt("kind")) {
                 Proto.WRAP -> onWrap(ev, via)
-                Proto.LIVE, Proto.CHUNK -> onData(ev, via)
+                Proto.LIVE, Proto.ALERT, Proto.CHUNK -> onData(ev, via)
             }
         }
     }
@@ -491,6 +488,11 @@ class FollowerEngine(private val ctx: Context) {
         val body = runCatching { Proto.dec(epoch.g, author, ev.getString("content")) }.getOrNull()
             ?: return reject("decrypt failed", author, via)
         if (body.optInt("v") != 2) return reject("not v2", author, via)
+        if (kind == Proto.ALERT) {
+            if (body.optString("type") != "alert") return reject("alert: wrong type", author, via)
+            log.i("alert ${body.optString("k")} ${body.optString("state")} via ${short(via)}")
+            return Alerts.onRemote(ctx, body)
+        }
         val rows = mutableListOf<Triple<Long, Int, Double?>>()
         when (kind) {
             Proto.LIVE -> rows += Triple(body.getLong("t"), body.getInt("sgv"), if (body.isNull("r")) null else body.getDouble("r"))
@@ -520,7 +522,7 @@ class FollowerEngine(private val ctx: Context) {
         } else {
             log.i("chunk h=${body.getLong("h")} +$added reading(s) epoch ${epoch.n} via ${short(via)}")
         }
-        if (newest.first > prevLatest) onNewest(newest.first, newest.second)
+        if (newest.first > prevLatest) onNewest(newest.first, newest.second, newest.third)
         publishUi()
     }
 
@@ -571,6 +573,7 @@ class FollowerEngine(private val ctx: Context) {
         val tr = Treatment.fromWire(body) ?: return reject("treatment: malformed body", author, via)
         if (Proto.tagValue(ev, "d") != Proto.treatmentD(sid, tr.id)) return reject("treatment: d tag mismatch", author, via)
         if (!db.mergeTreatment(tr, author, via, fromOwner)) return
+        if (tr.k == "rapid") Alerts.check(ctx)   // the insulin mute (own rules)
         log.i("treatment ${if (tr.del) "DELETED" else tr.k + " " + tr.a} \"${tr.n}\" id ${tr.id.take(8)} from " +
             "${if (fromOwner) "wearer" else "writer " + author.take(8)} via ${short(via)}")
         publishUi()
@@ -605,26 +608,12 @@ class FollowerEngine(private val ctx: Context) {
         _ui.update { it.copy(rejects = db.rejectCount(), lastReject = why) }
     }
 
-    // ============================================================================================ alarms
+    // ============================================================================================ alerts + liveness
 
-    private fun onNewest(t: Long, sgv: Int) {
-        val s = st ?: return
-        if (noDataAlerted) { noDataAlerted = false; Notifications.cancel(ctx, Notifications.ID_NO_DATA) }
+    /** Newest reading: alerts (investigation 15, [Alerts]) and the liveness watchdog. */
+    private fun onNewest(t: Long, sgv: Int, rate: Double?) {
         scheduleWatchdog(((t + 6 * 60) - Proto.nowS()).coerceAtLeast(60) * 1000)
-        if (!s.alarmsOn || Proto.nowS() - t > 15 * 60) return
-        val kind = when { sgv <= s.low -> "LOW"; sgv >= s.high -> "HIGH"; else -> null }
-        if (kind == null) {
-            if (alarmKind != null) { alarmKind = null; Notifications.cancel(ctx, Notifications.ID_HIGH_LOW) }
-            return
-        }
-        val now = Proto.nowS()
-        if (kind != alarmKind || now - alarmAt > 30 * 60) {
-            alarmKind = kind
-            alarmAt = now
-            Notifications.post(ctx, Notifications.ID_HIGH_LOW, Notifications.ALARMS, "$kind glucose: $sgv mg/dL",
-                "Threshold ${if (kind == "LOW") s.low else s.high} mg/dL")
-            log.i("ALARM $kind $sgv mg/dL")
-        }
+        Alerts.onReading(ctx, app.mauri.sukrara.core.Reading(t, sgv, rate))
     }
 
     private fun watchdogIntent() = PendingIntent.getBroadcast(ctx, 0, Intent(ctx, WatchdogReceiver::class.java),
@@ -641,7 +630,7 @@ class FollowerEngine(private val ctx: Context) {
 
     private fun cancelWatchdog() = ctx.getSystemService(AlarmManager::class.java).cancel(watchdogIntent())
 
-    /** Called by [WatchdogReceiver]: stale ⇒ reconnect + backfill; ≥ noDataMin ⇒ "no data" alarm. */
+    /** Called by [WatchdogReceiver]: stale ⇒ reconnect + backfill. (The "no data" alert is [Alerts]' own timer.) */
     suspend fun watchdog() = withContext(serial) {
         val s = st ?: return@withContext
         if (s.status != FollowerState.ACTIVE) return@withContext
@@ -653,20 +642,7 @@ class FollowerEngine(private val ctx: Context) {
             pool?.reconnect()
             backfill("watchdog", full = false)
         }
-        if (age >= s.noDataMin * 60 && s.alarmsOn && !noDataAlerted) {
-            noDataAlerted = true
-            Notifications.post(ctx, Notifications.ID_NO_DATA, Notifications.ALARMS, "No glucose data",
-                "Nothing received for ${age / 60} min")
-            log.i("ALARM no data for ${age / 60} min")
-        }
-        // next check in 5 min, or exactly when the no-data threshold is crossed if that comes sooner
-        val untilAlarm = (latest + s.noDataMin * 60 - Proto.nowS()) * 1000
-        scheduleWatchdog(if (untilAlarm in 60_000L until 5 * 60_000L) untilAlarm else 5 * 60_000L)
-    }
-
-    fun setAlarms(low: Int, high: Int, on: Boolean) = scope.launch(serial) {
-        st?.let { it.low = low; it.high = high; it.alarmsOn = on; save() }
-        publishUi()
+        scheduleWatchdog(5 * 60_000L)
     }
 
     fun setTestUnfiltered(on: Boolean) = scope.launch(serial) {
@@ -713,10 +689,8 @@ class FollowerEngine(private val ctx: Context) {
                 rejects = db.rejectCount(),
                 epoch = s?.maxEpoch ?: 0,
                 devices = s?.devices ?: emptyList(),
-                low = s?.low ?: 65,
-                high = s?.high ?: 185,
-                noDataMin = s?.noDataMin ?: 20,
-                alarmsOn = s?.alarmsOn ?: true,
+                low = Alerts.settings.value.cfg(Kind.LOW).value.toInt(),
+                high = Alerts.settings.value.cfg(Kind.HIGH).value.toInt(),
                 testUnfiltered = s?.testUnfiltered ?: false,
                 canWrite = s != null && s.fPub in s.writers,
                 lastVia = chart.lastOrNull()?.via,

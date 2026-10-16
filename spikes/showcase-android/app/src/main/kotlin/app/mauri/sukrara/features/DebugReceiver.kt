@@ -67,6 +67,19 @@ class DebugReceiver : BroadcastReceiver() {
         // Root: reload the LSPosed module (kill, not `am crash`: crashes count towards Android's rescue mode).
         if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi())
         runCatching { command(c, i, out) }.onFailure { notes += "cmd failed: ${it.message}" }
+        // Investigation 15: --es alertSettings '<json>' (SPEC §3) · --es alertTest high (fires once, shared with
+        // followers) · --es alertFeed '204,-0.5' (a made-up reading through the rules, until the next real one)
+        val alerts = app.mauri.sukrara.alerts.Alerts
+        i.getStringExtra("alertSettings")?.let { j ->
+            alerts.update(c) { app.mauri.sukrara.alerts.AlertSettings.fromJson(JSONObject(j)) }
+        }
+        i.getStringExtra("alertTest")?.let { alerts.test(c, it, share = true) }
+        i.getStringExtra("alertFeed")?.split(",")?.let { p ->
+            alerts.onReading(c, app.mauri.sukrara.core.Reading(System.currentTimeMillis() / 1000, p[0].trim().toInt(),
+                p.getOrNull(1)?.trim()?.toDoubleOrNull()))
+        }
+        alerts.init(c)
+        out.put("alerts", alerts.toJson())
         if (App.role(c) == "owner" && App.owner(c).hasIdentity()) {
             val u = App.owner(c).ui.value
             out.put("owner", JSONObject().put("epoch", u.epoch).put("followers", u.followers.count { it.revoked == null })

@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CreatePasswordRequest
@@ -49,11 +50,14 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private var role by mutableStateOf<String?>(null)
     private var deepLink by mutableStateOf<String?>(null)
+    /** A screen a notification asked for (alert notifications open "alerts"). */
+    private var openScreen by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         role = App.role(this)
         takeLink(intent)
+        openScreen = intent?.getStringExtra("screen")
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN), 1)
         startServiceIfReady()
@@ -77,6 +81,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         takeLink(intent)
+        intent.getStringExtra("screen")?.let { openScreen = it }
     }
 
     private fun takeLink(i: Intent?) {
@@ -144,6 +149,7 @@ class MainActivity : ComponentActivity() {
         val relays by engine.relayStats.collectAsStateWithLifecycle()
         val log by engine.log.lines.collectAsStateWithLifecycle()
         var screen by remember { mutableStateOf("home") }
+        LaunchedEffect(openScreen) { openScreen?.let { screen = it; openScreen = null } }
         var error by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf<String?>(null) }
 
@@ -247,7 +253,8 @@ class MainActivity : ComponentActivity() {
                             "Your followers get the change at once. New invites show it to the person you invite.",
                             actions::saveProfile) { screen = "home" }
                     }
-                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }) { screen = "home" } }
+                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }, onAlerts = { screen = "alerts" }) { screen = "home" } }
+                    "alerts" -> Page { AlertsScreen(follower = false) { screen = "settings" } }
                     "sensor" -> Page { SensorScreen { screen = "home" } }
                     else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
                 }
@@ -267,6 +274,7 @@ class MainActivity : ComponentActivity() {
         var error by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf(false) }
         var screen by remember { mutableStateOf("home") }
+        LaunchedEffect(openScreen) { openScreen?.let { screen = it; openScreen = null } }
 
         val actions = remember {
             object : FollowerActions {
@@ -291,7 +299,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                override fun setAlarms(low: Int, high: Int, on: Boolean) { engine.setAlarms(low, high, on) }
+                override fun openAlerts() { screen = "alerts" }
                 override fun setTestUnfiltered(on: Boolean) { engine.setTestUnfiltered(on) }
                 override fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = engine.scanNearby(onFound)
                 override fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile) {
@@ -306,15 +314,21 @@ class MainActivity : ComponentActivity() {
             }
         }
         FollowerRefresh { engine.refreshUi() }
-        val step = when (u.status) { "none", "requested" -> u.status; else -> if (screen == "profile") "profile" else "home" }
+        val step = when (u.status) { "none", "requested" -> u.status; else -> "home" }
+        val homeScroll = rememberScrollState()
         AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->
-            Page {
-                when (s) {
-                    "none" -> FollowerJoin(deepLink, busy, error, actions)
-                    "requested" -> FollowerWaiting(u, actions)
-                    "profile" -> ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
-                        "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile) { screen = "home" }
-                    else -> FollowerHome(u, relays, log, actions)
+            when (s) {
+                "none" -> Page { FollowerJoin(deepLink, busy, error, actions) }
+                "requested" -> Page { FollowerWaiting(u, actions) }
+                else -> ScreenHost(screen, home = "home", onBack = { screen = "home" }) { sc ->
+                    when (sc) {
+                        "alerts" -> Page { AlertsScreen(follower = true) { screen = "home" } }
+                        "profile" -> Page {
+                            ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
+                                "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile) { screen = "home" }
+                        }
+                        else -> Page(homeScroll) { FollowerHome(u, relays, log, actions) }
+                    }
                 }
             }
         }

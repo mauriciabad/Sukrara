@@ -1,0 +1,5 @@
+.venv/
+# Android takes the .ogg files (copied to showcase-android res/raw), the Mac the .caf ones (bundle.sh), the site the .m4a ones (docs/sounds)
+out/*.wav
+out/*.ogg
+out/*.m4a

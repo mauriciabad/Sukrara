@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -40,10 +40,13 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 - **Phone:** value, continuous trend arrow and 12 h chart; status-bar chip and number icon; home-screen widgets;
   insulin, carbs and notes with optional LibreView upload. Source: Juggluco, or the sensor read directly.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
-  (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); low / high / no-data alarms.
+  (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); the same glucose alerts as the phone.
+- **Alerts:** urgent low, low, high, very high, fast changes and no data, each with your own threshold and sound.
+  Highs stay quiet after rapid insulin and while already falling back into range. Video-game sound packs
+  ([listen](sounds/)), a different sound each time, and a vibration per alert.
 - **Sharing:** a short link or small QR code that shows who is inviting, a 4-digit code on both screens, then
-  **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers get
-  low / high / no-data alarms. Removing someone rotates the key; everyone else carries on.
+  **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
+  you do. Removing someone rotates the key; everyone else carries on.
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged; stock Home Assistant reads it through a
   Nightscout-compatible adapter.
@@ -78,6 +81,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
 | [13](13-macos-widgets) | macOS widgets | Running in Sukrara for Mac, live, every minute (Apple certificate needed) |
 | [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr. In the app since 0.11: short invites and private names + pictures |
+| [15](15-alerts) | Glucose alerts and sound packs | Same rules on phone and Mac, followers alert with the wearer, game-style sounds and vibrations |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.

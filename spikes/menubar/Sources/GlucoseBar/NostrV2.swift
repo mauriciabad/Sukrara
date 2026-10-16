@@ -13,6 +13,8 @@ import NostrSDK
 /// Every transport hands events to `onEvent(_:via:)`; all acceptance rules live behind it.
 enum V2 {
     static let live: UInt16 = 21078, chunk: UInt16 = 30078, wrap: UInt16 = 1059
+    /// Glucose alert fired/cleared by the wearer (spikes/alerts/SPEC.md §4): same envelope as live.
+    static let alert: UInt16 = 21079
     static let toOwner: UInt16 = 30500, toFollower: UInt16 = 30501, auth: UInt16 = 22242
 
     static func hex(_ d: some Sequence<UInt8>) -> String { d.map { String(format: "%02x", $0) }.joined() }
@@ -388,6 +390,8 @@ struct FollowerV2State: Codable {
     var onTreatmentSent: ((_ id: String, _ u: Int64, _ via: String) -> Void)?
     /// A new epoch key arrived (BLE asks the owner for its backlog again — it is readable now).
     var onNewKey: (() -> Void)?
+    /// The wearer's `alert` event (alerts SPEC §4) that passed the live checks and is ≤ 10 min old: decrypted body.
+    var onAlert: (([String: Any], _ via: String) -> Void)?
 
     private(set) var st: FollowerV2State
     private let F: Keys
@@ -534,7 +538,7 @@ struct FollowerV2State: Codable {
         subscribedDevices = st.devices
         let now = Int(Date().timeIntervalSince1970)
         pool.subscribe("c", ["kinds": [Int(V2.chunk)], "authors": st.devices, "#c": [V2.chunkC(sid)], "since": now - 13 * 3600])
-        pool.subscribe("l", ["kinds": [Int(V2.live)], "authors": st.devices, "since": now - 120])
+        pool.subscribe("l", ["kinds": [Int(V2.live), Int(V2.alert)], "authors": st.devices, "since": now - 120])
     }
 
     // MARK: the one entry point for every transport
@@ -617,6 +621,12 @@ struct FollowerV2State: Codable {
             guard let t = num(body["t"]), let sgv = num(body["sgv"]) else { return }
             onReading?(Reading(date: Date(timeIntervalSince1970: t), mgdl: sgv, rate: num(body["r"])), label)
             log("v2 live \(Int(sgv)) mg/dL epoch \(epoch) via \(via)")
+        case V2.alert:
+            guard body["type"] as? String == "alert", let at = num(body["at"]) else { return reject("alert body", id) }
+            let age = Int(Date().timeIntervalSince1970 - at)
+            guard age <= 600 else { return log("v2 alert \(id.prefix(8)) ignored: \(age) s old") }
+            log("v2 alert \(body["k"] ?? "?") \(body["state"] ?? "?") n=\(body["n"] ?? "?") epoch \(epoch) via \(via)")
+            onAlert?(body, via)
         case V2.chunk:
             guard let h = num(body["h"]), let rows = body["r"] as? [[Any]] else { return }
             let pts = rows.compactMap { row -> Reading? in

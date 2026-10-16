@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sukrara Alert Sounds</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a sound board, alerts down the side, packs across the top, like a game's sound-test screen. */
+:root {
+  --ground: #f3f7f9;
+  --panel: #ffffff;
+  --ink: #0b2e5e;
+  --muted: #4d6a83;
+  --line: #cfdde6;
+  --cyan: #1b8fa6;
+  --live: #6c8a00;
+  --live-bg: #eaf7b8;
+  --low: #c62828;
+  --high: #c25a00;
+  --display: "Chakra Petch", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #071a33; --panel: #0c2546; --ink: #e4f1f7; --muted: #8fb0c6; --line: #1d3d63;
+    --cyan: #3fcbe0; --live: #c6f432; --live-bg: #2d3a08; --low: #ff6b5e; --high: #ffa94d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #071a33; --panel: #0c2546; --ink: #e4f1f7; --muted: #8fb0c6; --line: #1d3d63;
+  --cyan: #3fcbe0; --live: #c6f432; --live-bg: #2d3a08; --low: #ff6b5e; --high: #ffa94d;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink); font: 400 16px/1.5 var(--body);
+  padding-block: 32px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header { display: flex; flex-direction: column; gap: 8px; max-width: 68ch; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); }
+h1 { font: 700 clamp(30px, 5vw, 46px)/1.05 var(--display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; font-size: 14px; color: var(--muted); }
+.bar button { font: 600 14px/1 var(--display); letter-spacing: .04em; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; cursor: pointer; }
+.bar button:hover { border-color: var(--cyan); }
+.now { font-family: var(--mono); font-size: 13px; color: var(--ink); min-height: 1.5em; }
+.board { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 860px; }
+thead th { text-align: left; padding: 16px 12px 12px; border-bottom: 1px solid var(--line); vertical-align: bottom; }
+.pk { display: block; font: 700 18px/1.1 var(--display); }
+.pd { display: block; font-size: 13px; color: var(--muted); }
+tbody th { text-align: left; font-weight: 400; padding: 14px 12px; width: 40%; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody td { padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child > * { border-bottom: 0; }
+.k { font: 700 17px/1.2 var(--display); display: block; }
+.k-urgent_low, .k-low { color: var(--low); }
+.k-high, .k-very_high { color: var(--high); }
+.th { display: block; font: 400 12.5px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mood { display: block; font-size: 14px; margin: 2px 0 8px; }
+.hap { width: calc(100% - 64px); height: 34px; display: inline-block; vertical-align: middle; }
+.hap line { stroke: var(--line); stroke-width: 1; }
+.hap polygon { fill: var(--cyan); }
+.ms { font: 400 11px var(--mono); color: var(--muted); margin-left: 8px; vertical-align: middle; }
+.vs { display: flex; gap: 6px; }
+.v { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--ground);
+  color: var(--ink); font: 600 14px var(--mono); cursor: pointer; position: relative; }
+.v:hover { border-color: var(--cyan); }
+.v:focus-visible, .bar button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.v.playing { background: var(--live-bg); border-color: var(--live); color: var(--ink); }
+.v.playing::after { content: ""; position: absolute; inset: -5px; border-radius: 50%;
+  border: 2px solid var(--live); clip-path: inset(0 calc(100% - var(--p, 0%)) 0 0); }
+footer { font-size: 14px; color: var(--muted); max-width: 72ch; display: flex; flex-direction: column; gap: 8px; }
+footer p { margin: 0; }
+footer code { font-family: var(--mono); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .v.playing::after { display: none; } }
+</style>
+<main>
+  <header>
+    <span class="eyebrow">Sukrara · glucose alerts · investigation 15</span>
+    <h1>Alert sound test</h1>
+    <p>Four packs, seven alerts, three sounds each. The app picks one of the three at random every time an alert
+      goes off, so it doesn't get repetitive. Every sound is synthesised from code with original melodies.</p>
+  </header>
+  <div class="bar">
+    <button type="button" id="all-pack">Play a random high from each pack</button>
+    <button type="button" id="stop">Stop</button>
+    <span class="now" id="now" aria-live="polite">Tap a number to listen.</span>
+  </div>
+  <div class="board">
+    <table>
+      <thead><tr><th scope="col"><span class="pk">Alert</span><span class="pd">default rule · vibration on Android</span></th><th scope="col"><span class="pk">Arcade</span><span class="pd">8-bit pulse waves</span></th><th scope="col"><span class="pk">Kart</span><span class="pd">racing brass & engines</span></th><th scope="col"><span class="pk">Quest</span><span class="pd">harp, flute, bells</span></th><th scope="col"><span class="pk">Soft</span><span class="pd">marimba & glass</span></th></tr></thead>
+      <tbody>
+<tr data-kind="urgent_low">
+  <th scope="row"><span class="k k-urgent_low">Urgent low</span><span class="th">≤ 55 mg/dL · every 5 min</span>
+    <span class="mood">Game over: longer, slows down, ends low</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 2200 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,4.0 20.0,32"><title>quick fall · 1</title></polygon><polygon points="56.0,32 56.0,12.4 76.0,32"><title>quick fall · 0.7</title></polygon><polygon points="128.0,32 128.0,18.0 148.0,32"><title>quick fall · 0.5</title></polygon><polygon points="220.0,32 220.0,4.0 280.0,4.0 280.0,32"><title>thud · 1</title></polygon><polygon points="380.0,32 380.0,4.0 440.0,4.0 440.0,32"><title>thud · 1</title></polygon></svg><span class="ms">2200 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_urgent_low_1.m4a" aria-label="Arcade, Urgent low, sound 1">1</button><button class="v" data-src="arcade_urgent_low_2.m4a" aria-label="Arcade, Urgent low, sound 2">2</button><button class="v" data-src="arcade_urgent_low_3.m4a" aria-label="Arcade, Urgent low, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_urgent_low_1.m4a" aria-label="Kart, Urgent low, sound 1">1</button><button class="v" data-src="kart_urgent_low_2.m4a" aria-label="Kart, Urgent low, sound 2">2</button><button class="v" data-src="kart_urgent_low_3.m4a" aria-label="Kart, Urgent low, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_urgent_low_1.m4a" aria-label="Quest, Urgent low, sound 1">1</button><button class="v" data-src="quest_urgent_low_2.m4a" aria-label="Quest, Urgent low, sound 2">2</button><button class="v" data-src="quest_urgent_low_3.m4a" aria-label="Quest, Urgent low, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_urgent_low_1.m4a" aria-label="Soft, Urgent low, sound 1">1</button><button class="v" data-src="soft_urgent_low_2.m4a" aria-label="Soft, Urgent low, sound 2">2</button><button class="v" data-src="soft_urgent_low_3.m4a" aria-label="Soft, Urgent low, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="low">
+  <th scope="row"><span class="k k-low">Low</span><span class="th">≤ 65 mg/dL · every 15 min</span>
+    <span class="mood">Lost a life: short and falling</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 980 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,6.8 20.0,32"><title>quick fall · 0.9</title></polygon><polygon points="60.0,32 60.0,9.6 80.0,32"><title>quick fall · 0.8</title></polygon><polygon points="136.0,32 136.0,6.8 196.0,6.8 196.0,32"><title>thud · 0.9</title></polygon></svg><span class="ms">980 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_low_1.m4a" aria-label="Arcade, Low, sound 1">1</button><button class="v" data-src="arcade_low_2.m4a" aria-label="Arcade, Low, sound 2">2</button><button class="v" data-src="arcade_low_3.m4a" aria-label="Arcade, Low, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_low_1.m4a" aria-label="Kart, Low, sound 1">1</button><button class="v" data-src="kart_low_2.m4a" aria-label="Kart, Low, sound 2">2</button><button class="v" data-src="kart_low_3.m4a" aria-label="Kart, Low, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_low_1.m4a" aria-label="Quest, Low, sound 1">1</button><button class="v" data-src="quest_low_2.m4a" aria-label="Quest, Low, sound 2">2</button><button class="v" data-src="quest_low_3.m4a" aria-label="Quest, Low, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_low_1.m4a" aria-label="Soft, Low, sound 1">1</button><button class="v" data-src="soft_low_2.m4a" aria-label="Soft, Low, sound 2">2</button><button class="v" data-src="soft_low_3.m4a" aria-label="Soft, Low, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="high">
+  <th scope="row"><span class="k k-high">High</span><span class="th">≥ 185 mg/dL · every 60 min</span>
+    <span class="mood">Final lap: a riff, then faster and higher</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 715 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,12.4 5.8,12.4 5.8,32"><title>click · 0.7</title></polygon><polygon points="33.8,32 33.8,11.0 39.6,11.0 39.6,32"><title>click · 0.75</title></polygon><polygon points="59.6,32 59.6,9.6 65.4,9.6 65.4,32"><title>click · 0.8</title></polygon><polygon points="79.4,32 79.4,8.2 85.2,8.2 85.2,32"><title>click · 0.85</title></polygon><polygon points="95.2,32 95.2,6.8 101.0,6.8 101.0,32"><title>click · 0.9</title></polygon><polygon points="113.0,32 143.0,4.0 143.0,32"><title>quick rise · 1</title></polygon></svg><span class="ms">715 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_high_1.m4a" aria-label="Arcade, High, sound 1">1</button><button class="v" data-src="arcade_high_2.m4a" aria-label="Arcade, High, sound 2">2</button><button class="v" data-src="arcade_high_3.m4a" aria-label="Arcade, High, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_high_1.m4a" aria-label="Kart, High, sound 1">1</button><button class="v" data-src="kart_high_2.m4a" aria-label="Kart, High, sound 2">2</button><button class="v" data-src="kart_high_3.m4a" aria-label="Kart, High, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_high_1.m4a" aria-label="Quest, High, sound 1">1</button><button class="v" data-src="quest_high_2.m4a" aria-label="Quest, High, sound 2">2</button><button class="v" data-src="quest_high_3.m4a" aria-label="Quest, High, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_high_1.m4a" aria-label="Soft, High, sound 1">1</button><button class="v" data-src="soft_high_2.m4a" aria-label="Soft, High, sound 2">2</button><button class="v" data-src="soft_high_3.m4a" aria-label="Soft, High, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="very_high">
+  <th scope="row"><span class="k k-very_high">Very high</span><span class="th">≥ 250 mg/dL · every 30 min</span>
+    <span class="mood">Boss incoming: two-note warning, rising</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 1411 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,9.6 60.0,9.6 60.0,32"><title>thud · 0.8</title></polygon><polygon points="78.0,32 78.0,4.0 83.8,4.0 83.8,32"><title>click · 1</title></polygon><polygon points="127.8,32 127.8,9.6 187.8,9.6 187.8,32"><title>thud · 0.8</title></polygon><polygon points="205.8,32 205.8,4.0 211.6,4.0 211.6,32"><title>click · 1</title></polygon><polygon points="255.6,32 255.6,4.0 282.2,4.0 282.2,32"><title>spin · 1</title></polygon></svg><span class="ms">1411 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_very_high_1.m4a" aria-label="Arcade, Very high, sound 1">1</button><button class="v" data-src="arcade_very_high_2.m4a" aria-label="Arcade, Very high, sound 2">2</button><button class="v" data-src="arcade_very_high_3.m4a" aria-label="Arcade, Very high, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_very_high_1.m4a" aria-label="Kart, Very high, sound 1">1</button><button class="v" data-src="kart_very_high_2.m4a" aria-label="Kart, Very high, sound 2">2</button><button class="v" data-src="kart_very_high_3.m4a" aria-label="Kart, Very high, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_very_high_1.m4a" aria-label="Quest, Very high, sound 1">1</button><button class="v" data-src="quest_very_high_2.m4a" aria-label="Quest, Very high, sound 2">2</button><button class="v" data-src="quest_very_high_3.m4a" aria-label="Quest, Very high, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_very_high_1.m4a" aria-label="Soft, Very high, sound 1">1</button><button class="v" data-src="soft_very_high_2.m4a" aria-label="Soft, Very high, sound 2">2</button><button class="v" data-src="soft_very_high_3.m4a" aria-label="Soft, Very high, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="falling_fast">
+  <th scope="row"><span class="k k-falling_fast">Falling fast</span><span class="th">−2 mg/dL/min · off by default</span>
+    <span class="mood">A quick sweep down</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 232 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,4.0 20.0,32"><title>quick fall · 1</title></polygon><polygon points="44.0,32 44.0,4.0 46.8,4.0 46.8,32"><title>low tick · 1</title></polygon></svg><span class="ms">232 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_falling_fast_1.m4a" aria-label="Arcade, Falling fast, sound 1">1</button><button class="v" data-src="arcade_falling_fast_2.m4a" aria-label="Arcade, Falling fast, sound 2">2</button><button class="v" data-src="arcade_falling_fast_3.m4a" aria-label="Arcade, Falling fast, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_falling_fast_1.m4a" aria-label="Kart, Falling fast, sound 1">1</button><button class="v" data-src="kart_falling_fast_2.m4a" aria-label="Kart, Falling fast, sound 2">2</button><button class="v" data-src="kart_falling_fast_3.m4a" aria-label="Kart, Falling fast, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_falling_fast_1.m4a" aria-label="Quest, Falling fast, sound 1">1</button><button class="v" data-src="quest_falling_fast_2.m4a" aria-label="Quest, Falling fast, sound 2">2</button><button class="v" data-src="quest_falling_fast_3.m4a" aria-label="Quest, Falling fast, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_falling_fast_1.m4a" aria-label="Soft, Falling fast, sound 1">1</button><button class="v" data-src="soft_falling_fast_2.m4a" aria-label="Soft, Falling fast, sound 2">2</button><button class="v" data-src="soft_falling_fast_3.m4a" aria-label="Soft, Falling fast, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="rising_fast">
+  <th scope="row"><span class="k k-rising_fast">Rising fast</span><span class="th">+2 mg/dL/min · off by default</span>
+    <span class="mood">A quick sweep up</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 565 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 100.0,4.0 100.0,32"><title>slow rise · 1</title></polygon><polygon points="112.0,32 112.0,4.0 114.8,4.0 114.8,32"><title>tick · 1</title></polygon></svg><span class="ms">565 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_rising_fast_1.m4a" aria-label="Arcade, Rising fast, sound 1">1</button><button class="v" data-src="arcade_rising_fast_2.m4a" aria-label="Arcade, Rising fast, sound 2">2</button><button class="v" data-src="arcade_rising_fast_3.m4a" aria-label="Arcade, Rising fast, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_rising_fast_1.m4a" aria-label="Kart, Rising fast, sound 1">1</button><button class="v" data-src="kart_rising_fast_2.m4a" aria-label="Kart, Rising fast, sound 2">2</button><button class="v" data-src="kart_rising_fast_3.m4a" aria-label="Kart, Rising fast, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_rising_fast_1.m4a" aria-label="Quest, Rising fast, sound 1">1</button><button class="v" data-src="quest_rising_fast_2.m4a" aria-label="Quest, Rising fast, sound 2">2</button><button class="v" data-src="quest_rising_fast_3.m4a" aria-label="Quest, Rising fast, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_rising_fast_1.m4a" aria-label="Soft, Rising fast, sound 1">1</button><button class="v" data-src="soft_rising_fast_2.m4a" aria-label="Soft, Rising fast, sound 2">2</button><button class="v" data-src="soft_rising_fast_3.m4a" aria-label="Soft, Rising fast, sound 3">3</button></div></td>
+</tr>
+<tr data-kind="no_data">
+  <th scope="row"><span class="k k-no_data">No data</span><span class="th">20 min silent · every 60 min</span>
+    <span class="mood">Connection lost: two blips</span><svg class="hap" viewBox="0 0 720 34" preserveAspectRatio="none" role="img" aria-label="Vibration pattern, 342 ms"><line x1="0" y1="33" x2="720" y2="33"/><polygon points="0.0,32 0.0,4.0 2.8,4.0 2.8,32"><title>tick · 1</title></polygon><polygon points="33.0,32 33.0,15.2 35.8,15.2 35.8,32"><title>tick · 0.6</title></polygon><polygon points="66.0,32 66.0,20.8 68.8,20.8 68.8,32"><title>low tick · 0.4</title></polygon></svg><span class="ms">342 ms</span></th>
+  <td data-pack="arcade"><div class="vs"><button class="v" data-src="arcade_no_data_1.m4a" aria-label="Arcade, No data, sound 1">1</button><button class="v" data-src="arcade_no_data_2.m4a" aria-label="Arcade, No data, sound 2">2</button><button class="v" data-src="arcade_no_data_3.m4a" aria-label="Arcade, No data, sound 3">3</button></div></td><td data-pack="kart"><div class="vs"><button class="v" data-src="kart_no_data_1.m4a" aria-label="Kart, No data, sound 1">1</button><button class="v" data-src="kart_no_data_2.m4a" aria-label="Kart, No data, sound 2">2</button><button class="v" data-src="kart_no_data_3.m4a" aria-label="Kart, No data, sound 3">3</button></div></td><td data-pack="quest"><div class="vs"><button class="v" data-src="quest_no_data_1.m4a" aria-label="Quest, No data, sound 1">1</button><button class="v" data-src="quest_no_data_2.m4a" aria-label="Quest, No data, sound 2">2</button><button class="v" data-src="quest_no_data_3.m4a" aria-label="Quest, No data, sound 3">3</button></div></td><td data-pack="soft"><div class="vs"><button class="v" data-src="soft_no_data_1.m4a" aria-label="Soft, No data, sound 1">1</button><button class="v" data-src="soft_no_data_2.m4a" aria-label="Soft, No data, sound 2">2</button><button class="v" data-src="soft_no_data_3.m4a" aria-label="Soft, No data, sound 3">3</button></div></td>
+</tr>
+      </tbody>
+    </table>
+  </div>
+  <footer>
+    <p>The strip under each alert is its vibration on Android, drawn to scale from the haptic primitives (falls,
+      thuds, clicks, rises; height = strength). It plays with the sound, and alone when the phone is on vibrate, so
+      you can tell a low from a high in your pocket.</p>
+    <p>Lows ring on the alarm volume. In the app: Settings → Alerts → Sound pack, or one pack for a single alert.
+      Source: <code>spikes/alerts/sounds/gen.py</code>.</p>
+  </footer>
+</main>
+<script>
+(() => {
+  const audio = new Audio();
+  let current = null;
+  const now = document.getElementById("now");
+  const label = b => b.getAttribute("aria-label");
+  function stop() {
+    audio.pause();
+    if (current) { current.classList.remove("playing"); current.style.removeProperty("--p"); }
+    current = null;
+  }
+  function play(b) {
+    stop();
+    current = b;
+    b.classList.add("playing");
+    audio.src = b.dataset.src;
+    audio.currentTime = 0;
+    audio.play().then(() => { now.textContent = "Playing: " + label(b); })
+      .catch(() => { now.textContent = "This browser couldn't play the sound."; stop(); });
+    return new Promise(res => { audio.onended = () => { stop(); res(); }; });
+  }
+  audio.ontimeupdate = () => {
+    if (current && audio.duration) current.style.setProperty("--p", (100 * audio.currentTime / audio.duration).toFixed(1) + "%");
+  };
+  document.querySelectorAll(".v").forEach(b => b.addEventListener("click", () => current === b ? stop() : play(b)));
+  document.getElementById("stop").addEventListener("click", () => { stop(); now.textContent = "Stopped."; });
+  document.getElementById("all-pack").addEventListener("click", async () => {
+    for (const td of document.querySelectorAll('tr[data-kind="high"] td')) {
+      const bs = td.querySelectorAll(".v");
+      await play(bs[Math.floor(Math.random() * bs.length)]);
+      await new Promise(r => setTimeout(r, 350));
+    }
+  });
+})();
+</script>
+</html>

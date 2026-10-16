@@ -16,6 +16,9 @@ import AppKit
 //   followLink / followLinkFile / followName   tests: join an invite at launch without the dialog
 //   pairNearby  tests: answer a phone's "Pair nearby" offer with this name, without the dialog
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
+//   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in "Alerts…")
+//   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
+//                      engine;  alertsSnapshot out.png: open "Alerts…" and render it
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 /// stdout, and for the bundled app (launched by `open`, no terminal) also ~/Library/Logs/Sukrara.log.
@@ -45,6 +48,7 @@ if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
+if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
 // delete {id} | dump), like the phone's DebugReceiver.
@@ -60,8 +64,17 @@ app.setActivationPolicy(.accessory)   // menubar only, no Dock icon
 
 let status = StatusController()
 status.unit = GlucoseUnit(rawValue: defaults.string(forKey: "unit") ?? "") ?? .mgdl
-let alarms = MainActor.assumeIsolated { Alarms() }
-MainActor.assumeIsolated { status.addToggle(alarms.menuItem) }
+// Glucose alerts (Alerts.swift, spikes/alerts/SPEC.md): this Mac's rules or the wearer's `alert` events.
+let alerts = MainActor.assumeIsolated { Alerts() }
+MainActor.assumeIsolated {
+    status.addItem(alerts.menuItem)
+    alerts.unit = { status.unit }
+    alerts.treatments = { treatmentStore.rows }
+    alerts.followingV2 = {
+        if let n = following.node, case .active = n.phase { return true }
+        return false
+    }
+}
 
 let configuredURL = defaults.string(forKey: "url").flatMap { $0 == "auto" ? nil : URL(string: $0) }
 let secret = defaults.string(forKey: "secret")
@@ -108,7 +121,7 @@ let historySpan: TimeInterval = 3 * 3600
         let snap = Snapshot(latest: latest, history: history, source: source)
         status.update(snap)
         widgetFeed.update(snap, unit: status.unit, thresholds: status.thresholds, treatments: treatmentStore.rows)
-        alarms.onLatest(latest)
+        alerts.onLatest(Reading(date: latest.date, mgdl: latest.mgdl, rate: snap.rate))
     }
 }
 
@@ -314,6 +327,7 @@ let treatmentStore = MainActor.assumeIsolated {
         n.onNewKey = { [weak self] in self?.ble?.hello() }
         n.onReading = { store.ingest($0, from: $1) }
         n.onHistory = { store.ingest(history: $0, from: $1) }
+        n.onAlert = { alerts.onWearerAlert($0, via: $1) }
         n.onPhase = { [weak self, weak n] p in
             guard let self, let n else { return }
             let w = n.wearer, who = w.name.isEmpty ? "someone" : w.name
@@ -324,6 +338,7 @@ let treatmentStore = MainActor.assumeIsolated {
             case .revoked: status.setFollow("⚠︎ \(who) stopped sharing with this Mac", image: pic)
             }
             status.treatmentsChanged()                   // may add entries? (roster writers)
+            alerts.followChanged()                       // "Same as the wearer" works only while approved
             if self.showWindow { self.window.show(p, name: n.st.name, wearer: n.wearer) }
         }
     }
@@ -339,6 +354,7 @@ let treatmentStore = MainActor.assumeIsolated {
         stop()
         FollowerV2State.clear()
         status.setFollow(nil)
+        alerts.followChanged()
         log("v2: stopped following (keys deleted from the Keychain)")
     }
 
@@ -432,6 +448,11 @@ MainActor.assumeIsolated {
             case "unfollow": following.unfollow()
             case "follow": following.follow(o["link"] as? String ?? "", name: o["name"] as? String ?? FollowUI.computerName)
             case "follow-status": log("debug v2 \(following.statusLine)")
+            case "alert-test": alerts.test(o["k"] as? String ?? "high")          // as -alert-test, on the running app
+            case "alert-feed": alerts.feed(o["feed"] as? String ?? "")
+            case "alert-state": log("debug alerts \(alerts.stateLine) | \(alerts.settings.json)"); alerts.logDelivered()
+            case "alerts-window": alerts.openWindow()
+            case "alert-clear": alerts.clearAll()                                  // remove test notifications
             case "v2-treat":       // writer test: publish only, never touches the local log
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
                                   t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
@@ -447,6 +468,18 @@ MainActor.assumeIsolated {
             default: break
             }
         }
+    }
+}
+
+// Alert test hooks (read from argv: UserDefaults would parse "200,-1.5" as a plist).
+MainActor.assumeIsolated {
+    let args = CommandLine.arguments
+    func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
+    if let k = arg("-alert-test") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { alerts.test(k) } }
+    if let f = arg("-alert-feed") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { alerts.feed(f) } }
+    if let path = arg("-alertsSnapshot") {
+        alerts.openWindow()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { alerts.snapshot(to: path) }
     }
 }
 

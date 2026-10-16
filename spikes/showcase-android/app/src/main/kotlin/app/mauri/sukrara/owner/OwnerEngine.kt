@@ -526,6 +526,13 @@ class OwnerEngine(private val ctx: Context) {
         flush(force = false)
     }
 
+    /** Investigation 15: a fired or cleared alert to every follower, at once (relays + BLE), even with batching on. */
+    fun publishAlert(body: JSONObject) = scope.launch(serial) {
+        val s = st ?: return@launch
+        publish(Proto.alertEvent(s.d, s.current.pub, body), Lane.LIVE, key = "alert")
+        log.i("alert ${body.optString("k")} ${body.optString("state")} published")
+    }
+
     private fun prune(now: Long) {
         val cutoff = Proto.hourOf(now) - BACKFILL_HOURS * 3600
         readings.headMap(cutoff).clear()

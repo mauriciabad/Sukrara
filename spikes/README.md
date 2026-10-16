@@ -20,7 +20,11 @@ swift run GlucoseBar -preview /tmp/arrows.png    # render the arrow strip for al
 swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button + sparkline to PNGs
 ./bundle.sh                              # → build/Sukrara.app (app.mauri.sukrara.poc; Apple identity + widgets if any, else ad hoc)
 ./dmg.sh                                 # → build/Sukrara-<version>.dmg, the drag-to-Applications installer
+swift run GlucoseBar -alerts-selftest    # glucose alert rules (spikes/alerts/SPEC.md) over a scripted series
+open build/Sukrara.app --args -alert-test urgent_low     # one test notification with its sound (-alert-feed "200,1")
 ```
+Glucose alerts: menu → **Alerts…** (settings window; `alertSettings` default = the SPEC §3 JSON); by default the Mac
+mirrors the wearer's `alert` events and checks "no data" itself. Details: [FOLLOWER.md](menubar/FOLLOWER.md).
 The Swift target is still called `GlucoseBar` (hence `swift run GlucoseBar`); the bundle is Sukrara. Options are
 `UserDefaults`, so for the `.app` use `defaults write app.mauri.sukrara.poc <key> <value>` (the first launch copies the
 old `dev.spike.GlucoseBar` domain and follower Keychain item, see `Migration.swift`). Log: `~/Library/Logs/Sukrara.log`.
@@ -187,6 +191,21 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 Unattended A/B battery runs with the Pixel's power rails (Perfetto, no root): `usb-run.sh` (rootless, over USB) or
 PowerLab (`power/android`, root, unplugged). Plan for Sukrara in `power/plans/sukrara.txt`. Status and how to run:
 [`power/HANDOFF.md`](power/HANDOFF.md).
+
+## `alerts/` — glucose alerts, sound packs (investigation 15)
+
+The rules, settings JSON and `alert` event are in [`alerts/SPEC.md`](alerts/SPEC.md); the code lives in the apps
+(`showcase-android/…/alerts/`, `menubar/Sources/GlucoseBar/Alerts*.swift`). The sounds are generated:
+
+```sh
+cd alerts/sounds
+uv run gen.py                                   # → out/<pack>_<kind>_<n>.{wav,ogg,caf,m4a} (~40 s)
+cp out/*.ogg out/silence.ogg ../../showcase-android/app/src/main/res/raw/     # Android (bundle.sh takes the .caf)
+uv run preview.py site ../../../docs/sounds     # the sound test page on sukrara.mauri.app/sounds
+```
+Phone tests (adb only): `am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --es alertTest
+high` (one alert, also sent to followers), `--es alertFeed '204,-0.5'` (a made-up reading through the rules).
+`adb logcat -s Sukrara.Alerts` shows each firing and which sound file SystemUI opened.
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 

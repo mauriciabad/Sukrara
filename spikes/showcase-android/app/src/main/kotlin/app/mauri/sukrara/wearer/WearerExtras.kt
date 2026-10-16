@@ -107,6 +107,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         local.add(b)
         render(force = false)
         SukraraHooks.onReadings(ctx, listOf(r), "reading")
+        app.mauri.sukrara.alerts.Alerts.onReading(ctx, r)
     }
 
     override fun onHistory(list: List<Reading>) {

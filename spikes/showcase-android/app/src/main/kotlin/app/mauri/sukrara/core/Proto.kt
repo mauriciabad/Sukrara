@@ -40,6 +40,7 @@ data class Unwrapped(val sender: String, val kind: Int, val body: JSONObject, va
  */
 object Proto {
     const val LIVE = 21078
+    const val ALERT = 21079   // investigation 15: spikes/alerts/SPEC.md §4
     const val CHUNK = 30078
     const val WRAP = 1059
     const val RUMOR_TO_OWNER = 30500
@@ -113,6 +114,10 @@ object Proto {
         val body = JSONObject().put("v", 2).put("t", r.t).put("sgv", r.sgv).put("r", rate2(r.rate)).put("dev", r.dev)
         return signed(d, LIVE, enc(d, gPub, body.toString()), listOf(tag("gk", gk(gPub)), expiration(now + 3600)), now)
     }
+
+    /** alert (spikes/alerts/SPEC.md §4), kind 21079: same envelope as live — signed by D, NIP-44 to G_n, expires now + 1 h. */
+    fun alertEvent(d: Keys, gPub: String, body: JSONObject, now: Long = nowS()): Event =
+        signed(d, ALERT, enc(d, gPub, body.toString()), listOf(tag("gk", gk(gPub)), expiration(now + 3600)), now)
 
     /** hour chunk, kind 30078, signed by D; `d`/`c` opaque, expires hour + 7 d. */
     fun chunkEvent(d: Keys, gPub: String, sid: String, hour: Long, rows: Collection<Reading>, createdAt: Long): Event {

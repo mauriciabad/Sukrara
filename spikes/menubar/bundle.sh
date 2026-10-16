@@ -21,6 +21,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/GlucoseBar "$APP/Contents/MacOS/Sukrara"
 cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
+# Alert sounds (spikes/alerts/sounds/out, IMA4 CAF, 4 packs × 7 kinds × 3 variants): UNNotificationSound(named:)
+# looks in the app's Library/Sounds, a shared group container's Library/Sounds, then the main bundle — the bundle
+# keeps them with the app (and its signature) instead of writing into ~/Library/Sounds.
+cp ../alerts/sounds/out/*.caf "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,7 +35,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Sukrara</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.11.0</string>
+  <key>CFBundleShortVersionString</key><string>0.11.1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>CFBundleURLTypes</key><array><dict>

@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -62,12 +62,17 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
   opens it on top of whatever app you're in. [10](docs/10-showcase.md)
 - Upload glucose and treatments to LibreView (Settings → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
+- Glucose alerts: urgent low, low, high, very high, falling/rising fast and no data, each with its own threshold,
+  reminder and sound. Highs stay quiet for a while after rapid insulin and while glucose is already falling back into
+  range. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range, with a 3 h sparkline. [01](docs/01-connectivity.md)
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone.
   The menu shows who you follow (name and picture). Keys stay in the macOS Keychain. [07](docs/07-bluetooth-followers.md)
-- Follower alarms: low (≤ 65), high (≥ 185) and no data for 20 minutes, as macOS notifications; toggle in the menu.
+- The same glucose alerts and sound packs as the phone (menu → **Alerts…**): alert when the wearer's phone does, or
+  with the Mac's own settings. [15](docs/15-alerts.md)
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
 - Desktop and Notification Center widgets (value, graph, graph + value) with live readings, redrawn every minute.
   They need a build signed with an Apple certificate: a free Apple ID works on your own Mac, others need Developer
@@ -81,7 +86,8 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
   only end-to-end encrypted to the people you share with and are never posted publicly. The picture is sent as a few
   versioned numbers, not an image, so every Sukrara draws it the same, also after the drawing style changes.
   [14](docs/14-nostr-identity.md)
-- Followers get alarms for low, high and no data for 20 minutes.
+- Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
+  [15](docs/15-alerts.md)
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all. [07](docs/07-bluetooth-followers.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers.
@@ -174,17 +180,18 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 12 | Android home-screen widgets | Value, graph, graph + value; ~0.4 s CPU per update | [docs/12](docs/12-android-widgets.md) |
 | 13 | macOS widgets | Built without Xcode; run in Sukrara for Mac with a free Apple ID certificate; every 1/min reload honoured | [docs/13](docs/13-macos-widgets.md) |
 | 14 | Nostr identity: profiles, short invites, Nostr login | Kind 0 on a separate profile key, Blossom pictures (EXIF removed), 241 → 63-char invites, derived accounts from an nsec and via Amber. **In Sukrara 0.11:** the short invites and private names + generated pictures; public profiles, Blossom and Nostr login left out ([why](docs/14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out)) | [docs/14](docs/14-nostr-identity.md) |
+| 15 | Glucose alerts, sound packs and haptics | One rule set on Android and Mac (15 + 53 tests), alerts mirrored to followers, packs served into native channels with a random variant each time, a vibration per alert | [docs/15](docs/15-alerts.md) |
 
 ## Try it
 
-Downloads: [v0.11.0](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.0)
+Downloads: [v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.0.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.1.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
@@ -200,10 +207,10 @@ Downloads: [v0.11.0](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
 - Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.0.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.11.1.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.0.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.11.1.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an
