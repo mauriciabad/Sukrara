@@ -133,6 +133,8 @@ class GraphGallery {
                 Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)))),
                 Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null)),
                 Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g.copy(treatments = true), value = false)),
+                Triple("the same 4×2 widget, reconfigured: 3 h, 1 ring (very good), no side", 300f to 150f,
+                    CardStyle(graph = g.copy(windowS = 3 * 3600L, side = false), rings = listOf(RingSpec(86400, TirRange.TIGHT)))),
             )
             sheet("sizes-${if (dark) "dark" else "light"}", v.map { (label, sz, st) ->
                 Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, st, pal, d) }

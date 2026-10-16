@@ -109,6 +109,7 @@ object GlucoseGraph {
             add(Calendar.HOUR_OF_DAY, 1)
             while (get(Calendar.HOUR_OF_DAY) % step != 0) add(Calendar.HOUR_OF_DAY, 1)
         }
+        var labelEnd = Float.NEGATIVE_INFINITY
         while (cal.timeInMillis / 1000 <= nowS) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
@@ -116,7 +117,11 @@ object GlucoseGraph {
                 if (labels) {
                     val s = hourLabel(cal.get(Calendar.HOUR_OF_DAY), st.hour24)
                     val tw = text.measureText(s)
-                    cv.drawText(s, (gx - tw / 2).coerceIn(left, right - tw), area.bottom - 2 * d, text)
+                    val lx = (gx - tw / 2).coerceIn(left, right - tw)
+                    if (lx > labelEnd + 6 * d) {   // a label squeezed against the right edge would touch its neighbour
+                        cv.drawText(s, lx, area.bottom - 2 * d, text)
+                        labelEnd = lx + tw
+                    }
                 }
             }
             cal.add(Calendar.HOUR_OF_DAY, step)

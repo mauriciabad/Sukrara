@@ -36,6 +36,9 @@ import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
 import app.mauri.sukrara.graph.periodLabel
 import app.mauri.sukrara.widgets.SukraraHooks
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /** Settings entry: "Graph & time in range" + a one-line summary. */
@@ -61,7 +64,9 @@ fun GraphScreen(onBack: () -> Unit) {
         GraphSettings.update(f)
         SukraraHooks.refresh(ctx, "graph settings", force = true)
     }
-    val last = app.mauri.sukrara.widgets.RecentHistory.readings(ctx).lastOrNull()
+    val last by produceState<app.mauri.sukrara.core.Reading?>(null) {
+        value = withContext(Dispatchers.IO) { app.mauri.sukrara.widgets.RecentHistory.readings(ctx).lastOrNull() }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -56,7 +56,10 @@ import app.mauri.sukrara.graph.WINDOW_HOURS
 import app.mauri.sukrara.graph.WidgetGraphConfig
 import app.mauri.sukrara.graph.systemPalette
 import app.mauri.sukrara.ui.Chips
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.produceState
 import kotlin.math.min
 
 /**
@@ -142,16 +145,23 @@ class WidgetConfigActivity : ComponentActivity() {
 private fun Preview(kind: WidgetKind, w: WidgetGraphConfig, size: SizeF) {
     val ctx = LocalContext.current
     val d = ctx.resources.displayMetrics.density
-    val frame = WidgetUpdater.current(ctx)
     val bw = size.width - 20; val bh = size.height - 20
-    val scale = min(1f, 1400f / (maxOf(bw, bh) * d))
-    val bmp = createBitmap((bw * d * scale).toInt().coerceAtLeast(16), (bh * d * scale).toInt().coerceAtLeast(16))
-    GlucoseCard.draw(android.graphics.Canvas(bmp), bmp.width.toFloat(), bmp.height.toFloat(), frame.history, frame.treatments,
-        frame.nowSec, cardStyle(ctx, kind, w), systemPalette(ctx), d * scale,
-        tirOf = { r, b -> GraphData.tir(ctx, r.windowS, b, frame.nowSec) })
+    // Off the main thread: the history and the multi-day rings come from the database.
+    val bmp by produceState<android.graphics.Bitmap?>(null, w) {
+        value = withContext(Dispatchers.Default) {
+            val frame = WidgetUpdater.current(ctx)
+            val scale = min(1f, 1400f / (maxOf(bw, bh) * d))
+            createBitmap((bw * d * scale).toInt().coerceAtLeast(16), (bh * d * scale).toInt().coerceAtLeast(16)).also {
+                GlucoseCard.draw(android.graphics.Canvas(it), it.width.toFloat(), it.height.toFloat(), frame.history,
+                    frame.treatments, frame.nowSec, cardStyle(ctx, kind, w), systemPalette(ctx), d * scale,
+                    tirOf = { r, b -> GraphData.tir(ctx, r.windowS, b, frame.nowSec) })
+            }
+        }
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)) {
-            Image(bmp.asImageBitmap(), contentDescription = "Preview", Modifier.size(bw.dp, bh.dp))
+        Box(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)
+            .size(bw.dp, bh.dp)) {
+            bmp?.let { Image(it.asImageBitmap(), contentDescription = "Preview", Modifier.size(bw.dp, bh.dp)) }
         }
     }
 }
