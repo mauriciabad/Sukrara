@@ -12,8 +12,23 @@ package app.mauri.sukrara.direct
 internal object Libre3Crypto {
     init { System.loadLibrary("sukrara_libre3") }
 
-    /** Opens a session from the saved 149-byte authorization record. Returns a native handle, or 0. */
-    external fun begin(kAuth: ByteArray, securityVersion: Int): Long
+    /**
+     * Opens a session from the saved 149-byte authorization record, or a fresh pairing when [kAuth] is null.
+     * Returns a native handle, or 0.
+     */
+    external fun begin(kAuth: ByteArray?, securityVersion: Int): Long
+
+    /** Fresh pairing: the sensor's 140-byte certificate. */
+    external fun setPatchCertificate(ctx: Long, cert140: ByteArray): Boolean
+
+    /** Fresh pairing: our ephemeral public key, 64 bytes (X‖Y). */
+    external fun createEphemeralPublicKey(ctx: Long): ByteArray?
+
+    /** Fresh pairing: the sensor's 65-byte ephemeral public key. */
+    external fun deriveAuthorizationRoot(ctx: Long, patchEphemeral65: ByteArray): Boolean
+
+    /** After the challenge succeeded: the 149-byte record that resumes later sessions (a secret). */
+    external fun exportSavedAuthorization(ctx: Long): ByteArray?
 
     /** 36 bytes (r1‖r2‖PIN) -> 40 bytes for the ChallengeData characteristic. */
     external fun encryptChallengeReply(ctx: Long, nonce7: ByteArray, plain36: ByteArray): ByteArray?

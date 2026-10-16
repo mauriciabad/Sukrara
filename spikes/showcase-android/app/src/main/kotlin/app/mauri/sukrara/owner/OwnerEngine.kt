@@ -242,6 +242,9 @@ class OwnerEngine(private val ctx: Context) {
         .put("#p", JSONArray().put(s.iPub))
         .put("since", Proto.nowS() - 3 * Proto.DAY)   // NIP-59 wraps are back-dated up to 2 days
 
+    /** The sensor's pairing changed (NFC scan, forget): reconnect with the new one. */
+    fun restartSource() = scope.launch { startSource() }
+
     private fun startSource() {
         source?.stop()
         val s = st ?: return

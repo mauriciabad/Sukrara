@@ -66,7 +66,7 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `status/` | statusbar-android (05) | `GlucoseNotification`: chip + number icon on the service's **only** notification |
 | `bridge/` | glucobridge (01, 04, 08), nostr (03) | `MacLink` (legacy GATT service, now a class instead of a service), `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
 | `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1/§2 sync with the Mac), LibreView uploader, gated by `Features.libreview` |
-| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core. Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
+| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
 | `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off), the widgets' 8 h CSV store. `SukraraHooks` feeds them from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
 
@@ -110,8 +110,10 @@ Changes from the source spikes:
 8. **LibreView** (off): Treatments & LibreView → email + password → *Save login* → *Upload to LibreView*.
    **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. "Take over the account's
    device" logs the Libre app / Juggluco out of LibreView.
-9. **Direct sensor** (testing only): Settings → Glucose source → *Libre 3 directly*. It needs Juggluco stopped and the
-   pairing file (`files/sensor.json`, see docs/02). **Juggluco's alarms stop.**
+9. **Direct sensor**: Settings → Glucose source → *Libre 3 directly* → *Scan sensor*, then hold the phone against
+   the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (pause
+   Juggluco first). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
+   Juggluco gives the sensor back.
 10. **Nightscout API** (Settings → Nightscout API, or the follower's home screen): `http://127.0.0.1:17581` on the
    phone, on by default, works next to Juggluco. Apps on the same phone (xDrip+ follower, a Garmin app in
    Nightscout mode) point at it. *Also on this network* binds it to Wi-Fi so Home Assistant's
@@ -312,6 +314,47 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   [value](../spikes/showcase-android/evidence/n7-value-rolling-digits.gif),
   [rows](../spikes/showcase-android/evidence/n7-treatment-row-add-delete.gif)).
 - Released as **v0.10.2** (`versionName` 0.10.2 / Mac 0.10.2), with the Juggluco-port fix from the morning.
+
+## Sensor scan (NFC), 2026-10-16 evening
+
+The user opened Sukrara to read the sensor directly and found it asking for a pairing file copied from Juggluco.
+Direct mode now does the whole flow itself, like LibreLink or Juggluco:
+
+1. **NFC tap** on Settings → Glucose source → *Sensor*. Reader mode is on only while that screen is open, so a tap
+   there goes to Sukrara. The sensor answers with its serial number and state. Sukrara then **starts** a sensor that
+   was never started, or **takes over** a running one. Either way it gets the sensor's Bluetooth address, its PIN and
+   its start time.
+2. **First Bluetooth connection: fresh pairing.** Sukrara exchanges certificates and keys with the sensor, using the
+   same portable C core from Juggluco as the resume path, plus four new JNI calls. It saves the resulting
+   authorization in `files/sensor.json`, and later connections resume with it. No file comes from another app any
+   more.
+3. **Warm-up**: during a new sensor's first hour the client waits for the end of warm-up instead of reconnecting
+   every 2 minutes.
+
+**Receiver ID.** A Libre 3 remembers a 32-bit receiver ID from the moment it was started, and a takeover only works
+with that same ID. Sukrara has two candidates:
+- its own random ID, made per install;
+- the ID that LibreLink-era apps and Juggluco derive from the **LibreView account ID**.
+
+Sukrara learns the account ID with a read-only LibreLinkUp sign-in. It keeps only the derived number, not the
+password. Unlike LibreView's app login, this sign-in doesn't make the phone the account's upload device, so
+Juggluco's or LibreLink's LibreView uploads keep working.
+
+If Sukrara's own LibreView setup (Treatments & LibreView) has a saved login, the Sensor screen does this sign-in on
+its own. A sensor started by Juggluco therefore moves over with one tap. Without a saved login, the screen asks for
+it after the sensor turns down the first try.
+
+Checked on 2026-10-16:
+- On the Mac, a LibreLinkUp sign-in with the user's account returned the exact account ID that the user's Juggluco
+  uses. Juggluco is in its default mode: no manual ID, and the LibreView-derived ID used for both start and takeover.
+- Unit tests (`app/src/test`) pass. They cover the patch-info and takeover answers quoted in Juggluco's sources,
+  the command CRC vectors and the receiver-ID hash.
+- The screen works on an emulator (no NFC there, so it says so).
+- The build is installed on the user's phone and keeps reading from Juggluco until a scan.
+
+**Not yet tested on a real sensor**: the NFC exchange and the fresh Bluetooth pairing need the user's phone at the
+sensor (pause Juggluco, scan, wait for the first reading, then scan with Juggluco to hand it back). Lingo sensors are
+refused.
 
 ## Next
 

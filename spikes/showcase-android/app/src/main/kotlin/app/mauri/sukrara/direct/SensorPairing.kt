@@ -10,8 +10,8 @@ import org.json.JSONObject
 /**
  * Per-sensor pairing state needed to (re)connect to a Libre 3 without NFC.
  *
- * In this spike the file is imported from an app that already activated the sensor
- * (see tools/import-pairing.sh). The real app will produce it itself during NFC activation.
+ * Written by the app itself: the NFC scan ([Libre3Nfc]) gives the address, PIN and start time; the first Bluetooth
+ * connection after it runs a fresh pairing and adds [kAuth]. (The older spikes imported this file from Juggluco.)
  * It is a secret: never log [pin] or [kAuth], never copy it off the device.
  */
 data class SensorPairing(
@@ -19,7 +19,7 @@ data class SensorPairing(
     val address: String,        // sensor BLE MAC, e.g. "AA:BB:CC:DD:EE:FF"
     val startEpoch: Long,       // sensor activation time; reading time = start + 60*(lifeCount+1)
     val pin: ByteArray,         // 4 bytes
-    val kAuth: ByteArray,       // 149 bytes, "L3S9…"
+    val kAuth: ByteArray?,      // 149 bytes, "L3S9…"; null until the first pairing after a scan completes
     val securityVersion: Int,   // 0 = Libre 3 / 3 Plus; non-zero = Lingo (unsupported here)
 ) {
     companion object {
@@ -30,9 +30,9 @@ data class SensorPairing(
             if (!f.isFile) return null
             val o = JSONObject(f.readText())
             val pin = o.getString("pinHex").hex()
-            val kAuth = o.getString("kAuthHex").hex()
+            val kAuth = o.optString("kAuthHex", "").takeIf { it.isNotEmpty() }?.hex()
             require(pin.size == 4) { "pin must be 4 bytes" }
-            require(kAuth.size == 149) { "kAuth must be 149 bytes" }
+            require(kAuth == null || kAuth.size == 149) { "kAuth must be 149 bytes" }
             return SensorPairing(
                 serial = o.getString("serial"),
                 address = o.getString("address").uppercase(),
@@ -43,9 +43,25 @@ data class SensorPairing(
             )
         }
 
+        fun forget(context: Context) {
+            File(context.filesDir, FILE).delete()
+        }
+
         private fun String.hex() = ByteArray(length / 2) { substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        private fun ByteArray.hex() = joinToString("") { "%02x".format(it) }
+    }
+
+    /** Atomically replaces the file (private app storage, 0600 by default). */
+    fun save(context: Context) {
+        val o = JSONObject()
+            .put("serial", serial).put("address", address).put("startEpoch", startEpoch)
+            .put("securityVersion", securityVersion).put("pinHex", pin.hex())
+        kAuth?.let { o.put("kAuthHex", it.hex()) }
+        val tmp = File(context.filesDir, "$FILE.tmp")
+        tmp.writeText(o.toString())
+        tmp.renameTo(File(context.filesDir, FILE))
     }
 
     /** Safe for logs. */
-    override fun toString() = "SensorPairing(serial=$serial, address=$address, start=$startEpoch)"
+    override fun toString() = "SensorPairing(serial=$serial, address=$address, start=$startEpoch, paired=${kAuth != null})"
 }

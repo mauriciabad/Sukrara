@@ -67,6 +67,7 @@ kotlin {
 }
 
 dependencies {
+  testImplementation("junit:junit:4.13.2")
   // SystemUI module (investigation 05): provided by LSPosed/Vector at runtime
   compileOnly("io.github.libxposed:api:102.0.0")
 

@@ -7,7 +7,8 @@
  * Wraps two things compiled from a local Juggluco checkout (GPLv3, see CMakeLists.txt):
  *   - the Libre 3 app-side security core (challenge handshake), and
  *   - tinycrypt AES-128-CCM for the data plane.
- * Nothing here logs or returns key material.
+ * Nothing here logs key material; the only secret returned is the saved authorization, which the
+ * caller stores in the app's private files.
  */
 #include <jni.h>
 #include <stdlib.h>
@@ -37,12 +38,14 @@ static int copy_exact(JNIEnv *env, jbyteArray src, jsize expected, uint8_t *out)
     return 1;
 }
 
+/* kauth == NULL starts a fresh pairing (first connection after an NFC scan). */
 JNIEXPORT jlong JNICALL
 Java_app_mauri_sukrara_direct_Libre3Crypto_begin(JNIEnv *env, jobject thiz,
                                                      jbyteArray kauth, jint security_version) {
     (void)thiz;
     uint8_t saved[L3_LEN_SAVED_AUTHORIZATION];
-    if (!copy_exact(env, kauth, (jsize)sizeof saved, saved)) return 0;
+    int fresh = kauth == NULL;
+    if (!fresh && !copy_exact(env, kauth, (jsize)sizeof saved, saved)) return 0;
 
     l3_security_engine_config cfg;
     memset(&cfg, 0, sizeof cfg);
@@ -52,13 +55,58 @@ Java_app_mauri_sukrara_direct_Libre3Crypto_begin(JNIEnv *env, jobject thiz,
     if (!ctx) goto wipe;
     if (l3_sensor_security_begin_handshake(ctx) != 1 ||
         l3_sensor_security_select_app_key_and_saved_authorization(
-            ctx, (unsigned)security_version, saved, sizeof saved) != 1) {
+            ctx, (unsigned)security_version, fresh ? NULL : saved, fresh ? 0 : sizeof saved) != 1) {
         l3_sensor_security_context_destroy(ctx);
         ctx = NULL;
     }
 wipe:
     memset(saved, 0, sizeof saved);
     return (jlong)(intptr_t)ctx;
+}
+
+/* Fresh pairing: the sensor's 140-byte certificate. Returns true on success. */
+JNIEXPORT jboolean JNICALL
+Java_app_mauri_sukrara_direct_Libre3Crypto_setPatchCertificate(JNIEnv *env, jobject thiz, jlong handle,
+                                                                   jbyteArray jcert) {
+    (void)thiz;
+    uint8_t cert[L3_LEN_PATCH_CERTIFICATE];
+    if (!handle || !copy_exact(env, jcert, sizeof cert, cert)) return 0;
+    return l3_sensor_security_set_patch_certificate(ctx_of(handle), cert, sizeof cert) == 1 ? JNI_TRUE : JNI_FALSE;
+}
+
+/* Fresh pairing: our 64-byte ephemeral public key (X‖Y, without the 0x04 prefix). */
+JNIEXPORT jbyteArray JNICALL
+Java_app_mauri_sukrara_direct_Libre3Crypto_createEphemeralPublicKey(JNIEnv *env, jobject thiz, jlong handle) {
+    (void)thiz;
+    uint8_t out[L3_LEN_EPHEMERAL_PUBLIC_KEY];
+    if (!handle || l3_sensor_security_create_ephemeral_public_key_into(ctx_of(handle), out) != 1) return NULL;
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)sizeof out);
+    if (result) (*env)->SetByteArrayRegion(env, result, 0, (jsize)sizeof out, (const jbyte *)out);
+    return result;
+}
+
+/* Fresh pairing: the sensor's 65-byte ephemeral public key. Returns true on success. */
+JNIEXPORT jboolean JNICALL
+Java_app_mauri_sukrara_direct_Libre3Crypto_deriveAuthorizationRoot(JNIEnv *env, jobject thiz, jlong handle,
+                                                                       jbyteArray jkey) {
+    (void)thiz;
+    uint8_t key[L3_LEN_PATCH_PUBLIC_KEY];
+    if (!handle || !copy_exact(env, jkey, sizeof key, key)) return 0;
+    return l3_sensor_security_derive_authorization_root(ctx_of(handle), key, sizeof key) == 1 ? JNI_TRUE : JNI_FALSE;
+}
+
+/* After a successful challenge: the 149-byte saved authorization that resumes later sessions. */
+JNIEXPORT jbyteArray JNICALL
+Java_app_mauri_sukrara_direct_Libre3Crypto_exportSavedAuthorization(JNIEnv *env, jobject thiz, jlong handle) {
+    (void)thiz;
+    uint8_t out[L3_LEN_SAVED_AUTHORIZATION];
+    jbyteArray result = NULL;
+    if (handle && l3_sensor_security_export_saved_authorization_into(ctx_of(handle), out) == 1) {
+        result = (*env)->NewByteArray(env, (jsize)sizeof out);
+        if (result) (*env)->SetByteArrayRegion(env, result, 0, (jsize)sizeof out, (const jbyte *)out);
+    }
+    memset(out, 0, sizeof out);
+    return result;
 }
 
 JNIEXPORT void JNICALL
