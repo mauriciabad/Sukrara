@@ -1,0 +1,20 @@
+1:21:23 PM  BLE: scanning for legacy + v2
+1:21:24 PM  BLE: connecting to Tartaruga (rssi -42)
+1:21:25 PM  BLE: legacy path on Tartaruga
+1:21:25 PM  BLE legacy: connected to Tartaruga
+1:21:25 PM  BLE: v2 path on Tartaruga
+1:21:25 PM  [Bluetooth · GlucoBridge] 128 mg/dL  rate -0.72/min  reading at 1:20:44 PM  latency 42.0s
+1:21:26 PM  treatments: sync started (cursor 0, 0 to push)
+1:21:26 PM  BLE v2: connected to Tartaruga, MTU write 512 B
+1:21:26 PM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+1:21:26 PM  BLE v2: leaving Tartaruga for 60 s
+1:21:45 PM  [Bluetooth · GlucoBridge] 128 mg/dL  rate -0.67/min  reading at 1:21:44 PM  latency 1.1s
+1:22:29 PM  BLE: v2 path on Tartaruga
+1:22:29 PM  BLE v2: connected to Tartaruga, MTU write 512 B
+1:22:29 PM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+1:22:29 PM  BLE v2: leaving Tartaruga for 60 s
+1:22:44 PM  [Bluetooth · GlucoBridge] 130 mg/dL  rate -0.56/min  reading at 1:22:43 PM  latency 1.1s
+1:23:32 PM  BLE: v2 path on Tartaruga
+1:23:32 PM  BLE v2: connected to Tartaruga, MTU write 512 B
+1:23:32 PM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+1:23:32 PM  BLE v2: leaving Tartaruga for 60 s

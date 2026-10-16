@@ -10,12 +10,21 @@ struct GlucoseSample: Codable, Hashable {
     var v: Double    // mg/dL
 }
 
+/// Insulin / carbs / note as the charts draw them (libreview SPEC §1, reduced: time, kind, amount, text).
+struct WidgetTreatment: Codable, Hashable {
+    var t: Date
+    var k: String        // rapid | long | carbs | note
+    var a: Double        // units or grams; 0 for notes
+    var n: String? = nil
+}
+
 struct GlucoseSnapshot: Codable {
     var version = 1
     var written: Date            // when the host wrote this file
     var source: String           // "synthetic", "juggluco", "nostr", …
     var samples: [GlucoseSample] // ascending, ~1/min, up to 24 h
     var rate: Double?            // mg/dL/min reported by the source (nil → computed)
+    var treatments: [WidgetTreatment]? = nil   // optional: older hosts don't write it
 
     var latest: GlucoseSample? { samples.last }
 
@@ -101,6 +110,18 @@ enum Synthetic {
             let t = Date(timeIntervalSince1970: lastMinute - Double(i) * 60)
             return GlucoseSample(t: t, v: value(at: t).rounded())
         }
-        return GlucoseSnapshot(written: now, source: "synthetic", samples: samples, rate: nil)
+        return GlucoseSnapshot(written: now, source: "synthetic", samples: samples, rate: nil,
+                               treatments: treatments(until: Date(timeIntervalSince1970: lastMinute)))
+    }
+    /// A meal, a correction, the daily long-acting dose and a note, every 6 h.
+    static func treatments(until end: Date, hours: Double = 24) -> [WidgetTreatment] {
+        stride(from: 0.0, to: hours, by: 6).flatMap { h -> [WidgetTreatment] in
+            let base = end.addingTimeInterval(-h * 3600)
+            return [WidgetTreatment(t: base.addingTimeInterval(-150 * 60), k: "rapid", a: 4.5),
+                    WidgetTreatment(t: base.addingTimeInterval(-145 * 60), k: "carbs", a: 45),
+                    WidgetTreatment(t: base.addingTimeInterval(-95 * 60), k: "note", a: 0, n: "walk"),
+                    WidgetTreatment(t: base.addingTimeInterval(-50 * 60), k: h == 0 ? "long" : "rapid", a: h == 0 ? 12 : 1.5),
+                    WidgetTreatment(t: base.addingTimeInterval(-25 * 60), k: "carbs", a: 15)]
+        }
     }
 }

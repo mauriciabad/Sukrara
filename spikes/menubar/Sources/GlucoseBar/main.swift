@@ -42,6 +42,10 @@ if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
     exit(0)
 }
+if let path = defaults.string(forKey: "menuPreview") {
+    MainActor.assumeIsolated { MenuPreview.render(to: path) }
+    exit(0)
+}
 if let path = defaults.string(forKey: "lvfixture") { exit(SelfTest.fixture(path) ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
