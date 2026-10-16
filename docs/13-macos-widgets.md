@@ -1,6 +1,7 @@
 # 13 — macOS widgets (desktop + Notification Center)
 
-*2026-10-16 · investigation report · macOS 27.0.1 (26A434), Command Line Tools only (Swift 6.4, MacOSX27.sdk), no Xcode*
+*2026-10-16 · investigation report · macOS 27.0.1 (26A434), Command Line Tools only (Swift 6.4, MacOSX27.sdk); Xcode
+installed later only to get a free Apple Development certificate · **update: the widgets run** (see [Resolved](#resolved-the-widgets-run))*
 
 ## Goal
 
@@ -19,13 +20,13 @@ the user's Apple ID?
 |---|---|
 | Compile a WidgetKit + Swift Charts extension with `swiftc` (CLT only) | **Yes.** About 11 s (`-Onone`) |
 | Assemble `.app` + `PlugIns/*.appex` by hand, sign ad hoc, register | **Yes.** `pluginkit -m` lists it and chronod sees it ("Added extensions") |
-| macOS loads it (widget gallery, desktop) | **No.** chronod drops it within 7 ms: *"Extension is not entitled to run in the App Sandbox"*, then *"purging instead because we shouldn't cache it"* |
-| Can we get past that without an Apple-issued certificate? | **No.** Eight signing and install variants all fail the same way (table below) |
+| macOS loads it (widget gallery, desktop) | **Yes, with a free Apple Development certificate + `_NSExtensionMain` entry point.** Ad hoc, chronod drops it within 7 ms: *"Extension is not entitled to run in the App Sandbox"* |
+| Can we get past that without an Apple-issued certificate? | **No.** Eight signing and install variants all fail the same way (table below). A free Apple ID personal team is enough |
 | Widget views | **Done**, rendered to PNG with `ImageRenderer` from the same SwiftUI code ([evidence](../spikes/widgets-macos/evidence/)) |
-| Data sharing host → sandboxed widget, ad hoc | **localhost HTTP, a `/Users/Shared` file, and the widget's own container all work. The App Group does not** |
+| Data sharing host → sandboxed widget | Ad hoc: localhost HTTP, a `/Users/Shared` file and the widget's own container work, the App Group does not. **With a Team ID the team-prefixed App Group works too** (no provisioning profile) |
 | Refresh cadence the system honours | **Not measurable** while chronod refuses the extension. The app's reloads reach chronod within 1–3 ms |
 
-So the CLI-only route stops at one wall, and it is **signing, not tooling**. Everything else (compiler, SDK, Swift
+So the CLI-only route stopped at one wall, signing, plus a hidden second one, the entry point (see [Resolved](#resolved-the-widgets-run)). Everything else (compiler, SDK, Swift
 Charts, bundle layout, Info.plist, entitlements, registration) works without Xcode. To make it run you need **an
 Apple-issued code-signing certificate with a Team ID**:
 
@@ -34,7 +35,41 @@ Apple-issued code-signing certificate with a Team ID**:
 - a paid Developer Program account. That one can make the certificate on developer.apple.com from a CSR, so even
   then Xcode is not required.
 
-With such a certificate, `SIGN_ID=<sha1> ./build.sh install` is the only change.
+With such a certificate, `./build.sh install` picks it up by itself (it also derives the Team ID and the App Group from it).
+
+## Resolved: the widgets run
+
+After the user installed Xcode, signed in with a free Apple ID (*Settings → Accounts*, personal team) and created an
+**Apple Development** certificate (*Manage Certificates → + → Apple Development*), three things were needed. The
+widgets then appeared in *Edit Widgets…*, on the desktop, with live data from the App Group and HTTP.
+
+1. **The WWDR G3 intermediate.** `security find-identity -v` listed the new identity as **not valid**: the Mac only
+   had the old WWDR intermediate (expired 2023). Importing Apple's `AppleWWDRCAG3.cer`
+   (apple.com/certificateauthority) into the login keychain made it valid. Xcode normally installs it.
+2. **Team-ID signature.** With `TeamIdentifier=QWUV9H4A3G` chronod no longer says "not entitled". It launches the
+   extension and asks for `getAllDescriptors`. That confirms the Team ID inference above.
+3. **Entry point `_NSExtensionMain`.** The launched extension then crashed with `EXC_BREAKPOINT` in
+   `_EXRunningExtension._shared` (ExtensionFoundation), called from `WidgetBundle.main()`, before any of our code
+   ran. CodexBar's widget binary imports `_NSExtensionMain` and starts there, which is how Xcode links extensions.
+   Linking ours with `-Xlinker -e -Xlinker _NSExtensionMain` fixed it. The earlier claim that "no
+   `-e _NSExtensionMain` is needed" was wrong: launched by hand, the binary only *looked* fine because the trap
+   comes right after WidgetKit's first log lines.
+
+Then [`evidence/chronod-accepted.log`](../spikes/widgets-macos/evidence/chronod-accepted.log) shows
+`getAllDescriptors` returning all three kinds and chronod precaching placeholders for every family. Once a widget
+was placed, [`evidence/widget-gettimeline.log`](../spikes/widgets-macos/evidence/widget-gettimeline.log) shows
+`getTimeline` with every transport readable: `appgroup-api=ok appgroup-path=ok own-container=ok users-shared=ok`
+and HTTP.
+
+**App Group.** The group is `<TEAMID>.dev.spike.glucosewidgets`, written into both Info.plists (`GlucoseAppGroup`)
+and entitlements by `build.sh`. The host must open it through `containerURL(forSecurityApplicationGroupIdentifier:)`.
+A hand-built `~/Library/Group Containers/…` path still failed with 513 until the container had been created that
+way. No provisioning profile is needed on macOS for a team-prefixed group.
+
+**Limits of the free route.** The certificate lasts a year (here until 2027-10-16) and only this Mac trusts the
+build. Widgets in a downloadable release zip need a **Developer ID** certificate (paid program) and
+notarization. The same `build.sh` takes that identity via `SIGN_ID`. Without any certificate the build stays
+ad hoc: it still builds, the widgets just don't load.
 
 ## Widgets (rendered with ImageRenderer)
 
@@ -77,19 +112,20 @@ What the widgets do:
 `spikes/widgets-macos/build.sh`:
 
 ```
-swiftc -parse-as-library -application-extension  Shared/*.swift Widget/GlucoseWidgets.swift  → GlucoseWidget.appex/Contents/MacOS/GlucoseWidget
+swiftc -parse-as-library -application-extension  Shared/*.swift Widget/GlucoseWidgets.swift -Xlinker -e -Xlinker _NSExtensionMain
+                                                                                              → GlucoseWidget.appex/Contents/MacOS/GlucoseWidget
 swiftc  Shared/GlucoseData.swift Host/main.swift                                              → GlucoseWidgets.app/Contents/MacOS/GlucoseWidgets
-cp Info.plists;  codesign --sign - --options runtime --entitlements …  (appex first, then app)
+cp Info.plists;  codesign --sign "Apple Development: …" --options runtime --entitlements …  (appex first, then app; ad hoc if no identity)
 lsregister -f -R ~/Applications/GlucoseWidgets.app;  pluginkit -a …/GlucoseWidget.appex
 ```
 
-- **Entry point**: `@main struct GlucoseWidgets: WidgetBundle`. `WidgetBundle.main()` (WidgetKit) is the real
-  entry, so no `-e _NSExtensionMain` is needed. Launched by hand, the binary comes up sandboxed and WidgetKit logs
-  `main [WidgetBundle]` and `WidgetHost - Optional(WidgetKit.ResolvedWidgetBundleHost)`. **The binary is fine.**
+- **Entry point**: `@main struct GlucoseWidgets: WidgetBundle`, linked with **`-e _NSExtensionMain`** (Foundation
+  sets up the extension, then runs the WidgetBundle). *Originally built without it, which crashes once chronod
+  launches the extension (see Resolved).*
 - **Extension Info.plist**: `CFBundlePackageType = XPC!` and
   `NSExtension.NSExtensionPointIdentifier = com.apple.widgetkit-extension`. It has the same keys as a shipping
   third-party widget built with Xcode (CodexBar), minus the `DT*` build-info keys.
-- **Extension entitlements**: `app-sandbox`, `network.client`, `application-groups`, and a read-only
+- **Extension entitlements**: `app-sandbox`, `network.client`, `application-groups` (`<TEAMID>.dev.spike.glucosewidgets`), and a read-only
   temporary exception for `/Users/Shared/GlucoseWidgets/`.
 - **Host**: headless (`LSUIElement`), not sandboxed. Once a minute it writes a synthetic 12 h history to every
   transport and calls `WidgetCenter.shared.reloadAllTimelines()`.
@@ -180,11 +216,8 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
   thresholds in the snapshot so the menubar settings drive the widget.
 - **Showcase app (Sukrara)**: the views are plain SwiftUI and reuse straight away. The same
   `GlucoseWidgetView` can also serve iOS widgets later (WidgetKit API is the same; sizes differ).
-- **To finish the spike once a certificate exists**:
-  1. `SIGN_ID=<sha1> ./build.sh install`
-  2. Change the group to `TEAMID.dev.spike.glucosewidgets` in both entitlements files and `SharedLocation.appGroup`.
-  3. Add the widgets from the desktop's "Edit Widgets…".
-  4. Count `getTimeline` calls for an hour to measure the budget.
+- **Finishing the spike** (done 2026-10-16): `./build.sh install` with the Apple Development identity in the
+  keychain, then *Edit Widgets…* → "Glucose". The group ID and bundle IDs come from `build.sh`; no code edits.
 
 ## Files
 

@@ -25,6 +25,9 @@ struct GlucoseSnapshot: Codable {
     var samples: [GlucoseSample] // ascending, ~1/min, up to 24 h
     var rate: Double?            // mg/dL/min reported by the source (nil → computed)
     var treatments: [WidgetTreatment]? = nil   // optional: older hosts don't write it
+    var unit: String? = nil      // "mgdl" | "mmol"; nil → mg/dL (the host app's display unit)
+    var low: Double? = nil       // colour thresholds, mg/dL; nil → GlucoseRange defaults
+    var high: Double? = nil
 
     var latest: GlucoseSample? { samples.last }
 
@@ -55,7 +58,19 @@ struct GlucoseSnapshot: Codable {
 }
 
 enum GlucoseRange {
-    static let low = 65.0, high = 185.0             // colour thresholds (user's settings)
+    /// Colour thresholds (user's settings). The widget overwrites them from the snapshot (`apply`).
+    static var low = 65.0, high = 185.0
+    static var mmol = false
+    static func apply(_ s: GlucoseSnapshot) {
+        low = s.low ?? 65; high = s.high ?? 185; mmol = s.unit == "mmol"
+    }
+    /// The number as the host app shows it: "123" mg/dL or "6.8" mmol/L.
+    static func format(_ mgdl: Double) -> String {
+        mmol ? String(format: "%.1f", mgdl / 18.0182) : String(Int(mgdl.rounded()))
+    }
+    static func formatDelta(_ mgdl: Double) -> String {
+        mmol ? String(format: "%+.1f", mgdl / 18.0182) : String(format: "%+.0f", mgdl)
+    }
     static let targetLow = 70.0, targetHigh = 180.0 // target band on the graph
     static let staleAfter: TimeInterval = 5 * 60
 
@@ -78,7 +93,11 @@ enum SharedLocation {
         ?? "group.dev.spike.glucosewidgets"
     static let widgetBundleID = "dev.spike.GlucoseWidgets.widget"
     static let fileName = "glucose.json"
-    static let httpPort: UInt16 = 17591
+    /// Info.plist `GlucoseHTTPPort` (0 = the host serves no HTTP, e.g. Sukrara: App Group only).
+    static let httpPort = UInt16(Bundle.main.object(forInfoDictionaryKey: "GlucoseHTTPPort") as? Int ?? 17591)
+    /// Info.plist `GlucoseWidgetURLScheme`: tap → `<scheme>://open?from=<kind>`. Empty → no widgetURL (a tap just
+    /// opens the containing app).
+    static let urlScheme = Bundle.main.object(forInfoDictionaryKey: "GlucoseWidgetURLScheme") as? String ?? "glucosewidgets"
     static var httpURL: URL { URL(string: "http://127.0.0.1:\(httpPort)/glucose.json")! }
 
     /// ~/Library/Group Containers/<group>/glucose.json (real home, not the sandbox one).

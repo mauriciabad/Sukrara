@@ -111,12 +111,15 @@ let historySpan: TimeInterval = 3 * 3600
 
     private func publish(_ source: String) {
         guard let latest = history.last else { return }
-        status.update(Snapshot(latest: latest, history: history, source: source))
+        let snap = Snapshot(latest: latest, history: history, source: source)
+        status.update(snap)
+        widgetFeed.update(snap, unit: status.unit, thresholds: status.thresholds, treatments: treatmentStore.rows)
         alarms.onLatest(latest)
     }
 }
 
 let store = MainActor.assumeIsolated { Store() }
+let widgetFeed = MainActor.assumeIsolated { WidgetFeed() }     // desktop widgets (WidgetFeed.swift)
 
 /// Wi-Fi/LAN transport: find Juggluco (unless a URL is configured), fetch per-minute history, then follow
 /// the live SSE stream; on any failure wait and start over (re-discovering, since the phone's IP may change).
@@ -378,6 +381,7 @@ MainActor.assumeIsolated {
     uploader.log = log
     uploader.onStatus = { status.treatmentsChanged() }
     treatments.onChange.append { _ in status.treatmentsChanged() }
+    treatments.onChange.append { _ in widgetFeed.treatmentsChanged(treatments.rows) }
     ble?.treatmentSync = sync          // nil when BLE is off (e.g. Nostr-only)
     status.treatments = { treatments.rows }
     status.libreViewStatus = { uploader.statusLine }

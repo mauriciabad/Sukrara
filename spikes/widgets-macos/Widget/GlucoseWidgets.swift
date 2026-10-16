@@ -76,7 +76,7 @@ struct EntryView: View {
     var body: some View {
         GlucoseWidgetView(kind: kind, family: family, c: entry.content, mode: RenderMode(renderingMode))
             .containerBackground(.fill.tertiary, for: .widget)
-            .widgetURL(URL(string: "glucosewidgets://open?from=\(kind.rawValue)"))
+            .widgetURL(SharedLocation.urlScheme.isEmpty ? nil : URL(string: "\(SharedLocation.urlScheme)://open?from=\(kind.rawValue)"))
     }
 }
 

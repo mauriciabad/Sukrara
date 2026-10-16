@@ -2,7 +2,8 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Build a release Sukrara.app ("Sukrara for Mac", formerly GlucoseBar; menubar-only, ad-hoc signed).
+# Build a release Sukrara.app ("Sukrara for Mac", formerly GlucoseBar; menubar-only). Ad hoc signed, or with an
+# Apple-issued identity + desktop widgets when the keychain has one (see the widget section below).
 # The Swift package/target is still called GlucoseBar; the bundle, executable and id are Sukrara's.
 # Configure:  defaults write app.mauri.sukrara.poc url http://192.168.10.127:17580
 #             defaults write app.mauri.sukrara.poc unit mmol      # optional
@@ -41,5 +42,64 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>NSLocalNetworkUsageDescription</key><string>Read glucose from Juggluco on your phone.</string>
 </dict></plist>
 EOF
-codesign --force --sign - "$APP"
-echo "built $APP"
+
+# Desktop / Notification Center widgets (spikes/widgets-macos, docs/13). macOS only loads a widget signed with a
+# Team ID, so they are built only when an Apple-issued identity is in the keychain (Xcode → Settings → Accounts →
+# Manage Certificates → Apple Development; a free personal team works on this Mac, a Developer ID for others).
+# Without one (or with AD_HOC=1) the app is ad hoc signed with no widget, as before.
+#   SIGN_ID=<sha1|name>  pick the identity     WIDGETS=0  sign with it but leave the widget out
+if [ -z "${SIGN_ID:-}" ] && [ "${AD_HOC:-}" != 1 ]; then
+  SIGN_ID=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/{print $2; exit}')
+fi
+TEAM_ID=""
+if [ -n "${SIGN_ID:-}" ]; then
+  TEAM_ID=$(security find-certificate -c "$SIGN_ID" -p 2>/dev/null \
+    | openssl x509 -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/organizationalUnitName/{print $2; exit}')
+fi
+if [ -z "$TEAM_ID" ]; then
+  codesign --force --sign - "$APP"
+  echo "built $APP (ad hoc, no widgets)"
+  exit 0
+fi
+GROUP=$TEAM_ID.app.mauri.sukrara.poc            # macOS team-prefixed App Group: no provisioning profile needed
+plutil -replace GlucoseAppGroup -string "$GROUP" "$APP/Contents/Info.plist"
+ENT=build/entitlements; mkdir -p $ENT
+cat > $ENT/app.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>com.apple.security.application-groups</key><array><string>$GROUP</string></array>
+</dict></plist>
+EOF
+if [ "${WIDGETS:-1}" != 0 ]; then
+  W=../widgets-macos
+  APPEX="$APP/Contents/PlugIns/SukraraWidget.appex"
+  mkdir -p "$APPEX/Contents/MacOS"
+  # _NSExtensionMain entry point: required, the Swift main() traps in ExtensionFoundation (docs/13).
+  swiftc -sdk "$(xcrun --show-sdk-path --sdk macosx)" -target arm64-apple-macos15.0 -swift-version 5 -O \
+    -parse-as-library -application-extension -module-name SukraraWidget \
+    $W/Shared/*.swift $W/Widget/GlucoseWidgets.swift -Xlinker -e -Xlinker _NSExtensionMain \
+    -o "$APPEX/Contents/MacOS/SukraraWidget"
+  P="$APPEX/Contents/Info.plist"
+  cp $W/Widget/Info.plist "$P"
+  plutil -replace CFBundleIdentifier -string app.mauri.sukrara.poc.widget "$P"
+  plutil -replace CFBundleExecutable -string SukraraWidget "$P"
+  plutil -replace CFBundleName -string SukraraWidget "$P"
+  plutil -replace CFBundleDisplayName -string Sukrara "$P"
+  plutil -replace CFBundleShortVersionString -string "$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")" "$P"
+  plutil -replace GlucoseAppGroup -string "$GROUP" "$P"
+  plutil -replace GlucoseHTTPPort -integer 0 "$P"          # App Group only; the spike host's HTTP is not used
+  plutil -replace GlucoseWidgetURLScheme -string "" "$P"   # a tap just opens Sukrara (cgmshare: opens "Follow…")
+  cat > $ENT/widget.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>com.apple.security.app-sandbox</key><true/>
+  <key>com.apple.security.application-groups</key><array><string>$GROUP</string></array>
+</dict></plist>
+EOF
+  codesign --force --sign "$SIGN_ID" --options runtime --entitlements $ENT/widget.plist "$APPEX"
+fi
+codesign --force --sign "$SIGN_ID" --entitlements $ENT/app.plist "$APP"
+codesign --verify --strict "$APP"
+echo "built $APP (signed: $SIGN_ID, team $TEAM_ID, group $GROUP$( [ "${WIDGETS:-1}" != 0 ] && echo ', with widgets'))"

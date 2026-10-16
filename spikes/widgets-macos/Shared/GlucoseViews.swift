@@ -89,7 +89,7 @@ struct ValueBlock: View {
             let color: Color = c.isStale ? .secondary : rangeColor(l.v)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center, spacing: numberSize * 0.12) {
-                    Text("\(Int(l.v))")
+                    Text(GlucoseRange.format(l.v))
                         .font(.system(size: numberSize, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .strikethrough(c.isStale)
@@ -102,7 +102,7 @@ struct ValueBlock: View {
                 .widgetAccentable()
                 HStack(spacing: 4) {
                     if showDelta, !c.isStale, let d = c.snapshot?.delta5 {
-                        Text(String(format: "%+.0f", d))
+                        Text(GlucoseRange.formatDelta(d))
                         Text("·")
                     }
                     // Ticks on its own (no timeline reload needed): "3 min ago".

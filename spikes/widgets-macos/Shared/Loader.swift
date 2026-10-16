@@ -36,7 +36,7 @@ enum Loader {
                 report.append("\(name)=\((error as NSError).code)")
             }
         }
-        do {
+        if SharedLocation.httpPort != 0 { do {
             var req = URLRequest(url: SharedLocation.httpURL, timeoutInterval: 3)
             req.cachePolicy = .reloadIgnoringLocalCacheData
             let (d, _) = try await URLSession.shared.data(for: req)
@@ -45,7 +45,8 @@ enum Loader {
             if best == nil || s.written >= best!.0.written { best = (s, "http") }
         } catch {
             report.append("http=\((error as NSError).code)")
-        }
+        } }
+        if let s = best?.0 { GlucoseRange.apply(s) }
         return (best?.0, best?.1 ?? "none", report)
     }
 }

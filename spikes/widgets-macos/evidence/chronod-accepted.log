@@ -1,0 +1,5 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-16 16:50:25.140 Df chronod[5885:2323f6] [com.apple.chrono:session] [GlucoseWidgets.widget-F8BCC7CBBF34] Session operation: `getAllDescriptors` request.
+2026-10-16 16:50:25.140 Df chronod[5885:2323f6] [com.apple.chrono:session] [GlucoseWidgets.widget-F8BCC7CBBF34] Session operation: `getAllDescriptors` executing.
+2026-10-16 16:50:25.785 Df chronod[5885:2323f7] [com.apple.chrono:session] [GlucoseWidgets.widget-F8BCC7CBBF34] Session operation: `getAllDescriptors` result.
+2026-10-16 16:50:25.787 Df chronod[5885:2323f7] [com.apple.chrono:session] [GlucoseWidgets.widget-F8BCC7CBBF34] Session operation: `getAllDescriptors` finished.
