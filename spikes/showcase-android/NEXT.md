@@ -50,11 +50,10 @@ DebugReceiver table, gap audit) and `README.md`.
 
 ## 3. Owned elsewhere / blocked
 
-- **Status-bar root system icons + LSPosed module in Sukrara** — still to do (the user wants them: they're part of
-  the showcase). The Settings switches exist but are "not in this build". The session that built investigation 05
-  (`cgm-reading-mac-spike-02`) is being closed; its handoff (code locations, System UI safety procedures, what the
-  user must do) is in **`spikes/power/HANDOFF.md`** (requested 2026-10-16 — check it exists), plus
-  `docs/05-android-status-bar.md` and `spikes/statusbar-android/`.
+- **Status-bar root system icons + LSPosed module in Sukrara** — being ported by session 02 on 2026-10-16 (check
+  `git log` for the result). If unfinished, its handoff has everything a fresh agent needs (code locations, System UI
+  safety procedures, what the user must do): **`spikes/statusbar-android/HANDOFF.md`**, plus
+  `docs/05-android-status-bar.md`.
 - **macOS widgets** — need an Apple-issued certificate with a Team ID (free personal team via Xcode sign-in, or a paid
   account); see docs/13. Views are ready (`spikes/widgets-macos`).
 - **Investigation 11 (battery)** — status and how to continue: `spikes/power/HANDOFF.md` / `spikes/power/README.md`
