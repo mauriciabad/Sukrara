@@ -1,0 +1,46 @@
+    NotificationRecord(0x0e7e576e: pkg=app.mauri.sukrara.poc user=UserHandle{0} id=1 tag=null importance=2 key=0|app.mauri.sukrara.poc|1|null|10463: Notification(channel=glucose shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|PROMOTED_ONGOING color=0x00000000 category=status vis=PRIVATE template=android.app.Notification$MetricStyle))
+      uid=10463 userId=0
+      opPkg=app.mauri.sukrara.poc
+      icon=Icon(typ=BITMAP size=96x96)
+      flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|PROMOTED_ONGOING
+      originalFlags=ONGOING_EVENT|ONLY_ALERT_ONCE|FOREGROUND_SERVICE|PROMOTED_ONGOING
+      pri=0
+      key=0|app.mauri.sukrara.poc|1|null|10463
+      seen=false
+      groupKey=0|app.mauri.sukrara.poc|1|null|10463
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{782ee0f: PendingIntentRecord{3cc08ea app.mauri.sukrara.poc startActivity (allowlist: 90ded83:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1792146407000/1792146407000
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=PT72H
+            extras={
+                android.title=String (Steady · 1 follower)
+                android.reduced.images=Boolean (true)
+                android.template=String (android.app.Notification$MetricStyle)
+                android.icon=Icon (Icon(typ=BITMAP size=96x96))
+                android.text=String (-0,3 mg/dL/min · now · 1 follower)
+                android.appInfo=ApplicationInfo (ApplicationInfo{abc7c7a app.mauri.sukrara.poc})
+                android.showWhen=Boolean (true)
+                android.metrics.criticalIndex=Integer (0)
+                android.metrics=ArrayList ([Bundle[mParcelledData.dataSize=184], Bundle[mParcelledData.dataSize=196], Bundle[mParcelledData.dataSize=232]])
+                android.requestPromotedOngoing=Boolean (true)
+                android.shortCriticalText=String (134)
+            }
+      publicNotification=
+            None
+      stats=SingleNotificationStats{posttimeElapsedMs=5800753, posttimeToFirstClickMs=-1, posttimeToDismissMs=-1, airtimeCount=1, airtimeMs=11297, currentAirtimeStartElapsedMs=-1, airtimeExpandedMs=0, posttimeToFirstVisibleExpansionMs=-1, currentAirtimeExpandedStartElapsedMs=-1, requestedImportance=3, naturalImportance=2, isNoisy=true}
+      mContactAffinity=0.0
+      mContactColor=null
+      mPackagePriority=0
+      mPackageVisibility=-1000
+      mSystemImportance=UNSPECIFIED
+      mAsstImportance=UNSPECIFIED
