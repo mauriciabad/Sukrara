@@ -52,7 +52,8 @@ DebugReceiver table, gap audit) and `README.md`.
 
 - **Status-bar root system icons + LSPosed module in Sukrara** — **done 2026-10-16** (docs/10 "Root status bar").
   Before touching System UI again read `spikes/statusbar-android/HANDOFF.md` (safety procedure). Open: the follower
-  role doesn't feed them yet.
+  role doesn't feed them yet; the battery-lab plan (`spikes/power/plans/sukrara.txt`) doesn't toggle `systemIcons` /
+  `hook` yet — add a window so investigation 11 measures their cost.
 - **macOS widgets** — need an Apple-issued certificate with a Team ID (free personal team via Xcode sign-in, or a paid
   account); see docs/13. Views are ready (`spikes/widgets-macos`).
 - **Investigation 11 (battery)** — status and how to continue: `spikes/power/HANDOFF.md` / `spikes/power/README.md`
