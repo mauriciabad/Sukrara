@@ -162,6 +162,20 @@ cd ble-scan && swiftc -O main.swift -o blescan && ./blescan 20 [--all]
 ```
 Lists nearby BLE advertisers and flags anything that looks like an Abbott/Libre device.
 
+## `widgets-android/` — Glucose Widgets (Android, Kotlin + Jetpack Glance, investigation 12)
+
+Value (1×1/2×1/2×2), graph and graph + value home-screen widgets, pushed every minute by a small foreground service
+([12](../docs/12-android-widgets.md)). Data: Juggluco on localhost, or a synthetic sine for the emulator.
+```sh
+cd widgets-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew assembleRelease && adb install -r app/build/outputs/apk/release/app-release.apk
+# open the app → "Pin … widget" buttons; drive it from adb:
+adb shell am broadcast -n dev.spike.glucowidgets/.DebugReceiver --es cmd scenario --ei phaseMin 40 --ei freezeAgeMin 12
+adb shell am start -n dev.spike.glucowidgets/.MainActivity --ez restart true   # apply (FGS start needs the foreground)
+adb shell am broadcast -n dev.spike.glucowidgets/.DebugReceiver --es cmd stats   # renders / skipped counters
+```
+
 ## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
 
 Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to
