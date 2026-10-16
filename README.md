@@ -185,8 +185,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: Android [v0.11.3](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.3), Mac
-[v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
+Downloads: [v0.11.4](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.4) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
