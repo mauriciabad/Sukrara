@@ -61,6 +61,39 @@ class SystemUiHook : XposedModule() {
         }
         safe("hook icon order") { hookIconOrder(cl) }
         safe("hook icon tint") { hookIconTint(cl) }
+        safe("hook notification icons") { hookNotificationIcons(cl) }
+    }
+
+    /**
+     * Drop Sukrara's own notification icon from the status bar while the value is shown there (`hideIcon`): the
+     * notification itself stays in the shade, on the lock screen and on AOD. SystemUI maps the set of status-bar
+     * notification icons (ActiveNotificationIconModel, from NotificationIconsInteractor.filteredNotifSet) to the
+     * container's view data in a `map` collector that belongs to the status bar only
+     * (NotificationIconContainerStatusBarViewModel; the shelf and AOD have their own), so the set is filtered there.
+     * Takes effect on SystemUI's next rebuild of that set, i.e. our next notification post.
+     */
+    private fun hookNotificationIcons(cl: ClassLoader) {
+        val vm = "com.android.systemui.statusbar.notification.icon.ui.viewmodel.NotificationIconContainerStatusBarViewModel"
+        val collector = cl.find("$vm\$special\$\$inlined\$map\$1\$2") ?: return log("no $vm map collector")
+        val emit = collector.declaredMethods.firstOrNull { it.name == "emit" && it.parameterCount == 2 }
+            ?: return log("no $vm map collector emit()")
+        val model = cl.find("com.android.systemui.statusbar.notification.icon.domain.interactor.ActiveNotificationIconModel")
+            ?: return log("no ActiveNotificationIconModel")
+        val key = runCatching { model.getDeclaredField("notifKey") }.getOrNull()?.apply { isAccessible = true }
+            ?: return log("no ActiveNotificationIconModel.notifKey")
+        // Notification keys are "user|package|id|tag|uid".
+        fun ours(o: Any?) = model.isInstance(o) && (key.get(o) as? String)?.split('|')?.getOrNull(1) == RootStatusBar.PKG
+        hook(emit).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+            // The same collector class also maps the chips' keys (not a set of icon models) → untouched.
+            val set = chain.getArg(0) as? Set<*>
+            val st = state
+            val filtered = try {
+                if (set != null && st.enabled && st.hideIcon && st.reading != null && set.any(::ours))
+                    LinkedHashSet(set.filterNot(::ours)) else null
+            } catch (t: Throwable) { log("icon filter failed: $t"); null }
+            if (filtered == null) chain.proceed() else chain.proceed(arrayOf(filtered, chain.getArg(1)))
+        }
+        log("notification icon hook: ok")
     }
 
     /**
@@ -231,9 +264,11 @@ class SystemUiHook : XposedModule() {
     // --- data from the app ---------------------------------------------------------------------------
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
-                             val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true)
+                             val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true,
+                             val hideIcon: Boolean = false)
 
-    private var state = State()
+    /** Written on the main thread (receiver), read by the Compose/flow hooks on SystemUI's background threads. */
+    @Volatile private var state = State()
     private val slots = mutableListOf<Slot>()
     private var receiverRegistered = false
     private val main by lazy { Handler(Looper.getMainLooper()) } // the module is created before the main looper
@@ -258,7 +293,7 @@ class SystemUiHook : XposedModule() {
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
-            i.getBooleanExtra("color", old.color))
+            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon))
         slots.removeAll { it.root.get() == null }
         if (state.position != old.position) slots.forEach { place(it) }
         renderAll()

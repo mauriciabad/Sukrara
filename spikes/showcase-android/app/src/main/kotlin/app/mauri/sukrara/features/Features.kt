@@ -43,6 +43,12 @@ data class FeatureState(
     val hookPosition: String = HookPosition.AFTER_CLOCK,
     /** Colour the root status bar value by range (module only; off = like the clock / the other icons). */
     val hookColor: Boolean = true,
+    /**
+     * While the root status bar shows the value, drop Sukrara's notification icon from the status bar's notification
+     * icons (module only). The notification stays in the shade, on the lock screen and on AOD. With the Live Update
+     * chip showing, SystemUI already hides that icon itself.
+     */
+    val hideNotifIcon: Boolean = true,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580 for Garmin watch apps (only binds if the port is free). */
@@ -62,6 +68,7 @@ data class FeatureState(
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
         .put("bleFollowers", bleFollowers).put("macBle", macBle)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
+        .put("hideNotifIcon", hideNotifIcon)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
@@ -90,6 +97,7 @@ object Features {
             hook = p.getBoolean("hook", d.hook),
             hookPosition = p.getString("hookPosition", d.hookPosition)!!,
             hookColor = p.getBoolean("hookColor", d.hookColor),
+            hideNotifIcon = p.getBoolean("hideNotifIcon", d.hideNotifIcon),
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -115,6 +123,7 @@ object Features {
             putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
             putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
+            putBoolean("hideNotifIcon", s.hideNotifIcon)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)

@@ -102,7 +102,9 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
                 old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition ||
-                old.hookColor != f.hookColor)) render(force = true)
+                old.hookColor != f.hookColor || old.hideNotifIcon != f.hideNotifIcon)) render(force = true)
+        // The module drops our notification icon on SystemUI's next icon-list rebuild: one more post once it knows.
+        if (old != null && (old.hideNotifIcon != f.hideNotifIcon || old.hook != f.hook)) RootStatusBar.repostLater(ctx)
     }
 
     // ============================================================================================ Live.Listener
