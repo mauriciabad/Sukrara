@@ -76,6 +76,7 @@ object RootStatusBar {
             .putExtra("enabled", f.hook)
             .putExtra("position", f.hookPosition)
             .putExtra("color", f.hookColor)
+            .putExtra("hideIcon", f.hideNotifIcon)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }
@@ -89,7 +90,23 @@ object RootStatusBar {
         override fun onReceive(c: Context, i: Intent) {
             Features.init(c)
             sendToHook(c, Features.value, last)
+            if (Features.value.hook && Features.value.hideNotifIcon) repostLater(c)
         }
+    }
+
+    /**
+     * The module filters our notification icon when SystemUI rebuilds its status-bar icon list, which happens on a
+     * notification change. After the module learns about `hideIcon` (SystemUI start, the switch) re-post the current
+     * notification once, a moment later so the broadcast has landed first.
+     */
+    fun repostLater(ctx: Context) {
+        val app = ctx.applicationContext
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching {
+                val nm = app.getSystemService(android.app.NotificationManager::class.java)
+                nm.activeNotifications.firstOrNull { it.id == GlucoseNotification.ID }?.let { nm.notify(it.id, it.notification) }
+            }.onFailure { Log.w(TAG, "re-post", it) }
+        }, 1_500)
     }
 
     // --- 3a: system icons through the root daemon ---------------------------------------------------------

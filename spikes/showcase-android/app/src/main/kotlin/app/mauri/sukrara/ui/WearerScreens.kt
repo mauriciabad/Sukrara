@@ -324,8 +324,10 @@ private fun RootStatusBarSettings(f: FeatureState) {
     }) { v -> set { it.copy(hook = v) } }
     Toggle("Colour by range", f.hookColor, enabled = on, sub = if (on) null else off) { v -> set { it.copy(hookColor = v) } }
     ValueRow("Placement", if (on) placement else off, enabled = on) { choosing = true }
+    Toggle("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = on,
+        sub = if (on) "In the status bar only; the notification stays in the shade" else off) { v -> set { it.copy(hideNotifIcon = v) } }
     HorizontalDivider()
-    Text("Uses root. Colour and every placement except \"With the system icons\" also need the Sukrara module " +
+    Text("Uses root. Colour, hiding the notification icon and every placement except \"With the system icons\" also need the Sukrara module " +
         "enabled in LSPosed (scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
 
