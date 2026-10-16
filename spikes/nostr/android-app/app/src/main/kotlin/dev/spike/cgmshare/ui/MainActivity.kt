@@ -59,7 +59,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         role = App.role(this)
         takeLink(intent)
-        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN), 1)
         startServiceIfReady()
         enableEdgeToEdge()
         setContent {
@@ -72,6 +73,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (role == "owner" && App.owner(this).hasIdentity()) App.owner(this).retryBle()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -221,6 +227,8 @@ class MainActivity : ComponentActivity() {
                 override fun setSynthetic(on: Boolean) { engine.setSynthetic(on) }
                 override fun checkNow() { lifecycleScope.launch { engine.checkInbox("manual") } }
                 override suspend fun ncryptsec(password: String) = engine.identityNcryptsec(password)
+                override fun nearbyPairing() { engine.nearbyPairing() }
+                override fun setWriter(f: String, on: Boolean) { engine.setWriter(f, on) }
             }
         }
 
@@ -270,6 +278,16 @@ class MainActivity : ComponentActivity() {
 
                 override fun setAlarms(low: Int, high: Int, on: Boolean) { engine.setAlarms(low, high, on) }
                 override fun setTestUnfiltered(on: Boolean) { engine.setTestUnfiltered(on) }
+                override fun scanNearby(onFound: (dev.spike.cgmshare.core.NearbyOwner) -> Unit) = engine.scanNearby(onFound)
+                override fun joinNearby(address: String, name: String) {
+                    lifecycleScope.launch {
+                        busy = true
+                        error = engine.joinNearby(address, name)
+                        busy = false
+                        if (error == null) startForegroundService(Intent(this@MainActivity, FollowerService::class.java))
+                    }
+                }
+                override fun addTreatment(k: String, a: Double, note: String) { engine.addTreatment(k, a, note) }
             }
         }
         FollowerRefresh { engine.refreshUi() }

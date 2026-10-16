@@ -1,0 +1,41 @@
+--------- beginning of main
+10-16 03:57:27.117 29582 29604 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 connected
+10-16 03:57:27.562 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 MTU 517
+10-16 03:57:31.406 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications on
+10-16 03:57:31.505 29582 29604 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 27 cached event(s)
+10-16 03:57:37.238 29582 29691 I CgmShare.owner: treatment REJECTED: author Mac BLE (325d33bd41e3) is not in roster writers (via ble:BC:D0:74:4F:40:82)
+10-16 03:57:45.306 29582 29604 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 disconnected (status 0)
+10-16 03:59:35.234 29582 29582 I CgmShare.cmd: cmd writer
+10-16 03:59:35.304 29582 30138 I CgmShare.owner: writer ADDED: Mac BLE (325d33bd41e3)
+10-16 03:59:35.409 29582 30138 I CgmShare.owner: roster published: epoch 1 gk bd52afdb, devices [9c6e9986a9e2], writers [325d33bd41e3]
+10-16 03:59:35.500 29582 30138 I CgmShare.owner: owner backup published: 1 epoch(s), 2 follower record(s), 0 invite(s)
+10-16 03:59:39.117 29582 29604 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 connected
+10-16 03:59:39.542 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 MTU 517
+10-16 03:59:43.574 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications on
+10-16 03:59:43.663 29582 29604 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 27 cached event(s)
+10-16 03:59:51.449 29582 30293 I CgmShare.owner: TREATMENT accepted from Mac BLE via ble:BC:D0:74:4F:40:82: rapid 1.5 "mac writer test" t=1792112389 (+2s)
+10-16 04:00:49.300 29582 29582 I CgmShare.cmd: cmd pair
+10-16 04:00:49.412 29582 30071 I CgmShare.owner: nearby pairing on for 10 min (token offered over BLE INFO)
+10-16 04:01:06.567 29582 29604 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 disconnected (status 0)
+10-16 04:01:07.727 29582 29604 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 connected
+10-16 04:01:08.219 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 MTU 517
+10-16 04:01:09.107 29582 29604 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications on
+10-16 04:01:09.226 29582 29604 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 28 cached event(s)
+10-16 04:01:12.048 29582 30140 I CgmShare.owner: access request from 'Mac v2 BLE test' (f07b5ba543c7) code 3690 via ble:BC:D0:74:4F:40:82
+10-16 04:01:20.709 29582 29582 I CgmShare.cmd: cmd approve
+10-16 04:01:20.894 29582 30140 I CgmShare.owner: key delivery → f07b5ba543c7 (epoch 1, gk bd52afdb)
+10-16 04:01:21.017 29582 30140 I CgmShare.owner: owner backup published: 1 epoch(s), 3 follower record(s), 0 invite(s)
+10-16 04:01:21.027 29582 30140 I CgmShare.owner: APPROVED 'Mac v2 BLE test' (f07b5ba543c7) code 3690 at epoch 1
+10-16 04:01:21.126 29582 29604 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 29 cached event(s)
+10-16 04:02:19.055 29582 29720 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications off
+10-16 04:02:19.065 29582 29720 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 disconnected (status 0)
+10-16 04:02:22.882 29582 29720 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 connected
+10-16 04:02:23.311 29582 29720 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 MTU 517
+10-16 04:02:24.129 29582 29720 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications on
+10-16 04:02:24.203 29582 29720 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 29 cached event(s)
+10-16 04:10:16.159 29582 29720 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 disconnected (status 0)
+10-16 04:10:20.237 29582 29720 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 connected
+10-16 04:10:20.653 29582 29720 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 MTU 517
+10-16 04:10:21.495 29582 29720 I CgmShare.owner: BLE: BC:D0:74:4F:40:82 notifications on
+10-16 04:10:21.556 29582 29720 I CgmShare.owner: BLE: HELLO from BC:D0:74:4F:40:82 → INFO + 29 cached event(s)
+10-16 04:10:21.619 29582 29720 I CgmShare.owner: BLE: central BC:D0:74:4F:40:82 disconnected (status 0)

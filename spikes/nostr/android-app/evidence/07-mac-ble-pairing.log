@@ -1,0 +1,9 @@
+03:43:35.360 scanning for 7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007
+03:43:36.161 found None (433F6501-237E-54B1-7F8B-5122E7356DE3) in 0.8s
+03:44:07.819 connected in 31.7s, MTU 515
+03:44:07.940 INFO: owner e21879f35a87… pairing OPEN (63 ms after HELLO)
+03:44:10.127 access request sent over BLE as 'Mac BLE' F=325d33bd41e3… MATCH CODE 1841
+03:44:13.133 backlog: 26 events, 46642 B in 2.19s → 20.8 KiB/s (0 accepted, 0 rejected)
+03:45:14.577 KEY accepted over BLE: epoch 1 gk bd52afdb devices ['9c6e9986a9e2']
+03:45:44.726 LIVE 64 mg/dL t=1792111546 epoch 1 — reading age -1s, publish→BLE receipt -1.3s
+03:46:43.333 done: 30 events, 53082 B, 2 accepted, 0 rejected, connected=True

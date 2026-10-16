@@ -54,6 +54,9 @@ interface FollowerActions {
     fun leave()
     fun setAlarms(low: Int, high: Int, on: Boolean)
     fun setTestUnfiltered(on: Boolean)
+    fun scanNearby(onFound: (dev.spike.cgmshare.core.NearbyOwner) -> Unit)
+    fun joinNearby(address: String, name: String)
+    fun addTreatment(k: String, a: Double, note: String)
 }
 
 @Composable
@@ -92,6 +95,7 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
         Button(onClick = { a.join(link, name) }, enabled = !busy && link.startsWith("cgmshare:join?"), modifier = Modifier.fillMaxWidth()) {
             Text("Ask for access")
         }
+        NearbyJoin(name, busy, a)
     }
 }
 
@@ -137,6 +141,8 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         }
         SectionTitle("Last 12 h")
         GlucoseChart(u.chart.map { it.t to it.sgv }, u.low, u.high)
+        Text("Bluetooth: ${u.ble}", style = MaterialTheme.typography.bodySmall)
+        if (u.canWrite) AddEntry(a)
 
         SectionTitle("Alarms")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -171,6 +177,57 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         if (showLog) LogList(log)
         Spacer(Modifier.size(24.dp))
     }
+}
+
+/** Investigation 07: list owners advertising the CGM Share service nearby; tap one to ask for access over BLE. */
+@Composable
+private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
+    var scanning by remember { mutableStateOf(false) }
+    val found = remember { androidx.compose.runtime.mutableStateMapOf<String, dev.spike.cgmshare.core.NearbyOwner>() }
+    SectionTitle("Nearby (Bluetooth, no internet needed)")
+    if (!scanning) {
+        OutlinedButton(onClick = { scanning = true; a.scanNearby { found[it.address] = it } }, modifier = Modifier.fillMaxWidth()) {
+            Text("Find phones nearby")
+        }
+    } else if (found.isEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+            Text("Looking for CGM Share owners… (they must tap \"Pair nearby\")", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    found.values.sortedByDescending { it.rssi }.forEach { o ->
+        Card(Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(o.name, fontWeight = FontWeight.SemiBold)
+                    Text("${o.address} · ${o.rssi} dBm", style = MaterialTheme.typography.bodySmall)
+                }
+                Button(onClick = { a.joinNearby(o.address, name) }, enabled = !busy) { Text("Ask") }
+            }
+        }
+    }
+}
+
+/** Investigation 07: a follower the owner made a writer can add insulin / carbs / a note. */
+@Composable
+private fun AddEntry(a: FollowerActions) {
+    var kind by remember { mutableStateOf("rapid") }
+    var amount by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    SectionTitle("Add entry")
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("rapid" to "Insulin", "carbs" to "Carbs", "note" to "Note").forEach { (k, label) ->
+            if (kind == k) Button(onClick = {}) { Text(label) } else OutlinedButton(onClick = { kind = k }) { Text(label) }
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (kind != "note") OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } },
+            label = { Text(if (kind == "carbs") "g" else "U") }, singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp))
+        OutlinedTextField(note, { note = it.take(100) }, label = { Text("Note") }, singleLine = true, modifier = Modifier.weight(1f))
+    }
+    Button(onClick = { a.addTreatment(kind, amount.toDoubleOrNull() ?: 0.0, note); amount = ""; note = "" },
+        enabled = kind == "note" && note.isNotBlank() || (amount.toDoubleOrNull() ?: 0.0) > 0) { Text("Send to owner") }
 }
 
 @Composable

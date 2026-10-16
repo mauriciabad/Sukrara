@@ -13,13 +13,38 @@ import dev.spike.cgmshare.core.Reading
  * The OWNER's database (`owner.db`): the sensor's own readings + ids of gift wraps already processed.
  * Only the owner package touches it; the follower role has its own `follower.db`.
  */
-class OwnerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 1) {
+class OwnerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("create table readings(t integer primary key, sgv integer not null, rate real, dev text)")
         db.execSQL("create table seen_wraps(id text primary key, at integer not null)")
+        onUpgrade(db, 1, 2)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // investigation 07: treatments written by authorized followers (LWW on `u`)
+        if (oldVersion < 2) db.execSQL("create table treatments(id text primary key, json text not null, u integer not null, " +
+            "author text not null, via text not null, received integer not null)")
+    }
+
+    /** Last-writer-wins on `u` (then author); returns true if inserted or replaced. */
+    fun upsertTreatment(tr: org.json.JSONObject, author: String, via: String): Boolean {
+        val id = tr.getString("id")
+        val u = tr.optLong("u")
+        readableDatabase.rawQuery("select u, author from treatments where id = ?", arrayOf(id)).use { c ->
+            if (c.moveToFirst() && (c.getLong(0) > u || (c.getLong(0) == u && c.getString(1) >= author))) return false
+        }
+        writableDatabase.insertWithOnConflict("treatments", null, ContentValues().apply {
+            put("id", id); put("json", tr.toString()); put("u", u); put("author", author); put("via", via)
+            put("received", System.currentTimeMillis() / 1000)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+        return true
+    }
+
+    /** Newest first: (treatment JSON, author, via). */
+    fun treatments(limit: Int = 20): List<Triple<org.json.JSONObject, String, String>> =
+        readableDatabase.rawQuery("select json, author, via from treatments order by received desc limit $limit", null).use { c ->
+            buildList { while (c.moveToNext()) add(Triple(org.json.JSONObject(c.getString(0)), c.getString(1), c.getString(2))) }
+        }
 
     /** Insert or replace; returns true if new or changed (keeps the copy that has a rate). */
     fun upsert(r: Reading): Boolean {

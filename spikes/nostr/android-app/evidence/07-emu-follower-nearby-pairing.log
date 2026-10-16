@@ -1,0 +1,14 @@
+10-16 03:47:17.383  6433  6478 I CgmShare.follower: BLE: connected to 4C:44:CF:22:F7:0D
+10-16 03:47:22.498  6433  6458 I CgmShare.follower: BLE: MTU 517
+10-16 03:47:25.402  6433  6433 I CgmShare.follower: nearby: INFO from 4C:44:CF:22:F7:0D (owner npub1qg0pf…p4vr)
+10-16 03:47:26.526  6433  6507 I CgmShare.follower: access request sent to npub1qg0pf…p4vr
+10-16 03:48:03.079  6433  6508 I CgmShare.follower: KEY accepted from identity via ble:4C:44:CF:22:F7:0D: epoch 3 gk 975d463f, devices [f55b1cc2d2a6]
+10-16 03:54:12.922  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:54:47.948  6931  6943 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:55:22.985  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:55:58.033  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:56:34.894  6931  7048 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:58:02.772  7147  7167 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:58:02.811  7147  7147 I CgmShare.follower: BLE: scanning for CGM Share owners
+10-16 03:58:03.162  7147  7166 I CgmShare.follower: BLE: connected to 5D:36:B1:E8:F7:AC
+10-16 03:58:03.291  7147  7166 I CgmShare.follower: BLE: MTU 517

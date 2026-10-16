@@ -1,0 +1,133 @@
+--------- beginning of main
+10-16 03:53:40.938  6931  6952 I CgmShare.follower: subscribed: roster + chunks (#c) + live, authors [f55b1cc2d2a6]
+10-16 03:53:40.971  6931  6966 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:53:40.973  6931  6967 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:53:40.975  6931  6973 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:53:40.982  6931  6968 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:53:41.017  6931  6952 I CgmShare.follower: follower started: status active, 1 epoch key(s), 1 device(s), 294 readings stored
+10-16 03:53:45.985  6931  6967 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:53:45.985  6931  6973 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:53:45.985  6931  6968 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:53:45.994  6931  6967 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:53:56.006  6931  6967 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:53:56.009  6931  6968 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:53:56.011  6931  6966 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:53:56.012  6931  6973 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:54:12.922  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:54:16.017  6931  6968 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:54:16.017  6931  6966 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:54:16.018  6931  6973 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:54:16.021  6931  6968 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:54:47.948  6931  6943 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:54:56.030  6931  6973 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:54:56.030  6931  7018 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:54:56.030  6931  6966 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:54:56.031  6931  6968 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:55:22.985  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:55:58.033  6931  6944 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:56:16.147  6931  7056 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:56:16.151  6931  7053 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:56:16.152  6931  7055 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:56:16.154  6931  7054 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:56:34.894  6931  7048 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:57:31.846  7147  7196 I CgmShare.follower: subscribed: roster + chunks (#c) + live, authors [f55b1cc2d2a6]
+10-16 03:57:31.869  7147  7211 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:57:31.873  7147  7209 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:57:31.876  7147  7196 I CgmShare.follower: follower started: status active, 1 epoch key(s), 1 device(s), 294 readings stored
+10-16 03:57:31.881  7147  7212 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:57:31.883  7147  7210 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:57:36.886  7147  7211 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:57:36.887  7147  7210 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:57:36.888  7147  7212 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:57:36.893  7147  7209 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:57:46.896  7147  7211 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:57:46.898  7147  7212 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:57:46.898  7147  7209 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:57:46.900  7147  7210 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:58:02.772  7147  7167 I CgmShare.follower: BLE: disconnected from 4C:44:CF:22:F7:0D (status 147)
+10-16 03:58:02.811  7147  7147 I CgmShare.follower: BLE: scanning for CGM Share owners
+10-16 03:58:03.162  7147  7166 I CgmShare.follower: BLE: connected to 5D:36:B1:E8:F7:AC
+10-16 03:58:03.291  7147  7166 I CgmShare.follower: BLE: MTU 517
+10-16 03:58:03.516  7147  7204 I CgmShare.follower: roster accepted via ble:5D:36:B1:E8:F7:AC: epoch 3, devices [f55b1cc2d2a6]
+10-16 03:58:03.776  7147  7204 I CgmShare.follower: chunk h=1792090800 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:03.823  7147  7204 I CgmShare.follower: chunk h=1792087200 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:03.893  7147  7204 I CgmShare.follower: chunk h=1792083600 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:03.937  7147  7204 I CgmShare.follower: chunk h=1792080000 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.000  7147  7204 I CgmShare.follower: chunk h=1792076400 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.070  7147  7204 I CgmShare.follower: chunk h=1792072800 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.130  7147  7204 I CgmShare.follower: chunk h=1792069200 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.178  7147  7204 I CgmShare.follower: chunk h=1792065600 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.223  7147  7204 I CgmShare.follower: chunk h=1792062000 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.298  7147  7204 I CgmShare.follower: chunk h=1792058400 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.342  7147  7204 I CgmShare.follower: chunk h=1792054800 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.394  7147  7204 I CgmShare.follower: chunk h=1792051200 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.436  7147  7204 I CgmShare.follower: chunk h=1792047600 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.500  7147  7204 I CgmShare.follower: chunk h=1792044000 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.566  7147  7204 I CgmShare.follower: chunk h=1792040400 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.626  7147  7204 I CgmShare.follower: chunk h=1792036800 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.681  7147  7204 I CgmShare.follower: chunk h=1792033200 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.738  7147  7204 I CgmShare.follower: chunk h=1792029600 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.797  7147  7204 I CgmShare.follower: chunk h=1792026000 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.862  7147  7204 I CgmShare.follower: chunk h=1792022400 +60 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:58:04.875  7147  7204 I CgmShare.follower: reading 182 mg/dL rate 0.31 t=1792112280 epoch 3 via ble:5D:36:B1:E8:F7:AC (+4s)
+10-16 03:58:06.911  7147  7211 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:58:06.913  7147  7212 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:58:06.914  7147  7209 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:58:06.914  7147  7210 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:58:46.926  7147  7212 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 03:58:46.926  7147  7209 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 03:58:46.926  7147  7210 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 03:58:46.927  7147  7211 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 03:58:47.103  7147  7207 I CgmShare.follower: chunk h=1792108800 +4 reading(s) epoch 3 via ble:5D:36:B1:E8:F7:AC
+10-16 03:59:00.631  7147  7207 I CgmShare.follower: reading 183 mg/dL rate 0.31 t=1792112340 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:00:00.739  7147  7207 I CgmShare.follower: reading 183 mg/dL rate 0.3 t=1792112400 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:00:06.943  7147  7320 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:00:06.944  7147  7321 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:00:06.945  7147  7319 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:00:06.945  7147  7322 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:01:01.937  7147  7318 I CgmShare.follower: reading 183 mg/dL rate 0.29 t=1792112460 epoch 3 via ble:5D:36:B1:E8:F7:AC (+1s)
+10-16 04:02:00.734  7147  7318 I CgmShare.follower: reading 184 mg/dL rate 0.29 t=1792112520 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:02:46.984  7147  7383 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:02:46.985  7147  7384 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:02:46.985  7147  7385 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:02:46.986  7147  7382 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:03:00.622  7147  7327 I CgmShare.follower: reading 184 mg/dL rate 0.28 t=1792112580 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:04:00.676  7147  7327 I CgmShare.follower: reading 184 mg/dL rate 0.27 t=1792112640 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:05:00.655  7147  7327 I CgmShare.follower: reading 184 mg/dL rate 0.27 t=1792112700 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:05:12.646  7147  7327 I CgmShare.follower: roster writers: [840f4ca0f2c8] — this phone MAY add entries
+10-16 04:05:12.709  7147  7327 I CgmShare.follower: roster accepted via ble:5D:36:B1:E8:F7:AC: epoch 3, devices [f55b1cc2d2a6]
+10-16 04:06:00.695  7147  7327 I CgmShare.follower: reading 185 mg/dL rate 0.26 t=1792112760 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:06:00.752  7147  7327 I CgmShare.follower: ALARM HIGH 185 mg/dL
+10-16 04:07:00.667  7147  7327 I CgmShare.follower: reading 185 mg/dL rate 0.25 t=1792112820 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:07:26.634  7147  7327 I CgmShare.follower: treatment sent: rapid 2.5 "lunch-bolusz" (epoch 3, ble connected 5D:36:B1:E8:F7:AC)
+10-16 04:07:26.637  7147  7620 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:07:26.638  7147  7621 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:07:26.638  7147  7624 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:07:26.640  7147  7622 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:07:31.650  7147  7621 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:07:31.650  7147  7622 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:07:31.650  7147  7620 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:07:31.653  7147  7624 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:07:41.667  7147  7620 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:07:41.668  7147  7624 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:07:41.668  7147  7621 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:07:41.669  7147  7622 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:07:47.003  7147  7624 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:07:47.003  7147  7621 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:07:47.007  7147  7622 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:07:47.008  7147  7620 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:08:00.670  7147  7619 I CgmShare.follower: reading 185 mg/dL rate 0.25 t=1792112880 epoch 3 via ble:5D:36:B1:E8:F7:AC (+0s)
+10-16 04:08:01.684  7147  7621 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:08:01.684  7147  7620 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:08:01.686  7147  7624 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:08:01.687  7147  7622 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:08:41.704  7147  7624 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:08:41.704  7147  7620 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:08:41.704  7147  7621 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:08:41.705  7147  7622 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:09:01.030  7147  7318 I CgmShare.follower: reading 185 mg/dL rate 0.24 t=1792112940 epoch 3 via ble:5D:36:B1:E8:F7:AC (+1s)
+10-16 04:10:04.633  7147  7711 I CgmShare.follower: nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 04:10:04.637  7147  7707 I CgmShare.follower: nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 04:10:04.719  7147  7714 I CgmShare.follower: relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 04:10:04.753  7147  7709 I CgmShare.follower: relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 04:10:18.823  7147  7705 I CgmShare.follower: reading 186 mg/dL rate 0.23 t=1792113000 epoch 3 via ble:5D:36:B1:E8:F7:AC (+18s)

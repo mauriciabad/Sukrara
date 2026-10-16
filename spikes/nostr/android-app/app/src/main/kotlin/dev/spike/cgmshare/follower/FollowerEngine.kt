@@ -49,6 +49,9 @@ data class FollowerUi(
     val noDataMin: Int = 20,
     val alarmsOn: Boolean = true,
     val testUnfiltered: Boolean = false,
+    val canWrite: Boolean = false,
+    val ble: String = "off",
+    val lastVia: String? = null,
 )
 
 /**
@@ -87,6 +90,46 @@ class FollowerEngine(private val ctx: Context) {
     val relayStats: StateFlow<Map<String, RelayStats>> = _relays
 
     init { scope.launch(serial) { publishUi() } }
+
+    // ============================================================================================ Bluetooth (inv. 07)
+
+    val ble by lazy { dev.spike.cgmshare.core.BleFollower(ctx, log::i, ::onEvent).also { b ->
+        attach(b)
+        scope.launch { b.state.collect { v -> _ui.update { it.copy(ble = v) } } }
+    } }
+
+    fun scanNearby(onFound: (dev.spike.cgmshare.core.NearbyOwner) -> Unit) = ble.scan(onFound)
+    fun stopScan() = ble.stopScan()
+
+    /** Nearby pairing: connect over BLE, take the invite (I, token, relays) from the owner's INFO, send the request over BLE. */
+    suspend fun joinNearby(address: String, name: String): String? {
+        ble.stopScan()
+        val got = kotlinx.coroutines.CompletableDeferred<JSONObject>()
+        ble.onInfo = { if (!got.isCompleted) got.complete(it) }
+        ble.connect(address)
+        val info = kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return "Could not reach that phone over Bluetooth"
+        ble.onInfo = null
+        val pair = info.optJSONObject("pair") ?: return "The owner has not turned on \"Pair nearby\""
+        val link = Proto.inviteLink(info.getString("i"), pair.getString("t"), pair.getLong("x"),
+            Proto.strings(info.optJSONArray("relays")))
+        log.i("nearby: INFO from $address (owner ${Proto.shortNpub(info.getString("i"))})")
+        val err = join(link, name)
+        if (err == null) withContext(serial) { st?.bleAddr = address; save() }
+        return err
+    }
+
+    /** Add a treatment (only if the roster lists this follower as a writer); goes out over BLE + relays. */
+    fun addTreatment(k: String, a: Double, note: String) = scope.launch(serial) {
+        val s = st ?: return@launch
+        val sid = s.sid ?: return@launch
+        if (s.fPub !in s.writers) log.i("NOTE: not in roster writers — the owner will reject this entry")
+        val ep = s.epochs.values.maxByOrNull { it.n } ?: return@launch
+        val now = Proto.nowS()
+        val tr = JSONObject().put("v", 1).put("id", java.util.UUID.randomUUID().toString()).put("k", k).put("a", a).put("t", now)
+            .put("n", note.take(100)).put("u", System.currentTimeMillis()).put("del", false).put("o", "follower")
+        publish(Proto.treatmentEvent(s.f, Proto.pub(ep.g), sid, tr, now), dev.spike.cgmshare.core.Lane.CONTROL)
+        log.i("treatment sent: $k $a \"$note\" (epoch ${ep.n}, ble ${ble.state.value})")
+    }
 
     fun hasJoined() = st != null
 
@@ -128,6 +171,7 @@ class FollowerEngine(private val ctx: Context) {
     /** Forget everything (cancel a pending request / stop following). */
     suspend fun leave() = withContext(serial) {
         pool?.close(); pool = null
+        ble.disconnect()
         running = false
         st = null
         store.wipe()
@@ -150,6 +194,7 @@ class FollowerEngine(private val ctx: Context) {
             .put("#p", JSONArray().put(s.fPub))
             .put("since", Proto.nowS() - 3 * Proto.DAY)) }, ::onEvent)
         if (s.status == FollowerState.ACTIVE) subscribeData()
+        s.bleAddr?.let { ble.connect(it) }
         lastAcceptedAt = db.latest()?.received ?: 0
         scheduleWatchdog(6 * 60_000L)
         log.i("follower started: status ${s.status}, ${s.epochs.size} epoch key(s), ${s.devices.size} device(s), ${db.count()} readings stored")
@@ -157,6 +202,7 @@ class FollowerEngine(private val ctx: Context) {
 
     fun stop() = scope.launch(serial) {
         running = false
+        ble.disconnect()
         pool?.close(); pool = null
         subscribedDevices = emptyList()
     }
@@ -280,6 +326,7 @@ class FollowerEngine(private val ctx: Context) {
                     Notifications.cancel(ctx, Notifications.ID_STATUS)
                     subscribeData()
                     backfill("new key epoch $n")
+                    if (s.bleAddr != null || via.startsWith("ble:")) ble.hello()   // inv. 07: BLE backlog is now readable
                 }
                 publishUi()
             }
@@ -309,6 +356,7 @@ class FollowerEngine(private val ctx: Context) {
         val author = ev.optString("pubkey")
         // Not ours at all (no gk / unknown gk from a stranger): ignore silently. Unknown gk from our own identity or
         // a roster device means we missed a rotation → rekey.
+        if (kind == Proto.CHUNK && s.sid != null && Proto.tagValue(ev, "c") == Proto.treatmentsC(s.sid!!)) return  // treatments: owner's job
         val gkTag = Proto.tagValue(ev, "gk") ?: return
         val epoch = s.epochs[gkTag]
         if (epoch == null) {
@@ -360,6 +408,9 @@ class FollowerEngine(private val ctx: Context) {
         val created = e.createdAt().asSecs().toLong()
         if (n < s.rosterEpoch || (n == s.rosterEpoch && created <= s.rosterCreatedAt)) return
         val devices = Proto.strings(body.optJSONArray("devices"))
+        val writers = Proto.strings(body.optJSONArray("writers"))
+        if (writers != s.writers) log.i("roster writers: ${writers.map { it.take(12) }} — this phone ${if (s.fPub in writers) "MAY" else "may not"} add entries")
+        s.writers = writers
         val changed = devices != s.devices
         s.devices = devices
         s.rosterEpoch = n
@@ -496,6 +547,8 @@ class FollowerEngine(private val ctx: Context) {
                 noDataMin = s?.noDataMin ?: 20,
                 alarmsOn = s?.alarmsOn ?: true,
                 testUnfiltered = s?.testUnfiltered ?: false,
+                canWrite = s != null && s.fPub in s.writers,
+                lastVia = chart.lastOrNull()?.via,
             )
         }
     }

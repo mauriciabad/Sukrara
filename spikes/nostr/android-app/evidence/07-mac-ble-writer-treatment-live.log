@@ -1,0 +1,39 @@
+03:59:34.330 scanning for 7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007
+03:59:36.758 found Tartaruga (A0DE6A04-316F-292B-AC83-D84CBFC6583F) in 2.4s
+03:59:41.698 connected in 4.9s, MTU 515
+03:59:41.878 INFO: owner e21879f35a87… pairing closed (91 ms after HELLO)
+03:59:41.941 roster accepted over BLE: epoch 1 devices ['9c6e9986a9e2'] writers ['325d33bd41e3'] → this Mac MAY add entries
+03:59:42.030 chunk h=1792105200 60 readings (last 65 mg/dL) epoch 1 1777 B
+03:59:42.123 chunk h=1792101600 60 readings (last 63 mg/dL) epoch 1 1777 B
+03:59:42.212 chunk h=1792098000 60 readings (last 71 mg/dL) epoch 1 1777 B
+03:59:42.270 chunk h=1792094400 60 readings (last 84 mg/dL) epoch 1 1777 B
+03:59:42.395 chunk h=1792090800 60 readings (last 85 mg/dL) epoch 1 1777 B
+03:59:42.513 chunk h=1792087200 60 readings (last 85 mg/dL) epoch 1 1777 B
+03:59:42.600 chunk h=1792083600 60 readings (last 106 mg/dL) epoch 1 1949 B
+03:59:42.750 chunk h=1792080000 60 readings (last 83 mg/dL) epoch 1 1949 B
+03:59:42.961 chunk h=1792076400 60 readings (last 130 mg/dL) epoch 1 1949 B
+03:59:43.024 chunk h=1792072800 60 readings (last 193 mg/dL) epoch 1 1777 B
+03:59:43.170 chunk h=1792069200 60 readings (last 104 mg/dL) epoch 1 1949 B
+03:59:43.260 chunk h=1792065600 60 readings (last 119 mg/dL) epoch 1 1949 B
+03:59:43.323 chunk h=1792062000 60 readings (last 132 mg/dL) epoch 1 1777 B
+03:59:43.530 chunk h=1792058400 60 readings (last 139 mg/dL) epoch 1 1777 B
+03:59:43.593 chunk h=1792054800 60 readings (last 140 mg/dL) epoch 1 1777 B
+03:59:43.738 chunk h=1792051200 60 readings (last 147 mg/dL) epoch 1 1777 B
+03:59:43.775 chunk h=1792047600 60 readings (last 116 mg/dL) epoch 1 1777 B
+03:59:43.889 chunk h=1792044000 60 readings (last 134 mg/dL) epoch 1 1777 B
+03:59:44.012 chunk h=1792040400 60 readings (last 87 mg/dL) epoch 1 1777 B
+03:59:44.102 chunk h=1792036800 60 readings (last 104 mg/dL) epoch 1 1777 B
+03:59:44.250 chunk h=1792033200 60 readings (last 96 mg/dL) epoch 1 1777 B
+03:59:44.400 chunk h=1792029600 60 readings (last 103 mg/dL) epoch 1 1949 B
+03:59:44.490 chunk h=1792026000 60 readings (last 121 mg/dL) epoch 1 1949 B
+03:59:44.553 chunk h=1792022400 60 readings (last 134 mg/dL) epoch 1 1949 B
+03:59:44.670 chunk h=1792108800 58 readings (last 68 mg/dL) epoch 1 1777 B
+03:59:44.673 LIVE 69 mg/dL t=1792112325 epoch 1 — reading age 60s, publish→BLE receipt 58.7s
+03:59:46.018 LIVE 70 mg/dL t=1792112387 epoch 1 — reading age -1s, publish→BLE receipt -1.0s
+03:59:49.392 backlog: 28 events, 48506 B in 4.23s → 11.2 KiB/s (28 accepted, 0 rejected)
+03:59:49.392 treatment rapid 1.5 'mac writer test' signed by F 325d33bd41e3
+03:59:49.557 treatment sent over BLE
+04:00:45.091 LIVE 71 mg/dL t=1792112446 epoch 1 — reading age -1s, publish→BLE receipt -0.9s
+04:00:45.123 chunk h=1792112400 1 readings (last 71 mg/dL) epoch 1 669 B
+04:00:45.185 chunk h=1792108800 60 readings (last 70 mg/dL) epoch 1 1777 B
+04:01:04.643 done: 31 events, 51557 B, 31 accepted, 0 rejected, connected=True

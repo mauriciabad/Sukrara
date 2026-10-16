@@ -63,6 +63,8 @@ object Proto {
     fun chunkC(sid: String) = h("cgm2:glucose:$sid")
     fun rosterD(sid: String) = h("cgm2:roster:$sid")
     fun backupD(iPub: String) = h("cgm2:backup:$iPub")
+    fun treatmentsC(sid: String) = h("cgm2:treatments:$sid")
+    fun treatmentD(sid: String, id: String) = h("cgm2:tr:$sid:$id")
 
     /** 4 digits both screens show: `int(sha256(F.pub_hex + token)) mod 10000`, zero-padded. */
     fun matchCode(fPub: String, token: String): String =
@@ -118,11 +120,22 @@ object Proto {
 
     /** roster, kind 30078, signed by I, encrypted to G_n, expires now + 30 d. */
     fun rosterEvent(i: Keys, gPub: String, sid: String, epoch: Int, devices: List<String>, relays: List<String>,
-                    createdAt: Long = nowS()): Event {
+                    createdAt: Long = nowS(), writers: List<String> = emptyList()): Event {
         val body = JSONObject().put("v", 2).put("epoch", epoch).put("devices", JSONArray(devices))
-            .put("writers", JSONArray()).put("relays", JSONArray(relays))
+            .put("writers", JSONArray(writers)).put("relays", JSONArray(relays))
         val tags = listOf(tag("d", rosterD(sid)), tag("gk", gk(gPub)), expiration(createdAt + 30 * DAY))
         return signed(i, CHUNK, enc(i, gPub, body.toString()), tags, createdAt)
+    }
+
+    /**
+     * Treatment (libreview SPEC §5; investigation 07): kind 30078 per treatment, signed by the writer W (a roster
+     * `writers` key), NIP-44 from W to G_n, `d = H("cgm2:tr:"+sid+":"+id)`, `c = H("cgm2:treatments:"+sid)`, 30 d expiry.
+     * Body = the §1 treatment JSON (`id,k,a,t,n,u,del,o`) without `lv`.
+     */
+    fun treatmentEvent(w: Keys, gPub: String, sid: String, tr: JSONObject, now: Long = nowS()): Event {
+        val tags = listOf(tag("d", treatmentD(sid, tr.getString("id"))), tag("c", treatmentsC(sid)), tag("gk", gk(gPub)),
+            expiration(now + 30 * DAY))
+        return signed(w, CHUNK, enc(w, gPub, tr.toString()), tags, now)
     }
 
     /** owner backup, kind 30078, signed by I and encrypted to I itself, expires now + 90 d. */

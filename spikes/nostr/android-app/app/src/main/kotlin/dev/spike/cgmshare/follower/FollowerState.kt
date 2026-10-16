@@ -34,6 +34,8 @@ class FollowerState(
     var noDataMin: Int = 20,
     var alarmsOn: Boolean = true,
     var testUnfiltered: Boolean = false,    // debug: drop relay-side `authors` filters to exercise the app's own checks
+    var writers: List<String> = emptyList(),  // investigation 07: roster `writers`
+    var bleAddr: String? = null,              // investigation 07: owner's BLE address (nearby pairing)
 ) {
     val fPub: String get() = Proto.pub(f)
     val maxEpoch: Int get() = epochs.values.maxOfOrNull { it.n } ?: 0
@@ -47,6 +49,7 @@ class FollowerState(
         .put("lastKeyAt", lastKeyAt).put("revokedAt", revokedAt)
         .put("low", low).put("high", high).put("noDataMin", noDataMin).put("alarmsOn", alarmsOn)
         .put("testUnfiltered", testUnfiltered)
+        .put("writers", JSONArray(writers)).put("bleAddr", bleAddr ?: JSONObject.NULL)
 
     companion object {
         const val REQUESTED = "requested"
@@ -77,6 +80,8 @@ class FollowerState(
             noDataMin = j.optInt("noDataMin", 20),
             alarmsOn = j.optBoolean("alarmsOn", true),
             testUnfiltered = j.optBoolean("testUnfiltered"),
+            writers = Proto.strings(j.optJSONArray("writers")),
+            bleAddr = if (j.has("bleAddr") && !j.isNull("bleAddr")) j.getString("bleAddr") else null,
         )
     }
 }

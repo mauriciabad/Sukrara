@@ -57,6 +57,12 @@ data class OwnerUi(
     val lastInboxCheck: Long = 0,
     val inboxLive: Boolean = false,
     val busy: String? = null,
+    // investigation 07: Bluetooth
+    val bleOn: Boolean = false,
+    val bleCentrals: Int = 0,
+    val nearbyUntil: Long = 0,
+    val writers: Set<String> = emptySet(),
+    val treatments: List<String> = emptyList(),
 )
 
 /**
@@ -96,6 +102,8 @@ class OwnerEngine(private val ctx: Context) {
     private var chunksSent = 0
     private var lastInboxCheck = 0L
     private var invite: Pair<String, Long>? = null
+    private var nearby: InviteToken? = null           // investigation 07: short-lived token handed out over BLE INFO
+    private var ble: dev.spike.cgmshare.core.BleOwner? = null
 
     private val _ui = MutableStateFlow(OwnerUi())
     val ui: StateFlow<OwnerUi> = _ui
@@ -130,6 +138,8 @@ class OwnerEngine(private val ctx: Context) {
         if (Proto.nowS() - s.rosterPublishedAt > 6 * Proto.DAY) publishRoster()
         if (Proto.nowS() - s.backupPublishedAt > 6 * Proto.DAY) publishBackup()
         startSource()
+        startBle()
+        subscribeTreatments()
         tick = scope.launch {
             delay(5_000)
             checkInbox("startup")
@@ -191,6 +201,84 @@ class OwnerEngine(private val ctx: Context) {
                 if (error != null) log.i("source: $state — $error")
             }
         })
+    }
+
+    // ============================================================================================ Bluetooth (inv. 07)
+
+    private fun startBle() {
+        val s = st ?: return
+        if (ble != null) return
+        val granted = listOf(android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE)
+            .all { ctx.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (!granted) return log.i("BLE: permissions not granted, Bluetooth transport off")
+        val b = dev.spike.cgmshare.core.BleOwner(ctx, log::i, ::onEvent) {
+            val n = nearby?.takeIf { it.x > Proto.nowS() }
+            dev.spike.cgmshare.core.Ble.info(s.iPub, s.relays, n?.t, n?.x ?: 0)
+        }
+        if (!b.start()) return
+        ble = b
+        attach(b)
+        publishRoster()   // seeds the BLE backlog cache (the roster is otherwise only re-published weekly)
+        scope.launch { b.connected.collect { n -> _ui.update { it.copy(bleOn = true, bleCentrals = n) } } }
+    }
+
+    /** Retry BLE after the user granted the permissions. */
+    fun retryBle() = scope.launch(serial) { if (running) startBle(); publishUi() }
+
+    /** "Pair nearby": a 10-minute invite token offered to anyone connected over BLE (owner still Allows each request). */
+    fun nearbyPairing() = scope.launch(serial) {
+        val s = st ?: return@launch
+        val tok = InviteToken(Proto.newToken(), Proto.nowS() + 600)
+        nearby = tok
+        s.invites.removeIf { it.x < Proto.nowS() }
+        s.invites += tok
+        save()
+        log.i("nearby pairing on for 10 min (token offered over BLE INFO)")
+        publishUi()
+    }
+
+    fun setWriter(f: String, on: Boolean) = scope.launch(serial) {
+        val s = st ?: return@launch
+        if (on) s.writers += f else s.writers -= f
+        save()
+        log.i("writer ${if (on) "ADDED" else "removed"}: ${s.followers.lastOrNull { it.f == f }?.name} (${f.take(12)})")
+        publishRoster()
+        publishBackup()
+        subscribeTreatments()
+        publishUi()
+    }
+
+    private fun subscribeTreatments() {
+        val s = st ?: return
+        if (s.writers.isEmpty()) { pool?.unsubscribe("treatments"); return }
+        pool().subscribe("treatments", { listOf(JSONObject()
+            .put("kinds", JSONArray().put(Proto.CHUNK))
+            .put("authors", JSONArray(st?.writers?.toList() ?: emptyList<String>()))
+            .put("#c", JSONArray().put(Proto.treatmentsC(s.sid)))
+            .put("since", Proto.nowS() - 2 * Proto.DAY)) }, ::onEvent)
+    }
+
+    /** Treatment from a follower (any transport): accepted only if signed by a roster writer and decryptable with a known epoch. */
+    private fun onTreatment(ev: JSONObject, via: String) {
+        val s = st ?: return
+        val author = ev.optString("pubkey")
+        val name = s.followers.lastOrNull { it.f == author }?.name ?: author.take(12)
+        val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return log.i("treatment: malformed, ignored")
+        if (!e.verify()) return log.i("treatment REJECTED: bad signature (via $via)")
+        if (author !in s.writers || s.followers.none { it.f == author && it.revoked == null }) {
+            return log.i("treatment REJECTED: author $name (${author.take(12)}) is not in roster writers (via $via)")
+        }
+        val epoch = s.epochs.firstOrNull { it.gk == Proto.tagValue(ev, "gk") }
+            ?: return log.i("treatment REJECTED: unknown gk from $name")
+        val tr = runCatching { Proto.dec(epoch.g, author, ev.getString("content")) }.getOrNull()
+            ?: return log.i("treatment REJECTED: decrypt failed from $name")
+        val id = tr.optString("id")
+        if (id.isEmpty() || Proto.tagValue(ev, "d") != Proto.treatmentD(s.sid, id)) return log.i("treatment REJECTED: d tag mismatch from $name")
+        if (!db.upsertTreatment(tr, author, via)) return
+        log.i("TREATMENT accepted from $name via ${via.removePrefix("relay:")}: ${tr.optString("k")} ${tr.optDouble("a")} " +
+            "\"${tr.optString("n")}\" t=${tr.optLong("t")} (+${Proto.nowS() - tr.optLong("t")}s)")
+        if (via.startsWith("ble:")) ble?.forward(ev, via.removePrefix("ble:"))
+        publishUi()
     }
 
     fun setSynthetic(on: Boolean) = scope.launch(serial) {
@@ -352,10 +440,11 @@ class OwnerEngine(private val ctx: Context) {
         val e = s.current
         // created_at must strictly increase per (author, kind, d), or relays keep the older version
         val at = maxOf(Proto.nowS(), s.rosterPublishedAt + 1)
-        publish(Proto.rosterEvent(s.i, e.pub, s.sid, e.n, listOf(s.dPub), s.relays, at), Lane.CONTROL, "roster")
+        val writers = s.writers.filter { w -> s.followers.any { it.f == w && it.revoked == null } }
+        publish(Proto.rosterEvent(s.i, e.pub, s.sid, e.n, listOf(s.dPub), s.relays, at, writers), Lane.CONTROL, "roster")
         s.rosterPublishedAt = at
         save()
-        log.i("roster published: epoch ${e.n} gk ${e.gk}, devices [${s.dPub.take(12)}]")
+        log.i("roster published: epoch ${e.n} gk ${e.gk}, devices [${s.dPub.take(12)}], writers ${writers.map { it.take(12) }}")
     }
 
     private fun publishBackup() {
@@ -440,12 +529,17 @@ class OwnerEngine(private val ctx: Context) {
 
     private fun publish(ev: Event, lane: Lane, key: String? = null) {
         pool().publish(ev, lane, key)
-        extra.forEach { it.publish(ev, lane, key) }
+        if (key != "backup") extra.forEach { it.publish(ev, lane, key) }   // the owner backup stays on relays
     }
 
     /** THE entry point for every incoming event, from any transport ([via] = `relay:<host>` / `ble:<peer>`). */
     fun onEvent(ev: JSONObject, via: String) {
-        scope.launch(serial) { if (ev.optInt("kind") == Proto.WRAP) onWrap(ev, via) }
+        scope.launch(serial) {
+            when {
+                ev.optInt("kind") == Proto.WRAP -> onWrap(ev, via)
+                ev.optInt("kind") == Proto.CHUNK && st?.let { Proto.tagValue(ev, "c") == Proto.treatmentsC(it.sid) } == true -> onTreatment(ev, via)
+            }
+        }
     }
 
     private fun onWrap(ev: JSONObject, via: String) {
@@ -522,6 +616,7 @@ class OwnerEngine(private val ctx: Context) {
         if (idx < 0) return@launch
         val fol = s.followers[idx]
         s.followers[idx] = fol.copy(revoked = Proto.nowS())
+        s.writers -= f
         save()
         _ui.update { it.copy(busy = "Removing ${fol.name}: rotating keys…") }
         sendRevoked(f)
@@ -551,6 +646,14 @@ class OwnerEngine(private val ctx: Context) {
                 liveSent = liveSent,
                 chunksSent = chunksSent,
                 inboxLive = foreground && pool?.hasSubscription("inbox") == true,
+                bleOn = ble != null,
+                nearbyUntil = nearby?.x ?: 0,
+                writers = s?.writers?.toSet() ?: emptySet(),
+                treatments = db.treatments().map { (tr, author, via) ->
+                    val who = s?.followers?.lastOrNull { it.f == author }?.name ?: author.take(8)
+                    "${java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(tr.optLong("t") * 1000))} " +
+                        "${tr.optString("k")} ${tr.optDouble("a")} ${tr.optString("n")} — $who via ${via.substringBefore(":")}"
+                },
             )
         }
     }

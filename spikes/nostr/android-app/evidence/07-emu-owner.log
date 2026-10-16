@@ -1,0 +1,14 @@
+--------- beginning of main
+10-16 03:53:40.894 17816 17838 I CgmShare.owner: owner npub1qg0pf…p4vr device f55b1cc2d2a6 epoch 3 gk 975d463f, 3 follower(s), relays 4
+10-16 03:53:41.248 17816 17838 I CgmShare.owner: BLE: GATT server up, advertising 7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007
+10-16 03:53:41.415 17816 17838 I CgmShare.owner: roster published: epoch 3 gk 975d463f, devices [f55b1cc2d2a6], writers []
+10-16 03:53:41.725 17816 17838 I CgmShare.owner: history: 1440 entries, 0 new, 25 chunk(s) to publish
+10-16 03:53:42.780 17816 17816 I CgmShare.owner: BLE: advertising started
+10-16 03:58:02.644 17816 17827 I CgmShare.owner: BLE: central 71:45:B3:E5:AF:2D connected
+10-16 03:58:02.765 17816 17827 I CgmShare.owner: BLE: 71:45:B3:E5:AF:2D MTU 517
+10-16 03:58:02.781 17816 17826 I CgmShare.owner: BLE: 71:45:B3:E5:AF:2D notifications on
+10-16 03:58:02.890 17816 17826 I CgmShare.owner: BLE: HELLO from 71:45:B3:E5:AF:2D → INFO + 27 cached event(s)
+10-16 04:05:12.040 17816 18251 I CgmShare.owner: writer ADDED: sdk_gphone64_arm64 (840f4ca0f2c8)
+10-16 04:05:12.088 17816 18251 I CgmShare.owner: roster published: epoch 3 gk 975d463f, devices [f55b1cc2d2a6], writers [840f4ca0f2c8]
+10-16 04:05:12.137 17816 18251 I CgmShare.owner: owner backup published: 3 epoch(s), 4 follower record(s), 0 invite(s)
+10-16 04:07:26.220 17816 18294 I CgmShare.owner: TREATMENT accepted from sdk_gphone64_arm64 via ble:71:45:B3:E5:AF:2D: rapid 2.5 "lunch-bolusz" t=1792112846 (+0s)

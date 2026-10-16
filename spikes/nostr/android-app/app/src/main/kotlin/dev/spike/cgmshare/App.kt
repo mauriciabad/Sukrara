@@ -29,6 +29,25 @@ class App : Application() {
                     }
                 }
             }, android.content.IntentFilter("dev.spike.cgmshare.DUMP"), RECEIVER_EXPORTED)
+            // investigation 07, headless tests on a locked phone (debug only):
+            // `adb shell am broadcast -a dev.spike.cgmshare.CMD --es c owner|pair|approve|writer [--es f <hex>] [--ez on true]`
+            registerReceiver(object : android.content.BroadcastReceiver() {
+                override fun onReceive(c: Context, i: android.content.Intent) {
+                    val cmd = i.getStringExtra("c")
+                    android.util.Log.i("CgmShare.cmd", "cmd $cmd")
+                    when (cmd) {
+                        "owner" -> {
+                            setRole(c, "owner")
+                            val o = owner(c)
+                            if (!o.hasIdentity()) kotlinx.coroutines.runBlocking { o.createIdentity() }
+                        }
+                        "pair" -> owner(c).nearbyPairing()
+                        "approve" -> owner(c).ui.value.pending.firstOrNull()?.let { owner(c).approve(it.f) }
+                        "writer" -> owner(c).setWriter(i.getStringExtra("f") ?: return, i.getBooleanExtra("on", true))
+                        "fg" -> owner(c).setForeground(i.getBooleanExtra("on", true))
+                    }
+                }
+            }, android.content.IntentFilter("dev.spike.cgmshare.CMD"), RECEIVER_EXPORTED)
         }
     }
 

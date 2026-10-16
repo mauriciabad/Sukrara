@@ -44,6 +44,7 @@ class OwnerState(
     var rosterPublishedAt: Long = 0,
     var synthetic: Boolean = false,
     val pending: MutableList<PendingRequest> = mutableListOf(),
+    val writers: MutableSet<String> = mutableSetOf(),     // investigation 07: followers allowed to add treatments
 ) {
     val current: Epoch get() = epochs.last()
     val iPub: String get() = Proto.pub(i)
@@ -58,6 +59,7 @@ class OwnerState(
         .put("followers", JSONArray(followers.map { it.toJson() }))
         .put("invites", JSONArray(invites.map { JSONObject().put("t", it.t).put("x", it.x) }))
         .put("relays", JSONArray(relays))
+        .put("writers", JSONArray(writers.toList()))
 
     fun toJson(): JSONObject = backupBody()
         .put("I", i.secretKey().toHex())
@@ -88,6 +90,7 @@ class OwnerState(
                 (0 until a.length()).map { InviteToken(a.getJSONObject(it).getString("t"), a.getJSONObject(it).getLong("x")) }
             }?.toMutableList() ?: mutableListOf(),
             relays = Proto.strings(j.optJSONArray("relays")).ifEmpty { Proto.RELAYS },
+            writers = Proto.strings(j.optJSONArray("writers")).toMutableSet(),
         )
 
         fun fromJson(j: JSONObject): OwnerState = parseBody(Keys.parse(j.getString("I")), Keys.parse(j.getString("D")), j).apply {

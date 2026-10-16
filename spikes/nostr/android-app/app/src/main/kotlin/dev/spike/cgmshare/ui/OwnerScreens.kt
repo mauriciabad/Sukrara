@@ -61,6 +61,8 @@ interface OwnerActions {
     fun setSynthetic(on: Boolean)
     fun checkNow()
     suspend fun ncryptsec(password: String): String?
+    fun nearbyPairing()
+    fun setWriter(f: String, on: Boolean)
 }
 
 private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
@@ -119,6 +121,15 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         }
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
 
+        SectionTitle("Nearby (Bluetooth)")
+        val pairing = u.nearbyUntil > Proto.nowS()
+        Text(if (!u.bleOn) "Bluetooth transport off (permission or Bluetooth disabled)"
+             else "Advertising · ${u.bleCentrals} follower(s) connected over Bluetooth" +
+                (if (pairing) " · pairing open until ${date(u.nearbyUntil)}" else ""), style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = a::nearbyPairing, enabled = u.bleOn, modifier = Modifier.fillMaxWidth()) {
+            Text(if (pairing) "Pairing nearby… (tap to extend 10 min)" else "Pair nearby (10 min)")
+        }
+
         SectionTitle("Followers")
         val active = u.followers.filter { it.revoked == null }
         if (u.followers.isEmpty()) Text("Nobody follows you yet.", style = MaterialTheme.typography.bodyMedium)
@@ -128,6 +139,10 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
                     Column(Modifier.weight(1f)) {
                         Text(f.name, fontWeight = FontWeight.SemiBold)
                         Text("since ${date(f.since)} · ${f.f.take(8)}…", style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Can add entries", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            Switch(f.f in u.writers, { a.setWriter(f.f, it) })
+                        }
                     }
                     OutlinedButton(onClick = { confirmRemove = f }) { Text("Remove") }
                 }
@@ -135,6 +150,11 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         }
         u.followers.filter { it.revoked != null }.forEach { f ->
             Text("${f.name} — removed ${date(f.revoked!!)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
+
+        if (u.treatments.isNotEmpty()) {
+            SectionTitle("Entries from followers")
+            u.treatments.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
 
         SectionTitle("Backup")

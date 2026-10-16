@@ -1,0 +1,35 @@
+03:57:22.677 scanning for 7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007
+03:57:24.865 found None (562362C6-A6DB-9455-0006-7A483EEEC1E7) in 2.2s
+03:57:29.515 connected in 4.7s, MTU 515
+03:57:29.727 INFO: owner e21879f35a87… pairing closed (121 ms after HELLO)
+03:57:29.793 roster accepted over BLE: epoch 1 devices ['9c6e9986a9e2'] writers [] → this Mac may not add entries
+03:57:29.907 chunk h=1792108800 53 readings (last 66 mg/dL) epoch 1 1609 B
+03:57:29.977 chunk h=1792105200 60 readings (last 65 mg/dL) epoch 1 1777 B
+03:57:30.060 chunk h=1792101600 60 readings (last 63 mg/dL) epoch 1 1777 B
+03:57:30.148 chunk h=1792098000 60 readings (last 71 mg/dL) epoch 1 1777 B
+03:57:30.212 chunk h=1792094400 60 readings (last 84 mg/dL) epoch 1 1777 B
+03:57:30.268 chunk h=1792090800 60 readings (last 85 mg/dL) epoch 1 1777 B
+03:57:30.332 chunk h=1792087200 60 readings (last 85 mg/dL) epoch 1 1777 B
+03:57:30.423 chunk h=1792083600 60 readings (last 106 mg/dL) epoch 1 1949 B
+03:57:30.538 chunk h=1792080000 60 readings (last 83 mg/dL) epoch 1 1949 B
+03:57:30.601 chunk h=1792076400 60 readings (last 130 mg/dL) epoch 1 1949 B
+03:57:30.689 chunk h=1792072800 60 readings (last 193 mg/dL) epoch 1 1777 B
+03:57:30.780 chunk h=1792069200 60 readings (last 104 mg/dL) epoch 1 1949 B
+03:57:30.955 chunk h=1792065600 60 readings (last 119 mg/dL) epoch 1 1949 B
+03:57:31.003 chunk h=1792062000 60 readings (last 132 mg/dL) epoch 1 1777 B
+03:57:31.055 chunk h=1792058400 60 readings (last 139 mg/dL) epoch 1 1777 B
+03:57:31.229 chunk h=1792054800 60 readings (last 140 mg/dL) epoch 1 1777 B
+03:57:31.292 chunk h=1792051200 60 readings (last 147 mg/dL) epoch 1 1777 B
+03:57:31.437 chunk h=1792047600 60 readings (last 116 mg/dL) epoch 1 1777 B
+03:57:31.529 chunk h=1792044000 60 readings (last 134 mg/dL) epoch 1 1777 B
+03:57:31.592 chunk h=1792040400 60 readings (last 87 mg/dL) epoch 1 1777 B
+03:57:31.708 chunk h=1792036800 60 readings (last 104 mg/dL) epoch 1 1777 B
+03:57:31.773 chunk h=1792033200 60 readings (last 96 mg/dL) epoch 1 1777 B
+03:57:31.860 chunk h=1792029600 60 readings (last 103 mg/dL) epoch 1 1949 B
+03:57:31.949 chunk h=1792026000 60 readings (last 121 mg/dL) epoch 1 1949 B
+03:57:32.011 chunk h=1792022400 60 readings (last 134 mg/dL) epoch 1 1949 B
+03:57:32.040 LIVE 68 mg/dL t=1792112206 epoch 1 — reading age 46s, publish→BLE receipt 45.0s
+03:57:35.239 backlog: 27 events, 47621 B in 2.43s → 19.1 KiB/s (27 accepted, 0 rejected)
+03:57:35.240 treatment rapid 1.5 'mac before writer' signed by F 325d33bd41e3
+03:57:35.395 treatment sent over BLE
+03:57:43.408 done: 27 events, 47621 B, 27 accepted, 0 rejected, connected=True
