@@ -1,0 +1,26 @@
+Hide Sukrara's notification icon from the status bar (branch n-icon), Pixel 10 Pro / Android 17, release build,
+2026-10-16 14:30-14:43. Settings kept: chip=false, icon=false (logo small icon), hook=true, hookPosition=slot:,
+hookColor=true; new hideNotifIcon=true (default).
+
+LSPosed log after `--ez restartSystemUi true` (both restarts):
+  icon order hooks: 1
+  icon tint hook: ok
+  notification icon hook: ok
+  attached to KEYGUARD / attached to MAIN
+
+SystemUI dump (`dumpsys activity service com.android.systemui/.SystemUIService`, block
+NotificationIconContainerStatusBarViewModel "icons=", other apps' keys omitted here):
+  fresh SystemUI after restart (state from HOOK_HELLO)  : key 0|app.mauri.sukrara.poc|1 absent
+Screen (unlocked, status bar crops):
+  hideNotifIcon=false -> logo icon first among the notification icons   n-icon-statusbar-shown.png
+  hideNotifIcon=true  -> logo gone 0.8 s after the broadcast (one post)  n-icon-statusbar-hidden.png
+  Notification still in the shade, colorized card + graph unchanged     n-icon-shade-card.png
+Note: while the keyguard is showing the status-bar icon flow isn't re-collected, so the dump is stale there; the
+list is rebuilt (with the current hide state) on the next post after unlock.
+
+Rootless options checked in the phone's own services.jar (decompiled, NotificationManagerService ~l.7081):
+an FGS notification on an IMPORTANCE_MIN/NONE channel is bumped to LOW and the channel itself is rewritten to LOW
+unless the user locked the channel's importance after a FGS was shown -> the app can't minimise its own FGS
+notification. Status-bar filter (NotificationIconsInteractor$filteredNotifSet$1$$ExternalSyntheticLambda1):
+the status bar drops ambient (MIN) and, if "hide silent icons" is on, silent-section entries; a colorized FGS is
+not in the silent section (docs/05).
