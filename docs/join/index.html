@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Fallback for https://sukrara.mauri.app/join#<invite>: shown only when the Sukrara app isn't installed (or the
+     link was opened on a computer). The invite lives in the #fragment, which browsers never send to the server. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join on Sukrara</title>
+<style>
+  body { font: 17px/1.5 -apple-system, system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1.2rem; }
+  code { word-break: break-all; background: #8881; padding: .1em .3em; border-radius: 4px; }
+  a.button { display: inline-block; padding: .6em 1.1em; border-radius: 10px; background: #2d5bd3; color: #fff; text-decoration: none; }
+</style>
+</head>
+<body>
+<h1>Someone wants to share their glucose with you</h1>
+<p>This is a <strong>Sukrara</strong> invite. Open it on your phone with the Sukrara app installed, choose
+  <em>“I follow someone”</em>, and the person who sent it will be asked to approve you (both screens show the same
+  4-digit code).</p>
+<p><a class="button" id="open" href="#">Open in Sukrara</a></p>
+<p>Don't have the app yet? It's an alpha — get the latest APK from the
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">releases page</a>, then open this link again.</p>
+<p>On a Mac, use <em>GlucoseBar → Follow someone…</em> and paste this link:</p>
+<p><code id="link"></code></p>
+<p><small>The invite contains no secret and no glucose data: it only lets you <em>ask</em> to follow. Nothing in it
+  is sent to this website.</small></p>
+<script>
+  var invite = location.hash.slice(1);
+  document.getElementById("link").textContent = location.href;
+  // custom-scheme fallback for devices where App Links aren't verified
+  document.getElementById("open").href = invite ? "cgmshare:join?" + invite : "#";
+</script>
+</body>
+</html>

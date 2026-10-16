@@ -1,0 +1,5 @@
+title: Sukrara (alpha)
+description: Your sugar, now — live CGM glucose on your Mac, phone, watch and family's devices, without the cloud. Research spikes.
+theme: jekyll-theme-primer
+# publish /.well-known (Android App Links verification for https://sukrara.mauri.app/join links)
+include: [".well-known"]
