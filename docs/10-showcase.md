@@ -68,7 +68,7 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1/§2 sync with the Mac), LibreView uploader, gated by `Features.libreview` |
 | `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core. Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
-| `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off), the widgets' 8 h CSV store. `SukraraHooks` feeds them from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
+| `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off). `RecentHistory`: the last 8 h in memory, read from the role's own store (`owner.db` + `treatments.json`, or `follower.db`) — no copy on disk. `SukraraHooks` feeds it from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). Trend arrow, range colours, staleness and age text come from `core/Glucose.kt`, shared with the status bar, system icons and the SystemUI hook; the widgets use the status bar's `sb_t*` arrows. `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
 
 Changes from the source spikes:
 
@@ -291,8 +291,8 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   `-debugsend '{"cmd":"log"|"remove"|"paths"}'` ([phone log](../spikes/showcase-android/evidence/n6-phone-logcat.txt)).
   (The earlier *Accept entries over the unencrypted Mac link* switch was removed: no backwards compatibility in
   this repo, only the v2 path stays.)
-- **Treatments in every chart**: home chart (both roles), the 3 widgets (own 8 h copy in
-  `files/widget-treatments.json`, survives a restart), the Live Update graph, the Mac menu chart and the macOS widget
+- **Treatments in every chart**: home chart (both roles), the 3 widgets (read from the role's treatment store, so
+  they survive a restart), the Live Update graph, the Mac menu chart and the macOS widget
   views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
   (text in the app chart only). The range band is now 65–185, the same thresholds as the line colours.
 - **Home screen**: value card → 12 h chart directly below, above the fold down to 360×640 dp, the rest below
@@ -313,6 +313,34 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - Released as **v0.10.2** (`versionName` 0.10.2 / Mac 0.10.2), with the Juggluco-port fix from the morning.
 - **v0.10.3**: the legacy Mac link is read-only for entries; the *Accept entries over the unencrypted Mac link*
   switch and the Mac's legacy entry path are gone (Mac entries go over v2 only). Also ships the macOS widgets (docs/13).
+- **v0.10.4** (Android only): widget cleanup after the docs/12 review (see "Widgets: one model, no second store").
+
+### Widgets: one model, no second store (v0.10.4)
+
+The docs/12 review kept all three widgets: the user has a *Glucose + graph* widget pinned and also uses a graph-only
+widget from another app. What made them costly to maintain was duplication, so that was removed:
+
+- **One glucose model.** `core/Glucose.kt` holds the trend mapping, range thresholds and colours, staleness and age
+  text. Before, `widgets/Glucose.kt` and `status/GlucoseNotification.kt` each had their own copy, and the widget
+  `Reading` was a third reading type. The widgets now use `core.Reading`.
+- **One arrow set.** The widgets draw the status bar's trimmed `sb_t*` vectors (`Trend.drawable`); the 39 square
+  `arrow_*` copies are deleted. `RootStatusBar` uses the same function instead of building resource names.
+- **No second history.** `GlucoseStore` (an 8 h `history.csv` + `widget-treatments.json` written on every reading)
+  is replaced by `RecentHistory`, which reads the role's own store on the first render in a process and then keeps
+  an in-memory window. It reloads on follower start, *Stop following* and role change. Wearer readings are merged in
+  from the live fan-out, because `Live` reaches the widgets before the owner engine has written `owner.db`. The
+  status-bar card's graph reads the same window. Old installs keep their two small orphaned files (≈ 10 KB);
+  nothing reads them.
+
+Checked on two emulators (wearer = debug build with the synthetic source, follower = release build following it over
+Nostr):
+
+| | | |
+|---|---|---|
+| ![wearer widgets](../spikes/showcase-android/evidence/n8-wearer-widgets-after-process-kill.png) | ![follower combined](../spikes/showcase-android/evidence/n8-follower-combined-after-update-r8.png) | ![stop following](../spikes/showcase-android/evidence/n8-follower-widget-after-stop-following.png) |
+| Wearer: *Glucose* + *Glucose graph* after `kill -9` of the process: history from `owner.db`, the 30 g carbs from `treatments.json` | Follower, release (R8): *Glucose + graph* after an in-place update (process restart), data from `follower.db`; the keep rule still holds | Follower after *Stop following*: "No data" at once |
+
+The status-bar card's graph also reads the new window ([screenshot](../spikes/showcase-android/evidence/n8-wearer-notification-graph.png)).
 
 ## Next
 
