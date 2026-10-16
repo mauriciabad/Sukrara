@@ -226,7 +226,8 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
         onDismissRequest = { confirmDirect = false },
         title = { Text("Read the sensor directly?") },
         text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
-            "Libre 3, so pause Juggluco first. While Sukrara holds the sensor, Juggluco's alarms (low/high) do NOT ring.") },
+            "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
+            "(low/high) do NOT ring.") },
         confirmButton = { Button(onClick = { confirmDirect = false; onSensor() }) { Text("Scan sensor") } },
         dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
     )

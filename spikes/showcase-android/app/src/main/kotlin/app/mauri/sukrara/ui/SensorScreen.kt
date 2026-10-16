@@ -131,8 +131,9 @@ fun SensorScreen(onBack: () -> Unit) {
         Text("A new sensor starts and warms up for 60 minutes. A sensor that is already running moves to Sukrara: " +
             "only one app can read a Libre 3, so the app that had it (LibreLink, Juggluco) stops getting readings and " +
             "its alarms stop. To move it back, scan it with that app.", style = MaterialTheme.typography.bodySmall)
-        if (f.source != "direct") Text("Juggluco is your glucose source now. If it is reading this sensor, pause it first " +
-            "(long-press its icon → Pause app); after the scan Sukrara switches to reading the sensor directly.",
+        if (f.source != "direct") Text("Juggluco is your glucose source now. If it is reading this sensor, stop it first: " +
+            "long-press its icon → Pause app, then App info → Force stop (a paused Juggluco keeps its Bluetooth link to the " +
+            "sensor and gets in the way). After the scan Sukrara switches to reading the sensor directly.",
             style = MaterialTheme.typography.bodySmall)
 
         when {

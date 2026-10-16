@@ -237,7 +237,8 @@ internal class Libre3Client(
                 handler.post { g.discoverServices() }
             } else {
                 val alive = System.currentTimeMillis() - authorizedAt
-                Log.i(TAG, "sensor disconnected (status $status) after ${alive / 1000}s")
+                Log.i(TAG, "sensor disconnected (status $status) " +
+                    if (authorizedAt > 0) "after ${alive / 1000}s" else "before authorizing")
                 if (authorizedAt > 0 && alive < EARLY_DROP_MS && prefs.getBoolean(PREF_MINIMAL, false)) {
                     Log.w(TAG, "early drop with the minimal subscription set; reverting to all notifications")
                     prefs.edit().putBoolean(PREF_MINIMAL, false).apply()

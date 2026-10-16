@@ -111,8 +111,8 @@ Changes from the source spikes:
    **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. "Take over the account's
    device" logs the Libre app / Juggluco out of LibreView.
 9. **Direct sensor**: Settings → Glucose source → *Libre 3 directly* → *Scan sensor*, then hold the phone against
-   the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (pause
-   Juggluco first). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
+   the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (stop
+   Juggluco first: *Pause app* **and** *Force stop*, see "Sensor scan"). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
    Juggluco gives the sensor back.
 10. **Nightscout API** (Settings → Nightscout API, or the follower's home screen): `http://127.0.0.1:17581` on the
    phone, on by default, works next to Juggluco. Apps on the same phone (xDrip+ follower, a Garmin app in
@@ -316,6 +316,8 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - **v0.10.3**: the legacy Mac link is read-only for entries; the *Accept entries over the unencrypted Mac link*
   switch and the Mac's legacy entry path are gone (Mac entries go over v2 only). Also ships the macOS widgets (docs/13).
 - **v0.10.4** (Android only): widget cleanup after the docs/12 review (see "Widgets: one model, no second store").
+- **v0.10.5** (Android only): direct mode scans the sensor with NFC and pairs over Bluetooth by itself, with no
+  pairing file (see "Sensor scan (NFC)").
 
 ### Widgets: one model, no second store (v0.10.4)
 
@@ -381,9 +383,19 @@ Checked on 2026-10-16:
 - The screen works on an emulator (no NFC there, so it says so).
 - The build is installed on the user's phone and keeps reading from Juggluco until a scan.
 
-**Not yet tested on a real sensor**: the NFC exchange and the fresh Bluetooth pairing need the user's phone at the
-sensor (pause Juggluco, scan, wait for the first reading, then scan with Juggluco to hand it back). Lingo sensors are
-refused.
+**Real sensor, 2026-10-16 22:25** (user's Libre 3 Plus, 13 days in, running under Juggluco; Sukrara 0.10.5):
+- **One tap** took the sensor over. Sukrara got the receiver ID from its saved LibreView login, so the user saw no
+  sign-in prompt.
+- The **fresh pairing** finished 4.6 s after the second Bluetooth connection ("sensor paired"). The saved
+  authorization record (149 bytes) went into `files/sensor.json`. Sukrara then backfilled 24 h of history.
+- **Live readings** every minute from then on. Later connections resume with the saved record, no NFC needed.
+- Lingo sensors are refused (not built).
+
+**Pause isn't enough.** For 4 minutes every connection failed 1.6 s in: the phone's Bluetooth stack rejected
+Sukrara's first security write. `dumpsys bluetooth_manager` showed why: Juggluco, *paused* but still running, kept its
+own GATT client for the sensor and shared the link ("ACL holders: … tk.glucodata"). It kept trying to log in with
+its now-outdated pairing. After `am force-stop tk.glucodata` the next connection authorized and stayed up. The
+app's texts now say to *Pause app* **and** *Force stop* Juggluco before a takeover.
 
 ## Next
 
