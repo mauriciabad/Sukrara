@@ -478,6 +478,11 @@ functions … create new content").
 | One shared note on every entry | a note is its own entry, so nothing is duplicated |
 | Explanatory text in the dialog ("Fill in any of them…", "Your followers and Sukrara for Mac see it", the "Adds …" summary) | the user: unnecessary, the filled fields already show it |
 
+**On the phone (0.11.3, 2026-10-17 01:55).** The user added a real entry through the quick dialog. With the upload
+switched on (the user's call), the next cycle posted it: `libreview post: 1 treatment(s) → status 0` (accepted), then
+the current glucose reading (`glucose 0+1 → status 0`). Sukrara is now the account's LibreView device; glucose goes up
+from 01:55 on.
+
 ## Short invites and private profiles (v0.11.0)
 
 *2026-10-17. Investigation 14 brought into Sukrara (Android + Mac). Kept and left out, with reasons:

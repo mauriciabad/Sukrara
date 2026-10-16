@@ -5,7 +5,7 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.2/Sukrara-0.11.2.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.3/Sukrara-0.11.3.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
@@ -185,7 +185,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: Android [v0.11.2](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.2), Mac
+Downloads: Android [v0.11.3](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.3), Mac
 [v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
@@ -193,7 +193,7 @@ Downloads: Android [v0.11.2](https://github.com/mauriciabad/cgm-reading-mac-spik
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.2.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.3.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
