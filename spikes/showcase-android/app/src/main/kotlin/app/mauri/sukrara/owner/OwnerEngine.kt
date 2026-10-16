@@ -360,8 +360,12 @@ class OwnerEngine(private val ctx: Context) {
     // ============================================================================================ treatments → followers
 
     /** Every change of the merged log (phone, Mac legacy link, accepted writer entries, deletes) → followers. */
-    private val onTreatmentChange: (Treatment, Long) -> Unit = { tr, _ -> scope.launch(serial) { publishTreatment(tr) } }
+    private val onTreatmentChange: (Treatment, Long) -> Unit = { tr, _ ->
+        // a LibreView upload only moves `lv`, which isn't on the wire: nothing new for followers
+        scope.launch(serial) { if (trPublished[tr.id] != tr.u to tr.del) publishTreatment(tr) }
+    }
     private val trCreatedAt = HashMap<String, Long>()
+    private val trPublished = HashMap<String, Pair<Long, Boolean>>()
 
     private fun recentTreatments(): List<Treatment> {
         Treat.init(ctx)   // restore() rotates before start()
@@ -380,6 +384,7 @@ class OwnerEngine(private val ctx: Context) {
         if (!relays && ble == null) return
         val at = maxOf(Proto.nowS(), (trCreatedAt[tr.id] ?: 0) + 1)
         trCreatedAt[tr.id] = at
+        if (relays) trPublished[tr.id] = tr.u to tr.del
         publish(Proto.treatmentEvent(s.d, s.current.pub, s.sid, tr.wire(), at), lane, "tr:${tr.id}", relays)
     }
 
