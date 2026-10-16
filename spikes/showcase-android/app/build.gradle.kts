@@ -55,6 +55,16 @@ android {
       shaders = false
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.systemProperty("gallery.out", System.getProperty("gallery.out") ?: layout.buildDirectory.dir("gallery").get().asFile.path)
+                System.getProperty("gallery.real")?.let { f -> it.systemProperty("gallery.real", f) }
+            }
+        }
+    }
+
     packaging {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -66,8 +76,19 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Robolectric's SDK 36 sandbox (the graph gallery) needs Java 21+: run unit tests on GALLERY_JAVA_HOME when set.
+System.getenv("GALLERY_JAVA_HOME")?.let { home ->
+    tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
+        jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",
+            "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+}
+
 dependencies {
   testImplementation("junit:junit:4.13.2")
+  // investigation 16: the graph gallery renders the real Canvas code on the JVM (native graphics)
+  testImplementation("org.robolectric:robolectric:4.17")
+  testImplementation("org.ow2.asm:asm-commons:9.11")
+  testImplementation("org.ow2.asm:asm-tree:9.11")
   testImplementation("org.json:json:20250517")   // real org.json for JVM tests (Android's is a stub there)
   // SystemUI module (investigation 05): provided by LSPosed/Vector at runtime
   compileOnly("io.github.libxposed:api:102.0.0")
