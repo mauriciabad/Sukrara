@@ -269,3 +269,8 @@ Value/effort: H/M/L.
 | 13 | macOS widgets (WidgetKit) | n/a | no | blocked by signing: needs an Apple Team ID certificate | M / L once a cert exists | blocked (user decision) |
 | 13 | Mac local reading DB (beyond 3 h) | n/a | no | every launch backfills 12 h / ~25 h | L / M | open |
 | 10 | Screenshots | emulator only | — | no follower view, no real data | M / L | **done for the follower** (emulator, real data); wearer screenshots need the unlocked phone |
+
+## What's left
+
+The remaining polish (user requests, known issues, rules for whoever continues) is tracked in
+[`spikes/showcase-android/NEXT.md`](../spikes/showcase-android/NEXT.md).

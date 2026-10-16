@@ -36,23 +36,27 @@ class LocalServers(ctx: Context, prefix: String, private val jugglucoExpected: (
         xdrip.onRequest = { Live.status.update { it.copy(watchPolledAt = xdrip.lastRequest?.first ?: 0) } }
     }
 
-    /** Apply switches; [old] == null on start. Also retried on a source change (Juggluco → direct frees 17580). */
+    /** Apply switches; [old] == null on start. Also re-evaluated on a source change (Juggluco ↔ direct). */
     fun apply(old: FeatureState?, f: FeatureState) {
-        if (old == null || old.garmin != f.garmin || (old.source != f.source && !garminUp)) {
-            if (f.garmin && !garminUp) {
-                val err = xdrip.start()
-                garminUp = err == null
-                val state = when {
-                    err == null -> "listening on 127.0.0.1:${XdripServer.PORT}"
-                    jugglucoExpected() -> "port ${XdripServer.PORT} held by Juggluco → Juggluco serves the watch"
-                    else -> err
+        if (old == null || old.garmin != f.garmin || old.source != f.source) {
+            // While Juggluco is the source, 17580 is Juggluco's and it serves the watch itself. Never bind it then, not
+            // even when it's momentarily free (Juggluco restarting): we'd steal its port for good and our Juggluco
+            // source would end up reading our own stale server (happened on 2026-10-16).
+            val want = f.garmin && !jugglucoExpected()
+            val state = when {
+                want && !garminUp -> {
+                    val err = xdrip.start()
+                    garminUp = err == null
+                    err ?: "listening on 127.0.0.1:${XdripServer.PORT}"
                 }
-                Live.status.update { it.copy(garmin = state) }
-                Log.i(tag, "garmin: $state")
-            } else if (!f.garmin && garminUp) {
-                xdrip.stop(); garminUp = false
-                Live.status.update { it.copy(garmin = "off") }
-            } else if (!f.garmin) Live.status.update { it.copy(garmin = "off") }
+                want -> "listening on 127.0.0.1:${XdripServer.PORT}"
+                else -> {
+                    if (garminUp) { xdrip.stop(); garminUp = false }
+                    if (f.garmin) "port ${XdripServer.PORT} left to Juggluco → Juggluco serves the watch" else "off"
+                }
+            }
+            Live.status.update { it.copy(garmin = state) }
+            Log.i(tag, "garmin: $state")
         }
         val key = if (f.nightscout) "${f.nightscoutLan}" else null
         if (key != nsKey) {

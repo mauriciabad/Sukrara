@@ -72,6 +72,11 @@ class JugglucoSource(private val baseUrl: String, http: OkHttpClient) : GlucoseS
         http.newCall(req).also { call = it }.execute().use { resp ->
             check(resp.isSuccessful) { "HTTP ${resp.code}" }
             val arr = JSONArray(resp.body!!.string())
+            // Guard against reading ourselves: if anything of ours ever holds Juggluco's port, its entries say
+            // device "Sukrara" — refuse them instead of re-publishing our own stale values as fresh.
+            check((0 until arr.length()).none { arr.getJSONObject(it).optString("device") == "Sukrara" }) {
+                "port 17580 is served by Sukrara, not Juggluco — toggle Juggluco's web server off/on"
+            }
             return (0 until arr.length()).map { i ->
                 val e = arr.getJSONObject(i)
                 val rate = if (e.optString("direction").isEmpty() || e.isNull("delta")) null else e.getDouble("delta") / 5.0
