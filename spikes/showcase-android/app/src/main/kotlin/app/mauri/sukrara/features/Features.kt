@@ -130,8 +130,8 @@ object Features {
         "After clock" to HookPosition.AFTER_CLOCK, "Before clock" to HookPosition.BEFORE_CLOCK,
         "Left of icons" to "${HookPosition.ICONS_PREFIX}0",
         "System icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
-        "After VPN" to "${HookPosition.SLOT_PREFIX}vpn", "After Bluetooth" to "${HookPosition.SLOT_PREFIX}bluetooth",
-        "After mobile" to "${HookPosition.SLOT_PREFIX}mobile", "After Wi-Fi" to "${HookPosition.SLOT_PREFIX}wifi",
+        "After VPN icon" to "${HookPosition.SLOT_PREFIX}vpn", "After Bluetooth icon" to "${HookPosition.SLOT_PREFIX}bluetooth",
+        "After mobile signal" to "${HookPosition.SLOT_PREFIX}mobile", "After Wi-Fi icon" to "${HookPosition.SLOT_PREFIX}wifi",
     )
 
     const val NIGHTSCOUT_PORT = 17581

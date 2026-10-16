@@ -7,6 +7,13 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
+import app.mauri.sukrara.features.HookPosition
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -77,16 +84,37 @@ private fun sinceText(t: Long): String {
     return if (s < 90) "now" else "${s / 60} min ago"
 }
 
+/**
+ * A settings switch row (Material list item): the whole row toggles, and a disabled row is greyed out as a whole —
+ * label, summary and switch (38 % content alpha), like AndroidX Preference's `dependency`.
+ */
 @Composable
 private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)) {
+        Column(Modifier.weight(1f).alpha(if (enabled) 1f else DISABLED_ALPHA)) {
             Text(label)
             sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
         }
-        Switch(checked, onChange, enabled = enabled)
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }
+
+/** A single-choice settings row (radio button), greyed out as a whole when disabled. */
+@Composable
+private fun RadioRow(label: String, selected: Boolean, enabled: Boolean, sub: String? = null, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+        .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Spacer(Modifier.size(8.dp))
+        Column(Modifier.weight(1f).alpha(if (enabled) 1f else DISABLED_ALPHA)) {
+            Text(label)
+            sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+        }
+    }
+}
+
+private const val DISABLED_ALPHA = 0.38f
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
@@ -274,9 +302,10 @@ fun TreatmentsScreen(onBack: () -> Unit) {
 }
 
 /**
- * Root status bar (investigation 05): one switch, then the colour option and where. Needs root for Sukrara (KernelSU):
- * everything is disabled until `su` works, and the options are disabled while the switch is off. "System icons" works
- * with root alone; the colour and the other placements come from the Sukrara module in LSPosed (scope System UI).
+ * Root status bar (investigation 05), following the Android settings pattern for dependent options: the main switch,
+ * then options that stay visible but are disabled while it's off (or without root), and the placement as a
+ * single-choice radio list. "System icons" works with root alone; the colour and the other placements come from the
+ * Sukrara module in LSPosed (scope System UI).
  */
 @Composable
 private fun RootStatusBarSettings(f: FeatureState) {
@@ -287,17 +316,30 @@ private fun RootStatusBarSettings(f: FeatureState) {
     Toggle("Value in the status bar (root)", f.hook && ok, enabled = ok, sub = when (root) {
         null -> "Checking root…"
         false -> "Needs root: grant it to Sukrara in KernelSU."
-        true -> "Colour and the placements next to the clock or after an icon need the Sukrara module in LSPosed " +
-            "(scope System UI) and a System UI restart. \"System icons\" works with root alone." +
-            if (f.systemIcons) " · ${rootBar.state}" else ""
+        true -> "Colour and most placements need the Sukrara module in LSPosed (scope System UI) and a System UI " +
+            "restart." + if (f.systemIcons) " · ${rootBar.state}" else ""
     }) { v -> set { it.copy(hook = v) } }
     val on = ok && f.hook
     Toggle("Colour by range", f.hookColor, enabled = on,
-        sub = "Low/high red, slightly high orange; in range like the clock") { v -> set { it.copy(hookColor = v) } }
-    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+        sub = "Low and high red, slightly high orange; in range like the clock") { v -> set { it.copy(hookColor = v) } }
+    Text("Placement", style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.padding(top = 8.dp).alpha(if (on) 1f else DISABLED_ALPHA))
+    Column(Modifier.selectableGroup()) {
         for ((label, pos) in Features.HOOK_POSITIONS) {
-            androidx.compose.material3.FilterChip(selected = f.hookPosition == pos, enabled = on,
-                onClick = { set { it.copy(hookPosition = pos) } }, label = { Text(label) })
+            RadioRow(label, selected = f.hookPosition == pos, enabled = on, sub = PLACEMENT_HELP[pos]) {
+                set { it.copy(hookPosition = pos) }
+            }
         }
     }
 }
+
+private val PLACEMENT_HELP = mapOf(
+    HookPosition.AFTER_CLOCK to "Next to the clock",
+    HookPosition.BEFORE_CLOCK to "Next to the clock",
+    "${HookPosition.ICONS_PREFIX}0" to "Left of the icons on the right",
+    HookPosition.SLOT_PREFIX to "Next to Wi-Fi and battery, drawn by Android. Works without the LSPosed module",
+    "${HookPosition.SLOT_PREFIX}vpn" to "Between the system icons, right after this one",
+    "${HookPosition.SLOT_PREFIX}bluetooth" to "Between the system icons, right after this one",
+    "${HookPosition.SLOT_PREFIX}mobile" to "Between the system icons, right after this one",
+    "${HookPosition.SLOT_PREFIX}wifi" to "Between the system icons, right after this one",
+)
