@@ -4,11 +4,11 @@
 import Foundation
 import NostrSDK
 
-/// `GlucoseBar -v2selftest`: feeds hand-built genuine and forged v2 events through `FollowerV2.onEvent` (the path
+/// `Sukrara -v2selftest`: feeds hand-built genuine and forged v2 events through `FollowerV2.onEvent` (the path
 /// every transport uses) and checks the acceptance rules fail closed. No network; uses a throwaway Keychain item.
 enum V2SelfTest {
     @MainActor static func run() -> Bool {
-        UserDefaults.standard.set("dev.spike.GlucoseBar.selftest", forKey: "keychainService")
+        UserDefaults.standard.set("app.mauri.sukrara.poc.selftest", forKey: "keychainService")
         defer { FollowerV2State.clear() }
         let I = Keys.generate(), D = Keys.generate(), G = Keys.generate(), X = Keys.generate(), G2 = Keys.generate()
         let F = Keys.generate()

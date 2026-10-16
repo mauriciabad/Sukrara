@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 import CoreImage
+import NostrSDK
 
-/// "Follow someone…": paste (or open via `cgmshare:` URL / QR image) an invite link, name this Mac, then a small
+/// "Follow someone…": paste (or open via `cgmshare:` URL / QR image) a Sukrara invite link (https or cgmshare:), name this Mac, then a small
 /// window shows the 4-digit match code the wearer's phone shows too, until the request is approved.
 @MainActor enum FollowUI {
     static var computerName: String { Host.current().localizedName ?? "Mac" }
@@ -13,13 +14,13 @@ import CoreImage
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Follow someone's glucose"
-        alert.informativeText = "Paste the invite link they shared with you (it starts with cgmshare:). "
+        alert.informativeText = "Paste the invite link they shared with you (https://sukrara.mauri.app/join#… or cgmshare:join?…). "
             + "Their phone will ask them to allow this Mac."
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 82))
         let link = NSTextField(frame: NSRect(x: 0, y: 52, width: 340, height: 24))
-        link.placeholderString = "cgmshare:join?i=…"
+        link.placeholderString = "https://sukrara.mauri.app/join#i=…"
         link.stringValue = prefill ?? (NSPasteboard.general.string(forType: .string).flatMap {
-            $0.hasPrefix("cgmshare:") ? $0 : nil } ?? "")
+            V2.isInvite($0) ? $0.trimmingCharacters(in: .whitespacesAndNewlines) : nil } ?? "")
         let label = NSTextField(labelWithString: "Name for this Mac")
         label.frame = NSRect(x: 0, y: 26, width: 340, height: 17)
         let name = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
@@ -48,21 +49,37 @@ import CoreImage
         guard let img = CIImage(contentsOf: url),
               let det = CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh])
         else { return nil }
-        return det.features(in: img).compactMap { ($0 as? CIQRCodeFeature)?.messageString }.first { $0.hasPrefix("cgmshare:") }
+        return det.features(in: img).compactMap { ($0 as? CIQRCodeFeature)?.messageString }.first { V2.isInvite($0) }
     }
 
-    /// `GlucoseBar -qrselftest`: encode an invite as a QR PNG with CoreImage, decode it back with `decodeQR`.
+    /// `Sukrara -qrselftest`: encode both invite forms as QR PNGs with CoreImage, decode them back with `decodeQR`,
+    /// and check both parse to the same invite.
     static func qrSelfTest() -> Bool {
-        let link = "cgmshare:join?i=npub1test&t=AAAAAAAAAAAAAAAAAAAAAA&x=1792197843&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Fnostr.mom"
-        guard let f = CIFilter(name: "CIQRCodeGenerator") else { return false }
-        f.setValue(Data(link.utf8), forKey: "inputMessage")
-        guard let img = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) else { return false }
-        let rep = NSBitmapImageRep(ciImage: img)
-        let url = URL(fileURLWithPath: NSTemporaryDirectory() + "glucosebar-qr-selftest.png")
-        try? rep.representation(using: .png, properties: [:])?.write(to: url)
-        let back = decodeQR(url)
-        print(back == link ? "qr self-test OK" : "qr self-test FAILED: \(back ?? "nil")")
-        return back == link
+        let npub = (try? Keys.generate().publicKey().toBech32()) ?? "npub1invalid"
+        let query = "i=\(npub)&t=AAAAAAAAAAAAAAAAAAAAAA&x=1792197843&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Fnostr.mom"
+        var ok = true
+        var parsed: [V2.Invite] = []
+        for link in ["cgmshare:join?" + query, "https://sukrara.mauri.app/join#" + query] {
+            guard let f = CIFilter(name: "CIQRCodeGenerator") else { return false }
+            f.setValue(Data(link.utf8), forKey: "inputMessage")
+            guard let img = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) else { return false }
+            let rep = NSBitmapImageRep(ciImage: img)
+            let url = URL(fileURLWithPath: NSTemporaryDirectory() + "sukrara-qr-selftest.png")
+            try? rep.representation(using: .png, properties: [:])?.write(to: url)
+            let back = decodeQR(url)
+            let inv = back.flatMap { V2.parseInvite($0) }
+            print(back == link && inv != nil ? "qr self-test OK (\(link.prefix(28))…)" : "qr self-test FAILED: \(back ?? "nil")")
+            ok = ok && back == link && inv != nil
+            if let inv { parsed.append(inv) }
+        }
+        let same = parsed.count == 2 && parsed[0].i == parsed[1].i && parsed[0].t == parsed[1].t
+            && parsed[0].x == parsed[1].x && parsed[0].r == parsed[1].r && parsed[0].r.count == 2
+        print(same ? "invite forms parse identically OK" : "invite forms parse identically FAILED")
+        // a pasted link with whitespace, and a non-invite https link
+        let pasted = V2.parseInvite("  https://sukrara.mauri.app/join/#" + query + "\n") != nil
+        let foreign = V2.parseInvite("https://example.com/join#" + query) == nil
+        print(pasted && foreign ? "paste / foreign-link checks OK" : "paste / foreign-link checks FAILED")
+        return ok && same && pasted && foreign
     }
 
     static func error(_ text: String) {

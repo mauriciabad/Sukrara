@@ -11,7 +11,7 @@ import Security
 /// rebuild macOS asks once ("Always Allow"). A shipped app would be Developer-ID signed and use the data-protection
 /// keychain with its own access group. `-keychainService <name>` lets tests use a throwaway item.
 enum Keychain {
-    static var service: String { UserDefaults.standard.string(forKey: "keychainService") ?? "dev.spike.GlucoseBar.follower" }
+    static var service: String { UserDefaults.standard.string(forKey: "keychainService") ?? "app.mauri.sukrara.poc.follower" }
 
     static func read(_ account: String) -> Data? {
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
@@ -28,7 +28,7 @@ enum Keychain {
         if SecItemUpdate(base as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecSuccess { return true }
         var add = base
         add[kSecValueData as String] = data
-        add[kSecAttrLabel as String] = "GlucoseBar follower keys"
+        add[kSecAttrLabel as String] = "Sukrara follower keys"
         let st = SecItemAdd(add as CFDictionary, nil)
         if st != errSecSuccess { log("keychain: add failed (\(st))") }
         return st == errSecSuccess

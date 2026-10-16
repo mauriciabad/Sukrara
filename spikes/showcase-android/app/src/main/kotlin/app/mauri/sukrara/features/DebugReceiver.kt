@@ -20,9 +20,11 @@ import org.json.JSONObject
  *   am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver \
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez systemIcons B] [--ez hook B] \
- *       [--ez screenOffSkip B] [--ez garmin B] [--es connPriority default|low|balanced|high] \
+ *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
+ *       [--es connPriority default|low|balanced|high] \
  *       [--es source juggluco|direct --ez confirmDirect true] \
- *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]]
+ *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
+ *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
  */
@@ -40,6 +42,7 @@ class DebugReceiver : BroadcastReceiver() {
                 macBle = b("macBle", s.macBle), bleFollowers = b("bleFollowers", s.bleFollowers),
                 chip = b("chip", s.chip), icon = b("icon", s.icon), systemIcons = b("systemIcons", s.systemIcons), hook = b("hook", s.hook),
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
+                nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,
                 source = when {
                     wantSource == null -> s.source
@@ -59,6 +62,13 @@ class DebugReceiver : BroadcastReceiver() {
             out.put("owner", JSONObject().put("epoch", u.epoch).put("followers", u.followers.count { it.revoked == null })
                 .put("pending", u.pending.size).put("liveSent", u.liveSent).put("chunksSent", u.chunksSent)
                 .put("bleOn", u.bleOn).put("bleCentrals", u.bleCentrals).put("source", u.source))
+        }
+        if (App.role(c) == "follower") {
+            val u = App.follower(c).ui.value
+            out.put("follower", JSONObject().put("status", u.status).put("code", u.code ?: JSONObject.NULL)
+                .put("epoch", u.epoch).put("readings", u.count).put("rejects", u.rejects)
+                .put("last", u.last?.let { JSONObject().put("t", it.t).put("sgv", it.sgv).put("via", it.via) } ?: JSONObject.NULL)
+                .put("ble", u.ble))
         }
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
@@ -81,6 +91,17 @@ class DebugReceiver : BroadcastReceiver() {
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
                 App.owner(c).approve(it.f); out.put("cmd", "approved ${it.name} code ${it.code}")
             } ?: out.put("cmd", "nothing pending")
+            "follow" -> {
+                if (App.role(c) == null) App.setRole(c, "follower")
+                val link = i.getStringExtra("link") ?: return out.put("cmd", "follow needs --es link URL").let { }
+                val err = runBlocking {
+                    kotlinx.coroutines.withTimeoutOrNull(8_000) {
+                        listOf(App.follower(c).join(link, i.getStringExtra("name") ?: "Follower (adb)"))
+                    }?.first() ?: if (App.follower(c).hasJoined()) null else "timeout"
+                }
+                if (err == null) c.startForegroundService(Intent(c, app.mauri.sukrara.follower.FollowerService::class.java))
+                out.put("cmd", err ?: "follow request sent (check the code on the wearer)")
+            }
             "writer" -> {
                 App.owner(c).setWriter(i.getStringExtra("f") ?: return, i.getBooleanExtra("on", true))
                 out.put("cmd", "writer set")

@@ -39,12 +39,31 @@ enum V2 {
 
     struct Invite { let i: String; let t: String; let x: Int; let r: [String] }
 
-    /// `cgmshare:join?i=<npub I>&t=<token>&x=<expiry>&r=<relay>,<relay>` (r may be percent-encoded).
-    static func parseInvite(_ link: String, allowNoRelays: Bool = false) -> Invite? {
+    /// The invite's query part, from either form Sukrara shares:
+    /// `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…` (App Link, params in the fragment; `?` accepted too) or
+    /// `cgmshare:join?i=…` (custom scheme, CGM Share / older builds). nil if it's neither.
+    static func inviteQuery(_ link: String) -> String? {
         let s = link.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let qm = s.firstIndex(of: "?"), s.lowercased().hasPrefix("cgmshare:") else { return nil }
+        let l = s.lowercased()
+        let q: Substring
+        if l.hasPrefix("cgmshare:"), let qm = s.firstIndex(of: "?") {
+            q = s[s.index(after: qm)...]
+        } else if l.hasPrefix("https://sukrara.mauri.app/join") {
+            if let h = s.firstIndex(of: "#"), s.index(after: h) < s.endIndex { q = s[s.index(after: h)...] }
+            else if let qm = s.firstIndex(of: "?") { q = s[s.index(after: qm)...] }
+            else { return nil }
+        } else { return nil }
+        return q.contains("i=") && q.contains("t=") ? String(q) : nil
+    }
+
+    /// Is this text one of our invite links (either form)? Used for clipboard prefill and QR decoding.
+    static func isInvite(_ link: String) -> Bool { inviteQuery(link) != nil }
+
+    /// `i=<npub I>&t=<token>&x=<expiry>&r=<relay>,<relay>` (r may be percent-encoded), in either link form.
+    static func parseInvite(_ link: String, allowNoRelays: Bool = false) -> Invite? {
+        guard let query = inviteQuery(link) else { return nil }
         var c = URLComponents()
-        c.percentEncodedQuery = String(s[s.index(after: qm)...])
+        c.percentEncodedQuery = query
         let q = c.queryItems ?? []
         func v(_ n: String) -> String? { q.first { $0.name == n }?.value }
         guard let i = v("i").flatMap({ try? PublicKey.parse(publicKey: $0) }), let t = v("t"),
@@ -321,7 +340,7 @@ struct FollowerV2State: Codable {
     struct JoinError: Error { let text: String }
 
     static func join(link: String, name: String, nearby: Bool = false) -> Result<FollowerV2, JoinError> {
-        guard let inv = V2.parseInvite(link, allowNoRelays: nearby) else { return .failure(JoinError(text: "That isn't a cgmshare: invite link.")) }
+        guard let inv = V2.parseInvite(link, allowNoRelays: nearby) else { return .failure(JoinError(text: "That isn't a Sukrara invite link (https://sukrara.mauri.app/join#… or cgmshare:join?…).")) }
         if inv.x < Int(Date().timeIntervalSince1970) { return .failure(JoinError(text: "This invite has expired — ask for a new one.")) }
         let f = Keys.generate()
         guard let nsec = try? f.secretKey().toBech32() else { return .failure(JoinError(text: "Couldn't create a key.")) }

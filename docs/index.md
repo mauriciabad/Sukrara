@@ -10,13 +10,13 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/Sukrara-0.10.0.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/GlucoseBar-0.10.0.app.zip)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-0.10.1.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-mac-0.10.1.zip)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
 > **Alpha, built from research spikes.** Each feature started as a proof of concept with a written report (below);
-> v0.10.0 bundles them into one app for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
+> v0.10 bundles them into one app for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
 > **Not a medical device:** don't make treatment decisions from it.
 
 <p>
@@ -39,7 +39,8 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 
 - **Phone:** value, continuous trend arrow and 12 h chart; status-bar chip and number icon; home-screen widgets;
   insulin, carbs and notes with optional LibreView upload. Source: Juggluco, or the sensor read directly.
-- **Mac:** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr.
+- **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
+  (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); low / high / no-data alarms.
 - **Sharing:** a QR code or link with no secret inside, a 4-digit code on both screens, then **Allow**. Followers get
   low / high / no-data alarms. Removing someone rotates the key; everyone else carries on.
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.

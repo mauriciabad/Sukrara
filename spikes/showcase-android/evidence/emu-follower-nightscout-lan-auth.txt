@@ -1,0 +1,15 @@
+Sukrara 0.1-inv10 (release), emulator in the FOLLOWER role following the real phone's wearer over Nostr, 2026-10-16 10:25.
+DebugReceiver --ez nightscoutLan true -> nightscoutState "LAN :17581 (http://10.0.2.15:17581, …, API secret needed)".
+Requests from inside the emulator to its own non-loopback address 10.0.2.15:17581 with nc (/data/local/tmp/lan.sh):
+
+--- no secret:
+HTTP/1.1 401 Unauthorized
+--- wrong token:
+HTTP/1.1 401 Unauthorized
+--- right token (?token=<secret>):
+HTTP/1.1 200 OK
+--- api-secret: sha1(<secret>) header:
+HTTP/1.1 200 OK
+
+Loopback callers (adb forward → 127.0.0.1) need no secret: emu-follower-nightscout-api-check.txt (17/17).
+The secret is a throwaway emulator value and is not recorded here.

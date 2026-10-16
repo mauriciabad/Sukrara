@@ -1,4 +1,4 @@
-# GlucoseBar as a protocol v2 follower (Nostr + Bluetooth)
+# Sukrara for Mac (formerly GlucoseBar) as a protocol v2 follower (Nostr + Bluetooth)
 
 *2026-10-16 · follows [PROTOCOL-v2](../nostr/PROTOCOL-v2.md), [06](../../docs/06-sharing-and-keys.md),
 [07](../../docs/07-bluetooth-followers.md)*
@@ -7,9 +7,38 @@ The Mac now pairs and follows exactly like the Android "CGM Share" follower: no 
 follower key, a 4-digit match code on both screens, and the wearer taps Allow. v2 is the default; the old v1
 `nostr` link (`NostrSource.swift`) and the GlucoBridge BLE source still work unchanged.
 
+## Sukrara for Mac (2026-10-16, later)
+
+GlucoseBar is now **Sukrara for Mac**: `./bundle.sh` builds `build/Sukrara.app` (executable and name "Sukrara",
+bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukrara/macos/AppIcon.icns`, tooltip and
+"Quit Sukrara"). The Swift package/target keeps the name `GlucoseBar` (`swift run GlucoseBar` still works).
+
+- **Invite links**: the follow dialog, clipboard prefill, "Follow from QR image…" and `-followLink` accept both forms
+  the phone shares: `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…` (fragment; `?` and `/join/#` accepted too) and
+  `cgmshare:join?…`. Both parse to the same invite (`V2.inviteQuery`). Opening links: `cgmshare:` is a registered URL
+  scheme; an https link opens in the browser (no Universal Links without a Team ID), where the join page's
+  **Open in Sukrara** button hands it to the app as `cgmshare:`. `-qrselftest` now checks both forms
+  (QR round trip + identical parse + a pasted link with whitespace + a foreign https link rejected).
+- **Migration** (`Migration.swift`), once, on the first launch under the new id: copies the `dev.spike.GlucoseBar`
+  defaults domain (missing keys only), `~/Library/Application Support/GlucoseBar` → `…/Sukrara` (treatments,
+  LibreView ledger) and, on a background thread, the follower Keychain item `dev.spike.GlucoseBar.follower` →
+  `app.mauri.sukrara.poc.follower`, then resumes following without re-pairing. Reading the old item makes macOS ask
+  once ("Sukrara wants to use … in your keychain"); because that runs off the main thread, the menubar and the
+  Bluetooth sources work while the prompt waits. The old items are left in place (delete by hand once happy:
+  `defaults delete dev.spike.GlucoseBar`, Keychain Access → `dev.spike.GlucoseBar.follower`).
+  Verified on this Mac: `migration from GlucoseBar: defaults: copied lvEmail, lvTakeover, lvUpload; keychain:
+  follower state copied; files: Application Support/GlucoseBar copied to Sukrara`, then `v2 live … via relay:` and
+  `via ble:Tartaruga` from the same wearer (epoch 1), no re-pairing.
+- **Log file**: the bundled app also writes `~/Library/Logs/Sukrara.log` (an app started with `open` has no stdout).
+- **Alarms** (`Alarms.swift`), same rules as the Android follower: LOW ≤ 65, HIGH ≥ 185 (again after 30 min if it
+  stays there), "No glucose data" after 20 min; readings older than 15 min (backfill) never alarm. Time-sensitive
+  `UNUserNotificationCenter` notifications (macOS asks once for permission). Menu: "Alarms (low 65 · high 185 · no
+  data 20 min)" checkmark, default on (`defaults write app.mauri.sukrara.poc alarms -bool NO`). They run on the merged
+  data, so they also fire when the Mac reads the phone over the legacy link.
+
 ## How to use
 
-- Menubar → **Follow someone…** → paste the `cgmshare:join?…` link (pre-filled if it's on the clipboard) and a
+- Menubar → **Follow someone…** → paste the `https://sukrara.mauri.app/join#…` (or `cgmshare:join?…`) link (pre-filled if it's on the clipboard) and a
   name for this Mac (defaults to the computer name) → a window shows the **match code** until the wearer allows it.
 - **Follow from QR image…** decodes a screenshot/photo of the share QR (CoreImage, no new dependency).
 - Opening a `cgmshare:` link launches the dialog (URL scheme registered by `bundle.sh`).
@@ -28,6 +57,8 @@ follower key, a 4-digit match code on both screens, and the wearer taps Allow. v
 | `FollowUI.swift` | follow dialog, QR-from-image, pairing window (match code) |
 | `Keychain.swift` | follower state (F nsec, epoch read keys, sid, roster) as one login-Keychain item — never UserDefaults, never logged |
 | `V2SelfTest.swift` | `GlucoseBar -v2selftest`: genuine vs. forged events through `onEvent` |
+| `Migration.swift` | one-time GlucoseBar → Sukrara copy (defaults, Application Support, follower Keychain item) |
+| `Alarms.swift` | low / high / no-data notifications + menu toggle |
 | `main.swift` | `Following` controller, wiring, debug commands (`follow-status`, `readings`, `unfollow`, `v2-treat`, `follower-pub`) |
 
 Acceptance rules (same as Python/Android): key deliveries and "revoked" only if the **seal signer == I**; roster
@@ -75,12 +106,13 @@ Release binary: 14.0 MB (`./bundle.sh`), unchanged order of magnitude (NostrSDK 
 
 - **Rotation / revocation over BLE with the phone** not exercised (no headless "remove follower" command, and it
   would rotate the live stream). Same `onEvent` code as the relay tests above.
-- `cgmshare:` URL open not exercised live (registered in Info.plist); QR-from-image only via the self-test, not a
+- `cgmshare:` URL open (and the join page's *Open in Sukrara* button) not exercised live (registered in Info.plist); QR-from-image only via the self-test, not a
   photo of the phone's QR.
 - **Keychain + ad-hoc signing**: the item has the default ACL (only the creating app reads it silently). Each
   rebuild of the ad-hoc-signed app is a new identity → macOS asks once ("Always Allow"). A shipped app would be
   Developer-ID signed and use the data-protection keychain with an access group.
-- No follower alarms (low/high/no data) on the Mac yet; no local reading DB (the store keeps 3 h, every launch
+- ~~No follower alarms~~ (added, see above; the notifications themselves weren't observed firing: no low/high
+  happened during the run and no 20-min gap was provoked). No local reading DB (the store keeps 3 h, every launch
   backfills 12 h from relays / ~25 h over BLE).
 - Two GlucoseBar processes on one Mac can't both hold a BLE link to the phone (the second times out and retries).
 - Treatments: the Mac only *sends* (from "Log treatment…" when the roster lists it as a writer); edits/deletes and

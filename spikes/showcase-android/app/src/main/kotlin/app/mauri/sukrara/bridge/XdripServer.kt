@@ -50,18 +50,15 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
     @Volatile var lastRequest: Pair<Long, String>? = null
         private set
     var onRequest: (() -> Unit)? = null
+    @Volatile var lastNightscoutRequest: Pair<Long, String>? = null
+        private set
 
     fun start(): String? {
         val s = runCatching { ServerSocket(port, 8, InetAddress.getByName("127.0.0.1")) }
             .getOrElse { e -> Log.w(tag, "bind 127.0.0.1:$port failed: $e"); return "port $port busy (Juggluco/xDrip/GDH server on?)" }
         s.reuseAddress = true
         socket = s
-        thread(name = "xdrip-server", isDaemon = true) {
-            while (!s.isClosed) {
-                val c = runCatching { s.accept() }.getOrNull() ?: break
-                thread(name = "xdrip-conn", isDaemon = true) { c.use { handle(it) } }
-            }
-        }
+        serve(s, nightscout = false)
         Log.i(tag, "listening on 127.0.0.1:$port")
         return null
     }
@@ -69,6 +66,58 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
     fun stop() {
         socket?.close()
         socket = null
+    }
+
+    val running get() = socket?.isClosed == false
+
+    // MARK: Nightscout listener (investigation 03's tier-1 read API, see [NightscoutApi])
+
+    @Volatile private var nsSocket: ServerSocket? = null
+    @Volatile private var nsSecret: String = ""
+    /** Treatments for `/api/v1/treatments` (the wearer's shared log; a follower has none yet). */
+    @Volatile var treatments: () -> List<app.mauri.sukrara.treatments.Treatment> = { emptyList() }
+    @Volatile var siteName: String = "Sukrara"
+
+    /**
+     * A second listener with the full Nightscout v1 read surface, independent of port 17580 (which Juggluco keeps
+     * while it is the source). [lan] = bind all interfaces so Home Assistant / xDrip+ / Nightguard on the same
+     * network can read it; non-loopback callers then need [secret] (API secret or `?token=`). Loopback is open,
+     * like Juggluco's and xDrip+'s local servers.
+     */
+    fun startNightscout(nsPort: Int, lan: Boolean, secret: String): String? {
+        stopNightscout()
+        val addr = InetAddress.getByName(if (lan) "0.0.0.0" else "127.0.0.1")
+        val s = runCatching { ServerSocket(nsPort, 16, addr) }
+            .getOrElse { e -> Log.w(tag, "nightscout bind ${addr.hostAddress}:$nsPort failed: $e"); return "port $nsPort busy" }
+        s.reuseAddress = true
+        nsSecret = secret
+        nsSocket = s
+        serve(s, nightscout = true)
+        Log.i(tag, "nightscout API on ${addr.hostAddress}:$nsPort")
+        return null
+    }
+
+    fun stopNightscout() {
+        nsSocket?.close()
+        nsSocket = null
+    }
+
+    private fun serve(s: ServerSocket, nightscout: Boolean) {
+        thread(name = if (nightscout) "ns-server" else "xdrip-server", isDaemon = true) {
+            while (!s.isClosed) {
+                val c = runCatching { s.accept() }.getOrNull() ?: break
+                thread(name = "xdrip-conn", isDaemon = true) { c.use { runCatching { handle(it, nightscout) } } }
+            }
+        }
+    }
+
+    /** Newest first: every stored reading (≤ 24 h; 1-minute live values where we had them). */
+    fun snapshot(): List<Bridge.Reading> = synchronized(readings) { readings.descendingMap().values.toList() }
+
+    /** Forget all readings (a follower stopped following). */
+    fun clear() {
+        synchronized(readings) { readings.clear() }
+        store?.let { runCatching { it.writeText("") } }
     }
 
     fun add(r: Bridge.Reading, persist: Boolean = true) {
@@ -90,7 +139,7 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
 
     // MARK: HTTP
 
-    private fun handle(c: Socket) {
+    private fun handle(c: Socket, nightscout: Boolean) {
         c.soTimeout = 5000
         val input = c.getInputStream().bufferedReader(Charsets.ISO_8859_1)
         val requestLine = input.readLine() ?: return
@@ -107,11 +156,19 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
         val path = target.substringBefore('?').trimStart('/')
         val query = parseQuery(target.substringAfter('?', ""))
 
-        val (status, body) = route(path, query)
+        val loopback = c.inetAddress?.isLoopbackAddress != false
+        val (status, body) = when {
+            !nightscout -> route(path, query)
+            !loopback && (nsSecret.isEmpty() || !NightscoutApi.authorized(nsSecret, headers, query)) ->
+                "401 Unauthorized" to "{\"status\":401,\"message\":\"Unauthorized\"}"
+            else -> NightscoutApi.route(path, query, snapshot(), runCatching { treatments() }.getOrDefault(emptyList()), siteName)
+                ?.let { it.status to it.body } ?: route(path, query)
+        }
         val bytes = body.toByteArray()
         val out = c.getOutputStream()
+        val json = status.startsWith("200") || body.startsWith("{")
         out.write(("HTTP/1.1 $status\r\n" +
-            "Content-Type: ${if (status.startsWith("200")) "application/json; charset=utf-8" else "text/plain"}\r\n" +
+            "Content-Type: ${if (json) "application/json; charset=utf-8" else "text/plain"}\r\n" +
             "Content-Length: ${bytes.size}\r\n" +
             "Access-Control-Allow-Origin: *\r\n" +
             "Connection: close\r\n\r\n").toByteArray())
@@ -119,12 +176,15 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
         out.flush()
 
         // api-secret is a hash, but don't keep it in a log anyway; everything else is useful evidence.
-        val shownHeaders = headers.filterKeys { it != "api-secret" && it != "api_secret" }
+        val shownHeaders = headers.filterKeys { it != "api-secret" && it != "api_secret" && it != "authorization" }
             .map { (k, v) -> "$k=$v" }.joinToString("; ")
-        val line = "${iso(System.currentTimeMillis())} $method $target -> ${status.substringBefore(' ')} ${bytes.size}B" +
+        val shownTarget = target.replace(Regex("([?&](token|secret)=)[^&]*"), "$1***")
+        val line = "${iso(System.currentTimeMillis())} ${if (nightscout) "[ns] " else ""}$method $shownTarget -> " +
+            "${status.substringBefore(' ')} ${bytes.size}B" +
             (if ("api-secret" in headers || "api_secret" in headers) " [api-secret]" else "") + " | $shownHeaders"
         Log.i(tag, line)
         synchronized(this) { runCatching { logFile.appendText(line + "\n") } }
+        if (nightscout) { lastNightscoutRequest = System.currentTimeMillis() to "$method /$path"; return }
         lastRequest = System.currentTimeMillis() to "$method /$path"
         onRequest?.invoke()
     }

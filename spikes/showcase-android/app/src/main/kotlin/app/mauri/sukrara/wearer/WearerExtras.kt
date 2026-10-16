@@ -12,7 +12,7 @@ import android.os.PowerManager
 import android.util.Log
 import app.mauri.sukrara.bridge.Bridge
 import app.mauri.sukrara.bridge.MacLink
-import app.mauri.sukrara.bridge.XdripServer
+import app.mauri.sukrara.bridge.LocalServers
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
@@ -39,8 +39,10 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
     private val tag = "Sukrara.wearer"
     private val nm = ctx.getSystemService(NotificationManager::class.java)
     private val mac = MacLink(ctx)
-    private val xdrip = XdripServer(File(ctx.filesDir, "garmin-requests.log"), store = File(ctx.filesDir, "garmin-readings.csv"))
-    private var garminUp = false
+    /** Garmin (17580, if free) + Nightscout API (17581) over the wearer's readings; same files as before (`garmin-*`). */
+    private val local by lazy {
+        LocalServers(ctx, "garmin", { Features.value.source == "juggluco" }, { Treat.store.all() }, "Sukrara")
+    }
     private var jobs = mutableListOf<Job>()
     @Volatile private var lastPostMs = 0L
     @Volatile private var screenOn = ctx.getSystemService(PowerManager::class.java).isInteractive
@@ -59,7 +61,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         Live.listener = this
         ctx.registerReceiver(screen, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF) })
         Live.status.update { it.copy(screenOn = screenOn) }
-        xdrip.onRequest = { Live.status.update { it.copy(watchPolledAt = xdrip.lastRequest?.first ?: 0) } }
         apply(null, Features.value)
         jobs += scope.launch {
             var old = Features.value
@@ -87,30 +88,13 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         if (Live.listener === this) Live.listener = null
         runCatching { ctx.unregisterReceiver(screen) }
         mac.stop()
-        xdrip.stop(); garminUp = false
+        local.stop()
     }
 
     /** Apply switches; [old] == null on start. */
     private fun apply(old: FeatureState?, f: FeatureState) {
         if (old == null || old.macBle != f.macBle) { if (f.macBle) mac.start() else mac.stop() }
-        if (old == null || old.garmin != f.garmin) {
-            if (f.garmin && !garminUp) {
-                val err = xdrip.start()
-                garminUp = err == null
-                val state = when {
-                    err == null -> "listening on 127.0.0.1:${XdripServer.PORT}"
-                    f.source == "juggluco" -> "port ${XdripServer.PORT} held by Juggluco → Juggluco serves the watch"
-                    else -> err
-                }
-                Live.status.update { it.copy(garmin = state) }
-                Log.i(tag, "garmin: $state")
-            } else if (!f.garmin && garminUp) {
-                xdrip.stop(); garminUp = false
-                Live.status.update { it.copy(garmin = "off") }
-            } else if (!f.garmin) Live.status.update { it.copy(garmin = "off") }
-        }
-        // Juggluco → direct frees the port for us once Juggluco is stopped: retry on source change.
-        if (old != null && old.source != f.source && f.garmin && !garminUp) apply(f.copy(garmin = false), f)
+        local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip)) render(force = true)
     }
@@ -119,7 +103,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
 
     override fun onReading(r: Reading) {
         val b = Bridge.Reading(r.t, r.sgv, r.rate)
-        xdrip.add(b)
+        local.add(b)
         if (Features.value.macBle) mac.onReading(b)
         render(force = false)
         SukraraHooks.onReadings(ctx, listOf(r), "reading")
@@ -127,14 +111,14 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
 
     override fun onHistory(list: List<Reading>) {
         val b = list.sortedBy { it.t }.map { Bridge.Reading(it.t, it.sgv, it.rate) }
-        b.forEach { xdrip.add(it) }
+        b.forEach { local.add(it) }
         mac.onHistory(b)
         render(force = false)
         SukraraHooks.onReadings(ctx, list, "history")
     }
 
     override fun onSensor(serial: String, startEpoch: Long) {
-        xdrip.onSensor(serial, startEpoch)
+        local.onSensor(serial, startEpoch)
         Treat.uploader.onSensor(serial, startEpoch)
     }
 

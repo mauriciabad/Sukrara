@@ -56,7 +56,7 @@ fun WearerSummary() {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             fun on(b: Boolean) = if (b) "on" else "off"
             Text("Status bar: chip ${on(f.chip)} · number icon ${on(f.icon)}", style = MaterialTheme.typography.bodySmall)
-            Text("Mac link (GlucoseBar): " + when {
+            Text("Mac link (Sukrara for Mac, legacy): " + when {
                 !f.macBle -> "off"
                 st.macError != null -> st.macError!!
                 st.macSubscribed > 0 -> "${st.macSubscribed} Mac connected"
@@ -89,6 +89,33 @@ private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub
 }
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
+
+/**
+ * Garmin watch server + Nightscout read API, for both roles (the follower serves the followed person's values).
+ * The LAN URL and API secret are shown here only: nothing else on the screen is a secret.
+ */
+@Composable
+fun LocalServersSection() {
+    val ctx = LocalContext.current
+    val f by Features.state.collectAsState()
+    val st by Live.status.collectAsState()
+    var showSecret by remember { mutableStateOf(false) }
+    SectionTitle("Garmin")
+    Toggle("Watch server (xDrip+ compatible, 127.0.0.1:17580)", f.garmin, sub = st.garmin +
+        (if (st.watchPolledAt > 0) " · last request ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
+    SectionTitle("Nightscout API")
+    Toggle("Nightscout-compatible read API", f.nightscout,
+        sub = "For Home Assistant, xDrip+, Nightguard, clocks: http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}") { v ->
+        set { it.copy(nightscout = v) }
+    }
+    Toggle("Also on this network (Wi-Fi)", f.nightscoutLan, enabled = f.nightscout,
+        sub = "Other devices need the API secret. Plain HTTP: only on networks you trust") { v -> set { it.copy(nightscoutLan = v) } }
+    if (f.nightscout && f.nightscoutLan) {
+        TextButton(onClick = { showSecret = !showSecret }) { Text(if (showSecret) "Hide API secret" else "Show API secret") }
+        if (showSecret) Text("API secret: ${Features.nightscoutSecret(ctx)}", style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold)
+    }
+}
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -130,7 +157,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
 
         SectionTitle("Mac")
-        Toggle("Mac link for GlucoseBar (legacy Bluetooth service)", f.macBle,
+        Toggle("Legacy Mac link (Sukrara for Mac, unencrypted Bluetooth)", f.macBle,
             sub = "Unencrypted value + history + treatments, like GlucoBridge. Status: " +
                 (st.macError ?: if (st.macSubscribed > 0) "${st.macSubscribed} connected" else if (st.macAdvertising) "advertising" else "idle")) { v ->
             set { it.copy(macBle = v) }
@@ -152,9 +179,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         Toggle("System icons / SystemUI hook", false, enabled = false,
             sub = "Not in this build: needs root + the LSPosed module (GlucoStatus, investigation 05)") {}
 
-        SectionTitle("Garmin")
-        Toggle("Watch server (xDrip+ compatible, 127.0.0.1:17580)", f.garmin, sub = st.garmin +
-            (if (st.watchPolledAt > 0) " · last request ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
+        LocalServersSection()
 
         SectionTitle("LibreView")
         Text(if (f.libreview) "Upload on · ${st.libreview}" else "Off. Set it up under Treatments & LibreView.", style = MaterialTheme.typography.bodySmall)
@@ -219,7 +244,7 @@ fun TreatmentsScreen(onBack: () -> Unit) {
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = { store.delete(tr.id); uploader.kick() }) { Text("Delete") }
         }
-        Text("Synced with GlucoseBar on the Mac (legacy link). Entries from followers with \"Can add entries\" land here too.",
+        Text("Synced with Sukrara for Mac (legacy link). Entries from followers with \"Can add entries\" land here too.",
             style = MaterialTheme.typography.bodySmall)
 
         HorizontalDivider()

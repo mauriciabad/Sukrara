@@ -91,6 +91,15 @@ class FollowerEngine(private val ctx: Context) {
 
     init { scope.launch(serial) { publishUi() } }
 
+    /**
+     * Every batch of newly stored readings (live or backfilled chunks), oldest first. [FollowerExtras] feeds the
+     * home-screen widgets and the local Garmin / Nightscout server from it, so they work in the follower role too.
+     */
+    @Volatile var onReadings: ((List<app.mauri.sukrara.core.Reading>, String) -> Unit)? = null
+
+    /** The follower DB's readings since [fromS] (oldest first), for seeding widgets / the local API. */
+    fun history(fromS: Long): List<FollowedReading> = db.since(fromS)
+
     // ============================================================================================ Bluetooth (inv. 07)
 
     val ble by lazy { app.mauri.sukrara.core.BleFollower(ctx, log::i, ::onEvent).also { b ->
@@ -177,6 +186,7 @@ class FollowerEngine(private val ctx: Context) {
         store.wipe()
         db.wipe()   // clear in place: deleting the file under an open helper would keep the old rows alive
         cancelWatchdog()
+        app.mauri.sukrara.widgets.SukraraHooks.clear(ctx)   // widgets must not keep showing the old wearer's values
         log.i("left: follower state wiped, follower.db now has ${db.count()} readings")
         publishUi()
     }
@@ -389,6 +399,10 @@ class FollowerEngine(private val ctx: Context) {
         lastAcceptedAt = Proto.nowS()
         if (added == 0) return
         val newest = rows.maxBy { it.first }
+        onReadings?.let { cb ->
+            runCatching { cb(rows.sortedBy { it.first }.map { app.mauri.sukrara.core.Reading(it.first, it.second, it.third) },
+                if (kind == Proto.LIVE) "reading" else "history") }.onFailure { log.i("onReadings: $it") }
+        }
         if (kind == Proto.LIVE) {
             log.i("reading ${newest.second} mg/dL rate ${newest.third} t=${newest.first} epoch ${epoch.n} via ${short(via)} " +
                 "(+${Proto.nowS() - newest.first}s)")

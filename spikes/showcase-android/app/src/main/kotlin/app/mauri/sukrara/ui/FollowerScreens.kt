@@ -157,6 +157,9 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             TextButton(onClick = { a.setAlarms(low.toIntOrNull() ?: u.low, high.toIntOrNull() ?: u.high, u.alarmsOn) }) { Text("Save") }
         }
 
+        // Widgets and the status-bar chip follow this person too (FollowerExtras); local servers serve their values.
+        LocalServersSection()
+
         SectionTitle("Details")
         val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
         Text("stored readings ${u.count} (this phone's own database) · rejected events ${u.rejects}" +

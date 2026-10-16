@@ -9,13 +9,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import app.mauri.sukrara.App
-import app.mauri.sukrara.core.Notifications
+import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.status.GlucoseNotification
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -27,30 +26,24 @@ class FollowerService : Service() {
 
     override fun onBind(intent: Intent?) = null
 
+    private var extras: FollowerExtras? = null
+
     override fun onCreate() {
         super.onCreate()
-        startForeground(Notifications.ID_SERVICE,
-            Notifications.build(this, Notifications.SERVICE, "Sukrara", "Following…", ongoing = true),
+        // Same notification as the wearer's (status-bar chip + number icon), showing the followed person's value.
+        GlucoseNotification.createChannel(this)
+        startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, "following…"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        Features.init(this)
         val engine = App.follower(this)
         engine.start()
-        scope.launch {
-            engine.ui.map { u ->
-                when (u.status) {
-                    "active" -> "${u.last?.sgv ?: "–"} mg/dL · ${u.last?.via?.removePrefix("relay:") ?: "waiting for data"}"
-                    "requested" -> "Waiting for approval · code ${u.code}"
-                    "revoked" -> "Access removed"
-                    else -> "Not following anyone"
-                }
-            }.distinctUntilChanged().collect {
-                Notifications.post(this@FollowerService, Notifications.ID_SERVICE, Notifications.SERVICE, "Sukrara · follower", it, ongoing = true)
-            }
-        }
+        extras = FollowerExtras(this, scope).also { it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
+        extras?.stop(); extras = null
         App.follower(this).stop()
         scope.cancel()
         super.onDestroy()

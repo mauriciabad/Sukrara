@@ -66,7 +66,7 @@ struct Treatment: Codable, Equatable {
     }
 }
 
-/// The Mac's treatment log, persisted to ~/Library/Application Support/GlucoseBar/treatments.json.
+/// The Mac's treatment log, persisted to ~/Library/Application Support/Sukrara/treatments.json.
 /// Besides the rows it remembers what still has to be pushed to the phone (`unacked`), the pull cursor
 /// (phone's `seq`), the LibreView DeviceId the phone shares, and when foreign rows were first seen
 /// (for the 2-minute upload grace period).
@@ -85,7 +85,7 @@ struct Treatment: Codable, Equatable {
     var onChange: [(_ local: Bool) -> Void] = []
 
     init(directory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("GlucoseBar")) {
+            .appendingPathComponent("Sukrara")) {
         url = directory.appendingPathComponent("treatments.json")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: url), let s = try? JSONDecoder().decode(State.self, from: data) { state = s }

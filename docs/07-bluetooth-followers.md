@@ -181,7 +181,7 @@ build was run on devices).
 - Two followers on one owner over BLE at once: worked incidentally (Mac test client + menubar agent), not measured.
 - Release APK not run on a device.
 
-## Mac follower (GlucoseBar) — same pairing as Android
+## Mac follower (GlucoseBar, now Sukrara for Mac) — same pairing as Android
 
 <img src="../spikes/menubar/evidence/ble-nearby-waiting.png" width="360" alt="Mac waiting for approval with match code">
 

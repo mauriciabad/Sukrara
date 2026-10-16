@@ -37,6 +37,10 @@ data class FeatureState(
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580 for Garmin watch apps (only binds if the port is free). */
     val garmin: Boolean = true,
+    /** Nightscout-compatible read API (inv. 03 tier 1) on 127.0.0.1:17581, for Home Assistant / xDrip+ / Garmin / clocks. */
+    val nightscout: Boolean = true,
+    /** Serve that API on the local network too (all interfaces). Non-loopback callers need the API secret. */
+    val nightscoutLan: Boolean = false,
     /** Treatments + glucose upload to LibreView. OFF until the user sets it up. */
     val libreview: Boolean = false,
     /** LibreView upload cycle, minutes. */
@@ -49,6 +53,7 @@ data class FeatureState(
         .put("bleFollowers", bleFollowers).put("macBle", macBle)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
+        .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
         .put("connPriority", connPriority)
 }
@@ -76,6 +81,8 @@ object Features {
             hook = false,
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
+            nightscout = p.getBoolean("nightscout", d.nightscout),
+            nightscoutLan = p.getBoolean("nightscoutLan", d.nightscoutLan),
             libreview = p.getBoolean("libreview", d.libreview),
             libreviewIntervalMin = p.getInt("libreviewInterval", d.libreviewIntervalMin),
             connPriority = p.getString("connPriority", d.connPriority)!!,
@@ -96,7 +103,8 @@ object Features {
             putString("source", s.source); putBoolean("nostr", s.nostr); putInt("nostrInterval", s.nostrIntervalMin)
             putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
-            putBoolean("garmin", s.garmin); putBoolean("libreview", s.libreview)
+            putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
+            putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
         }?.apply()
         _state.value = s
@@ -104,4 +112,27 @@ object Features {
     }
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
+
+    const val NIGHTSCOUT_PORT = 17581
+
+    /**
+     * The local Nightscout API's secret (what HA / xDrip+ call "API secret"; Nightguard / Garmin take it as
+     * `?token=`). Generated once, 16 lowercase letters/digits; only callers from another device need it.
+     */
+    @Synchronized fun nightscoutSecret(ctx: Context): String {
+        val p = ctx.applicationContext.getSharedPreferences("features", Context.MODE_PRIVATE)
+        p.getString("nightscoutSecret", null)?.let { return it }
+        val abc = "abcdefghijkmnpqrstuvwxyz23456789"
+        val rnd = java.security.SecureRandom()
+        val s = (1..16).map { abc[rnd.nextInt(abc.length)] }.joinToString("")
+        p.edit().putString("nightscoutSecret", s).apply()
+        return s
+    }
+
+    /** The phone's Wi-Fi/LAN IPv4 addresses, for showing the LAN URL. */
+    fun lanAddresses(): List<String> = runCatching {
+        java.net.NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && !it.isLoopback }
+            .flatMap { it.inetAddresses.toList() }.filterIsInstance<java.net.Inet4Address>().map { it.hostAddress ?: "" }
+            .filter { it.isNotEmpty() }
+    }.getOrDefault(emptyList())
 }

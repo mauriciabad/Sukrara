@@ -126,7 +126,7 @@ enum LVError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noCredentials(let why): why
-        case .takeoverNeeded: "another device is LibreView's active one (defaults write dev.spike.GlucoseBar lvTakeover -bool YES to take over)"
+        case .takeoverNeeded: "another device is LibreView's active one (defaults write app.mauri.sukrara.poc lvTakeover -bool YES to take over)"
         case .rejected(let status, let reason): "LibreView status \(status): \(reason)"
         case .http(let code): "HTTP \(code)"
         }
@@ -177,7 +177,7 @@ final class LibreViewClient {
 
     static func credentials() throws -> (email: String, password: String) {
         guard let email = UserDefaults.standard.string(forKey: "lvEmail"), !email.isEmpty else {
-            throw LVError.noCredentials("set lvEmail (defaults write dev.spike.GlucoseBar lvEmail you@example.com)")
+            throw LVError.noCredentials("set lvEmail (defaults write app.mauri.sukrara.poc lvEmail you@example.com)")
         }
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.spike.libreview",
                                     kSecAttrAccount as String: email, kSecReturnData as String: true]
@@ -222,7 +222,7 @@ final class LibreViewClient {
 }
 
 /// Uploads rows that need it (SPEC §1 policy): Mac-created rows at once, phone rows only if still
-/// pending 2 minutes after the Mac learned them. Off unless `defaults write dev.spike.GlucoseBar lvUpload -bool YES`.
+/// pending 2 minutes after the Mac learned them. Off unless `defaults write app.mauri.sukrara.poc lvUpload -bool YES`.
 @MainActor final class LibreViewUploader {
     private let store: TreatmentStore
     private let client = LibreViewClient()
@@ -242,7 +242,7 @@ final class LibreViewClient {
     init(store: TreatmentStore) {
         self.store = store
         ledger = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("GlucoseBar/lv-ledger.jsonl")
+            .appendingPathComponent("Sukrara/lv-ledger.jsonl")
         store.onChange.append { [weak self] _ in self?.schedule(after: 2) }
         timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.kick() }

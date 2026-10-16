@@ -264,8 +264,8 @@ fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             Button(onClick = { a.shareLink(link) }) { Text("Send link…") }
             OutlinedButton(onClick = { a.copy(link) }) { Text("Copy") }
         }
-        // GlucoseBar on the Mac (and CGM Share) parse only the cgmshare: form of the same invite.
-        TextButton(onClick = { Proto.legacyLink(link)?.let(a::copy) }) { Text("Copy Mac link (cgmshare:)") }
+        // Sukrara for Mac reads both forms now; GlucoseBar builds before the gap audit (and CGM Share) need cgmshare:.
+        TextButton(onClick = { Proto.legacyLink(link)?.let(a::copy) }) { Text("Copy cgmshare: link (older Mac builds)") }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
             Text("Waiting for their request…", style = MaterialTheme.typography.bodySmall)

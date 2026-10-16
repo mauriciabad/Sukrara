@@ -106,6 +106,9 @@ then falls back to v1). Gotchas baked in: lists newest-first, `date` as integer 
 crashes), numeric `trend` matching `direction`, 24-hex `_id`, mount at `/`.
 
 [`api_check.py`](../spikes/nostr/api_check.py) replays each client's request shapes — **17/17 pass**.
+*Update 2026-10-16:* the same tier 1 now runs inside Sukrara on the phone (`127.0.0.1:17581`, both roles, LAN
+optional with an API secret). It passes 17/17 against the real phone and against a follower: see
+[10](10-showcase.md#gap-audit-2026-10-16).
 [`ha_check.py`](../spikes/nostr/ha_check.py) runs **stock Home Assistant** in Docker, onboards it through its API
 and adds the built-in Nightscout integration via the normal config flow:
 

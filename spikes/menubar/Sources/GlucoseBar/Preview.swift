@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 
-/// `GlucoseBar -preview out.png` renders what the menubar item looks like for a range of rates,
+/// `Sukrara -preview out.png` renders what the menubar item looks like for a range of rates,
 /// on light and dark backgrounds, so the arrow can be eyeballed without a live source.
 enum Preview {
     static func render(to path: String) {

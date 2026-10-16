@@ -4,7 +4,8 @@
 import AppKit
 
 // Config comes from UserDefaults, so it works both as CLI args (`-url http://...`) and as
-// `defaults write dev.spike.GlucoseBar url http://...` for the bundled .app.
+// `defaults write app.mauri.sukrara.poc url http://...` for the bundled Sukrara.app (Sukrara for Mac, formerly
+// GlucoseBar: Migration.swift copies the old `dev.spike.GlucoseBar` state once).
 //   url     http://<phone>:17580, or "auto" (default) to find Juggluco on the local network
 //   secret  Juggluco web server API secret, if set
 //   unit    mgdl | mmol
@@ -22,6 +23,20 @@ import AppKit
 //   lvTakeover  YES to log in with SetDevice:true (kicks LibreView's other active app); default NO
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
+/// stdout, and for the bundled app (launched by `open`, no terminal) also ~/Library/Logs/Sukrara.log.
+let logFile: FileHandle? = Bundle.main.bundleIdentifier == nil ? nil : {
+    let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sukrara.log")
+    if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
+    let h = try? FileHandle(forWritingTo: url)
+    _ = try? h?.seekToEnd()
+    return h
+}()
+func log(_ s: String) {
+    let line = "\(Date().formatted(date: .omitted, time: .standard))  \(s)"
+    print(line)
+    logFile?.write(Data((line + "\n").utf8))
+}
+Migration.run()
 
 if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
@@ -31,9 +46,9 @@ if let path = defaults.string(forKey: "lvfixture") { exit(SelfTest.fixture(path)
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
-// Spike experiments: `GlucoseBar -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
+// Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd add | edit {id,a,n} | delete {id} | upload | dump), like the phone's DebugReceiver.
-let debugNote = Notification.Name("dev.spike.GlucoseBar.debug")
+let debugNote = Notification.Name("app.mauri.sukrara.poc.debug")
 if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLine.arguments.count {
     let msg = CommandLine.arguments[i + 1]     // not via UserDefaults: it would parse "{…}" as a plist
     DistributedNotificationCenter.default().postNotificationName(debugNote, object: msg, userInfo: nil, deliverImmediately: true)
@@ -45,12 +60,13 @@ app.setActivationPolicy(.accessory)   // menubar only, no Dock icon
 
 let status = StatusController()
 status.unit = GlucoseUnit(rawValue: defaults.string(forKey: "unit") ?? "") ?? .mgdl
+let alarms = MainActor.assumeIsolated { Alarms() }
+MainActor.assumeIsolated { status.addToggle(alarms.menuItem) }
 
 let configuredURL = defaults.string(forKey: "url").flatMap { $0 == "auto" ? nil : URL(string: $0) }
 let secret = defaults.string(forKey: "secret")
 let historySpan: TimeInterval = 3 * 3600
 
-func log(_ s: String) { print("\(Date().formatted(date: .omitted, time: .standard))  \(s)") }
 
 /// Merges readings from every transport (same reading may arrive over Wi-Fi and BLE) and drives the UI.
 @MainActor final class Store {
@@ -90,6 +106,7 @@ func log(_ s: String) { print("\(Date().formatted(date: .omitted, time: .standar
     private func publish(_ source: String) {
         guard let latest = history.last else { return }
         status.update(Snapshot(latest: latest, history: history, source: source))
+        alarms.onLatest(latest)
     }
 }
 
@@ -185,6 +202,15 @@ if let nostr {
                                                      forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
     }
 
+    /// The follow state appeared after launch (Migration.keychain): start following it.
+    func resume() {
+        guard node == nil, let st = FollowerV2State.load(), let n = FollowerV2(state: st) else { return }
+        log("v2: resuming the migrated follow state")
+        attach(n)
+        n.start()
+        ble?.hello()
+    }
+
     @objc func openURL(_ event: NSAppleEventDescriptor, with reply: NSAppleEventDescriptor) {
         guard let s = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else { return }
         log("opened \(s.prefix(16))…")
@@ -197,7 +223,7 @@ if let nostr {
     }
 
     func beginFromQR() {
-        guard let link = FollowUI.linkFromQRImage() else { return FollowUI.error("No cgmshare: QR code found in that image.") }
+        guard let link = FollowUI.linkFromQRImage() else { return FollowUI.error("No Sukrara invite QR code found in that image.") }
         begin(prefill: link)
     }
 
@@ -308,6 +334,7 @@ MainActor.assumeIsolated {
     status.onFollowQR = { following.beginFromQR() }
     status.onUnfollow = { following.unfollow() }
     following.launch()
+    Migration.keychain { following.resume() }      // GlucoseBar → Sukrara: follow state from the old Keychain item
 }
 
 // Treatments: local log, synced with the phone over BLE, uploaded to LibreView (spikes/libreview/SPEC.md).
@@ -360,7 +387,7 @@ MainActor.assumeIsolated {
                 log("debug v2-treat \(following.node?.publishTreatment(t.dict) == true ? "sent" : "NOT sent (not a writer)")")
             case "follower-pub": log("debug v2 follower pubkey \(following.node?.followerPub ?? "-")")
             case "readings":
-                try? store.csv.write(toFile: o["path"] as? String ?? "/tmp/glucosebar-readings.csv", atomically: true, encoding: .utf8)
+                try? store.csv.write(toFile: o["path"] as? String ?? "/tmp/sukrara-readings.csv", atomically: true, encoding: .utf8)
                 log("debug readings written")
             case "dump":
                 for t in treatments.rows { log("debug row \(t.dict)") }

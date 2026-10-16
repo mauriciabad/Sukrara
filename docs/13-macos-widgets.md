@@ -167,7 +167,7 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
 
 ## Integration notes
 
-- **GlucoseBar (menubar)** becomes the widget's host app:
+- **GlucoseBar (menubar, now Sukrara for Mac, `app.mauri.sukrara.poc`)** becomes the widget's host app:
   1. Put `GlucoseWidget.appex` in `GlucoseBar.app/Contents/PlugIns/`. The extension bundle id must be prefixed by
      the app's (`dev.spike.GlucoseBar.widget`).
   2. Make `GlucoseBar` sign the appex first, then the app, with the *same* Team ID certificate.

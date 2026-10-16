@@ -51,6 +51,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         super.init()
         item.button?.imagePosition = .imageTrailing
         item.button?.title = "…"
+        item.button?.toolTip = "Sukrara"
         for line in [valueLine, timeLine, sourceLine, errorLine] { line.isEnabled = false }
         chartItem.view = chart
         menu.addItem(valueLine)
@@ -77,7 +78,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         unfollowItem = stop
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh now", action: #selector(refresh), keyEquivalent: "r").target = self
-        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.delegate = self
         item.menu = menu
         render()
@@ -98,6 +99,12 @@ final class StatusController: NSObject, NSMenuDelegate {
     @objc private func follow() { onFollow?() }
     @objc private func followQR() { onFollowQR?() }
     @objc private func unfollow() { onUnfollow?() }
+
+    /// A checkable item (alarms toggle) in the follow section.
+    func addToggle(_ item: NSMenuItem) {
+        guard let stop = unfollowItem, let i = menu.items.firstIndex(of: stop) else { return menu.addItem(item) }
+        menu.insertItem(item, at: i + 1)
+    }
 
     /// nil hides the line (not following anyone over v2).
     func setFollow(_ text: String?) {

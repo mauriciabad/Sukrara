@@ -4,8 +4,8 @@
 import Foundation
 
 /// CLI checks, no network and no Bluetooth:
-///   GlucoseBar -lvfixture ../libreview/fixture.json   payload bytes + record numbers vs lv.py's golden output
-///   GlucoseBar -treatmentsselftest                      merge rule
+///   Sukrara -lvfixture ../libreview/fixture.json   payload bytes + record numbers vs lv.py's golden output
+///   Sukrara -treatmentsselftest                      merge rule
 enum SelfTest {
     private enum RN: Decodable {
         case s(String), n(Int64)

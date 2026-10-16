@@ -148,3 +148,16 @@ What the widgets need from Sukrara's data layer:
    pref — the system rate-limits it).
 5. Dependencies: `androidx.glance:glance-appwidget` and `glance-material3` 1.2.0 (needs the Compose compiler plugin,
    which Sukrara already has); WorkManager comes transitively.
+
+## In Sukrara (follow-up, 2026-10-16)
+
+- Integrated in Sukrara ([10](10-showcase.md)). The widgets now work in **both roles**. The wearer feeds them from
+  its source, and a follower from its own `follower.db` (`FollowerExtras`: it loads the last 8 h on start, then adds
+  every stored batch, and clears them on "Stop following"). Verified on an emulator following the real phone over
+  Nostr ([screenshot](../spikes/showcase-android/evidence/10-follower-widget-combined-real-data.png)).
+- **R8 trap:** in Sukrara's release build R8 merged `GraphWidget` into `CombinedWidget`. Glance keys its
+  bookkeeping by the `GlanceAppWidget` class name, so after a process restart the graph + value widget was drawn as
+  the plain graph ([before](../spikes/showcase-android/evidence/13b-combined-widget-r8-merge-bug.png),
+  [after](../spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png)). An app with more than
+  one Glance widget needs `-keep,allowoptimization class * extends androidx.glance.appwidget.GlanceAppWidget { <init>(); }`
+  (and a keep for the receivers).

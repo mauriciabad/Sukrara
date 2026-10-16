@@ -98,9 +98,11 @@ object GlucoseNotification {
         } else {
             b.setStyle(Notification.BigTextStyle().bigText("$rate · $ageText · $detail"))
         }
-        if (chip) {
+        // Promoted ongoing (the chip) is missing on some API 36 images (emulator: NoSuchMethodError) → colorized fallback.
+        val promoted = chip && runCatching {
             b.setRequestPromotedOngoing(true).setShortCriticalText(if (stale) "${r.sgv}?" else "${r.sgv}${Trend.arrow(r.rate)}")
-        } else {
+        }.isSuccess
+        if (!promoted) {
             b.setColorized(true).setColor(Range.color(r.sgv) ?: 0xFF1BB5C9.toInt())
         }
         return b.build()

@@ -2,7 +2,7 @@
 
 Throwaway proofs of concept. Findings live in [`../docs`](../docs); this file is just how to build and run them.
 
-## `menubar/` — GlucoseBar (macOS, Swift)
+## `menubar/` — Sukrara for Mac (formerly GlucoseBar; macOS, Swift)
 
 Menubar item: glucose number + continuous-angle trend arrow, colour by range, stale strikethrough, dropdown with a 3 h
 sparkline. Transports run at once and are merged:
@@ -18,9 +18,11 @@ swift run GlucoseBar -lan NO -ble NO -nostr-file ../nostr/secrets/follower-link.
 swift run GlucoseBar -url http://<phone-ip>:17580 -secret '…' -unit mmol
 swift run GlucoseBar -preview /tmp/arrows.png    # render the arrow strip for all rates
 swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button + sparkline to PNGs
-./bundle.sh                              # → build/GlucoseBar.app (ad-hoc signed, menubar-only)
+./bundle.sh                              # → build/Sukrara.app (app.mauri.sukrara.poc, ad-hoc signed, menubar-only)
 ```
-Options are `UserDefaults`, so for the `.app` use `defaults write dev.spike.GlucoseBar <key> <value>`.
+The Swift target is still called `GlucoseBar` (hence `swift run GlucoseBar`); the bundle is Sukrara. Options are
+`UserDefaults`, so for the `.app` use `defaults write app.mauri.sukrara.poc <key> <value>` (the first launch copies the
+old `dev.spike.GlucoseBar` domain and follower Keychain item, see `Migration.swift`). Log: `~/Library/Logs/Sukrara.log`.
 
 ## `glucobridge-android/` — GlucoBridge (Android, Kotlin)
 
@@ -65,7 +67,7 @@ Configure (all off by default):
 - **phone**: GlucoBridge → LibreView → email + password, then the switches; or over adb (shell-only receiver):
   `adb shell am broadcast -n dev.spike.glucobridge/.DebugReceiver -a dev.spike.glucobridge.CONFIG --ez upload true`
 - **Mac**: `security add-generic-password -s dev.spike.libreview -a <email> -w`, then
-  `defaults write dev.spike.GlucoseBar lvEmail <email>` and `… lvUpload -bool YES` (domain `GlucoseBar` when run via
+  `defaults write app.mauri.sukrara.poc lvEmail <email>` and `… lvUpload -bool YES` (domain `GlucoseBar` when run via
   `swift run`). The Mac uses the DeviceId the phone sends over BLE.
 - The account accepts one active device: a new one needs "take over" (`SetDevice:true`), which logs Juggluco's
   LibreView upload out — switch Juggluco's *Send to LibreView* off first, and back on when done.

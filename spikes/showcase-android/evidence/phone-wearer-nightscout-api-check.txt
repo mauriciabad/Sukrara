@@ -1,0 +1,19 @@
+✅ status.json (HA, Nightguard, LoopFollow) name=Sukrara version=15.0.8
+✅ entries/sgv.json (Home Assistant) n=10 newest=179 SingleUp delta=12.45
+✅   newest first 
+✅   date is int ms (M5) 
+✅   trend int matches direction (nightscout-clock) 
+✅   _id is 24 hex 
+✅   newest reading fresh (< 3 min) age=2.7 min
+✅ entries.json incremental (xDrip+) n=58 in last hour
+✅ entries.json 12 h window (Nightguard) n=718
+✅ entries.json find[type][$ne]=cal (LoopFollow) n=10
+✅ entries/current.json is a 1-element array 
+✅ /api/v1/treatments.json → [] 
+✅ /api/v1/devicestatus.json → [] 
+✅ /api/v1/profiles.json → [] 
+✅ v2/properties delta (M5, Nightguard) 
+✅ v3/version → 404 (Nightguard falls back to v1) got 404
+✅ /sgv.json brief (Garmin via 127.0.0.1, nightscout-clock) 
+
+all checks passed

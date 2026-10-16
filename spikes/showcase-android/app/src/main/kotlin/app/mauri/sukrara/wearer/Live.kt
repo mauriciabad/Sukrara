@@ -19,6 +19,7 @@ data class WearerStatus(
     val macSubscribed: Int = 0,
     val macError: String? = null,
     val garmin: String = "off",
+    val nightscout: String = "off",
     val watchPolledAt: Long = 0,
     val libreview: String = "off",
     val notificationPosts: Int = 0,
@@ -30,7 +31,7 @@ data class WearerStatus(
         .put("last", last?.let { JSONObject().put("t", it.t).put("sgv", it.sgv).put("rate", it.rate ?: JSONObject.NULL) } ?: JSONObject.NULL)
         .put("sourceState", source).put("sourceError", sourceError ?: JSONObject.NULL)
         .put("macRunning", macRunning).put("macAdvertising", macAdvertising).put("macSubscribed", macSubscribed)
-        .put("garminState", garmin).put("watchPolledAt", watchPolledAt / 1000)
+        .put("garminState", garmin).put("nightscoutState", nightscout).put("watchPolledAt", watchPolledAt / 1000)
         .put("libreviewState", libreview)
         .put("notificationPosts", notificationPosts).put("notificationSkipped", notificationSkipped).put("screenOn", screenOn)
 }

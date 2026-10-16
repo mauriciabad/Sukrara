@@ -9,6 +9,7 @@ import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.App
 import app.mauri.sukrara.core.Reading as CoreReading
+import app.mauri.sukrara.follower.FollowerService
 import app.mauri.sukrara.owner.OwnerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,9 +17,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Glue between investigation 12's widgets and Sukrara: readings from the wearer pipeline go into the widgets'
- * small persisted store ([GlucoseStore], last 8 h) and trigger [WidgetUpdater.refresh] (deduped; skipped while the
- * screen is off). Widget receivers make sure the wearer service runs.
+ * Glue between investigation 12's widgets and Sukrara: readings from the wearer pipeline (`WearerExtras`) or the
+ * follower DB (`FollowerExtras`) go into the widgets' small persisted store ([GlucoseStore], last 8 h) and trigger
+ * [WidgetUpdater.refresh] (deduped; skipped while the screen is off). Widget receivers make sure the role's
+ * service runs.
  */
 object SukraraHooks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -28,6 +30,19 @@ object SukraraHooks {
         val changed = GlucoseStore.add(c, list.map { Reading(it.t, it.sgv, it.rate) })
         if (changed) refresh(c, reason)
     }
+
+    /** Replace the widgets' data with exactly [list] (follower start: the follower DB is the source of truth). */
+    fun seed(c: Context, list: List<CoreReading>, reason: String) {
+        scope.launch {
+            runCatching {
+                GlucoseStore.replace(c.applicationContext, list.map { Reading(it.t, it.sgv, it.rate) })
+                WidgetUpdater.refresh(c.applicationContext, reason, force = true)
+            }.onFailure { Log.w("Sukrara.widgets", "seed: $it") }
+        }
+    }
+
+    /** Stop following / role reset: empty widgets ("no data") instead of the previous person's last value. */
+    fun clear(c: Context) = seed(c, emptyList(), "cleared")
 
     fun refresh(c: Context, reason: String, force: Boolean = false) {
         scope.launch { runCatching { WidgetUpdater.refresh(c.applicationContext, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh: $it") } }
@@ -45,21 +60,28 @@ object SukraraHooks {
         }
     }
 
-    /** A widget was added/updated: the wearer service feeds it, so make sure it runs (wearer role only). */
+    /** A widget was added/updated: the role's service feeds it, so make sure it runs. */
     fun ensureService(c: Context) {
-        runCatching {
-            if (App.role(c) == "owner" && App.owner(c).hasIdentity()) c.startForegroundService(Intent(c, OwnerService::class.java))
-        }.onFailure { Log.w("Sukrara.widgets", "service not started from widget: $it") }
+        runCatching { startRoleService(c) }.onFailure { Log.w("Sukrara.widgets", "service not started from widget: $it") }
         refresh(c, "widget", force = true)
+    }
+
+    /** Wearer → OwnerService (if it has an identity); follower → FollowerService (if it joined someone). */
+    fun startRoleService(c: Context) {
+        when (App.role(c)) {
+            "owner" -> if (App.owner(c).hasIdentity()) c.startForegroundService(Intent(c, OwnerService::class.java))
+            "follower" -> if (App.follower(c).hasJoined()) c.startForegroundService(Intent(c, FollowerService::class.java))
+        }
     }
 }
 
-/** Restart the wearer service after a reboot or an app update (both are allowed to start a foreground service). */
+/**
+ * Restart the role's service (wearer or follower) after a reboot or an app update (both are allowed to start a
+ * foreground service). Before inv. 10's gap audit only the wearer came back; a follower stayed silent until opened.
+ */
 class StartReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
         if (i.action != Intent.ACTION_BOOT_COMPLETED && i.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
-        runCatching {
-            if (App.role(c) == "owner" && App.owner(c).hasIdentity()) c.startForegroundService(Intent(c, OwnerService::class.java))
-        }.onFailure { Log.w("Sukrara.start", "service not started on ${i.action}: $it") }
+        runCatching { SukraraHooks.startRoleService(c) }.onFailure { Log.w("Sukrara.start", "service not started on ${i.action}: $it") }
     }
 }

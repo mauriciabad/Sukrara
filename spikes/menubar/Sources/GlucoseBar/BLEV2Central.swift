@@ -73,7 +73,7 @@ final class BLEV2Central: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
 
     private func scan() {
         guard central.state == .poweredOn else { return }
-        onState?("BLE v2: scanning for a CGM Share phone")
+        onState?("BLE v2: scanning for a Sukrara phone")
         central.scanForPeripherals(withServices: [Self.service])
     }
 

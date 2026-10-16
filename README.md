@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/Sukrara-0.10.0.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-0.10.1.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/GlucoseBar-0.10.0.app.zip"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-mac-0.10.1.zip"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -20,7 +20,7 @@ bar and home screen**, a **Garmin watch**, and the phones and Macs of the people
 no cloud account to create and no server to host. The name is Catalan-ish: *sucre* (sugar) + *ara* (now).
 
 > **This is an alpha, built from research spikes.** Each feature started as a throwaway proof of concept with a
-> written report, and v0.10.0 bundles them into one app to see how it feels day to day. The real Sukrara will be
+> written report, and v0.10 bundles them into one app to see how it feels day to day. The real Sukrara will be
 > rebuilt from scratch, properly and with more features, using what these spikes taught us.
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
@@ -60,10 +60,11 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
 - Log insulin, carbs and notes, and upload them (and glucose) to LibreView. Off until you set it up.
   [04](docs/04-libreview.md)
 
-**On your Mac**
+**On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range, with a 3 h sparkline. [01](docs/01-connectivity.md)
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone.
   Keys stay in the macOS Keychain. [07](docs/07-bluetooth-followers.md)
+- Follower alarms: low (≤ 65), high (≥ 185) and no data for 20 minutes, as macOS notifications; toggle in the menu.
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
 - Desktop and Notification Center widgets are designed and rendered. Running them needs an Apple-issued signing
   certificate. [13](docs/13-macos-widgets.md)
@@ -166,12 +167,12 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.10.0](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.10.0)
+Downloads: [v0.10.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.10.1)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, set up Juggluco first and turn on *Settings → Web server* ("Local only" can stay on).
-2. Install `Sukrara-0.10.0.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.10.1.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor → Start fresh**, or **Restore from password manager** on a new phone.
 4. Tap **Save to password manager** so a lost phone doesn't mean re-inviting everyone.
@@ -183,12 +184,14 @@ Downloads: [v0.10.0](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
   **I follow someone** and scans or opens the link. Check that both screens show the same code, then tap **Allow**.
 - Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
 
-**Mac** (Apple Silicon, macOS 14+)
+**Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
 ```sh
-unzip GlucoseBar-0.10.0.app.zip && xattr -dr com.apple.quarantine GlucoseBar.app && open GlucoseBar.app
+unzip Sukrara-mac-0.10.1.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app
 ```
 The app is ad-hoc signed, hence the `xattr`. Allow Bluetooth. To follow end-to-end encrypted: on the phone,
-**Share → Copy Mac link**, then in the menubar **Follow someone…**, paste, and Allow on the phone. Nearby pairing over
+**Share** (copy the `https://sukrara.mauri.app/join#…` link, or *Copy Mac link* for the `cgmshare:` form; both work),
+then in the menubar **Follow someone…**, paste, and Allow on the phone. On the Mac, the link's web page also has an
+**Open in Sukrara** button. Nearby pairing over
 Bluetooth works the same way with a match code. (The Mac also picks up the phone's older, unencrypted Bluetooth link
 with no setup; turn that off in the phone's Settings → Mac once you follow over the encrypted path.)
 
@@ -198,7 +201,7 @@ with no setup; turn that off in the phone's Settings → Mac once you follow ove
 docs/                     reports (one per investigation), images, evidence; also the sukrara.mauri.app site
 spikes/
   showcase-android/       Sukrara — the alpha Android app (Kotlin), bundles everything below
-  menubar/                GlucoseBar — macOS menubar app and follower (Swift, AppKit, CoreBluetooth)
+  menubar/                Sukrara for Mac (formerly GlucoseBar) — menubar app and follower (Swift, AppKit, CoreBluetooth)
   nostr/                  Nostr transport, protocol v2 (Python reference + tests), Android sharing app, Nightscout adapter
   glucobridge-android/    phone companion: Juggluco or direct sensor → Bluetooth, LibreView, Garmin server
   libreview/              LibreView upload spec + reference tool
