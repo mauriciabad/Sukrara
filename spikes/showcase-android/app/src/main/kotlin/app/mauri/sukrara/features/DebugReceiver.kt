@@ -28,7 +28,7 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
- *       [--es graph JSON] [--es widgetGraph ID:JSON]   (investigation 16: graph settings, one widget's own)
+ *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
  */
@@ -133,6 +133,16 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "owner ready")
             }
             "invite" -> out.put("invite", App.owner(c).newInvite())   // public link, no secret
+            // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
+            "pinWidget" -> {
+                val r = when (i.getStringExtra("kind")) {
+                    "value" -> app.mauri.sukrara.widgets.ValueWidgetReceiver::class.java
+                    "graph" -> app.mauri.sukrara.widgets.GraphWidgetReceiver::class.java
+                    else -> app.mauri.sukrara.widgets.CombinedWidgetReceiver::class.java
+                }
+                out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
+                    .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
+            }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
