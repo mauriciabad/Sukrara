@@ -73,14 +73,16 @@ object GlucoseStats {
         all.asSequence().filter { it.t in from until to + 30 }.sortedBy { it.t }
             .fold(ArrayList<Reading>()) { acc, r -> if (acc.isNotEmpty() && r.t - acc.last().t < 30) acc[acc.size - 1] = r else acc += r; acc }
 
-    /** Seconds each reading stands for (see [TimeInRange]). The last one: the typical spacing, at most until [to]. */
+    /**
+     * Seconds each reading stands for (see [TimeInRange]). The last one: the spacing just before it (1-minute live or
+     * 5/15-minute history), at most until [to].
+     */
     fun weights(rs: List<Reading>, to: Long): DoubleArray {
         if (rs.isEmpty()) return DoubleArray(0)
-        val gaps = rs.zipWithNext { a, b -> b.t - a.t }.filter { it in 1..MAX_GAP_S }.sorted()
-        val typical = gaps.getOrNull(gaps.size / 2) ?: 60L
+        val spacing = if (rs.size > 1) (rs.last().t - rs[rs.lastIndex - 1].t).coerceIn(1, MAX_GAP_S) else 60L
         return DoubleArray(rs.size) { i ->
             if (i < rs.lastIndex) min(rs[i + 1].t - rs[i].t, MAX_GAP_S).toDouble()
-            else min(typical, max(0L, to - rs[i].t) + 1).toDouble()
+            else min(spacing, max(0L, to - rs[i].t)).toDouble().coerceAtLeast(1.0)
         }
     }
 
