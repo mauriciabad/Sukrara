@@ -94,7 +94,7 @@ object Nostr {
         }
     }.getOrNull()
 
-    /** v3 invite: gift wrap sealed by the identity, addressed to inviteKey(secret), NIP-40 expiry = invite expiry. */
+    /** Invite: gift wrap sealed by the identity, addressed to inviteKey(secret), NIP-40 expiry = invite expiry. */
     fun inviteWrap(identity: Keys, secret: ByteArray, expiry: Long, profilePub: String?, preview: JSONObject): Event {
         val body = JSONObject(preview.toString()).put("v", 3).put("type", "invite").put("x", expiry)
             .put("r", JSONArray(RELAYS)).put("profile", profilePub ?: JSONObject.NULL)
@@ -105,7 +105,7 @@ object Nostr {
                             val profile: String?, val name: String?)
 
     /** Pick the wrap that opens with the link's secret AND whose seal signer matches the fingerprint. */
-    fun openInvite(link: Derive.Short, wraps: List<JSONObject>): Result<OpenedInvite> {
+    fun openInvite(link: Derive.Link, wraps: List<JSONObject>): Result<OpenedInvite> {
         val k = keys(Derive.inviteKey(link.secret))
         val reasons = mutableListOf<String>()
         for (w in wraps) {

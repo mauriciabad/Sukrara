@@ -1,6 +1,6 @@
 <!doctype html>
-<!-- Fallback for https://sukrara.mauri.app/join#<invite>: shown only when the Sukrara app isn't installed (or the
-     link was opened on a computer). The invite lives in the #fragment, which browsers never send to the server. -->
+<!-- Fallback for https://sukrara.mauri.app/join#<32 chars>: shown only when the Sukrara app isn't installed (or the
+     link was opened on a computer). The invite code lives in the #fragment, which browsers never send to the server. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -23,13 +23,14 @@
 <p>On a Mac with <strong>Sukrara for Mac</strong>, click <em>Open in Sukrara</em> above, or use the menubar
   <em>Sukrara → Follow someone…</em> and paste this link:</p>
 <p><code id="link"></code></p>
-<p><small>The invite contains no secret and no glucose data: it only lets you <em>ask</em> to follow. Nothing in it
-  is sent to this website.</small></p>
+<p><small>The link holds no glucose data and no key to it. It lets the app show you who is inviting you (their
+  name and picture, end-to-end encrypted) and <em>ask</em> to follow; they approve each request. Nothing in it is sent
+  to this website.</small></p>
 <script>
   var invite = location.hash.slice(1);
   document.getElementById("link").textContent = location.href;
-  // custom-scheme fallback for devices where App Links aren't verified
-  document.getElementById("open").href = invite ? "cgmshare:join?" + invite : "#";
+  // the app's own scheme: Sukrara for Mac, and phones where App Links aren't verified
+  document.getElementById("open").href = /^[A-Za-z0-9_-]{32}$/.test(invite) ? "sukrara:join#" + invite : "#";
 </script>
 </body>
 </html>

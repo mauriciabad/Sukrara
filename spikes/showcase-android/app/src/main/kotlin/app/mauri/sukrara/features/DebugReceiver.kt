@@ -71,7 +71,9 @@ class DebugReceiver : BroadcastReceiver() {
             val u = App.owner(c).ui.value
             out.put("owner", JSONObject().put("epoch", u.epoch).put("followers", u.followers.count { it.revoked == null })
                 .put("pending", u.pending.size).put("liveSent", u.liveSent).put("chunksSent", u.chunksSent)
-                .put("bleOn", u.bleOn).put("bleCentrals", u.bleCentrals).put("source", u.source))
+                .put("bleOn", u.bleOn).put("bleCentrals", u.bleCentrals).put("source", u.source)
+                .put("profile", u.profile?.toJson() ?: JSONObject.NULL)
+                .put("followerNames", org.json.JSONArray(u.followers.filter { it.revoked == null }.map { "${it.name} ${it.avatar ?: "-"}" })))
         }
         if (App.role(c) == "follower") {
             val u = App.follower(c).ui.value
@@ -79,6 +81,7 @@ class DebugReceiver : BroadcastReceiver() {
                 .put("epoch", u.epoch).put("readings", u.count).put("rejects", u.rejects)
                 .put("last", u.last?.let { JSONObject().put("t", it.t).put("sgv", it.sgv).put("via", it.via) } ?: JSONObject.NULL)
                 .put("ble", u.ble).put("canWrite", u.canWrite)
+                .put("me", u.me?.toJson() ?: JSONObject.NULL).put("wearer", u.wearer?.toJson() ?: JSONObject.NULL)
                 .put("treatments", org.json.JSONArray(u.treatments.map { e ->
                     JSONObject().put("id", e.tr.id).put("k", e.tr.k).put("a", e.tr.a).put("n", e.tr.n).put("del", e.tr.del)
                         .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
@@ -110,13 +113,28 @@ class DebugReceiver : BroadcastReceiver() {
             "follow" -> {
                 if (App.role(c) == null) App.setRole(c, "follower")
                 val link = i.getStringExtra("link") ?: return out.put("cmd", "follow needs --es link URL").let { }
+                val me = app.mauri.sukrara.core.Profile(i.getStringExtra("name") ?: "Follower (adb)", app.mauri.sukrara.core.Avatar.random())
                 val err = runBlocking {
-                    kotlinx.coroutines.withTimeoutOrNull(8_000) {
-                        listOf(App.follower(c).join(link, i.getStringExtra("name") ?: "Follower (adb)"))
+                    kotlinx.coroutines.withTimeoutOrNull(25_000) {
+                        App.follower(c).resolveInvite(link).fold({ inv -> listOf(App.follower(c).join(inv, me)) }, { listOf("invite: ${it.message}") })
                     }?.first() ?: if (App.follower(c).hasJoined()) null else "timeout"
                 }
                 if (err == null) c.startForegroundService(Intent(c, app.mauri.sukrara.follower.FollowerService::class.java))
                 out.put("cmd", err ?: "follow request sent (check the code on the wearer)")
+            }
+            // name + picture (both roles): --es name <n> [--ez shuffle true]; the wearer's goes out with the roster
+            "profile" -> {
+                val shuffle = i.getBooleanExtra("shuffle", false)
+                if (App.role(c) == "follower") {
+                    val cur = App.follower(c).ui.value.me ?: return out.put("cmd", "not following").let { }
+                    App.follower(c).setProfile(cur.copy(name = i.getStringExtra("name") ?: cur.name,
+                        avatar = if (shuffle) app.mauri.sukrara.core.Avatar.random() else cur.avatar))
+                } else {
+                    val cur = App.owner(c).ui.value.profile ?: return out.put("cmd", "no identity").let { }
+                    App.owner(c).setProfile(cur.copy(name = i.getStringExtra("name") ?: cur.name,
+                        avatar = if (shuffle) app.mauri.sukrara.core.Avatar.random() else cur.avatar))
+                }
+                out.put("cmd", "profile set")
             }
             // treatments: the wearer's own log (Treat.store → followers), or a follower's writer entry
             "treat" -> {

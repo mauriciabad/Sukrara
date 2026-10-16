@@ -43,6 +43,7 @@ import org.nostrdevkit.sdk.Keys
 
 data class OwnerUi(
     val hasIdentity: Boolean = false,
+    val profile: app.mauri.sukrara.core.Profile? = null,
     val iPub: String? = null,
     val dPub: String? = null,
     val epoch: Int = 0,
@@ -293,7 +294,7 @@ class OwnerEngine(private val ctx: Context) {
         if (!granted) return log.i("BLE: permissions not granted, Bluetooth transport off")
         val b = app.mauri.sukrara.core.BleOwner(ctx, log::i, ::onEvent) {
             val n = nearby?.takeIf { it.x > Proto.nowS() }
-            app.mauri.sukrara.core.Ble.info(s.iPub, s.relays, n?.t, n?.x ?: 0)
+            app.mauri.sukrara.core.Ble.info(s.iPub, s.relays, n?.t, n?.x ?: 0, s.profile)
         }
         if (!b.start()) return
         ble = b
@@ -315,6 +316,17 @@ class OwnerEngine(private val ctx: Context) {
         s.invites += tok
         save()
         log.i("nearby pairing on for 10 min (token offered over BLE INFO)")
+        publishUi()
+    }
+
+    /** The wearer's own name + picture: followers get it with the next roster (now), new invites carry it. */
+    fun setProfile(p: app.mauri.sukrara.core.Profile) = scope.launch(serial) {
+        val s = st ?: return@launch
+        s.profile = p.copy(name = p.name.trim().take(app.mauri.sukrara.core.Profile.MAX_NAME))
+        save()
+        publishRoster()
+        publishBackup()
+        log.i("profile: '${s.profile.name}', avatar ${s.profile.avatar}")
         publishUi()
     }
 
@@ -418,8 +430,8 @@ class OwnerEngine(private val ctx: Context) {
 
     // ============================================================================================ identity
 
-    suspend fun createIdentity() = withContext(serial) {
-        st = OwnerState.create(synthetic = BuildConfig.DEBUG && isEmulator())
+    suspend fun createIdentity(profile: app.mauri.sukrara.core.Profile? = null) = withContext(serial) {
+        st = OwnerState.create(synthetic = BuildConfig.DEBUG && isEmulator()).also { s -> profile?.let { s.profile = it } }
         save()
         log.i("new identity ${Proto.shortNpub(st!!.iPub)}, sid tag ${Proto.chunkC(st!!.sid).take(8)}…, epoch 1")
         publishUi()
@@ -587,7 +599,7 @@ class OwnerEngine(private val ctx: Context) {
         // created_at must strictly increase per (author, kind, d), or relays keep the older version
         val at = maxOf(Proto.nowS(), s.rosterPublishedAt + 1)
         val writers = s.writers.filter { w -> s.followers.any { it.f == w && it.revoked == null } }
-        publish(Proto.rosterEvent(s.i, e.pub, s.sid, e.n, listOf(s.dPub), s.relays, at, writers), Lane.CONTROL, "roster")
+        publish(Proto.rosterEvent(s.i, e.pub, s.sid, e.n, listOf(s.dPub), s.relays, at, writers, s.profile), Lane.CONTROL, "roster")
         s.rosterPublishedAt = at
         save()
         log.i("roster published: epoch ${e.n} gk ${e.gk}, devices [${s.dPub.take(12)}], writers ${writers.map { it.take(12) }}")
@@ -633,18 +645,24 @@ class OwnerEngine(private val ctx: Context) {
 
     // ============================================================================================ sharing
 
+    /**
+     * A v3 short invite: the link (fingerprint + secret) and a gift wrap on the relays with the rest (expiry, relays,
+     * our profile), sealed by I. The secret's base64url is the access-request token.
+     */
     fun newInvite(): String? {
         val s = st ?: return null
-        val token = Proto.newToken()
         val x = Proto.nowS() + INVITE_TTL_S
-        val link = Proto.inviteLink(s.iPub, token, x, s.relays)
+        val (link, wrap) = Proto.newInvite(s.i, x, s.relays, s.profile)
+        val token = app.mauri.sukrara.core.Derive.parse(link)!!.token
         invite = link to x
         scope.launch(serial) {
             s.invites.removeIf { it.x < Proto.nowS() }
             s.invites += InviteToken(token, x)
             save()
+            publish(wrap, Lane.CONTROL, "invite")
             publishBackup()
-            log.i("invite created (expires in ${INVITE_TTL_S / 3600} h): $link")
+            log.i("invite created (expires in ${INVITE_TTL_S / 3600} h, ${link.length} chars), wrap ${wrap.id().toHex().take(8)}" +
+                if (Features.value.nostr) "" else " NOT published: Nostr is off")
             publishUi()
         }
         _ui.update { it.copy(invite = link, inviteExpiry = x) }
@@ -676,7 +694,7 @@ class OwnerEngine(private val ctx: Context) {
 
     private fun publish(ev: Event, lane: Lane, key: String? = null, relays: Boolean = true) {
         if (relays && Features.value.nostr) pool().publish(ev, lane, key)
-        if (key != "backup") extra.forEach { it.publish(ev, lane, key) }   // the owner backup stays on relays
+        if (key != "backup" && key != "invite") extra.forEach { it.publish(ev, lane, key) }   // relays only
     }
 
     /** THE entry point for every incoming event, from any transport ([via] = `relay:<host>` / `ble:<peer>`). */
@@ -698,7 +716,8 @@ class OwnerEngine(private val ctx: Context) {
         val u = Proto.unwrap(s.i, e) ?: return log.i("wrap ${id.take(8)}: cannot unwrap, ignored")
         if (u.kind != Proto.RUMOR_TO_OWNER || u.body.optInt("v") != 2) return
         val known = s.followers.lastOrNull { it.f == u.sender }
-        val name = u.body.optString("name", "?").take(40)
+        val profile = app.mauri.sukrara.core.Profile.of(u.body.optJSONObject("profile"))
+        val name = profile?.name?.ifBlank { null } ?: "?"
         when (u.body.optString("type")) {
             "request" -> {
                 if (known != null && known.revoked == null) {
@@ -711,7 +730,7 @@ class OwnerEngine(private val ctx: Context) {
                     return log.i("request from '$name' (${u.sender.take(12)}) REJECTED: unknown or expired invite token")
                 }
                 if (s.pending.any { it.f == u.sender }) return
-                val p = PendingRequest(u.sender, name, token, Proto.matchCode(u.sender, token), Proto.nowS())
+                val p = PendingRequest(u.sender, name, token, Proto.matchCode(u.sender, token), Proto.nowS(), profile?.avatar)
                 s.pending += p
                 save()
                 log.i("access request from '$name' (${u.sender.take(12)}) code ${p.code} via ${via.removePrefix("relay:")}")
@@ -720,6 +739,18 @@ class OwnerEngine(private val ctx: Context) {
                         "$name wants to see your glucose", "Code ${p.code} · open Sukrara to allow or deny")
                 }
                 publishUi()
+            }
+            "profile" -> when {
+                profile == null -> log.i("profile update from ${u.sender.take(12)} ignored (empty)")
+                known == null || known.revoked != null -> log.i("profile update from ${u.sender.take(12)} ignored (not an approved follower)")
+                else -> {
+                    val idx = s.followers.indexOfLast { it.f == u.sender }
+                    s.followers[idx] = known.copy(name = name, avatar = profile.avatar)
+                    save()
+                    publishBackup()
+                    log.i("profile update: ${known.name} is now '$name'")
+                    publishUi()
+                }
             }
             "rekey" -> when {
                 known != null && known.revoked == null -> { log.i("rekey request from ${known.name} (has ${u.body.optString("have")})"); deliverKey(u.sender) }
@@ -739,10 +770,18 @@ class OwnerEngine(private val ctx: Context) {
     fun approve(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        s.pending.remove(p)
-        s.invites.removeIf { it.t == p.token }                                // single-use
+        if (s.invites.none { it.t == p.token && it.x > Proto.nowS() }) {
+            s.pending.removeIf { it.token == p.token }
+            save()
+            publishUi()
+            return@launch log.i("NOT approved '${p.name}': its invite was already used or expired")
+        }
+        // single-use: the invite and every other request made with it are gone (a second request on one invite
+        // means the link reached someone else too)
+        s.pending.removeIf { it.token == p.token }
+        s.invites.removeIf { it.t == p.token }
         s.followers.removeIf { it.f == f }
-        s.followers += Follower(f, p.name, Proto.nowS())
+        s.followers += Follower(f, p.name, Proto.nowS(), avatar = p.avatar)
         save()
         deliverKey(f)
         publishBackup()
@@ -756,8 +795,8 @@ class OwnerEngine(private val ctx: Context) {
     fun deny(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        s.pending.remove(p)
-        s.invites.removeIf { it.t == p.token }                                // a denied token is burnt too
+        s.pending.removeIf { it.token == p.token }                            // a denied token is burnt, with its other requests
+        s.invites.removeIf { it.t == p.token }
         save()
         publishBackup()
         Notifications.cancel(ctx, Notifications.ID_REQUEST)
@@ -787,6 +826,7 @@ class OwnerEngine(private val ctx: Context) {
         _ui.update {
             it.copy(
                 hasIdentity = s != null,
+                profile = s?.profile,
                 iPub = s?.iPub,
                 dPub = s?.dPub,
                 epoch = s?.current?.n ?: 0,

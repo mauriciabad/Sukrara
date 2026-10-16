@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.follower
 
+import app.mauri.sukrara.core.Avatar
+import app.mauri.sukrara.core.Profile
 import app.mauri.sukrara.core.Proto
 import org.json.JSONArray
 import org.json.JSONObject
@@ -36,7 +38,11 @@ class FollowerState(
     var testUnfiltered: Boolean = false,    // debug: drop relay-side `authors` filters to exercise the app's own checks
     var writers: List<String> = emptyList(),  // investigation 07: roster `writers`
     var bleAddr: String? = null,              // investigation 07: owner's BLE address (nearby pairing)
+    var avatar: Avatar? = null,               // this follower's own picture (with [name]: what the wearer sees)
+    var wearer: Profile? = null,              // the wearer's name + picture: from the invite, then from each roster
 ) {
+    val me: Profile get() = Profile(name, avatar)
+
     val fPub: String get() = Proto.pub(f)
     val maxEpoch: Int get() = epochs.values.maxOfOrNull { it.n } ?: 0
 
@@ -50,6 +56,7 @@ class FollowerState(
         .put("low", low).put("high", high).put("noDataMin", noDataMin).put("alarmsOn", alarmsOn)
         .put("testUnfiltered", testUnfiltered)
         .put("writers", JSONArray(writers)).put("bleAddr", bleAddr ?: JSONObject.NULL)
+        .put("avatar", avatar?.json ?: JSONObject.NULL).put("wearer", wearer?.toJson() ?: JSONObject.NULL)
 
     companion object {
         const val REQUESTED = "requested"
@@ -82,6 +89,8 @@ class FollowerState(
             testUnfiltered = j.optBoolean("testUnfiltered"),
             writers = Proto.strings(j.optJSONArray("writers")),
             bleAddr = if (j.has("bleAddr") && !j.isNull("bleAddr")) j.getString("bleAddr") else null,
+            avatar = Avatar.of(j.optJSONObject("avatar")),
+            wearer = Profile.of(j.optJSONObject("wearer")),
         )
     }
 }

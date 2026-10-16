@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.owner
 
+import app.mauri.sukrara.core.Avatar
+import app.mauri.sukrara.core.Profile
 import app.mauri.sukrara.core.Proto
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,19 +15,22 @@ class Epoch(val n: Int, val g: Keys) {
     val gk: String = Proto.gk(pub)
 }
 
-data class Follower(val f: String, val name: String, val since: Long, val revoked: Long? = null) {
+/** [avatar]: the follower's own generated picture (PROTOCOL-v2 "Profiles"), null if it never sent one. */
+data class Follower(val f: String, val name: String, val since: Long, val revoked: Long? = null, val avatar: Avatar? = null) {
     fun toJson(): JSONObject = JSONObject().put("f", f).put("name", name).put("since", since)
+        .put("avatar", avatar?.json ?: JSONObject.NULL)
         .also { j -> revoked?.let { j.put("revoked", it) } }
 
     companion object {
         fun of(j: JSONObject) = Follower(j.getString("f"), j.optString("name", "?"), j.optLong("since"),
-            if (j.has("revoked") && !j.isNull("revoked")) j.getLong("revoked") else null)
+            if (j.has("revoked") && !j.isNull("revoked")) j.getLong("revoked") else null, Avatar.of(j.optJSONObject("avatar")))
     }
 }
 
 data class InviteToken(val t: String, val x: Long)
 
-data class PendingRequest(val f: String, val name: String, val token: String, val code: String, val at: Long)
+data class PendingRequest(val f: String, val name: String, val token: String, val code: String, val at: Long,
+                          val avatar: Avatar? = null)
 
 /**
  * Everything the owner knows. Persisted locally in [app.mauri.sukrara.core.SecureStore] (Keystore-encrypted,
@@ -38,7 +43,7 @@ class OwnerState(
     val epochs: MutableList<Epoch>,
     val followers: MutableList<Follower> = mutableListOf(),
     val invites: MutableList<InviteToken> = mutableListOf(),
-    var relays: List<String> = Proto.RELAYS,
+    val relays: List<String> = Proto.RELAYS,           // not stored: always the current default set
     var backupSavedAt: Long = 0,        // when the identity was handed to a password manager (Credential Manager)
     var backupPublishedAt: Long = 0,    // last owner-backup event
     var rosterPublishedAt: Long = 0,
@@ -46,6 +51,7 @@ class OwnerState(
     var synthetic: Boolean = false,
     val pending: MutableList<PendingRequest> = mutableListOf(),
     val writers: MutableSet<String> = mutableSetOf(),     // investigation 07: followers allowed to add treatments
+    var profile: Profile = Profile("", Avatar.random()),  // the wearer's name + picture, sent only to followers
 ) {
     val current: Epoch get() = epochs.last()
     val iPub: String get() = Proto.pub(i)
@@ -61,6 +67,7 @@ class OwnerState(
         .put("invites", JSONArray(invites.map { JSONObject().put("t", it.t).put("x", it.x) }))
         .put("relays", JSONArray(relays))
         .put("writers", JSONArray(writers.toList()))
+        .put("profile", profile.toJson())
 
     fun toJson(): JSONObject = backupBody()
         .put("I", i.secretKey().toHex())
@@ -72,6 +79,7 @@ class OwnerState(
         .put("synthetic", synthetic)
         .put("pending", JSONArray(pending.map {
             JSONObject().put("f", it.f).put("name", it.name).put("token", it.token).put("code", it.code).put("at", it.at)
+                .put("avatar", it.avatar?.json ?: JSONObject.NULL)
         }))
 
     companion object {
@@ -91,8 +99,9 @@ class OwnerState(
             invites = j.optJSONArray("invites")?.let { a ->
                 (0 until a.length()).map { InviteToken(a.getJSONObject(it).getString("t"), a.getJSONObject(it).getLong("x")) }
             }?.toMutableList() ?: mutableListOf(),
-            relays = Proto.strings(j.optJSONArray("relays")).ifEmpty { Proto.RELAYS },
             writers = Proto.strings(j.optJSONArray("writers")).toMutableSet(),
+            profile = Profile.of(j.optJSONObject("profile"))?.let { if (it.avatar == null) it.copy(avatar = Avatar.random()) else it }
+                ?: Profile("", Avatar.random()),
         )
 
         fun fromJson(j: JSONObject): OwnerState = parseBody(Keys.parse(j.getString("I")), Keys.parse(j.getString("D")), j).apply {
@@ -103,7 +112,8 @@ class OwnerState(
             synthetic = j.optBoolean("synthetic")
             j.optJSONArray("pending")?.let { a ->
                 for (k in 0 until a.length()) a.getJSONObject(k).let {
-                    pending += PendingRequest(it.getString("f"), it.getString("name"), it.getString("token"), it.getString("code"), it.getLong("at"))
+                    pending += PendingRequest(it.getString("f"), it.getString("name"), it.getString("token"), it.getString("code"),
+                        it.getLong("at"), Avatar.of(it.optJSONObject("avatar")))
                 }
             }
         }

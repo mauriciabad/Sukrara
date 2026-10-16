@@ -5,6 +5,7 @@ package dev.spike.nostrid
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -33,18 +34,17 @@ class DeriveTest {
         val inv = v.getJSONObject("invite")
         val secret = Derive.unhex(inv.getString("secret"))
         assertEquals(inv.getString("short_link"), Derive.shortLink(inv.getString("i_pub"), secret))
-        val p = Derive.parse(inv.getString("short_link")) as Derive.Short
+        val p = Derive.parse(inv.getString("short_link"))!!
         assertTrue(inv.getString("i_pub").startsWith(p.fp))
         assertTrue(p.secret.contentEquals(secret))
     }
 
-    @Test fun oldLinksStillParse() {
-        val npub = "npub1sx93muthatzjzm9mc9t9cq7fsczq2n76hjwk43lk6x6ec7f7xzyshsma7v"
-        val q = "i=$npub&t=pEzb2FHGbVDJllnfcXW-fg&x=1792238661&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Fnostr.mom"
-        for (link in listOf("https://sukrara.mauri.app/join#$q", "cgmshare:join?$q")) {
-            val p = Derive.parse(link) as Derive.Long
-            assertEquals(npub, p.iNpub)
-            assertEquals(listOf("wss://nos.lol", "wss://nostr.mom"), p.relays)
+    @Test fun onlyTheCurrentFormatParses() {
+        val good = v.getJSONObject("invite").getString("short_link")
+        val q = "i=npub1sx93muthatzjzm9mc9t9cq7fsczq2n76hjwk43lk6x6ec7f7xzyshsma7v&t=pEzb2FHGbVDJllnfcXW-fg&x=1792238661&r=wss%3A%2F%2Fnos.lol"
+        for (bad in listOf("https://sukrara.mauri.app/join#$q", "cgmshare:join?$q", good.replace("sukrara.mauri.app", "evil.example"),
+                good.dropLast(1), good.substringAfter('#'))) {
+            assertNull(bad, Derive.parse(bad))
         }
     }
 }

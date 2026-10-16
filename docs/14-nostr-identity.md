@@ -32,7 +32,7 @@ This is a PoC, not a change to the showcase app. The orchestrator will bring the
 | Photo privacy | **EXIF removed.** A test photo carrying GPS 41°23′N 2°10′E, camera make/model and a timestamp was published as a 512 px JPEG with **no EXIF at all** (checked on the downloaded copy) |
 | Generated pictures | **Default.** A random avatar on first launch, with *Shuffle* and *Customize* (5 shapes, 8 colours, a letter) or *Photo…*. It's uploaded like a photo, so every Nostr client shows it |
 | "Public" warning | **Always visible** under the editor, plus one confirmation dialog, only when uploading a real photo |
-| Shorter link | **241 → 63 characters, QR version 11 → 5** (61×61 → 37×37 modules). The link holds only an 8-byte identity fingerprint and a secret. Everything else is in a standard NIP-59 gift wrap on the relays. Old links still work |
+| Shorter link | **241 → 63 characters, QR version 11 → 5** (61×61 → 37×37 modules). The link holds only an 8-byte identity fingerprint and a secret. Everything else is in a standard NIP-59 gift wrap on the relays. The 06 link format is removed: it no longer parses |
 | Nostr login, hidden + warned | **Done.** *More options → Use an existing Nostr account* opens a full-screen explanation (risk, how we protect you, what can still give you away) and a required checkbox: *"I understand this could reveal that I have diabetes or care for someone who does."* |
 | Derived account from an nsec / ncryptsec / 12–24 words | **Works.** HKDF of the main key gives the Sukrara root. The main key is dropped and never signs anything. **Same main key → same account** on both emulators, matching the Python reference |
 | …through a signer app (Amber, NIP-55) | **Works, with a "sealed root".** Signers can't derive keys, so a random root is gift-wrapped *to yourself*. After wiping the app, logging in with Amber again **restored the same account** with two silent `nip44_decrypt` calls. One approval in Amber, nothing else |
@@ -76,7 +76,7 @@ profile key, name) as a **standard NIP-59 gift wrap**:
 On the follower side:
 1. Derive that key from the link and fetch the wrap.
 2. Open it, and check that the seal's signer matches the fingerprint.
-3. That gives back exactly the v2 invite. From here the v2 flow runs unchanged: request, the same 4-digit match code,
+3. That gives everything the request needs. From here the 06 flow runs unchanged: request, the same 4-digit match code,
    Allow.
 
 Why the fingerprint: anyone holding the link could also publish a wrap for that key. Matching 8 bytes of a secp256k1
@@ -86,7 +86,7 @@ What the user gains:
 - A QR that is far easier to scan (version 5 instead of 11).
 - A link that fits in an SMS.
 - The follower sees **who** is inviting (name and picture) *before* asking.
-- Nothing in the link is long-lived: the old link carried the identity's npub in clear, forever.
+- Nothing in the link is long-lived: the 06 link carried the identity's npub in clear, forever.
 
 The secret stays in the URL fragment, which browsers never send to the server, so the web fallback page still never
 sees it.
@@ -120,8 +120,8 @@ The screen warns that reusing the Nostr name or picture there would make it reco
 
 | Test | Result |
 |---|---|
-| Offline, Python ([`test_identity.py`](../spikes/nostr/identity/test_identity.py)) | **22/22**: RFC 5869 vector, derivation determinism and separation, v2 links still parse, link/QR sizes, invite wrap shape and expiration, forged/expired/wrong-secret invites rejected, kind 0 fields |
-| Kotlin ↔ Python ([`DeriveTest.kt`](../spikes/nostr/identity-android/app/src/test/kotlin/dev/spike/nostrid/DeriveTest.kt)) | **4/4** against [`vectors.json`](../spikes/nostr/identity/vectors.json): HKDF, derived root + profile keys, short link, both old link forms |
+| Offline, Python ([`test_identity.py`](../spikes/nostr/identity/test_identity.py)) | **24/24**: RFC 5869 vector, derivation determinism and separation, 06-style, `cgmshare:`, wrong-host and truncated links rejected, link/QR sizes, invite wrap shape and expiration, forged/expired/wrong-secret invites rejected, kind 0 fields |
+| Kotlin ↔ Python ([`DeriveTest.kt`](../spikes/nostr/identity-android/app/src/test/kotlin/dev/spike/nostrid/DeriveTest.kt)) | **4/4** against [`vectors.json`](../spikes/nostr/identity/vectors.json): HKDF, derived root + profile keys, short link, every other link form rejected |
 | Live relays + Blossom ([`live_check.py`](../spikes/nostr/identity/live_check.py), [results](../spikes/nostr/results/14-live.txt)) | invite resolvable by link alone within ~1 s; kind 0 on all relays; Blossom survey; deletion behaviour (below) |
 | **Two emulators** (separate devices, separate keys, only relays in common) | wearer creates profile + invite → follower opens the 63-char link, sees "Alex" + picture, asks → wearer sees "Mom" from *her* kind 0, same match code **6611** on both → Allow → follower "Allowed you" |
 | **Negative**: link with a changed fingerprint | rejected: *"sealed by 8f43940432b25257…, link expects 8f40140432b25257…"*, nothing added |
@@ -192,14 +192,53 @@ says it *asks* servers to erase, never that it does.
 
 ## How it maps onto Sukrara (for the integration)
 
+*Plan as written before the integration; what was actually done is in [In Sukrara](#in-sukrara-what-was-added-and-what-was-left-out).*
+
 | Piece | Where it goes | Notes |
 |---|---|---|
 | Profile key + kind 0 + Blossom + editor | wearer onboarding, both roles' settings | `P = HKDF(I, "profile")`; followers' `F` gets its own `HKDF(F, "profile")` |
-| Request carries `profile` | v2 access request + key delivery | the wearer's list shows the follower's own name and picture; v2 `name` stays as a fallback |
-| Short invite | `Proto.kt inviteLink/inviteQueryOf`, Mac `FollowUI.swift` | keep parsing old links; the App Link filter (`/join`) is unchanged, the fragment just gets shorter |
+| Request carries `profile` | v2 access request + key delivery | the wearer's list shows the follower's own name and picture; the request's `name` is used only if the kind 0 can't be fetched |
+| Short invite | `Proto.kt inviteLink/inviteQueryOf`, Mac `FollowUI.swift` | **replace** the v2 link outright: remove `inviteQueryOf`, the `cgmshare:` scheme and the "Copy cgmshare: link (older Mac builds)" button, on Android and Mac (no backwards compatibility in this repo). The App Link filter (`/join`) stays |
 | Nostr login | onboarding *More options*, both roles | derived (nsec, words) and sealed (Amber). A follower logging in with Nostr also gets a restorable `F` |
 | Delete everywhere | settings | best effort, wording as in the PoC |
 | Relay set | `Proto.RELAYS` (today nos.lol, relay.primal.net, nostr.mom, relay.nostr.net) | relay.nostr.net, and now relay.damus.io too, accept gift wraps but can't serve them (NIP-42 AUTH: "relay needs serviceUrl"). The invite lookup and every request/delivery wrap need relays that *serve* kind 1059: nos.lol, relay.primal.net, nostr.mom, offchain.pub worked on 2026-10-16 |
+
+## In Sukrara: what was added and what was left out
+
+*2026-10-17, Sukrara 0.11.0 (Android + Mac). Decided after a review of this report: keep what helps every user and
+costs little to maintain; leave out what ties the app to outside services or serves only Nostr users.*
+
+| Piece | In Sukrara? | Why |
+|---|---|---|
+| **Short invite links (v3)**, 63 chars, QR version 5 | **Added**, the only invite form (old `#i=…&t=…` and `cgmshare:` links removed, no compatibility) | Easier to scan, fits an SMS, shows who invites before asking, no long-lived npub in the link. Reuses the gift wraps v2 already needs |
+| **Names + pictures** for wearer and followers | **Added, privately**: inside the encrypted invite, request, roster and a new `profile` message | Lists show faces instead of keys. Nothing public, so no "public, copies may stay" warnings |
+| **Generated pictures** | **Added, as numbers** (`{"v":1,"c","s","a","n"}`), drawn by each app; **versioned**: every renderer version is kept so older pictures keep their look ([PROTOCOL-v2 → Profiles](../spikes/nostr/PROTOCOL-v2.md#profiles)) | No image upload, no image server, a few bytes per person. Android and Mac draw the same picture (shared "dots" vectors) |
+| Separate profile key `P`, **public kind 0** | **Left out** | Its only gain is that other Nostr clients can show the profile, and nobody looks at Sukrara's profile key from another client. It's also the privacy risk this report had to work around |
+| **Blossom** picture hosting, EXIF stripping, photo upload | **Left out** | Servers disagree with the spec (BUD-11 base64), some keep "deleted" files, others are slow or reject free uploads: constant maintenance for a feature the private profile doesn't need. Real photos, if ever wanted, can go up encrypted with the key in the delivery |
+| **"Log in with your Nostr account"** (nsec / words / Amber sealed root) | **Left out** (PoC kept as reference) | Very few people with diabetes or their carers have a Nostr account; backup is already solved with the password manager; pasting a main nsec into a health app is a habit not to teach; the Mac would need NIP-46 too |
+| "Delete account everywhere" (Blossom DELETE, empty kind 0, NIP-62) | **Left out** | Only needed for public profiles |
+| Relay set | **Changed**: relay.nostr.net → relay.snort.social | See below: offchain.pub, which this report suggested, turned out not to work for a wearer |
+
+Found while integrating (fixed in 0.11.0):
+- **Every invite wrap was rejected "invalid: event expired"** by all relays. The library's gift-wrap TTL counts from
+  the wrap's `created_at`, which NIP-59 backdates by up to 2 days, so a 24 h invite was born expired (the PoC passed an
+  absolute expiration tag and didn't hit it). Sukrara now always sets an absolute expiration; this also fixes its 1-day
+  `history` requests, which had the same problem since they were added.
+- **offchain.pub refuses a new key after ~8 events** ("Policy violated and pubkey is not in our web of trust"): a
+  wearer's first start publishes ~25 chunks. A live probe of 12 relays (wrap from a new key + served back to its
+  recipient; a 30- and 60-event burst from one new key) picked **relay.snort.social** (60/60, serves wraps without
+  AUTH). Tools: [`relay_probe.py`](../spikes/nostr/identity/relay_probe.py),
+  [`relay_burst.py`](../spikes/nostr/identity/relay_burst.py), [results](../spikes/nostr/results/relay-probe-2026-10-17.txt).
+- **Invites weren't really single-use**: approving or denying burnt the token, but other pending requests made with
+  the same link could still be approved. Now they are dropped with it (tested: two requests on one invite, approve
+  one → 0 pending).
+
+Tested 2026-10-17 on two emulators (wearer upgraded in place from 0.10.6, follower fresh) and a test copy of Sukrara for
+Mac (throwaway Keychain item): Mac resolved the 63-char link → "Alex", request with the Mac's generated picture, same
+code 8461 on both → Allow → readings; Android follower opened the link as an App Link → preview "Alex wants to share…"
+→ request → Allow → 1728 readings incl. via relay.snort.social; wearer rename reached the follower with the next
+roster in ~30 s; follower rename + new picture reached the wearer's list. Kotlin 4/4 and Mac self-test 6/6 against
+the Python vectors. Details and screenshots: [docs/10 → Short invites and private profiles](10-showcase.md#short-invites-and-private-profiles-v0110).
 
 ## Not done / open
 

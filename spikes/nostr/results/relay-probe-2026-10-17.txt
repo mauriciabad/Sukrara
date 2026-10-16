@@ -1,0 +1,22 @@
+wss://nos.lol                    wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://relay.primal.net           wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://nostr.mom                  wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://offchain.pub               wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://relay.snort.social         wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, 'ephemeral: will not be stored')
+wss://nostr.oxtr.dev             wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://relay.damus.io             wrap (True, '')                                 served back: no  · chunk (True, '')                                           · live (True, '')
+wss://relay.nostr.net            wrap (True, '')                                 served back: no  · chunk (True, '')                                           · live (True, '')
+wss://nostr-pub.wellorder.net    wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://nostr.bitcoiner.social     wrap (True, '')                                 served back: YES · chunk (True, '')                                           · live (True, '')
+wss://nostr21.com                wrap (False, 'blocked kind 1059 reason: this    served back: no  · chunk (False, '')                                          · live (False, '')
+wss://nostr.einundzwanzig.space  wrap (False, 'blocked: NIP-05 verification ne   served back: no  · chunk (False, 'blocked: NIP-05 verification needed to pu   · live (False, 'blocked: NIP-05 verification needed to pu
+wss://offchain.pub               8/30 accepted · first reject: Policy violated and pubkey is not in our web of trust. (×22)
+wss://nostr.oxtr.dev             15/30 accepted · first reject: rate limited (×15)
+wss://nostr-pub.wellorder.net    30/30 accepted
+wss://nostr.bitcoiner.social     10/30 accepted · first reject: Policy violated and pubkey is not in our web of trust. (×20)
+wss://relay.snort.social         30/30 accepted
+wss://nos.lol                    30/30 accepted
+wss://nostr.mom                  30/30 accepted
+wss://relay.primal.net           60/60 accepted
+wss://nostr-pub.wellorder.net    47/60 accepted · first reject: blocked: spam not permitted (×13)
+wss://relay.snort.social         60/60 accepted

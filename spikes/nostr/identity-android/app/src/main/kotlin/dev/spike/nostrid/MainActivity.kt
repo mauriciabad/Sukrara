@@ -322,7 +322,7 @@ private fun Home(engine: Engine, s: JSONObject) {
             s.optString("lastInvite").takeIf { it.isNotBlank() }?.let { link ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Qr(link, 220) }
                 Mono(link)
-                Text("${link.length} characters (the previous link format was about 240)", style = MaterialTheme.typography.bodySmall)
+                Text("${link.length} characters", style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = {
                     ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Invite", link))
                 }) { Text("Copy link") }

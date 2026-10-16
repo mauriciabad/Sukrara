@@ -5,7 +5,7 @@ import AppKit
 import CoreImage
 import NostrSDK
 
-/// "Follow someone…": paste (or open via `cgmshare:` URL / QR image) a Sukrara invite link (https or cgmshare:), name this Mac, then a small
+/// "Follow someone…": paste (or open via `sukrara:` URL / QR image) a Sukrara invite link, name this Mac, then a small
 /// window shows the 4-digit match code the wearer's phone shows too, until the request is approved.
 @MainActor enum FollowUI {
     static var computerName: String { Host.current().localizedName ?? "Mac" }
@@ -14,11 +14,11 @@ import NostrSDK
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Follow someone's glucose"
-        alert.informativeText = "Paste the invite link they shared with you (https://sukrara.mauri.app/join#… or cgmshare:join?…). "
+        alert.informativeText = "Paste the invite link they shared with you (https://sukrara.mauri.app/join#…). "
             + "Their phone will ask them to allow this Mac."
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 82))
         let link = NSTextField(frame: NSRect(x: 0, y: 52, width: 340, height: 24))
-        link.placeholderString = "https://sukrara.mauri.app/join#i=…"
+        link.placeholderString = "https://sukrara.mauri.app/join#…"
         link.stringValue = prefill ?? (NSPasteboard.general.string(forType: .string).flatMap {
             V2.isInvite($0) ? $0.trimmingCharacters(in: .whitespacesAndNewlines) : nil } ?? "")
         let label = NSTextField(labelWithString: "Name for this Mac")
@@ -52,34 +52,45 @@ import NostrSDK
         return det.features(in: img).compactMap { ($0 as? CIQRCodeFeature)?.messageString }.first { V2.isInvite($0) }
     }
 
-    /// `Sukrara -qrselftest`: encode both invite forms as QR PNGs with CoreImage, decode them back with `decodeQR`,
-    /// and check both parse to the same invite.
+    /// `Sukrara -qrselftest [-vectors <dir>]`: a v3 link survives QR encode → decode, old link forms are rejected, and
+    /// the invite key + avatar "dots" match the Python reference (spikes/nostr/identity/vectors.json, avatar-v1.json).
     static func qrSelfTest() -> Bool {
-        let npub = (try? Keys.generate().publicKey().toBech32()) ?? "npub1invalid"
-        let query = "i=\(npub)&t=AAAAAAAAAAAAAAAAAAAAAA&x=1792197843&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Fnostr.mom"
-        var ok = true
-        var parsed: [V2.Invite] = []
-        for link in ["cgmshare:join?" + query, "https://sukrara.mauri.app/join#" + query] {
-            guard let f = CIFilter(name: "CIQRCodeGenerator") else { return false }
-            f.setValue(Data(link.utf8), forKey: "inputMessage")
-            guard let img = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) else { return false }
-            let rep = NSBitmapImageRep(ciImage: img)
-            let url = URL(fileURLWithPath: NSTemporaryDirectory() + "sukrara-qr-selftest.png")
-            try? rep.representation(using: .png, properties: [:])?.write(to: url)
-            let back = decodeQR(url)
-            let inv = back.flatMap { V2.parseInvite($0) }
-            print(back == link && inv != nil ? "qr self-test OK (\(link.prefix(28))…)" : "qr self-test FAILED: \(back ?? "nil")")
-            ok = ok && back == link && inv != nil
-            if let inv { parsed.append(inv) }
+        let dir = UserDefaults.standard.string(forKey: "vectors") ?? "../nostr/identity"
+        func load(_ f: String) -> [String: Any]? {
+            (try? Data(contentsOf: URL(fileURLWithPath: "\(dir)/\(f)"))).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         }
-        let same = parsed.count == 2 && parsed[0].i == parsed[1].i && parsed[0].t == parsed[1].t
-            && parsed[0].x == parsed[1].x && parsed[0].r == parsed[1].r && parsed[0].r.count == 2
-        print(same ? "invite forms parse identically OK" : "invite forms parse identically FAILED")
-        // a pasted link with whitespace, and a non-invite https link
-        let pasted = V2.parseInvite("  https://sukrara.mauri.app/join/#" + query + "\n") != nil
-        let foreign = V2.parseInvite("https://example.com/join#" + query) == nil
-        print(pasted && foreign ? "paste / foreign-link checks OK" : "paste / foreign-link checks FAILED")
-        return ok && same && pasted && foreign
+        guard let v = load("vectors.json"), let inv = v["invite"] as? [String: String], let link = inv["short_link"],
+              let av = load("avatar-v1.json"), let dots = av["dots"] as? [[String: Any]] else {
+            print("self-test FAILED: vectors not found in \(dir) (run from spikes/menubar or pass -vectors)"); return false
+        }
+        var ok = true
+        func check(_ name: String, _ cond: Bool) { print("\(cond ? "OK" : "FAILED"): \(name)"); ok = ok && cond }
+        // QR round trip
+        if let f = CIFilter(name: "CIQRCodeGenerator") {
+            f.setValue(Data(link.utf8), forKey: "inputMessage")
+            if let img = f.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)) {
+                let url = URL(fileURLWithPath: NSTemporaryDirectory() + "sukrara-qr-selftest.png")
+                try? NSBitmapImageRep(ciImage: img).representation(using: .png, properties: [:])?.write(to: url)
+                check("QR round trip of the 63-char link", decodeQR(url) == link)
+            }
+        }
+        let l = V2.parseLink(link)
+        check("link → fingerprint + secret", l != nil && inv["i_pub"]!.hasPrefix(l!.fp) && V2.hex(l!.secret) == inv["secret"])
+        check("invite key = Python", l.flatMap { V2.inviteKeys($0)?.publicKey().toHex() } == inv["invite_key_pub"])
+        check("sukrara:join# form", V2.parseLink(V2.appScheme + link.dropFirst(V2.inviteBase.count)) != nil)
+        let q = "i=npub1sx93muthatzjzm9mc9t9cq7fsczq2n76hjwk43lk6x6ec7f7xzyshsma7v&t=pEzb2FHGbVDJllnfcXW-fg&x=1792238661&r=wss%3A%2F%2Fnos.lol"
+        check("old and foreign forms rejected", ["https://sukrara.mauri.app/join#" + q, "cgmshare:join?" + q,
+            link.replacingOccurrences(of: "sukrara.mauri.app", with: "evil.example"), String(link.dropLast())].allSatisfy { V2.parseLink($0) == nil })
+        var same = true
+        for d in dots {
+            let got = Avatar.V1.dots(d["seed"] as! Int), want = d["circles"] as! [[Double]]
+            for (g, w) in zip(got, want) {
+                same = same && abs(Double(g.0) - w[0]) < 1e-5 && abs(Double(g.1) - w[1]) < 1e-5 && abs(Double(g.2) - w[2]) < 1e-5
+                    && abs(Double(g.3) - w[3]) <= 1
+            }
+        }
+        check("avatar v1 dots = Python", same)
+        return ok
     }
 
     static func error(_ text: String) {
@@ -97,6 +108,7 @@ import NostrSDK
     private let title = NSTextField(labelWithString: "")
     private let codeLabel = NSTextField(labelWithString: "")
     private let detail = NSTextField(wrappingLabelWithString: "")
+    private let picture = NSImageView()
 
     init() {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 210), styleMask: [.titled, .closable],
@@ -106,20 +118,24 @@ import NostrSDK
         window.level = .floating
         let v = FilledView(frame: window.contentLayoutRect)
         title.font = .systemFont(ofSize: 15, weight: .semibold)
-        title.frame = NSRect(x: 20, y: 168, width: 320, height: 22)
+        picture.frame = NSRect(x: 20, y: 160, width: 40, height: 40)
+        title.frame = NSRect(x: 68, y: 168, width: 272, height: 22)
         codeLabel.font = .monospacedDigitSystemFont(ofSize: 52, weight: .bold)
         codeLabel.alignment = .center
         codeLabel.frame = NSRect(x: 20, y: 92, width: 320, height: 66)
         detail.frame = NSRect(x: 20, y: 14, width: 320, height: 70)
         detail.textColor = .secondaryLabelColor
-        [title, codeLabel, detail].forEach(v.addSubview)
+        [picture, title, codeLabel, detail].forEach(v.addSubview)
         window.contentView = v
     }
 
-    func show(_ phase: FollowerV2.Phase, name: String) {
+    func show(_ phase: FollowerV2.Phase, name: String, wearer: (name: String, avatar: [String: Any]?)) {
+        let who = wearer.name.isEmpty ? "the wearer" : wearer.name
+        window.title = "Follow \(wearer.name.isEmpty ? "someone" : wearer.name)"
+        picture.image = Avatar.image(wearer.avatar, name: wearer.name, size: 40)
         switch phase {
         case .waiting(let code):
-            title.stringValue = "Waiting for approval…"
+            title.stringValue = "Waiting for \(who) to approve…"
             codeLabel.stringValue = code
             codeLabel.textColor = .labelColor
             detail.stringValue = "Their phone shows a request from \"\(name)\". Check that it shows the same code "
@@ -133,7 +149,7 @@ import NostrSDK
             title.stringValue = "Access removed"
             codeLabel.stringValue = "—"
             codeLabel.textColor = .secondaryLabelColor
-            detail.stringValue = "The wearer stopped sharing with this Mac."
+            detail.stringValue = "\(who) stopped sharing with this Mac."
         }
         if !window.isVisible {
             window.center()

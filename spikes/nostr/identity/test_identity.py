@@ -52,16 +52,22 @@ print("3. Short invite link")
 owner = I.Account.generated()
 secret = secrets.token_bytes(16)
 short = I.short_link(I.pub(owner.root), secret)
+# the investigation-06 link, only to measure what the short form saves
 v2 = cgm2.invite_link(I.pub(owner.root), I.b64u(secret), int(time.time()) + I.DAY, cgm2.RELAYS) \
     .replace("cgmshare:join?", "https://sukrara.mauri.app/join#")
 p = I.parse_link(short)
-check("v3 parses", p["v"] == 3 and p["secret"] == secret and I.pub(owner.root).startswith(p["fp"]))
-check("v2 https link still parses", I.parse_link(v2)["v"] == 2 and I.parse_link(v2)["i"] == I.pub(owner.root))
-check("v2 cgmshare link still parses", I.parse_link(v2.replace("https://sukrara.mauri.app/join#", "cgmshare:join?"))["v"] == 2)
+check("parses", p["secret"] == secret and I.pub(owner.root).startswith(p["fp"]))
+for label, bad in [("06-style link", v2), ("cgmshare: link", v2.replace("https://sukrara.mauri.app/join#", "cgmshare:join?")),
+                   ("other host", short.replace("sukrara.mauri.app", "evil.example")), ("truncated", short[:-1])]:
+    try:
+        I.parse_link(bad)
+        check(f"{label} rejected", False, "accepted!")
+    except ValueError:
+        check(f"{label} rejected", True)
 qv2, qv3 = qr_version(v2), qr_version(short)
-check(f"shorter: {len(v2)} → {len(short)} chars", len(short) < len(v2) / 2)
+check(f"shorter than the 06 link: {len(v2)} → {len(short)} chars", len(short) < len(v2) / 2)
 check(f"smaller QR (ECC M): version {qv2[0]} ({qv2[1]}×{qv2[1]}) → version {qv3[0]} ({qv3[1]}×{qv3[1]})", qv3[0] < qv2[0])
-print(f"     v2: {v2}\n     v3: {short}")
+print(f"     06: {v2}\n     14: {short}")
 
 print("4. Invite gift wrap")
 x = int(time.time()) + I.DAY
@@ -70,10 +76,10 @@ check("outer event is a plain NIP-59 gift wrap (kind 1059, p = invite key, rando
       wrap["kind"] == 1059 and cgm2.tag(wrap, "p") == I.pub(I.invite_key(secret)) and wrap["pubkey"] != I.pub(owner.root))
 check("wrap carries NIP-40 expiration = invite expiry", cgm2.tag(wrap, "expiration") == str(x))
 inv = I.open_invite(p, [wrap])
-check("follower opens it → v2 invite {i,t,x,r} + profile",
+check("follower opens it → {i,t,x,r} + profile",
       inv["i"] == I.pub(owner.root) and inv["t"] == I.b64u(secret) and inv["profile"] == I.pub(owner.profile)
       and inv["name"] == "Alex")
-check("match code identical to v2 (token = secret)", cgm2.match_code("ab" * 32, inv["t"]) == cgm2.match_code("ab" * 32, I.b64u(secret)))
+check("match code = PROTOCOL-v2 formula with token = secret", cgm2.match_code("ab" * 32, inv["t"]) == cgm2.match_code("ab" * 32, I.b64u(secret)))
 
 # negatives
 mallory = I.Account.generated()

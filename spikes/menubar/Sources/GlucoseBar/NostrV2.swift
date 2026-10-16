@@ -40,39 +40,85 @@ enum V2 {
         String(decoding: (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed])) ?? Data(), as: UTF8.self)
     }
 
-    struct Invite { let i: String; let t: String; let x: Int; let r: [String] }
+    /// What a follower needs to ask for access (PROTOCOL-identity "Short invites"): identity, token, expiry, relays and
+    /// the wearer's profile (`{"name","avatar"}`), from a v3 short link or a phone's BLE INFO.
+    struct Invite { let i: String; let t: String; let x: Int; let r: [String]; let profile: [String: Any]? }
 
-    /// The invite's query part, from either form Sukrara shares:
-    /// `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…` (App Link, params in the fragment; `?` accepted too) or
-    /// `cgmshare:join?i=…` (custom scheme, CGM Share / older builds). nil if it's neither.
-    static func inviteQuery(_ link: String) -> String? {
+    /// Same set as Android `Proto.RELAYS`: take events from new keys and serve gift wraps (measured 2026-10-17).
+    static let relays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social"]
+    static let inviteBase = "https://sukrara.mauri.app/join#", appScheme = "sukrara:join#"
+    static let rumorInvite: UInt16 = 30502
+
+    /// The v3 short link: `https://sukrara.mauri.app/join#<base64url(I.pub[0:8] ‖ secret[16])>` (63 chars). The app's
+    /// own `sukrara:join#<32>` (the web page's "Open in Sukrara" button) is the same link. Nothing else is an invite.
+    struct Link { let fp: String; let secret: [UInt8]; var token: String { b64u(secret) } }
+
+    static func parseLink(_ link: String) -> Link? {
         let s = link.trimmingCharacters(in: .whitespacesAndNewlines)
-        let l = s.lowercased()
-        let q: Substring
-        if l.hasPrefix("cgmshare:"), let qm = s.firstIndex(of: "?") {
-            q = s[s.index(after: qm)...]
-        } else if l.hasPrefix("https://sukrara.mauri.app/join") {
-            if let h = s.firstIndex(of: "#"), s.index(after: h) < s.endIndex { q = s[s.index(after: h)...] }
-            else if let qm = s.firstIndex(of: "?") { q = s[s.index(after: qm)...] }
-            else { return nil }
-        } else { return nil }
-        return q.contains("i=") && q.contains("t=") ? String(q) : nil
+        let code: Substring
+        if s.hasPrefix(inviteBase) { code = s.dropFirst(inviteBase.count) }
+        else if s.hasPrefix(appScheme) { code = s.dropFirst(appScheme.count) }
+        else { return nil }
+        guard code.count == 32, code.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }),
+              let raw = unb64u(String(code)), raw.count == 24 else { return nil }
+        return Link(fp: hex(raw[0..<8]), secret: Array(raw[8..<24]))
     }
 
-    /// Is this text one of our invite links (either form)? Used for clipboard prefill and QR decoding.
-    static func isInvite(_ link: String) -> Bool { inviteQuery(link) != nil }
+    /// Is this text an invite link? Used for clipboard prefill and QR decoding.
+    static func isInvite(_ link: String) -> Bool { parseLink(link) != nil }
 
-    /// `i=<npub I>&t=<token>&x=<expiry>&r=<relay>,<relay>` (r may be percent-encoded), in either link form.
-    static func parseInvite(_ link: String, allowNoRelays: Bool = false) -> Invite? {
-        guard let query = inviteQuery(link) else { return nil }
-        var c = URLComponents()
-        c.percentEncodedQuery = query
-        let q = c.queryItems ?? []
-        func v(_ n: String) -> String? { q.first { $0.name == n }?.value }
-        guard let i = v("i").flatMap({ try? PublicKey.parse(publicKey: $0) }), let t = v("t"),
-              let x = v("x").flatMap(Int.init), let r = v("r") else { return nil }
-        let relays = r.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { $0.hasPrefix("ws") }
-        return relays.isEmpty && !allowNoRelays ? nil : Invite(i: i.toHex(), t: t, x: x, r: relays)
+    static func b64u(_ b: [UInt8]) -> String {
+        Data(b).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+    static func unb64u(_ s: String) -> [UInt8]? {
+        var t = s.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while t.count % 4 != 0 { t += "=" }
+        return Data(base64Encoded: t).map { Array($0) }
+    }
+
+    /// secp256k1 order n, big endian: an HKDF output must be in 1 ..< n to be a key.
+    private static let n: [UInt8] = (0..<32).map { i in
+        UInt8("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141".dropFirst(i * 2).prefix(2), radix: 16)! }
+
+    /// `scalar(ikm, salt, info)` of PROTOCOL-identity: RFC 5869 HKDF-SHA256, counter suffix if out of range.
+    static func scalar(_ ikm: [UInt8], salt: String, info: String) -> [UInt8] {
+        for ctr in 0..<256 {
+            let inf = Array(info.utf8) + (ctr == 0 ? [] : [UInt8(ctr)])
+            let k = HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: ikm), salt: Array(salt.utf8), info: inf,
+                                           outputByteCount: 32).withUnsafeBytes { Array($0) }
+            if k.contains(where: { $0 != 0 }), k.lexicographicallyPrecedes(n) { return k }
+        }
+        fatalError("unreachable")
+    }
+
+    /// The key the invite's gift wrap is addressed to; anyone holding the link can derive it.
+    static func inviteKeys(_ l: Link) -> Keys? { try? Keys.parse(secretKey: hex(scalar(l.secret, salt: "sukrara/invite/v3", info: "wrap-recipient"))) }
+
+    /// Open the invite: fetch the gift wraps addressed to the invite key from the default relays (AUTH as that key
+    /// where a relay asks), accept the one sealed by a key starting with the fingerprint and not expired.
+    @MainActor static func resolveInvite(_ link: String) async -> Result<Invite, FollowerV2.JoinError> {
+        guard let l = parseLink(link), let k = inviteKeys(l) else {
+            return .failure(.init(text: "That isn't a Sukrara invite link (https://sukrara.mauri.app/join#…)."))
+        }
+        let wraps = await RelayPool.fetch(urls: relays, authKeys: k,
+                                          filter: ["kinds": [Int(wrap)], "#p": [k.publicKey().toHex()]], timeout: 10)
+        var reasons: [String] = []
+        for json in wraps {
+            guard let ev = try? Event.fromJson(json: json), ev.verify(),
+                  let u = try? UnwrappedGift.fromGiftWrap(signer: k, giftWrap: ev) else { reasons.append("doesn't open with this link"); continue }
+            let sender = u.sender().toHex(), rumor = u.rumor()
+            guard rumor.kind().asU16() == rumorInvite,
+                  let body = try? JSONSerialization.jsonObject(with: Data(rumor.content().utf8)) as? [String: Any],
+                  body["type"] as? String == "invite", let x = body["x"] as? Int else { reasons.append("not an invite"); continue }
+            guard sender.hasPrefix(l.fp) else { reasons.append("sealed by \(sender.prefix(16))…, the link expects \(l.fp)…"); continue }
+            guard x > Int(Date().timeIntervalSince1970) else { reasons.append("expired"); continue }
+            let r = (body["r"] as? [String] ?? []).filter { $0.hasPrefix("wss://") }
+            log("v2: invite from \(sender.prefix(12)) '\((body["profile"] as? [String: Any])?["name"] as? String ?? "")' (\(wraps.count) wrap(s))")
+            return .success(Invite(i: sender, t: l.token, x: x, r: r, profile: body["profile"] as? [String: Any]))
+        }
+        let why = Array(Set(reasons)).sorted().joined(separator: "; ")
+        return .failure(.init(text: "Can't open this invite: \(why.isEmpty ? "nothing found on the relays (expired?)" : why)."))
     }
 
     /// Gift wrap a JSON body as rumor `kind`, sealed by `sender`, to `recipientHex`.
@@ -120,6 +166,58 @@ enum V2 {
     }
 
     var connected: Int { relays.filter { $0.ws != nil }.count }
+
+    /// One-shot query (invite lookup): REQ on every relay in parallel, NIP-42 AUTH as `authKeys` when a relay
+    /// closes the REQ with auth-required, events until EOSE or `timeout`. Union of the events' JSON, by id.
+    static func fetch(urls: [String], authKeys: Keys, filter: [String: Any], timeout: TimeInterval) async -> [String] {
+        let req = "[\"REQ\",\"q\",\(V2.json(filter))]"
+        return await withTaskGroup(of: [String].self) { group in
+            for u in urls.compactMap(URL.init(string:)) {
+                group.addTask {
+                    let ws = URLSession(configuration: .ephemeral).webSocketTask(with: u)
+                    ws.resume()
+                    try? await ws.send(.string(req))
+                    var got: [String] = [], challenge: String?, authId: String?
+                    let deadline = Date().addingTimeInterval(timeout)
+                    let killer = Task { try? await Task.sleep(for: .seconds(timeout)); ws.cancel(with: .goingAway, reason: nil) }
+                    defer { killer.cancel(); ws.cancel(with: .goingAway, reason: nil) }
+                    while Date() < deadline, let msg = try? await ws.receive() {
+                        guard case .string(let text) = msg,
+                              let arr = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [Any],
+                              let type = arr.first as? String else { continue }
+                        switch type {
+                        case "EVENT":
+                            if arr.count > 2, let ev = arr[2] as? [String: Any],
+                               let d = try? JSONSerialization.data(withJSONObject: ev) { got.append(String(decoding: d, as: UTF8.self)) }
+                        case "EOSE": return got
+                        case "AUTH": challenge = arr.count > 1 ? arr[1] as? String : nil
+                        case "CLOSED":
+                            guard (arr.count > 2 ? arr[2] as? String ?? "" : "").contains("auth-required"), authId == nil, let ch = challenge,
+                                  let tags = try? [Tag.parse(data: ["relay", u.absoluteString]), Tag.parse(data: ["challenge", ch])],
+                                  let ev = try? EventBuilder(kind: Kind(kind: V2.auth), content: "").tags(tags: tags).finalize(signer: authKeys),
+                                  let j = try? ev.asJson() else { return got }
+                            authId = ev.id().toHex()
+                            try? await ws.send(.string("[\"AUTH\",\(j)]"))
+                        case "OK":
+                            if arr.count > 2, arr[1] as? String == authId {
+                                guard arr[2] as? Bool == true else { return got }
+                                try? await ws.send(.string(req))
+                            }
+                        default: break
+                        }
+                    }
+                    return got
+                }
+            }
+            var all: [String: String] = [:]
+            for await evs in group {
+                for e in evs {
+                    if let id = (try? JSONSerialization.jsonObject(with: Data(e.utf8)) as? [String: Any])?["id"] as? String { all[id] = e }
+                }
+            }
+            return Array(all.values)
+        }
+    }
 
     func restart(_ why: String) {
         log("v2 relays restart: \(why) (\(relays.count) relays)")
@@ -254,6 +352,8 @@ struct FollowerV2State: Codable {
     var relays: [String]
     var token: String
     var name: String                   // how this Mac introduced itself
+    var avatar: String? = nil          // JSON of this Mac's generated picture (Avatar.swift), sent with `name`
+    var wearer: String? = nil          // JSON `{"name","avatar"}` of the person we follow: invite, then each roster
     var code: String
     var sid: String? = nil
     var epochs: [Epoch] = []
@@ -348,6 +448,15 @@ struct FollowerV2State: Codable {
         }
     }
     var relayHosts: [String] { pool.relays.map(\.host) }
+    /// What the wearer sees of this Mac.
+    var myProfile: [String: Any] {
+        ["name": st.name, "avatar": st.avatar.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } ?? NSNull()]
+    }
+    /// The person we follow: name ("" if unknown) and avatar JSON object.
+    var wearer: (name: String, avatar: [String: Any]?) {
+        let p = st.wearer.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        return ((p?["name"] as? String) ?? "", p?["avatar"] as? [String: Any])
+    }
     var followerPub: String { F.publicKey().toHex() }     // public — fine to show/log
     var connectedRelays: Int { pool.connected }
 
@@ -368,13 +477,14 @@ struct FollowerV2State: Codable {
     /// `sendRequest()`.
     struct JoinError: Error { let text: String }
 
-    static func join(link: String, name: String, nearby: Bool = false) -> Result<FollowerV2, JoinError> {
-        guard let inv = V2.parseInvite(link, allowNoRelays: nearby) else { return .failure(JoinError(text: "That isn't a Sukrara invite link (https://sukrara.mauri.app/join#… or cgmshare:join?…).")) }
+    static func join(_ inv: V2.Invite, name: String) -> Result<FollowerV2, JoinError> {
         if inv.x < Int(Date().timeIntervalSince1970) { return .failure(JoinError(text: "This invite has expired — ask for a new one.")) }
         let f = Keys.generate()
         guard let nsec = try? f.secretKey().toBech32() else { return .failure(JoinError(text: "Couldn't create a key.")) }
-        let st = FollowerV2State(f: nsec, i: inv.i, relays: inv.r, token: inv.t, name: name,
+        var st = FollowerV2State(f: nsec, i: inv.i, relays: inv.r.isEmpty ? V2.relays : inv.r, token: inv.t, name: name,
                                  code: V2.matchCode(f.publicKey().toHex(), inv.t))
+        st.avatar = V2.json(Avatar.random())
+        st.wearer = inv.profile.map { V2.json($0) }
         st.save()
         guard FollowerV2State.load() != nil, let node = FollowerV2(state: st) else {
             return .failure(JoinError(text: "Couldn't store the follower key in the Keychain."))
@@ -395,7 +505,7 @@ struct FollowerV2State: Codable {
     func stop() { pool.stop() }
 
     func sendRequest() {
-        guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "name": st.name])
+        guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "profile": myProfile])
         else { return }
         pool.publish(g)
         extraPublish?(g, nil)
@@ -470,6 +580,12 @@ struct FollowerV2State: Codable {
                   let body = try? JSONSerialization.jsonObject(with: Data(plain.utf8)) as? [String: Any],
                   body["v"] as? Int == 2, let devices = body["devices"] as? [String] else { return }
             st.rosterAt = at
+            if let p = body["profile"] as? [String: Any], V2.json(p) != st.wearer {
+                st.wearer = V2.json(p)
+                log("v2: wearer profile '\(p["name"] as? String ?? "")'")
+                onPhase?(phase)                          // the menu shows their name and picture
+            }
+            if let r = body["relays"] as? [String], !r.isEmpty { st.relays = r }   // used on next launch
             let writers = body["writers"] as? [String] ?? []
             let wasWriter = canWrite
             if writers != (st.writers ?? []) {

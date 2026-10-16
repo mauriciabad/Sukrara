@@ -195,17 +195,13 @@ class Engine private constructor(private val ctx: Context) {
         link
     }
 
-    /** Follower: resolve the link (v3 short via relays, v2 directly), show who's inviting, then ask. */
+    /** Follower: resolve the link via the relays, show who's inviting, then ask. */
     suspend fun join(link: String, myName: String) = work("Opening the invite") {
-        val inv: Nostr.OpenedInvite = when (val p = Derive.parse(link) ?: error("not a Sukrara link")) {
-            is Derive.Short -> {
-                val k = Nostr.keys(Derive.inviteKey(p.secret))
-                val found = Relays.queryAll(JSONObject().put("kinds", JSONArray().put(1059)).put("#p", JSONArray().put(Nostr.pub(k))), auth = k)
-                log("join: ${found.size} wrap(s) for this link via ${found.map { it.second.substringAfter("//") }.distinct()}")
-                Nostr.openInvite(p, found.map { it.first }).getOrThrow()
-            }
-            is Derive.Long -> Nostr.OpenedInvite(org.nostrdevkit.sdk.PublicKey.parse(p.iNpub).toHex(), p.token, p.expiry, p.relays, null, null)
-        }
+        val p = Derive.parse(link) ?: error("not a Sukrara invite link")
+        val k = Nostr.keys(Derive.inviteKey(p.secret))
+        val found = Relays.queryAll(JSONObject().put("kinds", JSONArray().put(1059)).put("#p", JSONArray().put(Nostr.pub(k))), auth = k)
+        log("join: ${found.size} wrap(s) for this link via ${found.map { it.second.substringAfter("//") }.distinct()}")
+        val inv = Nostr.openInvite(p, found.map { it.first }).getOrThrow()
         val prof = inv.profile?.let { fetchPicture(it) }
         val wearerName = prof?.name ?: inv.name ?: "The wearer"
         val me = root()

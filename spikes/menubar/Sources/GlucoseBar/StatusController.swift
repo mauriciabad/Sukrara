@@ -111,9 +111,10 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 
     /// nil hides the line (not following anyone over v2).
-    func setFollow(_ text: String?) {
+    func setFollow(_ text: String?, image: NSImage? = nil) {
         followLine.isHidden = text == nil
         followLine.title = text ?? ""
+        followLine.image = image
         unfollowItem?.isHidden = text == nil
     }
 

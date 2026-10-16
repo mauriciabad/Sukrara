@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +13,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,20 +58,32 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 interface FollowerActions {
-    fun join(link: String, name: String)
+    suspend fun resolve(link: String): Result<app.mauri.sukrara.core.Invite>
+    fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile)
+    fun editProfile()
     fun leave()
     fun setAlarms(low: Int, high: Int, on: Boolean)
     fun setTestUnfiltered(on: Boolean)
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit)
-    fun joinNearby(address: String, name: String)
+    fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile)
     fun addTreatment(k: String, a: Double, note: String, at: Long)
 }
 
 @Composable
 fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerActions) {
     val ctx = LocalContext.current
-    var name by remember { mutableStateOf("${Build.MODEL}") }
+    var me by remember { mutableStateOf(app.mauri.sukrara.core.Profile("", app.mauri.sukrara.core.Avatar.random())) }
     var link by remember(prefill) { mutableStateOf(prefill ?: "") }
+    // a pasted / scanned / opened link is looked up at once, so they see who is inviting before they ask
+    var invite by remember { mutableStateOf<app.mauri.sukrara.core.Invite?>(null) }
+    var lookup by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(link) {
+        invite = null
+        lookup = null
+        if (!Proto.isInvite(link)) return@LaunchedEffect
+        lookup = "Looking up the invite…"
+        a.resolve(link).fold({ invite = it; lookup = null }, { lookup = "Can't open this invite: ${it.message}" })
+    }
     var scanning by remember { mutableStateOf(false) }
     var imgError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -85,7 +97,6 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("I follow someone", style = MaterialTheme.typography.headlineSmall)
         Text("Scan the code on their phone (Share with someone), or open the link they sent you.")
-        OutlinedTextField(name, { name = it }, label = { Text("Name they will see") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         // the camera preview expands in place of the buttons; back closes it (instead of leaving the app)
         BackHandler(enabled = scanning) { scanning = false }
         Swap(scanning) { on ->
@@ -103,11 +114,26 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
         }
         OutlinedTextField(link, { link = it.trim() }, label = { Text("…or paste the invite link") },
             modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+        RevealValue(lookup) { Text(it, style = MaterialTheme.typography.bodySmall,
+            color = if (it.startsWith("Can't")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+        RevealValue(invite) { inv ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    ProfileRow(inv.profile, "Someone", 56.dp) {
+                        Text(inv.profile?.name?.ifBlank { null } ?: "Someone", style = MaterialTheme.typography.titleMedium)
+                        Text("wants to share their glucose with you", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        SectionTitle("How they will see you")
+        ProfileEditor(me, { me = it }, "Your name")
         RevealValue(error ?: imgError) { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { a.join(link, name) }, enabled = !busy && app.mauri.sukrara.core.Proto.isInvite(link), modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { invite?.let { a.join(it, me) } }, enabled = !busy && invite != null && me.name.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()) {
             Text("Ask for access")
         }
-        NearbyJoin(name, busy, a)
+        NearbyJoin(me, busy, a)
     }
 }
 
@@ -115,8 +141,9 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
 fun FollowerWaiting(u: FollowerUi, a: FollowerActions) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Waiting for approval", style = MaterialTheme.typography.headlineSmall)
-        Text("Asked ${u.ownerPub?.let { Proto.shortNpub(it) }} as \"${u.name}\". They will see this code — it must match:",
-            style = MaterialTheme.typography.bodyMedium)
+        AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 72.dp)
+        Text("Asked ${u.wearer?.name?.ifBlank { null } ?: u.ownerPub?.let { Proto.shortNpub(it) }} as \"${u.name}\". " +
+            "They will see this code — it must match:", style = MaterialTheme.typography.bodyMedium)
         Text(u.code ?: "", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
         CircularProgressIndicator()
         Text("No glucose is shown until the owner allows this phone.", style = MaterialTheme.typography.bodySmall)
@@ -131,8 +158,16 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
     var high by remember(u.high) { mutableStateOf(u.high.toString()) }
     val now = nowSeconds()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
-        Text("Following ${u.ownerPub?.let { Proto.shortNpub(it) }} · as \"${u.name}\"", style = MaterialTheme.typography.bodySmall)
+        ProfileRow(u.wearer, "Sukrara", 48.dp) {
+            Text(u.wearer?.name?.ifBlank { null } ?: "Sukrara", style = MaterialTheme.typography.headlineSmall)
+            Text("Following ${u.ownerPub?.let { Proto.shortNpub(it) }}", style = MaterialTheme.typography.bodySmall)
+        }
+        Row(Modifier.clickable { a.editProfile() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("You appear as", style = MaterialTheme.typography.bodySmall)
+            AvatarImage(u.me?.avatar, u.name ?: "", 24.dp)
+            Text(u.name ?: "", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+            Text("Edit", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+        }
         Reveal(u.status == "revoked") {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
@@ -207,7 +242,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
 
 /** Investigation 07: list owners advertising the Sukrara service nearby; tap one to ask for access over BLE. */
 @Composable
-private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
+private fun NearbyJoin(me: app.mauri.sukrara.core.Profile, busy: Boolean, a: FollowerActions) {
     var scanning by remember { mutableStateOf(false) }
     val found = remember { androidx.compose.runtime.mutableStateMapOf<String, app.mauri.sukrara.core.NearbyOwner>() }
     SectionTitle("Nearby (Bluetooth, no internet needed)")
@@ -226,7 +261,7 @@ private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
                     Text(o.name, fontWeight = FontWeight.SemiBold)
                     Text("${o.address} · ${o.rssi} dBm", style = MaterialTheme.typography.bodySmall)
                 }
-                Button(onClick = { a.joinNearby(o.address, name) }, enabled = !busy) { Text("Ask") }
+                Button(onClick = { a.joinNearby(o.address, me) }, enabled = !busy && me.name.isNotBlank()) { Text("Ask") }
             }
         }
     }

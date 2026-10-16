@@ -80,7 +80,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun takeLink(i: Intent?) {
-        val link = i?.dataString?.takeIf { app.mauri.sukrara.core.Proto.isInvite(it) } ?: return
+        // the App Link, or sukrara:join#… from the web page's "Open in Sukrara" button: both become the https link
+        val link = i?.dataString?.let { app.mauri.sukrara.core.Derive.parse(it) }?.let {
+            app.mauri.sukrara.core.Derive.INVITE_BASE + i.dataString!!.substringAfter('#')
+        } ?: return
         when (role) {
             null -> { App.setRole(this, "follower"); role = "follower"; deepLink = link }
             "follower" -> deepLink = link
@@ -146,9 +149,9 @@ class MainActivity : ComponentActivity() {
 
         val actions = remember {
             object : OwnerActions {
-                override fun create() {
+                override fun create(profile: app.mauri.sukrara.core.Profile) {
                     lifecycleScope.launch {
-                        engine.createIdentity()
+                        engine.createIdentity(profile)
                         startForegroundService(Intent(this@MainActivity, OwnerService::class.java))
                         engine.setForeground(true)
                     }
@@ -228,6 +231,7 @@ class MainActivity : ComponentActivity() {
                 override fun nearbyPairing() { engine.nearbyPairing() }
                 override fun setWriter(f: String, on: Boolean) { engine.setWriter(f, on) }
                 override fun open(s: String) { screen = s }
+                override fun saveProfile(profile: app.mauri.sukrara.core.Profile) { engine.setProfile(profile) }
             }
         }
 
@@ -238,6 +242,11 @@ class MainActivity : ComponentActivity() {
             else ScreenHost(screen, home = "home", onBack = { screen = "home" }) { s ->
                 when (s) {
                     "share" -> Page { ShareScreen(u, actions) { screen = "home" } }
+                    "profile" -> Page {
+                        ProfileScreen("Your profile", u.profile ?: app.mauri.sukrara.core.Profile("", null), "Your name",
+                            "Your followers get the change at once. New invites show it to the person you invite.",
+                            actions::saveProfile) { screen = "home" }
+                    }
                     "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }) { screen = "home" } }
                     "sensor" -> Page { SensorScreen { screen = "home" } }
                     else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
@@ -257,13 +266,16 @@ class MainActivity : ComponentActivity() {
         val log by engine.log.lines.collectAsStateWithLifecycle()
         var error by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf(false) }
+        var screen by remember { mutableStateOf("home") }
 
         val actions = remember {
             object : FollowerActions {
-                override fun join(link: String, name: String) {
+                override suspend fun resolve(link: String) = engine.resolveInvite(link)
+                override fun editProfile() { screen = "profile" }
+                override fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile) {
                     lifecycleScope.launch {
                         busy = true
-                        error = engine.join(link, name)
+                        error = engine.join(inv, me)
                         busy = false
                         if (error == null) {
                             deepLink = null
@@ -282,10 +294,10 @@ class MainActivity : ComponentActivity() {
                 override fun setAlarms(low: Int, high: Int, on: Boolean) { engine.setAlarms(low, high, on) }
                 override fun setTestUnfiltered(on: Boolean) { engine.setTestUnfiltered(on) }
                 override fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = engine.scanNearby(onFound)
-                override fun joinNearby(address: String, name: String) {
+                override fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile) {
                     lifecycleScope.launch {
                         busy = true
-                        error = engine.joinNearby(address, name)
+                        error = engine.joinNearby(address, me)
                         busy = false
                         if (error == null) startForegroundService(Intent(this@MainActivity, FollowerService::class.java))
                     }
@@ -294,12 +306,14 @@ class MainActivity : ComponentActivity() {
             }
         }
         FollowerRefresh { engine.refreshUi() }
-        val step = when (u.status) { "none", "requested" -> u.status; else -> "home" }
+        val step = when (u.status) { "none", "requested" -> u.status; else -> if (screen == "profile") "profile" else "home" }
         AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->
             Page {
                 when (s) {
                     "none" -> FollowerJoin(deepLink, busy, error, actions)
                     "requested" -> FollowerWaiting(u, actions)
+                    "profile" -> ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
+                        "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile) { screen = "home" }
                     else -> FollowerHome(u, relays, log, actions)
                 }
             }

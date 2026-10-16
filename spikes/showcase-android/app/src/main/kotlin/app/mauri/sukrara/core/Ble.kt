@@ -19,7 +19,7 @@ import org.json.JSONObject
  * Frame = `[msgId u16][idx u16][count u16]` (big endian) + up to `mtu - 3 - 6` payload bytes.
  * A message is the UTF-8 of a JSON array, Nostr-wire style:
  *  - `["HELLO", {"v":2}]`      follower → owner: "send me INFO + what you have"
- *  - `["INFO", {...}]`         owner → follower: `{"v":2,"i":<I hex>,"relays":[…],"pair":{"t":token,"x":expiry}|null}`
+ *  - `["INFO", {...}]`         owner → follower: `{"v":2,"i":<I hex>,"relays":[…],"pair":{"t":token,"x":expiry,"profile":{…}}|null}`
  *  - `["EVENT", <nostr event>]` both ways: live, chunks, roster, gift wraps, treatments — verified by the engine
  *
  * BLE pairing/bonding is NOT used: anyone nearby may connect. Trust comes only from the events (signatures,
@@ -73,7 +73,9 @@ object Ble {
         }
     }
 
-    fun info(iPub: String, relays: List<String>, token: String?, expiry: Long): JSONObject = JSONObject()
+    /** The wearer's [profile] is only in `pair`, i.e. only while "Pair nearby" is open (like a v3 invite wrap). */
+    fun info(iPub: String, relays: List<String>, token: String?, expiry: Long, profile: Profile): JSONObject = JSONObject()
         .put("v", 2).put("i", iPub).put("relays", JSONArray(relays))
-        .put("pair", if (token != null && expiry > Proto.nowS()) JSONObject().put("t", token).put("x", expiry) else JSONObject.NULL)
+        .put("pair", if (token != null && expiry > Proto.nowS())
+            JSONObject().put("t", token).put("x", expiry).put("profile", profile.toJson()) else JSONObject.NULL)
 }

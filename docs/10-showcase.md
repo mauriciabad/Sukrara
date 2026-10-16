@@ -75,9 +75,10 @@ Changes from the source spikes:
   `DUMP`-protected `DebugReceiver`, in debug and release.
 - **One process and one foreground service** (`OwnerService`, type `connectedDevice`). The status-bar notification
   is that service's notification, so the chip costs no extra post.
-- **Invites are App Links**: `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…`, with an `autoVerify` filter on
-  https/`sukrara.mauri.app`/`/join`. `cgmshare:join?…` is still accepted (deep link, scanner, paste). Sukrara for Mac
-  now accepts both forms (gap audit); the share screen keeps a **"Copy cgmshare: link (older Mac builds)"** button.
+- **Invites are App Links**: since 0.11 the v3 short link `https://sukrara.mauri.app/join#<32 chars>`, with an
+  `autoVerify` filter on https/`sukrara.mauri.app`/`/join`. The web page's *Open in Sukrara* button uses the app's
+  own `sukrara:join#<32 chars>` scheme (Mac, and phones without verified App Links). The old `#i=…&t=…` and
+  `cgmshare:` forms are gone (see "Short invites and private profiles" below).
 - Follower treatments (v2 writers) are merged into the shared treatment log, so they reach the Mac (v2) and
   LibreView (if enabled).
 
@@ -91,13 +92,15 @@ Changes from the source spikes:
    On the phone, `adb shell appops set app.mauri.sukrara.poc POST_PROMOTED_NOTIFICATIONS allow` did it. **System
    icons** (root) and the **SystemUI hook** (LSPosed) are bundled since 2026-10-16 (see "Root status bar" below):
    Sukrara needs root in KernelSU and its own LSPosed module enabled (scope System UI), then one System UI restart.
-4. **Share**: *Share with someone* shows the QR / link. The follower installs Sukrara and chooses *I follow someone*.
-   The link opens the app directly (verified App Link), or `https://sukrara.mauri.app/join/` if the app isn't
-   installed. The wearer checks the 4-digit code and taps *Allow*. **Nearby**: *Pair nearby* (10 min), and the
+4. **Share**: *Share with someone* shows the QR / link and "They'll see [picture] name". The follower installs
+   Sukrara and chooses *I follow someone*. The link opens the app directly (verified App Link), or
+   `https://sukrara.mauri.app/join/` if the app isn't installed. The app shows who is inviting; the follower types
+   their name (Shuffle / Customize the picture) and asks. The wearer checks the 4-digit code and taps *Allow*. Change
+   your own name or picture by tapping it at the top of the home screen (wearer) or *You appear as … Edit* (follower). **Nearby**: *Pair nearby* (10 min), and the
    follower picks the phone from the list.
 5. **Mac (Sukrara for Mac, `spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: follows end-to-end encrypted over
-   Nostr + BLE like any follower: Share → *Copy link* (the
-   `https://sukrara.mauri.app/join#…` link or the `cgmshare:` one) → Sukrara for Mac → *Follow someone…* → paste →
+   Nostr + BLE like any follower: Share → *Copy* (the `https://sukrara.mauri.app/join#…` link) → Sukrara for Mac
+   (0.11 or later) → *Follow someone…* → paste →
    Allow on the phone. Low / high / no-data alarms on the Mac too. The old GlucoseBar follow state is migrated once.
    Details: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
 6. **Garmin**: nothing to do while Juggluco is the source, because Juggluco keeps port 17580 and serves the watch.
@@ -157,7 +160,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nightscoutLan` | `--ez` | false | the same API on all interfaces; non-loopback callers need the API secret |
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
-| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
+| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https link> [--es name <n>]` looks the invite up on the relays, sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service). `profile --es name <one word> [--ez shuffle true]` (both roles) sets your name / a new random picture; the reply shows `owner.profile` + `owner.followerNames`, or `follower.me` + `follower.wearer` |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -193,7 +196,7 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 - Settings writes and the receiver's reply are asynchronous: the `runtime` part of the reply can be one step behind
   a switch it just flipped. Read again to see the applied state.
 - Turning BLE followers off and on quickly can leave the "connected followers" count stale (cosmetic).
-- `relay.nostr.net` rejects NIP-42 AUTH ("needs serviceUrl"). This is known from 06; the other three relays serve.
+- ~~`relay.nostr.net` rejects NIP-42 AUTH ("needs serviceUrl")~~ Replaced by relay.snort.social in 0.11.
 - LibreView's payload still names the device "GlucoBridge" (unchanged from inv. 04, kept on purpose because that
   format was tested).
 - Direct mode was not run end to end inside Sukrara: compiled only.
@@ -466,6 +469,64 @@ functions … create new content").
 | Filter chips for single choices (source, priority, intervals) | the guidelines put single choices in a radio dialog |
 | The uploader's unused `upload` pref | the parent switch is `Features.libreview` (no backwards compatibility) |
 | One shared note on every entry | a note is its own entry, so nothing is duplicated |
+
+## Short invites and private profiles (v0.11.0)
+
+*2026-10-17. Investigation 14 brought into Sukrara (Android + Mac). Kept and left out, with reasons:
+[docs/14 → In Sukrara](14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out).*
+
+**Added**
+- **v3 short invites only**: `https://sukrara.mauri.app/join#<32 chars>` (63 chars, QR version 5 instead of 11). The
+  wearer publishes the details (expiry, relays, its profile) as a NIP-59 gift wrap sealed by the identity and
+  addressed to a key derived from the link; the follower looks it up and checks the seal against the link's
+  fingerprint before showing "Alex wants to share their glucose with you". Code: `core/Derive.kt`,
+  `Proto.newInvite / openInvite`, `FollowerEngine.resolveInvite`; Mac `V2.parseLink / resolveInvite`,
+  `RelayPool.fetch`. `cgmshare:` and the `#i=…&t=…` links are deleted in both apps and on the join page.
+- **Private names and generated pictures** (`core/Avatar.kt`, `ui/Profiles.kt`; Mac `Avatar.swift`): wearer
+  onboarding and *Your profile* (name, Shuffle, Customize: shape chips + colour swatches), the follower's join screen
+  ("How they will see you") and *You appear as … Edit*. Shown in the home header, the follower list, the approval
+  dialog, the share screen, the follower's header and waiting screen, and on the Mac (menu line, pairing window,
+  nearby dialog). They travel only inside the encrypted invite, request, roster, `profile` message and owner
+  backup ([PROTOCOL-v2 → Profiles](../spikes/nostr/PROTOCOL-v2.md#profiles)). The picture is versioned numbers
+  (`v`), and each app keeps every renderer version; an unknown version shows a grey initial.
+- **Relay set**: nos.lol, relay.primal.net, nostr.mom, **relay.snort.social** (was relay.nostr.net, which can't serve
+  gift wraps). The wearer no longer stores a relay list: it always uses the current set, and the roster tells
+  followers.
+- **Fixes found on the way**: gift wraps now get an absolute expiration (24 h invites and 1-day history requests were
+  rejected as already expired); invites are really single-use (other pending requests on a used invite are dropped).
+- **Upgrade**: an existing wearer gets a random picture and "Add your name" in the header; existing followers show
+  a grey initial until they set a picture (needs their app ≥ 0.11 and a `profile` update, or a new invite).
+
+**Left out**: public kind 0 / profile key, Blossom and photo upload, Nostr login (nsec / words / Amber), "Delete
+account everywhere".
+
+**Tested** (two emulators, wearer upgraded in place from 0.10.6; a test copy of Sukrara for Mac with a throwaway
+Keychain item; the Mac was overloaded at load ≈ 25, so some steps used the DebugReceiver instead of taps):
+
+| | |
+|---|---|
+| Kotlin unit tests | `InviteTest` 4/4: RFC 5869, link = Python vector, old/foreign forms rejected, avatar dots = Python |
+| Mac `-qrselftest` | 6/6: QR round trip, link codec, invite key = Python, `sukrara:join#`, old forms rejected, dots = Python |
+| Mac follows the Android wearer | resolved "Alex" from the link; request with the Mac's picture; code 8461 on both; Allow → key + readings |
+| Android follower (App Link) | preview card "Alex"; request; Allow → active, 1728 readings, live via relay.snort.social |
+| Rename | wearer "Alexa" → follower header in ~30 s (roster); follower "Mum" + new picture → wearer's list |
+| Single use | 2 requests on one invite → approve one → 0 pending |
+
+| | | |
+|---|---|---|
+| ![upgrade](../spikes/showcase-android/evidence/p1-upgrade-request-fallback-avatar.png) | ![customize](../spikes/showcase-android/evidence/p2-profile-customize.png) | ![home](../spikes/showcase-android/evidence/p3-wearer-home-profile.png) |
+| After the upgrade: "Add your name", random picture; an old request shows the grey initial | *Your profile* → Customize | Header with name and picture |
+| ![share](../spikes/showcase-android/evidence/p4-share-v3-qr.png) | ![request](../spikes/showcase-android/evidence/p5-request-from-mac.png) | ![preview](../spikes/showcase-android/evidence/p6-follower-invite-preview.png) |
+| Share: QR version 5, "They'll see Alex" | Request from the Mac with its generated picture | Follower: who is inviting, before asking |
+| ![follower home](../spikes/showcase-android/evidence/p7-follower-home-header.png) | ![followers](../spikes/showcase-android/evidence/p8-followers-avatars.png) | ![mac](../spikes/showcase-android/evidence/p9-mac-waiting.png) |
+| Follower header after the wearer renamed to "Alexa" | Follower list with pictures | Sukrara for Mac waiting, with the wearer's picture |
+
+**Open — the match code** (user question, researched 2026-10-17): names and pictures are self-asserted, so they
+don't replace the 4-digit code; but asking for it on every request trains people to tap Allow (in the test above the
+wearer allowed "Intruder" by tapping). The research recommends: keep the code on the follower's screen; on the
+wearer's side show it only as a secondary line normally, and make the wearer *type* it when it matters (two requests
+on one invite, nearby Bluetooth / Mac, a name matching an existing follower). Waiting for the user's decision; see
+`NEXT.md`.
 
 ## Next
 
