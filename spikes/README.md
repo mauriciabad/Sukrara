@@ -95,7 +95,7 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home P
 Followers need the link shown in the app (text + QR). With a debug build (`assembleDebug`) you can also pull it:
 `adb shell run-as dev.spike.cgmnostr cat files/follower-link.txt > ../secrets/follower-link.txt`.
 
-### Protocol v2 — sharing and keys (investigation 07)
+### Protocol v2 — sharing and keys (investigation 06)
 
 Spec: [`nostr/PROTOCOL-v2.md`](nostr/PROTOCOL-v2.md). Python reference + end-to-end tests on public relays:
 

@@ -145,7 +145,7 @@ retraction, else empty.
 Every device appends each uploaded treatment row (`recordNumber`, `id`, `k`, `t`, deleted?) to a local ledger.
 `lv.py cleanup` (and the apps' "delete all spike treatments") re-sends every ledger row as deleted.
 
-## 5. Treatments over Nostr — proposal (fits investigation 03's [PROTOCOL.md](../nostr/PROTOCOL.md) and its v2 key design in investigation 07; not built)
+## 5. Treatments over Nostr — proposal (fits investigation 03's [PROTOCOL.md](../nostr/PROTOCOL.md) and its v2 key design in investigation 06; not built)
 
 Glucose stays as 03/07 define it. Treatments differ in one way that matters: **several devices create them**
 (phone, Mac, later a parent's phone), so they can't all be "the uploader". Terms from 07's PROTOCOL v2 (draft,

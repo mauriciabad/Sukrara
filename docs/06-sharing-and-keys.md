@@ -1,4 +1,4 @@
-# 07 — Sharing, follower apps and key management without lock-in
+# 06 — Sharing, follower apps and key management without lock-in
 
 *2026-10-16 · investigation report · follows [03 — Nostr](03-nostr.md) · spec: [PROTOCOL-v2](../spikes/nostr/PROTOCOL-v2.md)*
 

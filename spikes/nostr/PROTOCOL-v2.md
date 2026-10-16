@@ -1,9 +1,9 @@
-# CGM-over-Nostr protocol — draft v2 (investigation 07)
+# CGM-over-Nostr protocol — draft v2 (investigation 06)
 
 Changes vs. [v1](PROTOCOL.md): an **identity key** separate from the publishing **device key**, a **stream id** for
 tags, **epoch-versioned read keys** delivered privately per follower (no secret ever in a QR/link), **invite →
 request → approve** sharing, **revocation by rotation**, and an **owner backup** so a new phone restores everything
-from one password-manager entry. Design notes and sources: [docs/07](../../docs/07-sharing-and-keys.md).
+from one password-manager entry. Design notes and sources: [docs/06](../../docs/06-sharing-and-keys.md).
 Modelled on the open NIP-DA proposal (nostr-protocol/nips#2411, scoped data grants).
 
 ## Keys

@@ -94,7 +94,7 @@ lines, no dependencies. It copies Juggluco's output field for field ([captured s
   ~16 min, so without persistence every service restart left a 10–15 min hole in the watch graphs (seen during the
   test: the user saw it in CGM+'s 1 h graph).
 - **Power:** one thread blocked in `accept()`. There is no polling and no wakelock. The work is ~3 requests per
-  5 min, each a few ms. Not measured separately (the phone was needed for investigation 06's battery runs).
+  5 min, each a few ms. Not measured separately (the phone was needed for investigation 11's battery runs).
 - **Only in the `direct` flavor.** In the `juggluco` flavor, Juggluco's own server must keep the port; whoever
   binds first wins, and that could silently starve the watch.
 
