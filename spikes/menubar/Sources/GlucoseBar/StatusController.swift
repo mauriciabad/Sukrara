@@ -104,8 +104,8 @@ final class StatusController: NSObject, NSMenuDelegate {
     @objc private func followQR() { onFollowQR?() }
     @objc private func unfollow() { onUnfollow?() }
 
-    /// A checkable item (alarms toggle) in the follow section.
-    func addToggle(_ item: NSMenuItem) {
+    /// An extra item ("Alerts…") right after the follow section.
+    func addItem(_ item: NSMenuItem) {
         guard let stop = unfollowItem, let i = menu.items.firstIndex(of: stop) else { return menu.addItem(item) }
         menu.insertItem(item, at: i + 1)
     }

@@ -179,7 +179,7 @@ class BleOwner(
 
     override fun publish(ev: Event, lane: Lane, key: String?) {
         val json = ev.asJson()
-        val k = if (lane == Lane.LIVE) "live" else key
+        val k = if (lane == Lane.LIVE) key ?: "live" else key   // "alert" keeps its own backlog slot
         if (k != null && k.startsWith("tr:")) synchronized(treatments) { treatments.remove(k); treatments[k] = json }
         else if (k != null) synchronized(cache) { cache.remove(k); cache[k] = json }
         // recent gift wraps (key deliveries…) too, so a follower that reconnects within minutes still gets them

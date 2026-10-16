@@ -69,6 +69,23 @@ enum V2SelfTest {
         node.onEvent(chunk, via: "test")
         check("hour chunk decoded (2 rows)", readings.suffix(2) == [90, 91])
         treatments(node, sid: sid, I: I, D: D, G: G, X: X, F: F, check: check)
+        // Alert events (alerts SPEC §4): kind 21079, same checks as live, deduped by id, ≤ 10 min old.
+        var alerts: [String] = []
+        node.onAlert = { body, _ in alerts.append("\(body["k"] ?? "?"):\(body["state"] ?? "?")") }
+        func alert(_ by: Keys, _ k: String, at: Int = now, type: String = "alert") -> String {
+            event(by, kind: V2.alert, encTo: G, ["v": 2, "type": type, "id": "0123456789abcdef", "k": k, "state": "fire", "at": at,
+                                                 "t": at, "sgv": 192, "r": 0.4, "th": 185, "n": 1], tags: [["gk", gk]])
+        }
+        let genuine = alert(D, "high")
+        node.onEvent(genuine, via: "relay:test")
+        node.onEvent(genuine, via: "ble:test")
+        check("alert from a roster device accepted once (relay + BLE copy deduped)", alerts == ["high:fire"])
+        node.onEvent(alert(X, "low"), via: "test")
+        check("alert from a non-roster key rejected", alerts == ["high:fire"])
+        node.onEvent(alert(D, "very_high", at: now - 11 * 60), via: "test")
+        check("alert older than 10 min ignored", alerts == ["high:fire"])
+        node.onEvent(alert(D, "low", type: "live"), via: "test")
+        check("kind 21079 whose type isn't \"alert\" rejected", alerts == ["high:fire"])
         node.onEvent(V2.gift(X, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")
         check("forged revoked notice ignored", node.phase == .active(epoch: 1))
         node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")

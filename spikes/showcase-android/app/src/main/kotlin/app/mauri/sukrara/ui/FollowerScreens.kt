@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +62,7 @@ interface FollowerActions {
     fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile)
     fun editProfile()
     fun leave()
-    fun setAlarms(low: Int, high: Int, on: Boolean)
+    fun openAlerts()
     fun setTestUnfiltered(on: Boolean)
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit)
     fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile)
@@ -153,8 +154,7 @@ fun FollowerWaiting(u: FollowerUi, a: FollowerActions) {
 @Composable
 fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<String>, a: FollowerActions) {
     var showLog by remember { mutableStateOf(false) }
-    var low by remember(u.low) { mutableStateOf(u.low.toString()) }
-    var high by remember(u.high) { mutableStateOf(u.high.toString()) }
+    val alerts by app.mauri.sukrara.alerts.Alerts.settings.collectAsState()
     val now = nowSeconds()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ProfileRow(u.wearer, "Sukrara", 48.dp) {
@@ -176,7 +176,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             }
         }
         val l = u.last
-        val noData = u.status == "active" && (l == null || now - l.t >= u.noDataMin * 60)
+        val noData = u.status == "active" && (l == null || now - l.t >= alerts.cfg(app.mauri.sukrara.alerts.Kind.NO_DATA).value * 60)
         BigGlucose(l?.sgv, l?.rate, l?.t, u.low, u.high,
             subtitle = l?.let { "via ${it.via.removePrefix("relay:")} · key epoch ${it.epoch}" })
         RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
@@ -200,18 +200,8 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             }
         } }
 
-        SectionTitle("Alarms")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Low / high / no data for ${u.noDataMin} min", Modifier.weight(1f))
-            Switch(u.alarmsOn, { a.setAlarms(low.toIntOrNull() ?: u.low, high.toIntOrNull() ?: u.high, it) })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(low, { low = it.filter(Char::isDigit) }, label = { Text("Low") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(100.dp))
-            OutlinedTextField(high, { high = it.filter(Char::isDigit) }, label = { Text("High") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(100.dp))
-            TextButton(onClick = { a.setAlarms(low.toIntOrNull() ?: u.low, high.toIntOrNull() ?: u.high, u.alarmsOn) }) { Text("Save") }
-        }
+        SectionTitle("Alerts")
+        AlertsRow(alerts, follower = true, onClick = a::openAlerts)
 
         // Widgets and the status-bar chip follow this person too (FollowerExtras); local servers serve their values.
         LocalServersSection()

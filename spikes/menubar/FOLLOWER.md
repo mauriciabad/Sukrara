@@ -35,11 +35,7 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   follower state copied; files: Application Support/GlucoseBar copied to Sukrara`, then `v2 live … via relay:` and
   `via ble:Tartaruga` from the same wearer (epoch 1), no re-pairing.
 - **Log file**: the bundled app also writes `~/Library/Logs/Sukrara.log` (an app started with `open` has no stdout).
-- **Alarms** (`Alarms.swift`), same rules as the Android follower: LOW ≤ 65, HIGH ≥ 185 (again after 30 min if it
-  stays there), "No glucose data" after 20 min; readings older than 15 min (backfill) never alarm. Time-sensitive
-  `UNUserNotificationCenter` notifications (macOS asks once for permission). Menu: "Alarms (low 65 · high 185 · no
-  data 20 min)" checkmark, default on (`defaults write app.mauri.sukrara.poc alarms -bool NO`). They run on the merged
-  data, whichever path delivered them.
+- **Alerts** (`Alerts.swift`, `AlertsUI.swift`; replaced the old `Alarms.swift`, see the alerts section below).
 
 ## One Bluetooth link, treatments over v2, writer gating (2026-10-16, later)
 
@@ -72,6 +68,40 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   "⚠︎ Access removed by the wearer". **Stop following** deletes the keys.
 - Source label: `Nostr · <relay host>` or `Bluetooth · <phone name>`.
 
+## Glucose alerts (2026-10-17, investigation 15)
+
+Same rules and settings JSON as Sukrara for Android ([alerts SPEC](../alerts/SPEC.md)): urgent low / low / high /
+very high (one at a time, escalation fires at once), falling / rising fast, no data; re-alert every `repeatMin`, no
+flapping, readings > 15 min old never alert; highs muted after rapid insulin (the Mac's treatment log) and when the
+trend brings it back under the high threshold soon.
+
+- **Menu → Alerts…** (⌘,) opens a settings window (HIG macOS settings: preference toolbar with one *Alerts* pane, no
+  minimize/zoom, changes apply at once): master switch, state line ("High · muted: insulin 12 min ago"), alert source,
+  per kind on/threshold/repeat/sound + ▶︎ preview, quiet-highs options, sound pack + "Different sound each time".
+- **Settings**: one JSON string, `defaults read app.mauri.sukrara.poc alertSettings` (SPEC §3 keys and defaults; any
+  missing key keeps its default). The old `alarms` bool is gone.
+- **Alert source**: *Same as the wearer* (default) mirrors the wearer's kind **21079** `alert` events (relays: the
+  `l` subscription is now kinds `[21078, 21079]`; Bluetooth: the same `FollowerV2.onEvent`), with the live acceptance
+  checks, deduped by event id, ignored when `at` is > 10 min old; `fire` posts the kind with this Mac's sound, `clear`
+  removes it. `no_data` still runs here. Without an approved v2 follow (legacy BLE / Juggluco Wi-Fi only) there is
+  nothing to mirror, so this Mac's rules run and the window says so. *This Mac's settings* runs every rule locally.
+- **Notifications**: one identifier per group (`level`, `rate`, `no_data`), so a new alert replaces the old; posts and
+  removals are coalesced per run-loop turn (usernoted cancelled both adds when two same-id requests arrived ms apart).
+  Sounds: the 84 `spikes/alerts/sounds/out/*.caf` are copied by `bundle.sh` into `Contents/Resources` —
+  `UNNotificationSound(named:)` looks in the app container's `Library/Sounds`, a shared group container's
+  `Library/Sounds`, then *"The main bundle of the current executable"*
+  ([UNNotificationSound](https://developer.apple.com/documentation/usernotifications/unnotificationsound)). `system` =
+  `.default`, `none` = silent. `swift run` (no bundle, no notification center) logs and plays the repo's `.caf`.
+- **Time Sensitive**: needs the `com.apple.developer.usernotifications.time-sensitive` entitlement, which comes with a
+  provisioning profile; `bundle.sh` signs without one, so lows go out `.active` (the app checks its own entitlement and
+  switches to `.timeSensitive` once signed with it). Notification settings report `timeSensitive 0` (not supported).
+- **Tests**: `swift run GlucoseBar -alerts-selftest` (engine over a scripted series with an injected clock, settings
+  JSON, sounds; 53 checks), `-v2selftest` now includes alert events (accepted from a device, deduped across relay +
+  BLE, forged / > 10 min old / wrong type rejected). On a launched app: `-alert-test <kind>` posts one test alert with
+  its sound, `-alert-feed "200,1;260,1"` runs readings through this Mac's rules, `-alertsSnapshot out.png` renders the
+  window; on the running app `Sukrara -debugsend '{"cmd":"alert-test","k":"low"}'` (also `alert-feed` with
+  `"feed"`, `alert-state`, `alert-clear`, `alerts-window`).
+
 ## Code
 
 | File | What |
@@ -83,7 +113,9 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
 | `Keychain.swift` | follower state (F nsec, epoch read keys, sid, roster) as one login-Keychain item — never UserDefaults, never logged |
 | `V2SelfTest.swift` | `GlucoseBar -v2selftest`: genuine vs. forged events through `onEvent` |
 | `Migration.swift` | one-time GlucoseBar → Sukrara copy (defaults, Application Support, follower Keychain item) |
-| `Alarms.swift` | low / high / no-data notifications + menu toggle |
+| `Alerts.swift` | alert settings (SPEC §3 JSON), `AlertEngine` (rules, mutes, repeats, injected clock), `Alerts` (notifications, sounds, wearer mirroring, test hooks) |
+| `AlertsUI.swift` | "Alerts…" settings window (SwiftUI in an NSWindow, preference toolbar) |
+| `AlertsSelfTest.swift` | `GlucoseBar -alerts-selftest` |
 | `main.swift` | `Following` controller, wiring, debug commands (`follow-status`, `readings`, `unfollow`, `v2-treat`, `follower-pub`) |
 
 Acceptance rules (same as Python/Android): key deliveries and "revoked" only if the **seal signer == I**; roster
@@ -136,8 +168,8 @@ Release binary: 14.0 MB (`./bundle.sh`), unchanged order of magnitude (NostrSDK 
 - **Keychain + ad-hoc signing**: the item has the default ACL (only the creating app reads it silently). Each
   rebuild of the ad-hoc-signed app is a new identity → macOS asks once ("Always Allow"). A shipped app would be
   Developer-ID signed and use the data-protection keychain with an access group.
-- ~~No follower alarms~~ (added, see above; the notifications themselves weren't observed firing: no low/high
-  happened during the run and no 20-min gap was provoked). No local reading DB (the store keeps 3 h, every launch
+- ~~No follower alarms~~ (alerts section above; test notifications delivered with their pack sound, see there;
+  mirroring a real wearer's `alert` event not exercised until the phone publishes them). No local reading DB (the store keeps 3 h, every launch
   backfills 12 h from relays / ~25 h over BLE).
 - Two GlucoseBar processes on one Mac can't both hold a BLE link to the phone (the second times out and retries;
   `BLELink` now tries `retrieveConnectedPeripherals` first, not tested with two processes).

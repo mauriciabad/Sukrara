@@ -89,7 +89,7 @@ private fun sinceText(t: Long): String {
  * label, summary and switch (38 % content alpha), like AndroidX Preference's `dependency`.
  */
 @Composable
-private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
+internal fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
     val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
         .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)) {
@@ -104,7 +104,7 @@ private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub
 
 /** A settings row that opens something (ListPreference-style): label + current value as summary. */
 @Composable
-private fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
     val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
     Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 4.dp)
         .graphicsLayer { this.alpha = alpha }) {
@@ -146,7 +146,7 @@ fun LocalServersSection() {
 }
 
 @Composable
-fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
@@ -156,6 +156,10 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
             Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             TextButton(onClick = onBack) { Text("Done") }
         }
+
+        SectionTitle("Alerts")
+        val alerts by app.mauri.sukrara.alerts.Alerts.settings.collectAsState()
+        AlertsRow(alerts, follower = false, onClick = onAlerts)
 
         SectionTitle("Glucose source")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

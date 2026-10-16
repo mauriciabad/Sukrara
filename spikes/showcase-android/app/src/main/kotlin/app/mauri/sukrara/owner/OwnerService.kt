@@ -42,12 +42,22 @@ class OwnerService : Service() {
             "$n follower${if (n == 1) "" else "s"}" + (if (!f.nostr) " · Nostr off" else "") +
                 (if (u.bleCentrals > 0) " · ${u.bleCentrals} nearby" else "")
         }.also { it.start() }
+        // Investigation 15: alerts on the wearer's readings; rapid insulin from the shared log; fired alerts → followers
+        app.mauri.sukrara.alerts.Alerts.attach(this, "wearer",
+            rapid = { app.mauri.sukrara.treatments.Treat.store.all().filter { it.k == "rapid" && !it.del }.map { it.t } },
+            publish = { engine.publishAlert(it) }, newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull())
+        app.mauri.sukrara.treatments.Treat.store.onChange += alertsOnTreatment
         engine.start()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
+    private val alertsOnTreatment: (app.mauri.sukrara.treatments.Treatment, Long) -> Unit =
+        { _, _ -> app.mauri.sukrara.alerts.Alerts.check(this) }
+
     override fun onDestroy() {
+        app.mauri.sukrara.treatments.Treat.store.onChange -= alertsOnTreatment
+        app.mauri.sukrara.alerts.Alerts.detach()
         App.owner(this).stop()
         extras?.stop()
         scope.cancel()

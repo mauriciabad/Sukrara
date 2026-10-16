@@ -38,12 +38,18 @@ class FollowerService : Service() {
         val engine = App.follower(this)
         engine.start()
         extras = FollowerExtras(this, scope).also { it.start() }
+        // Investigation 15: mirror the wearer's alerts, or run this phone's own rules on the followed readings
+        app.mauri.sukrara.alerts.Alerts.attach(this, "follower",
+            rapid = { engine.treatments().filter { it.k == "rapid" && !it.del }.map { it.t } }, publish = null, who = "Following",
+            newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull()
+                ?.let { app.mauri.sukrara.core.Reading(it.t, it.sgv, it.rate) })
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
         extras?.stop(); extras = null
+        app.mauri.sukrara.alerts.Alerts.detach()
         App.follower(this).stop()
         scope.cancel()
         super.onDestroy()

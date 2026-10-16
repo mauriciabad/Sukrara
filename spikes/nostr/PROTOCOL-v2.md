@@ -109,6 +109,22 @@ Verified on Android (two emulators, 2026-10-16, `spikes/showcase-android/evidenc
 reach the follower over relays and over BLE with the follower offline; writer entry accepted (echo) in < 5 s over
 relays, ≈ 0.1 s over BLE, and after 3 min when the wearer's relays were off (*not accepted yet* → *accepted*).
 
+## Alerts — v2 addition, 2026-10-17 (investigation 15)
+
+The wearer's app sends every glucose alert it fires or clears, so followers can alert at the same moment. Rules and
+settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../docs/15-alerts.md).
+
+| Event | kind | signed by | tags | content (decrypted) |
+|---|---|---|---|---|
+| **alert** | 21079 (ephemeral) | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"type":"alert","id","k","state":"fire"\|"clear","at","t","sgv","r","th","n"}` → `G_n` |
+
+- `k` ∈ `urgent_low|low|high|very_high|falling_fast|rising_fast|no_data`; `id` is random per firing and a `clear`
+  repeats it; `n` counts reminders. A muted alert (after rapid insulin, falling back into range) is never sent.
+- Sent at once on relays (LIVE lane, also when the upload interval batches readings) and over BLE (backlog key
+  `alert`, next to `live`).
+- Followers subscribe with `kinds: [21078, 21079]` in the live REQ, apply the live acceptance rules, dedupe by event
+  id, drop `type ≠ "alert"` and anything with `at` older than 10 min.
+
 ## Invite link / QR
 
 Since Sukrara 0.11 the invite is the **v3 short link** of [PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3):

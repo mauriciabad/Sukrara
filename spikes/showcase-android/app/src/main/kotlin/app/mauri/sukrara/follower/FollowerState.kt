@@ -31,10 +31,6 @@ class FollowerState(
     var rosterCreatedAt: Long = 0,
     var lastKeyAt: Long = 0,                // rumor created_at of the newest key delivery
     var revokedAt: Long = 0,                // rumor created_at of the revoked notice
-    var low: Int = 65,
-    var high: Int = 185,
-    var noDataMin: Int = 20,
-    var alarmsOn: Boolean = true,
     var testUnfiltered: Boolean = false,    // debug: drop relay-side `authors` filters to exercise the app's own checks
     var writers: List<String> = emptyList(),  // investigation 07: roster `writers`
     var bleAddr: String? = null,              // investigation 07: owner's BLE address (nearby pairing)
@@ -53,7 +49,6 @@ class FollowerState(
         .put("epochs", JSONArray(epochs.values.map { JSONObject().put("n", it.n).put("g", it.g.secretKey().toHex()) }))
         .put("devices", JSONArray(devices)).put("rosterEpoch", rosterEpoch).put("rosterCreatedAt", rosterCreatedAt)
         .put("lastKeyAt", lastKeyAt).put("revokedAt", revokedAt)
-        .put("low", low).put("high", high).put("noDataMin", noDataMin).put("alarmsOn", alarmsOn)
         .put("testUnfiltered", testUnfiltered)
         .put("writers", JSONArray(writers)).put("bleAddr", bleAddr ?: JSONObject.NULL)
         .put("avatar", avatar?.json ?: JSONObject.NULL).put("wearer", wearer?.toJson() ?: JSONObject.NULL)
@@ -82,10 +77,6 @@ class FollowerState(
             rosterCreatedAt = j.optLong("rosterCreatedAt"),
             lastKeyAt = j.optLong("lastKeyAt"),
             revokedAt = j.optLong("revokedAt"),
-            low = j.optInt("low", 65),
-            high = j.optInt("high", 185),
-            noDataMin = j.optInt("noDataMin", 20),
-            alarmsOn = j.optBoolean("alarmsOn", true),
             testUnfiltered = j.optBoolean("testUnfiltered"),
             writers = Proto.strings(j.optJSONArray("writers")),
             bleAddr = if (j.has("bleAddr") && !j.isNull("bleAddr")) j.getString("bleAddr") else null,
