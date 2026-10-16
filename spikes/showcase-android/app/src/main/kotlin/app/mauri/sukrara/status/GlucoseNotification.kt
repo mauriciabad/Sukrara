@@ -180,7 +180,7 @@ object GlucoseNotification {
     private fun graph(c: Context, r: Reading): Bitmap? = runCatching {
         val now = System.currentTimeMillis() / 1000
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${r.t}|${now / 300}|$night"
+        val key = "${r.t}|${now / 300}|$night|${app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode()}"
         val old = graphBmp
         if (old != null && (key == graphKey || !c.getSystemService(PowerManager::class.java).isInteractive)) return@runCatching old
         val dm = c.resources.displayMetrics

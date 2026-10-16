@@ -87,8 +87,8 @@ object GraphRenderer {
         fun x(t: Long) = left + (t - t0).toFloat() / span * (right - left)
         fun y(v: Float) = bottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (bottom - top)
 
-        // Target band 70–180.
-        cv.drawRect(left, y(Range.TARGET_HIGH.toFloat()), right, y(Range.TARGET_LOW.toFloat()),
+        // In-range band = the same thresholds that colour the line (Range.LOW..HIGH, the user's 65–185).
+        cv.drawRect(left, y(Range.BAND_HIGH.toFloat()), right, y(Range.BAND_LOW.toFloat()),
             Paint().apply { color = col.band })
 
         // Hour grid + labels.
@@ -109,7 +109,7 @@ object GraphRenderer {
             }
             cal.add(Calendar.HOUR_OF_DAY, 1)
         }
-        if (showLabels) for (v in listOf(Range.TARGET_LOW, Range.TARGET_HIGH)) {
+        if (showLabels) for (v in listOf(Range.BAND_LOW, Range.BAND_HIGH)) {
             cv.drawText("$v", right + 3 * d, y(v.toFloat()) + labelPaint.textSize / 3, labelPaint)
         }
 

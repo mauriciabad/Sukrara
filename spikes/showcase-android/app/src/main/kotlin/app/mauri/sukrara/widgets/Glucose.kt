@@ -66,6 +66,10 @@ object Range {
     const val TARGET_LOW = 70
     const val TARGET_HIGH = 180
 
+    /** The graphs' in-range band: the same thresholds [color] uses, so the band and the line colours agree. */
+    const val BAND_LOW = LOW
+    const val BAND_HIGH = HIGH
+
     val RED = Color.rgb(0xFF, 0x45, 0x3A)
     val ORANGE = Color.rgb(0xFF, 0x9F, 0x0A)
 
