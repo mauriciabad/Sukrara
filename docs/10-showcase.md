@@ -143,9 +143,10 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `bleFollowers` | `--ez` | true | v2 GATT server + advertising (BALANCED) |
 | `chip` | `--ez` | true | Live Update chip (promoted notification). Off = colorized ongoing notification |
 | `icon` | `--ez` | true | number as the small icon (off = Sukrara glyph) |
-| `systemIcons` | `--ez` | false | number + arrow as system icons next to Wi-Fi/battery (root daemon); state in the reply's `systemIcons` |
-| `hook` | `--ez` | false | coloured value drawn by the Sukrara LSPosed module inside System UI |
-| `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | where the hook draws; `slot:*` moves the system icons right after that icon (needs both switches) |
+| `hook` | `--ez` | false | root status bar on (Settings: "Value in the status bar (root)") |
+| `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — `slot:` works with root alone; with the module they're coloured by range and `slot:wifi` etc. moves them right after that icon |
+| `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
+| `previewSgv`, `previewRate` | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading |
 | `restartSystemUi` | `--ez` true | | root: kill System UI to (re)load the module. Follow `spikes/statusbar-android/HANDOFF.md` (safety) |
 | `screenOffSkip` | `--ez` | false | don't re-post the notification while the screen is off (catches up on screen on) |
 | `garmin` | `--ez` | true | xDrip/Garmin server on 127.0.0.1:17580 (binds only if the port is free) |
@@ -223,11 +224,16 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 Ported from `spikes/statusbar-android` (GlucoStatus): `status/RootStatusBar.kt` (driven from
 `WearerExtras.render()`), `status/SlotDaemon.kt` (root helper via `app_process`), `hook/SystemUiHook.kt` (libxposed
 API 102 module, `resources/META-INF/xposed/`), the 403 `sb_*` drawables (kept from resource shrinking by
-`res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar has both
-switches and the position chips. Verified on the phone (release, updated in place): system icons `on (ok)`, module
+`res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar: one switch
+"Value in the status bar (root)" + placement chips, all marked with a root icon and disabled until `su` works for
+Sukrara. System-icon placements are coloured by range through a hook on System UI's Compose `Image` (our icons are
+recognised by their content description); the digits match the clock's height (27 px) and the arrow drawables are
+trimmed to their width. Verified on the phone (release, updated in place): system icons `on (ok)`, module
 "attached to MAIN/KEYGUARD", "icon order hooks: 1", after clock / before clock / icons after Wi-Fi.
 
 ![Hook after the clock, system icons after Wi-Fi, hook before the clock](img/sukrara-root-statusbar.png)
+
+![System icons after Wi-Fi, coloured: 212 high, in range, 54 low, in range](img/sukrara-root-statusbar-colour.png)
 
 Safety, kill switch (`settings put global sukrara_hook_disabled 1`) and what not to do (never `adb uninstall`
 Sukrara to recover — it holds the identity): `spikes/statusbar-android/HANDOFF.md`.
