@@ -19,8 +19,9 @@ import org.json.JSONObject
  *
  *   am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver \
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
- *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez systemIcons B] [--ez hook B] \
- *       [--es hookPosition after_clock|before_clock|icons:0|slot:wifi|…] [--ez restartSystemUi true] \
+ *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
+ *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
+ *       [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \
  *       [--es source juggluco|direct --ez confirmDirect true] \
@@ -41,7 +42,7 @@ class DebugReceiver : BroadcastReceiver() {
                 nostr = b("nostr", s.nostr), nostrIntervalMin = n("nostrInterval", s.nostrIntervalMin),
                 libreview = b("libreview", s.libreview), libreviewIntervalMin = n("libreviewInterval", s.libreviewIntervalMin),
                 macBle = b("macBle", s.macBle), bleFollowers = b("bleFollowers", s.bleFollowers),
-                chip = b("chip", s.chip), icon = b("icon", s.icon), systemIcons = b("systemIcons", s.systemIcons), hook = b("hook", s.hook),
+                chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition,
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
@@ -54,8 +55,13 @@ class DebugReceiver : BroadcastReceiver() {
                 },
             )
         }
+        if (i.hasExtra("systemIcons")) notes += "systemIcons is derived: --ez hook true --es hookPosition slot: (or slot:wifi …)"
         val out = JSONObject().put("features", f.toJson()).put("runtime", Live.status.value.toJson())
         out.put("systemIcons", app.mauri.sukrara.status.RootStatusBar.state)
+        // Screenshots/tests: show a made-up value in the root status bar only, until the next real reading.
+        if (i.hasExtra("previewSgv")) app.mauri.sukrara.status.RootStatusBar.update(c, f, app.mauri.sukrara.core.Reading(
+            System.currentTimeMillis() / 1000, i.getIntExtra("previewSgv", 100),
+            if (i.hasExtra("previewRate")) i.getFloatExtra("previewRate", 0f).toDouble() else null))
         // Root: reload the LSPosed module (kill, not `am crash`: crashes count towards Android's rescue mode).
         if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi())
         runCatching { command(c, i, out) }.onFailure { notes += "cmd failed: ${it.message}" }

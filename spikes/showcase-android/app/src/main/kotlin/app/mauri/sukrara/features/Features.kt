@@ -29,11 +29,17 @@ data class FeatureState(
     val chip: Boolean = true,
     /** Status bar: the notification small icon is the number itself (bitmap). */
     val icon: Boolean = true,
-    /** Root: number + arrow as system icons next to Wi-Fi/battery (status/RootStatusBar, investigation 05). */
+    /**
+     * Derived, read-only: number + arrow as Android system icons next to Wi-Fi/battery (root daemon,
+     * status/RootStatusBar). On whenever [hook] is on with a `slot:` placement.
+     */
     val systemIcons: Boolean = false,
-    /** LSPosed module enabled for System UI: coloured value drawn by SystemUI itself (hook/SystemUiHook). */
+    /** Root status bar on (investigation 05): placement in [hookPosition]. */
     val hook: Boolean = false,
-    /** Where the hook draws: one of [HookPosition]. `slot:*` reorders the system icons (needs [systemIcons] too). */
+    /**
+     * Where: next to the clock / left of the icons (drawn by the LSPosed module), or `slot:…` = as system icons
+     * (root), optionally moved right after another icon and coloured — both by the module when it's loaded.
+     */
     val hookPosition: String = HookPosition.AFTER_CLOCK,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
@@ -79,7 +85,6 @@ object Features {
             macBle = p.getBoolean("macBle", d.macBle),
             chip = p.getBoolean("chip", d.chip),
             icon = p.getBoolean("icon", d.icon),
-            systemIcons = p.getBoolean("systemIcons", d.systemIcons),
             hook = p.getBoolean("hook", d.hook),
             hookPosition = p.getString("hookPosition", d.hookPosition)!!,
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
@@ -89,13 +94,14 @@ object Features {
             libreview = p.getBoolean("libreview", d.libreview),
             libreviewIntervalMin = p.getInt("libreviewInterval", d.libreviewIntervalMin),
             connPriority = p.getString("connPriority", d.connPriority)!!,
-        )
+        ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
 
     @Synchronized fun update(f: (FeatureState) -> FeatureState): FeatureState {
         val s = f(_state.value).let {
             it.copy(
                 nostrIntervalMin = it.nostrIntervalMin.coerceIn(0, 240),
+                systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX),
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
                 source = if (it.source == "direct") "direct" else "juggluco",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
@@ -105,7 +111,7 @@ object Features {
             putString("source", s.source); putBoolean("nostr", s.nostr); putInt("nostrInterval", s.nostrIntervalMin)
             putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
-            putBoolean("systemIcons", s.systemIcons); putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition)
+            putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
@@ -116,12 +122,13 @@ object Features {
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
 
-    /** Positions offered for the SystemUI hook (label → value). */
+    /** Placements offered in Settings (label → value). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(
         "After clock" to HookPosition.AFTER_CLOCK, "Before clock" to HookPosition.BEFORE_CLOCK,
-        "Left of icons" to "${HookPosition.ICONS_PREFIX}0", "Icons after VPN" to "${HookPosition.SLOT_PREFIX}vpn",
-        "Icons after Bluetooth" to "${HookPosition.SLOT_PREFIX}bluetooth", "Icons after mobile" to "${HookPosition.SLOT_PREFIX}mobile",
-        "Icons after Wi-Fi" to "${HookPosition.SLOT_PREFIX}wifi",
+        "Left of icons" to "${HookPosition.ICONS_PREFIX}0",
+        "System icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
+        "After VPN" to "${HookPosition.SLOT_PREFIX}vpn", "After Bluetooth" to "${HookPosition.SLOT_PREFIX}bluetooth",
+        "After mobile" to "${HookPosition.SLOT_PREFIX}mobile", "After Wi-Fi" to "${HookPosition.SLOT_PREFIX}wifi",
     )
 
     const val NIGHTSCOUT_PORT = 17581
@@ -154,6 +161,6 @@ object HookPosition {
     const val BEFORE_CLOCK = "before_clock"
     /** "icons:0" = left of all right-side icons ("icons:-1", right of the battery, gets clipped by the corner). */
     const val ICONS_PREFIX = "icons:"
-    /** "slot:wifi" = the system-icon output moved right after that icon (needs systemIcons + hook). */
+    /** "slot:" = as system icons (root); "slot:wifi" = moved right after that icon (needs the module too). */
     const val SLOT_PREFIX = "slot:"
 }
