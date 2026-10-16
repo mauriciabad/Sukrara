@@ -8,50 +8,46 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.App
-import app.mauri.sukrara.core.Reading as CoreReading
+import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.follower.FollowerService
 import app.mauri.sukrara.owner.OwnerService
 import app.mauri.sukrara.treatments.TreatmentFeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * Glue between investigation 12's widgets and Sukrara: readings from the wearer pipeline (`WearerExtras`) or the
- * follower DB (`FollowerExtras`) go into the widgets' small persisted store ([GlucoseStore], last 8 h) and trigger
- * [WidgetUpdater.refresh] (deduped; skipped while the screen is off). The role's [TreatmentFeed] is mirrored the same
- * way ([watchTreatments]). Widget receivers make sure the role's service runs.
+ * follower DB (`FollowerExtras`) update [RecentHistory] and trigger [WidgetUpdater.refresh] (deduped; skipped while
+ * the screen is off). The role's [TreatmentFeed] goes the same way ([watchTreatments]). Widget receivers make sure
+ * the role's service runs.
  */
 object SukraraHooks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    fun onReadings(c: Context, list: List<CoreReading>, reason: String) {
+    fun onReadings(c: Context, list: List<Reading>, reason: String) {
         if (list.isEmpty()) return
-        val changed = GlucoseStore.add(c, list.map { Reading(it.t, it.sgv, it.rate) })
-        if (changed) refresh(c, reason)
-    }
-
-    /** Replace the widgets' data with exactly [list] (follower start: the follower DB is the source of truth). */
-    fun seed(c: Context, list: List<CoreReading>, reason: String) {
+        val app = c.applicationContext
         scope.launch {
-            runCatching {
-                GlucoseStore.replace(c.applicationContext, list.map { Reading(it.t, it.sgv, it.rate) })
-                WidgetUpdater.refresh(c.applicationContext, reason, force = true)
-            }.onFailure { Log.w("Sukrara.widgets", "seed: $it") }
+            if (runCatching { RecentHistory.add(app, list) }.getOrDefault(false)) WidgetUpdater.refreshSafely(app, reason)
         }
     }
 
-    /** Stop following / role reset: empty widgets ("no data") instead of the previous person's last value. */
-    fun clear(c: Context) {
-        GlucoseStore.setTreatments(c.applicationContext, emptyList())
-        seed(c, emptyList(), "cleared")
+    /**
+     * Re-read the role's store and redraw: follower start, and stop following (the DB was just wiped, so the widgets
+     * show "No data" instead of the previous person's last value).
+     */
+    fun reload(c: Context, reason: String) {
+        RecentHistory.reload()
+        refresh(c, reason, force = true)
     }
 
     /**
-     * Once per process (App.onCreate): every change of the [TreatmentFeed] goes into the widgets' persisted copy and
-     * refreshes them (same dedupe and screen-off skip as readings, so no extra wake-ups). The feed's initial empty
-     * value means "not loaded yet", not "no treatments", so it doesn't wipe the copy from before a process restart.
+     * Once per process (App.onCreate): every change of the [TreatmentFeed] refreshes the widgets (same dedupe and
+     * screen-off skip as readings, so no extra wake-ups). The feed's initial empty value means "not loaded yet", not
+     * "no treatments", so the widgets keep the role store's treatments until the role publishes its own.
      */
     fun watchTreatments(c: Context) {
         val app = c.applicationContext
@@ -60,13 +56,31 @@ object SukraraHooks {
             TreatmentFeed.items.collect { list ->
                 if (first && list.isEmpty()) { first = false; return@collect }
                 first = false
-                if (runCatching { GlucoseStore.setTreatments(app, list) }.getOrDefault(false)) refresh(app, "treatments")
+                if (runCatching { RecentHistory.setTreatments(app, list) }.getOrDefault(false)) refresh(app, "treatments")
             }
         }
     }
 
+    /**
+     * A graph widget was placed or resized: measure its real size ([WidgetProbe]) once Glance's own update for the
+     * new options has landed, then redraw. If the screen is off, the next refresh with the screen on measures it.
+     */
+    fun remeasure(c: Context, appWidgetId: Int) {
+        val app = c.applicationContext
+        WidgetProbe.forget(app, intArrayOf(appWidgetId))
+        WidgetUpdater.allowProbe(appWidgetId)
+        scope.launch {
+            delay(1_500)
+            WidgetUpdater.refreshSafely(app, "resized", force = true)
+        }
+    }
+
+    /** DebugReceiver `cmd widgetprobe`: measure every graph widget again. */
+    fun remeasureAll(c: Context) = WidgetProbe.placed(c).forEach { remeasure(c, it) }
+
     fun refresh(c: Context, reason: String, force: Boolean = false) {
-        scope.launch { runCatching { WidgetUpdater.refresh(c.applicationContext, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh: $it") } }
+        val app = c.applicationContext
+        scope.launch { WidgetUpdater.refreshSafely(app, reason, force) }
     }
 
     /** Android 15+ picker previews; once per app version (the system rate-limits the call). */

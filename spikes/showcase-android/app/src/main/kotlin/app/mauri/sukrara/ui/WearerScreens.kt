@@ -153,7 +153,7 @@ fun LocalServersSection() {
 }
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
@@ -170,11 +170,12 @@ fun SettingsScreen(onBack: () -> Unit) {
             FilterChip(f.source == "direct", { if (f.source != "direct") confirmDirect = true }, label = { Text("Libre 3 directly") })
         }
         Swap(f.source == "juggluco") { jug -> Text(if (jug) "Reads Juggluco's local web server (127.0.0.1:17580). Juggluco keeps the sensor and its alarms."
-             else "Sukrara holds the sensor itself. Juggluco must be stopped, and its alarms don't ring.",
+             else "Sukrara holds the sensor itself (scan it once with NFC). Juggluco gets nothing, and its alarms don't ring.",
             style = MaterialTheme.typography.bodySmall) }
         Text("Now: ${st.source}${st.sourceError?.let { " — $it" } ?: ""}", style = MaterialTheme.typography.bodySmall)
         Reveal(f.source == "direct") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onSensor) { Text("Sensor: scan, start or take over") }
                 Text("Sensor link priority", style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (p in Features.PRIORITIES) FilterChip(f.connPriority == p, { set { it.copy(connPriority = p) } }, label = { Text(p) })
@@ -224,9 +225,10 @@ fun SettingsScreen(onBack: () -> Unit) {
     if (confirmDirect) AlertDialog(
         onDismissRequest = { confirmDirect = false },
         title = { Text("Read the sensor directly?") },
-        text = { Text("Juggluco must be stopped first: only one app can hold the Libre 3. While Sukrara holds it, Juggluco's " +
-            "alarms (low/high) do NOT ring. It needs the sensor's pairing file (see docs/02). Only for testing.") },
-        confirmButton = { Button(onClick = { set { it.copy(source = "direct") }; confirmDirect = false }) { Text("Switch") } },
+        text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
+            "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
+            "(low/high) do NOT ring.") },
+        confirmButton = { Button(onClick = { confirmDirect = false; onSensor() }) { Text("Scan sensor") } },
         dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
     )
 }

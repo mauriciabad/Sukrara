@@ -238,7 +238,8 @@ class MainActivity : ComponentActivity() {
             else ScreenHost(screen, home = "home", onBack = { screen = "home" }) { s ->
                 when (s) {
                     "share" -> Page { ShareScreen(u, actions) { screen = "home" } }
-                    "settings" -> Page { SettingsScreen { screen = "home" } }
+                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }) { screen = "home" } }
+                    "sensor" -> Page { SensorScreen { screen = "home" } }
                     "treatments" -> Page { TreatmentsScreen { screen = "home" } }
                     else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
                 }

@@ -24,6 +24,9 @@
     <!-- follower: scanning the invite QR code -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <!-- Libre 3: start or take over a sensor with an NFC tap (ui/SensorScreen, direct/Libre3Nfc) -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
     <!-- Only this app may feed the SystemUI hook (status/RootStatusBar → hook/SystemUiHook). -->
     <permission
@@ -115,6 +118,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_combined" />
         </receiver>
+        <!-- widgets/WidgetProbe.kt: measures the size the launcher really gives a graph widget -->
+        <provider
+            android:name=".widgets.ProbeProvider"
+            android:authorities="${applicationId}.widgetprobe"
+            android:exported="true" />
         <receiver
             android:name=".widgets.StartReceiver"
             android:exported="false">

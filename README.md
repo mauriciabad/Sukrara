@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-0.10.1.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.5/Sukrara-0.10.5.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-mac-0.10.1.zip"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.3/Sukrara-mac-0.10.3.zip"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -51,7 +51,8 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
 
 **On your phone** (Android 16+)
 - Current value, continuous trend arrow and a 12 h chart. Source: Juggluco (default) or the Libre 3 read directly
-  (opt-in). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+  (opt-in): scan the sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by
+  itself. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   spike also proved system icons and a coloured LSPosed hook (root), not in the alpha yet.
   [05](docs/05-android-status-bar.md)
@@ -169,12 +170,14 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.10.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.10.1)
+Downloads: [v0.10.5](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.10.5)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
-1. If you wear the sensor, set up Juggluco first and turn on *Settings → Web server* ("Local only" can stay on).
-2. Install `Sukrara-0.10.1.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+1. If you wear the sensor, either set up Juggluco first and turn on *Settings → Web server* ("Local only" can stay
+   on), or skip Juggluco: after step 3, *Settings → Glucose source → Libre 3 directly → Scan sensor* (Juggluco's
+   alarms don't ring while Sukrara holds the sensor).
+2. Install `Sukrara-0.10.5.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor → Start fresh**, or **Restore from password manager** on a new phone.
 4. Tap **Save to password manager** so a lost phone doesn't mean re-inviting everyone.
@@ -188,7 +191,7 @@ Downloads: [v0.10.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
 ```sh
-unzip Sukrara-mac-0.10.1.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app
+unzip Sukrara-mac-0.10.3.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app
 ```
 The app is ad-hoc signed, hence the `xattr`. Allow Bluetooth. To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link, or *Copy Mac link* for the `cgmshare:` form; both work),

@@ -84,6 +84,7 @@ class DebugReceiver : BroadcastReceiver() {
                         .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
                 })))
         }
+        out.put("widgets", app.mauri.sukrara.widgets.WidgetUpdater.placements(c))
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
         resultData = out.toString()
@@ -101,6 +102,7 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "owner ready")
             }
             "invite" -> out.put("invite", App.owner(c).newInvite())   // public link, no secret
+            "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
                 App.owner(c).approve(it.f); out.put("cmd", "approved ${it.name} code ${it.code}")

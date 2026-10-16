@@ -7,8 +7,6 @@ import app.mauri.sukrara.bridge.Bridge
 import app.mauri.sukrara.bridge.GlucoseSource
 
 import android.content.Context
-import app.mauri.sukrara.direct.Libre3Client
-import app.mauri.sukrara.direct.SensorPairing
 import kotlinx.coroutines.CoroutineScope
 
 fun createGlucoseSource(context: Context): GlucoseSource = DirectSource(context)
@@ -18,17 +16,19 @@ class DirectSource(private val context: Context) : GlucoseSource {
     private var client: Libre3Client? = null
     private val pairing = runCatching { SensorPairing.load(context) }.getOrNull()
 
-    override val name = pairing?.let { "sensor ${it.serial}" } ?: "sensor (not paired)"
+    override val name = pairing?.let { "sensor ${it.serial}" } ?: "no sensor"
     override val servesWatches = true
 
     override fun start(scope: CoroutineScope, sink: GlucoseSource.Sink) {
-        val p = pairing ?: return sink.onStatus("no pairing data",
-            "Copy ${SensorPairing.FILE} into the app's files directory (see tools/import-pairing.sh)")
+        val p = pairing ?: return sink.onStatus("no sensor", "Scan your sensor: Settings → Glucose source → Scan sensor")
         if (p.securityVersion != 0) return sink.onStatus("unsupported sensor",
             "security version ${p.securityVersion} (Lingo) is not implemented")
         val prefs = context.getSharedPreferences("direct", Context.MODE_PRIVATE)
         sink.onSensor(p.serial, p.startEpoch)
-        client = Libre3Client(context, p, sink, prefs).also { it.connect() }
+        client = Libre3Client(context, p, sink, prefs) { kAuth ->
+            // first pairing after a scan: keep it, so later connections resume without NFC
+            SensorPairing.load(context)?.takeIf { it.serial == p.serial }?.copy(kAuth = kAuth)?.save(context)
+        }.also { it.connect() }
     }
 
     override fun stop() {

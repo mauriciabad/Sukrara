@@ -32,7 +32,8 @@ Garmin state label. The Juggluco-port fix (§4 below) ships with this round.
 - **Real-phone screenshots** for the README (home + chart, widgets, settings, share) — the phone now stays awake on
   USB, so `adb exec-out screencap` works while it's unlocked (it re-locks after a SystemUI restart).
 - Not built: tier-2 Nightscout upload endpoint, Mac local reading DB, BLE abuse/rate limits, printable recovery sheet.
-- Needs the user: direct-sensor mode run (takes the sensor from Juggluco — only with explicit OK), Proton Pass /
+- Needs the user: **first real NFC scan + fresh Bluetooth pairing** (branch `n-nfc`, docs/10 "Sensor scan"; the user
+  pauses Juggluco and scans in Sukrara, then scans with Juggluco to hand the sensor back), Proton Pass /
   Bitwarden save+restore on the real phone, real-camera QR scan. (macOS widgets: done 2026-10-16, hosted by Sukrara for Mac, docs/13.)
 - Leftover test state: the `medium_phone` emulator wearer has test followers ("n5 small follower" …); harmless.
 

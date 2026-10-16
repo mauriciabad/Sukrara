@@ -161,3 +161,13 @@ What the widgets need from Sukrara's data layer:
   [after](../spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png)). An app with more than
   one Glance widget needs `-keep,allowoptimization class * extends androidx.glance.appwidget.GlanceAppWidget { <init>(); }`
   (and a keep for the receivers).
+- **Review + cleanup (v0.10.4).** Worth keeping in Sukrara: the code is small and self-contained, and both the
+  graph-only and the combined layout are in daily use on the user's phone. The cost was duplication, now removed
+  ([10](10-showcase.md#widgets-one-model-no-second-store-v0104)): the widgets share `core/Glucose.kt` (trend,
+  range, staleness, age) and the `sb_t*` arrows with the status bar, and `GlucoseStore`'s CSV copy is replaced by
+  `RecentHistory`, which reads the role's own `owner.db` / `follower.db` / treatment store. The integration notes
+  above describe the spike; they predate this.
+- **Real size (v0.10.6).** Pixel Launcher on the user's Pixel 10 Pro reports 296×202 dp for a 4×2 widget it lays
+  out at 244×149, so Exact mode's bitmap was clipped. Graph widgets now measure the real size with a one-off probe
+  (16 sized layouts; the launcher loads the image of the one it applies):
+  [10](10-showcase.md#widgets-the-launchers-reported-size-is-wrong-v0106).

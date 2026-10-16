@@ -66,9 +66,9 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `status/` | statusbar-android (05) | `GlucoseNotification`: chip + number icon on the service's **only** notification |
 | `bridge/` | glucobridge (01, 04, 08), nostr (03) | `MacLink` (legacy GATT service, now a class instead of a service), `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
 | `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1/§2 sync with the Mac), LibreView uploader, gated by `Features.libreview` |
-| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core. Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
+| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
-| `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off), the widgets' 8 h CSV store. `SukraraHooks` feeds them from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
+| `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off). `RecentHistory`: the last 8 h in memory, read from the role's own store (`owner.db` + `treatments.json`, or `follower.db`) — no copy on disk. `SukraraHooks` feeds it from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). Trend arrow, range colours, staleness and age text come from `core/Glucose.kt`, shared with the status bar, system icons and the SystemUI hook; the widgets use the status bar's `sb_t*` arrows. `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
 
 Changes from the source spikes:
 
@@ -110,8 +110,10 @@ Changes from the source spikes:
 8. **LibreView** (off): Treatments & LibreView → email + password → *Save login* → *Upload to LibreView*.
    **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. "Take over the account's
    device" logs the Libre app / Juggluco out of LibreView.
-9. **Direct sensor** (testing only): Settings → Glucose source → *Libre 3 directly*. It needs Juggluco stopped and the
-   pairing file (`files/sensor.json`, see docs/02). **Juggluco's alarms stop.**
+9. **Direct sensor**: Settings → Glucose source → *Libre 3 directly* → *Scan sensor*, then hold the phone against
+   the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (stop
+   Juggluco first: *Pause app* **and** *Force stop*, see "Sensor scan"). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
+   Juggluco gives the sensor back.
 10. **Nightscout API** (Settings → Nightscout API, or the follower's home screen): `http://127.0.0.1:17581` on the
    phone, on by default, works next to Juggluco. Apps on the same phone (xDrip+ follower, a Garmin app in
    Nightscout mode) point at it. *Also on this network* binds it to Wi-Fi so Home Assistant's
@@ -156,7 +158,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nightscoutLan` | `--ez` | false | the same API on all interfaces; non-loopback callers need the API secret |
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
-| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
+| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -291,8 +293,8 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   `-debugsend '{"cmd":"log"|"remove"|"paths"}'` ([phone log](../spikes/showcase-android/evidence/n6-phone-logcat.txt)).
   (The earlier *Accept entries over the unencrypted Mac link* switch was removed: no backwards compatibility in
   this repo, only the v2 path stays.)
-- **Treatments in every chart**: home chart (both roles), the 3 widgets (own 8 h copy in
-  `files/widget-treatments.json`, survives a restart), the Live Update graph, the Mac menu chart and the macOS widget
+- **Treatments in every chart**: home chart (both roles), the 3 widgets (read from the role's treatment store, so
+  they survive a restart), the Live Update graph, the Mac menu chart and the macOS widget
   views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
   (text in the app chart only). The range band is now 65–185, the same thresholds as the line colours.
 - **Home screen**: value card → 12 h chart directly below, above the fold down to 360×640 dp, the rest below
@@ -313,6 +315,136 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - Released as **v0.10.2** (`versionName` 0.10.2 / Mac 0.10.2), with the Juggluco-port fix from the morning.
 - **v0.10.3**: the legacy Mac link is read-only for entries; the *Accept entries over the unencrypted Mac link*
   switch and the Mac's legacy entry path are gone (Mac entries go over v2 only). Also ships the macOS widgets (docs/13).
+- **v0.10.4** (Android only): widget cleanup after the docs/12 review (see "Widgets: one model, no second store").
+- **v0.10.5** (Android only): direct mode scans the sensor with NFC and pairs over Bluetooth by itself, with no
+  pairing file (see "Sensor scan (NFC)").
+- **v0.10.6** (Android only): graph widgets are drawn at the size the launcher really gives them (see "Widgets:
+  the launcher's reported size is wrong").
+- **v0.10.7** (Android only): the graphs' y-axis fits the readings (see the end of that section).
+- **v0.10.8** (Android only): the graph widgets are no longer squashed vertically (the launcher's near-duplicate
+  sizes; confirmed by the user from the test-square screenshots).
+
+### Widgets: the launcher's reported size is wrong (v0.10.6)
+
+User report: the 4×2 *Glucose + graph* on the phone lost the bottom and right of its graph (no time labels, no
+65/185). Glance's Exact mode composes for the size the launcher reports (`OPTION_APPWIDGET_SIZES`), and the Glance
+docs warn that *"the available size might differ depending on the launcher's implementation"*. On the user's Pixel
+10 Pro (Pixel Launcher, 6-column grid) it reports **296×202 dp** and lays the widget out at **244×149 dp**: 82 % of
+the width, 74 % of the height ([sizes](../spikes/showcase-android/evidence/n9-phone-widget-sizes.txt)). The emulator's
+launcher lays widgets out at the reported size and scales them down evenly, so nothing was ever clipped there.
+
+- **First fix** (graph image fills the remaining space, bitmap scaled into it): no longer clipped, but the bitmap,
+  drawn for 296×202, was squeezed into a box of another shape — wide text, oval dots. The user found it looked bad.
+- **Fix: measure the real size.** The launcher sends no other option, but its `AppWidgetHostView` knows the size:
+  from a size → RemoteViews map it applies the layout that fits its real laid-out size most closely
+  (`RemoteViews.findBestFitLayout`, re-picked in `onLayout`; at most 16 layouts). `widgets/WidgetProbe.kt` sends
+  16 tiny layouts whose image is a `content://` URI naming its size, and `ProbeProvider` sees which one the
+  launcher loads. Round 1 brackets 100…55 % of the reported size, round 2 narrows it to ≈ 4 %
+  (measured: 240.5×148.9 dp for the real 244.2×148.6). The graph widgets then lay out and draw for that size; the
+  image still fills its space, so being a few dp off doesn't clip.
+- It runs only when a graph widget is placed or resized (`onAppWidgetOptionsChanged`), or has no measurement yet
+  (e.g. the first refresh after this update), and only while the screen is on; a launcher that doesn't answer is
+  asked again after 2 min. About 1.5 s, the widget is blank meanwhile. Results are kept per widget and reported size
+  (`shared_prefs/widget-sizes.xml`), so updates and restarts don't measure again. The value widget doesn't need it.
+
+| Before (0.10.5): clipped | First fix: stretched | Measured (0.10.6) |
+|---|---|---|
+| ![clipped](../spikes/showcase-android/evidence/n9-phone-combined-4x2-clipped-before.png) | ![stretched](../spikes/showcase-android/evidence/n9-phone-combined-4x2-stretched.png) | ![measured](../spikes/showcase-android/evidence/n9-phone-combined-4x2-measured.png) |
+
+**Then (v0.10.7): the y-axis fits the readings.** At the right size the graph still looked squeezed: the y-axis
+was fixed at 40 to ≥ 250 mg/dL, so in an ≈ 80 dp plot the line used a thin strip. It now runs from just below
+min(65, lowest reading) to just above max(185, highest reading), keeps a strip at the bottom only when treatment
+marks are shown, and the *Glucose + graph* header is 6 dp shorter (value 32 sp). Same renderer for the status-bar
+card's graph. ![fitted axis](../spikes/showcase-android/evidence/n9-phone-combined-4x2-fitted-axis.png)
+
+**Still squashed in 0.10.6 / 0.10.7 (fixed in v0.10.8).** The user saw the current-value dot as an
+ellipse. A temporary test pattern in place of the graph (a square with an inscribed circle) measured it on the
+phone: **height/width 0.760** before, **0.989** after. Cause: Pixel Launcher reports two near-identical portrait
+sizes (296×201.9 and 296×201.1). Glance composes one layout per reported size, and the probe's measurement was
+stored only under the first. The launcher fits neither, so it applies the smaller one, which was still drawn for
+296×201 and squeezed into 244×149. A measurement now applies to every reported size within 4 dp.
+
+| Test square, before | Test square, after | Graph, after |
+|---|---|---|
+| ![before](../spikes/showcase-android/evidence/n9-phone-test-square-before.png) | ![after](../spikes/showcase-android/evidence/n9-phone-test-square-after.png) | ![graph](../spikes/showcase-android/evidence/n9-phone-combined-4x2-round.png) |
+
+### Widgets: one model, no second store (v0.10.4)
+
+The docs/12 review kept all three widgets: the user has a *Glucose + graph* widget pinned and also uses a graph-only
+widget from another app. What made them costly to maintain was duplication, so that was removed:
+
+- **One glucose model.** `core/Glucose.kt` holds the trend mapping, range thresholds and colours, staleness and age
+  text. Before, `widgets/Glucose.kt` and `status/GlucoseNotification.kt` each had their own copy, and the widget
+  `Reading` was a third reading type. The widgets now use `core.Reading`.
+- **One arrow set.** The widgets draw the status bar's trimmed `sb_t*` vectors (`Trend.drawable`); the 39 square
+  `arrow_*` copies are deleted. `RootStatusBar` uses the same function instead of building resource names.
+- **No second history.** `GlucoseStore` (an 8 h `history.csv` + `widget-treatments.json` written on every reading)
+  is replaced by `RecentHistory`, which reads the role's own store on the first render in a process and then keeps
+  an in-memory window. It reloads on follower start, *Stop following* and role change. Wearer readings are merged in
+  from the live fan-out, because `Live` reaches the widgets before the owner engine has written `owner.db`. The
+  status-bar card's graph reads the same window. Old installs keep their two small orphaned files (≈ 10 KB);
+  nothing reads them.
+
+Checked on two emulators (wearer = debug build with the synthetic source, follower = release build following it over
+Nostr):
+
+| | | |
+|---|---|---|
+| ![wearer widgets](../spikes/showcase-android/evidence/n8-wearer-widgets-after-process-kill.png) | ![follower combined](../spikes/showcase-android/evidence/n8-follower-combined-after-update-r8.png) | ![stop following](../spikes/showcase-android/evidence/n8-follower-widget-after-stop-following.png) |
+| Wearer: *Glucose* + *Glucose graph* after `kill -9` of the process: history from `owner.db`, the 30 g carbs from `treatments.json` | Follower, release (R8): *Glucose + graph* after an in-place update (process restart), data from `follower.db`; the keep rule still holds | Follower after *Stop following*: "No data" at once |
+
+The status-bar card's graph also reads the new window ([screenshot](../spikes/showcase-android/evidence/n8-wearer-notification-graph.png)).
+
+## Sensor scan (NFC), 2026-10-16 evening
+
+The user opened Sukrara to read the sensor directly and found it asking for a pairing file copied from Juggluco.
+Direct mode now does the whole flow itself, like LibreLink or Juggluco:
+
+1. **NFC tap** on Settings → Glucose source → *Sensor*. Reader mode is on only while that screen is open, so a tap
+   there goes to Sukrara. The sensor answers with its serial number and state. Sukrara then **starts** a sensor that
+   was never started, or **takes over** a running one. Either way it gets the sensor's Bluetooth address, its PIN and
+   its start time.
+2. **First Bluetooth connection: fresh pairing.** Sukrara exchanges certificates and keys with the sensor, using the
+   same portable C core from Juggluco as the resume path, plus four new JNI calls. It saves the resulting
+   authorization in `files/sensor.json`, and later connections resume with it. No file comes from another app any
+   more.
+3. **Warm-up**: during a new sensor's first hour the client waits for the end of warm-up instead of reconnecting
+   every 2 minutes.
+
+**Receiver ID.** A Libre 3 remembers a 32-bit receiver ID from the moment it was started, and a takeover only works
+with that same ID. Sukrara has two candidates:
+- its own random ID, made per install;
+- the ID that LibreLink-era apps and Juggluco derive from the **LibreView account ID**.
+
+Sukrara learns the account ID with a read-only LibreLinkUp sign-in. It keeps only the derived number, not the
+password. Unlike LibreView's app login, this sign-in doesn't make the phone the account's upload device, so
+Juggluco's or LibreLink's LibreView uploads keep working.
+
+If Sukrara's own LibreView setup (Treatments & LibreView) has a saved login, the Sensor screen does this sign-in on
+its own. A sensor started by Juggluco therefore moves over with one tap. Without a saved login, the screen asks for
+it after the sensor turns down the first try.
+
+Checked on 2026-10-16:
+- On the Mac, a LibreLinkUp sign-in with the user's account returned the exact account ID that the user's Juggluco
+  uses. Juggluco is in its default mode: no manual ID, and the LibreView-derived ID used for both start and takeover.
+- Unit tests (`app/src/test`) pass. They cover the patch-info and takeover answers quoted in Juggluco's sources,
+  the command CRC vectors and the receiver-ID hash.
+- The screen works on an emulator (no NFC there, so it says so).
+- The build is installed on the user's phone and keeps reading from Juggluco until a scan.
+
+**Real sensor, 2026-10-16 22:25** (user's Libre 3 Plus, 13 days in, running under Juggluco; Sukrara 0.10.5):
+- **One tap** took the sensor over. Sukrara got the receiver ID from its saved LibreView login, so the user saw no
+  sign-in prompt.
+- The **fresh pairing** finished 4.6 s after the second Bluetooth connection ("sensor paired"). The saved
+  authorization record (149 bytes) went into `files/sensor.json`. Sukrara then backfilled 24 h of history.
+- **Live readings** every minute from then on. Later connections resume with the saved record, no NFC needed.
+- Lingo sensors are refused (not built).
+
+**Pause isn't enough.** For 4 minutes every connection failed 1.6 s in: the phone's Bluetooth stack rejected
+Sukrara's first security write. `dumpsys bluetooth_manager` showed why: Juggluco, *paused* but still running, kept its
+own GATT client for the sensor and shared the link ("ACL holders: … tk.glucodata"). It kept trying to log in with
+its now-outdated pairing. After `am force-stop tk.glucodata` the next connection authorized and stayed up. The
+app's texts now say to *Pause app* **and** *Force stop* Juggluco before a takeover.
 
 ## Next
 

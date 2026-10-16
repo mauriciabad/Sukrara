@@ -25,10 +25,11 @@ import java.util.UUID
 
 /**
  * Reads a FreeStyle Libre 3 / 3 Plus sensor directly over BLE, using the pairing data in
- * [SensorPairing] (so no NFC is needed to resume an already-activated sensor).
+ * [SensorPairing]. Right after an NFC scan the pairing has no saved authorization yet: the first connection then
+ * runs the fresh pairing (certificates + ephemeral keys, after Juggluco's Libre3GattCallback) and hands the
+ * resulting authorization to [onAuthorized]; later connections resume with it.
  *
- * Read-only: nothing is ever written to the sensor beyond the security handshake, so the sensor's
- * own state is untouched and the previous owner app can take it back by reconnecting.
+ * Read-only: nothing is ever written to the sensor beyond the security handshake and history requests.
  *
  * Power: no app-level scanning (connect by address with autoConnect, which the Bluetooth controller
  * handles), a low-power connection interval once live, and only the notifications we actually parse.
@@ -39,6 +40,7 @@ internal class Libre3Client(
     private val pairing: SensorPairing,
     private val sink: GlucoseSource.Sink,
     private val prefs: SharedPreferences,
+    private val onAuthorized: (ByteArray) -> Unit = {},
 ) {
     companion object {
         private const val TAG = "Sukrara.direct"
@@ -88,6 +90,19 @@ internal class Libre3Client(
         private const val HISTORY_STEP = 5
         /** How far back to backfill on connect (minutes): 24 h, the span of CGM+'s watch graph (investigation 08). */
         private const val BACKFILL_MINUTES = 24 * 60
+        /** A Libre 3 gives no glucose for its first hour. */
+        private const val WARMUP_MINUTES = 60
+
+        /**
+         * App certificate for security level 1, sent during a fresh pairing (public; from Juggluco's KEYSCrypto.java,
+         * LIBRE3_APP_CERTIFICATES_B[1]).
+         */
+        private val APP_CERTIFICATE = (
+            "03030102030405060708090a0b0c0d0e0f10000161897655010000000000000000" +
+            "048242be33f1a330880112fa62cc4842a43d1204922ad201d8775bb226f611f75b0ef3d5bc6cc4317caa457584ab003f" +
+            "1712336089d3a4f29838ed0dc666deaea2" +
+            "d65a00dfff5d7bcae21655e302e3458e774daaaaca87af75f1b87884b18d4ce875d0d108c903a834471a4ff674b2d30b" +
+            "cba062373014b7786e4437b177aec3c8").chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -101,6 +116,8 @@ internal class Libre3Client(
 
     // security session
     private var ctx = 0L
+    private var kAuth = pairing.kAuth      // null until the first fresh pairing completes
+    private var fresh = false              // this session is a fresh pairing
     private var kEnc: ByteArray? = null
     private var ivEnc: ByteArray? = null
     private var r1 = ByteArray(0)
@@ -220,7 +237,8 @@ internal class Libre3Client(
                 handler.post { g.discoverServices() }
             } else {
                 val alive = System.currentTimeMillis() - authorizedAt
-                Log.i(TAG, "sensor disconnected (status $status) after ${alive / 1000}s")
+                Log.i(TAG, "sensor disconnected (status $status) " +
+                    if (authorizedAt > 0) "after ${alive / 1000}s" else "before authorizing")
                 if (authorizedAt > 0 && alive < EARLY_DROP_MS && prefs.getBoolean(PREF_MINIMAL, false)) {
                     Log.w(TAG, "early drop with the minimal subscription set; reverting to all notifications")
                     prefs.edit().putBoolean(PREF_MINIMAL, false).apply()
@@ -264,24 +282,47 @@ internal class Libre3Client(
         }
     }
 
-    // MARK: security handshake (resume path: we already hold a saved authorization)
+    // MARK: security handshake
 
     private fun startAuthorization() {
         resetSession()
-        ctx = Libre3Crypto.begin(pairing.kAuth, 1)
+        fresh = kAuth == null
+        ctx = Libre3Crypto.begin(kAuth, 1)
         if (ctx == 0L) return fail("saved authorization rejected by the security core")
-        sink.onStatus("authorizing")
+        sink.onStatus(if (fresh) "pairing with the sensor" else "authorizing")
         enableNotify(CH_COMMAND)
         enableNotify(CH_CERT)
         enableNotify(CH_CHALLENGE)
-        write(CH_COMMAND, byteArrayOf(0x11))   // resume with the saved authorization
+        if (fresh) {
+            // fresh pairing: 1, 2, our certificate, 3; the sensor answers with 0x04 (certificate accepted)
+            write(CH_COMMAND, byteArrayOf(0x01))
+            write(CH_COMMAND, byteArrayOf(0x02))
+            writeFragments(CH_CERT, APP_CERTIFICATE)
+            write(CH_COMMAND, byteArrayOf(0x03))
+        } else {
+            write(CH_COMMAND, byteArrayOf(0x11))   // resume with the saved authorization
+        }
+    }
+
+    /** Security data out: 20-byte writes, offset (LE16) followed by 18 payload bytes, zero padded. */
+    private fun writeFragments(uuid: UUID, data: ByteArray) {
+        var off = 0
+        while (off < data.size) {
+            val part = data.copyOfRange(off, minOf(off + 18, data.size))
+            write(uuid, byteArrayOf((off and 0xFF).toByte(), (off shr 8).toByte()) + part + ByteArray(18 - part.size))
+            off += 18
+        }
     }
 
     private fun handleNotification(uuid: UUID, value: ByteArray) {
         if (value.isEmpty()) return
         when (uuid) {
             CH_COMMAND -> {
-                if (value.size < 2) return fail("unexpected security event ${value[0]} (fresh pairing not supported)")
+                if (value.size == 1) {
+                    if (fresh && value[0].toInt() == 0x04) write(CH_COMMAND, byteArrayOf(0x09))   // send your certificate
+                    else fail("unexpected security event ${value[0]}")
+                    return
+                }
                 secCmd = value[0].toInt() and 0xFF
                 secLen = value[1].toInt() and 0xFF
                 secSeq = -1; secAt = 0; secBuf = ByteArray(secLen)
@@ -311,6 +352,21 @@ internal class Libre3Client(
     }
 
     private fun securityDataComplete() {
+        if (fresh && secCmd == 10 && secLen == 140) {
+            // the sensor's certificate → ask for its ephemeral key and send ours
+            if (!Libre3Crypto.setPatchCertificate(ctx, secBuf)) return fail("sensor certificate rejected")
+            val eph = Libre3Crypto.createEphemeralPublicKey(ctx) ?: return fail("could not create pairing keys")
+            write(CH_COMMAND, byteArrayOf(0x0D))
+            writeFragments(CH_CERT, byteArrayOf(0x04) + eph)
+            write(CH_COMMAND, byteArrayOf(0x0E))
+            return
+        }
+        if (fresh && secCmd == 15 && secLen == 65) {
+            // the sensor's ephemeral key → shared authorization, then the same challenge as a resume
+            if (!Libre3Crypto.deriveAuthorizationRoot(ctx, secBuf)) return fail("pairing key agreement failed")
+            write(CH_COMMAND, byteArrayOf(0x11))
+            return
+        }
         if (secCmd != 8) return fail("unexpected security data cmd=$secCmd len=$secLen")
         when (secLen) {
             23 -> {
@@ -319,14 +375,7 @@ internal class Libre3Client(
                 r2 = ByteArray(16).also { SecureRandom().nextBytes(it) }
                 val reply = Libre3Crypto.encryptChallengeReply(ctx, nonce, r1 + r2 + pairing.pin)
                     ?: return fail("challenge encryption failed")
-                // 20-byte writes: offset (LE16) followed by 18 payload bytes, zero padded.
-                var off = 0
-                while (off < reply.size) {
-                    val part = reply.copyOfRange(off, minOf(off + 18, reply.size))
-                    write(CH_CHALLENGE, byteArrayOf((off and 0xFF).toByte(), (off shr 8).toByte()) +
-                        part + ByteArray(18 - part.size))
-                    off += 18
-                }
+                writeFragments(CH_CHALLENGE, reply)
                 write(CH_COMMAND, byteArrayOf(0x08))
             }
             67 -> {
@@ -336,6 +385,13 @@ internal class Libre3Client(
                     return fail("challenge mismatch")
                 kEnc = plain.copyOfRange(32, 48)
                 ivEnc = plain.copyOfRange(48, 56)
+                if (fresh) {
+                    val saved = Libre3Crypto.exportSavedAuthorization(ctx) ?: return fail("could not save the pairing")
+                    kAuth = saved
+                    fresh = false
+                    Log.i(TAG, "sensor paired")
+                    onAuthorized(saved)
+                }
                 Log.i(TAG, "sensor authorized")
                 sink.onStatus("authorized, subscribing")
                 authorizedAt = System.currentTimeMillis()
@@ -426,6 +482,13 @@ internal class Libre3Client(
         if (d.size < 12) return
         val currentLifeCount = (d[8].toInt() and 0xFF) or ((d[9].toInt() and 0xFF) shl 8)
         Log.i(TAG, "patch status: state=${d[7].toInt() and 0xFF} currentLifeCount=$currentLifeCount")
+        if (currentLifeCount in 0 until WARMUP_MINUTES) {
+            // no glucose yet: wait for the end of the warm-up instead of reconnecting every 2 minutes
+            sink.onStatus("warming up — readings in ${WARMUP_MINUTES - currentLifeCount} min")
+            handler.removeCallbacks(glucoseTimeout)
+            handler.postDelayed(glucoseTimeout, (WARMUP_MINUTES - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS)
+            return
+        }
         if (backfillRequested || currentLifeCount <= 0) return
         backfillRequested = true
         // Juggluco's rule for the newest complete historic sample, then walk back BACKFILL_MINUTES.

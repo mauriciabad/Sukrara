@@ -119,6 +119,9 @@ class OwnerEngine(private val ctx: Context) {
 
     fun hasIdentity() = st != null
 
+    /** Stored readings from [fromS] on, oldest first (the widgets' and the notification graph's source). */
+    fun history(fromS: Long): List<Reading> = db.range(fromS, Long.MAX_VALUE)
+
     private fun pool(): RelayPool = pool ?: RelayPool(st?.relays ?: Proto.RELAYS, log::i) { st?.i }.also { p ->
         pool = p
         scope.launch { p.stats.collect { _relays.value = it } }
@@ -241,6 +244,9 @@ class OwnerEngine(private val ctx: Context) {
         .put("kinds", JSONArray().put(Proto.WRAP))
         .put("#p", JSONArray().put(s.iPub))
         .put("since", Proto.nowS() - 3 * Proto.DAY)   // NIP-59 wraps are back-dated up to 2 days
+
+    /** The sensor's pairing changed (NFC scan, forget): reconnect with the new one. */
+    fun restartSource() = scope.launch { startSource() }
 
     private fun startSource() {
         source?.stop()

@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
-import app.mauri.sukrara.R
-
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.os.PowerManager
 import android.util.Log
+import android.util.SizeF
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -16,6 +19,9 @@ import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlin.math.roundToInt
 
 /**
  * The single entry point the data layer calls: "something may have changed, refresh the widgets if needed".
@@ -26,7 +32,8 @@ import kotlinx.coroutines.sync.withLock
  */
 object WidgetUpdater {
     /** What the widgets draw. Composition reads this (and collects it while a Glance session is alive). */
-    data class Frame(val history: List<Reading>, val nowSec: Long, val treatments: List<Treatment> = emptyList())
+    data class Frame(val history: List<Reading>, val nowSec: Long, val treatments: List<Treatment> = emptyList(),
+        val generation: Int = 0)
 
     val frame = MutableStateFlow<Frame?>(null)
 
@@ -39,6 +46,11 @@ object WidgetUpdater {
 
     private val mutex = Mutex()
     private var lastKey: String? = null
+    private var generation = 0
+    /** appWidgetId → when a probe was last tried, so a launcher that doesn't answer (not on screen) is retried every 2 min, not every refresh. */
+    private val probed = HashMap<Int, Long>()
+
+    fun allowProbe(id: Int) = synchronized(probed) { probed.remove(id) }
 
     val widgets: List<Pair<GlanceAppWidget, Class<*>>> = listOf(
         ValueWidget() to ValueWidgetReceiver::class.java,
@@ -48,15 +60,18 @@ object WidgetUpdater {
 
     /** For composition when the process just started (system-initiated update): load from disk. */
     fun current(c: Context): Frame =
-        frame.value ?: Frame(GlucoseStore.load(c), nowSec(), GlucoseStore.treatments(c)).also { frame.value = it }
+        frame.value ?: Frame(RecentHistory.readings(c), Proto.nowS(), RecentHistory.treatments(c)).also { frame.value = it }
+
+    suspend fun refreshSafely(c: Context, reason: String, force: Boolean = false) =
+        runCatching { refresh(c, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh ($reason): $it") }
 
     suspend fun refresh(c: Context, reason: String, force: Boolean = false) = mutex.withLock {
-        val history = GlucoseStore.load(c)
-        val treatments = GlucoseStore.treatments(c)
-        val now = nowSec()
+        val history = RecentHistory.readings(c)
+        val treatments = RecentHistory.treatments(c)
+        val now = Proto.nowS()
         val latest = history.lastOrNull()
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${latest?.epochSec}|${latest?.let { (now - it.epochSec) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
+        val key = "${latest?.t}|${latest?.let { (now - it.t) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock
@@ -66,7 +81,16 @@ object WidgetUpdater {
             return@withLock
         }
         lastKey = key
-        frame.value = Frame(history, now, treatments)
+        // A graph widget without a measured size (just placed, resized, or the app was updated): measure it first,
+        // while the launcher is on screen to answer.
+        val interactive = c.getSystemService(PowerManager::class.java).isInteractive
+        for (id in if (interactive) WidgetProbe.unmeasured(c) else emptyList()) {
+            val due = synchronized(probed) { (probed[id] ?: 0) < System.currentTimeMillis() - 2 * 60_000 }
+            if (!due) continue
+            synchronized(probed) { probed[id] = System.currentTimeMillis() }
+            WidgetProbe.measure(c, id)
+        }
+        frame.value = Frame(history, now, treatments, ++generation)
         val t = System.currentTimeMillis()
         val mgr = GlanceAppWidgetManager(c)
         for ((widget, receiver) in widgets) {
@@ -76,6 +100,24 @@ object WidgetUpdater {
         val ms = System.currentTimeMillis() - t
         stats.value = stats.value.run { copy(renders = renders + 1, lastReason = reason, lastRenderMs = ms) }
         Log.d("Sukrara.widgets", "widgets refreshed ($reason) in ${ms} ms")
+    }
+
+    /**
+     * Every placed widget and the sizes its launcher reports (dp): `sizes` = OPTION_APPWIDGET_SIZES (what Exact
+     * widgets compose for), `min`/`max` = width × height of the older min/max options. For the DebugReceiver.
+     */
+    fun placements(c: Context): JSONArray {
+        val mgr = AppWidgetManager.getInstance(c)
+        val out = JSONArray()
+        for ((widget, receiver) in widgets) for (id in mgr.getAppWidgetIds(ComponentName(c, receiver))) {
+            val o = mgr.getAppWidgetOptions(id)
+            val sizes = o.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
+            out.put(JSONObject().put("id", id).put("widget", widget.javaClass.simpleName)
+                .put("sizes", JSONArray(sizes.orEmpty().map { "${it.width.roundToInt()}x${it.height.roundToInt()}" }))
+                .put("min", "${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)}x${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)}")
+                .put("max", "${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)}x${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)}"))
+        }
+        return out
     }
 
     /** Android 15+ generated previews for the widget picker. Rate-limited by the system (~2 calls/hour/provider). */

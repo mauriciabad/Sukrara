@@ -3,10 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
-import app.mauri.sukrara.R
-
 import android.content.Context
 import androidx.compose.runtime.Composable
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.Trend
+import app.mauri.sukrara.core.ageS
+import app.mauri.sukrara.core.ageText
+import app.mauri.sukrara.core.stale
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -24,6 +29,7 @@ import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.action.actionStartActivity
@@ -36,6 +42,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -82,7 +89,8 @@ class GraphWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         WidgetUpdater.current(context)
-        provideContent { Live { GraphContent(it) } }
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        provideContent { Live { GraphContent(it, appWidgetId) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
@@ -97,7 +105,8 @@ class CombinedWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         WidgetUpdater.current(context)
-        provideContent { Live { CombinedContent(it) } }
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        provideContent { Live { CombinedContent(it, appWidgetId) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
@@ -119,6 +128,18 @@ abstract class BaseReceiver : GlanceAppWidgetReceiver() {
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
         Unit
+    }
+
+    /** Placed or resized: the reported size changed, so measure the real one again (graph widgets). */
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: android.appwidget.AppWidgetManager,
+            appWidgetId: Int, newOptions: android.os.Bundle) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        if (glanceAppWidget !is ValueWidget) SukraraHooks.remeasure(context, appWidgetId)
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetProbe.forget(context, appWidgetIds)
     }
 }
 
@@ -154,7 +175,7 @@ private data class ValueStyle(val color: ColorProvider, val deco: TextDecoration
 @Composable
 private fun styleFor(r: Reading, now: Long): ValueStyle {
     val stale = r.stale(now)
-    val rc = Range.color(r.mgdl)
+    val rc = Range.color(r.sgv)
     val color = when {
         stale -> GlanceTheme.colors.outline
         rc != null -> ColorProvider(Color(rc))
@@ -168,7 +189,7 @@ private fun ValueRow(r: Reading, now: Long, fontSize: TextUnit, arrowDp: Int) {
     val s = styleFor(r, now)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            "${r.mgdl}",
+            "${r.sgv}",
             style = TextStyle(color = s.color, fontSize = fontSize, fontWeight = FontWeight.Bold,
                 textDecoration = s.deco),
             maxLines = 1,
@@ -198,7 +219,7 @@ fun ValueContent(frame: WidgetUpdater.Frame) {
     val r = frame.history.lastOrNull() ?: return NoData()
     val now = frame.nowSec
     val size = LocalSize.current
-    val age = ageText(r.ageSec(now))
+    val age = ageText(r.ageS(now))
     when {
         size.width < ValueWidget.WIDE.width -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             ValueRow(r, now, 22.sp, 16)
@@ -217,8 +238,12 @@ fun ValueContent(frame: WidgetUpdater.Frame) {
     }
 }
 
+/**
+ * The bitmap is drawn for [widthDp] × [heightDp] (from [realSize]), and the Image fills the space the layout really
+ * has ([modifier]) and scales into it, so a measurement off by a few dp (or none yet) never clips the labels.
+ */
 @Composable
-private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
+private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float, modifier: GlanceModifier) {
     val ctx = LocalContext.current
     val hours = GraphRenderer.hoursFor(widthDp)
     val bmp = GraphRenderer.render(ctx, frame.history, frame.nowSec,
@@ -226,51 +251,61 @@ private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
     Image(
         ImageProvider(bmp),
         contentDescription = "Glucose graph, last $hours hours",
-        modifier = GlanceModifier.width(widthDp.dp).height(heightDp.dp),
+        modifier = modifier,
         contentScale = ContentScale.FillBounds,
     )
 }
 
+/**
+ * The size to lay out and draw for: the measured one ([WidgetProbe]) when the launcher's reported size
+ * ([LocalSize]) is known to be wrong, else the reported one. Previews have no widget id.
+ */
 @Composable
-fun GraphContent(frame: WidgetUpdater.Frame) {
-    val size = LocalSize.current
-    Graph(frame, size.width.value - 16, size.height.value - 16)
+private fun realSize(appWidgetId: Int?): DpSize {
+    val reported = LocalSize.current
+    return appWidgetId?.let { WidgetProbe.actual(LocalContext.current, it, reported) } ?: reported
 }
 
 @Composable
-fun CombinedContent(frame: WidgetUpdater.Frame) {
+fun GraphContent(frame: WidgetUpdater.Frame, appWidgetId: Int? = null) {
+    val size = realSize(appWidgetId)
+    Graph(frame, size.width.value - 16, size.height.value - 16, GlanceModifier.fillMaxSize())
+}
+
+@Composable
+fun CombinedContent(frame: WidgetUpdater.Frame, appWidgetId: Int? = null) {
     val r = frame.history.lastOrNull() ?: return NoData()
     val now = frame.nowSec
-    val size = LocalSize.current
+    val size = realSize(appWidgetId)
     val w = size.width.value - 20
     val h = size.height.value - 20
     if (h >= 120) {
         Column(GlanceModifier.fillMaxSize()) {
-            Row(GlanceModifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                ValueRow(r, now, 36.sp, 28)
+            Row(GlanceModifier.fillMaxWidth().height(42.dp), verticalAlignment = Alignment.CenterVertically) {
+                ValueRow(r, now, 32.sp, 24)
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.End) {
-                    Secondary(ageText(r.ageSec(now)))
+                    Secondary(ageText(r.ageS(now)))
                     Secondary(detail(r))
                 }
             }
-            Spacer(GlanceModifier.height(4.dp))
-            Graph(frame, w, h - 52)
+            Spacer(GlanceModifier.height(2.dp))
+            Graph(frame, w, h - 44, GlanceModifier.fillMaxWidth().defaultWeight())
         }
     } else {
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             Column(GlanceModifier.width(92.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 ValueRow(r, now, 30.sp, 22)
-                Secondary(ageText(r.ageSec(now)), 11.sp)
+                Secondary(ageText(r.ageS(now)), 11.sp)
             }
-            Graph(frame, w - 96, h)
+            Graph(frame, w - 96, h, GlanceModifier.fillMaxHeight().defaultWeight())
         }
     }
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */
 fun sampleFrame(): WidgetUpdater.Frame {
-    val now = nowSec() / 60 * 60
+    val now = Proto.nowS() / 60 * 60
     val phase = Math.floorMod(170 - now / 60, 180L).toInt() // same picture whenever it's generated: ~110, rising
     return WidgetUpdater.Frame((360 downTo 0).map { sample(now - it * 60L, phase) }, now)
 }

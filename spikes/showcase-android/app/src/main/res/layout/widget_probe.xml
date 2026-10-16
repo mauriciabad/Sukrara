@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- widgets/WidgetProbe.kt: one probe layout per candidate size; the launcher loads only the image of the one it applies. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/probe"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:importantForAccessibility="no" />
+</FrameLayout>
