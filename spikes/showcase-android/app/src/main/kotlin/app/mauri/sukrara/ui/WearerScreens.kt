@@ -7,6 +7,14 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.Role
+import app.mauri.sukrara.features.HookPosition
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -77,16 +85,33 @@ private fun sinceText(t: Long): String {
     return if (s < 90) "now" else "${s / 60} min ago"
 }
 
+/**
+ * A settings switch row (Material list item): the whole row toggles, and a disabled row is greyed out as a whole —
+ * label, summary and switch (38 % content alpha), like AndroidX Preference's `dependency`.
+ */
 @Composable
 private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)) {
+        Column(Modifier.weight(1f).alpha(if (enabled) 1f else DISABLED_ALPHA)) {
             Text(label)
             sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
         }
-        Switch(checked, onChange, enabled = enabled)
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }
+
+/** A settings row that opens something (ListPreference-style): label + current value as summary. */
+@Composable
+private fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 4.dp)
+        .alpha(if (enabled) 1f else DISABLED_ALPHA)) {
+        Text(label)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+    }
+}
+
+private const val DISABLED_ALPHA = 0.38f
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
@@ -172,7 +197,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }) { Text("Allow Live Updates for Sukrara") }
         }
         Toggle("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
-        Toggle("Don't refresh while the screen is off", f.screenOffSkip,
+        Toggle("Pause refreshes while the screen is off", f.screenOffSkip,
             sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
             set { it.copy(screenOffSkip = v) }
         }
@@ -274,9 +299,12 @@ fun TreatmentsScreen(onBack: () -> Unit) {
 }
 
 /**
- * Root status bar (investigation 05): one switch + where. Everything here needs root for Sukrara (KernelSU), so it's
- * marked with the root icon and disabled until `su` works. "System icons" works with root alone; the other
- * placements and the colour come from the Sukrara module in LSPosed (scope System UI).
+ * Root status bar (investigation 05), per the Android settings guidelines
+ * (developer.android.com/design/ui/mobile/guides/patterns/settings, source.android.com/docs/core/settings/settings-guidelines):
+ *  - dependent settings sit below the switch they depend on and are disabled (not hidden) while it's off, with a
+ *    brief reason ("Dependency"; AndroidX Preference `dependency`);
+ *  - summaries show the status, one line; the longer explanation goes in a footer below a divider;
+ *  - a single choice among several options is radio buttons in a dialog (ListPreference), never in the list.
  */
 @Composable
 private fun RootStatusBarSettings(f: FeatureState) {
@@ -284,31 +312,44 @@ private fun RootStatusBarSettings(f: FeatureState) {
     val root by rootBar.root.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { rootBar.checkRoot() }
     val ok = root == true
-    val rootIcon = @Composable {
-        androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_root),
-            contentDescription = "Needs root", modifier = Modifier.size(16.dp))
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        rootIcon()
-        Spacer(Modifier.size(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Value in the status bar (root)")
-            Text(when (root) {
-                null -> "Checking root…"
-                false -> "Needs root: grant it to Sukrara in KernelSU."
-                true -> "Coloured, next to the clock or between the icons: enable the Sukrara module in LSPosed " +
-                    "(scope System UI) and restart System UI. \"System icons\" works with root alone." +
-                    if (f.systemIcons) " · ${rootBar.state}" else ""
-            }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        }
-        Switch(f.hook && ok, { v -> set { it.copy(hook = v) } }, enabled = ok)
-    }
-    if (f.hook) {
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
-            for ((label, pos) in Features.HOOK_POSITIONS) {
-                androidx.compose.material3.FilterChip(selected = f.hookPosition == pos, enabled = ok,
-                    onClick = { set { it.copy(hookPosition = pos) } }, label = { Text(label) }, leadingIcon = rootIcon)
-            }
-        }
+    val on = ok && f.hook
+    val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
+    var choosing by remember { mutableStateOf(false) }
+    val off = "Unavailable while the status bar value is off"
+
+    Toggle("Value in the status bar", f.hook && ok, enabled = ok, sub = when (root) {
+        null -> "Checking root…"
+        false -> "Unavailable: needs root for Sukrara (KernelSU)"
+        true -> if (f.hook) "On · $placement" else "Off"
+    }) { v -> set { it.copy(hook = v) } }
+    Toggle("Colour by range", f.hookColor, enabled = on, sub = if (on) null else off) { v -> set { it.copy(hookColor = v) } }
+    ValueRow("Placement", if (on) placement else off, enabled = on) { choosing = true }
+    HorizontalDivider()
+    Text("Uses root. Colour and every placement except \"With the system icons\" also need the Sukrara module " +
+        "enabled in LSPosed (scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+    if (choosing) {
+        // ListPreference: radio buttons in a dialog; choosing saves and closes, Cancel keeps the old value.
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { choosing = false },
+            title = { Text("Placement") },
+            text = {
+                Column(Modifier.selectableGroup()) {
+                    for ((label, pos) in Features.HOOK_POSITIONS) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                            .selectable(selected = f.hookPosition == pos, role = Role.RadioButton,
+                                onClick = { set { it.copy(hookPosition = pos) }; choosing = false })
+                            .padding(vertical = 6.dp)) {
+                            RadioButton(selected = f.hookPosition == pos, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosing = false }) { Text("Cancel") } },
+        )
     }
 }
