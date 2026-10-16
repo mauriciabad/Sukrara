@@ -11,6 +11,7 @@ import app.mauri.sukrara.App
 import app.mauri.sukrara.core.Reading as CoreReading
 import app.mauri.sukrara.follower.FollowerService
 import app.mauri.sukrara.owner.OwnerService
+import app.mauri.sukrara.treatments.TreatmentFeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,8 +20,8 @@ import kotlinx.coroutines.launch
 /**
  * Glue between investigation 12's widgets and Sukrara: readings from the wearer pipeline (`WearerExtras`) or the
  * follower DB (`FollowerExtras`) go into the widgets' small persisted store ([GlucoseStore], last 8 h) and trigger
- * [WidgetUpdater.refresh] (deduped; skipped while the screen is off). Widget receivers make sure the role's
- * service runs.
+ * [WidgetUpdater.refresh] (deduped; skipped while the screen is off). The role's [TreatmentFeed] is mirrored the same
+ * way ([watchTreatments]). Widget receivers make sure the role's service runs.
  */
 object SukraraHooks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -42,7 +43,27 @@ object SukraraHooks {
     }
 
     /** Stop following / role reset: empty widgets ("no data") instead of the previous person's last value. */
-    fun clear(c: Context) = seed(c, emptyList(), "cleared")
+    fun clear(c: Context) {
+        GlucoseStore.setTreatments(c.applicationContext, emptyList())
+        seed(c, emptyList(), "cleared")
+    }
+
+    /**
+     * Once per process (App.onCreate): every change of the [TreatmentFeed] goes into the widgets' persisted copy and
+     * refreshes them (same dedupe and screen-off skip as readings, so no extra wake-ups). The feed's initial empty
+     * value means "not loaded yet", not "no treatments", so it doesn't wipe the copy from before a process restart.
+     */
+    fun watchTreatments(c: Context) {
+        val app = c.applicationContext
+        scope.launch {
+            var first = true
+            TreatmentFeed.items.collect { list ->
+                if (first && list.isEmpty()) { first = false; return@collect }
+                first = false
+                if (runCatching { GlucoseStore.setTreatments(app, list) }.getOrDefault(false)) refresh(app, "treatments")
+            }
+        }
+    }
 
     fun refresh(c: Context, reason: String, force: Boolean = false) {
         scope.launch { runCatching { WidgetUpdater.refresh(c.applicationContext, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh: $it") } }

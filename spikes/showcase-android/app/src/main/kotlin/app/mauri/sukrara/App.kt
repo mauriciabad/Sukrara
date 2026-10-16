@@ -20,6 +20,7 @@ class App : Application() {
         Notifications.channels(this)
         app.mauri.sukrara.features.Features.init(this)
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
+        app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
         // The debug-exported CMD/DUMP receivers of CGM Share are gone: headless commands now go through the
         // DUMP-protected features.DebugReceiver (adb shell only), in debug and release alike.
     }

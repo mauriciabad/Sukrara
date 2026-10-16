@@ -4,6 +4,6 @@
     <string name="widget_graph">Glucose graph</string>
     <string name="widget_combined">Glucose + graph</string>
     <string name="widget_value_desc">Current glucose, trend arrow and age</string>
-    <string name="widget_graph_desc">Last hours of glucose with the 70–180 target band</string>
+    <string name="widget_graph_desc">Last hours of glucose, the 65–185 range band and treatments</string>
     <string name="widget_combined_desc">Current glucose and the graph of the last hours</string>
 </resources>

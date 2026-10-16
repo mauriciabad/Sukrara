@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.PowerManager
 import android.util.Log
+import app.mauri.sukrara.treatments.Treatment
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.updateAll
@@ -19,13 +20,13 @@ import kotlinx.coroutines.sync.withLock
 /**
  * The single entry point the data layer calls: "something may have changed, refresh the widgets if needed".
  *
- * A widget only re-renders when what it shows changes: the latest reading, the minute of its age ("3 min ago")
- * or the night mode (the graph bitmap has baked colours). While the screen is off nothing is rendered at all
+ * A widget only re-renders when what it shows changes: the latest reading, the minute of its age ("3 min ago"),
+ * the treatments or the night mode (the graph bitmap has baked colours). While the screen is off nothing is rendered at all
  * (no launcher is showing it); the screen-on broadcast catches up with one render.
  */
 object WidgetUpdater {
     /** What the widgets draw. Composition reads this (and collects it while a Glance session is alive). */
-    data class Frame(val history: List<Reading>, val nowSec: Long)
+    data class Frame(val history: List<Reading>, val nowSec: Long, val treatments: List<Treatment> = emptyList())
 
     val frame = MutableStateFlow<Frame?>(null)
 
@@ -46,14 +47,16 @@ object WidgetUpdater {
     )
 
     /** For composition when the process just started (system-initiated update): load from disk. */
-    fun current(c: Context): Frame = frame.value ?: Frame(GlucoseStore.load(c), nowSec()).also { frame.value = it }
+    fun current(c: Context): Frame =
+        frame.value ?: Frame(GlucoseStore.load(c), nowSec(), GlucoseStore.treatments(c)).also { frame.value = it }
 
     suspend fun refresh(c: Context, reason: String, force: Boolean = false) = mutex.withLock {
         val history = GlucoseStore.load(c)
+        val treatments = GlucoseStore.treatments(c)
         val now = nowSec()
         val latest = history.lastOrNull()
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${latest?.epochSec}|${latest?.let { (now - it.epochSec) / 60 }}|$night|${history.size}"
+        val key = "${latest?.epochSec}|${latest?.let { (now - it.epochSec) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock
@@ -63,7 +66,7 @@ object WidgetUpdater {
             return@withLock
         }
         lastKey = key
-        frame.value = Frame(history, now)
+        frame.value = Frame(history, now, treatments)
         val t = System.currentTimeMillis()
         val mgr = GlanceAppWidgetManager(c)
         for ((widget, receiver) in widgets) {
