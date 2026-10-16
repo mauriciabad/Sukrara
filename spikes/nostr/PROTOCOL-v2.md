@@ -47,6 +47,48 @@ request only with a valid, unexpired invite token (and the owner still confirms 
   second are rejected ("replaced: have newer event"), which can leave a stale owner backup.
 - Gift wraps' outer `created_at` is randomised up to 2 days into the past (NIP-59): subscribe with `since` ≥ 3 days.
 
+## Treatments (insulin / carbs / notes) — v2 addition, 2026-10-16
+
+Event format = [libreview SPEC §5](../libreview/SPEC.md); this section fixes who publishes what and how followers
+and writers use it. Same bytes over relays and over BLE (`["EVENT", ev]`, [docs/07](../../docs/07-bluetooth-followers.md)).
+
+| Event | kind | signed by | tags | content (decrypted) |
+|---|---|---|---|---|
+| **treatment** | 30078 | `D` (owner's merged log) or a writer `W` (its own entries) | `["d", H("cgm2:tr:"+sid+":"+id)]`, `["c", H("cgm2:treatments:"+sid)]`, `["gk", gk_n]`, exp `created_at`+30 d | `{"v":1,"id","k","a","t","n","u","del","o"}` (SPEC §1 without `lv`) → `G_n`, NIP-44 from the signer |
+
+- `created_at` = publish time, **strictly increasing per (author, `d`)** (relays drop a same-second replacement).
+  `u` (ms, inside the content) is the merge version; `created_at` is not.
+- `o` is kept as created: `phone`, `mac` (legacy-link entries) or `follower` (writer entries). Deletes are the same
+  event with `"del":true` (tombstone, never dropped from the log).
+
+**Owner** (the wearer's phone) publishes its **whole merged log** signed by its device key `D` (the key in
+`roster.devices`, the one that signs live/chunks): its own entries, the Mac's (legacy link), accepted writer
+entries, deletes.
+- On every change of the log: that entry, at once (CONTROL lane, paced ≥ 2 s per relay, replaced by `d` in the queue).
+- **Republish** every entry with `t` ≥ now − 30 d (tombstones too), paced: on an **epoch rotation** (encrypted to the
+  new `G`), when a **new follower is approved**, and at least **weekly** (keeps the 30-day expiry rolling).
+- BLE: every treatment event is pushed to subscribed centrals like any publish; the `HELLO` backlog also carries the
+  treatment events of the last 30 days (newest 200), after the chunks and before live.
+- Writer events stay accepted only if the author ∈ roster `writers` ∧ active follower (docs/07), then merged (§1)
+  into the log → which re-publishes them signed by `D` (**the echo**).
+
+**Followers** (Android + Mac) receive treatments:
+- `REQ {"kinds":[30078], "#c":[H("cgm2:treatments:"+sid)], "authors": roster.devices ∪ roster.writers,
+  "since": now − 30 d}`; re-issued when the roster's devices or writers change. Over BLE they arrive unasked.
+- Accept iff: valid signature; author ∈ current `roster.devices ∪ roster.writers`; `gk` names a known epoch
+  (unknown `gk` from a device ⇒ rekey request, as for chunks); NIP-44 decrypt with `(G_n.sec, author.pub)`;
+  `d` == `H("cgm2:tr:"+sid+":"+id)`; `k` ∈ `rapid|long|carbs|note`.
+- Merge with SPEC §1 (newest `(u, o)` wins), persist in the follower's own DB, draw them, serve them from the
+  follower's Nightscout API (`/api/v1/treatments`, SPEC §5 mapping).
+
+**Writers** (followers in roster `writers`):
+- Show *Add entry* only while the follower's own key `F` is in the newest roster's `writers` (live: a roster without
+  it hides the form at once; otherwise "*<wearer> hasn't allowed you to add entries*").
+- Per entry the writer sent: *sending* → *sent* (a relay `OK true` or the BLE write response) → **accepted** when an
+  event for the same `id` signed by a **roster device key** arrives with `u ≥` the sent `u` (the echo). No echo after
+  ~2 min ⇒ shown as *not accepted yet* (keeps listening; the owner may be offline). There is no explicit NACK:
+  a rejected entry simply never echoes.
+
 ## Invite link / QR (no secrets)
 
 ```
