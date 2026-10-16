@@ -9,6 +9,14 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -58,17 +66,27 @@ class QuickTreatmentActivity : ComponentActivity() {
         Features.init(this)
         if (!QuickEntry.canAdd(this)) { openApp(); return }
         val role = App.role(this)
+        enableEdgeToEdge()
         setContent {
             val ctx = LocalContext.current
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)) {
-                TreatmentDialog(
-                    onDismiss = ::finish,
-                    onSave = { list ->
-                        QuickEntry.save(this, list)
-                        Toast.makeText(this, QuickEntry.saved(list.size, role), Toast.LENGTH_SHORT).show()
-                    },
-                    onOpenApp = ::openApp,
-                )
+                // M3 dialog scrim (scrim colour at 32 %); a tap on it dismisses, like outside a dialog
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                    .clickable(interactionSource = null, indication = null, onClick = ::finish)
+                    .safeDrawingPadding(), contentAlignment = Alignment.Center) {
+                    // the card itself swallows taps so they don't reach the scrim
+                    Box(Modifier.clickable(interactionSource = null, indication = null) {}) {
+                        TreatmentDialog(
+                            onDismiss = ::finish,
+                            onSave = { list ->
+                                QuickEntry.save(this@QuickTreatmentActivity, list)
+                                Toast.makeText(this@QuickTreatmentActivity, QuickEntry.saved(list.size, role), Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenApp = ::openApp,
+                            inWindow = true,
+                        )
+                    }
+                }
             }
         }
     }

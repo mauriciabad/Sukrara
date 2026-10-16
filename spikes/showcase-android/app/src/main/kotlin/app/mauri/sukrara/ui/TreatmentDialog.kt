@@ -54,7 +54,6 @@ import androidx.compose.ui.window.DialogProperties
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
-import java.util.Locale
 
 /** One entry the dialog creates; [at] = epoch s. */
 data class NewEntry(val k: String, val a: Double, val note: String, val at: Long)
@@ -72,8 +71,6 @@ private fun parse(s: String, grams: Boolean): Double? {
     return if (v <= 0 || v > max) Double.NaN else if (grams) Math.round(v).toDouble() else Math.round(v * 10) / 10.0
 }
 
-private fun amount(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else String.format(Locale.getDefault(), "%.1f", a)
-
 /**
  * Add insulin, carbs and a note in one go: rapid, long-acting and carbs side by side, a note below, all optional;
  * each filled field becomes its own entry at the chosen time (default now). Shown by the home screen's *Add treatment*
@@ -86,9 +83,11 @@ private fun amount(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else String.
  * the keyboard's Next walks rapid → long → carbs → note, and Done on the note saves.
  *
  * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
+ * [inWindow] draws the dialog surface in the caller's own window instead of a `Dialog` window: the quick activity
+ * draws its own scrim (a `Dialog` window over a translucent activity got neither the dim nor the keyboard).
  */
 @Composable
-fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null) {
+fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false) {
     var rapid by rememberSaveable { mutableStateOf("") }
     var long by rememberSaveable { mutableStateOf("") }
     var carbs by rememberSaveable { mutableStateOf("") }
@@ -110,15 +109,14 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
             if (n.isNotEmpty()) add(NewEntry("note", 0.0, Treatment.clip(n, NOTE_BYTES), t))
         }
     }
-    val preview = entries(0)
-    val canSave = !invalid && preview.isNotEmpty()
+    val canSave = !invalid && entries(0).isNotEmpty()
     val save = { if (canSave) { onSave(entries(at ?: (System.currentTimeMillis() / 1000))); onDismiss() } }
 
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.requestFocus() }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    val card: @Composable () -> Unit = {
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -135,7 +133,8 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f)) { carbs = it }
                 }
                 OutlinedTextField(
-                    note, { if (it.toByteArray().size <= NOTE_BYTES) note = it }, Modifier.fillMaxWidth(),
+                    // one line of text that wraps (a hardware Enter mustn't add a line break)
+                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth(),
                     label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text("Note") } },
                     placeholder = { Text("Pizza, exercise, sick…") },
                     maxLines = 3,
@@ -143,15 +142,10 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
-                // what Save will add, so a filled field is never a surprise (nothing while the form is empty)
-                RevealValue(when {
-                    invalid -> "Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g"
-                    preview.isEmpty() -> null
-                    else -> "Adds " + preview.joinToString(" · ") { e ->
-                        when (e.k) { "carbs" -> "${amount(e.a)} g carbs"; "note" -> "a note"; else -> "${amount(e.a)} U ${e.k}" }
-                    }
-                }) { Text(it, style = MaterialTheme.typography.bodyMedium,
-                    color = if (invalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+                Reveal(invalid) {
+                    Text("Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     onOpenApp?.let { TextButton(onClick = it) { Text("Open Sukrara") } }
                     Spacer(Modifier.weight(1f))
@@ -162,6 +156,8 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
             }
         }
     }
+    if (inWindow) card()
+    else Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) { card() }
     if (pickTime) TimeDialog(at, onDismiss = { pickTime = false }) { at = it; pickTime = false }
 }
 

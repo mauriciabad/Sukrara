@@ -396,11 +396,13 @@ fun TreatmentsSection() {
     }
 }
 
+private fun units(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else "%.1f".format(a)
+
 private fun describe(tr: Treatment): String = when (tr.k) {
     "carbs" -> "${tr.a.toInt()} g carbs"
     "note" -> tr.n.ifEmpty { "Note" }
-    "long" -> "${tr.a} U long-acting"
-    else -> "${tr.a} U rapid"
+    "long" -> "${units(tr.a)} U long-acting"
+    else -> "${units(tr.a)} U rapid"
 } + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") + (if (tr.o != "phone") " · from ${tr.o}" else "")
 
 /**

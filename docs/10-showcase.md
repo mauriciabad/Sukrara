@@ -456,8 +456,8 @@ functions … create new content").
 | Source, sensor link priority, Nostr interval, LibreView interval: rows that show the value and open a radio dialog (`ChoiceDialog`) | `ui/WearerScreens.kt` |
 | Settings → LibreView: *Account* row (sign-in dialog, sign out), *Upload to LibreView* as the parent switch, then *Glucose readings*, *Insulin, carbs & notes*, *Use this phone as the account's device*, *Upload every*. Each is disabled with a reason while the upload is off. Footer: the doctor's record, no deletes | `LibreViewSettings` |
 | Uploader defaults: glucose, treatments and take-over **on**, so switching the upload on uploads everything. Glucose goes up from the moment the upload is switched on, and switching off ends that window. New `treatments` switch | `LibreViewUploader` |
-| `TreatmentDialog`: Rapid U, Long U and Carbs g side by side, a note below, all optional. Each filled field becomes its own entry. A time chip (Now, or an M3 time picker; a later time means yesterday) and a line saying what *Save* adds. The number pad opens at once; Next goes rapid → long → carbs → note; Done saves | `ui/TreatmentDialog.kt` |
-| `QuickTreatmentActivity`: translucent, not in Recents. A widget tap and the glucose notification (card and Live Update chip) open the dialog over any app. It has *Open Sukrara*; a phone that can't add entries (no identity, or a follower without *Can add entries*) opens the app instead | `ui/QuickTreatmentActivity.kt`, widgets, `GlucoseNotification` |
+| `TreatmentDialog`: Rapid U, Long U and Carbs g side by side, a note below, all optional. Each filled field becomes its own entry. A time chip (Now, or an M3 time picker; a later time means yesterday). No helper text: the filled fields say it all (the user removed the hint, the footer and the "Adds …" line); only an out-of-range amount shows a red line. The number pad opens at once; Next goes rapid → long → carbs → note; Done saves | `ui/TreatmentDialog.kt` |
+| `QuickTreatmentActivity`: translucent, not in Recents, draws the M3 scrim and the dialog surface in its own window (a `Dialog` window over a translucent activity got neither the dim nor the keyboard on the emulator). A widget tap and the glucose notification (card and Live Update chip) open the dialog over any app. It has *Open Sukrara*; a phone that can't add entries (no identity, or a follower without *Can add entries*) opens the app instead | `ui/QuickTreatmentActivity.kt`, widgets, `GlucoseNotification` |
 | Home: *Treatments (24 h)* with *Add treatment*, the chart markers per entry, LibreView ⇡/✓, tap to delete (with a confirmation) | `TreatmentsSection` |
 | Followers with *Can add entries* use the same dialog, at a chosen time too | `FollowerScreens.AddEntry`, `FollowerEngine.addTreatment(at)` |
 
@@ -469,6 +469,7 @@ functions … create new content").
 | Filter chips for single choices (source, priority, intervals) | the guidelines put single choices in a radio dialog |
 | The uploader's unused `upload` pref | the parent switch is `Features.libreview` (no backwards compatibility) |
 | One shared note on every entry | a note is its own entry, so nothing is duplicated |
+| Explanatory text in the dialog ("Fill in any of them…", "Your followers and Sukrara for Mac see it", the "Adds …" summary) | the user: unnecessary, the filled fields already show it |
 
 ## Short invites and private profiles (v0.11.0)
 
