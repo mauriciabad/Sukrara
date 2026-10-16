@@ -74,8 +74,13 @@ object GraphRenderer {
         val span = hours * 3600L
         val t0 = nowSec - span
         val pts = history.filter { it.t >= t0 - 60 }
-        val yMin = 40f
-        val yMax = max(250f, (pts.maxOfOrNull { it.sgv } ?: 0) + 15f)
+        // The y-axis fits the readings, always keeping the in-range band in view: a fixed 40–250 left a short widget
+        // (≈ 80 dp of plot) with the line squeezed into a thin strip.
+        val lo = min(Range.LOW, pts.minOfOrNull { it.sgv } ?: Range.LOW).toFloat()
+        val hi = max(Range.HIGH, pts.maxOfOrNull { it.sgv } ?: Range.HIGH).toFloat()
+        val yMin = lo - (hi - lo) * 0.06f
+        val yMax = hi + (hi - lo) * 0.06f
+        val marks = treatments.any { !it.del && it.t >= t0 && it.t <= nowSec }
 
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = col.label; textSize = 10 * d; typeface = Typeface.DEFAULT
@@ -85,7 +90,9 @@ object GraphRenderer {
         val left = 2 * d
         val top = 4 * d
         fun x(t: Long) = left + (t - t0).toFloat() / span * (right - left)
-        fun y(v: Float) = bottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (bottom - top)
+        // Treatment marks sit along the bottom ([TreatmentMarks]): keep a strip free for them when there are any.
+        val plotBottom = if (marks) bottom - 12 * d else bottom
+        fun y(v: Float) = plotBottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (plotBottom - top)
 
         // In-range band = the same thresholds that colour the line (Range.LOW..HIGH, the user's 65–185).
         cv.drawRect(left, y(Range.HIGH.toFloat()), right, y(Range.LOW.toFloat()),

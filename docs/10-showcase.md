@@ -320,6 +320,7 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   pairing file (see "Sensor scan (NFC)").
 - **v0.10.6** (Android only): graph widgets are drawn at the size the launcher really gives them (see "Widgets:
   the launcher's reported size is wrong").
+- **v0.10.7** (Android only): the graphs' y-axis fits the readings (see the end of that section).
 
 ### Widgets: the launcher's reported size is wrong (v0.10.6)
 
@@ -347,6 +348,12 @@ launcher lays widgets out at the reported size and scales them down evenly, so n
 | Before (0.10.5): clipped | First fix: stretched | Measured (0.10.6) |
 |---|---|---|
 | ![clipped](../spikes/showcase-android/evidence/n9-phone-combined-4x2-clipped-before.png) | ![stretched](../spikes/showcase-android/evidence/n9-phone-combined-4x2-stretched.png) | ![measured](../spikes/showcase-android/evidence/n9-phone-combined-4x2-measured.png) |
+
+**Then (v0.10.7): the y-axis fits the readings.** At the right size the graph still looked squeezed: the y-axis
+was fixed at 40 to ≥ 250 mg/dL, so in an ≈ 80 dp plot the line used a thin strip. It now runs from just below
+min(65, lowest reading) to just above max(185, highest reading), keeps a strip at the bottom only when treatment
+marks are shown, and the *Glucose + graph* header is 6 dp shorter (value 32 sp). Same renderer for the status-bar
+card's graph. ![fitted axis](../spikes/showcase-android/evidence/n9-phone-combined-4x2-fitted-axis.png)
 
 ### Widgets: one model, no second store (v0.10.4)
 

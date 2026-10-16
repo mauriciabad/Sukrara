@@ -281,16 +281,16 @@ fun CombinedContent(frame: WidgetUpdater.Frame, appWidgetId: Int? = null) {
     val h = size.height.value - 20
     if (h >= 120) {
         Column(GlanceModifier.fillMaxSize()) {
-            Row(GlanceModifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                ValueRow(r, now, 36.sp, 28)
+            Row(GlanceModifier.fillMaxWidth().height(42.dp), verticalAlignment = Alignment.CenterVertically) {
+                ValueRow(r, now, 32.sp, 24)
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.End) {
                     Secondary(ageText(r.ageS(now)))
                     Secondary(detail(r))
                 }
             }
-            Spacer(GlanceModifier.height(4.dp))
-            Graph(frame, w, h - 52, GlanceModifier.fillMaxWidth().defaultWeight())
+            Spacer(GlanceModifier.height(2.dp))
+            Graph(frame, w, h - 44, GlanceModifier.fillMaxWidth().defaultWeight())
         }
     } else {
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
