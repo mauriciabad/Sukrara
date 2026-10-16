@@ -18,7 +18,8 @@ swift run GlucoseBar -lan NO -ble NO -nostr-file ../nostr/secrets/follower-link.
 swift run GlucoseBar -url http://<phone-ip>:17580 -secret '…' -unit mmol
 swift run GlucoseBar -preview /tmp/arrows.png    # render the arrow strip for all rates
 swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button + sparkline to PNGs
-./bundle.sh                              # → build/Sukrara.app (app.mauri.sukrara.poc, ad-hoc signed, menubar-only)
+./bundle.sh                              # → build/Sukrara.app (app.mauri.sukrara.poc; Apple identity + widgets if any, else ad hoc)
+./dmg.sh                                 # → build/Sukrara-<version>.dmg, the drag-to-Applications installer
 ```
 The Swift target is still called `GlucoseBar` (hence `swift run GlucoseBar`); the bundle is Sukrara. Options are
 `UserDefaults`, so for the `.app` use `defaults write app.mauri.sukrara.poc <key> <value>` (the first launch copies the

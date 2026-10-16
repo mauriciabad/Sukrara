@@ -11,7 +11,7 @@ watch** and your **family's devices**. End-to-end encrypted, over Bluetooth near
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
 **[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-0.10.1.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-mac-0.10.1.zip)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.3/Sukrara-0.10.3.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
