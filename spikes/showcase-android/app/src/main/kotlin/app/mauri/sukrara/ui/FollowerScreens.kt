@@ -139,9 +139,9 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Approved — fetching history…")
             }
         }
+        // The value and the 12 h chart are the screen's main content: both above the fold, everything else below.
         SectionTitle("Last 12 h")
         GlucoseChart(u.chart.map { it.t to it.sgv }, u.low, u.high)
-        Text("Bluetooth: ${u.ble}", style = MaterialTheme.typography.bodySmall)
         if (u.status == "active") {
             FollowerEntries(u)
             // item 1: only a roster writer may add entries; follows the newest roster live
@@ -172,6 +172,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             (u.lastReject?.let { " (last: $it)" } ?: ""), style = mono)
         Text("key epochs known: up to ${u.epoch} · trusted devices ${u.devices.map { it.take(8) }}", style = mono)
         Text("this phone: ${u.fPub?.let { Proto.npub(it) }}", style = mono)
+        Text("Bluetooth: ${u.ble}", style = MaterialTheme.typography.bodySmall)
         RelayList(relays)
         if (BuildConfig.DEBUG) {
             Row(verticalAlignment = Alignment.CenterVertically) {

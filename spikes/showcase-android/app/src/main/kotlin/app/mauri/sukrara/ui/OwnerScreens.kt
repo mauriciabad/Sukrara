@@ -115,15 +115,22 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         }
         BigGlucose(u.last?.sgv, u.last?.rate, u.last?.t, 65, 185,
             subtitle = "source: ${u.source}${u.sourceError?.let { " — $it" } ?: ""} · ${u.liveSent} live / ${u.chunksSent} chunks sent")
+        // The value and the 12 h chart are the screen's main content: both above the fold, everything else below.
+        SectionTitle("Last 12 h")
+        GlucoseChart(u.chart.map { it.t to it.sgv }, 65, 185)
+        Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
+        OutlinedButton(onClick = { a.open("treatments") }, modifier = Modifier.fillMaxWidth()) { Text("Treatments & LibreView") }
+        if (u.treatments.isNotEmpty()) {
+            SectionTitle("Entries from followers")
+            u.treatments.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
+        WearerSummary()
         if (BuildConfig.DEBUG) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Synthetic source (debug build only)", Modifier.weight(1f))
                 Switch(u.synthetic, a::setSynthetic)
             }
         }
-        WearerSummary()
-        Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
-        OutlinedButton(onClick = { a.open("treatments") }, modifier = Modifier.fillMaxWidth()) { Text("Treatments & LibreView") }
 
         SectionTitle("Nearby (Bluetooth)")
         val pairing = u.nearbyUntil > Proto.nowS()
@@ -156,11 +163,6 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
             Text("${f.name} — removed ${date(f.revoked!!)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
 
-        if (u.treatments.isNotEmpty()) {
-            SectionTitle("Entries from followers")
-            u.treatments.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-        }
-
         SectionTitle("Backup")
         val saved = u.backupSavedAt > 0
         Card(colors = CardDefaults.cardColors(containerColor = if (saved) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer),
@@ -177,9 +179,6 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
                 }
             }
         }
-
-        SectionTitle("Last 12 h")
-        GlucoseChart(u.chart.map { it.t to it.sgv }, 65, 185)
 
         SectionTitle("Relays")
         Text(if (u.inboxLive) "Access requests: live subscription (app open)"
