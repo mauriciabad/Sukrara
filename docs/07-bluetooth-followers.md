@@ -169,7 +169,7 @@ build was run on devices).
   timeouts (bug 5). The equivalent rejection path is covered by the real non-writer follower (row 6), which is the
   stricter case (valid follower, valid epoch, only `writers` membership missing).
 - Writer treatments **over relays** (follower away from the owner) — code path present, not tested.
-- Followers don't show treatments (the owner forwards them; follower ignores them). No edits/deletes UI, no
+- ~~Followers don't show treatments~~ — done in Sukrara (docs/10, polish round 2). No edits/deletes UI, no
   LibreView upload (showcase app wires investigation 04's uploader).
 - **No GATT-level abuse limits**: anyone in range can connect, receive the encrypted stream, see `I`'s public key
   in `INFO` and write events (verified, but CPU cost). Add a per-peer rate limit and drop peers that send garbage.

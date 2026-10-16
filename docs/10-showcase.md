@@ -155,7 +155,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nightscoutLan` | `--ez` | false | the same API on all interfaces; non-loopback callers need the API secret |
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
-| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`. **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
+| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -186,7 +186,8 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 
 ## Known issues
 
-- **Sukrara for Mac (was GlucoseBar) with both Bluetooth paths at once** (still open after the gap audit; no cheap fix found): with the legacy link and the v2 link both on, the Mac's second
+- ~~**Sukrara for Mac (was GlucoseBar) with both Bluetooth paths at once**~~ **Fixed in polish round 2** (one
+  connection per phone carrying both services, see below). Original report: with the legacy link and the v2 link both on, the Mac's second
   connection to the same phone timed out repeatedly (the CoreBluetooth "stale identifier" problem from docs/07).
   Each path works alone: legacy (09:06), and v2 after a GlucoseBar restart with `macBle` off (09:14). After the 09:29
   update, v2 live readings arrived `via ble:` again. The Nostr path always worked. Fix on the Mac side: one connection carrying both services, or drop the legacy source once
@@ -215,7 +216,9 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 - **Thin history for a new follower**: the emulator follower first got only the last ~1.5 h of chunks (plus one
   24-h-old hour), although the wearer has 12 h+. When the phone was updated at 10:25 the wearer republished its
   last 24 h and the follower filled in. Likely the 25-chunk burst at 09:05 didn't all stick on the relays (pacing /
-  rate limits). Next: republish missing hours on a follower's request, or periodically.
+  rate limits). **Polish round 2:** all four relays keep every chunk (29 hours measured), so retention wasn't the
+  cause. Fix: the wearer republishes the last 24 h on every approval and rotation, and a follower that sees missing
+  hours asks for them (`history` gift wrap, PROTOCOL-v2). Not yet seen end to end with a fresh follower.
 - On some Android 16 (API 36) images `Notification.Builder.setRequestPromotedOngoing` doesn't exist
   (`NoSuchMethodError`, the emulator follower crashed on it). The chip now falls back to the colorized notification.
 - Widget battery cost was measured on the emulator only (docs/12: ≈ 0.4 s CPU per minute-update with 3 widgets).
@@ -247,10 +250,45 @@ trimmed to their width. Verified on the phone (release, updated in place): syste
 Safety, kill switch (`settings put global sukrara_hook_disabled 1`) and what not to do (never `adb uninstall`
 Sukrara to recover — it holds the identity): `spikes/statusbar-android/HANDOFF.md`.
 
+## Polish round 2 (2026-10-16 afternoon, NEXT.md §1)
+
+Five agents in parallel worktrees, merged into one build line, installed on the phone in place (data kept) and on
+the Mac. Checked end to end on the phone + Mac at 14:25: a note logged on the phone reached Sukrara for Mac over v2
+Bluetooth within seconds, its marker showed in the phone's Live Update graph, the delete propagated
+([card](../spikes/showcase-android/evidence/n-e2e-phone-card-treatment.png), [Mac log](../spikes/showcase-android/evidence/n-e2e-mac-log.txt)).
+
+- **Live Update chip = value + arrow.** On Android 17 the chip's icon is always the notification's small icon (no
+  public API removes it), and SystemUI hides a notification's status-bar icon while its chip shows. So with the chip
+  on, the small icon is just the trend arrow and the short critical text the value: the chip reads "→ 134". With the
+  chip off the small icon is the number (or the logo), as before. ([chip](../spikes/showcase-android/evidence/n2-chip.png))
+- **Expanded card.** A promoted (Live Update) notification can't have custom views, a colour or a large picture
+  (`hasPromotableCharacteristics`), so: chip on → a MetricStyle card (value coloured by range, arrow + rate, live
+  "ago"), minimal header, no graph ([card](../spikes/showcase-android/evidence/n3-card-chipon.png)); chip off → a
+  colorized custom card with the big value, arrow, rate, age and a 3 h graph with treatments
+  ([card](../spikes/showcase-android/evidence/n3-card-chipoff.png)). The system header (icon + "Sukrara") above a
+  custom card can't be removed. The graph is cached per reading/theme/5 min and not redrawn while the screen is off.
+- **Treatments for followers.** The wearer publishes its whole merged log (own, Mac, accepted writer entries,
+  deletes) as SPEC §5 events signed by its device key, over relays and v2 BLE, and republishes the last 30 days on
+  approval, rotation and weekly. Followers (Android and Mac) accept authors = roster devices ∪ writers, merge LWW,
+  show them, and the follower's Nightscout API serves them. Spec: PROTOCOL-v2 "Treatments"; SPEC §5 is built.
+- **Writer gating.** "Add entry" only when the follower's key is in the roster `writers`; otherwise "The wearer
+  hasn't allowed you to add entries". Own entries show *sending → sent → accepted* (the wearer's device key echoes
+  the same id) or *not accepted yet* after 2 min. Same on the Mac, where the legacy link stays always allowed and the
+  menu says which path an entry takes ([follower screens](../spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
+- **Treatments in every chart**: home chart (both roles), the 3 widgets (own 8 h copy in
+  `files/widget-treatments.json`, survives a restart), the Live Update graph, the Mac menu chart and the macOS widget
+  views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
+  (text in the app chart only). The range band is now 65–185, the same thresholds as the line colours.
+- **Home screen**: value card → 12 h chart directly below, above the fold down to 360×640 dp, the rest below
+  ([wearer](../spikes/showcase-android/evidence/n5-home-wearer.png), [follower](../spikes/showcase-android/evidence/n5-home-follower-small-phone.png)).
+- **Sukrara for Mac, one Bluetooth link.** The phone advertises its two services from different private addresses,
+  so the Mac's two centrals opened two connections and the second timed out. Now one central and one connection per
+  phone carry both paths (serialised connects). Legacy stays: it's the only path with LibreView `lv` sync.
+- **Thin history**, **Home Assistant** and the Garmin state label: see Known issues and the gap audit.
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
-- Sukrara for Mac: one Bluetooth client for both services (the https links are done).
 - Run investigation 11's battery lab on this build with the DebugReceiver table above.
 - Follower-role check on a second real phone (the emulator check and screenshots are done).
 - The remaining rows of the gap audit below.
@@ -268,15 +306,15 @@ Value/effort: H/M/L.
 | 01/02 | Mac reads the Libre 3 itself | no | no | decided against (fallback only, docs/01) | L / H | won't do |
 | 02 | Phone reads the sensor itself (no Juggluco) | compiled, off | n/a | never run inside Sukrara | H / M (needs the user to give up Juggluco's alarms for a while) | open, user decision |
 | 02 | Sensor activation (NFC) | no | n/a | never proven anywhere | H / H | out of scope (new spike) |
-| 03 | E2E Nostr stream, hourly chunks, 12 h backfill | yes | yes (v2) | thin backfill for a new follower until the wearer republishes (Known issues) | M / M | open |
+| 03 | E2E Nostr stream, hourly chunks, 12 h backfill | yes | yes (v2) | thin backfill for a new follower until the wearer republishes (Known issues) | M / M | **fixed** (republish on approval + `history` request; not yet seen end to end) |
 | 03 | **Nightscout read API (tier 1)**, HA / xDrip+ / Nightguard / clocks / Garmin | only the xDrip subset on 17580, and never on the phone (Juggluco holds the port) | no | API on its own port, in both roles | **H / M** | **done**: `127.0.0.1:17581`, LAN opt-in with API secret, 17/17 on the phone and on the follower |
-| 03 | Home Assistant validated (stock `nightscout` integration) | — | — | not re-run against Sukrara (`ha_check.py` needs Docker) | M / L | open (cheap re-check) |
+| 03 | Home Assistant validated (stock `nightscout` integration) | — | — | re-run against Sukrara on the phone (loopback via `adb forward`) | M / L | **done** (polish round 2: HA 2026.10.1, `sensor.blood_sugar` matched, [log](../spikes/showcase-android/evidence/n-ha-check-phone.txt)) |
 | 03 | HA add-on as always-on follower / "no data" watchdog | no | no | separate product | M / H | out of scope |
 | 03 | Tier 2 upload endpoint (xDrip+/AAPS → Sukrara) | no | no | not built anywhere | M / M | open |
 | 04 | Phone → LibreView (treatments + glucose) | yes, off | yes | real-account run is the user's call | M / L | ok (off by design) |
 | 04 | Treatments sync phone ↔ Mac (legacy BLE) | yes | yes | none | | ok |
 | 04/07 | Followers add treatments (v2 writers) | yes | yes (send only) | — | | ok |
-| 07 | **Followers see treatments** | no (follower drops the treatment chunk) | no (v2) | decode `treatmentsC` chunks, show in the 12 h chart / list, serve in the follower's Nightscout API | M / M | open |
+| 07 | **Followers see treatments** | no (follower drops the treatment chunk) | no (v2) | decode `treatmentsC` chunks, show in the 12 h chart / list, serve in the follower's Nightscout API | M / M | **done** (polish round 2, Android + Mac) |
 | 05 | Live Update chip + number icon | yes (wearer) | n/a | follower had a plain text notification | **M / L** | **done**: follower gets the same chip/icon with the followed value |
 | 05 | System icons (root) and LSPosed SystemUI hook | yes (wearer) | n/a | follower role not wired | | **done** 2026-10-16 (see "Root status bar") |
 | 06 | Invite QR / link, match code, Allow/Deny, remove + key rotation | yes | yes | — | | ok |
@@ -286,7 +324,7 @@ Value/effort: H/M/L.
 | 06 | Follower alarms low / high / no data | yes | **no** | Mac had none | **H / L** | **done** (Mac `Alarms.swift`, same thresholds; not yet seen firing) |
 | 06/07 | Follower survives reboot / app update | wearer only | n/a | `FollowerService` never restarted | **H / L** | **done** (`StartReceiver` for both roles; verified on update) |
 | 07 | BLE followers + nearby pairing | yes | yes | — | | ok |
-| 07 | Mac with legacy + v2 BLE at once | — | second connection times out | one central for both services, or drop legacy | M / M | open (no cheap fix) |
+| 07 | Mac with legacy + v2 BLE at once | — | second connection times out | one central for both services, or drop legacy | M / M | **done** (polish round 2: one connection, both paths) |
 | 07 | GATT abuse limits, `INFO` privacy gating | no | — | — | M / M | open |
 | 08 | Garmin via the xDrip+ server | wearer, only if 17580 is free | n/a | a follower phone (e.g. a parent with a Garmin) couldn't serve the watch | M / L | **done**: follower serves 17580 |
 | 08 | Own watch app / push via Connect IQ | no | n/a | next spike | H / H | out of scope |
