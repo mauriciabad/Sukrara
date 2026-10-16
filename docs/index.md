@@ -6,27 +6,75 @@ title: Sukrara (alpha)
 
 # Sukrara — your sugar, now
 
-Live glucose from a FreeStyle Libre 3 on your **Mac menubar**, **Android status bar**, **Garmin watch** and your
-**family's devices** — end-to-end encrypted, over Bluetooth or public Nostr relays, **no cloud account and nothing
-to host**.
+Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android status bar and home screen**, **Garmin
+watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
+anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-> **Alpha / research.** Everything here is a throwaway proof of concept built to find out what works. The real app
-> will be rebuilt from scratch. **Not a medical device.**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/Sukrara-0.10.0.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/GlucoseBar-0.10.0.app.zip)**
+· [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
+· [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
-- Code, releases and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
-- Download the alpha: [releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
+> **Alpha, built from research spikes.** Each feature started as a proof of concept with a written report (below);
+> v0.10.0 bundles them into one app for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
+> **Not a medical device:** don't make treatment decisions from it.
+
+<p>
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android" width="180">
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/nostr/android-app/evidence/04-owner-approve-dialog.png" alt="Allow dialog with a 4-digit match code" width="180">
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png" alt="Home-screen widgets" width="180">
+</p>
+<p>
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/statusbar-all.png" alt="Glucose in the Android status bar" width="540">
+</p>
+<p>
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/menubar-button.png" alt="Mac menubar item" height="44">
+  &nbsp;
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/menubar-sparkline.png" alt="3 h sparkline" height="70">
+  &nbsp;
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-macos/evidence/combined-medium-dark.png" alt="macOS widget render" height="120">
+</p>
+
+## Features
+
+- **Phone:** value, continuous trend arrow and 12 h chart; status-bar chip and number icon; home-screen widgets;
+  insulin, carbs and notes with optional LibreView upload. Source: Juggluco, or the sensor read directly.
+- **Mac:** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr.
+- **Sharing:** a QR code or link with no secret inside, a 4-digit code on both screens, then **Allow**. Followers get
+  low / high / no-data alarms. Removing someone rotates the key; everyone else carries on.
+- **Offline:** nearby pairing and following over Bluetooth, no internet needed.
+- **Watch and smart home:** existing Garmin watch apps work unchanged; stock Home Assistant reads it through a
+  Nightscout-compatible adapter.
+- **Keys without lock-in:** back up to Proton Pass, Bitwarden or KeePassDX as a normal password; a new phone restores
+  everything and followers don't notice.
+
+## Use cases
+
+- Glucose at a glance while working on the Mac, about 0.3 s behind the phone.
+- A parent following their kid, with alarms, and approve / remove in one tap.
+- No internet around: followers in the same room use Bluetooth.
+- Away from home on mobile data: readings reach followers through Nostr relays in about a second.
+- A bedroom light that turns red at night when glucose runs high (Home Assistant).
+- The doctor keeps seeing everything in LibreView.
+- Glucose on a Garmin watch face.
 
 ## Investigations
 
-| # | Topic |
-|---|---|
-| [01](01-connectivity) | Live glucose onto a Mac: direct sensor BLE, Juggluco over Wi-Fi, Bluetooth with no shared network |
-| [02](02-direct-sensor) | The phone app reads the Libre 3 itself |
-| [03](03-nostr) | Nostr relays as the backbone of a no-hosting Nightscout alternative |
-| [04](04-libreview) | Insulin, carbs, notes and glucose to LibreView |
-| [05](05-android-status-bar) | Glucose in the Android status bar |
-| [06](06-sharing-and-keys) | Sharing without technical steps, keys without lock-in |
-| [07](07-bluetooth-followers) | Bluetooth followers and nearby pairing (Android + Mac) |
-| [08](08-garmin) | Glucose on a Garmin watch |
-| [09](09-brand) | Name, icon and style: Sukrara |
-| [13](13-macos-widgets) | macOS widgets |
+| # | Topic | Result |
+|---|---|---|
+| [01](01-connectivity) | Live glucose onto a Mac without the cloud | Wi-Fi ~0.3 s; Bluetooth works with no shared network |
+| [02](02-direct-sensor) | The phone reads the sensor itself | No Juggluco needed, values match, no wakelocks |
+| [03](03-nostr) | Nostr relays as a no-hosting Nightscout | ~1 s live, 12 h backfill in 8 s, stock Home Assistant works |
+| [04](04-libreview) | Treatments and glucose to LibreView | Phone + Mac as one device, no duplicates |
+| [05](05-android-status-bar) | Glucose in the Android status bar | Chip, icon, system icons and an LSPosed hook all work |
+| [06](06-sharing-and-keys) | Sharing and keys without lock-in | QR + code + Allow, revoke, restore; 19/19 end-to-end checks |
+| [07](07-bluetooth-followers) | Bluetooth followers and nearby pairing | Same encrypted events over BLE, fully offline, Android + Mac |
+| [08](08-garmin) | Glucose on a Garmin watch | Existing watch apps work with our server |
+| [09](09-brand) | Name, icon and style | Sukrara |
+| [10](10-showcase) | Sukrara, the showcase app | Every feature in one app, in daily use |
+| 11 | Battery cost, with and without root | *In progress* |
+| [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
+| [13](13-macos-widgets) | macOS widgets | Built without Xcode; need an Apple certificate to run |
+
+Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
+(GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.

@@ -1,77 +1,220 @@
-# CGM on the Mac — research spikes
-
-Research repo for a **macOS menubar app that shows live FreeStyle Libre 3 glucose** (number + a precise trend arrow)
-**without the cloud** (no LibreView / LibreLinkUp), and for a future **Android app that replaces Juggluco**.
-Each investigation is a set of throwaway proofs of concept plus a written report; the code here is meant to be read and
-learned from, not shipped.
-
-<p>
-  <img src="docs/img/menubar-button.png" alt="Menubar item: number and trend arrow" height="44">
-  &nbsp;
-  <img src="docs/img/menubar-sparkline.png" alt="3 h sparkline from the menubar dropdown" height="70">
+<p align="center">
+  <img src="spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="120">
 </p>
-<img src="docs/img/trend-arrows.png" alt="Trend arrow for every rate from −4 to +4 mg/dL/min, light and dark menubar">
 
-<sub>The arrow angle is continuous in the sensor's rate of change (0 → flat, ±3 mg/dL/min → vertical, double chevron
-beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65 / 145 / 185 mg/dL.</sub>
+<h1 align="center">Sukrara — your sugar, now</h1>
+
+<p align="center">
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/Sukrara-0.10.0.apk"><b>Download for Android</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.0/GlucoseBar-0.10.0.app.zip"><b>Download for Mac</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
+  &nbsp;·&nbsp;
+  <a href="https://sukrara.mauri.app">sukrara.mauri.app</a>
+</p>
+
+Sukrara shows live glucose from a **FreeStyle Libre 3** wherever you look: the **Mac menubar**, the **Android status
+bar and home screen**, a **Garmin watch**, and the phones and Macs of the people who look after you. Readings travel
+**end-to-end encrypted**, over **Bluetooth** when you're nearby or over **public Nostr relays** when you're not. There's
+no cloud account to create and no server to host. The name is Catalan-ish: *sucre* (sugar) + *ara* (now).
+
+> **This is an alpha, built from research spikes.** Each feature started as a throwaway proof of concept with a
+> written report, and v0.10.0 bundles them into one app to see how it feels day to day. The real Sukrara will be
+> rebuilt from scratch, properly and with more features, using what these spikes taught us.
+> **Not a medical device** (see the [disclaimer](#disclaimer)).
+
+<p align="center">
+  <img src="spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android: 70 mg/dL, flat arrow, feature summary" width="200">
+  <img src="spikes/showcase-android/evidence/05-share-qr.png" alt="Share screen with a QR invite that holds no key" width="200">
+  <img src="spikes/nostr/android-app/evidence/04-owner-approve-dialog.png" alt="Allow dialog with a 4-digit match code" width="200">
+  <img src="spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png" alt="Home-screen widgets: value and graph" width="200">
+</p>
+<p align="center">
+  <img src="docs/img/statusbar-all.png" alt="Android status bar with the glucose number in several places" width="540">
+</p>
+<p align="center">
+  <img src="docs/img/menubar-button.png" alt="Mac menubar item: number and trend arrow" height="44">
+  &nbsp;
+  <img src="docs/img/menubar-sparkline.png" alt="3 h sparkline in the menubar dropdown" height="70">
+  &nbsp;
+  <img src="spikes/widgets-macos/evidence/combined-medium-dark.png" alt="macOS widget render: value and graph" height="120">
+  &nbsp;
+  <img src="spikes/menubar/evidence/ble-nearby-waiting.png" alt="Mac waiting for approval with a match code" height="120">
+</p>
+
+<sub>Android screenshots are from the emulator with a synthetic source. The trend arrow turns continuously with the rate
+of change (flat at 0, vertical at ±3 mg/dL/min, double beyond) instead of Libre's 5 fixed arrows. Colours follow
+personal thresholds of 65 / 145 / 185 mg/dL.</sub>
+
+## Features
+
+**On your phone** (Android 16+)
+- Current value, continuous trend arrow and a 12 h chart. Source: Juggluco (default) or the Libre 3 read directly
+  (opt-in). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
+  spike also proved system icons and a coloured LSPosed hook (root), not in the alpha yet.
+  [05](docs/05-android-status-bar.md)
+- Home-screen widgets: value, graph, and graph + value, resizable, light/dark, stale state.
+  [12](docs/12-android-widgets.md)
+- Log insulin, carbs and notes, and upload them (and glucose) to LibreView. Off until you set it up.
+  [04](docs/04-libreview.md)
+
+**On your Mac**
+- The number and trend arrow in the menubar, coloured by range, with a 3 h sparkline. [01](docs/01-connectivity.md)
+- Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone.
+  Keys stay in the macOS Keychain. [07](docs/07-bluetooth-followers.md)
+- Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
+- Desktop and Notification Center widgets are designed and rendered. Running them needs an Apple-issued signing
+  certificate. [13](docs/13-macos-widgets.md)
+
+**Sharing and family**
+- Share with a QR code or link that holds no secret. The other person asks, both screens show the same 4-digit
+  code, and you tap **Allow**. [06](docs/06-sharing-and-keys.md)
+- Followers get alarms for low, high and no data for 20 minutes.
+- Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
+- Pair nearby over Bluetooth with no internet at all. [07](docs/07-bluetooth-followers.md)
+- Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers.
+
+**Watch and smart home**
+- Garmin: Sukrara speaks the same local web API as Juggluco, so the CGM+ app, datafield and watch faces work
+  unchanged. [08](docs/08-garmin.md)
+- Nightscout-compatible adapter: stock Home Assistant, xDrip+, Nightguard, LoopFollow and others read it without
+  changes. Proven in the Nostr spike, not in the alpha app yet. [03](docs/03-nostr.md)
+
+**Privacy and keys**
+- Every reading is signed by your phone and encrypted to a read key only your followers have. Relays only see
+  ciphertext, and it expires on its own. [03](docs/03-nostr.md), [06](docs/06-sharing-and-keys.md)
+- No account, no server of ours, no Abbott cloud in the loop.
+- Back up your identity to Proton Pass, Bitwarden or KeePassDX as a normal password item. No passkeys, so you can
+  move between password managers. [06](docs/06-sharing-and-keys.md)
+- New phone? Restore from the password manager and your followers carry on without a new invite.
+
+## Use cases
+
+- **Glucose at a glance while you work.** The number sits in the Mac menubar, about 0.3 s behind the phone.
+- **A parent follows their kid.** Scan the QR, check the code, Allow. Alarms on the parent's phone; remove them later
+  with one tap.
+- **No internet nearby.** On a plane or in a basement, the Mac or a family phone in the same room follows over
+  Bluetooth.
+- **Away from home on mobile data.** Followers anywhere get each reading through public Nostr relays in about a
+  second.
+- **A bedroom light at night.** Home Assistant's built-in Nightscout integration reads the adapter as-is, so "turn the
+  light red if I'm above 180 for 10 minutes" is a normal automation. [03](docs/03-nostr.md)
+- **The doctor still sees LibreView.** Glucose and treatments from the phone and the Mac arrive once each, no
+  duplicates. [04](docs/04-libreview.md)
+- **Glucose on the wrist.** Garmin watch faces and datafields keep working without Juggluco. [08](docs/08-garmin.md)
+
+## By the numbers
+
+All measured during the investigations (real phone and Mac unless noted). Details in each report.
+
+| What | Result | Report |
+|---|---|---|
+| Phone → Mac over Wi-Fi / Bluetooth | ~0.3 s / 0.2–1 s; 17/17 readings with the phone unplugged and screen off | [01](docs/01-connectivity.md) |
+| Phone → public relays → Mac menubar | 0.2–0.5 s (typically 0.3 s) | [03](docs/03-nostr.md) |
+| New follower catches up on the last 12 h | 8 s, from hourly chunks | [03](docs/03-nostr.md) |
+| Phone publishing every reading to 4 relays | 0.2 % of one CPU core, ~5.5–9 MB/day | [03](docs/03-nostr.md) |
+| Mac following over Nostr | ~1.3 s of CPU per hour, ~3 MB/day download | [03](docs/03-nostr.md) |
+| Load on public relays | 24 stored events per user per day, all self-expiring | [03](docs/03-nostr.md) |
+| Nightscout clients | 17/17 request shapes pass; stock Home Assistant 2026.10 works | [03](docs/03-nostr.md) |
+| Sharing protocol, end to end over real relays | 19/19 checks (incl. forged keys, revoke, phone change) | [06](docs/06-sharing-and-keys.md) |
+| Android follower vs. wearer | 720/720 readings identical; 719/719 after a phone change, no re-invite | [06](docs/06-sharing-and-keys.md) |
+| Mac forgery self-test | 13/13 forged inputs rejected | [07](docs/07-bluetooth-followers.md) |
+| Bluetooth follower | 24 h backlog (~50 KB) in ~2.3 s ≈ 20 KiB/s; live ≈ 0.9 s | [07](docs/07-bluetooth-followers.md) |
+| Reading the sensor directly | 3 h of history in ~1 s; 0 wakelocks (Juggluco: 973 in the same session) | [02](docs/02-direct-sensor.md) |
+| Android widgets | ≈ 0.4 s CPU per minute update (emulator), nothing while the screen is off | [12](docs/12-android-widgets.md) |
+
+## How it works
+
+```
+                                    ┌──── Bluetooth LE (nearby, no internet) ────┐
+Libre 3 ──BLE──▶ phone (Sukrara) ───┤                                            ├──▶ followers: Android, Mac,
+            (via Juggluco, or       └──── public Nostr relays (anywhere) ────────┘    (Home Assistant via adapter)
+             read directly)         same signed + encrypted events on both paths
+                 │
+                 ├── status bar, widgets
+                 ├── 127.0.0.1:17580 ──▶ Garmin Connect ──▶ watch
+                 └── LibreView (optional, for the doctor)
+```
+
+- Your **identity key** lives in your password manager. It signs a list of your devices.
+- Your phone's **device key** signs each reading; a shared **read key** encrypts it. Each approved follower gets the
+  read key privately. Removing someone rotates it.
+- Relays keep one live event per reading (expires in an hour) and one replaceable chunk per hour (expires in a week).
+  Bluetooth carries exactly the same events, so a follower checks them the same way whichever path they came by.
+
+The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PROTOCOL-v2.md).
 
 ## Investigations
 
-| # | Date | Topic | Report |
+| # | Topic | Result | Report |
 |---|---|---|---|
-| 01 | 2026-10-15 | Getting live glucose onto a Mac: direct sensor BLE, Juggluco over Wi-Fi, and Bluetooth when there's no shared network | [docs/01-connectivity.md](docs/01-connectivity.md) |
-| 02 | 2026-10-15 | The phone app reads the sensor itself (no Juggluco), and what that costs in battery | [docs/02-direct-sensor.md](docs/02-direct-sensor.md) |
-| 03 | 2026-10-15 | Nostr relays as the backbone of a no-hosting Nightscout alternative: remote + shared, E2E-encrypted, works with stock Home Assistant | [docs/03-nostr.md](docs/03-nostr.md) |
-| 04 | 2026-10-15 | Insulin, carbs, notes and glucose to LibreView (for the doctor) from the phone **and** the Mac, synced over BLE, ready for Nostr | [docs/04-libreview.md](docs/04-libreview.md) |
-| 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
-| 06 | 2026-10-16 | Sharing without technical steps: one Android app (wearer + follower), QR invite + Allow, revoke by key rotation, password-manager backup (Proton Pass/Bitwarden, no lock-in), seamless phone change | [docs/06-sharing-and-keys.md](docs/06-sharing-and-keys.md) |
-| 08 | 2026-10-16 | Glucose on a Garmin watch (watchface.io face, CGM+ app + datafield) from our own app, no Juggluco | [docs/08-garmin.md](docs/08-garmin.md) |
-| 09 | 2026-10-16 | Name, icon and style for the showcase app: candidates in context + an asset exporter → **Sukrara** | [docs/09-brand.md](docs/09-brand.md) |
+| 01 | Live glucose onto a Mac without the cloud | Wi-Fi and Bluetooth both work, also with no shared network; Mac ↔ sensor directly works but isn't practical | [docs/01](docs/01-connectivity.md) |
+| 02 | The phone reads the sensor itself | Works without Juggluco, values match exactly, no wakelocks | [docs/02](docs/02-direct-sensor.md) |
+| 03 | Nostr relays as a no-hosting Nightscout | Works: ~1 s live, 12 h in 8 s, stock Home Assistant reads it; relay policies are the main risk | [docs/03](docs/03-nostr.md) |
+| 04 | Treatments and glucose to LibreView | Phone and Mac upload as one device, synced over Bluetooth, no duplicates | [docs/04](docs/04-libreview.md) |
+| 05 | Glucose in the Android status bar | All four approaches work; the coloured hook needs root | [docs/05](docs/05-android-status-bar.md) |
+| 06 | Sharing and keys without lock-in | QR + match code + Allow, revoke by rotation, password-manager restore; 19/19 checks | [docs/06](docs/06-sharing-and-keys.md) |
+| 07 | Bluetooth followers and nearby pairing | Same encrypted events over BLE, works fully offline, on Android and Mac | [docs/07](docs/07-bluetooth-followers.md) |
+| 08 | Glucose on a Garmin watch | Existing watch apps work with our server; the watch polls every 5 min | [docs/08](docs/08-garmin.md) |
+| 09 | Name, icon and style | **Sukrara**, the sugar cube with a live dot | [docs/09](docs/09-brand.md) |
+| 10 | Sukrara, the showcase app | Every feature in one Android app, running daily as the wearer | [docs/10](docs/10-showcase.md) |
+| 11 | Battery cost, with and without root | *In progress* | — |
+| 12 | Android home-screen widgets | Value, graph, graph + value; ~0.4 s CPU per update | [docs/12](docs/12-android-widgets.md) |
+| 13 | macOS widgets | Built without Xcode; macOS refuses to load them without an Apple-issued certificate | [docs/13](docs/13-macos-widgets.md) |
 
-## Current conclusions
+## Try it
 
-| Question | Answer |
-|---|---|
-| Can a Mac read the Libre 3 sensor directly over Bluetooth? | **Yes, proven.** It authenticated and decrypted live 1-minute readings using Juggluco's open-source C port of the Libre 3 security. But a phone must still start the sensor (NFC) and hand over its pairing secrets, and the sensor talks to **one** device at a time — so it can't run alongside the phone. |
-| Can Juggluco feed the Mac without internet? | **Yes, proven** over Wi-Fi (auto-discovery, ~0.3 s latency) and USB. Requires Juggluco's web server with "Local only" off. |
-| …with **no shared network** (Mac offline, or Mac on home Wi-Fi + phone on mobile data)? | **Yes, proven over Bluetooth LE** with a small companion app (GlucoBridge) that relays Juggluco to the Mac: every reading delivered within ~1 s, also with the phone on mobile data and with the phone unplugged/screen-off for 17 min. |
-| Can the companion app read the sensor itself, dropping Juggluco? | **Yes, proven** (investigation 02). It resumed the sensor session on its own and delivered a reading a minute to the Mac, matching Juggluco's values exactly. Still needs a phone to activate a new sensor (NFC). |
-| Can the apps keep the doctor's LibreView fed (replacing Juggluco's upload)? | **Yes, proven** (investigation 04). Phone and Mac both upload treatments as one LibreView device; the phone also uploads sensor glucose. LibreView's own export showed each entry once, edits applied and deletes removed. Only one app may own the account's LibreView upload at a time. |
-| Can our app feed existing Garmin watch apps without Juggluco? | **Yes, proven** (investigation 08). An xDrip/Juggluco-compatible web server on the phone's `127.0.0.1:17580`, polled through Garmin Connect, drove the Instinct3 N face, the CGM+ app and the CGM+ datafield unchanged. The watch polls every 5 min. |
-| Recommended architecture | **Phone app = sensor reader + BLE GATT server; Mac app = BLE central** (Wi-Fi as a secondary transport). Both halves are now proven. |
+Downloads: [v0.10.0](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.10.0)
+([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
-## Try it (PoC 1, works today with Juggluco)
+**Android** (Android 16+, arm64)
+1. If you wear the sensor, set up Juggluco first and turn on *Settings → Web server* ("Local only" can stay on).
+2. Install `Sukrara-0.10.0.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+   *Nearby devices*.
+3. Choose **I wear the sensor → Start fresh**, or **Restore from password manager** on a new phone.
+4. Tap **Save to password manager** so a lost phone doesn't mean re-inviting everyone.
+5. For the status-bar chip, tap *Allow Live Updates for Sukrara* in Settings. Add widgets from the home screen's
+   widget picker.
 
-Downloads are on the [Releases page](https://github.com/mauriciabad/cgm-reading-mac-spike/releases).
+**Sharing**
+- Wearer: **Share with someone** shows a QR code and a link. The follower installs Sukrara, chooses
+  **I follow someone** and scans or opens the link. Check that both screens show the same code, then tap **Allow**.
+- Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
 
-1. **Phone**: Juggluco connected to your Libre 3, with *Settings → Web server* **Active** ("Local only" may stay on).
-   Install `GlucoBridge-*.apk`, open it, allow *Nearby devices* + *Notifications*. It shows the latest value and
-   "BLE advertising: on".
-2. **Mac** (Apple Silicon, macOS 14+): unzip `GlucoseBar.app.zip`, then
-   `xattr -dr com.apple.quarantine GlucoseBar.app` (it's ad-hoc signed) and open it. Allow Bluetooth (and Local
-   Network if you also want the Wi-Fi transport). The number appears in the menubar within a few seconds.
-
-<img src="docs/img/glucobridge-phone.png" alt="GlucoBridge on the phone" width="260">
-
-Not a medical device — see the [disclaimer](#disclaimer).
+**Mac** (Apple Silicon, macOS 14+)
+```sh
+unzip GlucoseBar-0.10.0.app.zip && xattr -dr com.apple.quarantine GlucoseBar.app && open GlucoseBar.app
+```
+The app is ad-hoc signed, hence the `xattr`. Allow Bluetooth. To follow end-to-end encrypted: on the phone,
+**Share → Copy Mac link**, then in the menubar **Follow someone…**, paste, and Allow on the phone. Nearby pairing over
+Bluetooth works the same way with a match code. (The Mac also picks up the phone's older, unencrypted Bluetooth link
+with no setup; turn that off in the phone's Settings → Mac once you follow over the encrypted path.)
 
 ## Repository layout
 
 ```
-docs/                     reports (one per investigation), images, raw evidence logs
+docs/                     reports (one per investigation), images, evidence; also the sukrara.mauri.app site
 spikes/
-  menubar/                GlucoseBar — macOS menubar app (Swift, AppKit, CoreBluetooth). Wi-Fi + BLE transports
-  libreview/              LibreView upload spec (SPEC.md) + reference/test tool (lv.py) — investigation 04
-  glucobridge-android/    GlucoBridge — Android companion (Kotlin), two flavors; treatment log + LibreView upload:
-                            juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
-                            direct   = reads the Libre 3 sensor itself (PoC 2)
-  statusbar-android/      GlucoStatus — Android status-bar experiments (Kotlin; app + LSPosed module in one APK)
-  brand/                  name + icon candidates (brand.py → SVG, VectorDrawable, .icns, PNG), gallery, preview APK
+  showcase-android/       Sukrara — the alpha Android app (Kotlin), bundles everything below
+  menubar/                GlucoseBar — macOS menubar app and follower (Swift, AppKit, CoreBluetooth)
+  nostr/                  Nostr transport, protocol v2 (Python reference + tests), Android sharing app, Nightscout adapter
+  glucobridge-android/    phone companion: Juggluco or direct sensor → Bluetooth, LibreView, Garmin server
+  libreview/              LibreView upload spec + reference tool
+  statusbar-android/      status-bar experiments (app + LSPosed module)
+  widgets-android/        Android widgets (Jetpack Glance)
+  widgets-macos/          macOS WidgetKit widgets built without Xcode
+  brand/                  name and icon candidates, asset exporter
   ble-scan/               tiny BLE advertisement scanner
 ```
-The direct Mac ↔ sensor experiment is summarized in the report but its code is not published.
-
 Build instructions per spike: [spikes/README.md](spikes/README.md).
+
+## The real app
+
+These spikes answered "can it be done, and what does it cost?". The real Sukrara will start from a clean codebase
+with that knowledge: the same ideas (no account, nothing to host, end-to-end encryption, Bluetooth and Nostr), done
+properly and with more features. It will probably keep the name.
 
 ## Disclaimer
 
@@ -80,7 +223,7 @@ Build instructions per spike: [spikes/README.md](spikes/README.md).
 - FreeStyle Libre is a trademark of Abbott. This project is not affiliated with Abbott or with Juggluco.
 - The sensor is read for interoperability with the author's own glucose data. Per-sensor pairing data is a secret
   and is never committed here.
-- The `direct` flavor also compiles [Juggluco](https://github.com/j-kaltes/Juggluco)'s GPLv3 sources, which are
+- The direct-sensor code also compiles [Juggluco](https://github.com/j-kaltes/Juggluco)'s GPLv3 sources, which are
   fetched separately and not included in this repo.
 
 ## License
