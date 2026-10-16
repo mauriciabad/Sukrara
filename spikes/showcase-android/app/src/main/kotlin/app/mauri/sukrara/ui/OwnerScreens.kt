@@ -4,6 +4,7 @@
 package app.mauri.sukrara.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,7 +49,8 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 interface OwnerActions {
-    fun create()
+    fun create(profile: app.mauri.sukrara.core.Profile)
+    fun saveProfile(profile: app.mauri.sukrara.core.Profile)
     fun restoreFromPasswordManager()
     fun restorePasted(secret: String, password: String?)
     fun saveBackup()
@@ -73,20 +75,25 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
     var paste by remember { mutableStateOf(false) }
     var secret by remember { mutableStateOf("") }
     var pw by remember { mutableStateOf("") }
+    var profile by remember { mutableStateOf(app.mauri.sukrara.core.Profile("", app.mauri.sukrara.core.Avatar.random())) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("I wear the sensor", style = MaterialTheme.typography.headlineSmall)
         Text("This phone reads your glucose and shares it, end-to-end encrypted, through public Nostr relays.")
+        ProfileEditor(profile, { profile = it }, "Your name")
         RevealValue(busy) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(20.dp)); Text(it)
             }
         }
         RevealValue(error) { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = a::create, enabled = busy == null, modifier = Modifier.fillMaxWidth()) { Text("Start fresh (new identity)") }
+        Button(onClick = { a.create(profile) }, enabled = busy == null && profile.name.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+            Text("Start fresh (new identity)")
+        }
         OutlinedButton(onClick = a::restoreFromPasswordManager, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
             Text("Restore from password manager")
         }
-        Text("New phone? Restoring keeps all your followers — nobody has to scan again.", style = MaterialTheme.typography.bodySmall)
+        Text("New phone? Restoring keeps all your followers, your name and your picture — nobody has to scan again.",
+            style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = { paste = !paste }) { Text(if (paste) "Hide manual restore" else "Restore by pasting a key (nsec / ncryptsec)") }
         Reveal(paste) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(secret, { secret = it }, label = { Text("nsec1… or ncryptsec1…") }, singleLine = true,
@@ -107,9 +114,15 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
     var showRecovery by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
-                Text("Wearer · ${u.iPub?.let { Proto.shortNpub(it) } ?: ""} · key epoch ${u.epoch}", style = MaterialTheme.typography.bodySmall)
+            // the wearer's own profile: what followers see; tap to edit
+            Row(Modifier.weight(1f).clickable { a.open("profile") }, verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 48.dp)
+                Column {
+                    Text(u.profile?.name?.ifBlank { null } ?: "Add your name", style = MaterialTheme.typography.headlineSmall,
+                        color = if (u.profile?.name.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    Text("Wearer · ${u.iPub?.let { Proto.shortNpub(it) } ?: ""} · key epoch ${u.epoch}", style = MaterialTheme.typography.bodySmall)
+                }
             }
             TextButton(onClick = { a.open("settings") }) { Text("Settings") }
         }
@@ -149,7 +162,8 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         // a newly approved follower's card expands in; a removed one shrinks out and reappears as a "removed" line
         AnimatedItems(active, { it.f }) { f ->
             Card(Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AvatarImage(f.avatar, f.name, 40.dp)
                     Column(Modifier.weight(1f)) {
                         Text(f.name, fontWeight = FontWeight.SemiBold)
                         Text("since ${date(f.since)} · ${f.f.take(8)}…", style = MaterialTheme.typography.bodySmall)
@@ -262,14 +276,18 @@ fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium)
         val qr = remember(link) { qrBitmap(link) }
         Image(qr.asImageBitmap(), contentDescription = "invite QR code", modifier = Modifier.size(280.dp))
-        Text("The code holds no key: it only lets them ask. You approve each request. Expires ${date(u.inviteExpiry)}.",
-            style = MaterialTheme.typography.bodySmall)
+        Text("The code holds no key to your glucose: it shows them your name and picture and lets them ask. You approve " +
+            "each request. Expires ${date(u.inviteExpiry)}.", style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("They'll see", style = MaterialTheme.typography.bodySmall)
+            AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 24.dp)
+            Text(u.profile?.name?.ifBlank { null } ?: "no name", fontWeight = FontWeight.SemiBold)
+            TextButton(onClick = { a.open("profile") }) { Text("Edit") }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { a.shareLink(link) }) { Text("Send link…") }
             OutlinedButton(onClick = { a.copy(link) }) { Text("Copy") }
         }
-        // Sukrara for Mac reads both forms now; GlucoseBar builds before the gap audit (and CGM Share) need cgmshare:.
-        TextButton(onClick = { Proto.legacyLink(link)?.let(a::copy) }) { Text("Copy cgmshare: link (older Mac builds)") }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
             Text("Waiting for their request…", style = MaterialTheme.typography.bodySmall)
@@ -287,6 +305,7 @@ fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
         title = { Text("${p.name} wants to see your glucose") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AvatarImage(p.avatar, p.name, 64.dp, Modifier.align(Alignment.CenterHorizontally))
                 Text("Check that their phone shows the same code:")
                 Text(p.code, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
                     modifier = Modifier.align(Alignment.CenterHorizontally))

@@ -203,7 +203,7 @@ let treatmentStore = MainActor.assumeIsolated {
             if case .waiting = n.phase { n.sendRequest() }     // in case the app quit before it reached a relay
         } else if let link = defaults.string(forKey: "followLink")      // tests: pair without the dialog
                     ?? defaults.string(forKey: "followLinkFile").flatMap({ try? String(contentsOfFile: $0, encoding: .utf8) }) {
-            join(link, name: defaults.string(forKey: "followName") ?? FollowUI.computerName)
+            follow(link, name: defaults.string(forKey: "followName") ?? FollowUI.computerName)
         }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(openURL(_:with:)),
                                                      forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
@@ -221,12 +221,13 @@ let treatmentStore = MainActor.assumeIsolated {
     @objc func openURL(_ event: NSAppleEventDescriptor, with reply: NSAppleEventDescriptor) {
         guard let s = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else { return }
         log("opened \(s.prefix(16))…")
-        begin(prefill: s)
+        // sukrara:join#… (the web page's "Open in Sukrara" button) is the https link
+        begin(prefill: V2.isInvite(s) ? V2.inviteBase + (s.split(separator: "#", maxSplits: 1).last.map(String.init) ?? "") : s)
     }
 
     func begin(prefill: String? = nil) {
         guard let (link, name) = FollowUI.ask(prefill: prefill) else { return }
-        join(link, name: name)
+        follow(link, name: name)
     }
 
     func beginFromQR() {
@@ -249,13 +250,15 @@ let treatmentStore = MainActor.assumeIsolated {
         }
         guard let t = info.token, !offeredTokens.contains(t) else { ble?.disconnect(retryAfter: 60); return }
         offeredTokens.insert(t)
-        let r = info.relays.joined(separator: ",").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        let link = "cgmshare:join?i=\(info.i)&t=\(t)&x=\(info.expiry ?? Int(Date().timeIntervalSince1970) + 600)&r=\(r)"
+        let inv = V2.Invite(i: info.i, t: t, x: info.expiry ?? Int(Date().timeIntervalSince1970) + 600, r: info.relays,
+                            profile: info.profile)
+        let who = (info.profile?["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? phone
         var name = defaults.string(forKey: "pairNearby") ?? ""                   // tests: no dialog
         if name.isEmpty {
             NSApp.activate(ignoringOtherApps: true)
             let a = NSAlert()
-            a.messageText = "Follow \(phone) nearby?"
+            a.messageText = "Follow \(who) nearby?"
+            a.icon = Avatar.image(info.profile?["avatar"] as? [String: Any], name: who, size: 64)
             a.informativeText = "\(phone) is offering to share glucose over Bluetooth. Its owner will see a request and "
                 + "a 4-digit code to compare with this Mac."
             let f = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
@@ -267,11 +270,23 @@ let treatmentStore = MainActor.assumeIsolated {
             name = f.stringValue.isEmpty ? FollowUI.computerName : f.stringValue
         }
         log("BLE v2: nearby pairing with \(phone)")
-        join(link, name: name, nearby: true)
+        join(inv, name: name)
     }
 
-    func join(_ link: String, name: String, nearby: Bool = false) {
-        switch FollowerV2.join(link: link, name: name, nearby: nearby) {
+    /// A pasted / opened / test link: look the invite up on the relays first (who is inviting), then ask.
+    func follow(_ link: String, name: String) {
+        Task { @MainActor in
+            switch await V2.resolveInvite(link) {
+            case .failure(let why):
+                log("v2 join failed: \(why.text)")
+                if defaults.string(forKey: "followLink") == nil, defaults.string(forKey: "followLinkFile") == nil { FollowUI.error(why.text) }
+            case .success(let inv): join(inv, name: name)
+            }
+        }
+    }
+
+    func join(_ inv: V2.Invite, name: String) {
+        switch FollowerV2.join(inv, name: name) {
         case .failure(let why):
             log("v2 join failed: \(why.text)")
             if defaults.string(forKey: "followLink") == nil, defaults.string(forKey: "followLinkFile") == nil { FollowUI.error(why.text) }
@@ -301,13 +316,15 @@ let treatmentStore = MainActor.assumeIsolated {
         n.onHistory = { store.ingest(history: $0, from: $1) }
         n.onPhase = { [weak self, weak n] p in
             guard let self, let n else { return }
+            let w = n.wearer, who = w.name.isEmpty ? "someone" : w.name
+            let pic = Avatar.image(w.avatar, name: who, size: 18)
             switch p {
-            case .waiting(let code): status.setFollow("Following: waiting for approval · code \(code)")
-            case .active(let e): status.setFollow("Following (v2) · key epoch \(e) · \(n.relayHosts.count) relays")
-            case .revoked: status.setFollow("⚠︎ Access removed by the wearer")
+            case .waiting(let code): status.setFollow("Following \(who): waiting for approval · code \(code)", image: pic)
+            case .active(let e): status.setFollow("Following \(who) · key epoch \(e) · \(n.relayHosts.count) relays", image: pic)
+            case .revoked: status.setFollow("⚠︎ \(who) stopped sharing with this Mac", image: pic)
             }
             status.treatmentsChanged()                   // may add entries? (roster writers)
-            if self.showWindow { self.window.show(p, name: n.st.name) }
+            if self.showWindow { self.window.show(p, name: n.st.name, wearer: n.wearer) }
         }
     }
 
@@ -413,7 +430,7 @@ MainActor.assumeIsolated {
                 treatments.upsertLocal(t)
             case "delete": treatments.delete(id)
             case "unfollow": following.unfollow()
-            case "follow": following.join(o["link"] as? String ?? "", name: o["name"] as? String ?? FollowUI.computerName)
+            case "follow": following.follow(o["link"] as? String ?? "", name: o["name"] as? String ?? FollowUI.computerName)
             case "follow-status": log("debug v2 \(following.statusLine)")
             case "v2-treat":       // writer test: publish only, never touches the local log
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,

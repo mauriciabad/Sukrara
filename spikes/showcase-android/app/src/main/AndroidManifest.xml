@@ -51,14 +51,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- invite links: cgmshare:join?i=…&t=…&x=…&r=… -->
+            <!-- sukrara:join#<32 chars>: the web page's "Open in Sukrara" button where App Links aren't verified -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="cgmshare" />
+                <data android:scheme="sukrara" />
             </intent-filter>
-            <!-- App Link invites: https://sukrara.mauri.app/join#i=…&t=…&x=…&r=… (assetlinks.json on the site) -->
+            <!-- App Link invites: https://sukrara.mauri.app/join#<32 chars> (v3 short link; assetlinks.json on the site) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

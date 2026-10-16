@@ -4,8 +4,6 @@
 package app.mauri.sukrara.core
 
 import java.math.BigInteger
-import java.net.URLDecoder
-import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -27,8 +25,11 @@ import org.nostrdevkit.sdk.nip59MakeGiftWrap
 /** One glucose reading. [t] unix seconds, [sgv] mg/dL, [rate] mg/dL/min (null = unknown). */
 data class Reading(val t: Long, val sgv: Int, val rate: Double?, val dev: String = "")
 
-/** `cgmshare:join?i=<npub I>&t=<token>&x=<expiry>&r=<relay>,<relay>` — contains no secret. */
-data class Invite(val iPub: String, val token: String, val expiry: Long, val relays: List<String>)
+/**
+ * What a follower needs to ask for access: the identity I, the invite token, its expiry, the relays and the wearer's
+ * [profile]. From a short link (opened from the invite gift wrap) or from a phone's BLE INFO (nearby pairing).
+ */
+data class Invite(val iPub: String, val token: String, val expiry: Long, val relays: List<String>, val profile: Profile?)
 
 /** Result of opening a NIP-59 gift wrap: [sender] is the *seal* signer (authenticated by the library). */
 data class Unwrapped(val sender: String, val kind: Int, val body: JSONObject, val createdAt: Long)
@@ -43,9 +44,14 @@ object Proto {
     const val WRAP = 1059
     const val RUMOR_TO_OWNER = 30500
     const val RUMOR_TO_FOLLOWER = 30501
+    const val RUMOR_INVITE = 30502
     const val DAY = 86400L
 
-    val RELAYS = listOf("wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.nostr.net")
+    /**
+     * Relays that serve gift wraps (kind 1059) to the key they're addressed to. relay.nostr.net and relay.damus.io
+     * accept them but can't serve them (NIP-42 AUTH: "relay needs serviceUrl", investigation 14, 2026-10-16).
+     */
+    val RELAYS = listOf("wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://offchain.pub")
 
     private val rng = SecureRandom()
 
@@ -118,11 +124,12 @@ object Proto {
         return signed(d, CHUNK, enc(d, gPub, body.toString()), tags, createdAt)
     }
 
-    /** roster, kind 30078, signed by I, encrypted to G_n, expires now + 30 d. */
+    /** roster, kind 30078, signed by I, encrypted to G_n, expires now + 30 d. Carries the wearer's [profile]. */
     fun rosterEvent(i: Keys, gPub: String, sid: String, epoch: Int, devices: List<String>, relays: List<String>,
-                    createdAt: Long = nowS(), writers: List<String> = emptyList()): Event {
+                    createdAt: Long = nowS(), writers: List<String> = emptyList(), profile: Profile? = null): Event {
         val body = JSONObject().put("v", 2).put("epoch", epoch).put("devices", JSONArray(devices))
             .put("writers", JSONArray(writers)).put("relays", JSONArray(relays))
+        profile?.let { body.put("profile", it.toJson()) }
         val tags = listOf(tag("d", rosterD(sid)), tag("gk", gk(gPub)), expiration(createdAt + 30 * DAY))
         return signed(i, CHUNK, enc(i, gPub, body.toString()), tags, createdAt)
     }
@@ -171,40 +178,46 @@ object Proto {
 
     // ------------------------------------------------------------------------------------------------ invites
 
-    /** Sukrara: invites are App Links (https://sukrara.mauri.app/join#<query>, verified via assetlinks.json). */
-    const val WEB_JOIN = "https://sukrara.mauri.app/join#"
-
-    fun inviteLink(iPub: String, token: String, expiry: Long, relays: List<String>): String =
-        WEB_JOIN + "i=${npub(iPub)}&t=$token&x=$expiry&r=${URLEncoder.encode(relays.joinToString(","), "UTF-8")}"
-
-    /** The same invite as `cgmshare:join?…` (GlucoseBar on the Mac and CGM Share only parse this form). */
-    fun legacyLink(link: String): String? = inviteQueryOf(link)?.let { "cgmshare:join?$it" }
-
-    /** Is this one of our invite links (either form)? */
-    fun isInvite(link: String) = inviteQueryOf(link) != null
-
-    private fun inviteQueryOf(link: String): String? {
-        val l = link.trim()
-        val q = when {
-            l.startsWith("cgmshare:join?") -> l.substringAfter("cgmshare:join?")
-            l.startsWith("https://sukrara.mauri.app/join") -> l.substringAfter("#", "").ifEmpty { l.substringAfter("?", "") }
-            else -> ""
-        }
-        return q.takeIf { it.contains("i=") && it.contains("t=") }
+    /**
+     * v3 invite (PROTOCOL-identity "Short invites"): the link holds I's 8-byte fingerprint and the secret; the rest
+     * sits in a NIP-59 gift wrap sealed by I, addressed to `invite_key(secret)`, expiring with the invite.
+     * Returns the link and the wrap to publish.
+     */
+    fun newInvite(i: Keys, expiry: Long, relays: List<String>, profile: Profile): Pair<String, Event> {
+        val secret = ByteArray(Derive.SECRET_LEN).also { rng.nextBytes(it) }
+        val body = JSONObject().put("v", 3).put("type", "invite").put("x", expiry).put("r", JSONArray(relays))
+            .put("profile", profile.toJson())
+        val wrap = gift(i, pub(Keys.parse(Derive.hex(Derive.inviteKey(secret)))), RUMOR_INVITE, body,
+            ttlS = maxOf(60, expiry - nowS()))
+        return Derive.shortLink(pub(i), secret) to wrap
     }
 
-    fun parseInvite(link: String): Invite? = runCatching {
-        val q = inviteQueryOf(link) ?: return null
-        val m = q.split("&").associate { kv ->
-            kv.substringBefore("=") to URLDecoder.decode(kv.substringAfter("=", ""), "UTF-8")
+    /** Is this text a Sukrara invite link? (QR scanner, paste, App Link) */
+    fun isInvite(link: String) = Derive.parse(link) != null
+
+    /** The key that can open (and AUTH for) the invite wraps of [link]. */
+    fun inviteKeys(link: Derive.Link): Keys = Keys.parse(Derive.hex(Derive.inviteKey(link.secret)))
+
+    /**
+     * Pick the wrap that opens with the link's secret AND whose seal is signed by a key starting with the
+     * fingerprint, still unexpired. Failure = the reasons, for the error message.
+     */
+    fun openInvite(link: Derive.Link, wraps: List<JSONObject>): Result<Invite> {
+        val k = inviteKeys(link)
+        val reasons = mutableListOf<String>()
+        for (w in wraps) {
+            val e = runCatching { Event.fromJson(w.toString()) }.getOrNull()?.takeIf { it.verify() } ?: continue
+            val u = unwrap(k, e) ?: run { reasons += "doesn't open with this link"; null } ?: continue
+            when {
+                u.kind != RUMOR_INVITE || u.body.optString("type") != "invite" -> reasons += "not an invite"
+                !u.sender.startsWith(link.fp) -> reasons += "sealed by ${u.sender.take(16)}…, the link expects ${link.fp}…"
+                u.body.optLong("x") < nowS() -> reasons += "expired"
+                else -> return Result.success(Invite(u.sender, link.token, u.body.getLong("x"),
+                    strings(u.body.optJSONArray("r")).filter { it.startsWith("wss://") }, Profile.of(u.body.optJSONObject("profile"))))
+            }
         }
-        Invite(
-            iPub = PublicKey.parse(m.getValue("i")).toHex(),
-            token = m.getValue("t"),
-            expiry = m.getValue("x").toLong(),
-            relays = m.getValue("r").split(",").map { it.trim() }.filter { it.startsWith("wss://") },
-        )
-    }.getOrNull()
+        return Result.failure(IllegalStateException(reasons.distinct().joinToString("; ").ifBlank { "nothing found on the relays" }))
+    }
 
     fun strings(a: JSONArray?): List<String> = if (a == null) emptyList() else List(a.length()) { a.getString(it) }
 }

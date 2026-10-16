@@ -39,6 +39,8 @@ data class FollowerUi(
     val ownerPub: String? = null,
     val fPub: String? = null,
     val name: String? = null,
+    val me: app.mauri.sukrara.core.Profile? = null,
+    val wearer: app.mauri.sukrara.core.Profile? = null,
     val last: FollowedReading? = null,
     val chart: List<FollowedReading> = emptyList(),
     val count: Int = 0,
@@ -122,8 +124,8 @@ class FollowerEngine(private val ctx: Context) {
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = ble.scan(onFound)
     fun stopScan() = ble.stopScan()
 
-    /** Nearby pairing: connect over BLE, take the invite (I, token, relays) from the owner's INFO, send the request over BLE. */
-    suspend fun joinNearby(address: String, name: String): String? {
+    /** Nearby pairing: connect over BLE, take the invite (I, token, relays, profile) from the owner's INFO, send the request over BLE. */
+    suspend fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile): String? {
         ble.stopScan()
         val got = kotlinx.coroutines.CompletableDeferred<JSONObject>()
         ble.onInfo = { if (!got.isCompleted) got.complete(it) }
@@ -131,10 +133,10 @@ class FollowerEngine(private val ctx: Context) {
         val info = kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return "Could not reach that phone over Bluetooth"
         ble.onInfo = null
         val pair = info.optJSONObject("pair") ?: return "The owner has not turned on \"Pair nearby\""
-        val link = Proto.inviteLink(info.getString("i"), pair.getString("t"), pair.getLong("x"),
-            Proto.strings(info.optJSONArray("relays")))
-        log.i("nearby: INFO from $address (owner ${Proto.shortNpub(info.getString("i"))})")
-        val err = join(link, name)
+        val inv = app.mauri.sukrara.core.Invite(info.getString("i"), pair.getString("t"), pair.getLong("x"),
+            Proto.strings(info.optJSONArray("relays")), app.mauri.sukrara.core.Profile.of(pair.optJSONObject("profile")))
+        log.i("nearby: INFO from $address (owner ${Proto.shortNpub(inv.iPub)}, '${inv.profile?.name}')")
+        val err = join(inv, me)
         if (err == null) withContext(serial) { st?.bleAddr = address; save() }
         return err
     }
@@ -184,16 +186,33 @@ class FollowerEngine(private val ctx: Context) {
 
     // ============================================================================================ join
 
-    /** Parse the invite, make F, send the access request (gift wrap to I). Returns an error or null. */
-    suspend fun join(link: String, name: String): String? = withContext(serial) {
-        val inv = Proto.parseInvite(link) ?: return@withContext "Not a Sukrara invite link"
+    /**
+     * Open a v3 short link: derive its invite key, fetch the gift wrap from the default relays (AUTH as that key
+     * where a relay wants it), check the seal against the link's fingerprint. Shows who is inviting before asking.
+     */
+    suspend fun resolveInvite(link: String): Result<app.mauri.sukrara.core.Invite> = withContext(Dispatchers.IO) {
+        val l = app.mauri.sukrara.core.Derive.parse(link) ?: return@withContext Result.failure(IllegalArgumentException("Not a Sukrara invite link"))
+        val k = Proto.inviteKeys(l)
+        val tmp = RelayPool(Proto.RELAYS, log::i) { k }
+        val got = try {
+            tmp.fetch(listOf(JSONObject().put("kinds", JSONArray().put(Proto.WRAP)).put("#p", JSONArray().put(Proto.pub(k)))), 10_000)
+        } finally { tmp.close() }
+        Proto.openInvite(l, got.map { it.first }).also { r ->
+            log.i("invite: ${got.size} wrap(s) via ${got.map { it.second.removePrefix("relay:") }.distinct()} → " +
+                r.fold({ "from ${Proto.shortNpub(it.iPub)} '${it.profile?.name}'" }, { "rejected: ${it.message}" }))
+        }
+    }
+
+    /** Make F and send the access request (gift wrap to I) with our [me] profile. Returns an error or null. */
+    suspend fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile): String? = withContext(serial) {
         if (inv.expiry < Proto.nowS()) return@withContext "This invite expired — ask for a new one"
         if (inv.relays.isEmpty()) return@withContext "Invite has no relays"
         val f = Keys.generate()
         val code = Proto.matchCode(Proto.pub(f), inv.token)
-        st = FollowerState(f, name.ifBlank { "Follower" }.take(40), inv.iPub, inv.token, inv.relays, code, Proto.nowS())
+        st = FollowerState(f, me.name.trim().ifBlank { "Follower" }.take(app.mauri.sukrara.core.Profile.MAX_NAME), inv.iPub,
+            inv.token, inv.relays, code, Proto.nowS(), avatar = me.avatar, wearer = inv.profile)
         save()
-        log.i("joining ${Proto.shortNpub(inv.iPub)} via ${inv.relays.size} relays as '${st!!.name}' F=${Proto.pub(f)} code $code")
+        log.i("joining ${Proto.shortNpub(inv.iPub)} ('${inv.profile?.name}') via ${inv.relays.size} relays as '${st!!.name}' F=${Proto.pub(f)} code $code")
         startLocked()
         sendRequest()
         publishUi()
@@ -202,9 +221,21 @@ class FollowerEngine(private val ctx: Context) {
 
     private fun sendRequest() {
         val s = st ?: return
-        val body = JSONObject().put("v", 2).put("type", "request").put("token", s.token).put("name", s.name)
+        val body = JSONObject().put("v", 2).put("type", "request").put("token", s.token).put("profile", s.me.toJson())
         publish(Proto.gift(s.f, s.iPub, Proto.RUMOR_TO_OWNER, body, ttlS = 7 * Proto.DAY), app.mauri.sukrara.core.Lane.CONTROL)
         log.i("access request sent to ${Proto.shortNpub(s.iPub)}")
+    }
+
+    /** Change how the wearer sees us: a `profile` gift wrap (PROTOCOL-v2), applied by the wearer if we're approved. */
+    fun setProfile(me: app.mauri.sukrara.core.Profile) = scope.launch(serial) {
+        val s = st ?: return@launch
+        s.name = me.name.trim().ifBlank { s.name }.take(app.mauri.sukrara.core.Profile.MAX_NAME)
+        s.avatar = me.avatar
+        save()
+        val body = JSONObject().put("v", 2).put("type", "profile").put("profile", s.me.toJson())
+        publish(Proto.gift(s.f, s.iPub, Proto.RUMOR_TO_OWNER, body, ttlS = 7 * Proto.DAY), app.mauri.sukrara.core.Lane.CONTROL)
+        log.i("profile sent to the wearer: '${s.name}'")
+        publishUi()
     }
 
     /** Forget everything (cancel a pending request / stop following). */
@@ -507,6 +538,10 @@ class FollowerEngine(private val ctx: Context) {
         s.rosterEpoch = n
         s.rosterCreatedAt = created
         Proto.strings(body.optJSONArray("relays")).takeIf { it.isNotEmpty() && it != s.relays }?.let { s.relays = it; pool().setRelays(it) }
+        app.mauri.sukrara.core.Profile.of(body.optJSONObject("profile"))?.takeIf { it != s.wearer }?.let {
+            log.i("wearer profile: '${it.name}'")
+            s.wearer = it
+        }
         save()
         log.i("roster accepted via ${short(via)}: epoch $n, devices ${devices.map { it.take(12) }}${if (changed) " (CHANGED)" else ""}")
         if (changed || subscribedDevices != devices) { subscribeData(); backfill("roster changed") }
@@ -667,6 +702,8 @@ class FollowerEngine(private val ctx: Context) {
                 ownerPub = s?.iPub,
                 fPub = s?.fPub,
                 name = s?.name,
+                me = s?.me,
+                wearer = s?.wearer,
                 last = chart.lastOrNull() ?: db.latest(),
                 chart = chart,
                 count = db.count(),

@@ -15,7 +15,8 @@ final class BLEV2Central: NSObject, BLEService {
     static let rx = CBUUID(string: "7c6a0002-5c3e-4f0a-9a57-c95e0b1e0007")
     static let tx = CBUUID(string: "7c6a0003-5c3e-4f0a-9a57-c95e0b1e0007")
 
-    struct Info { let i: String; let relays: [String]; let token: String?; let expiry: Int? }
+    /// `profile`: the wearer's `{"name","avatar"}`, only while "Pair nearby" is open (inside `pair`).
+    struct Info { let i: String; let relays: [String]; let token: String?; let expiry: Int?; let profile: [String: Any]? }
 
     var onEvent: ((String, String) -> Void)?        // (event json, via "ble:<name>")
     var onInfo: ((Info, String) -> Void)?           // (info, peripheral name)
@@ -142,7 +143,7 @@ final class BLEV2Central: NSObject, BLEService {
             let pair = o["pair"] as? [String: Any]
             ownerI = i
             onInfo?(Info(i: i, relays: o["relays"] as? [String] ?? [], token: pair?["t"] as? String,
-                         expiry: (pair?["x"] as? NSNumber)?.intValue), phoneName)
+                         expiry: (pair?["x"] as? NSNumber)?.intValue, profile: pair?["profile"] as? [String: Any]), phoneName)
         case "EVENT":
             guard let ev = msg[1] as? [String: Any], let data = try? JSONSerialization.data(withJSONObject: ev) else { return }
             onEvent?(String(decoding: data, as: UTF8.self), "ble:\(phoneName)")

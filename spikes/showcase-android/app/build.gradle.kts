@@ -68,6 +68,7 @@ kotlin {
 
 dependencies {
   testImplementation("junit:junit:4.13.2")
+  testImplementation("org.json:json:20250517")   // real org.json for JVM tests (Android's is a stub there)
   // SystemUI module (investigation 05): provided by LSPosed/Vector at runtime
   compileOnly("io.github.libxposed:api:102.0.0")
 

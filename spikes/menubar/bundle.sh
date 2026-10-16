@@ -9,8 +9,8 @@
 #             defaults write app.mauri.sukrara.poc unit mmol      # optional
 #             defaults write app.mauri.sukrara.poc secret '...'   # if Juggluco has an API secret
 #             defaults write app.mauri.sukrara.poc nostr 'cgmnostr:1?...'   # legacy v1 Nostr link
-# Protocol v2 (default): menubar → "Follow someone…" (paste https://sukrara.mauri.app/join#… or cgmshare:join?…),
-# or open a cgmshare:join?… link (URL scheme registered below; the web page's "Open in Sukrara" button uses it).
+# Protocol v2 (default): menubar → "Follow someone…" (paste https://sukrara.mauri.app/join#…),
+# or open a sukrara:join#… link (URL scheme registered below; the web page's "Open in Sukrara" button uses it).
 # First launch copies GlucoseBar's defaults + follower Keychain item (Migration.swift).
 set -e
 cd "$(dirname "$0")"
@@ -36,7 +36,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>LSUIElement</key><true/>
   <key>CFBundleURLTypes</key><array><dict>
     <key>CFBundleURLName</key><string>Sukrara invite</string>
-    <key>CFBundleURLSchemes</key><array><string>cgmshare</string></array>
+    <key>CFBundleURLSchemes</key><array><string>sukrara</string></array>
   </dict></array>
   <key>NSBluetoothAlwaysUsageDescription</key><string>Read a FreeStyle Libre 3 sensor directly.</string>
   <key>NSLocalNetworkUsageDescription</key><string>Read glucose from Juggluco on your phone.</string>
@@ -89,7 +89,7 @@ if [ "${WIDGETS:-1}" != 0 ]; then
   plutil -replace CFBundleShortVersionString -string "$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")" "$P"
   plutil -replace GlucoseAppGroup -string "$GROUP" "$P"
   plutil -replace GlucoseHTTPPort -integer 0 "$P"          # App Group only; the spike host's HTTP is not used
-  plutil -replace GlucoseWidgetURLScheme -string "" "$P"   # a tap just opens Sukrara (cgmshare: opens "Follow…")
+  plutil -replace GlucoseWidgetURLScheme -string "" "$P"   # a tap just opens Sukrara (sukrara: opens "Follow…")
   cat > $ENT/widget.plist <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
