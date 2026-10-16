@@ -21,7 +21,7 @@ import org.json.JSONObject
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
  *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
- *       [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
+ *       [--ez hookColor B] [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \
  *       [--es source juggluco|direct --ez confirmDirect true] \
@@ -43,7 +43,7 @@ class DebugReceiver : BroadcastReceiver() {
                 libreview = b("libreview", s.libreview), libreviewIntervalMin = n("libreviewInterval", s.libreviewIntervalMin),
                 macBle = b("macBle", s.macBle), bleFollowers = b("bleFollowers", s.bleFollowers),
                 chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
-                hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition,
+                hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,

@@ -99,7 +99,8 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
-                old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition)) render(force = true)
+                old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition ||
+                old.hookColor != f.hookColor)) render(force = true)
     }
 
     // ============================================================================================ Live.Listener

@@ -274,9 +274,9 @@ fun TreatmentsScreen(onBack: () -> Unit) {
 }
 
 /**
- * Root status bar (investigation 05): one switch + where. Everything here needs root for Sukrara (KernelSU), so it's
- * marked with the root icon and disabled until `su` works. "System icons" works with root alone; the other
- * placements and the colour come from the Sukrara module in LSPosed (scope System UI).
+ * Root status bar (investigation 05): one switch, then the colour option and where. Needs root for Sukrara (KernelSU):
+ * everything is disabled until `su` works, and the options are disabled while the switch is off. "System icons" works
+ * with root alone; the colour and the other placements come from the Sukrara module in LSPosed (scope System UI).
  */
 @Composable
 private fun RootStatusBarSettings(f: FeatureState) {
@@ -284,31 +284,20 @@ private fun RootStatusBarSettings(f: FeatureState) {
     val root by rootBar.root.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { rootBar.checkRoot() }
     val ok = root == true
-    val rootIcon = @Composable {
-        androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_root),
-            contentDescription = "Needs root", modifier = Modifier.size(16.dp))
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        rootIcon()
-        Spacer(Modifier.size(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Value in the status bar (root)")
-            Text(when (root) {
-                null -> "Checking root…"
-                false -> "Needs root: grant it to Sukrara in KernelSU."
-                true -> "Coloured, next to the clock or between the icons: enable the Sukrara module in LSPosed " +
-                    "(scope System UI) and restart System UI. \"System icons\" works with root alone." +
-                    if (f.systemIcons) " · ${rootBar.state}" else ""
-            }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        }
-        Switch(f.hook && ok, { v -> set { it.copy(hook = v) } }, enabled = ok)
-    }
-    if (f.hook) {
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
-            for ((label, pos) in Features.HOOK_POSITIONS) {
-                androidx.compose.material3.FilterChip(selected = f.hookPosition == pos, enabled = ok,
-                    onClick = { set { it.copy(hookPosition = pos) } }, label = { Text(label) }, leadingIcon = rootIcon)
-            }
+    Toggle("Value in the status bar (root)", f.hook && ok, enabled = ok, sub = when (root) {
+        null -> "Checking root…"
+        false -> "Needs root: grant it to Sukrara in KernelSU."
+        true -> "Colour and the placements next to the clock or after an icon need the Sukrara module in LSPosed " +
+            "(scope System UI) and a System UI restart. \"System icons\" works with root alone." +
+            if (f.systemIcons) " · ${rootBar.state}" else ""
+    }) { v -> set { it.copy(hook = v) } }
+    val on = ok && f.hook
+    Toggle("Colour by range", f.hookColor, enabled = on,
+        sub = "Low/high red, slightly high orange; in range like the clock") { v -> set { it.copy(hookColor = v) } }
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+        for ((label, pos) in Features.HOOK_POSITIONS) {
+            androidx.compose.material3.FilterChip(selected = f.hookPosition == pos, enabled = on,
+                onClick = { set { it.copy(hookPosition = pos) } }, label = { Text(label) })
         }
     }
 }

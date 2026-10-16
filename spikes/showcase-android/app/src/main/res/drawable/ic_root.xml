@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- "#": the root shell prompt — marks settings that need root (KernelSU) for Sukrara. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="18dp" android:height="18dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF"
-        android:pathData="M9.6,3L8.4,8H4.5V10H7.9L7,14H3.5V16H6.5L5.3,21H7.4L8.6,16H12.5L11.3,21H13.4L14.6,16H18.5V14H15.1L16,10H19.5V8H16.5L17.7,3H15.6L14.4,8H10.5L11.7,3H9.6ZM10,10H13.9L13,14H9.1L10,10Z"/>
-</vector>
