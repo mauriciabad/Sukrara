@@ -1,7 +1,7 @@
 # Identity for CGM-over-Nostr: profiles, short invites, Nostr login (investigation 14)
 
-Additions to [PROTOCOL-v2](PROTOCOL-v2.md). Nothing in v2 changes: same identity `I`, device key `D`, read keys,
-roster, access request and key delivery. Old invite links keep working. Report and test results:
+Builds on [PROTOCOL-v2](PROTOCOL-v2.md): same identity `I`, device key `D`, read keys, roster, access request and
+key delivery. The invite link below **replaces** v2's link; the v2 link format is gone. Report and test results:
 [docs/14](../../docs/14-nostr-identity.md). Reference code: [`identity/ident.py`](identity/ident.py) (Python) and
 [`identity-android/…/Derive.kt`](identity-android/app/src/main/kotlin/dev/spike/nostrid/Derive.kt) (Kotlin). The two
 are checked against each other with [`identity/vectors.json`](identity/vectors.json).
@@ -85,14 +85,14 @@ https://sukrara.mauri.app/join#<base64url( I.pub[0:8] ‖ s )>        s = 16 ran
   1. Decode the link and derive `invite_key(s)`.
   2. `REQ {"kinds":[1059], "#p":[invite_key.pub]}`, answering NIP-42 AUTH as `invite_key` where needed.
   3. Unwrap. Accept the wrap only if the seal's signer starts with the fingerprint and `x` is still in the future.
-  4. The result is exactly a v2 invite `{i, t, x, r}` plus the wearer's `profile`. Continue with the v2 access request.
+  4. The result is `{i, t, x, r}` plus the wearer's `profile`: everything the access request needs.
 - **Access request:** the v2 request gains `"profile": P.pub`. The wearer shows the follower's own name and picture
-  from kind 0. The v2 `name` stays as a fallback.
+  from kind 0, and uses the request's `name` only if that kind 0 can't be fetched.
 - **Why the fingerprint:** anyone holding the link can also publish a wrap for `invite_key(s)`. Without the
   fingerprint they could point the follower at their own identity. Matching 8 bytes of a secp256k1 key takes about
   2⁶⁴ key generations, and the invite expires in 24 h.
-- **Still parsed:** `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…` and `cgmshare:join?…`. A v3 link is a fragment
-  of exactly 32 chars with no `=`.
+- **Only this form is an invite:** `https://sukrara.mauri.app/join#` followed by exactly 32 base64url chars.
+  Anything else, including v2's `#i=…&t=…` and `cgmshare:join?…`, is rejected.
 - **Default relays for the lookup:** nos.lol, relay.primal.net, nostr.mom, offchain.pub. relay.damus.io and
   relay.nostr.net accept gift wraps but can't serve them (their AUTH answers "relay needs serviceUrl", 2026-10-16).
 

@@ -68,24 +68,14 @@ object Derive {
     fun shortLink(iPubHex: String, secret: ByteArray): String =
         INVITE_BASE + b64u(unhex(iPubHex).copyOf(FP_LEN) + secret)
 
-    sealed interface Link
-    /** v3: [fp] = first 8 bytes of the identity (hex), [secret] = invite secret = v2 token bytes. */
-    data class Short(val fp: String, val secret: ByteArray) : Link
-    /** v2: everything in the link (`i`, `t`, `x`, `r`), npub not yet decoded. */
-    data class Long(val iNpub: String, val token: String, val expiry: kotlin.Long, val relays: List<String>) : Link
+    /** [fp] = first 8 bytes of the identity (hex), [secret] = the invite secret (also the access-request token). */
+    class Link(val fp: String, val secret: ByteArray)
 
-    /** Accepts v3 `…/join#<32 chars>` and both v2 forms (`https://…/join#i=…`, `cgmshare:join?i=…`). */
-    fun parse(link: String): Link? = runCatching {
-        val s = link.trim()
-        val frag = if ('#' in s) s.substringAfter('#') else s.substringAfter("cgmshare:join?", s)
-        if ('=' !in frag && frag.length == 32) {
-            val raw = unb64u(frag)
-            return Short(hex(raw.copyOf(FP_LEN)), raw.copyOfRange(FP_LEN, FP_LEN + SECRET_LEN))
-        }
-        val m = frag.split("&").associate { kv ->
-            kv.substringBefore("=") to java.net.URLDecoder.decode(kv.substringAfter("=", ""), "UTF-8")
-        }
-        Long(m.getValue("i"), m.getValue("t"), m.getValue("x").toLong(),
-            m.getValue("r").split(",").map { it.trim() }.filter { it.startsWith("wss://") })
-    }.getOrNull()
+    /** Only `https://sukrara.mauri.app/join#<32 base64url chars>`; anything else isn't an invite. */
+    fun parse(link: String): Link? {
+        val code = link.trim().takeIf { it.startsWith(INVITE_BASE) }?.removePrefix(INVITE_BASE) ?: return null
+        if (!Regex("[A-Za-z0-9_-]{32}").matches(code)) return null
+        val raw = unb64u(code)
+        return Link(hex(raw.copyOf(FP_LEN)), raw.copyOfRange(FP_LEN, FP_LEN + SECRET_LEN))
+    }
 }

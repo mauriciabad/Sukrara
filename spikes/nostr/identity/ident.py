@@ -10,14 +10,14 @@ Pure functions, no I/O except the small relay/Blossom helpers at the bottom:
 """
 from __future__ import annotations
 
-import asyncio, base64, hashlib, hmac, io, json, random, secrets, sys, time
+import asyncio, base64, hashlib, hmac, io, json, random, re, secrets, sys, time
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "v2"))
 import nostr_sdk as n                                   # noqa: E402
-import cgm2                                              # noqa: E402  (v2 invites, gift wraps, match code)
+import cgm2                                              # noqa: E402  (gift wraps, match code)
 
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141   # secp256k1 group order
 APP_ID = "app.mauri.sukrara"
@@ -124,15 +124,13 @@ def short_link(i_pub_hex: str, secret: bytes) -> str:
 
 
 def parse_link(link: str) -> dict:
-    """Accepts v3 short links (…/join#<32 chars>) and every v2 form (https …/join#i=…, cgmshare:join?i=…).
-    → {"v":3, "fp", "secret"} or {"v":2, "i", "t", "x", "r"}."""
+    """`https://sukrara.mauri.app/join#<32 chars>` → {"fp", "secret"}. Anything else is not an invite."""
     link = link.strip()
-    frag = link.split("#", 1)[1] if "#" in link else link
-    if "=" not in frag and len(frag) == 32:
-        raw = unb64u(frag)
-        return {"v": 3, "fp": raw[:FP_LEN].hex(), "secret": raw[FP_LEN:]}
-    q = link.replace("https://sukrara.mauri.app/join#", "cgmshare:join?")
-    return {"v": 2, **cgm2.parse_invite(q)}
+    code = link[len(INVITE_BASE):] if link.startswith(INVITE_BASE) else ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32}", code):
+        raise ValueError("not a Sukrara invite link")
+    raw = unb64u(code)
+    return {"fp": raw[:FP_LEN].hex(), "secret": raw[FP_LEN:]}
 
 
 def invite_wrap(I: n.Keys, secret: bytes, expiry: int, relays: list[str], profile_pub: str | None,
@@ -150,7 +148,7 @@ def invite_wrap(I: n.Keys, secret: bytes, expiry: int, relays: list[str], profil
 
 def open_invite(parsed: dict, wraps: list[dict], now: int | None = None) -> dict:
     """Follower side: pick the wrap that opens with the link's secret AND is sealed by a key matching the
-    fingerprint. Returns a v2-shaped invite {i, t, x, r} + the preview fields. Raises with a reason otherwise."""
+    fingerprint. Returns {i, t, x, r} (what the access request needs) + the preview fields; raises otherwise."""
     now = now or int(time.time())
     k = invite_key(parsed["secret"])
     reasons = []
