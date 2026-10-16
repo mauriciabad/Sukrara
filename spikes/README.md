@@ -94,6 +94,30 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home P
 ```
 Followers need the link shown in the app (text + QR). With a debug build (`assembleDebug`) you can also pull it:
 `adb shell run-as dev.spike.cgmnostr cat files/follower-link.txt > ../secrets/follower-link.txt`.
+
+### Protocol v2 — sharing and keys (investigation 07)
+
+Spec: [`nostr/PROTOCOL-v2.md`](nostr/PROTOCOL-v2.md). Python reference + end-to-end tests on public relays:
+
+```sh
+cd nostr
+uv run v2/test_cgm2.py                      # offline protocol checks
+uv run v2/scenarios.py --every 10           # share, deny, forged key, revoke, phone change, missed rotation (≈ 2.5 min)
+uv run v2/cli.py owner  --dir secrets/v2-owner --every 30        # long-running owner (writes invite.txt)
+uv run v2/cli.py follow --dir secrets/v2-follower --link '<cgmshare:join?…>'
+```
+
+`nostr/android-app/` — **CGM Share** (`dev.spike.cgmshare`, Kotlin): one app, "I wear the sensor" / "I follow
+someone"; QR/link invites with a match code, followers list + remove, password-manager backup/restore.
+
+```sh
+cd nostr/android-app
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.local/bin:$PATH"
+./gradlew assembleRelease && android install --apks=app/build/outputs/apk/release/app-release.apk --install-options=-g
+```
+All builds are signed with `~/.android/debug.keystore` on purpose: Proton Pass only returns a saved key to an app
+signed with the same certificate.
+
 ## `statusbar-android/` — GlucoStatus (Android, Kotlin)
 
 Glucose in the phone's status bar, every approach from [05](../docs/05-android-status-bar.md) switchable in one app:

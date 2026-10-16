@@ -24,6 +24,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | 03 | 2026-10-15 | Nostr relays as the backbone of a no-hosting Nightscout alternative: remote + shared, E2E-encrypted, works with stock Home Assistant | [docs/03-nostr.md](docs/03-nostr.md) |
 | 04 | 2026-10-15 | Insulin, carbs, notes and glucose to LibreView (for the doctor) from the phone **and** the Mac, synced over BLE, ready for Nostr | [docs/04-libreview.md](docs/04-libreview.md) |
 | 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
+| 07 | 2026-10-16 | Sharing without technical steps: one Android app (wearer + follower), QR invite + Allow, revoke by key rotation, password-manager backup (Proton Pass/Bitwarden, no lock-in), seamless phone change | [docs/07-sharing-and-keys.md](docs/07-sharing-and-keys.md) |
 | 08 | 2026-10-16 | Glucose on a Garmin watch (watchface.io face, CGM+ app + datafield) from our own app, no Juggluco | [docs/08-garmin.md](docs/08-garmin.md) |
 
 ## Current conclusions
