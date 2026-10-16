@@ -120,8 +120,8 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
             Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text("Scan your sensor") }
         SectionTitle("Last 12 h")
         GlucoseChart(u.chart.map { it.t to it.sgv }, 65, 185)
+        TreatmentsSection()
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
-        OutlinedButton(onClick = { a.open("treatments") }, modifier = Modifier.fillMaxWidth()) { Text("Treatments & LibreView") }
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("Entries from followers")
             AnimatedItems(u.treatments, { it }) { Text(it, style = MaterialTheme.typography.bodySmall) }

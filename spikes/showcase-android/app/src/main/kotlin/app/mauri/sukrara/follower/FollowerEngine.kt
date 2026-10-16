@@ -143,14 +143,14 @@ class FollowerEngine(private val ctx: Context) {
      * Add a treatment — only while the newest roster lists this follower as a writer (the UI hides the form otherwise);
      * goes out over BLE + relays, shown at once as *sending*, accepted when the wearer's device key echoes it.
      */
-    fun addTreatment(k: String, a: Double, note: String) = scope.launch(serial) {
+    fun addTreatment(k: String, a: Double, note: String, at: Long = Proto.nowS()) = scope.launch(serial) {
         val s = st ?: return@launch
         val sid = s.sid ?: return@launch
         if (s.fPub !in s.writers) return@launch log.i("treatment NOT sent: this phone is not in the roster writers")
         if (k !in Treatment.KINDS) return@launch
         val ep = s.epochs.values.maxByOrNull { it.n } ?: return@launch
         val now = Proto.nowS()
-        val tr = Treatment(id = java.util.UUID.randomUUID().toString(), k = k, t = now, n = Treatment.clip(note),
+        val tr = Treatment(id = java.util.UUID.randomUUID().toString(), k = k, t = minOf(at, now), n = Treatment.clip(note),
             a = when (k) { "carbs" -> Math.round(a).toDouble(); "note" -> 0.0; else -> Math.round(a * 10) / 10.0 },
             u = System.currentTimeMillis(), o = "follower")
         val ev = Proto.treatmentEvent(s.f, Proto.pub(ep.g), sid, tr.wire(), now)
@@ -170,6 +170,9 @@ class FollowerEngine(private val ctx: Context) {
     fun treatments(): List<Treatment> = db.treatments(Proto.nowS() - 30 * Proto.DAY).map { it.tr }
 
     fun hasJoined() = st != null
+
+    /** The newest roster lists this phone as a writer (it may add treatments). */
+    fun canWrite() = st?.let { it.fPub in it.writers } == true
 
     private fun save() { st?.let { store.write(it.toJson()) } }
 

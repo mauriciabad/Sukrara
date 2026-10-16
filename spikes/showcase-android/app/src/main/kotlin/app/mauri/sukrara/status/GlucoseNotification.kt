@@ -28,7 +28,7 @@ import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.STALE_AFTER_S
 import app.mauri.sukrara.core.Trend
-import app.mauri.sukrara.ui.MainActivity
+import app.mauri.sukrara.ui.QuickTreatmentActivity
 import app.mauri.sukrara.widgets.GraphRenderer
 import app.mauri.sukrara.widgets.RecentHistory
 import java.time.Instant
@@ -57,8 +57,9 @@ object GlucoseNotification {
     }
 
     fun build(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): Notification {
-        val open = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE)
+        // a tap (card or Live Update chip) opens the quick treatment dialog over any app; it opens the app itself when
+        // this phone can't add entries
+        val open = PendingIntent.getActivity(c, 0, Intent(c, QuickTreatmentActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val b = Notification.Builder(c, CHANNEL)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

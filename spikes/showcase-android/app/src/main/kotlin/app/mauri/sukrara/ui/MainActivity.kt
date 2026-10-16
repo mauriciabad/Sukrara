@@ -240,7 +240,6 @@ class MainActivity : ComponentActivity() {
                     "share" -> Page { ShareScreen(u, actions) { screen = "home" } }
                     "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }) { screen = "home" } }
                     "sensor" -> Page { SensorScreen { screen = "home" } }
-                    "treatments" -> Page { TreatmentsScreen { screen = "home" } }
                     else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
                 }
             }
@@ -291,7 +290,7 @@ class MainActivity : ComponentActivity() {
                         if (error == null) startForegroundService(Intent(this@MainActivity, FollowerService::class.java))
                     }
                 }
-                override fun addTreatment(k: String, a: Double, note: String) { engine.addTreatment(k, a, note) }
+                override fun addTreatment(k: String, a: Double, note: String, at: Long) { engine.addTreatment(k, a, note, at) }
             }
         }
         FollowerRefresh { engine.refreshUi() }

@@ -1,0 +1,239 @@
+// CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara.ui
+
+import android.text.format.DateFormat
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.TreatmentMarks
+import java.util.Calendar
+import java.util.Locale
+
+/** One entry the dialog creates; [at] = epoch s. */
+data class NewEntry(val k: String, val a: Double, val note: String, val at: Long)
+
+private const val MAX_UNITS = 100.0
+private const val MAX_GRAMS = 500.0
+private const val NOTE_BYTES = 100
+
+/** "4", "4.5" (insulin, 0.1 U steps) or whole grams; null = empty; NaN = not a valid amount. */
+private fun parse(s: String, grams: Boolean): Double? {
+    val t = s.trim().replace(',', '.')
+    if (t.isEmpty()) return null
+    val v = t.toDoubleOrNull() ?: return Double.NaN
+    val max = if (grams) MAX_GRAMS else MAX_UNITS
+    return if (v <= 0 || v > max) Double.NaN else if (grams) Math.round(v).toDouble() else Math.round(v * 10) / 10.0
+}
+
+private fun amount(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else String.format(Locale.getDefault(), "%.1f", a)
+
+/**
+ * Add insulin, carbs and a note in one go: rapid, long-acting and carbs side by side, a note below, all optional;
+ * each filled field becomes its own entry at the chosen time (default now). Shown by the home screen's *Add treatment*
+ * and, over whatever app is in front, by a tap on a widget or the glucose notification ([QuickTreatmentActivity]).
+ *
+ * A form with several fields is a custom `Dialog` (developer.android.com/develop/ui/compose/components/dialog: "if you
+ * want to create a more complex dialog, perhaps with forms and multiple buttons, you should use `Dialog` with custom
+ * content"), laid out like an M3 basic dialog: 28 dp corners, surface-container-high, 24 dp padding, start-aligned
+ * title, end-aligned actions with the confirming one last. The first field takes focus so the number pad is up at once;
+ * the keyboard's Next walks rapid → long → carbs → note, and Done on the note saves.
+ *
+ * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
+ * [footer] is one line under the fields (where the entries go: LibreView, the wearer…).
+ */
+@Composable
+fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, footer: String? = null, onOpenApp: (() -> Unit)? = null) {
+    var rapid by rememberSaveable { mutableStateOf("") }
+    var long by rememberSaveable { mutableStateOf("") }
+    var carbs by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    /** null = now (resolved when saving); else epoch s. */
+    var at by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pickTime by remember { mutableStateOf(false) }
+
+    val r = parse(rapid, grams = false)
+    val l = parse(long, grams = false)
+    val c = parse(carbs, grams = true)
+    val n = note.trim()
+    val invalid = listOf(r, l, c).any { it != null && it.isNaN() }
+    val entries = { t: Long ->
+        buildList {
+            r?.let { add(NewEntry("rapid", it, "", t)) }
+            l?.let { add(NewEntry("long", it, "", t)) }
+            c?.let { add(NewEntry("carbs", it, "", t)) }
+            if (n.isNotEmpty()) add(NewEntry("note", 0.0, Treatment.clip(n, NOTE_BYTES), t))
+        }
+    }
+    val preview = entries(0)
+    val canSave = !invalid && preview.isNotEmpty()
+    val save = { if (canSave) { onSave(entries(at ?: (System.currentTimeMillis() / 1000))); onDismiss() } }
+
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) { first.requestFocus() }
+    val pal = TreatmentMarks.palette(isSystemInDarkTheme())
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.padding(horizontal = 16.dp).widthIn(min = 280.dp, max = 560.dp).fillMaxWidth(),
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Add treatment", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AmountField("Rapid", "U", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
+                    AmountField("Long", "U", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
+                    AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f)) { carbs = it }
+                }
+                OutlinedTextField(
+                    note, { if (it.toByteArray().size <= NOTE_BYTES) note = it }, Modifier.fillMaxWidth(),
+                    label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text("Note") } },
+                    placeholder = { Text("Pizza, exercise, sick…") },
+                    maxLines = 3,
+                    supportingText = if (note.toByteArray().size > NOTE_BYTES - 20) ({ Text("${note.toByteArray().size} / $NOTE_BYTES") }) else null,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                )
+                // what Save will add, so a filled field is never a surprise
+                Swap(when {
+                    invalid -> "Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g"
+                    preview.isEmpty() -> "Fill in any of them: each one becomes its own entry."
+                    else -> "Adds " + preview.joinToString(" · ") { e ->
+                        when (e.k) { "carbs" -> "${amount(e.a)} g carbs"; "note" -> "a note"; else -> "${amount(e.a)} U ${e.k}" }
+                    }
+                }) { Text(it, style = MaterialTheme.typography.bodyMedium,
+                    color = if (invalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+                footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    onOpenApp?.let { TextButton(onClick = it) { Text("Open Sukrara") } }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.size(8.dp))
+                    Button(onClick = save, enabled = canSave) { Text("Save") }
+                }
+            }
+        }
+    }
+    if (pickTime) TimeDialog(at, onDismiss = { pickTime = false }) { at = it; pickTime = false }
+}
+
+@Composable
+private fun AmountField(label: String, unit: String, value: String, parsed: Double?, color: Color, kind: String,
+                        modifier: Modifier, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value, { v -> onChange(v.filter { it.isDigit() || it == '.' || it == ',' }.take(5)) }, modifier,
+        label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label) } },
+        suffix = { Text(unit) },
+        singleLine = true,
+        isError = parsed?.isNaN() == true,
+        textStyle = MaterialTheme.typography.titleLarge,
+        keyboardOptions = KeyboardOptions(keyboardType = if (unit == "g") KeyboardType.Number else KeyboardType.Decimal, imeAction = ImeAction.Next),
+    )
+}
+
+/** The same marker the charts draw for this kind (TreatmentMarks): rapid ▼ filled, long ▽ outlined, carbs ●, note ◆. */
+@Composable
+fun KindMark(kind: String, color: Color) {
+    Canvas(Modifier.size(10.dp)) {
+        val w = size.width
+        when (kind) {
+            "rapid", "long" -> {
+                val p = Path().apply { moveTo(0f, w * 0.1f); lineTo(w, w * 0.1f); lineTo(w / 2, w * 0.95f); close() }
+                if (kind == "rapid") drawPath(p, color) else drawPath(p, color, style = Stroke(w * 0.16f))
+            }
+            "carbs" -> drawCircle(color, w / 2, Offset(w / 2, w / 2))
+            else -> drawPath(Path().apply { moveTo(w / 2, 0f); lineTo(w, w / 2); lineTo(w / 2, w); lineTo(0f, w / 2); close() }, color)
+        }
+    }
+}
+
+@Composable
+private fun timeLabel(at: Long?): String {
+    val ctx = LocalContext.current
+    if (at == null) return "Now"
+    val fmt = DateFormat.getTimeFormat(ctx).format(java.util.Date(at * 1000))
+    val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+    val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
+    return if (day == today) "Today $fmt" else "Yesterday $fmt"
+}
+
+/** M3 time picker; a time later than now means yesterday (entries are logged after the fact, never ahead). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit) {
+    val ctx = LocalContext.current
+    val cal = Calendar.getInstance().apply { at?.let { timeInMillis = it * 1000 } }
+    val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), DateFormat.is24HourFormat(ctx))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("When?") },
+        text = { TimePicker(state) },
+        confirmButton = {
+            Button(onClick = {
+                val now = Calendar.getInstance()
+                val pick = (now.clone() as Calendar).apply {
+                    set(Calendar.HOUR_OF_DAY, state.hour); set(Calendar.MINUTE, state.minute); set(Calendar.SECOND, 0)
+                    if (after(now)) add(Calendar.DAY_OF_YEAR, -1)
+                }
+                // within the current minute = now
+                onPick(if (now.timeInMillis - pick.timeInMillis < 60_000) null else pick.timeInMillis / 1000)
+            }) { Text("OK") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { onPick(null) }) { Text("Now") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
+}

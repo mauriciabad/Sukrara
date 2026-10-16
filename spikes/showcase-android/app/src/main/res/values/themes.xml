@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Sukrara" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- QuickTreatmentActivity: no window of its own, only the Compose dialog (which dims what's behind it) -->
+    <style name="Theme.Sukrara.Quick">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

@@ -12,27 +12,20 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
-import app.mauri.sukrara.features.HookPosition
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -50,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -74,7 +68,7 @@ fun WearerSummary() {
                 "Bluetooth followers ${on(f.bleFollowers)}", style = MaterialTheme.typography.bodySmall)
             Text("Garmin: ${st.garmin}" + (if (st.watchPolledAt > 0) " · watch asked ${sinceText(st.watchPolledAt / 1000)}" else ""),
                 style = MaterialTheme.typography.bodySmall)
-            Text("LibreView: ${if (f.libreview) st.libreview else "off (not set up)"}", style = MaterialTheme.typography.bodySmall)
+            Text("LibreView: ${if (f.libreview) st.libreview else "off"}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -145,12 +139,24 @@ fun LocalServersSection() {
     }
 }
 
+/** Glucose sources, in Settings' order (label, value, one-line description). Libre 3 directly is the default. */
+private val SOURCES = listOf(
+    Triple("Libre 3 directly", "direct", "Sukrara holds the sensor (scan it once with NFC)"),
+    Triple("Juggluco", "juggluco", "Reads Juggluco's web server; Juggluco keeps the sensor and its alarms"),
+)
+
+/**
+ * Settings, per the Android settings guidelines (developer.android.com/design/ui/mobile/guides/patterns/settings,
+ * source.android.com/docs/core/settings/settings-guidelines): a choice among options is a row whose summary shows the
+ * current value and opens radio buttons in a dialog; a parent switch disables (doesn't hide) what depends on it, with
+ * a brief reason; longer explanations go in a footer below a divider.
+ */
 @Composable
 fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
-    val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     var confirmDirect by remember { mutableStateOf(false) }
+    var choose by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
@@ -158,55 +164,38 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
         }
 
         SectionTitle("Glucose source")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(f.source == "juggluco", { set { it.copy(source = "juggluco") } }, label = { Text("Juggluco (recommended)") })
-            FilterChip(f.source == "direct", { if (f.source != "direct") confirmDirect = true }, label = { Text("Libre 3 directly") })
-        }
-        Swap(f.source == "juggluco") { jug -> Text(if (jug) "Reads Juggluco's local web server (127.0.0.1:17580). Juggluco keeps the sensor and its alarms."
-             else "Sukrara holds the sensor itself (scan it once with NFC). Juggluco gets nothing, and its alarms don't ring.",
-            style = MaterialTheme.typography.bodySmall) }
-        Text("Now: ${st.source}${st.sourceError?.let { " — $it" } ?: ""}", style = MaterialTheme.typography.bodySmall)
-        Reveal(f.source == "direct") {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = onSensor) { Text("Sensor: scan, start or take over") }
-                Text("Sensor link priority", style = MaterialTheme.typography.bodyMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (p in Features.PRIORITIES) FilterChip(f.connPriority == p, { set { it.copy(connPriority = p) } }, label = { Text(p) })
-                }
-            }
-        }
+        val direct = f.source == "direct"
+        ValueRow("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
+            enabled = true) { choose = "source" }
+        ValueRow("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
+            else "Unavailable while Juggluco holds the sensor", enabled = direct, onClick = onSensor)
+        ValueRow("Sensor link priority", if (direct) f.connPriority.replaceFirstChar { it.uppercase() }
+            else "Unavailable while Juggluco holds the sensor", enabled = direct) { choose = "priority" }
 
         SectionTitle("Sharing")
         Toggle("Share over Nostr relays", f.nostr, sub = "End-to-end encrypted; followers anywhere") { v -> set { it.copy(nostr = v) } }
-        Text("Upload interval", style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (m in listOf(0, 5, 15, 30)) FilterChip(f.nostrIntervalMin == m, { set { it.copy(nostrIntervalMin = m) } }, enabled = f.nostr,
-                label = { Text(if (m == 0) "Every reading" else "$m min") })
-        }
+        ValueRow("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over Nostr is off",
+            enabled = f.nostr) { choose = "nostr" }
         Toggle("Bluetooth followers nearby", f.bleFollowers, sub = "Same encrypted events over Bluetooth LE (no internet needed)") { v ->
             set { it.copy(bleFollowers = v) }
         }
 
         SectionTitle("Status bar")
-        Toggle("Live Update chip", f.chip, sub = "The number next to the clock (Android 16+)") { v -> set { it.copy(chip = v) } }
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        Reveal(f.chip && !nm.canPostPromotedNotifications()) {
-            OutlinedButton(onClick = {
-                ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
-            }) { Text("Allow Live Updates for Sukrara") }
-        }
-        Toggle("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
-        Toggle("Pause refreshes while the screen is off", f.screenOffSkip,
-            sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
-            set { it.copy(screenOffSkip = v) }
-        }
-        RootStatusBarSettings(f)
+        StatusBarSettings(f, st)
 
         LocalServersSection()
 
-        SectionTitle("LibreView")
-        Text(if (f.libreview) "Upload on · ${st.libreview}" else "Off. Set it up under Treatments & LibreView.", style = MaterialTheme.typography.bodySmall)
+        LibreViewSettings(f, st)
         Spacer(Modifier.size(24.dp))
+    }
+    when (choose) {
+        "source" -> ChoiceDialog("Glucose source", SOURCES.map { Choice(it.first, it.second, it.third) }, f.source, { choose = null }) { v ->
+            if (v == "direct" && f.source != "direct") confirmDirect = true else set { it.copy(source = v) }
+        }
+        "priority" -> ChoiceDialog("Sensor link priority", Features.PRIORITIES.map { Choice(it.replaceFirstChar { c -> c.uppercase() }, it) },
+            f.connPriority, { choose = null }) { v -> set { it.copy(connPriority = v) } }
+        "nostr" -> ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin,
+            { choose = null }) { v -> set { it.copy(nostrIntervalMin = v) } }
     }
     if (confirmDirect) AlertDialog(
         onDismissRequest = { confirmDirect = false },
@@ -219,87 +208,196 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
     )
 }
 
-private val LABEL = mapOf("rapid" to "Rapid", "long" to "Long", "carbs" to "Carbs", "note" to "Note")
+private fun intervalLabel(min: Int) = if (min == 0) "Every reading" else "Every $min min"
 
-/** Investigation 04: log insulin / carbs / notes (followers and Macs get them over v2) + the LibreView setup. */
 @Composable
-fun TreatmentsScreen(onBack: () -> Unit) {
+private fun StatusBarSettings(f: FeatureState, st: app.mauri.sukrara.wearer.WearerStatus) {
+    val ctx = LocalContext.current
+    Toggle("Live Update chip", f.chip, sub = "The number next to the clock (Android 16+)") { v -> set { it.copy(chip = v) } }
+    val nm = ctx.getSystemService(NotificationManager::class.java)
+    Reveal(f.chip && !nm.canPostPromotedNotifications()) {
+        OutlinedButton(onClick = {
+            ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+        }) { Text("Allow Live Updates for Sukrara") }
+    }
+    Toggle("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
+    Toggle("Pause refreshes while the screen is off", f.screenOffSkip,
+        sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
+        set { it.copy(screenOffSkip = v) }
+    }
+    RootStatusBarSettings(f)
+}
+
+/**
+ * LibreView (investigation 04), a parent switch with its dependents: the account row first (the switch needs a
+ * login), then *Upload to LibreView*, then what goes up — every part on by default, so switching the upload on
+ * uploads everything, like LibreLink — each disabled with the reason while the upload is off.
+ */
+@Composable
+private fun LibreViewSettings(f: FeatureState, st: app.mauri.sukrara.wearer.WearerStatus) {
+    val ctx = LocalContext.current
+    remember { Treat.init(ctx) }
+    val uploader = Treat.uploader
+    val s by uploader.settings.collectAsState()
+    val status by uploader.status.collectAsState()
+    var signIn by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf(false) }
+    val signedIn = s.email.isNotEmpty() && s.hasPassword
+    val on = f.libreview && signedIn
+    val off = "Unavailable while the upload is off"
+    val direct = f.source == "direct"
+
+    SectionTitle("LibreView")
+    ValueRow("Account", if (signedIn) s.email else "Not signed in", enabled = true) { signIn = true }
+    Toggle("Upload to LibreView", on, enabled = signedIn, sub = when {
+        !signedIn -> "Unavailable until you sign in"
+        on -> status.replaceFirstChar { it.uppercase() }
+        else -> "Off"
+    }) { v -> set { it.copy(libreview = v) }; uploader.kick() }
+    Toggle("Glucose readings", s.glucose, enabled = on && direct, sub = when {
+        !on -> off
+        !direct -> "Only while Sukrara reads the sensor itself"
+        else -> uploader.glucoseFrom?.let { "From ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))}" }
+            ?: if (s.glucose) "From now on" else "Off"
+    }) { uploader.configure(glucose = it) }
+    Toggle("Insulin, carbs & notes", s.treatments, enabled = on, sub = if (on) "Yours and your followers'" else off) {
+        uploader.configure(treatments = it)
+    }
+    Toggle("Use this phone as the account's device", s.takeover, enabled = on, sub = if (!on) off
+        else if (s.takeover) "The Libre app or Juggluco stops uploading to this account" else "Uploads stop if another app holds the account") {
+        uploader.configure(takeover = it)
+    }
+    ValueRow("Upload every", if (on) intervalLabel(f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
+    HorizontalDivider()
+    Text("LibreView is the record your doctor sees: uploaded entries can't be deleted there. Glucose goes up from the " +
+        "moment you switch it on.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+    if (choosing) ChoiceDialog("Upload every", listOf(5, 15, 60).map { Choice(intervalLabel(it), it) }, f.libreviewIntervalMin,
+        { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
+    if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
+}
+
+/** Sign in (or out) of LibreView. The password is only stored; the next upload (or the Sensor screen) uses it. */
+@Composable
+private fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Settings, onClose: () -> Unit) {
+    val uploader = Treat.uploader
+    var email by remember { mutableStateOf(s.email) }
+    var password by remember { mutableStateOf("") }
+    val signedIn = s.email.isNotEmpty() && s.hasPassword
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("LibreView account") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("The account your doctor's clinic sees. Sukrara also learns your sensor's receiver ID from it.",
+                    style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
+                OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Password") }, placeholder = if (s.hasPassword) ({ Text("Saved · type to change") }) else null,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done))
+            }
+        },
+        confirmButton = {
+            Button(enabled = email.isNotBlank() && (password.isNotEmpty() || s.hasPassword), onClick = {
+                uploader.configure(email = email, password = password.ifEmpty { null }); onClose()
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (signedIn) TextButton(onClick = { set { it.copy(libreview = false) }; uploader.signOut(); onClose() }) { Text("Sign out") }
+                TextButton(onClick = onClose) { Text("Cancel") }
+            }
+        },
+    )
+}
+
+/** One option of a [ChoiceDialog]. */
+data class Choice<T>(val label: String, val value: T, val sub: String? = null)
+
+/** ListPreference: radio buttons in a dialog; choosing saves and closes, Cancel keeps the old value. */
+@Composable
+fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClose: () -> Unit, onChoose: (T) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                for (o in options) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                        .selectable(selected = o.value == selected, role = Role.RadioButton, onClick = { onChoose(o.value); onClose() })
+                        .padding(vertical = 6.dp)) {
+                        RadioButton(selected = o.value == selected, onClick = null)
+                        Spacer(Modifier.size(12.dp))
+                        Column {
+                            Text(o.label)
+                            o.sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+    )
+}
+
+/**
+ * The owner's treatments on the home screen: *Add treatment* opens the [TreatmentDialog]; below, the last 24 h
+ * (also entries from followers and Macs), newest first. Tapping one offers to delete it.
+ */
+@Composable
+fun TreatmentsSection() {
     val ctx = LocalContext.current
     remember { Treat.init(ctx) }
     val store = Treat.store
-    val uploader = Treat.uploader
-    var kind by remember { mutableStateOf("rapid") }
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
     val f by Features.state.collectAsState()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Treatments", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Done") }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (k in Treatment.KINDS) FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(LABEL.getValue(k)) })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            AnimatedVisibility(kind != "note", enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
-                OutlinedTextField(amount, { amount = it }, Modifier.width(110.dp), singleLine = true,
-                    label = { Text(if (kind == "carbs") "grams" else "units") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-            }
-            OutlinedTextField(note, { note = it }, Modifier.weight(1f), singleLine = true, label = { Text("note") })
-        }
-        val value = amount.replace(',', '.').toDoubleOrNull()
-        Button(enabled = if (kind == "note") note.isNotBlank() else (value != null && value > 0), onClick = {
-            store.add(kind, value ?: 0.0, System.currentTimeMillis() / 1000, note)
-            uploader.kick()
-            amount = ""; note = ""
-        }) { Text("Log ${LABEL.getValue(kind).lowercase()}") }
+    var adding by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf<Treatment?>(null) }
+    val items by store.items.collectAsState()
+    val since = System.currentTimeMillis() / 1000 - 24 * 3600
+    val recent = items.filter { !it.del && it.t >= since }
+    val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
-        val items by store.items.collectAsState()
-        val since = System.currentTimeMillis() / 1000 - 24 * 3600
-        val recent = items.filter { !it.del && it.t >= since }
-        Reveal(recent.isEmpty()) { Text("Nothing in the last 24 h.", style = MaterialTheme.typography.bodySmall) }
-        // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
-        AnimatedItems(recent, { it.id }) { tr -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            val what = when (tr.k) {
-                "carbs" -> "${tr.a.toInt()} g carbs"
-                "note" -> "note"
-                else -> "${tr.a} U ${tr.k}"
-            }
-            Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)) + "  $what" +
-                (if (tr.n.isNotEmpty()) " · ${tr.n}" else "") + "  · ${tr.o}" + (if (f.libreview) if (tr.needsUpload) " ⇡" else " ✓" else ""),
-                Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { store.delete(tr.id); uploader.kick() }) { Text("Delete") }
-        } }
-        Text("Synced with Sukrara for Mac. Entries from followers (and Macs) with \"Can add entries\" land here too.",
-            style = MaterialTheme.typography.bodySmall)
-
-        HorizontalDivider()
-        Text("LibreView upload", style = MaterialTheme.typography.titleMedium)
-        Text("Off by default. LibreView is a doctor-facing record: uploaded entries can't be deleted there. " +
-            "Test with a throwaway account first.", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-        val s by uploader.settings.collectAsState()
-        val status by uploader.status.collectAsState()
-        var email by remember { mutableStateOf(s.email) }
-        var password by remember { mutableStateOf("") }
-        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("LibreView email") })
-        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true,
-            label = { Text(if (s.hasPassword) "password (saved)" else "password") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-        Button(onClick = { uploader.configure(email = email, password = password.ifEmpty { null }); password = "" }) { Text("Save login") }
-        Toggle("Upload to LibreView", f.libreview, enabled = s.email.isNotEmpty() && s.hasPassword,
-            sub = "Treatments; sensor glucose too in direct mode") { v -> set { it.copy(libreview = v) }; uploader.kick() }
-        Toggle("Upload sensor glucose (direct mode, from now on)", s.glucose) { uploader.configure(glucose = it) }
-        Toggle("Take over the account's device (logs the Libre app / Juggluco out of LibreView)", s.takeover) { uploader.configure(takeover = it) }
-        Text("Upload every", style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (m in listOf(5, 15, 60)) FilterChip(f.libreviewIntervalMin == m, { set { it.copy(libreviewIntervalMin = m) } }, label = { Text("$m min") })
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SectionTitle("Treatments (24 h)")
+        Spacer(Modifier.weight(1f))
+        FilledTonalButton(onClick = { adding = true }) { Text("Add treatment") }
+    }
+    Reveal(recent.isEmpty()) { Text("Nothing in the last 24 h. Tip: tap a Sukrara widget or the glucose notification to add one from anywhere.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+    // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
+    AnimatedItems(recent, { it.id }) { tr ->
+        Row(Modifier.fillMaxWidth().clickable { deleting = tr }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
+            Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)), fontWeight = FontWeight.Medium)
+            Text(describe(tr), Modifier.weight(1f), maxLines = 2)
+            if (f.libreview) Text(if (tr.needsUpload) "LibreView ⇡" else "LibreView ✓", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline)
         }
-        Text("Status: ${if (f.libreview) status else "off"}", style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.size(24.dp))
+    }
+
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) }, footer = QuickEntry.footer(ctx))
+    deleting?.let { tr ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete this entry?") },
+            text = { Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)) + " · " + describe(tr) +
+                if (f.libreview && !tr.needsUpload) "\n\nIt stays in LibreView: entries can't be deleted there." else "") },
+            confirmButton = { Button(onClick = { store.delete(tr.id); Treat.uploader.kick(); deleting = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+        )
     }
 }
+
+private fun describe(tr: Treatment): String = when (tr.k) {
+    "carbs" -> "${tr.a.toInt()} g carbs"
+    "note" -> tr.n.ifEmpty { "Note" }
+    "long" -> "${tr.a} U long-acting"
+    else -> "${tr.a} U rapid"
+} + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") + (if (tr.o != "phone") " · from ${tr.o}" else "")
 
 /**
  * Root status bar (investigation 05), per the Android settings guidelines
@@ -334,27 +432,6 @@ private fun RootStatusBarSettings(f: FeatureState) {
         "enabled in LSPosed (scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
 
-    if (choosing) {
-        // ListPreference: radio buttons in a dialog; choosing saves and closes, Cancel keeps the old value.
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { choosing = false },
-            title = { Text("Placement") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    for ((label, pos) in Features.HOOK_POSITIONS) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-                            .selectable(selected = f.hookPosition == pos, role = Role.RadioButton,
-                                onClick = { set { it.copy(hookPosition = pos) }; choosing = false })
-                            .padding(vertical = 6.dp)) {
-                            RadioButton(selected = f.hookPosition == pos, onClick = null)
-                            Spacer(Modifier.size(12.dp))
-                            Text(label)
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { choosing = false }) { Text("Cancel") } },
-        )
-    }
+    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { Choice(it.first, it.second) }, f.hookPosition,
+        { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
 }

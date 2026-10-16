@@ -50,16 +50,18 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
 ## Features
 
 **On your phone** (Android 16+)
-- Current value, continuous trend arrow and a 12 h chart. Source: Juggluco (default) or the Libre 3 read directly
-  (opt-in): scan the sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by
-  itself. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- Current value, continuous trend arrow and a 12 h chart. Source: the Libre 3 read directly (default): scan the
+  sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
+  Juggluco's web server, if Juggluco keeps the sensor. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   spike also proved system icons and a coloured LSPosed hook (root), not in the alpha yet.
   [05](docs/05-android-status-bar.md)
 - Home-screen widgets: value, graph, and graph + value, resizable, light/dark, stale state.
   [12](docs/12-android-widgets.md)
-- Log insulin, carbs and notes, and upload them (and glucose) to LibreView. Off until you set it up.
-  [04](docs/04-libreview.md)
+- Log rapid and long-acting insulin, carbs and a note in one dialog. Tapping a widget or the glucose notification
+  opens it on top of whatever app you're in. [10](docs/10-showcase.md)
+- Upload glucose and treatments to LibreView (Settings → LibreView). Off until you sign in and switch it on; then
+  everything uploads by default. [04](docs/04-libreview.md)
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range, with a 3 h sparkline. [01](docs/01-connectivity.md)
@@ -174,9 +176,9 @@ Downloads: [v0.10.5](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
-1. If you wear the sensor, either set up Juggluco first and turn on *Settings → Web server* ("Local only" can stay
-   on), or skip Juggluco: after step 3, *Settings → Glucose source → Libre 3 directly → Scan sensor* (Juggluco's
-   alarms don't ring while Sukrara holds the sensor).
+1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
+   against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
+   server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
 2. Install `Sukrara-0.10.5.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor → Start fresh**, or **Restore from password manager** on a new phone.

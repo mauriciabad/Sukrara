@@ -34,7 +34,11 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private val firstSeen = HashMap<String, Long>()
 
-    data class Settings(val email: String, val hasPassword: Boolean, val upload: Boolean, val glucose: Boolean, val takeover: Boolean)
+    /**
+     * What goes up once Features.libreview (the parent switch in Settings) is on. Every part defaults to ON: turning
+     * the upload on uploads everything, like LibreLink. Glucose starts from the moment it (or the upload) is switched on.
+     */
+    data class Settings(val email: String, val hasPassword: Boolean, val glucose: Boolean, val treatments: Boolean, val takeover: Boolean)
 
     val settings = MutableStateFlow(readSettings())
     val status = MutableStateFlow("off")
@@ -48,24 +52,30 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
 
     private fun readSettings() = Settings(
         prefs.getString("email", "")!!, !prefs.getString("password", null).isNullOrEmpty(),
-        prefs.getBoolean("upload", false), prefs.getBoolean("glucose", false), prefs.getBoolean("takeover", false))
+        prefs.getBoolean("glucose", true), prefs.getBoolean("treatments", true), prefs.getBoolean("takeover", true))
 
-    fun configure(email: String? = null, password: String? = null, upload: Boolean? = null, glucose: Boolean? = null,
-                  takeover: Boolean? = null, glucoseFrom: Long? = null) {
+    fun configure(email: String? = null, password: String? = null, glucose: Boolean? = null, treatments: Boolean? = null,
+                  takeover: Boolean? = null) {
         prefs.edit().apply {
-            glucoseFrom?.let { putLong("glucoseFrom", it) }
             email?.let { putString("email", it.trim()); remove("token") }
             password?.let { putString("password", it); remove("token") }
-            upload?.let { putBoolean("upload", it) }
+            treatments?.let { putBoolean("treatments", it) }
             takeover?.let { putBoolean("takeover", it) }
-            glucose?.let {
-                putBoolean("glucose", it)
-                if (it && !prefs.getBoolean("glucose", false) && glucoseFrom == null) putLong("glucoseFrom", System.currentTimeMillis() / 1000)
-            }
+            glucose?.let { putBoolean("glucose", it); if (!it) remove("glucoseFrom") }
         }.apply()
         settings.value = readSettings()
         kick()
     }
+
+    /** Signs out: forgets the login (the glucose window and upload ledger stay). */
+    fun signOut() {
+        prefs.edit().remove("email").remove("password").remove("token").apply()
+        settings.value = readSettings()
+        kick()
+    }
+
+    /** Epoch s from which sensor glucose is uploaded, or null while glucose isn't uploading. */
+    val glucoseFrom: Long? get() = prefs.getLong("glucoseFrom", 0).takeIf { it > 0 }
 
     fun kick() { wake.trySend(Unit) }
 
@@ -93,13 +103,18 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
 
     private fun cycle() {
         val s = settings.value
-        // Sukrara: the master switch is Features.libreview (settings screen / DebugReceiver), default OFF.
-        if (!app.mauri.sukrara.features.Features.value.libreview) { status.value = "off"; return }
+        // Sukrara: the parent switch is Features.libreview (settings screen / DebugReceiver), default OFF. Glucose goes
+        // up from the moment upload (and glucose) was switched on: switching off ends the window.
+        if (!app.mauri.sukrara.features.Features.value.libreview) {
+            prefs.edit().remove("glucoseFrom").apply()
+            status.value = "off"; return
+        }
+        if (s.glucose && glucoseFrom == null) prefs.edit().putLong("glucoseFrom", System.currentTimeMillis() / 1000).apply()
         val password = prefs.getString("password", null)
         if (s.email.isEmpty() || password.isNullOrEmpty()) { status.value = "set email + password"; return }
 
         val now = System.currentTimeMillis()
-        val rows = store.all().filter { it.needsUpload }.filter { tr ->
+        val rows = if (!s.treatments) emptyList() else store.all().filter { it.needsUpload }.filter { tr ->
             tr.o == store.origin || now - firstSeen.getOrPut("${tr.id}@${tr.u}") { now } > 120_000
         }
         val sensor = glucoseBatch(s)
@@ -155,7 +170,7 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
     private fun glucoseBatch(s: Settings): LibreViewPayload.Sensor? {
         val serial = serial ?: return null
         if (!s.glucose) return null
-        val from = prefs.getLong("glucoseFrom", Long.MAX_VALUE)
+        val from = glucoseFrom ?: return null
         val sent = sentHistory(serial)
         val lastCur = prefs.getInt("cur:$serial", -1)
         val (cur, hist) = synchronized(history) {

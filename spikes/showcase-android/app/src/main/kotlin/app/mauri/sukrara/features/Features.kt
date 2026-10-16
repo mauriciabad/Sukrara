@@ -15,8 +15,8 @@ import org.json.JSONObject
  * without restarting the process.
  */
 data class FeatureState(
-    /** "juggluco" (default, keeps Juggluco's alarms) or "direct" (this app reads the Libre 3 itself). */
-    val source: String = "juggluco",
+    /** "direct" (default: this app reads the Libre 3 itself) or "juggluco" (reads Juggluco's web server; it keeps the sensor and its alarms). */
+    val source: String = "direct",
     /** Sharing over Nostr relays. */
     val nostr: Boolean = true,
     /** 0 = a live event per reading + a chunk every 5 min; N > 0 = no live events, one batch (chunk) every N min. */
@@ -111,7 +111,7 @@ object Features {
                 nostrIntervalMin = it.nostrIntervalMin.coerceIn(0, 240),
                 systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX),
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
-                source = if (it.source == "direct") "direct" else "juggluco",
+                source = if (it.source == "juggluco") "juggluco" else "direct",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
             )
         }

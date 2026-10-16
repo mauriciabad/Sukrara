@@ -164,7 +164,7 @@ private fun WidgetFrame(padding: Int = 10, content: @Composable () -> Unit) {
             .appWidgetBackground()
             .background(GlanceTheme.colors.widgetBackground)
             .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-            .clickable(actionStartActivity<app.mauri.sukrara.ui.MainActivity>())
+            .clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>())
             .padding(padding.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
