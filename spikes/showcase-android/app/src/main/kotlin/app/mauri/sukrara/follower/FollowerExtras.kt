@@ -15,7 +15,6 @@ import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.status.GlucoseNotification
-import app.mauri.sukrara.widgets.GlucoseStore
 import app.mauri.sukrara.widgets.SukraraHooks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +28,7 @@ import kotlinx.coroutines.launch
 /**
  * The follower role's local features, fed by the follower DB (gap audit 2026-10-16: before this they existed only
  * for the wearer):
- *  - **home-screen widgets** (inv. 12): seeded from `follower.db` on start, then every stored batch;
+ *  - **home-screen widgets** (inv. 12): read `follower.db` on start, then every stored batch;
  *  - **status bar** (inv. 05 approaches 1 + 2): the service's only notification is the same Live Update chip /
  *    number icon the wearer gets, showing the followed person's value;
  *  - **local servers** ([LocalServers]): Garmin on 127.0.0.1:17580 (a follower phone has no Juggluco) and the
@@ -85,13 +84,12 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
         local.stop()
     }
 
-    /** The follower DB is the source of truth: widgets get its last 8 h, the local servers its last 24 h. */
+    /** The follower DB is the source of truth: the local servers get its last 24 h, the widgets re-read it. */
     private fun seed() {
         val rows = engine.history(Proto.nowS() - 24 * 3600)
         local.xdrip.clear()
         rows.forEach { local.xdrip.add(Bridge.Reading(it.t, it.sgv, it.rate), persist = false) }
-        val cutoff = Proto.nowS() - GlucoseStore.KEEP_SEC
-        SukraraHooks.seed(ctx, rows.filter { it.t >= cutoff }.map { Reading(it.t, it.sgv, it.rate) }, "follower start")
+        SukraraHooks.reload(ctx, "follower start")
     }
 
     private fun onReadings(list: List<Reading>, reason: String) {

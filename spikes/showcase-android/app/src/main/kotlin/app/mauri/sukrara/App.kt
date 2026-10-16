@@ -31,8 +31,10 @@ class App : Application() {
 
         fun role(ctx: Context): String? = ctx.getSharedPreferences("role", Context.MODE_PRIVATE).getString("role", null)
 
-        fun setRole(ctx: Context, role: String?) =
+        fun setRole(ctx: Context, role: String?) {
             ctx.getSharedPreferences("role", Context.MODE_PRIVATE).edit().putString("role", role).apply()
+            app.mauri.sukrara.widgets.RecentHistory.reload()   // the widgets read the new role's store
+        }
 
         fun owner(ctx: Context): OwnerEngine {
             check(role(ctx) == "owner") { "owner engine requested but role is ${role(ctx)}" }

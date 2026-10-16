@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
-import app.mauri.sukrara.R
-
 import android.content.Context
 import android.content.res.Configuration
 import android.os.PowerManager
 import android.util.Log
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -48,15 +48,18 @@ object WidgetUpdater {
 
     /** For composition when the process just started (system-initiated update): load from disk. */
     fun current(c: Context): Frame =
-        frame.value ?: Frame(GlucoseStore.load(c), nowSec(), GlucoseStore.treatments(c)).also { frame.value = it }
+        frame.value ?: Frame(RecentHistory.readings(c), Proto.nowS(), RecentHistory.treatments(c)).also { frame.value = it }
+
+    suspend fun refreshSafely(c: Context, reason: String, force: Boolean = false) =
+        runCatching { refresh(c, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh ($reason): $it") }
 
     suspend fun refresh(c: Context, reason: String, force: Boolean = false) = mutex.withLock {
-        val history = GlucoseStore.load(c)
-        val treatments = GlucoseStore.treatments(c)
-        val now = nowSec()
+        val history = RecentHistory.readings(c)
+        val treatments = RecentHistory.treatments(c)
+        val now = Proto.nowS()
         val latest = history.lastOrNull()
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${latest?.epochSec}|${latest?.let { (now - it.epochSec) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
+        val key = "${latest?.t}|${latest?.let { (now - it.t) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock

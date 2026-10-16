@@ -27,9 +27,10 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.HookPosition
 import app.mauri.sukrara.status.GlucoseNotification
-import app.mauri.sukrara.status.Range
+import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.core.STALE_AFTER_S
 import app.mauri.sukrara.status.RootStatusBar
-import app.mauri.sukrara.status.Trend
+import app.mauri.sukrara.core.Trend
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 
@@ -133,7 +134,7 @@ class SystemUiHook : XposedModule() {
         val st = state
         val r = st.reading ?: return null
         if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
-        if (System.currentTimeMillis() / 1000 - r.t > GlucoseNotification.STALE_AFTER_S) return null
+        if (System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S) return null
         return Range.color(r.sgv)
     }
 
@@ -341,7 +342,7 @@ class SystemUiHook : XposedModule() {
                 r.sgv > 400 -> "HI"
                 else -> r.sgv.toString()
             }
-            val stale = System.currentTimeMillis() / 1000 - r.t > GlucoseNotification.STALE_AFTER_S
+            val stale = System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S
             val base = reference?.get()?.currentTextColor ?: currentTextColor
             val color = if (stale || !state.color) base else Range.color(r.sgv) ?: base
             setTextColor(color)

@@ -119,6 +119,9 @@ class OwnerEngine(private val ctx: Context) {
 
     fun hasIdentity() = st != null
 
+    /** Stored readings from [fromS] on, oldest first (the widgets' and the notification graph's source). */
+    fun history(fromS: Long): List<Reading> = db.range(fromS, Long.MAX_VALUE)
+
     private fun pool(): RelayPool = pool ?: RelayPool(st?.relays ?: Proto.RELAYS, log::i) { st?.i }.also { p ->
         pool = p
         scope.launch { p.stats.collect { _relays.value = it } }

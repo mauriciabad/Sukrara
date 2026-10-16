@@ -108,7 +108,7 @@ class FollowerEngine(private val ctx: Context) {
      */
     @Volatile var onReadings: ((List<app.mauri.sukrara.core.Reading>, String) -> Unit)? = null
 
-    /** The follower DB's readings since [fromS] (oldest first), for seeding widgets / the local API. */
+    /** The follower DB's readings since [fromS] (oldest first), for the widgets and the local API. */
     fun history(fromS: Long): List<FollowedReading> = db.since(fromS)
 
     // ============================================================================================ Bluetooth (inv. 07)
@@ -217,7 +217,7 @@ class FollowerEngine(private val ctx: Context) {
         db.wipe()   // clear in place: deleting the file under an open helper would keep the old rows alive
         TreatmentFeed.update(emptyList())
         cancelWatchdog()
-        app.mauri.sukrara.widgets.SukraraHooks.clear(ctx)   // widgets must not keep showing the old wearer's values
+        app.mauri.sukrara.widgets.SukraraHooks.reload(ctx, "left")   // widgets must not keep showing the old wearer's values
         log.i("left: follower state wiped, follower.db now has ${db.count()} readings")
         publishUi()
     }

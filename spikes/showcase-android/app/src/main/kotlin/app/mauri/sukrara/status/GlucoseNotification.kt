@@ -24,49 +24,16 @@ import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.graphics.ColorUtils
 import app.mauri.sukrara.R
+import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.STALE_AFTER_S
+import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.MainActivity
-import app.mauri.sukrara.widgets.GlucoseStore
 import app.mauri.sukrara.widgets.GraphRenderer
+import app.mauri.sukrara.widgets.RecentHistory
 import java.time.Instant
-import app.mauri.sukrara.widgets.Reading as GraphReading
 import kotlin.math.abs
 import kotlin.math.min
-
-/** Same mapping as the Mac (spikes/menubar TrendArrow.swift): 0 → flat, ±3 mg/dL/min → vertical. */
-object Trend {
-    const val FULL_SCALE = 3.0
-    fun angleDeg(rate: Double): Float = (-(rate / FULL_SCALE).coerceIn(-1.0, 1.0) * 90).toFloat()
-    fun isDouble(rate: Double) = abs(rate) >= FULL_SCALE
-    fun arrow(rate: Double?): String = when {
-        rate == null -> "·"
-        rate >= FULL_SCALE -> "⇈"
-        rate >= 2.0 -> "↑"
-        rate >= 1.0 -> "↗"
-        rate > -1.0 -> "→"
-        rate > -2.0 -> "↘"
-        rate > -FULL_SCALE -> "↓"
-        else -> "⇊"
-    }
-    fun word(rate: Double?): String = when {
-        rate == null -> "trend unknown"
-        abs(rate) < 1 -> "steady"
-        rate > 0 -> if (rate >= 2) "rising fast" else "rising"
-        else -> if (rate <= -2) "falling fast" else "falling"
-    }
-}
-
-/** The user's personal thresholds (same as the Mac app and brand.json). */
-object Range {
-    const val LOW = 65
-    const val SLIGHTLY_HIGH = 145
-    const val HIGH = 185
-    fun color(mgdl: Int): Int? = when {
-        mgdl < LOW || mgdl > HIGH -> Color.rgb(0xFF, 0x45, 0x3A)
-        mgdl > SLIGHTLY_HIGH -> Color.rgb(0xFF, 0x9F, 0x0A)
-        else -> null
-    }
-}
 
 /**
  * The role service's one notification (investigation 05, approaches 1 + 2), so the status bar costs one post per
@@ -81,7 +48,6 @@ object Range {
 object GlucoseNotification {
     const val ID = 1
     const val CHANNEL = "glucose"
-    const val STALE_AFTER_S = 5 * 60
     private const val GRAPH_HOURS = 3
     private const val GRAPH_H_DP = 96f
 
@@ -172,7 +138,7 @@ object GlucoseNotification {
     private var graphKey = ""
 
     /**
-     * The last [GRAPH_HOURS] from the widgets' store (both roles feed it), on a rounded surface so it reads on any
+     * The last [GRAPH_HOURS] of [RecentHistory] (the role's own store), on a rounded surface so it reads on any
      * range colour. Re-drawn only for a new reading / theme / 5-min tick, and not while the screen is off (the
      * screen-on re-post brings a fresh one). Drawn at ≤ 2× density: ~600×190 px, ~0.45 MB.
      */
@@ -191,8 +157,8 @@ object GlucoseNotification {
         val w = (wDp * d).toInt()
         val h = (GRAPH_H_DP * d).toInt()
         val pad = (6 * d).toInt()
-        val history = GlucoseStore.load(c).let { h0 ->
-            if (h0.lastOrNull()?.let { r.t - it.epochSec < 30 } == true) h0 else h0 + GraphReading(r.t, r.sgv, r.rate)
+        val history = RecentHistory.readings(c).let { h0 ->
+            if (h0.lastOrNull()?.let { r.t - it.t < 30 } == true) h0 else h0 + r
         }
         val plot = GraphRenderer.render(gc, history, now, w - 2 * pad, h - 2 * pad, GRAPH_HOURS)
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
