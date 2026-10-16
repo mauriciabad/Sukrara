@@ -18,8 +18,10 @@ data class WearerStatus(
     val macAdvertising: Boolean = false,
     val macSubscribed: Int = 0,
     val macError: String? = null,
-    val garmin: String = "off",
-    val nightscout: String = "off",
+    // Until a role's LocalServers applies the switches (e.g. the DebugReceiver woke the process before the service
+    // started): not "off", which reads as "switched off" or "left to Juggluco" gone wrong.
+    val garmin: String = "not started",
+    val nightscout: String = "not started",
     val watchPolledAt: Long = 0,
     val libreview: String = "off",
     val notificationPosts: Int = 0,

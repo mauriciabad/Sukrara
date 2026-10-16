@@ -298,7 +298,7 @@ class FollowerEngine(private val ctx: Context) {
      * Watchdog: only chunks (re)published since shortly before the last accepted event — chunks are republished
      * every 5 min, so that covers the gap without re-downloading 13 h of history on every stale check.
      */
-    private fun backfill(why: String, full: Boolean = true) {
+    private fun backfill(why: String, full: Boolean = true, attempt: Int = 0) {
         val s = st ?: return
         val sid = s.sid ?: return
         if (s.devices.isEmpty()) return
@@ -314,9 +314,40 @@ class FollowerEngine(private val ctx: Context) {
                     val before = db.count()
                     got.forEach { (ev, via) -> onData(ev, via, force = true) }
                     log.i("backfill ($why): ${got.size} chunk event(s), +${db.count() - before} readings")
+                    if (full) checkHistory(attempt)
                 }
             } finally { if (wake.isHeld) wake.release() }
         }
+    }
+
+    private var historyAskedAt = 0L
+
+    /**
+     * After a full backfill: hours of the last 12 without a reading while the stream is live ⇒ look once more in 90 s
+     * (the wearer may still be pacing its chunks out: our key delivery jumped ahead of them), then ask the wearer to
+     * republish (PROTOCOL-v2 `history` request), at most once per 30 min. A real gap (sensor warm-up, phone off) costs
+     * one request; the wearer only republishes what it has.
+     */
+    private fun checkHistory(attempt: Int) {
+        val s = st ?: return
+        if (s.status != FollowerState.ACTIVE) return
+        val now = Proto.nowS()
+        val newest = db.latest()?.t ?: return
+        if (now - newest > 15 * 60) return
+        val cur = Proto.hourOf(now)
+        val have = db.since(cur - 12 * 3600).map { Proto.hourOf(it.t) }.toSet()
+        val missing = (1..12).map { cur - it * 3600L }.filter { it !in have }
+        if (missing.isEmpty()) return
+        if (attempt == 0) {
+            log.i("history: ${missing.size} of the last 12 h missing → backfill again in 90 s")
+            scope.launch { delay(90_000); withContext(serial) { backfill("history check", attempt = 1) } }
+            return
+        }
+        if (now - historyAskedAt < 30 * 60) return
+        historyAskedAt = now
+        val body = JSONObject().put("v", 2).put("type", "history").put("since", missing.min())
+        publish(Proto.gift(s.f, s.iPub, Proto.RUMOR_TO_OWNER, body, ttlS = Proto.DAY), app.mauri.sukrara.core.Lane.CONTROL)
+        log.i("history: ${missing.size} of the last 12 h still missing → asked the wearer to republish from h=${missing.min()}")
     }
 
     // ============================================================================================ transport seam
@@ -414,7 +445,9 @@ class FollowerEngine(private val ctx: Context) {
         val gkTag = Proto.tagValue(ev, "gk") ?: return
         val epoch = s.epochs[gkTag]
         if (epoch == null) {
-            if (author == s.iPub || author in s.devices) maybeRekey(gkTag)
+            // Only events newer than our latest key mean a missed rotation: a new follower's backfill also returns the
+            // same device's chunks from before it joined (older epoch, never ours), which are just skipped.
+            if ((author == s.iPub || author in s.devices) && ev.optLong("created_at") > s.lastKeyAt) maybeRekey(gkTag)
             return
         }
         val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return reject("malformed event", author, via)

@@ -1,0 +1,38 @@
+How many hourly chunks do the relays keep for the real phone's stream? (NEXT §2 "thin history", branch n-fixes)
+2026-10-16 ~10:40 UTC. Read-only REQs from the Mac (Python websockets), nothing published.
+
+Device key D (author of the phone's live + chunk events) was identified by listening to kind 21078 on the 4 default
+relays while polling the phone's DebugReceiver: D's live events had created_at = the phone's reading t + 1 s for 3
+consecutive readings (another, unrelated author publishes on the minute). D = 044f978df10a… (truncated here).
+Hour of a chunk = its NIP-40 expiration − 7 d (no stream secret needed).
+
+1) Everything each relay keeps for D (kinds 30078, authors [D], no since):
+nos.lol: 29 events, 29 distinct hours (c-tagged), 0 other
+  hours ago (0 = current): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+relay.primal.net: 29 events, 29 distinct hours (c-tagged), 0 other
+  hours ago (0 = current): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+nostr.mom: 29 events, 29 distinct hours (c-tagged), 0 other
+  hours ago (0 = current): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+relay.nostr.net: 29 events, 29 distinct hours (c-tagged), 0 other
+  hours ago (0 = current): [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+c tags seen: {'e8b85ca6': 116}
+   Created_at: current hour 10:36:13Z (republished every 5 min); h-1 … h-24 all 10:31:06Z (the burst after the app
+   update at 13:31 local, 25 chunks paced 2 s apart); h-25 09:42Z; h-26…h-28 under the previous epoch (gk 204a1060).
+   Every relay kept every chunk of the burst — 29 distinct hours on all 4 relays, nothing missing.
+
+2) The follower's own backfill query (kinds 30078, authors [D], #c <stream tag>, since now − 13 h) at 10:50:44Z:
+nos.lol            29 chunk(s), hours ago [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+relay.primal.net   29 chunk(s), hours ago [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+nostr.mom          29 chunk(s), hours ago [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+relay.nostr.net    29 chunk(s), hours ago [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+(all 4 relays answered in 0.7 s)
+
+Conclusion: relay retention isn't the problem (no relay drops part of a paced 25-chunk burst; each keeps ≥ 28 h).
+The thin history the emulator follower saw at 09:05 needs another cause; the plausible ones are timing on the follower
+side: its single 12-s backfill ran before the wearer's chunks were on the relays (the approval's key delivery goes
+out in the CONTROL lane ahead of queued chunks), or the open #c subscription was (re)sent after the first live event
+with since = lastAcceptedAt − 15 min, which only matches the last ~2 hours. Fix (n-fixes): the wearer republishes 24 h
+on every approval (and rotation, as before); the follower re-checks its last 12 h after a full backfill, looks again
+after 90 s and then sends a `history` request (PROTOCOL-v2), which makes the wearer republish (≤ 1 / 10 min).
+Side finding: the backfill also returns D's chunks from before the follower joined (older epoch, h-26…h-28 here);
+the follower used to send a rekey request for them — now only events newer than its latest key trigger a rekey.

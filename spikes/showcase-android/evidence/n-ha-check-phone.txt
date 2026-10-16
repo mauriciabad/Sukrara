@@ -1,0 +1,28 @@
+Home Assistant (stock "nightscout" integration) → Sukrara's own Nightscout API on the real phone (Pixel 10 Pro,
+wearer role, release build 0.1-inv10, source Juggluco). 2026-10-16, branch n-fixes.
+
+Setup (read-only on the phone):
+  adb -s 62240DLCH0005W forward tcp:17581 tcp:17581      # phone 127.0.0.1:17581 → Mac 127.0.0.1:17581
+  docker run -d --name ha-sukrara -p 8123:8123 -v <scratch>/ha-sukrara:/config ghcr.io/home-assistant/home-assistant:stable
+  uv run spikes/nostr/ha_check.py http://host.docker.internal:17581
+The container reaches the Mac's forwarded port via host.docker.internal; the phone sees a loopback caller, so no
+API secret is needed (api_key left empty in the config flow). LAN mode (with the API secret) was not re-tested here.
+
+--- ha_check.py output ---
+2026-10-16T10:44:35Z
+onboarded HA 2026.10.1
+config flow form: ['url', 'api_key']
+config flow result: create_entry Sukrara None
+sensor.blood_sugar = 122 mg/dL  attrs={"device": "Sukrara", "date": "2026-10-16T10:43:44+00:00", "delta": -2.55, "direction": "Flat", "unit_of_measurement": "mg/dL", "device_class": "blood_glucose_concentration", "icon": "mdi:arrow-right"}
+exit 0
+
+--- HA recorder (home-assistant_v2.db, read-only) vs the phone's API ---
+sensor.blood_sugar 122 mg/dL updated 2026-10-16 10:44:36 UTC
+phone API /api/v1/entries.json newest: 122 2026-10-16T10:43:44Z  (device "Sukrara", direction Flat, delta -2.55)
+HA's attributes match the phone's newest entry (value, date, delta, direction, device). No errors in the HA log for
+the integration. The value did not change during the next ~5 min because the phone had no newer reading (Juggluco's
+own API also ended at 10:43:44Z — a sensor-side gap, not Sukrara).
+
+Phone state at the time (DebugReceiver, read-only): nightscoutState "listening on 127.0.0.1:17581",
+garminState "port 17580 left to Juggluco → Juggluco serves the watch".
+Afterwards: forward removed, container ha-sukrara removed.

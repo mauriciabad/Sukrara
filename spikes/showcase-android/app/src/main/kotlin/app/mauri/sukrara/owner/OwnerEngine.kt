@@ -551,6 +551,25 @@ class OwnerEngine(private val ctx: Context) {
         readings.keys.filter { it >= cut }.forEach { dirty += Proto.hourOf(it) }
     }
 
+    private var historyRepublishedAt = 0L
+
+    /**
+     * Republish the hourly chunks since [fromS] (at most the last 24 h) under the current epoch: on a new approval, on
+     * a rotation and on a follower's `history` request (PROTOCOL-v2). Paced by the relay writer (CHUNK lane, ≥ 2 s
+     * apart per relay, newest hour first: ~50 s and ~35 KB per relay for 24 h), so it never looks like a burst. A new
+     * follower's first backfill can race chunks that are still queued (its key delivery jumps ahead in the CONTROL
+     * lane), or meet a relay that lost some; afterwards its open `#c` subscription receives a complete fresh copy.
+     */
+    private fun republishHistory(why: String, fromS: Long = 0) {
+        val now = Proto.nowS()
+        val from = Proto.hourOf(maxOf(fromS, now - 24 * 3600))
+        val hours = readings.keys.filter { it >= from }.map { Proto.hourOf(it) }.toSortedSet()
+        historyRepublishedAt = now
+        dirty += hours
+        flush(force = true)
+        log.i("history republished ($why): ${hours.size} hourly chunk(s) from h=$from, paced")
+    }
+
     // ============================================================================================ control events
 
     private fun publishRoster() {
@@ -597,8 +616,7 @@ class OwnerEngine(private val ctx: Context) {
         s.active().forEach { deliverKey(it.f) }
         publishRoster()
         publishBackup()
-        markRecentDirty()
-        flush(force = true)
+        republishHistory("epoch ${s.current.n}")
         republishTreatments("epoch ${s.current.n}")
         log.i("rotated to epoch ${s.current.n} gk ${s.current.gk} ($why); ${s.active().size} follower(s) re-keyed, " +
             "republishing ${lastChunkSentAt.size} recent chunk(s)")
@@ -699,6 +717,13 @@ class OwnerEngine(private val ctx: Context) {
                 known != null -> { log.i("rekey request from revoked ${known.name} → revoked notice"); sendRevoked(u.sender) }
                 else -> log.i("rekey request from unknown ${u.sender.take(12)} ignored")
             }
+            "history" -> when {
+                known == null || known.revoked != null -> log.i("history request from ${known?.name ?: u.sender.take(12)} ignored (not an approved follower)")
+                Proto.nowS() - u.createdAt > 3600 -> log.i("history request from ${known.name} ignored (stale)")
+                Proto.nowS() - historyRepublishedAt < HISTORY_MIN_GAP_S ->
+                    log.i("history request from ${known.name} ignored (republished ${Proto.nowS() - historyRepublishedAt} s ago)")
+                else -> republishHistory("asked by ${known.name}", u.body.optLong("since"))
+            }
         }
     }
 
@@ -712,6 +737,7 @@ class OwnerEngine(private val ctx: Context) {
         save()
         deliverKey(f)
         publishBackup()
+        republishHistory("new follower ${p.name}")
         republishTreatments("new follower")
         Notifications.cancel(ctx, Notifications.ID_REQUEST)
         log.i("APPROVED '${p.name}' (${f.take(12)}) code ${p.code} at epoch ${s.current.n}")
@@ -787,5 +813,6 @@ class OwnerEngine(private val ctx: Context) {
         const val CHUNK_EVERY_S = 300L
         const val LIVE_MAX_AGE_S = 600L
         const val INVITE_TTL_S = 24 * 3600L
+        const val HISTORY_MIN_GAP_S = 600L
     }
 }

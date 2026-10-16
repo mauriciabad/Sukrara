@@ -84,6 +84,6 @@ class LocalServers(ctx: Context, prefix: String, private val jugglucoExpected: (
     fun stop() {
         xdrip.stop(); garminUp = false
         xdrip.stopNightscout(); nsKey = null
-        Live.status.update { it.copy(garmin = "off", nightscout = "off") }
+        Live.status.update { it.copy(garmin = "stopped", nightscout = "stopped") }
     }
 }

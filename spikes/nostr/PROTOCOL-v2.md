@@ -32,6 +32,7 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 | **access request** | rumor kind 30500 in NIP-59 gift wrap (1059) to `I` | seal by `F` | — | `{"v":2,"type":"request","token":t,"name":"Mom's phone"}` |
 | **key delivery** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"key","sid","epoch":n,"g":nsec(G_n),"devices":[…],"relays":[…]}` |
 | **rekey request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"rekey","have":gk}` (follower saw an unknown `gk`) |
+| **history request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"history","since":hourStart}` (follower's backfill found hours missing) |
 | **revoked notice** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"revoked"}` (courtesy; security comes from rotation) |
 
 Gift wraps (kind 1059) are signed by a random one-time key and `p`-tag the recipient; the **seal's signer** is the
@@ -111,8 +112,16 @@ owner can confirm "it's really Mom's phone".
    invite's relays, shows the match code, waits.
 3. Owner app sees the request (checked on every chunk publish ≈ 5 min, immediately while the app is open), shows
    "Mom's phone wants to see your glucose · code 4821 — Allow / Deny".
-4. Allow → owner sends a *key delivery* for the current epoch, records `F` in the follower list and the owner backup.
+4. Allow → owner sends a *key delivery* for the current epoch, records `F` in the follower list and the owner backup,
+   and republishes the last 24 h of chunks (paced, newest hour first) so the new follower gets a complete, fresh copy.
 5. Follower decrypts the delivery, then: fetch roster → backfill chunks (`#c` + `authors = roster.devices`) → follow live.
+
+**Missing history** (Sukrara, 2026-10-16): after a full backfill the follower checks the last 12 h. Hours without a
+reading while the stream is live ⇒ backfill again after 90 s (the owner may still be pacing chunks out — a key
+delivery jumps ahead of queued chunks), then a *history request* (≤ 1 per 30 min). The owner answers only for an
+approved, non-revoked `F` and a rumor younger than 1 h, at most once per 10 min overall, by republishing its chunks for
+hours ≥ `since` (capped at 24 h) under the current epoch on the relays (and BLE). Nothing is sent back privately: the
+follower's open `#c` subscription picks the chunks up. Older followers/owners ignore the unknown `type`.
 
 **Revoke** (owner removes a follower)
 1. New `G_{n+1}`; *key delivery* to every remaining follower; *revoked notice* to the removed one.
