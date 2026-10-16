@@ -5,6 +5,7 @@ package app.mauri.sukrara.ui
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +29,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontFamily
@@ -37,6 +42,8 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import app.mauri.sukrara.core.RelayStats
+import app.mauri.sukrara.treatments.TreatmentFeed
+import app.mauri.sukrara.treatments.TreatmentMarks
 import kotlinx.coroutines.delay
 
 val InRange = Color(0xFF2E7D32)
@@ -106,12 +113,18 @@ fun BigGlucose(sgv: Int?, rate: Double?, t: Long?, low: Int, high: Int, subtitle
     }
 }
 
-/** 12 h chart: dots coloured by range, dashed low/high lines, hour grid. [points] = (t, sgv). */
+/**
+ * 12 h chart: dots coloured by range, dashed low/high lines, hour grid. [points] = (t, sgv). Treatments of the active
+ * role ([TreatmentFeed]) along the bottom, same markers as the widgets ([TreatmentMarks]), notes with a short text.
+ */
 @Composable
 fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int = 12) {
     val now = nowSeconds(60_000)
     val grid = MaterialTheme.colorScheme.outlineVariant
     val label = MaterialTheme.colorScheme.onSurfaceVariant
+    val background = MaterialTheme.colorScheme.background.toArgb()
+    val dark = isSystemInDarkTheme()
+    val treatments by TreatmentFeed.items.collectAsState()
     Column {
         Canvas(Modifier.fillMaxWidth().height(180.dp)) {
             val from = now - hours * 3600
@@ -128,6 +141,10 @@ fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int 
             drawLine(High, Offset(0f, y(high.toFloat())), Offset(size.width, y(high.toFloat())), strokeWidth = 2f, pathEffect = dash)
             points.filter { it.first >= from }.forEach { (t, v) ->
                 drawCircle(glucoseColor(v, low, high), radius = 3.5f, center = Offset(x(t), y(v.toFloat())))
+            }
+            drawIntoCanvas {
+                TreatmentMarks.draw(it.nativeCanvas, treatments.filter { tr -> tr.t in from..now }, { t -> x(t) },
+                    0f, size.width, size.height, density, dark, textDp = 10f, noteChars = 14, top = 0f, halo = background)
             }
             drawRect(grid, style = Stroke(1f))
         }

@@ -222,7 +222,7 @@ private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
     val ctx = LocalContext.current
     val hours = GraphRenderer.hoursFor(widthDp)
     val bmp = GraphRenderer.render(ctx, frame.history, frame.nowSec,
-        GraphRenderer.px(ctx, widthDp), GraphRenderer.px(ctx, heightDp), hours)
+        GraphRenderer.px(ctx, widthDp), GraphRenderer.px(ctx, heightDp), hours, treatments = frame.treatments)
     Image(
         ImageProvider(bmp),
         contentDescription = "Glucose graph, last $hours hours",

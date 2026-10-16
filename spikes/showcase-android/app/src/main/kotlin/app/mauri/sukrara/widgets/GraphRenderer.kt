@@ -12,6 +12,9 @@ import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Typeface
+import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.TreatmentFeed
+import app.mauri.sukrara.treatments.TreatmentMarks
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.createBitmap
 import java.util.Calendar
@@ -22,14 +25,17 @@ import kotlin.math.roundToInt
 /**
  * Glance has no canvas, so the graph is drawn into a Bitmap at the widget's exact pixel size and shown with an
  * Image. Colours come from the Material 3 dynamic-colour system resources (API 34+), so the bitmap matches the
- * rest of the (themed) widget; the caller re-renders on dark-mode changes.
+ * rest of the (themed) widget; the caller re-renders on dark-mode changes. Treatments (insulin, carbs, notes) are
+ * drawn by [TreatmentMarks] along the bottom of the plot.
  */
 object GraphRenderer {
     data class Colors(val line: Int, val band: Int, val grid: Int, val label: Int)
 
+    fun dark(c: Context) = (c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES
+
     fun colors(c: Context): Colors {
-        val dark = (c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
+        val dark = dark(c)
         fun res(light: Int, night: Int) = c.getColor(if (dark) night else light)
         val primary = res(android.R.color.system_primary_light, android.R.color.system_primary_dark)
         return Colors(
@@ -49,9 +55,14 @@ object GraphRenderer {
         else -> 6
     }
 
+    /**
+     * [treatments] defaults to the active role's [TreatmentFeed] for the plotted window; the widgets pass the copy
+     * persisted with their readings (it survives a process restart).
+     */
     fun render(
         c: Context, history: List<Reading>, nowSec: Long, widthPx: Int, heightPx: Int, hours: Int,
         showLabels: Boolean = true,
+        treatments: List<Treatment> = TreatmentFeed.between(nowSec - hours * 3600L, nowSec),
     ): Bitmap {
         val w = widthPx.coerceIn(16, 2000)
         val h = heightPx.coerceIn(16, 1200)
@@ -121,6 +132,9 @@ object GraphRenderer {
                 cv.drawCircle(x(r.epochSec), y(r.mgdl.toFloat()), if (i == pts.lastIndex) 3.5f * d else 2f * d, dot)
             }
         }
+
+        // Treatments on top of the line: amounts only (no note text) at widget size.
+        TreatmentMarks.draw(cv, treatments, ::x, left, right, bottom, d, dark(c), top = top)
         return bmp
     }
 
