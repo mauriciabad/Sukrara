@@ -1,0 +1,2 @@
+readings|0
+reject|key delivery not sealed by the identity key|1

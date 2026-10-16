@@ -1,0 +1,21 @@
+✅ 1a follower A approved and got the read key 
+✅ 1b A backfilled ≥ 10 h from hourly chunks 724 readings
+✅ 1c A receives live readings latency 2.6s via relay.primal.net
+✅ 1d every A reading equals the owner's value 724 compared, 0 mismatched
+✅ 1e every A reading records the relay it came through ['relay:nos.lol', 'relay:nostr.mom', 'relay:relay.primal.net']
+✅ 2  denied requester gets no key and no data status=requested readings=0
+✅ 3  forged key delivery rejected (not sealed by identity) 
+✅ 4a non-roster reading published to relays never reaches A (subscription filters by roster) 
+✅ 4b …and A's own acceptance rule rejects it if a relay delivers it anyway 
+✅ 5a B received the epoch-2 key after A was revoked 
+✅ 5b A got the revoked notice 
+✅ 5c B keeps receiving live readings under epoch 2 2 live readings
+✅ 5d A gets no new readings after revocation A still has 729 old readings
+✅ 5e A's rekey requests are refused 
+✅ 6a new phone restored followers + sid from the relay backup 
+✅ 6b B got epoch 3 + the new device in the roster, without re-inviting 
+✅ 6c B receives readings from the new phone 
+✅ 6d readings signed by the old phone's key are rejected 
+✅ 7  follower that missed a rotation asks for the key and recovers 
+
+19/19 checks passed · state in /var/folders/h7/fvnkwcjd4yxdz8qfxm9k5r0m0000gn/T/cgm2-707fvqjw

@@ -1,0 +1,8 @@
+readings total|1482
+readings with forged sgv 399|0
+readings with forged sgv 333|0
+reject|author not in roster|c206d846303a95602c7eec462a8d35dbadce9d1db74640e45d3b27c0a63eb0bf|relay:relay.primal.net
+reject|author not in roster|c206d846303a95602c7eec462a8d35dbadce9d1db74640e45d3b27c0a63eb0bf|relay:nostr.mom
+reject|roster not signed by identity|c206d846303a95602c7eec462a8d35dbadce9d1db74640e45d3b27c0a63eb0bf|relay:nos.lol
+reject|author not in roster|c206d846303a95602c7eec462a8d35dbadce9d1db74640e45d3b27c0a63eb0bf|relay:nos.lol
+reject|author not in roster|c206d846303a95602c7eec462a8d35dbadce9d1db74640e45d3b27c0a63eb0bf|relay:relay.primal.net

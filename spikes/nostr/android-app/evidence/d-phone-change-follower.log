@@ -1,0 +1,7 @@
+10-16 01:54:39.412 I/CgmShare.follower( 6649): KEY accepted from identity via relay.primal.net: epoch 3 gk 975d463f, devices [f55b1cc2d2a6]
+10-16 01:54:39.432 I/CgmShare.follower( 6649): subscribed: roster + chunks (#c) + live, authors [f55b1cc2d2a6]
+10-16 01:54:39.554 I/CgmShare.follower( 6649): backfill (new key epoch 3): 0 chunk event(s), +0 readings
+10-16 01:54:41.356 I/CgmShare.follower( 6649): roster accepted via relay.primal.net: epoch 3, devices [f55b1cc2d2a6]
+10-16 01:54:51.327 I/CgmShare.follower( 6649): chunk h=1792101600 +1 reading(s) epoch 3 via relay.primal.net
+10-16 01:54:59.870 I/CgmShare.follower( 6649): reading 113 mg/dL rate 0.64 t=1792104900 epoch 3 via nos.lol (+-1s)
+10-16 01:55:59.793 I/CgmShare.follower( 6649): reading 113 mg/dL rate 0.64 t=1792104960 epoch 3 via nos.lol (+-1s)

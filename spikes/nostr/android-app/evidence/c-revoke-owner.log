@@ -1,0 +1,29 @@
+10-16 01:16:10.397 I/CgmShare.owner( 4532): revoked notice → 96eb6b2c6ff6
+10-16 01:16:10.691 I/CgmShare.owner( 4532): key delivery → 30618ac6471a (epoch 2, gk 3fc157cc)
+10-16 01:16:12.572 I/CgmShare.owner( 4532): roster published: epoch 2 gk 3fc157cc, devices [57912b92a1b6]
+10-16 01:16:13.027 I/CgmShare.owner( 4532): owner backup published: 2 epoch(s), 2 follower record(s), 0 invite(s)
+10-16 01:16:15.232 I/CgmShare.owner( 4532): nostr.mom socket: SocketException: Software caused connection abort
+10-16 01:16:15.238 I/CgmShare.owner( 4532): relay.primal.net socket: SocketException: Software caused connection abort
+10-16 01:16:15.240 I/CgmShare.owner( 4532): relay.nostr.net socket: SocketException: Software caused connection abort
+10-16 01:16:15.247 I/CgmShare.owner( 4532): nos.lol socket: SocketException: Software caused connection abort
+10-16 01:16:15.251 I/CgmShare.owner( 4532): relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 01:16:15.251 I/CgmShare.owner( 4532): relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 01:16:15.252 I/CgmShare.owner( 4532): nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 01:16:15.280 I/CgmShare.owner( 4532): nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 01:16:15.806 I/CgmShare.owner( 4532): rotated to epoch 2 gk 3fc157cc (revoked Moms phone); 1 follower(s) re-keyed, republishing 25 recent chunk(s)
+10-16 01:16:16.517 I/CgmShare.owner( 4532): relay.primal.net socket: UnknownHostException: Unable to resolve host "relay.primal.net": No address associated with hostname
+10-16 01:16:16.918 I/CgmShare.owner( 4532): nos.lol socket: UnknownHostException: Unable to resolve host "nos.lol": No address associated with hostname
+10-16 01:16:16.919 I/CgmShare.owner( 4532): relay.nostr.net socket: UnknownHostException: Unable to resolve host "relay.nostr.net": No address associated with hostname
+10-16 01:16:16.920 I/CgmShare.owner( 4532): nostr.mom socket: UnknownHostException: Unable to resolve host "nostr.mom": No address associated with hostname
+10-16 01:16:20.739 I/CgmShare.owner( 4532): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:16:20.742 I/CgmShare.owner( 4532): relay.nostr.net NIP-42 AUTH sent
+10-16 01:16:20.813 I/CgmShare.owner( 4532): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 01:16:23.823 I/CgmShare.owner( 4532): rekey request from Python follower (has 3fc157cc)
+10-16 01:16:23.830 I/CgmShare.owner( 4532): key delivery → 30618ac6471a (epoch 2, gk 3fc157cc)
+10-16 01:17:08.404 I/CgmShare.owner( 4532): relay.nostr.net socket: SocketException: Software caused connection abort
+10-16 01:17:08.404 I/CgmShare.owner( 4532): relay.primal.net socket: SocketException: Software caused connection abort
+10-16 01:17:08.405 I/CgmShare.owner( 4532): nostr.mom socket: SocketException: Software caused connection abort
+10-16 01:17:08.405 I/CgmShare.owner( 4532): nos.lol socket: SocketException: Software caused connection abort
+10-16 01:17:08.895 I/CgmShare.owner( 4532): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:17:08.899 I/CgmShare.owner( 4532): relay.nostr.net NIP-42 AUTH sent
+10-16 01:17:08.968 I/CgmShare.owner( 4532): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c

@@ -124,8 +124,8 @@ def direction(rate: float | None) -> str:
 class Relay:
     """One relay connection with auto-reconnect, paced publishing and subscriptions."""
 
-    def __init__(self, url: str, min_gap: float = 2.0):
-        self.url, self.min_gap = url, min_gap
+    def __init__(self, url: str, min_gap: float = 2.0, auth_keys: n.Keys | None = None):
+        self.url, self.min_gap, self.auth_keys = url, min_gap, auth_keys
         self.ws = None
         self.queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._seq = 0
@@ -204,13 +204,20 @@ class Relay:
                 cb = self.subs[msg[1]][1]
                 if hasattr(cb, "eose"):
                     cb.eose(self.url)
+            elif msg[0] == "AUTH" and self.auth_keys:          # NIP-42: prove we hold the key gift wraps are for
+                tags = [n.Tag.parse(["relay", self.url]), n.Tag.parse(["challenge", msg[1]])]
+                ev = json.loads(n.EventBuilder(n.Kind(22242), "").tags(tags).finalize(self.auth_keys).as_json())
+                await ws.send(json.dumps(["AUTH", ev]))
+                await asyncio.sleep(0.5)
+                for sid, (flt, _) in self.subs.items():         # re-issue subscriptions now that we're authenticated
+                    await ws.send(json.dumps(["REQ", sid, flt]))
             elif msg[0] == "CLOSED":
                 log(f"{self.url} closed sub: {msg[2][:80] if len(msg) > 2 else ''}")
 
 
 class Pool:
-    def __init__(self, urls):
-        self.relays = [Relay(u) for u in urls]
+    def __init__(self, urls, auth_keys: n.Keys | None = None):
+        self.relays = [Relay(u, auth_keys=auth_keys) for u in urls]
 
     def start(self):
         return [asyncio.ensure_future(r.run()) for r in self.relays]

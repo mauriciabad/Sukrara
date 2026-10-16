@@ -1,0 +1,11 @@
+10-16 01:37:18.672 I/CgmShare.follower( 6649): TEST mode (no relay-side authors filter): true
+10-16 01:37:18.713 I/CgmShare.follower( 6649): subscribed: roster + chunks (#c) + live, authors [57912b92a1b6] [TEST: no authors filter]
+10-16 01:37:28.400 I/CgmShare.follower( 6649): REJECT: author not in roster (author c206d846303a, via relay:relay.primal.net)
+10-16 01:37:30.648 I/CgmShare.follower( 6649): REJECT: author not in roster (author c206d846303a, via relay:nostr.mom)
+10-16 01:37:32.827 I/CgmShare.follower( 6649): REJECT: roster not signed by identity (author c206d846303a, via relay:nos.lol)
+10-16 01:38:00.283 I/CgmShare.follower( 6649): reading 102 mg/dL rate 0.59 t=1792103880 epoch 2 via relay.primal.net (+0s)
+10-16 01:38:36.696 I/CgmShare.follower( 6649): REJECT: author not in roster (author c206d846303a, via relay:nos.lol)
+10-16 01:39:01.379 I/CgmShare.follower( 6649): reading 103 mg/dL rate 0.6 t=1792103940 epoch 2 via nos.lol (+1s)
+10-16 01:39:39.128 I/CgmShare.follower( 6649): REJECT: author not in roster (author c206d846303a, via relay:relay.primal.net)
+10-16 01:40:00.306 I/CgmShare.follower( 6649): reading 103 mg/dL rate 0.6 t=1792104000 epoch 2 via relay.nostr.net (+0s)
+10-16 01:41:00.964 I/CgmShare.follower( 6649): reading 104 mg/dL rate 0.6 t=1792104060 epoch 2 via relay.primal.net (+0s)

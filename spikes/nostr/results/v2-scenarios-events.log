@@ -1,0 +1,76 @@
+00:28:02 {"evt": "requested", "code": "8122", "node": "A"}
+00:28:03 {"evt": "approved", "name": "Mom's phone", "code": "8122", "epoch": 1, "node": "owner"}
+00:28:35 {"evt": "key", "epoch": 1, "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 28, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "relay.primal.net", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "relay.primal.net", "node": "A"}
+00:28:35 {"evt": "chunk", "rows": 32, "epoch": 1, "via": "relay.primal.net", "node": "A"}
+00:28:35 {"evt": "reading", "sgv": 73, "t": 1792099713, "epoch": 1, "via": "relay.primal.net", "latency": 2.6, "node": "A"}
+00:28:35 {"evt": "reading", "sgv": 73, "t": 1792099703, "epoch": 1, "via": "relay.primal.net", "latency": 12.6, "node": "A"}
+00:28:35 {"evt": "reading", "sgv": 73, "t": 1792099693, "epoch": 1, "via": "relay.primal.net", "latency": 22.6, "node": "A"}
+00:28:35 {"evt": "reading", "sgv": 73, "t": 1792099683, "epoch": 1, "via": "relay.primal.net", "latency": 32.6, "node": "A"}
+00:28:36 {"evt": "requested", "code": "2123", "node": "Eve"}
+00:28:36 {"evt": "request_denied", "name": "Eve's laptop", "code": "2123", "node": "owner"}
+00:28:43 {"evt": "reading", "sgv": 73, "t": 1792099723, "epoch": 1, "via": "nostr.mom", "latency": 0.4, "node": "A"}
+00:28:53 {"evt": "reading", "sgv": 73, "t": 1792099733, "epoch": 1, "via": "nostr.mom", "latency": 0.3, "node": "A"}
+00:29:03 {"evt": "reading", "sgv": 73, "t": 1792099743, "epoch": 1, "via": "nos.lol", "latency": 0.2, "node": "A"}
+00:29:13 {"evt": "reading", "sgv": 73, "t": 1792099753, "epoch": 1, "via": "relay.primal.net", "latency": 0.2, "node": "A"}
+00:29:16 {"evt": "reject", "why": "key delivery not sealed by the identity key", "sender": "abd19e3a1447", "node": "A"}
+00:29:23 {"evt": "reading", "sgv": 73, "t": 1792099763, "epoch": 1, "via": "relay.primal.net", "latency": 0.2, "node": "A"}
+00:29:27 {"evt": "reject", "why": "author not in roster", "author": "abd19e3a1447", "node": "A"}
+00:29:27 {"evt": "requested", "code": "0957", "node": "B"}
+00:29:27 {"evt": "approved", "name": "Dad's tablet", "code": "0957", "epoch": 1, "node": "owner"}
+00:29:29 {"evt": "key", "epoch": 1, "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 28, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nos.lol", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "nostr.mom", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 60, "epoch": 1, "via": "relay.primal.net", "node": "B"}
+00:29:29 {"evt": "chunk", "rows": 32, "epoch": 1, "via": "relay.primal.net", "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099763, "epoch": 1, "via": "relay.primal.net", "latency": 6.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099753, "epoch": 1, "via": "relay.primal.net", "latency": 16.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099743, "epoch": 1, "via": "relay.primal.net", "latency": 26.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099733, "epoch": 1, "via": "relay.primal.net", "latency": 36.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099723, "epoch": 1, "via": "relay.primal.net", "latency": 46.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099713, "epoch": 1, "via": "relay.primal.net", "latency": 56.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099703, "epoch": 1, "via": "relay.primal.net", "latency": 66.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099693, "epoch": 1, "via": "relay.primal.net", "latency": 76.3, "node": "B"}
+00:29:29 {"evt": "reading", "sgv": 73, "t": 1792099683, "epoch": 1, "via": "relay.primal.net", "latency": 86.3, "node": "B"}
+00:29:30 {"evt": "rotated", "why": "revoked Mom's phone", "epoch": 2, "followers": 1, "node": "owner"}
+00:29:33 {"evt": "rekey_requested", "gk": "847c1cf4", "node": "B"}
+00:29:33 {"evt": "revoked", "node": "A"}
+00:29:33 {"evt": "rekeyed", "name": "Dad's tablet", "epoch": 2, "node": "owner"}
+00:29:37 {"evt": "key", "epoch": 2, "node": "B"}
+00:29:43 {"evt": "reading", "sgv": 73, "t": 1792099783, "epoch": 2, "via": "relay.primal.net", "latency": 0.2, "node": "B"}
+00:29:53 {"evt": "reading", "sgv": 73, "t": 1792099793, "epoch": 2, "via": "relay.primal.net", "latency": 0.2, "node": "B"}
+00:29:57 {"evt": "rotated", "why": "restored on a new device", "epoch": 3, "followers": 1, "node": "owner-new-phone"}
+00:29:58 {"evt": "request_rejected", "why": "unknown or expired invite", "name": "Mom's phone", "node": "owner-new-phone"}
+00:29:58 {"evt": "rekeyed", "name": "Dad's tablet", "epoch": 3, "node": "owner-new-phone"}
+00:29:58 {"evt": "request_rejected", "why": "unknown or expired invite", "name": "Eve's laptop", "node": "owner-new-phone"}
+00:29:58 {"evt": "roster", "epoch": 2, "devices": ["00b9930b6c00"], "node": "B"}
+00:29:59 {"evt": "reject", "why": "author not in roster", "author": "c5f027fb1931", "node": "B"}
+00:30:01 {"evt": "reject", "why": "author not in roster", "author": "c5f027fb1931", "node": "B"}
+00:30:02 {"evt": "rekey_requested", "gk": "80abae39", "node": "B"}
+00:30:02 {"evt": "rekeyed", "name": "Dad's tablet", "epoch": 2, "node": "owner"}
+00:30:02 {"evt": "rekeyed", "name": "Dad's tablet", "epoch": 3, "node": "owner-new-phone"}
+00:30:03 {"evt": "reject", "why": "author not in roster", "author": "c5f027fb1931", "node": "B"}
+00:30:04 {"evt": "key", "epoch": 3, "node": "B"}
+00:30:05 {"evt": "reject", "why": "author not in roster", "author": "c5f027fb1931", "node": "B"}
+00:30:06 {"evt": "reading", "sgv": 73, "t": 1792099804, "epoch": 3, "via": "nos.lol", "latency": 2.3, "node": "B"}
+00:30:08 {"evt": "key", "epoch": 3, "node": "B"}

@@ -1,0 +1,5 @@
+10-16 01:28:41.655 I/CgmShare.owner( 4532): owner backup published: 2 epoch(s), 2 follower record(s), 1 invite(s)
+10-16 01:28:41.655 I/CgmShare.owner( 4532): invite created (expires in 24 h): cgmshare:join?i=npub1qg0pfftc6pdtc00czmh87ugy4vl308yhswzg06tm5nyjfh73u0xqawp4vr&t=yP2MjI41tHottHVHBMDVPQ&x=1792189721&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Frelay.primal.net%2Cwss%3A%2F%2Fnostr.mom%2Cwss%3A%2F%2Frelay.nostr.net
+10-16 01:28:54.107 I/CgmShare.owner( 4532): access request from 'sdk_gphone64_arm64' (08f4302333ef) code 8325 via nostr.mom
+10-16 01:29:07.235 I/CgmShare.owner( 4532): owner backup published: 2 epoch(s), 2 follower record(s), 0 invite(s)
+10-16 01:29:07.236 I/CgmShare.owner( 4532): DENIED 'sdk_gphone64_arm64' (08f4302333ef) code 8325 — nothing sent

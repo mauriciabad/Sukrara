@@ -1,0 +1,5 @@
+10-16 01:46:36.450 I/CgmShare.owner( 6583): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:47:24.737 I/CgmShare.owner( 6583): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:49:56.590 I/CgmShare.owner( 6583): relay.nostr.net CLOSED q3158d3dd8a5: ERROR: auth-required: requested filter requires authentication
+10-16 01:50:43.768 I/CgmShare.owner( 6583): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:50:44.078 I/CgmShare.owner( 6583): identity saved to a password manager (Credential Manager)

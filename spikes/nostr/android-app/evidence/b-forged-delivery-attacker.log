@@ -1,0 +1,20 @@
+attacker 81424b54f548 → forged key delivery to 08f4302333ef (fake device 7ef690cd08a2, gk 0aa592cc)
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]
+forged live sgv 333 t=1792103355 from fake device
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]
+forged live sgv 333 t=1792103418 from fake device
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]
+forged live sgv 333 t=1792103480 from fake device
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]

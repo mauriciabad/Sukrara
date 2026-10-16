@@ -1,0 +1,11 @@
+window: last 12 h
+owner readings: 720   follower readings: 720
+identical (t, sgv, rate): 720/720   follower rows not on owner: 0
+owner readings the follower lacks: 0
+rows equal to the synthetic function: 720/720
+via: {'relay:relay.primal.net': 708, 'relay:relay.nostr.net': 11, 'relay:nostr.mom': 1}
+epochs: {1: 720}
+span: 13:14 – 01:13 (12.0 h), newest 56 s old
+  last: (1792102260, 87, 0.48, 1, 'relay:relay.primal.net') owner: (87, 0.48)
+  last: (1792102320, 88, 0.48, 1, 'relay:relay.nostr.net') owner: (88, 0.48)
+  last: (1792102380, 88, 0.49, 1, 'relay:nostr.mom') owner: (88, 0.49)

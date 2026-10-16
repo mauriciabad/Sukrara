@@ -1,0 +1,2 @@
+10-16 01:16:01.087 I/CgmShare.follower( 4727): reading 90 mg/dL rate 0.5 t=1792102560 epoch 1 via nostr.mom (+1s)
+10-16 01:16:10.593 I/CgmShare.follower( 4727): REVOKED by the owner (notice via nos.lol): no further data will be decrypted

@@ -1,0 +1,16 @@
+insider knows epoch 2 (gk 3fc157cc); forging from non-roster key c206d846303a
+forged: live 399, chunk/roster, chunk/roster
+  wss://nos.lol: [True, True, True]
+  wss://relay.primal.net: [True, True, True]
+  wss://nostr.mom: [True, True, True]
+  wss://relay.nostr.net: [True, True, True]
+forged: live 399
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]
+forged: live 399
+  wss://nos.lol: [True]
+  wss://relay.primal.net: [True]
+  wss://nostr.mom: [True]
+  wss://relay.nostr.net: [True]

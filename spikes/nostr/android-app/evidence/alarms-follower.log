@@ -1,0 +1,39 @@
+10-16 02:08:54.041 I/CgmShare.follower(10962): subscribed: roster + chunks (#c) + live, authors [f55b1cc2d2a6]
+10-16 02:08:54.213 I/CgmShare.follower(10962): follower started: status active, 2 epoch key(s), 1 device(s), 1506 readings stored
+10-16 02:08:55.276 I/CgmShare.follower(10962): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 02:08:55.426 I/CgmShare.follower(10962): chunk h=1792105200 +1 reading(s) epoch 3 via relay.primal.net
+10-16 02:08:55.549 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH sent
+10-16 02:08:55.774 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 02:09:05.093 I/CgmShare.follower(10962): reading 121 mg/dL rate 0.66 t=1792105680 epoch 3 via nostr.mom (+65s)
+10-16 02:09:05.468 I/CgmShare.follower(10962): ALARM HIGH 121 mg/dL
+10-16 02:09:06.125 I/CgmShare.follower(10962): reading 120 mg/dL rate 0.66 t=1792105620 epoch 3 via nostr.mom (+126s)
+10-16 02:09:06.552 I/CgmShare.follower(10962): reading 122 mg/dL rate 0.66 t=1792105740 epoch 3 via nostr.mom (+6s)
+10-16 02:10:00.428 I/CgmShare.follower(10962): reading 122 mg/dL rate 0.66 t=1792105800 epoch 3 via relay.nostr.net (+0s)
+10-16 02:17:09.092 I/CgmShare.follower(10962): watchdog: last reading 7 min ago
+10-16 02:17:09.114 I/CgmShare.follower(10962): relay.nostr.net socket: SocketException: Socket closed
+10-16 02:17:09.115 I/CgmShare.follower(10962): nostr.mom socket: SocketException: Socket closed
+10-16 02:17:09.120 I/CgmShare.follower(10962): nos.lol socket: SocketException: Socket closed
+10-16 02:17:09.477 I/CgmShare.follower(10962): relay.primal.net socket: SocketException: Socket closed
+10-16 02:17:12.217 I/CgmShare.follower(10962): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 02:17:12.293 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH sent
+10-16 02:17:12.499 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 02:17:14.554 I/CgmShare.follower(10962): backfill (watchdog): 26 chunk event(s), +0 readings
+10-16 02:25:54.351 I/CgmShare.follower(10962): watchdog: last reading 15 min ago
+10-16 02:25:54.582 I/CgmShare.follower(10962): nos.lol socket: SocketException: Socket closed
+10-16 02:25:54.624 I/CgmShare.follower(10962): relay.nostr.net socket: SocketException: Socket closed
+10-16 02:25:54.806 I/CgmShare.follower(10962): nostr.mom socket: SocketException: Socket closed
+10-16 02:25:55.472 I/CgmShare.follower(10962): relay.primal.net socket: SocketException: Socket closed
+10-16 02:25:59.755 I/CgmShare.follower(10962): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 02:26:01.315 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH sent
+10-16 02:26:01.822 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 02:26:04.312 I/CgmShare.follower(10962): backfill (watchdog): 26 chunk event(s), +0 readings
+10-16 02:34:03.497 I/CgmShare.follower(10962): watchdog: last reading 24 min ago
+10-16 02:34:03.530 I/CgmShare.follower(10962): relay.nostr.net socket: SocketException: Socket closed
+10-16 02:34:03.578 I/CgmShare.follower(10962): nostr.mom socket: SocketException: Socket closed
+10-16 02:34:03.578 I/CgmShare.follower(10962): nos.lol socket: SocketException: Socket closed
+10-16 02:34:03.595 I/CgmShare.follower(10962): relay.primal.net socket: SocketException: Socket closed
+10-16 02:34:03.609 I/CgmShare.follower(10962): ALARM no data for 24 min
+10-16 02:34:05.027 I/CgmShare.follower(10962): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 02:34:05.210 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH sent
+10-16 02:34:05.397 I/CgmShare.follower(10962): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 02:34:06.252 I/CgmShare.follower(10962): backfill (watchdog): 26 chunk event(s), +0 readings

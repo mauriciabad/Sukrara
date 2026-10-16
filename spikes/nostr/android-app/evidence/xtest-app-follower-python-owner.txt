@@ -1,0 +1,2 @@
+app follower of the PYTHON owner: 770 readings, 770/770 equal to v2/nodes.py synthetic(t)
+span h: 12.9  via: {'relay:relay.primal.net': 527, 'relay:nos.lol': 181, 'relay:nostr.mom': 61, 'relay:relay.nostr.net': 1}  epochs: {1: 770}

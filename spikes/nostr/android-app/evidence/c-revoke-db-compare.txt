@@ -1,0 +1,11 @@
+window: last 12 h
+owner readings: 720   follower readings: 716
+identical (t, sgv, rate): 716/716   follower rows not on owner: 0
+owner readings the follower lacks: 4 (newest missing t=1792102800, 18 s ago)
+rows equal to the synthetic function: 716/716
+via: {'relay:relay.primal.net': 702, 'relay:relay.nostr.net': 11, 'relay:nostr.mom': 2, 'relay:nos.lol': 1}
+epochs: {1: 716}
+span: 13:21 – 01:16 (11.9 h), newest 258 s old
+  last: (1792102440, 89, 0.49, 1, 'relay:relay.primal.net') owner: (89, 0.49)
+  last: (1792102500, 89, 0.5, 1, 'relay:nos.lol') owner: (89, 0.5)
+  last: (1792102560, 90, 0.5, 1, 'relay:nostr.mom') owner: (90, 0.5)

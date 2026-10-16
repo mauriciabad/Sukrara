@@ -1,0 +1,41 @@
+[versions]
+androidGradlePlugin = "9.0.1"
+androidxCore = "1.18.0"
+androidxLifecycle = "2.10.0"
+androidxActivity = "1.13.0"
+androidxComposeBom = "2026.03.01"
+coroutines = "1.10.2"
+kotlin = "2.3.20"
+okhttp = "4.12.0"
+# rust-nostr UniFFI bindings under the new coordinate (org.rust-nostr:nostr-sdk stops at 0.45.0-alpha.7).
+# Kotlin package: org.nostrdevkit.sdk. Has nip59MakeGiftWrap / UnwrappedGift (seal verified, sender == rumor author).
+nostrSdk = "0.45.1"
+jna = "5.17.0"
+# QR *generation* (pure Java library, FOSS). Scanning uses zxing-cpp (native, FOSS, no Play Services).
+zxing = "3.5.3"
+zxingCpp = "3.1.1"
+camerax = "1.6.0"
+credentials = "1.6.0"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+nostr-sdk = { module = "org.nostrdevkit:nostr-sdk", version.ref = "nostrSdk" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+zxing-cpp = { module = "io.github.zxing-cpp:android", version.ref = "zxingCpp" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

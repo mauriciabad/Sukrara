@@ -1,0 +1,7 @@
+10-16 01:28:53.352 I/CgmShare.follower( 6233): joining npub1qg0pf…p4vr via 4 relays as 'sdk_gphone64_arm64' F=08f4302333ef51268c826c2725adce924453d9379a5f6df81015296a34860397 code 8325
+10-16 01:28:53.359 I/CgmShare.follower( 6233): follower started: status requested, 0 epoch key(s), 0 device(s), 0 readings stored
+10-16 01:28:53.385 I/CgmShare.follower( 6233): access request sent to npub1qg0pf…p4vr
+10-16 01:28:53.797 I/CgmShare.follower( 6233): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 01:28:53.802 I/CgmShare.follower( 6233): relay.nostr.net NIP-42 AUTH sent
+10-16 01:28:53.874 I/CgmShare.follower( 6233): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 01:29:13.158 I/CgmShare.follower( 6233): REJECT: key delivery not sealed by the identity key (author 81424b54f548, via nostr.mom)

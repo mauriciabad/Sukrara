@@ -1,0 +1,27 @@
+10-16 03:00:33.859 I/CgmShare.follower( 4282): joining npub14x4t4…rwjw via 4 relays as 'sdk_gphone64_arm64' F=db7dc1a15577f1c72c5d793cf6b090f33c3259958d10bdacb7dfffde75506bfa code 1125
+10-16 03:00:33.926 I/CgmShare.follower( 4282): follower started: status requested, 0 epoch key(s), 0 device(s), 0 readings stored
+10-16 03:00:33.986 I/CgmShare.follower( 4282): access request sent to npub14x4t4…rwjw
+10-16 03:00:34.445 I/CgmShare.follower( 4282): relay.nostr.net CLOSED inbox: ERROR: auth-required: requested filter requires authentication
+10-16 03:00:34.452 I/CgmShare.follower( 4282): relay.nostr.net NIP-42 AUTH sent
+10-16 03:00:34.524 I/CgmShare.follower( 4282): relay.nostr.net NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+10-16 03:00:34.669 I/CgmShare.follower( 4282): KEY accepted from identity via nos.lol: epoch 1 gk e7d3df3e, devices [a783339daf9e]
+10-16 03:00:34.674 I/CgmShare.follower( 4282): subscribed: roster + chunks (#c) + live, authors [a783339daf9e]
+10-16 03:00:34.751 I/CgmShare.follower( 4282): roster accepted via nostr.mom: epoch 1, devices [a783339daf9e]
+10-16 03:00:34.786 I/CgmShare.follower( 4282): chunk h=1792108800 +1 reading(s) epoch 1 via nostr.mom
+10-16 03:00:34.801 I/CgmShare.follower( 4282): chunk h=1792105200 +56 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.816 I/CgmShare.follower( 4282): chunk h=1792101600 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.837 I/CgmShare.follower( 4282): chunk h=1792098000 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.848 I/CgmShare.follower( 4282): chunk h=1792094400 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.863 I/CgmShare.follower( 4282): chunk h=1792090800 +60 reading(s) epoch 1 via nostr.mom
+10-16 03:00:34.901 I/CgmShare.follower( 4282): chunk h=1792087200 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.925 I/CgmShare.follower( 4282): chunk h=1792083600 +60 reading(s) epoch 1 via nos.lol
+10-16 03:00:34.941 I/CgmShare.follower( 4282): chunk h=1792080000 +60 reading(s) epoch 1 via nos.lol
+10-16 03:00:34.957 I/CgmShare.follower( 4282): chunk h=1792076400 +60 reading(s) epoch 1 via nos.lol
+10-16 03:00:34.972 I/CgmShare.follower( 4282): chunk h=1792072800 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:34.994 I/CgmShare.follower( 4282): chunk h=1792069200 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:35.035 I/CgmShare.follower( 4282): chunk h=1792065600 +60 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:35.046 I/CgmShare.follower( 4282): chunk h=1792062000 +50 reading(s) epoch 1 via relay.primal.net
+10-16 03:00:35.064 I/CgmShare.follower( 4282): reading 154 mg/dL rate 0.61 t=1792108762 epoch 1 via relay.primal.net (+73s)
+10-16 03:00:35.108 I/CgmShare.follower( 4282): backfill (new key epoch 1): 14 chunk event(s), +0 readings
+10-16 03:01:22.918 I/CgmShare.follower( 4282): reading 156 mg/dL rate 0.6 t=1792108882 epoch 1 via nos.lol (+0s)
+10-16 03:02:22.890 I/CgmShare.follower( 4282): reading 156 mg/dL rate 0.6 t=1792108942 epoch 1 via relay.nostr.net (+0s)

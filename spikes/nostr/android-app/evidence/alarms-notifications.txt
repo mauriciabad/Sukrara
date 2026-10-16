@@ -1,0 +1,4 @@
+android.title=String (No glucose data)
+android.text=String (Nothing received for 24 min)
+android.title=String (HIGH glucose: 121 mg/dL)
+android.text=String (Threshold 100 mg/dL)
