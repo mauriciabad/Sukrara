@@ -45,16 +45,17 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   paths; connects are serialised (25 s timeout, that address skipped 60 s); a waiting path first checks the links it
   already has and `retrieveConnectedPeripherals`; v2 "leave this phone" (another wearer / no pairing) only
   unsubscribes v2, the link stays for legacy. Kept both paths (not "drop legacy when v2 is paired"): the legacy
-  sync is the one that carries `lv` and the LibreView DeviceId (SPEC §2) and needs no writer permission.
+  sync is the one that carries `lv` and the LibreView DeviceId (SPEC §2) and needs no writer permission. It is
+  read-only for entries: entries made here go over v2 only.
   Real phone: `evidence/n-ble-one-link.log` (both paths on Tartaruga within 2 s, legacy readings every minute,
   v2 INFO on the same link, no second connection).
 - **Treatments for the follower** (SPEC §5, PROTOCOL-v2 "Treatments"): `#c` subscription from roster writers ∪
   devices (30 d); accepted iff valid signature, author ∈ writers ∪ devices, known `gk`, decrypts, `d` matches the id,
   known kind; merged (§1 LWW, by id) into the same `TreatmentStore` as the legacy sync, so the menu and the chart
   show one log. Rows learned only over v2 are never uploaded to LibreView by the Mac (`lv` isn't on the wire).
-- **Writer gating**: "Log treatment…" lists where an entry goes — "→ <phone> over the Bluetooth link (always
-  allowed)" and "→ wearer over Sukrara sharing (v2) · allowed" or "✕ … the wearer hasn't allowed this Mac to add
-  entries"; disabled only when v2 is the only way out and it isn't allowed. Per entry: `BT ⇡/✓`, `v2 sending… →
+- **Writer gating**: "Log treatment…" lists where an entry goes — "→ wearer over Sukrara sharing (v2) · allowed" or
+  "✕ … the wearer hasn't allowed this Mac to add entries" (then it's disabled); the Bluetooth link line says it is
+  read-only. With no phone at all (no Bluetooth, not following) entries stay on this Mac. Per entry: `v2 sending… →
   sent → accepted ✓` (wearer's device key echoes the id with u ≥ ours) or `v2 not accepted yet` (no echo after
   2 min), `LV ⇡/✓`; details in the row's submenu.
 - **Chart**: insulin (rapid = filled blue triangle, long = outlined indigo) with "4.5U" along the top, carbs

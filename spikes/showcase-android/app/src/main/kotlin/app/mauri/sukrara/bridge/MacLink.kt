@@ -19,7 +19,6 @@ import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
-import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentJson
@@ -36,10 +35,9 @@ import kotlinx.serialization.json.long
  * working: GATT service 6c1f0001-… with READING (read/notify), HISTORY (long read, 180 min) and TREATMENTS
  * (JSON sync, SPEC §2). Unencrypted, like GlucoBridge: anyone nearby can read the value (documented in docs/10).
  *
- * Entries: the link can't tell which Mac writes, so new entries, edits and deletes written over it are refused
- * (ATT "write not permitted") unless the wearer turned on Features.macLinkEntries; a Mac that follows over protocol
- * v2 sends its entries there, signed, and the roster `writers` ("Can add entries") decides. LibreView `lv`
- * watermarks for rows the phone already holds are always taken. The phone tells the Mac with `w` in `end` / `cfg`.
+ * Entries: the link can't tell which Mac writes, so it is read-only for them: new entries, edits and deletes written
+ * over it are refused (ATT "write not permitted"). A Mac adds entries over protocol v2, signed, and the roster
+ * `writers` ("Can add entries") decides. Only LibreView `lv` watermarks for rows the phone already holds are taken.
  *
  * Power: advertises (LOW_POWER) only while no central is subscribed; no polling, no wakelocks.
  */
@@ -159,54 +157,37 @@ class MacLink(private val ctx: Context) {
         return msg
     }
 
-    /** The wearer switched "Accept entries over the Mac link": tell the connected Macs at once. */
-    fun entriesSettingChanged() {
-        val msg = JsonObject(mapOf("op" to JsonPrimitive("cfg"), "w" to JsonPrimitive(Features.value.macLinkEntries))).toString()
-        treatSubscribers.forEach { send(it, msg) }
-    }
-
-    /** A refused TREATMENTS write; [current] = the phone's version of that entry (sent back after the error). */
-    private class Refused(val current: Pair<Long, Treatment>?)
-
-    /** Handles one TREATMENTS message; non-null = refused (answered with "write not permitted"). */
-    private fun onTreatmentWrite(d: BluetoothDevice, bytes: ByteArray): Refused? {
+    /** Handles one TREATMENTS message; false = refused (answered with "write not permitted"). */
+    private fun onTreatmentWrite(d: BluetoothDevice, bytes: ByteArray): Boolean {
         val o = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(bytes.decodeToString()).jsonObject }.getOrNull()
-            ?: return null.also { Log.w(tag, "bad treatment message (${bytes.size} B)") }
+            ?: return true.also { Log.w(tag, "bad treatment message (${bytes.size} B)") }
         when (o["op"]?.jsonPrimitive?.content) {
             "pull" -> {
                 val since = o["since"]?.jsonPrimitive?.long ?: 0
                 Treat.store.since(since).forEach { (seq, tr) -> send(d, recMessage(tr, seq, d)) }
                 send(d, JsonObject(mapOf("op" to JsonPrimitive("end"), "s" to JsonPrimitive(Treat.store.seq),
-                    "dev" to JsonPrimitive(Treat.uploader.deviceId), "w" to JsonPrimitive(Features.value.macLinkEntries))).toString())
+                    "dev" to JsonPrimitive(Treat.uploader.deviceId))).toString())
             }
             "rec" -> {
                 val tr = runCatching { TreatmentJson.decodeFromJsonElement(Treatment.serializer(), JsonObject(o - "op" - "s")) }.getOrNull()
-                    ?: return null.also { Log.w(tag, "bad treatment record") }
+                    ?: return true.also { Log.w(tag, "bad treatment record") }
                 val what = "${tr.k} ${tr.a} del=${tr.del} (${tr.id.take(8)})"
-                if (!Features.value.macLinkEntries) {
-                    val cur = Treat.store.entry(tr.id)
-                    if (cur == null || tr.u > cur.second.u) {
-                        Log.w(tag, "treatment from mac $what REJECTED: entries over the legacy Mac link are off " +
-                            "(${if (cur == null) "new entry" else "content change"})")
-                        return Refused(cur)
-                    }
-                    val moved = Treat.store.mergeWatermark(tr)
-                    Log.i(tag, "treatment from mac $what → ${if (moved != null) "lv watermark only" else "no change"}")
-                    return null
+                val cur = Treat.store.entry(tr.id)
+                if (cur == null || tr.u > cur.second.u) {
+                    Log.w(tag, "treatment from mac $what REJECTED: the legacy Mac link is read-only for entries " +
+                        "(${if (cur == null) "new entry" else "content change"})")
+                    return false
                 }
-                val merged = Treat.store.merge(tr)
-                Log.i(tag, "treatment from mac $what → ${if (merged != null) "merged" else "no change"}")
-                if (merged != null) Treat.uploader.kick()
+                val moved = Treat.store.mergeWatermark(tr)
+                Log.i(tag, "treatment from mac $what → ${if (moved != null) "lv watermark only" else "no change"}")
             }
         }
-        return null
+        return true
     }
 
-    /** Answer a TREATMENTS write; after a refused change the phone's own version follows, so the Mac can undo it. */
-    private fun respond(d: BluetoothDevice, requestId: Int, offset: Int, value: ByteArray?, refused: Refused?) {
-        gatt?.sendResponse(d, requestId, if (refused == null) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_WRITE_NOT_PERMITTED,
-            offset, if (refused == null) value else null)
-        refused?.current?.let { (seq, tr) -> send(d, recMessage(tr, seq, d)) }
+    private fun respond(d: BluetoothDevice, requestId: Int, offset: Int, value: ByteArray?, ok: Boolean) {
+        gatt?.sendResponse(d, requestId, if (ok) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_WRITE_NOT_PERMITTED,
+            offset, if (ok) value else null)
     }
 
     // ============================================================================================ GATT + advertising
@@ -286,14 +267,14 @@ class MacLink(private val ctx: Context) {
                 if (responseNeeded) gatt?.sendResponse(device, requestId, BluetoothGatt.GATT_WRITE_NOT_PERMITTED, offset, null)
                 return
             }
-            val refused = if (preparedWrite) null.also { longWrites.getOrPut(device) { java.io.ByteArrayOutputStream() }.write(value) }
-                          else onTreatmentWrite(device, value)
-            if (responseNeeded) respond(device, requestId, offset, value, refused)
+            val ok = if (preparedWrite) true.also { longWrites.getOrPut(device) { java.io.ByteArrayOutputStream() }.write(value) }
+                     else onTreatmentWrite(device, value)
+            if (responseNeeded) respond(device, requestId, offset, value, ok)
         }
 
         override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) {
             val buf = longWrites.remove(device)
-            respond(device, requestId, 0, null, if (execute && buf != null) onTreatmentWrite(device, buf.toByteArray()) else null)
+            respond(device, requestId, 0, null, if (execute && buf != null) onTreatmentWrite(device, buf.toByteArray()) else true)
         }
 
         override fun onMtuChanged(device: BluetoothDevice, mtu: Int) { this@MacLink.mtu[device] = mtu }

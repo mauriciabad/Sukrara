@@ -52,7 +52,7 @@ if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolate
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
-// instance (cmd add = forced legacy write | log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
+// instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
 // delete {id} | upload | dump), like the phone's DebugReceiver.
 let debugNote = Notification.Name("app.mauri.sukrara.poc.debug")
 if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLine.arguments.count {
@@ -386,27 +386,25 @@ MainActor.assumeIsolated {
     status.treatments = { treatments.rows }
     status.libreViewStatus = { uploader.statusLine }
     status.treatmentPaths = { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
-    status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments, legacyOn: ble != nil, lvOn: uploader.enabled) }
-    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments, legacyOn: ble != nil, lvOn: uploader.enabled) }
-    // One path per entry, the wearer's choice (TreatmentPaths): v2 as a roster writer, else the legacy link if the
-    // phone accepts entries over it, else none (the menu item is disabled).
+    status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments, lvOn: uploader.enabled) }
+    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments, lvOn: uploader.enabled) }
+    // One path per entry, the wearer's choice (TreatmentPaths): v2 as a roster writer, else none (the menu item is
+    // disabled); local only with no phone at all.
     @MainActor func paths() -> TreatmentPaths { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
     status.onLogTreatment = { t in
         let p = paths()
         if p.canLog { log("treatment logged: \(StatusController.describe(t)) → \(p.route.rawValue)") }
         switch p.route {
-        case .v2: treatments.upsertLocal(t, legacy: false, route: "v2"); following.sendTreatment(t)
-        case .legacy: treatments.upsertLocal(t, route: "legacy")       // pushed when the phone is connected
-        case .local: treatments.upsertLocal(t, legacy: false, route: "local")
+        case .v2: treatments.upsertLocal(t); following.sendTreatment(t)
+        case .local: treatments.upsertLocal(t)
         case .none: log("treatment NOT logged: \(TreatmentPaths.notAllowed)")
         }
     }
     status.onDeleteTreatment = { id in
         let p = paths()
         switch p.route {
-        case .v2: if let t = treatments.delete(id, legacy: false) { following.sendTreatment(t) }
-        case .legacy: treatments.delete(id)
-        case .local: treatments.delete(id, legacy: false)
+        case .v2: if let t = treatments.delete(id) { following.sendTreatment(t) }
+        case .local: treatments.delete(id)
         case .none: log("treatment NOT deleted: \(TreatmentPaths.notAllowed)")
         }
     }
@@ -420,11 +418,6 @@ MainActor.assumeIsolated {
                   let o = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return }
             let id = o["id"] as? String ?? ""
             switch o["cmd"] as? String {
-            case "add":        // forced legacy-link write, whatever the menu allows (the phone decides)
-                let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
-                                  t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
-                log("debug add \(t.id)")
-                treatments.upsertLocal(t, route: "legacy")
             case "log":        // exactly what Save in "Log treatment…" does (refused like the menu when not allowed)
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
                                   t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
@@ -434,8 +427,7 @@ MainActor.assumeIsolated {
                 status.onDeleteTreatment?(id)
             case "paths":
                 let p = paths()
-                log("debug paths route=\(p.route.rawValue) canLog=\(p.canLog) legacyEntries=\(treatments.legacyEntries.map(String.init) ?? "unknown") | "
-                    + p.lines.joined(separator: " | "))
+                log("debug paths route=\(p.route.rawValue) canLog=\(p.canLog) | " + p.lines.joined(separator: " | "))
             case "edit":
                 guard var t = treatments.row(id) else { return }
                 if let a = o["a"] as? Double { t.a = a }
@@ -457,7 +449,7 @@ MainActor.assumeIsolated {
                 log("debug readings written")
             case "dump":
                 for t in treatments.rows {
-                    log("debug row \(t.dict) route=\(treatments.route(t.id) ?? "-") status=\(TreatmentPaths.status(of: t, store: treatments, legacyOn: ble != nil, lvOn: uploader.enabled))")
+                    log("debug row \(t.dict) status=\(TreatmentPaths.status(of: t, store: treatments, lvOn: uploader.enabled))")
                 }
                 log("debug \(uploader.statusLine)")
             default: break

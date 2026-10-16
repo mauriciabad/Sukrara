@@ -49,26 +49,21 @@ The phone numbers every accepted change with its own increasing `seq` (persisted
 |---|---|---|
 | Mac → phone | `{"op":"pull","since":42}` | send every record with `seq > 42` |
 | phone → Mac | `{"op":"rec","s":43, …treatment}` | a record (reply to pull, or a live change) |
-| phone → Mac | `{"op":"end","s":57,"dev":"<LibreView DeviceId or empty>","w":false}` | end of a pull reply; `s` = phone's max seq; `w` = the phone accepts entries over this link (absent = older build, accepts all) |
-| phone → Mac | `{"op":"cfg","w":true}` | the wearer switched `w` (sent to every subscribed Mac at once) |
-| Mac → phone | `{"op":"rec", …treatment}` (no `s`) | a Mac-side change; the GATT write response is the ack, or ATT error `0x03` (write not permitted) when refused |
+| phone → Mac | `{"op":"end","s":57,"dev":"<LibreView DeviceId or empty>"}` | end of a pull reply; `s` = phone's max seq |
+| Mac → phone | `{"op":"rec", …treatment}` (no `s`) | an `lv` watermark after a Mac upload; the GATT write response is the ack, or ATT error `0x03` (write not permitted) when refused |
 
-Flow on every (re)connect: Mac subscribes → writes all its un-acked local changes → writes `pull` with its
+Flow on every (re)connect: Mac subscribes → writes all its un-acked `lv` watermarks → writes `pull` with its
 cursor. Each `rec` it receives is merged and moves the cursor to `s`. If `end.s < cursor` the phone's store was
-reset: set cursor 0 and pull again. The phone also notifies a `rec` for every local change, every merged
-Mac write that changed something, and every `lv` update after an upload.
+reset: set cursor 0 and pull again. The phone also notifies a `rec` for every change it stores (its own, v2
+writers', `lv` updates).
 The Mac stores `dev` and uses it as its LibreView DeviceId (so both apps are one LibreView device).
 
-**Who may write** (Sukrara, 2026-10-16, investigation 10 polish): the link is unauthenticated, so the phone can't
-tell one Mac from another and the per-follower "Can add entries" (roster `writers`, §5) can't apply to it. Sukrara
-for Android therefore refuses every `rec` that adds an entry or changes one (`u` newer than its own copy, deletes
-included) unless the wearer turned on Settings → Mac → *Accept entries over the unencrypted Mac link* (default
-**off**). A `rec` for a row the phone holds with `u` ≤ the phone's is still taken, but only its `lv` (LibreView
-watermark sync keeps working). A refused write gets ATT error `0x03`; for a refused change of a row it holds, the
-phone then notifies its own `rec` of that row, which the Mac takes as is (undoing its change). Sukrara for Mac sends
-its entries over protocol v2 instead when it is a roster writer (signed by its key), over this link only while
-`w` is true, and otherwise disables "Log treatment…"; refused entries show "BT ✕ refused" and are pushed again when
-`w` turns true. GlucoBridge (investigation 04) accepted everything.
+**Who may write** (Sukrara, investigation 10): the link is unauthenticated, so the phone can't tell one Mac from
+another and the per-follower "Can add entries" (roster `writers`, §5) can't apply to it. The link is read-only for
+entries: Sukrara for Android refuses every `rec` that adds an entry or changes one (`u` newer than its own copy,
+deletes included) with ATT error `0x03`. A `rec` for a row the phone holds with `u` ≤ the phone's is taken, but only
+its `lv` (LibreView watermark sync). Sukrara for Mac sends its entries over protocol v2 when it is a roster writer
+(signed by its key) and otherwise disables "Log treatment…"; over this link it writes only `lv` watermarks.
 
 ## 3. LibreView (impersonates the FreeStyle Libre 3 Android app, like Juggluco's `newlibre3.cpp`)
 

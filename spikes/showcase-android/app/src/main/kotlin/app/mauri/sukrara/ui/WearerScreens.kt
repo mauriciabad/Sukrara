@@ -195,18 +195,9 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         SectionTitle("Mac")
         Toggle("Legacy Mac link (Sukrara for Mac, unencrypted Bluetooth)", f.macBle,
-            sub = "Unencrypted value + history + treatments, like GlucoBridge. Status: " +
+            sub = "Unencrypted value + history + the treatment log (read-only), like GlucoBridge. Status: " +
                 (st.macError ?: if (st.macSubscribed > 0) "${st.macSubscribed} connected" else if (st.macAdvertising) "advertising" else "idle")) { v ->
             set { it.copy(macBle = v) }
-        }
-        // Dependent of the link (stays visible, disabled with a reason while the link is off).
-        Toggle("Accept entries over the unencrypted Mac link", f.macLinkEntries, enabled = f.macBle,
-            sub = if (!f.macBle) "Unavailable: the legacy Mac link is off"
-                  else if (f.macLinkEntries) "Any nearby Mac running Sukrara can add, change and delete entries, " +
-                      "even one you haven't allowed under Followers"
-                  else "Off: Macs add entries only over Sukrara sharing, if you allowed them under Followers " +
-                      "(\"Can add entries\")") { v ->
-            set { it.copy(macLinkEntries = v) }
         }
 
         SectionTitle("Status bar")
@@ -292,8 +283,7 @@ fun TreatmentsScreen(onBack: () -> Unit) {
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = { store.delete(tr.id); uploader.kick() }) { Text("Delete") }
         } }
-        Text("Synced with Sukrara for Mac. Entries from followers (and Macs) with \"Can add entries\" land here too" +
-            (if (f.macLinkEntries) ", and from any Mac over the legacy link (Settings → Mac)." else "."),
+        Text("Synced with Sukrara for Mac. Entries from followers (and Macs) with \"Can add entries\" land here too.",
             style = MaterialTheme.typography.bodySmall)
 
         HorizontalDivider()
