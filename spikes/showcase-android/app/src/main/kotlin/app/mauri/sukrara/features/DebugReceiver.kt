@@ -84,6 +84,7 @@ class DebugReceiver : BroadcastReceiver() {
                         .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
                 })))
         }
+        out.put("widgets", app.mauri.sukrara.widgets.WidgetUpdater.placements(c))
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
         resultData = out.toString()

@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.os.PowerManager
 import android.util.Log
+import android.util.SizeF
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
@@ -16,6 +19,9 @@ import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlin.math.roundToInt
 
 /**
  * The single entry point the data layer calls: "something may have changed, refresh the widgets if needed".
@@ -79,6 +85,24 @@ object WidgetUpdater {
         val ms = System.currentTimeMillis() - t
         stats.value = stats.value.run { copy(renders = renders + 1, lastReason = reason, lastRenderMs = ms) }
         Log.d("Sukrara.widgets", "widgets refreshed ($reason) in ${ms} ms")
+    }
+
+    /**
+     * Every placed widget and the sizes its launcher reports (dp): `sizes` = OPTION_APPWIDGET_SIZES (what Exact
+     * widgets compose for), `min`/`max` = width × height of the older min/max options. For the DebugReceiver.
+     */
+    fun placements(c: Context): JSONArray {
+        val mgr = AppWidgetManager.getInstance(c)
+        val out = JSONArray()
+        for ((widget, receiver) in widgets) for (id in mgr.getAppWidgetIds(ComponentName(c, receiver))) {
+            val o = mgr.getAppWidgetOptions(id)
+            val sizes = o.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
+            out.put(JSONObject().put("id", id).put("widget", widget.javaClass.simpleName)
+                .put("sizes", JSONArray(sizes.orEmpty().map { "${it.width.roundToInt()}x${it.height.roundToInt()}" }))
+                .put("min", "${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)}x${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)}")
+                .put("max", "${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)}x${o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)}"))
+        }
+        return out
     }
 
     /** Android 15+ generated previews for the widget picker. Rate-limited by the system (~2 calls/hour/provider). */

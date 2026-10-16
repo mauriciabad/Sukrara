@@ -41,6 +41,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -222,8 +223,14 @@ fun ValueContent(frame: WidgetUpdater.Frame) {
     }
 }
 
+/**
+ * The bitmap is drawn for the size the launcher reports ([widthDp] × [heightDp]), but the Image fills the space the
+ * layout really has ([modifier]) and scales into it: launchers may report a size that differs from the one they
+ * give the widget (Pixel Launcher on a Pixel 10 Pro: the graph of a 4×2 *Glucose + graph* was cut at the bottom
+ * and right). A small mismatch then stretches the graph a little instead of clipping its labels.
+ */
 @Composable
-private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
+private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float, modifier: GlanceModifier) {
     val ctx = LocalContext.current
     val hours = GraphRenderer.hoursFor(widthDp)
     val bmp = GraphRenderer.render(ctx, frame.history, frame.nowSec,
@@ -231,7 +238,7 @@ private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
     Image(
         ImageProvider(bmp),
         contentDescription = "Glucose graph, last $hours hours",
-        modifier = GlanceModifier.width(widthDp.dp).height(heightDp.dp),
+        modifier = modifier,
         contentScale = ContentScale.FillBounds,
     )
 }
@@ -239,7 +246,7 @@ private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
 @Composable
 fun GraphContent(frame: WidgetUpdater.Frame) {
     val size = LocalSize.current
-    Graph(frame, size.width.value - 16, size.height.value - 16)
+    Graph(frame, size.width.value - 16, size.height.value - 16, GlanceModifier.fillMaxSize())
 }
 
 @Composable
@@ -260,7 +267,7 @@ fun CombinedContent(frame: WidgetUpdater.Frame) {
                 }
             }
             Spacer(GlanceModifier.height(4.dp))
-            Graph(frame, w, h - 52)
+            Graph(frame, w, h - 52, GlanceModifier.fillMaxWidth().defaultWeight())
         }
     } else {
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
@@ -268,7 +275,7 @@ fun CombinedContent(frame: WidgetUpdater.Frame) {
                 ValueRow(r, now, 30.sp, 22)
                 Secondary(ageText(r.ageS(now)), 11.sp)
             }
-            Graph(frame, w - 96, h)
+            Graph(frame, w - 96, h, GlanceModifier.fillMaxHeight().defaultWeight())
         }
     }
 }
