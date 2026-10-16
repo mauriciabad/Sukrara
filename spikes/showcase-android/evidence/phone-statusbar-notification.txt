@@ -1,0 +1,14 @@
+  Notification List:
+    NotificationRecord(0x003506d1: pkg=app.mauri.sukrara.poc user=UserHandle{0} id=1 tag=null importance=2 key=0|app.mauri.sukrara.poc|1|null|10463: Notification(channel=glucose shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|PROMOTED_ONGOING color=0x00000000 category=status vis=PRIVATE template=android.app.Notification$MetricStyle))
+      uid=10463 userId=0
+      opPkg=app.mauri.sukrara.poc
+      icon=Icon(typ=BITMAP size=96x96)
+      flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|PROMOTED_ONGOING
+      originalFlags=ONGOING_EVENT|ONLY_ALERT_ONCE|FOREGROUND_SERVICE|PROMOTED_ONGOING
+      pri=0
+      key=0|app.mauri.sukrara.poc|1|null|10463
+      seen=false
+      groupKey=0|app.mauri.sukrara.poc|1|null|10463
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{54dc536: PendingIntentRecord{7c3cb78 app.mauri.sukrara.poc startActivity (allowlist: 23a1986:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}

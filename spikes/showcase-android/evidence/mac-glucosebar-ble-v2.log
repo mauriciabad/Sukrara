@@ -1,0 +1,60 @@
+9:14:49 AM  lan feed restart: launch
+9:14:49 AM  v2 relays restart: start (4 relays)
+9:14:49 AM  discovery: probing 253 hosts on :17580
+9:14:49 AM  BLE v2: scanning for a CGM Share phone
+9:14:49 AM  BLE: scanning for GlucoBridge
+9:14:49 AM  v2 chunk 10 readings (hour 1792130400) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792044000) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792047600) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792051200) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792054800) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792058400) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792062000) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792065600) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792069200) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792072800) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792076400) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792080000) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792083600) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792087200) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792090800) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792094400) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792098000) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792101600) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792105200) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792108800) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792112400) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792116000) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792119600) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792123200) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 chunk 60 readings (hour 1792126800) epoch 1 via relay:nos.lol
+9:14:49 AM  v2 relay.nostr.net: CLOSED w: ERROR: auth-required: requested filter requires authentication
+9:14:49 AM  v2 relay.nostr.net: NIP-42 AUTH sent
+9:14:49 AM  [Nostr · nostr.mom] 99 mg/dL  rate -0.15/min  reading at 9:14:45 AM  latency 4.9s
+9:14:49 AM  v2 live 99 mg/dL epoch 1 via relay:nostr.mom
+9:14:49 AM  v2 live 98 mg/dL epoch 1 via relay:nostr.mom
+9:14:49 AM  v2 relay.nostr.net: NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+9:14:50 AM  lan error (1): Juggluco not found on local network
+9:14:52 AM  BLE v2: connecting to ? (rssi -54)
+9:14:54 AM  BLE v2: connected to Tartaruga, MTU write 512 B
+9:14:54 AM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+9:14:56 AM  discovery: probing 253 hosts on :17580
+9:14:57 AM  lan error (2): Juggluco not found on local network
+9:15:02 AM  discovery: probing 253 hosts on :17580
+9:15:04 AM  lan error (3): Juggluco not found on local network
+9:15:09 AM  discovery: probing 253 hosts on :17580
+9:15:11 AM  lan error (4): Juggluco not found on local network
+9:15:19 AM  v2 chunk 14 readings (hour 1792130400) epoch 1 via ble:Tartaruga
+9:15:38 AM  BLE: connecting (rssi -65)
+9:15:43 AM  discovery: probing 253 hosts on :17580
+9:15:44 AM  [Nostr · relay.nostr.net] 100 mg/dL  rate -0.07/min  reading at 9:15:45 AM  latency -0.8s
+9:15:44 AM  v2 live 100 mg/dL epoch 1 via relay:relay.nostr.net
+9:15:44 AM  lan error (5): Juggluco not found on local network
+9:16:16 AM  discovery: probing 253 hosts on :17580
+9:16:18 AM  lan error (6): Juggluco not found on local network
+9:16:44 AM  [Nostr · nos.lol] 102 mg/dL  rate -0.01/min  reading at 9:16:45 AM  latency -0.8s
+9:16:44 AM  v2 live 102 mg/dL epoch 1 via relay:nos.lol
+9:16:50 AM  discovery: probing 253 hosts on :17580
+9:16:51 AM  lan error (7): Juggluco not found on local network
+9:17:19 AM  BLE: no data for 150s, reconnecting
+9:17:19 AM  BLE: scanning for GlucoBridge

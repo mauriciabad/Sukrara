@@ -1,0 +1,140 @@
+9:06:09 AM  lan feed restart: launch
+9:06:09 AM  discovery: probing 253 hosts on :17580
+9:06:09 AM  BLE: scanning for GlucoBridge
+9:06:09 AM  BLE v2: scanning for a CGM Share phone
+9:06:10 AM  BLE v2: connecting to ? (rssi -57)
+9:06:11 AM  lan error (1): Juggluco not found on local network
+9:06:11 AM  BLE v2: connected to Tartaruga, MTU write 512 B
+9:06:12 AM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+9:06:12 AM  BLE v2: leaving Tartaruga for 60 s
+9:06:14 AM  BLE: connecting (rssi -61)
+9:06:15 AM  BLE: connected
+9:06:16 AM  [Bluetooth · GlucoBridge] 105 mg/dL  rate +0.02/min  reading at 9:05:46 AM  latency 30.1s
+9:06:16 AM  treatments: sync started (cursor 25, 0 to push)
+9:06:16 AM  treatments: phone store was reset (s 0 < cursor 25), pulling everything
+9:06:16 AM  discovery: probing 253 hosts on :17580
+9:06:18 AM  lan error (2): Juggluco not found on local network
+9:06:23 AM  discovery: probing 253 hosts on :17580
+9:06:24 AM  lan error (3): Juggluco not found on local network
+9:06:30 AM  discovery: probing 253 hosts on :17580
+9:06:31 AM  lan error (4): Juggluco not found on local network
+9:06:43 AM  v2: stopped following (keys deleted from the Keychain)
+9:06:44 AM  [Bluetooth · GlucoBridge] 104 mg/dL  rate +0.00/min  reading at 9:06:46 AM  latency -1.0s
+9:06:45 AM  v2 relays restart: start (4 relays)
+9:06:45 AM  v2: access request sent as "Mac (GlucoseBar)" (4 relays, + Bluetooth if the wearer's phone is connected) — match code 4096
+9:06:46 AM  v2 relay.nostr.net: CLOSED w: ERROR: auth-required: requested filter requires authentication
+9:06:46 AM  v2 relay.nostr.net: NIP-42 AUTH sent
+9:06:46 AM  v2 relay.nostr.net: NIP-42 AUTH rejected: error: relay needs serviceUrl to be configured before AUTH c
+9:07:03 AM  discovery: probing 253 hosts on :17580
+9:07:05 AM  lan error (5): Juggluco not found on local network
+9:07:15 AM  BLE v2: scanning for a CGM Share phone
+9:07:15 AM  BLE v2: connecting to ? (rssi -60)
+9:07:37 AM  discovery: probing 253 hosts on :17580
+9:07:38 AM  lan error (6): Juggluco not found on local network
+9:07:41 AM  BLE v2: connect timed out
+9:07:45 AM  [Bluetooth · GlucoBridge] 102 mg/dL  rate -0.05/min  reading at 9:07:46 AM  latency -0.9s
+9:07:46 AM  BLE v2: scanning for a CGM Share phone
+9:07:47 AM  BLE v2: connecting to Tartaruga (rssi -56)
+9:08:10 AM  discovery: probing 253 hosts on :17580
+9:08:11 AM  lan error (7): Juggluco not found on local network
+9:08:13 AM  BLE v2: connect timed out
+9:08:18 AM  BLE v2: scanning for a CGM Share phone
+9:08:20 AM  BLE v2: connecting to Tartaruga (rssi -59)
+9:08:43 AM  discovery: probing 253 hosts on :17580
+9:08:45 AM  lan error (8): Juggluco not found on local network
+9:08:45 AM  [Bluetooth · GlucoBridge] 102 mg/dL  rate -0.05/min  reading at 9:08:46 AM  latency -0.8s
+9:08:46 AM  BLE v2: connect timed out
+9:08:52 AM  BLE v2: scanning for a CGM Share phone
+9:08:52 AM  BLE v2: connecting to ? (rssi -60)
+9:09:17 AM  discovery: probing 253 hosts on :17580
+9:09:17 AM  BLE v2: connect timed out
+9:09:18 AM  lan error (9): Juggluco not found on local network
+9:09:23 AM  BLE v2: scanning for a CGM Share phone
+9:09:25 AM  BLE v2: connecting to Tartaruga (rssi -56)
+9:09:44 AM  [Bluetooth · GlucoBridge] 103 mg/dL  rate +0.00/min  reading at 9:09:46 AM  latency -1.7s
+9:09:50 AM  BLE v2: connect timed out
+9:09:50 AM  discovery: probing 253 hosts on :17580
+9:09:51 AM  lan error (10): Juggluco not found on local network
+9:09:55 AM  BLE v2: scanning for a CGM Share phone
+9:09:55 AM  BLE v2: connecting to ? (rssi -67)
+9:10:21 AM  BLE v2: connect timed out
+9:10:21 AM  discovery: probing 253 hosts on :17580
+9:10:23 AM  lan error (11): Juggluco not found on local network
+9:10:26 AM  BLE v2: scanning for a CGM Share phone
+9:10:27 AM  BLE v2: connecting to ? (rssi -64)
+9:10:44 AM  [Bluetooth · GlucoBridge] 103 mg/dL  rate +0.03/min  reading at 9:10:45 AM  latency -0.6s
+9:10:53 AM  BLE v2: connect timed out
+9:10:53 AM  discovery: probing 253 hosts on :17580
+9:10:54 AM  lan error (12): Juggluco not found on local network
+9:10:56 AM  v2: key delivery accepted — epoch 1, 1 device(s)
+9:10:56 AM  v2 chunk 10 readings (hour 1792130400) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792044000) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792047600) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792051200) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792054800) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792058400) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792062000) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792065600) epoch 1 via relay:nostr.mom
+9:10:56 AM  v2 chunk 60 readings (hour 1792069200) epoch 1 via relay:nos.lol
+9:10:56 AM  v2 chunk 60 readings (hour 1792072800) epoch 1 via relay:nos.lol
+9:10:56 AM  v2 chunk 60 readings (hour 1792076400) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792080000) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792083600) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792087200) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792090800) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792094400) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792098000) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792101600) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792105200) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792108800) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792112400) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792116000) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792119600) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792123200) epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 chunk 60 readings (hour 1792126800) epoch 1 via relay:relay.primal.net
+9:10:56 AM  [Nostr · relay.primal.net] 103 mg/dL  rate +0.03/min  reading at 9:10:45 AM  latency 11.3s
+9:10:56 AM  v2 live 103 mg/dL epoch 1 via relay:relay.primal.net
+9:10:56 AM  v2 live 103 mg/dL epoch 1 via relay:relay.primal.net
+9:10:58 AM  BLE v2: scanning for a CGM Share phone
+9:10:59 AM  BLE v2: connecting to Tartaruga (rssi -62)
+9:11:26 AM  BLE v2: connect timed out
+9:11:26 AM  discovery: probing 253 hosts on :17580
+9:11:27 AM  lan error (13): Juggluco not found on local network
+9:11:31 AM  BLE v2: scanning for a CGM Share phone
+9:11:32 AM  BLE v2: connecting to Tartaruga (rssi -60)
+9:11:43 AM  [Bluetooth · GlucoBridge] 102 mg/dL  rate -0.03/min  reading at 9:11:45 AM  latency -1.5s
+9:11:43 AM  [Nostr · relay.nostr.net] 102 mg/dL  rate -0.03/min  reading at 9:11:45 AM  latency -1.2s
+9:11:43 AM  v2 live 102 mg/dL epoch 1 via relay:relay.nostr.net
+9:11:58 AM  BLE v2: connect timed out
+9:11:58 AM  discovery: probing 253 hosts on :17580
+9:12:00 AM  lan error (14): Juggluco not found on local network
+9:12:03 AM  BLE v2: scanning for a CGM Share phone
+9:12:04 AM  BLE v2: connecting to Tartaruga (rssi -66)
+9:12:31 AM  BLE v2: connect timed out
+9:12:31 AM  discovery: probing 253 hosts on :17580
+9:12:32 AM  lan error (15): Juggluco not found on local network
+9:12:36 AM  BLE v2: scanning for a CGM Share phone
+9:12:38 AM  BLE v2: connecting to Tartaruga (rssi -62)
+9:13:04 AM  BLE v2: connect timed out
+9:13:04 AM  discovery: probing 253 hosts on :17580
+9:13:06 AM  lan error (16): Juggluco not found on local network
+9:13:09 AM  BLE v2: scanning for a CGM Share phone
+9:13:09 AM  BLE v2: connecting to ? (rssi -57)
+9:13:36 AM  BLE v2: connect timed out
+9:13:36 AM  discovery: probing 253 hosts on :17580
+9:13:37 AM  lan error (17): Juggluco not found on local network
+9:13:41 AM  BLE v2: scanning for a CGM Share phone
+9:13:43 AM  BLE v2: connecting to ? (rssi -64)
+9:13:47 AM  [Nostr · relay.primal.net] 98 mg/dL  rate -0.19/min  reading at 9:13:48 AM  latency -1.0s
+9:13:47 AM  v2 live 98 mg/dL epoch 1 via relay:relay.primal.net
+9:14:09 AM  BLE v2: connect timed out
+9:14:09 AM  discovery: probing 253 hosts on :17580
+9:14:11 AM  lan error (18): Juggluco not found on local network
+9:14:14 AM  BLE v2: scanning for a CGM Share phone
+9:14:16 AM  BLE v2: connecting to Tartaruga (rssi -62)
+9:14:39 AM  BLE: no data for 176s, reconnecting
+9:14:39 AM  BLE: scanning for GlucoBridge
+9:14:42 AM  BLE v2: connect timed out
+9:14:42 AM  discovery: probing 253 hosts on :17580
+9:14:43 AM  [Nostr · relay.primal.net] 99 mg/dL  rate -0.15/min  reading at 9:14:45 AM  latency -1.0s
+9:14:43 AM  v2 live 99 mg/dL epoch 1 via relay:relay.primal.net

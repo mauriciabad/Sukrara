@@ -1,0 +1,3 @@
+  [84] provider ProviderId{uid:10463, app:10463, cmp:ComponentInfo{app.mauri.sukrara.poc/app.mauri.sukrara.widgets.ValueWidgetReceiver}, profile:UserHandle{0}}
+  [85] provider ProviderId{uid:10463, app:10463, cmp:ComponentInfo{app.mauri.sukrara.poc/app.mauri.sukrara.widgets.GraphWidgetReceiver}, profile:UserHandle{0}}
+  [86] provider ProviderId{uid:10463, app:10463, cmp:ComponentInfo{app.mauri.sukrara.poc/app.mauri.sukrara.widgets.CombinedWidgetReceiver}, profile:UserHandle{0}}
