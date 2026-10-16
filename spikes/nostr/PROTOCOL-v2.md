@@ -69,8 +69,9 @@ entries, deletes.
   new `G`), when a **new follower is approved**, and at least **weekly** (keeps the 30-day expiry rolling).
 - BLE: every treatment event is pushed to subscribed centrals like any publish; the `HELLO` backlog also carries the
   treatment events of the last 30 days (newest 200), after the chunks and before live.
-- Writer events stay accepted only if the author ∈ roster `writers` ∧ active follower (docs/07), then merged (§1)
-  into the log → which re-publishes them signed by `D` (**the echo**).
+- The owner accepts a writer event only if the author ∈ roster `writers` ∧ active follower (docs/07), merges it (§1)
+  into the log, and so re-publishes it signed by `D` (**the echo**; a BLE writer event is also forwarded as-is to the
+  other BLE centrals).
 
 **Followers** (Android + Mac) receive treatments:
 - `REQ {"kinds":[30078], "#c":[H("cgm2:treatments:"+sid)], "authors": roster.devices ∪ roster.writers,
@@ -88,6 +89,10 @@ entries, deletes.
   event for the same `id` signed by a **roster device key** arrives with `u ≥` the sent `u` (the echo). No echo after
   ~2 min ⇒ shown as *not accepted yet* (keeps listening; the owner may be offline). There is no explicit NACK:
   a rejected entry simply never echoes.
+
+Verified on Android (two emulators, 2026-10-16, `spikes/showcase-android/evidence/n1-*`): wearer entries and deletes
+reach the follower over relays and over BLE with the follower offline; writer entry accepted (echo) in < 5 s over
+relays, ≈ 0.1 s over BLE, and after 3 min when the wearer's relays were off (*not accepted yet* → *accepted*).
 
 ## Invite link / QR (no secrets)
 
