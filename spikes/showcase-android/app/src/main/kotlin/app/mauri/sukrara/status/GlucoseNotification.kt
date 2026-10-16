@@ -122,11 +122,13 @@ object GlucoseNotification {
                 // The expanded promoted card uses the title as its header line (no app name), so it's not the value.
                 b.setContentTitle(Trend.word(r.rate).replaceFirstChar { it.uppercase() } + " · " + detail)
                 b.setStyle(Notification.MetricStyle()
-                    .addMetric(Notification.Metric(Notification.Metric.FixedInt(r.sgv, "mg/dL"), "Glucose", semantic(r.sgv)))
-                    .addMetric(Notification.Metric(Notification.Metric.FixedText(
-                        Trend.arrow(r.rate) + (r.rate?.let { " %+.1f".format(it) } ?: "")), "per min"))
+                    // Labels are a third of the card width ("Glucose (mg/dL)" and "→ -0.5" got ellipsized on the
+                    // phone): the unit and the rate go in the labels, the values stay short.
+                    .addMetric(Notification.Metric(Notification.Metric.FixedInt(r.sgv), "mg/dL", semantic(r.sgv)))
+                    .addMetric(Notification.Metric(Notification.Metric.FixedText(Trend.arrow(r.rate)),
+                        r.rate?.let { "%+.1f/min".format(it) } ?: "no trend"))
                     .addMetric(Notification.Metric(Notification.Metric.TimeDifference.forStopwatch(
-                        Instant.ofEpochSecond(r.t), Notification.Metric.TimeDifference.FORMAT_ADAPTIVE), "Age"))
+                        Instant.ofEpochSecond(r.t), Notification.Metric.TimeDifference.FORMAT_ADAPTIVE), "ago"))
                     .setCriticalMetric(0))
             } else {
                 b.setStyle(Notification.BigTextStyle().bigText("$rate · $ageText · $detail"))
