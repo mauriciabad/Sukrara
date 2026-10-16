@@ -1,0 +1,193 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-16 16:55:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #5 (new-sample) latest=75 @1792158900
+2026-10-16 16:55:01.064 Df GlucoseWidget[92300:23423a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792158900.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 16:55:01.449 Df GlucoseWidget[92300:233903] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792158900.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 16:56:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #6 (new-sample) latest=72 @1792158960
+2026-10-16 16:56:01.068 Df GlucoseWidget[92300:233905] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792158960.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 16:56:01.425 Df GlucoseWidget[92300:233903] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792158960.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 16:57:01.016 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #7 (new-sample) latest=69 @1792159020
+2026-10-16 16:57:01.065 Df GlucoseWidget[92300:233903] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159020.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 16:57:01.258 Df GlucoseWidget[92300:2354b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159020.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 16:58:01.014 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #8 (new-sample) latest=66 @1792159080
+2026-10-16 16:58:01.057 Df GlucoseWidget[92300:233905] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159080.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 16:58:01.410 Df GlucoseWidget[92300:2354b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159080.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 16:59:01.010 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #9 (new-sample) latest=63 @1792159140
+2026-10-16 16:59:01.039 Df GlucoseWidget[92300:2354b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159140.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 16:59:01.383 Df GlucoseWidget[92300:235f1b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159140.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:00:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #10 (new-sample) latest=60 @1792159200
+2026-10-16 17:00:01.071 Df GlucoseWidget[92300:234923] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159200.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:00:01.261 Df GlucoseWidget[92300:235f1b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159200.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:01:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #11 (new-sample) latest=57 @1792159260
+2026-10-16 17:01:01.050 Df GlucoseWidget[92300:234923] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159260.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:01:01.239 Df GlucoseWidget[92300:235f1b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159260.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:02:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #12 (new-sample) latest=55 @1792159320
+2026-10-16 17:02:01.057 Df GlucoseWidget[92300:23679e] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159320.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:02:01.428 Df GlucoseWidget[92300:23679e] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159320.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:03:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #13 (new-sample) latest=53 @1792159380
+2026-10-16 17:03:01.061 Df GlucoseWidget[92300:23679e] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159380.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:03:01.249 Df GlucoseWidget[92300:2374c6] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159380.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:04:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #14 (new-sample) latest=51 @1792159440
+2026-10-16 17:04:01.060 Df GlucoseWidget[92300:237c92] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159440.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:04:01.249 Df GlucoseWidget[92300:2374c6] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159440.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:05:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #15 (new-sample) latest=49 @1792159500
+2026-10-16 17:05:01.058 Df GlucoseWidget[92300:237c92] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159500.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:05:01.434 Df GlucoseWidget[92300:235f1b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159500.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:06:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #16 (new-sample) latest=49 @1792159560
+2026-10-16 17:06:01.069 Df GlucoseWidget[92300:2374c6] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159560.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:06:01.260 Df GlucoseWidget[92300:23786f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159560.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:07:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #17 (new-sample) latest=48 @1792159620
+2026-10-16 17:07:01.051 Df GlucoseWidget[92300:235f1b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159620.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:07:01.246 Df GlucoseWidget[92300:23786f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159620.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:08:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #18 (new-sample) latest=48 @1792159680
+2026-10-16 17:08:01.051 Df GlucoseWidget[92300:2383de] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159680.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:08:01.448 Df GlucoseWidget[92300:23786f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159680.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:09:01.010 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #19 (new-sample) latest=48 @1792159740
+2026-10-16 17:09:01.060 Df GlucoseWidget[92300:238717] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159740.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:09:01.251 Df GlucoseWidget[92300:238ddc] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159740.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:10:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #20 (new-sample) latest=49 @1792159800
+2026-10-16 17:10:01.059 Df GlucoseWidget[92300:238717] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159800.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:10:01.409 Df GlucoseWidget[92300:23786f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159800.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:11:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #21 (new-sample) latest=50 @1792159860
+2026-10-16 17:11:01.054 Df GlucoseWidget[92300:239521] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159860.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:11:01.408 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159860.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:12:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #22 (new-sample) latest=52 @1792159920
+2026-10-16 17:12:01.063 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159920.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:12:01.420 Df GlucoseWidget[92300:239522] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159920.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:13:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #23 (new-sample) latest=53 @1792159980
+2026-10-16 17:13:01.061 Df GlucoseWidget[92300:239522] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792159980.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:13:01.267 Df GlucoseWidget[92300:239522] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792159980.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:14:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #24 (new-sample) latest=55 @1792160040
+2026-10-16 17:14:01.066 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160040.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:14:01.430 Df GlucoseWidget[92300:239522] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160040.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:15:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #25 (new-sample) latest=56 @1792160100
+2026-10-16 17:15:01.055 Df GlucoseWidget[92300:239cb8] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160100.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:15:01.415 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160100.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:16:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #26 (new-sample) latest=58 @1792160160
+2026-10-16 17:16:01.056 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160160.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:16:01.234 Df GlucoseWidget[92300:23a42a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160160.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:17:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #27 (new-sample) latest=59 @1792160220
+2026-10-16 17:17:01.061 Df GlucoseWidget[92300:23ab99] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160220.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:17:01.241 Df GlucoseWidget[92300:239cb8] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160220.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:18:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #28 (new-sample) latest=60 @1792160280
+2026-10-16 17:18:01.059 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160280.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:18:01.421 Df GlucoseWidget[92300:23a42a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160280.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:19:01.009 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #29 (new-sample) latest=61 @1792160340
+2026-10-16 17:19:01.061 Df GlucoseWidget[92300:23b312] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160340.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:19:01.245 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160340.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:20:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #30 (new-sample) latest=62 @1792160400
+2026-10-16 17:20:01.056 Df GlucoseWidget[92300:23b730] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160400.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:20:01.248 Df GlucoseWidget[92300:23b730] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160400.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:21:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #31 (new-sample) latest=62 @1792160460
+2026-10-16 17:21:01.052 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160460.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:21:01.410 Df GlucoseWidget[92300:23b312] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160460.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:22:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #32 (new-sample) latest=63 @1792160520
+2026-10-16 17:22:01.059 Df GlucoseWidget[92300:23b312] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160520.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:22:01.243 Df GlucoseWidget[92300:23bb1a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160520.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:23:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #33 (new-sample) latest=62 @1792160580
+2026-10-16 17:23:01.062 Df GlucoseWidget[92300:23bb1a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160580.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:23:01.243 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160580.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:24:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #34 (new-sample) latest=62 @1792160640
+2026-10-16 17:24:01.050 Df GlucoseWidget[92300:23bb1a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160640.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:24:01.229 Df GlucoseWidget[92300:23c686] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160640.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:25:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #35 (new-sample) latest=61 @1792160700
+2026-10-16 17:25:01.052 Df GlucoseWidget[92300:23cebe] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160700.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:25:01.239 Df GlucoseWidget[92300:23be8b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160700.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:26:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #36 (new-sample) latest=61 @1792160760
+2026-10-16 17:26:01.063 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160760.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:26:01.259 Df GlucoseWidget[92300:23cebe] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160760.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:27:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #37 (new-sample) latest=60 @1792160820
+2026-10-16 17:27:01.058 Df GlucoseWidget[92300:23919a] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160820.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:27:01.266 Df GlucoseWidget[92300:23d8ea] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160820.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:28:01.011 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #38 (new-sample) latest=59 @1792160880
+2026-10-16 17:28:01.035 Df GlucoseWidget[92300:23be8b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160880.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:28:01.379 Df GlucoseWidget[92300:23be8b] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160880.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:29:01.010 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #39 (new-sample) latest=59 @1792160940
+2026-10-16 17:29:01.070 Df GlucoseWidget[92300:23d8ea] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792160940.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:29:01.267 Df GlucoseWidget[92300:23d8ea] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792160940.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:30:01.014 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #40 (new-sample) latest=59 @1792161000
+2026-10-16 17:30:01.062 Df GlucoseWidget[92300:23d8ea] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161000.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:30:01.264 Df GlucoseWidget[92300:23d8ea] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161000.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:31:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #41 (new-sample) latest=58 @1792161060
+2026-10-16 17:31:01.056 Df GlucoseWidget[92300:23cebe] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161060.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:31:01.426 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161060.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:32:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #42 (new-sample) latest=59 @1792161120
+2026-10-16 17:32:01.053 Df GlucoseWidget[92300:23cebe] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161120.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:32:01.246 Df GlucoseWidget[92300:23f627] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161120.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:33:01.018 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #43 (new-sample) latest=59 @1792161180
+2026-10-16 17:33:01.056 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161180.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:33:01.428 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161180.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:34:01.015 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #44 (new-sample) latest=60 @1792161240
+2026-10-16 17:34:01.061 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161240.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:34:01.416 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161240.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:35:01.015 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #45 (new-sample) latest=62 @1792161300
+2026-10-16 17:35:01.056 Df GlucoseWidget[92300:2402b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161300.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:35:01.244 Df GlucoseWidget[92300:23fc94] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161300.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:36:01.016 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #46 (new-sample) latest=64 @1792161360
+2026-10-16 17:36:01.072 Df GlucoseWidget[92300:2410f7] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161360.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:36:01.276 Df GlucoseWidget[92300:2402b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161360.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:37:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #47 (new-sample) latest=66 @1792161420
+2026-10-16 17:37:01.069 Df GlucoseWidget[92300:240d78] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161420.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:37:01.425 Df GlucoseWidget[92300:2402b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161420.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:38:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #48 (new-sample) latest=69 @1792161480
+2026-10-16 17:38:01.063 Df GlucoseWidget[92300:24165e] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161480.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:38:01.253 Df GlucoseWidget[92300:2402b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161480.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:39:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #49 (new-sample) latest=72 @1792161540
+2026-10-16 17:39:01.052 Df GlucoseWidget[92300:241db9] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161540.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:39:01.248 Df GlucoseWidget[92300:241dc1] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161540.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:40:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #50 (new-sample) latest=75 @1792161600
+2026-10-16 17:40:01.053 Df GlucoseWidget[92300:2402b4] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161600.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:40:01.412 Df GlucoseWidget[92300:241dc1] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161600.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:40:35.241 Df GlucoseWidget[98078:242d6f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161600.000000 [appgroup-api=ok(age 34s) appgro
+2026-10-16 17:40:35.401 Df GlucoseWidget[98078:242d6f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161600.000000 [appgroup-api=ok(age 34s) a
+2026-10-16 17:41:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #51 (new-sample) latest=79 @1792161660
+2026-10-16 17:41:01.066 Df GlucoseWidget[98078:242d50] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161660.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:41:01.440 Df GlucoseWidget[98078:242d71] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161660.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:42:01.014 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #52 (new-sample) latest=83 @1792161720
+2026-10-16 17:42:01.063 Df GlucoseWidget[98078:242d6f] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161720.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:42:01.458 Df GlucoseWidget[98078:243659] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161720.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:42:05.648 Df GlucoseWidget[98295:2438ac] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161720.000000 [appgroup-api=ok(age 4s) ap
+2026-10-16 17:42:06.081 Df GlucoseWidget[98295:2438ac] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161720.000000 [appgroup-api=ok(age 5s) appgrou
+2026-10-16 17:43:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #53 (new-sample) latest=86 @1792161780
+2026-10-16 17:43:01.059 Df GlucoseWidget[98295:2438ab] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161780.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:43:01.258 Df GlucoseWidget[98295:243ea2] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161780.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:44:01.015 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #54 (new-sample) latest=90 @1792161840
+2026-10-16 17:44:01.056 Df GlucoseWidget[98295:2444e2] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161840.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:44:01.410 Df GlucoseWidget[98295:2444e2] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161840.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:45:01.014 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #55 (new-sample) latest=94 @1792161900
+2026-10-16 17:45:01.061 Df GlucoseWidget[98295:2444e2] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161900.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:45:01.430 Df GlucoseWidget[98295:2438aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161900.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:46:01.015 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #56 (new-sample) latest=97 @1792161960
+2026-10-16 17:46:01.060 Df GlucoseWidget[98295:2438ad] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792161960.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:46:01.430 Df GlucoseWidget[98295:2438aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792161960.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:47:01.015 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #57 (new-sample) latest=101 @1792162020
+2026-10-16 17:47:01.079 Df GlucoseWidget[98295:245d89] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792162020.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:47:01.445 Df GlucoseWidget[98295:243ea3] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792162020.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:47:10.496 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #1 (new-sample) latest=101 @1792162020
+2026-10-16 17:48:01.016 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #2 (new-sample) latest=103 @1792162080
+2026-10-16 17:48:01.017 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #58 (new-sample) latest=103 @1792162080
+2026-10-16 17:48:01.060 Df GlucoseWidget[98295:2438aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=http latest=1792162080.000000 [appgroup-api=ok(age 0s) ap
+2026-10-16 17:48:01.434 Df GlucoseWidget[98295:243ea3] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=http latest=1792162080.000000 [appgroup-api=ok(age 0s) appgrou
+2026-10-16 17:49:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #59 (new-sample) latest=106 @1792162140
+2026-10-16 17:49:01.016 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #3 (new-sample) latest=106 @1792162140
+2026-10-16 17:49:01.046 Df GlucoseWidget[98295:2438aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162140.000000 [appgroup-api=ok(a
+2026-10-16 17:49:01.424 Df GlucoseWidget[98295:246949] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162140.000000 [appgroup-api=ok(age 0s
+2026-10-16 17:50:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #60 (new-sample) latest=108 @1792162200
+2026-10-16 17:50:01.014 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #4 (new-sample) latest=108 @1792162200
+2026-10-16 17:50:01.061 Df GlucoseWidget[98295:245d89] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162200.000000 [appgroup-api=ok(a
+2026-10-16 17:50:01.435 Df GlucoseWidget[98295:2438aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162200.000000 [appgroup-api=ok(age 0s
+2026-10-16 17:51:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #61 (new-sample) latest=110 @1792162260
+2026-10-16 17:51:01.017 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #5 (new-sample) latest=110 @1792162260
+2026-10-16 17:51:01.057 Df GlucoseWidget[98295:246dbe] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162260.000000 [appgroup-api=ok(a
+2026-10-16 17:51:01.425 Df GlucoseWidget[98295:24717c] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162260.000000 [appgroup-api=ok(age 0s
+2026-10-16 17:52:01.012 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #62 (new-sample) latest=112 @1792162320
+2026-10-16 17:52:01.017 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #6 (new-sample) latest=112 @1792162320
+2026-10-16 17:52:01.056 Df GlucoseWidget[98295:24762e] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162320.000000 [appgroup-api=ok(a
+2026-10-16 17:52:01.428 Df GlucoseWidget[98295:24717c] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162320.000000 [appgroup-api=ok(age 0s
+2026-10-16 17:53:01.016 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #63 (new-sample) latest=113 @1792162380
+2026-10-16 17:53:01.017 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #7 (new-sample) latest=113 @1792162380
+2026-10-16 17:53:01.063 Df GlucoseWidget[98295:24717c] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162380.000000 [appgroup-api=ok(a
+2026-10-16 17:53:01.425 Df GlucoseWidget[98295:24717c] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162380.000000 [appgroup-api=ok(age 0s
+2026-10-16 17:54:01.013 Df GlucoseWidgets[91841:2329b9] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #64 (new-sample) latest=114 @1792162440
+2026-10-16 17:54:01.016 Df GlucoseWidgetsX[99746:245fa2] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #8 (new-sample) latest=114 @1792162440
+2026-10-16 17:54:01.058 Df GlucoseWidget[98295:24717c] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemExtraLarge via=own-container latest=1792162440.000000 [appgroup-api=ok(a
+2026-10-16 17:54:01.424 Df GlucoseWidget[98295:2479aa] [dev.spike.GlucoseWidgets:widget] getTimeline kind=combined family=systemSmall via=own-container latest=1792162440.000000 [appgroup-api=ok(age 0s

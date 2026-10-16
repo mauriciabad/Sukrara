@@ -1,0 +1,40 @@
+# Xcode build of the same spike sources (docs/13): checks what an Xcode-signed widget has that ours lacks.
+#   cd xcode && xcodegen && xcodebuild -scheme GlucoseWidgetsX -allowProvisioningUpdates -allowProvisioningDeviceRegistration
+name: GlucoseWidgetsX
+options:
+  deploymentTarget: { macOS: "15.0" }
+settings:
+  base:
+    DEVELOPMENT_TEAM: QWUV9H4A3G
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  GlucoseWidgetsX:
+    type: application
+    platform: macOS
+    sources: [../Host/main.swift, ../Shared/GlucoseData.swift]
+    info:
+      path: gen/Host-Info.plist
+      properties: { LSUIElement: true, GlucoseAppGroup: QWUV9H4A3G.dev.spike.xwidgets }
+    entitlements:
+      path: gen/Host.entitlements
+      properties: { com.apple.security.application-groups: [QWUV9H4A3G.dev.spike.xwidgets] }
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: dev.spike.XWidgets } }
+    dependencies: [{ target: GlucoseWidgetX }]
+  GlucoseWidgetX:
+    type: app-extension
+    platform: macOS
+    sources: [../Shared/GlucoseData.swift, ../Shared/GlucoseViews.swift, ../Shared/Loader.swift, ../Widget/GlucoseWidgets.swift]
+    info:
+      path: gen/Widget-Info.plist
+      properties:
+        NSExtension: { NSExtensionPointIdentifier: com.apple.widgetkit-extension }
+        GlucoseAppGroup: QWUV9H4A3G.dev.spike.xwidgets
+    entitlements:
+      path: gen/Widget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [QWUV9H4A3G.dev.spike.xwidgets]
+    settings: { base: { PRODUCT_BUNDLE_IDENTIFIER: dev.spike.XWidgets.widget } }

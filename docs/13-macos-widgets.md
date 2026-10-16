@@ -24,7 +24,8 @@ the user's Apple ID?
 | Can we get past that without an Apple-issued certificate? | **No.** Eight signing and install variants all fail the same way (table below). A free Apple ID personal team is enough |
 | Widget views | **Done**, rendered to PNG with `ImageRenderer` from the same SwiftUI code ([evidence](../spikes/widgets-macos/evidence/)) |
 | Data sharing host → sandboxed widget | Ad hoc: localhost HTTP, a `/Users/Shared` file and the widget's own container work, the App Group does not. **With a Team ID the team-prefixed App Group works too** (no provisioning profile) |
-| Refresh cadence the system honours | **Not measurable** while chronod refuses the extension. The app's reloads reach chronod within 1–3 ms |
+| Refresh cadence the system honours | **Every reload, once a minute, for an hour**: 68 host reloads → 62 `getTimeline` per placed widget ([evidence](../spikes/widgets-macos/evidence/refresh-1h.log)) |
+| Same widget inside Sukrara for Mac | **Built and signed, but chronod purges it** (and, from ~17:24 on, every *newly added* third-party widget, an Xcode build included). Open, see [Regression](#open-chronod-now-purges-every-new-widget-extension) |
 
 So the CLI-only route stopped at one wall, signing, plus a hidden second one, the entry point (see [Resolved](#resolved-the-widgets-run)). Everything else (compiler, SDK, Swift
 Charts, bundle layout, Info.plist, entitlements, registration) works without Xcode. To make it run you need **an
@@ -164,6 +165,36 @@ on this Mac (CodexBar `Y5PE65HELJ`, BetterTouchTool `DAFVSXZ82P`) is **`teamIden
 comes from an Apple-issued certificate, so that is the requirement. (We can't read chronod's code, so the exact
 check is inferred; every variant without a Team ID failed.)
 
+## Open: chronod now purges every new widget extension
+
+The spike was accepted at 16:47 and ran until 17:55. The Sukrara build (same sources, `bundle.sh`, Team ID, App
+Group `QWUV9H4A3G.app.mauri.sukrara.poc`) was never accepted. From 17:24 on, chronod logs this for **every newly
+added** non-Apple widget extension:
+
+```
+chronod [com.apple.chrono:descriptor] Queuing extension added events: app.mauri.sukrara.poc::app.mauri.sukrara.poc.widget
+chronod [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension …> - isApple? false
+```
+
+It never asks for descriptors, so nothing shows in the gallery. What was ruled out, each as a fresh bundle:
+
+| Tried | Result |
+|---|---|
+| Sukrara in the worktree (hidden `.claude/` path), then in `~/Applications` | purged |
+| Other `Sukrara.app` copies with the same id unregistered from LaunchServices | purged |
+| Host app with hardened runtime, `CFBundleVersion`, SDK 27 (`vtool`), min macOS 15; widget + `network.client` | purged |
+| `pluginkit -e use` (elected), host running vs not running, re-registering after a launch | purged |
+| Sukrara's appex inside a copy of the spike host; the spike's appex under new ids (`dev.spike.Test2…4`) | purged |
+| Appex linked with and without `_NSExtensionMain`; registered ad hoc first, then Team-ID | purged |
+| **A real Xcode build** (XcodeGen project `spikes/widgets-macos/xcode/`, automatic signing, personal team) | purged |
+| `killall chronod` (new process, same database) | purged |
+| Re-adding the **spike itself** after it had been unregistered at 17:55 | **purged** (it had worked for an hour) |
+
+Identical results for an Xcode build and for the spike itself point at system state, not at how the bundle is
+made. The certificate verifies (OCSP included), the ExtensionKit identity of every bundle reports
+`hasSandboxEntitlement = true` and the Team ID, and nothing was installed in the window (Xcode's packages went in
+at 16:42). The next step is a log-out/log-in or a restart, then adding the Sukrara widget again.
+
 ## Data sharing (host app → sandboxed widget)
 
 Tested with **`Probe/`**: the widget's exact loader (`Shared/Loader.swift`) in a CLI. It is signed ad hoc with the
@@ -187,10 +218,11 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
 - **Measured**: `reloadAllTimelines()` from the headless host, once a minute, reaches chronod in **1–3 ms** every
   time ([`evidence/reload-delivery.log`](../spikes/widgets-macos/evidence/reload-delivery.log)). Reload IPC works
   from an ad hoc, unsandboxed `LSUIElement` app.
-- **Not measured**: how many of those reloads chronod would honour. chronod refuses the extension, so `getTimeline`
-  never runs. The widget logs every `getTimeline` call: `log show --predicate 'subsystem == "dev.spike.GlucoseWidgets"'`,
-  plus `~/Library/Containers/dev.spike.GlucoseWidgets.widget/Data/Library/Caches/timeline.log`. Once it is signed
-  with a Team ID, run it for an hour and count. This is the first follow-up.
+- **Measured (Team ID, 2026-10-16 16:55–17:55)**: two widgets on the desktop (combined, small + extra large), host
+  reloading once a minute. 68 `reloadAllTimelines()` → **62 `getTimeline` per widget**: every minute's reload was
+  honoured, none skipped, with no sign of a budget in the first hour (the extras came from re-registrations and a
+  chronod restart). [`evidence/refresh-1h.log`](../spikes/widgets-macos/evidence/refresh-1h.log). Apple's budget
+  is daily, so a full day may still throttle; the design below covers that.
 - **Design that doesn't depend on the budget**. Apple documents a daily budget of roughly 40–70 reloads for a
   frequently viewed widget, about one every 15–60 min, so a 1/min reload can't be relied on. The widget is built
   so that a skipped reload never shows wrong information:
