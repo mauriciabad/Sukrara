@@ -5,7 +5,7 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.2/Sukrara-0.11.2.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
@@ -52,7 +52,8 @@ personal thresholds of 65 / 145 / 185 mg/dL.</sub>
 **On your phone** (Android 16+)
 - Current value, continuous trend arrow and a 12 h chart. Source: the Libre 3 read directly (default): scan the
   sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
-  Juggluco's web server, if Juggluco keeps the sensor. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+  Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
+  (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   spike also proved system icons and a coloured LSPosed hook (root), not in the alpha yet.
   [05](docs/05-android-status-bar.md)
@@ -184,14 +185,15 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
+Downloads: Android [v0.11.2](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.2), Mac
+[v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.1.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.2.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.

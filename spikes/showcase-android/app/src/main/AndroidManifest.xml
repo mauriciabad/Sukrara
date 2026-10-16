@@ -68,6 +68,19 @@
                 <data android:pathPrefix="/join" />
             </intent-filter>
         </activity>
+        <!-- Tapping a Libre sensor while Sukrara isn't in front opens it (Sensor screen switch, ui/NfcLaunch). The Sensor
+             screen's reader mode still takes the tap first when it's open. -->
+        <activity-alias
+            android:name=".ui.NfcLaunch"
+            android:exported="true"
+            android:targetActivity=".ui.MainActivity">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_libre" />
+        </activity-alias>
         <!-- the quick treatment dialog: a tap on a widget or the glucose notification opens it over any app -->
         <activity
             android:name=".ui.QuickTreatmentActivity"
