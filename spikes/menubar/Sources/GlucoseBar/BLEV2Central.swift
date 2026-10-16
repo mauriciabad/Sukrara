@@ -7,7 +7,7 @@ import Foundation
 /// Protocol v2 over Bluetooth (docs/07-bluetooth-followers.md): the CGM Share owner phone is a GATT server; this Mac
 /// is a central. No BLE pairing/bonding — every event goes through the same `FollowerV2.onEvent(_:via:)` acceptance
 /// rules as relay events (seal signer = I, roster devices, known gk, valid signature). The Bluetooth connection is
-/// `BLELink`'s, shared with the legacy path (one link per phone).
+/// `BLELink`'s (one link per phone).
 ///   frame = [msgId u16][idx u16][count u16][payload]  (big endian); message = JSON array
 ///   follower → owner: ["HELLO",{"v":2}], ["EVENT",<event>]   owner → follower: ["INFO",{…}], ["EVENT",<event>]
 final class BLEV2Central: NSObject, BLEService {
@@ -21,7 +21,7 @@ final class BLEV2Central: NSObject, BLEService {
     var onInfo: ((Info, String) -> Void)?           // (info, peripheral name)
     var onState: ((String) -> Void)?
 
-    // BLEService: the connection itself belongs to BLELink (shared with the legacy path, one link per phone).
+    // BLEService: the connection itself belongs to BLELink (one link per phone).
     let uuid = BLEV2Central.service
     let characteristics = [BLEV2Central.rx, BLEV2Central.tx]
     let name = "v2"
@@ -49,7 +49,7 @@ final class BLEV2Central: NSObject, BLEService {
 
     /// Stop listening to this phone and look again later (e.g. a phone that isn't offering pairing while we follow
     /// nobody, or another wearer's phone) — keeps both radios idle instead of streaming events we would discard.
-    /// The Bluetooth link itself stays up if the legacy path uses it.
+    /// BLELink closes the link once no path is attached.
     func disconnect(retryAfter s: TimeInterval) {
         guard let p = peripheral else { return }
         onState?("BLE v2: leaving \(p.name ?? "phone") for \(Int(s)) s")

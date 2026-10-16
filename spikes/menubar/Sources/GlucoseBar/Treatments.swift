@@ -1,10 +1,9 @@
 // CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
-import CoreBluetooth
 import Foundation
 
-/// Insulin / carbs / note, as in spikes/libreview/SPEC.md §1. The same JSON is stored on disk and sent over BLE.
+/// Insulin / carbs / note, as in spikes/libreview/SPEC.md §1. The same JSON is stored on disk and sent over v2.
 struct Treatment: Codable, Equatable {
     var id: String          // UUID v4, lowercase
     var k: String           // rapid | long | carbs | note
@@ -13,15 +12,14 @@ struct Treatment: Codable, Equatable {
     var n: String = ""      // free text, ≤ 100 UTF-8 bytes
     var u: Int64            // last modified, epoch ms (last-writer-wins version)
     var del: Bool = false
-    var o: String           // phone | mac
-    var lv: Int64 = 0       // the `u` last confirmed uploaded to LibreView
+    var o: String           // phone | mac | follower
 
     static let kinds = ["rapid", "long", "carbs", "note"]
 
     init(id: String = UUID().uuidString.lowercased(), k: String, a: Double, t: Int64, n: String = "",
-         u: Int64 = Treatment.nowMs(), del: Bool = false, o: String = "mac", lv: Int64 = 0) {
+         u: Int64 = Treatment.nowMs(), del: Bool = false, o: String = "mac") {
         self.id = id; self.k = k; self.a = a; self.t = t; self.n = Self.truncate(n); self.u = u
-        self.del = del; self.o = o; self.lv = lv
+        self.del = del; self.o = o
     }
 
     init(from decoder: Decoder) throws {
@@ -34,17 +32,12 @@ struct Treatment: Codable, Equatable {
         u = try c.decode(Int64.self, forKey: .u)
         del = try c.decodeIfPresent(Bool.self, forKey: .del) ?? false
         o = try c.decode(String.self, forKey: .o)
-        lv = try c.decodeIfPresent(Int64.self, forKey: .lv) ?? 0
     }
 
-    var needsUpload: Bool { lv < u }
-
-    /// SPEC §1 merge: newer (u, o) wins, `lv` is the max of both sides.
+    /// SPEC §1 merge: newer (u, o) wins.
     static func merge(_ cur: Treatment?, _ inc: Treatment) -> Treatment {
         guard let cur else { return inc }
-        var winner = (inc.u, inc.o) > (cur.u, cur.o) ? inc : cur
-        winner.lv = max(cur.lv, inc.lv)
-        return winner
+        return (inc.u, inc.o) > (cur.u, cur.o) ? inc : cur
     }
 
     static func nowMs() -> Int64 { Int64((Date().timeIntervalSince1970 * 1000).rounded()) }
@@ -55,9 +48,9 @@ struct Treatment: Codable, Equatable {
         return out
     }
 
-    /// The BLE / JSON dictionary form (keys exactly as in the spec).
+    /// The JSON dictionary form (keys exactly as in SPEC §1, without the phone's LibreView `lv`).
     var dict: [String: Any] {
-        ["id": id, "k": k, "a": a, "t": t, "n": n, "u": u, "del": del, "o": o, "lv": lv]
+        ["id": id, "k": k, "a": a, "t": t, "n": n, "u": u, "del": del, "o": o]
     }
 
     init?(dict: [String: Any]) {
@@ -78,30 +71,19 @@ struct V2Send: Codable, Equatable {
     var via: String = ""
 }
 
-/// The Mac's treatment log, persisted to ~/Library/Application Support/Sukrara/treatments.json — one store for both
-/// paths (legacy BLE sync, SPEC §2, and protocol v2, SPEC §5), merged by id with §1 last-writer-wins; the menu and
-/// the chart read it.
-/// Besides the rows it remembers what still has to be pushed to the phone (`unacked`), the pull cursor
-/// (phone's `seq`), the LibreView DeviceId the phone shares, when foreign rows were first seen
-/// (for the 2-minute upload grace period), the v2 status of entries written here, and which rows were only ever
-/// learned over v2 (their `lv` isn't on the wire, so this Mac must not upload them: SPEC §5). Entries made here travel
-/// over v2 only; the legacy link carries just the `lv` watermarks after a LibreView upload (SPEC §2).
+/// The Mac's treatment log, persisted to ~/Library/Application Support/Sukrara/treatments.json: entries made here and
+/// the wearer's log received over protocol v2 (SPEC §5), merged by id with §1 last-writer-wins; the menu, the chart
+/// and the widgets read it. Also the v2 status of entries written here.
 @MainActor final class TreatmentStore {
     private struct State: Codable {
         var rows: [Treatment] = []
-        var unacked: [String] = []
-        var cursor: Int64 = 0
-        var dev: String?
-        var firstSeen: [String: Double] = [:]
         var v2: [String: V2Send]? = nil
-        var v2Only: [String]? = nil
-        var legacyLinked: Bool? = nil
     }
 
     private var state = State()
     private let url: URL
-    /// Called after every change; `local` is true for `lv` watermarks to push over the legacy link.
-    var onChange: [(_ local: Bool) -> Void] = []
+    /// Called after every change.
+    var onChange: [() -> Void] = []
 
     init(directory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Sukrara")) {
@@ -111,22 +93,8 @@ struct V2Send: Codable, Equatable {
     }
 
     var rows: [Treatment] { state.rows }
-    var cursor: Int64 { get { state.cursor } set { state.cursor = newValue; save() } }
-    var deviceId: String? { state.dev }
-    var unacked: [Treatment] { state.unacked.compactMap { id in state.rows.first { $0.id == id } } }
-    func isUnacked(_ id: String) -> Bool { state.unacked.contains(id) }
-    func firstSeen(_ id: String) -> Date? { state.firstSeen[id].map { Date(timeIntervalSince1970: $0) } }
-
     func row(_ id: String) -> Treatment? { state.rows.first { $0.id == id } }
     func v2Status(_ id: String) -> V2Send? { state.v2?[id] }
-    func isV2Only(_ id: String) -> Bool { state.v2Only?.contains(id) ?? false }
-    /// The phone has answered the legacy treatment sync at least once (so the legacy path exists for this Mac).
-    var legacyLinked: Bool { state.legacyLinked ?? false }
-    func markLegacyLinked() {
-        guard !legacyLinked else { return }
-        state.legacyLinked = true
-        save()
-    }
 
     /// v2 progress of an entry written here; never moves backwards for the same version.
     func setV2(_ id: String, u: Int64, _ st: V2Send.State, via: String = "") {
@@ -137,15 +105,15 @@ struct V2Send: Codable, Equatable {
         m[id] = V2Send(u: u, state: st, at: Date().timeIntervalSince1970, via: via)
         state.v2 = m
         save()
-        onChange.forEach { $0(false) }
+        onChange.forEach { $0() }
     }
 
     /// A change made here (new, edited or deleted). It travels over v2 (signed as a roster writer), or stays on this
-    /// Mac when it follows no one; never over the legacy link.
+    /// Mac when it follows no one.
     func upsertLocal(_ t: Treatment) {
         put(t)
         save()
-        onChange.forEach { $0(false) }
+        onChange.forEach { $0() }
     }
 
     /// Tombstone for `id`; returns it (nil if there is nothing to delete).
@@ -158,27 +126,15 @@ struct V2Send: Codable, Equatable {
         return t
     }
 
-    /// The phone confirmed (or refused) a write of `t`; only clear it if nothing changed meanwhile.
-    func acked(_ t: Treatment) {
-        guard row(t.id) == t, let i = state.unacked.firstIndex(of: t.id) else { return }
-        state.unacked.remove(at: i)
-        save()
-    }
-
-    /// A record from the phone (legacy link) or a v2 event. Returns true if it changed anything.
+    /// A v2 treatment event. Returns true if it changed anything.
     @discardableResult
-    func receive(_ inc: Treatment, v2: Bool = false) -> Bool {
+    func receive(_ inc: Treatment) -> Bool {
         let cur = row(inc.id)
-        if v2, cur == nil { state.v2Only = (state.v2Only ?? []) + [inc.id] }
-        if !v2, let i = state.v2Only?.firstIndex(of: inc.id) { state.v2Only?.remove(at: i); save() }
         let merged = Treatment.merge(cur, inc)
         guard merged != cur else { return false }
-        if merged.o != "mac", merged.needsUpload, cur?.u != merged.u {
-            state.firstSeen[merged.id] = Date().timeIntervalSince1970
-        }
         put(merged)
         save()
-        onChange.forEach { $0(false) }
+        onChange.forEach { $0() }
         return true
     }
 
@@ -186,28 +142,10 @@ struct V2Send: Codable, Equatable {
     /// echoed an entry this Mac sent with a version ≥ ours, that entry is accepted. Returns true when it just was.
     @discardableResult
     func receiveV2(_ t: Treatment, fromWearer: Bool, via: String) -> Bool {
-        receive(t, v2: true)
+        receive(t)
         guard fromWearer, let s = v2Status(t.id), t.u >= s.u, s.state != .accepted else { return false }
         setV2(t.id, u: s.u, .accepted, via: via)
         return true
-    }
-
-    func setDeviceId(_ dev: String) {
-        guard !dev.isEmpty, dev != state.dev else { return }
-        state.dev = dev
-        save()
-    }
-
-    /// After a successful LibreView upload of `sent` (rows as they were in the payload).
-    func markUploaded(_ sent: [Treatment]) {
-        for s in sent {
-            guard var t = row(s.id), t.lv < s.u else { continue }
-            t.lv = s.u
-            put(t)
-            if !state.unacked.contains(t.id) { state.unacked.append(t.id) }
-        }
-        save()
-        onChange.forEach { $0(true) }
     }
 
     private func put(_ t: Treatment) {
@@ -221,152 +159,32 @@ struct V2Send: Codable, Equatable {
     }
 }
 
-/// Client side of SPEC §2 over the TREATMENTS characteristic. BLEBridgeSource owns the radio and calls in here;
-/// this class owns the protocol: push un-acked `lv` watermarks, then pull from the cursor.
-@MainActor final class TreatmentSync {
-    let store: TreatmentStore
-    var log: (String) -> Void = { _ in }
-
-    /// Set while the characteristic is subscribed: writes one message (with response).
-    private var write: ((Data) -> Bool)?
-    private var maxWrite = 512
-    private var queue: [(data: Data, rec: Treatment?)] = []
-    private var inFlight: (data: Data, rec: Treatment?)?
-
-    init(store: TreatmentStore) {
-        self.store = store
-        store.onChange.append { [weak self] local in if local { self?.pushUnacked() } }
-    }
-
-    func connected(maxWrite: Int, write: @escaping (Data) -> Bool) {
-        self.maxWrite = maxWrite
-        self.write = write
-        queue.removeAll()
-        inFlight = nil
-        pushUnacked()
-        send(["op": "pull", "since": store.cursor], rec: nil)
-        log("treatments: sync started (cursor \(store.cursor), \(store.unacked.count) to push)")
-    }
-
-    func disconnected() {
-        write = nil
-        queue.removeAll()
-        inFlight = nil
-    }
-
-    func writeCompleted(error: Error?) {
-        guard let done = inFlight else { return }
-        inFlight = nil
-        if let error {
-            // The phone takes only `lv` watermarks of rows it already holds over this link (SPEC §2): ATT 0x03.
-            if let rec = done.rec, (error as NSError).domain == CBATTErrorDomain,
-               (error as NSError).code == CBATTError.writeNotPermitted.rawValue {
-                log("treatments: the phone refused \(rec.k) \(rec.id.prefix(8)) (not a watermark of a row it holds)")
-                store.acked(rec)
-                return pump()
-            }
-            log("treatments: write failed: \(error.localizedDescription)")
-            queue.removeAll()           // retried on the next connect
-            return
-        }
-        if let rec = done.rec { store.acked(rec) }
-        pump()
-    }
-
-    func received(_ data: Data) {
-        guard let msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let op = msg["op"] as? String else { return log("treatments: bad message (\(data.count) B)") }
-        let seq = (msg["s"] as? NSNumber)?.int64Value
-        switch op {
-        case "rec":
-            guard let t = Treatment(dict: msg) else { return log("treatments: bad rec") }
-            store.receive(t)
-            if let seq, seq > store.cursor { store.cursor = seq }
-        case "end":
-            store.markLegacyLinked()
-            if let dev = msg["dev"] as? String { store.setDeviceId(dev) }
-            guard let seq else { return }
-            if seq < store.cursor {
-                log("treatments: phone store was reset (s \(seq) < cursor \(store.cursor)), pulling everything")
-                store.cursor = 0
-                send(["op": "pull", "since": 0], rec: nil)
-            } else {
-                store.cursor = seq
-            }
-        default:
-            log("treatments: unknown op \(op)")
-        }
-    }
-
-    private func pushUnacked() {
-        guard write != nil else { return }
-        let queued = Set(queue.compactMap { $0.rec?.id } + [inFlight?.rec?.id].compactMap { $0 })
-        for t in store.unacked where !queued.contains(t.id) {
-            var m = t.dict
-            m["op"] = "rec"
-            send(m, rec: t)
-        }
-    }
-
-    private func send(_ msg: [String: Any], rec: Treatment?) {
-        guard let data = try? JSONSerialization.data(withJSONObject: msg) else { return }
-        guard data.count <= maxWrite else { return log("treatments: message too long (\(data.count) > \(maxWrite) B), skipped") }
-        queue.append((data, rec))
-        pump()
-    }
-
-    private func pump() {
-        guard inFlight == nil, let write, !queue.isEmpty else { return }
-        let next = queue.removeFirst()
-        if write(next.data) { inFlight = next } else { queue.removeAll() }
-    }
-}
-
 /// Which way an entry made on this Mac travels, for the menu and the Log dialog. The wearer decides, on the phone:
 ///   - **protocol v2** (SPEC §5) when the wearer made this Mac a writer (its key in the roster `writers`, the
 ///     follower's "Can add entries" switch): signed, so the phone knows it's this Mac;
-///   - otherwise no way at all: "Log treatment…" is disabled. The legacy Bluetooth link is read-only for entries.
-///     With no phone anywhere (no Bluetooth, not following) entries stay on this Mac.
+///   - otherwise no way at all: "Log treatment…" is disabled. When this Mac follows no one, entries stay on it.
 struct TreatmentPaths {
     enum Route: String { case v2, local, none }
     var route: Route = .local
-    var legacy: String?              // the legacy link's line (nil = no legacy link to a phone)
-    var v2: String?                  // the v2 line (nil = not following anyone over v2)
+    var v2: String?                  // the v2 line (nil = not following anyone)
     var canLog: Bool { route != .none }
-    var lines: [String] { [legacy, v2].compactMap { $0 } }
+    var lines: [String] { [v2].compactMap { $0 } }
     static let notAllowed = "The wearer hasn't allowed this Mac to add entries"
 
-    @MainActor static func current(legacy: BLEBridgeSource?, store: TreatmentStore, node: FollowerV2?) -> TreatmentPaths {
+    @MainActor static func current(node: FollowerV2?) -> TreatmentPaths {
         var p = TreatmentPaths()
-        var active: FollowerV2?
-        if let n = node, case .active = n.phase { active = n }
-        if active?.canWrite ?? false { p.route = .v2 }
-        else if legacy == nil, node == nil { p.route = .local }
-        else { p.route = .none }
-        if let legacy, legacy.connectedName != nil || store.legacyLinked {
-            let phone = legacy.connectedName ?? "phone", when = legacy.connectedName != nil ? "connected" : "when in range"
-            p.legacy = "Bluetooth link to \(phone): read-only · \(when)"
-        }
-        if let n = active {
-            p.v2 = n.canWrite ? "→ wearer over Sukrara sharing (v2) · allowed"
-                              : "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"
-        } else if p.route == .none, node == nil {
-            p.v2 = "Follow… this wearer (Sukrara sharing) and ask them to turn on “Can add entries” for this Mac"
-        }
+        guard let node else { return p }
+        guard case .active = node.phase else { p.route = .none; return p }
+        p.route = node.canWrite ? .v2 : .none
+        p.v2 = node.canWrite ? "→ wearer over Sukrara sharing (v2) · allowed"
+                             : "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"
         return p
     }
 
-    /// Compact per-entry status for the menu row: "v2 accepted ✓ · LV ⇡".
-    @MainActor static func status(of t: Treatment, store: TreatmentStore, lvOn: Bool, now: Date = Date()) -> String {
-        var parts: [String] = []
-        let v2Only = store.isV2Only(t.id) && t.o != "mac"
-        if t.o == "mac" {
-            if let s = store.v2Status(t.id) { parts.append(v2Text(s, now: now)) }
-        } else if v2Only {
-            parts.append("from v2")
-        }
-        if lvOn, !v2Only { parts.append(t.needsUpload ? "LV ⇡" : "LV ✓") }
-        return parts.joined(separator: " · ")
+    /// Compact per-entry status for the menu row: "v2 accepted ✓".
+    @MainActor static func status(of t: Treatment, store: TreatmentStore, now: Date = Date()) -> String {
+        guard t.o == "mac", let s = store.v2Status(t.id) else { return "" }
+        return v2Text(s, now: now)
     }
 
     static func v2Text(_ s: V2Send, now: Date = Date()) -> String {
@@ -378,10 +196,9 @@ struct TreatmentPaths {
     }
 
     /// The same in words, for the row's submenu.
-    @MainActor static func details(of t: Treatment, store: TreatmentStore, lvOn: Bool) -> [String] {
+    @MainActor static func details(of t: Treatment, store: TreatmentStore) -> [String] {
         var out: [String] = []
-        let v2Only = store.isV2Only(t.id) && t.o != "mac"
-        out.append(t.o == "mac" ? "Made on this Mac" : v2Only ? "From the wearer (Sukrara sharing, v2)" : "From the phone (Bluetooth link)")
+        out.append(t.o == "mac" ? "Made on this Mac" : "From the wearer (Sukrara sharing, v2)")
         if t.o == "mac" {
             if let s = store.v2Status(t.id) {
                 let at = Date(timeIntervalSince1970: s.at).formatted(date: .omitted, time: .shortened)
@@ -393,7 +210,6 @@ struct TreatmentPaths {
                 }
             }
         }
-        if lvOn, !v2Only { out.append(t.needsUpload ? "LibreView: waiting to upload" : "LibreView: uploaded") }
         return out
     }
 }

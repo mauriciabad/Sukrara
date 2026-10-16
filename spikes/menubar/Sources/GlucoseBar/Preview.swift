@@ -62,27 +62,24 @@ enum MenuPreview {
         let store = TreatmentStore(directory: dir)
         func at(_ min: Int64) -> Int64 { now - min * 60 }
         let rows = [
-            Treatment(k: "rapid", a: 4.5, t: at(165), o: "phone", lv: Treatment.nowMs()),
-            Treatment(k: "carbs", a: 30, t: at(160), o: "phone", lv: Treatment.nowMs()),
-            Treatment(k: "long", a: 12, t: at(110), o: "phone", lv: Treatment.nowMs()),
+            Treatment(k: "rapid", a: 4.5, t: at(165), o: "phone"),
+            Treatment(k: "carbs", a: 30, t: at(160), o: "phone"),
+            Treatment(k: "long", a: 12, t: at(110), o: "phone"),
             Treatment(k: "note", a: 0, t: at(75), n: "walk", o: "follower"),
             Treatment(k: "rapid", a: 1.5, t: at(40), o: "mac"),
             Treatment(k: "carbs", a: 15, t: at(22), o: "mac"),
             Treatment(k: "note", a: 0, t: at(4), n: "sensor ok", o: "mac"),
         ]
-        for (i, t) in rows.enumerated() {
-            if t.o == "mac" { store.upsertLocal(t) } else { store.receive(t, v2: i == 3) }
+        for t in rows {
+            if t.o == "mac" { store.upsertLocal(t) } else { store.receive(t) }
         }
-        store.markLegacyLinked()
         store.setV2(rows[4].id, u: rows[4].u, .accepted, via: "ble:Tartaruga")
         store.setV2(rows[5].id, u: rows[5].u, .sent, via: "relay:nos.lol")
         store.setV2(rows[6].id, u: rows[6].u, .sending)
 
         let paths = [
-            TreatmentPaths(route: .v2, legacy: "Bluetooth link to Tartaruga: read-only · connected",
-                           v2: "→ wearer over Sukrara sharing (v2) · allowed"),
-            TreatmentPaths(route: .none, legacy: "Bluetooth link to Tartaruga: read-only · connected",
-                           v2: "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"),
+            TreatmentPaths(route: .v2, v2: "→ wearer over Sukrara sharing (v2) · allowed"),
+            TreatmentPaths(route: .none, v2: "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"),
         ]
         let w: CGFloat = 470
         var panels: [NSView] = []
@@ -118,7 +115,7 @@ enum MenuPreview {
             for l in (p.canLog ? [] : [TreatmentPaths.notAllowed]) + p.lines { line(l, .secondaryLabelColor, indent: 14) }
             line("Treatments (24 h)", .secondaryLabelColor)
             for t in store.rows.sorted(by: { $0.t > $1.t }) {
-                let st = TreatmentPaths.status(of: t, store: store, lvOn: true)
+                let st = TreatmentPaths.status(of: t, store: store)
                 line(StatusController.describe(t) + (st.isEmpty ? "" : "   " + st))
             }
             let box = NSView(frame: NSRect(x: 0, y: 0, width: w, height: 10))

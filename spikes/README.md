@@ -62,14 +62,13 @@ it (plus, in the `direct` flavor, sensor glucose) to LibreView. Wire formats: [`
 ```sh
 python3 -I libreview/lv.py fixture        # regenerate the golden payload both apps are tested against
 (cd glucobridge-android && ./gradlew testJugglucoDebugUnitTest)
-(cd menubar && swift run GlucoseBar -lvfixture ../libreview/fixture.json && swift run GlucoseBar -treatmentsselftest)
+(cd menubar && swift run GlucoseBar -treatmentsselftest)
 ```
 Configure (all off by default):
 - **phone**: GlucoBridge → LibreView → email + password, then the switches; or over adb (shell-only receiver):
   `adb shell am broadcast -n dev.spike.glucobridge/.DebugReceiver -a dev.spike.glucobridge.CONFIG --ez upload true`
-- **Mac**: `security add-generic-password -s dev.spike.libreview -a <email> -w`, then
-  `defaults write app.mauri.sukrara.poc lvEmail <email>` and `… lvUpload -bool YES` (domain `GlucoseBar` when run via
-  `swift run`). The Mac uses the DeviceId the phone sends over BLE.
+- **Mac**: no LibreView upload any more (removed in v0.10.9 with the legacy Mac link): Mac entries reach the phone
+  over v2 and the phone uploads them.
 - The account accepts one active device: a new one needs "take over" (`SetDevice:true`), which logs Juggluco's
   LibreView upload out — switch Juggluco's *Send to LibreView* off first, and back on when done.
 

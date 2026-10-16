@@ -10,17 +10,12 @@ import AppKit
 //   secret  Juggluco web server API secret, if set
 //   unit    mgdl | mmol
 //   lan     NO to disable the Juggluco web-server transport
-//   ble     NO to disable the GlucoBridge BLE transport
 //   nostr   cgmnostr:1?s=…&k=…&r=… follower link → CGM-over-Nostr transport (or `nostr-file <path>` holding it)
 //   (protocol v2 follower — the default way to follow; see FOLLOWER.md)
 //   bleV2       NO to disable the CGM Share BLE transport (docs/07)
 //   followLink / followLinkFile / followName   tests: join an invite at launch without the dialog
 //   pairNearby  tests: answer a phone's "Pair nearby" offer with this name, without the dialog
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
-//   lvUpload    YES to upload treatments to LibreView (spikes/libreview/SPEC.md); default NO
-//   lvEmail     LibreView login; password in the keychain:
-//               security add-generic-password -s dev.spike.libreview -a <email> -w
-//   lvTakeover  YES to log in with SetDevice:true (kicks LibreView's other active app); default NO
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 /// stdout, and for the bundled app (launched by `open`, no terminal) also ~/Library/Logs/Sukrara.log.
@@ -46,14 +41,13 @@ if let path = defaults.string(forKey: "menuPreview") {
     MainActor.assumeIsolated { MenuPreview.render(to: path) }
     exit(0)
 }
-if let path = defaults.string(forKey: "lvfixture") { exit(SelfTest.fixture(path) ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
-// delete {id} | upload | dump), like the phone's DebugReceiver.
+// delete {id} | dump), like the phone's DebugReceiver.
 let debugNote = Notification.Name("app.mauri.sukrara.poc.debug")
 if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLine.arguments.count {
     let msg = CommandLine.arguments[i + 1]     // not via UserDefaults: it would parse "{…}" as a plist
@@ -173,19 +167,11 @@ if lanEnabled {
     MainActor.assumeIsolated { feed.restart("launch") }
 }
 
-// Bluetooth: one central and one link per phone for both paths (BLELink.swift) — the legacy GlucoBridge link
-// (glucose + SPEC §2 treatment sync) and protocol v2 share a single connection when the phone serves both.
-// Created only when enabled: CBCentralManager starts scanning as soon as Bluetooth reports powered on.
-let bleLegacyOn = defaults.object(forKey: "ble") == nil || defaults.bool(forKey: "ble")
+// Bluetooth: protocol v2 over one CoreBluetooth central (BLELink.swift). Created only when enabled:
+// CBCentralManager starts scanning as soon as Bluetooth reports powered on.
 let bleV2On = defaults.object(forKey: "bleV2") == nil || defaults.bool(forKey: "bleV2")
-let bleLink = bleLegacyOn || bleV2On ? BLELink() : nil
+let bleLink = bleV2On ? BLELink() : nil
 bleLink?.onState = { log($0) }
-let ble = bleLegacyOn ? bleLink.map(BLEBridgeSource.init(link:)) : nil
-if let ble {
-    ble.onState = { log($0) }
-    ble.onHistory = { pts in MainActor.assumeIsolated { store.ingest(history: pts, from: "Bluetooth · GlucoBridge") } }
-    ble.onReading = { r in MainActor.assumeIsolated { store.ingest(r, from: "Bluetooth · GlucoBridge") } }
-}
 
 let nostrLink = defaults.string(forKey: "nostr")
     ?? defaults.string(forKey: "nostr-file").flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
@@ -198,7 +184,7 @@ if let nostr {
     }
 }
 
-// Treatments: one store for every path (legacy BLE sync, v2 events), read by the menu and the chart.
+// Treatments: entries made here + the wearer's log over v2, read by the menu, the chart and the widgets.
 // `treatmentsDir` (tests): keep the log somewhere else than ~/Library/Application Support/Sukrara.
 let treatmentStore = MainActor.assumeIsolated {
     defaults.string(forKey: "treatmentsDir").map { TreatmentStore(directory: URL(fileURLWithPath: $0)) } ?? TreatmentStore()
@@ -372,25 +358,18 @@ MainActor.assumeIsolated {
     Migration.keychain { following.resume() }      // GlucoseBar → Sukrara: follow state from the old Keychain item
 }
 
-// Treatments: local log, synced with the phone over BLE, uploaded to LibreView (spikes/libreview/SPEC.md).
+// Treatments: local log + the wearer's over v2. The phone uploads the merged log to LibreView, Mac entries included.
 MainActor.assumeIsolated {
     let treatments = treatmentStore
-    let sync = TreatmentSync(store: treatments)
-    let uploader = LibreViewUploader(store: treatments)
-    sync.log = log
-    uploader.log = log
-    uploader.onStatus = { status.treatmentsChanged() }
-    treatments.onChange.append { _ in status.treatmentsChanged() }
-    treatments.onChange.append { _ in widgetFeed.treatmentsChanged(treatments.rows) }
-    ble?.treatmentSync = sync          // nil when BLE is off (e.g. Nostr-only)
+    treatments.onChange.append { status.treatmentsChanged() }
+    treatments.onChange.append { widgetFeed.treatmentsChanged(treatments.rows) }
     status.treatments = { treatments.rows }
-    status.libreViewStatus = { uploader.statusLine }
-    status.treatmentPaths = { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
-    status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments, lvOn: uploader.enabled) }
-    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments, lvOn: uploader.enabled) }
+    status.treatmentPaths = { TreatmentPaths.current(node: following.node) }
+    status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments) }
+    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments) }
     // One path per entry, the wearer's choice (TreatmentPaths): v2 as a roster writer, else none (the menu item is
-    // disabled); local only with no phone at all.
-    @MainActor func paths() -> TreatmentPaths { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
+    // disabled); local only when following no one.
+    @MainActor func paths() -> TreatmentPaths { TreatmentPaths.current(node: following.node) }
     status.onLogTreatment = { t in
         let p = paths()
         if p.canLog { log("treatment logged: \(StatusController.describe(t)) → \(p.route.rawValue)") }
@@ -408,9 +387,7 @@ MainActor.assumeIsolated {
         case .none: log("treatment NOT deleted: \(TreatmentPaths.notAllowed)")
         }
     }
-    status.onUploadNow = { uploader.retry() }
     status.treatmentsChanged()
-    uploader.kick()
 
     DistributedNotificationCenter.default().addObserver(forName: debugNote, object: nil, queue: .main) { n in
         MainActor.assumeIsolated {
@@ -435,11 +412,10 @@ MainActor.assumeIsolated {
                 t.u = max(Treatment.nowMs(), t.u + 1)
                 treatments.upsertLocal(t)
             case "delete": treatments.delete(id)
-            case "upload": uploader.retry()
             case "unfollow": following.unfollow()
             case "follow": following.join(o["link"] as? String ?? "", name: o["name"] as? String ?? FollowUI.computerName)
             case "follow-status": log("debug v2 \(following.statusLine)")
-            case "v2-treat":       // writer test: publish only, never touches the local log / LibreView uploader
+            case "v2-treat":       // writer test: publish only, never touches the local log
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
                                   t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
                 log("debug v2-treat \(following.node?.publishTreatment(t) == true ? "sent" : "NOT sent (not a writer)")")
@@ -449,9 +425,8 @@ MainActor.assumeIsolated {
                 log("debug readings written")
             case "dump":
                 for t in treatments.rows {
-                    log("debug row \(t.dict) status=\(TreatmentPaths.status(of: t, store: treatments, lvOn: uploader.enabled))")
+                    log("debug row \(t.dict) status=\(TreatmentPaths.status(of: t, store: treatments))")
                 }
-                log("debug \(uploader.statusLine)")
             default: break
             }
         }

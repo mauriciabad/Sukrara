@@ -11,7 +11,6 @@ import android.content.IntentFilter
 import android.os.PowerManager
 import android.util.Log
 import app.mauri.sukrara.bridge.Bridge
-import app.mauri.sukrara.bridge.MacLink
 import app.mauri.sukrara.bridge.LocalServers
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.FeatureState
@@ -34,13 +33,12 @@ import org.json.JSONObject
 
 /**
  * The wearer's local features around the owner engine, all driven by [Live] (no polling of their own):
- * status-bar notification (chip + icon), legacy Mac GATT link, Garmin xDrip server, LibreView uploader.
+ * status-bar notification (chip + icon), Garmin xDrip server, LibreView uploader.
  * Each one follows its [Features] switch live.
  */
 class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, private val detail: () -> String) : Live.Listener {
     private val tag = "Sukrara.wearer"
     private val nm = ctx.getSystemService(NotificationManager::class.java)
-    private val mac = MacLink(ctx)
     /** Garmin (17580, if free) + Nightscout API (17581) over the wearer's readings; same files as before (`garmin-*`). */
     private val local by lazy {
         LocalServers(ctx, "garmin", { Features.value.source == "juggluco" }, { Treat.store.all() }, "Sukrara")
@@ -68,9 +66,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
             var old = Features.value
             Features.state.collect { f -> if (f != old) { val o = old; old = f; apply(o, f) } }
         }
-        jobs += scope.launch { mac.status.collect { s ->
-            Live.status.update { it.copy(macRunning = s.running, macAdvertising = s.advertising, macSubscribed = s.subscribed, macError = s.error) }
-        } }
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
@@ -90,14 +85,12 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs.clear()
         if (Live.listener === this) Live.listener = null
         runCatching { ctx.unregisterReceiver(screen) }
-        mac.stop()
         local.stop()
         RootStatusBar.stop(ctx)
     }
 
     /** Apply switches; [old] == null on start. */
     private fun apply(old: FeatureState?, f: FeatureState) {
-        if (old == null || old.macBle != f.macBle) { if (f.macBle) mac.start() else mac.stop() }
         local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
@@ -112,7 +105,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
     override fun onReading(r: Reading) {
         val b = Bridge.Reading(r.t, r.sgv, r.rate)
         local.add(b)
-        if (Features.value.macBle) mac.onReading(b)
         render(force = false)
         SukraraHooks.onReadings(ctx, listOf(r), "reading")
     }
@@ -120,7 +112,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
     override fun onHistory(list: List<Reading>) {
         val b = list.sortedBy { it.t }.map { Bridge.Reading(it.t, it.sgv, it.rate) }
         b.forEach { local.add(it) }
-        mac.onHistory(b)
         render(force = false)
         SukraraHooks.onReadings(ctx, list, "history")
     }

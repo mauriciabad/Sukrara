@@ -62,8 +62,7 @@ data class Treatment(
 val TreatmentJson = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
 /**
- * The phone's treatment log. Every accepted change gets the next [seq], which is what the Mac's
- * pull cursor follows (SPEC §2) — so sync never depends on the two clocks agreeing.
+ * The phone's treatment log. Every accepted change gets the next [seq].
  */
 class TreatmentStore(private val file: File, val origin: String = "phone") {
     @Serializable private data class Row(val s: Long, val tr: Treatment)
@@ -77,8 +76,8 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
     val items = MutableStateFlow<List<Treatment>>(emptyList())
 
     /**
-     * Called (outside the lock) for every accepted change, with its new seq. Several listeners: the legacy Mac link
-     * (SPEC §2) and the owner engine's Nostr/BLE publisher (SPEC §5) each add their own and remove it on stop.
+     * Called (outside the lock) for every accepted change, with its new seq: the owner engine's Nostr/BLE publisher
+     * (SPEC §5) adds its listener and removes it on stop.
      */
     val onChange = java.util.concurrent.CopyOnWriteArrayList<(Treatment, Long) -> Unit>()
 
@@ -92,23 +91,11 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
 
     fun all(): List<Treatment> = synchronized(this) { rows.values.map { it.tr } }
 
-    fun since(cursor: Long): List<Pair<Long, Treatment>> = synchronized(this) {
-        rows.values.filter { it.s > cursor }.sortedBy { it.s }.map { it.s to it.tr }
-    }
-
     /** The row for [id] with its seq, or null. */
     fun entry(id: String): Pair<Long, Treatment>? = synchronized(this) { rows[id]?.let { it.s to it.tr } }
 
     /** Merge a record from elsewhere (a follower or Mac over v2). Returns the stored result if anything changed. */
     fun merge(inc: Treatment): Treatment? = apply(inc.id) { cur -> Treatment.merge(cur, inc) }
-
-    /**
-     * Only the LibreView watermark of [inc], for a row we hold at the same or a newer version: never new entries or
-     * content (the legacy Mac link, read-only for entries). Returns the stored result if `lv` moved.
-     */
-    fun mergeWatermark(inc: Treatment): Treatment? = apply(inc.id) { cur ->
-        if (cur == null || inc.u > cur.u || inc.lv <= cur.lv) cur else cur.copy(lv = inc.lv)
-    }
 
     fun add(kind: String, amount: Double, at: Long, note: String = ""): Treatment {
         require(kind in Treatment.KINDS)

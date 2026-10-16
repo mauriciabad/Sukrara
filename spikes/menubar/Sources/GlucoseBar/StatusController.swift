@@ -38,14 +38,12 @@ final class StatusController: NSObject, NSMenuDelegate {
     var treatments: (() -> [Treatment])?
     var onLogTreatment: ((Treatment) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
-    var onUploadNow: (() -> Void)?
-    var libreViewStatus: (() -> String)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
     /// Per-entry delivery status ("BT ✓ · v2 accepted ✓ · LV ⇡") and its long form for the row's submenu.
     var treatmentStatus: ((Treatment) -> String)?
     var treatmentDetails: ((Treatment) -> [String])?
-    private let treatmentsHeader = NSMenuItem(), lvLine = NSMenuItem()
+    private let treatmentsHeader = NSMenuItem()
     private var treatmentItems: [NSMenuItem] = [], pathItems: [NSMenuItem] = []
     private var logItem: NSMenuItem?
 
@@ -69,13 +67,11 @@ final class StatusController: NSObject, NSMenuDelegate {
         followLine.isHidden = true
         menu.addItem(followLine)
         menu.addItem(.separator())
-        for line in [treatmentsHeader, lvLine] { line.isEnabled = false }
+        treatmentsHeader.isEnabled = false
         let log = menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l")
         log.target = self
         logItem = log
         menu.addItem(treatmentsHeader)
-        menu.addItem(lvLine)
-        menu.addItem(withTitle: "Upload to LibreView now", action: #selector(uploadNow), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Follow someone…", action: #selector(follow), keyEquivalent: "f").target = self
         menu.addItem(withTitle: "Follow from QR image…", action: #selector(followQR), keyEquivalent: "").target = self
@@ -194,11 +190,10 @@ final class StatusController: NSObject, NSMenuDelegate {
         pathItems.forEach(menu.removeItem)
         pathItems = []
         let hidden = treatments == nil
-        for i in menu.items where i.action == #selector(logTreatment) || i.action == #selector(uploadNow) { i.isHidden = hidden }
+        for i in menu.items where i.action == #selector(logTreatment) { i.isHidden = hidden }
         treatmentsHeader.isHidden = hidden
-        lvLine.isHidden = hidden
         guard let rows = treatments?() else { return }
-        // Where a new entry goes: v2 (as a roster writer), else the legacy link if the phone accepts entries over it.
+        // Where a new entry goes: v2 (as a roster writer), else nowhere (local when following no one).
         let paths = treatmentPaths?() ?? TreatmentPaths()
         logItem?.isEnabled = paths.canLog
         logItem?.title = "Log treatment…"
@@ -216,7 +211,6 @@ final class StatusController: NSObject, NSMenuDelegate {
         let since = Int64(Date().timeIntervalSince1970) - 24 * 3600
         let recent = rows.filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
         treatmentsHeader.title = recent.isEmpty ? "No treatments in the last 24 h" : "Treatments (24 h)"
-        lvLine.title = libreViewStatus?() ?? ""
         var at = menu.index(of: treatmentsHeader) + 1
         for t in recent {
             let state = treatmentStatus?(t) ?? ""
@@ -254,7 +248,6 @@ final class StatusController: NSObject, NSMenuDelegate {
         return "\(time)  \(what)\(note)"
     }
 
-    @objc private func uploadNow() { onUploadNow?() }
 
     @objc private func deleteTreatment(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }

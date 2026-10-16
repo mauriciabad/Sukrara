@@ -17,7 +17,7 @@ import kotlinx.coroutines.cancel
 
 /**
  * The wearer's one foreground service (one process): owner engine (Nostr + Bluetooth followers) and the local
- * features ([WearerExtras]: status bar, legacy Mac link, Garmin server, LibreView). Its notification IS the glucose
+ * features ([WearerExtras]: status bar, Garmin server, LibreView). Its notification IS the glucose
  * notification (Live Update chip + number icon), so the status bar costs no extra post.
  *
  * connectedDevice (not dataSync: capped at 6 h/day on 15+); no polling: work is driven by the glucose source.

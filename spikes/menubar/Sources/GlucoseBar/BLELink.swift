@@ -5,11 +5,11 @@ import CoreBluetooth
 import Foundation
 
 /// One Bluetooth path on top of `BLELink`: a GATT service on the phone and the protocol spoken over it
-/// (`BLEBridgeSource` = the legacy GlucoBridge link `6c1f0001-…`, `BLEV2Central` = protocol v2 `7c6a0001-…`).
+/// (`BLEV2Central` = protocol v2 `7c6a0001-…`).
 protocol BLEService: AnyObject {
     var uuid: CBUUID { get }
     var characteristics: [CBUUID] { get }
-    var name: String { get }                       // for logs: "legacy", "v2"
+    var name: String { get }                       // for logs: "v2"
     /// No notification for this long while attached → `silent()` (the link itself is dropped if *nothing* arrives).
     var silenceLimit: TimeInterval { get }
     /// Characteristics discovered on a connected phone: subscribe, start the protocol.
@@ -23,19 +23,14 @@ protocol BLEService: AnyObject {
     func silent()
 }
 
-/// The Mac's one CoreBluetooth central for every Bluetooth path (gap audit, NEXT §2 "legacy + v2 conflict").
-///
-/// Sukrara for Android serves both GATT services from one GATT database but advertises each from its own
-/// advertising set, i.e. from two different private addresses. Two `CBCentralManager`s (the old design) saw two
-/// peripherals and opened two connections to the same phone; the second one often never completed (the CoreBluetooth
-/// "stale identifier" problem in docs/07). Here there is **one connection per phone carrying both services**:
+/// The Mac's CoreBluetooth central for its Bluetooth path(s), today only protocol v2:
 ///   - scan for the services of every path that has no link yet; connects are serialised (one in flight, 25 s timeout,
-///     an identifier that timed out is skipped for 60 s so the phone's other advertisement gets a chance);
-///   - after connecting, discover *every* registered service and attach each waiting path that the phone serves;
+///     an identifier that timed out is skipped for 60 s);
+///   - after connecting, discover the registered services and attach each waiting path that the phone serves;
 ///   - a path that still waits first looks at the links we already hold (and at peripherals the system has already
 ///     connected, `retrieveConnectedPeripherals`) before scanning, so it never opens a second link to the same phone;
-///   - a path can be released for a while (v2: another wearer's phone, or no pairing offered) without dropping the
-///     link the other path uses; the link is closed only when no path is attached;
+///   - a path can be released for a while (v2: another wearer's phone, or no pairing offered); the link is closed
+///     when no path is attached;
 ///   - watchdog: a link with no notification at all for 150 s is dropped (CoreBluetooth sometimes keeps a dead link
 ///     "connected"); a single silent path on a live link is only asked to restart itself.
 final class BLELink: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {

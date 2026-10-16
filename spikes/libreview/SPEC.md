@@ -58,12 +58,8 @@ reset: set cursor 0 and pull again. The phone also notifies a `rec` for every ch
 writers', `lv` updates).
 The Mac stores `dev` and uses it as its LibreView DeviceId (so both apps are one LibreView device).
 
-**Who may write** (Sukrara, investigation 10): the link is unauthenticated, so the phone can't tell one Mac from
-another and the per-follower "Can add entries" (roster `writers`, §5) can't apply to it. The link is read-only for
-entries: Sukrara for Android refuses every `rec` that adds an entry or changes one (`u` newer than its own copy,
-deletes included) with ATT error `0x03`. A `rec` for a row the phone holds with `u` ≤ the phone's is taken, but only
-its `lv` (LibreView watermark sync). Sukrara for Mac sends its entries over protocol v2 when it is a roster writer
-(signed by its key) and otherwise disables "Log treatment…"; over this link it writes only `lv` watermarks.
+GlucoBridge (investigation 04) only. Sukrara doesn't use this link (removed in v0.10.9): its Macs follow over
+protocol v2 and sync treatments as in §5.
 
 ## 3. LibreView (impersonates the FreeStyle Libre 3 Android app, like Juggluco's `newlibre3.cpp`)
 

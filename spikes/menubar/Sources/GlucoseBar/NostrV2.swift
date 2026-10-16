@@ -321,7 +321,6 @@ struct FollowerV2State: Codable {
     func publishTreatment(_ t: Treatment) -> Bool {
         guard canWrite, let sid = st.sid, let (_, G) = epochKeys.values.max(by: { $0.n < $1.n }) else { return false }
         var body = t.dict
-        body.removeValue(forKey: "lv")                     // local upload bookkeeping, not part of §1
         body["v"] = 1                                      // PROTOCOL-v2 "Treatments"
         // created_at strictly increasing per (author, d): relays drop a same-second replacement (an edit or delete
         // right after the entry would otherwise be lost).
@@ -520,10 +519,9 @@ struct FollowerV2State: Codable {
         guard treatmentAuthors.contains(author) else { return reject("treatment author not a roster writer or device", id) }
         guard let plain = try? nip44Decrypt(secretKey: G.secretKey(), publicKey: ev.author(), payload: ev.content()),
               let body = try? JSONSerialization.jsonObject(with: Data(plain.utf8)) as? [String: Any],
-              var t = Treatment(dict: body) else { return reject("treatment decrypt/parse failed", id) }
+              let t = Treatment(dict: body) else { return reject("treatment decrypt/parse failed", id) }
         guard dTag == V2.treatmentD(sid, t.id) else { return reject("treatment d tag doesn't match its id", id) }
         guard Treatment.kinds.contains(t.k) else { return reject("treatment kind \(t.k) unknown", id) }
-        t.lv = 0                                             // never trusted from the wire (SPEC §5: no "lv")
         accepted += 1
         let fromWearer = st.devices.contains(author)
         log("v2 treatment \(t.k) \(t.id.prefix(8)) u \(t.u)\(t.del ? " (deleted)" : "") from \(fromWearer ? "wearer" : "writer \(author.prefix(8))") via \(via)")

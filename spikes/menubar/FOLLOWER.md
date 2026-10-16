@@ -34,30 +34,21 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   stays there), "No glucose data" after 20 min; readings older than 15 min (backfill) never alarm. Time-sensitive
   `UNUserNotificationCenter` notifications (macOS asks once for permission). Menu: "Alarms (low 65 · high 185 · no
   data 20 min)" checkmark, default on (`defaults write app.mauri.sukrara.poc alarms -bool NO`). They run on the merged
-  data, so they also fire when the Mac reads the phone over the legacy link.
+  data, whichever path delivered them.
 
 ## One Bluetooth link, treatments over v2, writer gating (2026-10-16, later)
 
-- **One link per phone** (`BLELink.swift`): one `CBCentralManager` for both Bluetooth paths. Sukrara for Android
-  serves the legacy service (`6c1f0001-…`, glucose + SPEC §2 treatment sync) and v2 (`7c6a0001-…`) from one GATT
-  database but advertises them from two private addresses, so two centrals opened two connections to the same phone
-  and the second one timed out (gap audit). Now the Mac connects once, discovers both services and attaches both
-  paths; connects are serialised (25 s timeout, that address skipped 60 s); a waiting path first checks the links it
-  already has and `retrieveConnectedPeripherals`; v2 "leave this phone" (another wearer / no pairing) only
-  unsubscribes v2, the link stays for legacy. Kept both paths (not "drop legacy when v2 is paired"): the legacy
-  sync is the one that carries `lv` and the LibreView DeviceId (SPEC §2) and needs no writer permission. It is
-  read-only for entries: entries made here go over v2 only.
-  Real phone: `evidence/n-ble-one-link.log` (both paths on Tartaruga within 2 s, legacy readings every minute,
-  v2 INFO on the same link, no second connection).
+- **One link per phone** (`BLELink.swift`): one `CBCentralManager`; connects are serialised (25 s timeout, that
+  address skipped 60 s); a waiting path first checks the links it already has and `retrieveConnectedPeripherals`.
+  (It carried the legacy GlucoBridge service too until v0.10.9, when that link was removed from both apps.)
 - **Treatments for the follower** (SPEC §5, PROTOCOL-v2 "Treatments"): `#c` subscription from roster writers ∪
   devices (30 d); accepted iff valid signature, author ∈ writers ∪ devices, known `gk`, decrypts, `d` matches the id,
-  known kind; merged (§1 LWW, by id) into the same `TreatmentStore` as the legacy sync, so the menu and the chart
-  show one log. Rows learned only over v2 are never uploaded to LibreView by the Mac (`lv` isn't on the wire).
+  known kind; merged (§1 LWW, by id) into the `TreatmentStore` with this Mac's own entries, so the menu and the
+  chart show one log. The phone uploads to LibreView; the Mac doesn't.
 - **Writer gating**: "Log treatment…" lists where an entry goes — "→ wearer over Sukrara sharing (v2) · allowed" or
-  "✕ … the wearer hasn't allowed this Mac to add entries" (then it's disabled); the Bluetooth link line says it is
-  read-only. With no phone at all (no Bluetooth, not following) entries stay on this Mac. Per entry: `v2 sending… →
-  sent → accepted ✓` (wearer's device key echoes the id with u ≥ ours) or `v2 not accepted yet` (no echo after
-  2 min), `LV ⇡/✓`; details in the row's submenu.
+  "✕ … the wearer hasn't allowed this Mac to add entries" (then it's disabled). Following no one, entries stay on
+  this Mac. Per entry: `v2 sending… → sent → accepted ✓` (wearer's device key echoes the id with u ≥ ours) or
+  `v2 not accepted yet` (no echo after 2 min); details in the row's submenu.
 - **Chart**: insulin (rapid = filled blue triangle, long = outlined indigo) with "4.5U" along the top, carbs
   (amber dot, "30g") along the bottom, notes as a dashed grey line — `evidence/n-menu-treatments.png`
   (`Sukrara -menuPreview out.png`). The macOS widget views draw the same (`evidence/n-widget-*.png`).

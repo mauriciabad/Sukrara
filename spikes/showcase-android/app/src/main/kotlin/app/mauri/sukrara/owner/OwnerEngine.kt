@@ -365,7 +365,7 @@ class OwnerEngine(private val ctx: Context) {
 
     // ============================================================================================ treatments → followers
 
-    /** Every change of the merged log (phone, Mac legacy link, accepted writer entries, deletes) → followers. */
+    /** Every change of the merged log (phone, accepted writer entries, deletes) → followers. */
     private val onTreatmentChange: (Treatment, Long) -> Unit = { tr, _ ->
         // a LibreView upload only moves `lv`, which isn't on the wire: nothing new for followers
         scope.launch(serial) {

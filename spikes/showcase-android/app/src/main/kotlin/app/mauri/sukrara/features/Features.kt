@@ -23,8 +23,6 @@ data class FeatureState(
     val nostrIntervalMin: Int = 0,
     /** Bluetooth followers: the v2 GATT service (7c6a0001-…), same events as the relays. */
     val bleFollowers: Boolean = true,
-    /** Legacy Mac link: GlucoBridge's GATT service 6c1f0001-… (READING / HISTORY / TREATMENTS) for GlucoseBar. */
-    val macBle: Boolean = true,
     /** Status bar: Live Update chip (promoted ongoing notification). */
     val chip: Boolean = true,
     /** Status bar: the notification small icon is the number itself (bitmap). */
@@ -66,7 +64,7 @@ data class FeatureState(
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
-        .put("bleFollowers", bleFollowers).put("macBle", macBle)
+        .put("bleFollowers", bleFollowers)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
         .put("hideNotifIcon", hideNotifIcon)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
@@ -91,7 +89,6 @@ object Features {
             nostr = p.getBoolean("nostr", d.nostr),
             nostrIntervalMin = p.getInt("nostrInterval", d.nostrIntervalMin),
             bleFollowers = p.getBoolean("bleFollowers", d.bleFollowers),
-            macBle = p.getBoolean("macBle", d.macBle),
             chip = p.getBoolean("chip", d.chip),
             icon = p.getBoolean("icon", d.icon),
             hook = p.getBoolean("hook", d.hook),
@@ -120,7 +117,7 @@ object Features {
         }
         prefs?.edit()?.apply {
             putString("source", s.source); putBoolean("nostr", s.nostr); putInt("nostrInterval", s.nostrIntervalMin)
-            putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
+            putBoolean("bleFollowers", s.bleFollowers)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
             putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
             putBoolean("hideNotifIcon", s.hideNotifIcon)

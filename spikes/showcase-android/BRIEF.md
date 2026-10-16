@@ -16,7 +16,6 @@ from scratch later. Optimise for: works reliably, sensible defaults, clear UI, l
 |---|---|---|
 | Glucose from **Juggluco** (127.0.0.1:17580, SSE `/x/live`) | `spikes/glucobridge-android` (juggluco flavor), docs/01 | **ON** (keeps Juggluco's alarms) |
 | Glucose **directly from the Libre 3** (no Juggluco) | glucobridge `direct` flavor, docs/02 | opt-in toggle with a clear warning ("Juggluco must be stopped; its alarms stop") |
-| **Mac link over BLE** (same GATT service `6c1f0001-…` so GlucoseBar works unchanged; READING/HISTORY/TREATMENTS) | glucobridge-android, docs/01, docs/04 | ON |
 | **Status bar**: Live Update chip + glucose bitmap notification icon (+ system icons / LSPosed hook only if cheap) | `spikes/statusbar-android`, docs/05 | chip + icon ON |
 | **Treatments** (insulin/carbs/notes) + **LibreView upload** | glucobridge (TreatmentStore, LibreView uploader), `spikes/libreview/SPEC.md`, docs/04 | **OFF until the user sets it up** |
 | **Sharing over Nostr** (wearer + follower roles, QR invite + match code, revoke, password-manager backup/restore) | `spikes/nostr/android-app` (CGM Share), PROTOCOL-v2, docs/06 | wearer role publishes; follower role available |

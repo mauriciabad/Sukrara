@@ -197,9 +197,8 @@ Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (S
 **Share** (copy the `https://sukrara.mauri.app/join#…` link, or *Copy Mac link* for the `cgmshare:` form; both work),
 then in the menubar **Follow someone…**, paste, and Allow on the phone. On the Mac, the link's web page also has an
 **Open in Sukrara** button. Nearby pairing over
-Bluetooth works the same way with a match code. (The Mac also picks up the phone's older, unencrypted Bluetooth link
-with no setup. It is read-only: entries from the Mac go only over the encrypted path. Turn it off in the phone's
-Settings → Mac once you follow over the encrypted path.)
+Bluetooth works the same way with a match code. Following is the only way the Mac gets glucose from Sukrara for
+Android (Juggluco's web server on the same network also works).
 
 ## Repository layout
 

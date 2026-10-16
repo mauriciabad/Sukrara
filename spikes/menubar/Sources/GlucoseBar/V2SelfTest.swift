@@ -122,7 +122,7 @@ enum V2SelfTest {
         let wearerCarbs = Treatment(k: "carbs", a: 30, t: now - 600, o: "phone")
         node.onEvent(tr(D, wearerCarbs), via: "test")
         check("treatment from the wearer's device key accepted (fromWearer)", got.last.map { $0.0.id == wearerCarbs.id && $0.1 } ?? false)
-        check("…merged into the store, v2-only (not this Mac's to upload)", store.row(wearerCarbs.id)?.a == 30 && store.isV2Only(wearerCarbs.id))
+        check("…merged into the store", store.row(wearerCarbs.id)?.a == 30)
         let writerNote = Treatment(k: "note", a: 0, t: now - 300, n: "walk", o: "follower")
         node.onEvent(tr(W, writerNote), via: "test")
         check("treatment from a roster writer accepted (not fromWearer)", got.last.map { $0.0.id == writerNote.id && !$0.1 } ?? false)
@@ -165,11 +165,6 @@ enum V2SelfTest {
         var gone = writerNote; gone.del = true; gone.u += 10
         node.onEvent(tr(D, gone), via: "test")
         check("tombstone from the wearer deletes the row", store.row(writerNote.id)?.del == true)
-
-        // LibreView (SPEC §5): rows learned only over v2 are the phone's to upload, the Mac's own are due at once
-        let lv = LibreViewUploader(store: store)
-        let due = Set(lv.due(now: Date().addingTimeInterval(3600)).map(\.id))
-        check("LibreView: v2-only rows never due on the Mac, own entry due", !due.contains(wearerCarbs.id) && due.contains(mine.id))
 
         // Writer removed from the roster → may not write any more
         node.onEvent(roster(writers: [W]), via: "test")

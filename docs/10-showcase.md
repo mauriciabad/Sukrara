@@ -19,7 +19,6 @@ wearer, with Juggluco as the source.** Checked on the phone at 09:05–09:17:
 | Status bar: Live Update chip + number as the notification icon | **ON** | notification flags `PROMOTED_ONGOING`, `MetricStyle`, bitmap icon 96×96 ([dump](../spikes/showcase-android/evidence/phone-statusbar-notification.txt)) |
 | Sharing over Nostr (v2: live + hourly chunks, roster, owner backup) | **ON**, every reading | 25 chunks + live events published. **GlucoseBar paired over Nostr** (match code 4096 on both sides, approved) and shows live values ~1 s after the phone |
 | Bluetooth followers (v2 GATT `7c6a0001-…`) | **ON** | GlucoseBar (v2) connected over BLE, got `INFO`, the backlog chunk and live readings `via ble:Tartaruga` |
-| Mac link for today's GlucoseBar (legacy GATT `6c1f0001-…`, READING/HISTORY/TREATMENTS) | **ON** | GlucoseBar: `[Bluetooth · GlucoBridge] 105 mg/dL … latency 30 s` then ~0 s; treatment sync started |
 | Garmin watch server (xDrip+-compatible, `127.0.0.1:17580`) | **ON** | Port taken by Juggluco, as expected: Juggluco keeps serving the watch. On the emulator (no Juggluco) it listens. **In the follower role it serves the followed person** (emulator: `/sgv.json` returned the phone's values) |
 | Treatments (insulin / carbs / notes) | available | emulator: logged "2.5 U rapid · breakfast" |
 | LibreView upload | **OFF** (setup screen) | never enabled, nothing posted |
@@ -64,8 +63,8 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `owner/`, `follower/`, `core/` | CGM Share (06, 07) | v2 engines, relays, BLE transport, password-manager backup, QR, alarms. `OwnerEngine` now follows the feature switches (Nostr on/off + interval, BLE on/off, source) |
 | `wearer/` | new | `Live`: the one glucose fan-out. `WearerExtras`: status bar, Mac link, Garmin + Nightscout API, LibreView, follower treatments → shared log. `follower/FollowerExtras` (gap audit): the same widgets, status bar and local servers fed by the follower DB |
 | `status/` | statusbar-android (05) | `GlucoseNotification`: chip + number icon on the service's **only** notification |
-| `bridge/` | glucobridge (01, 04, 08), nostr (03) | `MacLink` (legacy GATT service, now a class instead of a service), `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
-| `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1/§2 sync with the Mac), LibreView uploader, gated by `Features.libreview` |
+| `bridge/` | glucobridge (01, 04, 08), nostr (03) | `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
+| `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1; followers and Macs over v2, §5), LibreView uploader, gated by `Features.libreview` |
 | `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
 | `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off). `RecentHistory`: the last 8 h in memory, read from the role's own store (`owner.db` + `treatments.json`, or `follower.db`) — no copy on disk. `SukraraHooks` feeds it from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). Trend arrow, range colours, staleness and age text come from `core/Glucose.kt`, shared with the status bar, system icons and the SystemUI hook; the widgets use the status bar's `sb_t*` arrows. `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
@@ -79,8 +78,8 @@ Changes from the source spikes:
 - **Invites are App Links**: `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…`, with an `autoVerify` filter on
   https/`sukrara.mauri.app`/`/join`. `cgmshare:join?…` is still accepted (deep link, scanner, paste). Sukrara for Mac
   now accepts both forms (gap audit); the share screen keeps a **"Copy cgmshare: link (older Mac builds)"** button.
-- Follower treatments (v2 writers) are merged into the shared treatment log, so they reach the Mac (legacy link)
-  and LibreView (if enabled).
+- Follower treatments (v2 writers) are merged into the shared treatment log, so they reach the Mac (v2) and
+  LibreView (if enabled).
 
 ## Daily use
 
@@ -96,8 +95,8 @@ Changes from the source spikes:
    The link opens the app directly (verified App Link), or `https://sukrara.mauri.app/join/` if the app isn't
    installed. The wearer checks the 4-digit code and taps *Allow*. **Nearby**: *Pair nearby* (10 min), and the
    follower picks the phone from the list.
-5. **Mac (Sukrara for Mac, `spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: works with no setup through the
-   legacy Bluetooth service. To follow end-to-end encrypted over Nostr + BLE instead: Share → *Copy link* (the
+5. **Mac (Sukrara for Mac, `spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: follows end-to-end encrypted over
+   Nostr + BLE like any follower: Share → *Copy link* (the
    `https://sukrara.mauri.app/join#…` link or the `cgmshare:` one) → Sukrara for Mac → *Follow someone…* → paste →
    Allow on the phone. Low / high / no-data alarms on the Mac too. The old GlucoseBar follow state is migrated once.
    Details: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
@@ -141,7 +140,6 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nostrInterval` | `--ei` minutes 0–240 | 0 | 0 = a live event per reading + a chunk every 5 min. N = no live events to relays, one chunk batch every N min (BLE followers still get live) |
 | `libreview` | `--ez` | false | arms the LibreView uploader. **It still needs a saved login.** Don't use it on the real account |
 | `libreviewInterval` | `--ei` minutes 1–240 | 5 | LibreView cycle |
-| `macBle` | `--ez` | true | legacy Mac GATT server + advertising (LOW_POWER, stops while a Mac is subscribed) |
 | `bleFollowers` | `--ez` | true | v2 GATT server + advertising (BALANCED) |
 | `chip` | `--ez` | true | Live Update chip (promoted notification). Off = colorized ongoing notification |
 | `icon` | `--ez` | true | number as the small icon (off = Sukrara glyph) |
@@ -189,14 +187,6 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 
 ## Known issues
 
-- ~~**Sukrara for Mac (was GlucoseBar) with both Bluetooth paths at once**~~ **Fixed in polish round 2** (one
-  connection per phone carrying both services, see below). Original report: with the legacy link and the v2 link both on, the Mac's second
-  connection to the same phone timed out repeatedly (the CoreBluetooth "stale identifier" problem from docs/07).
-  Each path works alone: legacy (09:06), and v2 after a GlucoseBar restart with `macBle` off (09:14). After the 09:29
-  update, v2 live readings arrived `via ble:` again. The Nostr path always worked. Fix on the Mac side: one connection carrying both services, or drop the legacy source once
-  v2 is the default. Until then, the Mac gets its values over Nostr plus whichever BLE link connects first.
-- **The legacy Mac link is unencrypted** (as in GlucoBridge): anyone nearby can read the current value and history.
-  Turn it off (Settings → Mac) once GlucoseBar follows over v2.
 - On a fresh install the wearer has to allow Live Updates once (the button in Settings). The emulator (API 36)
   doesn't show the chip.
 - Settings writes and the receiver's reply are asynchronous: the `runtime` part of the reply can be one step behind
@@ -285,23 +275,14 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - **Writer gating.** "Add entry" only when the follower's key is in the roster `writers`; otherwise "The wearer
   hasn't allowed you to add entries". Own entries show *sending → sent → accepted* (the wearer's device key echoes
   the same id) or *not accepted yet* after 2 min ([follower screens](../spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
-  **The phone enforces it for Macs too** (user bug report: the Mac could add entries over the unauthenticated legacy
-  link with "Can add entries" off). The legacy link is read-only for entries: a Mac adds entries only over v2, as a
-  roster writer; the phone refuses new entries and content changes over the legacy link (ATT error, `REJECTED` in
-  logcat). It can't tell Macs apart, so there is no switch for it; `lv`-only updates still sync for LibreView. The
-  Mac disables "Log treatment…" with the reason when it isn't a writer. SPEC §2 "Who may write"; Mac debug commands
-  `-debugsend '{"cmd":"log"|"remove"|"paths"}'` ([phone log](../spikes/showcase-android/evidence/n6-phone-logcat.txt)).
-  (The earlier *Accept entries over the unencrypted Mac link* switch was removed: no backwards compatibility in
-  this repo, only the v2 path stays.)
+  **Macs too**: a Mac adds entries only over v2, as a roster writer, and disables "Log treatment…" with the reason
+  when it isn't one. Mac debug commands `-debugsend '{"cmd":"log"|"remove"|"paths"}'`.
 - **Treatments in every chart**: home chart (both roles), the 3 widgets (read from the role's treatment store, so
   they survive a restart), the Live Update graph, the Mac menu chart and the macOS widget
   views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
   (text in the app chart only). The range band is now 65–185, the same thresholds as the line colours.
 - **Home screen**: value card → 12 h chart directly below, above the fold down to 360×640 dp, the rest below
   ([wearer](../spikes/showcase-android/evidence/n5-home-wearer.png), [follower](../spikes/showcase-android/evidence/n5-home-follower-small-phone.png)).
-- **Sukrara for Mac, one Bluetooth link.** The phone advertises its two services from different private addresses,
-  so the Mac's two centrals opened two connections and the second timed out. Now one central and one connection per
-  phone carry both paths (serialised connects). Legacy stays: it's the only path with LibreView `lv` sync.
 - **Thin history**, **Home Assistant** and the Garmin state label: see Known issues and the gap audit.
 - **Hide Sukrara's notification icon** (root): see "Root status bar".
 - **Animations** (`ui/Motion.kt`): M3 shared-axis screen transitions with **predictive back** (NavigationEvent +
@@ -323,6 +304,9 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - **v0.10.7** (Android only): the graphs' y-axis fits the readings (see the end of that section).
 - **v0.10.8** (Android only): the graph widgets are no longer squashed vertically (the launcher's near-duplicate
   sizes; confirmed by the user from the test-square screenshots).
+- **v0.10.9**: the legacy Mac link (GATT `6c1f0001-…`, Settings → Mac → *Legacy Mac link*) is gone from both apps.
+  Sukrara for Mac gets readings and treatments only over v2 (Nostr + BLE) and no longer uploads to LibreView: its
+  entries reach the phone over v2 and the phone uploads the merged log. No backwards compatibility in this repo.
 
 ### Widgets: the launcher's reported size is wrong (v0.10.6)
 
@@ -461,7 +445,7 @@ Value/effort: H/M/L.
 
 | Inv. | Proven capability | Android | Mac | Gap | Value / effort | Status |
 |---|---|---|---|---|---|---|
-| 01 | Juggluco → phone → Mac over BLE (legacy GATT), Mac offline | yes (`MacLink`) | yes | none | | ok |
+| 01 | Juggluco → phone → Mac over BLE, Mac offline | yes (v2 GATT) | yes (v2) | none | | ok |
 | 01 | Mac reads Juggluco over Wi-Fi | n/a | yes | none | | ok |
 | 01/02 | Mac reads the Libre 3 itself | no | no | decided against (fallback only, docs/01) | L / H | won't do |
 | 02 | Phone reads the sensor itself (no Juggluco) | compiled, off | n/a | never run inside Sukrara | H / M (needs the user to give up Juggluco's alarms for a while) | open, user decision |
@@ -472,7 +456,7 @@ Value/effort: H/M/L.
 | 03 | HA add-on as always-on follower / "no data" watchdog | no | no | separate product | M / H | out of scope |
 | 03 | Tier 2 upload endpoint (xDrip+/AAPS → Sukrara) | no | no | not built anywhere | M / M | open |
 | 04 | Phone → LibreView (treatments + glucose) | yes, off | yes | real-account run is the user's call | M / L | ok (off by design) |
-| 04 | Treatments sync phone ↔ Mac (legacy BLE) | yes | yes | legacy is read-only for Mac entries; they go over v2 | | ok |
+| 04 | Treatments sync phone ↔ Mac | yes (v2) | yes (v2) | the phone uploads Mac entries to LibreView; the Mac doesn't upload | | ok |
 | 04/07 | Followers add treatments (v2 writers) | yes | yes (send only) | — | | ok |
 | 07 | **Followers see treatments** | no (follower drops the treatment chunk) | no (v2) | decode `treatmentsC` chunks, show in the 12 h chart / list, serve in the follower's Nightscout API | M / M | **done** (polish round 2, Android + Mac) |
 | 05 | Live Update chip + number icon | yes (wearer) | n/a | follower had a plain text notification | **M / L** | **done**: follower gets the same chip/icon with the followed value |
@@ -484,7 +468,6 @@ Value/effort: H/M/L.
 | 06 | Follower alarms low / high / no data | yes | **no** | Mac had none | **H / L** | **done** (Mac `Alarms.swift`, same thresholds; not yet seen firing) |
 | 06/07 | Follower survives reboot / app update | wearer only | n/a | `FollowerService` never restarted | **H / L** | **done** (`StartReceiver` for both roles; verified on update) |
 | 07 | BLE followers + nearby pairing | yes | yes | — | | ok |
-| 07 | Mac with legacy + v2 BLE at once | — | second connection times out | one central for both services, or drop legacy | M / M | **done** (polish round 2: one connection, both paths) |
 | 07 | GATT abuse limits, `INFO` privacy gating | no | — | — | M / M | open |
 | 08 | Garmin via the xDrip+ server | wearer, only if 17580 is free | n/a | a follower phone (e.g. a parent with a Garmin) couldn't serve the watch | M / L | **done**: follower serves 17580 |
 | 08 | Own watch app / push via Connect IQ | no | n/a | next spike | H / H | out of scope |

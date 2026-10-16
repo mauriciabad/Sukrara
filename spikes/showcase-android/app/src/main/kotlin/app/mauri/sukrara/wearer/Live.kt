@@ -14,10 +14,6 @@ data class WearerStatus(
     val last: Reading? = null,
     val source: String = "not started",
     val sourceError: String? = null,
-    val macRunning: Boolean = false,
-    val macAdvertising: Boolean = false,
-    val macSubscribed: Int = 0,
-    val macError: String? = null,
     // Until a role's LocalServers applies the switches (e.g. the DebugReceiver woke the process before the service
     // started): not "off", which reads as "switched off" or "left to Juggluco" gone wrong.
     val garmin: String = "not started",
@@ -32,7 +28,6 @@ data class WearerStatus(
     fun toJson(): JSONObject = JSONObject()
         .put("last", last?.let { JSONObject().put("t", it.t).put("sgv", it.sgv).put("rate", it.rate ?: JSONObject.NULL) } ?: JSONObject.NULL)
         .put("sourceState", source).put("sourceError", sourceError ?: JSONObject.NULL)
-        .put("macRunning", macRunning).put("macAdvertising", macAdvertising).put("macSubscribed", macSubscribed)
         .put("garminState", garmin).put("nightscoutState", nightscout).put("watchPolledAt", watchPolledAt / 1000)
         .put("libreviewState", libreview)
         .put("notificationPosts", notificationPosts).put("notificationSkipped", notificationSkipped).put("screenOn", screenOn)
@@ -40,7 +35,7 @@ data class WearerStatus(
 
 /**
  * The single glucose fan-out of the wearer role: the owner engine's source feeds it, and the local features
- * (status bar, legacy Mac link, Garmin server, LibreView) listen. Process-wide, set by [WearerExtras].
+ * (status bar, Garmin server, LibreView) listen. Process-wide, set by [WearerExtras].
  */
 object Live {
     interface Listener {

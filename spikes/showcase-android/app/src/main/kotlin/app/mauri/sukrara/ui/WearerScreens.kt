@@ -70,13 +70,6 @@ fun WearerSummary() {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             fun on(b: Boolean) = if (b) "on" else "off"
             Text("Status bar: chip ${on(f.chip)} · number icon ${on(f.icon)}", style = MaterialTheme.typography.bodySmall)
-            Text("Mac link (Sukrara for Mac, legacy): " + when {
-                !f.macBle -> "off"
-                st.macError != null -> st.macError!!
-                st.macSubscribed > 0 -> "${st.macSubscribed} Mac connected"
-                st.macAdvertising -> "advertising"
-                else -> "starting"
-            }, style = MaterialTheme.typography.bodySmall)
             Text("Nostr: ${if (!f.nostr) "off" else if (f.nostrIntervalMin == 0) "every reading" else "every ${f.nostrIntervalMin} min"} · " +
                 "Bluetooth followers ${on(f.bleFollowers)}", style = MaterialTheme.typography.bodySmall)
             Text("Garmin: ${st.garmin}" + (if (st.watchPolledAt > 0) " · watch asked ${sinceText(st.watchPolledAt / 1000)}" else ""),
@@ -194,13 +187,6 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
             set { it.copy(bleFollowers = v) }
         }
 
-        SectionTitle("Mac")
-        Toggle("Legacy Mac link (Sukrara for Mac, unencrypted Bluetooth)", f.macBle,
-            sub = "Unencrypted value + history + the treatment log (read-only), like GlucoBridge. Status: " +
-                (st.macError ?: if (st.macSubscribed > 0) "${st.macSubscribed} connected" else if (st.macAdvertising) "advertising" else "idle")) { v ->
-            set { it.copy(macBle = v) }
-        }
-
         SectionTitle("Status bar")
         Toggle("Live Update chip", f.chip, sub = "The number next to the clock (Android 16+)") { v -> set { it.copy(chip = v) } }
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -235,7 +221,7 @@ fun SettingsScreen(onSensor: () -> Unit, onBack: () -> Unit) {
 
 private val LABEL = mapOf("rapid" to "Rapid", "long" to "Long", "carbs" to "Carbs", "note" to "Note")
 
-/** Investigation 04: log insulin / carbs / notes (synced with the Mac over the legacy link) + the LibreView setup. */
+/** Investigation 04: log insulin / carbs / notes (followers and Macs get them over v2) + the LibreView setup. */
 @Composable
 fun TreatmentsScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
