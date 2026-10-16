@@ -36,6 +36,16 @@ object RootStatusBar {
     /** One thread: the daemon's stdin/stdout protocol is strictly request → reply. */
     private val io = Executors.newSingleThreadExecutor()
     @Volatile var state: String = "off"; private set
+
+    /** Whether `su` works for Sukrara (KernelSU grant). null = not checked yet. Checked off the main thread. */
+    val root = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+
+    fun checkRoot() = io.execute {
+        root.value = runCatching {
+            val p = ProcessBuilder("su", "-c", "id -u").redirectErrorStream(true).start()
+            p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && p.inputStream.bufferedReader().readText().trim() == "0"
+        }.getOrDefault(false)
+    }
     @Volatile private var last: Reading? = null
 
     private var proc: Process? = null

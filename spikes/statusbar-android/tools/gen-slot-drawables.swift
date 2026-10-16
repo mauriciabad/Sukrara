@@ -19,8 +19,9 @@ let outDir = URL(fileURLWithPath: args[2])
 // Geometry in dp. SystemUI scales system icons to status_bar_system_icon_size (15dp on Pixel)
 // by height and lays them out at their intrinsic width, so wide drawables keep their width.
 let iconH = 15.0
-let digitH = 10.6         // cap height of the digits, close to the 14sp clock
+let digitH = 12.4         // cap height of the digits: measured on the phone to match the clock (27 px)
 let gap = 0.15            // extra tracking between glyphs
+let outer = 1.0           // padding left of the number and right of the arrow: the pair reads as one unit
 let minMgdl = 40, maxMgdl = 400
 
 let descs = CTFontManagerCreateFontDescriptorsFromURL(URL(fileURLWithPath: args[1]) as CFURL) as! [CTFontDescriptor]
@@ -78,7 +79,7 @@ func word(_ text: String) -> String {
         paths.append(svg(ch, x: x))
         x += advance(ch) + gap
     }
-    return vector(width: maxX - minX, paths: [], shift: -minX, raw: paths)
+    return vector(width: maxX - minX + outer, paths: [], shift: outer - minX, raw: paths)
 }
 
 func vector(width: Double, paths: [String], shift: Double = 0, raw: [String] = []) -> String {
@@ -109,21 +110,21 @@ write("sb_lo", word("LO"))
 write("sb_hi", word("HI"))
 print("123 is \(fmt(advance("1") + advance("2") + advance("3")))dp wide")
 
-// Trend: same unit arrow as the Mac (TrendArrow.swift), drawn in a square icon.
-let a = iconH, cx = a / 2, k = a * 0.92
-// One arrow per 5° from straight up (-90°) to straight down (+90°): sb_t00 … sb_t36, plus double arrows.
-func rotated(_ deg: Double, _ paths: [(Double, Double)]...) -> [String] {
+// Trend: same unit arrow as the Mac (TrendArrow.swift). Each angle's drawable is only as wide as the arrow (plus
+// [outer] on the right), so it sits close to the number instead of in a padded square.
+let a = iconH, cy = a / 2, k = a * 0.92
+func arrow(_ deg: Double, _ polys: [(Double, Double)]...) -> String {
     let r = deg * .pi / 180
-    return paths.map { poly in
-        poly.map { (x, y) in (x * cos(r) - y * sin(r), x * sin(r) + y * cos(r)) }   // y down
-    }.map { pts in "M" + pts.map { "\(fmt(cx + $0.0 * k)),\(fmt(cx + $0.1 * k))" }.joined(separator: "L") + "Z" }
+    let pts = polys.map { $0.map { (x, y) in ((x * cos(r) - y * sin(r)) * k, (x * sin(r) + y * cos(r)) * k) } }   // y down
+    let minX = pts.flatMap { $0 }.map(\.0).min()!, maxX = pts.flatMap { $0 }.map(\.0).max()!
+    let paths = pts.map { p in "M" + p.map { "\(fmt($0.0 - minX)),\(fmt(cy + $0.1))" }.joined(separator: "L") + "Z" }
+    return vector(width: maxX - minX + outer, paths: paths)
 }
 let shaftPts = [(-0.42, -0.085), (0.25, -0.085), (0.25, 0.085), (-0.42, 0.085)]
 func headPts(_ tip: Double) -> [(Double, Double)] { [(tip, 0), (tip - 0.40, -0.30), (tip - 0.30, 0), (tip - 0.40, 0.30)] }
-for i in 0...36 {
-    write("sb_t\(String(format: "%02d", i))", vector(width: a, paths: rotated(Double(i * 5 - 90), shaftPts, headPts(0.46))))
-}
-write("sb_t_up2", vector(width: a, paths: rotated(-90, shaftPts, headPts(0.46), headPts(0.12))))
-write("sb_t_down2", vector(width: a, paths: rotated(90, shaftPts, headPts(0.46), headPts(0.12))))
+// One arrow per 5° from straight up (-90°) to straight down (+90°): sb_t00 … sb_t36, plus double arrows.
+for i in 0...36 { write("sb_t\(String(format: "%02d", i))", arrow(Double(i * 5 - 90), shaftPts, headPts(0.46))) }
+write("sb_t_up2", arrow(-90, shaftPts, headPts(0.46), headPts(0.12)))
+write("sb_t_down2", arrow(90, shaftPts, headPts(0.46), headPts(0.12)))
 let dr = 0.11 * k
-write("sb_t_none", vector(width: a, paths: ["M\(fmt(cx - dr)),\(fmt(cx))A\(fmt(dr)),\(fmt(dr)) 0 1,0 \(fmt(cx + dr)),\(fmt(cx))A\(fmt(dr)),\(fmt(dr)) 0 1,0 \(fmt(cx - dr)),\(fmt(cx))Z"]))
+write("sb_t_none", vector(width: 2 * dr + outer, paths: ["M0,\(fmt(cy))A\(fmt(dr)),\(fmt(dr)) 0 1,0 \(fmt(2 * dr)),\(fmt(cy))A\(fmt(dr)),\(fmt(dr)) 0 1,0 0,\(fmt(cy))Z"]))

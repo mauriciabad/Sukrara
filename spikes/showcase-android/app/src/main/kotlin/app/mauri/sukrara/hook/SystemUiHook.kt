@@ -60,6 +60,48 @@ class SystemUiHook : XposedModule() {
             }
         }
         safe("hook icon order") { hookIconOrder(cl) }
+        safe("hook icon tint") { hookIconTint(cl) }
+    }
+
+    /**
+     * Colour for the system-icon placements. SystemUI's Compose `StatusBarIcon` tints every icon with one colour
+     * filter and draws it with `Image(painter, contentDescription, …, colorFilter, …)`. Our icons are recognisable
+     * by their content description ("Glucose …", status/RootStatusBar), so for those the filter is swapped for the
+     * range colour (in range: SystemUI's own tint, like the other icons).
+     */
+    private fun hookIconTint(cl: ClassLoader) {
+        val image = cl.find("androidx.compose.foundation.ImageKt")?.declaredMethods?.firstOrNull {
+            it.name == "Image" && it.parameterCount == 10 && it.parameterTypes[1] == String::class.java &&
+                it.parameterTypes[6].name == "androidx.compose.ui.graphics.ColorFilter"
+        } ?: return log("no Compose Image(…, ColorFilter, …)")
+        val filterClass = cl.find("androidx.compose.ui.graphics.BlendModeColorFilter")
+            ?: return log("no Compose BlendModeColorFilter")
+        // StatusBarIcon creates a fresh filter object per draw, so recolour that object instead of building one
+        // (R8 left no usable constructor): its native filter lives in the base class ColorFilter.
+        val native = filterClass.superclass?.declaredFields?.firstOrNull { it.type == android.graphics.ColorFilter::class.java }
+            ?.apply { isAccessible = true } ?: return log("no ColorFilter.nativeColorFilter")
+        val colorField = runCatching { filterClass.getDeclaredField("color").apply { isAccessible = true } }.getOrNull()
+        hook(image).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+            val desc = chain.getArg(1) as? String
+            val filter = chain.getArg(6) as Any?
+            val color = if (desc != null && desc.startsWith("Glucose ") && filterClass.isInstance(filter)) iconColor() else null
+            if (color != null) runCatching {
+                native.set(filter, android.graphics.BlendModeColorFilter(color, android.graphics.BlendMode.SRC_IN))
+                // Compose's own copy of the colour (packed sRGB: ARGB in the high 32 bits), for equals()/toString().
+                colorField?.setLong(filter, (color.toLong() and 0xFFFFFFFFL) shl 32)
+            }
+            chain.proceed()
+        }
+        log("icon tint hook: ok")
+    }
+
+    /** Range colour for our system icons, or null to keep SystemUI's tint (off, in range, stale, other placements). */
+    private fun iconColor(): Int? {
+        val st = state
+        val r = st.reading ?: return null
+        if (!st.enabled || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
+        if (System.currentTimeMillis() / 1000 - r.t > GlucoseNotification.STALE_AFTER_S) return null
+        return Range.color(r.sgv)
     }
 
     /**
