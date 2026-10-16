@@ -25,7 +25,7 @@ the user's Apple ID?
 | Widget views | **Done**, rendered to PNG with `ImageRenderer` from the same SwiftUI code ([evidence](../spikes/widgets-macos/evidence/)) |
 | Data sharing host → sandboxed widget | Ad hoc: localhost HTTP, a `/Users/Shared` file and the widget's own container work, the App Group does not. **With a Team ID the team-prefixed App Group works too** (no provisioning profile) |
 | Refresh cadence the system honours | **Every reload, once a minute, for an hour**: 68 host reloads → 62 `getTimeline` per placed widget ([evidence](../spikes/widgets-macos/evidence/refresh-1h.log)) |
-| Same widget inside Sukrara for Mac | **Built and signed, but chronod purges it** (and, from ~17:24 on, every *newly added* third-party widget, an Xcode build included). Open, see [Regression](#open-chronod-now-purges-every-new-widget-extension) |
+| Same widget inside Sukrara for Mac | **Works** with the user's real readings via the App Group ([below](#sukrara-for-mac-hosts-the-widgets-works)) |
 
 So the CLI-only route stopped at one wall, signing, plus a hidden second one, the entry point (see [Resolved](#resolved-the-widgets-run)). Everything else (compiler, SDK, Swift
 Charts, bundle layout, Info.plist, entitlements, registration) works without Xcode. To make it run you need **an
@@ -165,35 +165,26 @@ on this Mac (CodexBar `Y5PE65HELJ`, BetterTouchTool `DAFVSXZ82P`) is **`teamIden
 comes from an Apple-issued certificate, so that is the requirement. (We can't read chronod's code, so the exact
 check is inferred; every variant without a Team ID failed.)
 
-## Open: chronod now purges every new widget extension
+## Sukrara for Mac hosts the widgets (works)
 
-The spike was accepted at 16:47 and ran until 17:55. The Sukrara build (same sources, `bundle.sh`, Team ID, App
-Group `QWUV9H4A3G.app.mauri.sukrara.poc`) was never accepted. From 17:24 on, chronod logs this for **every newly
-added** non-Apple widget extension:
+`bundle.sh` builds the same widget into `Sukrara.app/Contents/PlugIns/SukraraWidget.appex`. With the Team-ID
+build in `~/Applications`, the widgets show up under **Sukrara** in *Edit Widgets…*. Placed on the desktop
+(small, medium, extra large), they read the user's real readings from the App Group (`via=appgroup-api`, file age
+0 s) and redraw every minute with each new reading.
+
+**A misleading log line.** At install chronod logs, for every third-party widget extension:
 
 ```
-chronod [com.apple.chrono:descriptor] Queuing extension added events: app.mauri.sukrara.poc::app.mauri.sukrara.poc.widget
-chronod [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension …> - isApple? false
+Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension …> - isApple? false
 ```
 
-It never asks for descriptors, so nothing shows in the gallery. What was ruled out, each as a fresh bundle:
-
-| Tried | Result |
-|---|---|
-| Sukrara in the worktree (hidden `.claude/` path), then in `~/Applications` | purged |
-| Other `Sukrara.app` copies with the same id unregistered from LaunchServices | purged |
-| Host app with hardened runtime, `CFBundleVersion`, SDK 27 (`vtool`), min macOS 15; widget + `network.client` | purged |
-| `pluginkit -e use` (elected), host running vs not running, re-registering after a launch | purged |
-| Sukrara's appex inside a copy of the spike host; the spike's appex under new ids (`dev.spike.Test2…4`) | purged |
-| Appex linked with and without `_NSExtensionMain`; registered ad hoc first, then Team-ID | purged |
-| **A real Xcode build** (XcodeGen project `spikes/widgets-macos/xcode/`, automatic signing, personal team) | purged |
-| `killall chronod` (new process, same database) | purged |
-| Re-adding the **spike itself** after it had been unregistered at 17:55 | **purged** (it had worked for an hour) |
-
-Identical results for an Xcode build and for the spike itself point at system state, not at how the bundle is
-made. The certificate verifies (OCSP included), the ExtensionKit identity of every bundle reports
-`hasSandboxEntitlement = true` and the Team ID, and nothing was installed in the window (Xcode's packages went in
-at 16:42). The next step is a log-out/log-in or a restart, then adding the Sukrara widget again.
+This is **not a rejection**. chronod just doesn't preload descriptors for non-Apple extensions. It fetches them
+when a host asks, e.g. `Reloading descriptors for reason: "host requested: NotificationCenter"` when the user opens
+the widget gallery. The spike's 16:47 install happened to be fetched straight away. Later installs (Sukrara, test
+bundles, an XcodeGen build in `spikes/widgets-macos/xcode/`) only logged the purge, and that was read as a block
+for an hour of experiments. Likewise `Extension is not entitled to run in the App Sandbox` and `Ignoring
+restricted or unknown extension` keep appearing for extensions that work. **To check a widget, open *Edit
+Widgets…* and look, or look for `getTimeline` in the widget's log, not for chronod's install messages.**
 
 ## Data sharing (host app → sandboxed widget)
 
