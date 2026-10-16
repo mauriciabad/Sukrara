@@ -10,4 +10,6 @@
     android:targetCellHeight="1"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
-    android:widgetCategory="home_screen|keyguard" />
+    android:widgetCategory="home_screen|keyguard"
+    android:configure="app.mauri.sukrara.widgets.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

@@ -93,6 +93,7 @@ object GlucoseCard {
     fun draw(
         cv: Canvas, w: Float, h: Float, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: CardStyle, pal: GraphPalette, d: Float,
+        tirOf: (RingSpec, Bands) -> TimeInRange = { r, b -> GlucoseStats.timeInRange(readings, nowS - r.windowS, nowS, b) },
     ) {
         val latest = readings.maxByOrNull { it.t }
         val fr = Freshness.of(latest?.let { nowS - it.t })
@@ -109,7 +110,7 @@ object GlucoseCard {
 
         if (st.value) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
-            val ringsW = if (sideBySide) 0f else drawRings(cv, box, readings, nowS, st.rings, bands, pal, d)
+            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st.rings, bands, pal, d, tirOf)
             drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d)
         }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
@@ -124,8 +125,8 @@ object GlucoseCard {
     }
 
     /** Rings right-aligned in [box] (main rightmost); returns the width used. */
-    private fun drawRings(cv: Canvas, box: RectF, readings: List<Reading>, nowS: Long, rings: List<RingSpec>,
-                          bands: Bands, pal: GraphPalette, d: Float): Float {
+    private fun drawRings(cv: Canvas, box: RectF, rings: List<RingSpec>, bands: Bands, pal: GraphPalette, d: Float,
+                          tirOf: (RingSpec, Bands) -> TimeInRange): Float {
         if (rings.isEmpty()) return 0f
         val size = min(box.height() * 0.96f, 84 * d)
         if (size < 30 * d) return 0f
@@ -134,7 +135,7 @@ object GlucoseCard {
         var x = box.right
         var used = 0f
         for ((i, spec) in rings.take(fit).withIndex()) {
-            val tir = GlucoseStats.timeInRange(readings, nowS - spec.windowS, nowS, bands)
+            val tir = tirOf(spec, bands)
             if (tir.coverage < MIN_COVERAGE) continue
             TirRing.draw(cv, x - size / 2, box.centerY(), size / 2, tir, spec, pal, RING_EMPHASIS[i], d)
             x -= size + gap

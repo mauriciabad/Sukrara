@@ -107,6 +107,16 @@
             android:name=".features.DebugReceiver"
             android:exported="true"
             android:permission="android.permission.DUMP" />
+        <!-- investigation 16: one widget placement's own window / rings (touch & hold → Reconfigure) -->
+        <activity
+            android:name=".widgets.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <!-- investigation 12: home-screen widgets (Glance) -->
         <receiver
             android:name=".widgets.ValueWidgetReceiver"

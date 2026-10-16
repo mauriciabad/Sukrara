@@ -26,8 +26,9 @@ import kotlin.math.roundToInt
 /**
  * The single entry point the data layer calls: "something may have changed, refresh the widgets if needed".
  *
- * A widget only re-renders when what it shows changes: the latest reading, the minute of its age ("3 min ago"),
- * the treatments or the night mode (the graph bitmap has baked colours). While the screen is off nothing is rendered at all
+ * A widget only re-renders when what it shows changes: the latest reading, its freshness step
+ * ([app.mauri.sukrara.graph.Freshness]), the 5-min ring refresh, the treatments, the graph settings or the night mode
+ * (the bitmap has baked colours). While the screen is off nothing is rendered at all
  * (no launcher is showing it); the screen-on broadcast catches up with one render.
  */
 object WidgetUpdater {
@@ -71,7 +72,11 @@ object WidgetUpdater {
         val now = Proto.nowS()
         val latest = history.lastOrNull()
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${latest?.t}|${latest?.let { (now - it.t) / 60 }}|$night|${history.size}|${treatments.hashCode()}"
+        // Redraw for a new reading, a freshness step (late → stale → …), the 5-min ring refresh, theme, treatments or
+        // settings. A fresh card shows no age, so nothing ticks in between.
+        val fresh = latest?.let { app.mauri.sukrara.graph.Freshness.of(now - it.t) }
+        val key = "${latest?.t}|$fresh|${now / 300}|$night|${history.size}|${treatments.hashCode()}|" +
+            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock

@@ -146,7 +146,7 @@ fun LocalServersSection() {
 }
 
 @Composable
-fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onGraph: () -> Unit, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
@@ -160,6 +160,9 @@ fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onBack: () -> Uni
         SectionTitle("Alerts")
         val alerts by app.mauri.sukrara.alerts.Alerts.settings.collectAsState()
         AlertsRow(alerts, follower = false, onClick = onAlerts)
+
+        SectionTitle("Graph")
+        GraphRow(onGraph)
 
         SectionTitle("Glucose source")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

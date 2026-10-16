@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.features.FeatureState
@@ -77,6 +78,7 @@ object RootStatusBar {
             .putExtra("position", f.hookPosition)
             .putExtra("color", f.hookColor)
             .putExtra("hideIcon", f.hideNotifIcon)
+            .putExtra("low", Range.LOW).putExtra("high", Range.HIGH)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }

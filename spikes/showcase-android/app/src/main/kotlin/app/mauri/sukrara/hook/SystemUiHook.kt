@@ -291,6 +291,7 @@ class SystemUiHook : XposedModule() {
 
     private fun onUpdate(i: Intent) {
         val old = state
+        if (i.hasExtra("low")) Range.bands = app.mauri.sukrara.graph.Bands(low = i.getIntExtra("low", 70), high = i.getIntExtra("high", 180)).sane()
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,

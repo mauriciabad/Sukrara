@@ -122,7 +122,7 @@ object WidgetProbe {
         return if (portrait) sizes.minBy { it.width / it.height } else sizes.maxBy { it.width / it.height }
     }
 
-    private val GRAPH_RECEIVERS = listOf(GraphWidgetReceiver::class.java, CombinedWidgetReceiver::class.java)
+    private val GRAPH_RECEIVERS = listOf(ValueWidgetReceiver::class.java, GraphWidgetReceiver::class.java, CombinedWidgetReceiver::class.java)
 
     /** Called by [ProbeProvider] when the launcher loads a probe image. */
     internal fun answered(nonce: String, w: Float, h: Float) {

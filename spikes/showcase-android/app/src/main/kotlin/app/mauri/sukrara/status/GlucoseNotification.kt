@@ -26,12 +26,16 @@ import androidx.core.graphics.ColorUtils
 import app.mauri.sukrara.R
 import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Reading
-import app.mauri.sukrara.core.STALE_AFTER_S
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.MainActivity
-import app.mauri.sukrara.widgets.GraphRenderer
+import app.mauri.sukrara.graph.CardStyle
+import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.graph.systemPalette
+import androidx.core.graphics.createBitmap
 import app.mauri.sukrara.widgets.RecentHistory
-import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -48,8 +52,7 @@ import kotlin.math.min
 object GlucoseNotification {
     const val ID = 1
     const val CHANNEL = "glucose"
-    private const val GRAPH_HOURS = 3
-    private const val GRAPH_H_DP = 96f
+    private const val GRAPH_H_DP = 112f
 
     fun createChannel(c: Context) {
         val ch = NotificationChannel(CHANNEL, "Glucose (status bar)", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) }
@@ -69,12 +72,18 @@ object GlucoseNotification {
             return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle("Sukrara · waiting for glucose…")
                 .setContentText(detail).build()
         }
-        val age = System.currentTimeMillis() / 1000 - r.t
-        val stale = age > STALE_AFTER_S
-        val rate = r.rate?.let { "%+.1f mg/dL/min".format(it) } ?: "no trend"
-        val ageText = if (age < 90) "now" else "${age / 60} min ago"
+        val now = System.currentTimeMillis() / 1000
+        val fresh = Freshness.of(now - r.t)
+        val stale = fresh.strike || !fresh.showValue
+        // Investigation 16: no rate and no "time ago"; the reading's time only once it's late (Freshness).
+        if (!fresh.showValue) {
+            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle("No reading since ${Freshness.timeText(r.t, now)}")
+                .setContentText(detail).build()
+        }
+        val ageText = if (fresh.showTime) "at ${Freshness.timeText(r.t, now)}" else ""
+        val line = listOf(ageText, detail).filter { it.isNotEmpty() }.joinToString(" · ")
         b.setContentTitle("${r.sgv} mg/dL ${Trend.arrow(r.rate)}")
-            .setContentText("$rate · $ageText · $detail")
+            .setContentText(line)
             .setWhen(r.t * 1000)
             .setShowWhen(true)
         // Promoted ongoing is missing on some API 36 images (emulator: NoSuchMethodError) and the user can revoke it.
@@ -88,16 +97,17 @@ object GlucoseNotification {
                 // The expanded promoted card uses the title as its header line (no app name), so it's not the value.
                 b.setContentTitle(Trend.word(r.rate).replaceFirstChar { it.uppercase() } + " · " + detail)
                 b.setStyle(Notification.MetricStyle()
-                    // Labels are a third of the card width ("Glucose (mg/dL)" and "→ -0.5" got ellipsized on the
-                    // phone): the unit and the rate go in the labels, the values stay short.
+                    // Labels are a third of the card width ("Glucose (mg/dL)" got ellipsized on the phone): the unit
+                    // goes in the label, the values stay short. The reading's time only once it's late.
                     .addMetric(Notification.Metric(Notification.Metric.FixedInt(r.sgv), "mg/dL", semantic(r.sgv)))
-                    .addMetric(Notification.Metric(Notification.Metric.FixedText(Trend.arrow(r.rate)),
-                        r.rate?.let { "%+.1f/min".format(it) } ?: "no trend"))
-                    .addMetric(Notification.Metric(Notification.Metric.TimeDifference.forStopwatch(
-                        Instant.ofEpochSecond(r.t), Notification.Metric.TimeDifference.FORMAT_ADAPTIVE), "ago"))
+                    .addMetric(Notification.Metric(Notification.Metric.FixedText(Trend.arrow(r.rate)), "trend"))
+                    .apply {
+                        if (fresh.showTime) addMetric(Notification.Metric(Notification.Metric.FixedText(
+                            Freshness.timeText(r.t, now)), "reading"))
+                    }
                     .setCriticalMetric(0))
             } else {
-                b.setStyle(Notification.BigTextStyle().bigText("$rate · $ageText · $detail"))
+                b.setStyle(Notification.BigTextStyle().bigText(line))
             }
         } else {
             // Colorized foreground service: keeps the number icon first and shown although the channel is LOW (docs/05).
@@ -106,8 +116,8 @@ object GlucoseNotification {
                 .setColorized(true).setColor(bg)
                 .setShowWhen(false)   // the age is in the card; the header keeps only the icon and app name (system-drawn)
                 .setStyle(Notification.DecoratedCustomViewStyle())
-                .setCustomContentView(card(c, R.layout.notif_glucose_collapsed, r, stale, bg, "$rate · $ageText"))
-                .setCustomBigContentView(card(c, R.layout.notif_glucose_expanded, r, stale, bg, "$rate\n$ageText").apply {
+                .setCustomContentView(card(c, R.layout.notif_glucose_collapsed, r, stale, bg, ageText))
+                .setCustomBigContentView(card(c, R.layout.notif_glucose_expanded, r, stale, bg, ageText).apply {
                     graph(c, r)?.let { setImageViewBitmap(R.id.graph, it) }
                     setTextViewText(R.id.detail, detail)
                     setTextColor(R.id.detail, ColorUtils.setAlphaComponent(ink(bg), 0xB0))
@@ -138,15 +148,16 @@ object GlucoseNotification {
     private var graphKey = ""
 
     /**
-     * The last [GRAPH_HOURS] of [RecentHistory] (the role's own store), on a rounded surface so it reads on any
-     * range colour. Re-drawn only for a new reading / theme / 5-min tick, and not while the screen is off (the
+     * The graph card ([GlucoseCard], investigation 16; window = the notification's setting) over [RecentHistory] (the
+     * role's own store), on a rounded surface so it reads on any range colour. Re-drawn only for a new reading / theme / 5-min tick, and not while the screen is off (the
      * screen-on re-post brings a fresh one). Drawn at ≤ 2× density: ~600×190 px, ~0.45 MB.
      */
     @Synchronized
     private fun graph(c: Context, r: Reading): Bitmap? = runCatching {
         val now = System.currentTimeMillis() / 1000
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        val key = "${r.t}|${now / 300}|$night|${app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode()}"
+        val key = "${r.t}|${now / 300}|$night|${app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode()}|" +
+            "${GraphSettings.value.hashCode()}"
         val old = graphBmp
         if (old != null && (key == graphKey || !c.getSystemService(PowerManager::class.java).isInteractive)) return@runCatching old
         val dm = c.resources.displayMetrics
@@ -160,7 +171,13 @@ object GlucoseNotification {
         val history = RecentHistory.readings(c).let { h0 ->
             if (h0.lastOrNull()?.let { r.t - it.t < 30 } == true) h0 else h0 + r
         }
-        val plot = GraphRenderer.render(gc, history, now, w - 2 * pad, h - 2 * pad, GRAPH_HOURS)
+        val cfg = GraphSettings.value
+        val plot = createBitmap(w - 2 * pad, h - 2 * pad)
+        GlucoseCard.draw(Canvas(plot), plot.width.toFloat(), plot.height.toFloat(), history,
+            app.mauri.sukrara.treatments.TreatmentFeed.between(now - cfg.hours(GraphPlace.NOTIFICATION) * 3600L, now), now,
+            CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(c)),
+                rings = emptyList(), value = false),
+            systemPalette(gc, night == Configuration.UI_MODE_NIGHT_YES), d)
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         Canvas(out).apply {
             val surface = c.getColor(if (night == Configuration.UI_MODE_NIGHT_YES) android.R.color.system_surface_container_high_dark
@@ -176,7 +193,7 @@ object GlucoseNotification {
 
     private fun semantic(mgdl: Int) = when {
         Range.color(mgdl) == null -> Notification.SEMANTIC_STYLE_SAFE
-        mgdl < Range.LOW || mgdl > Range.HIGH -> Notification.SEMANTIC_STYLE_DANGER
+        mgdl < Range.LOW -> Notification.SEMANTIC_STYLE_DANGER
         else -> Notification.SEMANTIC_STYLE_CAUTION
     }
 

@@ -253,7 +253,9 @@ class MainActivity : ComponentActivity() {
                             "Your followers get the change at once. New invites show it to the person you invite.",
                             actions::saveProfile) { screen = "home" }
                     }
-                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }, onAlerts = { screen = "alerts" }) { screen = "home" } }
+                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }, onAlerts = { screen = "alerts" },
+                        onGraph = { screen = "graph" }) { screen = "home" } }
+                    "graph" -> Page { GraphScreen { screen = "settings" } }
                     "alerts" -> Page { AlertsScreen(follower = false) { screen = "settings" } }
                     "sensor" -> Page { SensorScreen { screen = "home" } }
                     "treatments" -> Page { TreatmentsScreen { screen = "home" } }
@@ -301,6 +303,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun openAlerts() { screen = "alerts" }
+                override fun openGraph() { screen = "graph" }
                 override fun setTestUnfiltered(on: Boolean) { engine.setTestUnfiltered(on) }
                 override fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = engine.scanNearby(onFound)
                 override fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile) {
@@ -324,6 +327,7 @@ class MainActivity : ComponentActivity() {
                 else -> ScreenHost(screen, home = "home", onBack = { screen = "home" }) { sc ->
                     when (sc) {
                         "alerts" -> Page { AlertsScreen(follower = true) { screen = "home" } }
+                        "graph" -> Page { GraphScreen { screen = "home" } }
                         "profile" -> Page {
                             ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
                                 "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile) { screen = "home" }

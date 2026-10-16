@@ -76,19 +76,23 @@ object Trend {
     )
 }
 
-/** The user's personal thresholds (same as the Mac app and brand.json). */
+/**
+ * The user's major ranges (investigation 16, [app.mauri.sukrara.graph.GraphSettings]): below range = red, above =
+ * orange, in range = the surface's own colour. Set by [app.mauri.sukrara.graph.GraphSettings]; the SystemUI hook gets
+ * them in its state broadcast.
+ */
 object Range {
-    const val LOW = 65
-    const val SLIGHTLY_HIGH = 145
-    const val HIGH = 185
+    @Volatile var bands = app.mauri.sukrara.graph.Bands()
+    val LOW get() = bands.low
+    val HIGH get() = bands.high
 
     val RED = Color.rgb(0xFF, 0x45, 0x3A)
     val ORANGE = Color.rgb(0xFF, 0x9F, 0x0A)
 
     /** null = in range, draw with the surface's default colour. */
     fun color(mgdl: Int): Int? = when {
-        mgdl < LOW || mgdl > HIGH -> RED
-        mgdl > SLIGHTLY_HIGH -> ORANGE
+        mgdl < LOW -> RED
+        mgdl > HIGH -> ORANGE
         else -> null
     }
 }

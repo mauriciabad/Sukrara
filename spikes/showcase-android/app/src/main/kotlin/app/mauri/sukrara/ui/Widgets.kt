@@ -44,16 +44,30 @@ import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import android.graphics.RectF
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.RelayStats
+import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.GlucoseGraph
+import app.mauri.sukrara.graph.GraphData
+import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.graph.RingSpec
+import app.mauri.sukrara.graph.TimeInRange
+import app.mauri.sukrara.graph.TirRing
+import app.mauri.sukrara.graph.systemPalette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import app.mauri.sukrara.treatments.TreatmentFeed
 import app.mauri.sukrara.treatments.TreatmentMarks
 import kotlinx.coroutines.delay
-
-val InRange = Color(0xFF2E7D32)
-val High = Color(0xFFEF6C00)
-val Low = Color(0xFFC62828)
-
-fun glucoseColor(sgv: Int, low: Int, high: Int) = when { sgv <= low -> Low; sgv >= high -> High; else -> InRange }
 
 /** Seconds since epoch, refreshed every [everyMs] while composed. */
 @Composable
@@ -61,12 +75,6 @@ fun nowSeconds(everyMs: Long = 10_000): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis() / 1000; delay(everyMs) } }
     return now
-}
-
-fun ago(s: Long): String = when {
-    s < 90 -> "${s.coerceAtLeast(0)} s ago"
-    s < 5400 -> "${s / 60} min ago"
-    else -> "${s / 3600} h ${(s % 3600) / 60} min ago"
 }
 
 /**
@@ -95,83 +103,77 @@ fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(5
     }
 }
 
-@Composable
-fun BigGlucose(sgv: Int?, rate: Double?, t: Long?, low: Int, high: Int, subtitle: String? = null) {
-    val now = nowSeconds()
-    val stale = t != null && now - t > 15 * 60
-    // range / stale colour cross-fades; the number rolls digit by digit (Motion.kt)
-    val color by animateColorAsState(if (sgv == null || stale) MaterialTheme.colorScheme.outline else glucoseColor(sgv, low, high),
-        Motion.slowEffectsSpec(), label = "range")
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RollingNumber(sgv?.toString() ?: "–", color, 72.sp, FontWeight.Bold)
-                Column {
-                    if (sgv != null) TrendArrow(rate, color)
-                    Text("mg/dL", style = MaterialTheme.typography.labelLarge)
-                }
-            }
-            val rateTxt = rate?.let { "%+.1f mg/dL/min".format(it) } ?: "trend unknown"
-            Text(if (t != null) "${ago(now - t)} · $rateTxt" else "no reading yet",
-                color = if (stale) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        }
-    }
-}
-
 /**
- * 12 h chart: dots coloured by range, dashed low/high lines, hour grid. [points] = (t, sgv). Treatments of the active
- * role ([TreatmentFeed]) along the bottom, same markers as the widgets ([TreatmentMarks]), notes with a short text.
+ * The home screen's glucose panel (investigation 16), the same picture as the widgets and the notification: value +
+ * trend arrow, the time-in-range rings, and the chart with the time-in-range side profile. The value follows
+ * [Freshness]: no age while fresh, the reading's time once late, struck through when stale, gone when old; no chart
+ * at all when very old. The number rolls and the arrow turns like before (Motion.kt); everything else is drawn by
+ * [GlucoseGraph] / [TirRing].
  */
 @Composable
-fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int = 12) {
-    val now = nowSeconds(60_000)
-    val grid = MaterialTheme.colorScheme.outlineVariant
-    val label = MaterialTheme.colorScheme.onSurfaceVariant
-    val background = MaterialTheme.colorScheme.background.toArgb()
+fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
+    val ctx = LocalContext.current
+    val now = nowSeconds()
+    val cfg by GraphSettings.state.collectAsState()
     val dark = isSystemInDarkTheme()
+    val pal = remember(dark) { systemPalette(ctx, dark) }
     val treatments by TreatmentFeed.items.collectAsState()
-    // Scale and range lines glide to new values; a new reading grows in (once per reading, no redraw loop).
-    val m = Motion
-    val yMax by animateFloatAsState(maxOf(300f, (points.maxOfOrNull { it.second } ?: 0) + 10f), m.slowEffectsSpec(), label = "yMax")
-    val lowY by animateFloatAsState(low.toFloat(), m.slowEffectsSpec(), label = "low")
-    val highY by animateFloatAsState(high.toFloat(), m.slowEffectsSpec(), label = "high")
-    val newest = points.maxOfOrNull { it.first }
-    val seen = remember { longArrayOf(newest ?: Long.MAX_VALUE, Long.MAX_VALUE) }   // [newest seen, reveal readings after]
-    if (newest != null && (seen[0] == Long.MAX_VALUE || newest < seen[0])) seen[0] = newest
-    else if (newest != null && newest > seen[0]) { seen[1] = seen[0]; seen[0] = newest }
-    val revealAfter = seen[1]
-    val reveal = remember(revealAfter) { Animatable(if (revealAfter == Long.MAX_VALUE) 1f else 0f) }
-    LaunchedEffect(reveal) { reveal.animateTo(1f, m.slowSpatialSpec()) }
-    Column {
-        Canvas(Modifier.fillMaxWidth().height(180.dp)) {
-            val from = now - hours * 3600
-            val yMin = 40f
-            fun x(t: Long) = ((t - from).toFloat() / (hours * 3600)) * size.width
-            fun y(v: Float) = size.height - (v - yMin) / (yMax - yMin) * size.height
-            for (k in 0..hours) {
-                val t = from - Math.floorMod(from, 3600L) + k * 3600
-                if (t >= from) drawLine(grid, Offset(x(t), 0f), Offset(x(t), size.height), strokeWidth = 1f)
-            }
-            val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
-            drawLine(Low, Offset(0f, y(lowY)), Offset(size.width, y(lowY)), strokeWidth = 2f, pathEffect = dash)
-            drawLine(High, Offset(0f, y(highY)), Offset(size.width, y(highY)), strokeWidth = 2f, pathEffect = dash)
-            val grow = reveal.value
-            points.filter { it.first >= from }.forEach { (t, v) ->
-                val fresh = t > revealAfter
-                drawCircle(glucoseColor(v, low, high), radius = if (fresh) 3.5f * grow.coerceAtLeast(0f) else 3.5f,
-                    center = Offset(x(t), y(v.toFloat())), alpha = if (fresh) grow.coerceIn(0f, 1f) else 1f)
-            }
-            drawIntoCanvas {
-                TreatmentMarks.draw(it.nativeCanvas, treatments.filter { tr -> tr.t in from..now }, { t -> x(t) },
-                    0f, size.width, size.height, density, dark, textDp = 10f, noteChars = 14, rows = 3, top = 0f, halo = background)
-            }
-            drawRect(grid, style = Stroke(1f))
+    val fresh = Freshness.of(t?.let { now - it })
+    val hours = cfg.hours(GraphPlace.APP)
+    // History for the chart and the rings: from the role's store, again for every new reading / setting / 5 min.
+    val history by produceState(emptyList<Reading>(), t, hours, now / 300) {
+        value = withContext(Dispatchers.IO) { GraphData.readings(ctx, Proto.nowS() - hours * 3600L - 60) }
+    }
+    val rings by produceState(emptyList<Pair<RingSpec, TimeInRange>>(), t, cfg, now / 300) {
+        value = withContext(Dispatchers.IO) {
+            cfg.rings().map { it to GraphData.tir(ctx, it.windowS, cfg.bands) }.filter { it.second.coverage >= GlucoseCard.MIN_COVERAGE }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("-${hours} h", style = MaterialTheme.typography.labelSmall, color = label)
-            Text("${points.count { it.first >= now - hours * 3600 }} readings", style = MaterialTheme.typography.labelSmall, color = label)
-            Text("now", style = MaterialTheme.typography.labelSmall, color = label)
+    }
+    val color by animateColorAsState(
+        when {
+            sgv == null || fresh.strike -> MaterialTheme.colorScheme.outline
+            else -> Color(pal.of(cfg.bands.of(sgv)))
+        }, Motion.slowEffectsSpec(), label = "range")
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (sgv != null && fresh.showValue) {
+                    Box {
+                        RollingNumber("$sgv", color, 72.sp, FontWeight.Bold)
+                        if (fresh.strike) Canvas(Modifier.matchParentSize()) {
+                            drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    if (!fresh.strike) TrendArrow(rate, color)
+                    if (fresh.showTime && t != null) Text(Freshness.timeText(t, now), Modifier.padding(start = 8.dp),
+                        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text(if (t == null) "No readings yet" else "No reading since\n${Freshness.timeText(t, now)}",
+                        style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.weight(1f))
+                for (idx in rings.indices.reversed()) {   // main ring rightmost
+                    val (s2, t2) = rings[idx]
+                    Canvas(Modifier.padding(start = 8.dp).size(68.dp)) {
+                        drawIntoCanvas {
+                            TirRing.draw(it.nativeCanvas, size.width / 2, size.height / 2, size.minDimension / 2, t2, s2, pal,
+                                floatArrayOf(1f, 0.55f, 0.35f)[idx], density)
+                        }
+                    }
+                }
+            }
+            if (fresh.showGraph) {
+                Spacer(Modifier.height(8.dp))
+                val st = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx))
+                Canvas(Modifier.fillMaxWidth().height(210.dp)) {
+                    drawIntoCanvas {
+                        GlucoseGraph.draw(it.nativeCanvas, RectF(0f, 0f, size.width, size.height), history,
+                            treatments.filter { tr -> tr.t >= now - hours * 3600L }, now, st, pal, density)
+                    }
+                }
+            }
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }

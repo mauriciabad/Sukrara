@@ -19,7 +19,7 @@ import app.mauri.sukrara.treatments.Treatment
  * has written the reading to `owner.db`.
  */
 object RecentHistory {
-    const val KEEP_S = 8 * 3600L
+    const val KEEP_S = 24 * 3600L
 
     private var readings: List<Reading>? = null
     private var treatments: List<Treatment>? = null

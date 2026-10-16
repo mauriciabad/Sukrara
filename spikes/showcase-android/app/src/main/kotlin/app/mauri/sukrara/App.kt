@@ -20,6 +20,7 @@ class App : Application() {
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
+        app.mauri.sukrara.graph.GraphSettings.init(this)
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
         // The debug-exported CMD/DUMP receivers of CGM Share are gone: headless commands now go through the
@@ -35,6 +36,7 @@ class App : Application() {
         fun setRole(ctx: Context, role: String?) {
             ctx.getSharedPreferences("role", Context.MODE_PRIVATE).edit().putString("role", role).apply()
             app.mauri.sukrara.widgets.RecentHistory.reload()   // the widgets read the new role's store
+            app.mauri.sukrara.graph.GraphData.reload()
         }
 
         fun owner(ctx: Context): OwnerEngine {

@@ -63,6 +63,7 @@ interface FollowerActions {
     fun editProfile()
     fun leave()
     fun openAlerts()
+    fun openGraph()
     fun setTestUnfiltered(on: Boolean)
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit)
     fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile)
@@ -177,7 +178,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         }
         val l = u.last
         val noData = u.status == "active" && (l == null || now - l.t >= alerts.cfg(app.mauri.sukrara.alerts.Kind.NO_DATA).value * 60)
-        BigGlucose(l?.sgv, l?.rate, l?.t, u.low, u.high,
+        GlucosePanel(l?.sgv, l?.rate, l?.t,
             subtitle = l?.let { "via ${it.via.removePrefix("relay:")} · key epoch ${it.epoch}" })
         RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
             Text("No data for $it min", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -187,9 +188,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Approved — fetching history…")
             }
         }
-        // The value and the 12 h chart are the screen's main content: both above the fold, everything else below.
-        SectionTitle("Last 12 h")
-        GlucoseChart(u.chart.map { it.t to it.sgv }, u.low, u.high)
+        // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FollowerEntries(u)
             // item 1: only a roster writer may add entries; follows the newest roster live (cross-fades when it changes)
@@ -202,6 +201,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
 
         SectionTitle("Alerts")
         AlertsRow(alerts, follower = true, onClick = a::openAlerts)
+        GraphRow(a::openGraph)
 
         // Widgets and the status-bar chip follow this person too (FollowerExtras); local servers serve their values.
         LocalServersSection()
