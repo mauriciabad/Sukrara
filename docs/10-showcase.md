@@ -143,7 +143,8 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `bleFollowers` | `--ez` | true | v2 GATT server + advertising (BALANCED) |
 | `chip` | `--ez` | true | Live Update chip (promoted notification). Off = colorized ongoing notification |
 | `icon` | `--ez` | true | number as the small icon (off = Sukrara glyph) |
-| `hook` | `--ez` | false | root status bar on (Settings: "Value in the status bar (root)") |
+| `hook` | `--ez` | false | root status bar on (Settings: "Value in the status bar") |
+| `hookColor` | `--ez` | true | colour by range (module only); off = like the clock / System UI's tint |
 | `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — `slot:` works with root alone; with the module they're coloured by range and `slot:wifi` etc. moves them right after that icon |
 | `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
 | `previewSgv`, `previewRate` | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading |
@@ -224,8 +225,16 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 Ported from `spikes/statusbar-android` (GlucoStatus): `status/RootStatusBar.kt` (driven from
 `WearerExtras.render()`), `status/SlotDaemon.kt` (root helper via `app_process`), `hook/SystemUiHook.kt` (libxposed
 API 102 module, `resources/META-INF/xposed/`), the 403 `sb_*` drawables (kept from resource shrinking by
-`res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar: one switch
-"Value in the status bar (root)" + placement chips, all marked with a root icon and disabled until `su` works for
+`res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar follows the Android settings guidelines
+([pattern](https://developer.android.com/design/ui/mobile/guides/patterns/settings),
+[AOSP](https://source.android.com/docs/core/settings/settings-guidelines)): the switch "Value in the status bar"
+(disabled with "Unavailable: needs root…" until `su` works), then its dependents, which stay visible and disabled
+with a reason while it's off: "Colour by range" and "Placement" (current value as summary; radio buttons in a
+dialog, like a ListPreference). A footer below a divider explains the root/LSPosed requirements.
+
+![Status bar settings](img/sukrara-statusbar-settings.png) ![Placement dialog](img/sukrara-statusbar-settings-dialog.png)
+![Dependents disabled while the switch is off](img/sukrara-statusbar-settings-off.png)
+
 Sukrara. System-icon placements are coloured by range through a hook on System UI's Compose `Image` (our icons are
 recognised by their content description); the digits match the clock's height (27 px) and the arrow drawables are
 trimmed to their width. Verified on the phone (release, updated in place): system icons `on (ok)`, module

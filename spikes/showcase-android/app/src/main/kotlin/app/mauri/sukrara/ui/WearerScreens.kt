@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import app.mauri.sukrara.features.HookPosition
@@ -100,17 +101,13 @@ private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub
     }
 }
 
-/** A single-choice settings row (radio button), greyed out as a whole when disabled. */
+/** A settings row that opens something (ListPreference-style): label + current value as summary. */
 @Composable
-private fun RadioRow(label: String, selected: Boolean, enabled: Boolean, sub: String? = null, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-        .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Spacer(Modifier.size(8.dp))
-        Column(Modifier.weight(1f).alpha(if (enabled) 1f else DISABLED_ALPHA)) {
-            Text(label)
-            sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-        }
+private fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 4.dp)
+        .alpha(if (enabled) 1f else DISABLED_ALPHA)) {
+        Text(label)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
     }
 }
 
@@ -200,7 +197,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }) { Text("Allow Live Updates for Sukrara") }
         }
         Toggle("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
-        Toggle("Don't refresh while the screen is off", f.screenOffSkip,
+        Toggle("Pause refreshes while the screen is off", f.screenOffSkip,
             sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
             set { it.copy(screenOffSkip = v) }
         }
@@ -302,10 +299,12 @@ fun TreatmentsScreen(onBack: () -> Unit) {
 }
 
 /**
- * Root status bar (investigation 05), following the Android settings pattern for dependent options: the main switch,
- * then options that stay visible but are disabled while it's off (or without root), and the placement as a
- * single-choice radio list. "System icons" works with root alone; the colour and the other placements come from the
- * Sukrara module in LSPosed (scope System UI).
+ * Root status bar (investigation 05), per the Android settings guidelines
+ * (developer.android.com/design/ui/mobile/guides/patterns/settings, source.android.com/docs/core/settings/settings-guidelines):
+ *  - dependent settings sit below the switch they depend on and are disabled (not hidden) while it's off, with a
+ *    brief reason ("Dependency"; AndroidX Preference `dependency`);
+ *  - summaries show the status, one line; the longer explanation goes in a footer below a divider;
+ *  - a single choice among several options is radio buttons in a dialog (ListPreference), never in the list.
  */
 @Composable
 private fun RootStatusBarSettings(f: FeatureState) {
@@ -313,33 +312,44 @@ private fun RootStatusBarSettings(f: FeatureState) {
     val root by rootBar.root.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { rootBar.checkRoot() }
     val ok = root == true
-    Toggle("Value in the status bar (root)", f.hook && ok, enabled = ok, sub = when (root) {
-        null -> "Checking root…"
-        false -> "Needs root: grant it to Sukrara in KernelSU."
-        true -> "Colour and most placements need the Sukrara module in LSPosed (scope System UI) and a System UI " +
-            "restart." + if (f.systemIcons) " · ${rootBar.state}" else ""
-    }) { v -> set { it.copy(hook = v) } }
     val on = ok && f.hook
-    Toggle("Colour by range", f.hookColor, enabled = on,
-        sub = "Low and high red, slightly high orange; in range like the clock") { v -> set { it.copy(hookColor = v) } }
-    Text("Placement", style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.padding(top = 8.dp).alpha(if (on) 1f else DISABLED_ALPHA))
-    Column(Modifier.selectableGroup()) {
-        for ((label, pos) in Features.HOOK_POSITIONS) {
-            RadioRow(label, selected = f.hookPosition == pos, enabled = on, sub = PLACEMENT_HELP[pos]) {
-                set { it.copy(hookPosition = pos) }
-            }
-        }
+    val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
+    var choosing by remember { mutableStateOf(false) }
+    val off = "Unavailable while the status bar value is off"
+
+    Toggle("Value in the status bar", f.hook && ok, enabled = ok, sub = when (root) {
+        null -> "Checking root…"
+        false -> "Unavailable: needs root for Sukrara (KernelSU)"
+        true -> if (f.hook) "On · $placement" else "Off"
+    }) { v -> set { it.copy(hook = v) } }
+    Toggle("Colour by range", f.hookColor, enabled = on, sub = if (on) null else off) { v -> set { it.copy(hookColor = v) } }
+    ValueRow("Placement", if (on) placement else off, enabled = on) { choosing = true }
+    HorizontalDivider()
+    Text("Uses root. Colour and every placement except \"With the system icons\" also need the Sukrara module " +
+        "enabled in LSPosed (scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+    if (choosing) {
+        // ListPreference: radio buttons in a dialog; choosing saves and closes, Cancel keeps the old value.
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { choosing = false },
+            title = { Text("Placement") },
+            text = {
+                Column(Modifier.selectableGroup()) {
+                    for ((label, pos) in Features.HOOK_POSITIONS) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                            .selectable(selected = f.hookPosition == pos, role = Role.RadioButton,
+                                onClick = { set { it.copy(hookPosition = pos) }; choosing = false })
+                            .padding(vertical = 6.dp)) {
+                            RadioButton(selected = f.hookPosition == pos, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosing = false }) { Text("Cancel") } },
+        )
     }
 }
-
-private val PLACEMENT_HELP = mapOf(
-    HookPosition.AFTER_CLOCK to "Next to the clock",
-    HookPosition.BEFORE_CLOCK to "Next to the clock",
-    "${HookPosition.ICONS_PREFIX}0" to "Left of the icons on the right",
-    HookPosition.SLOT_PREFIX to "Next to Wi-Fi and battery, drawn by Android. Works without the LSPosed module",
-    "${HookPosition.SLOT_PREFIX}vpn" to "Between the system icons, right after this one",
-    "${HookPosition.SLOT_PREFIX}bluetooth" to "Between the system icons, right after this one",
-    "${HookPosition.SLOT_PREFIX}mobile" to "Between the system icons, right after this one",
-    "${HookPosition.SLOT_PREFIX}wifi" to "Between the system icons, right after this one",
-)

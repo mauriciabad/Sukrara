@@ -127,11 +127,14 @@ object Features {
 
     /** Placements offered in Settings (label → value). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(
-        "After clock" to HookPosition.AFTER_CLOCK, "Before clock" to HookPosition.BEFORE_CLOCK,
-        "Left of icons" to "${HookPosition.ICONS_PREFIX}0",
-        "System icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
-        "After VPN icon" to "${HookPosition.SLOT_PREFIX}vpn", "After Bluetooth icon" to "${HookPosition.SLOT_PREFIX}bluetooth",
-        "After mobile signal" to "${HookPosition.SLOT_PREFIX}mobile", "After Wi-Fi icon" to "${HookPosition.SLOT_PREFIX}wifi",
+        "After the clock" to HookPosition.AFTER_CLOCK,
+        "Before the clock" to HookPosition.BEFORE_CLOCK,
+        "Left of the system icons" to "${HookPosition.ICONS_PREFIX}0",
+        "With the system icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
+        "After the VPN icon" to "${HookPosition.SLOT_PREFIX}vpn",
+        "After the Bluetooth icon" to "${HookPosition.SLOT_PREFIX}bluetooth",
+        "After the mobile signal" to "${HookPosition.SLOT_PREFIX}mobile",
+        "After the Wi-Fi icon" to "${HookPosition.SLOT_PREFIX}wifi",
     )
 
     const val NIGHTSCOUT_PORT = 17581
