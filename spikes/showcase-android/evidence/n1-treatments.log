@@ -1,0 +1,82 @@
+# n1: follower treatments + writer gating — two emulators (medium_phone wearer, synthetic; small_phone follower), 2026-10-16
+## wearer (Sukrara.owner)
+10-16 13:15:55.168  2737  2918 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers []
+10-16 13:15:56.602  2737  2918 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers []
+10-16 13:15:56.612  2737  2918 I Sukrara.owner: treatments republished (weekly): 0 entries of the last 30 d, epoch 1
+10-16 13:16:48.018  2737  2914 I Sukrara.owner: treatments republished (new follower): 1 entry of the last 30 d, epoch 1
+10-16 13:16:48.157  2737  2914 I Sukrara.owner: APPROVED 'Mom' (6d6a84f087c6) code 9008 at epoch 1
+10-16 13:18:17.762  2737  2914 I Sukrara.owner: writer ADDED: Mom (6d6a84f087c6)
+10-16 13:18:17.827  2737  2914 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6]
+10-16 13:19:00.254  2737  3362 I Sukrara.owner: TREATMENT accepted from Mom via nos.lol: rapid 2.5 "" t=1792145939 (+1s)
+10-16 13:23:53.778  2737  2913 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6]
+10-16 13:23:53.855  2737  2913 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6]
+10-16 13:23:55.211  2737  2913 I Sukrara.owner: TREATMENT accepted from Mom via nos.lol: note 0.0 "soccer" t=1792146060 (+175s)
+10-16 13:24:20.995  2737  4558 I Sukrara.owner: writer removed: Mom (6d6a84f087c6)
+10-16 13:24:21.042  2737  4558 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers []
+10-16 13:24:31.617  2737  4554 I Sukrara.owner: writer ADDED: Mom (6d6a84f087c6)
+10-16 13:24:31.658  2737  4554 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6]
+10-16 13:25:35.239  4676  4713 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6]
+10-16 13:25:41.139  4676  4708 I Sukrara.owner: nearby pairing on for 10 min (token offered over BLE INFO)
+10-16 13:26:45.114  4676  4771 I Sukrara.owner: treatments republished (new follower): 3 entries of the last 30 d, epoch 1
+10-16 13:26:45.115  4676  4771 I Sukrara.owner: APPROVED 'sdk_gphone64_arm64' (ed6e95d7be2c) code 6518 at epoch 1
+10-16 13:27:11.618  4676  4707 I Sukrara.owner: writer ADDED: sdk_gphone64_arm64 (ed6e95d7be2c)
+10-16 13:27:11.642  4676  4707 I Sukrara.owner: roster published: epoch 1 gk a6762fb1, devices [890138b693a4], writers [6d6a84f087c6, ed6e95d7be2c]
+10-16 13:27:26.959  4676  4708 I Sukrara.owner: TREATMENT accepted from sdk_gphone64_arm64 via ble:55:AA:93:F8:4C:06: carbs 30.0 "apple juice" t=1792146446 (+0s)
+## follower (Sukrara.follower)
+10-16 13:26:31.185  3934  4007 I Sukrara.follower: joining npub1zzdc3…zvqf via 4 relays as 'sdk_gphone64_arm64' F=ed6e95d7be2c216bb3132bdf636e654b78d1872eeb6f40764bb9ddce0c73a332 code 6518
+10-16 13:26:31.191  3934  4007 I Sukrara.follower: follower started: status requested, 0 epoch key(s), 0 device(s), 0 readings stored
+10-16 13:26:44.551  3934  3999 I Sukrara.follower: KEY accepted from identity via ble:43:41:EB:98:2E:74: epoch 1 gk a6762fb1, devices [890138b693a4]
+10-16 13:26:44.564  3934  3999 I Sukrara.follower: subscribed: roster + chunks (#c) + live + treatments, authors [890138b693a4]
+10-16 13:26:44.616  3934  3999 I Sukrara.follower: treatment DELETED "breakfast" id 0eacbd69 from wearer via ble:43:41:EB:98:2E:74
+10-16 13:26:44.641  3934  3999 I Sukrara.follower: treatment rapid 2.5 "" id aa754bba from wearer via ble:43:41:EB:98:2E:74
+10-16 13:26:44.681  3934  3999 I Sukrara.follower: treatment note 0.0 "soccer" id 43ef346d from wearer via ble:43:41:EB:98:2E:74
+10-16 13:26:45.731  3934  4302 I Sukrara.follower: backfill (new key epoch 1): 25 chunk event(s), +1450 readings
+10-16 13:27:10.958  3934  4007 I Sukrara.follower: treatment rapid 4.0 "dinner bolus" id 45666184 from wearer via ble:43:41:EB:98:2E:74
+10-16 13:27:11.064  3934  4007 I Sukrara.follower: roster writers: [6d6a84f087c6, ed6e95d7be2c] — this phone MAY add entries
+10-16 13:27:26.253  3934  4006 I Sukrara.follower: treatment sent: carbs 30.0 "apple juice" id 535bccd1 (epoch 1, ble connected 43:41:EB:98:2E:74)
+10-16 13:27:26.373  3934  4037 I Sukrara.follower: treatment carbs 30.0 "apple juice" id 535bccd1 from wearer via ble:43:41:EB:98:2E:74
+10-16 13:27:39.910  3934  4037 I Sukrara.follower: treatment DELETED "dinner bolus" id 45666184 from wearer via ble:43:41:EB:98:2E:74
+## follower Nightscout API /api/v1/treatments.json (offline, BLE only)
+[
+    {
+        "_id": "c52656ebe6c90b32ab3336bf",
+        "identifier": "535bccd1-d295-4f3d-a9c3-b3e9a7c9482d",
+        "created_at": "2026-10-16T10:27:26Z",
+        "date": 1792146446000,
+        "mills": 1792146446000,
+        "enteredBy": "Sukrara (follower)",
+        "utcOffset": 0,
+        "eventType": "Carb Correction",
+        "carbs": 30,
+        "notes": "apple juice"
+    },
+    {
+        "_id": "86447e405f3f27e5b3fd2205",
+        "identifier": "43ef346d-b3be-466b-a787-fe8371acff32",
+        "created_at": "2026-10-16T10:21:00Z",
+        "date": 1792146060000,
+        "mills": 1792146060000,
+        "enteredBy": "Sukrara (follower)",
+        "utcOffset": 0,
+        "eventType": "Note",
+        "notes": "soccer"
+    },
+    {
+        "_id": "cb5f35b834c86295cb00da41",
+        "identifier": "aa754bba-dbf0-4e3e-8f34-6cbffa02eabe",
+        "created_at": "2026-10-16T10:18:59Z",
+        "date": 1792145939000,
+        "mills": 1792145939000,
+        "enteredBy": "Sukrara (follower)",
+        "utcOffset": 0,
+        "eventType": "Correction Bolus",
+        "insulin": 2.5
+    }
+]
+## release build on the follower (R8): restart keeps entries; live receive + writer entry accepted; writer switched off live
+10-16 13:29:09.888  4540  4561 I Sukrara.follower: subscribed: roster + chunks (#c) + live + treatments, authors [890138b693a4]
+10-16 13:29:09.941  4540  4561 I Sukrara.follower: follower started: status active, 1 epoch key(s), 1 device(s), 1453 readings stored
+10-16 13:29:28.806  4540  4601 I Sukrara.follower: treatment long 14.0 "basal" id 6a703034 from wearer via ble:43:41:EB:98:2E:74
+10-16 13:29:28.863  4540  4601 I Sukrara.follower: treatment sent: note 0.0 "release build note" id 972c543e (epoch 1, ble connected 43:41:EB:98:2E:74)
+10-16 13:29:29.258  4540  4608 I Sukrara.follower: treatment note 0.0 "release build note" id 972c543e from wearer via ble:43:41:EB:98:2E:74
+10-16 13:29:44.395  4540  4608 I Sukrara.follower: roster writers: [6d6a84f087c6] — this phone may not add entries

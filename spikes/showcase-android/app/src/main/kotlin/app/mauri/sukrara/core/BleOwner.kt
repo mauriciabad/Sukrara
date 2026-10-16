@@ -44,6 +44,10 @@ class BleOwner(
     private val cache = object : LinkedHashMap<String, String>(64, 0.75f, false) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 40
     }
+    /** Treatment events by entry (key `tr:<id>`, SPEC §5): the owner's last 30 days, newest 200. */
+    private val treatments = object : LinkedHashMap<String, String>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 200
+    }
     private var msgId = 0
     private val wraps = ArrayDeque<String>()
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -140,9 +144,10 @@ class BleOwner(
 
     private fun sendBacklog(p: Peer) {
         val items = synchronized(cache) { cache.entries.map { it.key to it.value } }
-        // roster first (followers need the device list before data), then chunks oldest → newest, then live
+        val trs = synchronized(treatments) { treatments.entries.map { it.key to it.value } }
+        // roster first (followers need the device list before data), then chunks oldest → newest, treatments, then live
         val ordered = items.filter { it.first == "roster" } + items.filter { it.first != "roster" && it.first != "live" } +
-            items.filter { it.first == "live" } + synchronized(wraps) { wraps.map { "wrap" to it } }
+            trs + items.filter { it.first == "live" } + synchronized(wraps) { wraps.map { "wrap" to it } }
         log("BLE: HELLO from ${p.dev.address} → INFO + ${ordered.size} cached event(s)")
         enqueue(p, Ble.msg("INFO", info()))
         ordered.forEach { enqueue(p, Ble.event(it.second)) }
@@ -175,7 +180,8 @@ class BleOwner(
     override fun publish(ev: Event, lane: Lane, key: String?) {
         val json = ev.asJson()
         val k = if (lane == Lane.LIVE) "live" else key
-        if (k != null) synchronized(cache) { cache.remove(k); cache[k] = json }
+        if (k != null && k.startsWith("tr:")) synchronized(treatments) { treatments.remove(k); treatments[k] = json }
+        else if (k != null) synchronized(cache) { cache.remove(k); cache[k] = json }
         // recent gift wraps (key deliveries…) too, so a follower that reconnects within minutes still gets them
         if (ev.kind().asU16().toInt() == Proto.WRAP) synchronized(wraps) { wraps.addLast(json); while (wraps.size > 10) wraps.removeFirst() }
         val payload = Ble.event(json)

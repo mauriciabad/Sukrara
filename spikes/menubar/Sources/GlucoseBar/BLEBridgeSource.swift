@@ -10,7 +10,7 @@ import Foundation
 ///   READING (read, notify): u32 epoch s ‖ u16 mg/dL ‖ i16 rate×100 (0x8000 = unknown)
 ///   HISTORY (read):         u32 epoch s of newest ‖ u16 mg/dL per minute, newest first (0 = gap)
 ///   TREATMENTS (write, notify): one JSON message each way, see spikes/libreview/SPEC.md §2 (logic in TreatmentSync)
-final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+final class BLEBridgeSource: NSObject, BLEService {
     static let service = CBUUID(string: "6c1f0001-5b8a-4d8e-9a3c-676c75636f42")
     static let reading = CBUUID(string: "6c1f0002-5b8a-4d8e-9a3c-676c75636f42")
     static let history = CBUUID(string: "6c1f0003-5b8a-4d8e-9a3c-676c75636f42")
@@ -22,76 +22,25 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
     /// Treatment sync over the same link; nil = glucose only.
     var treatmentSync: TreatmentSync?
 
-    private var central: CBCentralManager!
+    // BLEService: the connection belongs to BLELink (one link per phone, shared with the v2 path). The phone pushes
+    // a reading every minute; BLELink drops a link that goes silent (CoreBluetooth sometimes keeps a dead link
+    // `.connected`, observed 2026-10-15).
+    let uuid = BLEBridgeSource.service
+    let characteristics = [BLEBridgeSource.reading, BLEBridgeSource.history, BLEBridgeSource.treatments]
+    let name = "legacy"
+    let silenceLimit: TimeInterval = 150
     private var peripheral: CBPeripheral?
+    /// Name of the phone while the link is up (the legacy service carries no identity).
+    var connectedName: String? { peripheral.map { $0.name ?? "phone" } }
 
-    /// The phone pushes a reading every minute. CoreBluetooth sometimes keeps a peripheral in
-    /// `.connected` after the link is actually gone — no disconnect callback, no data — so treat
-    /// a long silence as a disconnect and start over. (Observed 2026-10-15.)
-    private var lastData = Date()
-    private var watchdog: Timer?
-    private let silenceLimit: TimeInterval = 150
-
-    override init() {
+    init(link: BLELink) {
         super.init()
-        central = CBCentralManager(delegate: self, queue: .main)
-        watchdog = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self, let p = peripheral, Date().timeIntervalSince(lastData) > silenceLimit else { return }
-            onState?("BLE: no data for \(Int(Date().timeIntervalSince(lastData)))s, reconnecting")
-            central.cancelPeripheralConnection(p)
-            peripheral = nil
-            MainActor.assumeIsolated { self.treatmentSync?.disconnected() }
-            lastData = Date()
-            scan()
-        }
+        link.register(self)
     }
 
-    private func scan() {
-        guard central.state == .poweredOn else { return }
-        onState?("BLE: scanning for GlucoBridge")
-        central.scanForPeripherals(withServices: [Self.service])
-    }
-
-    func centralManagerDidUpdateState(_ c: CBCentralManager) {
-        if c.state == .poweredOn { scan() } else { onState?("BLE: Bluetooth state \(c.state.rawValue)") }
-    }
-
-    func centralManager(_ c: CBCentralManager, didDiscover p: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
-        guard peripheral == nil else { return }
-        c.stopScan()
+    func attach(_ p: CBPeripheral, _ s: CBService) {
         peripheral = p
-        p.delegate = self
-        onState?("BLE: connecting (rssi \(rssi))")
-        c.connect(p)
-    }
-
-    func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
-        onState?("BLE: connected")
-        lastData = Date()
-        p.discoverServices([Self.service])
-    }
-
-    func centralManager(_ c: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
-        retry("connect failed: \(error?.localizedDescription ?? "?")")
-    }
-
-    func centralManager(_ c: CBCentralManager, didDisconnectPeripheral p: CBPeripheral, error: Error?) {
-        retry("disconnected \(error?.localizedDescription ?? "")")
-    }
-
-    private func retry(_ why: String) {
-        onState?("BLE: \(why)")
-        MainActor.assumeIsolated { self.treatmentSync?.disconnected() }
-        peripheral = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.scan() }
-    }
-
-    func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let s = p.services?.first(where: { $0.uuid == Self.service }) else { return drop(p, "service missing") }
-        p.discoverCharacteristics([Self.reading, Self.history, Self.treatments], for: s)
-    }
-
-    func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
+        onState?("BLE legacy: connected to \(p.name ?? "phone")")
         for ch in s.characteristics ?? [] {
             if ch.uuid == Self.history { p.readValue(for: ch) }          // long read (≤ 364 B) handled by CoreBluetooth
             if ch.uuid == Self.reading { p.setNotifyValue(true, for: ch); p.readValue(for: ch) }
@@ -99,9 +48,20 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
         }
     }
 
+    func detach() {
+        peripheral = nil
+        MainActor.assumeIsolated { self.treatmentSync?.disconnected() }
+    }
+
+    func silent() {
+        guard let p = peripheral, let ch = p.services?.first(where: { $0.uuid == Self.service })?
+            .characteristics?.first(where: { $0.uuid == Self.reading }) else { return }
+        p.readValue(for: ch)          // the reading notification stopped while the link lives: ask directly
+    }
+
     /// Treatment sync starts once its notifications are on, so no reply to our `pull` can be missed.
-    func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic, error: Error?) {
-        guard ch.uuid == Self.treatments, ch.isNotifying, error == nil else { return }
+    func notifying(_ ch: CBCharacteristic, error: Error?) {
+        guard ch.uuid == Self.treatments, ch.isNotifying, error == nil, let p = peripheral else { return }
         let max = p.maximumWriteValueLength(for: .withResponse)
         MainActor.assumeIsolated {
             self.treatmentSync?.connected(maxWrite: max) { [weak p] data in
@@ -112,18 +72,15 @@ final class BLEBridgeSource: NSObject, CBCentralManagerDelegate, CBPeripheralDel
         }
     }
 
-    func peripheral(_ p: CBPeripheral, didWriteValueFor ch: CBCharacteristic, error: Error?) {
+    func wrote(_ ch: CBCharacteristic, error: Error?) {
         guard ch.uuid == Self.treatments else { return }
         MainActor.assumeIsolated { self.treatmentSync?.writeCompleted(error: error) }
     }
 
-    private func drop(_ p: CBPeripheral, _ why: String) { central.cancelPeripheralConnection(p); onState?("BLE: \(why)") }
-
-    func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
-        guard error == nil, let value = ch.value else { return }
+    func received(_ ch: CBCharacteristic, _ p: CBPeripheral) {
+        guard let value = ch.value else { return }
         if ch.uuid == Self.treatments { return MainActor.assumeIsolated { self.treatmentSync?.received(value) } }
         let d = [UInt8](value)
-        lastData = Date()
         func u32(_ o: Int) -> UInt32 { UInt32(d[o]) | UInt32(d[o + 1]) << 8 | UInt32(d[o + 2]) << 16 | UInt32(d[o + 3]) << 24 }
         func u16(_ o: Int) -> UInt16 { UInt16(d[o]) | UInt16(d[o + 1]) << 8 }
         if ch.uuid == Self.reading, d.count >= 8 {

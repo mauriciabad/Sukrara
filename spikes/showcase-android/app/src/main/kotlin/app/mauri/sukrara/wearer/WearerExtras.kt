@@ -72,6 +72,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
             Live.status.update { it.copy(macRunning = s.running, macAdvertising = s.advertising, macSubscribed = s.subscribed, macError = s.error) }
         } }
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
+        jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // wearer → every chart
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
@@ -101,7 +102,8 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
-                old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition)) render(force = true)
+                old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition ||
+                old.hookColor != f.hookColor)) render(force = true)
     }
 
     // ============================================================================================ Live.Listener

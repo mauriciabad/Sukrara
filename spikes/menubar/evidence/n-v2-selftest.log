@@ -1,0 +1,64 @@
+1:27:25 PM  v2 reject d89fe0ac: key delivery not sealed by the identity key (sender ea4e15fdec88)
+PASS  forged key delivery (sealed by a non-identity key) rejected
+PASS  data before any key ignored
+1:27:25 PM  v2: key delivery accepted — epoch 1, 1 device(s)
+PASS  key delivery sealed by I accepted
+1:27:25 PM  v2 live 111 mg/dL epoch 1 via test
+PASS  live from roster device accepted
+1:27:25 PM  v2 reject be85b736: author not in roster
+PASS  live from non-roster key (knows G) rejected
+1:27:25 PM  v2 reject 64a988a0: bad signature/id
+PASS  tampered content (bad id/signature) rejected
+1:27:25 PM  v2: unknown key epoch deadbeef — rekey request sent
+PASS  unknown gk not accepted (rekey requested)
+1:27:25 PM  v2 reject 451c9573: roster not signed by identity
+1:27:25 PM  v2 reject 3dc3f1ef: author not in roster
+PASS  roster not signed by I ignored (attacker still not accepted)
+1:27:25 PM  v2: roster epoch 1 devices ["7116eb0df318", "ea4e15fdec88"]
+1:27:25 PM  v2 live 666 mg/dL epoch 1 via test
+PASS  device added by an identity-signed roster accepted
+1:27:25 PM  v2 chunk 2 readings (hour 1792144800) epoch 1 via test
+PASS  hour chunk decoded (2 rows)
+1:27:25 PM  v2: roster writers changed — this Mac may not add treatments
+1:27:25 PM  v2: roster epoch 1 devices ["7116eb0df318"]
+PASS  not a writer: canWrite false, nothing published
+1:27:25 PM  v2: roster writers changed — this Mac MAY add treatments
+PASS  roster lists this Mac in writers: canWrite true
+1:27:25 PM  v2: treatment rapid sent as writer (a0529185, u 1792146445376)
+PASS  writer: entry published (sending)
+1:27:25 PM  v2 treatment carbs a8f1b090 u 1792146445383 from wearer via test
+PASS  treatment from the wearer's device key accepted (fromWearer)
+PASS  …merged into the store, v2-only (not this Mac's to upload)
+1:27:25 PM  v2 treatment note 26dd7edc u 1792146445384 from writer 9482c32d via test
+PASS  treatment from a roster writer accepted (not fromWearer)
+1:27:25 PM  v2 reject b611b588: treatment author not a roster writer or device
+PASS  treatment from a key outside writers ∪ devices rejected
+1:27:25 PM  v2 reject 288e679e: treatment d tag doesn't match its id
+PASS  treatment whose d tag names another id rejected
+1:27:25 PM  v2: unknown key epoch 0badc0de — rekey request sent
+PASS  treatment under an unknown gk not accepted
+1:27:25 PM  v2 reject 8b043aeb: bad signature/id
+PASS  tampered treatment (bad id/signature) rejected
+1:27:25 PM  v2 treatment carbs a8f1b090 u 1792146450383 from wearer via test
+1:27:25 PM  v2 treatment carbs a8f1b090 u 1792146446383 from writer 9482c32d via test
+PASS  §1 merge: newest u wins across authors (45 g kept)
+1:27:25 PM  v2 treatment rapid a0529185 u 1792146445376 from writer 7f488de5 via test
+PASS  own event echoed by a relay is not acceptance
+1:27:25 PM  v2 treatment rapid a0529185 u 1792146445375 from wearer via test
+PASS  wearer copy with u < ours is not acceptance
+PASS  relay OK → sent; shown 'v2 sent'
+PASS  …after 2 min without echo: 'v2 not accepted yet'
+1:27:25 PM  v2 treatment rapid a0529185 u 1792146445376 from wearer via test
+PASS  wearer's device key echoes the same id with u ≥ ours → accepted
+PASS  status never moves back (accepted stays)
+1:27:25 PM  v2 treatment note 26dd7edc u 1792146445394 (deleted) from wearer via test
+PASS  tombstone from the wearer deletes the row
+PASS  LibreView: v2-only rows never due on the Mac, own entry due
+1:27:25 PM  v2: roster writers changed — this Mac may not add treatments
+PASS  roster without this Mac: canWrite false again
+1:27:25 PM  v2 reject 1002df83: key delivery not sealed by the identity key (sender ea4e15fdec88)
+PASS  forged revoked notice ignored
+1:27:25 PM  v2: owner removed our access
+PASS  revoked notice from I → access removed
+PASS  match code is 4 digits
+v2 self-test OK

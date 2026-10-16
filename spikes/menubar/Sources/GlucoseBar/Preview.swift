@@ -44,3 +44,128 @@ enum Preview {
         print("wrote", path)
     }
 }
+
+/// `Sukrara -menuPreview out.png`: the dropdown's glucose chart and treatment section, light and dark side by side,
+/// from synthetic data (3 h of readings, insulin / carbs / notes, entries in every v2 delivery state). Uses the same
+/// SparklineView, StatusController.describe and TreatmentPaths code as the live menu; a temp store, no network.
+enum MenuPreview {
+    @MainActor static func render(to path: String) {
+        let end = Date(timeIntervalSince1970: (Date().timeIntervalSince1970 / 60).rounded(.down) * 60)
+        let readings = (0...180).map { m -> Reading in
+            let x = Double(180 - m)
+            return Reading(date: end.addingTimeInterval(-Double(m) * 60),
+                           mgdl: 135 + 55 * sin(x / 34) + 18 * sin(x / 9) - (x > 120 ? (x - 120) * 0.6 : 0))
+        }
+        let now = Int64(end.timeIntervalSince1970)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-preview-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = TreatmentStore(directory: dir)
+        func at(_ min: Int64) -> Int64 { now - min * 60 }
+        let rows = [
+            Treatment(k: "rapid", a: 4.5, t: at(165), o: "phone", lv: Treatment.nowMs()),
+            Treatment(k: "carbs", a: 30, t: at(160), o: "phone", lv: Treatment.nowMs()),
+            Treatment(k: "long", a: 12, t: at(110), o: "phone", lv: Treatment.nowMs()),
+            Treatment(k: "note", a: 0, t: at(75), n: "walk", o: "follower"),
+            Treatment(k: "rapid", a: 1.5, t: at(40), o: "mac"),
+            Treatment(k: "carbs", a: 15, t: at(22), o: "mac"),
+            Treatment(k: "note", a: 0, t: at(4), n: "sensor ok", o: "mac"),
+        ]
+        for (i, t) in rows.enumerated() {
+            if t.o == "mac" { store.upsertLocal(t) } else { store.receive(t, v2: i == 3) }
+        }
+        store.markLegacyLinked()
+        store.setV2(rows[4].id, u: rows[4].u, .accepted, via: "ble:Tartaruga")
+        store.setV2(rows[5].id, u: rows[5].u, .sent, via: "relay:nos.lol")
+        store.setV2(rows[6].id, u: rows[6].u, .sending)
+        store.acked(rows[4]); store.acked(rows[5])
+
+        let paths = [
+            TreatmentPaths(legacy: "→ Tartaruga over the Bluetooth link (always allowed) · connected",
+                           v2: "→ wearer over Sukrara sharing (v2) · allowed", v2Allowed: true),
+            TreatmentPaths(legacy: nil, v2: "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"),
+        ]
+        let w: CGFloat = 470
+        var panels: [NSView] = []
+        for (i, dark) in [false, true].enumerated() {
+            let p = paths[i]
+            let stack = NSStackView()
+            stack.orientation = .vertical
+            stack.alignment = .leading
+            stack.spacing = 3
+            stack.edgeInsets = NSEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+            func line(_ s: String, _ c: NSColor = .labelColor, bold: Bool = false, indent: CGFloat = 0) {
+                let f = NSTextField(labelWithString: s)
+                f.font = bold ? .menuFont(ofSize: 13).withWeight(.semibold) : .menuFont(ofSize: 13)
+                f.textColor = c
+                let row = NSStackView(views: [f])
+                row.edgeInsets = NSEdgeInsets(top: 0, left: indent, bottom: 0, right: 0)
+                stack.addArrangedSubview(row)
+            }
+            line("\(Int(readings.last!.mgdl)) mg/dL   \(String(format: "%+.1f", -0.6)) mg/dL/min", bold: true)
+            line("at \(end.formatted(date: .omitted, time: .standard))  (32s ago)", .secondaryLabelColor)
+            let chart = SparklineView(frame: NSRect(x: 0, y: 0, width: 300, height: 104))
+            chart.readings = readings
+            chart.treatments = store.rows.filter { !$0.del }
+            chart.end = end
+            chart.translatesAutoresizingMaskIntoConstraints = false
+            chart.widthAnchor.constraint(equalToConstant: 300).isActive = true
+            chart.heightAnchor.constraint(equalToConstant: 104).isActive = true
+            stack.addArrangedSubview(chart)
+            line("Source: Bluetooth · Tartaruga", .secondaryLabelColor)
+            line(i == 0 ? "Following (v2) · key epoch 2 · 4 relays" : "Following (v2) · key epoch 2 · 4 relays", .secondaryLabelColor)
+            stack.addArrangedSubview(separator(w - 28))
+            line(p.canLog ? "Log treatment…" : "Log treatment… (the wearer hasn't allowed this Mac)", p.canLog ? .labelColor : .tertiaryLabelColor)
+            for l in p.lines { line(l, .secondaryLabelColor, indent: 14) }
+            line("Treatments (24 h)", .secondaryLabelColor)
+            for t in store.rows.sorted(by: { $0.t > $1.t }) {
+                let st = TreatmentPaths.status(of: t, store: store, legacyOn: p.legacy != nil, lvOn: true)
+                line(StatusController.describe(t) + (st.isEmpty ? "" : "   " + st))
+            }
+            let box = NSView(frame: NSRect(x: 0, y: 0, width: w, height: 10))
+            box.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            box.wantsLayer = true
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            box.addSubview(stack)
+            NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: box.leadingAnchor),
+                                         stack.topAnchor.constraint(equalTo: box.topAnchor),
+                                         stack.widthAnchor.constraint(equalToConstant: w)])
+            box.layoutSubtreeIfNeeded()
+            box.setFrameSize(NSSize(width: w, height: stack.fittingSize.height))
+            box.layoutSubtreeIfNeeded()
+            box.appearance?.performAsCurrentDrawingAppearance {
+                box.layer?.backgroundColor = (dark ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.96, alpha: 1)).cgColor
+            }
+            panels.append(box)
+        }
+        let h = panels.map(\.frame.height).max()!
+        let scale: CGFloat = 2
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(w * 2 * scale), pixelsHigh: Int(h * scale),
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        rep.size = NSSize(width: w * 2, height: h)
+        for (i, v) in panels.enumerated() {
+            v.setFrameSize(NSSize(width: w, height: h))
+            v.layoutSubtreeIfNeeded()
+            guard let r = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { continue }
+            v.cacheDisplay(in: v.bounds, to: r)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            r.draw(in: NSRect(x: CGFloat(i) * w, y: 0, width: w, height: h))
+            NSGraphicsContext.restoreGraphicsState()
+        }
+        try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
+        print("wrote", path)
+    }
+
+    private static func separator(_ width: CGFloat) -> NSView {
+        let b = NSBox()
+        b.boxType = .separator
+        b.translatesAutoresizingMaskIntoConstraints = false
+        b.widthAnchor.constraint(equalToConstant: width).isActive = true
+        return b
+    }
+}
+
+private extension NSFont {
+    func withWeight(_ w: NSFont.Weight) -> NSFont { NSFont.systemFont(ofSize: pointSize, weight: w) }
+}

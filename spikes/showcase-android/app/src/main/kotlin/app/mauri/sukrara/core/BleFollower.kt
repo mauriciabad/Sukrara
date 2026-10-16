@@ -46,6 +46,11 @@ class BleFollower(
     private var mtu = 23
     private val queue = ArrayDeque<ByteArray>()
     private var writing = false
+    private var inFlight: ByteArray? = null
+    private val lastFrameOf = java.util.IdentityHashMap<ByteArray, String>()   // last frame of a published event → its id
+
+    /** Event id → called when the owner acknowledged the write of its last frame (GATT write response). */
+    @Volatile var onSent: ((String) -> Unit)? = null
     private var msgId = 0
     private var reasm = Ble.Reassembler()
     private val _state = MutableStateFlow("off")
@@ -102,7 +107,7 @@ class BleFollower(
     private fun retry() {
         main.post {
             gatt?.close(); gatt = null; rx = null
-            synchronized(queue) { queue.clear(); writing = false }
+            synchronized(queue) { queue.clear(); lastFrameOf.clear(); writing = false; inFlight = null }
             val t = target ?: return@post
             _state.value = "reconnecting"
             // Android peripherals advertise from rotating private addresses: the stored one may be stale after a
@@ -155,14 +160,22 @@ class BleFollower(
         }
 
         override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) {
-            synchronized(queue) { writing = false }
+            val sentId = synchronized(queue) {
+                writing = false
+                inFlight?.let { lastFrameOf.remove(it) }.takeIf { status == BluetoothGatt.GATT_SUCCESS }.also { inFlight = null }
+            }
+            sentId?.let { onSent?.invoke(it) }
             pump()
         }
     }
 
-    private fun send(payload: ByteArray) {
+    private fun send(payload: ByteArray, eventId: String? = null) {
         val id = synchronized(this) { msgId = (msgId + 1) and 0xFFFF; msgId }
-        synchronized(queue) { Ble.frames(id, payload, mtu).forEach { queue.add(it) } }
+        synchronized(queue) {
+            val frames = Ble.frames(id, payload, mtu)
+            frames.forEach { queue.add(it) }
+            if (eventId != null) frames.lastOrNull()?.let { lastFrameOf[it] = eventId }
+        }
         pump()
     }
 
@@ -171,11 +184,11 @@ class BleFollower(
         val c = rx ?: return
         val f = synchronized(queue) {
             if (writing) return
-            queue.poll()?.also { writing = true }
+            queue.poll()?.also { writing = true; inFlight = it }
         } ?: return
         val rc = g.writeCharacteristic(c, f, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
         if (rc != BluetoothGatt.GATT_SUCCESS) {
-            synchronized(queue) { writing = false; queue.addFirst(f) }
+            synchronized(queue) { writing = false; inFlight = null; queue.addFirst(f) }
             main.postDelayed({ pump() }, 20)
         }
     }
@@ -187,7 +200,7 @@ class BleFollower(
 
     override fun publish(ev: Event, lane: Lane, key: String?) {
         if (rx == null) return
-        send(Ble.event(ev.asJson()))
+        send(Ble.event(ev.asJson()), ev.id().toHex())
     }
 
     override fun subscribe(id: String, filters: () -> List<JSONObject>, onEvent: (JSONObject, String) -> Unit) = Unit

@@ -75,6 +75,7 @@ object RootStatusBar {
         val i = Intent(ACTION).setPackage("com.android.systemui")
             .putExtra("enabled", f.hook)
             .putExtra("position", f.hookPosition)
+            .putExtra("color", f.hookColor)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }

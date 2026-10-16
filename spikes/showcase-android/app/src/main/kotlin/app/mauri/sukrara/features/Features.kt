@@ -41,6 +41,8 @@ data class FeatureState(
      * (root), optionally moved right after another icon and coloured — both by the module when it's loaded.
      */
     val hookPosition: String = HookPosition.AFTER_CLOCK,
+    /** Colour the root status bar value by range (module only; off = like the clock / the other icons). */
+    val hookColor: Boolean = true,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580 for Garmin watch apps (only binds if the port is free). */
@@ -59,7 +61,7 @@ data class FeatureState(
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
         .put("bleFollowers", bleFollowers).put("macBle", macBle)
-        .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition)
+        .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
@@ -87,6 +89,7 @@ object Features {
             icon = p.getBoolean("icon", d.icon),
             hook = p.getBoolean("hook", d.hook),
             hookPosition = p.getString("hookPosition", d.hookPosition)!!,
+            hookColor = p.getBoolean("hookColor", d.hookColor),
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -111,7 +114,7 @@ object Features {
             putString("source", s.source); putBoolean("nostr", s.nostr); putInt("nostrInterval", s.nostrIntervalMin)
             putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
-            putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition)
+            putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
@@ -124,11 +127,14 @@ object Features {
 
     /** Placements offered in Settings (label → value). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(
-        "After clock" to HookPosition.AFTER_CLOCK, "Before clock" to HookPosition.BEFORE_CLOCK,
-        "Left of icons" to "${HookPosition.ICONS_PREFIX}0",
-        "System icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
-        "After VPN" to "${HookPosition.SLOT_PREFIX}vpn", "After Bluetooth" to "${HookPosition.SLOT_PREFIX}bluetooth",
-        "After mobile" to "${HookPosition.SLOT_PREFIX}mobile", "After Wi-Fi" to "${HookPosition.SLOT_PREFIX}wifi",
+        "After the clock" to HookPosition.AFTER_CLOCK,
+        "Before the clock" to HookPosition.BEFORE_CLOCK,
+        "Left of the system icons" to "${HookPosition.ICONS_PREFIX}0",
+        "With the system icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
+        "After the VPN icon" to "${HookPosition.SLOT_PREFIX}vpn",
+        "After the Bluetooth icon" to "${HookPosition.SLOT_PREFIX}bluetooth",
+        "After the mobile signal" to "${HookPosition.SLOT_PREFIX}mobile",
+        "After the Wi-Fi icon" to "${HookPosition.SLOT_PREFIX}wifi",
     )
 
     const val NIGHTSCOUT_PORT = 17581

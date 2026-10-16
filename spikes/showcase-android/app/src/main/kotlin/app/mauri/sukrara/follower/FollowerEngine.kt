@@ -15,6 +15,8 @@ import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.RelayPool
 import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.core.SecureStore
+import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.TreatmentFeed
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +54,15 @@ data class FollowerUi(
     val canWrite: Boolean = false,
     val ble: String = "off",
     val lastVia: String? = null,
+    val treatments: List<FollowerEntry> = emptyList(),
 )
+
+/**
+ * One row of the follower's treatment list (last 24 h). [status] only for entries this follower sent as a writer:
+ * `sending` → `sent` (relay OK / BLE write response) → `accepted` (echoed by the wearer's device key with u ≥ ours),
+ * or `waiting` = no echo after [FollowerEngine.ACCEPT_WAIT_S] (still listening).
+ */
+data class FollowerEntry(val tr: Treatment, val status: String?)
 
 /**
  * The follower role ("I follow someone"). Trusts exactly one thing from the invite: the identity key I.
@@ -79,6 +89,7 @@ class FollowerEngine(private val ctx: Context) {
     private val rekeyAsked = HashMap<String, Long>()
     private var lastAcceptedAt = 0L
     private var subscribedDevices: List<String> = emptyList()
+    private var subscribedWriters: List<String> = emptyList()
     private var alarmKind: String? = null
     private var alarmAt = 0L
     private var noDataAlerted = false
@@ -104,6 +115,7 @@ class FollowerEngine(private val ctx: Context) {
 
     val ble by lazy { app.mauri.sukrara.core.BleFollower(ctx, log::i, ::onEvent).also { b ->
         attach(b)
+        b.onSent = { onSent(it) }
         scope.launch { b.state.collect { v -> _ui.update { it.copy(ble = v) } } }
     } }
 
@@ -127,18 +139,35 @@ class FollowerEngine(private val ctx: Context) {
         return err
     }
 
-    /** Add a treatment (only if the roster lists this follower as a writer); goes out over BLE + relays. */
+    /**
+     * Add a treatment — only while the newest roster lists this follower as a writer (the UI hides the form otherwise);
+     * goes out over BLE + relays, shown at once as *sending*, accepted when the wearer's device key echoes it.
+     */
     fun addTreatment(k: String, a: Double, note: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val sid = s.sid ?: return@launch
-        if (s.fPub !in s.writers) log.i("NOTE: not in roster writers — the owner will reject this entry")
+        if (s.fPub !in s.writers) return@launch log.i("treatment NOT sent: this phone is not in the roster writers")
+        if (k !in Treatment.KINDS) return@launch
         val ep = s.epochs.values.maxByOrNull { it.n } ?: return@launch
         val now = Proto.nowS()
-        val tr = JSONObject().put("v", 1).put("id", java.util.UUID.randomUUID().toString()).put("k", k).put("a", a).put("t", now)
-            .put("n", note.take(100)).put("u", System.currentTimeMillis()).put("del", false).put("o", "follower")
-        publish(Proto.treatmentEvent(s.f, Proto.pub(ep.g), sid, tr, now), app.mauri.sukrara.core.Lane.CONTROL)
-        log.i("treatment sent: $k $a \"$note\" (epoch ${ep.n}, ble ${ble.state.value})")
+        val tr = Treatment(id = java.util.UUID.randomUUID().toString(), k = k, t = now, n = Treatment.clip(note),
+            a = when (k) { "carbs" -> Math.round(a).toDouble(); "note" -> 0.0; else -> Math.round(a * 10) / 10.0 },
+            u = System.currentTimeMillis(), o = "follower")
+        val ev = Proto.treatmentEvent(s.f, Proto.pub(ep.g), sid, tr.wire(), now)
+        db.mergeTreatment(tr, s.fPub, "local", fromOwner = false)
+        db.addOutbox(tr.id, tr.u, ev.id().toHex())
+        publish(ev, app.mauri.sukrara.core.Lane.CONTROL)
+        log.i("treatment sent: $k ${tr.a} \"${tr.n}\" id ${tr.id.take(8)} (epoch ${ep.n}, ble ${ble.state.value})")
+        publishUi()
+        // re-render once the "not accepted yet" threshold passes (the echo re-renders earlier)
+        scope.launch { delay((ACCEPT_WAIT_S + 1) * 1000); withContext(serial) { publishUi() } }
     }
+
+    /** Event id confirmed by a relay (OK) or the owner's GATT write response → *sending* becomes *sent*. */
+    private fun onSent(eventId: String) = scope.launch(serial) { if (db.markSent(eventId)) publishUi() }
+
+    /** The received treatments (last 30 d, tombstones included), for the follower's Nightscout API. */
+    fun treatments(): List<Treatment> = db.treatments(Proto.nowS() - 30 * Proto.DAY).map { it.tr }
 
     fun hasJoined() = st != null
 
@@ -148,6 +177,7 @@ class FollowerEngine(private val ctx: Context) {
         val s = st!!
         return pool ?: RelayPool(s.relays, log::i) { st?.f }.also { p ->
             pool = p
+            p.onAccepted = { onSent(it) }
             scope.launch { p.stats.collect { _relays.value = it } }
         }
     }
@@ -185,6 +215,7 @@ class FollowerEngine(private val ctx: Context) {
         st = null
         store.wipe()
         db.wipe()   // clear in place: deleting the file under an open helper would keep the old rows alive
+        TreatmentFeed.update(emptyList())
         cancelWatchdog()
         app.mauri.sukrara.widgets.SukraraHooks.clear(ctx)   // widgets must not keep showing the old wearer's values
         log.i("left: follower state wiped, follower.db now has ${db.count()} readings")
@@ -240,10 +271,23 @@ class FollowerEngine(private val ctx: Context) {
         p.subscribe("live", { listOf(authorsOrAll(JSONObject()
             .put("kinds", JSONArray().put(Proto.LIVE))
             .put("since", Proto.nowS() - 120), st?.devices ?: emptyList())) }, ::onEvent)
-        log.i("subscribed: roster + chunks (#c) + live, authors ${s.devices.map { it.take(12) }}${if (s.testUnfiltered) " [TEST: no authors filter]" else ""}")
+        subscribeTreatments()
+        log.i("subscribed: roster + chunks (#c) + live + treatments, authors ${s.devices.map { it.take(12) }}${if (s.testUnfiltered) " [TEST: no authors filter]" else ""}")
+    }
+
+    /** SPEC §5: treatments signed by the wearer's device key(s) or a roster writer, last 30 days. */
+    private fun subscribeTreatments() {
+        val s = st ?: return
+        val sid = s.sid ?: return
+        subscribedWriters = s.writers
+        pool().subscribe("treatments", { listOf(authorsOrAll(JSONObject()
+            .put("kinds", JSONArray().put(Proto.CHUNK))
+            .put("#c", JSONArray().put(Proto.treatmentsC(sid)))
+            .put("since", Proto.nowS() - 31 * Proto.DAY), ((st?.devices ?: emptyList()) + (st?.writers ?: emptyList())).distinct())) }, ::onEvent)
     }
 
     private fun unsubscribeData() {
+        pool?.unsubscribe("treatments")
         pool?.unsubscribe("roster"); pool?.unsubscribe("chunks"); pool?.unsubscribe("live")
         subscribedDevices = emptyList()
     }
@@ -366,7 +410,7 @@ class FollowerEngine(private val ctx: Context) {
         val author = ev.optString("pubkey")
         // Not ours at all (no gk / unknown gk from a stranger): ignore silently. Unknown gk from our own identity or
         // a roster device means we missed a rotation → rekey.
-        if (kind == Proto.CHUNK && s.sid != null && Proto.tagValue(ev, "c") == Proto.treatmentsC(s.sid!!)) return  // treatments: owner's job
+        if (kind == Proto.CHUNK && s.sid != null && Proto.tagValue(ev, "c") == Proto.treatmentsC(s.sid!!)) return onTreatment(ev, via)
         val gkTag = Proto.tagValue(ev, "gk") ?: return
         val epoch = s.epochs[gkTag]
         if (epoch == null) {
@@ -433,6 +477,31 @@ class FollowerEngine(private val ctx: Context) {
         save()
         log.i("roster accepted via ${short(via)}: epoch $n, devices ${devices.map { it.take(12) }}${if (changed) " (CHANGED)" else ""}")
         if (changed || subscribedDevices != devices) { subscribeData(); backfill("roster changed") }
+        else if (subscribedWriters != writers && s.status == FollowerState.ACTIVE) subscribeTreatments()
+        publishUi()
+    }
+
+    /**
+     * A treatment event (SPEC §5, PROTOCOL-v2 "Treatments"): signed by a roster device (the wearer's merged log) or a
+     * roster writer, known epoch, decrypts, `d` matches the id → §1 merge into follower.db → charts + Nightscout API.
+     */
+    private fun onTreatment(ev: JSONObject, via: String) {
+        val s = st ?: return
+        val sid = s.sid ?: return
+        val author = ev.optString("pubkey")
+        val fromOwner = author in s.devices
+        if (!fromOwner && author !in s.writers) return reject("treatment author not in roster", author, via)
+        val gkTag = Proto.tagValue(ev, "gk") ?: return
+        val epoch = s.epochs[gkTag] ?: return if (fromOwner) maybeRekey(gkTag) else Unit
+        val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return reject("malformed event", author, via)
+        if (!e.verify()) return reject("treatment: bad signature", author, via)
+        val body = runCatching { Proto.dec(epoch.g, author, ev.getString("content")) }.getOrNull()
+            ?: return reject("treatment: decrypt failed", author, via)
+        val tr = Treatment.fromWire(body) ?: return reject("treatment: malformed body", author, via)
+        if (Proto.tagValue(ev, "d") != Proto.treatmentD(sid, tr.id)) return reject("treatment: d tag mismatch", author, via)
+        if (!db.mergeTreatment(tr, author, via, fromOwner)) return
+        log.i("treatment ${if (tr.del) "DELETED" else tr.k + " " + tr.a} \"${tr.n}\" id ${tr.id.take(8)} from " +
+            "${if (fromOwner) "wearer" else "writer " + author.take(8)} via ${short(via)}")
         publishUi()
     }
 
@@ -543,6 +612,21 @@ class FollowerEngine(private val ctx: Context) {
     private fun publishUi() {
         val s = st
         val chart = db.since(Proto.nowS() - 12 * 3600)
+        val now = Proto.nowS()
+        val all = db.treatments(now - 30 * Proto.DAY)
+        if (s != null) TreatmentFeed.update(all.map { it.tr })
+        val mine = db.outbox().associateBy { it.id }
+        val entries = all.filter { it.tr.t >= now - 24 * 3600 || mine[it.tr.id]?.let { o -> now - o.createdAt < 3600 } == true }
+            .map { f ->
+                FollowerEntry(f.tr, mine[f.tr.id]?.let { o ->
+                    when {
+                        f.ownerU >= o.u -> "accepted"
+                        now - o.createdAt >= ACCEPT_WAIT_S -> "waiting"
+                        o.sentAt == 0L -> "sending"
+                        else -> "sent"
+                    }
+                })
+            }
         _ui.update {
             it.copy(
                 status = s?.status ?: "none",
@@ -563,9 +647,15 @@ class FollowerEngine(private val ctx: Context) {
                 testUnfiltered = s?.testUnfiltered ?: false,
                 canWrite = s != null && s.fPub in s.writers,
                 lastVia = chart.lastOrNull()?.via,
+                treatments = entries,
             )
         }
     }
 
     private fun short(via: String) = via.removePrefix("relay:")
+
+    companion object {
+        /** No echo from the wearer this long after sending ⇒ shown as "not accepted yet" (still listening). */
+        const val ACCEPT_WAIT_S = 120L
+    }
 }

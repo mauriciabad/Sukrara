@@ -32,6 +32,9 @@ enum V2 {
     }
     static func rosterD(_ sid: String) -> String { H("cgm2:roster:\(sid)") }
     static func chunkC(_ sid: String) -> String { H("cgm2:glucose:\(sid)") }
+    /// Treatments (libreview SPEC §5): `#c` index shared by every treatment, `d` per treatment id.
+    static func treatmentsC(_ sid: String) -> String { H("cgm2:treatments:\(sid)") }
+    static func treatmentD(_ sid: String, _ id: String) -> String { H("cgm2:tr:\(sid):\(id)") }
 
     static func json(_ o: Any) -> String {
         String(decoding: (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed])) ?? Data(), as: UTF8.self)
@@ -103,6 +106,7 @@ enum V2 {
     }
 
     var onEvent: ((String, String) -> Void)?       // (event json, via "relay:<host>")
+    var onOk: ((String, Bool, String) -> Void)?    // (event id, accepted, relay host) for events we published
     private(set) var relays: [Relay] = []
     private let authKeys: Keys
     private var subs: [String: [String: Any]] = [:]
@@ -218,8 +222,9 @@ enum V2 {
             if id != nil, id == r.authId {
                 log("v2 \(r.host): NIP-42 AUTH \(ok ? "accepted" : "rejected: \((arr.count > 3 ? arr[3] as? String ?? "" : "").prefix(60))")")
                 if ok { for (sid, f) in subs { send(r, "[\"REQ\",\(V2.json(sid)),\(V2.json(f))]") } }
-            } else if !ok {
-                log("v2 \(r.host): event \(id?.prefix(8) ?? "?") refused: \((arr.count > 3 ? arr[3] as? String ?? "" : "").prefix(80))")
+            } else {
+                if !ok { log("v2 \(r.host): event \(id?.prefix(8) ?? "?") refused: \((arr.count > 3 ? arr[3] as? String ?? "" : "").prefix(80))") }
+                if let id { onOk?(id, ok, r.host) }
             }
         case "NOTICE":
             log("v2 \(r.host): \(text.prefix(120))")
@@ -273,8 +278,14 @@ struct FollowerV2State: Codable {
     var onReading: ((Reading, String) -> Void)?
     var onHistory: (([Reading], String) -> Void)?
     var onPhase: ((Phase) -> Void)?
-    /// Called for gift wraps we must send (rekey requests); BLE can hook in here too. Relays always get them.
-    var extraPublish: ((String) -> Void)?
+    /// Called for events we must send (requests, rekeys, treatments) besides the relays (which always get them): the
+    /// BLE link to the wearer's phone. `done(true)` once the phone acknowledged the write; nil = nobody listening.
+    var extraPublish: ((String, ((Bool) -> Void)?) -> Void)?
+    /// A treatment event that passed every check (SPEC §5): author ∈ roster writers ∪ devices, known gk, d tag
+    /// matches the id. `fromWearer` = signed by a wearer device key (its merged log), not by another writer.
+    var onTreatment: ((Treatment, _ fromWearer: Bool, _ via: String) -> Void)?
+    /// One of our treatment events reached a relay (OK true) or the wearer's phone over BLE (write acknowledged).
+    var onTreatmentSent: ((_ id: String, _ u: Int64, _ via: String) -> Void)?
     /// A new epoch key arrived (BLE asks the owner for its backlog again — it is readable now).
     var onNewKey: (() -> Void)?
 
@@ -285,6 +296,9 @@ struct FollowerV2State: Codable {
     private var seen: [String: Date] = [:]
     private var rekeyAsked: [String: Date] = [:]
     private var subscribedDevices: [String] = []
+    private var subscribedTreatmentAuthors: [String] = []
+    private var sentTreatments: [String: (id: String, u: Int64)] = [:]    // event id → treatment it carries
+    private var lastCreatedAt: [String: Int] = [:]                          // d → created_at of our last event
     private(set) var accepted = 0, rejected = 0
     private(set) var lastVia = ""
 
@@ -301,21 +315,33 @@ struct FollowerV2State: Codable {
     /// Treatment as a writer (docs/07 § Treatments): kind 30078 signed by F, d = H("cgm2:tr:"+sid+":"+id),
     /// c = H("cgm2:treatments:"+sid), gk, expiration +30 d; content = NIP-44(F → G_n.pub) of the treatment JSON.
     /// Sent to the relays and to the wearer's phone over BLE; the owner accepts it only if F ∈ roster writers.
+    /// Progress: `onTreatmentSent` (a relay / the phone took it), then the wearer's own copy comes back through
+    /// `onTreatment(fromWearer: true)` once it merged it.
     @discardableResult
-    func publishTreatment(_ t: [String: Any]) -> Bool {
-        guard canWrite, let sid = st.sid, let id = t["id"] as? String,
-              let (_, G) = epochKeys.values.max(by: { $0.n < $1.n }) else { return false }
-        var body = t
+    func publishTreatment(_ t: Treatment) -> Bool {
+        guard canWrite, let sid = st.sid, let (_, G) = epochKeys.values.max(by: { $0.n < $1.n }) else { return false }
+        var body = t.dict
         body.removeValue(forKey: "lv")                     // local upload bookkeeping, not part of §1
+        body["v"] = 1                                      // PROTOCOL-v2 "Treatments"
+        // created_at strictly increasing per (author, d): relays drop a same-second replacement (an edit or delete
+        // right after the entry would otherwise be lost).
+        let d = V2.treatmentD(sid, t.id)
+        let createdAt = max(Int(Date().timeIntervalSince1970), (lastCreatedAt[d] ?? 0) + 1)
+        lastCreatedAt[d] = createdAt
         do {
             let ct = try nip44Encrypt(secretKey: F.secretKey(), publicKey: G.publicKey(), content: V2.json(body), version: .v2)
-            let tags = try [["d", V2.H("cgm2:tr:\(sid):\(id)")], ["c", V2.H("cgm2:treatments:\(sid)")],
+            let tags = try [["d", d], ["c", V2.treatmentsC(sid)],
                             ["gk", V2.gk(G.publicKey().toHex())],
-                            ["expiration", String(Int(Date().timeIntervalSince1970) + 30 * 86400)]].map { try Tag.parse(data: $0) }
-            let ev = try EventBuilder(kind: Kind(kind: V2.chunk), content: ct).tags(tags: tags).finalize(signer: F).asJson()
-            pool.publish(ev)
-            extraPublish?(ev)
-            log("v2: treatment \(body["k"] ?? "?") sent as writer (\(id.prefix(8)))")
+                            ["expiration", String(createdAt + 30 * 86400)]].map { try Tag.parse(data: $0) }
+            let ev = try EventBuilder(kind: Kind(kind: V2.chunk), content: ct).tags(tags: tags)
+                .customCreatedAt(createdAt: Timestamp.fromSecs(secs: UInt64(createdAt))).finalize(signer: F)
+            let evId = ev.id().toHex(), json = try ev.asJson()
+            sentTreatments[evId] = (t.id, t.u)
+            pool.publish(json)
+            extraPublish?(json) { [weak self] ok in
+                if ok { self?.onTreatmentSent?(t.id, t.u, "ble") }
+            }
+            log("v2: treatment \(t.k) sent as writer (\(t.id.prefix(8)), u \(t.u))")
             return true
         } catch {
             log("v2: treatment not sent: \(error)")
@@ -333,6 +359,10 @@ struct FollowerV2State: Codable {
         pool = RelayPool(urls: UserDefaults.standard.bool(forKey: "v2NoRelays") ? [] : state.relays, authKeys: f)   // test: BLE only
         for e in state.epochs { addEpoch(e.n, e.g) }
         pool.onEvent = { [weak self] json, via in self?.onEvent(json, via: via) }
+        pool.onOk = { [weak self] evId, ok, host in
+            guard ok, let self, let t = sentTreatments[evId] else { return }
+            onTreatmentSent?(t.id, t.u, "relay:\(host)")
+        }
     }
 
     /// New pairing from an invite link: generate F and persist it. Caller wires callbacks, then `start()` +
@@ -369,9 +399,12 @@ struct FollowerV2State: Codable {
         guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "name": st.name])
         else { return }
         pool.publish(g)
-        extraPublish?(g)
+        extraPublish?(g, nil)
         log("v2: access request sent as \"\(st.name)\" (\(pool.relays.count) relays, + Bluetooth if the wearer's phone is connected) — match code \(st.code)")
     }
+
+    /// Who may author treatment events: roster writers ∪ the wearer's device keys.
+    private var treatmentAuthors: [String] { (st.writers ?? []) + st.devices }
 
     private func addEpoch(_ n: Int, _ nsec: String) {
         guard let g = try? Keys.parse(secretKey: nsec) else { return }
@@ -381,6 +414,13 @@ struct FollowerV2State: Codable {
     private func subscribeData() {
         guard let sid = st.sid else { return }
         pool.subscribe("r", ["kinds": [Int(V2.chunk)], "authors": [st.i], "#d": [V2.rosterD(sid)]])
+        // Treatments (SPEC §5): writers' own events and the wearer's merged log, republished by its device key(s).
+        let trAuthors = Array(Set(treatmentAuthors)).sorted()
+        if !trAuthors.isEmpty, trAuthors != subscribedTreatmentAuthors {
+            subscribedTreatmentAuthors = trAuthors
+            pool.subscribe("t", ["kinds": [Int(V2.chunk)], "authors": trAuthors, "#c": [V2.treatmentsC(sid)],
+                                 "since": Int(Date().timeIntervalSince1970) - 30 * 86400])
+        }
         guard !st.devices.isEmpty, st.devices != subscribedDevices else { return }
         subscribedDevices = st.devices
         let now = Int(Date().timeIntervalSince1970)
@@ -416,7 +456,7 @@ struct FollowerV2State: Codable {
                let w = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "rekey", "have": g]) {
                 rekeyAsked[g] = Date()
                 pool.publish(w)
-                extraPublish?(w)
+                extraPublish?(w, nil)
                 log("v2: unknown key epoch \(g) — rekey request sent")
             }
             return
@@ -432,6 +472,7 @@ struct FollowerV2State: Codable {
                   body["v"] as? Int == 2, let devices = body["devices"] as? [String] else { return }
             st.rosterAt = at
             let writers = body["writers"] as? [String] ?? []
+            let wasWriter = canWrite
             if writers != (st.writers ?? []) {
                 st.writers = writers
                 log("v2: roster writers changed — this Mac \(canWrite ? "MAY" : "may not") add treatments")
@@ -439,12 +480,15 @@ struct FollowerV2State: Codable {
             if devices != st.devices {
                 st.devices = devices
                 log("v2: roster epoch \(body["epoch"] ?? "?") devices \(devices.map { String($0.prefix(12)) })")
-                subscribeData()
             }
+            subscribeData()
             st.save()
+            if wasWriter != canWrite { onPhase?(phase) }        // the UI shows whether we may add entries
             return
         }
-        if kind == V2.chunk, tag("c") == V2.H("cgm2:treatments:\(sid)") { return }   // treatment echo, not glucose
+        if kind == V2.chunk, tag("c") == V2.treatmentsC(sid) {
+            return onTreatmentEvent(ev, author: author, G: G, dTag: tag("d"), sid: sid, id: id, via: via)
+        }
         guard st.devices.contains(author) else { return reject("author not in roster", id) }
         guard let plain = try? nip44Decrypt(secretKey: G.secretKey(), publicKey: ev.author(), payload: ev.content()),
               let body = try? JSONSerialization.jsonObject(with: Data(plain.utf8)) as? [String: Any],
@@ -468,6 +512,22 @@ struct FollowerV2State: Codable {
             if !pts.isEmpty { onHistory?(pts, label) }
         default: break
         }
+    }
+
+    /// SPEC §5 follower rules: author ∈ roster writers ∪ wearer device keys, decrypts with the epoch named by `gk`,
+    /// the §1 JSON parses, and `d` = H("cgm2:tr:"+sid+":"+id) (an author can't overwrite another id's slot).
+    private func onTreatmentEvent(_ ev: Event, author: String, G: Keys, dTag: String?, sid: String, id: String, via: String) {
+        guard treatmentAuthors.contains(author) else { return reject("treatment author not a roster writer or device", id) }
+        guard let plain = try? nip44Decrypt(secretKey: G.secretKey(), publicKey: ev.author(), payload: ev.content()),
+              let body = try? JSONSerialization.jsonObject(with: Data(plain.utf8)) as? [String: Any],
+              var t = Treatment(dict: body) else { return reject("treatment decrypt/parse failed", id) }
+        guard dTag == V2.treatmentD(sid, t.id) else { return reject("treatment d tag doesn't match its id", id) }
+        guard Treatment.kinds.contains(t.k) else { return reject("treatment kind \(t.k) unknown", id) }
+        t.lv = 0                                             // never trusted from the wire (SPEC §5: no "lv")
+        accepted += 1
+        let fromWearer = st.devices.contains(author)
+        log("v2 treatment \(t.k) \(t.id.prefix(8)) u \(t.u)\(t.del ? " (deleted)" : "") from \(fromWearer ? "wearer" : "writer \(author.prefix(8))") via \(via)")
+        onTreatment?(t, fromWearer, via)
     }
 
     static func label(_ via: String) -> String {

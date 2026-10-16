@@ -99,7 +99,7 @@ class SystemUiHook : XposedModule() {
     private fun iconColor(): Int? {
         val st = state
         val r = st.reading ?: return null
-        if (!st.enabled || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
+        if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
         if (System.currentTimeMillis() / 1000 - r.t > GlucoseNotification.STALE_AFTER_S) return null
         return Range.color(r.sgv)
     }
@@ -231,7 +231,7 @@ class SystemUiHook : XposedModule() {
     // --- data from the app ---------------------------------------------------------------------------
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
-                             val position: String = HookPosition.AFTER_CLOCK)
+                             val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true)
 
     private var state = State()
     private val slots = mutableListOf<Slot>()
@@ -257,7 +257,8 @@ class SystemUiHook : XposedModule() {
         val old = state
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
-        state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position)
+        state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
+            i.getBooleanExtra("color", old.color))
         slots.removeAll { it.root.get() == null }
         if (state.position != old.position) slots.forEach { place(it) }
         renderAll()
@@ -307,7 +308,7 @@ class SystemUiHook : XposedModule() {
             }
             val stale = System.currentTimeMillis() / 1000 - r.t > GlucoseNotification.STALE_AFTER_S
             val base = reference?.get()?.currentTextColor ?: currentTextColor
-            val color = if (stale) base else Range.color(r.sgv) ?: base
+            val color = if (stale || !state.color) base else Range.color(r.sgv) ?: base
             setTextColor(color)
             staleAlpha = if (stale) 0.5f else 1f
             alpha = followAlpha * staleAlpha

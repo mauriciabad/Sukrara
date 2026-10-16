@@ -1,0 +1,11 @@
+1:27:24 PM  v2 relays restart: start (3 relays)
+1:27:24 PM  v2 relays restart: relaytest (3 relays)
+1:27:24 PM  v2 treatment carbs b0477b8b u 1792146444670 from wearer via relay:nostr.mom
+PASS  wearer's treatment received over relays (#c + authors filter) and merged
+1:27:24 PM  v2: treatment rapid sent as writer (a857bd01, u 1792146444872)
+1:27:25 PM  v2 treatment rapid a857bd01 u 1792146444872 from writer f6d78cb6 via relay:nos.lol
+PASS  own entry: relay OK → sent (relay:relay.primal.net)
+1:27:25 PM  v2 treatment rapid a857bd01 u 1792146444872 from wearer via relay:relay.primal.net
+  accepted via relay:relay.primal.net
+PASS  wearer's echo over relays → accepted
+v2 relay test OK

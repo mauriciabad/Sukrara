@@ -25,8 +25,8 @@ object NightscoutApi {
     data class Answer(val status: String, val body: String)
 
     /**
-     * [readings]: newest first. [treatments]: the wearer's shared log (empty for a follower, which doesn't receive
-     * treatments yet). [name]: shown as the site title.
+     * [readings]: newest first. [treatments]: the wearer's shared log, or on a follower the treatments it received
+     * from the wearer (SPEC §5). [name]: shown as the site title.
      */
     fun route(path: String, q: Map<String, String>, readings: List<Bridge.Reading>, treatments: List<Treatment>,
               name: String): Answer? = when (path) {
