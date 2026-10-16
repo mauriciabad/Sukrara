@@ -48,10 +48,12 @@ object Proto {
     const val DAY = 86400L
 
     /**
-     * Relays that serve gift wraps (kind 1059) to the key they're addressed to. relay.nostr.net and relay.damus.io
-     * accept them but can't serve them (NIP-42 AUTH: "relay needs serviceUrl", investigation 14, 2026-10-16).
+     * Relays that take events from brand-new keys (every gift wrap is signed by one) and serve gift wraps (kind 1059)
+     * to the key they're addressed to. Measured 2026-10-17 (spikes/nostr/identity/relay_probe.py, relay_burst.py):
+     * relay.nostr.net and relay.damus.io can't serve wraps (NIP-42 AUTH "needs serviceUrl"); offchain.pub and
+     * nostr.bitcoiner.social refuse a new key after ~8–10 events ("not in our web of trust").
      */
-    val RELAYS = listOf("wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://offchain.pub")
+    val RELAYS = listOf("wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social")
 
     private val rng = SecureRandom()
 
@@ -153,10 +155,14 @@ object Proto {
 
     // ------------------------------------------------------------------------------------------------ gift wraps
 
-    /** NIP-59: rumor (unsigned, author = sender) → seal (signed by sender) → wrap (one-time key, `p` = recipient). */
+    /**
+     * NIP-59: rumor (unsigned, author = sender) → seal (signed by sender) → wrap (one-time key, `p` = recipient).
+     * The NIP-40 expiration is absolute (now + [ttlS]): NIP-59 backdates the wrap's created_at by up to 2 days, and a
+     * relative one would make anything shorter than that (a 24 h invite) arrive already expired.
+     */
     fun gift(sender: Keys, recipientHex: String, kind: Int, body: JSONObject, ttlS: Long = 30 * DAY): Event {
         val rumor = EventBuilder(Kind(kind.toUShort()), body.toString()).finalizeUnsigned(sender.publicKey())
-        return nip59MakeGiftWrap(sender, PublicKey.parse(recipientHex), rumor, java.time.Duration.ofSeconds(ttlS))
+        return nip59MakeGiftWrap(sender, PublicKey.parse(recipientHex), rumor, null, listOf(expiration(nowS() + ttlS)))
     }
 
     /** null if not for us / malformed / seal invalid. The library verifies the seal and that rumor.pubkey == seal.pubkey. */

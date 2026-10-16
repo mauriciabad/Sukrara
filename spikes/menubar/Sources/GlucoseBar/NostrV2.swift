@@ -44,8 +44,8 @@ enum V2 {
     /// the wearer's profile (`{"name","avatar"}`), from a v3 short link or a phone's BLE INFO.
     struct Invite { let i: String; let t: String; let x: Int; let r: [String]; let profile: [String: Any]? }
 
-    /// Relays that serve gift wraps to the key they're addressed to (relay.nostr.net / relay.damus.io can't).
-    static let relays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://offchain.pub"]
+    /// Same set as Android `Proto.RELAYS`: take events from new keys and serve gift wraps (measured 2026-10-17).
+    static let relays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social"]
     static let inviteBase = "https://sukrara.mauri.app/join#", appScheme = "sukrara:join#"
     static let rumorInvite: UInt16 = 30502
 

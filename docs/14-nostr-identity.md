@@ -192,6 +192,8 @@ says it *asks* servers to erase, never that it does.
 
 ## How it maps onto Sukrara (for the integration)
 
+*Plan as written before the integration; what was actually done is in [In Sukrara](#in-sukrara-what-was-added-and-what-was-left-out).*
+
 | Piece | Where it goes | Notes |
 |---|---|---|
 | Profile key + kind 0 + Blossom + editor | wearer onboarding, both roles' settings | `P = HKDF(I, "profile")`; followers' `F` gets its own `HKDF(F, "profile")` |
@@ -200,6 +202,43 @@ says it *asks* servers to erase, never that it does.
 | Nostr login | onboarding *More options*, both roles | derived (nsec, words) and sealed (Amber). A follower logging in with Nostr also gets a restorable `F` |
 | Delete everywhere | settings | best effort, wording as in the PoC |
 | Relay set | `Proto.RELAYS` (today nos.lol, relay.primal.net, nostr.mom, relay.nostr.net) | relay.nostr.net, and now relay.damus.io too, accept gift wraps but can't serve them (NIP-42 AUTH: "relay needs serviceUrl"). The invite lookup and every request/delivery wrap need relays that *serve* kind 1059: nos.lol, relay.primal.net, nostr.mom, offchain.pub worked on 2026-10-16 |
+
+## In Sukrara: what was added and what was left out
+
+*2026-10-17, Sukrara 0.11.0 (Android + Mac). Decided after a review of this report: keep what helps every user and
+costs little to maintain; leave out what ties the app to outside services or serves only Nostr users.*
+
+| Piece | In Sukrara? | Why |
+|---|---|---|
+| **Short invite links (v3)**, 63 chars, QR version 5 | **Added**, the only invite form (old `#i=…&t=…` and `cgmshare:` links removed, no compatibility) | Easier to scan, fits an SMS, shows who invites before asking, no long-lived npub in the link. Reuses the gift wraps v2 already needs |
+| **Names + pictures** for wearer and followers | **Added, privately**: inside the encrypted invite, request, roster and a new `profile` message | Lists show faces instead of keys. Nothing public, so no "public, copies may stay" warnings |
+| **Generated pictures** | **Added, as numbers** (`{"v":1,"c","s","a","n"}`), drawn by each app; **versioned**: every renderer version is kept so older pictures keep their look ([PROTOCOL-v2 → Profiles](../spikes/nostr/PROTOCOL-v2.md#profiles)) | No image upload, no image server, a few bytes per person. Android and Mac draw the same picture (shared "dots" vectors) |
+| Separate profile key `P`, **public kind 0** | **Left out** | Its only gain is that other Nostr clients can show the profile, and nobody looks at Sukrara's profile key from another client. It's also the privacy risk this report had to work around |
+| **Blossom** picture hosting, EXIF stripping, photo upload | **Left out** | Servers disagree with the spec (BUD-11 base64), some keep "deleted" files, others are slow or reject free uploads: constant maintenance for a feature the private profile doesn't need. Real photos, if ever wanted, can go up encrypted with the key in the delivery |
+| **"Log in with your Nostr account"** (nsec / words / Amber sealed root) | **Left out** (PoC kept as reference) | Very few people with diabetes or their carers have a Nostr account; backup is already solved with the password manager; pasting a main nsec into a health app is a habit not to teach; the Mac would need NIP-46 too |
+| "Delete account everywhere" (Blossom DELETE, empty kind 0, NIP-62) | **Left out** | Only needed for public profiles |
+| Relay set | **Changed**: relay.nostr.net → relay.snort.social | See below: offchain.pub, which this report suggested, turned out not to work for a wearer |
+
+Found while integrating (fixed in 0.11.0):
+- **Every invite wrap was rejected "invalid: event expired"** by all relays. The library's gift-wrap TTL counts from
+  the wrap's `created_at`, which NIP-59 backdates by up to 2 days, so a 24 h invite was born expired (the PoC passed an
+  absolute expiration tag and didn't hit it). Sukrara now always sets an absolute expiration; this also fixes its 1-day
+  `history` requests, which had the same problem since they were added.
+- **offchain.pub refuses a new key after ~8 events** ("Policy violated and pubkey is not in our web of trust"): a
+  wearer's first start publishes ~25 chunks. A live probe of 12 relays (wrap from a new key + served back to its
+  recipient; a 30- and 60-event burst from one new key) picked **relay.snort.social** (60/60, serves wraps without
+  AUTH). Tools: [`relay_probe.py`](../spikes/nostr/identity/relay_probe.py),
+  [`relay_burst.py`](../spikes/nostr/identity/relay_burst.py), [results](../spikes/nostr/results/relay-probe-2026-10-17.txt).
+- **Invites weren't really single-use**: approving or denying burnt the token, but other pending requests made with
+  the same link could still be approved. Now they are dropped with it (tested: two requests on one invite, approve
+  one → 0 pending).
+
+Tested 2026-10-17 on two emulators (wearer upgraded in place from 0.10.6, follower fresh) and a test copy of Sukrara for
+Mac (throwaway Keychain item): Mac resolved the 63-char link → "Alex", request with the Mac's generated picture, same
+code 8461 on both → Allow → readings; Android follower opened the link as an App Link → preview "Alex wants to share…"
+→ request → Allow → 1728 readings incl. via relay.snort.social; wearer rename reached the follower with the next
+roster in ~30 s; follower rename + new picture reached the wearer's list. Kotlin 4/4 and Mac self-test 6/6 against
+the Python vectors. Details and screenshots: [docs/10 → Short invites and private profiles](10-showcase.md#short-invites-and-private-profiles-v0110).
 
 ## Not done / open
 

@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.1/Sukrara-0.10.1.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.9/Sukrara-0.10.9.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.0/Sukrara-0.11.0.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -21,7 +21,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 
 <p>
   <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android" width="180">
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/nostr/android-app/evidence/04-owner-approve-dialog.png" alt="Allow dialog with a 4-digit match code" width="180">
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/p5-request-from-mac.png" alt="Allow dialog with the follower's name, picture and a 4-digit match code" width="180">
   <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png" alt="Home-screen widgets" width="180">
 </p>
 <p>
@@ -41,7 +41,8 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
   insulin, carbs and notes with optional LibreView upload. Source: Juggluco, or the sensor read directly.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
   (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); low / high / no-data alarms.
-- **Sharing:** a QR code or link with no secret inside, a 4-digit code on both screens, then **Allow**. Followers get
+- **Sharing:** a short link or small QR code that shows who is inviting, a 4-digit code on both screens, then
+  **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers get
   low / high / no-data alarms. Removing someone rotates the key; everyone else carries on.
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged; stock Home Assistant reads it through a
@@ -76,7 +77,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | 11 | Battery cost, with and without root | *In progress* |
 | [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
 | [13](13-macos-widgets) | macOS widgets | Running in Sukrara for Mac, live, every minute (Apple certificate needed) |
-| [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr |
+| [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr. In the app since 0.11: short invites and private names + pictures |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.

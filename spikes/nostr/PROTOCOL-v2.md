@@ -27,23 +27,34 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 |---|---|---|---|---|
 | **live** | 21078 | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"t":unix_s,"sgv":mgdl,"r":rate|null,"dev":src}` → `G_n` |
 | **hour chunk** | 30078 | `D` | `["d", H("cgm2:h:"+sid+":"+hourStart)]`, `["c", H("cgm2:glucose:"+sid)]`, `["gk", gk_n]`, exp hour+7 d | `{"v":2,"h":hourStart,"dev":src,"r":[[dt,sgv,rate100],…]}` → `G_n` |
-| **roster** | 30078 | `I` | `["d", H("cgm2:roster:"+sid)]`, `["gk", gk_n]`, exp now+30 d (refreshed weekly) | `{"v":2,"epoch":n,"devices":[hex D…],"writers":[hex W…],"relays":[…]}` → `G_n` |
-| **owner backup** | 30078 | `I` | `["d", H("cgm2:backup:"+I.pub_hex)]`, exp now+90 d (refreshed weekly) | `{"v":2,"sid","epochs":[{"n","g":nsec}],"followers":[{"f":hex,"name","since","revoked"?}],"invites":[{"t","x"}],"relays":[…]}` → **`I` itself** |
-| **access request** | rumor kind 30500 in NIP-59 gift wrap (1059) to `I` | seal by `F` | — | `{"v":2,"type":"request","token":t,"name":"Mom's phone"}` |
+| **roster** | 30078 | `I` | `["d", H("cgm2:roster:"+sid)]`, `["gk", gk_n]`, exp now+30 d (refreshed weekly) | `{"v":2,"epoch":n,"devices":[hex D…],"writers":[hex W…],"relays":[…],"profile":{…}}` → `G_n` (`profile`: the wearer's, see [Profiles](#profiles)) |
+| **owner backup** | 30078 | `I` | `["d", H("cgm2:backup:"+I.pub_hex)]`, exp now+90 d (refreshed weekly) | `{"v":2,"sid","epochs":[{"n","g":nsec}],"followers":[{"f":hex,"name","avatar","since","revoked"?}],"invites":[{"t","x"}],"relays":[…],"profile":{…}}` → **`I` itself** |
+| **invite** | rumor kind 30502 in gift wrap to `invite_key(secret)` | seal by `I` | wrap exp = invite expiry | `{"v":3,"type":"invite","x":expiry,"r":[relays],"profile":{…}}` ([PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3)) |
+| **access request** | rumor kind 30500 in NIP-59 gift wrap (1059) to `I` | seal by `F` | — | `{"v":2,"type":"request","token":t,"profile":{"name":"Mom","avatar":{…}}}` |
+| **profile update** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"profile","profile":{…}}` (applied only for an approved, non-revoked `F`) |
 | **key delivery** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"key","sid","epoch":n,"g":nsec(G_n),"devices":[…],"relays":[…]}` |
 | **rekey request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"rekey","have":gk}` (follower saw an unknown `gk`) |
 | **history request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"history","since":hourStart}` (follower's backfill found hours missing) |
 | **revoked notice** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"revoked"}` (courtesy; security comes from rotation) |
 
 Gift wraps (kind 1059) are signed by a random one-time key and `p`-tag the recipient; the **seal's signer** is the
-authenticated sender. Followers accept a key delivery **only if the seal is signed by `I`**; the owner accepts a
+authenticated sender. Their NIP-40 `expiration` is **absolute** (now + TTL): NIP-59 backdates the wrap's `created_at`
+by up to 2 days, so an expiration computed from it makes anything shorter than 2 days (a 24 h invite, a 1 d history
+request) arrive already expired ("invalid: event expired", found 2026-10-17). Followers accept a key delivery **only if the seal is signed by `I`**; the owner accepts a
 request only with a valid, unexpired invite token (and the owner still confirms it in the UI).
 
 ### Relay rules (learned while testing, 2026-10-16)
 
-- **NIP-42 AUTH**: some relays (relay.nostr.net, relay.damus.io) only serve kind 1059 `#p` subscriptions to the
-  recipient. Answer `["AUTH", challenge]` with a kind 22242 event signed by the key the wraps are addressed to
-  (owner → `I`, follower → `F`) and re-issue the REQs. nos.lol, relay.primal.net, nostr.mom serve wraps without AUTH.
+- **NIP-42 AUTH**: some relays only serve kind 1059 `#p` subscriptions to the recipient. Answer
+  `["AUTH", challenge]` with a kind 22242 event signed by the key the wraps are addressed to (owner → `I`,
+  follower → `F`, invite lookup → the invite key) and re-issue the REQs.
+- **Default relays** (Sukrara 0.11): nos.lol, relay.primal.net, nostr.mom, relay.snort.social. Each must take events
+  from brand-new keys (every gift wrap is signed by one) and serve wraps back to their recipient
+  ([relay_probe.py](identity/relay_probe.py), [relay_burst.py](identity/relay_burst.py),
+  [results](results/relay-probe-2026-10-17.txt)). Not usable: relay.damus.io and relay.nostr.net (accept wraps,
+  serve them to nobody: AUTH "needs serviceUrl"); offchain.pub and nostr.bitcoiner.social (refuse a new key after
+  8–10 events, "not in our web of trust"); nostr.oxtr.dev (rate-limits a 25-chunk start); nostr-pub.wellorder.net
+  ("spam" after ~47 events).
 - **Addressable events need strictly increasing `created_at`** per (author, kind, `d`) — two versions in the same
   second are rejected ("replaced: have newer event"), which can leave a stale owner backup.
 - Gift wraps' outer `created_at` is randomised up to 2 days into the past (NIP-59): subscribe with `since` ≥ 3 days.
@@ -98,14 +109,46 @@ Verified on Android (two emulators, 2026-10-16, `spikes/showcase-android/evidenc
 reach the follower over relays and over BLE with the follower offline; writer entry accepted (echo) in < 5 s over
 relays, ≈ 0.1 s over BLE, and after 3 min when the wearer's relays were off (*not accepted yet* → *accepted*).
 
-## Invite link / QR (no secrets)
+## Invite link / QR
+
+Since Sukrara 0.11 the invite is the **v3 short link** of [PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3):
+`https://sukrara.mauri.app/join#<base64url(I.pub[0:8] ‖ secret[16])>`, 63 characters, QR version 5. The secret's
+base64url is the request token `t`. Expiry, relays and the wearer's profile are in the invite gift wrap, so the
+follower sees who is inviting before asking. Anyone holding the link can read that profile and *ask*; nothing in it
+decrypts glucose, and the owner approves each request. Invites expire after 24 h and are single-use: approving or
+denying a request burns the token **and drops every other pending request made with it**. Both screens show a
+**match code** = first 4 decimal digits of `sha256(F.pub_hex + token)` so the owner can confirm "it's really Mom's
+phone". Nearby pairing hands the same fields over BLE INFO (`pair: {t, x, profile}`) while *Pair nearby* is open.
+
+## Profiles
+
+A name and a generated picture per person, so lists show faces instead of keys. **Never published**: they travel
+only inside encrypted messages (invite wrap, access request, profile update, roster, owner backup). Self-asserted:
+they help people recognise each other, they authenticate nothing (that's the match code's job).
 
 ```
-cgmshare:join?i=<npub I>&t=<invite token, 16 random bytes b64url>&x=<expiry unix s>&r=<relay>,<relay>
+profile = {"name": "Alex", "avatar": {"v": 1, "c": 0, "s": "cube", "a": 45, "n": 1497950029}}
 ```
-Leaking it gives nobody data: it only lets someone *ask*; the owner must approve. Tokens are single-use and expire
-(default 24 h). Both screens show a **match code** = first 4 decimal digits of `sha256(F.pub_hex + token)` so the
-owner can confirm "it's really Mom's phone".
+
+- `name`: up to 40 characters.
+- `avatar`: the numbers that draw the picture, never an image. **`v` is the renderer version.** Every app keeps the
+  renderer of every version it ever shipped, so a picture made by an older build looks the same forever. An app that
+  meets a newer `v` keeps and forwards the object unchanged and draws the fallback (grey `#78909C` square with the
+  name's initial) until it is updated. Receivers ignore avatar objects over 512 bytes of JSON.
+- **v1** (2026-10-17, Android `core/Avatar.kt`, Mac `Avatar.swift`; drawn in unit coordinates, y down, clipped to a
+  circle by the UI):
+  - `c` 0–7: linear gradient from colour A to B, `a` degrees (multiple of 15) from `0.5 − (cos a, sin a)/2` to
+    `0.5 + (cos a, sin a)/2`. Pairs (ARGB): `1BB5C9→0B2E5E`, `C6F432→2E7D32`, `FF8A65→BF360C`, `BA68C8→4A148C`,
+    `FFD54F→E65100`, `4FC3F7→01579B`, `F06292→880E4F`, `90A4AE→263238`.
+  - `s` shape in white: `cube` (three faces, w = 0.22, alpha 235/170/110), `drop` (circle r = 0.2 at (0.5, 0.62) +
+    triangle to (0.5, 0.2), alpha 220), `dots` (five circles from `sha256("sukrara/avatar/v1/dots:" + n)`: bytes
+    4k…4k+3 → r = 0.08 + 0.12·b/255, x = 0.25 + 0.5·b/255, y = 0.25 + 0.5·b/255, alpha = 90 + ⌊110·b/255⌋;
+    vectors in [identity/avatar-v1.json](identity/avatar-v1.json)), `rings` (4 concentric strokes, r = 0.09·i,
+    width 0.03, alpha 60 + 40·i), `letter` (the name's first character, uppercased, bold system font at 0.5, alpha
+    240, glyph box centred).
+  - `n` seed 0 … 2³¹−1 (only `dots` uses it).
+- **Wearer → followers**: the invite wrap and every roster carry `profile`; a change republishes the roster at once.
+- **Follower → wearer**: the access request carries `profile`; a later change is a `profile` rumor.
 
 ## Flows
 

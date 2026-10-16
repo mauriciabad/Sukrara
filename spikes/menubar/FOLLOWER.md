@@ -13,12 +13,17 @@ GlucoseBar is now **Sukrara for Mac**: `./bundle.sh` builds `build/Sukrara.app` 
 bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukrara/macos/AppIcon.icns`, tooltip and
 "Quit Sukrara"). The Swift package/target keeps the name `GlucoseBar` (`swift run GlucoseBar` still works).
 
-- **Invite links**: the follow dialog, clipboard prefill, "Follow from QR image…" and `-followLink` accept both forms
-  the phone shares: `https://sukrara.mauri.app/join#i=…&t=…&x=…&r=…` (fragment; `?` and `/join/#` accepted too) and
-  `cgmshare:join?…`. Both parse to the same invite (`V2.inviteQuery`). Opening links: `cgmshare:` is a registered URL
-  scheme; an https link opens in the browser (no Universal Links without a Team ID), where the join page's
-  **Open in Sukrara** button hands it to the app as `cgmshare:`. `-qrselftest` now checks both forms
-  (QR round trip + identical parse + a pasted link with whitespace + a foreign https link rejected).
+- **Invite links (0.11, investigation 14)**: only the v3 short link `https://sukrara.mauri.app/join#<32 chars>`
+  (`V2.parseLink`). The follow dialog, clipboard prefill, "Follow from QR image…" and `-followLink` look the invite up
+  on the relays first (`V2.resolveInvite`: gift wrap to the invite key, seal checked against the link's fingerprint),
+  so the Mac knows who it is following before it asks. Opening links: `sukrara:` is the registered URL scheme; an
+  https link opens in the browser (no Universal Links without a Team ID), where the join page's **Open in Sukrara**
+  button hands it over as `sukrara:join#<32 chars>`. The old `#i=…&t=…` and `cgmshare:` forms are gone.
+  `-qrselftest [-vectors <dir>]` checks the QR round trip, the link codec and invite key against the Python vectors,
+  the rejection of the old forms, and the avatar "dots" against `spikes/nostr/identity/avatar-v1.json`.
+- **Names and pictures (0.11)**: the request carries this Mac's name and a random generated picture (`Avatar.swift`,
+  same drawing as Android's `core/Avatar.kt`); the wearer's name and picture come with the invite and every roster.
+  The menu line and the pairing window show them.
 - **Migration** (`Migration.swift`), once, on the first launch under the new id: copies the `dev.spike.GlucoseBar`
   defaults domain (missing keys only), `~/Library/Application Support/GlucoseBar` → `…/Sukrara` (treatments,
   LibreView ledger) and, on a background thread, the follower Keychain item `dev.spike.GlucoseBar.follower` →
@@ -57,10 +62,10 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
 
 ## How to use
 
-- Menubar → **Follow someone…** → paste the `https://sukrara.mauri.app/join#…` (or `cgmshare:join?…`) link (pre-filled if it's on the clipboard) and a
+- Menubar → **Follow someone…** → paste the `https://sukrara.mauri.app/join#…` link (pre-filled if it's on the clipboard) and a
   name for this Mac (defaults to the computer name) → a window shows the **match code** until the wearer allows it.
 - **Follow from QR image…** decodes a screenshot/photo of the share QR (CoreImage, no new dependency).
-- Opening a `cgmshare:` link launches the dialog (URL scheme registered by `bundle.sh`).
+- Opening a `sukrara:join#…` link launches the dialog (URL scheme registered by `bundle.sh`).
 - **Nearby (Bluetooth, no internet, no QR)**: when the wearer opens *Pair nearby*, GlucoseBar offers
   "Follow <phone> nearby?"; the request and the key travel over GATT, same match code.
 - Menu line: "Following: waiting for approval · code 1234" / "Following (v2) · key epoch n" /

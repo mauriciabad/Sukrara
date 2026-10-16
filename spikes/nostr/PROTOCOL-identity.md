@@ -6,6 +6,12 @@ key delivery. The invite link below **replaces** v2's link; the v2 link format i
 [`identity-android/…/Derive.kt`](identity-android/app/src/main/kotlin/dev/spike/nostrid/Derive.kt) (Kotlin). The two
 are checked against each other with [`identity/vectors.json`](identity/vectors.json).
 
+> **In Sukrara (0.11, 2026-10-17)** only the **short invites** below are used, with one change: the invite carries
+> the wearer's private `profile` object (name + generated avatar numbers, [PROTOCOL-v2 → Profiles](PROTOCOL-v2.md#profiles))
+> instead of a profile key and a public kind 0. The profile key `P`, public kind 0, Blossom pictures, Nostr login and
+> "Delete account everywhere" stay in the investigation PoC and are **not** in Sukrara; why:
+> [docs/14 → In Sukrara](../../docs/14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out).
+
 ## Keys
 
 ```
@@ -77,10 +83,12 @@ https://sukrara.mauri.app/join#<base64url( I.pub[0:8] ‖ s )>        s = 16 ran
 - The link holds an **8-byte fingerprint of `I`** and the **invite secret `s`**, which is also the v2 token
   (`t = base64url(s)`). The match code is unchanged: `sha256(F.pub_hex + t) mod 10000`.
 - **The invite itself is a standard NIP-59 gift wrap** on the app's default relays:
-  - rumor kind **30502** `{"v":3,"type":"invite","x":expiry,"r":[relays],"profile":P.pub,"name":…}`
+  - rumor kind **30502** `{"v":3,"type":"invite","x":expiry,"r":[relays],"profile":P.pub,"name":…}` (PoC);
+    in Sukrara `{"v":3,"type":"invite","x":expiry,"r":[relays],"profile":{"name","avatar"}}`
   - sealed (signed) by `I`
   - wrapped to `invite_key(s)`
-  - NIP-40 `expiration` = invite expiry, so relays drop it on their own
+  - NIP-40 `expiration` = invite expiry (absolute: NIP-59 backdates `created_at` by up to 2 days), so relays drop
+    it on their own
 - **Follower:**
   1. Decode the link and derive `invite_key(s)`.
   2. `REQ {"kinds":[1059], "#p":[invite_key.pub]}`, answering NIP-42 AUTH as `invite_key` where needed.
@@ -93,8 +101,10 @@ https://sukrara.mauri.app/join#<base64url( I.pub[0:8] ‖ s )>        s = 16 ran
   2⁶⁴ key generations, and the invite expires in 24 h.
 - **Only this form is an invite:** `https://sukrara.mauri.app/join#` followed by exactly 32 base64url chars.
   Anything else, including v2's `#i=…&t=…` and `cgmshare:join?…`, is rejected.
-- **Default relays for the lookup:** nos.lol, relay.primal.net, nostr.mom, offchain.pub. relay.damus.io and
-  relay.nostr.net accept gift wraps but can't serve them (their AUTH answers "relay needs serviceUrl", 2026-10-16).
+- **Default relays for the lookup:** nos.lol, relay.primal.net, nostr.mom, relay.snort.social (Sukrara 0.11,
+  measured 2026-10-17). relay.damus.io and relay.nostr.net accept gift wraps but can't serve them (their AUTH answers
+  "relay needs serviceUrl"); offchain.pub serves them but refuses a new key's events after about 8 ("not in our web of
+  trust"), which a wearer's first start always exceeds. Details: [PROTOCOL-v2 → Relay rules](PROTOCOL-v2.md#relay-rules-learned-while-testing-2026-10-16).
 
 ## Nostr login
 

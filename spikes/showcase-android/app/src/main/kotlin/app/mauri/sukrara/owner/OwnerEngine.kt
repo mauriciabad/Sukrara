@@ -770,8 +770,16 @@ class OwnerEngine(private val ctx: Context) {
     fun approve(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        s.pending.remove(p)
-        s.invites.removeIf { it.t == p.token }                                // single-use
+        if (s.invites.none { it.t == p.token && it.x > Proto.nowS() }) {
+            s.pending.removeIf { it.token == p.token }
+            save()
+            publishUi()
+            return@launch log.i("NOT approved '${p.name}': its invite was already used or expired")
+        }
+        // single-use: the invite and every other request made with it are gone (a second request on one invite
+        // means the link reached someone else too)
+        s.pending.removeIf { it.token == p.token }
+        s.invites.removeIf { it.t == p.token }
         s.followers.removeIf { it.f == f }
         s.followers += Follower(f, p.name, Proto.nowS(), avatar = p.avatar)
         save()
@@ -787,8 +795,8 @@ class OwnerEngine(private val ctx: Context) {
     fun deny(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        s.pending.remove(p)
-        s.invites.removeIf { it.t == p.token }                                // a denied token is burnt too
+        s.pending.removeIf { it.token == p.token }                            // a denied token is burnt, with its other requests
+        s.invites.removeIf { it.t == p.token }
         save()
         publishBackup()
         Notifications.cancel(ctx, Notifications.ID_REQUEST)
