@@ -1,0 +1,11 @@
+# v0.10.2 check on the real phone + Mac (2026-10-16 16:51–16:54): writer on → v2 only, accepted; deleted; writer off → no path
+4:51:50 PM  v2: roster writers changed — this Mac MAY add treatments
+4:52:30 PM  debug paths route=v2 canLog=true legacyEntries=false | Bluetooth link to Tartaruga: readings only, entries go over v2 · connected | → wearer over Sukrara sharing (v2) · allowed
+4:52:37 PM  treatment logged: 4:52 PM  note: v0.10.2 check - ignore → v2
+4:52:37 PM  v2: treatment note sent as writer (f64bec33, u 1792158757195)
+4:52:37 PM  v2 treatment note f64bec33 u 1792158757195 from writer d0d7477d via relay:relay.nostr.net
+4:52:37 PM  v2 treatment note f64bec33 u 1792158757195 from wearer via ble:Tartaruga
+4:52:37 PM  v2: treatment f64bec33 accepted by the wearer (via ble:Tartaruga)
+4:53:03 PM  v2 treatment note f64bec33 u 1792158783882 (deleted) from wearer via ble:Tartaruga
+4:53:09 PM  v2: roster writers changed — this Mac may not add treatments
+4:53:49 PM  debug paths route=none canLog=false legacyEntries=false | ✕ Bluetooth link: the wearer doesn't accept entries over it | ✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries
