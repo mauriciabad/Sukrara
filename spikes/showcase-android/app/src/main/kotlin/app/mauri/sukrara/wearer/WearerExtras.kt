@@ -98,7 +98,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
     /** Apply switches; [old] == null on start. */
     private fun apply(old: FeatureState?, f: FeatureState) {
         if (old == null || old.macBle != f.macBle) { if (f.macBle) mac.start() else mac.stop() }
-        if (old != null && old.macLinkEntries != f.macLinkEntries) mac.entriesSettingChanged()
         local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
         if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
