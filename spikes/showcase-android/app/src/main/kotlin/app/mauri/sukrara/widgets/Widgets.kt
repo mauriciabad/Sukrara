@@ -3,10 +3,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
-import app.mauri.sukrara.R
-
 import android.content.Context
 import androidx.compose.runtime.Composable
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.Trend
+import app.mauri.sukrara.core.ageS
+import app.mauri.sukrara.core.ageText
+import app.mauri.sukrara.core.stale
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -154,7 +159,7 @@ private data class ValueStyle(val color: ColorProvider, val deco: TextDecoration
 @Composable
 private fun styleFor(r: Reading, now: Long): ValueStyle {
     val stale = r.stale(now)
-    val rc = Range.color(r.mgdl)
+    val rc = Range.color(r.sgv)
     val color = when {
         stale -> GlanceTheme.colors.outline
         rc != null -> ColorProvider(Color(rc))
@@ -168,7 +173,7 @@ private fun ValueRow(r: Reading, now: Long, fontSize: TextUnit, arrowDp: Int) {
     val s = styleFor(r, now)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            "${r.mgdl}",
+            "${r.sgv}",
             style = TextStyle(color = s.color, fontSize = fontSize, fontWeight = FontWeight.Bold,
                 textDecoration = s.deco),
             maxLines = 1,
@@ -198,7 +203,7 @@ fun ValueContent(frame: WidgetUpdater.Frame) {
     val r = frame.history.lastOrNull() ?: return NoData()
     val now = frame.nowSec
     val size = LocalSize.current
-    val age = ageText(r.ageSec(now))
+    val age = ageText(r.ageS(now))
     when {
         size.width < ValueWidget.WIDE.width -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             ValueRow(r, now, 22.sp, 16)
@@ -250,7 +255,7 @@ fun CombinedContent(frame: WidgetUpdater.Frame) {
                 ValueRow(r, now, 36.sp, 28)
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.End) {
-                    Secondary(ageText(r.ageSec(now)))
+                    Secondary(ageText(r.ageS(now)))
                     Secondary(detail(r))
                 }
             }
@@ -261,7 +266,7 @@ fun CombinedContent(frame: WidgetUpdater.Frame) {
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             Column(GlanceModifier.width(92.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 ValueRow(r, now, 30.sp, 22)
-                Secondary(ageText(r.ageSec(now)), 11.sp)
+                Secondary(ageText(r.ageS(now)), 11.sp)
             }
             Graph(frame, w - 96, h)
         }
@@ -270,7 +275,7 @@ fun CombinedContent(frame: WidgetUpdater.Frame) {
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */
 fun sampleFrame(): WidgetUpdater.Frame {
-    val now = nowSec() / 60 * 60
+    val now = Proto.nowS() / 60 * 60
     val phase = Math.floorMod(170 - now / 60, 180L).toInt() // same picture whenever it's generated: ~110, rising
     return WidgetUpdater.Frame((360 downTo 0).map { sample(now - it * 60L, phase) }, now)
 }

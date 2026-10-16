@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
-import app.mauri.sukrara.R
-
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -12,6 +10,8 @@ import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Typeface
+import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentFeed
 import app.mauri.sukrara.treatments.TreatmentMarks
@@ -73,9 +73,9 @@ object GraphRenderer {
 
         val span = hours * 3600L
         val t0 = nowSec - span
-        val pts = history.filter { it.epochSec >= t0 - 60 }
+        val pts = history.filter { it.t >= t0 - 60 }
         val yMin = 40f
-        val yMax = max(250f, (pts.maxOfOrNull { it.mgdl } ?: 0) + 15f)
+        val yMax = max(250f, (pts.maxOfOrNull { it.sgv } ?: 0) + 15f)
 
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = col.label; textSize = 10 * d; typeface = Typeface.DEFAULT
@@ -88,7 +88,7 @@ object GraphRenderer {
         fun y(v: Float) = bottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (bottom - top)
 
         // In-range band = the same thresholds that colour the line (Range.LOW..HIGH, the user's 65–185).
-        cv.drawRect(left, y(Range.BAND_HIGH.toFloat()), right, y(Range.BAND_LOW.toFloat()),
+        cv.drawRect(left, y(Range.HIGH.toFloat()), right, y(Range.LOW.toFloat()),
             Paint().apply { color = col.band })
 
         // Hour grid + labels.
@@ -109,7 +109,7 @@ object GraphRenderer {
             }
             cal.add(Calendar.HOUR_OF_DAY, 1)
         }
-        if (showLabels) for (v in listOf(Range.BAND_LOW, Range.BAND_HIGH)) {
+        if (showLabels) for (v in listOf(Range.LOW, Range.HIGH)) {
             cv.drawText("$v", right + 3 * d, y(v.toFloat()) + labelPaint.textSize / 3, labelPaint)
         }
 
@@ -121,15 +121,15 @@ object GraphRenderer {
         val sparse = pts.size < 2 || (right - left) / pts.size > 6 * d
         for (i in pts.indices) {
             val r = pts[i]
-            val colr = Range.color(r.mgdl) ?: col.line
-            if (i > 0 && r.epochSec - pts[i - 1].epochSec <= 360) {
+            val colr = Range.color(r.sgv) ?: col.line
+            if (i > 0 && r.t - pts[i - 1].t <= 360) {
                 val p = pts[i - 1]
                 stroke.color = colr
-                cv.drawLine(x(p.epochSec), y(p.mgdl.toFloat()), x(r.epochSec), y(r.mgdl.toFloat()), stroke)
+                cv.drawLine(x(p.t), y(p.sgv.toFloat()), x(r.t), y(r.sgv.toFloat()), stroke)
             }
             if (sparse || i == pts.lastIndex) {
                 dot.color = colr
-                cv.drawCircle(x(r.epochSec), y(r.mgdl.toFloat()), if (i == pts.lastIndex) 3.5f * d else 2f * d, dot)
+                cv.drawCircle(x(r.t), y(r.sgv.toFloat()), if (i == pts.lastIndex) 3.5f * d else 2f * d, dot)
             }
         }
 

@@ -9,12 +9,12 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
 import java.io.BufferedReader
 import java.io.Writer
 import java.util.concurrent.Executors
-import kotlin.math.roundToInt
 
 /**
  * The two status-bar surfaces that need root (investigation 05, ported from spikes/statusbar-android):
@@ -118,15 +118,9 @@ object RootStatusBar {
             r.sgv > 400 -> "sb_hi"
             else -> "sb_n${r.sgv}"
         }
-        val rate = r.rate
-        val trend = when {
-            rate == null -> "sb_t_none"
-            Trend.isDouble(rate) -> if (rate > 0) "sb_t_up2" else "sb_t_down2"
-            else -> "sb_t%02d".format(((Trend.angleDeg(rate) + 90f) / 5f).roundToInt())
-        }
-        val desc = "Glucose ${r.sgv} mg/dL ${Trend.arrow(rate)}"
+        val desc = "Glucose ${r.sgv} mg/dL ${Trend.arrow(r.rate)}"
         // External icons are placed first (leftmost), newest first: add the trend before the number.
-        if (!send(ctx, "set $SLOT_TREND ${res(ctx, trend)} 0 $desc")) return
+        if (!send(ctx, "set $SLOT_TREND ${Trend.drawable(r.rate)} 0 $desc")) return
         send(ctx, "set $SLOT_NUMBER ${res(ctx, number)} 0 $desc")
     }
 
