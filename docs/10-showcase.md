@@ -158,7 +158,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nightscoutLan` | `--ez` | false | the same API on all interfaces; non-loopback callers need the API secret |
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
-| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
+| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https or cgmshare link> [--es name <n>]` sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service) |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -318,6 +318,35 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
 - **v0.10.4** (Android only): widget cleanup after the docs/12 review (see "Widgets: one model, no second store").
 - **v0.10.5** (Android only): direct mode scans the sensor with NFC and pairs over Bluetooth by itself, with no
   pairing file (see "Sensor scan (NFC)").
+- **v0.10.6** (Android only): graph widgets are drawn at the size the launcher really gives them (see "Widgets:
+  the launcher's reported size is wrong").
+
+### Widgets: the launcher's reported size is wrong (v0.10.6)
+
+User report: the 4×2 *Glucose + graph* on the phone lost the bottom and right of its graph (no time labels, no
+65/185). Glance's Exact mode composes for the size the launcher reports (`OPTION_APPWIDGET_SIZES`), and the Glance
+docs warn that *"the available size might differ depending on the launcher's implementation"*. On the user's Pixel
+10 Pro (Pixel Launcher, 6-column grid) it reports **296×202 dp** and lays the widget out at **244×149 dp**: 82 % of
+the width, 74 % of the height ([sizes](../spikes/showcase-android/evidence/n9-phone-widget-sizes.txt)). The emulator's
+launcher lays widgets out at the reported size and scales them down evenly, so nothing was ever clipped there.
+
+- **First fix** (graph image fills the remaining space, bitmap scaled into it): no longer clipped, but the bitmap,
+  drawn for 296×202, was squeezed into a box of another shape — wide text, oval dots. The user found it looked bad.
+- **Fix: measure the real size.** The launcher sends no other option, but its `AppWidgetHostView` knows the size:
+  from a size → RemoteViews map it applies the layout that fits its real laid-out size most closely
+  (`RemoteViews.findBestFitLayout`, re-picked in `onLayout`; at most 16 layouts). `widgets/WidgetProbe.kt` sends
+  16 tiny layouts whose image is a `content://` URI naming its size, and `ProbeProvider` sees which one the
+  launcher loads. Round 1 brackets 100…55 % of the reported size, round 2 narrows it to ≈ 4 %
+  (measured: 240.5×148.9 dp for the real 244.2×148.6). The graph widgets then lay out and draw for that size; the
+  image still fills its space, so being a few dp off doesn't clip.
+- It runs only when a graph widget is placed or resized (`onAppWidgetOptionsChanged`), or has no measurement yet
+  (e.g. the first refresh after this update), and only while the screen is on; a launcher that doesn't answer is
+  asked again after 2 min. About 1.5 s, the widget is blank meanwhile. Results are kept per widget and reported size
+  (`shared_prefs/widget-sizes.xml`), so updates and restarts don't measure again. The value widget doesn't need it.
+
+| Before (0.10.5): clipped | First fix: stretched | Measured (0.10.6) |
+|---|---|---|
+| ![clipped](../spikes/showcase-android/evidence/n9-phone-combined-4x2-clipped-before.png) | ![stretched](../spikes/showcase-android/evidence/n9-phone-combined-4x2-stretched.png) | ![measured](../spikes/showcase-android/evidence/n9-phone-combined-4x2-measured.png) |
 
 ### Widgets: one model, no second store (v0.10.4)
 

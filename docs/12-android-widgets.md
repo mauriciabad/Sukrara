@@ -167,3 +167,7 @@ What the widgets need from Sukrara's data layer:
   range, staleness, age) and the `sb_t*` arrows with the status bar, and `GlucoseStore`'s CSV copy is replaced by
   `RecentHistory`, which reads the role's own `owner.db` / `follower.db` / treatment store. The integration notes
   above describe the spike; they predate this.
+- **Real size (v0.10.6).** Pixel Launcher on the user's Pixel 10 Pro reports 296×202 dp for a 4×2 widget it lays
+  out at 244×149, so Exact mode's bitmap was clipped. Graph widgets now measure the real size with a one-off probe
+  (16 sized layouts; the launcher loads the image of the one it applies):
+  [10](10-showcase.md#widgets-the-launchers-reported-size-is-wrong-v0106).

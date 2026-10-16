@@ -15,6 +15,7 @@ import app.mauri.sukrara.treatments.TreatmentFeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -59,6 +60,23 @@ object SukraraHooks {
             }
         }
     }
+
+    /**
+     * A graph widget was placed or resized: measure its real size ([WidgetProbe]) once Glance's own update for the
+     * new options has landed, then redraw. If the screen is off, the next refresh with the screen on measures it.
+     */
+    fun remeasure(c: Context, appWidgetId: Int) {
+        val app = c.applicationContext
+        WidgetProbe.forget(app, intArrayOf(appWidgetId))
+        WidgetUpdater.allowProbe(appWidgetId)
+        scope.launch {
+            delay(1_500)
+            WidgetUpdater.refreshSafely(app, "resized", force = true)
+        }
+    }
+
+    /** DebugReceiver `cmd widgetprobe`: measure every graph widget again. */
+    fun remeasureAll(c: Context) = WidgetProbe.placed(c).forEach { remeasure(c, it) }
 
     fun refresh(c: Context, reason: String, force: Boolean = false) {
         val app = c.applicationContext

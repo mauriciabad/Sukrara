@@ -29,6 +29,7 @@ import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.action.actionStartActivity
@@ -88,7 +89,8 @@ class GraphWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         WidgetUpdater.current(context)
-        provideContent { Live { GraphContent(it) } }
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        provideContent { Live { GraphContent(it, appWidgetId) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
@@ -103,7 +105,8 @@ class CombinedWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         WidgetUpdater.current(context)
-        provideContent { Live { CombinedContent(it) } }
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        provideContent { Live { CombinedContent(it, appWidgetId) } }
     }
 
     override suspend fun providePreview(context: Context, widgetCategory: Int) {
@@ -125,6 +128,18 @@ abstract class BaseReceiver : GlanceAppWidgetReceiver() {
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
         Unit
+    }
+
+    /** Placed or resized: the reported size changed, so measure the real one again (graph widgets). */
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: android.appwidget.AppWidgetManager,
+            appWidgetId: Int, newOptions: android.os.Bundle) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        if (glanceAppWidget !is ValueWidget) SukraraHooks.remeasure(context, appWidgetId)
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetProbe.forget(context, appWidgetIds)
     }
 }
 
@@ -224,10 +239,8 @@ fun ValueContent(frame: WidgetUpdater.Frame) {
 }
 
 /**
- * The bitmap is drawn for the size the launcher reports ([widthDp] × [heightDp]), but the Image fills the space the
- * layout really has ([modifier]) and scales into it: launchers may report a size that differs from the one they
- * give the widget (Pixel Launcher on a Pixel 10 Pro: the graph of a 4×2 *Glucose + graph* was cut at the bottom
- * and right). A small mismatch then stretches the graph a little instead of clipping its labels.
+ * The bitmap is drawn for [widthDp] × [heightDp] (from [realSize]), and the Image fills the space the layout really
+ * has ([modifier]) and scales into it, so a measurement off by a few dp (or none yet) never clips the labels.
  */
 @Composable
 private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float, modifier: GlanceModifier) {
@@ -243,17 +256,27 @@ private fun Graph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float, m
     )
 }
 
+/**
+ * The size to lay out and draw for: the measured one ([WidgetProbe]) when the launcher's reported size
+ * ([LocalSize]) is known to be wrong, else the reported one. Previews have no widget id.
+ */
 @Composable
-fun GraphContent(frame: WidgetUpdater.Frame) {
-    val size = LocalSize.current
+private fun realSize(appWidgetId: Int?): DpSize {
+    val reported = LocalSize.current
+    return appWidgetId?.let { WidgetProbe.actual(LocalContext.current, it, reported) } ?: reported
+}
+
+@Composable
+fun GraphContent(frame: WidgetUpdater.Frame, appWidgetId: Int? = null) {
+    val size = realSize(appWidgetId)
     Graph(frame, size.width.value - 16, size.height.value - 16, GlanceModifier.fillMaxSize())
 }
 
 @Composable
-fun CombinedContent(frame: WidgetUpdater.Frame) {
+fun CombinedContent(frame: WidgetUpdater.Frame, appWidgetId: Int? = null) {
     val r = frame.history.lastOrNull() ?: return NoData()
     val now = frame.nowSec
-    val size = LocalSize.current
+    val size = realSize(appWidgetId)
     val w = size.width.value - 20
     val h = size.height.value - 20
     if (h >= 120) {

@@ -118,6 +118,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_combined" />
         </receiver>
+        <!-- widgets/WidgetProbe.kt: measures the size the launcher really gives a graph widget -->
+        <provider
+            android:name=".widgets.ProbeProvider"
+            android:authorities="${applicationId}.widgetprobe"
+            android:exported="true" />
         <receiver
             android:name=".widgets.StartReceiver"
             android:exported="false">

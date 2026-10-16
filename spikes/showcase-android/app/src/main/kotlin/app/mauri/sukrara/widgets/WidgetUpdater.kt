@@ -32,7 +32,8 @@ import kotlin.math.roundToInt
  */
 object WidgetUpdater {
     /** What the widgets draw. Composition reads this (and collects it while a Glance session is alive). */
-    data class Frame(val history: List<Reading>, val nowSec: Long, val treatments: List<Treatment> = emptyList())
+    data class Frame(val history: List<Reading>, val nowSec: Long, val treatments: List<Treatment> = emptyList(),
+        val generation: Int = 0)
 
     val frame = MutableStateFlow<Frame?>(null)
 
@@ -45,6 +46,11 @@ object WidgetUpdater {
 
     private val mutex = Mutex()
     private var lastKey: String? = null
+    private var generation = 0
+    /** appWidgetId → when a probe was last tried, so a launcher that doesn't answer (not on screen) is retried every 2 min, not every refresh. */
+    private val probed = HashMap<Int, Long>()
+
+    fun allowProbe(id: Int) = synchronized(probed) { probed.remove(id) }
 
     val widgets: List<Pair<GlanceAppWidget, Class<*>>> = listOf(
         ValueWidget() to ValueWidgetReceiver::class.java,
@@ -75,7 +81,16 @@ object WidgetUpdater {
             return@withLock
         }
         lastKey = key
-        frame.value = Frame(history, now, treatments)
+        // A graph widget without a measured size (just placed, resized, or the app was updated): measure it first,
+        // while the launcher is on screen to answer.
+        val interactive = c.getSystemService(PowerManager::class.java).isInteractive
+        for (id in if (interactive) WidgetProbe.unmeasured(c) else emptyList()) {
+            val due = synchronized(probed) { (probed[id] ?: 0) < System.currentTimeMillis() - 2 * 60_000 }
+            if (!due) continue
+            synchronized(probed) { probed[id] = System.currentTimeMillis() }
+            WidgetProbe.measure(c, id)
+        }
+        frame.value = Frame(history, now, treatments, ++generation)
         val t = System.currentTimeMillis()
         val mgr = GlanceAppWidgetManager(c)
         for ((widget, receiver) in widgets) {

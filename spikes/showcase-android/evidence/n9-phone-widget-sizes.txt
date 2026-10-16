@@ -1,0 +1,9 @@
+# Pixel 10 Pro, Pixel Launcher (6-column grid), Sukrara 0.10.6, Glucose + graph resized to 4x2 (2026-10-16)
+# what the launcher reports (OPTION_APPWIDGET_SIZES, DebugReceiver 'widgets'):
+sizes ["296x202","296x201","628x109","628x109"]  min 296x108  max 627x201
+# what it really lays the widget out at (the launcher's own RemoteViews log):
+RemoteViews: Could not find a RemoteViews fitting the current size: 244.19048x148.57143
+# probe (DebugReceiver --es cmd widgetprobe):
+D Sukrara.widgets: probe answer 207.2x141.33333 (current)
+D Sukrara.widgets: probe answer 240.5x148.90475 (current)
+I Sukrara.widgets: widget 20: launcher reports 296.0x201.90475 dp, lays it out at ≈ 240.5x148.90475 dp
