@@ -17,24 +17,27 @@ import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.MainActivity
 
 /**
- * One notification channel per alert kind, so each kind's sound, vibration and Do Not Disturb behaviour can be set
- * in the system settings (developer.android.com/design/ui/mobile/guides/home-screen/notifications: "Users can change
- * these settings and decide which notification channels from your app can be intrusive or visible").
+ * Two notification channels per alert kind, one per volume, so each kind's sound, vibration and Do Not Disturb
+ * behaviour can be set in the system settings (developer.android.com/design/ui/mobile/guides/home-screen/notifications:
+ * "Users can change these settings and decide which notification channels from your app can be intrusive or
+ * visible"). A channel's audio attributes can't change after it's created, so the per-kind "Volume" setting
+ * ([KindCfg.alarm]) picks the channel instead:
  *
- * Lows play on the alarm stream (USAGE_ALARM + CATEGORY_ALARM): they follow the alarm volume, pass "Alarms only"
- * Do Not Disturb (ZenModeFiltering.isAlarm) and are exempt from every notification cooldown. The others are
- * CATEGORY_REMINDER (USAGE_NOTIFICATION_EVENT): exempt from the cross-app "avalanche" cooldown that otherwise mutes
- * every notification for a while after unlocking (measured on the emulator: a high posted then made no sound,
- * docs/15), and let through Do Not Disturb only if the user allows reminders.
+ * - **Alarm** (default for lows): USAGE_ALARM + CATEGORY_ALARM. Alarm volume, passes "Alarms only" Do Not Disturb
+ *   (ZenModeFiltering.isAlarm) and is exempt from every notification cooldown.
+ * - **Notification** (default for the rest): USAGE_NOTIFICATION_EVENT + CATEGORY_REMINDER. Exempt from the cross-app
+ *   "avalanche" cooldown that otherwise mutes every notification for a while after unlocking (measured on the
+ *   emulator: a high posted then made no sound, docs/15); through Do Not Disturb only if the user allows reminders.
  */
 object AlertNotifier {
-    const val GROUP = "alerts"
+    private const val GROUP = "alerts"
+    private const val GROUP_ALARM = "alerts_alarm"
     private const val ID_BASE = 100
 
-    fun channelId(kind: String) = "alert_$kind"
+    fun channelId(kind: String, alarm: Boolean) = if (alarm) "alert_a_$kind" else "alert_n_$kind"
 
-    fun audioAttributes(kind: String): AudioAttributes = AudioAttributes.Builder()
-        .setUsage(if (isLow(kind)) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION_EVENT)
+    fun audioAttributes(alarm: Boolean): AudioAttributes = AudioAttributes.Builder()
+        .setUsage(if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION_EVENT)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
 
@@ -42,12 +45,15 @@ object AlertNotifier {
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
+        Kind.ALL.forEach { nm.deleteNotificationChannel("alert_$it") }   // 0.11.1–0.11.3: one channel per kind
         nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP, "Glucose alerts"))
-        for (k in Kind.ALL) {
-            nm.createNotificationChannel(NotificationChannel(channelId(k), Kind.label(k), NotificationManager.IMPORTANCE_HIGH).apply {
-                group = GROUP
-                description = DESCRIPTIONS.getValue(k)
-                setSound(AlertSounds.uri(ctx, k), audioAttributes(k))
+        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_ALARM, "Glucose alerts at alarm volume"))
+        for (k in Kind.ALL) for (alarm in listOf(false, true)) {
+            nm.createNotificationChannel(NotificationChannel(channelId(k, alarm), Kind.label(k), NotificationManager.IMPORTANCE_HIGH).apply {
+                group = if (alarm) GROUP_ALARM else GROUP
+                description = DESCRIPTIONS.getValue(k) +
+                    if (alarm) " Rings at alarm volume, like an alarm clock." else " Rings at notification volume."
+                setSound(AlertSounds.uri(ctx, k), audioAttributes(alarm))
                 enableVibration(true)
                 vibrationEffect = AlertHaptics.effect(ctx, k)
                 enableLights(true)
@@ -76,7 +82,7 @@ object AlertNotifier {
      * [who] = the followed person when this mirrors a wearer's alert or follows someone, null on the wearer's phone.
      * [sgv]/[rate] null for no data.
      */
-    fun post(ctx: Context, kind: String, n: Int, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?) {
+    fun post(ctx: Context, kind: String, n: Int, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean) {
         val unit = Kind.unit(kind)
         val thText = if (kind in Kind.RATES) "%.1f".format(th) else th.toInt().toString()
         val title = when (kind) {
@@ -90,7 +96,7 @@ object AlertNotifier {
             Kind.RISING_FAST -> "Rising ${"%.1f".format(rate ?: 0.0)} $unit (alert at $thText)"
             else -> "Nothing received for $thText min" + (sgv?.let { " · last $it mg/dL" } ?: "")
         } + if (n > 1) " · reminder $n" else ""
-        val b = Notification.Builder(ctx, channelId(kind))
+        val b = Notification.Builder(ctx, channelId(kind, alarm))
             .setSmallIcon(R.drawable.ic_stat_sukrara)
             .setColor(if (isLow(kind)) Range.RED else Range.ORANGE)
             .setContentTitle(title)
@@ -99,7 +105,7 @@ object AlertNotifier {
             .setAutoCancel(true)
             .setWhen(at * 1000)
             .setShowWhen(true)
-            .setCategory(if (isLow(kind)) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
+            .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
         who?.let { b.setSubText(it) }
         runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), b.build()) }
     }

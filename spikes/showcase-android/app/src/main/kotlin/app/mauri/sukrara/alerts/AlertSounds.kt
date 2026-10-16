@@ -72,8 +72,8 @@ object AlertSounds {
 
     private var player: MediaPlayer? = null
 
-    /** Settings' ▶ button: one variant of [pack] for [kind] (or the system sound), on the alert's own stream. */
-    fun preview(ctx: Context, kind: String, pack: String, variant: Int? = null) {
+    /** Settings' ▶ button: one variant of [pack] for [kind] (or the system sound), on the stream it would ring on. */
+    fun preview(ctx: Context, kind: String, pack: String, alarm: Boolean, variant: Int? = null) {
         stopPreview()
         val name = when (pack) {
             SYSTEM -> SYSTEM
@@ -82,7 +82,7 @@ object AlertSounds {
         }
         val fd = runCatching { open(ctx, name) }.getOrNull() ?: return
         player = MediaPlayer().apply {
-            setAudioAttributes(AlertNotifier.audioAttributes(kind))
+            setAudioAttributes(AlertNotifier.audioAttributes(alarm))
             fd.use { setDataSource(it.fileDescriptor, it.startOffset, it.length) }
             setOnCompletionListener { it.release(); if (player === it) player = null }
             prepare()

@@ -33,8 +33,11 @@ object Kind {
     fun group(k: String) = when (k) { in RATES -> "rate"; NO_DATA -> NO_DATA; else -> "level" }
 }
 
-/** One kind's rule. [value] = threshold in mg/dL, rate in mg/dL/min (positive) or minutes for no data. */
-data class KindCfg(val on: Boolean, val value: Double, val repeatMin: Int)
+/**
+ * One kind's rule. [value] = threshold in mg/dL, rate in mg/dL/min (positive) or minutes for no data.
+ * [alarm]: ring like an alarm clock (alarm volume, "Alarms" in Do Not Disturb) instead of as a notification.
+ */
+data class KindCfg(val on: Boolean, val value: Double, val repeatMin: Int, val alarm: Boolean = false)
 
 /** spikes/alerts/SPEC.md §3, same JSON as Sukrara for Mac. */
 data class AlertSettings(
@@ -58,7 +61,7 @@ data class AlertSettings(
         for (k in Kind.ALL) {
             val c = cfg(k)
             val key = when (k) { in Kind.RATES -> "rate"; Kind.NO_DATA -> "min"; else -> "mgdl" }
-            a.put(k, JSONObject().put("on", c.on).put(key, if (key == "rate") c.value else c.value.toInt()).put("repeatMin", c.repeatMin))
+            a.put(k, JSONObject().put("on", c.on).put(key, if (key == "rate") c.value else c.value.toInt()).put("repeatMin", c.repeatMin).put("alarm", c.alarm))
         }
         val kindsJ = JSONObject()
         packFor.forEach { (k, v) -> kindsJ.put(k, v) }
@@ -71,9 +74,9 @@ data class AlertSettings(
 
     companion object {
         val DEFAULTS = mapOf(
-            Kind.URGENT_LOW to KindCfg(true, 55.0, 5),
-            Kind.LOW to KindCfg(true, 65.0, 15),
-            Kind.HIGH to KindCfg(true, 185.0, 60),
+            Kind.URGENT_LOW to KindCfg(true, 55.0, 5, alarm = true),
+            Kind.LOW to KindCfg(true, 65.0, 15, alarm = true),
+            Kind.HIGH to KindCfg(true, 185.0, 30),
             Kind.VERY_HIGH to KindCfg(true, 250.0, 30),
             Kind.FALLING_FAST to KindCfg(false, 2.0, 30),
             Kind.RISING_FAST to KindCfg(false, 2.0, 30),
@@ -87,7 +90,8 @@ data class AlertSettings(
                 val def = DEFAULTS.getValue(k)
                 val o = a.optJSONObject(k) ?: return@associateWith def
                 val key = when (k) { in Kind.RATES -> "rate"; Kind.NO_DATA -> "min"; else -> "mgdl" }
-                KindCfg(o.optBoolean("on", def.on), o.optDouble(key, def.value), o.optInt("repeatMin", def.repeatMin))
+                KindCfg(o.optBoolean("on", def.on), o.optDouble(key, def.value), o.optInt("repeatMin", def.repeatMin),
+                    o.optBoolean("alarm", def.alarm))
             }
             val mi = j.optJSONObject("muteAfterInsulin")
             val mf = j.optJSONObject("muteFallingHigh")

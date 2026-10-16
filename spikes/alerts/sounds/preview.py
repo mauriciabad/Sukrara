@@ -21,7 +21,7 @@ PACKS = [("arcade", "Arcade", "8-bit pulse waves"), ("kart", "Kart", "racing bra
 KINDS = [
     ("urgent_low", "Urgent low", "≤ 55 mg/dL", "every 5 min", "Game over: longer, slows down, ends low"),
     ("low", "Low", "≤ 65 mg/dL", "every 15 min", "Lost a life: short and falling"),
-    ("high", "High", "≥ 185 mg/dL", "every 60 min", "Final lap: a riff, then faster and higher"),
+    ("high", "High", "≥ 185 mg/dL", "every 30 min", "Final lap: a riff, then faster and higher"),
     ("very_high", "Very high", "≥ 250 mg/dL", "every 30 min", "Boss incoming: two-note warning, rising"),
     ("falling_fast", "Falling fast", "−2 mg/dL/min", "off by default", "A quick sweep down"),
     ("rising_fast", "Rising fast", "+2 mg/dL/min", "off by default", "A quick sweep up"),

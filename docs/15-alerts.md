@@ -25,7 +25,7 @@ variants, plus each alert's vibration pattern drawn to scale).
 
 | What | How it was checked | Result |
 |---|---|---|
-| Rules (thresholds, severity, re-alerts, no flapping, both mutes, rate alerts, no data, stale readings, master switch, settings JSON) | Android unit tests [`AlertEngineTest`](../spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt); Mac `swift run GlucoseBar -alerts-selftest` | **15/15** and **53/53** pass |
+| Rules (thresholds, severity, re-alerts, no flapping, both mutes, rate alerts, no data, stale readings, master switch, settings JSON) | Android unit tests [`AlertEngineTest`](../spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt); Mac `swift run GlucoseBar -alerts-selftest` | **15/15** and **55/55** pass |
 | Sound packs through the native channel | emulator: SystemUI's `RingtonePlayer` plays `content://app.mauri.sukrara.poc.alertsound/<kind>`; our provider logs every open | `sound high → arcade_high_2 for com.android.systemui`, `sound very_high → arcade_very_high_1`, `sound no_data → arcade_no_data_1`, `sound urgent_low → arcade_urgent_low_3` |
 | Channel keeps our sound and vibration | `dumpsys notification` | `mSound=content://…alertsound/urgent_low`, `mVibrationEffect=Composed{…QUICK_FALL…}` (not reset to the default sound) |
 | Insulin mute, live | emulator wearer: reading 214 → high fires; `cmd treat k=rapid`; next reading | `High · 214 mg/dL` → `High cleared`, state `muted: "insulin 0 min ago"` |
@@ -49,7 +49,7 @@ Screenshots (emulator, debug build):
 |---|---|---|---|
 | Urgent low | ≤ 55 mg/dL | 5 min | *game over*: longer (3–4.5 s), unmistakable, not harsh |
 | Low | ≤ 65 | 15 min | *lost a life*: short, falling |
-| High | ≥ 185 | 60 min | *final lap*: a riff, then the same riff faster and higher (≈ 1 s, it's the frequent one) |
+| High | ≥ 185 | 30 min (60 until 0.11.4) | *final lap*: a riff, then the same riff faster and higher (≈ 1 s, it's the frequent one) |
 | Very high | ≥ 250 | 30 min | *boss incoming* |
 | Falling / rising fast | 2 mg/dL/min | 30 min, **off** | quick sweeps |
 | No data | 20 min | 60 min | *connection lost* |
@@ -179,15 +179,32 @@ You asked for vibrations that match the sounds, or at least one pattern per aler
   and length, so the pattern fits all three.
 - The Mac has no notification haptics.
 
+## Volume: alarm or notification (0.11.4)
+
+Every alert has a **Volume** choice (the user's request after 0.11.1): **Alarm** rings like an alarm clock, at the
+alarm volume, and comes through Do Not Disturb when alarms are allowed. **Notification** uses the notification volume
+and comes through Do Not Disturb only if reminders are allowed. Lows default to Alarm, everything else to Notification.
+It's a per-device choice, also on a follower that mirrors the wearer.
+
+Android doesn't let an app change a channel's audio attributes once it exists, so each alert has **two channels**:
+`alert_n_<kind>` and `alert_a_<kind>`. In Android's settings they appear in two groups, "Glucose alerts" and "Glucose
+alerts at alarm volume", and the setting picks which one Sukrara posts to. The 0.11.1 channels (`alert_<kind>`) are
+deleted. Checked on an emulator: by default a low went to `alert_a_low` (category `alarm`, `USAGE_ALARM` →
+`STREAM_ALARM`) and a high to `alert_n_high` (category `reminder`). With the two swapped, the high went to
+`alert_a_high` and the low to `alert_n_low` (played as `USAGE_NOTIFICATION_EVENT`). All four played.
+
+On the Mac there is no alarm volume. The same switch ("Like an alarm") means **Time Sensitive**, which only works in a
+build signed with that entitlement; today's builds show it as a normal notification.
+
 ## Notification behaviour learned on the way
 
 - **Notification cooldown muted the first test alerts.** On the emulator, three high alerts in a row played no sound,
   while the urgent low did; SystemUI then posted "Notification cooldown is now on". In NotificationAttentionHelper the
   cross-app *avalanche* strategy (after unlocking / many notifications) mutes everything except `CATEGORY_ALARM`,
   `CATEGORY_REMINDER`, `CATEGORY_EVENT`, calls and important conversations. The fix:
-  - **Lows**: `CATEGORY_ALARM` + `USAGE_ALARM`. They follow the alarm volume, ring in "Alarms only" Do Not Disturb
+  - **Lows** (by default; any alert set to *Alarm* volume since 0.11.4): `CATEGORY_ALARM` + `USAGE_ALARM`. They follow the alarm volume, ring in "Alarms only" Do Not Disturb
     (`ZenModeFiltering.isAlarm`), and are exempt from every cooldown.
-  - **Everything else**: `CATEGORY_REMINDER`. Exempt from the avalanche, and let through Do Not Disturb only if you
+  - **Everything else** (*Notification* volume): `CATEGORY_REMINDER`. Exempt from the avalanche, and let through Do Not Disturb only if you
     allow reminders, so highs don't wake you through DND unless you want them to.
   - After that, high, very high and no data played.
 - Per-app cooldown (only when the user applies cooldown to all apps) can still soften a second alert that comes within
