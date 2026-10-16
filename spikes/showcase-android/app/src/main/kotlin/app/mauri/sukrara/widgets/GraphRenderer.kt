@@ -133,8 +133,8 @@ object GraphRenderer {
             }
         }
 
-        // Treatments on top of the line: amounts only (no note text) at widget size.
-        TreatmentMarks.draw(cv, treatments, ::x, left, right, bottom, d, dark(c), top = top)
+        // Treatments on top of the line: amounts only (no note text, no time lines: they read as grid) at widget size.
+        TreatmentMarks.draw(cv, treatments, ::x, left, right, bottom, d, dark(c))
         return bmp
     }
 

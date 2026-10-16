@@ -144,7 +144,7 @@ fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int 
             }
             drawIntoCanvas {
                 TreatmentMarks.draw(it.nativeCanvas, treatments.filter { tr -> tr.t in from..now }, { t -> x(t) },
-                    0f, size.width, size.height, density, dark, textDp = 10f, noteChars = 14, top = 0f, halo = background)
+                    0f, size.width, size.height, density, dark, textDp = 10f, noteChars = 14, rows = 3, top = 0f, halo = background)
             }
             drawRect(grid, style = Stroke(1f))
         }

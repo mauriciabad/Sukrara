@@ -74,7 +74,6 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
-        jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // wearer → every chart
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
         jobs += scope.launch {
             while (isActive) {
