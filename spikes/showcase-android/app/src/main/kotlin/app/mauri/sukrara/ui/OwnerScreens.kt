@@ -76,27 +76,27 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("I wear the sensor", style = MaterialTheme.typography.headlineSmall)
         Text("This phone reads your glucose and shares it, end-to-end encrypted, through public Nostr relays.")
-        if (busy != null) {
+        RevealValue(busy) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(Modifier.size(20.dp)); Text(busy)
+                CircularProgressIndicator(Modifier.size(20.dp)); Text(it)
             }
         }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        RevealValue(error) { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = a::create, enabled = busy == null, modifier = Modifier.fillMaxWidth()) { Text("Start fresh (new identity)") }
         OutlinedButton(onClick = a::restoreFromPasswordManager, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
             Text("Restore from password manager")
         }
         Text("New phone? Restoring keeps all your followers — nobody has to scan again.", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = { paste = !paste }) { Text(if (paste) "Hide manual restore" else "Restore by pasting a key (nsec / ncryptsec)") }
-        if (paste) {
+        Reveal(paste) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(secret, { secret = it }, label = { Text("nsec1… or ncryptsec1…") }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-            if (secret.trim().startsWith("ncryptsec1")) {
+            Reveal(secret.trim().startsWith("ncryptsec1")) {
                 OutlinedTextField(pw, { pw = it }, label = { Text("Password") }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             }
             Button(onClick = { a.restorePasted(secret, pw) }, enabled = busy == null && secret.isNotBlank()) { Text("Restore") }
-        }
+        } }
     }
 }
 
@@ -120,10 +120,10 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         GlucoseChart(u.chart.map { it.t to it.sgv }, 65, 185)
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
         OutlinedButton(onClick = { a.open("treatments") }, modifier = Modifier.fillMaxWidth()) { Text("Treatments & LibreView") }
-        if (u.treatments.isNotEmpty()) {
+        Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("Entries from followers")
-            u.treatments.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-        }
+            AnimatedItems(u.treatments, { it }) { Text(it, style = MaterialTheme.typography.bodySmall) }
+        } }
         WearerSummary()
         if (BuildConfig.DEBUG) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -143,8 +143,9 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
 
         SectionTitle("Followers")
         val active = u.followers.filter { it.revoked == null }
-        if (u.followers.isEmpty()) Text("Nobody follows you yet.", style = MaterialTheme.typography.bodyMedium)
-        active.forEach { f ->
+        Reveal(u.followers.isEmpty()) { Text("Nobody follows you yet.", style = MaterialTheme.typography.bodyMedium) }
+        // a newly approved follower's card expands in; a removed one shrinks out and reappears as a "removed" line
+        AnimatedItems(active, { it.f }) { f ->
             Card(Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -159,7 +160,7 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
                 }
             }
         }
-        u.followers.filter { it.revoked != null }.forEach { f ->
+        AnimatedItems(u.followers.filter { it.revoked != null }, { it.f }) { f ->
             Text("${f.name} — removed ${date(f.revoked!!)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
 
@@ -188,7 +189,7 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
             TextButton(onClick = a::checkNow) { Text("Check requests now") }
             TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide log" else "Show log") }
         }
-        if (showLog) LogList(log)
+        Reveal(showLog) { LogList(log) }
         Spacer(Modifier.size(24.dp))
     }
 
@@ -227,12 +228,14 @@ private fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("An encrypted copy of your identity (NIP-49). Print it or keep it somewhere safe; you need the password to use it.")
-                if (out == null) {
-                    OutlinedTextField(pw, { pw = it }, label = { Text("Password (12+ characters)") }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation())
-                    if (working) CircularProgressIndicator(Modifier.size(20.dp))
-                } else {
-                    SelectionContainer { Text(out!!, fontFamily = FontFamily.Monospace, fontSize = 11.sp) }
+                Swap(out) { code ->
+                    if (code == null) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(pw, { pw = it }, label = { Text("Password (12+ characters)") }, singleLine = true,
+                            visualTransformation = PasswordVisualTransformation())
+                        Reveal(working) { CircularProgressIndicator(Modifier.size(20.dp)) }
+                    } else {
+                        SelectionContainer { Text(code, fontFamily = FontFamily.Monospace, fontSize = 11.sp) }
+                    }
                 }
             }
         },

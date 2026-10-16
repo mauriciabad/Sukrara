@@ -12,15 +12,11 @@ import android.os.Bundle
 import android.os.PersistableBundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -33,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.credentials.CreatePasswordRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -66,10 +61,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val ctx = LocalContext.current
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)) {
+                // every screen is a Page (own scroll + safe-area padding) so screens can animate as a whole (Motion.kt)
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                        Root()
-                    }
+                    Root()
                 }
             }
         }
@@ -124,13 +118,17 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun Root() {
-        when (role) {
-            null -> RoleChoice(
-                onOwner = { App.setRole(this, "owner"); role = "owner" },
-                onFollower = { App.setRole(this, "follower"); role = "follower" },
-            )
-            "owner" -> OwnerRoot()
-            "follower" -> FollowerRoot()
+        AnimatedContent(role, transitionSpec = { fadeThrough() }, label = "role") { r ->
+            when (r) {
+                null -> Page {
+                    RoleChoice(
+                        onOwner = { App.setRole(this@MainActivity, "owner"); role = "owner" },
+                        onFollower = { App.setRole(this@MainActivity, "follower"); role = "follower" },
+                    )
+                }
+                "owner" -> OwnerRoot()
+                "follower" -> FollowerRoot()
+            }
         }
     }
 
@@ -233,18 +231,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        if (!u.hasIdentity) {
-            OwnerOnboarding(busy ?: u.busy, error, actions)
-            return
+        // the home screen keeps its scroll position while a child screen is open
+        val homeScroll = rememberScrollState()
+        AnimatedContent(u.hasIdentity, transitionSpec = { fadeThrough() }, label = "identity") { has ->
+            if (!has) Page { OwnerOnboarding(busy ?: u.busy, error, actions) }
+            else ScreenHost(screen, home = "home", onBack = { screen = "home" }) { s ->
+                when (s) {
+                    "share" -> Page { ShareScreen(u, actions) { screen = "home" } }
+                    "settings" -> Page { SettingsScreen { screen = "home" } }
+                    "treatments" -> Page { TreatmentsScreen { screen = "home" } }
+                    else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
+                }
+            }
         }
-        BackHandler(enabled = screen != "home") { screen = "home" }
-        when (screen) {
-            "share" -> ShareScreen(u, actions) { screen = "home" }
-            "settings" -> SettingsScreen { screen = "home" }
-            "treatments" -> TreatmentsScreen { screen = "home" }
-            else -> OwnerHome(u, relays, log, actions)
-        }
-        ApproveDialog(u, actions)
+        if (u.hasIdentity) ApproveDialog(u, actions)
     }
 
     // ================================================================================================ follower
@@ -294,10 +294,15 @@ class MainActivity : ComponentActivity() {
             }
         }
         FollowerRefresh { engine.refreshUi() }
-        when (u.status) {
-            "none" -> FollowerJoin(deepLink, busy, error, actions)
-            "requested" -> FollowerWaiting(u, actions)
-            else -> FollowerHome(u, relays, log, actions)
+        val step = when (u.status) { "none", "requested" -> u.status; else -> "home" }
+        AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->
+            Page {
+                when (s) {
+                    "none" -> FollowerJoin(deepLink, busy, error, actions)
+                    "requested" -> FollowerWaiting(u, actions)
+                    else -> FollowerHome(u, relays, log, actions)
+                }
+            }
         }
     }
 }

@@ -4,6 +4,9 @@
 package app.mauri.sukrara.ui
 
 import android.graphics.Bitmap
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -72,7 +75,9 @@ fun ago(s: Long): String = when {
 @Composable
 fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(56.dp)) {
     if (rate == null) { Text("?", fontSize = 36.sp, color = color); return }
-    val angle = -(rate.coerceIn(-3.0, 3.0) / 3.0 * 90.0).toFloat()
+    // turns to each new trend with the expressive spatial spring (a hint of overshoot), once per reading
+    val angle by animateFloatAsState(-(rate.coerceIn(-3.0, 3.0) / 3.0 * 90.0).toFloat(),
+        Motion.defaultSpatialSpec(), label = "trend")
     Canvas(modifier) {
         rotate(angle) {
             val w = size.width
@@ -93,15 +98,16 @@ fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(5
 @Composable
 fun BigGlucose(sgv: Int?, rate: Double?, t: Long?, low: Int, high: Int, subtitle: String? = null) {
     val now = nowSeconds()
-    val color = sgv?.let { glucoseColor(it, low, high) } ?: MaterialTheme.colorScheme.outline
     val stale = t != null && now - t > 15 * 60
+    // range / stale colour cross-fades; the number rolls digit by digit (Motion.kt)
+    val color by animateColorAsState(if (sgv == null || stale) MaterialTheme.colorScheme.outline else glucoseColor(sgv, low, high),
+        Motion.slowEffectsSpec(), label = "range")
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(sgv?.toString() ?: "–", fontSize = 72.sp, fontWeight = FontWeight.Bold,
-                    color = if (stale) MaterialTheme.colorScheme.outline else color)
+                RollingNumber(sgv?.toString() ?: "–", color, 72.sp, FontWeight.Bold)
                 Column {
-                    if (sgv != null) TrendArrow(rate, if (stale) MaterialTheme.colorScheme.outline else color)
+                    if (sgv != null) TrendArrow(rate, color)
                     Text("mg/dL", style = MaterialTheme.typography.labelLarge)
                 }
             }
@@ -125,11 +131,22 @@ fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int 
     val background = MaterialTheme.colorScheme.background.toArgb()
     val dark = isSystemInDarkTheme()
     val treatments by TreatmentFeed.items.collectAsState()
+    // Scale and range lines glide to new values; a new reading grows in (once per reading, no redraw loop).
+    val m = Motion
+    val yMax by animateFloatAsState(maxOf(300f, (points.maxOfOrNull { it.second } ?: 0) + 10f), m.slowEffectsSpec(), label = "yMax")
+    val lowY by animateFloatAsState(low.toFloat(), m.slowEffectsSpec(), label = "low")
+    val highY by animateFloatAsState(high.toFloat(), m.slowEffectsSpec(), label = "high")
+    val newest = points.maxOfOrNull { it.first }
+    val seen = remember { longArrayOf(newest ?: Long.MAX_VALUE, Long.MAX_VALUE) }   // [newest seen, reveal readings after]
+    if (newest != null && (seen[0] == Long.MAX_VALUE || newest < seen[0])) seen[0] = newest
+    else if (newest != null && newest > seen[0]) { seen[1] = seen[0]; seen[0] = newest }
+    val revealAfter = seen[1]
+    val reveal = remember(revealAfter) { Animatable(if (revealAfter == Long.MAX_VALUE) 1f else 0f) }
+    LaunchedEffect(reveal) { reveal.animateTo(1f, m.slowSpatialSpec()) }
     Column {
         Canvas(Modifier.fillMaxWidth().height(180.dp)) {
             val from = now - hours * 3600
             val yMin = 40f
-            val yMax = maxOf(300f, (points.maxOfOrNull { it.second } ?: 0) + 10f)
             fun x(t: Long) = ((t - from).toFloat() / (hours * 3600)) * size.width
             fun y(v: Float) = size.height - (v - yMin) / (yMax - yMin) * size.height
             for (k in 0..hours) {
@@ -137,10 +154,13 @@ fun GlucoseChart(points: List<Pair<Long, Int>>, low: Int, high: Int, hours: Int 
                 if (t >= from) drawLine(grid, Offset(x(t), 0f), Offset(x(t), size.height), strokeWidth = 1f)
             }
             val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
-            drawLine(Low, Offset(0f, y(low.toFloat())), Offset(size.width, y(low.toFloat())), strokeWidth = 2f, pathEffect = dash)
-            drawLine(High, Offset(0f, y(high.toFloat())), Offset(size.width, y(high.toFloat())), strokeWidth = 2f, pathEffect = dash)
+            drawLine(Low, Offset(0f, y(lowY)), Offset(size.width, y(lowY)), strokeWidth = 2f, pathEffect = dash)
+            drawLine(High, Offset(0f, y(highY)), Offset(size.width, y(highY)), strokeWidth = 2f, pathEffect = dash)
+            val grow = reveal.value
             points.filter { it.first >= from }.forEach { (t, v) ->
-                drawCircle(glucoseColor(v, low, high), radius = 3.5f, center = Offset(x(t), y(v.toFloat())))
+                val fresh = t > revealAfter
+                drawCircle(glucoseColor(v, low, high), radius = if (fresh) 3.5f * grow.coerceAtLeast(0f) else 3.5f,
+                    center = Offset(x(t), y(v.toFloat())), alpha = if (fresh) grow.coerceIn(0f, 1f) else 1f)
             }
             drawIntoCanvas {
                 TreatmentMarks.draw(it.nativeCanvas, treatments.filter { tr -> tr.t in from..now }, { t -> x(t) },

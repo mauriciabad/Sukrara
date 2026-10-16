@@ -7,6 +7,13 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -78,20 +85,24 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
         Text("I follow someone", style = MaterialTheme.typography.headlineSmall)
         Text("Scan the code on their phone (Share with someone), or open the link they sent you.")
         OutlinedTextField(name, { name = it }, label = { Text("Name they will see") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        if (scanning) {
-            QrScanner { link = it; scanning = false }
-            TextButton(onClick = { scanning = false }) { Text("Stop camera") }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { scanning = true }) { Text("Scan QR code") }
-                OutlinedButton(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                    Text("From image")
+        // the camera preview expands in place of the buttons; back closes it (instead of leaving the app)
+        BackHandler(enabled = scanning) { scanning = false }
+        Swap(scanning) { on ->
+            if (on) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                QrScanner { link = it; scanning = false }
+                TextButton(onClick = { scanning = false }) { Text("Stop camera") }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { scanning = true }) { Text("Scan QR code") }
+                    OutlinedButton(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                        Text("From image")
+                    }
                 }
             }
         }
         OutlinedTextField(link, { link = it.trim() }, label = { Text("…or paste the invite link") },
             modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
-        (error ?: imgError)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        RevealValue(error ?: imgError) { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = { a.join(link, name) }, enabled = !busy && app.mauri.sukrara.core.Proto.isInvite(link), modifier = Modifier.fillMaxWidth()) {
             Text("Ask for access")
         }
@@ -121,7 +132,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
         Text("Following ${u.ownerPub?.let { Proto.shortNpub(it) }} · as \"${u.name}\"", style = MaterialTheme.typography.bodySmall)
-        if (u.status == "revoked") {
+        Reveal(u.status == "revoked") {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
                     Text("Access removed", fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -133,8 +144,10 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         val noData = u.status == "active" && (l == null || now - l.t >= u.noDataMin * 60)
         BigGlucose(l?.sgv, l?.rate, l?.t, u.low, u.high,
             subtitle = l?.let { "via ${it.via.removePrefix("relay:")} · key epoch ${it.epoch}" })
-        if (noData && l != null) Text("No data for ${(now - l.t) / 60} min", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-        if (u.status == "active" && l == null) {
+        RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
+            Text("No data for $it min", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+        }
+        Reveal(u.status == "active" && l == null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Approved — fetching history…")
             }
@@ -142,13 +155,15 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         // The value and the 12 h chart are the screen's main content: both above the fold, everything else below.
         SectionTitle("Last 12 h")
         GlucoseChart(u.chart.map { it.t to it.sgv }, u.low, u.high)
-        if (u.status == "active") {
+        Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FollowerEntries(u)
-            // item 1: only a roster writer may add entries; follows the newest roster live
-            if (u.canWrite) AddEntry(a)
-            else Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+            // item 1: only a roster writer may add entries; follows the newest roster live (cross-fades when it changes)
+            Swap(u.canWrite) { can ->
+                if (can) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { AddEntry(a) }
+                else Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } }
 
         SectionTitle("Alarms")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -184,7 +199,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide log" else "Show log") }
             TextButton(onClick = a::leave) { Text("Stop following") }
         }
-        if (showLog) LogList(log)
+        Reveal(showLog) { LogList(log) }
         Spacer(Modifier.size(24.dp))
     }
 }
@@ -195,17 +210,15 @@ private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
     var scanning by remember { mutableStateOf(false) }
     val found = remember { androidx.compose.runtime.mutableStateMapOf<String, app.mauri.sukrara.core.NearbyOwner>() }
     SectionTitle("Nearby (Bluetooth, no internet needed)")
-    if (!scanning) {
-        OutlinedButton(onClick = { scanning = true; a.scanNearby { found[it.address] = it } }, modifier = Modifier.fillMaxWidth()) {
+    Swap(if (!scanning) 0 else if (found.isEmpty()) 1 else 2) { step ->
+        if (step == 0) OutlinedButton(onClick = { scanning = true; a.scanNearby { found[it.address] = it } }, modifier = Modifier.fillMaxWidth()) {
             Text("Find phones nearby")
-        }
-    } else if (found.isEmpty()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        } else if (step == 1) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
             Text("Looking for Sukrara owners… (they must tap \"Pair nearby\")", style = MaterialTheme.typography.bodySmall)
         }
     }
-    found.values.sortedByDescending { it.rssi }.forEach { o ->
+    AnimatedItems(found.values.sortedByDescending { it.rssi }, { it.address }) { o ->
         Card(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -223,9 +236,9 @@ private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
 private fun FollowerEntries(u: FollowerUi) {
     SectionTitle("Insulin, carbs & notes (24 h)")
     val rows = u.treatments.filter { !it.tr.del }
-    if (rows.isEmpty()) Text("Nothing in the last 24 h", style = MaterialTheme.typography.bodySmall)
+    Reveal(rows.isEmpty()) { Text("Nothing in the last 24 h", style = MaterialTheme.typography.bodySmall) }
     val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
-    rows.forEach { e ->
+    AnimatedItems(rows, { it.tr.id }) { e ->
         val tr = e.tr
         val what = when (tr.k) {
             "rapid" -> "Insulin ${tr.a} U"
@@ -236,6 +249,7 @@ private fun FollowerEntries(u: FollowerUi) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(fmt.format(java.util.Date(tr.t * 1000)), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
             Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+            // sending… → sent → accepted: the label cross-fades, its colour follows
             e.status?.let { st ->
                 val (label, color) = when (st) {
                     "accepted" -> "accepted" to MaterialTheme.colorScheme.primary
@@ -243,7 +257,8 @@ private fun FollowerEntries(u: FollowerUi) {
                     "sent" -> "sent" to MaterialTheme.colorScheme.onSurfaceVariant
                     else -> "sending…" to MaterialTheme.colorScheme.onSurfaceVariant
                 }
-                Text(label, color = color, style = MaterialTheme.typography.labelMedium)
+                val tint by animateColorAsState(color, Motion.defaultEffectsSpec(), label = "status")
+                Swap(label) { Text(it, color = tint, style = MaterialTheme.typography.labelMedium) }
             }
         }
     }
@@ -262,9 +277,11 @@ private fun AddEntry(a: FollowerActions) {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (kind != "note") OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } },
-            label = { Text(if (kind == "carbs") "g" else "U") }, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp))
+        AnimatedVisibility(kind != "note", enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
+            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text(if (kind == "carbs") "g" else "U") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp))
+        }
         OutlinedTextField(note, { note = it.take(100) }, label = { Text("Note") }, singleLine = true, modifier = Modifier.weight(1f))
     }
     Button(onClick = { a.addTreatment(kind, amount.toDoubleOrNull() ?: 0.0, note); amount = ""; note = "" },

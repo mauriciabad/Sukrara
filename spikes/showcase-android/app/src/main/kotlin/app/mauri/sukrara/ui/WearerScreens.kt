@@ -12,7 +12,13 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import app.mauri.sukrara.features.HookPosition
 import androidx.compose.foundation.layout.Column
@@ -91,11 +97,13 @@ private fun sinceText(t: Long): String {
  */
 @Composable
 private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
+    val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
         .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)) {
-        Column(Modifier.weight(1f).alpha(if (enabled) 1f else DISABLED_ALPHA)) {
+        Column(Modifier.weight(1f).graphicsLayer { this.alpha = alpha }) {
             Text(label)
-            sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+            // the summary (status / "Unavailable while …") cross-fades when it changes
+            Swap(sub) { it?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) } }
         }
         Switch(checked, onCheckedChange = null, enabled = enabled)
     }
@@ -104,10 +112,11 @@ private fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub
 /** A settings row that opens something (ListPreference-style): label + current value as summary. */
 @Composable
 private fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
+    val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
     Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 4.dp)
-        .alpha(if (enabled) 1f else DISABLED_ALPHA)) {
+        .graphicsLayer { this.alpha = alpha }) {
         Text(label)
-        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        Swap(value) { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
     }
 }
 
@@ -135,10 +144,11 @@ fun LocalServersSection() {
     }
     Toggle("Also on this network (Wi-Fi)", f.nightscoutLan, enabled = f.nightscout,
         sub = "Other devices need the API secret. Plain HTTP: only on networks you trust") { v -> set { it.copy(nightscoutLan = v) } }
-    if (f.nightscout && f.nightscoutLan) {
+    Reveal(f.nightscout && f.nightscoutLan) {
         TextButton(onClick = { showSecret = !showSecret }) { Text(if (showSecret) "Hide API secret" else "Show API secret") }
-        if (showSecret) Text("API secret: ${Features.nightscoutSecret(ctx)}", style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold)
+        Reveal(showSecret) {
+            Text("API secret: ${Features.nightscoutSecret(ctx)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -159,14 +169,16 @@ fun SettingsScreen(onBack: () -> Unit) {
             FilterChip(f.source == "juggluco", { set { it.copy(source = "juggluco") } }, label = { Text("Juggluco (recommended)") })
             FilterChip(f.source == "direct", { if (f.source != "direct") confirmDirect = true }, label = { Text("Libre 3 directly") })
         }
-        Text(if (f.source == "juggluco") "Reads Juggluco's local web server (127.0.0.1:17580). Juggluco keeps the sensor and its alarms."
+        Swap(f.source == "juggluco") { jug -> Text(if (jug) "Reads Juggluco's local web server (127.0.0.1:17580). Juggluco keeps the sensor and its alarms."
              else "Sukrara holds the sensor itself. Juggluco must be stopped, and its alarms don't ring.",
-            style = MaterialTheme.typography.bodySmall)
+            style = MaterialTheme.typography.bodySmall) }
         Text("Now: ${st.source}${st.sourceError?.let { " — $it" } ?: ""}", style = MaterialTheme.typography.bodySmall)
-        if (f.source == "direct") {
-            Text("Sensor link priority", style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (p in Features.PRIORITIES) FilterChip(f.connPriority == p, { set { it.copy(connPriority = p) } }, label = { Text(p) })
+        Reveal(f.source == "direct") {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Sensor link priority", style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (p in Features.PRIORITIES) FilterChip(f.connPriority == p, { set { it.copy(connPriority = p) } }, label = { Text(p) })
+                }
             }
         }
 
@@ -191,7 +203,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         SectionTitle("Status bar")
         Toggle("Live Update chip", f.chip, sub = "The number next to the clock (Android 16+)") { v -> set { it.copy(chip = v) } }
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        if (f.chip && !nm.canPostPromotedNotifications()) {
+        Reveal(f.chip && !nm.canPostPromotedNotifications()) {
             OutlinedButton(onClick = {
                 ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
             }) { Text("Allow Live Updates for Sukrara") }
@@ -241,9 +253,11 @@ fun TreatmentsScreen(onBack: () -> Unit) {
             for (k in Treatment.KINDS) FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(LABEL.getValue(k)) })
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (kind != "note") OutlinedTextField(amount, { amount = it }, Modifier.width(110.dp), singleLine = true,
-                label = { Text(if (kind == "carbs") "grams" else "units") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            AnimatedVisibility(kind != "note", enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
+                OutlinedTextField(amount, { amount = it }, Modifier.width(110.dp), singleLine = true,
+                    label = { Text(if (kind == "carbs") "grams" else "units") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            }
             OutlinedTextField(note, { note = it }, Modifier.weight(1f), singleLine = true, label = { Text("note") })
         }
         val value = amount.replace(',', '.').toDoubleOrNull()
@@ -256,8 +270,9 @@ fun TreatmentsScreen(onBack: () -> Unit) {
         val items by store.items.collectAsState()
         val since = System.currentTimeMillis() / 1000 - 24 * 3600
         val recent = items.filter { !it.del && it.t >= since }
-        if (recent.isEmpty()) Text("Nothing in the last 24 h.", style = MaterialTheme.typography.bodySmall)
-        for (tr in recent) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Reveal(recent.isEmpty()) { Text("Nothing in the last 24 h.", style = MaterialTheme.typography.bodySmall) }
+        // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
+        AnimatedItems(recent, { it.id }) { tr -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             val what = when (tr.k) {
                 "carbs" -> "${tr.a.toInt()} g carbs"
                 "note" -> "note"
@@ -267,7 +282,7 @@ fun TreatmentsScreen(onBack: () -> Unit) {
                 (if (tr.n.isNotEmpty()) " · ${tr.n}" else "") + "  · ${tr.o}" + (if (f.libreview) if (tr.needsUpload) " ⇡" else " ✓" else ""),
                 Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = { store.delete(tr.id); uploader.kick() }) { Text("Delete") }
-        }
+        } }
         Text("Synced with Sukrara for Mac (legacy link). Entries from followers with \"Can add entries\" land here too.",
             style = MaterialTheme.typography.bodySmall)
 
