@@ -109,10 +109,11 @@ Changes from the source spikes:
 7. **Widgets**: long-press the home screen → Widgets → Sukrara → *Glucose*, *Glucose graph* or *Glucose + graph*
    (resizable). They show the wearer's readings, or on a follower's phone the followed person's, and don't refresh
    while the screen is off.
-8. **LibreView** (off): Treatments & LibreView → email + password → *Save login* → *Upload to LibreView*.
-   **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. "Take over the account's
-   device" logs the Libre app / Juggluco out of LibreView.
-9. **Direct sensor**: Settings → Glucose source → *Libre 3 directly* → *Scan sensor*, then hold the phone against
+8. **LibreView** (off): Settings → LibreView → *Account* (email + password) → *Upload to LibreView*. Glucose,
+   insulin/carbs/notes and *Use this phone as the account's device* are on by default, so everything uploads.
+   **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. Using this phone as the
+   account's device logs the Libre app / Juggluco out of LibreView.
+9. **Direct sensor** (the default source): home → *Scan your sensor*, or Settings → Glucose source → *Sensor*, then hold the phone against
    the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (stop
    Juggluco first: *Pause app* **and** *Force stop*, see "Sensor scan"). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
    Juggluco gives the sensor back.
@@ -439,6 +440,43 @@ it only opens the app: it never starts or takes over a sensor (that still needs 
 takes the tap first while it's open). The switch *Open Sukrara when you scan a sensor* on the Sensor screen is the
 alias' enabled state (`PackageManager.setComponentEnabledSetting`), on by default. Juggluco doesn't register for NFC
 dispatch, so no "open with" chooser appears on the user's phone.
+
+## Treatments dialog and settings cleanup (2026-10-17)
+
+The user asked: default source *Libre 3 directly* with no "recommended" label; LibreView options that depend on
+the upload switch, with defaults that upload everything; LibreView setup moved to Settings; and a treatments
+dialog for rapid, long, carbs and a note at once, which a tap on a widget or the notification opens over any app.
+
+Designed from the official guidance, read first:
+[Android settings pattern](https://developer.android.com/design/ui/mobile/guides/patterns/settings) ("Disabling the
+parent switch disables the dependent controls"; "Place a dependent setting below the setting on which it depends,
+with a brief explanation"; radio buttons "in a dialog or child screen"; defaults "represent the default most users
+would choose"), [AOSP settings guidelines](https://source.android.com/docs/core/settings/settings-guidelines) (summary
+shows the status; footer below a divider), [Compose dialogs](https://developer.android.com/develop/ui/compose/components/dialog)
+("forms and multiple buttons … use `Dialog` with custom content") and the
+[widget overview](https://developer.android.com/develop/ui/views/appwidgets/overview) (widgets offer "generative
+functions … create new content").
+
+| Added | Where |
+|---|---|
+| Default source = Libre 3 directly; Juggluco is the alternative; no "recommended" | `Features.source`, Settings |
+| Source, sensor link priority, Nostr interval, LibreView interval: rows that show the value and open a radio dialog (`ChoiceDialog`) | `ui/WearerScreens.kt` |
+| Settings → LibreView: *Account* row (sign-in dialog, sign out), *Upload to LibreView* as the parent switch, then *Glucose readings*, *Insulin, carbs & notes*, *Use this phone as the account's device*, *Upload every*. Each is disabled with a reason while the upload is off. Footer: the doctor's record, no deletes | `LibreViewSettings` |
+| Uploader defaults: glucose, treatments and take-over **on**, so switching the upload on uploads everything. Glucose goes up from the moment the upload is switched on, and switching off ends that window. New `treatments` switch | `LibreViewUploader` |
+| `TreatmentDialog`: Rapid U, Long U and Carbs g side by side, a note below, all optional. Each filled field becomes its own entry. A time chip (Now, or an M3 time picker; a later time means yesterday). No helper text: the filled fields say it all (the user removed the hint, the footer and the "Adds …" line); only an out-of-range amount shows a red line. The number pad opens at once; Next goes rapid → long → carbs → note; Done saves | `ui/TreatmentDialog.kt` |
+| `QuickTreatmentActivity`: translucent, not in Recents, draws the M3 scrim and the dialog surface in its own window (a `Dialog` window over a translucent activity got neither the dim nor the keyboard on the emulator). A widget tap and the glucose notification (card and Live Update chip) open the dialog over any app. It has *Open Sukrara*; a phone that can't add entries (no identity, or a follower without *Can add entries*) opens the app instead | `ui/QuickTreatmentActivity.kt`, widgets, `GlucoseNotification` |
+| Home: *Treatments (24 h)* with *Add treatment*, the chart markers per entry, LibreView ⇡/✓, tap to delete (with a confirmation) | `TreatmentsSection` |
+| Followers with *Can add entries* use the same dialog, at a chosen time too | `FollowerScreens.AddEntry`, `FollowerEngine.addTreatment(at)` |
+
+| Discarded | Why |
+|---|---|
+| The *Treatments & LibreView* screen and its button | entry is the dialog; the list is on the home screen; LibreView is in Settings |
+| Kind chips + one amount field (one entry per save) | all four at once, as the user asked |
+| Inline *Save login* form with the email always visible | an *Account* row + dialog: summary shows the status, and the form is out of the settings list |
+| Filter chips for single choices (source, priority, intervals) | the guidelines put single choices in a radio dialog |
+| The uploader's unused `upload` pref | the parent switch is `Features.libreview` (no backwards compatibility) |
+| One shared note on every entry | a note is its own entry, so nothing is duplicated |
+| Explanatory text in the dialog ("Fill in any of them…", "Your followers and Sukrara for Mac see it", the "Adds …" summary) | the user: unnecessary, the filled fields already show it |
 
 ## Short invites and private profiles (v0.11.0)
 

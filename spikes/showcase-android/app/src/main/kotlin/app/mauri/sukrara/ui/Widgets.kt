@@ -173,7 +173,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
                     }
                 }
             }
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            subtitle?.let { Text(it, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }

@@ -131,8 +131,8 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         if (u.source == "direct: no sensor")
             Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text("Scan your sensor") }
+        TreatmentsSection()
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
-        OutlinedButton(onClick = { a.open("treatments") }, modifier = Modifier.fillMaxWidth()) { Text("Treatments & LibreView") }
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("Entries from followers")
             AnimatedItems(u.treatments, { it }) { Text(it, style = MaterialTheme.typography.bodySmall) }

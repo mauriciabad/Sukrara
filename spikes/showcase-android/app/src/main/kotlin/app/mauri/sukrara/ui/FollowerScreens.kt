@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,7 +68,7 @@ interface FollowerActions {
     fun setTestUnfiltered(on: Boolean)
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit)
     fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile)
-    fun addTreatment(k: String, a: Double, note: String)
+    fun addTreatment(k: String, a: Double, note: String, at: Long)
 }
 
 @Composable
@@ -289,28 +290,12 @@ private fun FollowerEntries(u: FollowerUi) {
     }
 }
 
-/** Investigation 07: a follower the owner made a writer can add insulin / carbs / a note. */
+/** Investigation 07: a follower the owner made a writer can add insulin / carbs / a note (the shared [TreatmentDialog]). */
 @Composable
 private fun AddEntry(a: FollowerActions) {
-    var kind by remember { mutableStateOf("rapid") }
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    SectionTitle("Add entry")
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf("rapid" to "Insulin", "carbs" to "Carbs", "note" to "Note").forEach { (k, label) ->
-            if (kind == k) Button(onClick = {}) { Text(label) } else OutlinedButton(onClick = { kind = k }) { Text(label) }
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        AnimatedVisibility(kind != "note", enter = fadeIn() + expandHorizontally(), exit = fadeOut() + shrinkHorizontally()) {
-            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text(if (kind == "carbs") "g" else "U") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp))
-        }
-        OutlinedTextField(note, { note = it.take(100) }, label = { Text("Note") }, singleLine = true, modifier = Modifier.weight(1f))
-    }
-    Button(onClick = { a.addTreatment(kind, amount.toDoubleOrNull() ?: 0.0, note); amount = ""; note = "" },
-        enabled = kind == "note" && note.isNotBlank() || (amount.toDoubleOrNull() ?: 0.0) > 0) { Text("Send to owner") }
+    var adding by remember { mutableStateOf(false) }
+    FilledTonalButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) { Text("Add treatment") }
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { it.forEach { e -> a.addTreatment(e.k, e.a, e.note, e.at) } })
 }
 
 @Composable

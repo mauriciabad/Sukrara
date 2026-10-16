@@ -81,6 +81,16 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_libre" />
         </activity-alias>
+        <!-- the quick treatment dialog: a tap on a widget or the glucose notification opens it over any app -->
+        <activity
+            android:name=".ui.QuickTreatmentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Sukrara.Quick"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
         <service
             android:name=".owner.OwnerService"
             android:exported="false"

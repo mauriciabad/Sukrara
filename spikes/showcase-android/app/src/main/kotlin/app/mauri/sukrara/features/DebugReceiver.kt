@@ -28,6 +28,7 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
+ *       [--es graph JSON] [--es widgetGraph ID:JSON]   (investigation 16: graph settings, one widget's own)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
  */
@@ -80,6 +81,20 @@ class DebugReceiver : BroadcastReceiver() {
         }
         alerts.init(c)
         out.put("alerts", alerts.toJson())
+        // Investigation 16: --es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3,…}' (GraphConfig.toJson
+        // fields, merged into the current ones) · --es widgetGraph '<appWidgetId>:{"hours":6,"rings":1,"side":false}'
+        val graph = app.mauri.sukrara.graph.GraphSettings
+        graph.init(c)
+        i.getStringExtra("graph")?.let { j ->
+            val patch = JSONObject(j)
+            graph.update { cur -> app.mauri.sukrara.graph.GraphConfig.fromJson(cur.toJson().also { o -> patch.keys().forEach { k -> o.put(k, patch.get(k)) } }) }
+            app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "debug graph", force = true)
+        }
+        i.getStringExtra("widgetGraph")?.let { j ->
+            graph.setWidget(c, j.substringBefore(":").toInt(), app.mauri.sukrara.graph.WidgetGraphConfig.fromJson(JSONObject(j.substringAfter(":"))))
+            app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "debug widget graph", force = true)
+        }
+        out.put("graph", graph.value.toJson())
         if (App.role(c) == "owner" && App.owner(c).hasIdentity()) {
             val u = App.owner(c).ui.value
             out.put("owner", JSONObject().put("epoch", u.epoch).put("followers", u.followers.count { it.revoked == null })
