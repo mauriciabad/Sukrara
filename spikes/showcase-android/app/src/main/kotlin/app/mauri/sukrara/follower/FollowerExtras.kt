@@ -33,13 +33,14 @@ import kotlinx.coroutines.launch
  *  - **status bar** (inv. 05 approaches 1 + 2): the service's only notification is the same Live Update chip /
  *    number icon the wearer gets, showing the followed person's value;
  *  - **local servers** ([LocalServers]): Garmin on 127.0.0.1:17580 (a follower phone has no Juggluco) and the
- *    Nightscout read API on :17581, so a parent's watch / Home Assistant can read the followed person.
+ *    Nightscout read API on :17581 (entries + the treatments received from the wearer), so a parent's watch / Home
+ *    Assistant can read the followed person.
  * Started and stopped by [FollowerService]; nothing polls (screen-on + one minute ticker while the screen is on).
  */
 class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope) {
     private val engine = app.mauri.sukrara.App.follower(ctx)
     private val nm = ctx.getSystemService(NotificationManager::class.java)
-    private val local = LocalServers(ctx, "follower-garmin", { false }, { emptyList() }, "Sukrara (following)")
+    private val local = LocalServers(ctx, "follower-garmin", { false }, { engine.treatments() }, "Sukrara (following)")
     private val jobs = mutableListOf<Job>()
     @Volatile private var screenOn = ctx.getSystemService(PowerManager::class.java).isInteractive
 

@@ -142,7 +142,13 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         SectionTitle("Last 12 h")
         GlucoseChart(u.chart.map { it.t to it.sgv }, u.low, u.high)
         Text("Bluetooth: ${u.ble}", style = MaterialTheme.typography.bodySmall)
-        if (u.canWrite) AddEntry(a)
+        if (u.status == "active") {
+            FollowerEntries(u)
+            // item 1: only a roster writer may add entries; follows the newest roster live
+            if (u.canWrite) AddEntry(a)
+            else Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 
         SectionTitle("Alarms")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -206,6 +212,37 @@ private fun NearbyJoin(name: String, busy: Boolean, a: FollowerActions) {
                     Text("${o.address} · ${o.rssi} dBm", style = MaterialTheme.typography.bodySmall)
                 }
                 Button(onClick = { a.joinNearby(o.address, name) }, enabled = !busy) { Text("Ask") }
+            }
+        }
+    }
+}
+
+/** Treatments received from the wearer (SPEC §5), last 24 h; entries this phone sent show their delivery status. */
+@Composable
+private fun FollowerEntries(u: FollowerUi) {
+    SectionTitle("Insulin, carbs & notes (24 h)")
+    val rows = u.treatments.filter { !it.tr.del }
+    if (rows.isEmpty()) Text("Nothing in the last 24 h", style = MaterialTheme.typography.bodySmall)
+    val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    rows.forEach { e ->
+        val tr = e.tr
+        val what = when (tr.k) {
+            "rapid" -> "Insulin ${tr.a} U"
+            "long" -> "Long-acting ${tr.a} U"
+            "carbs" -> "Carbs ${tr.a.toInt()} g"
+            else -> "Note"
+        } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(fmt.format(java.util.Date(tr.t * 1000)), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+            Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+            e.status?.let { st ->
+                val (label, color) = when (st) {
+                    "accepted" -> "accepted" to MaterialTheme.colorScheme.primary
+                    "waiting" -> "not accepted yet" to MaterialTheme.colorScheme.error
+                    "sent" -> "sent" to MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> "sending…" to MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Text(label, color = color, style = MaterialTheme.typography.labelMedium)
             }
         }
     }

@@ -96,6 +96,11 @@ class RelayPool(
 
     override fun log(msg: String) = logger(msg)
 
+    /** Event id → called each time a relay stores it (e.g. a follower's treatment: *sending* → *sent*). */
+    @Volatile var onAccepted: ((String) -> Unit)? = null
+
+    override fun accepted(url: String, id: String) { onAccepted?.invoke(id) }
+
     override fun authEvent(url: String, challenge: String): String? {
         val k = authKeys() ?: return null
         return EventBuilder(Kind(22242u), "")

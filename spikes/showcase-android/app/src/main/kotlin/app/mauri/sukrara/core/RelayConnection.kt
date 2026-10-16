@@ -71,6 +71,8 @@ interface RelayHost {
     fun log(msg: String)
     /** NIP-42: a signed kind-22242 event JSON, or null to not authenticate. */
     fun authEvent(url: String, challenge: String): String?
+    /** A relay stored event [id] (`OK true` or `duplicate:`). */
+    fun accepted(url: String, id: String) {}
 }
 
 /**
@@ -366,6 +368,7 @@ class RelayConnection(
         val now = System.currentTimeMillis()
         if (accepted || message.startsWith("duplicate:")) {
             host.stats(url) { if (o.lane == Lane.LIVE) it.copy(ok = it.ok + 1, lastLiveOkMs = now - o.originMs) else it.copy(ok = it.ok + 1) }
+            host.accepted(url, id)
             return
         }
         host.stats(url) { it.copy(fail = it.fail + 1, lastError = message.take(100)) }

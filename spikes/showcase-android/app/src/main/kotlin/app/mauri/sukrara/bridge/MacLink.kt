@@ -57,13 +57,15 @@ class MacLink(private val ctx: Context) {
     data class Status(val running: Boolean = false, val advertising: Boolean = false, val subscribed: Int = 0, val error: String? = null)
     val status = MutableStateFlow(Status())
 
+    private val onTreatment: (Treatment, Long) -> Unit = { tr, seq -> treatSubscribers.forEach { send(it, recMessage(tr, seq, it)) } }
+
     fun start(): Boolean {
         if (gatt != null) return true
         val granted = listOf(android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE)
             .all { ctx.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
         if (!granted) { status.value = Status(error = "Bluetooth permission not granted"); return false }
         Treat.init(ctx)
-        Treat.store.onChange = { tr, seq -> treatSubscribers.forEach { send(it, recMessage(tr, seq, it)) } }
+        Treat.store.onChange.addIfAbsent(onTreatment)
         if (!startGattServer()) return false
         startAdvertising()
         status.value = status.value.copy(running = true)
@@ -73,7 +75,7 @@ class MacLink(private val ctx: Context) {
 
     fun stop() {
         if (gatt == null) return
-        Treat.store.onChange = null
+        Treat.store.onChange -= onTreatment
         stopAdvertising()
         runCatching { gatt?.clearServices(); gatt?.close() }
         gatt = null

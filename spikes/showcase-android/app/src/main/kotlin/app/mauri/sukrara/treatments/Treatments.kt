@@ -27,7 +27,19 @@ data class Treatment(
 ) {
     val needsUpload get() = lv < u
 
+    /** The Nostr/BLE v2 body (SPEC §5): `{"v":1,…}` without `lv`. */
+    fun wire(): org.json.JSONObject = org.json.JSONObject().put("v", 1).put("id", id).put("k", k).put("a", a).put("t", t)
+        .put("n", n).put("u", u).put("del", del).put("o", o)
+
     companion object {
+        /** Parse a v2 body (SPEC §5); null if it isn't a valid treatment. */
+        fun fromWire(j: org.json.JSONObject): Treatment? = runCatching {
+            val k = j.getString("k").takeIf { it in KINDS } ?: return null
+            Treatment(id = j.getString("id").takeIf { it.isNotEmpty() } ?: return null, k = k, a = j.optDouble("a", 0.0),
+                t = j.getLong("t"), n = clip(j.optString("n")), u = j.getLong("u"), del = j.optBoolean("del", false),
+                o = j.optString("o").ifEmpty { "phone" }.take(16))
+        }.getOrNull()
+
         val KINDS = listOf("rapid", "long", "carbs", "note")
 
         /** Newer `u` wins, ties broken by origin; the upload watermark only ever moves forward. */
@@ -64,8 +76,11 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
     /** Newest first, including tombstones (the UI filters). */
     val items = MutableStateFlow<List<Treatment>>(emptyList())
 
-    /** Called (outside the lock) for every accepted change, with its new seq. */
-    var onChange: ((Treatment, Long) -> Unit)? = null
+    /**
+     * Called (outside the lock) for every accepted change, with its new seq. Several listeners: the legacy Mac link
+     * (SPEC §2) and the owner engine's Nostr/BLE publisher (SPEC §5) each add their own and remove it on stop.
+     */
+    val onChange = java.util.concurrent.CopyOnWriteArrayList<(Treatment, Long) -> Unit>()
 
     init {
         runCatching { TreatmentJson.decodeFromString<Disk>(file.readText()) }.getOrNull()?.let { d ->
@@ -114,7 +129,7 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
             next to seq
         }
         publish()
-        onChange?.invoke(changed.first, changed.second)
+        onChange.forEach { l -> runCatching { l(changed.first, changed.second) } }
         return changed.first
     }
 
