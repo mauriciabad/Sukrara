@@ -43,6 +43,7 @@ func scenario(lag: TimeInterval, where cond: (Double, Double) -> Bool) -> Glucos
     var s = Synthetic.snapshot(now: t, hours: 12)
     let shift = Date().addingTimeInterval(-lag).timeIntervalSince(s.latest!.t)
     s.samples = s.samples.map { GlucoseSample(t: $0.t.addingTimeInterval(shift), v: $0.v) }
+    s.treatments = Synthetic.treatments(until: s.latest!.t, hours: 12)
     s.written = Date()
     return s
 }

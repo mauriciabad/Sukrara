@@ -42,8 +42,13 @@ if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
     exit(0)
 }
+if let path = defaults.string(forKey: "menuPreview") {
+    MainActor.assumeIsolated { MenuPreview.render(to: path) }
+    exit(0)
+}
 if let path = defaults.string(forKey: "lvfixture") { exit(SelfTest.fixture(path) ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
+if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
@@ -164,8 +169,14 @@ if lanEnabled {
     MainActor.assumeIsolated { feed.restart("launch") }
 }
 
+// Bluetooth: one central and one link per phone for both paths (BLELink.swift) — the legacy GlucoBridge link
+// (glucose + SPEC §2 treatment sync) and protocol v2 share a single connection when the phone serves both.
 // Created only when enabled: CBCentralManager starts scanning as soon as Bluetooth reports powered on.
-let ble = defaults.object(forKey: "ble") == nil || defaults.bool(forKey: "ble") ? BLEBridgeSource() : nil
+let bleLegacyOn = defaults.object(forKey: "ble") == nil || defaults.bool(forKey: "ble")
+let bleV2On = defaults.object(forKey: "bleV2") == nil || defaults.bool(forKey: "bleV2")
+let bleLink = bleLegacyOn || bleV2On ? BLELink() : nil
+bleLink?.onState = { log($0) }
+let ble = bleLegacyOn ? bleLink.map(BLEBridgeSource.init(link:)) : nil
 if let ble {
     ble.onState = { log($0) }
     ble.onHistory = { pts in MainActor.assumeIsolated { store.ingest(history: pts, from: "Bluetooth · GlucoBridge") } }
@@ -181,6 +192,12 @@ if let nostr {
         nostr.onHistory = { store.ingest(history: $0, from: $1) }
         nostr.restart("launch")
     }
+}
+
+// Treatments: one store for every path (legacy BLE sync, v2 events), read by the menu and the chart.
+// `treatmentsDir` (tests): keep the log somewhere else than ~/Library/Application Support/Sukrara.
+let treatmentStore = MainActor.assumeIsolated {
+    defaults.string(forKey: "treatmentsDir").map { TreatmentStore(directory: URL(fileURLWithPath: $0)) } ?? TreatmentStore()
 }
 
 // Protocol v2 follower (NostrV2.swift): pairs like the Android "CGM Share" follower. State + keys in the Keychain.
@@ -279,9 +296,16 @@ if let nostr {
 
     private func attach(_ n: FollowerV2) {
         node = n
-        n.extraPublish = { [weak self, weak n] ev in     // only to the phone of the wearer we follow
-            if let b = self?.ble, b.ownerI != nil, b.ownerI == n?.st.i { b.sendEvent(ev) }
+        n.extraPublish = { [weak self, weak n] ev, done in     // only to the phone of the wearer we follow
+            if let b = self?.ble, b.ownerI != nil, b.ownerI == n?.st.i { b.sendEvent(ev, done: done) }
         }
+        n.onTreatment = { t, fromWearer, via in
+            // Accepted = the wearer merged it: its device key republished this id with a version ≥ the one we sent.
+            if treatmentStore.receiveV2(t, fromWearer: fromWearer, via: via) {
+                log("v2: treatment \(t.id.prefix(8)) accepted by the wearer (via \(via))")
+            }
+        }
+        n.onTreatmentSent = { id, u, via in treatmentStore.setV2(id, u: u, .sent, via: via) }
         n.onNewKey = { [weak self] in self?.ble?.hello() }
         n.onReading = { store.ingest($0, from: $1) }
         n.onHistory = { store.ingest(history: $0, from: $1) }
@@ -292,6 +316,7 @@ if let nostr {
             case .active(let e): status.setFollow("Following (v2) · key epoch \(e) · \(n.relayHosts.count) relays")
             case .revoked: status.setFollow("⚠︎ Access removed by the wearer")
             }
+            status.treatmentsChanged()                   // may add entries? (roster writers)
             if self.showWindow { self.window.show(p, name: n.st.name) }
         }
     }
@@ -310,6 +335,11 @@ if let nostr {
         log("v2: stopped following (keys deleted from the Keychain)")
     }
 
+    /// Send an entry made on this Mac over v2 too — only when the roster lists this Mac as a writer.
+    func sendTreatment(_ t: Treatment) {
+        if node?.publishTreatment(t) == true { treatmentStore.setV2(t.id, u: t.u, .sending) }
+    }
+
     var statusLine: String {
         guard let n = node else { return "not following" }
         return "phase \(n.phase) accepted \(n.accepted) rejected \(n.rejected) relays \(n.connectedRelays)/\(n.relayHosts.count) last via \(n.lastVia)"
@@ -318,8 +348,8 @@ if let nostr {
 
 let following = MainActor.assumeIsolated { Following() }
 MainActor.assumeIsolated {
-    if defaults.object(forKey: "bleV2") == nil || defaults.bool(forKey: "bleV2") {
-        let b = BLEV2Central()
+    if bleV2On, let bleLink {
+        let b = BLEV2Central(link: bleLink)
         b.onState = { log($0) }
         b.onEvent = { json, via in MainActor.assumeIsolated { following.node?.onEvent(json, via: via) } }
         b.onInfo = { info, phone in
@@ -339,7 +369,7 @@ MainActor.assumeIsolated {
 
 // Treatments: local log, synced with the phone over BLE, uploaded to LibreView (spikes/libreview/SPEC.md).
 MainActor.assumeIsolated {
-    let treatments = TreatmentStore()
+    let treatments = treatmentStore
     let sync = TreatmentSync(store: treatments)
     let uploader = LibreViewUploader(store: treatments)
     sync.log = log
@@ -349,12 +379,18 @@ MainActor.assumeIsolated {
     ble?.treatmentSync = sync          // nil when BLE is off (e.g. Nostr-only)
     status.treatments = { treatments.rows }
     status.libreViewStatus = { uploader.statusLine }
+    status.treatmentPaths = { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
+    status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments, legacyOn: ble != nil, lvOn: uploader.enabled) }
+    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments, legacyOn: ble != nil, lvOn: uploader.enabled) }
     status.onLogTreatment = { t in
         log("treatment logged: \(StatusController.describe(t))")
-        treatments.upsertLocal(t)
-        following.node?.publishTreatment(t.dict)       // v2 writer, only if the wearer allowed this Mac
+        treatments.upsertLocal(t)                      // legacy link: always (pushed when the phone is connected)
+        following.sendTreatment(t)                     // v2 writer, only if the wearer allowed this Mac
     }
-    status.onDeleteTreatment = { treatments.delete($0) }
+    status.onDeleteTreatment = { id in
+        treatments.delete(id)
+        if let t = treatments.row(id) { following.sendTreatment(t) }
+    }
     status.onUploadNow = { uploader.retry() }
     status.treatmentsChanged()
     uploader.kick()
@@ -384,7 +420,7 @@ MainActor.assumeIsolated {
             case "v2-treat":       // writer test: publish only, never touches the local log / LibreView uploader
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
                                   t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
-                log("debug v2-treat \(following.node?.publishTreatment(t.dict) == true ? "sent" : "NOT sent (not a writer)")")
+                log("debug v2-treat \(following.node?.publishTreatment(t) == true ? "sent" : "NOT sent (not a writer)")")
             case "follower-pub": log("debug v2 follower pubkey \(following.node?.followerPub ?? "-")")
             case "readings":
                 try? store.csv.write(toFile: o["path"] as? String ?? "/tmp/sukrara-readings.csv", atomically: true, encoding: .utf8)

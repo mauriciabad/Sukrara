@@ -68,6 +68,7 @@ enum V2SelfTest {
                           tags: [["d", "x"], ["c", V2.chunkC(sid)], ["gk", gk]])
         node.onEvent(chunk, via: "test")
         check("hour chunk decoded (2 rows)", readings.suffix(2) == [90, 91])
+        treatments(node, sid: sid, I: I, D: D, G: G, X: X, F: F, check: check)
         node.onEvent(V2.gift(X, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")
         check("forged revoked notice ignored", node.phase == .active(epoch: 1))
         node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")
@@ -75,6 +76,168 @@ enum V2SelfTest {
         check("match code is 4 digits", node.code.count == 4 && Int(node.code) != nil)
         node.stop()
         print(ok ? "v2 self-test OK" : "v2 self-test FAILED")
+        return ok
+    }
+
+    /// Treatments over v2 (SPEC §5, PROTOCOL-v2 "Treatments"): writer gating, the follower's acceptance rules, the §1
+    /// merge into the one store, and sending → sent → accepted by the wearer's echo. Store in a temp directory.
+    @MainActor static func treatments(_ node: FollowerV2, sid: String, I: Keys, D: Keys, G: Keys, X: Keys, F: Keys,
+                                      check: (String, Bool) -> Void) {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-selftest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = TreatmentStore(directory: dir)
+        var got: [(Treatment, Bool)] = []
+        node.onTreatment = { t, fromWearer, via in got.append((t, fromWearer)); store.receiveV2(t, fromWearer: fromWearer, via: via) }
+        let gk = V2.gk(G.publicKey().toHex()), W = Keys.generate()
+        func roster(writers: [Keys]) -> String {
+            let ct = try! nip44Encrypt(secretKey: I.secretKey(), publicKey: G.publicKey(), content: V2.json(
+                ["v": 2, "epoch": 1, "devices": [D.publicKey().toHex()], "writers": writers.map { $0.publicKey().toHex() }]), version: .v2)
+            return try! EventBuilder(kind: Kind(kind: V2.chunk), content: ct)
+                .tags(tags: [["d", V2.rosterD(sid)], ["gk", gk]].map { try! Tag.parse(data: $0) })
+                .customCreatedAt(createdAt: Timestamp.fromSecs(secs: UInt64(Date().timeIntervalSince1970) + UInt64(got.count + 10)))
+                .finalize(signer: I).asJson()
+        }
+        func tr(_ by: Keys, _ t: Treatment, dFor: String? = nil, gk g: String? = nil) -> String {
+            var body = t.dict
+            body.removeValue(forKey: "lv"); body["v"] = 1
+            let ct = try! nip44Encrypt(secretKey: by.secretKey(), publicKey: G.publicKey(), content: V2.json(body), version: .v2)
+            return try! EventBuilder(kind: Kind(kind: V2.chunk), content: ct)
+                .tags(tags: [["d", V2.treatmentD(sid, dFor ?? t.id)], ["c", V2.treatmentsC(sid)], ["gk", g ?? gk]].map { try! Tag.parse(data: $0) })
+                .finalize(signer: by).asJson()
+        }
+        let now = Int64(Date().timeIntervalSince1970)
+
+        // Writer gating
+        node.onEvent(roster(writers: [W]), via: "test")
+        let mine = Treatment(k: "rapid", a: 2.5, t: now, o: "mac")
+        check("not a writer: canWrite false, nothing published", !node.canWrite && !node.publishTreatment(mine))
+        node.onEvent(roster(writers: [W, F]), via: "test")
+        check("roster lists this Mac in writers: canWrite true", node.canWrite)
+        store.upsertLocal(mine)
+        let sent = node.publishTreatment(mine)
+        if sent { store.setV2(mine.id, u: mine.u, .sending) }
+        check("writer: entry published (sending)", sent && store.v2Status(mine.id)?.state == .sending)
+
+        // Follower acceptance rules
+        let wearerCarbs = Treatment(k: "carbs", a: 30, t: now - 600, o: "phone")
+        node.onEvent(tr(D, wearerCarbs), via: "test")
+        check("treatment from the wearer's device key accepted (fromWearer)", got.last.map { $0.0.id == wearerCarbs.id && $0.1 } ?? false)
+        check("…merged into the store, v2-only (not this Mac's to upload)", store.row(wearerCarbs.id)?.a == 30 && store.isV2Only(wearerCarbs.id))
+        let writerNote = Treatment(k: "note", a: 0, t: now - 300, n: "walk", o: "follower")
+        node.onEvent(tr(W, writerNote), via: "test")
+        check("treatment from a roster writer accepted (not fromWearer)", got.last.map { $0.0.id == writerNote.id && !$0.1 } ?? false)
+        let n0 = got.count
+        node.onEvent(tr(X, Treatment(k: "rapid", a: 9, t: now, o: "follower")), via: "test")
+        check("treatment from a key outside writers ∪ devices rejected", got.count == n0)
+        node.onEvent(tr(D, Treatment(k: "rapid", a: 9, t: now, o: "phone"), dFor: wearerCarbs.id), via: "test")
+        check("treatment whose d tag names another id rejected", got.count == n0 && store.row(wearerCarbs.id)?.k == "carbs")
+        node.onEvent(tr(D, Treatment(k: "rapid", a: 9, t: now, o: "phone"), gk: "0badc0de"), via: "test")
+        check("treatment under an unknown gk not accepted", got.count == n0)
+        var tampered = try! JSONSerialization.jsonObject(with: Data(tr(D, Treatment(k: "carbs", a: 5, t: now, o: "phone")).utf8)) as! [String: Any]
+        tampered["content"] = try! nip44Encrypt(secretKey: D.secretKey(), publicKey: G.publicKey(),
+                                                content: V2.json(["id": "x", "k": "carbs", "a": 500, "t": now, "u": 1, "o": "phone"]), version: .v2)
+        node.onEvent(V2.json(tampered), via: "test")
+        check("tampered treatment (bad id/signature) rejected", got.count == n0)
+
+        // LWW (§1): an older version from a writer doesn't overwrite the wearer's newer edit
+        var edited = wearerCarbs; edited.a = 45; edited.u += 5000
+        node.onEvent(tr(D, edited), via: "test")
+        var stale = wearerCarbs; stale.a = 20; stale.u += 1000
+        node.onEvent(tr(W, stale), via: "test")
+        check("§1 merge: newest u wins across authors (45 g kept)", store.row(wearerCarbs.id)?.a == 45)
+
+        // Echo = acceptance: our own copy (author F, a writer) doesn't count, the wearer's device key does — only with u ≥ ours.
+        node.onEvent(tr(F, mine), via: "test")
+        check("own event echoed by a relay is not acceptance", store.v2Status(mine.id)?.state == .sending)
+        var older = mine; older.u -= 1
+        node.onEvent(tr(D, older), via: "test")
+        check("wearer copy with u < ours is not acceptance", store.v2Status(mine.id)?.state != .accepted)
+        store.setV2(mine.id, u: mine.u, .sent, via: "relay:test")
+        check("relay OK → sent; shown 'v2 sent'", TreatmentPaths.v2Text(store.v2Status(mine.id)!) == "v2 sent")
+        check("…after 2 min without echo: 'v2 not accepted yet'",
+              TreatmentPaths.v2Text(store.v2Status(mine.id)!, now: Date().addingTimeInterval(121)) == "v2 not accepted yet")
+        node.onEvent(tr(D, mine), via: "test")
+        check("wearer's device key echoes the same id with u ≥ ours → accepted", store.v2Status(mine.id)?.state == .accepted)
+        store.setV2(mine.id, u: mine.u, .sent)
+        check("status never moves back (accepted stays)", store.v2Status(mine.id)?.state == .accepted)
+
+        // Deletes travel as tombstones
+        var gone = writerNote; gone.del = true; gone.u += 10
+        node.onEvent(tr(D, gone), via: "test")
+        check("tombstone from the wearer deletes the row", store.row(writerNote.id)?.del == true)
+
+        // LibreView (SPEC §5): rows learned only over v2 are the phone's to upload, the Mac's own are due at once
+        let lv = LibreViewUploader(store: store)
+        let due = Set(lv.due(now: Date().addingTimeInterval(3600)).map(\.id))
+        check("LibreView: v2-only rows never due on the Mac, own entry due", !due.contains(wearerCarbs.id) && due.contains(mine.id))
+
+        // Writer removed from the roster → may not write any more
+        node.onEvent(roster(writers: [W]), via: "test")
+        check("roster without this Mac: canWrite false again", !node.canWrite)
+        node.onTreatment = nil
+    }
+}
+
+/// `Sukrara -v2relaytest`: treatments over **real public relays** with a throwaway wearer (fresh I, D, G, sid — never
+/// the user's identity) and a throwaway follower key in a throwaway Keychain item: the follower's `#c` subscription
+/// receives the wearer's treatment, its own writer entry gets a relay OK (→ sent), and the wearer's echo marks it
+/// accepted. Events are encrypted to the throwaway G and expire after 1 h (ours: +30 d, unreadable to anyone).
+enum V2RelayTest {
+    @MainActor static func run() -> Bool {
+        UserDefaults.standard.set("app.mauri.sukrara.poc.relaytest", forKey: "keychainService")
+        defer { FollowerV2State.clear() }
+        let relays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom"]
+        let I = Keys.generate(), D = Keys.generate(), G = Keys.generate(), F = Keys.generate()
+        let sid = V2.hex((0..<32).map { _ in UInt8.random(in: 0...255) })
+        var st = FollowerV2State(f: try! F.secretKey().toBech32(), i: I.publicKey().toHex(), relays: relays, token: "t",
+                                 name: "relaytest", code: "0000")
+        st.sid = sid; st.status = "active"; st.epochs = [.init(n: 1, g: try! G.secretKey().toBech32())]
+        st.devices = [D.publicKey().toHex()]; st.writers = [F.publicKey().toHex()]
+        guard let node = FollowerV2(state: st) else { return false }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-relaytest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = TreatmentStore(directory: dir)
+        var fromWearer: [String] = [], sentVia = ""
+        node.onTreatment = { t, w, via in
+            if w { fromWearer.append(t.id) }
+            if store.receiveV2(t, fromWearer: w, via: via) { print("  accepted via \(via)") }
+        }
+        node.onTreatmentSent = { id, u, via in sentVia = via; store.setV2(id, u: u, .sent, via: via) }
+        let wearer = RelayPool(urls: relays, authKeys: D)
+        let gk = V2.gk(G.publicKey().toHex())
+        func tr(_ t: Treatment) -> String {
+            var body = t.dict
+            body.removeValue(forKey: "lv"); body["v"] = 1
+            let ct = try! nip44Encrypt(secretKey: D.secretKey(), publicKey: G.publicKey(), content: V2.json(body), version: .v2)
+            return try! EventBuilder(kind: Kind(kind: V2.chunk), content: ct)
+                .tags(tags: [["d", V2.treatmentD(sid, t.id)], ["c", V2.treatmentsC(sid)], ["gk", gk],
+                             ["expiration", String(Int(Date().timeIntervalSince1970) + 3600)]].map { try! Tag.parse(data: $0) })
+                .finalize(signer: D).asJson()
+        }
+        func wait(_ s: Double, until cond: () -> Bool) -> Bool {
+            let end = Date().addingTimeInterval(s)
+            while Date() < end { if cond() { return true }; RunLoop.main.run(until: Date().addingTimeInterval(0.2)) }
+            return cond()
+        }
+        var ok = true
+        func check(_ name: String, _ c: Bool) { print("\(c ? "PASS" : "FAIL")  \(name)"); ok = ok && c }
+
+        node.start()
+        wearer.restart("relaytest")
+        _ = wait(4) { node.connectedRelays > 0 }
+        let carbs = Treatment(k: "carbs", a: 30, t: Int64(Date().timeIntervalSince1970), o: "phone")
+        wearer.publish(tr(carbs))
+        check("wearer's treatment received over relays (#c + authors filter) and merged",
+              wait(20) { fromWearer.contains(carbs.id) } && store.row(carbs.id)?.a == 30)
+        let mine = Treatment(k: "rapid", a: 1.5, t: Int64(Date().timeIntervalSince1970), o: "mac")
+        store.upsertLocal(mine)
+        if node.publishTreatment(mine) { store.setV2(mine.id, u: mine.u, .sending) }
+        let sent = wait(20) { store.v2Status(mine.id)?.state == .sent }
+        check("own entry: relay OK → sent (\(sentVia))", sent)
+        wearer.publish(tr(mine))                         // what Sukrara for Android does after merging it
+        check("wearer's echo over relays → accepted", wait(20) { store.v2Status(mine.id)?.state == .accepted })
+        node.stop(); wearer.stop()
+        print(ok ? "v2 relay test OK" : "v2 relay test FAILED")
         return ok
     }
 }

@@ -21,7 +21,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private let valueLine = NSMenuItem(), timeLine = NSMenuItem(), sourceLine = NSMenuItem(), errorLine = NSMenuItem()
     private let chartItem = NSMenuItem()
-    private let chart = SparklineView(frame: NSRect(x: 0, y: 0, width: 260, height: 70))
+    private let chart = SparklineView(frame: NSRect(x: 0, y: 0, width: 300, height: 104))
 
     var unit: GlucoseUnit = .mgdl
     var thresholds = Thresholds()
@@ -40,8 +40,14 @@ final class StatusController: NSObject, NSMenuDelegate {
     var onDeleteTreatment: ((String) -> Void)?
     var onUploadNow: (() -> Void)?
     var libreViewStatus: (() -> String)?
+    /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
+    var treatmentPaths: (() -> TreatmentPaths)?
+    /// Per-entry delivery status ("BT ✓ · v2 accepted ✓ · LV ⇡") and its long form for the row's submenu.
+    var treatmentStatus: ((Treatment) -> String)?
+    var treatmentDetails: ((Treatment) -> [String])?
     private let treatmentsHeader = NSMenuItem(), lvLine = NSMenuItem()
-    private var treatmentItems: [NSMenuItem] = []
+    private var treatmentItems: [NSMenuItem] = [], pathItems: [NSMenuItem] = []
+    private var logItem: NSMenuItem?
 
     private(set) var snapshot: Snapshot?
     private var lastError: String?
@@ -64,7 +70,9 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(followLine)
         menu.addItem(.separator())
         for line in [treatmentsHeader, lvLine] { line.isEnabled = false }
-        menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l").target = self
+        let log = menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l")
+        log.target = self
+        logItem = log
         menu.addItem(treatmentsHeader)
         menu.addItem(lvLine)
         menu.addItem(withTitle: "Upload to LibreView now", action: #selector(uploadNow), keyEquivalent: "").target = self
@@ -161,6 +169,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         timeLine.title = "at \(snap.latest.date.formatted(date: .omitted, time: .standard))  (\(Self.ago(age)))"
         chartItem.isHidden = snap.history.count < 2
         chart.readings = snap.history
+        chart.treatments = (treatments?() ?? []).filter { !$0.del }
         chart.thresholds = thresholds
         sourceLine.isHidden = false
         sourceLine.title = "Source: \(snap.source)"
@@ -174,28 +183,57 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     // MARK: treatments
 
-    func treatmentsChanged() { renderTreatments() }
+    func treatmentsChanged() {
+        renderTreatments()
+        chart.treatments = (treatments?() ?? []).filter { !$0.del }
+    }
 
     private func renderTreatments() {
         treatmentItems.forEach(menu.removeItem)
         treatmentItems = []
+        pathItems.forEach(menu.removeItem)
+        pathItems = []
         let hidden = treatments == nil
         for i in menu.items where i.action == #selector(logTreatment) || i.action == #selector(uploadNow) { i.isHidden = hidden }
         treatmentsHeader.isHidden = hidden
         lvLine.isHidden = hidden
         guard let rows = treatments?() else { return }
+        // Where a new entry goes: the legacy Bluetooth link (always allowed) and/or v2 (only as a roster writer).
+        let paths = treatmentPaths?() ?? TreatmentPaths()
+        logItem?.isEnabled = paths.canLog
+        logItem?.title = paths.canLog ? "Log treatment…" : "Log treatment… (the wearer hasn't allowed this Mac)"
+        if let logItem {
+            var at = menu.index(of: logItem) + 1
+            for line in paths.lines {
+                let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                item.indentationLevel = 1
+                menu.insertItem(item, at: at)
+                pathItems.append(item)
+                at += 1
+            }
+        }
         let since = Int64(Date().timeIntervalSince1970) - 24 * 3600
         let recent = rows.filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
         treatmentsHeader.title = recent.isEmpty ? "No treatments in the last 24 h" : "Treatments (24 h)"
         lvLine.title = libreViewStatus?() ?? ""
         var at = menu.index(of: treatmentsHeader) + 1
         for t in recent {
-            let row = NSMenuItem(title: Self.describe(t), action: nil, keyEquivalent: "")
+            let state = treatmentStatus?(t) ?? ""
+            let row = NSMenuItem(title: Self.describe(t) + (state.isEmpty ? "" : "   " + state), action: nil, keyEquivalent: "")
             let sub = NSMenu()
-            let del = NSMenuItem(title: "Delete", action: #selector(deleteTreatment(_:)), keyEquivalent: "")
-            del.target = self
-            del.representedObject = t.id
-            sub.addItem(del)
+            for line in treatmentDetails?(t) ?? [] {
+                let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                sub.addItem(item)
+            }
+            if paths.canLog {
+                if !sub.items.isEmpty { sub.addItem(.separator()) }
+                let del = NSMenuItem(title: "Delete", action: #selector(deleteTreatment(_:)), keyEquivalent: "")
+                del.target = self
+                del.representedObject = t.id
+                sub.addItem(del)
+            }
             row.submenu = sub
             menu.insertItem(row, at: at)
             treatmentItems.append(row)
@@ -203,7 +241,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
     }
 
-    /// "14:05  2.5 U rapid  ✓" — ✓ on LibreView, ⇡ waiting to upload.
+    /// "14:05  2.5 U rapid" (delivery status comes from `treatmentStatus`).
     static func describe(_ t: Treatment) -> String {
         let time = Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened)
         let what: String
@@ -213,7 +251,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         default: what = "note"
         }
         let note = t.n.isEmpty ? "" : (t.k == "note" ? ": " : " · ") + t.n
-        return "\(time)  \(what)\(note)  \(t.needsUpload ? "⇡" : "✓")"
+        return "\(time)  \(what)\(note)"
     }
 
     @objc private func uploadNow() { onUploadNow?() }
@@ -245,6 +283,8 @@ final class StatusController: NSObject, NSMenuDelegate {
 
         let alert = NSAlert()
         alert.messageText = "Log treatment"
+        let paths = treatmentPaths?() ?? TreatmentPaths()
+        alert.informativeText = paths.lines.isEmpty ? "Kept on this Mac (no phone linked)." : paths.lines.joined(separator: "\n")
         alert.accessoryView = view
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
@@ -272,16 +312,25 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 }
 
-/// Last 3h of readings, drawn in the dropdown.
+/// Last 3h of readings, drawn in the dropdown, with the treatments of that window (NEXT §1 item 4) in the same
+/// language as the Android charts: rapid insulin = filled blue drop-triangle "4.5U", long = outlined indigo
+/// triangle, both in a lane along the top; carbs = amber dot "30g" along the bottom; notes = grey tick + a faint
+/// line through the chart. System colours, so the menu's light/dark appearance carries over.
 final class SparklineView: NSView {
     var readings: [Reading] = [] { didSet { needsDisplay = true } }
+    var treatments: [Treatment] = [] { didSet { needsDisplay = true } }
     var thresholds = Thresholds()
     let span: TimeInterval = 3 * 3600
+    /// Tests / previews: draw as if this were the time of the newest reading.
+    var end: Date? = nil
+
+    static let rapid = NSColor.systemBlue, long = NSColor.systemIndigo, carbs = NSColor.systemOrange, note = NSColor.systemGray
 
     override func draw(_ dirtyRect: NSRect) {
-        let r = bounds.insetBy(dx: 14, dy: 8)
-        guard let end = readings.last?.date else { return }
-        let pts = readings.filter { end.timeIntervalSince($0.date) <= span }
+        let lane: CGFloat = 15                                   // top: insulin, bottom: carbs
+        let r = NSRect(x: bounds.minX + 14, y: bounds.minY + lane + 4, width: bounds.width - 28, height: bounds.height - 2 * lane - 10)
+        guard let end = end ?? readings.last?.date else { return }
+        let pts = readings.filter { end.timeIntervalSince($0.date) <= span && $0.date <= end }
         let lo = 40.0, hi = max(250.0, (pts.map(\.mgdl).max() ?? 0) + 10)
         func y(_ v: Double) -> CGFloat { r.minY + CGFloat((v - lo) / (hi - lo)) * r.height }
         func x(_ d: Date) -> CGFloat { r.maxX - CGFloat(end.timeIntervalSince(d) / span) * r.width }
@@ -289,9 +338,67 @@ final class SparklineView: NSView {
         NSColor.systemGreen.withAlphaComponent(0.12).setFill()
         NSRect(x: r.minX, y: y(70), width: r.width, height: y(180) - y(70)).fill()
 
+        // Treatments in the window (a few minutes past the newest reading still count: logged "now").
+        let shown = treatments.filter {
+            let d = Date(timeIntervalSince1970: TimeInterval($0.t))
+            return end.timeIntervalSince(d) <= span && d.timeIntervalSince(end) <= 15 * 60
+        }.sorted { $0.t < $1.t }
+        for t in shown where t.k == "note" {                    // behind the readings
+            let tx = min(r.maxX, x(Date(timeIntervalSince1970: TimeInterval(t.t))))
+            Self.note.withAlphaComponent(0.35).setStroke()
+            let line = NSBezierPath()
+            line.move(to: NSPoint(x: tx, y: r.minY)); line.line(to: NSPoint(x: tx, y: r.maxY))
+            line.lineWidth = 1
+            line.setLineDash([2, 2], count: 2, phase: 0)
+            line.stroke()
+        }
+
         for p in pts {
             (thresholds.color(for: p.mgdl) ?? .labelColor).setFill()
             NSBezierPath(ovalIn: NSRect(x: x(p.date) - 1.25, y: y(p.mgdl) - 1.25, width: 2.5, height: 2.5)).fill()
         }
+
+        // Markers + amount labels; a label that would overlap the previous one in its lane is dropped (the marker stays).
+        var lastLabelEnd: [String: CGFloat] = [:]
+        for t in shown {
+            let tx = min(r.maxX, x(Date(timeIntervalSince1970: TimeInterval(t.t))))
+            let laneKey: String, label: String, color: NSColor, my: CGFloat
+            switch t.k {
+            case "rapid", "long":
+                laneKey = "top"; color = t.k == "rapid" ? Self.rapid : Self.long
+                label = Self.amount(t.a) + "U"; my = bounds.maxY - lane / 2 - 2
+                Self.triangle(at: NSPoint(x: tx, y: my), filled: t.k == "rapid", color: color)
+            case "carbs":
+                laneKey = "bottom"; color = Self.carbs
+                label = "\(Int(t.a.rounded()))g"; my = bounds.minY + lane / 2 + 2
+                color.setFill()
+                NSBezierPath(ovalIn: NSRect(x: tx - 3.5, y: my - 3.5, width: 7, height: 7)).fill()
+            default:
+                laneKey = "top"; color = Self.note; label = ""; my = bounds.maxY - lane / 2 - 2
+                color.setFill()
+                NSRect(x: tx - 0.75, y: my - 5, width: 1.5, height: 10).fill()
+            }
+            guard !label.isEmpty else { continue }
+            let s = NSAttributedString(string: label, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold), .foregroundColor: color])
+            let size = s.size()
+            var lx = tx + 5
+            if lx + size.width > bounds.maxX - 2 { lx = tx - 5 - size.width }      // flip left at the right edge
+            if lx < (lastLabelEnd[laneKey] ?? -.infinity) + 2 { continue }
+            s.draw(at: NSPoint(x: lx, y: my - size.height / 2))
+            lastLabelEnd[laneKey] = lx + size.width
+        }
+    }
+
+    static func amount(_ a: Double) -> String { a == a.rounded() ? String(Int(a)) : String(format: "%.1f", a) }
+
+    /// Insulin marker: a downward triangle (a drop going in), filled for rapid, outlined for long-acting.
+    static func triangle(at c: NSPoint, filled: Bool, color: NSColor) {
+        let p = NSBezierPath()
+        p.move(to: NSPoint(x: c.x - 4.5, y: c.y + 4))
+        p.line(to: NSPoint(x: c.x + 4.5, y: c.y + 4))
+        p.line(to: NSPoint(x: c.x, y: c.y - 4.5))
+        p.close()
+        if filled { color.setFill(); p.fill() } else { color.setStroke(); p.lineWidth = 1.5; p.stroke() }
     }
 }

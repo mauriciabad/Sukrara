@@ -127,6 +127,20 @@ struct GlucoseChart: View {
     var mode: RenderMode
     var showAxes: Bool
 
+    private func treatments(end: Date) -> [WidgetTreatment] {
+        let from = end.addingTimeInterval(-hours * 3600)
+        return (c.snapshot?.treatments ?? []).filter { $0.t >= from && $0.t <= end }
+    }
+    private func amount(_ a: Double) -> String { a == a.rounded() ? String(Int(a)) : String(format: "%.1f", a) }
+    /// Amount labels only where there's room (medium and up); the markers alone on small widgets.
+    @ViewBuilder private func label(_ s: String, _ color: Color) -> some View {
+        if showAxes {
+            Text(s).font(.system(size: 8, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(mode.tinted ? Color.primary : color)
+                .fixedSize().offset(x: 9)          // right of the marker; the marker stays centred on its time
+        }
+    }
+
     var body: some View {
         let end = max(c.date, c.latest?.t ?? c.date)
         let pts = c.snapshot?.window(hours: hours, until: end) ?? []
@@ -142,6 +156,30 @@ struct GlucoseChart: View {
                 PointMark(x: .value("t", s.t), y: .value("mg/dL", s.v))
                     .symbolSize(hours > 4 ? 6 : 10)
                     .foregroundStyle(mode.tinted ? Color.primary : rangeColor(s.v))
+            }
+            // Treatments, like the menubar chart and the Android charts: insulin along the top (rapid = filled blue
+            // triangle, long = outlined indigo), carbs along the bottom (amber dot), notes = dashed grey line.
+            ForEach(treatments(end: end), id: \.self) { t in
+                if t.k == "note" {
+                    RuleMark(x: .value("t", t.t))
+                        .foregroundStyle(Color.gray.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                } else if t.k == "carbs" {
+                    PointMark(x: .value("t", t.t), y: .value("mg/dL", minV + (maxV - minV) * 0.05))
+                        .symbol {
+                            Circle().fill(mode.tinted ? Color.primary : Color.orange)
+                                .frame(width: hours > 4 ? 5 : 6, height: hours > 4 ? 5 : 6)
+                                .overlay(alignment: .leading) { label(amount(t.a) + "g", .orange) }
+                        }
+                } else {
+                    PointMark(x: .value("t", t.t), y: .value("mg/dL", maxV - (maxV - minV) * 0.05))
+                        .symbol {
+                            Image(systemName: t.k == "long" ? "arrowtriangle.down" : "arrowtriangle.down.fill")
+                                .font(.system(size: hours > 4 ? 7 : 8, weight: .bold))
+                                .foregroundStyle(mode.tinted ? Color.primary : (t.k == "long" ? Color.indigo : Color.blue))
+                                .overlay(alignment: .leading) { label(amount(t.a) + "U", t.k == "long" ? .indigo : .blue) }
+                        }
+                }
             }
         }
         .chartXScale(domain: end.addingTimeInterval(-hours * 3600)...end)

@@ -254,6 +254,7 @@ final class LibreViewClient {
         store.rows.filter { t in
             guard t.needsUpload else { return false }
             if t.o == "mac" { return true }
+            if store.isV2Only(t.id) { return false }       // SPEC §5: learned over Nostr only — the phone uploads it
             guard let seen = store.firstSeen(t.id) else { return true }
             return now.timeIntervalSince(seen) >= Self.grace
         }
@@ -262,7 +263,7 @@ final class LibreViewClient {
     var statusLine: String {
         guard enabled else { return "LibreView: upload off" }
         if let halted { return "LibreView: stopped — \(halted)" }
-        let pending = store.rows.filter(\.needsUpload).count
+        let pending = store.rows.filter { $0.needsUpload && ($0.o == "mac" || !store.isV2Only($0.id)) }.count
         var s = "LibreView: "
         if let lastError { s += "error — \(lastError)" }
         else if let lastOK { s += "last upload \(lastOK.formatted(date: .omitted, time: .shortened)) ok" }
@@ -294,7 +295,7 @@ final class LibreViewClient {
         guard enabled, halted == nil, !running else { return }
         // Deletes always go up, even with lv == 0: the phone may have uploaded the row before its
         // lv update reached us, and retracting a row LibreView never saw is harmless.
-        let rows = force ? store.rows.filter(\.needsUpload) : due()
+        let rows = force ? store.rows.filter { $0.needsUpload && ($0.o == "mac" || !store.isV2Only($0.id)) } : due()
         guard !rows.isEmpty else { return onStatus() }
         guard let dev = store.deviceId else {
             lastError = "waiting for the phone's LibreView DeviceId"

@@ -36,6 +36,33 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   data 20 min)" checkmark, default on (`defaults write app.mauri.sukrara.poc alarms -bool NO`). They run on the merged
   data, so they also fire when the Mac reads the phone over the legacy link.
 
+## One Bluetooth link, treatments over v2, writer gating (2026-10-16, later)
+
+- **One link per phone** (`BLELink.swift`): one `CBCentralManager` for both Bluetooth paths. Sukrara for Android
+  serves the legacy service (`6c1f0001-…`, glucose + SPEC §2 treatment sync) and v2 (`7c6a0001-…`) from one GATT
+  database but advertises them from two private addresses, so two centrals opened two connections to the same phone
+  and the second one timed out (gap audit). Now the Mac connects once, discovers both services and attaches both
+  paths; connects are serialised (25 s timeout, that address skipped 60 s); a waiting path first checks the links it
+  already has and `retrieveConnectedPeripherals`; v2 "leave this phone" (another wearer / no pairing) only
+  unsubscribes v2, the link stays for legacy. Kept both paths (not "drop legacy when v2 is paired"): the legacy
+  sync is the one that carries `lv` and the LibreView DeviceId (SPEC §2) and needs no writer permission.
+  Real phone: `evidence/n-ble-one-link.log` (both paths on Tartaruga within 2 s, legacy readings every minute,
+  v2 INFO on the same link, no second connection).
+- **Treatments for the follower** (SPEC §5, PROTOCOL-v2 "Treatments"): `#c` subscription from roster writers ∪
+  devices (30 d); accepted iff valid signature, author ∈ writers ∪ devices, known `gk`, decrypts, `d` matches the id,
+  known kind; merged (§1 LWW, by id) into the same `TreatmentStore` as the legacy sync, so the menu and the chart
+  show one log. Rows learned only over v2 are never uploaded to LibreView by the Mac (`lv` isn't on the wire).
+- **Writer gating**: "Log treatment…" lists where an entry goes — "→ <phone> over the Bluetooth link (always
+  allowed)" and "→ wearer over Sukrara sharing (v2) · allowed" or "✕ … the wearer hasn't allowed this Mac to add
+  entries"; disabled only when v2 is the only way out and it isn't allowed. Per entry: `BT ⇡/✓`, `v2 sending… →
+  sent → accepted ✓` (wearer's device key echoes the id with u ≥ ours) or `v2 not accepted yet` (no echo after
+  2 min), `LV ⇡/✓`; details in the row's submenu.
+- **Chart**: insulin (rapid = filled blue triangle, long = outlined indigo) with "4.5U" along the top, carbs
+  (amber dot, "30g") along the bottom, notes as a dashed grey line — `evidence/n-menu-treatments.png`
+  (`Sukrara -menuPreview out.png`). The macOS widget views draw the same (`evidence/n-widget-*.png`).
+- Tests: `-v2selftest` 33/33 (20 new treatment checks), `-v2relaytest` (throwaway wearer on 3 public relays:
+  receive → merged, own entry OK → sent, echo → accepted), `-treatmentsselftest`.
+
 ## How to use
 
 - Menubar → **Follow someone…** → paste the `https://sukrara.mauri.app/join#…` (or `cgmshare:join?…`) link (pre-filled if it's on the clipboard) and a
@@ -53,7 +80,8 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
 | File | What |
 |---|---|
 | `NostrV2.swift` | `V2` helpers (H, gk, match code, invite parsing, gift wrap), `RelayPool` (reconnects, outbox, NIP-42 AUTH as F on `auth-required`), `FollowerV2` — the **one `onEvent(json, via:)`** every transport feeds; all acceptance rules; treatment writer |
-| `BLEV2Central.swift` | CoreBluetooth central for the docs/07 GATT service (frames `[msgId][idx][count]`, HELLO/INFO/EVENT, one write in flight, scan by service UUID, connect timeout, silence watchdog, pause when the phone has nothing for us) |
+| `BLELink.swift` | the one CoreBluetooth central: one connection per phone carrying both paths, serialised connects, silence watchdog |
+| `BLEV2Central.swift` | v2 path on `BLELink` for the docs/07 GATT service (frames `[msgId][idx][count]`, HELLO/INFO/EVENT, one write in flight, scan by service UUID, connect timeout, silence watchdog, pause when the phone has nothing for us) |
 | `FollowUI.swift` | follow dialog, QR-from-image, pairing window (match code) |
 | `Keychain.swift` | follower state (F nsec, epoch read keys, sid, roster) as one login-Keychain item — never UserDefaults, never logged |
 | `V2SelfTest.swift` | `GlucoseBar -v2selftest`: genuine vs. forged events through `onEvent` |
@@ -114,9 +142,10 @@ Release binary: 14.0 MB (`./bundle.sh`), unchanged order of magnitude (NostrSDK 
 - ~~No follower alarms~~ (added, see above; the notifications themselves weren't observed firing: no low/high
   happened during the run and no 20-min gap was provoked). No local reading DB (the store keeps 3 h, every launch
   backfills 12 h from relays / ~25 h over BLE).
-- Two GlucoseBar processes on one Mac can't both hold a BLE link to the phone (the second times out and retries).
-- Treatments: the Mac only *sends* (from "Log treatment…" when the roster lists it as a writer); edits/deletes and
-  the phone's treatments are not synced back over v2.
+- Two GlucoseBar processes on one Mac can't both hold a BLE link to the phone (the second times out and retries;
+  `BLELink` now tries `retrieveConnectedPeripherals` first, not tested with two processes).
+- ~~Treatments: the Mac only sends~~ (receives + status since the "one Bluetooth link" section above). Edits: delete
+  only (no edit UI).
 - Test leftovers to clean up: on the phone, followers "Mac v2 BLE test", "Mac v2 BLE test 2", "Mac v2 writer test"
   (writer) and one note "GlucoseBar v2 writer test" in CGM Share's DB (Mac-side keys already deleted; removing them
   on the phone rotates the key). In the login Keychain, items `dev.spike.GlucoseBar.test1`, `.test6`, `.test6b`
