@@ -1,0 +1,14 @@
+2:25:50 PM  BLE: scanning for legacy + v2
+2:25:51 PM  BLE: connecting to ? (rssi -52)
+2:25:52 PM  BLE: legacy path on Tartaruga
+2:25:52 PM  BLE legacy: connected to Tartaruga
+2:25:52 PM  BLE: v2 path on Tartaruga
+2:25:53 PM  [Bluetooth · GlucoBridge] 155 mg/dL  rate +1.31/min  reading at 2:25:44 PM  latency 9.1s
+2:25:53 PM  treatments: sync started (cursor 0, 1 to push)
+2:25:53 PM  BLE v2: connected to Tartaruga, MTU write 512 B
+2:25:53 PM  v2 treatment rapid 2fb6d33e u 1792135264677 (deleted) from wearer via ble:Tartaruga
+2:25:53 PM  BLE v2: INFO from Tartaruga: owner ff8aca7dda32…, pairing closed
+2:26:34 PM  v2 treatment note 766df26d u 1792149994732 from wearer via ble:Tartaruga
+2:26:44 PM  [Bluetooth · GlucoBridge] 160 mg/dL  rate +1.52/min  reading at 2:26:44 PM  latency 0.9s
+2:26:45 PM  [Bluetooth · Tartaruga] 160 mg/dL  rate +1.52/min  reading at 2:26:44 PM  latency 1.0s
+2:27:15 PM  v2 treatment note 766df26d u 1792150035523 (deleted) from wearer via ble:Tartaruga
