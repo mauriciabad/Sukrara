@@ -55,7 +55,9 @@ final class Host: NSObject, NSApplicationDelegate {
         guard let data = try? JSONEncoder.glucose.encode(snapshot) else { return }
         let home = NSHomeDirectory() // host is not sandboxed: the real home
         let targets: [(String, URL)] = [
-            ("appgroup", SharedLocation.groupFile(home: home)),
+            // containerURL (not a hand-built path): containermanagerd creates and authorises the group container.
+            ("appgroup", FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SharedLocation.appGroup)?
+                .appendingPathComponent(SharedLocation.fileName) ?? SharedLocation.groupFile(home: home)),
             ("widget-container", SharedLocation.widgetContainerFile(home: home)),
             ("users-shared", SharedLocation.sharedFile),
         ]

@@ -72,7 +72,10 @@ enum TrendAngle {
 
 /// Where the host publishes and where the widget looks. Order = preference.
 enum SharedLocation {
-    static let appGroup = "group.dev.spike.glucosewidgets"
+    /// build.sh writes `GlucoseAppGroup` into both Info.plists: `<TEAMID>.dev.spike.glucosewidgets` when signed
+    /// with a Team ID (macOS team-prefixed group, no provisioning profile needed), else the old ad hoc name.
+    static let appGroup = Bundle.main.object(forInfoDictionaryKey: "GlucoseAppGroup") as? String
+        ?? "group.dev.spike.glucosewidgets"
     static let widgetBundleID = "dev.spike.GlucoseWidgets.widget"
     static let fileName = "glucose.json"
     static let httpPort: UInt16 = 17591

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Builds GlucoseWidgets.app (headless host) with GlucoseWidget.appex (WidgetKit) inside, using only the
-# Command Line Tools: swiftc + manual bundle layout + ad-hoc codesign + lsregister/pluginkit.
+# Command Line Tools: swiftc + manual bundle layout + codesign + lsregister/pluginkit.
 #   ./build.sh            build into build/
 #   ./build.sh install    also copy to ~/Applications, register, and (re)start the host
 #   ./build.sh render     render every widget family to evidence/*.png (no WidgetKit host needed)
@@ -41,23 +41,43 @@ fi
 rm -rf $APP
 mkdir -p $APP/Contents/MacOS $APPEX/Contents/MacOS
 
-# Widget extension. -application-extension restricts to extension-safe API. The @main WidgetBundle
-# provides main(), which hands over to the extension runtime.
+# Widget extension. -application-extension restricts to extension-safe API. The entry point must be
+# Foundation's _NSExtensionMain (as Xcode links extensions): it sets up the extension runtime and then runs the
+# @main WidgetBundle. Starting at the Swift main() instead traps in _EXRunningExtension._shared (docs/13).
 $SWIFTC -parse-as-library -application-extension -module-name GlucoseWidget \
-  Shared/*.swift Widget/GlucoseWidgets.swift -o $APPEX/Contents/MacOS/GlucoseWidget
+  Shared/*.swift Widget/GlucoseWidgets.swift -o $APPEX/Contents/MacOS/GlucoseWidget \
+  -Xlinker -e -Xlinker _NSExtensionMain
 cp Widget/Info.plist $APPEX/Contents/Info.plist
 
 # Host app.
 $SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets
 cp Host/Info.plist $APP/Contents/Info.plist
 
-# Signing, inside-out. Default ad-hoc (no team, no provisioning profile).
+# Signing, inside-out. Default: the first "Apple Development" identity in the keychain (Xcode → Settings →
+# Accounts → Manage Certificates; a free Apple ID personal team is enough). chronod only loads widgets whose
+# signature carries a Team ID, see docs/13. No identity (or AD_HOC=1) → ad hoc, which builds but never loads.
 #   SIGN_ID=<sha1|name> SIGN_KEYCHAIN=<path>  sign with another identity (e.g. a self-signed cert)
 #   WIDGET_ENT=Widget/Widget-minimal.entitlements   NO_RUNTIME=1   variants used in the investigation
+if [[ -z "${SIGN_ID:-}" && "${AD_HOC:-}" != 1 ]]; then
+  SIGN_ID=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/{print $2; exit}')
+fi
+TEAM_ID=${TEAM_ID:-}
+if [[ -z "$TEAM_ID" && -n "${SIGN_ID:-}" && "$SIGN_ID" != - ]]; then
+  TEAM_ID=$(security find-certificate -c "$SIGN_ID" -p 2>/dev/null \
+    | openssl x509 -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/organizationalUnitName/{print $2; exit}')
+fi
+# macOS team-prefixed App Group: the host and widget share it with no provisioning profile.
+GROUP=${TEAM_ID:+$TEAM_ID.dev.spike.glucosewidgets}; GROUP=${GROUP:-group.dev.spike.glucosewidgets}
+echo "signing: ${SIGN_ID:-ad hoc}  team: ${TEAM_ID:-none}  group: $GROUP"
+for plist in $APPEX/Contents/Info.plist $APP/Contents/Info.plist; do
+  plutil -replace GlucoseAppGroup -string $GROUP $plist
+done
+sed "s/group\.dev\.spike\.glucosewidgets/$GROUP/" ${WIDGET_ENT:-Widget/Widget.entitlements} > $OUT/widget.entitlements
+sed "s/group\.dev\.spike\.glucosewidgets/$GROUP/" Host/Host.entitlements > $OUT/host.entitlements
 RT=(--options runtime); [[ "${NO_RUNTIME:-}" == 1 ]] && RT=()
-SIGN=(--sign "${SIGN_ID:--}"); [[ -n "${SIGN_KEYCHAIN:-}" ]] && SIGN+=(--keychain "$SIGN_KEYCHAIN")
-codesign --force $SIGN $RT --entitlements ${WIDGET_ENT:-Widget/Widget.entitlements} $APPEX
-codesign --force $SIGN $RT --entitlements Host/Host.entitlements $APP
+SIGN=(--sign "${SIGN_ID:--}" --timestamp=none); [[ -n "${SIGN_KEYCHAIN:-}" ]] && SIGN+=(--keychain "$SIGN_KEYCHAIN")
+codesign --force $SIGN $RT --entitlements $OUT/widget.entitlements $APPEX
+codesign --force $SIGN $RT --entitlements $OUT/host.entitlements $APP
 codesign --verify --deep --strict $APP && echo "signed OK" || echo "codesign --verify failed (expected for untrusted certs)"
 
 if [[ "${1:-}" == install ]]; then
