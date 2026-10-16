@@ -16,6 +16,8 @@ import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.core.SecureStore
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.treatments.Treat
+import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.wearer.Live
 import java.io.File
 import java.util.TreeMap
@@ -141,8 +143,11 @@ class OwnerEngine(private val ctx: Context) {
         if (Proto.nowS() - s.rosterPublishedAt > 6 * Proto.DAY) publishRoster()
         if (Proto.nowS() - s.backupPublishedAt > 6 * Proto.DAY) publishBackup()
         startSource()
+        Treat.init(ctx)
+        Treat.store.onChange.addIfAbsent(onTreatmentChange)
         if (Features.value.bleFollowers) startBle()
         subscribeTreatments()
+        if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
         tick = scope.launch {
             delay(5_000)
             checkInbox("startup")
@@ -177,6 +182,7 @@ class OwnerEngine(private val ctx: Context) {
                 publishRoster()
                 if (Proto.nowS() - s.backupPublishedAt > Proto.DAY) publishBackup()
                 subscribeTreatments()
+                if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
                 if (foreground) pool().subscribe("inbox", { listOf(inboxFilter(s)) }, ::onEvent)
                 markRecentDirty()
                 flush(force = true)
@@ -215,6 +221,7 @@ class OwnerEngine(private val ctx: Context) {
         features?.cancel()
         source?.stop()
         source = null
+        Treat.store.onChange.remove(onTreatmentChange)
         stopBle()
     }
 
@@ -286,6 +293,7 @@ class OwnerEngine(private val ctx: Context) {
         ble = b
         attach(b)
         publishRoster()   // seeds the BLE backlog cache (the roster is otherwise only re-published weekly)
+        recentTreatments().forEach { publishTreatment(it, relays = false) }   // …and its treatment backlog
         scope.launch { b.connected.collect { n -> _ui.update { it.copy(bleOn = true, bleCentrals = n) } } }
     }
 
@@ -347,6 +355,47 @@ class OwnerEngine(private val ctx: Context) {
             "\"${tr.optString("n")}\" t=${tr.optLong("t")} (+${Proto.nowS() - tr.optLong("t")}s)")
         if (via.startsWith("ble:")) ble?.forward(ev, via.removePrefix("ble:"))
         publishUi()
+    }
+
+    // ============================================================================================ treatments → followers
+
+    /** Every change of the merged log (phone, Mac legacy link, accepted writer entries, deletes) → followers. */
+    private val onTreatmentChange: (Treatment, Long) -> Unit = { tr, _ ->
+        // a LibreView upload only moves `lv`, which isn't on the wire: nothing new for followers
+        scope.launch(serial) { if (trPublished[tr.id] != tr.u to tr.del) publishTreatment(tr) }
+    }
+    private val trCreatedAt = HashMap<String, Long>()
+    private val trPublished = HashMap<String, Pair<Long, Boolean>>()
+
+    private fun recentTreatments(): List<Treatment> {
+        Treat.init(ctx)   // restore() rotates before start()
+        val cut = Proto.nowS() - 30 * Proto.DAY
+        return Treat.store.all().filter { it.t >= cut || it.u / 1000 >= cut }.sortedBy { it.t }
+    }
+
+    /**
+     * SPEC §5 / PROTOCOL-v2 "Treatments": one event per entry, signed by the device key D (the key in roster
+     * `devices`), encrypted to the current epoch. A single change goes out at once (CONTROL lane); a republish
+     * (rotation, new follower, weekly) goes in the paced CHUNK lane after the chunks. `created_at` strictly increases
+     * per entry, or relays would keep the older version.
+     */
+    private fun publishTreatment(tr: Treatment, relays: Boolean = true, lane: Lane = Lane.CONTROL) {
+        val s = st ?: return
+        if (!relays && ble == null) return
+        val at = maxOf(Proto.nowS(), (trCreatedAt[tr.id] ?: 0) + 1)
+        trCreatedAt[tr.id] = at
+        if (relays) trPublished[tr.id] = tr.u to tr.del
+        publish(Proto.treatmentEvent(s.d, s.current.pub, s.sid, tr.wire(), at), lane, "tr:${tr.id}", relays)
+    }
+
+    private fun republishTreatments(why: String) {
+        val s = st ?: return
+        val list = recentTreatments()
+        list.forEach { publishTreatment(it, lane = Lane.CHUNK) }
+        s.treatmentsPublishedAt = Proto.nowS()
+        save()
+        log.i("treatments republished ($why): ${list.size} entr${if (list.size == 1) "y" else "ies"} of the last 30 d, " +
+            "epoch ${s.current.n}")
     }
 
     fun setSynthetic(on: Boolean) = scope.launch(serial) {
@@ -492,6 +541,7 @@ class OwnerEngine(private val ctx: Context) {
         flush(force = false)
         if (Proto.nowS() - s.rosterPublishedAt > 7 * Proto.DAY) publishRoster()
         if (Proto.nowS() - s.backupPublishedAt > 7 * Proto.DAY) publishBackup()
+        if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
         if (Proto.nowS() - lastInboxCheck > chunkEvery() - 30) scope.launch { checkInbox("tick") }
         db.prune(Proto.nowS() - 8 * Proto.DAY)
     }
@@ -549,6 +599,7 @@ class OwnerEngine(private val ctx: Context) {
         publishBackup()
         markRecentDirty()
         flush(force = true)
+        republishTreatments("epoch ${s.current.n}")
         log.i("rotated to epoch ${s.current.n} gk ${s.current.gk} ($why); ${s.active().size} follower(s) re-keyed, " +
             "republishing ${lastChunkSentAt.size} recent chunk(s)")
     }
@@ -661,6 +712,7 @@ class OwnerEngine(private val ctx: Context) {
         save()
         deliverKey(f)
         publishBackup()
+        republishTreatments("new follower")
         Notifications.cancel(ctx, Notifications.ID_REQUEST)
         log.i("APPROVED '${p.name}' (${f.take(12)}) code ${p.code} at epoch ${s.current.n}")
         publishUi()

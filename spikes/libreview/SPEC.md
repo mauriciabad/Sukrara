@@ -145,7 +145,15 @@ retraction, else empty.
 Every device appends each uploaded treatment row (`recordNumber`, `id`, `k`, `t`, deleted?) to a local ledger.
 `lv.py cleanup` (and the apps' "delete all spike treatments") re-sends every ledger row as deleted.
 
-## 5. Treatments over Nostr — proposal (fits investigation 03's [PROTOCOL.md](../nostr/PROTOCOL.md) and its v2 key design in investigation 06; not built)
+## 5. Treatments over Nostr (fits investigation 03's [PROTOCOL.md](../nostr/PROTOCOL.md) and its v2 key design in investigation 06)
+
+**Built** (2026-10-16, Sukrara for Android, both roles; Mac in parallel): writer → owner (investigation 07) and
+owner → followers. Who publishes what, the follower filter and "echo = accepted" are in
+[PROTOCOL-v2 "Treatments"](../nostr/PROTOCOL-v2.md). Differences from the proposal below: the owner publishes its
+whole merged log with its **device key** `D` (a roster `devices` key, not a `writers` key); followers subscribe to
+`authors = roster.devices ∪ roster.writers`, `since` now − 30 d (no cursor); the owner also republishes when a
+follower is approved and weekly. Not built: the Mac's own `W` in `writers` (the Mac's entries reach followers through
+the phone's log, signed by `D`).
 
 Glucose stays as 03/07 define it. Treatments differ in one way that matters: **several devices create them**
 (phone, Mac, later a parent's phone), so they can't all be "the uploader". Terms from 07's PROTOCOL v2 (draft,

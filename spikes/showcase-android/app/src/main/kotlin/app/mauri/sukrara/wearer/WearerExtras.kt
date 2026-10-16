@@ -21,6 +21,7 @@ import app.mauri.sukrara.status.GlucoseNotification
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.TreatmentFeed
 import app.mauri.sukrara.widgets.SukraraHooks
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
             Live.status.update { it.copy(macRunning = s.running, macAdvertising = s.advertising, macSubscribed = s.subscribed, macError = s.error) }
         } }
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
+        jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
         jobs += scope.launch {

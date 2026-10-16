@@ -27,6 +27,7 @@ import org.json.JSONObject
  *       [--es source juggluco|direct --ez confirmDirect true] \
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
+ *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
  */
@@ -76,7 +77,11 @@ class DebugReceiver : BroadcastReceiver() {
             out.put("follower", JSONObject().put("status", u.status).put("code", u.code ?: JSONObject.NULL)
                 .put("epoch", u.epoch).put("readings", u.count).put("rejects", u.rejects)
                 .put("last", u.last?.let { JSONObject().put("t", it.t).put("sgv", it.sgv).put("via", it.via) } ?: JSONObject.NULL)
-                .put("ble", u.ble))
+                .put("ble", u.ble).put("canWrite", u.canWrite)
+                .put("treatments", org.json.JSONArray(u.treatments.map { e ->
+                    JSONObject().put("id", e.tr.id).put("k", e.tr.k).put("a", e.tr.a).put("n", e.tr.n).put("del", e.tr.del)
+                        .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
+                })))
         }
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
@@ -109,6 +114,21 @@ class DebugReceiver : BroadcastReceiver() {
                 }
                 if (err == null) c.startForegroundService(Intent(c, app.mauri.sukrara.follower.FollowerService::class.java))
                 out.put("cmd", err ?: "follow request sent (check the code on the wearer)")
+            }
+            // treatments: the wearer's own log (Treat.store → followers), or a follower's writer entry
+            "treat" -> {
+                val k = i.getStringExtra("k") ?: "note"
+                val a = i.getFloatExtra("a", 0f).toDouble()
+                val n = i.getStringExtra("n") ?: ""
+                if (App.role(c) == "follower") { App.follower(c).addTreatment(k, a, n); out.put("cmd", "follower entry sent") }
+                else {
+                    app.mauri.sukrara.treatments.Treat.init(c)
+                    out.put("cmd", "added").put("id", app.mauri.sukrara.treatments.Treat.store.add(k, a, app.mauri.sukrara.core.Proto.nowS(), n).id)
+                }
+            }
+            "untreat" -> {
+                app.mauri.sukrara.treatments.Treat.init(c)
+                out.put("cmd", if (app.mauri.sukrara.treatments.Treat.store.delete(i.getStringExtra("id") ?: "") != null) "deleted" else "no such entry")
             }
             "writer" -> {
                 App.owner(c).setWriter(i.getStringExtra("f") ?: return, i.getBooleanExtra("on", true))
