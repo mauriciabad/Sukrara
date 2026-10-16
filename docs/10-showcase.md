@@ -302,6 +302,16 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   so the Mac's two centrals opened two connections and the second timed out. Now one central and one connection per
   phone carry both paths (serialised connects). Legacy stays: it's the only path with LibreView `lv` sync.
 - **Thin history**, **Home Assistant** and the Garmin state label: see Known issues and the gap audit.
+- **Hide Sukrara's notification icon** (root): see "Root status bar".
+- **Animations** (`ui/Motion.kt`): M3 shared-axis screen transitions with **predictive back** (NavigationEvent +
+  `SeekableTransitionState`, the leaving screen shrinks under the finger), fade-through for role/onboarding changes,
+  rolling digits for the value, colour cross-fade, the trend arrow turning with a spring, new chart points growing in,
+  list rows expanding in/out, status labels cross-fading. Everything runs on Compose's frame clock: it respects
+  *Remove animations* and stops in the background (idle home: 14 frames in 20 s)
+  ([navigation](../spikes/showcase-android/evidence/n7-nav-shared-axis-predictive-back.gif),
+  [value](../spikes/showcase-android/evidence/n7-value-rolling-digits.gif),
+  [rows](../spikes/showcase-android/evidence/n7-treatment-row-add-delete.gif)).
+- Released as **v0.10.2** (`versionName` 0.10.2 / Mac 0.10.2), with the Juggluco-port fix from the morning.
 
 ## Next
 
