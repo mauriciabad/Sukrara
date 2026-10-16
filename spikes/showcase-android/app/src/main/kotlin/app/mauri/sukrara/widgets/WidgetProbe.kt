@@ -53,9 +53,16 @@ object WidgetProbe {
     private fun key(id: Int, reported: SizeF) = "$id@${reported.width.roundToInt()}x${reported.height.roundToInt()}"
 
     /** The measured size of widget [id] for the layout Glance composes at [reported], or null if not measured. */
-    fun actual(c: Context, id: Int, reported: DpSize): DpSize? =
-        prefs(c).getString(key(id, SizeF(reported.width.value, reported.height.value)), null)?.split('x')
-            ?.let { (w, h) -> DpSize(w.toFloat().dp, h.toFloat().dp) }
+    fun actual(c: Context, id: Int, reported: DpSize): DpSize? {
+        // Within a few dp, not exact: launchers report near-duplicate sizes per orientation (Pixel Launcher: 296×201.9
+        // and 296×201.1), Glance composes one layout for each, and the launcher may apply either.
+        val match = prefs(c).all.entries.firstOrNull { (k, _) ->
+            val (kid, size) = k.split('@').takeIf { it.size == 2 } ?: return@firstOrNull false
+            val (w, h) = size.split('x').mapNotNull { it.toFloatOrNull() }.takeIf { it.size == 2 } ?: return@firstOrNull false
+            kid == "$id" && kotlin.math.abs(w - reported.width.value) <= 4 && kotlin.math.abs(h - reported.height.value) <= 4
+        } ?: return null
+        return (match.value as? String)?.split('x')?.let { (w, h) -> DpSize(w.toFloat().dp, h.toFloat().dp) }
+    }
 
     fun forget(c: Context, ids: IntArray) {
         val e = prefs(c).edit()

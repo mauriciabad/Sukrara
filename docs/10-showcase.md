@@ -355,6 +355,17 @@ min(65, lowest reading) to just above max(185, highest reading), keeps a strip a
 marks are shown, and the *Glucose + graph* header is 6 dp shorter (value 32 sp). Same renderer for the status-bar
 card's graph. ![fitted axis](../spikes/showcase-android/evidence/n9-phone-combined-4x2-fitted-axis.png)
 
+**Still squashed in 0.10.6 / 0.10.7 (fixed on main, not released yet).** The user saw the current-value dot as an
+ellipse. A temporary test pattern in place of the graph (a square with an inscribed circle) measured it on the
+phone: **height/width 0.760** before, **0.989** after. Cause: Pixel Launcher reports two near-identical portrait
+sizes (296×201.9 and 296×201.1). Glance composes one layout per reported size, and the probe's measurement was
+stored only under the first. The launcher fits neither, so it applies the smaller one, which was still drawn for
+296×201 and squeezed into 244×149. A measurement now applies to every reported size within 4 dp.
+
+| Test square, before | Test square, after | Graph, after |
+|---|---|---|
+| ![before](../spikes/showcase-android/evidence/n9-phone-test-square-before.png) | ![after](../spikes/showcase-android/evidence/n9-phone-test-square-after.png) | ![graph](../spikes/showcase-android/evidence/n9-phone-combined-4x2-round.png) |
+
 ### Widgets: one model, no second store (v0.10.4)
 
 The docs/12 review kept all three widgets: the user has a *Glucose + graph* widget pinned and also uses a graph-only
