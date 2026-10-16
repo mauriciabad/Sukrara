@@ -145,6 +145,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `icon` | `--ez` | true | number as the small icon (off = Sukrara glyph) |
 | `hook` | `--ez` | false | root status bar on (Settings: "Value in the status bar") |
 | `hookColor` | `--ez` | true | colour by range (module only); off = like the clock / System UI's tint |
+| `hideNotifIcon` | `--ez` | true | while the root status bar shows the value, the module drops Sukrara's notification icon from the status bar (shade, lock screen and AOD unchanged) |
 | `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — `slot:` works with root alone; with the module they're coloured by range and `slot:wifi` etc. moves them right after that icon |
 | `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
 | `previewSgv`, `previewRate` | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading |
@@ -246,6 +247,14 @@ trimmed to their width. Verified on the phone (release, updated in place): syste
 ![Hook after the clock, system icons after Wi-Fi, hook before the clock](img/sukrara-root-statusbar.png)
 
 ![System icons after Wi-Fi, coloured: 212 high, in range, 54 low, in range](img/sukrara-root-statusbar-colour.png)
+
+**Hide Sukrara's notification icon** (polish round 2, on by default, under "Value in the status bar"): the module
+removes Sukrara's entries from the status bar's notification-icon row (`NotificationIconContainerStatusBarViewModel`,
+status bar only; shelf/AOD untouched), so the always-present logo disappears while the value is shown. There is no
+rootless way on Android 17: a foreground-service notification on a MIN channel is raised to LOW (and the channel
+rewritten), and "silent" icons hide only with a global user setting and without the coloured card. Wearer role only
+(the follower doesn't feed the module yet). ([shown](../spikes/showcase-android/evidence/n-icon-statusbar-shown.png),
+[hidden](../spikes/showcase-android/evidence/n-icon-statusbar-hidden.png))
 
 Safety, kill switch (`settings put global sukrara_hook_disabled 1`) and what not to do (never `adb uninstall`
 Sukrara to recover — it holds the identity): `spikes/statusbar-android/HANDOFF.md`.
