@@ -96,7 +96,8 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
         rows.values.filter { it.s > cursor }.sortedBy { it.s }.map { it.s to it.tr }
     }
 
-    fun get(id: String): Treatment? = synchronized(this) { rows[id]?.tr }
+    /** The row for [id] with its seq, or null. */
+    fun entry(id: String): Pair<Long, Treatment>? = synchronized(this) { rows[id]?.let { it.s to it.tr } }
 
     /** Merge a record from elsewhere (the Mac). Returns the stored result if anything changed. */
     fun merge(inc: Treatment): Treatment? = apply(inc.id) { cur -> Treatment.merge(cur, inc) }

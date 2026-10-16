@@ -202,6 +202,17 @@ struct V2Send: Codable, Equatable {
     @discardableResult
     func receive(_ inc: Treatment, v2: Bool = false) -> Bool {
         let cur = row(inc.id)
+        // The phone refused our change of an entry it holds and sent its own version back: that one stands.
+        if !v2, cur != nil, let i = state.legacyRefused?.firstIndex(of: inc.id) {
+            state.legacyRefused?.remove(at: i)
+            if let j = state.unacked.firstIndex(of: inc.id) { state.unacked.remove(at: j) }
+            var t = inc
+            t.lv = max(inc.lv, cur!.lv)
+            put(t)
+            save()
+            onChange.forEach { $0(false) }
+            return true
+        }
         if v2, cur == nil { state.v2Only = (state.v2Only ?? []) + [inc.id] }
         if !v2, let i = state.v2Only?.firstIndex(of: inc.id) { state.v2Only?.remove(at: i); save() }
         let merged = Treatment.merge(cur, inc)
@@ -393,7 +404,7 @@ struct TreatmentPaths {
             let phone = legacy.connectedName ?? "phone", when = legacy.connectedName != nil ? "connected" : "when in range"
             switch p.route {
             case .legacy: p.legacy = "→ \(phone) over the Bluetooth link (unencrypted; the wearer accepts entries over it) · \(when)"
-            case .v2: p.legacy = "Bluetooth link to \(phone): readings + sync (entries go over v2) · \(when)"
+            case .v2: p.legacy = "Bluetooth link to \(phone): readings only, entries go over v2 · \(when)"
             default: p.legacy = "✕ Bluetooth link: the wearer doesn't accept entries over it"
             }
         } else if legacy != nil, p.route == .legacy {

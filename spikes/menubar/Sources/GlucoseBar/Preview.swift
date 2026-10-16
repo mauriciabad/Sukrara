@@ -71,16 +71,20 @@ enum MenuPreview {
             Treatment(k: "note", a: 0, t: at(4), n: "sensor ok", o: "mac"),
         ]
         for (i, t) in rows.enumerated() {
-            if t.o == "mac" { store.upsertLocal(t) } else { store.receive(t, v2: i == 3) }
+            if i == 6 { store.upsertLocal(t, route: "legacy") }                     // refused by the phone below
+            else if t.o == "mac" { store.upsertLocal(t, legacy: false, route: "v2") }
+            else { store.receive(t, v2: i == 3) }
         }
         store.markLegacyLinked()
+        store.setLegacyEntries(false)
+        store.legacyRefused(rows[6])
         store.setV2(rows[4].id, u: rows[4].u, .accepted, via: "ble:Tartaruga")
         store.setV2(rows[5].id, u: rows[5].u, .sent, via: "relay:nos.lol")
         store.setV2(rows[6].id, u: rows[6].u, .sending)
         store.acked(rows[4]); store.acked(rows[5])
 
         let paths = [
-            TreatmentPaths(route: .v2, legacy: "Bluetooth link to Tartaruga: readings + sync (entries go over v2) · connected",
+            TreatmentPaths(route: .v2, legacy: "Bluetooth link to Tartaruga: readings only, entries go over v2 · connected",
                            v2: "→ wearer over Sukrara sharing (v2) · allowed"),
             TreatmentPaths(route: .none, legacy: "✕ Bluetooth link: the wearer doesn't accept entries over it",
                            v2: "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"),

@@ -389,7 +389,7 @@ MainActor.assumeIsolated {
     @MainActor func paths() -> TreatmentPaths { TreatmentPaths.current(legacy: ble, store: treatments, node: following.node) }
     status.onLogTreatment = { t in
         let p = paths()
-        log("treatment logged: \(StatusController.describe(t)) → \(p.route.rawValue)")
+        if p.canLog { log("treatment logged: \(StatusController.describe(t)) → \(p.route.rawValue)") }
         switch p.route {
         case .v2: treatments.upsertLocal(t, legacy: false, route: "v2"); following.sendTreatment(t)
         case .legacy: treatments.upsertLocal(t, route: "legacy")       // pushed when the phone is connected

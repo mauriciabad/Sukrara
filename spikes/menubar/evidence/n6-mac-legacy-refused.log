@@ -1,0 +1,25 @@
+3:03:30 PM  BLE legacy: connected to Tartaruga
+3:03:30 PM  treatments: sync started (cursor 0, 0 to push)
+3:03:31 PM  treatments: the phone refuses entries over the legacy link
+3:04:10 PM  debug paths route=none canLog=false legacyEntries=false | ✕ Bluetooth link: the wearer doesn't accept entries over it | Follow… this wearer (Sukrara sharing) and ask them to turn on “Can add entries” for this Mac
+3:04:11 PM  debug log 640f20f8-439a-412a-a592-f0cf02df7833
+3:04:11 PM  treatment logged: 3:04 PM  note: n6 test menu → none
+3:04:11 PM  treatment NOT logged: The wearer hasn't allowed this Mac to add entries
+3:04:12 PM  debug add d3e5da1d-ba04-40d0-8ee3-f9712c934f9d
+3:04:12 PM  treatments: the phone refused note d3e5da1d (entries over the legacy link are off)
+3:04:36 PM  treatments: the phone accepts entries over the legacy link
+3:04:38 PM  debug paths route=legacy canLog=true legacyEntries=true | → Tartaruga over the Bluetooth link (unencrypted; the wearer accepts entries over it) · connected
+3:04:39 PM  debug log 25ea22b3-eb4e-4d8b-b073-e32cfeae6593
+3:04:39 PM  treatment logged: 3:04 PM  1 g carbs · n6 test legacy on → legacy
+3:04:59 PM  treatments: the phone refuses entries over the legacy link
+3:05:03 PM  debug paths route=none canLog=false legacyEntries=false | ✕ Bluetooth link: the wearer doesn't accept entries over it | Follow… this wearer (Sukrara sharing) and ask them to turn on “Can add entries” for this Mac
+3:05:04 PM  treatments: the phone refused carbs 25ea22b3 (entries over the legacy link are off)
+3:05:08 PM  treatment NOT deleted: The wearer hasn't allowed this Mac to add entries
+3:09:14 PM  BLE legacy: connected to Tartaruga
+3:09:14 PM  treatments: sync started (cursor 11, 0 to push)
+3:09:43 PM  treatments: the phone refused carbs 25ea22b3 (entries over the legacy link are off)
+3:09:47 PM  treatments: the phone refused note d3e5da1d (entries over the legacy link are off)
+3:14:05 PM  BLE legacy: connected to Tartaruga
+3:14:05 PM  treatments: sync started (cursor 11, 0 to push)
+3:17:58 PM  treatments: the phone accepts entries over the legacy link
+3:18:02 PM  treatments: the phone refuses entries over the legacy link
