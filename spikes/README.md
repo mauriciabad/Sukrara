@@ -162,6 +162,19 @@ cd ble-scan && swiftc -O main.swift -o blescan && ./blescan 20 [--all]
 ```
 Lists nearby BLE advertisers and flags anything that looks like an Abbott/Libre device.
 
+## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
+
+Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to
+load the extension without a Team ID certificate, so the views are also rendered to PNG ([13](../docs/13-macos-widgets.md)).
+```sh
+cd widgets-macos
+./build.sh render                         # every widget family → evidence/*.png (ImageRenderer, no WidgetKit host)
+./build.sh install                        # host app + .appex → ~/Applications, lsregister + pluginkit, start host
+SIGN_ID=<sha1> ./build.sh install         # same, signed with a real (Team ID) certificate
+PROBE_ID=dev.spike.GlucoseWidgets.widget ./build.sh probe   # which data transports the sandboxed widget can read
+Diag/chronolog.sh 60                      # what chronod says about the extension
+```
+
 ## Not published
 
 The Mac-side direct sensor experiment (`libre3-ble`, investigation 01) is kept out of this public repo; its results

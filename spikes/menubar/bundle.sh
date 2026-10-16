@@ -6,7 +6,8 @@
 # Configure:  defaults write dev.spike.GlucoseBar url http://192.168.10.127:17580
 #             defaults write dev.spike.GlucoseBar unit mmol      # optional
 #             defaults write dev.spike.GlucoseBar secret '...'   # if Juggluco has an API secret
-#             defaults write dev.spike.GlucoseBar nostr 'cgmnostr:1?...'   # follow a CGM-over-Nostr stream
+#             defaults write dev.spike.GlucoseBar nostr 'cgmnostr:1?...'   # legacy v1 Nostr link
+# Protocol v2 (default): menubar → "Follow someone…" or open a cgmshare:join?… link (URL scheme registered below).
 set -e
 cd "$(dirname "$0")"
 swift build -c release
@@ -25,6 +26,10 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleShortVersionString</key><string>0.1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  <key>CFBundleURLTypes</key><array><dict>
+    <key>CFBundleURLName</key><string>CGM Share invite</string>
+    <key>CFBundleURLSchemes</key><array><string>cgmshare</string></array>
+  </dict></array>
   <key>NSBluetoothAlwaysUsageDescription</key><string>Read a FreeStyle Libre 3 sensor directly.</string>
   <key>NSLocalNetworkUsageDescription</key><string>Read glucose from Juggluco on your phone.</string>
 </dict></plist>

@@ -1,0 +1,59 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-16 03:54:48.671 E  chronod[5885:13a9ba] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cd560>
+2026-10-16 03:54:48.941 Df chronod[5885:13a9ba] [com.apple.chrono:extensions-verbose] Added extensions: [<WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isApple: false>]
+2026-10-16 03:54:48.948 E  chronod[5885:13a7cf] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 03:54:50.035 Df chronod[5885:13a7cf] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:55:00.058 E  chronod[5885:13a7cf] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7ae3fab0>
+2026-10-16 03:55:01.018 Df chronod[5885:13a7cf] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:56:01.019 Df chronod[5885:13aeca] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:57:01.018 Df chronod[5885:13aeca] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:58:01.020 Df chronod[5885:13bb40] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:59:01.020 Df chronod[5885:13be5a] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 03:59:01.269 E  chronod[5885:13be5a] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cfa20>
+2026-10-16 03:59:11.974 E  chronod[5885:13be5a] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cc570>
+2026-10-16 04:00:01.040 Df chronod[5885:13ccec] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:01:01.018 Df chronod[5885:13d125] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:02:01.035 Df chronod[5885:13da30] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:02:15.554 E  chronod[5885:13da30] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cc870>
+2026-10-16 04:02:15.748 Df chronod[5885:13da30] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:02:15.771 E  chronod[5885:13ea75] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:02:26.030 E  chronod[5885:13da30] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5f3e70>
+2026-10-16 04:02:54.241 E  chronod[5885:13f458] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5f0600>
+2026-10-16 04:02:54.348 E  chronod[5885:13f4e3] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:02:54.910 Df chronod[5885:13f4e3] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:03:01.012 Df chronod[5885:13f4e5] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:03:05.032 E  chronod[5885:13f4e3] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b5710>
+2026-10-16 04:04:01.016 Df chronod[5885:13f8aa] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:04:58.435 E  chronod[5885:1406e9] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b7180>
+2026-10-16 04:04:58.540 E  chronod[5885:14078a] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:04:58.688 Df chronod[5885:13fe3e] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:05:01.011 Df chronod[5885:14078a] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:05:09.194 E  chronod[5885:14079d] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5f26a0>
+2026-10-16 04:05:36.424 E  chronod[5885:140ea7] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cf5d0>
+2026-10-16 04:05:36.528 E  chronod[5885:140f42] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:05:39.457 Df chronod[5885:140ea7] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:05:47.478 E  chronod[5885:140ea7] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cc000>
+2026-10-16 04:06:01.017 Df chronod[5885:140f4f] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:07:01.026 Df chronod[5885:140f4f] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:08:01.020 Df chronod[5885:140f4f] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:09:01.019 Df chronod[5885:1425f4] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:10:01.016 Df chronod[5885:142f05] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:11:01.048 Df chronod[5885:142f05] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:12:01.015 Df chronod[5885:143874] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:13:01.020 Df chronod[5885:14414c] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:13:18.398 E  chronod[5885:14414c] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5cdd70>
+2026-10-16 04:13:18.535 E  chronod[5885:144872] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:13:20.385 Df chronod[5885:144926] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:13:29.170 E  chronod[5885:144926] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b5b90>
+2026-10-16 04:14:01.051 Df chronod[5885:144872] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:14:32.687 E  chronod[5885:14509e] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b7ea0>
+2026-10-16 04:14:32.779 E  chronod[5885:145296] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:14:43.407 E  chronod[5885:14529f] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b7b10>
+2026-10-16 04:14:45.195 E  chronod[5885:1454d1] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5b5f20>
+2026-10-16 04:14:45.294 E  chronod[5885:14509e] [com.apple.chrono:descriptor] Requested to add extension, but purging instead because we shouldn't cache it: <WidgetExtension - identifier: dev.spike.GlucoseWidgets::dev.spike.GlucoseWidgets.widget, version: 1, containerVersion: 1, lastModifiedDate: 1970-01-01T02:00:00+02:00 isAppl
+2026-10-16 04:14:46.195 Df chronod[5885:14529f] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:14:55.926 E  chronod[5885:14529f] [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: 0x7c7a5f2b20>
+2026-10-16 04:15:01.014 Df chronod[5885:14529f] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:15:03.637 Df GlucoseWidget[76764:14579b] [com.apple.chrono:widget] main [WidgetBundle]
+2026-10-16 04:15:03.645 Df GlucoseWidget[76764:14579b] [com.apple.chrono:widget] Locale token: TIN32BRZcpa2yiWtGBg2MZYdFVw=
+2026-10-16 04:15:03.646 Df GlucoseWidget[76764:14579b] [com.apple.chrono:widget] WidgetHost - Optional(WidgetKit.ResolvedWidgetBundleHost)

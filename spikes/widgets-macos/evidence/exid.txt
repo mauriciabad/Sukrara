@@ -1,0 +1,3 @@
+dev.spike.GlucoseWidgets.widget hasSandboxEntitlement=true app-sandbox=Optional(1) teamIdentifier=nil sandboxProfileName=Optional(application)
+com.steipete.codexbar.widget hasSandboxEntitlement=true app-sandbox=Optional(1) teamIdentifier=Optional(Y5PE65HELJ) sandboxProfileName=Optional(application)
+com.hegenberg.BetterTouchTool.BetterTouchTool-Widgets hasSandboxEntitlement=true app-sandbox=Optional(1) teamIdentifier=Optional(DAFVSXZ82P) sandboxProfileName=Optional(application)

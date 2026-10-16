@@ -181,6 +181,24 @@ build was run on devices).
 - Two followers on one owner over BLE at once: worked incidentally (Mac test client + menubar agent), not measured.
 - Release APK not run on a device.
 
+## Mac follower (GlucoseBar) — same pairing as Android
+
+<img src="../spikes/menubar/evidence/ble-nearby-waiting.png" width="360" alt="Mac waiting for approval with match code">
+
+GlucoseBar now follows a wearer exactly like the Android follower — over **Nostr v2** ("Follow someone…" with the
+invite link or a QR image, match code, Allow) and over **Bluetooth v2** (nearby pairing with the same match code,
+the GATT framing above). Keys live in the macOS Keychain. Notes and numbers: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
+
+| Test | Result |
+|---|---|
+| Nostr, against the Python v2 owner | approved < 1 s, same code on both sides; 183/183 readings equal; rotation → rekey in ~4 s; revoke → "Access removed"; denied → 0 data; state survives restart (Keychain) |
+| Bluetooth only, against the Pixel owner | code 0936 on both; key + 26 hour-chunks + live over BLE; **180/180 readings equal the phone's DB**; live < 1 s; with both transports the BLE copy wins, relay copies deduplicated |
+| Writer | a Mac note accepted by the phone over BLE in 2 s |
+| Forgery self-test (`-v2selftest`) | 13/13 forged inputs rejected (forged key delivery, non-roster author, tampered content, fake roster, forged revoke, unknown epoch, …) |
+
+Not done: rotation/revoke over BLE with the phone, opening a `cgmshare:` link live, Mac alarms and a local DB. Ad-hoc
+signing means macOS asks once for Keychain access after each rebuild.
+
 ## For the showcase app (bundling all features)
 
 - Copy `core/Ble.kt`, `core/BleOwner.kt`, `core/BleFollower.kt`; attach them as extra `Transport`s exactly as here.

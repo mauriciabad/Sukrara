@@ -1,0 +1,13 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-16 04:21:01.014 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #4 (new-sample) latest=153 @1792113660
+2026-10-16 04:21:01.015 Df chronod[5885:147bb0] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:22:01.018 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #5 (new-sample) latest=149 @1792113720
+2026-10-16 04:22:01.019 Df chronod[5885:147bb0] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:23:01.019 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #6 (new-sample) latest=145 @1792113780
+2026-10-16 04:23:01.031 Df chronod[5885:147bb0] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:24:01.015 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #7 (new-sample) latest=141 @1792113840
+2026-10-16 04:24:01.017 Df chronod[5885:147bb0] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:25:01.014 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #8 (new-sample) latest=137 @1792113900
+2026-10-16 04:25:01.017 Df chronod[5885:149105] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets
+2026-10-16 04:26:01.014 Df GlucoseWidgets[77796:147126] [dev.spike.GlucoseWidgets:host] reloadAllTimelines #9 (new-sample) latest=132 @1792113960
+2026-10-16 04:26:01.015 Df chronod[5885:149105] [com.apple.chrono:extensions] Ignoring restricted or unknown extension dev.spike.GlucoseWidgets

@@ -1,0 +1,18 @@
+sandboxed home: /Users/blue/Library/Containers/dev.spike.GlucoseWidgets.widget/Data
+best: http  latest: 168 mg/dL @ 2026-10-16 1:15:00 AM +0000
+  appgroup-api=260
+  appgroup-path=260
+  own-container=ok(age 40s)
+  users-shared=ok(age 40s)
+  http=ok
+group container: /Users/blue/Library/Group Containers/group.dev.spike.glucosewidgets
+  group write: 513 You don’t have permission to save the file “probe-write-test” in the folder “group.dev.spike.glucosewidgets”.
+sandboxed home: /Users/blue/Library/Containers/dev.spike.GlucoseWidgets.probe/Data
+best: http  latest: 168 mg/dL @ 2026-10-16 1:15:00 AM +0000
+  appgroup-api=260
+  appgroup-path=260
+  own-container=260
+  users-shared=ok(age 41s)
+  http=ok
+group container: /Users/blue/Library/Group Containers/group.dev.spike.glucosewidgets
+  group write: 513 You don’t have permission to save the file “probe-write-test” in the folder “group.dev.spike.glucosewidgets”.

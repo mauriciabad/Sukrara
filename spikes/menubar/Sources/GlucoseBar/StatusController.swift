@@ -27,6 +27,13 @@ final class StatusController: NSObject, NSMenuDelegate {
     var thresholds = Thresholds()
     var onRefresh: (() -> Void)?
 
+    // Protocol v2 follower (NostrV2.swift): "Follow someone…" / status line / "Stop following".
+    var onFollow: (() -> Void)?
+    var onFollowQR: (() -> Void)?
+    var onUnfollow: (() -> Void)?
+    private let followLine = NSMenuItem()
+    private var unfollowItem: NSMenuItem?
+
     // Treatments (spikes/libreview/SPEC.md). Section hidden while `treatments` is nil.
     var treatments: (() -> [Treatment])?
     var onLogTreatment: ((Treatment) -> Void)?
@@ -51,12 +58,23 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(chartItem)
         menu.addItem(sourceLine)
         menu.addItem(errorLine)
+        followLine.isEnabled = false
+        followLine.isHidden = true
+        menu.addItem(followLine)
         menu.addItem(.separator())
         for line in [treatmentsHeader, lvLine] { line.isEnabled = false }
         menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l").target = self
         menu.addItem(treatmentsHeader)
         menu.addItem(lvLine)
         menu.addItem(withTitle: "Upload to LibreView now", action: #selector(uploadNow), keyEquivalent: "").target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Follow someone…", action: #selector(follow), keyEquivalent: "f").target = self
+        menu.addItem(withTitle: "Follow from QR image…", action: #selector(followQR), keyEquivalent: "").target = self
+        let stop = NSMenuItem(title: "Stop following", action: #selector(unfollow), keyEquivalent: "")
+        stop.target = self
+        stop.isHidden = true
+        menu.addItem(stop)
+        unfollowItem = stop
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh now", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -77,6 +95,16 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 
     @objc private func refresh() { onRefresh?() }
+    @objc private func follow() { onFollow?() }
+    @objc private func followQR() { onFollowQR?() }
+    @objc private func unfollow() { onUnfollow?() }
+
+    /// nil hides the line (not following anyone over v2).
+    func setFollow(_ text: String?) {
+        followLine.isHidden = text == nil
+        followLine.title = text ?? ""
+        unfollowItem?.isHidden = text == nil
+    }
 
     // The "(n min ago)" line only ticks while the menu is open; closed, nothing runs between readings.
     func menuWillOpen(_ menu: NSMenu) {
