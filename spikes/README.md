@@ -120,6 +120,31 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home P
 All builds are signed with `~/.android/debug.keystore` on purpose: Proton Pass only returns a saved key to an app
 signed with the same certificate.
 
+### Identity — profiles, short invites, Nostr login (investigation 14)
+
+Spec: [`nostr/PROTOCOL-identity.md`](nostr/PROTOCOL-identity.md). Python reference + checks (throwaway keys only;
+the live check cleans up after itself with Blossom DELETE + NIP-62):
+
+```sh
+cd nostr
+uv run identity/test_identity.py            # offline checks, writes identity/vectors.json (Kotlin parity fixture)
+uv run identity/live_check.py               # relays + Blossom: invite by link, kind 0, uploads, deletion (≈ 5–8 min)
+```
+
+`nostr/identity-android/` — **Identity PoC** (`dev.spike.nostrid`, Kotlin): profile editor (generated avatar by
+default, Photo Picker, public notice), short invites + join + Allow, hidden "Use an existing Nostr account"
+(nsec / ncryptsec / words → derived account; NIP-55 signer such as Amber → sealed root), delete everywhere.
+
+```sh
+cd nostr/identity-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew testDebugUnitTest                 # Kotlin ↔ Python vectors
+./gradlew assembleDebug && adb -s <emulator> install -r -g app/build/outputs/apk/debug/app-debug.apk
+adb -s <emulator> shell am broadcast -n dev.spike.nostrid/.DebugReceiver --es cmd create --es name Alex   # or invite,
+#   join --es link <link>, poll, allow, deny, derive --es key <THROWAWAY nsec>, delete, reset
+adb -s <emulator> shell run-as dev.spike.nostrid cat files/state.json      # redacted state (debug builds)
+```
+
 ## `statusbar-android/` — GlucoStatus (Android, Kotlin)
 
 Glucose in the phone's status bar, every approach from [05](../docs/05-android-status-bar.md) switchable in one app:

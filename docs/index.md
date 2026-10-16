@@ -76,6 +76,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | 11 | Battery cost, with and without root | *In progress* |
 | [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
 | [13](13-macos-widgets) | macOS widgets | Built without Xcode; need an Apple certificate to run |
+| [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.
