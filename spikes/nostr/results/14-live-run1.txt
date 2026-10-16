@@ -1,0 +1,61 @@
+# Investigation 14 live check · 2026-10-16 15:12:11 EEST · throwaway keys only
+
+## 0. Relay limits (NIP-11)
+- wss://nos.lol                {'max_message_length': 131072}
+- wss://relay.primal.net       {'max_message_length': 1000000}
+- wss://nostr.mom              {'max_message_length': 131072}
+- wss://relay.damus.io         {'max_message_length': 1000000}
+- wss://relay.nostr.net        {'max_message_length': 262144}
+- wss://offchain.pub           {'max_message_length': 131072}
+- wss://relay.snort.social     {'error': 'TimeoutError'}
+
+## 1. Invite gift wrap (2257 B event) · link 63 chars
+- wss://nos.lol                publish: ok                   fetch-by-link: opened · 1.1s
+- wss://relay.primal.net       publish: ok                   fetch-by-link: opened · 1.1s
+- wss://nostr.mom              publish: ok                   fetch-by-link: opened · 1.0s
+- wss://relay.damus.io         publish: ok                   fetch-by-link: not found · 50.1s
+- wss://relay.nostr.net        publish: ok                   fetch-by-link: not found · 48.7s
+- wss://offchain.pub           publish: ok                   fetch-by-link: opened · 2.7s
+- wss://relay.snort.social     publish: ok                   fetch-by-link: not found · 2.6s
+→ follower resolves the short link from the relays: **yes**
+
+## 2. kind 0 (profile key)
+
+## 3. Blossom upload of a generated avatar (11426 B PNG, signed by the profile key)
+- https://blossom.primal.net       200 url https://blossom.primal.net/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://nostr.download           201 url https://nostr.download/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://blossom.band             201 url https://npub19yvu8ye55t8k6fr3s8w5vm99xjshnafndgawvh9e20vrzjgn97ts68em22.blossom.band/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://cdn.nostrcheck.me        success url https://cdn.nostrcheck.me/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png
+- https://blossom.nostr.build      200 url https://npub19yvu8ye55t8k6fr3s8w5vm99xjshnafndgawvh9e20vrzjgn97ts68em22.blossom.band/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://files.sovbit.host        200 url https://files.sovbit.host/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://blossom.yakihonne.com    201 url https://blossom.yakihonne.com/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://24242.io                 200 url https://24242.io/b71990c02b9cddb12f288b871e7110ac34d37a0c8f13adda6fb0b1f6e0a744c7.png · GET same bytes (image/png)
+- https://cdn.satellite.earth      401 Permission denied: blossom.upload required
+- https://blossom.f7z.io           401 Pubkey not authorized by any storage rule
+
+kind 0 with picture URL (531 B): accepted by 7/7 — nos.lol, relay.primal.net, nostr.mom, relay.damus.io, relay.nostr.net, offchain.pub, relay.snort.social
+kind 0 with data: URI picture, 256px (7 KB event): accepted by 6/7
+  - wss://offchain.pub: Policy violated and pubkey is not in our web of trust.
+kind 0 with data: URI picture, 512px (15 KB event): accepted by 5/7
+  - wss://relay.nostr.net: TimeoutError: 
+  - wss://offchain.pub: Policy violated and pubkey is not in our web of trust.
+kind 0 read back (URL version): 6/7 relays
+
+## 4. Cleanup
+- Blossom DELETE https://blossom.primal.net       → 200, then GET → 404
+- Blossom DELETE https://nostr.download           → 204, then GET → 404
+- Blossom DELETE https://blossom.band             → 204, then GET → 200
+- Blossom DELETE https://blossom.nostr.build      → 204, then GET → 200
+- Blossom DELETE https://files.sovbit.host        → 200, then GET → 404
+- Blossom DELETE https://blossom.yakihonne.com    → 204, then GET → 404
+- Blossom DELETE https://24242.io                 → 200, then GET → 404
+- NIP-62 request to vanish for all 5 throwaway keys: accepted by nos.lol 5/5, relay.primal.net 5/5, nostr.mom 5/5, relay.damus.io 5/5, relay.nostr.net 5/5, offchain.pub 5/5, relay.snort.social 5/5
+- after vanish wss://nos.lol                kind 0 left: 2 · invite wrap left: 1
+- after vanish wss://relay.primal.net       kind 0 left: 2 · invite wrap left: 1
+- after vanish wss://nostr.mom              kind 0 left: 2 · invite wrap left: 1
+- after vanish wss://relay.damus.io         kind 0 left: 0 · invite wrap left: 0
+- after vanish wss://relay.nostr.net        kind 0 left: 2 · invite wrap left: 0
+- after vanish wss://offchain.pub           kind 0 left: 1 · invite wrap left: 1
+- after vanish wss://relay.snort.social     kind 0 left: 3 · invite wrap left: 0
+
+(492 s)

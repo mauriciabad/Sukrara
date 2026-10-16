@@ -63,9 +63,10 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
 - **Android**: Kotlin only — never Java source; newest APIs; GPL header on every file; sign debug + release with
   `~/.android/debug.keystore`. JDK 17: `export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`.
   Watch R8 (widget classes merged once; keep rules in `proguard-rules.pro`) — test release builds after a restart.
-- **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app`; the user's running copy is the one built in the
-  integration worktree — relaunch it after rebuilding so the user keeps glucose in the menubar (macOS asks once for
-  Keychain access after a rebuild). Logs: `~/Library/Logs/Sukrara.log`.
+- **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` for public zips). The user's daily
+  copy is **`~/Applications/Sukrara.app`** (login item, team-signed with the user's Apple Development cert, with the
+  widget appex). Don't overwrite it with test builds — use another path, and relaunch it afterwards so the user keeps
+  glucose in the menubar (a different signature means one more Keychain prompt). Logs: `~/Library/Logs/Sukrara.log`.
 - **Repo**: public, GPL-3.0-or-later; repo-local noreply identity; never commit `secrets/`, keys, APKs, build dirs;
   scan staged files for `nsec1…`; crop screenshots so no other apps' notifications are committed. Site:
   https://sukrara.mauri.app (GitHub Pages from `main:/docs`).

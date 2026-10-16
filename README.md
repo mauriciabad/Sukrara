@@ -164,6 +164,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 11 | Battery cost, with and without root | *In progress* | — |
 | 12 | Android home-screen widgets | Value, graph, graph + value; ~0.4 s CPU per update | [docs/12](docs/12-android-widgets.md) |
 | 13 | macOS widgets | Built without Xcode; macOS refuses to load them without an Apple-issued certificate | [docs/13](docs/13-macos-widgets.md) |
+| 14 | Nostr identity: profiles, short invites, Nostr login | Kind 0 on a separate profile key, Blossom pictures (EXIF removed), 241 → 63-char invites, derived accounts from an nsec and via Amber | [docs/14](docs/14-nostr-identity.md) |
 
 ## Try it
 
