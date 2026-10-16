@@ -40,11 +40,6 @@ object QuickEntry {
         }
     }
 
-    fun footer(ctx: Context): String = when (App.role(ctx)) {
-        "follower" -> "Sent to the person you follow."
-        else -> "Your followers and Sukrara for Mac see it" + if (Features.value.libreview) "; uploaded to LibreView." else "."
-    }
-
     fun saved(n: Int, role: String?) = when {
         role == "follower" -> if (n == 1) "Entry sent" else "$n entries sent"
         else -> if (n == 1) "Entry saved" else "$n entries saved"
@@ -72,7 +67,6 @@ class QuickTreatmentActivity : ComponentActivity() {
                         QuickEntry.save(this, list)
                         Toast.makeText(this, QuickEntry.saved(list.size, role), Toast.LENGTH_SHORT).show()
                     },
-                    footer = QuickEntry.footer(this),
                     onOpenApp = ::openApp,
                 )
             }

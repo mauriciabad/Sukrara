@@ -86,10 +86,9 @@ private fun amount(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else String.
  * the keyboard's Next walks rapid → long → carbs → note, and Done on the note saves.
  *
  * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
- * [footer] is one line under the fields (where the entries go: LibreView, the wearer…).
  */
 @Composable
-fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, footer: String? = null, onOpenApp: (() -> Unit)? = null) {
+fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null) {
     var rapid by rememberSaveable { mutableStateOf("") }
     var long by rememberSaveable { mutableStateOf("") }
     var carbs by rememberSaveable { mutableStateOf("") }
@@ -144,16 +143,15 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, foo
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
-                // what Save will add, so a filled field is never a surprise
-                Swap(when {
+                // what Save will add, so a filled field is never a surprise (nothing while the form is empty)
+                RevealValue(when {
                     invalid -> "Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g"
-                    preview.isEmpty() -> "Fill in any of them: each one becomes its own entry."
+                    preview.isEmpty() -> null
                     else -> "Adds " + preview.joinToString(" · ") { e ->
                         when (e.k) { "carbs" -> "${amount(e.a)} g carbs"; "note" -> "a note"; else -> "${amount(e.a)} U ${e.k}" }
                     }
                 }) { Text(it, style = MaterialTheme.typography.bodyMedium,
                     color = if (invalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
-                footer?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     onOpenApp?.let { TextButton(onClick = it) { Text("Open Sukrara") } }
                     Spacer(Modifier.weight(1f))

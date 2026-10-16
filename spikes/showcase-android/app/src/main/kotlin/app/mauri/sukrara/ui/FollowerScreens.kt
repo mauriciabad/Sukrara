@@ -305,8 +305,7 @@ private fun FollowerEntries(u: FollowerUi) {
 private fun AddEntry(a: FollowerActions) {
     var adding by remember { mutableStateOf(false) }
     FilledTonalButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) { Text("Add treatment") }
-    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { it.forEach { e -> a.addTreatment(e.k, e.a, e.note, e.at) } },
-        footer = "Sent to the person you follow.")
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { it.forEach { e -> a.addTreatment(e.k, e.a, e.note, e.at) } })
 }
 
 @Composable

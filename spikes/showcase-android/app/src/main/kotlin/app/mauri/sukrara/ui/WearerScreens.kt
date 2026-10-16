@@ -379,7 +379,7 @@ fun TreatmentsSection() {
         }
     }
 
-    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) }, footer = QuickEntry.footer(ctx))
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) })
     deleting?.let { tr ->
         AlertDialog(
             onDismissRequest = { deleting = null },
