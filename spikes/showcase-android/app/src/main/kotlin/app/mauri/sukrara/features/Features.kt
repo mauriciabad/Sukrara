@@ -29,10 +29,12 @@ data class FeatureState(
     val chip: Boolean = true,
     /** Status bar: the notification small icon is the number itself (bitmap). */
     val icon: Boolean = true,
-    /** Not bundled tonight (needs root): system-icon slot daemon. Kept as a switch so the battery lab sees "off". */
+    /** Root: number + arrow as system icons next to Wi-Fi/battery (status/RootStatusBar, investigation 05). */
     val systemIcons: Boolean = false,
-    /** Not bundled tonight (needs the LSPosed module): SystemUI hook. Kept as a switch, always reported off. */
+    /** LSPosed module enabled for System UI: coloured value drawn by SystemUI itself (hook/SystemUiHook). */
     val hook: Boolean = false,
+    /** Where the hook draws: one of [HookPosition]. `slot:*` reorders the system icons (needs [systemIcons] too). */
+    val hookPosition: String = HookPosition.AFTER_CLOCK,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580 for Garmin watch apps (only binds if the port is free). */
@@ -51,7 +53,7 @@ data class FeatureState(
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
         .put("bleFollowers", bleFollowers).put("macBle", macBle)
-        .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook)
+        .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
@@ -77,8 +79,9 @@ object Features {
             macBle = p.getBoolean("macBle", d.macBle),
             chip = p.getBoolean("chip", d.chip),
             icon = p.getBoolean("icon", d.icon),
-            systemIcons = false,
-            hook = false,
+            systemIcons = p.getBoolean("systemIcons", d.systemIcons),
+            hook = p.getBoolean("hook", d.hook),
+            hookPosition = p.getString("hookPosition", d.hookPosition)!!,
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -92,7 +95,6 @@ object Features {
     @Synchronized fun update(f: (FeatureState) -> FeatureState): FeatureState {
         val s = f(_state.value).let {
             it.copy(
-                systemIcons = false, hook = false,   // not bundled (see FeatureState)
                 nostrIntervalMin = it.nostrIntervalMin.coerceIn(0, 240),
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
                 source = if (it.source == "direct") "direct" else "juggluco",
@@ -103,6 +105,7 @@ object Features {
             putString("source", s.source); putBoolean("nostr", s.nostr); putInt("nostrInterval", s.nostrIntervalMin)
             putBoolean("bleFollowers", s.bleFollowers); putBoolean("macBle", s.macBle)
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
+            putBoolean("systemIcons", s.systemIcons); putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
@@ -112,6 +115,14 @@ object Features {
     }
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
+
+    /** Positions offered for the SystemUI hook (label → value). */
+    val HOOK_POSITIONS = listOf(
+        "After clock" to HookPosition.AFTER_CLOCK, "Before clock" to HookPosition.BEFORE_CLOCK,
+        "Left of icons" to "${HookPosition.ICONS_PREFIX}0", "Icons after VPN" to "${HookPosition.SLOT_PREFIX}vpn",
+        "Icons after Bluetooth" to "${HookPosition.SLOT_PREFIX}bluetooth", "Icons after mobile" to "${HookPosition.SLOT_PREFIX}mobile",
+        "Icons after Wi-Fi" to "${HookPosition.SLOT_PREFIX}wifi",
+    )
 
     const val NIGHTSCOUT_PORT = 17581
 
@@ -135,4 +146,14 @@ object Features {
             .flatMap { it.inetAddresses.toList() }.filterIsInstance<java.net.Inet4Address>().map { it.hostAddress ?: "" }
             .filter { it.isNotEmpty() }
     }.getOrDefault(emptyList())
+}
+
+/** Where the SystemUI hook places the glucose view. Shared with the hook through the broadcast. */
+object HookPosition {
+    const val AFTER_CLOCK = "after_clock"
+    const val BEFORE_CLOCK = "before_clock"
+    /** "icons:0" = left of all right-side icons ("icons:-1", right of the battery, gets clipped by the corner). */
+    const val ICONS_PREFIX = "icons:"
+    /** "slot:wifi" = the system-icon output moved right after that icon (needs systemIcons + hook). */
+    const val SLOT_PREFIX = "slot:"
 }

@@ -20,6 +20,7 @@ import org.json.JSONObject
  *   am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver \
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez macBle B] [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez systemIcons B] [--ez hook B] \
+ *       [--es hookPosition after_clock|before_clock|icons:0|slot:wifi|…] [--ez restartSystemUi true] \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \
  *       [--es source juggluco|direct --ez confirmDirect true] \
@@ -41,6 +42,7 @@ class DebugReceiver : BroadcastReceiver() {
                 libreview = b("libreview", s.libreview), libreviewIntervalMin = n("libreviewInterval", s.libreviewIntervalMin),
                 macBle = b("macBle", s.macBle), bleFollowers = b("bleFollowers", s.bleFollowers),
                 chip = b("chip", s.chip), icon = b("icon", s.icon), systemIcons = b("systemIcons", s.systemIcons), hook = b("hook", s.hook),
+                hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition,
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,
@@ -52,10 +54,10 @@ class DebugReceiver : BroadcastReceiver() {
                 },
             )
         }
-        if (i.getBooleanExtra("systemIcons", false) || i.getBooleanExtra("hook", false)) {
-            notes += "systemIcons/hook are not bundled in this build (always off)"
-        }
         val out = JSONObject().put("features", f.toJson()).put("runtime", Live.status.value.toJson())
+        out.put("systemIcons", app.mauri.sukrara.status.RootStatusBar.state)
+        // Root: reload the LSPosed module (kill, not `am crash`: crashes count towards Android's rescue mode).
+        if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi())
         runCatching { command(c, i, out) }.onFailure { notes += "cmd failed: ${it.message}" }
         if (App.role(c) == "owner" && App.owner(c).hasIdentity()) {
             val u = App.owner(c).ui.value

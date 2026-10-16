@@ -50,10 +50,9 @@ DebugReceiver table, gap audit) and `README.md`.
 
 ## 3. Owned elsewhere / blocked
 
-- **Status-bar root system icons + LSPosed module in Sukrara** — being ported by session 02 on 2026-10-16 (check
-  `git log` for the result). If unfinished, its handoff has everything a fresh agent needs (code locations, System UI
-  safety procedures, what the user must do): **`spikes/statusbar-android/HANDOFF.md`**, plus
-  `docs/05-android-status-bar.md`.
+- **Status-bar root system icons + LSPosed module in Sukrara** — **done 2026-10-16** (docs/10 "Root status bar").
+  Before touching System UI again read `spikes/statusbar-android/HANDOFF.md` (safety procedure). Open: the follower
+  role doesn't feed them yet.
 - **macOS widgets** — need an Apple-issued certificate with a Team ID (free personal team via Xcode sign-in, or a paid
   account); see docs/13. Views are ready (`spikes/widgets-macos`).
 - **Investigation 11 (battery)** — status and how to continue: `spikes/power/HANDOFF.md` / `spikes/power/README.md`

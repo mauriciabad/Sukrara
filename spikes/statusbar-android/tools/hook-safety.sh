@@ -14,6 +14,7 @@
 # escalate to a warm reboot and then to the recovery screen offering "Factory data reset" (choose "Try again").
 # Raising the failure threshold keeps a buggy hook from getting there. Last resort, also without root:
 #   adb uninstall dev.spike.glucostatus          (LSPosed stops loading a module that isn't installed)
+# For Sukrara do NOT uninstall (it holds the user's identity and data): use `kill` or disable the module in LSPosed.
 set -eu
 case "${1:-}" in
   arm)
@@ -24,7 +25,8 @@ case "${1:-}" in
     adb shell device_config delete rollback watchdog_trigger_failure_count
     adb shell device_config set_sync_disabled_for_tests none
     echo "disarmed: defaults restored" ;;
-  kill)   adb shell settings put global glucostatus_hook_disabled 1 ;;
-  unkill) adb shell settings delete global glucostatus_hook_disabled ;;
+  # Kill-switch keys: GlucoStatus (this spike) and Sukrara (spikes/showcase-android) — both, so it works for either.
+  kill)   adb shell settings put global glucostatus_hook_disabled 1; adb shell settings put global sukrara_hook_disabled 1 ;;
+  unkill) adb shell settings delete global glucostatus_hook_disabled; adb shell settings delete global sukrara_hook_disabled ;;
   *) sed -n '5,13p' "$0"; exit 1 ;;
 esac

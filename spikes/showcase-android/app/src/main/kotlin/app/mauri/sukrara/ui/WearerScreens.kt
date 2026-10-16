@@ -176,8 +176,22 @@ fun SettingsScreen(onBack: () -> Unit) {
             sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
             set { it.copy(screenOffSkip = v) }
         }
-        Toggle("System icons / SystemUI hook", false, enabled = false,
-            sub = "Not in this build: needs root + the LSPosed module (GlucoStatus, investigation 05)") {}
+        Toggle("Number next to Wi-Fi/battery", f.systemIcons,
+            sub = "System icons, drawn by Android. Needs root for Sukrara (KernelSU) · ${app.mauri.sukrara.status.RootStatusBar.state}") { v ->
+            set { it.copy(systemIcons = v) }
+        }
+        Toggle("Coloured value in the status bar", f.hook,
+            sub = "Needs the Sukrara module enabled in LSPosed (scope System UI), then a System UI restart") { v ->
+            set { it.copy(hook = v) }
+        }
+        if (f.hook) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                for ((label, pos) in Features.HOOK_POSITIONS) {
+                    androidx.compose.material3.FilterChip(selected = f.hookPosition == pos,
+                        onClick = { set { it.copy(hookPosition = pos) } }, label = { Text(label) })
+                }
+            }
+        }
 
         LocalServersSection()
 

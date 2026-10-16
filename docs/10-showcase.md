@@ -90,9 +90,8 @@ Changes from the source spikes:
    Manager). Both builds are signed with the same key, so the saved entry works for both.
 3. **Status bar**: the chip needs "Live Updates" allowed. If Settings shows *Allow Live Updates for Sukrara*, tap it.
    On the phone, `adb shell appops set app.mauri.sukrara.poc POST_PROMOTED_NOTIFICATIONS allow` did it. **System
-   icons and the SystemUI hook aren't in this build.** GlucoStatus, the LSPosed module from inv. 05, was uninstalled
-   tonight. To get the hook back, the user must reinstall GlucoStatus, **re-enable its LSPosed module (scope
-   SystemUI) and grant root again**. Sukrara doesn't feed the hook yet (see "Next").
+   icons** (root) and the **SystemUI hook** (LSPosed) are bundled since 2026-10-16 (see "Root status bar" below):
+   Sukrara needs root in KernelSU and its own LSPosed module enabled (scope System UI), then one System UI restart.
 4. **Share**: *Share with someone* shows the QR / link. The follower installs Sukrara and chooses *I follow someone*.
    The link opens the app directly (verified App Link), or `https://sukrara.mauri.app/join/` if the app isn't
    installed. The wearer checks the 4-digit code and taps *Allow*. **Nearby**: *Pair nearby* (10 min), and the
@@ -144,7 +143,10 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `bleFollowers` | `--ez` | true | v2 GATT server + advertising (BALANCED) |
 | `chip` | `--ez` | true | Live Update chip (promoted notification). Off = colorized ongoing notification |
 | `icon` | `--ez` | true | number as the small icon (off = Sukrara glyph) |
-| `systemIcons`, `hook` | `--ez` | false | not in this build: always reported false |
+| `systemIcons` | `--ez` | false | number + arrow as system icons next to Wi-Fi/battery (root daemon); state in the reply's `systemIcons` |
+| `hook` | `--ez` | false | coloured value drawn by the Sukrara LSPosed module inside System UI |
+| `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | where the hook draws; `slot:*` moves the system icons right after that icon (needs both switches) |
+| `restartSystemUi` | `--ez` true | | root: kill System UI to (re)load the module. Follow `spikes/statusbar-android/HANDOFF.md` (safety) |
 | `screenOffSkip` | `--ez` | false | don't re-post the notification while the screen is off (catches up on screen on) |
 | `garmin` | `--ez` | true | xDrip/Garmin server on 127.0.0.1:17580 (binds only if the port is free) |
 | `nightscout` | `--ez` | true | Nightscout read API on 127.0.0.1:17581 (inv. 03 tier 1; both roles) |
@@ -216,11 +218,23 @@ and any other follower pick up the new key by themselves. The previous APK is ke
   (`NoSuchMethodError`, the emulator follower crashed on it). The chip now falls back to the colorized notification.
 - Widget battery cost was measured on the emulator only (docs/12: ≈ 0.4 s CPU per minute-update with 3 widgets).
 
+## Root status bar (investigation 05, added 2026-10-16)
+
+Ported from `spikes/statusbar-android` (GlucoStatus): `status/RootStatusBar.kt` (driven from
+`WearerExtras.render()`), `status/SlotDaemon.kt` (root helper via `app_process`), `hook/SystemUiHook.kt` (libxposed
+API 102 module, `resources/META-INF/xposed/`), the 403 `sb_*` drawables (kept from resource shrinking by
+`res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar has both
+switches and the position chips. Verified on the phone (release, updated in place): system icons `on (ok)`, module
+"attached to MAIN/KEYGUARD", "icon order hooks: 1", after clock / before clock / icons after Wi-Fi.
+
+![Hook after the clock, system icons after Wi-Fi, hook before the clock](img/sukrara-root-statusbar.png)
+
+Safety, kill switch (`settings put global sukrara_hook_disabled 1`) and what not to do (never `adb uninstall`
+Sukrara to recover — it holds the identity): `spikes/statusbar-android/HANDOFF.md`.
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
-- Feed the SystemUI hook (`HookBridge` broadcast) and the system-icon slot from `WearerExtras.render()`, behind the
-  existing `hook` / `systemIcons` switches.
 - Sukrara for Mac: one Bluetooth client for both services (the https links are done).
 - Run investigation 11's battery lab on this build with the DebugReceiver table above.
 - Follower-role check on a second real phone (the emulator check and screenshots are done).
@@ -249,7 +263,7 @@ Value/effort: H/M/L.
 | 04/07 | Followers add treatments (v2 writers) | yes | yes (send only) | — | | ok |
 | 07 | **Followers see treatments** | no (follower drops the treatment chunk) | no (v2) | decode `treatmentsC` chunks, show in the 12 h chart / list, serve in the follower's Nightscout API | M / M | open |
 | 05 | Live Update chip + number icon | yes (wearer) | n/a | follower had a plain text notification | **M / L** | **done**: follower gets the same chip/icon with the followed value |
-| 05 | System icons (root) and LSPosed SystemUI hook | no | n/a | — | — | **owned by session 02** |
+| 05 | System icons (root) and LSPosed SystemUI hook | yes (wearer) | n/a | follower role not wired | | **done** 2026-10-16 (see "Root status bar") |
 | 06 | Invite QR / link, match code, Allow/Deny, remove + key rotation | yes | yes | — | | ok |
 | 06 | Password-manager save / restore (Credential Manager), NIP-49 paste | yes | n/a | proven with KeePassDX on an emulator only; Proton Pass / Bitwarden on the real phone need the user | H / L (user, 5 min) | open, user action |
 | 06 | Printable recovery sheet | no | no | — | L / L | open |

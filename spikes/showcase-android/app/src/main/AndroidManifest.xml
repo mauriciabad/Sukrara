@@ -25,6 +25,12 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
+    <!-- Only this app may feed the SystemUI hook (status/RootStatusBar → hook/SystemUiHook). -->
+    <permission
+        android:name="app.mauri.sukrara.poc.permission.STATUS_BAR_GLUCOSE"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="app.mauri.sukrara.poc.permission.STATUS_BAR_GLUCOSE" />
+
     <application
         android:name=".App"
         android:allowBackup="false"
@@ -115,6 +121,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <!-- Also an LSPosed module (libxposed API 102, scope System UI): see resources/META-INF/xposed/.
+             SystemUI with the module loaded asks for the current value when it (re)starts. -->
+        <receiver
+            android:name="app.mauri.sukrara.status.RootStatusBar$HelloReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="app.mauri.sukrara.poc.HOOK_HELLO" />
             </intent-filter>
         </receiver>
     </application>

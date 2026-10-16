@@ -13,3 +13,7 @@
 # the plain graph (gap audit 2026-10-16). Keep each widget class distinct and named.
 -keep,allowoptimization class * extends androidx.glance.appwidget.GlanceAppWidget { <init>(); }
 -keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { <init>(); }
+# Status bar (investigation 05). The root helper is started by class name through app_process.
+-keep class app.mauri.sukrara.status.SlotDaemon { public static void main(java.lang.String[]); }
+# The LSPosed module's entry class is named in META-INF/xposed/java_init.list.
+-keep class app.mauri.sukrara.hook.SystemUiHook { <init>(); *; }

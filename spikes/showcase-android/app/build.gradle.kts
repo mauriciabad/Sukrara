@@ -67,6 +67,9 @@ kotlin {
 }
 
 dependencies {
+  // SystemUI module (investigation 05): provided by LSPosed/Vector at runtime
+  compileOnly("io.github.libxposed:api:102.0.0")
+
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)

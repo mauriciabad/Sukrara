@@ -18,6 +18,7 @@ import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.libreview.LibreViewPayload
 import app.mauri.sukrara.status.GlucoseNotification
+import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.widgets.SukraraHooks
@@ -89,6 +90,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         runCatching { ctx.unregisterReceiver(screen) }
         mac.stop()
         local.stop()
+        RootStatusBar.stop(ctx)
     }
 
     /** Apply switches; [old] == null on start. */
@@ -96,7 +98,8 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         if (old == null || old.macBle != f.macBle) { if (f.macBle) mac.start() else mac.stop() }
         local.apply(old, f)   // Garmin 17580 (retried on a source change) + Nightscout API 17581
         if (old == null || old.libreview != f.libreview || old.libreviewIntervalMin != f.libreviewIntervalMin) Treat.uploader.kick()
-        if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip)) render(force = true)
+        if (old != null && (old.chip != f.chip || old.icon != f.icon || old.screenOffSkip != f.screenOffSkip ||
+                old.systemIcons != f.systemIcons || old.hook != f.hook || old.hookPosition != f.hookPosition)) render(force = true)
     }
 
     // ============================================================================================ Live.Listener
@@ -149,6 +152,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         }
         val r = Live.status.value.last
         runCatching { nm.notify(GlucoseNotification.ID, GlucoseNotification.build(ctx, r, f.chip, f.icon, detail())) }
+        runCatching { RootStatusBar.update(ctx, f, r) }   // system icons (root) + SystemUI hook (LSPosed)
         lastPostMs = System.currentTimeMillis()
         Live.status.update { it.copy(notificationPosts = it.notificationPosts + 1) }
     }

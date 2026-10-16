@@ -142,7 +142,8 @@ object GlucoseNotification {
         return bmp
     }
 
-    private fun drawArrow(cv: Canvas, scale: Float, p: Paint, double: Boolean) {
+    /** Also used by the SystemUI hook (hook/SystemUiHook.kt) for its arrow. */
+    fun drawArrow(cv: Canvas, scale: Float, p: Paint, double: Boolean) {
         fun head(tip: Float) = Path().apply {
             moveTo(tip * scale, 0f); lineTo((tip - .40f) * scale, .30f * scale)
             lineTo((tip - .30f) * scale, 0f); lineTo((tip - .40f) * scale, -.30f * scale); close()
