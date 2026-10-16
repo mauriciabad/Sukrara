@@ -362,7 +362,10 @@ class OwnerEngine(private val ctx: Context) {
     /** Every change of the merged log (phone, Mac legacy link, accepted writer entries, deletes) → followers. */
     private val onTreatmentChange: (Treatment, Long) -> Unit = { tr, _ ->
         // a LibreView upload only moves `lv`, which isn't on the wire: nothing new for followers
-        scope.launch(serial) { if (trPublished[tr.id] != tr.u to tr.del) publishTreatment(tr) }
+        scope.launch(serial) {
+            if (trPublished[tr.id] != tr.u to tr.del) publishTreatment(tr)
+            if (tr.del) publishUi()                     // "Entries from followers" drops deleted entries
+        }
     }
     private val trCreatedAt = HashMap<String, Long>()
     private val trPublished = HashMap<String, Pair<Long, Boolean>>()
@@ -796,7 +799,9 @@ class OwnerEngine(private val ctx: Context) {
                 bleOn = ble != null,
                 nearbyUntil = nearby?.x ?: 0,
                 writers = s?.writers?.toSet() ?: emptySet(),
-                treatments = db.treatments().map { (tr, author, via) ->
+                // deleted since (by anyone) → no longer listed; the merged log keeps the tombstone
+                treatments = db.treatments().also { Treat.init(ctx) }.filter { (tr, _, _) -> Treat.store.entry(tr.optString("id"))?.second?.del != true }
+                    .map { (tr, author, via) ->
                     val who = s?.followers?.lastOrNull { it.f == author }?.name ?: author.take(8)
                     "${java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(tr.optLong("t") * 1000))} " +
                         "${tr.optString("k")} ${tr.optDouble("a")} ${tr.optString("n")} — $who via ${via.substringBefore(":")}"

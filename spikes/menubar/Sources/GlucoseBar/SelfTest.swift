@@ -5,7 +5,7 @@ import Foundation
 
 /// CLI checks, no network and no Bluetooth:
 ///   Sukrara -lvfixture ../libreview/fixture.json   payload bytes + record numbers vs lv.py's golden output
-///   Sukrara -treatmentsselftest                      merge rule
+///   Sukrara -treatmentsselftest                      merge rule, legacy-link refusals
 enum SelfTest {
     private enum RN: Decodable {
         case s(String), n(Int64)
@@ -63,6 +63,24 @@ enum SelfTest {
         check("lv not lowered", Treatment.merge(uploaded, base).lv == 1000)
         check("same row unchanged", Treatment.merge(base, base) == base)
         check("note truncated to 100 B", Treatment(k: "note", a: 0, t: 0, n: String(repeating: "é", count: 80)).n.utf8.count == 100)
+        // The phone refuses entries over the legacy link (SPEC §2 `w`): refused rows stop being pushed, and come back
+        // when the phone allows entries again; v2-routed entries are never pushed over the legacy link.
+        MainActor.assumeIsolated {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-selftest-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let st = TreatmentStore(directory: dir)
+            let viaLegacy = Treatment(k: "rapid", a: 1, t: 100), viaV2 = Treatment(k: "carbs", a: 10, t: 100)
+            st.upsertLocal(viaLegacy, route: "legacy")
+            st.upsertLocal(viaV2, legacy: false, route: "v2")
+            check("v2 entry not pushed over legacy", st.unacked.map(\.id) == [viaLegacy.id])
+            st.setLegacyEntries(false)
+            st.legacyRefused(viaLegacy)
+            check("refused: not pushed again", st.unacked.isEmpty && st.isLegacyRefused(viaLegacy.id))
+            check("refused shown", TreatmentPaths.status(of: viaLegacy, store: st, legacyOn: true, lvOn: false) == "BT ✕ refused")
+            st.setLegacyEntries(true)
+            check("allowed again: pushed again", st.unacked.map(\.id) == [viaLegacy.id] && !st.isLegacyRefused(viaLegacy.id))
+            check("v2 delete stays off legacy", st.delete(viaV2.id, legacy: false) != nil && st.unacked.count == 1)
+        }
         print(failures == 0 ? "treatments selftest OK" : "treatments selftest: \(failures) failure(s)")
         return failures == 0
     }

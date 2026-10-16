@@ -1,0 +1,9 @@
+3:02:04 PM  debug v2-treat NOT sent (not a writer)
+3:02:06 PM  v2: roster writers changed — this Mac MAY add treatments
+3:02:28 PM  v2: treatment note sent as writer (6966d199, u 1792152148337)
+3:02:28 PM  debug v2-treat sent
+3:02:28 PM  v2 treatment note 6966d199 u 1792152148337 from wearer via ble:Tartaruga
+3:02:28 PM  v2: treatment 6966d199 accepted by the wearer (via ble:Tartaruga)
+3:02:28 PM  v2 treatment note 6966d199 u 1792152148337 from writer d0d7477d via relay:relay.nostr.net
+3:02:51 PM  v2 treatment note 6966d199 u 1792152171940 (deleted) from wearer via ble:Tartaruga
+3:03:08 PM  v2: roster writers changed — this Mac may not add treatments

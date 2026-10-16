@@ -198,13 +198,13 @@ final class StatusController: NSObject, NSMenuDelegate {
         treatmentsHeader.isHidden = hidden
         lvLine.isHidden = hidden
         guard let rows = treatments?() else { return }
-        // Where a new entry goes: the legacy Bluetooth link (always allowed) and/or v2 (only as a roster writer).
+        // Where a new entry goes: v2 (as a roster writer), else the legacy link if the phone accepts entries over it.
         let paths = treatmentPaths?() ?? TreatmentPaths()
         logItem?.isEnabled = paths.canLog
-        logItem?.title = paths.canLog ? "Log treatment…" : "Log treatment… (the wearer hasn't allowed this Mac)"
+        logItem?.title = "Log treatment…"
         if let logItem {
             var at = menu.index(of: logItem) + 1
-            for line in paths.lines {
+            for line in (paths.canLog ? [] : [TreatmentPaths.notAllowed]) + paths.lines {
                 let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 item.indentationLevel = 1
@@ -284,6 +284,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = "Log treatment"
         let paths = treatmentPaths?() ?? TreatmentPaths()
+        guard paths.canLog else { return }               // the menu item is disabled then; a shortcut could still land here
         alert.informativeText = paths.lines.isEmpty ? "Kept on this Mac (no phone linked)." : paths.lines.joined(separator: "\n")
         alert.accessoryView = view
         alert.addButton(withTitle: "Save")

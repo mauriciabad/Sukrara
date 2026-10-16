@@ -1,0 +1,15 @@
+10-16 15:02:06.981 I/Sukrara.owner(25262): writer ADDED: Mac (GlucoseBar) (d0d7477d3748)
+10-16 15:02:07.024 I/Sukrara.owner(25262): roster published: epoch 2 gk 7b027758, devices [044f978df10a], writers [d0d7477d3748]
+10-16 15:02:28.660 I/Sukrara.owner(25262): TREATMENT accepted from Mac (GlucoseBar) via ble:BC:D0:74:4F:40:82: note 0.0 "n6 test v2 writer" t=1792152148 (+0s)
+10-16 15:03:08.533 I/Sukrara.owner(25262): writer removed: Mac (GlucoseBar) (d0d7477d3748)
+10-16 15:03:08.577 I/Sukrara.owner(25262): roster published: epoch 2 gk 7b027758, devices [044f978df10a], writers []
+10-16 15:04:12.549 W/Sukrara.mac(25262): treatment from mac note 0.0 del=false (d3e5da1d) REJECTED: entries over the legacy Mac link are off (new entry)
+10-16 15:04:36.636 I/Sukrara.mac(25262): treatment from mac note 0.0 del=false (d3e5da1d) → merged
+10-16 15:04:39.943 I/Sukrara.mac(25262): treatment from mac carbs 1.0 del=false (25ea22b3) → merged
+10-16 15:05:04.957 W/Sukrara.mac(25262): treatment from mac carbs 2.0 del=false (25ea22b3) REJECTED: entries over the legacy Mac link are off (content change)
+10-16 15:09:07.631 I/Sukrara.mac(26469): legacy Mac GATT service 6c1f0001-5b8a-4d8e-9a3c-676c75636f42 up
+10-16 15:09:07.663 I/Sukrara.owner(26469): roster published: epoch 2 gk 7b027758, devices [044f978df10a], writers []
+10-16 15:09:43.395 W/Sukrara.mac(26469): treatment from mac carbs 3.0 del=false (25ea22b3) REJECTED: entries over the legacy Mac link are off (content change)
+10-16 15:09:47.418 W/Sukrara.mac(26469): treatment from mac note 0.0 del=true (d3e5da1d) REJECTED: entries over the legacy Mac link are off (content change)
+10-16 15:14:02.968 I/Sukrara.mac(27094): legacy Mac GATT service 6c1f0001-5b8a-4d8e-9a3c-676c75636f42 up
+10-16 15:14:03.004 I/Sukrara.owner(27094): roster published: epoch 2 gk 7b027758, devices [044f978df10a], writers []

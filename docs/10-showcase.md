@@ -146,6 +146,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `hook` | `--ez` | false | root status bar on (Settings: "Value in the status bar") |
 | `hookColor` | `--ez` | true | colour by range (module only); off = like the clock / System UI's tint |
 | `hideNotifIcon` | `--ez` | true | while the root status bar shows the value, the module drops Sukrara's notification icon from the status bar (shade, lock screen and AOD unchanged) |
+| `macLinkEntries` | `--ez` | false | accept new entries / edits over the unencrypted legacy Mac link (otherwise refused; v2 writers unaffected) |
 | `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — `slot:` works with root alone; with the module they're coloured by range and `slot:wifi` etc. moves them right after that icon |
 | `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
 | `previewSgv`, `previewRate` | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading |
@@ -282,8 +283,15 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   show them, and the follower's Nightscout API serves them. Spec: PROTOCOL-v2 "Treatments"; SPEC §5 is built.
 - **Writer gating.** "Add entry" only when the follower's key is in the roster `writers`; otherwise "The wearer
   hasn't allowed you to add entries". Own entries show *sending → sent → accepted* (the wearer's device key echoes
-  the same id) or *not accepted yet* after 2 min. Same on the Mac, where the legacy link stays always allowed and the
-  menu says which path an entry takes ([follower screens](../spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
+  the same id) or *not accepted yet* after 2 min ([follower screens](../spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
+  **The phone enforces it for Macs too** (user bug report: the Mac could add entries over the unauthenticated legacy
+  link with "Can add entries" off). A Mac that is a writer sends over v2 only; the phone refuses new entries and
+  content changes over the legacy link (ATT error, `REJECTED` in logcat; the Mac undoes and shows "BT ✕ refused")
+  unless Settings → Mac → *Accept entries over the unencrypted Mac link* is on (`macLinkEntries`, default off). The
+  legacy link can't tell Macs apart, so that setting is global; `lv`-only updates still sync for LibreView. The Mac
+  disables "Log treatment…" with the reason when no path allows it. SPEC §2 "Who may write"; Mac debug commands
+  `-debugsend '{"cmd":"log"|"remove"|"paths"}'` ([settings](../spikes/showcase-android/evidence/n6-settings-mac-entries-off.png),
+  [phone log](../spikes/showcase-android/evidence/n6-phone-logcat.txt)).
 - **Treatments in every chart**: home chart (both roles), the 3 widgets (own 8 h copy in
   `files/widget-treatments.json`, survives a restart), the Live Update graph, the Mac menu chart and the macOS widget
   views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
@@ -321,7 +329,7 @@ Value/effort: H/M/L.
 | 03 | HA add-on as always-on follower / "no data" watchdog | no | no | separate product | M / H | out of scope |
 | 03 | Tier 2 upload endpoint (xDrip+/AAPS → Sukrara) | no | no | not built anywhere | M / M | open |
 | 04 | Phone → LibreView (treatments + glucose) | yes, off | yes | real-account run is the user's call | M / L | ok (off by design) |
-| 04 | Treatments sync phone ↔ Mac (legacy BLE) | yes | yes | none | | ok |
+| 04 | Treatments sync phone ↔ Mac (legacy BLE) | yes | yes | entries over legacy only with the wearer's `macLinkEntries` (polish round 2) | | ok |
 | 04/07 | Followers add treatments (v2 writers) | yes | yes (send only) | — | | ok |
 | 07 | **Followers see treatments** | no (follower drops the treatment chunk) | no (v2) | decode `treatmentsC` chunks, show in the 12 h chart / list, serve in the follower's Nightscout API | M / M | **done** (polish round 2, Android + Mac) |
 | 05 | Live Update chip + number icon | yes (wearer) | n/a | follower had a plain text notification | **M / L** | **done**: follower gets the same chip/icon with the followed value |

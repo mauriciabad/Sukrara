@@ -96,8 +96,19 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
         rows.values.filter { it.s > cursor }.sortedBy { it.s }.map { it.s to it.tr }
     }
 
+    /** The row for [id] with its seq, or null. */
+    fun entry(id: String): Pair<Long, Treatment>? = synchronized(this) { rows[id]?.let { it.s to it.tr } }
+
     /** Merge a record from elsewhere (the Mac). Returns the stored result if anything changed. */
     fun merge(inc: Treatment): Treatment? = apply(inc.id) { cur -> Treatment.merge(cur, inc) }
+
+    /**
+     * Only the LibreView watermark of [inc], for a row we hold at the same or a newer version: never new entries or
+     * content (the legacy Mac link while it may not add entries). Returns the stored result if `lv` moved.
+     */
+    fun mergeWatermark(inc: Treatment): Treatment? = apply(inc.id) { cur ->
+        if (cur == null || inc.u > cur.u || inc.lv <= cur.lv) cur else cur.copy(lv = inc.lv)
+    }
 
     fun add(kind: String, amount: Double, at: Long, note: String = ""): Treatment {
         require(kind in Treatment.KINDS)

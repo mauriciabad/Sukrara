@@ -70,6 +70,9 @@ entries, deletes.
   new `G`), when a **new follower is approved**, and at least **weekly** (keeps the 30-day expiry rolling).
 - BLE: every treatment event is pushed to subscribed centrals like any publish; the `HELLO` backlog also carries the
   treatment events of the last 30 days (newest 200), after the chunks and before live.
+- Sukrara for Mac follows over v2 like any follower; while it is a writer, its entries go over v2 only (not the
+  legacy Mac link), so "Can add entries" governs the Mac too. The legacy link (SPEC §2) refuses entries unless the
+  wearer explicitly allows that unauthenticated path on the phone.
 - The owner accepts a writer event only if the author ∈ roster `writers` ∧ active follower (docs/07), merges it (§1)
   into the log, and so re-publishes it signed by `D` (**the echo**; a BLE writer event is also forwarded as-is to the
   other BLE centrals).

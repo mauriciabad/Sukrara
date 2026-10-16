@@ -1,6 +1,7 @@
 // CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
+import CoreBluetooth
 import Foundation
 
 /// Insulin / carbs / note, as in spikes/libreview/SPEC.md §1. The same JSON is stored on disk and sent over BLE.
@@ -83,7 +84,9 @@ struct V2Send: Codable, Equatable {
 /// Besides the rows it remembers what still has to be pushed to the phone (`unacked`), the pull cursor
 /// (phone's `seq`), the LibreView DeviceId the phone shares, when foreign rows were first seen
 /// (for the 2-minute upload grace period), the v2 status of entries written here, and which rows were only ever
-/// learned over v2 (their `lv` isn't on the wire, so this Mac must not upload them: SPEC §5).
+/// learned over v2 (their `lv` isn't on the wire, so this Mac must not upload them: SPEC §5). Also whether the phone
+/// accepts entries over the legacy link (`w`, SPEC §2), which path each entry made here took, and which ones the
+/// phone refused over the legacy link.
 @MainActor final class TreatmentStore {
     private struct State: Codable {
         var rows: [Treatment] = []
@@ -94,6 +97,9 @@ struct V2Send: Codable, Equatable {
         var v2: [String: V2Send]? = nil
         var v2Only: [String]? = nil
         var legacyLinked: Bool? = nil
+        var legacyEntries: Bool? = nil          // phone's `w`; nil = not told (older phone builds accept every entry)
+        var routes: [String: String]? = nil     // id → "v2" | "legacy", for entries made here
+        var legacyRefused: [String]? = nil      // ids the phone answered "write not permitted" over the legacy link
     }
 
     private var state = State()
@@ -126,6 +132,32 @@ struct V2Send: Codable, Equatable {
         save()
     }
 
+    /// The phone's answer to "may this Mac add entries over the legacy link?" (`w` in `end` / `cfg`). When it turns
+    /// on, the entries it refused before are pushed again.
+    var legacyEntries: Bool? { state.legacyEntries }
+    func setLegacyEntries(_ w: Bool) {
+        guard state.legacyEntries != w else { return }
+        state.legacyEntries = w
+        var retry = false
+        if w, let refused = state.legacyRefused, !refused.isEmpty {
+            for id in refused where !state.unacked.contains(id) { state.unacked.append(id) }
+            state.legacyRefused = nil
+            retry = true
+        }
+        save()
+        onChange.forEach { $0(retry) }
+    }
+    func route(_ id: String) -> String? { state.routes?[id] }
+    func isLegacyRefused(_ id: String) -> Bool { state.legacyRefused?.contains(id) ?? false }
+
+    /// The phone refused this write over the legacy link: stop pushing it (until the phone allows entries again).
+    func legacyRefused(_ t: Treatment) {
+        if let i = state.unacked.firstIndex(of: t.id), row(t.id) == t { state.unacked.remove(at: i) }
+        if !isLegacyRefused(t.id) { state.legacyRefused = (state.legacyRefused ?? []) + [t.id] }
+        save()
+        onChange.forEach { $0(false) }
+    }
+
     /// v2 progress of an entry written here; never moves backwards for the same version.
     func setV2(_ id: String, u: Int64, _ st: V2Send.State, via: String = "") {
         let order: [V2Send.State] = [.sending, .sent, .accepted]
@@ -138,19 +170,25 @@ struct V2Send: Codable, Equatable {
         onChange.forEach { $0(false) }
     }
 
-    /// A change made here (new, edited, deleted, or `lv` after an upload).
-    func upsertLocal(_ t: Treatment) {
+    /// A change made here (new, edited, deleted, or `lv` after an upload). `legacy` false = it travels over v2 only
+    /// (signed as a roster writer), so it's not pushed over the legacy link.
+    func upsertLocal(_ t: Treatment, legacy: Bool = true, route: String? = nil) {
         put(t)
-        if !state.unacked.contains(t.id) { state.unacked.append(t.id) }
+        if let route { var r = state.routes ?? [:]; r[t.id] = route; state.routes = r }
+        if legacy, !state.unacked.contains(t.id) { state.unacked.append(t.id) }
+        if legacy, let i = state.legacyRefused?.firstIndex(of: t.id) { state.legacyRefused?.remove(at: i) }
         save()
-        onChange.forEach { $0(true) }
+        onChange.forEach { $0(legacy) }
     }
 
-    func delete(_ id: String) {
-        guard var t = row(id), !t.del else { return }
+    /// Tombstone for `id`; returns it (nil if there is nothing to delete).
+    @discardableResult
+    func delete(_ id: String, legacy: Bool = true, route: String? = nil) -> Treatment? {
+        guard var t = row(id), !t.del else { return nil }
         t.del = true
         t.u = max(Treatment.nowMs(), t.u + 1)     // must beat the row's version even if our clock is behind
-        upsertLocal(t)
+        upsertLocal(t, legacy: legacy, route: route)
+        return t
     }
 
     /// The phone confirmed a write of `t`; only clear it if nothing changed meanwhile.
@@ -164,6 +202,17 @@ struct V2Send: Codable, Equatable {
     @discardableResult
     func receive(_ inc: Treatment, v2: Bool = false) -> Bool {
         let cur = row(inc.id)
+        // The phone refused our change of an entry it holds and sent its own version back: that one stands.
+        if !v2, cur != nil, let i = state.legacyRefused?.firstIndex(of: inc.id) {
+            state.legacyRefused?.remove(at: i)
+            if let j = state.unacked.firstIndex(of: inc.id) { state.unacked.remove(at: j) }
+            var t = inc
+            t.lv = max(inc.lv, cur!.lv)
+            put(t)
+            save()
+            onChange.forEach { $0(false) }
+            return true
+        }
         if v2, cur == nil { state.v2Only = (state.v2Only ?? []) + [inc.id] }
         if !v2, let i = state.v2Only?.firstIndex(of: inc.id) { state.v2Only?.remove(at: i); save() }
         let merged = Treatment.merge(cur, inc)
@@ -253,6 +302,13 @@ struct V2Send: Codable, Equatable {
         guard let done = inFlight else { return }
         inFlight = nil
         if let error {
+            // The phone refuses entries over this link unless the wearer allowed them (SPEC §2): ATT 0x03.
+            if let rec = done.rec, (error as NSError).domain == CBATTErrorDomain,
+               (error as NSError).code == CBATTError.writeNotPermitted.rawValue {
+                log("treatments: the phone refused \(rec.k) \(rec.id.prefix(8)) (entries over the legacy link are off)")
+                store.legacyRefused(rec)
+                return pump()
+            }
             log("treatments: write failed: \(error.localizedDescription)")
             queue.removeAll()           // retried on the next connect
             return
@@ -273,6 +329,7 @@ struct V2Send: Codable, Equatable {
         case "end":
             store.markLegacyLinked()
             if let dev = msg["dev"] as? String { store.setDeviceId(dev) }
+            setEntries(msg["w"] as? Bool ?? true)          // no `w`: an older phone build, which takes every entry
             guard let seq else { return }
             if seq < store.cursor {
                 log("treatments: phone store was reset (s \(seq) < cursor \(store.cursor)), pulling everything")
@@ -281,9 +338,16 @@ struct V2Send: Codable, Equatable {
             } else {
                 store.cursor = seq
             }
+        case "cfg":
+            if let w = msg["w"] as? Bool { setEntries(w) }
         default:
             log("treatments: unknown op \(op)")
         }
+    }
+
+    private func setEntries(_ w: Bool) {
+        if store.legacyEntries != w { log("treatments: the phone \(w ? "accepts" : "refuses") entries over the legacy link") }
+        store.setLegacyEntries(w)
     }
 
     private func pushUnacked() {
@@ -310,27 +374,47 @@ struct V2Send: Codable, Equatable {
     }
 }
 
-/// Which way an entry made on this Mac travels (NEXT §1 item 1), for the menu and the Log dialog:
-///   - the **legacy Bluetooth link** (SPEC §2) — the phone takes every Mac entry, no permission involved;
-///   - **protocol v2** (SPEC §5) — only if the wearer made this Mac a writer (its key in the roster `writers`).
+/// Which way an entry made on this Mac travels, for the menu and the Log dialog. The wearer decides, on the phone:
+///   - **protocol v2** (SPEC §5) when the wearer made this Mac a writer (its key in the roster `writers`, the
+///     follower's "Can add entries" switch): signed, so the phone knows it's this Mac;
+///   - otherwise the **legacy Bluetooth link** (SPEC §2), only if the phone accepts entries over it (Settings → Mac,
+///     "Accept entries over the unencrypted Mac link", off by default): it can't tell one Mac from another;
+///   - otherwise no way at all: "Log treatment…" is disabled. With no phone anywhere (no Bluetooth, not following)
+///     entries stay on this Mac.
 struct TreatmentPaths {
-    var legacy: String?              // nil = this Mac has no legacy link to a phone
-    var v2: String?                  // nil = not following anyone over v2
-    var v2Allowed = false
-    /// "Log treatment…" is offered unless the only way out is v2 and the wearer hasn't allowed it.
-    var canLog: Bool { legacy != nil || v2Allowed || v2 == nil }
+    enum Route: String { case v2, legacy, local, none }
+    var route: Route = .local
+    var legacy: String?              // the legacy link's line (nil = no legacy link to a phone)
+    var v2: String?                  // the v2 line (nil = not following anyone over v2)
+    var canLog: Bool { route != .none }
     var lines: [String] { [legacy, v2].compactMap { $0 } }
+    static let notAllowed = "The wearer hasn't allowed this Mac to add entries"
 
     @MainActor static func current(legacy: BLEBridgeSource?, store: TreatmentStore, node: FollowerV2?) -> TreatmentPaths {
         var p = TreatmentPaths()
-        if let legacy {
-            if let phone = legacy.connectedName { p.legacy = "→ \(phone) over the Bluetooth link (always allowed) · connected" }
-            else if store.legacyLinked { p.legacy = "→ phone over the Bluetooth link (always allowed) · when in range" }
+        var active: FollowerV2?
+        if let n = node, case .active = n.phase { active = n }
+        let writer = active?.canWrite ?? false
+        let legacyOK = store.legacyEntries ?? true
+        if writer { p.route = .v2 }
+        else if legacy != nil, legacyOK { p.route = .legacy }
+        else if legacy == nil, node == nil { p.route = .local }
+        else { p.route = .none }
+        if let legacy, legacy.connectedName != nil || store.legacyLinked {
+            let phone = legacy.connectedName ?? "phone", when = legacy.connectedName != nil ? "connected" : "when in range"
+            switch p.route {
+            case .legacy: p.legacy = "→ \(phone) over the Bluetooth link (unencrypted; the wearer accepts entries over it) · \(when)"
+            case .v2: p.legacy = "Bluetooth link to \(phone): readings only, entries go over v2 · \(when)"
+            default: p.legacy = "✕ Bluetooth link: the wearer doesn't accept entries over it"
+            }
+        } else if legacy != nil, p.route == .legacy {
+            p.legacy = "→ phone over the Bluetooth link, once one connects (the wearer may refuse it)"
         }
-        if let n = node, case .active = n.phase {
-            p.v2Allowed = n.canWrite
+        if let n = active {
             p.v2 = n.canWrite ? "→ wearer over Sukrara sharing (v2) · allowed"
                               : "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"
+        } else if p.route == .none, node == nil {
+            p.v2 = "Follow… this wearer (Sukrara sharing) and ask them to turn on “Can add entries” for this Mac"
         }
         return p
     }
@@ -341,7 +425,8 @@ struct TreatmentPaths {
         var parts: [String] = []
         let v2Only = store.isV2Only(t.id) && t.o != "mac"
         if t.o == "mac" {
-            if legacyOn, store.legacyLinked { parts.append(store.isUnacked(t.id) ? "BT ⇡" : "BT ✓") }
+            if store.isLegacyRefused(t.id) { parts.append("BT ✕ refused") }
+            else if legacyOn, store.legacyLinked, store.route(t.id) != "v2" { parts.append(store.isUnacked(t.id) ? "BT ⇡" : "BT ✓") }
             if let s = store.v2Status(t.id) { parts.append(v2Text(s, now: now)) }
         } else if v2Only {
             parts.append("from v2")
@@ -364,7 +449,9 @@ struct TreatmentPaths {
         let v2Only = store.isV2Only(t.id) && t.o != "mac"
         out.append(t.o == "mac" ? "Made on this Mac" : v2Only ? "From the wearer (Sukrara sharing, v2)" : "From the phone (Bluetooth link)")
         if t.o == "mac" {
-            if legacyOn, store.legacyLinked {
+            if store.isLegacyRefused(t.id) {
+                out.append("Bluetooth link: refused by the phone (the wearer doesn't accept entries over it)")
+            } else if legacyOn, store.legacyLinked, store.route(t.id) != "v2" {
                 out.append(store.isUnacked(t.id) ? "Bluetooth link: waiting for the phone" : "Bluetooth link: the phone has it")
             }
             if let s = store.v2Status(t.id) {
