@@ -75,7 +75,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | [10](10-showcase) | Sukrara, the showcase app | Every feature in one app, in daily use |
 | 11 | Battery cost, with and without root | *In progress* |
 | [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
-| [13](13-macos-widgets) | macOS widgets | Built without Xcode; need an Apple certificate to run |
+| [13](13-macos-widgets) | macOS widgets | Running in Sukrara for Mac, live, every minute (Apple certificate needed) |
 | [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
