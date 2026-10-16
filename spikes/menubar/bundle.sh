@@ -80,10 +80,13 @@ if [ "${WIDGETS:-1}" != 0 ]; then
   APPEX="$APP/Contents/PlugIns/SukraraWidget.appex"
   mkdir -p "$APPEX/Contents/MacOS"
   # _NSExtensionMain entry point: required, the Swift main() traps in ExtensionFoundation (docs/13).
+  # Per-widget settings (App Intents, investigation 16): const values + Metadata.appintents via appintents.sh.
   swiftc -sdk "$(xcrun --show-sdk-path --sdk macosx)" -target arm64-apple-macos15.0 -swift-version 5 -O \
     -parse-as-library -application-extension -module-name SukraraWidget \
     $W/Shared/*.swift $W/Widget/GlucoseWidgets.swift -Xlinker -e -Xlinker _NSExtensionMain \
-    -o "$APPEX/Contents/MacOS/SukraraWidget"
+    -o "$APPEX/Contents/MacOS/SukraraWidget" $($W/appintents.sh flags build/appintents)
+  $W/appintents.sh extract build/appintents SukraraWidget "$APPEX/Contents/MacOS/SukraraWidget" "$APPEX/Contents/Resources" \
+    $W/Shared/*.swift $W/Widget/GlucoseWidgets.swift
   P="$APPEX/Contents/Info.plist"
   cp $W/Widget/Info.plist "$P"
   plutil -replace CFBundleIdentifier -string app.mauri.sukrara.poc.widget "$P"

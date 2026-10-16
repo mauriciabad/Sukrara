@@ -177,21 +177,24 @@ object GlucoseGraph {
             drawProfile(cv, prof, b, pal, left, sideW, top, plotBottom, yMin, yMax, st.profileDots, d)
         }
 
-        // % per major band, centred on its band.
+        // % per major band, centred on its band; labels too close for their bands are pushed apart (all three show).
         if (pctCol > 0) {
             val (lo, inr, hi) = pct3(tir.low, tir.inRange, tir.high)
-            fun label(v: Int, y0: Float, y1: Float) {
-                val cy = (y0 + y1) / 2 + pctBig.textSize * 0.36f
-                if (y1 - y0 < pctBig.textSize * 0.8f) return
+            val gap = pctBig.textSize * 1.05f
+            val cIn = (y(b.high.toFloat()) + y(b.low.toFloat())) / 2
+            val cHi = min((top + y(b.high.toFloat())) / 2, cIn - gap)
+            val cLo = max((y(b.low.toFloat()) + plotBottom) / 2, cIn + gap)
+            fun label(v: Int, cy: Float) {
                 val s = "$v"
                 val w = pctBig.measureText(s) + pctSmall.measureText("%")
                 val x0 = left - 4 * d - w
-                cv.drawText(s, x0, cy, pctBig)
-                cv.drawText("%", x0 + pctBig.measureText(s), cy, pctSmall)
+                val base = cy + pctBig.textSize * 0.36f
+                cv.drawText(s, x0, base, pctBig)
+                cv.drawText("%", x0 + pctBig.measureText(s), base, pctSmall)
             }
-            label(hi, top, y(b.high.toFloat()))
-            label(inr, y(b.high.toFloat()), y(b.low.toFloat()))
-            label(lo, y(b.low.toFloat()), plotBottom)
+            label(hi, cHi)
+            label(inr, cIn)
+            label(lo, cLo)
         }
 
         if (marks) TreatmentMarks.draw(cv, treatments.filter { it.t in from..nowS }, ::x, left, right, bottom, d, pal.dark)

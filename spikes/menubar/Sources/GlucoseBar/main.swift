@@ -16,6 +16,11 @@ import AppKit
 //   followLink / followLinkFile / followName   tests: join an invite at launch without the dialog
 //   pairNearby  tests: answer a phone's "Pair nearby" offer with this name, without the dialog
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
+//   graphHours  graph window 3|6|12|24 (default 12); menubarHours / widgetHours override it per place
+//   ringCount 0–3 (2) · ringWindows "86400,604800,1209600" · ringRange IN_RANGE|TIGHT · bandLow/bandTight/bandHigh
+//   (70/140/180) · profile NONE|HISTOGRAM|KDE|KDE_LOG|OCCUPATION|BAND_EXACT · profileDots   (investigation 16; most
+//   are also in the menu's "Graph" submenu)   readingsDir (tests): keep readings.csv somewhere else
+//   -graphselftest  the shared graph math against the Android unit-test cases
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in "Alerts…")
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
 //                      engine;  alertsSnapshot out.png: open "Alerts…" and render it
@@ -49,6 +54,7 @@ if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolate
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
+if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
 // delete {id} | dump), like the phone's DebugReceiver.
@@ -119,14 +125,30 @@ let historySpan: TimeInterval = 3 * 3600
     private func publish(_ source: String) {
         guard let latest = history.last else { return }
         let snap = Snapshot(latest: latest, history: history, source: source)
+        readingsStore.merge(history)
         status.update(snap)
-        widgetFeed.update(snap, unit: status.unit, thresholds: status.thresholds, treatments: treatmentStore.rows)
+        widgetFeed.update(snap, unit: status.unit, treatments: treatmentStore.rows)
         alerts.onLatest(Reading(date: latest.date, mgdl: latest.mgdl, rate: snap.rate))
     }
 }
 
 let store = MainActor.assumeIsolated { Store() }
-let widgetFeed = MainActor.assumeIsolated { WidgetFeed() }     // desktop widgets (WidgetFeed.swift)
+/// 15 days of readings for the graph and the time-in-range rings (investigation 16). `readingsDir` (tests): elsewhere.
+let readingsStore = MainActor.assumeIsolated {
+    defaults.string(forKey: "readingsDir").map { ReadingsStore(directory: URL(fileURLWithPath: $0)) } ?? ReadingsStore()
+}
+let widgetFeed = MainActor.assumeIsolated { WidgetFeed(readings: readingsStore) }     // desktop widgets (WidgetFeed.swift)
+MainActor.assumeIsolated {
+    status.history = {
+        let w = TimeInterval(status.graph.hours * 3600) + 120
+        return readingsStore.since((readingsStore.readings.last?.t ?? 0) - w)
+    }
+    status.ringTir = { spec, bands in readingsStore.tir(window: spec.window, bands: bands) }
+    status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
+}
+NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
+    MainActor.assumeIsolated { readingsStore.save() }
+}
 
 /// Wi-Fi/LAN transport: find Juggluco (unless a URL is configured), fetch per-minute history, then follow
 /// the live SSE stream; on any failure wait and start over (re-discovering, since the phone's IP may change).

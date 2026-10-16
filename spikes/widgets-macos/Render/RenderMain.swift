@@ -31,20 +31,17 @@ func name(_ f: WidgetFamily) -> String {
     }
 }
 
-/// A synthetic history whose last reading satisfies `where`, shifted so it was `lag` seconds ago.
-func scenario(lag: TimeInterval, where cond: (Double, Double) -> Bool) -> GlucoseSnapshot {
-    let base = Date(timeIntervalSince1970: 1_792_000_000)
-    var t = base
-    for _ in 0..<2000 {
-        let v = Synthetic.value(at: t), r = (Synthetic.value(at: t) - Synthetic.value(at: t.addingTimeInterval(-300))) / 5
-        if cond(v, r) { break }
-        t = t.addingTimeInterval(60)
-    }
-    var s = Synthetic.snapshot(now: t, hours: 12)
-    let shift = Date().addingTimeInterval(-lag).timeIntervalSince(s.latest!.t)
-    s.samples = s.samples.map { GlucoseSample(t: $0.t.addingTimeInterval(shift), v: $0.v) }
-    s.treatments = Synthetic.treatments(until: s.latest!.t, hours: 12)
-    s.written = Date()
+/// "Now" for the evidence renders: 22:14 local today (the mock-up's evening, meals in view), whatever the clock says.
+let renderNow: Date = {
+    var c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+    c.hour = 22; c.minute = 14
+    return Calendar.current.date(from: c)!
+}()
+
+/// The realistic synthetic day ending `lag` seconds before `renderNow` (rings from 15 days of it).
+func scenario(lag: TimeInterval = 30) -> GlucoseSnapshot {
+    var s = Synthetic.realistic(now: renderNow.addingTimeInterval(-lag))
+    s.written = renderNow
     return s
 }
 
@@ -83,53 +80,44 @@ struct RenderMain {
     @MainActor static func main() {
         let out = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "evidence")
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        let live = scenario()
 
-        let rising = scenario(lag: 60) { v, r in v > 130 && v < 160 && r > 1.0 && r < 2.0 }
-        let high = scenario(lag: 120) { v, r in v > 195 && r > 0.3 }
-        let low = scenario(lag: 60) { v, r in v < 62 && r < -0.5 }
-        let flat = scenario(lag: 60) { v, r in v > 100 && v < 120 && abs(r) < 0.3 }
-        let stale = scenario(lag: 9 * 60) { v, r in v > 120 && r < -1 }
-
-        // Every family of every widget, light + dark, rising scenario.
-        for kind in WidgetKind.allCases {
-            for fam in families[kind]! {
-                for dark in [false, true] {
-                    let c = GlucoseEntryContent(snapshot: rising, date: Date())
-                    let v = Frame(size: sizes[fam]!, mode: .fullColor) {
-                        GlucoseWidgetView(kind: kind, family: fam, c: c, mode: .fullColor)
-                    }
-                    render(v, to: out.appendingPathComponent("\(kind.rawValue)-\(name(fam))-\(dark ? "dark" : "light").png"), dark: dark)
+        // Investigation 16: every family of the combined widget, value + graph medium, light + dark.
+        for dark in [false, true] {
+            let tag = dark ? "dark" : "light"
+            for fam in families[.combined]! {
+                let v = Frame(size: sizes[fam]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: .combined, family: fam, c: GlucoseEntryContent(snapshot: live, date: renderNow), mode: .fullColor)
+                }
+                render(v, to: out.appendingPathComponent("mac-widget-\(name(fam))-\(tag).png"), dark: dark)
+            }
+            for kind in [WidgetKind.value, .graph] {
+                let v = Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: kind, family: .systemMedium, c: GlucoseEntryContent(snapshot: live, date: renderNow), mode: .fullColor)
+                }
+                render(v, to: out.appendingPathComponent("mac-widget-\(kind.rawValue)-medium-\(tag).png"), dark: dark)
+            }
+        }
+        // Freshness steps on the combined medium widget: fresh, late (3 min), stale (12 min), old (75 min), gone (5 h).
+        let steps: [(String, TimeInterval)] = [("fresh", 30), ("late", 180), ("stale", 720), ("old", 4500), ("gone", 18000)]
+        let row = HStack(spacing: 0) {
+            ForEach(steps, id: \.0) { (n, lag) in
+                Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: scenario(lag: lag), date: renderNow), mode: .fullColor)
                 }
             }
         }
-        // States: low / high / flat / stale / no data, on the combined medium widget.
-        let states: [(String, GlucoseSnapshot?)] = [("low", low), ("high", high), ("flat", flat), ("stale", stale), ("nodata", nil)]
-        for (n, s) in states {
-            let c = GlucoseEntryContent(snapshot: s, date: Date(), error: s == nil ? "Host app not running" : nil)
-            let v = HStack(spacing: 0) {
-                Frame(size: sizes[.systemSmall]!, mode: .fullColor) { GlucoseWidgetView(kind: .value, family: .systemSmall, c: c, mode: .fullColor) }
-                Frame(size: sizes[.systemMedium]!, mode: .fullColor) { GlucoseWidgetView(kind: .combined, family: .systemMedium, c: c, mode: .fullColor) }
+        render(row, to: out.appendingPathComponent("mac-widget-freshness-dark.png"), dark: true)
+        // Two placements of the same widget with their own settings (per-widget configuration).
+        let two = HStack(spacing: 0) {
+            Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: live, date: renderNow), mode: .fullColor)
             }
-            render(v, to: out.appendingPathComponent("state-\(n).png"), dark: true)
-        }
-        // Accented (tinted desktop) rendering mode.
-        let c = GlucoseEntryContent(snapshot: rising, date: Date())
-        let acc = HStack(spacing: 0) {
-            Frame(size: sizes[.systemSmall]!, mode: .accented) { GlucoseWidgetView(kind: .value, family: .systemSmall, c: c, mode: .accented) }
-            Frame(size: sizes[.systemMedium]!, mode: .accented) { GlucoseWidgetView(kind: .combined, family: .systemMedium, c: c, mode: .accented) }
-        }
-        render(acc, to: out.appendingPathComponent("mode-accented.png"), dark: true)
-
-        // Trend arrow strip: −4 … +4 mg/dL/min.
-        let rates: [Double] = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4]
-        let strip = HStack(spacing: 14) {
-            ForEach(rates, id: \.self) { r in
-                VStack(spacing: 4) {
-                    TrendArrow(rate: r).frame(width: 28, height: 28)
-                    Text(String(format: "%+.1f", r)).font(.caption2).monospacedDigit()
-                }
+            Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: live, date: renderNow), mode: .fullColor,
+                                  overrides: WidgetOverrides(hours: 3, rings: 1, ringRange: .tight, side: false))
             }
-        }.padding(16).foregroundStyle(.primary)
-        render(strip, to: out.appendingPathComponent("trend-arrows.png"), dark: false)
+        }
+        render(two, to: out.appendingPathComponent("mac-widget-two-configs-dark.png"), dark: true)
     }
 }

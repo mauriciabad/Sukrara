@@ -34,3 +34,44 @@ enum SelfTest {
         return failures == 0
     }
 }
+
+/// `Sukrara -graphselftest`: the shared graph math (SukraraGraph.swift) against the same cases as the Android unit
+/// test (GlucoseStatsTest.kt), so both renderers agree.
+enum GraphSelfTest {
+    static func run() -> Bool {
+        var failures = 0
+        func check(_ name: String, _ cond: Bool) { if !cond { print("FAIL \(name)"); failures += 1 } }
+        func near(_ a: Double, _ b: Double, _ eps: Double) -> Bool { abs(a - b) <= eps }
+        let b = Bands()
+        func r(_ min: Int, _ v: Int) -> GraphReading { GraphReading(t: TimeInterval(min * 60), v: Double(v)) }
+
+        check("bands", b.of(69) == .low && b.of(70) == .tight && b.of(140) == .tight && b.of(141) == .target
+              && b.of(180) == .target && b.of(181) == .high)
+        check("sane", Bands(low: 200, tight: 10, high: 90).sane() == Bands(low: 120, tight: 130, high: 140))
+
+        let oneMin = (0..<60).map { r($0, 100) }
+        let fiveMin = stride(from: 60, to: 120, by: 5).map { r($0, 200) }
+        let t = GlucoseStats.timeInRange(oneMin + fiveMin, from: 0, to: 120 * 60, bands: b)
+        check("time weighted", near(t.tight, 0.5, 0.01) && near(t.high, 0.5, 0.01) && near(t.coverage, 1, 0.01))
+
+        let g = GlucoseStats.timeInRange([r(0, 100), r(1, 100), r(120, 250), r(121, 250)], from: 0, to: 122 * 60, bands: b)
+        check("gaps", near(g.tight, (60.0 + 15 * 60) / (60 + 15 * 60 + 60 + 60), 0.01) && g.coverage < 0.2)
+
+        let rs = (0..<600).map { r($0, Int(120 + 80 * sin(Double($0) / 40))) }
+        let tir = GlucoseStats.timeInRange(rs, from: 0, to: 600 * 60, bands: b)
+        let p = GlucoseStats.profile(.bandExact, rs, from: 0, to: 600 * 60, bands: b, tir: tir)
+        for band in Band.allCases {
+            let area = p.indices.filter { b.of(Double(GlucoseStats.minMg + $0)) == band }.reduce(0) { $0 + p[$1] }
+            check("band-exact \(band)", near(area, tir.share(band), 1e-9))
+        }
+        for kind in Profile.allCases.dropFirst() {
+            check("\(kind) sums to 1", near(GlucoseStats.profile(kind, rs, from: 0, to: 600 * 60, bands: b, tir: tir).reduce(0, +), 1, 1e-6))
+        }
+        check("pct3 a", GlucoseGraph.pct3(1 / 3.0, 1 / 3.0 + 0.0001, 1 / 3.0 - 0.0001) == (33, 34, 33))
+        check("pct3 b", GlucoseGraph.pct3(0.1, 0.7, 0.2) == (10, 70, 20))
+        check("freshness", Freshness.of(age: 90) == .fresh && Freshness.of(age: 91) == .late && Freshness.of(age: 301) == .stale
+              && Freshness.of(age: 1201) == .old && Freshness.of(age: 3 * 3600 + 1) == .gone && Freshness.of(age: nil) == .gone)
+        print(failures == 0 ? "graph self-test OK" : "graph self-test: \(failures) failed")
+        return failures == 0
+    }
+}

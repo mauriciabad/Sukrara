@@ -18,16 +18,36 @@ struct WidgetTreatment: Codable, Hashable {
     var n: String? = nil
 }
 
+/// A ring's numbers, computed by the host from its 15-day store (the widget only sees `samples`).
+struct RingTir: Codable {
+    var window: TimeInterval
+    var tir: TimeInRange
+}
+
 struct GlucoseSnapshot: Codable {
-    var version = 1
+    var version = 2
     var written: Date            // when the host wrote this file
     var source: String           // "synthetic", "juggluco", "nostr", …
-    var samples: [GlucoseSample] // ascending, ~1/min, up to 24 h
+    var samples: [GlucoseSample] // ascending, ~1/min, up to 24 h (the longest graph window)
     var rate: Double?            // mg/dL/min reported by the source (nil → computed)
     var treatments: [WidgetTreatment]? = nil   // optional: older hosts don't write it
     var unit: String? = nil      // "mgdl" | "mmol"; nil → mg/dL (the host app's display unit)
-    var low: Double? = nil       // colour thresholds, mg/dL; nil → GlucoseRange defaults
-    var high: Double? = nil
+    var graph: GraphConfig? = nil   // investigation 16: ranges, window (the widgets' own), rings, profile
+    var rings: [RingTir]? = nil     // time in range for each of graph.ringWindows
+
+    var config: GraphConfig { graph ?? GraphConfig() }
+    /// The samples for the card; the newest carries the trend (the arrow's angle).
+    var graphReadings: [GraphReading] {
+        var r = samples.map { GraphReading(t: $0.t.timeIntervalSince1970, v: $0.v) }
+        if !r.isEmpty { r[r.count - 1].rate = trendRate }
+        return r
+    }
+    var graphMarks: [GraphMark] { (treatments ?? []).map { GraphMark(t: $0.t.timeIntervalSince1970, k: $0.k, a: $0.a, n: $0.n ?? "") } }
+    /// The host's ring numbers when it has them, else from the samples.
+    func tir(_ spec: RingSpec, _ b: Bands, now: TimeInterval) -> TimeInRange {
+        rings?.first { $0.window == spec.window }?.tir
+            ?? GlucoseStats.timeInRange(graphReadings, from: now - spec.window, to: now, bands: b)
+    }
 
     var latest: GlucoseSample? { samples.last }
 
@@ -58,11 +78,12 @@ struct GlucoseSnapshot: Codable {
 }
 
 enum GlucoseRange {
-    /// Colour thresholds (user's settings). The widget overwrites them from the snapshot (`apply`).
-    static var low = 65.0, high = 185.0
+    /// The user's major ranges (investigation 16). The widget overwrites them from the snapshot (`apply`).
+    static var low = 70.0, high = 180.0
     static var mmol = false
     static func apply(_ s: GlucoseSnapshot) {
-        low = s.low ?? 65; high = s.high ?? 185; mmol = s.unit == "mmol"
+        let b = s.config.bands.sane()
+        low = Double(b.low); high = Double(b.high); mmol = s.unit == "mmol"
     }
     /// The number as the host app shows it: "123" mg/dL or "6.8" mmol/L.
     static func format(_ mgdl: Double) -> String {
@@ -71,7 +92,6 @@ enum GlucoseRange {
     static func formatDelta(_ mgdl: Double) -> String {
         mmol ? String(format: "%+.1f", mgdl / 18.0182) : String(format: "%+.0f", mgdl)
     }
-    static let targetLow = 70.0, targetHigh = 180.0 // target band on the graph
     static let staleAfter: TimeInterval = 5 * 60
 
     enum Level { case low, inRange, high }
@@ -134,6 +154,21 @@ enum Synthetic {
         }
         return GlucoseSnapshot(written: now, source: "synthetic", samples: samples, rate: nil,
                                treatments: treatments(until: Date(timeIntervalSince1970: lastMinute)))
+    }
+
+    /// Investigation 16 previews: a believable day ([RealisticSynthetic]) with rings from 15 days of it.
+    static func realistic(now: Date = Date(), config: GraphConfig = GraphConfig()) -> GlucoseSnapshot {
+        let end = floor(now.timeIntervalSince1970 / 60) * 60
+        let all = RealisticSynthetic.readings(until: end, days: 15)
+        let day = all.filter { $0.t > end - 24 * 3600 }
+        let rings = config.ringWindows.map { w in
+            RingTir(window: w, tir: GlucoseStats.timeInRange(all, from: end - w, to: end, bands: config.bands))
+        }
+        let marks = [(-8 * 3600.0 - 600, "rapid", 6.0), (-8 * 3600.0, "carbs", 60.0), (-90 * 60.0, "rapid", 4.5), (-85 * 60.0, "carbs", 45.0)]
+        return GlucoseSnapshot(written: now, source: "synthetic", samples: day.map { GlucoseSample(t: Date(timeIntervalSince1970: $0.t), v: $0.v) },
+                               rate: day.last?.rate,
+                               treatments: marks.map { WidgetTreatment(t: Date(timeIntervalSince1970: end + $0.0), k: $0.1, a: $0.2) },
+                               graph: config, rings: rings)
     }
     /// A meal, a correction, the daily long-acting dose and a note, every 6 h.
     static func treatments(until end: Date, hours: Double = 24) -> [WidgetTreatment] {

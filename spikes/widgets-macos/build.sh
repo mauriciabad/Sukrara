@@ -31,7 +31,7 @@ if [[ "${1:-}" == probe ]]; then
   mkdir -p $OUT
   PID_=${PROBE_ID:-dev.spike.GlucoseWidgets.probe}
   cp Probe/Info.plist $OUT/probe-Info.plist && plutil -replace CFBundleIdentifier -string $PID_ $OUT/probe-Info.plist
-  $SWIFTC -module-name Probe Shared/GlucoseData.swift Shared/Loader.swift Probe/main.swift -o $OUT/probe \
+  $SWIFTC -module-name Probe Shared/GlucoseData.swift Shared/SukraraGraph.swift Shared/Loader.swift Probe/main.swift -o $OUT/probe \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $OUT/probe-Info.plist
   codesign --force --sign - -i $PID_ --entitlements ${WIDGET_ENT:-Widget/Widget.entitlements} $OUT/probe
   $OUT/probe
@@ -44,13 +44,16 @@ mkdir -p $APP/Contents/MacOS $APPEX/Contents/MacOS
 # Widget extension. -application-extension restricts to extension-safe API. The entry point must be
 # Foundation's _NSExtensionMain (as Xcode links extensions): it sets up the extension runtime and then runs the
 # @main WidgetBundle. Starting at the Swift main() instead traps in _EXRunningExtension._shared (docs/13).
+# appintents.sh: const values for the per-widget settings (App Intents), then Resources/Metadata.appintents.
 $SWIFTC -parse-as-library -application-extension -module-name GlucoseWidget \
   Shared/*.swift Widget/GlucoseWidgets.swift -o $APPEX/Contents/MacOS/GlucoseWidget \
-  -Xlinker -e -Xlinker _NSExtensionMain
+  -Xlinker -e -Xlinker _NSExtensionMain ${(z)$(./appintents.sh flags $OUT/appintents)}
 cp Widget/Info.plist $APPEX/Contents/Info.plist
+./appintents.sh extract $OUT/appintents GlucoseWidget $APPEX/Contents/MacOS/GlucoseWidget $APPEX/Contents/Resources \
+  Shared/*.swift Widget/GlucoseWidgets.swift
 
 # Host app.
-$SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets
+$SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Shared/SukraraGraph.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets
 cp Host/Info.plist $APP/Contents/Info.plist
 
 # Signing, inside-out. Default: the first "Apple Development" identity in the keychain (Xcode → Settings →

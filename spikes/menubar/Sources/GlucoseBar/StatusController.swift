@@ -3,28 +3,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 
-struct Thresholds {
-    // Defaults taken from the LibreLinkUp xbar plugin config (mg/dL).
-    var low = 65.0, slightlyHigh = 145.0, high = 185.0
-    var staleAfter: TimeInterval = 5 * 60
-
+extension Bands {
+    /// Menubar number colour (investigation 16): below range red, above orange, in range the menubar's own ink.
     func color(for mgdl: Double) -> NSColor? {
-        if mgdl < low { return .systemRed }
-        if mgdl > high { return .systemRed }
-        if mgdl > slightlyHigh { return .systemOrange }
-        return nil
+        switch of(mgdl) {
+        case .low: .systemRed
+        case .high: .systemOrange
+        default: nil
+        }
     }
 }
 
 final class StatusController: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
-    private let valueLine = NSMenuItem(), timeLine = NSMenuItem(), sourceLine = NSMenuItem(), errorLine = NSMenuItem()
+    private let valueLine = NSMenuItem(), sourceLine = NSMenuItem(), errorLine = NSMenuItem()
     private let chartItem = NSMenuItem()
-    private let chart = SparklineView(frame: NSRect(x: 0, y: 0, width: 300, height: 104))
+    private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 200))
 
     var unit: GlucoseUnit = .mgdl
-    var thresholds = Thresholds()
+    /// Investigation 16: ranges, window, rings, profile (UserDefaults, `menubarHours` over `graphHours`).
+    private(set) var graph = GraphConfig.load(place: "menubar")
+    /// The 15-day history the card and its rings draw from (ReadingsStore).
+    var history: (() -> [GraphReading])?
+    var ringTir: ((RingSpec, Bands) -> TimeInRange)?
+    /// The graph settings changed in the "Graph" submenu (the widget feed re-publishes).
+    var onGraphChange: (() -> Void)?
     var onRefresh: (() -> Void)?
 
     // Protocol v2 follower (NostrV2.swift): "Follow someone…" / status line / "Stop following".
@@ -49,17 +53,16 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     private(set) var snapshot: Snapshot?
     private var lastError: String?
-    private var tick: Timer?, staleTimer: Timer?
+    private var tick: Timer?, freshTimer: Timer?
 
     override init() {
         super.init()
         item.button?.imagePosition = .imageTrailing
         item.button?.title = "…"
         item.button?.toolTip = "Sukrara"
-        for line in [valueLine, timeLine, sourceLine, errorLine] { line.isEnabled = false }
+        for line in [valueLine, sourceLine, errorLine] { line.isEnabled = false }
         chartItem.view = chart
         menu.addItem(valueLine)
-        menu.addItem(timeLine)
         menu.addItem(chartItem)
         menu.addItem(sourceLine)
         menu.addItem(errorLine)
@@ -81,6 +84,9 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(stop)
         unfollowItem = stop
         menu.addItem(.separator())
+        let graphItem = NSMenuItem(title: "Graph", action: nil, keyEquivalent: "")
+        graphItem.submenu = graphMenu
+        menu.addItem(graphItem)
         menu.addItem(withTitle: "Refresh now", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.delegate = self
@@ -118,15 +124,19 @@ final class StatusController: NSObject, NSMenuDelegate {
         unfollowItem?.isHidden = text == nil
     }
 
-    // The "(n min ago)" line only ticks while the menu is open; closed, nothing runs between readings.
+    // The card redraws while the menu is open (its graph moves with the clock); closed, only the freshness timer runs.
     func menuWillOpen(_ menu: NSMenu) {
+        guard menu === self.menu else { return }
         render()
         let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.render() }
         RunLoop.main.add(t, forMode: .common)     // .common: menus track in event-tracking mode
         tick = t
     }
 
-    func menuDidClose(_ menu: NSMenu) { tick?.invalidate(); tick = nil }
+    func menuDidClose(_ menu: NSMenu) {
+        guard menu === self.menu else { return }
+        tick?.invalidate(); tick = nil
+    }
 
     private func render() {
         renderTreatments()
@@ -134,8 +144,8 @@ final class StatusController: NSObject, NSMenuDelegate {
         guard let snap = snapshot else {
             button.attributedTitle = NSAttributedString(string: lastError == nil ? "…" : "⚠︎")
             button.image = nil
+            valueLine.isHidden = false
             valueLine.title = "No data yet"
-            timeLine.isHidden = true
             chartItem.isHidden = true
             sourceLine.isHidden = true
             errorLine.isHidden = lastError == nil
@@ -143,31 +153,38 @@ final class StatusController: NSObject, NSMenuDelegate {
             return
         }
         let age = Date().timeIntervalSince(snap.latest.date)
-        let stale = age > thresholds.staleAfter
-        // Instead of polling: one timer for the moment the reading goes stale (re-armed by every new reading).
-        staleTimer?.invalidate()
-        staleTimer = stale ? nil : Timer.scheduledTimer(withTimeInterval: thresholds.staleAfter - age + 1,
-                                                        repeats: false) { [weak self] _ in self?.render() }
-        staleTimer?.tolerance = 10
+        let fresh = Freshness.of(age: age)
+        // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
+        freshTimer?.invalidate()
+        freshTimer = Freshness.nextChange(age: age).map { next in
+            Timer.scheduledTimer(withTimeInterval: next - age, repeats: false) { [weak self] _ in self?.render() }
+        }
+        freshTimer?.tolerance = 5
         let rate = snap.rate
-        let color = stale ? NSColor.secondaryLabelColor : thresholds.color(for: snap.latest.mgdl)
+        let color = fresh.strike ? NSColor.secondaryLabelColor : graph.bands.color(for: snap.latest.mgdl)
 
         var attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
         ]
         if let color { attrs[.foregroundColor] = color }
-        if stale { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-        button.attributedTitle = NSAttributedString(string: unit.format(snap.latest.mgdl), attributes: attrs)
-        button.image = TrendArrow.image(rate: stale ? nil : rate, size: 15, color: color)
+        if fresh.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+        // Old (> 20 min): no value at all, just a dash; the dropdown says since when.
+        button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
+        button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
+        button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
 
-        valueLine.title = "\(unit.format(snap.latest.mgdl)) \(unit == .mgdl ? "mg/dL" : "mmol/L")"
-            + (rate.map { "   " + unit.formatRate($0) } ?? "   trend unknown")
-        timeLine.isHidden = false
-        timeLine.title = "at \(snap.latest.date.formatted(date: .omitted, time: .standard))  (\(Self.ago(age)))"
-        chartItem.isHidden = snap.history.count < 2
-        chart.readings = snap.history
-        chart.treatments = (treatments?() ?? []).filter { !$0.del }
-        chart.thresholds = thresholds
+        // The card carries the value, its time when late, the rings and the graph: no separate lines.
+        valueLine.isHidden = true
+        chartItem.isHidden = false
+        var g = graph.graphStyle()
+        g.hour24 = GraphStyle.systemHour24
+        chart.style = CardStyle(graph: g, rings: graph.rings, value: true)
+        var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
+        if !pts.isEmpty { pts[pts.count - 1].rate = rate }
+        chart.readings = pts
+        chart.marks = marks()
+        chart.tirOf = ringTir
+        chart.needsDisplay = true
         sourceLine.isHidden = false
         sourceLine.title = "Source: \(snap.source)"
         errorLine.isHidden = lastError == nil
@@ -178,11 +195,61 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
     }
 
+    private func marks() -> [GraphMark] {
+        (treatments?() ?? []).filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
+    }
+
+    // MARK: graph settings (investigation 16)
+
+    private lazy var graphMenu: NSMenu = {
+        let m = NSMenu()
+        m.delegate = self
+        return m
+    }()
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === graphMenu else { return }
+        menu.removeAllItems()
+        func header(_ t: String) { let i = menu.addItem(withTitle: t, action: nil, keyEquivalent: ""); i.isEnabled = false }
+        func option(_ t: String, _ on: Bool, _ key: String, _ value: Any) {
+            let i = menu.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
+            i.target = self
+            i.state = on ? .on : .off
+            i.indentationLevel = 1
+            i.representedObject = [key, value]
+        }
+        header("Graph window")
+        for h in GraphConfig.windowHours { option("\(h) h", graph.hours == h, "graphHours", h) }
+        header("Time in range rings")
+        for n in 0...3 { option(n == 0 ? "None" : "\(n): " + graph.ringWindows.prefix(n).map(periodLabel).joined(separator: " + "), graph.ringCount == n, "ringCount", n) }
+        for r in TirRange.allCases { option("Number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
+        header("Distribution beside the graph")
+        for p in Profile.allCases { option(p.label, graph.profile == p, "profile", p.rawValue) }
+        option("Draw it as dots", graph.profileDots, "profileDots", !graph.profileDots)
+        menu.addItem(.separator())
+        let note = menu.addItem(withTitle: "Ranges: bandLow / bandTight / bandHigh (defaults write)", action: nil, keyEquivalent: "")
+        note.isEnabled = false
+    }
+
+    @objc private func setGraph(_ sender: NSMenuItem) {
+        guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
+        UserDefaults.standard.set(kv[1], forKey: key)
+        if key == "graphHours" { UserDefaults.standard.removeObject(forKey: "menubarHours") }
+        reloadGraph()
+    }
+
+    /// Settings changed (submenu or `defaults write`): redraw and re-publish to the widgets.
+    func reloadGraph() {
+        graph = GraphConfig.load(place: "menubar")
+        render()
+        onGraphChange?()
+    }
+
     // MARK: treatments
 
     func treatmentsChanged() {
         renderTreatments()
-        chart.treatments = (treatments?() ?? []).filter { !$0.del }
+        chart.marks = marks()
     }
 
     private func renderTreatments() {
@@ -301,99 +368,32 @@ final class StatusController: NSObject, NSMenuDelegate {
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
-
-    static func ago(_ s: TimeInterval) -> String {
-        s < 90 ? "\(Int(s))s ago" : s < 5400 ? "\(Int(s / 60))m ago" : "\(Int(s / 3600))h ago"
-    }
 }
 
-/// Last 3h of readings, drawn in the dropdown, with the treatments of that window (NEXT §1 item 4) in the same
-/// language as the Android charts: rapid insulin = filled blue drop-triangle "4.5U", long = outlined indigo
-/// triangle, both in a lane along the top; carbs = amber dot "30g" along the bottom; notes = grey tick + a faint
-/// line through the chart. System colours, so the menu's light/dark appearance carries over.
-final class SparklineView: NSView {
-    var readings: [Reading] = [] { didSet { needsDisplay = true } }
-    var treatments: [Treatment] = [] { didSet { needsDisplay = true } }
-    var thresholds = Thresholds()
-    let span: TimeInterval = 3 * 3600
-    /// Tests / previews: draw as if this were the time of the newest reading.
-    var end: Date? = nil
+/// The dropdown's glucose card (investigation 16): value, trend arrow, time-in-range rings and the graph with its side
+/// profile, drawn by the shared renderer (SukraraGraph.swift) like the widgets and Sukrara for Android.
+final class CardView: NSView {
+    var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
+    var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
+    var style = CardStyle()
+    var tirOf: ((RingSpec, Bands) -> TimeInRange)?
+    /// Tests / previews: draw as if this were now.
+    var now: Date? = nil
+    var inset = NSEdgeInsets(top: 6, left: 14, bottom: 4, right: 14)
 
-    static let rapid = NSColor.systemBlue, long = NSColor.systemIndigo, carbs = NSColor.systemOrange, note = NSColor.systemGray
+    override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
-        let lane: CGFloat = 15                                   // top: insulin, bottom: carbs
-        let r = NSRect(x: bounds.minX + 14, y: bounds.minY + lane + 4, width: bounds.width - 28, height: bounds.height - 2 * lane - 10)
-        guard let end = end ?? readings.last?.date else { return }
-        let pts = readings.filter { end.timeIntervalSince($0.date) <= span && $0.date <= end }
-        let lo = 40.0, hi = max(250.0, (pts.map(\.mgdl).max() ?? 0) + 10)
-        func y(_ v: Double) -> CGFloat { r.minY + CGFloat((v - lo) / (hi - lo)) * r.height }
-        func x(_ d: Date) -> CGFloat { r.maxX - CGFloat(end.timeIntervalSince(d) / span) * r.width }
-
-        NSColor.systemGreen.withAlphaComponent(0.12).setFill()
-        NSRect(x: r.minX, y: y(70), width: r.width, height: y(180) - y(70)).fill()
-
-        // Treatments in the window (a few minutes past the newest reading still count: logged "now").
-        let shown = treatments.filter {
-            let d = Date(timeIntervalSince1970: TimeInterval($0.t))
-            return end.timeIntervalSince(d) <= span && d.timeIntervalSince(end) <= 15 * 60
-        }.sorted { $0.t < $1.t }
-        for t in shown where t.k == "note" {                    // behind the readings
-            let tx = min(r.maxX, x(Date(timeIntervalSince1970: TimeInterval(t.t))))
-            Self.note.withAlphaComponent(0.35).setStroke()
-            let line = NSBezierPath()
-            line.move(to: NSPoint(x: tx, y: r.minY)); line.line(to: NSPoint(x: tx, y: r.maxY))
-            line.lineWidth = 1
-            line.setLineDash([2, 2], count: 2, phase: 0)
-            line.stroke()
-        }
-
-        for p in pts {
-            (thresholds.color(for: p.mgdl) ?? .labelColor).setFill()
-            NSBezierPath(ovalIn: NSRect(x: x(p.date) - 1.25, y: y(p.mgdl) - 1.25, width: 2.5, height: 2.5)).fill()
-        }
-
-        // Markers + amount labels; a label that would overlap the previous one in its lane is dropped (the marker stays).
-        var lastLabelEnd: [String: CGFloat] = [:]
-        for t in shown {
-            let tx = min(r.maxX, x(Date(timeIntervalSince1970: TimeInterval(t.t))))
-            let laneKey: String, label: String, color: NSColor, my: CGFloat
-            switch t.k {
-            case "rapid", "long":
-                laneKey = "top"; color = t.k == "rapid" ? Self.rapid : Self.long
-                label = Self.amount(t.a) + "U"; my = bounds.maxY - lane / 2 - 2
-                Self.triangle(at: NSPoint(x: tx, y: my), filled: t.k == "rapid", color: color)
-            case "carbs":
-                laneKey = "bottom"; color = Self.carbs
-                label = "\(Int(t.a.rounded()))g"; my = bounds.minY + lane / 2 + 2
-                color.setFill()
-                NSBezierPath(ovalIn: NSRect(x: tx - 3.5, y: my - 3.5, width: 7, height: 7)).fill()
-            default:
-                laneKey = "top"; color = Self.note; label = ""; my = bounds.maxY - lane / 2 - 2
-                color.setFill()
-                NSRect(x: tx - 0.75, y: my - 5, width: 1.5, height: 10).fill()
-            }
-            guard !label.isEmpty else { continue }
-            let s = NSAttributedString(string: label, attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold), .foregroundColor: color])
-            let size = s.size()
-            var lx = tx + 5
-            if lx + size.width > bounds.maxX - 2 { lx = tx - 5 - size.width }      // flip left at the right edge
-            if lx < (lastLabelEnd[laneKey] ?? -.infinity) + 2 { continue }
-            s.draw(at: NSPoint(x: lx, y: my - size.height / 2))
-            lastLabelEnd[laneKey] = lx + size.width
-        }
-    }
-
-    static func amount(_ a: Double) -> String { a == a.rounded() ? String(Int(a)) : String(format: "%.1f", a) }
-
-    /// Insulin marker: a downward triangle (a drop going in), filled for rapid, outlined for long-acting.
-    static func triangle(at c: NSPoint, filled: Bool, color: NSColor) {
-        let p = NSBezierPath()
-        p.move(to: NSPoint(x: c.x - 4.5, y: c.y + 4))
-        p.line(to: NSPoint(x: c.x + 4.5, y: c.y + 4))
-        p.line(to: NSPoint(x: c.x, y: c.y - 4.5))
-        p.close()
-        if filled { color.setFill(); p.fill() } else { color.setStroke(); p.lineWidth = 1.5; p.stroke() }
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let r = NSRect(x: inset.left, y: inset.top, width: bounds.width - inset.left - inset.right,
+                       height: bounds.height - inset.top - inset.bottom)
+        var pal = GraphPalette.of(dark: dark)
+        pal.bg = dark ? GraphPalette.hex(0x2A2A2C) : GraphPalette.hex(0xF0F0F0)   // the menu's material, for the last dot's halo
+        ctx.saveGState()
+        ctx.translateBy(x: r.minX, y: r.minY)
+        GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
+                         style, pal, tirOf: tirOf)
+        ctx.restoreGState()
     }
 }

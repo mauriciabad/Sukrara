@@ -17,7 +17,7 @@ enum Preview {
         rep.size = size
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        let th = Thresholds()
+        let bands = Bands()
         for (row, dark) in [false, true].enumerated() {
             let fg: NSColor = dark ? .white : .black
             let y = size.height - CGFloat(row + 1) * cell.height
@@ -25,7 +25,7 @@ enum Preview {
             NSRect(x: 0, y: y, width: size.width, height: cell.height).fill()
             for (i, rate) in rates.enumerated() {
                 let x = CGFloat(i) * cell.width + 6
-                let color = th.color(for: values[i]) ?? fg
+                let color = bands.color(for: values[i]) ?? fg
                 let s = NSAttributedString(string: GlucoseUnit.mgdl.format(values[i]), attributes: [
                     .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
                     .foregroundColor: color,
@@ -45,17 +45,18 @@ enum Preview {
     }
 }
 
-/// `Sukrara -menuPreview out.png`: the dropdown's glucose chart and treatment section, light and dark side by side,
-/// from synthetic data (3 h of readings, insulin / carbs / notes, entries in every v2 delivery state). Uses the same
-/// SparklineView, StatusController.describe and TreatmentPaths code as the live menu; a temp store, no network.
+/// `Sukrara -menuPreview out.png`: the dropdown's glucose card and treatment section as `out-light.png` and
+/// `out-dark.png`, from synthetic data (a realistic 15 days for the rings, insulin / carbs / notes, entries in every
+/// v2 delivery state). Uses the same CardView, StatusController.describe and TreatmentPaths code as the live menu; a
+/// temp store, no network.
 enum MenuPreview {
     @MainActor static func render(to path: String) {
-        let end = Date(timeIntervalSince1970: (Date().timeIntervalSince1970 / 60).rounded(.down) * 60)
-        let readings = (0...180).map { m -> Reading in
-            let x = Double(180 - m)
-            return Reading(date: end.addingTimeInterval(-Double(m) * 60),
-                           mgdl: 135 + 55 * sin(x / 34) + 18 * sin(x / 9) - (x > 120 ? (x - 120) * 0.6 : 0))
-        }
+        // 22:14 local today: the evening of the mock-up, with the day's meals in the 12 h window.
+        var dc = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        dc.hour = 22; dc.minute = 14
+        let end = Calendar.current.date(from: dc)!
+        let all = RealisticSynthetic.readings(until: end.timeIntervalSince1970, days: 15)
+        let cfg = GraphConfig()
         let now = Int64(end.timeIntervalSince1970)
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-preview-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -98,15 +99,16 @@ enum MenuPreview {
                 row.edgeInsets = NSEdgeInsets(top: 0, left: indent, bottom: 0, right: 0)
                 stack.addArrangedSubview(row)
             }
-            line("\(Int(readings.last!.mgdl)) mg/dL   \(String(format: "%+.1f", -0.6)) mg/dL/min", bold: true)
-            line("at \(end.formatted(date: .omitted, time: .standard))  (32s ago)", .secondaryLabelColor)
-            let chart = SparklineView(frame: NSRect(x: 0, y: 0, width: 300, height: 104))
-            chart.readings = readings
-            chart.treatments = store.rows.filter { !$0.del }
-            chart.end = end
+            let chart = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 200))
+            chart.inset = NSEdgeInsets(top: 2, left: 0, bottom: 2, right: 0)
+            chart.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
+            chart.marks = store.rows.filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
+            chart.style = CardStyle(graph: cfg.graphStyle(), rings: cfg.rings, value: true)
+            chart.tirOf = { spec, b in GlucoseStats.timeInRange(all, from: end.timeIntervalSince1970 - spec.window, to: end.timeIntervalSince1970, bands: b) }
+            chart.now = end.addingTimeInterval(30)
             chart.translatesAutoresizingMaskIntoConstraints = false
-            chart.widthAnchor.constraint(equalToConstant: 300).isActive = true
-            chart.heightAnchor.constraint(equalToConstant: 104).isActive = true
+            chart.widthAnchor.constraint(equalToConstant: 340).isActive = true
+            chart.heightAnchor.constraint(equalToConstant: 200).isActive = true
             stack.addArrangedSubview(chart)
             line("Source: Bluetooth · Tartaruga", .secondaryLabelColor)
             line(i == 0 ? "Following (v2) · key epoch 2 · 4 relays" : "Following (v2) · key epoch 2 · 4 relays", .secondaryLabelColor)
@@ -134,24 +136,19 @@ enum MenuPreview {
             }
             panels.append(box)
         }
-        let h = panels.map(\.frame.height).max()!
-        let scale: CGFloat = 2
-        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(w * 2 * scale), pixelsHigh: Int(h * scale),
-                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
-        rep.size = NSSize(width: w * 2, height: h)
+        let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
         for (i, v) in panels.enumerated() {
-            v.setFrameSize(NSSize(width: w, height: h))
             v.layoutSubtreeIfNeeded()
-            guard let r = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { continue }
-            v.cacheDisplay(in: v.bounds, to: r)
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-            r.draw(in: NSRect(x: CGFloat(i) * w, y: 0, width: w, height: h))
-            NSGraphicsContext.restoreGraphicsState()
+            let scale: CGFloat = 2
+            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(v.bounds.width * scale), pixelsHigh: Int(v.bounds.height * scale),
+                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            rep.size = v.bounds.size
+            v.cacheDisplay(in: v.bounds, to: rep)
+            let out = "\(base)-\(i == 0 ? "light" : "dark").png"
+            try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out))
+            print("wrote", out)
         }
-        try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
-        print("wrote", path)
     }
 
     private static func separator(_ width: CGFloat) -> NSView {
