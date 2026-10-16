@@ -29,6 +29,8 @@ sensor.json
 /spikes/glucobridge-android/app/build/
 /spikes/glucobridge-android/app/.cxx/
 /spikes/glucobridge-android/build/
+/spikes/brand/android/build/
+/spikes/brand/android/app/build/
 local.properties
 .idea/
 *.iml

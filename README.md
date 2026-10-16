@@ -26,6 +26,7 @@ beyond) instead of Libre's 5 fixed arrows. Colours follow personal thresholds 65
 | 05 | 2026-10-15 | Glucose number + trend permanently in the Android status bar: Live Update chip, notification icon, system icons, LSPosed hook | [docs/05-android-status-bar.md](docs/05-android-status-bar.md) |
 | 07 | 2026-10-16 | Sharing without technical steps: one Android app (wearer + follower), QR invite + Allow, revoke by key rotation, password-manager backup (Proton Pass/Bitwarden, no lock-in), seamless phone change | [docs/07-sharing-and-keys.md](docs/07-sharing-and-keys.md) |
 | 08 | 2026-10-16 | Glucose on a Garmin watch (watchface.io face, CGM+ app + datafield) from our own app, no Juggluco | [docs/08-garmin.md](docs/08-garmin.md) |
+| 09 | 2026-10-16 | Name, icon and style for the showcase app: candidates in context + an asset exporter → **Sukrara** | [docs/09-brand.md](docs/09-brand.md) |
 
 ## Current conclusions
 
@@ -65,6 +66,7 @@ spikes/
                             juggluco = Juggluco on localhost → BLE GATT server (PoC 1)
                             direct   = reads the Libre 3 sensor itself (PoC 2)
   statusbar-android/      GlucoStatus — Android status-bar experiments (Kotlin; app + LSPosed module in one APK)
+  brand/                  name + icon candidates (brand.py → SVG, VectorDrawable, .icns, PNG), gallery, preview APK
   ble-scan/               tiny BLE advertisement scanner
 ```
 The direct Mac ↔ sensor experiment is summarized in the report but its code is not published.
