@@ -1,0 +1,16 @@
+# PowerLab plan: name | apply (root shell) | restore (root shell)
+# Each window: apply → settle → snapshot → measure → snapshot → restore. Baselines are interleaved (A B A C A …)
+# so slow drifts (battery level, temperature) cancel out. Wi-Fi-off windows come last: they end wireless adb.
+base|
+base|
+no-nostr|am force-stop dev.spike.cgmnostr|am start-foreground-service -n dev.spike.cgmnostr/.PublisherService
+base|
+no-statusbar|am force-stop dev.spike.glucostatus|am broadcast -n dev.spike.glucostatus/.DebugReceiver
+base|
+no-gdh|settings get secure enabled_accessibility_services > /data/local/tmp/powerlab.a11y; am force-stop de.michelinside.glucodatahandler|a=$(cat /data/local/tmp/powerlab.a11y); [ "$a" != null ] && settings put secure enabled_accessibility_services "$a"; am start-foreground-service -n de.michelinside.glucodatahandler/.GlucoDataServiceMobile
+base|
+cpu-little|for p in tk.glucodata dev.spike.glucobridge dev.spike.cgmnostr dev.spike.glucostatus de.michelinside.glucodatahandler; do for pid in $(pgrep -f "^$p"); do for t in /proc/$pid/task/*; do echo ${t##*/} > /dev/cpuset/background/tasks; done; done; done 2>/dev/null; echo moved|for p in tk.glucodata dev.spike.glucobridge dev.spike.cgmnostr dev.spike.glucostatus de.michelinside.glucodatahandler; do for pid in $(pgrep -f "^$p"); do for t in /proc/$pid/task/*; do echo ${t##*/} > /dev/cpuset/foreground/tasks; done; done; done 2>/dev/null; echo restored
+base|
+cell-base|svc wifi disable|svc wifi enable
+cell-no-nostr|svc wifi disable; am force-stop dev.spike.cgmnostr|am start-foreground-service -n dev.spike.cgmnostr/.PublisherService; svc wifi enable
+cell-base|svc wifi disable|svc wifi enable; sleep 20; settings put global adb_wifi_enabled 1

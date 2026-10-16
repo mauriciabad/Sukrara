@@ -1,0 +1,22 @@
+# Investigation 11 — Sukrara (app.mauri.sukrara.poc, release) as the wearer, Juggluco source, all defaults.
+# Run rootless: caffeinate -i ./usb-run.sh plans/sukrara.txt 3 22
+# Every scenario flips one switch of Sukrara's DebugReceiver (live, no restart) and restores the default after.
+base|
+base|
+nostr-batch15|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ei nostrInterval 15|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ei nostrInterval 0
+base|
+nostr-off|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez nostr false|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez nostr true
+base|
+ble-off|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez macBle false --ez bleFollowers false|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez macBle true --ez bleFollowers true
+base|
+statusbar-off|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez chip false --ez icon false|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez chip true --ez icon true
+base|
+screenoff-skip|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez screenOffSkip true|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez screenOffSkip false
+base|
+no-gdh|am force-stop de.michelinside.glucodatahandler|am start-foreground-service -n de.michelinside.glucodatahandler/.GlucoDataServiceMobile
+base|
+# Mobile data: Wi-Fi off (USB adb is unaffected)
+cell-base|cmd wifi set-wifi-enabled disabled|cmd wifi set-wifi-enabled enabled
+cell-nostr-batch15|cmd wifi set-wifi-enabled disabled; am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ei nostrInterval 15|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ei nostrInterval 0; cmd wifi set-wifi-enabled enabled
+cell-nostr-off|cmd wifi set-wifi-enabled disabled; am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez nostr false|am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver --ez nostr true; cmd wifi set-wifi-enabled enabled
+cell-base|cmd wifi set-wifi-enabled disabled|cmd wifi set-wifi-enabled enabled

@@ -157,6 +157,12 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew assembleDebug && adb install -r -g app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## `power/` — battery lab (investigation 11, in progress)
+
+Unattended A/B battery runs with the Pixel's power rails (Perfetto, no root): `usb-run.sh` (rootless, over USB) or
+PowerLab (`power/android`, root, unplugged). Plan for Sukrara in `power/plans/sukrara.txt`. Status and how to run:
+[`power/HANDOFF.md`](power/HANDOFF.md).
+
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 
 ```sh
