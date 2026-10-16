@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.5/Sukrara-0.10.5.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.3/Sukrara-0.10.3.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.10.9/Sukrara-0.10.9.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -190,10 +190,10 @@ Downloads: [v0.10.5](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
 - Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.10.3.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.10.9.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.10.3.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.10.9.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link, or *Copy Mac link* for the `cgmshare:` form; both work),
 then in the menubar **Follow someone…**, paste, and Allow on the phone. On the Mac, the link's web page also has an
 **Open in Sukrara** button. Nearby pairing over
