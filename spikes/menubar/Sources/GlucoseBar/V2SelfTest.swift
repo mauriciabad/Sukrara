@@ -8,7 +8,8 @@ import NostrSDK
 /// every transport uses) and checks the acceptance rules fail closed. No network; uses a throwaway Keychain item.
 enum V2SelfTest {
     @MainActor static func run() -> Bool {
-        UserDefaults.standard.set("app.mauri.sukrara.poc.selftest", forKey: "keychainService")
+        // in memory only: persisting it would point the user's daily Sukrara.app (same defaults domain) at this test item
+        UserDefaults.standard.setVolatileDomain(["keychainService": "app.mauri.sukrara.poc.selftest"], forName: UserDefaults.argumentDomain)
         defer { FollowerV2State.clear() }
         let I = Keys.generate(), D = Keys.generate(), G = Keys.generate(), X = Keys.generate(), G2 = Keys.generate()
         let F = Keys.generate()
@@ -38,7 +39,8 @@ enum V2SelfTest {
         func check(_ name: String, _ cond: Bool) { print("\(cond ? "PASS" : "FAIL")  \(name)"); ok = ok && cond }
 
         node.onEvent(key(sealedBy: X, g: G2), via: "test")
-        check("forged key delivery (sealed by a non-identity key) rejected", node.phase == .waiting(code: st.code))
+        // a link request waits without a code (0.11.6: only nearby pairing shows one); still waiting = not accepted
+        check("forged key delivery (sealed by a non-identity key) rejected", node.phase == .waiting(code: nil))
         node.onEvent(live(D, 100), via: "test")
         check("data before any key ignored", readings.isEmpty)
         node.onEvent(key(sealedBy: I, g: G), via: "test")
@@ -92,6 +94,20 @@ enum V2SelfTest {
         check("revoked notice from I → access removed", node.phase == .revoked)
         check("match code is 4 digits", node.code.count == 4 && Int(node.code) != nil)
         node.stop()
+
+        // 0.11.6 single-use invites: a fresh request; only the identity may end it ("invite-used" / "declined")
+        let F2 = Keys.generate()
+        let st2 = FollowerV2State(f: try! F2.secretKey().toBech32(), i: I.publicKey().toHex(), relays: [], token: "tok2",
+                                  name: "selftest2", code: V2.matchCode(F2.publicKey().toHex(), "tok2"))
+        if let n2 = FollowerV2(state: st2) {
+            n2.onEvent(V2.gift(X, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"])!, via: "test")
+            check("forged invite-used ignored", n2.phase == .waiting(code: nil))
+            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"])!, via: "test")
+            check("invite-used from I → request ended (already used)", n2.phase == .ended(used: true))
+            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "declined"])!, via: "test")
+            check("a later notice doesn't change an ended request", n2.phase == .ended(used: true))
+            n2.stop()
+        } else { check("second follower node", false) }
         print(ok ? "v2 self-test OK" : "v2 self-test FAILED")
         return ok
     }
@@ -196,7 +212,8 @@ enum V2SelfTest {
 /// accepted. Events are encrypted to the throwaway G and expire after 1 h (ours: +30 d, unreadable to anyone).
 enum V2RelayTest {
     @MainActor static func run() -> Bool {
-        UserDefaults.standard.set("app.mauri.sukrara.poc.relaytest", forKey: "keychainService")
+        // in memory only: persisting it would point the user's daily Sukrara.app (same defaults domain) at this test item
+        UserDefaults.standard.setVolatileDomain(["keychainService": "app.mauri.sukrara.poc.relaytest"], forName: UserDefaults.argumentDomain)
         defer { FollowerV2State.clear() }
         let relays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom"]
         let I = Keys.generate(), D = Keys.generate(), G = Keys.generate(), F = Keys.generate()
