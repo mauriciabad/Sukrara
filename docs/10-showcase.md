@@ -483,6 +483,35 @@ switched on (the user's call), the next cycle posted it: `libreview post: 1 trea
 the current glucose reading (`glucose 0+1 → status 0`). Sukrara is now the account's LibreView device; glucose goes up
 from 01:55 on.
 
+## One graph everywhere (investigation 16, v0.11.5)
+
+The user drew an improved graph for every surface: a distribution of glucose beside the chart with time-in-range
+rectangles and %, a "very good" 70–140 band, segmented time-in-range rings, freshness instead of "time ago", 12 h by
+default with per-place and per-widget windows, configurable ranges. Report: [16](16-graph.md). Widget configuration
+follows the [Glance configuration guide](https://developer.android.com/develop/ui/compose/glance/configuration)
+(`reconfigurable|configuration_optional`: a new widget needs no setup, touch & hold → Reconfigure).
+
+| Added | Where |
+|---|---|
+| One renderer for the whole card (value, arrow, rings, chart) on a plain `Canvas`: the home panel, the three widgets, the notification graph | `graph/` (`GlucoseStats`, `Freshness`, `GlucoseGraph`, `GlucoseCard`), `ui/Widgets.kt` `GlucosePanel`, `widgets/Widgets.kt`, `GlucoseNotification` |
+| Distribution beside the chart: time at level, band-exact, rows of dots; rectangles for below / in range / above with very low / very good / very high inside; % labels | `GlucoseStats.profile`, `GlucoseGraph` |
+| Six ranges 54 / 70 / 140 / 180 / 250, configurable; they colour the number, line, rings, status bar (hook gets them in its broadcast), notification style | `GraphSettings`, `core/Glucose.kt` `Range` |
+| Freshness: fresh → late (reading's time) → stale (struck) → old (no number) → gone (no chart); notification and Live Update card follow it | `Freshness`, `GlucoseNotification` |
+| 0–3 time-in-range rings (12 h – 14 d), "in range" or "very good" in the middle; the wearer keeps 15 days (was 8) | `TirRing`, `GraphData`, `OwnerEngine` prune |
+| Settings → Graph & time in range (both roles), with a live preview | `ui/GraphScreen.kt` |
+| Per-widget window, rings, ring range, distribution on/off | `widgets/WidgetConfigActivity.kt`, `GraphSettings.widget` |
+| Mac: the same card in the menubar dropdown and the widgets (shared Swift port), a Graph submenu, a 15-day reading store, per-widget App Intents options | `widgets-macos/Shared/SukraraGraph.swift`, `menubar` |
+| DebugReceiver `--es graph JSON`, `--es widgetGraph ID:JSON`, `cmd pinWidget` | `features/DebugReceiver.kt` |
+
+| Discarded | Why |
+|---|---|
+| `GraphRenderer`, `GlucoseChart`, `BigGlucose`, the Mac 3 h sparkline | replaced by the one renderer |
+| Histogram, two Gaussian kernels, plain time at level, the area style | the user picked time at level, band-exact, dots |
+| Colour thresholds 65 / 145 / 185, red above 185 | the configurable ranges; above range is orange as in the draft |
+| "x min ago", the rate (+0.1 mg/dL/min) on the home panel, widgets, notification and Mac | the user: not useful; freshness steps instead |
+| Widget windows by width (2–6 h) | 12 h default + per place + per widget |
+| The in-app chart's grow-in animation for new points | the chart is drawn by the shared renderer; the number still rolls and the arrow still turns |
+
 ## Short invites and private profiles (v0.11.0)
 
 *2026-10-17. Investigation 14 brought into Sukrara (Android + Mac). Kept and left out, with reasons:

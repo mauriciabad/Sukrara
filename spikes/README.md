@@ -207,6 +207,25 @@ Phone tests (adb only): `am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara
 high` (one alert, also sent to followers), `--es alertFeed '204,-0.5'` (a made-up reading through the rules).
 `adb logcat -s Sukrara.Alerts` shows each firing and which sound file SystemUI opened.
 
+## Graph (investigation 16)
+
+The glucose card (value, rings, chart with the time-at-level distribution) is drawn by one renderer:
+`showcase-android/…/graph/` on Android and `widgets-macos/Shared/SukraraGraph.swift` on the Mac (the menubar target
+links it through a symlink). Picture sheets and tests on the JVM (Robolectric's Android 16 sandbox needs Java 21+):
+
+```sh
+cd showcase-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+GALLERY_JAVA_HOME=$(brew --prefix)/opt/openjdk/libexec/openjdk.jdk/Contents/Home \
+  ./gradlew testDebugUnitTest --tests '*GraphGallery*' --tests '*GlucoseStatsTest*' -Dgallery.out=$PWD/../../docs/img/16
+cd ../menubar && swift run GlucoseBar -graphselftest     # the Swift port's checks
+```
+Phone/emulator: `--es graph '{"defaultHours":6,"ringCount":3}'`, `--es widgetGraph '<id>:{"hours":3,"rings":1}'`,
+`--es cmd pinWidget --es kind combined` (asks the launcher to add a widget; the app must be in the foreground).
+On the Mac the same settings are `UserDefaults` (`graphHours`, `ringCount`, `ringWindows`, `ringRange`,
+`bandVeryLow` … `bandVeryHigh`, `side`) or the dropdown's Graph submenu. `widgets-macos/appintents.sh` generates the
+widgets' App Intents metadata with Xcode's `appintentsmetadataprocessor` (per-widget settings; skipped without Xcode).
+
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 
 ```sh
