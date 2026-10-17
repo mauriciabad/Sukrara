@@ -51,6 +51,7 @@ import app.mauri.sukrara.owner.OwnerUi
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.wearer.Live
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -99,6 +100,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     val alerts by Alerts.settings.collectAsState()
+    val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
     val gs = graphSummary()
     SettingsPage("Settings", onBack) {
         SettingsSearchBar()
@@ -124,7 +126,8 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link("Status bar", listOfNotNull("chip".takeIf { f.chip }, "number icon".takeIf { f.icon }, "value".takeIf { f.hook })
                 .joinToString(" · ").ifEmpty { "Off" }.replaceFirstChar { it.uppercase() },
                 leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }, to = "statusbar")
-            link("Lock screen", if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.CHOICES.first { it.second == f.lockBg }.first else "Off",
+            link("Lock screen", if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) NEEDS_MODULE
+                else if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.CHOICES.first { it.second == f.lockBg }.first else "Off",
                 leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }, to = "lockscreen")
         }
         SettingsGroup {
@@ -279,6 +282,55 @@ private fun FollowerDialog(fl: Follower, writer: Boolean, a: OwnerActions, onClo
     )
 }
 
+// ================================================================================================ root & LSPosed
+
+private const val NEEDS_MODULE = "Needs the Sukrara LSPosed module"
+
+/**
+ * What a page's features are missing, with the one step that fixes it: root for Sukrara, then the LSPosed module
+ * enabled with System UI in its scope and loaded. Checks again whenever the page comes back to the front.
+ */
+@Composable
+private fun SystemAccessBanner(root: Boolean, module: Boolean) {
+    if (indexing) return
+    val ctx = LocalContext.current
+    val rootOk by app.mauri.sukrara.status.RootStatusBar.root.collectAsState()
+    val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
+    var restarting by remember { mutableStateOf(false) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        app.mauri.sukrara.status.RootStatusBar.checkRoot()
+        app.mauri.sukrara.features.SystemAccess.refresh()
+        onPauseOrDispose {}
+    }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val icon: @Composable () -> Unit = { androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_sym_key), null) }
+    when {
+        root && rootOk == false -> SettingsBanner(icon, "Root needed",
+            "Grant Sukrara root in KernelSU (or Magisk): Superuser → Sukrara → allow. Then check again.",
+            "Check again", { app.mauri.sukrara.status.RootStatusBar.checkRoot() })
+        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.MISSING -> SettingsBanner(icon, "LSPosed module off",
+            "Install LSPosed, enable the Sukrara module and tick System UI in its scope, then restart System UI.", null, {})
+        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.NO_SCOPE -> SettingsBanner(icon, "System UI not in scope",
+            "The Sukrara module is enabled in ${access.framework ?: "LSPosed"} but not for System UI." + (problem?.let { " ($it)" } ?: ""),
+            "Add System UI", { app.mauri.sukrara.features.SystemAccess.requestSystemUi { problem = it } })
+        module && access.module in setOf(app.mauri.sukrara.features.SystemAccess.Module.RESTART,
+            app.mauri.sukrara.features.SystemAccess.Module.UPDATE) -> SettingsBanner(icon, "Restart System UI",
+            if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE)
+                "Sukrara was updated: System UI still runs the previous module. Restart it to load the new one (the status bar redraws for a moment)."
+            else "System UI runs without the Sukrara module. Restarting it loads the module (the status bar redraws for a moment).",
+            if (rootOk == true && !restarting) "Restart System UI" else null, {
+                restarting = true
+                scope.launch {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.mauri.sukrara.status.RootStatusBar.restartSystemUi() }
+                    kotlinx.coroutines.delay(4_000)
+                    app.mauri.sukrara.features.SystemAccess.refresh()
+                    restarting = false
+                }
+            })
+    }
+}
+
 // ================================================================================================ status bar
 
 @Composable
@@ -289,13 +341,18 @@ fun StatusBarSettings(onBack: () -> Unit) {
     val root by rootBar.root.collectAsState()
     LaunchedEffect(Unit) { rootBar.checkRoot() }
     val ok = root == true
+    val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
+    val module = access.active
     val hookOn = ok && f.hook
     val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
+    // "With the system icons" works with root alone; the other placements are drawn by the module
+    fun needsModule(pos: String) = pos != app.mauri.sukrara.features.HookPosition.SLOT_PREFIX
     var choosing by remember { mutableStateOf(false) }
     val off = "Unavailable while the value in the status bar is off"
     val nm = ctx.getSystemService(NotificationManager::class.java)
     SettingsPage("Status bar", onBack) {
         SettingsIntro(R.drawable.ic_sym_smartphone, "Your glucose at a glance in the status bar, without opening anything.")
+        SystemAccessBanner(root = true, module = true)
         SettingsGroup {
             switch("Live Update chip", f.chip, summary = "The number next to the clock") { v -> set { it.copy(chip = v) } }
             if (f.chip && !nm.canPostPromotedNotifications()) link("Allow Live Updates for Sukrara", "Needed for the chip", external = true) {
@@ -307,18 +364,24 @@ fun StatusBarSettings(onBack: () -> Unit) {
             switch("Value in the status bar", f.hook && ok, enabled = ok, summary = when (root) {
                 null -> "Checking root…"
                 false -> "Unavailable: needs root for Sukrara (KernelSU)"
-                true -> if (f.hook) placement else "Off"
+                true -> if (!f.hook) "Off" else if (needsModule(f.hookPosition) && !module) "Not shown: $placement needs the LSPosed module" else placement
             }) { v -> set { it.copy(hook = v) } }
-            switch("Colour by range", f.hookColor, enabled = hookOn, summary = if (hookOn) null else off) { v -> set { it.copy(hookColor = v) } }
+            switch("Colour by range", f.hookColor, enabled = hookOn && module,
+                summary = if (!hookOn) off else if (!module) NEEDS_MODULE else null) { v -> set { it.copy(hookColor = v) } }
             value("Placement", if (hookOn) placement else off, enabled = hookOn) { choosing = true }
-            switch("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = hookOn,
-                summary = if (hookOn) "In the status bar only; the notification stays in the shade" else off) { v -> set { it.copy(hideNotifIcon = v) } }
+            switch("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = hookOn && module,
+                summary = if (!hookOn) off else if (!module) NEEDS_MODULE else "In the status bar only; the notification stays in the shade") { v ->
+                set { it.copy(hideNotifIcon = v) }
+            }
         }
         SettingsFooter("The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification " +
             "icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed " +
             "(scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "")
     }
-    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { Choice(it.first, it.second) }, f.hookPosition,
+    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { (label, pos) ->
+            val ok = module || !needsModule(pos)
+            Choice(label, pos, sub = if (ok) null else NEEDS_MODULE, enabled = ok)
+        }, f.hookPosition,
         { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
 }
 
@@ -334,12 +397,15 @@ fun LockscreenSettings(onBack: () -> Unit) {
         app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
         app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "lock screen style", force = true)
     }
-    val on = f.lockWidget
-    val off = "Unavailable while glucose on the lock screen is off"
+    val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
+    val module = access.active
+    val on = f.lockWidget && module
+    val off = if (!module) NEEDS_MODULE else "Unavailable while glucose on the lock screen is off"
     val bg = app.mauri.sukrara.features.LockBackground
     SettingsPage("Lock screen", onBack) {
         SettingsIntro(R.drawable.ic_sym_screen_lock_portrait, "Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
-        SettingsMainSwitch("Glucose on the lock screen", on) { v -> change { it.copy(lockWidget = v) } }
+        SystemAccessBanner(root = false, module = true)
+        SettingsMainSwitch("Glucose on the lock screen", on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
         SettingsGroup {
             value("Background", if (on) bg.CHOICES.first { it.second == f.lockBg }.first else off, enabled = on) { choosing = true }
             switch("In range in white", f.lockWhite, enabled = on, summary = if (on) "Highs and lows keep their colours" else off) { v ->
@@ -661,6 +727,17 @@ private suspend fun latestRelease(): Release? = withContext(Dispatchers.IO) {
     }.getOrNull()
 }
 
+/** Whether release [tag] ("v0.11.12") is a newer version than [installed] ("0.11.13" → no): numbers compared part by part. */
+internal fun newer(tag: String, installed: String): Boolean {
+    fun parts(v: String) = v.removePrefix("v").substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
+    val a = parts(tag); val b = parts(installed)
+    for (i in 0 until maxOf(a.size, b.size)) {
+        val x = a.getOrElse(i) { 0 }; val y = b.getOrElse(i) { 0 }
+        if (x != y) return x > y
+    }
+    return false
+}
+
 /** What a release file is for, from its name (unknown kinds still show, by file name). */
 private fun platformOf(name: String): Pair<String, Int> = when {
     name.endsWith(".apk") -> "Android" to R.drawable.ic_brand_android
@@ -690,7 +767,7 @@ fun AboutSettings(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
         val r = release?.getOrNull()
-        if (r != null && r.tag.removePrefix("v") != BuildConfig.VERSION_NAME) SettingsGroup {
+        if (r != null && newer(r.tag, BuildConfig.VERSION_NAME)) SettingsGroup {
             action("Update to ${r.tag.removePrefix("v")}", "Download the new version", icon = R.drawable.ic_sym_download) { open(r.url) }
         }
         SettingsGroup("Sukrara on other devices") {
@@ -699,7 +776,8 @@ fun AboutSettings(onBack: () -> Unit) {
                 r == null -> link("Downloads", "Couldn't reach GitHub · open the releases page", icon = R.drawable.ic_sym_download, external = true) { open("$REPO/releases/latest") }
                 else -> for (d in r.files) {
                     val (label, icon) = platformOf(d.name)
-                    link(label, d.name + if (label == "Android") " · this app" else "", icon = icon, external = true) { open(d.url) }
+                    val mine = label == "Android" && r.tag.removePrefix("v") == BuildConfig.VERSION_NAME
+                    link(label, d.name + if (mine) " · this app" else "", icon = icon, external = true) { open(d.url) }
                 }
             }
         }

@@ -20,6 +20,7 @@ class App : Application() {
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
+        app.mauri.sukrara.features.SystemAccess.init()   // is the LSPosed module running in System UI?
         app.mauri.sukrara.graph.GraphSettings.init(this)
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)

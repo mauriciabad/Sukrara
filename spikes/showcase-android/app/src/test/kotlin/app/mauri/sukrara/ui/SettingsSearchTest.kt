@@ -39,3 +39,14 @@ class SettingsSearchTest {
 
     @Test fun blankFindsNothing() { assertTrue(search(all, "  ").isEmpty()) }
 }
+
+class ReleaseVersionTest {
+    @Test fun onlyANewerReleaseIsAnUpdate() {
+        assertTrue(newer("v0.11.14", "0.11.13"))
+        assertTrue(newer("v0.12.0", "0.11.13"))
+        assertTrue(newer("v1.0", "0.11.13"))
+        assertEquals(false, newer("v0.11.12", "0.11.13"))   // the installed test build is ahead of the release
+        assertEquals(false, newer("v0.11.13", "0.11.13"))
+        assertEquals(false, newer("v0.11.9", "0.11.10"))     // 9 < 10, not "9" > "1"
+    }
+}

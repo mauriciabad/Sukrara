@@ -88,6 +88,11 @@ class DebugReceiver : BroadcastReceiver() {
         }
         alerts.init(c)
         out.put("alerts", alerts.toJson())
+        // root (su for Sukrara) and the LSPosed module as Settings sees them
+        SystemAccess.refresh()
+        out.put("systemAccess", JSONObject().put("root", app.mauri.sukrara.status.RootStatusBar.root.value ?: JSONObject.NULL)
+            .put("module", SystemAccess.status.value.module.name).put("framework", SystemAccess.status.value.framework ?: JSONObject.NULL)
+            .put("systemUi", SystemAccess.status.value.target ?: JSONObject.NULL))
         // Investigation 16: --es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3,…}' (GraphConfig.toJson
         // fields, merged into the current ones) · --es widgetGraph '<appWidgetId>:{"hours":6,"rings":1,"side":false}'
         val graph = app.mauri.sukrara.graph.GraphSettings

@@ -378,7 +378,7 @@ fun SettingsFooter(text: String) {
  * "Not now" and the action. Shown at the top of the home screen and of the settings overview.
  */
 @Composable
-fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
+fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, action: String?, onAction: () -> Unit, onDismiss: (() -> Unit)? = null) {
     if (indexing) return
     androidx.compose.material3.Card(colors = androidx.compose.material3.CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
@@ -390,8 +390,8 @@ fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, ac
             }
             Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Not now") }
-                androidx.compose.material3.TextButton(onClick = onAction) { Text(action) }
+                onDismiss?.let { androidx.compose.material3.TextButton(onClick = it) { Text("Not now") } }
+                action?.let { androidx.compose.material3.TextButton(onClick = onAction) { Text(it) } }
             }
         }
     }

@@ -17,3 +17,6 @@
 -keep class app.mauri.sukrara.status.SlotDaemon { public static void main(java.lang.String[]); }
 # The LSPosed module's entry class is named in META-INF/xposed/java_init.list.
 -keep class app.mauri.sukrara.hook.SystemUiHook { <init>(); *; }
+
+# libxposed service + its AIDL interface (same package; features/SystemAccess): LSPosed calls XposedProvider
+-keep class io.github.libxposed.service.** { *; }
