@@ -1,7 +1,6 @@
 // CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
-import AppIntents
 import Foundation
 import os
 import SwiftUI
@@ -16,73 +15,27 @@ struct GlucoseEntry: TimelineEntry {
     var overrides = WidgetOverrides()
 }
 
-// MARK: - Per-widget settings (investigation 16): "Edit Widget" on each placement
-
-enum WindowChoice: String, AppEnum {
-    case app, h3, h6, h12, h24
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Graph window"
-    static let caseDisplayRepresentations: [WindowChoice: DisplayRepresentation] = [
-        .app: "Sukrara's setting", .h3: "3 hours", .h6: "6 hours", .h12: "12 hours", .h24: "24 hours"]
-    var hours: Int? { switch self { case .app: nil; case .h3: 3; case .h6: 6; case .h12: 12; case .h24: 24 } }
-}
-
-enum RingsChoice: String, AppEnum {
-    case app, none, one, two, three
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Time in range rings"
-    static let caseDisplayRepresentations: [RingsChoice: DisplayRepresentation] = [
-        .app: "Sukrara's setting", .none: "None", .one: "1", .two: "2", .three: "3"]
-    var count: Int? { switch self { case .app: nil; case .none: 0; case .one: 1; case .two: 2; case .three: 3 } }
-}
-
-enum RangeChoice: String, AppEnum {
-    case app, inRange, tight
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Ring number"
-    static let caseDisplayRepresentations: [RangeChoice: DisplayRepresentation] = [
-        .app: "Sukrara's setting", .inRange: "In range", .tight: "Very good"]
-    var range: TirRange? { switch self { case .app: nil; case .inRange: .inRange; case .tight: .tight } }
-}
-
-enum SideChoice: String, AppEnum {
-    case app, on, off
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Time in range beside the graph"
-    static let caseDisplayRepresentations: [SideChoice: DisplayRepresentation] = [.app: "Sukrara's setting", .on: "Shown", .off: "Hidden"]
-    var side: Bool? { switch self { case .app: nil; case .on: true; case .off: false } }
-}
-
-struct GlucoseWidgetIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Glucose widget"
-    static let description = IntentDescription("This widget's graph window and time-in-range rings.")
-
-    @Parameter(title: "Graph window", default: .app) var window: WindowChoice
-    @Parameter(title: "Time in range rings", default: .app) var rings: RingsChoice
-    @Parameter(title: "Ring number", default: .app) var ringRange: RangeChoice
-    @Parameter(title: "Time in range beside the graph", default: .app) var side: SideChoice
-
-    var overrides: WidgetOverrides {
-        WidgetOverrides(hours: window.hours, rings: rings.count, ringRange: ringRange.range, side: side.side)
-    }
-}
-
-struct Provider: AppIntentTimelineProvider {
+/// A plain (static) configuration. Per-widget settings through App Intents were tried in 0.11.7 and removed: without
+/// an Xcode project chronod never registered the intent and asked for every timeline with `intent = nil`, which
+/// WidgetKit rejects ("Intent configuration is required but was not provided"), so the widgets froze (docs/16).
+struct Provider: TimelineProvider {
     let kind: WidgetKind
 
     func placeholder(in context: Context) -> GlucoseEntry {
         GlucoseEntry(date: Date(), content: GlucoseEntryContent(snapshot: Synthetic.realistic(), date: Date()), via: "placeholder")
     }
 
-    func snapshot(for configuration: GlucoseWidgetIntent, in context: Context) async -> GlucoseEntry {
-        let (s, via, _) = await Loader.load()
-        let now = Date()
-        // Gallery preview: show synthetic data if the host isn't running.
-        return GlucoseEntry(date: now, content: GlucoseEntryContent(snapshot: s ?? Synthetic.realistic(), date: now), via: via,
-                            overrides: configuration.overrides)
+    func getSnapshot(in context: Context, completion: @escaping (GlucoseEntry) -> Void) {
+        Task {
+            let (s, via, _) = await Loader.load()
+            let now = Date()
+            // Gallery preview: show synthetic data if the host isn't running.
+            completion(GlucoseEntry(date: now, content: GlucoseEntryContent(snapshot: s ?? Synthetic.realistic(), date: now), via: via))
+        }
     }
 
-    func timeline(for configuration: GlucoseWidgetIntent, in context: Context) async -> Timeline<GlucoseEntry> {
-        await withCheckedContinuation { cont in getTimeline(in: context, overrides: configuration.overrides) { cont.resume(returning: $0) } }
-    }
-
-    func getTimeline(in context: Context, overrides: WidgetOverrides, completion: @escaping (Timeline<GlucoseEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<GlucoseEntry>) -> Void) {
+        let overrides = WidgetOverrides()
         Task {
             let (s, via, report) = await Loader.load()
             let now = Date()
@@ -136,7 +89,7 @@ struct EntryView: View {
 
 struct ValueWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "dev.spike.glucose.value", intent: GlucoseWidgetIntent.self, provider: Provider(kind: .value)) {
+        StaticConfiguration(kind: "dev.spike.glucose.value", provider: Provider(kind: .value)) {
             EntryView(kind: .value, entry: $0)
         }
         .configurationDisplayName("Glucose")
@@ -147,7 +100,7 @@ struct ValueWidget: Widget {
 
 struct GraphWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "dev.spike.glucose.graph", intent: GlucoseWidgetIntent.self, provider: Provider(kind: .graph)) {
+        StaticConfiguration(kind: "dev.spike.glucose.graph", provider: Provider(kind: .graph)) {
             EntryView(kind: .graph, entry: $0)
         }
         .configurationDisplayName("Glucose graph")
@@ -158,7 +111,7 @@ struct GraphWidget: Widget {
 
 struct CombinedWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "dev.spike.glucose.combined", intent: GlucoseWidgetIntent.self, provider: Provider(kind: .combined)) {
+        StaticConfiguration(kind: "dev.spike.glucose.combined", provider: Provider(kind: .combined)) {
             EntryView(kind: .combined, entry: $0)
         }
         .configurationDisplayName("Glucose + graph")

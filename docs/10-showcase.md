@@ -500,7 +500,7 @@ follows the [Glance configuration guide](https://developer.android.com/develop/u
 | 0–3 time-in-range rings (12 h – 14 d), "in range" or "very good" in the middle; the wearer keeps 15 days (was 8) | `TirRing`, `GraphData`, `OwnerEngine` prune |
 | Settings → Graph & time in range (both roles), with a live preview | `ui/GraphScreen.kt` |
 | Per-widget window, rings, ring range, distribution on/off | `widgets/WidgetConfigActivity.kt`, `GraphSettings.widget` |
-| Mac: the same card in the menubar dropdown and the widgets (shared Swift port), a Graph submenu, a 15-day reading store, per-widget App Intents options | `widgets-macos/Shared/SukraraGraph.swift`, `menubar` |
+| Mac: the same card in the menubar dropdown and the widgets (shared Swift port), a Graph submenu, a 15-day reading store | `widgets-macos/Shared/SukraraGraph.swift`, `menubar` |
 | DebugReceiver `--es graph JSON`, `--es widgetGraph ID:JSON`, `cmd pinWidget` | `features/DebugReceiver.kt` |
 
 | Discarded | Why |
@@ -510,6 +510,7 @@ follows the [Glance configuration guide](https://developer.android.com/develop/u
 | Colour thresholds 65 / 145 / 185, red above 185 | the configurable ranges; above range is orange as in the draft |
 | "x min ago", the rate (+0.1 mg/dL/min) on the home panel, widgets, notification and Mac | the user: not useful; freshness steps instead |
 | Widget windows by width (2–6 h) | 12 h default + per place + per widget |
+| Per-widget settings on the Mac (App Intents, 0.11.7) | without an Xcode project chronod never registered the intent and the widgets froze; removed in 0.11.8 |
 | The in-app chart's grow-in animation for new points | the chart is drawn by the shared renderer; the number still rolls and the arrow still turns |
 
 ## The doctor's report in the app (investigation 18, v0.11.7)

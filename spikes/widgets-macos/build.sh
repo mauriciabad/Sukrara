@@ -44,13 +44,10 @@ mkdir -p $APP/Contents/MacOS $APPEX/Contents/MacOS
 # Widget extension. -application-extension restricts to extension-safe API. The entry point must be
 # Foundation's _NSExtensionMain (as Xcode links extensions): it sets up the extension runtime and then runs the
 # @main WidgetBundle. Starting at the Swift main() instead traps in _EXRunningExtension._shared (docs/13).
-# appintents.sh: const values for the per-widget settings (App Intents), then Resources/Metadata.appintents.
 $SWIFTC -parse-as-library -application-extension -module-name GlucoseWidget \
   Shared/*.swift Widget/GlucoseWidgets.swift -o $APPEX/Contents/MacOS/GlucoseWidget \
-  -Xlinker -e -Xlinker _NSExtensionMain ${(z)$(./appintents.sh flags $OUT/appintents)}
+  -Xlinker -e -Xlinker _NSExtensionMain
 cp Widget/Info.plist $APPEX/Contents/Info.plist
-./appintents.sh extract $OUT/appintents GlucoseWidget $APPEX/Contents/MacOS/GlucoseWidget $APPEX/Contents/Resources \
-  Shared/*.swift Widget/GlucoseWidgets.swift
 
 # Host app.
 $SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Shared/SukraraGraph.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets

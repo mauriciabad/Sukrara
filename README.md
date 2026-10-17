@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.8/Sukrara-0.11.8.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -87,8 +87,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - The same glucose alerts and sound packs as the phone (menu → **Alerts…**): alert when the wearer's phone does, or
   with the Mac's own settings. [15](docs/15-alerts.md)
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
-- Desktop and Notification Center widgets (value, graph, graph + value) with the same card, each with its own settings
-  (Edit Widget), redrawn every minute.
+- Desktop and Notification Center widgets (value, graph, graph + value) with the same card, redrawn every minute.
   They need a build signed with an Apple certificate: a free Apple ID works on your own Mac, others need Developer
   ID. [13](docs/13-macos-widgets.md)
 
@@ -201,7 +200,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.11.7](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.7) (Android and Mac)
+Downloads: Android [v0.11.7](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.7), Mac [v0.11.8](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.8)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
@@ -226,10 +225,10 @@ Downloads: [v0.11.7](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
   the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.7.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.11.8.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.7.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.11.8.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an

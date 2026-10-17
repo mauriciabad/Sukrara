@@ -223,8 +223,8 @@ cd ../menubar && swift run GlucoseBar -graphselftest     # the Swift port's chec
 Phone/emulator: `--es graph '{"defaultHours":6,"ringCount":3}'`, `--es widgetGraph '<id>:{"hours":3,"rings":1}'`,
 `--es cmd pinWidget --es kind combined` (asks the launcher to add a widget; the app must be in the foreground).
 On the Mac the same settings are `UserDefaults` (`graphHours`, `ringCount`, `ringWindows`, `ringRange`,
-`bandVeryLow` … `bandVeryHigh`, `side`) or the dropdown's Graph submenu. `widgets-macos/appintents.sh` generates the
-widgets' App Intents metadata with Xcode's `appintentsmetadataprocessor` (per-widget settings; skipped without Xcode).
+`bandVeryLow` … `bandVeryHigh`, `side`) or the dropdown's Graph submenu. The Mac widgets have no per-widget settings
+(App Intents need an Xcode project to register; see docs/16).
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 
