@@ -101,6 +101,7 @@ fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
     val alerts by Alerts.settings.collectAsState()
     val gs = graphSummary()
     SettingsPage("Settings", onBack) {
+        LibreViewBanner(onSetUp = { open("libreview") })
         SettingsGroup {
             link(u.profile?.name?.ifBlank { null } ?: "Add your name", "Wearer · what your followers see",
                 leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }) { open("profile") }
@@ -109,9 +110,12 @@ fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
             link("Alerts", alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }) { open("alerts") }
             link("Glucose source", (if (f.source == "direct") "Libre 3 directly" else "Juggluco") + " · " + st.source,
                 leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }) { open("source") }
+        }
+        SettingsGroup {
             val n = u.followers.count { it.revoked == null }
-            link("Sharing", "$n follower${if (n == 1) "" else "s"}" + (if (f.nostr) " · relays" else "") + (if (f.bleFollowers) " · Bluetooth" else ""),
+            link(PEOPLE, "$n follower${if (n == 1) "" else "s"}" + (if (f.nostr) " · internet" else "") + (if (f.bleFollowers) " · Bluetooth" else ""),
                 leading = { CategoryIcon(R.drawable.ic_sym_group, Category.BLUE) }) { open("sharing") }
+            link(APPS, appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }) { open("apps") }
         }
         SettingsGroup {
             link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
@@ -122,8 +126,7 @@ fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
                 leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }) { open("lockscreen") }
         }
         SettingsGroup {
-            link("Watch & other apps", appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_watch, Category.ORANGE) }) { open("apps") }
-            link("Backup", if (u.backupSavedAt > 0) "Saved ${date(u.backupSavedAt)}" else "Not backed up",
+            link("Backup", (if (u.backupSavedAt > 0) "Saved ${date(u.backupSavedAt)}" else "Not backed up") + " · export settings",
                 leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }) { open("backup") }
         }
         SettingsGroup {
@@ -134,9 +137,27 @@ fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
     }
 }
 
+/** Sharing with people (followers) and with apps (LibreView, xDrip+, Nightscout clients, Nostr): two pages that link to each other. */
+private const val PEOPLE = "Share with people"
+private const val APPS = "Share with apps"
+
 private fun appsSummary(f: FeatureState, wearer: Boolean) = listOfNotNull(
-    "Garmin".takeIf { f.garmin }, "Nightscout API".takeIf { f.nightscout }, "LibreView".takeIf { wearer && f.libreview },
+    "LibreView".takeIf { wearer && f.libreview }, "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
 ).joinToString(" · ").ifEmpty { "Off" }
+
+/** Uploading to LibreView matters (it's the doctor's record): ask until it's set up or the user says not now. */
+@Composable
+fun LibreViewBanner(onSetUp: () -> Unit) {
+    val f by Features.state.collectAsState()
+    val lv by Treat.uploader.settings.collectAsState()
+    val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
+    Reveal(!ready && !f.libreviewBannerDismissed) {
+        SettingsBanner(R.drawable.ic_sym_cloud_upload, "Set up LibreView",
+            "Upload your glucose and entries to LibreView, the record your doctor sees.", "Set up", onSetUp) {
+            set { it.copy(libreviewBannerDismissed = true) }
+        }
+    }
+}
 
 // ================================================================================================ glucose source
 
@@ -179,13 +200,13 @@ fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
 // ================================================================================================ sharing
 
 @Composable
-fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
+fun SharingSettings(u: OwnerUi, a: OwnerActions, onApps: () -> Unit, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Follower?>(null) }
     val active = u.followers.filter { it.revoked == null }
     val pairing = u.nearbyUntil > Proto.nowS()
-    SettingsPage("Sharing", onBack) {
+    SettingsPage(PEOPLE, onBack) {
         SettingsIntro(R.drawable.ic_sym_group, "The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.")
         SettingsGroup {
             action("Share with someone", "Send an invite link", icon = R.drawable.ic_sym_share, onClick = a::share)
@@ -202,19 +223,32 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             for (fl in u.followers.filter { it.revoked != null }) info(fl.name, "Removed ${date(fl.revoked!!)}", icon = R.drawable.ic_sym_person_remove)
         }
         SettingsGroup("How readings travel") {
-            switch("Over the internet (Nostr relays)", f.nostr, summary = "Followers anywhere") { v -> set { it.copy(nostr = v) } }
-            value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
-                enabled = f.nostr) { choosing = true }
+            nostrRows(f) { choosing = true }
             switch("Over Bluetooth nearby", f.bleFollowers,
                 summary = if (u.bleOn) "${u.bleCentrals} connected now" else "Bluetooth is off") { v -> set { it.copy(bleFollowers = v) } }
         }
+        SettingsGroup { link(APPS, "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, onClick = onApps) } 
         SettingsFooter("Removing someone rotates the read key, so they stop receiving new readings at once. Followers you " +
             "allow to add entries can log insulin, carbs and notes for you.")
     }
-    if (choosing) ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin,
-        { choosing = false }) { v -> set { it.copy(nostrIntervalMin = v) } }
+    if (choosing) NostrIntervalDialog(f) { choosing = false }
     editing?.let { fl -> FollowerDialog(fl, fl.f in u.writers, a) { editing = null } }
 }
+
+/** Nostr relays, on both sharing pages (followers' phones and Macs read from them). */
+private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit) {
+    switch("Over the internet (Nostr relays)", f.nostr, icon = R.drawable.ic_sym_hub, summary = "End-to-end encrypted; followers anywhere") { v ->
+        set { it.copy(nostr = v) }
+    }
+    value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
+        enabled = f.nostr, onClick = onInterval)
+}
+
+@Composable
+private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) =
+    ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin, onClose) { v ->
+        set { it.copy(nostrIntervalMin = v) }
+    }
 
 /** One follower: whether they may add entries, and removing them. */
 @Composable
@@ -317,40 +351,49 @@ fun LockscreenSettings(onBack: () -> Unit) {
 
 // ================================================================================================ watch & other apps
 
-/** Garmin watch server + Nightscout read API (both roles) and, on the wearer, LibreView. */
+/**
+ * Sharing with apps: LibreView (wearer), the xDrip+-compatible server (what Garmin watch apps read), the Nightscout
+ * API and the Nostr relays (wearer). Off by default except Nostr; each says how other apps reach it.
+ */
 @Composable
-fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onBack: () -> Unit) {
+fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onPeople: (() -> Unit)?, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     var secret by remember { mutableStateOf(false) }
-    SettingsPage("Watch & other apps", onBack) {
-        SettingsIntro(R.drawable.ic_sym_watch, "Your glucose on a Garmin watch, in apps that read Nightscout" +
-            if (wearer) ", and in LibreView for your doctor." else ".")
-        SettingsGroup("Garmin") {
-            switch("Watch server", f.garmin, icon = R.drawable.ic_sym_watch, summary = st.garmin +
-                (if (st.watchPolledAt > 0) " · watch asked ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
-        }
-        SettingsGroup("Nightscout API") {
-            switch("Nightscout-compatible API", f.nightscout, icon = R.drawable.ic_sym_lan,
-                summary = "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}") { v -> set { it.copy(nightscout = v) } }
-            switch("Also on this Wi-Fi network", f.nightscoutLan, enabled = f.nightscout,
-                summary = if (f.nightscout) "Other devices need the API secret" else "Unavailable while the API is off") { v -> set { it.copy(nightscoutLan = v) } }
-            if (f.nightscout && f.nightscoutLan) action("Show API secret", icon = R.drawable.ic_sym_key) { secret = true }
-        }
+    var choosing by remember { mutableStateOf(false) }
+    SettingsPage(APPS, onBack) {
+        SettingsIntro(R.drawable.ic_sym_apps, "Your glucose in other apps: " + (if (wearer) "LibreView for your doctor, " else "") +
+            "Garmin watches through the xDrip+ server, and anything that reads Nightscout.")
         if (wearer) {
             val lv by Treat.uploader.settings.collectAsState()
             SettingsGroup("LibreView") {
                 link("LibreView", when {
-                    lv.email.isEmpty() || !lv.hasPassword -> "Not signed in"
+                    lv.email.isEmpty() || !lv.hasPassword -> "Not set up"
                     f.libreview -> "Uploading as ${lv.email}"
                     else -> "Off · ${lv.email}"
                 }, icon = R.drawable.ic_sym_cloud_upload, onClick = onLibreView)
             }
         }
-        SettingsFooter("The watch server speaks xDrip+'s protocol on 127.0.0.1:17580 (Garmin faces and data fields). The " +
-            "Nightscout API is for Home Assistant, xDrip+, Nightguard and clocks; it's plain HTTP, so share it only on networks you trust.")
+        SettingsGroup("xDrip+") {
+            switch("xDrip+ server", f.garmin, icon = R.drawable.ic_sym_watch, summary = "For Garmin watch faces and data fields · " + st.garmin +
+                (if (st.watchPolledAt > 0) " · last asked ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
+        }
+        SettingsGroup("Nightscout") {
+            switch("Nightscout-compatible API", f.nightscout, icon = R.drawable.ic_nightscout,
+                summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else "For Home Assistant, Nightguard, clocks") { v ->
+                set { it.copy(nightscout = v) }
+            }
+            switch("Also on this Wi-Fi network", f.nightscoutLan, enabled = f.nightscout,
+                summary = if (f.nightscout) "Other devices need the API secret" else "Unavailable while the API is off") { v -> set { it.copy(nightscoutLan = v) } }
+            if (f.nightscout && f.nightscoutLan) action("Show API secret", icon = R.drawable.ic_sym_key) { secret = true }
+        }
+        if (wearer) SettingsGroup("Nostr") { nostrRows(f) { choosing = true } }
+        onPeople?.let { SettingsGroup { link(PEOPLE, "Followers, invites, nearby pairing", icon = R.drawable.ic_sym_group, onClick = it) } }
+        SettingsFooter("The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields " +
+            "made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.")
     }
+    if (choosing) NostrIntervalDialog(f) { choosing = false }
     if (secret) AlertDialog(
         onDismissRequest = { secret = false },
         title = { Text("API secret") },
@@ -416,6 +459,7 @@ fun LibreViewSettings(onBack: () -> Unit) {
 fun BackupSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     var showRecovery by remember { mutableStateOf(false) }
     val saved = u.backupSavedAt > 0
+    val transfer = settingsTransfer()
     SettingsPage("Backup", onBack) {
         SettingsIntro(R.drawable.ic_sym_backup, if (saved) "Your identity is in a password manager. A new phone restores it and your followers continue."
             else "Not backed up: if you lose this phone, every follower must be invited again.")
@@ -425,10 +469,56 @@ fun BackupSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             action("Recovery code", "An encrypted key to write down or store elsewhere", icon = R.drawable.ic_sym_history_edu) { showRecovery = true }
             info("Backup on relays", if (u.backupPublishedAt > 0) "Updated ${date(u.backupPublishedAt)}" else "Not yet", icon = R.drawable.ic_sym_hub)
         }
+        transfer.group(this)
         SettingsFooter("The backup on relays holds your followers, keys and invites, encrypted to your identity: restoring " +
-            "the identity brings them back.")
+            "the identity brings them back. A settings file holds only the options: alerts, graph, status bar, lock " +
+            "screen and sharing switches.")
     }
     if (showRecovery) RecoveryDialog(a) { showRecovery = false }
+    transfer.dialogs()
+}
+
+/** Export / import / reset of the options ([SettingsTransfer]), for both roles' settings. */
+private class TransferUi(val group: @Composable (androidx.compose.foundation.layout.ColumnScope) -> Unit, val dialogs: @Composable () -> Unit)
+
+@Composable
+private fun settingsTransfer(): TransferUi {
+    val ctx = LocalContext.current
+    val T = app.mauri.sukrara.features.SettingsTransfer
+    var resetting by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val exporter = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument(T.MIME)) { uri ->
+        if (uri != null) message = runCatching {
+            ctx.contentResolver.openOutputStream(uri)!!.use { it.write(T.export().toString(2).toByteArray()) }
+            "Settings exported"
+        }.getOrElse { "Couldn't write the file: ${it.message}" }
+    }
+    val importer = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) message = runCatching {
+            val j = JSONObject(ctx.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() })
+            T.import(ctx, j) ?: "Settings imported"
+        }.getOrElse { "Couldn't read the file: ${it.message}" }
+    }
+    return TransferUi(group = {
+        SettingsGroup("Settings") {
+            action("Export settings", "Save the options to a file", icon = R.drawable.ic_sym_file_export) { exporter.launch(T.fileName()) }
+            action("Import settings", "Use the options from a file", icon = R.drawable.ic_sym_file_upload) { importer.launch(arrayOf(T.MIME, "text/plain", "*/*")) }
+            action("Reset settings", "Every option back to its default", icon = R.drawable.ic_sym_restart_alt) { resetting = true }
+        }
+    }, dialogs = {
+        if (resetting) AlertDialog(
+            onDismissRequest = { resetting = false },
+            title = { Text("Reset settings?") },
+            text = { Text("Alerts, graph, status bar, lock screen and sharing options go back to their defaults. Your identity, " +
+                "followers, sensor, glucose source and LibreView upload stay as they are.") },
+            confirmButton = { Button(onClick = { T.reset(ctx); resetting = false; message = "Settings reset" }) { Text("Reset") } },
+            dismissButton = { TextButton(onClick = { resetting = false }) { Text("Cancel") } },
+        )
+        message?.let { m -> AlertDialog(onDismissRequest = { message = null }, text = { Text(m) },
+            confirmButton = { TextButton(onClick = { message = null }) { Text("OK") } }) }
+    })
 }
 
 // ================================================================================================ advanced
@@ -491,7 +581,7 @@ fun FollowerSettings(u: FollowerUi, open: (String) -> Unit, onBack: () -> Unit) 
         }
         SettingsGroup {
             link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
-            link("Watch & other apps", appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_watch, Category.ORANGE) }) { open("apps") }
+            link(APPS, appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }) { open("apps") }
         }
         SettingsGroup {
             link("Advanced", "Relays, log, diagnostics", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }) { open("advanced") }
@@ -523,7 +613,10 @@ fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
 
 @Composable
 fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: FollowerActions, onLog: () -> Unit, onBack: () -> Unit) {
+    val transfer = settingsTransfer()
+    transfer.dialogs()
     SettingsPage("Advanced", onBack) {
+        transfer.group(this)
         SettingsGroup("Relays") { card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
         SettingsGroup("Diagnostics") {
             link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, onClick = onLog)

@@ -259,11 +259,11 @@ class MainActivity : ComponentActivity() {
                     "alerts" -> Page { AlertsScreen(follower = false, back) }
                     "source" -> Page { SourceSettings(onSensor = { nav.open("sensor") }, onBack = back) }
                     "sensor" -> Page { SensorScreen(back) }
-                    "sharing" -> Page { SharingSettings(u, actions, back) }
+                    "sharing" -> Page { SharingSettings(u, actions, onApps = { nav.open("apps") }, onBack = back) }
                     "graph" -> Page { GraphScreen(back) }
                     "statusbar" -> Page { StatusBarSettings(back) }
                     "lockscreen" -> Page { LockscreenSettings(back) }
-                    "apps" -> Page { AppsSettings(wearer = true, onLibreView = { nav.open("libreview") }, onBack = back) }
+                    "apps" -> Page { AppsSettings(wearer = true, onLibreView = { nav.open("libreview") }, onPeople = { nav.open("sharing") }, onBack = back) }
                     "libreview" -> Page { LibreViewSettings(back) }
                     "backup" -> Page { BackupSettings(u, actions, back) }
                     "advanced" -> Page { WearerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
@@ -341,7 +341,7 @@ class MainActivity : ComponentActivity() {
                         "alerts" -> Page { AlertsScreen(follower = true, back) }
                         "graph" -> Page { GraphScreen(back) }
                         "following" -> Page { FollowingSettings(u, actions, back) }
-                        "apps" -> Page { AppsSettings(wearer = false, onLibreView = {}, onBack = back) }
+                        "apps" -> Page { AppsSettings(wearer = false, onLibreView = {}, onPeople = null, onBack = back) }
                         "advanced" -> Page { FollowerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
                         "log" -> Page { LogPage(log, back) }
                         "about" -> Page { AboutSettings(back) }

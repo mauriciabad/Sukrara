@@ -165,7 +165,7 @@ fun GraphScreen(onBack: () -> Unit) {
         }
         Note("The distribution covers the same time as the graph; the lines stop short of its dots. Each widget " +
             "can turn it off on its own.")
-        if (g != D) SettingsGroup { action("Reset all graph settings", icon = R.drawable.ic_reset) { set { D } } }
+        if (g != D) SettingsGroup { action("Reset all graph settings", icon = R.drawable.ic_sym_restart_alt) { set { D } } }
         SettingsFooter("Each widget's own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).")
     }
     pick?.let { p -> ChoiceDialog(p.title, p.options, p.selected, onClose = { pick = null }, onChoose = p.onPick) }
@@ -181,7 +181,7 @@ private val D = GraphConfig()
 @Composable
 private fun Reset(title: String, changed: Boolean, onReset: () -> Unit) {
     if (changed) IconButton(onClick = onReset) {
-        Icon(painterResource(R.drawable.ic_reset), contentDescription = "Reset $title to the defaults")
+        Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = "Reset $title to the defaults")
     }
 }
 
@@ -202,8 +202,12 @@ private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
             Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
-            TextButton(onClick = { move(i - 1) }, enabled = i > 0) { Text("↑") }
-            TextButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) { Text("↓") }
+            IconButton(onClick = { move(i - 1) }, enabled = i > 0) {
+                Icon(painterResource(R.drawable.ic_sym_arrow_upward), contentDescription = "Move ${name(band)} earlier")
+            }
+            IconButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) {
+                Icon(painterResource(R.drawable.ic_sym_arrow_downward), contentDescription = "Move ${name(band)} later")
+            }
         }
     }
 }
@@ -221,7 +225,7 @@ private fun GraphLines(lines: List<Int>, onLines: (List<Int>) -> Unit) {
     if (lines.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         for (l in lines) InputChip(selected = false, onClick = { onLines(lines - l) }, label = { Text("$l mg/dL") },
             trailingIcon = {
-                Icon(painterResource(R.drawable.ic_close), contentDescription = "Remove the $l line",
+                Icon(painterResource(R.drawable.ic_sym_close), contentDescription = "Remove the $l line",
                     Modifier.size(InputChipDefaults.AvatarSize))
             })
     }

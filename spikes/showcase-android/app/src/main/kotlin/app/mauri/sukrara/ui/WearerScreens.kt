@@ -149,8 +149,10 @@ fun TreatmentsSection() {
             KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
             Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)), fontWeight = FontWeight.Medium)
             Text(describe(tr), Modifier.weight(1f), maxLines = 2)
-            if (f.libreview) Text(if (tr.needsUpload) "LibreView ⇡" else "LibreView ✓", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline)
+            if (f.libreview) androidx.compose.material3.Icon(
+                androidx.compose.ui.res.painterResource(if (tr.needsUpload) app.mauri.sukrara.R.drawable.ic_sym_cloud_upload else app.mauri.sukrara.R.drawable.ic_sym_cloud_done),
+                contentDescription = if (tr.needsUpload) "Not in LibreView yet" else "In LibreView", tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(18.dp))
         }
     }
 

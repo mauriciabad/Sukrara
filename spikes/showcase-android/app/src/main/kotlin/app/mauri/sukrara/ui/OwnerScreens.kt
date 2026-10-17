@@ -139,6 +139,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
                 Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = "Settings")
             }
         }
+        LibreViewBanner(onSetUp = { a.open("libreview") })
         // Settings → Backup holds the details; home only nags while there's no backup (AOSP BannerMessagePreference)
         Reveal(u.backupSavedAt == 0L) {
             Card(onClick = { a.open("backup") }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
@@ -297,7 +298,7 @@ fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
                                 }, style = MaterialTheme.typography.titleMedium, color = cs.onSurface,
                                 modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             when (match) {
-                                true -> Pill("✓ Matches", cs.primaryContainer, cs.onPrimaryContainer)
+                                true -> Pill("Matches", cs.primaryContainer, cs.onPrimaryContainer, check = true)
                                 false -> Pill("Different name", cs.tertiaryContainer, cs.onTertiaryContainer)
                                 null -> {}
                             }
@@ -342,8 +343,12 @@ fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
 }
 
 @Composable
-private fun Pill(text: String, bg: androidx.compose.ui.graphics.Color, fg: androidx.compose.ui.graphics.Color) {
+private fun Pill(text: String, bg: androidx.compose.ui.graphics.Color, fg: androidx.compose.ui.graphics.Color, check: Boolean = false) {
     androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.CircleShape, color = bg) {
-        Text(text, style = MaterialTheme.typography.labelLarge, color = fg, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (check) Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_check), contentDescription = null, tint = fg,
+                modifier = Modifier.padding(end = 4.dp).size(16.dp))
+            Text(text, style = MaterialTheme.typography.labelLarge, color = fg)
+        }
     }
 }

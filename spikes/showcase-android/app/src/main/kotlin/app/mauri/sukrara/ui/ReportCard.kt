@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -134,8 +135,11 @@ private fun pct(x: Double) = if (x > 0 && x < 0.005) "<1 %" else "${Math.round(x
 @Composable
 private fun GoalChip(text: String, met: Boolean, good: Color, bad: Color) {
     val c = if (met) good else bad
-    Box(Modifier.background(c.copy(alpha = 0.16f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-        Text((if (met) "✓ " else "") + "Goal $text", style = MaterialTheme.typography.labelSmall, color = c)
+    androidx.compose.foundation.layout.Row(Modifier.background(c.copy(alpha = 0.16f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        if (met) androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_check), contentDescription = null,
+            tint = c, modifier = Modifier.padding(end = 2.dp).size(12.dp))
+        Text("Goal $text", style = MaterialTheme.typography.labelSmall, color = c)
     }
 }
 

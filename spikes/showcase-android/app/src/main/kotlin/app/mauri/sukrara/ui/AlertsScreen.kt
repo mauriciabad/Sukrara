@@ -26,6 +26,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -197,7 +199,7 @@ private fun ChoiceDialog(title: String, options: List<String>, selected: String,
                     Text(label(o))
                     sub?.let { Text(it(o), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
                 }
-                if (preview != null && o != AlertSounds.NONE) IconButton(onClick = { preview(o) }) { Text("▶") }
+                if (preview != null && o != AlertSounds.NONE) IconButton(onClick = { preview(o) }) { Icon(painterResource(R.drawable.ic_sym_play_arrow), contentDescription = "Play") }
             }
         }
     }, confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } })
@@ -240,7 +242,7 @@ private fun KindDialog(k: String, s: AlertSettings, editable: Boolean, onDismiss
                         Text(if (o == null) "Pack (${AlertSounds.label(s.pack)})" else AlertSounds.label(o),
                             Modifier.weight(1f).padding(start = 8.dp))
                         val p = o ?: s.pack
-                        if (p != AlertSounds.NONE) IconButton(onClick = { AlertSounds.preview(ctx, k, p, alarm) }) { Text("▶") }
+                        if (p != AlertSounds.NONE) IconButton(onClick = { AlertSounds.preview(ctx, k, p, alarm) }) { Icon(painterResource(R.drawable.ic_sym_play_arrow), contentDescription = "Play") }
                     }
                 }
             }

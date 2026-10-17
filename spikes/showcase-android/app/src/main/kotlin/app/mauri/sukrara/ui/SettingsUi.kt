@@ -260,3 +260,26 @@ fun SettingsFooter(text: String) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/**
+ * Something the user should set up, dismissible (AOSP BannerMessagePreference): an icon, a title, one sentence, then
+ * "Not now" and the action. Shown at the top of the home screen and of the settings overview.
+ */
+@Composable
+fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.Card(colors = androidx.compose.material3.CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
+        shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 20.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(painterResource(icon), contentDescription = null)
+                Text(title, style = MaterialTheme.typography.titleMedium)
+            }
+            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Not now") }
+                androidx.compose.material3.TextButton(onClick = onAction) { Text(action) }
+            }
+        }
+    }
+}
