@@ -292,6 +292,29 @@ final class StatusController: NSObject, NSMenuDelegate {
         for days in [1, 7, 14, 30] { option("\(days)d", reportDays == days, "reportDays", days) }
         menu.addItem(.separator())
         option("Time in range beside the graph", graph.side, "side", !graph.side)
+        // The extra dashed lines: each one checked (pick it to remove it), then "Add line…".
+        let linesItem = menu.addItem(withTitle: "Lines: " + (graph.lines.isEmpty ? "none" : graph.lines.map(String.init).joined(separator: ", ")),
+                                     action: nil, keyEquivalent: "")
+        let linesMenu = NSMenu()
+        for l in graph.lines {
+            let o = linesMenu.addItem(withTitle: "\(l) mg/dL", action: #selector(setGraph(_:)), keyEquivalent: "")
+            o.target = self
+            o.state = .on
+            o.toolTip = "Remove this line"
+            o.representedObject = ["lines", GraphConfig.linesText(graph.lines.filter { $0 != l })]
+        }
+        if !graph.lines.isEmpty { linesMenu.addItem(.separator()) }
+        let add = linesMenu.addItem(withTitle: "Add line…", action: #selector(addGraphLine), keyEquivalent: "")
+        add.target = self
+        add.isEnabled = graph.lines.count < GraphConfig.maxLines
+        if graph.lines != GraphConfig.defaultLines {
+            let o = linesMenu.addItem(withTitle: "Reset to 100", action: #selector(setGraph(_:)), keyEquivalent: "")
+            o.target = self
+            o.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
+            o.representedObject = ["resetKeys", ["lines"]]
+        }
+        linesMenu.autoenablesItems = false
+        linesItem.submenu = linesMenu
         let b = graph.bands
         let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) (defaults write band…)",
                                 action: nil, keyEquivalent: "")
@@ -313,7 +336,7 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     /// Every graph setting (UserDefaults); "Reset all graph settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "side", "reportDays"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "side", "lines", "reportDays"]
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
@@ -347,6 +370,25 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         UserDefaults.standard.set(kv[1], forKey: key)
         if key == "graphHours" { UserDefaults.standard.removeObject(forKey: "menubarHours") }
+        reloadGraph()
+    }
+
+    /// "Add line…": one more dashed line across the graph, mg/dL.
+    @objc private func addGraphLine() {
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 22))
+        field.placeholderString = "mg/dL"
+        let alert = NSAlert()
+        alert.messageText = "Add a line to the graph"
+        alert.informativeText = "A dashed line across the graph at this level " +
+            "(\(GraphConfig.lineRange.lowerBound)–\(GraphConfig.lineRange.upperBound) mg/dL)."
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn,
+              let v = Int(field.stringValue.trimmingCharacters(in: .whitespaces)), GraphConfig.lineRange.contains(v) else { return }
+        UserDefaults.standard.set(GraphConfig.linesText(GraphConfig.parseLines(GraphConfig.linesText(graph.lines + [v]))), forKey: "lines")
         reloadGraph()
     }
 

@@ -17,6 +17,15 @@ enum class GraphPlace(val label: String) { APP("App"), NOTIFICATION("Notificatio
 val WINDOW_HOURS = listOf(3, 6, 12, 24)
 val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
 
+/** The chart's extra lines: 100 mg/dL unless the user changes them; at most [MAX_LINES], each in [LINE_RANGE]. */
+val DEFAULT_LINES = listOf(100)
+const val MAX_LINES = 6
+val LINE_RANGE = 40..400
+
+/** "100,120" → sorted distinct values inside [LINE_RANGE], at most [MAX_LINES]. */
+fun parseLines(text: String): List<Int> =
+    text.split(",").mapNotNull { it.trim().toIntOrNull()?.takeIf { v -> v in LINE_RANGE } }.distinct().sorted().take(MAX_LINES)
+
 /**
  * Everything the graph and ring settings decide (investigation 16), for every role. Plain prefs + one StateFlow like
  * [app.mauri.sukrara.features.Features].
@@ -35,12 +44,14 @@ data class GraphConfig(
     val ringOrder: List<Band> = DEFAULT_RING_ORDER,
     /** The time-in-range rectangles + distribution beside the chart (each widget can turn it off on its own). */
     val side: Boolean = true,
+    /** Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them). */
+    val lines: List<Int> = DEFAULT_LINES,
 ) {
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) =
         slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder) }
     fun graphStyle(hours: Int, hour24: Boolean) =
-        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24)
+        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines)
 
     fun toJson(): JSONObject = JSONObject()
         .put("veryLow", bands.veryLow).put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
@@ -50,6 +61,7 @@ data class GraphConfig(
         .put("ringCount", ringCount).put("ringRange", ringRange.name).put("ringOrder", ringOrder.joinToString(",") { it.name })
         .put("slots", slots.joinToString(",") { "${it.kind.name}:${it.windowS}:${if (it.faded) 1 else 0}" })
         .put("side", side)
+        .put("lines", lines.joinToString(","))
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
@@ -72,6 +84,7 @@ data class GraphConfig(
                 ringOrder = o.optString("ringOrder").split(",").mapNotNull { runCatching { Band.valueOf(it) }.getOrNull() }
                     .takeIf { it.toSet().size == Band.entries.size && it.size == Band.entries.size } ?: d.ringOrder,
                 side = o.optBoolean("side", d.side),
+                lines = if (o.has("lines")) parseLines(o.optString("lines")) else d.lines,
             )
         }
     }

@@ -32,6 +32,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
 import app.mauri.sukrara.R
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.LINE_RANGE
+import app.mauri.sukrara.graph.MAX_LINES
+import app.mauri.sukrara.graph.parseLines
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.RING_WINDOWS_S
@@ -90,6 +103,10 @@ fun GraphScreen(onBack: () -> Unit) {
             "where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView " +
             "report. The ranges colour the number, the line, the status bar and the time in range everywhere.")
 
+        ResetTitle("Lines", g.lines != D.lines) { set { it.copy(lines = D.lines) } }
+        GraphLines(g.lines) { l -> set { it.copy(lines = l) } }
+        Note("Dashed lines across the graph at the levels you pick, besides the range limits.")
+
         ResetTitle("Graph window", g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
             set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }
         }
@@ -130,7 +147,7 @@ fun GraphScreen(onBack: () -> Unit) {
             sub = "The % of time below, in and above range, and how much time was spent at each level") { v ->
             set { it.copy(side = v) }
         }
-        Note("The distribution covers the same time as the graph, and the line fades out underneath it. Each widget " +
+        Note("The distribution covers the same time as the graph; the lines stop short of its dots. Each widget " +
             "can turn it off on its own.")
         HorizontalDivider()
         if (g != D) TextButton(onClick = { set { D } }) {
@@ -175,6 +192,36 @@ private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
             TextButton(onClick = { move(i - 1) }, enabled = i > 0) { Text("↑") }
             TextButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) { Text("↓") }
         }
+    }
+}
+
+/**
+ * The extra lines as input chips (tap one to remove it) and a field to add another. Input chips are the Material
+ * pattern for user-entered items with an X for removal (developer.android.com/develop/ui/compose/components/chip).
+ */
+@Composable
+private fun GraphLines(lines: List<Int>, onLines: (List<Int>) -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val v = text.toIntOrNull()
+    val ok = v != null && v in LINE_RANGE && v !in lines && lines.size < MAX_LINES
+    fun add() { if (ok) { onLines(parseLines((lines + v!!).joinToString(","))); text = "" } }
+    if (lines.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (l in lines) InputChip(selected = false, onClick = { onLines(lines - l) }, label = { Text("$l mg/dL") },
+            trailingIcon = {
+                Icon(painterResource(R.drawable.ic_close), contentDescription = "Remove the $l line",
+                    Modifier.size(InputChipDefaults.AvatarSize))
+            })
+    }
+    if (lines.size < MAX_LINES) Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(text, { t -> text = t.filter(Char::isDigit).take(3) }, Modifier.weight(1f),
+            label = { Text("Add a line at (mg/dL)") }, singleLine = true,
+            isError = text.isNotEmpty() && !ok,
+            supportingText = if (text.isNotEmpty() && !ok) {
+                { Text(if (v in lines) "Already on the graph" else "${LINE_RANGE.first}–${LINE_RANGE.last} mg/dL") }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { add() }))
+        TextButton(onClick = ::add, enabled = ok, modifier = Modifier.padding(start = 8.dp)) { Text("Add") }
     }
 }
 

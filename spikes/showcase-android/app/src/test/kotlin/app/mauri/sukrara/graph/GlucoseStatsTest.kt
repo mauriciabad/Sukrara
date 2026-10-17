@@ -20,6 +20,14 @@ class GlucoseStatsTest {
         assertEquals(Bands(54, 120, 130, 140, 150), Bands(54, 200, 10, 90, 100).sane())
     }
 
+    /** The extra graph lines: sorted, distinct, inside 40–400 mg/dL, at most six; "" = none. */
+    @Test fun lines() {
+        assertEquals(listOf(90, 100, 120), parseLines("120, 100,90,100"))
+        assertEquals(emptyList<Int>(), parseLines(""))
+        assertEquals(listOf(40, 400), parseLines("39,40,400,401,x"))
+        assertEquals(MAX_LINES, parseLines((100..200 step 10).joinToString(",")).size)
+    }
+
     /** 1-minute and 5-minute readings count by the time they stand for, not by how many there are. */
     @Test fun timeWeighted() {
         val oneMin = (0 until 60).map { r(it, 100) }                // first hour: 60 readings at 100

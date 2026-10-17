@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
@@ -49,6 +50,8 @@ data class GraphStyle(
     val axisLabels: Boolean = true,
     val treatments: Boolean = true,
     val hour24: Boolean = true,
+    /** Extra dashed lines, mg/dL ([GraphConfig.lines]). */
+    val lines: List<Int> = DEFAULT_LINES,
 )
 
 /**
@@ -56,9 +59,11 @@ data class GraphStyle(
  * and the notification (bitmaps) all show the same picture.
  *
  * Left to right: the % of time below / in / above range (labels), then, growing rightwards from the plot's left edge,
- * the distribution of glucose over the same window ([GlucoseStats.profile], rows of dots like the line). The line
- * underneath fades out towards that edge. (The time-in-range rectangles behind the dots were removed: the user found
- * they cluttered the chart.)
+ * the distribution of glucose over the same window ([GlucoseStats.profile], rows of dots like the line). The lines
+ * underneath (the glucose line, the dashed level lines) are cut around each row of dots, so a row with little time
+ * barely touches them and a long one cuts them further in. The cut is erased from the lines' own layer
+ * ([BlendMode.DST_OUT]), not painted over in a background colour: widgets and the lock screen are transparent.
+ * (The time-in-range rectangles behind the dots were removed: the user found they cluttered the chart.)
  */
 object GlucoseGraph {
     /** Narrowest chart (dp) that still gets the % labels beside it. */
@@ -99,9 +104,15 @@ object GlucoseGraph {
         val sideW = if (st.side && !tir.empty) min((right - left) * 0.26f, 130 * d) else 0f
 
         val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-        // Main in-range band across the whole plot.
-        fill.color = ColorUtils.setAlphaComponent(pal.tight, if (pal.dark) 0x1E else 0x18)
-        cv.drawRect(left, y(b.high.toFloat()), right, y(b.low.toFloat()), fill)
+        // The in-range band across the whole plot; its very good part (low…tight) a little stronger, in its own colour.
+        val split = b.tight < b.high
+        val tightTop = y((if (split) b.tight else b.high).toFloat())
+        fill.color = ColorUtils.setAlphaComponent(pal.tight, if (split) (if (pal.dark) 0x2A else 0x24) else (if (pal.dark) 0x1E else 0x18))
+        cv.drawRect(left, tightTop, right, y(b.low.toFloat()), fill)
+        if (split) {
+            fill.color = ColorUtils.setAlphaComponent(pal.target, if (pal.dark) 0x16 else 0x14)
+            cv.drawRect(left, y(b.high.toFloat()), right, tightTop, fill)
+        }
 
         // Hour grid + time labels: a step that keeps labels ≥ ~44 dp apart.
         val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -131,48 +142,60 @@ object GlucoseGraph {
             }
             cal.add(Calendar.HOUR_OF_DAY, step)
         }
-        // Very low / very high: a faint dashed line when the y range reaches them.
-        for ((v, next) in listOf(b.veryLow to b.low, b.veryHigh to b.high)) if (v > yMin && v < yMax) {
-            cv.drawLine(left + sideW, y(v.toFloat()), right, y(v.toFloat()), grid)
-            // its value only where it doesn't collide with the low / high label next to it
-            if (labels && kotlin.math.abs(y(v.toFloat()) - y(next.toFloat())) > text.textSize * 1.2f)
-                cv.drawText("$v", right + 4 * d, y(v.toFloat()) + text.textSize / 3, text)
+        // The values on the right: low and high always, then very good, very low / very high and the extra lines,
+        // each only where it doesn't touch one already written.
+        val written = ArrayList<Float>()
+        fun value(v: Int) {
+            if (!labels || v <= yMin || v >= yMax) return
+            val ly = y(v.toFloat())
+            if (written.any { kotlin.math.abs(it - ly) < text.textSize * 1.2f }) return
+            written += ly
+            cv.drawText("$v", right + 4 * d, ly + text.textSize / 3, text)
         }
-        if (labels) for (v in listOf(b.low, b.high)) {
-            cv.drawText("$v", right + 4 * d, y(v.toFloat()) + text.textSize / 3, text)
+        (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh) + st.lines)
+            .forEach(::value)
+
+        // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
+        val layer = cv.saveLayer(area, null)
+        // Very low / very high and the extra lines (100 by default): faint dashed lines where the y range reaches them.
+        for (v in listOf(b.veryLow, b.veryHigh) + st.lines) if (v > yMin && v < yMax) {
+            cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
         }
 
-        // The line: one dot per reading, coloured by band, fading out towards the side overlay.
+        // The line: one dot per reading, coloured by band.
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
         val seg = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 1.6f * d; strokeCap = Paint.Cap.ROUND }
         val spacing = if (pts.size > 1) (right - left) / max(1f, pts.size.toFloat()) else 99f
         val r = (spacing * 0.55f).coerceIn(1.3f * d, 2.2f * d)
-        val fadeEnd = left + sideW * 1.25f
-        fun fade(px: Float): Int {
-            if (sideW <= 0) return 255
-            val u = ((px - left) / (fadeEnd - left)).coerceIn(0f, 1f)
-            return (255 * (0.10f + 0.90f * u * u * (3 - 2 * u))).roundToInt()
-        }
         for (i in pts.indices) {
             val p = pts[i]
             if (p.t < from) continue
             val px = x(p.t); val py = y(p.sgv.toFloat())
             val c = pal.of(b.of(p.sgv))
             if (spacing > 5 * d && i > 0 && p.t - pts[i - 1].t <= GlucoseStats.MAX_GAP_S) {
-                seg.color = ColorUtils.setAlphaComponent(c, fade(px) * 3 / 4)
+                seg.color = ColorUtils.setAlphaComponent(c, 0xBF)
                 cv.drawLine(x(pts[i - 1].t), y(pts[i - 1].sgv.toFloat()), px, py, seg)
             }
-            dot.color = ColorUtils.setAlphaComponent(c, fade(px))
+            dot.color = c
             if (i == pts.lastIndex) {
                 dot.color = pal.bg; cv.drawCircle(px, py, r + 2.6f * d, dot)
                 dot.color = c; cv.drawCircle(px, py, r + 1.4f * d, dot)
             } else cv.drawCircle(px, py, r, dot)
         }
 
-        // Profile on top of the rectangles.
-        if (sideW > 0) {
-            val prof = GlucoseStats.profile(readings, from, nowS, b, tir)
-            drawProfile(cv, prof, b, pal, left, sideW, top, plotBottom, yMin, yMax, d)
+        // The distribution: its outline erased from the lines, then its dots.
+        val rows = if (sideW > 0) profileRows(GlucoseStats.profile(readings, from, nowS, b, tir), b, pal, left, sideW,
+            top, plotBottom, yMin, yMax, d) else emptyList()
+        if (rows.isNotEmpty()) {
+            val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.DST_OUT }
+            val h = PROFILE_R * d + PROFILE_GAP * d
+            for (row in rows) cv.drawRoundRect(area.left, row.cy - h, row.endX + PROFILE_GAP * d, row.cy + h, h, h, cut)
+        }
+        cv.restoreToCount(layer)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        for (row in rows) {
+            p.color = row.color
+            for (k in 0 until row.n) cv.drawCircle(left + PROFILE_PITCH * d * (k + 0.5f), row.cy, PROFILE_R * d, p)
         }
 
         // % per major band, centred on its band; labels too close for their bands are pushed apart (all three show).
@@ -198,10 +221,18 @@ object GlucoseGraph {
         if (marks) TreatmentMarks.draw(cv, treatments.filter { it.t in from..nowS }, ::x, left, right, bottom, d, pal.dark)
     }
 
-    private fun drawProfile(
-        cv: Canvas, prof: DoubleArray, b: Bands, pal: GraphPalette, left: Float, sideW: Float,
+    /** The distribution's dots: rows [PROFILE_PITCH] apart, dots of radius [PROFILE_R]; its outline is [PROFILE_GAP] wider. */
+    private const val PROFILE_PITCH = 3.6f
+    private const val PROFILE_R = 1.35f
+    private const val PROFILE_GAP = 1.6f
+
+    /** One row of the distribution: [n] dots centred on [cy], the last one ending at [endX]. */
+    private class ProfileRow(val cy: Float, val n: Int, val color: Int, val endX: Float)
+
+    private fun profileRows(
+        prof: DoubleArray, b: Bands, pal: GraphPalette, left: Float, sideW: Float,
         top: Float, bottom: Float, yMin: Float, yMax: Float, d: Float,
-    ) {
+    ): List<ProfileRow> {
         val pxPerMg = (bottom - top) / (yMax - yMin)
         fun massBetween(g0: Float, g1: Float): Double {   // profile mass in [g0, g1) mg/dL, fractional at the ends
             var s = 0.0
@@ -214,24 +245,22 @@ object GlucoseGraph {
             }
             return s
         }
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
         // Rows of dots the size of the line's, one row per pitch; dots per row ∝ the row's share of time.
-        val pitch = 3.6f * d
-        val r = 1.35f * d
+        val pitch = PROFILE_PITCH * d
+        val r = PROFILE_R * d
         val rows = ((bottom - top) / pitch).toInt()
         val mass = DoubleArray(rows) { i ->
             val yb = bottom - i * pitch
             massBetween(yMin + (bottom - yb) / pxPerMg, yMin + (bottom - yb + pitch) / pxPerMg)
         }
-        val peak = mass.maxOrNull()?.takeIf { it > 0 } ?: return
+        val peak = mass.maxOrNull()?.takeIf { it > 0 } ?: return emptyList()
         val maxDots = floor(sideW * 0.9f / pitch).toInt()
-        for (i in 0 until rows) {
+        return (0 until rows).mapNotNull { i ->
             val n = (mass[i] / peak * maxDots).roundToInt().let { if (it == 0 && mass[i] > peak * 0.004) 1 else it }
-            if (n == 0) continue
+            if (n == 0) return@mapNotNull null
             val cy = bottom - i * pitch - pitch / 2
             val g = yMin + (bottom - cy) / pxPerMg
-            p.color = pal.of(b.of(g.toDouble()))
-            for (k in 0 until n) cv.drawCircle(left + pitch / 2 + k * pitch, cy, r, p)
+            ProfileRow(cy, n, pal.of(b.of(g.toDouble())), left + pitch / 2 + (n - 1) * pitch + r)
         }
     }
 
