@@ -212,4 +212,4 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
 - macOS per-widget settings are built and in the widget's App Intents metadata but weren't seen in the real widget
   host before the release (needs the team-signed app the user runs).
 - The old in-app chart animations (new points growing in) are gone; the number still rolls and the arrow still turns.
-- The doctor-report metrics (average glucose, GMI, CV, goals) in the app and widgets: next investigation.
+- The doctor-report metrics (average glucose, GMI, CV, goals): [18](18-metrics.md).

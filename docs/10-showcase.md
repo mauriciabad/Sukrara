@@ -512,6 +512,23 @@ follows the [Glance configuration guide](https://developer.android.com/develop/u
 | Widget windows by width (2–6 h) | 12 h default + per place + per widget |
 | The in-app chart's grow-in animation for new points | the chart is drawn by the shared renderer; the number still rolls and the arrow still turns |
 
+## The doctor's report in the app (investigation 18, v0.11.7)
+
+The user showed LibreView's report page (time in ranges with goals, average glucose, GMI, glucose variability) and
+asked for the same numbers in the app and the widgets, e.g. GMI in the third widget slot. Report: [18](18-metrics.md).
+
+| Added | Where |
+|---|---|
+| *Glucose report* card on both home screens: the five ranges as one stacked bar with shares and consensus goals, average glucose, GMI (% and mmol/mol), CV; 1/7/14/30 days; a note under 70 % sensor coverage | `ui/ReportCard.kt`, `graph/GlucoseMetrics.kt` |
+| Slots beside the number: time-in-range ring, GMI, average or CV gauge, each with its window and "fainter" switch | `graph/GlucoseCard.kt` (`SlotKind`, `MetricGauge`), `GraphSettings.slots`, Settings → Graph |
+| 30-day windows; the wearer keeps 31 days (was 15) | `RING_WINDOWS_S`, `OwnerEngine` prune |
+| Mac: the same numbers in the menubar dropdown and the widget slots | `widgets-macos/Shared/SukraraGraph.swift`, `menubar` |
+
+| Discarded | Why |
+|---|---|
+| The AGP percentile curve and daily profiles from the full LibreView report | the user asked for the summary numbers; the chart and the time-at-level distribution already show the shape |
+| Per-widget slot kinds | the app-wide slots already put GMI in a widget; per widget stays window, slot count, ring range, side |
+
 ## Short invites and private profiles (v0.11.0)
 
 *2026-10-17. Investigation 14 brought into Sukrara (Android + Mac). Kept and left out, with reasons:

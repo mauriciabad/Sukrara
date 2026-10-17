@@ -57,7 +57,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   chart with the time spent at each level beside it, the share of time below / in / above range (very low, very
   good and very high inside), and time-in-range rings for 1, 7 or 14 days. No "time ago": the reading's time
   appears only once it's late, then the number is struck through, then hidden. Ranges, windows (per place and per
-  widget) and rings are settings. [16](docs/16-graph.md) Source: the Libre 3 read directly (default): scan the
+  widget) and rings are settings. [16](docs/16-graph.md)
+- Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
+  variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days. Any of them can sit beside the number
+  in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the
   sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
   Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
   (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
@@ -193,6 +196,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 14 | Nostr identity: profiles, short invites, Nostr login | Kind 0 on a separate profile key, Blossom pictures (EXIF removed), 241 → 63-char invites, derived accounts from an nsec and via Amber. **In Sukrara 0.11:** the short invites and private names + generated pictures; public profiles, Blossom and Nostr login left out ([why](docs/14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out)) | [docs/14](docs/14-nostr-identity.md) |
 | 15 | Glucose alerts, sound packs and haptics | One rule set on Android and Mac (15 + 53 tests), alerts mirrored to followers, packs served into native channels with a random variant each time, a vibration per alert | [docs/15](docs/15-alerts.md) |
 | 16 | One glucose graph everywhere | One renderer (Android + Swift port) for app, widgets, notification and Mac: time at level beside the chart, time-in-range rectangles and rings, six ranges, freshness steps, per-widget settings. **In Sukrara 0.11.5** ([added / discarded](docs/16-graph.md#in-sukrara-0115)) | [docs/16](docs/16-graph.md) |
+| 18 | The doctor's report in the app | Time in ranges, average, GMI, CV with the consensus goals, as a home-screen card and as slots in the widgets; time-weighted like the rings. **In Sukrara 0.11.7** ([added / discarded](docs/18-metrics.md#in-sukrara-0117)) | [docs/18](docs/18-metrics.md) |
 
 ## Try it
 
