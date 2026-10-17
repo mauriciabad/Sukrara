@@ -134,7 +134,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
     val color by animateColorAsState(
         when {
             sgv == null || fresh.strike -> MaterialTheme.colorScheme.outline
-            else -> Color(pal.of(cfg.bands.of(sgv)))
+            else -> Color(pal.at(cfg.bands, sgv))
         }, Motion.slowEffectsSpec(), label = "range")
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {

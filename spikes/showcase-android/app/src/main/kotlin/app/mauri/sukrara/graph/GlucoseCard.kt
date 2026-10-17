@@ -240,7 +240,7 @@ object GlucoseCard {
             if (r != null) cv.drawText(Freshness.timeText(r.t, nowS), box.left, y + big.textSize * 1.25f, big)
             return
         }
-        val color = if (fr.strike) pal.inkSoft else pal.of(bands.of(r.sgv))
+        val color = if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         val timeH = if (fr.showTime) small.textSize * 1.25f else 0f
         val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)

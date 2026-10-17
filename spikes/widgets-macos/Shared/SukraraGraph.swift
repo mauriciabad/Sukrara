@@ -15,8 +15,10 @@ import CoreText
 
 /// The user's ranges, mg/dL: very low < `veryLow` ≤ low < `low` ≤ in range ≤ `high` < high ≤ `veryHigh` < very high;
 /// "very good" (tight) = `low`…`tight`, inside in range.
+/// `extremelyHigh` (≥, like the extremely high alert) only colours the line and the number; time in range counts it as
+/// very high (LibreView's five ranges).
 struct Bands: Codable, Equatable, Hashable {
-    var veryLow = 54, low = 70, tight = 140, high = 180, veryHigh = 250
+    var veryLow = 54, low = 70, tight = 140, high = 180, veryHigh = 250, extremelyHigh = 300
 
     func of(_ mgdl: Double) -> Band {
         if mgdl < Double(veryLow) { return .veryLow }
@@ -31,8 +33,9 @@ struct Bands: Codable, Equatable, Hashable {
     func sane() -> Bands {
         let l = min(max(low, 40), 120)
         let h = min(max(high, l + 20), 300)
+        let vh = min(max(veryHigh, h + 10), 400)
         return Bands(veryLow: min(max(veryLow, 30), l - 5), low: l, tight: min(max(tight, l + 10), h), high: h,
-                     veryHigh: min(max(veryHigh, h + 10), 400))
+                     veryHigh: vh, extremelyHigh: min(max(extremelyHigh, vh + 10), 450))
     }
 }
 
@@ -216,7 +219,7 @@ enum Freshness {
 /// Colours (same hex values as GraphPalette.kt).
 struct GraphPalette {
     var dark: Bool
-    var bg, ink, inkSoft, grid, veryLow, low, tight, target, high, veryHigh: CGColor
+    var bg, ink, inkSoft, grid, veryLow, low, tight, target, high, veryHigh, extremelyHigh: CGColor
     /// How strong the chart's decoration is (grid, dashed 54/250 lines, the in-range band): 1 normally. A tinted
     /// (accented / vibrant) macOS widget turns the bitmap's luminance into opacity, so a faint grey line comes out
     /// nearly solid there; `tinted()` lowers it.
@@ -231,15 +234,18 @@ struct GraphPalette {
         }
     }
 
+    /// The colour of a glucose value: its band's, or `extremelyHigh` from `Bands.extremelyHigh` up.
+    func at(_ b: Bands, _ mgdl: Double) -> CGColor { mgdl >= Double(b.extremelyHigh) ? extremelyHigh : of(b.of(mgdl)) }
+
     static func hex(_ v: UInt32) -> CGColor {
         CGColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
     static let darkPalette = GraphPalette(dark: true, bg: hex(0x1C1C1E), ink: hex(0xF2F2F2), inkSoft: hex(0xA3A3A8), grid: hex(0x3A3A3E),
                                           veryLow: hex(0xC2413B), low: hex(0xF0524F), tight: hex(0x3DD47A), target: hex(0x8CC63F),
-                                          high: hex(0xF5A524), veryHigh: hex(0xFF7A45))
+                                          high: hex(0xF5A524), veryHigh: hex(0xFF7A45), extremelyHigh: hex(0xE35BD0))
     static let lightPalette = GraphPalette(dark: false, bg: hex(0xFFFFFF), ink: hex(0x1C1C1E), inkSoft: hex(0x6B6B70), grid: hex(0xDADADF),
                                            veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
-                                           high: hex(0xD97706), veryHigh: hex(0xC2410C))
+                                           high: hex(0xD97706), veryHigh: hex(0xC2410C), extremelyHigh: hex(0xA3238F))
     static func of(dark: Bool) -> GraphPalette { dark ? darkPalette : lightPalette }
 }
 
@@ -253,6 +259,8 @@ struct GraphStyle {
     var hour24 = GraphStyle.systemHour24
     /// Extra dashed lines, mg/dL (`GraphConfig.lines`).
     var lines = GraphConfig.defaultLines
+    /// Hours between the vertical lines, at least (`GraphConfig.gridHours`); 0 = none (the time labels stay).
+    var gridHours = 1
 
     static var systemHour24: Bool {
         !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
@@ -351,7 +359,10 @@ struct GraphConfig: Codable, Equatable {
     var side = true
     /// Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them).
     var lines = GraphConfig.defaultLines
+    /// Hours between the vertical lines at least (`gridChoices`; small charts space them further apart), 0 = none.
+    var gridHours = 1
 
+    static let gridChoices = [0, 1, 2, 3, 4, 6, 12]
     static let defaultLines = [100]
     static let maxLines = 6
     static let lineRange = 40...400
@@ -380,17 +391,19 @@ struct GraphConfig: Codable, Equatable {
         return s.count == 3 ? s : nil
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
-        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, lines: lines)
+        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, lines: lines, gridHours: gridHours)
     }
 
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
     /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
-    /// bandVeryHigh, side (time in range beside the graph), lines "100,120" (extra dashed lines, mg/dL).
+    /// bandVeryHigh/bandExtremelyHigh, side (time in range beside the graph), lines "100,120" (extra dashed lines,
+    /// mg/dL), gridHours 0|1|2|3|4|6|12 (vertical lines, 0 = off).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
         func int(_ k: String) -> Int? { d.object(forKey: k) != nil ? d.integer(forKey: k) : nil }
         c.bands = Bands(veryLow: int("bandVeryLow") ?? 54, low: int("bandLow") ?? 70, tight: int("bandTight") ?? 140,
-                        high: int("bandHigh") ?? 180, veryHigh: int("bandVeryHigh") ?? 250).sane()
+                        high: int("bandHigh") ?? 180, veryHigh: int("bandVeryHigh") ?? 250,
+                        extremelyHigh: int("bandExtremelyHigh") ?? 300).sane()
         let h = place.flatMap { int("\($0)Hours") } ?? int("graphHours") ?? 12
         c.hours = windowHours.contains(h) ? h : 12
         c.ringCount = max(0, min(3, int("ringCount") ?? 2))
@@ -399,6 +412,7 @@ struct GraphConfig: Codable, Equatable {
         c.ringOrder = parseRingOrder(d.string(forKey: "ringOrder") ?? "") ?? DEFAULT_RING_ORDER
         c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
         c.lines = d.object(forKey: "lines") == nil ? defaultLines : parseLines(d.string(forKey: "lines") ?? "")
+        c.gridHours = int("gridHours").flatMap { gridChoices.contains($0) ? $0 : nil } ?? 1
         return c
     }
 }
@@ -474,8 +488,10 @@ enum GlucoseGraph {
         guard right - left >= 20 * d, plotBottom - top >= 20 * d else { return }
 
         let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
-        let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, dMin - 6)))
-        let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, dMax + 8)))
+        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
+        // don't change it: one outside the range isn't drawn.
+        let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
+        let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
         func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         func y(_ v: Double) -> CGFloat { plotBottom - CGFloat((min(max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (plotBottom - top) }
         let sideW: CGFloat = st.side && !tir.empty ? min((right - left) * 0.26, 130 * d) : 0
@@ -491,9 +507,9 @@ enum GlucoseGraph {
             ctx.fill(CGRect(x: left, y: y(Double(b.high)), width: right - left, height: tightTop - y(Double(b.high))))
         }
 
-        // Hour grid + labels, ≥ ~44 dp apart.
+        // Hour grid + labels: the user's step, or a longer one where labels would come closer than ~44 dp.
         let pxPerHour = (right - left) / CGFloat(st.window / 3600)
-        let step = [1, 2, 3, 4, 6, 12, 24].first { CGFloat($0) * pxPerHour >= 44 * d } ?? 24
+        let step = [1, 2, 3, 4, 6, 12, 24].filter { $0 >= st.gridHours }.first { CGFloat($0) * pxPerHour >= 44 * d } ?? 24
         let cal = Calendar.current
         var hour = cal.dateInterval(of: .hour, for: Date(timeIntervalSince1970: from))!.start.addingTimeInterval(3600)
         while cal.component(.hour, from: hour) % step != 0 { hour.addTimeInterval(3600) }
@@ -505,7 +521,7 @@ enum GlucoseGraph {
         while hour.timeIntervalSince1970 <= now {
             let gx = x(hour.timeIntervalSince1970)
             if gx > left + sideW * 0.6 {
-                ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)])
+                if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
                 if labels {
                     let s = hourLabel(cal.component(.hour, from: hour), st.hour24)
                     let tw = Ink.width(s, text)
@@ -522,7 +538,7 @@ enum GlucoseGraph {
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written.
         var written: [CGFloat] = []
-        for v in [b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh] + st.lines
+        for v in [b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines
         where labels && Double(v) > yMin && Double(v) < yMax {
             let ly = y(Double(v))
             if written.contains(where: { abs($0 - ly) < 12 * d }) { continue }
@@ -532,13 +548,16 @@ enum GlucoseGraph {
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         ctx.beginTransparencyLayer(in: area, auxiliaryInfo: nil)
-        // Very low / very high and the extra lines (100 by default): faint dashed lines where the y range reaches them.
+        // Very low / very high / extremely high: faint dashed lines where the y range reaches them. The user's lines (100 by default) a
+        // little stronger, so they still show on the in-range band.
         ctx.saveGState()
-        ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [4 * d, 4 * d])
-        for v in [b.veryLow, b.veryHigh] + st.lines where Double(v) > yMin && Double(v) < yMax {
-            ctx.strokeLineSegments(between: [CGPoint(x: left, y: y(Double(v))), CGPoint(x: right, y: y(Double(v)))])
+        for (vs, color) in [([b.veryLow, b.veryHigh, b.extremelyHigh], pal.grid.a(pal.decor)), (st.lines, pal.inkSoft.a(0.4 * pal.decor))] {
+            ctx.setStrokeColor(color)
+            for v in vs where Double(v) > yMin && Double(v) < yMax {
+                ctx.strokeLineSegments(between: [CGPoint(x: left, y: y(Double(v))), CGPoint(x: right, y: y(Double(v)))])
+            }
         }
         ctx.restoreGState()
 
@@ -549,7 +568,7 @@ enum GlucoseGraph {
         ctx.setLineWidth(1.6 * d)
         for (i, p) in pts.enumerated() where p.t >= from {
             let px = x(p.t), py = y(Double(p.sgv))
-            let c = pal.of(b.of(Double(p.sgv)))
+            let c = pal.at(b, Double(p.sgv))
             if spacing > 5 * d, i > 0, p.t - pts[i - 1].t <= GlucoseStats.maxGap {
                 ctx.setStrokeColor(c.a(0.75))
                 ctx.strokeLineSegments(between: [CGPoint(x: x(pts[i - 1].t), y: y(Double(pts[i - 1].sgv))), CGPoint(x: px, y: py)])
@@ -645,7 +664,7 @@ enum GlucoseGraph {
             guard n > 0 else { return nil }
             let cy = bottom - CGFloat(i) * pitch - pitch / 2
             let g = yMin + Double(bottom - cy) / pxPerMg
-            return ProfileRow(cy: cy, n: n, color: pal.of(b.of(g)), endX: left + pitch / 2 + CGFloat(n - 1) * pitch + r)
+            return ProfileRow(cy: cy, n: n, color: pal.at(b, g), endX: left + pitch / 2 + CGFloat(n - 1) * pitch + r)
         }
     }
 
@@ -899,7 +918,7 @@ enum GlucoseCard {
             if let r { Ink.draw(ctx, Freshness.timeText(r.t, now: now), x: box.minX, y: y + size * 1.25, big, pal.inkSoft) }
             return
         }
-        let color = fr.strike ? pal.inkSoft : pal.of(bands.of(Double(r.sgv)))
+        let color = fr.strike ? pal.inkSoft : pal.at(bands, Double(r.sgv))
         let s = "\(r.sgv)"
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""

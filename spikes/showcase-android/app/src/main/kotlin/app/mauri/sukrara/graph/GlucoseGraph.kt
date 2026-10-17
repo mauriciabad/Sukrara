@@ -23,8 +23,12 @@ import kotlin.math.roundToInt
 /** Colours of every graph surface; [dark] picks the set. Range colours are the same hue family in both. */
 data class GraphPalette(
     val dark: Boolean, val bg: Int, val ink: Int, val inkSoft: Int, val grid: Int,
-    val veryLow: Int, val low: Int, val tight: Int, val target: Int, val high: Int, val veryHigh: Int,
+    val veryLow: Int, val low: Int, val tight: Int, val target: Int, val high: Int, val veryHigh: Int, val extremelyHigh: Int,
 ) {
+    /** The colour of a glucose value: its band's, or [extremelyHigh] from [Bands.extremelyHigh] up. */
+    fun at(b: Bands, mgdl: Double) = if (mgdl >= b.extremelyHigh) extremelyHigh else of(b.of(mgdl))
+    fun at(b: Bands, mgdl: Int) = at(b, mgdl.toDouble())
+
     fun of(b: Band) = when (b) {
         Band.VERY_LOW -> veryLow; Band.LOW -> low; Band.TIGHT -> tight; Band.TARGET -> target; Band.HIGH -> high
         Band.VERY_HIGH -> veryHigh
@@ -33,10 +37,12 @@ data class GraphPalette(
     companion object {
         val DARK = GraphPalette(true, bg = 0xFF1C1C1E.toInt(), ink = 0xFFF2F2F2.toInt(), inkSoft = 0xFFA3A3A8.toInt(),
             grid = 0xFF3A3A3E.toInt(), veryLow = 0xFFC2413B.toInt(), low = 0xFFF0524F.toInt(), tight = 0xFF3DD47A.toInt(),
-            target = 0xFF8CC63F.toInt(), high = 0xFFF5A524.toInt(), veryHigh = 0xFFFF7A45.toInt())
+            target = 0xFF8CC63F.toInt(), high = 0xFFF5A524.toInt(), veryHigh = 0xFFFF7A45.toInt(),
+            extremelyHigh = 0xFFE35BD0.toInt())
         val LIGHT = GraphPalette(false, bg = 0xFFFFFFFF.toInt(), ink = 0xFF1C1C1E.toInt(), inkSoft = 0xFF6B6B70.toInt(),
             grid = 0xFFDADADF.toInt(), veryLow = 0xFFB3261E.toInt(), low = 0xFFD92D2A.toInt(), tight = 0xFF17A34A.toInt(),
-            target = 0xFF6E9E1E.toInt(), high = 0xFFD97706.toInt(), veryHigh = 0xFFC2410C.toInt())
+            target = 0xFF6E9E1E.toInt(), high = 0xFFD97706.toInt(), veryHigh = 0xFFC2410C.toInt(),
+            extremelyHigh = 0xFFA3238F.toInt())
         fun of(dark: Boolean) = if (dark) DARK else LIGHT
     }
 }
@@ -52,6 +58,8 @@ data class GraphStyle(
     val hour24: Boolean = true,
     /** Extra dashed lines, mg/dL ([GraphConfig.lines]). */
     val lines: List<Int> = DEFAULT_LINES,
+    /** Hours between the vertical lines, at least ([GraphConfig.gridHours]); 0 = none (the time labels stay). */
+    val gridHours: Int = 1,
 )
 
 /**
@@ -97,8 +105,10 @@ object GlucoseGraph {
 
         val dMin = pts.minOfOrNull { it.sgv } ?: b.low
         val dMax = pts.maxOfOrNull { it.sgv } ?: b.high
-        val yMin = min(b.low - 22, dMin - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat())
-        val yMax = max(b.high + 40, dMax + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
+        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
+        // don't change it: one outside the range isn't drawn.
+        val yMin = minOf(b.low - 22, b.veryLow - 6, dMin - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat())
+        val yMax = maxOf(b.high + 40, b.veryHigh + 8, dMax + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
         fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
         fun y(v: Float) = plotBottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (plotBottom - top)
         val sideW = if (st.side && !tir.empty) min((right - left) * 0.26f, 130 * d) else 0f
@@ -114,12 +124,12 @@ object GlucoseGraph {
             cv.drawRect(left, y(b.high.toFloat()), right, tightTop, fill)
         }
 
-        // Hour grid + time labels: a step that keeps labels ≥ ~44 dp apart.
+        // Hour grid + time labels: the user's step, or a longer one where labels would come closer than ~44 dp.
         val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = pal.grid; strokeWidth = 1 * d; pathEffect = DashPathEffect(floatArrayOf(2 * d, 3 * d), 0f)
         }
         val pxPerHour = (right - left) / (st.windowS / 3600f)
-        val step = listOf(1, 2, 3, 4, 6, 12, 24).firstOrNull { it * pxPerHour >= 44 * d } ?: 24
+        val step = listOf(1, 2, 3, 4, 6, 12, 24).filter { it >= st.gridHours }.firstOrNull { it * pxPerHour >= 44 * d } ?: 24
         val cal = Calendar.getInstance().apply {
             timeInMillis = from * 1000; set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             add(Calendar.HOUR_OF_DAY, 1)
@@ -129,7 +139,7 @@ object GlucoseGraph {
         while (cal.timeInMillis / 1000 <= nowS) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
-                cv.drawLine(gx, top, gx, plotBottom, grid)
+                if (st.gridHours > 0) cv.drawLine(gx, top, gx, plotBottom, grid)
                 if (labels) {
                     val s = hourLabel(cal.get(Calendar.HOUR_OF_DAY), st.hour24)
                     val tw = text.measureText(s)
@@ -152,15 +162,16 @@ object GlucoseGraph {
             written += ly
             cv.drawText("$v", right + 4 * d, ly + text.textSize / 3, text)
         }
-        (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh) + st.lines)
+        (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) + st.lines)
             .forEach(::value)
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         val layer = cv.saveLayer(area, null)
-        // Very low / very high and the extra lines (100 by default): faint dashed lines where the y range reaches them.
-        for (v in listOf(b.veryLow, b.veryHigh) + st.lines) if (v > yMin && v < yMax) {
-            cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
-        }
+        // Very low / very high / extremely high: faint dashed lines where the y range reaches them. The user's lines (100 by default) a
+        // little stronger, so they still show on the in-range band.
+        for (v in listOf(b.veryLow, b.veryHigh, b.extremelyHigh)) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
+        val userLine = Paint(grid).apply { color = ColorUtils.setAlphaComponent(pal.inkSoft, 0x66) }
+        for (v in st.lines) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), userLine)
 
         // The line: one dot per reading, coloured by band.
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -171,7 +182,7 @@ object GlucoseGraph {
             val p = pts[i]
             if (p.t < from) continue
             val px = x(p.t); val py = y(p.sgv.toFloat())
-            val c = pal.of(b.of(p.sgv))
+            val c = pal.at(b, p.sgv)
             if (spacing > 5 * d && i > 0 && p.t - pts[i - 1].t <= GlucoseStats.MAX_GAP_S) {
                 seg.color = ColorUtils.setAlphaComponent(c, 0xBF)
                 cv.drawLine(x(pts[i - 1].t), y(pts[i - 1].sgv.toFloat()), px, py, seg)
@@ -260,7 +271,7 @@ object GlucoseGraph {
             if (n == 0) return@mapNotNull null
             val cy = bottom - i * pitch - pitch / 2
             val g = yMin + (bottom - cy) / pxPerMg
-            ProfileRow(cy, n, pal.of(b.of(g.toDouble())), left + pitch / 2 + (n - 1) * pitch + r)
+            ProfileRow(cy, n, pal.at(b, g.toDouble()), left + pitch / 2 + (n - 1) * pitch + r)
         }
     }
 

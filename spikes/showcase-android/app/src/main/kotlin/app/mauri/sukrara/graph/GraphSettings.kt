@@ -15,6 +15,8 @@ enum class GraphPlace(val label: String) { APP("App"), NOTIFICATION("Notificatio
 
 /** Choices offered in Settings. */
 val WINDOW_HOURS = listOf(3, 6, 12, 24)
+/** Hours between the vertical lines; 0 = none. */
+val GRID_HOURS = listOf(0, 1, 2, 3, 4, 6, 12)
 val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
 
 /** The chart's extra lines: 100 mg/dL unless the user changes them; at most [MAX_LINES], each in [LINE_RANGE]. */
@@ -46,29 +48,33 @@ data class GraphConfig(
     val side: Boolean = true,
     /** Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them). */
     val lines: List<Int> = DEFAULT_LINES,
+    /** Hours between the vertical lines at least ([GRID_HOURS]; small charts space them further apart), 0 = none. */
+    val gridHours: Int = 1,
 ) {
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) =
         slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder) }
     fun graphStyle(hours: Int, hour24: Boolean) =
-        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines)
+        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines, gridHours = gridHours)
 
     fun toJson(): JSONObject = JSONObject()
         .put("veryLow", bands.veryLow).put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
-        .put("veryHigh", bands.veryHigh)
+        .put("veryHigh", bands.veryHigh).put("extremelyHigh", bands.extremelyHigh)
         .put("defaultHours", defaultHours)
         .put("placeHours", JSONObject().apply { placeHours.forEach { (k, v) -> put(k.name, v) } })
         .put("ringCount", ringCount).put("ringRange", ringRange.name).put("ringOrder", ringOrder.joinToString(",") { it.name })
         .put("slots", slots.joinToString(",") { "${it.kind.name}:${it.windowS}:${if (it.faded) 1 else 0}" })
         .put("side", side)
         .put("lines", lines.joinToString(","))
+        .put("gridHours", gridHours)
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
             val d = GraphConfig()
             return GraphConfig(
                 bands = Bands(o.optInt("veryLow", d.bands.veryLow), o.optInt("low", d.bands.low), o.optInt("tight", d.bands.tight),
-                    o.optInt("high", d.bands.high), o.optInt("veryHigh", d.bands.veryHigh)).sane(),
+                    o.optInt("high", d.bands.high), o.optInt("veryHigh", d.bands.veryHigh),
+                    o.optInt("extremelyHigh", d.bands.extremelyHigh)).sane(),
                 defaultHours = o.optInt("defaultHours", d.defaultHours).takeIf { it in WINDOW_HOURS } ?: d.defaultHours,
                 placeHours = o.optJSONObject("placeHours")?.let { p ->
                     GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS }?.let { k to it } }.toMap()
@@ -85,6 +91,7 @@ data class GraphConfig(
                     .takeIf { it.toSet().size == Band.entries.size && it.size == Band.entries.size } ?: d.ringOrder,
                 side = o.optBoolean("side", d.side),
                 lines = if (o.has("lines")) parseLines(o.optString("lines")) else d.lines,
+                gridHours = o.optInt("gridHours", d.gridHours).takeIf { it in GRID_HOURS } ?: d.gridHours,
             )
         }
     }

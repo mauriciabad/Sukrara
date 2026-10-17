@@ -32,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
 import app.mauri.sukrara.R
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.GRID_HOURS
 import app.mauri.sukrara.graph.LINE_RANGE
 import app.mauri.sukrara.graph.MAX_LINES
 import app.mauri.sukrara.graph.parseLines
@@ -99,13 +100,23 @@ fun GraphScreen(onBack: () -> Unit) {
         BandSlider("Very good up to", g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } }
         BandSlider("High above", g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } }
         BandSlider("Very high above", g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } }
+        BandSlider("Extremely high from", g.bands.extremelyHigh, 260f..400f) { v -> set { it.copy(bands = it.bands.copy(extremelyHigh = v)) } }
         Note("In range is ${g.bands.low}–${g.bands.high} mg/dL; very good (${g.bands.low}–${g.bands.tight}) is the part of it " +
             "where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView " +
-            "report. The ranges colour the number, the line, the status bar and the time in range everywhere.")
+            "report. Extremely high only changes the colour of the line and the number; the report counts it as very high. The ranges colour the number, the line, the status bar and the time in range everywhere.")
 
-        ResetTitle("Lines", g.lines != D.lines) { set { it.copy(lines = D.lines) } }
+        ResetTitle("Lines", g.lines != D.lines || g.gridHours != D.gridHours) {
+            set { it.copy(lines = D.lines, gridHours = D.gridHours) }
+        }
         GraphLines(g.lines) { l -> set { it.copy(lines = l) } }
         Note("Dashed lines across the graph at the levels you pick, besides the range limits.")
+        val gi = GRID_HOURS.indexOf(g.gridHours).coerceAtLeast(0)
+        Column {
+            Text("Vertical lines: " + if (g.gridHours == 0) "off" else "every ${g.gridHours} h", style = MaterialTheme.typography.bodyMedium)
+            Slider(gi.toFloat(), { v -> GRID_HOURS[v.roundToInt()].let { h -> if (h != g.gridHours) set { it.copy(gridHours = h) } } },
+                valueRange = 0f..GRID_HOURS.lastIndex.toFloat(), steps = GRID_HOURS.size - 2)
+        }
+        Note("All the way left turns them off; the times under the graph stay. Small graphs space them further apart.")
 
         ResetTitle("Graph window", g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
             set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }

@@ -11,9 +11,11 @@ import kotlin.math.min
 /**
  * The user's ranges (investigation 16), mg/dL, as in LibreView's report: very low < [veryLow] ≤ low < [low] ≤ in range
  * ≤ [high] < high ≤ [veryHigh] < very high. Inside the in-range band, the "very good" (tight) band [low]..[tight],
- * where a person without diabetes spends nearly all day.
+ * where a person without diabetes spends nearly all day. [extremelyHigh] (≥, like the extremely high alert) only
+ * colours the line and the number: time in range keeps LibreView's five ranges, so it counts as very high there.
  */
-data class Bands(val veryLow: Int = 54, val low: Int = 70, val tight: Int = 140, val high: Int = 180, val veryHigh: Int = 250) {
+data class Bands(val veryLow: Int = 54, val low: Int = 70, val tight: Int = 140, val high: Int = 180, val veryHigh: Int = 250,
+                 val extremelyHigh: Int = 300) {
     fun of(mgdl: Double): Band = when {
         mgdl < veryLow -> Band.VERY_LOW
         mgdl < low -> Band.LOW
@@ -28,7 +30,8 @@ data class Bands(val veryLow: Int = 54, val low: Int = 70, val tight: Int = 140,
     fun sane(): Bands {
         val l = low.coerceIn(40, 120)
         val h = high.coerceIn(l + 20, 300)
-        return Bands(veryLow.coerceIn(30, l - 5), l, tight.coerceIn(l + 10, h), h, veryHigh.coerceIn(h + 10, 400))
+        val vh = veryHigh.coerceIn(h + 10, 400)
+        return Bands(veryLow.coerceIn(30, l - 5), l, tight.coerceIn(l + 10, h), h, vh, extremelyHigh.coerceIn(vh + 10, 450))
     }
 }
 

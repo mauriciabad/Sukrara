@@ -20,8 +20,10 @@ import AppKit
 //   ringCount 0–3 (2) · slots "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind TIR|GMI|AVERAGE|CV : window s : faded)
 //   · ringRange IN_RANGE|TIGHT · ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH" (the ring clockwise)
 //   · side (time in range beside the graph, YES) · lines "100,120" (extra dashed lines, mg/dL; "" = none)
-//   · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh (54/70/140/180/250) · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are
-//   in the menu's "Graph" submenu)   readingsDir (tests): keep readings.csv somewhere else
+//   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1)
+//   · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/bandExtremelyHigh (54/70/140/180/250/300)
+//   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are in the menu's "Graph" submenu)
+//   readingsDir (tests): keep readings.csv somewhere else
 //   -graphselftest  the shared graph math against the Android unit-test cases
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in "Alerts…")
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the

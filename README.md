@@ -58,7 +58,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   good and very high inside), and time-in-range rings for 1, 7 or 14 days. No "time ago": the reading's time
   appears only once it's late, then the number is struck through, then hidden. A dashed line at 100 plus lines of
   your own, and the very good part of the range in its own colour. Ranges, lines, windows (per place and per widget)
-  and rings are settings. [16](docs/16-graph.md)
+  and rings are settings, and so are the vertical hour lines (off, or every 1–12 h). [16](docs/16-graph.md)
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
   variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days. Any of them can sit beside the number
   in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the

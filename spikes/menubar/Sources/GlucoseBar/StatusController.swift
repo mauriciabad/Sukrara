@@ -315,13 +315,24 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         linesMenu.autoenablesItems = false
         linesItem.submenu = linesMenu
+        // Vertical lines: off, or every n hours at least (small charts space them further apart).
+        let gridItem = menu.addItem(withTitle: "Vertical lines: " + (graph.gridHours == 0 ? "off" : "every \(graph.gridHours) h"),
+                                    action: nil, keyEquivalent: "")
+        let gridMenu = NSMenu()
+        for h in GraphConfig.gridChoices {
+            let o = gridMenu.addItem(withTitle: h == 0 ? "Off" : "Every \(h) h", action: #selector(setGraph(_:)), keyEquivalent: "")
+            o.target = self
+            o.state = graph.gridHours == h ? .on : .off
+            o.representedObject = ["gridHours", h]
+        }
+        gridItem.submenu = gridMenu
         let b = graph.bands
-        let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) (defaults write band…)",
+        let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) · \(b.extremelyHigh) (defaults write band…)",
                                 action: nil, keyEquivalent: "")
         note.isEnabled = false
         let d = UserDefaults.standard
-        let bandKeys = ["bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh"]
-        let resetRanges = menu.addItem(withTitle: "Reset ranges to 54 · 70 · 140 · 180 · 250", action: #selector(setGraph(_:)), keyEquivalent: "")
+        let bandKeys = ["bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh"]
+        let resetRanges = menu.addItem(withTitle: "Reset ranges to 54 · 70 · 140 · 180 · 250 · 300", action: #selector(setGraph(_:)), keyEquivalent: "")
         resetRanges.target = self
         resetRanges.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
         resetRanges.representedObject = ["resetKeys", bandKeys]
@@ -336,7 +347,7 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     /// Every graph setting (UserDefaults); "Reset all graph settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "side", "lines", "reportDays"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "reportDays"]
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }

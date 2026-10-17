@@ -129,8 +129,11 @@ LSPosed hook gets them in its state broadcast) and the notification's semantic s
 caution). Above range is now **orange** (very high a deeper red-orange), as in the draft; it was red above 185.
 Alert thresholds are separate (investigation 15) and unchanged.
 
-- In the chart, very high / very low get a faint dashed line when the y range reaches them, and so do the user's
-  own lines (100 by default). The very good part of the in-range band has its own colour. The values on the right:
+- **Extremely high** (300 by default, the extremely high alert's level; the alert keeps its own setting) turns the
+  line, the distribution and the number magenta. Time in range still has LibreView's five ranges.
+- In the chart, very high / very low get a faint dashed line, and so do the user's own lines (100 by default,
+  drawn a little stronger). The y axis always reaches 54 and 250, even on a day that stays between 70 and 220; the user's lines don't
+  change the zoom (a line outside the range isn't drawn). The very good part of the in-range band has its own colour. The values on the right:
   70 and 180 always, then 140, 54 / 250 and the extra lines, each only where it doesn't touch one already written.
 - The three % labels are above / in range / below (the rectangles described in the goal were removed in 0.11.9). Labels too close for their bands are pushed apart.
 - The ring has six segments; gaps only between below, in range and above.
@@ -250,6 +253,9 @@ distribution is close to 0 in a point, the line doesn't get cut, but if it's hig
 |---|---|
 | Line at 100 + up to 6 custom lines (Android settings, Mac submenu, `lines` key) | — |
 | Very good part of the in-range band in its own colour | the single in-range band colour |
+| Extremely high (default 300, ≥ like the alert; Android slider, Mac `bandExtremelyHigh`): its own colour (magenta) for the line, the distribution and the number, and a dashed line with its value when the graph reaches it | counting it as a sixth range in time in range, rings and the report (they keep LibreView's five ranges; ≥ 300 counts as very high); a colour of its own in the status bar / menubar title (they only tell below / in / above) |
+| Vertical lines: off or every 1 / 2 / 3 / 4 / 6 / 12 h at least (Android slider, left end = off; Mac submenu; `gridHours`); small charts still space them further apart; the time labels stay | the fixed automatic step only |
+| The y axis always reaches very low / very high (the 250 line used to show only above ~220) | — |
 | Distribution cut out of the lines below it (on any background) | the line fading towards the distribution (the user: looked bad where it overlapped) |
 | The 54 / 250 lines run under the distribution too (cut like the rest) on Android | starting them after the distribution |
 
