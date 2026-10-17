@@ -82,6 +82,8 @@ fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnS
 /** The rows of one [SettingsGroup]; each row gets its segmented shape from its position. */
 class SettingsGroupScope internal constructor() {
     internal val rows = mutableListOf<@Composable (ListItemShapes) -> Unit>()
+    /** Some row has an icon: every row then keeps the icon column, so titles line up (AOSP iconSpaceReserved). */
+    internal var hasIcon = false
     /** Any row content (a slider, a follower with its avatar…), drawn inside the group's card shape. */
     fun row(content: @Composable (ListItemShapes) -> Unit) { rows += content }
 }
@@ -99,7 +101,9 @@ fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? 
             }
         }
         val n = scope.rows.size
-        scope.rows.forEachIndexed { i, r -> r(ListItemDefaults.segmentedShapes(i, n)) }
+        androidx.compose.runtime.CompositionLocalProvider(LocalReserveIcon provides scope.hasIcon) {
+            scope.rows.forEachIndexed { i, r -> r(ListItemDefaults.segmentedShapes(i, n)) }
+        }
     }
 }
 
@@ -119,8 +123,27 @@ private fun Title(text: String) = Text(text, style = MaterialTheme.typography.bo
 @Composable
 private fun Summary(text: String?) = text?.let { s -> Swap(s) { Text(it, style = MaterialTheme.typography.bodyMedium) } }
 
+private val LocalReserveIcon = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/**
+ * The icon column: 40 dp wide whatever the icon (a 24 dp symbol or brand mark, a 40 dp app icon or avatar), and kept
+ * empty on rows without one when their group has icons, so every title in a group starts at the same place.
+ */
 @Composable
-private fun RowIcon(@DrawableRes icon: Int?) = icon?.let { Icon(painterResource(it), contentDescription = null) }
+private fun lead(@DrawableRes icon: Int?, leading: (@Composable () -> Unit)?, tint: Color? = null): (@Composable () -> Unit)? {
+    if (icon == null && leading == null && !LocalReserveIcon.current) return null
+    return {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            when {
+                leading != null -> leading()
+                icon != null -> if (tint != null) Icon(painterResource(icon), contentDescription = null, tint = tint)
+                    else Icon(painterResource(icon), contentDescription = null)
+            }
+        }
+    }
+}
+
+private fun SettingsGroupScope.noteIcon(@DrawableRes icon: Int?, leading: Any?) { if (icon != null || leading != null) hasIcon = true }
 
 /** Free content (a slider, chips, a field) in the group's card colour and shape. */
 fun SettingsGroupScope.card(content: @Composable ColumnScope.() -> Unit) = row { shapes ->
@@ -132,50 +155,64 @@ fun SettingsGroupScope.card(content: @Composable ColumnScope.() -> Unit) = row {
 
 /**
  * Opens another screen: › at the end (Android 16 Settings), or ↗ when it leaves the app ([external]: a web page, the
- * system settings). [leading] replaces the plain icon (category icons, avatars).
+ * system settings). [leading] replaces the plain icon (category icons, avatars, app icons).
  */
 fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
-                            external: Boolean = false, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) = row { shapes ->
-    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
-        leadingContent = leading ?: icon?.let { { RowIcon(it) } },
-        supportingContent = summary?.let { { Summary(it) } },
-        trailingContent = {
-            Icon(painterResource(if (external) R.drawable.ic_sym_open_in_new else R.drawable.ic_sym_chevron_right),
-                contentDescription = if (external) "Opens outside Sukrara" else null)
-        }) { Title(title) }
+                            external: Boolean = false, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+    noteIcon(icon, leading)
+    row { shapes ->
+        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
+            leadingContent = lead(icon, leading),
+            supportingContent = summary?.let { { Summary(it) } },
+            trailingContent = {
+                Icon(painterResource(if (external) R.drawable.ic_sym_open_in_new else R.drawable.ic_sym_chevron_right),
+                    contentDescription = if (external) "Opens outside Sukrara" else null)
+            }) { Title(title) }
+    }
 }
 
 /** Opens a dialog (a choice, an editor): the current value below the title. */
 fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = true, @DrawableRes icon: Int? = null,
-                             leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) = row { shapes ->
-    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
-        leadingContent = leading ?: icon?.let { { RowIcon(it) } },
-        supportingContent = { Summary(value) }) { Title(title) }
+                             leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+    noteIcon(icon, leading)
+    row { shapes ->
+        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
+            leadingContent = lead(icon, leading), supportingContent = { Summary(value) }) { Title(title) }
+    }
 }
 
 /** Does something now (pair, save, copy…): the title in the accent colour ("Links should use an accent color"). */
 fun SettingsGroupScope.action(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
-                              onClick: () -> Unit) = row { shapes ->
-    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
-        leadingContent = icon?.let { { Icon(painterResource(it), contentDescription = null, tint = if (enabled) MaterialTheme.colorScheme.primary else Color.Unspecified) } },
-        supportingContent = summary?.let { { Summary(it) } }) {
-        Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) MaterialTheme.colorScheme.primary else Color.Unspecified)
+                              onClick: () -> Unit) {
+    noteIcon(icon, null)
+    row { shapes ->
+        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
+            leadingContent = lead(icon, null, tint = if (enabled) MaterialTheme.colorScheme.primary else null),
+            supportingContent = summary?.let { { Summary(it) } }) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) MaterialTheme.colorScheme.primary else Color.Unspecified)
+        }
     }
 }
 
 /** Not tappable: a fact (version, an address). */
-fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes icon: Int? = null) = row { shapes ->
-    SegmentedListItem(shapes = shapes, colors = rowColors(), leadingContent = icon?.let { { RowIcon(it) } },
-        supportingContent = summary?.let { { Summary(it) } }) { Title(title) }
+fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes icon: Int? = null) {
+    noteIcon(icon, null)
+    row { shapes ->
+        SegmentedListItem(shapes = shapes, colors = rowColors(), leadingContent = lead(icon, null),
+            supportingContent = summary?.let { { Summary(it) } }) { Title(title) }
+    }
 }
 
 /** The whole row toggles; disabled rows are greyed out with the reason as the summary. */
 fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
-                              @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) = row { shapes ->
-    SegmentedListItem(checked = checked, onCheckedChange = onChange, shapes = shapes.copy(selectedShape = shapes.shape), colors = rowColors(), enabled = enabled,
-        leadingContent = leading ?: icon?.let { { RowIcon(it) } },
-        supportingContent = summary?.let { { Summary(it) } },
-        trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) }) { Title(title) }
+                              @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
+    noteIcon(icon, leading)
+    row { shapes ->
+        SegmentedListItem(checked = checked, onCheckedChange = onChange, shapes = shapes.copy(selectedShape = shapes.shape),
+            colors = rowColors(), enabled = enabled, leadingContent = lead(icon, leading),
+            supportingContent = summary?.let { { Summary(it) } },
+            trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) }) { Title(title) }
+    }
 }
 
 /**
@@ -185,7 +222,7 @@ fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean 
 fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
                                    switchEnabled: Boolean = rowEnabled, onClick: () -> Unit, onChange: (Boolean) -> Unit) = row { shapes ->
     SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = rowEnabled,
-        supportingContent = summary?.let { { Summary(it) } },
+        leadingContent = lead(null, null), supportingContent = summary?.let { { Summary(it) } },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 VerticalDivider(Modifier.height(32.dp))
