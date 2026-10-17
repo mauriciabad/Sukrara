@@ -152,7 +152,7 @@ fun LibreViewBanner(onSetUp: () -> Unit) {
     val lv by Treat.uploader.settings.collectAsState()
     val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
     Reveal(!ready && !f.libreviewBannerDismissed) {
-        SettingsBanner(R.drawable.ic_sym_cloud_upload, "Set up LibreView",
+        SettingsBanner({ AppIcon(R.drawable.ic_brand_libreview, 32.dp) }, "Set up LibreView",
             "Upload your glucose and entries to LibreView, the record your doctor sees.", "Set up", onSetUp) {
             set { it.copy(libreviewBannerDismissed = true) }
         }
@@ -177,7 +177,8 @@ fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
     SettingsPage("Glucose source", onBack) {
         SettingsIntro(R.drawable.ic_sym_glucose, "Where Sukrara gets your readings from.")
         SettingsGroup {
-            value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: "")) { choosing = true }
+            value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
+                icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ AppIcon(R.drawable.ic_brand_juggluco) })) { choosing = true }
             link("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
                 else "Unavailable while Juggluco holds the sensor", icon = R.drawable.ic_sym_nfc, enabled = direct, onClick = onSensor)
         }
@@ -224,7 +225,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onApps: () -> Unit, onBack: () 
         }
         SettingsGroup("How readings travel") {
             nostrRows(f) { choosing = true }
-            switch("Over Bluetooth nearby", f.bleFollowers,
+            switch("Over Bluetooth nearby", f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
                 summary = if (u.bleOn) "${u.bleCentrals} connected now" else "Bluetooth is off") { v -> set { it.copy(bleFollowers = v) } }
         }
         SettingsGroup { link(APPS, "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, onClick = onApps) } 
@@ -237,7 +238,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onApps: () -> Unit, onBack: () 
 
 /** Nostr relays, on both sharing pages (followers' phones and Macs read from them). */
 private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit) {
-    switch("Over the internet (Nostr relays)", f.nostr, icon = R.drawable.ic_sym_hub, summary = "End-to-end encrypted; followers anywhere") { v ->
+    switch("Over the internet (Nostr relays)", f.nostr, icon = R.drawable.ic_brand_nostr, summary = "End-to-end encrypted; followers anywhere") { v ->
         set { it.copy(nostr = v) }
     }
     value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
@@ -372,11 +373,11 @@ fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onPeople: (() -> Unit
                     lv.email.isEmpty() || !lv.hasPassword -> "Not set up"
                     f.libreview -> "Uploading as ${lv.email}"
                     else -> "Off · ${lv.email}"
-                }, icon = R.drawable.ic_sym_cloud_upload, onClick = onLibreView)
+                }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, onClick = onLibreView)
             }
         }
         SettingsGroup("xDrip+") {
-            switch("xDrip+ server", f.garmin, icon = R.drawable.ic_sym_watch, summary = "For Garmin watch faces and data fields · " + st.garmin +
+            switch("xDrip+ server", f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = "For Garmin watch faces and data fields · " + st.garmin +
                 (if (st.watchPolledAt > 0) " · last asked ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
         }
         SettingsGroup("Nightscout") {
@@ -598,7 +599,7 @@ fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
         SettingsGroup {
             info(u.wearer?.name ?: "Sukrara", u.ownerPub?.let { Proto.shortNpub(it) }, icon = R.drawable.ic_sym_person)
             info("Can add entries", if (u.canWrite) "Yes, the wearer allowed it" else "No, ask the wearer")
-            info("Bluetooth", u.ble, icon = R.drawable.ic_sym_bluetooth_searching)
+            info("Bluetooth", u.ble, icon = R.drawable.ic_brand_bluetooth)
         }
         SettingsGroup { action("Stop following", "Readings already on this phone stay", icon = R.drawable.ic_sym_person_remove) { leaving = true } }
     }
@@ -658,10 +659,10 @@ private suspend fun latestRelease(): Release? = withContext(Dispatchers.IO) {
 
 /** What a release file is for, from its name (unknown kinds still show, by file name). */
 private fun platformOf(name: String): Pair<String, Int> = when {
-    name.endsWith(".apk") -> "Android" to R.drawable.ic_sym_android
-    name.endsWith(".dmg") -> "Mac" to R.drawable.ic_sym_laptop_mac
-    name.contains("mac") && name.endsWith(".zip") -> "Mac (zip)" to R.drawable.ic_sym_laptop_mac
-    name.endsWith(".prg") || name.endsWith(".iq") -> "Garmin watch" to R.drawable.ic_sym_watch
+    name.endsWith(".apk") -> "Android" to R.drawable.ic_brand_android
+    name.endsWith(".dmg") -> "Mac" to R.drawable.ic_brand_apple
+    name.contains("mac") && name.endsWith(".zip") -> "Mac (zip)" to R.drawable.ic_brand_apple
+    name.endsWith(".prg") || name.endsWith(".iq") -> "Garmin watch" to R.drawable.ic_brand_garmin
     else -> name to R.drawable.ic_sym_download
 }
 
@@ -696,7 +697,7 @@ fun AboutSettings(onBack: () -> Unit) {
             }
         }
         SettingsGroup {
-            link("Source code", "GitHub · GPL-3.0", icon = R.drawable.ic_sym_code, external = true) { open(REPO) }
+            link("Source code", "GitHub · GPL-3.0", icon = R.drawable.ic_brand_github, external = true) { open(REPO) }
             link("Website", "sukrara.mauri.app", icon = R.drawable.ic_sym_link, external = true) { open("https://sukrara.mauri.app") }
         }
         SettingsFooter("An alpha research app, not a medical device. Don't make treatment decisions from it alone.")

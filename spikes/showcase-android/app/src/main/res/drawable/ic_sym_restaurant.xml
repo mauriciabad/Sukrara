@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Material Symbols Outlined "restaurant" (Apache 2.0, fonts.google.com/icons), 24 dp, tinted by Compose Icon -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
-    android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="false">
-    <group android:translateY="960">
-        <path android:fillColor="@android:color/white" android:pathData="M280-80v-366q-51-14-85.5-56T160-600v-280h80v280h40v-280h80v280h40v-280h80v280q0 56-34.5 98T360-446v366h-80Zm400 0v-320H560v-280q0-83 58.5-141.5T760-880v800h-80Z"/>
-    </group>
-</vector>

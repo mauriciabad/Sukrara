@@ -10,7 +10,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.PathEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -58,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -71,8 +74,8 @@ import kotlinx.coroutines.launch
 
 /*
  * Motion for the whole app (Material 3 motion, Android 16+ conventions):
- *  - screens: shared axis X forward, a predictive-back "peek" (the screen shrinks off to reveal the one below) back,
- *    fade-through between unrelated screens (role / onboarding / follower status);
+ *  - screens: the system's own activity open / close and predictive back motion ([ScreenHost]), fade-through
+ *    between unrelated screens (role / onboarding / follower status);
  *  - live data: rolling digits, smoothly rotating arrow, colour cross-fades, new chart points growing in;
  *  - lists and optional sections: fade + expand / shrink.
  * Every animation runs on Compose's frame clock, which scales durations by the system "Animator duration scale"
@@ -94,38 +97,9 @@ object Motion {
     fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = spring(1f, 800f)
 }
 
-// M3 emphasized easing (enter decelerates, exit accelerates); durations per the M3 transition patterns.
+// M3 emphasized easing (enter decelerates, exit accelerates), for fade through.
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
-private const val NAV_MS = 300
 private const val FADE_OUT_MS = 90
-
-/** Shared axis X (M3): forward = new screen slides in from the end, back = the reverse. */
-fun sharedAxisX(forward: Boolean, density: Float): ContentTransform {
-    val shift = (30 * density).toInt() * if (forward) 1 else -1
-    return (slideInHorizontally(tween(NAV_MS, easing = EmphasizedDecelerate)) { shift } +
-        fadeIn(tween(NAV_MS - FADE_OUT_MS, delayMillis = FADE_OUT_MS, easing = LinearEasing))) togetherWith
-        (slideOutHorizontally(tween(NAV_MS, easing = EmphasizedAccelerate)) { -shift } +
-            fadeOut(tween(FADE_OUT_MS, easing = LinearEasing)))
-}
-
-/**
- * Back to the parent screen. The leaving screen stays on top and shrinks to 90 % with rounded corners (see [Page]),
- * revealing the parent sliding in behind it — the system predictive-back look. While the back gesture is being
- * dragged ([gesture]) everything is linear so the screen follows the finger exactly.
- */
-fun popTransition(gesture: Boolean, density: Float): ContentTransform {
-    val easeIn = if (gesture) LinearEasing else EmphasizedDecelerate
-    val easeOut = if (gesture) LinearEasing else EmphasizedAccelerate
-    val shift = (30 * density).toInt()
-    return ContentTransform(
-        targetContentEnter = slideInHorizontally(tween(NAV_MS, easing = easeIn)) { -shift } + fadeIn(tween(NAV_MS, easing = easeIn)),
-        initialContentExit = scaleOut(tween(NAV_MS, easing = easeOut), targetScale = 0.9f) +
-            slideOutHorizontally(tween(NAV_MS, easing = easeOut)) { shift } +
-            fadeOut(tween(NAV_MS / 2, delayMillis = NAV_MS / 2, easing = LinearEasing)),
-        targetContentZIndex = -1f,
-    )
-}
 
 /** Fade through (M3): for screens without a parent/child relation (role choice → onboarding → home). */
 fun fadeThrough(): ContentTransform =
@@ -133,21 +107,13 @@ fun fadeThrough(): ContentTransform =
         scaleIn(tween(210, delayMillis = FADE_OUT_MS, easing = EmphasizedDecelerate), initialScale = 0.92f)) togetherWith
         fadeOut(tween(FADE_OUT_MS, easing = LinearEasing))
 
-private val PageCorner = 28.dp
-
 /**
- * One full screen: opaque background (so a screen shrinking during back covers the one below cleanly), edge-to-edge
- * safe area, its own scroll position. Inside an [AnimatedContentScope] the corners round while the page leaves.
+ * One full screen: opaque background (so the screen moving over another covers it cleanly), edge-to-edge safe area,
+ * its own scroll position.
  */
 @Composable
-fun AnimatedContentScope.Page(scroll: ScrollState = rememberScrollState(), content: @Composable ColumnScope.() -> Unit) {
-    val corner by transition.animateDp(label = "corner") { if (it == EnterExitState.PostExit) PageCorner else 0.dp }
-    PageColumn(scroll, corner, content)
-}
-
-@Composable
-private fun PageColumn(scroll: ScrollState, corner: Dp, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().clip(RoundedCornerShape(corner)).background(MaterialTheme.colorScheme.background)
+fun Page(scroll: ScrollState = rememberScrollState(), content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         .safeDrawingPadding().verticalScroll(scroll).padding(16.dp), content = content)
 }
 
@@ -171,44 +137,134 @@ class Nav(home: String) {
 @Composable
 fun rememberNav(home: String) = remember { Nav(home) }
 
-/**
- * The screens of a [Nav] with predictive back: the system back gesture seeks the transition to the parent screen
- * (NavigationEvent API, what Navigation 3 builds on); releasing completes it, cancelling springs back. Going deeper
- * slides in (shared axis X), going back pops.
+/*
+ * Screen changes copy what the Settings app shows on Android 16/17. Settings pages are separate activities there, so
+ * the motion is the system's (AOSP core/res/res/anim/activity_{open,close}_*.xml and WM Shell
+ * back/CrossActivityBackAnimation.kt; SettingsLib's own transition helper is empty):
+ *  - open: both pages slide 96 dp to the start, 450 ms fast-out-extra-slow-in; the new page fades in over 83 ms after
+ *    50 ms;
+ *  - back: the reverse; the closing page fades out over 83 ms after 35 ms;
+ *  - back gesture: the page shrinks to 90 % with the window's corner radius, its end edge 8 dp from the screen's, and
+ *    follows the finger up and down; the page below waits 96 dp to the start at the same scale, a black scrim (20 %
+ *    light, 80 % dark) between them. Releasing finishes in 450 ms (the page leaves 96 dp to the end, gone by 20 %),
+ *    cancelling springs back.
  */
+private const val SYSTEM_MS = 450
+private val FastOutExtraSlowIn = PathEasing(androidx.compose.ui.graphics.Path().apply {
+    moveTo(0f, 0f); cubicTo(0.05f, 0f, 0.133333f, 0.06f, 0.166666f, 0.4f); cubicTo(0.208333f, 0.82f, 0.25f, 1f, 1f, 1f)
+})
+private val BackGesture = CubicBezierEasing(0.1f, 0.1f, 0f, 1f)
+
+private enum class Move { OPEN, BACK, GESTURE, COMMIT }
+
+/** The screens of a [Nav]: one at rest, two while moving between them (see above). */
 @Composable
-fun ScreenHost(nav: Nav, content: @Composable AnimatedContentScope.(String) -> Unit) {
-    val screen = nav.screen
-    val parent = nav.stack.getOrNull(nav.stack.size - 2)
-    // last known depth of every screen, so the transition knows whether a change goes deeper or back
+fun ScreenHost(nav: Nav, content: @Composable (String) -> Unit) {
+    val holder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    val scope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    // the device's own window corner radius, what the system rounds a page to during the back gesture
+    val cornerPx = remember {
+        ctx.display?.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: with(density) { 28.dp.toPx() }
+    }
+    // last known depth of every screen: a change to a shallower one is a back
     val depth = remember { HashMap<String, Int>() }
     nav.stack.forEachIndexed { i, s -> depth[s] = i }
-    val seekable = remember { SeekableTransitionState(screen) }
-    val transition = rememberTransition(seekable, label = "screen")
-    val scope = rememberCoroutineScope()
-    var gesture by remember { mutableStateOf(false) }
+
+    var shown by remember { mutableStateOf(nav.screen) }        // the page at rest / the one being left
+    var other by remember { mutableStateOf<String?>(null) }     // the page coming in, or the parent during a gesture
+    var move by remember { mutableStateOf(Move.OPEN) }
+    val t = remember { Animatable(0f) }                         // linear time 0..1 of OPEN / BACK / COMMIT
+    val g = remember { Animatable(0f) }                         // gesture progress (interpolated)
+    var dy by remember { mutableStateOf(0f) }                   // finger travel up/down since the gesture started
+    var startY by remember { mutableStateOf<Float?>(null) }
+
+    val parent = nav.stack.getOrNull(nav.stack.size - 2)
     val navState = rememberNavigationEventState(NavigationEventInfo.None)
     NavigationBackHandler(navState, isBackEnabled = parent != null,
-        onBackCancelled = { scope.launch { seekable.animateTo(screen); gesture = false } },
+        onBackCancelled = {
+            scope.launch {
+                g.animateTo(0f, spring(1f, 1500f))
+                if (move == Move.GESTURE) { other = null; startY = null; dy = 0f; move = Move.OPEN }
+            }
+        },
         onBackCompleted = { nav.back() })
     val ts = navState.transitionState
     LaunchedEffect(ts) {
         if (ts is NavigationEventTransitionState.InProgress && parent != null) {
-            gesture = true
-            seekable.seekTo(ts.latestEvent.progress, targetState = parent)
+            if (move != Move.GESTURE || other == null) { move = Move.GESTURE; other = parent; t.snapTo(0f) }
+            val e = ts.latestEvent
+            if (startY == null) startY = e.touchY
+            dy = e.touchY - (startY ?: e.touchY)
+            g.snapTo(BackGesture.transform(e.progress))
         }
     }
-    LaunchedEffect(screen) {
-        if (seekable.currentState != screen || seekable.targetState != screen) seekable.animateTo(screen)
-        gesture = false
+    LaunchedEffect(nav.screen) {
+        val target = nav.screen
+        if (target == shown && other == null) return@LaunchedEffect
+        val back = (depth[target] ?: 0) < (depth[shown] ?: 0)
+        move = if (move == Move.GESTURE && back) Move.COMMIT else if (back) Move.BACK else Move.OPEN
+        other = target
+        t.snapTo(0f)
+        t.animateTo(1f, tween(SYSTEM_MS, easing = LinearEasing))   // the frame clock applies the system animation scale
+        shown = target; other = null; g.snapTo(0f); startY = null; dy = 0f
     }
-    val density = androidx.compose.ui.platform.LocalDensity.current.density
-    transition.AnimatedContent(
-        transitionSpec = {
-            if ((depth[targetState] ?: 0) < (depth[initialState] ?: 0)) popTransition(gesture, density) else sharedAxisX(true, density)
-        },
-        contentAlignment = Alignment.TopStart,
-    ) { content(it) }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val w = constraints.maxWidth.toFloat()
+        val h = constraints.maxHeight.toFloat()
+        val d96 = with(density) { 96.dp.toPx() }
+        val d8 = with(density) { 8.dp.toPx() }
+        val scrimMax = if (dark) 0.8f else 0.2f
+        @Composable
+        fun page(key: String, layer: androidx.compose.ui.graphics.GraphicsLayerScope.() -> Unit) =
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().graphicsLayer(layer)) { holder.SaveableStateProvider(key) { content(key) } }
+        val o = other
+        if (o == null) page(shown) {}
+        else when (move) {
+            Move.OPEN -> {
+                // shown slides out to the start, the new page comes in from the end on top of it
+                page(shown) { translationX = -d96 * FastOutExtraSlowIn.transform(t.value) }
+                page(o) {
+                    translationX = d96 * (1 - FastOutExtraSlowIn.transform(t.value))
+                    alpha = ((t.value * SYSTEM_MS - 50f) / 83f).coerceIn(0f, 1f)
+                }
+            }
+            Move.BACK -> {
+                page(o) { translationX = -d96 * (1 - FastOutExtraSlowIn.transform(t.value)) }
+                page(shown) {
+                    translationX = d96 * FastOutExtraSlowIn.transform(t.value)
+                    alpha = 1f - ((t.value * SYSTEM_MS - 35f) / 83f).coerceIn(0f, 1f)
+                }
+            }
+            Move.GESTURE, Move.COMMIT -> {
+                val p = g.value
+                val c = if (move == Move.COMMIT) FastOutExtraSlowIn.transform(t.value) else 0f
+                val scale = 1f - 0.1f * p
+                // at full progress the page's end edge sits 8 dp from the screen's
+                val toEnd = p * (w * 0.05f - d8).coerceAtLeast(0f)
+                val maxY = (h * (1f - scale) / 2f - d8).coerceAtLeast(0f)
+                val yn = (kotlin.math.abs(dy) / (h / 2f)).coerceIn(0f, 1f)
+                val y = kotlin.math.sign(dy) * (1f - (1f - yn) * (1f - yn)) * maxY
+                val sBelow = scale + (1f - scale) * c
+                page(o) {
+                    scaleX = sBelow; scaleY = sBelow
+                    translationX = -d96 * (1f - c); translationY = y * (1f - c)
+                    shape = RoundedCornerShape(cornerPx * (1f - c)); clip = p > 0f
+                }
+                val scrim = if (p > 0f) scrimMax * (1f - if (move == Move.COMMIT) t.value else 0f) else 0f
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) { drawRect(Color.Black, alpha = scrim) }
+                page(shown) {
+                    scaleX = scale; scaleY = scale
+                    translationX = toEnd + d96 * c; translationY = y
+                    alpha = (1f - c * 5f).coerceAtLeast(0f)
+                    shape = RoundedCornerShape(cornerPx); clip = p > 0f
+                }
+            }
+        }
+    }
 }
 
 /** Optional part of a column: fades and expands in, fades and shrinks out. */

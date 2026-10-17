@@ -147,8 +147,9 @@ fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes
 
 /** Opens a dialog (a choice, an editor): the current value below the title. */
 fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = true, @DrawableRes icon: Int? = null,
-                             onClick: () -> Unit) = row { shapes ->
-    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled, leadingContent = icon?.let { { RowIcon(it) } },
+                             leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) = row { shapes ->
+    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
+        leadingContent = leading ?: icon?.let { { RowIcon(it) } },
         supportingContent = { Summary(value) }) { Title(title) }
 }
 
@@ -170,9 +171,9 @@ fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes
 
 /** The whole row toggles; disabled rows are greyed out with the reason as the summary. */
 fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
-                              @DrawableRes icon: Int? = null, onChange: (Boolean) -> Unit) = row { shapes ->
+                              @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) = row { shapes ->
     SegmentedListItem(checked = checked, onCheckedChange = onChange, shapes = shapes.copy(selectedShape = shapes.shape), colors = rowColors(), enabled = enabled,
-        leadingContent = icon?.let { { RowIcon(it) } },
+        leadingContent = leading ?: icon?.let { { RowIcon(it) } },
         supportingContent = summary?.let { { Summary(it) } },
         trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) }) { Title(title) }
 }
@@ -266,13 +267,13 @@ fun SettingsFooter(text: String) {
  * "Not now" and the action. Shown at the top of the home screen and of the settings overview.
  */
 @Composable
-fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
+fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
     androidx.compose.material3.Card(colors = androidx.compose.material3.CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
         shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 20.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(painterResource(icon), contentDescription = null)
+                icon()
                 Text(title, style = MaterialTheme.typography.titleMedium)
             }
             Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
@@ -283,3 +284,8 @@ fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: 
         }
     }
 }
+
+/** Another app's own icon in its colours (xDrip+, Juggluco, LibreView), round like the launcher shows it. */
+@Composable
+fun AppIcon(@DrawableRes res: Int, size: androidx.compose.ui.unit.Dp = 40.dp) =
+    androidx.compose.foundation.Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size).clip(CircleShape))
