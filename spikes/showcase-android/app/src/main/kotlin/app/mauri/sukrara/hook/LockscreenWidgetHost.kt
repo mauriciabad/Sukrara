@@ -55,6 +55,7 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
     private var scenes: Any? = null
     private var auth: Any? = null
     private var lastAlpha = -1f
+    private var recheck = false
     /** Where the lock icon / fingerprint sensor is, from the last [place]. */
     private var lockRect = Rect()
 
@@ -171,6 +172,12 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
     private fun follow() {
         val v = view ?: return
         val a = if (enabled && interactive(v.context)) lockscreenAlpha() else 0f
+        // Mid-transition: check again next frame, so the widget never stays half-faded if SystemUI's last frame of the
+        // transition came before the scene settled.
+        if (a > 0f && a < 1f && !recheck) {
+            recheck = true
+            v.postOnAnimation { recheck = false; safe("follow") { follow() } }
+        }
         if (a == lastAlpha) return
         lastAlpha = a
         v.alpha = a
