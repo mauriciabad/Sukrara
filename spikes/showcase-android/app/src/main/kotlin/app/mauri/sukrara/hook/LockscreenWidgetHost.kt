@@ -18,6 +18,7 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.widgets.LockscreenWidget
 import java.lang.ref.WeakReference
@@ -48,6 +49,14 @@ import kotlin.math.hypot
 internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
     @Volatile var enabled = false
         set(v) { field = v; root?.get()?.let { r -> r.post { safe("enable") { if (v) ensureView(r) else hide() } } } }
+
+    /** [LockBackground]: card, blur and dim are drawn here (shadow by the widget itself). */
+    @Volatile var background = LockBackground.NONE
+        set(v) {
+            if (field == v) return
+            field = v
+            root?.get()?.let { r -> r.post { safe("background") { applyBackground() } } }
+        }
 
     private var root: WeakReference<ViewGroup>? = null
     private var host: AppWidgetHost? = null
@@ -106,19 +115,88 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
         val v = h.createView(ctx, id, info)
         // Glance/RemoteViews own the content; no host padding or background.
         v.setPadding(0, 0, 0, 0)
-        // Under the notifications and the Compose lock screen, above the root's own background layers.
-        val below = (0 until r.childCount).map(r::getChildAt).indexOfFirst { it.idName() == "shared_notification_container" }
-        r.addView(v, if (below >= 0) below else 0, FrameLayout.LayoutParams(0, 0))
+        // Bottom of the window: under every lock screen layer. The fingerprint icon, the shortcuts and the indication
+        // text are in the lower Compose layers (not the scene container), so a card, blur or dim must go below them.
+        r.addView(v, 0, FrameLayout.LayoutParams(0, 0))
         view = v
         lastAlpha = -1f
+        applyBackground()
         place()
         follow()
         log("lock screen widget: view added (id $id)")
+        // Tell Sukrara which widget id to update: AppWidgetManager doesn't list it to the provider.
+        ctx.sendBroadcast(android.content.Intent(RootStatusBar.ACTION_HELLO).setPackage(RootStatusBar.PKG).putExtra("lockWidgetId", id))
     }
 
     private fun hide() {
         view?.let { (it.parent as? ViewGroup)?.removeView(it) }
         view = null
+        scrim?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        scrim = null
+    }
+
+    // --- contrast behind the widget (Material "text protection": scrims) -------------------------------------
+
+    private var scrim: View? = null
+    private var blur: android.graphics.drawable.Drawable? = null
+
+    private fun applyBackground() {
+        val v = view ?: return
+        val r = root?.get() ?: return
+        val res = r.resources
+        val d = res.displayMetrics.density
+        @Suppress("DiscouragedApi")
+        val radius = res.getIdentifier("notification_corner_radius", "dimen", SystemUiHook.SYSTEMUI)
+            .takeIf { it != 0 }?.let(res::getDimension) ?: (28 * d)
+        blur = if (background == LockBackground.BLUR) blurDrawable(r, radius) else null
+        v.background = when (background) {
+            LockBackground.BLUR -> blur ?: card(v.context, radius)
+            LockBackground.CARD -> card(v.context, radius)
+            else -> null
+        }
+        if (background == LockBackground.DIM) {
+            if (scrim == null) {
+                scrim = ScrimView(r.context).also { s -> r.addView(s, r.indexOfChild(v), FrameLayout.LayoutParams(0, 0)) }
+            }
+        } else scrim?.let { r.removeView(it); scrim = null }
+        lastAlpha = -1f
+        place()
+        follow()
+    }
+
+    /** Like a notification: the dark surface colour, a little see-through. */
+    private fun card(c: Context, radius: Float) = android.graphics.drawable.GradientDrawable().apply {
+        cornerRadius = radius
+        setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(c.getColor(android.R.color.system_surface_container_high_dark), 0xE0))
+    }
+
+    /**
+     * The wallpaper behind the widget, blurred: SystemUI's own BackgroundBlurDrawable (ViewRootImpl, hidden API; the
+     * shade uses it). Null when cross-window blur is off (battery saver, some devices) → the card instead.
+     */
+    private fun blurDrawable(r: View, radius: Float): android.graphics.drawable.Drawable? = runCatching {
+        if (r.context.getSystemService(android.view.WindowManager::class.java)?.isCrossWindowBlurEnabled != true) return null
+        val vri = View::class.java.getMethod("getViewRootImpl").invoke(r) ?: return null
+        val dr = vri.javaClass.getMethod("createBackgroundBlurDrawable").invoke(vri) as android.graphics.drawable.Drawable
+        val d = r.resources.displayMetrics.density
+        dr.javaClass.getMethod("setBlurRadius", Int::class.javaPrimitiveType).invoke(dr, (24 * d).toInt())
+        dr.javaClass.getMethod("setColor", Int::class.javaPrimitiveType).invoke(dr, 0x59000000)
+        dr.javaClass.getMethod("setCornerRadius", Float::class.javaPrimitiveType).invoke(dr, radius)
+        dr
+    }.onFailure { log("lock screen widget: no blur: $it") }.getOrNull()
+
+    /**
+     * Dim: Material's gradient scrim (dark end 60 %, its middle 3/10 towards the dark end, fading to 0) over the bottom
+     * of the screen, from a little above the widget down to the bottom edge, full width.
+     */
+    private class ScrimView(c: Context) : View(c) {
+        private val paint = android.graphics.Paint()
+        override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+            paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, h.toFloat(),
+                intArrayOf(0x00000000, 0x4D000000, 0x99000000.toInt()), floatArrayOf(0f, 0.35f, 1f),
+                android.graphics.Shader.TileMode.CLAMP)
+        }
+        override fun onDraw(cv: android.graphics.Canvas) { cv.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint) }
     }
 
     /** Size and position from the lock icon and the shortcuts; tells the widget where the lock icon is. */
@@ -148,14 +226,25 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
             lp.width = width; lp.height = height; lp.leftMargin = side; lp.topMargin = top
             v.layoutParams = lp
         }
+        scrim?.let { s ->
+            val slp = s.layoutParams as FrameLayout.LayoutParams
+            val sTop = (top - 64 * d).toInt()
+            if (slp.width != w || slp.height != h - sTop || slp.topMargin != sTop) {
+                slp.width = w; slp.height = h - sTop; slp.leftMargin = 0; slp.topMargin = sTop
+                s.layoutParams = slp
+            }
+        }
         val gap = 6 * d
         val extras = Bundle().apply {
             putFloat(LockscreenWidget.HOLE_LEFT, (lock.left - side - gap) / d)
             putFloat(LockscreenWidget.HOLE_RIGHT, (lock.right - side + gap) / d)
             putFloat(LockscreenWidget.HOLE_BOTTOM, lock.height() / d)
         }
-        // Only sends new options when they differ (AppWidgetHostView compares them).
-        v.updateAppWidgetSize(extras, listOf(SizeF(width / d, height / d)))
+        // updateAppWidgetSize reports each size minus the default widget padding, but the view has none (the widget
+        // draws edge to edge): add it back, or the widget draws for a smaller box and gets stretched (measured 9 %
+        // taller with a test square). Only sends new options when they differ.
+        val pad = AppWidgetHostView.getDefaultPaddingForWidget(r.context, v.appWidgetInfo?.provider, null)
+        v.updateAppWidgetSize(extras, listOf(SizeF((width + pad.left + pad.right) / d, (height + pad.top + pad.bottom) / d)))
     }
 
     private fun lockIcon(r: ViewGroup, dimen: (String, Float) -> Int): Rect {
@@ -180,8 +269,12 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
         }
         if (a == lastAlpha) return
         lastAlpha = a
-        v.alpha = a
-        v.visibility = if (a > 0f) View.VISIBLE else View.INVISIBLE
+        for (x in listOfNotNull(v, scrim)) {
+            x.alpha = a
+            x.visibility = if (a > 0f) View.VISIBLE else View.INVISIBLE
+        }
+        // The blur is composited by the window, not with the view: fade it explicitly.
+        blur?.alpha = (a * 255).toInt()
     }
 
     private fun interactive(c: Context) = c.getSystemService(PowerManager::class.java)?.isInteractive == true
@@ -300,8 +393,6 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
     }
 
     // --- helpers --------------------------------------------------------------------------------------------
-
-    private fun View.idName(): String? = if (id == View.NO_ID) null else runCatching { resources.getResourceEntryName(id) }.getOrNull()
 
     private inline fun safe(what: String, block: () -> Unit) {
         try { block() } catch (t: Throwable) { log("lock screen widget: $what failed: $t") }

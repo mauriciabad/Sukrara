@@ -21,6 +21,7 @@ import org.json.JSONObject
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
  *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
+ *       [--es cmd locktest [--ez on B]]   (lock screen widget: a 100 dp magenta square + circle, to measure distortion) \
  *       [--ez hookColor B] [--ez hideNotifIcon B] [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \
@@ -47,6 +48,7 @@ class DebugReceiver : BroadcastReceiver() {
                 chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
                 hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon), lockWidget = b("lockWidget", s.lockWidget),
+                lockBg = i.getStringExtra("lockBg") ?: s.lockBg, lockWhite = b("lockWhite", s.lockWhite),
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,
@@ -57,6 +59,11 @@ class DebugReceiver : BroadcastReceiver() {
                     else -> wantSource
                 },
             )
+        }
+        // Lock screen widget style: the module and the widget redraw now, not at the next reading.
+        if (listOf("lockWidget", "lockBg", "lockWhite").any(i::hasExtra)) {
+            app.mauri.sukrara.status.RootStatusBar.pushState(c)
+            app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "lock screen style", force = true)
         }
         if (i.hasExtra("systemIcons")) notes += "systemIcons is derived: --ez hook true --es hookPosition slot: (or slot:wifi …)"
         val out = JSONObject().put("features", f.toJson()).put("runtime", Live.status.value.toJson())
@@ -145,6 +152,11 @@ class DebugReceiver : BroadcastReceiver() {
                 }
                 out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
                     .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
+            }
+            "locktest" -> {
+                app.mauri.sukrara.widgets.LockscreenWidget.testPattern = i.getBooleanExtra("on", true)
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
+                out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
             }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }

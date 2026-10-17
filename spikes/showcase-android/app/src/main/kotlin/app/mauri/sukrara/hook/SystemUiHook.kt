@@ -338,6 +338,7 @@ class SystemUiHook : XposedModule() {
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
             i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon))
         if (i.hasExtra("lockWidget")) lockWidget.enabled = i.getBooleanExtra("lockWidget", false)
+        i.getStringExtra("lockBg")?.let { lockWidget.background = it }
         slots.removeAll { it.root.get() == null }
         if (state.position != old.position) slots.forEach { place(it) }
         renderAll()

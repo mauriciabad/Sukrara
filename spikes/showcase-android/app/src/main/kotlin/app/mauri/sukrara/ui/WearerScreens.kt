@@ -238,17 +238,35 @@ private fun StatusBarSettings(f: FeatureState, st: app.mauri.sukrara.wearer.Wear
     RootStatusBarSettings(f)
 }
 
-/** Investigation 17: the widget the LSPosed module puts on the lock screen (hook/LockscreenWidgetHost). */
+/**
+ * Investigation 17: the widget the LSPosed module puts on the lock screen (hook/LockscreenWidgetHost), and its contrast
+ * options (Material text protection). Dependents are disabled while the widget is off, like the root status bar.
+ */
 @Composable
 private fun LockscreenSettings(f: FeatureState) {
     val ctx = LocalContext.current
-    Toggle("Glucose on the lock screen", f.lockWidget, sub = "Value and graph around the fingerprint icon; tap to add an entry") { v ->
-        set { it.copy(lockWidget = v) }
+    var choosing by remember { mutableStateOf(false) }
+    fun change(u: (FeatureState) -> FeatureState) {
+        set(u)
         app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
+        app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "lock screen style", force = true)
+    }
+    val on = f.lockWidget
+    val off = "Unavailable while the lock screen widget is off"
+    val bg = app.mauri.sukrara.features.LockBackground
+    Toggle("Glucose on the lock screen", on, sub = "Value and graph around the fingerprint icon; tap to add an entry") { v ->
+        change { it.copy(lockWidget = v) }
+    }
+    ValueRow("Background", if (on) bg.CHOICES.first { it.second == f.lockBg }.first else off, enabled = on) { choosing = true }
+    Toggle("In range in white", f.lockWhite, enabled = on, sub = if (on) "Highs and lows keep their colours" else off) { v ->
+        change { it.copy(lockWhite = v) }
     }
     HorizontalDivider()
     Text("Needs the Sukrara module enabled in LSPosed (scope System UI). Entries can be added without unlocking.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+    if (choosing) ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
+        { choosing = false }) { v -> change { it.copy(lockBg = v) } }
 }
 
 /**
