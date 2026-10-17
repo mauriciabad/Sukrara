@@ -73,7 +73,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
   *Add treatment*. [10](docs/10-showcase.md)
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
-  log a treatment without unlocking (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
+  log a treatment without unlocking. For busy wallpapers: shadow, dim, card or blur behind it, and in-range values in
+  white (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
 - Upload glucose and treatments to LibreView (Settings → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: urgent low, low, high, very high, falling/rising fast and no data, each with its own threshold,

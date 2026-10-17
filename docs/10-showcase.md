@@ -640,7 +640,7 @@ emulators (system, launcher and Digital Wellbeing too; WorkManager / startup tim
 | ![declined](../spikes/showcase-android/evidence/q4-mac-declined.png) | ![sent](../spikes/showcase-android/evidence/q5-mac-request-sent.png) | |
 | Denied: the requester is told | Waiting on the Mac: no code for a link | |
 
-## Lock screen widget and quick treatments (investigation 17, v0.11.8)
+## Lock screen widget and quick treatments (investigation 17, v0.11.10)
 
 The user marked the empty lower part of the lock screen (around the fingerprint icon, above the shortcuts) and asked
 for the graph there, plus treatments without unlocking. Root is available, so the LSPosed module now also hosts a
@@ -656,6 +656,8 @@ Sukrara widget inside SystemUI. Full report, rootless options and the fingerprin
 | *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `Features`, `WearerScreens`, `RootStatusBar` broadcast |
 | The treatment dialog shows over the lock screen without unlocking (manifest `showWhenLocked`); *Open Sukrara* asks to unlock first | `AndroidManifest.xml`, `QuickTreatmentActivity` |
 | Quick Settings tile *Add treatment* with the current value | `ui/TreatmentTile.kt` |
+| *Background* for busy wallpapers: none, shadow (default), dim, card, blur; *In range in white* | `LockBackground`, `LockscreenWidget`, `LockscreenWidgetHost` |
+| Exact size (a 100 dp test square: 311 × 343 px before, 262 × 262 after) and direct updates of the SystemUI-hosted widget id (Glance's `updateAll` never reached it) | `LockscreenWidgetHost.place`, `LockscreenWidget.updateAll` |
 
 | Discarded | Why |
 |---|---|
@@ -663,6 +665,7 @@ Sukrara widget inside SystemUI. Full report, rootless options and the fingerprin
 | The widget above the Compose lock screen | it would cover the fingerprint icon and take the unlock swipe |
 | Normal touch dispatch to the widget | a finger on the fingerprint sensor opened the dialog (the user's first test) |
 | Lock screen wallpaper (GlucoDataHandler's approach), the Notes-role shortcut | not interactive / takes over the user's wallpaper or notes app |
+| A light scrim or card | lock screen content is light; it would need a second palette |
 | Quick Settings tile as the rootless quick entry | on a secure lock screen SystemUI asks for the fingerprint before a third-party tile's `onClick`; the tile stays as a shortcut |
 
 ## Next
