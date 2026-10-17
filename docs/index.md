@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.10/Sukrara-0.11.10.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.10/Sukrara-0.11.10.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -38,7 +38,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 ## Features
 
 - **Phone:** value, continuous trend arrow and 12 h chart; status-bar chip and number icon; home-screen widgets;
-  insulin, carbs and notes with optional LibreView upload. Source: Juggluco, or the sensor read directly.
+  with root, the graph on the lock screen; insulin, carbs and notes (also from the lock screen) with optional LibreView upload. Source: Juggluco, or the sensor read directly.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
   (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); the same glucose alerts as the phone.
 - **Alerts:** urgent low, low, high, very high, fast changes and no data, each with your own threshold and sound.
@@ -83,6 +83,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr. In the app since 0.11: short invites and private names + pictures |
 | [15](15-alerts) | Glucose alerts and sound packs | Same rules on phone and Mac, followers alert with the wearer, game-style sounds and vibrations |
 | [16](16-graph) | One glucose graph everywhere | Time at each level beside the chart, time-in-range rectangles and rings, six ranges, freshness instead of "time ago", per-widget settings |
+| [17](17-lockscreen-widget) | Glucose on the lock screen | The graph around the fingerprint icon (root + LSPosed); log a treatment without unlocking |
 | [18](18-metrics) | The doctor's report in the app | Time in ranges, average, GMI and CV with their goals, on the home screen and in widget slots |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)

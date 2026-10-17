@@ -57,6 +57,7 @@ object WidgetUpdater {
         ValueWidget() to ValueWidgetReceiver::class.java,
         GraphWidget() to GraphWidgetReceiver::class.java,
         CombinedWidget() to CombinedWidgetReceiver::class.java,
+        LockscreenWidget() to LockscreenWidgetReceiver::class.java,
     )
 
     /** For composition when the process just started (system-initiated update): load from disk. */
@@ -100,7 +101,8 @@ object WidgetUpdater {
         val mgr = GlanceAppWidgetManager(c)
         for ((widget, receiver) in widgets) {
             @Suppress("UNCHECKED_CAST")
-            if (mgr.getGlanceIds(widget.javaClass).isNotEmpty()) widget.updateAll(c)
+            if (widget is LockscreenWidget) LockscreenWidget.updateAll(c)
+            else if (mgr.getGlanceIds(widget.javaClass).isNotEmpty()) widget.updateAll(c)
         }
         val ms = System.currentTimeMillis() - t
         stats.value = stats.value.run { copy(renders = renders + 1, lastReason = reason, lastRenderMs = ms) }

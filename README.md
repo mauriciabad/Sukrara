@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.10/Sukrara-0.11.10.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.7/Sukrara-0.11.7.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.10/Sukrara-0.11.10.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -64,14 +64,17 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
   Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
   (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
-- Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
-  spike also proved system icons and a coloured LSPosed hook (root), not in the alpha yet.
-  [05](docs/05-android-status-bar.md)
+- Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. With root
+  + LSPosed: system icons or a coloured value next to the clock. [05](docs/05-android-status-bar.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog. Tapping a widget or the glucose notification
-  opens it on top of whatever app you're in. [10](docs/10-showcase.md)
+  opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
+  *Add treatment*. [10](docs/10-showcase.md)
+- Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
+  log a treatment without unlocking. For busy wallpapers: shadow, dim, card or blur behind it, and in-range values in
+  white (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
 - Upload glucose and treatments to LibreView (Settings → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: urgent low, low, high, very high, falling/rising fast and no data, each with its own threshold,
@@ -196,24 +199,27 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 14 | Nostr identity: profiles, short invites, Nostr login | Kind 0 on a separate profile key, Blossom pictures (EXIF removed), 241 → 63-char invites, derived accounts from an nsec and via Amber. **In Sukrara 0.11:** the short invites and private names + generated pictures; public profiles, Blossom and Nostr login left out ([why](docs/14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out)) | [docs/14](docs/14-nostr-identity.md) |
 | 15 | Glucose alerts, sound packs and haptics | One rule set on Android and Mac (15 + 53 tests), alerts mirrored to followers, packs served into native channels with a random variant each time, a vibration per alert | [docs/15](docs/15-alerts.md) |
 | 16 | One glucose graph everywhere | One renderer (Android + Swift port) for app, widgets, notification and Mac: time at level beside the chart, time-in-range rectangles and rings, six ranges, freshness steps, per-widget settings. **In Sukrara 0.11.5** ([added / discarded](docs/16-graph.md#in-sukrara-0115)) | [docs/16](docs/16-graph.md) |
+| 17 | Glucose and quick treatments on the lock screen | With root: SystemUI hosts a Sukrara widget under the Compose lock screen, around the fingerprint icon; taps (never on the sensor) open the treatment dialog over the lock screen. Without root: glanceable hub, the notification, a Quick Settings tile (asks to unlock). **In Sukrara 0.11.10** ([added / discarded](docs/17-lockscreen-widget.md#in-sukrara)) | [docs/17](docs/17-lockscreen-widget.md) |
 | 18 | The doctor's report in the app | Time in ranges, average, GMI, CV with the consensus goals, as a home-screen card and as slots in the widgets; time-weighted like the rings. **In Sukrara 0.11.7** ([added / discarded](docs/18-metrics.md#in-sukrara-0117)) | [docs/18](docs/18-metrics.md) |
 
 ## Try it
 
-Downloads: [v0.11.7](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.7) (Android and Mac)
+Downloads: [v0.11.10](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.10) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.7.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.10.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
 4. Tap **Save to password manager** so a lost phone doesn't mean re-inviting everyone.
 5. For the status-bar chip, tap *Allow Live Updates for Sukrara* in Settings. Add widgets from the home screen's
    widget picker.
+6. Rooted with LSPosed: enable the Sukrara module (scope System UI) and restart System UI for the coloured status bar
+   value and the lock screen widget.
 
 **Sharing**
 - Wearer: **Share with someone** shows a QR code and a link. The follower installs Sukrara, chooses
@@ -225,10 +231,10 @@ Downloads: [v0.11.7](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
   the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.7.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.11.10.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.7.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.11.10.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an
