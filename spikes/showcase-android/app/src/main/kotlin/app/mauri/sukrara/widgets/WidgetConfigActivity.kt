@@ -114,7 +114,7 @@ class WidgetConfigActivity : ComponentActivity() {
                         if (kind != WidgetKind.VALUE) Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Time in range beside the graph")
-                                Text("The distribution and rectangles on the left", style = MaterialTheme.typography.bodySmall,
+                                Text("The distribution and % on the left", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline)
                             }
                             Switch(w.side ?: app.side, { w = w.copy(side = it) })

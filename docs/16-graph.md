@@ -33,7 +33,7 @@ renders the picture sheets below on the JVM, so the report pictures are the real
 |---|---|
 | ![card dark](img/16/card-dark.png) | ![card light](img/16/card-light.png) |
 
-*12 h chart, distribution as rows of dots (like the line), rectangles = time in each band, rings for today and the
+*12 h chart, distribution as rows of dots (like the line), % of time below / in / above range, rings for today and the
 last 7 days (the main ring on the right, the second faded). Synthetic two-week history with meals, a dawn rise and
 afternoon dips.*
 
@@ -67,7 +67,11 @@ nothing.
 Each could be drawn as rows of dots (like the draft and the line) or as a filled area.
 
 **Decision (the user, 2026-10-17): time at level, band-exact, as dots.** The other five and the area style were
-removed from the code; the only switch left is the distribution + rectangles on or off (app-wide and per widget).
+removed from the code; the only switch left is the distribution + % on or off (app-wide and per widget).
+
+**Rectangles removed (the user, 0.11.9):** the time-in-range rectangles behind the dots (as wide as each range's
+share) cluttered the chart. The % labels and the dots carry the same information; the rectangles are gone from every
+surface. (The pictures in this report were drawn before that.)
 
 ## Freshness
 
@@ -124,8 +128,7 @@ Alert thresholds are separate (investigation 15) and unchanged.
 
 - In the chart, very high / very low get a faint dashed line when the y range reaches them; their value is shown
   unless it would collide with the 180 / 70 label.
-- The rectangles: above (with very high inside), in range (with very good inside), below (with very low inside);
-  the three % labels are above / in range / below. Labels too close for their bands are pushed apart.
+- The three % labels are above / in range / below (the rectangles described in the goal were removed in 0.11.9). Labels too close for their bands are pushed apart.
 - The ring has six segments; gaps only between below, in range and above.
 
 ## On the device
@@ -181,7 +184,7 @@ worked and were removed in 0.11.8, see below.*
 |---|---|
 | `graph/GlucoseStats.kt` | bands, time weights, time in range, the six distribution algorithms |
 | `graph/Freshness.kt` | the five freshness steps, the reading's time text |
-| `graph/GlucoseGraph.kt` | the chart: band, rectangles, distribution, faded line, labels, treatments |
+| `graph/GlucoseGraph.kt` | the chart: band, distribution, faded line, labels, treatments |
 | `graph/GlucoseCard.kt` | ring + whole card layout (value, arrow, rings, chart) |
 | `graph/GraphSettings.kt`, `graph/GraphData.kt` | settings (app-wide + per widget), multi-day time in range from the role's store |
 | `ui/GraphScreen.kt`, `ui/Widgets.kt` (`GlucosePanel`), `widgets/Widgets.kt`, `widgets/WidgetConfigActivity.kt`, `status/GlucoseNotification.kt` | the surfaces |
@@ -200,7 +203,7 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
 |---|---|
 | One renderer (Android Canvas + a Swift port) for app, widgets, notification, Mac menubar and Mac widgets | the old per-surface charts: `GraphRenderer`, `GlucoseChart`, `BigGlucose`, the Mac sparkline (replaced outright) |
 | Distribution beside the chart: time at level, band-exact, dots | histogram, two Gaussians, plain time at level, the area style (the user picked one) |
-| Rectangles + % for below / in range / above, with very good, very high and very low inside | — |
+| % for below / in range / above | the time-in-range rectangles behind the distribution (0.11.9: the user found they cluttered the chart) |
 | Six configurable ranges (54 / 70 / 140 / 180 / 250) | the fixed colour thresholds 65 / 145 / 185, red above range |
 | Freshness steps everywhere | "x min ago", "+0.1 mg/dL/min" (the user: not useful) |
 | 0–3 time-in-range rings, windows 12 h – 14 d; wearer keeps 15 days (was 8); a reading store on the Mac | — |

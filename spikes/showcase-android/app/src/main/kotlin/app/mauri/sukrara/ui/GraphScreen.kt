@@ -114,7 +114,7 @@ fun GraphScreen(onBack: () -> Unit) {
 
         SectionTitle("Beside the graph")
         Toggle("Time in range and distribution", g.side,
-            sub = "Rectangles as wide as the time in each range, and how much time was spent at each level") { v ->
+            sub = "The % of time below, in and above range, and how much time was spent at each level") { v ->
             set { it.copy(side = v) }
         }
         HorizontalDivider()

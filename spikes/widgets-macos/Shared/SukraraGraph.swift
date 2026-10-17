@@ -221,7 +221,7 @@ struct GraphPalette {
 struct GraphStyle {
     var window: TimeInterval = 12 * 3600
     var bands = Bands()
-    /// The time in range beside the graph: rectangles, the distribution dots and the % labels.
+    /// The time in range beside the graph: the distribution dots and the % labels.
     var side = true
     var axisLabels = true
     var treatments = true
@@ -403,6 +403,8 @@ private extension CGColor {
 
 /// The chart with the time-in-range side profile (GlucoseGraph.kt). `d` = points per dp (1 on the Mac).
 enum GlucoseGraph {
+    /// Narrowest chart (pt) that still gets the % labels beside it.
+    static let pctMinWidth: CGFloat = 240
     static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat = 1) {
         let from = now - st.window
@@ -413,7 +415,9 @@ enum GlucoseGraph {
         let pctBig = Ink.font(13 * d, .bold), pctSmall = Ink.font(8.5 * d, .regular)
 
         let labels = st.axisLabels
-        let pctCol = st.side && labels && !tir.empty ? Ink.width("100", pctBig) + Ink.width("%", pctSmall) + 6 * d : 0
+        // The % labels need room: none on small placements (a 1×1 / systemSmall widget), the dots stay.
+        let pctCol = st.side && labels && !tir.empty && area.width >= Self.pctMinWidth * d
+            ? Ink.width("100", pctBig) + Ink.width("%", pctSmall) + 6 * d : 0
         let left = area.minX + pctCol
         let right = area.maxX - (labels ? Ink.width("180", text) + 5 * d : 0)
         let top = area.minY + 3 * d
@@ -478,23 +482,6 @@ enum GlucoseGraph {
             }
         }
         ctx.restoreGState()
-
-        // Time-in-range rectangles from the left edge.
-        if sideW > 0 {
-            let a = pal.dark ? 0x38 : 0x2C
-            func rect(_ share: Double, _ c: CGColor, _ y0: CGFloat, _ y1: CGFloat, _ alpha: Int) {
-                guard share > 0 else { return }
-                ctx.setFillColor(c.a(alpha))
-                ctx.fill(CGRect(x: left, y: y0, width: sideW * CGFloat(share), height: y1 - y0))
-            }
-            let inner = pal.dark ? 0x40 : 0x34
-            rect(tir.above, pal.high, top, y(Double(b.high)), a)
-            rect(tir.veryHigh, pal.veryHigh, top, y(Double(b.veryHigh)), inner)       // y() clamps to the plot
-            rect(tir.inRange, pal.target, y(Double(b.high)), y(Double(b.low)), a)
-            rect(tir.tight, pal.tight, y(Double(b.tight)), y(Double(b.low)), inner)
-            rect(tir.below, pal.low, y(Double(b.low)), plotBottom, a)
-            rect(tir.veryLow, pal.veryLow, y(Double(b.veryLow)), plotBottom, inner)
-        }
 
         // The line: a dot per reading, fading out towards the side overlay.
         let spacing = pts.count > 1 ? (right - left) / CGFloat(max(1, pts.count)) : 99

@@ -82,6 +82,8 @@ struct EntryView: View {
 
     var body: some View {
         GlucoseWidgetView(kind: kind, family: family, c: entry.content, mode: RenderMode(renderingMode), overrides: entry.overrides)
+            // The card is one image: redacted (placeholder / widget gallery) it would come out blank.
+            .unredacted()
             .containerBackground(.fill.tertiary, for: .widget)
             .widgetURL(SharedLocation.urlScheme.isEmpty ? nil : URL(string: "\(SharedLocation.urlScheme)://open?from=\(kind.rawValue)"))
     }

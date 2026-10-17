@@ -510,6 +510,8 @@ follows the [Glance configuration guide](https://developer.android.com/develop/u
 | Colour thresholds 65 / 145 / 185, red above 185 | the configurable ranges; above range is orange as in the draft |
 | "x min ago", the rate (+0.1 mg/dL/min) on the home panel, widgets, notification and Mac | the user: not useful; freshness steps instead |
 | Widget windows by width (2–6 h) | 12 h default + per place + per widget |
+| Time-in-range rectangles behind the distribution (0.11.9) | the user: they clutter the chart; the % labels say the same |
+| % labels on narrow charts (< 240 dp, 0.11.9) | no room (e.g. a small Mac widget); the dots stay |
 | Per-widget settings on the Mac (App Intents, 0.11.7) | without an Xcode project chronod never registered the intent and the widgets froze; removed in 0.11.8 |
 | The in-app chart's grow-in animation for new points | the chart is drawn by the shared renderer; the number still rolls and the arrow still turns |
 

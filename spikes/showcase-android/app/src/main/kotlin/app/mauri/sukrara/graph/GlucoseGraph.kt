@@ -44,7 +44,7 @@ data class GraphPalette(
 data class GraphStyle(
     val windowS: Long = 12 * 3600L,
     val bands: Bands = Bands(),
-    /** The left overlay: time-in-range rectangles, the distribution and the % labels. */
+    /** The left overlay: the distribution and the % labels. */
     val side: Boolean = true,
     val axisLabels: Boolean = true,
     val treatments: Boolean = true,
@@ -56,11 +56,14 @@ data class GraphStyle(
  * and the notification (bitmaps) all show the same picture.
  *
  * Left to right: the % of time below / in / above range (labels), then, growing rightwards from the plot's left edge,
- * one soft rectangle per group whose width is its share of time (with very good inside in range, very high inside
- * above, very low inside below) and the distribution of glucose over the same window ([GlucoseStats.profile], rows
- * of dots like the line). The line underneath fades out towards that edge.
+ * the distribution of glucose over the same window ([GlucoseStats.profile], rows of dots like the line). The line
+ * underneath fades out towards that edge. (The time-in-range rectangles behind the dots were removed: the user found
+ * they cluttered the chart.)
  */
 object GlucoseGraph {
+    /** Narrowest chart (dp) that still gets the % labels beside it. */
+    const val PCT_MIN_WIDTH_DP = 240f
+
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: GraphStyle, pal: GraphPalette, d: Float,
@@ -76,7 +79,9 @@ object GlucoseGraph {
         val pctSmall = Paint(pctBig).apply { textSize = 8.5f * d; color = pal.inkSoft; typeface = Typeface.DEFAULT }
 
         val labels = st.axisLabels
-        val pctCol = if (st.side && labels && !tir.empty) pctBig.measureText("100") + pctSmall.measureText("%") + 6 * d else 0f
+        // The % labels need room: none on small placements (a 2×2 widget, a 1×1 Mac widget); the dots stay.
+        val pctCol = if (st.side && labels && !tir.empty && area.width() >= PCT_MIN_WIDTH_DP * d)
+            pctBig.measureText("100") + pctSmall.measureText("%") + 6 * d else 0f
         val left = area.left + pctCol
         val right = area.right - if (labels) text.measureText("180") + 5 * d else 0f
         val top = area.top + 3 * d
@@ -135,23 +140,6 @@ object GlucoseGraph {
         }
         if (labels) for (v in listOf(b.low, b.high)) {
             cv.drawText("$v", right + 4 * d, y(v.toFloat()) + text.textSize / 3, text)
-        }
-
-        // Time-in-range rectangles, growing from the left edge.
-        if (sideW > 0) {
-            val a = if (pal.dark) 0x38 else 0x2C
-            fun rect(share: Double, c: Int, y0: Float, y1: Float, alpha: Int = a) {
-                if (share <= 0) return
-                fill.color = ColorUtils.setAlphaComponent(c, alpha)
-                cv.drawRect(left, y0, left + sideW * share.toFloat(), y1, fill)
-            }
-            val inner = if (pal.dark) 0x40 else 0x34   // very good / very high / very low, inside their group
-            rect(tir.above, pal.high, top, y(b.high.toFloat()))
-            rect(tir.veryHigh, pal.veryHigh, top, y(b.veryHigh.toFloat()), inner)
-            rect(tir.inRange, pal.target, y(b.high.toFloat()), y(b.low.toFloat()))
-            rect(tir.tight, pal.tight, y(b.tight.toFloat()), y(b.low.toFloat()), inner)
-            rect(tir.below, pal.low, y(b.low.toFloat()), plotBottom)
-            rect(tir.veryLow, pal.veryLow, y(b.veryLow.toFloat()), plotBottom, inner)
         }
 
         // The line: one dot per reading, coloured by band, fading out towards the side overlay.
