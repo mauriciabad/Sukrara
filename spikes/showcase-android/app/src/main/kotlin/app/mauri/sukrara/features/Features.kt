@@ -53,7 +53,7 @@ data class FeatureState(
      */
     val lockWidget: Boolean = true,
     /** What sits behind the lock screen widget for contrast: none, shadow, dim, card, blur ([LockBackground]). */
-    val lockBg: String = LockBackground.SHADOW,
+    val lockBg: String = LockBackground.BLUR,
     /** Lock screen widget: in-range values, lines and ring segments in white instead of green. */
     val lockWhite: Boolean = false,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
@@ -126,7 +126,7 @@ object Features {
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
                 source = if (it.source == "juggluco") "juggluco" else "direct",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
-                lockBg = it.lockBg.takeIf { b -> b in LockBackground.ALL } ?: LockBackground.SHADOW,
+                lockBg = it.lockBg.takeIf { b -> b in LockBackground.ALL } ?: LockBackground.BLUR,
             )
         }
         prefs?.edit()?.apply {

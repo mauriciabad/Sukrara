@@ -656,7 +656,7 @@ Sukrara widget inside SystemUI. Full report, rootless options and the fingerprin
 | *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `Features`, `WearerScreens`, `RootStatusBar` broadcast |
 | The treatment dialog shows over the lock screen without unlocking (manifest `showWhenLocked`); *Open Sukrara* asks to unlock first | `AndroidManifest.xml`, `QuickTreatmentActivity` |
 | Quick Settings tile *Add treatment* with the current value | `ui/TreatmentTile.kt` |
-| *Background* for busy wallpapers: none, shadow (default), dim, card, blur; *In range in white* | `LockBackground`, `LockscreenWidget`, `LockscreenWidgetHost` |
+| *Background* for busy wallpapers: none, shadow, dim, card, blur (default); *In range in white* | `LockBackground`, `LockscreenWidget`, `LockscreenWidgetHost` |
 | Exact size (a 100 dp test square: 311 × 343 px before, 262 × 262 after) and direct updates of the SystemUI-hosted widget id (Glance's `updateAll` never reached it) | `LockscreenWidgetHost.place`, `LockscreenWidget.updateAll` |
 
 | Discarded | Why |

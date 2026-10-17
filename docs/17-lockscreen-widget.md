@@ -128,10 +128,10 @@ every glyph ([Smashing Magazine](https://www.smashingmagazine.com/2023/08/design
 | Option | What | Drawn by |
 |---|---|---|
 | None | on the wallpaper, like the clock | — |
-| **Shadow** (default) | a soft dark shadow around every number, ring and line: the content's alpha, blurred (`extractAlpha` + `BlurMaskFilter`) | the widget |
+| Shadow | a soft dark shadow around every number, ring and line: the content's alpha, blurred (`extractAlpha` + `BlurMaskFilter`) | the widget |
 | Dim | Material's gradient scrim over the bottom of the screen, full width | the module (a view under the widget) |
 | Card | a dark rounded card like the notifications (surface container, 88 %) | the module (view background) |
-| Blur | frosted glass: SystemUI's own `BackgroundBlurDrawable` (`ViewRootImpl.createBackgroundBlurDrawable`, what the shade uses) blurs the wallpaper behind the widget; falls back to the card when cross-window blur is off | the module |
+| **Blur** (default, the user's pick) | frosted glass: SystemUI's own `BackgroundBlurDrawable` (`ViewRootImpl.createBackgroundBlurDrawable`, what the shade uses) blurs the wallpaper behind the widget; falls back to the card when cross-window blur is off | the module |
 
 Plus *In range in white*: in-range values, lines and ring segments in white instead of green; highs and lows keep
 their colours. Card and blur keep the content 12 dp off their edge.
@@ -158,7 +158,7 @@ their colours. Card and blur keep the content 12 dp off their edge.
 | Switch *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `features/Features.kt`, `ui/WearerScreens.kt`, sent to SystemUI with the status-bar broadcast (`status/RootStatusBar.kt`) |
 | Treatment dialog over the lock screen (manifest `showWhenLocked`; "Open Sukrara" asks to unlock) | `AndroidManifest.xml`, `ui/QuickTreatmentActivity.kt` |
 | Quick Settings tile "Add treatment" with the current value | `ui/TreatmentTile.kt` |
-| *Background* (none, shadow, dim, card, blur; `lockBg`, default shadow) and *In range in white* (`lockWhite`) | `features/Features.kt` (`LockBackground`), `ui/WearerScreens.kt`, `widgets/LockscreenWidget.kt`, `hook/LockscreenWidgetHost.kt` |
+| *Background* (none, shadow, dim, card, blur; `lockBg`, default blur) and *In range in white* (`lockWhite`) | `features/Features.kt` (`LockBackground`), `ui/WearerScreens.kt`, `widgets/LockscreenWidget.kt`, `hook/LockscreenWidgetHost.kt` |
 | Exact widget size (default padding added back) and direct updates of the SystemUI-hosted widget id | `hook/LockscreenWidgetHost.kt`, `LockscreenWidget.ids/updateAll`, `RootStatusBar.HelloReceiver` |
 | DebugReceiver `cmd locktest` (square + circle to measure distortion), `--es lockBg`, `--ez lockWhite` | `features/DebugReceiver.kt` |
 
