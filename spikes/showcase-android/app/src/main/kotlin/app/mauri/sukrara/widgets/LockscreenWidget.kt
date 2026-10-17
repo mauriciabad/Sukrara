@@ -31,6 +31,8 @@ import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.graph.MetricGauge
+import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRing
 import app.mauri.sukrara.graph.systemPalette
 import kotlin.math.min
@@ -113,7 +115,8 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
             CardStyle(graph = null, rings = emptyList()), pal, d)
     }
 
-    // Time-in-range rings, right of the lock icon, main ring rightmost.
+    // The ring slots (time in range, GMI, average, CV: investigations 16 and 18), right of the lock icon, main
+    // rightmost; drawn like GlucoseCard's header.
     val ringsBox = RectF(hole.right * d, 0f, w, rowH)
     val specs = cfg.rings()
     if (specs.isNotEmpty()) {
@@ -121,9 +124,11 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
         val size = min(rowH * 0.9f, min(84 * d, (ringsBox.width() - gap * (specs.size - 1)) / specs.size))
         var x = ringsBox.right
         if (size >= 30 * d) for ((i, spec) in specs.withIndex()) {
-            val tir = GraphData.tir(ctx, spec.windowS, cfg.bands, frame.nowSec)
-            if (tir.coverage < GlucoseCard.MIN_COVERAGE) continue
-            TirRing.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, tir, spec, pal, RING_EMPHASIS[i], d)
+            val m = GraphData.metrics(ctx, spec.windowS, cfg.bands, frame.nowSec)
+            if (m.tir.coverage < GlucoseCard.MIN_COVERAGE) continue
+            val e = if (spec.faded) RING_EMPHASIS[i] else 1f
+            if (spec.kind == SlotKind.TIR) TirRing.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, m.tir, spec, pal, e, d)
+            else MetricGauge.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, m, spec, pal, e, d)
             x -= size + gap
         }
     }
