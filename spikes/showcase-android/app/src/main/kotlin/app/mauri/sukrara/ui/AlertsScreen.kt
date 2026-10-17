@@ -129,8 +129,9 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         for (k in Kind.ALL) {
             val c = s.cfg(k)
             val ruled = !mirrored || k == Kind.NO_DATA
-            val custom = nm.getNotificationChannel(AlertNotifier.channelId(k))?.sound?.let { it != AlertSounds.uri(ctx, k) } == true
-            val sound = if (custom) "sound set in system settings" else AlertSounds.label(s.soundOf(k)).substringBefore(" (")
+            val custom = nm.getNotificationChannel(AlertNotifier.channelId(k, c.alarm))?.sound?.let { it != AlertSounds.uri(ctx, k) } == true
+            val sound = (if (custom) "sound set in system settings" else AlertSounds.label(s.soundOf(k)).substringBefore(" (")) +
+                if (c.alarm) " · alarm volume" else ""
             KindRow(Kind.label(k), checked = c.on && ruled, enabled = s.on && ruled,
                 sub = if (!ruled) "Set by the wearer's app · $sound" else "${thresholdText(k, c)} · ${repeatText(c.repeatMin)} · $sound",
                 onClick = { editing = k }) { v -> set { it.copy(kinds = it.kinds + (k to c.copy(on = v))) } }
@@ -163,8 +164,8 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         }) { Text("Notification settings") }
         HorizontalDivider()
         Text("Each alert is its own notification category. Change its sound, vibration or Do Not Disturb behaviour in the " +
-            "system settings; a sound picked there replaces Sukrara's. Lows use the alarm volume and ring in \"Alarms only\" " +
-            "mode. Settings stay on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            "system settings; a sound picked there replaces Sukrara's. Each alert rings at alarm or notification volume " +
+            "(lows at alarm volume unless you change it). Settings stay on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.size(24.dp))
     }
 
@@ -173,7 +174,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         editing = null
     } }
     if (pickPack) ChoiceDialog("Sound pack", AlertSounds.PACKS + AlertSounds.SYSTEM + AlertSounds.NONE, s.pack, AlertSounds::label,
-        preview = { p -> AlertSounds.preview(ctx, Kind.HIGH, p) }, onDismiss = { pickPack = false; AlertSounds.stopPreview() }) { p ->
+        preview = { p -> AlertSounds.preview(ctx, Kind.HIGH, p, s.cfg(Kind.HIGH).alarm) }, onDismiss = { pickPack = false; AlertSounds.stopPreview() }) { p ->
         set { it.copy(pack = p) }
     }
     if (pickSource) ChoiceDialog("Alert rules", listOf("wearer", "own"), s.source,
@@ -230,6 +231,7 @@ private fun KindDialog(k: String, s: AlertSettings, editable: Boolean, onDismiss
     var value by remember { mutableStateOf(if (k in Kind.RATES) "%.1f".format(c.value) else c.value.toInt().toString()) }
     var repeat by remember { mutableStateOf(c.repeatMin) }
     var sound by remember { mutableStateOf(s.packFor[k]) }   // null = the pack
+    var alarm by remember { mutableStateOf(c.alarm) }
     val parsed = value.replace(',', '.').toDoubleOrNull()
     val valid = parsed != null && when (k) {
         in Kind.RATES -> parsed in 0.5..10.0
@@ -238,7 +240,8 @@ private fun KindDialog(k: String, s: AlertSettings, editable: Boolean, onDismiss
     }
     AlertDialog(onDismissRequest = { AlertSounds.stopPreview(); onDismiss() }, title = { Text(Kind.label(k)) }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!editable) Text("Threshold and reminders come from the wearer's app.", style = MaterialTheme.typography.bodySmall)
+            if (!editable) Text("Threshold and reminders come from the wearer's app. Sound and volume are this phone's.",
+                style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(value, { value = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } }, enabled = editable,
                 label = { Text(when (k) { in Kind.RATES -> "Rate (mg/dL/min)"; Kind.NO_DATA -> "After (minutes)"; else -> "Threshold (mg/dL)" }) },
                 singleLine = true, isError = !valid, modifier = Modifier.width(200.dp),
@@ -257,7 +260,22 @@ private fun KindDialog(k: String, s: AlertSettings, editable: Boolean, onDismiss
                         Text(if (o == null) "Pack (${AlertSounds.label(s.pack)})" else AlertSounds.label(o),
                             Modifier.weight(1f).padding(start = 8.dp))
                         val p = o ?: s.pack
-                        if (p != AlertSounds.NONE) IconButton(onClick = { AlertSounds.preview(ctx, k, p) }) { Text("▶") }
+                        if (p != AlertSounds.NONE) IconButton(onClick = { AlertSounds.preview(ctx, k, p, alarm) }) { Text("▶") }
+                    }
+                }
+            }
+            Text("Volume", style = MaterialTheme.typography.labelLarge)
+            Column(Modifier.selectableGroup()) {
+                for ((o, title, sub) in listOf(
+                    Triple(true, "Alarm", "Alarm volume, like an alarm clock. Rings in Do Not Disturb when alarms are allowed"),
+                    Triple(false, "Notification", "Notification volume. Rings in Do Not Disturb only if reminders are allowed"))) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+                        .selectable(alarm == o, role = Role.RadioButton) { alarm = o }) {
+                        RadioButton(alarm == o, onClick = null)
+                        Column(Modifier.weight(1f).padding(start = 8.dp, top = 4.dp, bottom = 4.dp)) {
+                            Text(title)
+                            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        }
                     }
                 }
             }
@@ -266,14 +284,14 @@ private fun KindDialog(k: String, s: AlertSettings, editable: Boolean, onDismiss
                 OutlinedButton(onClick = {
                     ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                         .putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
-                        .putExtra(Settings.EXTRA_CHANNEL_ID, AlertNotifier.channelId(k)))
+                        .putExtra(Settings.EXTRA_CHANNEL_ID, AlertNotifier.channelId(k, alarm)))
                 }) { Text("Vibration & more") }
             }
         }
     }, confirmButton = {
         TextButton(enabled = valid || !editable, onClick = {
             AlertSounds.stopPreview()
-            onSave(if (editable && parsed != null) c.copy(value = parsed, repeatMin = repeat) else c, sound)
+            onSave((if (editable && parsed != null) c.copy(value = parsed, repeatMin = repeat) else c).copy(alarm = alarm), sound)
         }) { Text("Save") }
     }, dismissButton = { TextButton(onClick = { AlertSounds.stopPreview(); onDismiss() }) { Text("Cancel") } })
 }

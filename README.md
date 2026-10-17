@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.3/Sukrara-0.11.3.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.4/Sukrara-0.11.4.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.1/Sukrara-0.11.1.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.4/Sukrara-0.11.4.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -185,15 +185,14 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: Android [v0.11.3](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.3), Mac
-[v0.11.1](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.1)
+Downloads: [v0.11.4](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.4) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.3.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.4.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
@@ -209,10 +208,10 @@ Downloads: Android [v0.11.3](https://github.com/mauriciabad/cgm-reading-mac-spik
 - Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.1.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.11.4.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.1.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.11.4.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an

@@ -43,9 +43,9 @@ enum AlertKind: String, CaseIterable {
 
     var defaultRule: AlertRule {
         switch self {
-        case .urgentLow: AlertRule(on: true, mgdl: 55, repeatMin: 5)
-        case .low: AlertRule(on: true, mgdl: 65, repeatMin: 15)
-        case .high: AlertRule(on: true, mgdl: 185, repeatMin: 60)
+        case .urgentLow: AlertRule(on: true, mgdl: 55, repeatMin: 5, alarm: true)
+        case .low: AlertRule(on: true, mgdl: 65, repeatMin: 15, alarm: true)
+        case .high: AlertRule(on: true, mgdl: 185, repeatMin: 30)
         case .veryHigh: AlertRule(on: true, mgdl: 250, repeatMin: 30)
         case .fallingFast, .risingFast: AlertRule(on: false, rate: 2.0, repeatMin: 30)
         case .noData: AlertRule(on: true, min: 20, repeatMin: 60)
@@ -61,6 +61,8 @@ struct AlertRule: Codable, Equatable {
     var rate: Double? = nil         // rate kinds, mg/dL/min
     var min: Double? = nil          // no_data, minutes
     var repeatMin: Int              // 0 = never repeat
+    /// "Like an alarm" (SPEC §3): on the Mac = Time Sensitive (breaks through Focus), when the build is entitled to it.
+    var alarm: Bool = false
 
     /// The number the rule compares against (mg/dL, mg/dL/min or minutes) — `th` in the §4 event.
     var threshold: Double {
@@ -99,7 +101,7 @@ struct AlertSettings: Codable, Equatable {
     /// Lenient: any missing or malformed key keeps its §3 default (a file written by an older or newer app still
     /// loads), numbers may be ints or doubles.
     init(from decoder: Decoder) throws {
-        struct PartialRule: Decodable { var on: Bool?; var mgdl, rate, min, repeatMin: Double? }
+        struct PartialRule: Decodable { var on, alarm: Bool?; var mgdl, rate, min, repeatMin: Double? }
         struct PartialMute: Decodable { var on: Bool?; var min: Double? }
         struct PartialSounds: Decodable { var pack: String?; var kinds: [String: String]?; var shuffle: Bool? }
         enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, sounds, source }
@@ -115,6 +117,7 @@ struct AlertSettings: Codable, Equatable {
             if let x = p.rate, r.rate != nil { r.rate = x }
             if let x = p.min, r.min != nil { r.min = x }
             if let x = p.repeatMin { r.repeatMin = max(0, Int(x)) }
+            if let x = p.alarm { r.alarm = x }
             self[k] = r
         }
         func mute(_ key: K, _ d: AlertMute) -> AlertMute {
@@ -481,7 +484,7 @@ final class AlertEngine {
         c.title = title
         c.body = body
         c.threadIdentifier = "sukrara-alerts"
-        c.interruptionLevel = ev.k.lowSide && Self.timeSensitive ? .timeSensitive : .active
+        c.interruptionLevel = settings[ev.k].alarm && Self.timeSensitive ? .timeSensitive : .active
         switch sound {
         case .none: c.sound = nil
         case .system: c.sound = .default

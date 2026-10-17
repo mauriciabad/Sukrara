@@ -225,6 +225,12 @@ private struct KindRow: View {
                 Button { model.preview(kind) } label: { Image(systemName: "play.fill") }
                     .help("Play a random variant")
                     .disabled(model.s.pack(for: kind) == "none")
+                Spacer(minLength: 12)
+                // the phone's "Alarm volume"; macOS has no alarm volume, its nearest is Time Sensitive
+                Toggle("Like an alarm", isOn: rule.alarm)
+                    .help(Alerts.timeSensitive
+                          ? "Time Sensitive: shows and plays even during a Focus"
+                          : "Time Sensitive needs a build signed with that permission; this one shows it as a normal notification")
             }
         }
         .padding(.vertical, 2)

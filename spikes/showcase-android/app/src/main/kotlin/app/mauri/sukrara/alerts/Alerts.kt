@@ -99,7 +99,7 @@ object Alerts {
     private fun apply(ctx: Context, actions: List<AlertEngine.Action>) {
         for (a in actions) when (a) {
             is AlertEngine.Fire -> {
-                AlertNotifier.post(ctx, a.kind, a.n, a.reading?.sgv, a.reading?.rate, a.th, a.at, who)
+                AlertNotifier.post(ctx, a.kind, a.n, a.reading?.sgv, a.reading?.rate, a.th, a.at, who, _settings.value.cfg(a.kind).alarm)
                 posted[Kind.group(a.kind)] = a.id
                 note("${Kind.label(a.kind)}${if (a.n > 1) " (reminder ${a.n})" else ""} · ${a.reading?.sgv ?: "–"} mg/dL")
                 publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n))
@@ -135,7 +135,7 @@ object Alerts {
         when (st) {
             "fire" -> {
                 AlertNotifier.post(ctx, k, body.optInt("n", 1), body.optIntOrNull("sgv"), body.optDoubleOrNull("r"),
-                    body.optDouble("th", 0.0), body.optLong("at"), who)
+                    body.optDouble("th", 0.0), body.optLong("at"), who, s.cfg(k).alarm)
                 posted[group] = id
                 note("${Kind.label(k)} (from the wearer) · ${body.optIntOrNull("sgv") ?: "–"} mg/dL")
             }

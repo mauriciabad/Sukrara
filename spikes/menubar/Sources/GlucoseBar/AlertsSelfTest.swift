@@ -42,8 +42,9 @@ enum AlertsSelfTest {
         func fires(_ evs: [AlertEvent]) -> [String] { evs.filter { $0.state == "fire" }.map { "\($0.k.rawValue)#\($0.n)" } }
         func clears(_ evs: [AlertEvent]) -> [String] { evs.filter { $0.state == "clear" }.map(\.k.rawValue) }
 
-        // 1. Rising into high, repeat timing, no flapping, escalation, clear.
-        var e = engine()
+        // 1. Rising into high, repeat timing, no flapping, escalation, clear (timings below assume repeatMin 60).
+        check("high reminds every 30 min by default", AlertSettings()[.high].repeatMin == 30)
+        var e = engine { $0[.high].repeatMin = 60 }
         at(0); check("in range: nothing", feed(e, 170, 1).isEmpty)
         at(5); let h1 = feed(e, 186, 0.5)
         check("rising into high fires high", fires(h1) == ["high#1"], "\(fires(h1))")
@@ -131,7 +132,7 @@ enum AlertsSelfTest {
         // 8. Settings JSON (§3): the spec example, partial and junk input keep defaults, same keys out.
         let spec = """
         {"v":1,"on":true,"alerts":{"urgent_low":{"on":true,"mgdl":55,"repeatMin":5},"low":{"on":true,"mgdl":65,"repeatMin":15},
-        "high":{"on":true,"mgdl":185,"repeatMin":60},"very_high":{"on":true,"mgdl":250,"repeatMin":30},
+        "high":{"on":true,"mgdl":185,"repeatMin":30},"very_high":{"on":true,"mgdl":250,"repeatMin":30},
         "falling_fast":{"on":false,"rate":2.0,"repeatMin":30},"rising_fast":{"on":false,"rate":2.0,"repeatMin":30},
         "no_data":{"on":true,"min":20,"repeatMin":60}},"muteAfterInsulin":{"on":true,"min":20},
         "muteFallingHigh":{"on":true,"min":20},"sounds":{"pack":"arcade","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
@@ -140,12 +141,17 @@ enum AlertsSelfTest {
         var expect = AlertSettings(); expect.sounds.kinds = ["high": "kart"]
         check("SPEC §3 example parses to the defaults (+ kart for high)", parsed == expect)
         let partial = try? JSONDecoder().decode(AlertSettings.self, from: Data(#"{"on":false,"alerts":{"high":{"mgdl":200}},"source":"bogus","sounds":7}"#.utf8))
-        check("partial / junk JSON keeps the other defaults", partial.map { !$0.on && $0[.high].threshold == 200 && $0[.high].on && $0[.high].repeatMin == 60
+        check("partial / junk JSON keeps the other defaults", partial.map { !$0.on && $0[.high].threshold == 200 && $0[.high].on && $0[.high].repeatMin == 30
                                                                          && $0.source == "wearer" && $0.sounds.pack == "arcade" && $0[.low] == AlertKind.low.defaultRule } ?? false)
         let out = (try? JSONSerialization.jsonObject(with: Data(AlertSettings().json.utf8))) as? [String: Any] ?? [:]
         let keys = Set(out.keys), ruleKeys = Set(((out["alerts"] as? [String: Any])?["no_data"] as? [String: Any] ?? [:]).keys)
         check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "sounds", "source"]
-              && ruleKeys == ["on", "min", "repeatMin"], "\(keys) \(ruleKeys)")
+              && ruleKeys == ["on", "min", "repeatMin", "alarm"], "\(keys) \(ruleKeys)")
+        check("lows default to alarm, the rest to notification", AlertSettings()[.low].alarm && AlertSettings()[.urgentLow].alarm
+              && !AlertSettings()[.high].alarm && !AlertSettings()[.noData].alarm)
+        let flipped = try? JSONDecoder().decode(AlertSettings.self,
+            from: Data(#"{"v":1,"alerts":{"low":{"alarm":false},"high":{"alarm":true}}}"#.utf8))
+        check("\"alarm\" is read per alert", flipped?[.low].alarm == false && flipped?[.high].alarm == true && flipped?[.low].mgdl == 65)
         check("round trip", (try? JSONDecoder().decode(AlertSettings.self, from: Data(expect.json.utf8))) == expect)
 
         // 9. Sounds: pack, per-kind override, system/none, shuffle off = variant 1, files exist for every combination.

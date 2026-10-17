@@ -27,8 +27,8 @@ class AlertEngineTest {
 
     @Test fun highFiresOnceThenRepeatsAfterRepeatMin() {
         val e = AlertEngine()
-        val out = run(e, List(70) { 200 to 0.0 })
-        assertEquals(listOf(0 to "high", 60 to "high"), out.filter { it.second is AlertEngine.Fire }.map { it.first to it.second.kind })
+        val out = run(e, List(40) { 200 to 0.0 })
+        assertEquals(listOf(0 to "high", 30 to "high"), out.filter { it.second is AlertEngine.Fire }.map { it.first to it.second.kind })
         assertEquals(2, (out.last { it.second is AlertEngine.Fire }.second as AlertEngine.Fire).n)
     }
 
@@ -132,5 +132,10 @@ class AlertEngineTest {
         val back = AlertSettings.fromJson(JSONObject(x.toJson().toString()))
         assertEquals(x, back)
         assertEquals(55, x.toJson().getJSONObject("alerts").getJSONObject("urgent_low").getInt("mgdl"))
+        assertTrue(x.toJson().getJSONObject("alerts").getJSONObject("low").getBoolean("alarm"))
+        val flipped = AlertSettings.fromJson(JSONObject("{\"alerts\":{\"low\":{\"alarm\":false},\"high\":{\"alarm\":true}}}"))
+        assertEquals(false, flipped.cfg(Kind.LOW).alarm)
+        assertEquals(true, flipped.cfg(Kind.HIGH).alarm)
+        assertEquals(65.0, flipped.cfg(Kind.LOW).value, 0.0)
     }
 }

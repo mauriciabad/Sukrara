@@ -8,7 +8,7 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 |---|---|---|---|---|---|
 | `urgent_low` | `sgv ≤ mgdl` | on | 55 mg/dL | 5 min | *game over*: longer (~3–4 s), unmistakable, not harsh |
 | `low` | `sgv ≤ mgdl` (and not urgent low) | on | 65 mg/dL | 15 min | *lost a life*: short, descending |
-| `high` | `sgv ≥ mgdl` (and not very high) | on | 185 mg/dL | 60 min | *final lap*: short "speed up" jingle (frequent → brief) |
+| `high` | `sgv ≥ mgdl` (and not very high) | on | 185 mg/dL | 30 min | *final lap*: short "speed up" jingle (frequent → brief) |
 | `very_high` | `sgv ≥ mgdl` | on | 250 mg/dL | 30 min | *boss incoming*: a bit longer than high |
 | `falling_fast` | `rate ≤ −rate` | off | 2.0 mg/dL/min | 30 min | quick down sweep |
 | `rising_fast` | `rate ≥ +rate` | off | 2.0 mg/dL/min | 30 min | quick up sweep |
@@ -42,13 +42,13 @@ shows why it's quiet ("High, muted: insulin 12 min ago").
   "v": 1,
   "on": true,
   "alerts": {
-    "urgent_low":   {"on": true,  "mgdl": 55,  "repeatMin": 5},
-    "low":          {"on": true,  "mgdl": 65,  "repeatMin": 15},
-    "high":         {"on": true,  "mgdl": 185, "repeatMin": 60},
-    "very_high":    {"on": true,  "mgdl": 250, "repeatMin": 30},
-    "falling_fast": {"on": false, "rate": 2.0, "repeatMin": 30},
-    "rising_fast":  {"on": false, "rate": 2.0, "repeatMin": 30},
-    "no_data":      {"on": true,  "min": 20,   "repeatMin": 60}
+    "urgent_low":   {"on": true,  "mgdl": 55,  "repeatMin": 5,  "alarm": true},
+    "low":          {"on": true,  "mgdl": 65,  "repeatMin": 15, "alarm": true},
+    "high":         {"on": true,  "mgdl": 185, "repeatMin": 30, "alarm": false},
+    "very_high":    {"on": true,  "mgdl": 250, "repeatMin": 30, "alarm": false},
+    "falling_fast": {"on": false, "rate": 2.0, "repeatMin": 30, "alarm": false},
+    "rising_fast":  {"on": false, "rate": 2.0, "repeatMin": 30, "alarm": false},
+    "no_data":      {"on": true,  "min": 20,   "repeatMin": 60, "alarm": false}
   },
   "muteAfterInsulin": {"on": true, "min": 20},
   "muteFallingHigh":  {"on": true, "min": 20},
@@ -57,6 +57,9 @@ shows why it's quiet ("High, muted: insulin 12 min ago").
 }
 ```
 
+- `alarm` (per kind, local like the sound, also on a follower that mirrors the wearer): ring **like an alarm** instead
+  of as a notification. Android: alarm volume + `CATEGORY_ALARM` (through "Alarms" in Do Not Disturb, no cooldown);
+  Mac: Time Sensitive (breaks through Focus) when the build is entitled to it, else a normal notification.
 - `sounds.pack`: the pack every kind uses; `sounds.kinds[k]` overrides one kind (mix and match); `"system"` = the
   platform's default notification sound, `"none"` = silent. `shuffle`: pick a random variant of the pack each time
   (off = always variant 1).
@@ -106,7 +109,7 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
 
 | | Android | Mac |
 |---|---|---|
-| Per-kind sound | one notification channel per kind; its sound is `content://<pkg>.alertsound/<kind>`, an exported provider that picks the pack + variant **each time SystemUI opens it** | `UNNotificationSound(named:)` per notification |
+| Per-kind sound | two notification channels per kind (`alert_n_<kind>` notification volume, `alert_a_<kind>` alarm volume; `alarm` picks one); its sound is `content://<pkg>.alertsound/<kind>`, an exported provider that picks the pack + variant **each time SystemUI opens it** | `UNNotificationSound(named:)` per notification |
 | User override | channel settings (sound, vibration, DND) win over the app | none (macOS only has "Play sound for notification" on/off) |
-| Category | lows `CATEGORY_ALARM` + `USAGE_ALARM` (alarm volume, "Alarms only" DND, no cooldown); others `CATEGORY_REMINDER` (no post-unlock cooldown, DND "Reminders") | lows `.timeSensitive` only with the entitlement, else `.active` |
+| Category | `alarm`: `CATEGORY_ALARM` + `USAGE_ALARM` (alarm volume, "Alarms only" DND, no cooldown); otherwise `CATEGORY_REMINDER` + `USAGE_NOTIFICATION_EVENT` (no post-unlock cooldown, DND "Reminders") | `alarm`: `.timeSensitive` only with the entitlement, else `.active` |
 | Haptics | a primitives-only `VibrationEffect` per channel (falls for lows, speeding-up clicks for high…); an on/off waveform where primitives aren't supported. Haptic channels inside the sound file are muted for notifications | — |
