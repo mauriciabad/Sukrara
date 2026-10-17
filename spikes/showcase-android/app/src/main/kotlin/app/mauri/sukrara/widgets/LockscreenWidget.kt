@@ -25,6 +25,9 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import app.mauri.sukrara.core.Trend
+import app.mauri.sukrara.features.FeatureState
+import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
@@ -65,12 +68,54 @@ class LockscreenWidget : GlanceAppWidget() {
         const val HOLE_LEFT = "sukrara.lockHoleLeft"
         const val HOLE_RIGHT = "sukrara.lockHoleRight"
         const val HOLE_BOTTOM = "sukrara.lockHoleBottom"
+
+        /** DebugReceiver `cmd locktest`: draw a square and a circle of the same size to measure distortion on screen. */
+        @Volatile var testPattern = false
+
+        /**
+         * The ids SystemUI hosts. AppWidgetManager.getAppWidgetIds(provider), which Glance's updateAll uses, doesn't
+         * list a widget bound by SystemUI's host, so without this the widget only redrew while a Glance session
+         * happened to be alive and went stale after. Learnt from the widget callbacks and from the module's hello.
+         */
+        private fun prefs(c: Context) = c.getSharedPreferences("lock-widget", Context.MODE_PRIVATE)
+        fun ids(c: Context): Set<Int> = prefs(c).getStringSet("ids", emptySet())!!.mapNotNull { it.toIntOrNull() }.toSet()
+        fun remember(c: Context, ids: Collection<Int>) {
+            if (ids.isEmpty() || ids(c).containsAll(ids)) return
+            prefs(c).edit().putStringSet("ids", (ids(c) + ids).map { "$it" }.toSet()).apply()
+        }
+        fun forget(c: Context, ids: Collection<Int>) =
+            prefs(c).edit().putStringSet("ids", (ids(c) - ids.toSet()).map { "$it" }.toSet()).apply()
+
+        suspend fun updateAll(c: Context) {
+            val mgr = androidx.glance.appwidget.GlanceAppWidgetManager(c)
+            for (id in ids(c)) runCatching { LockscreenWidget().update(c, mgr.getGlanceIdBy(id)) }
+                .onFailure { android.util.Log.w("Sukrara.widgets", "lock screen widget $id: $it"); forget(c, listOf(id)) }
+        }
     }
 }
 
-class LockscreenWidgetReceiver : BaseReceiver() { override val glanceAppWidget: GlanceAppWidget = LockscreenWidget() }
+class LockscreenWidgetReceiver : BaseReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = LockscreenWidget()
+
+    override fun onUpdate(context: Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+        LockscreenWidget.remember(context, appWidgetIds.toList())
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+    }
+
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: android.appwidget.AppWidgetManager,
+            appWidgetId: Int, newOptions: android.os.Bundle) {
+        LockscreenWidget.remember(context, listOf(appWidgetId))
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        LockscreenWidget.forget(context, appWidgetIds.toList())
+        super.onDeleted(context, appWidgetIds)
+    }
+}
 
 private val RING_EMPHASIS = floatArrayOf(1f, 0.55f, 0.35f)
+private const val WHITE = 0xFFF2F2F2.toInt()
 
 @Composable
 private fun LockscreenContent(frame: WidgetUpdater.Frame) {
@@ -87,8 +132,10 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     val d = ctx.resources.displayMetrics.density
     // well under the RemoteViews bitmap limit, like the other widgets
     val scale = min(1f, 1400f / (maxOf(w, h) * d))
-    val bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
-    draw(ctx, Canvas(bmp), frame, hole, d * scale)
+    var bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
+    val f = Features.value
+    draw(ctx, Canvas(bmp), frame, hole, d * scale, f)
+    if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale)
     Image(
         ImageProvider(bmp),
         contentDescription = describe(frame),
@@ -100,16 +147,20 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
 /** Where the lock icon is, dp from the widget's top-left: [left]…[right] wide, from the top down to [bottom]. */
 private data class Hole(val left: Float, val right: Float, val bottom: Float)
 
-private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float) {
+private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float, f: FeatureState) {
     val cfg = GraphSettings.value
     // Transparent: the end dot's halo is drawn in the background colour.
-    val pal = systemPalette(ctx, dark = true).copy(bg = 0)
-    val w = cv.width.toFloat()
-    val h = cv.height.toFloat()
+    val pal = systemPalette(ctx, dark = true).copy(bg = 0).let {
+        if (f.lockWhite) it.copy(tight = WHITE, target = WHITE) else it
+    }
+    // Card and blur (drawn by the module behind the widget) have an edge: keep the content off it.
+    val pad = if (LockBackground.boxed(f.lockBg)) 12 * d else 0f
+    val w = cv.width.toFloat() - pad
+    val h = cv.height.toFloat() - pad
     val rowH = hole.bottom * d
 
     // Value + arrow, left of the lock icon (a little shorter than the row so the number isn't taller than the icon).
-    val valueBox = RectF(0f, rowH * 0.1f, hole.left * d, rowH * 0.9f)
+    val valueBox = RectF(pad, rowH * 0.1f, hole.left * d, rowH * 0.9f)
     cv.withBox(valueBox) {
         GlucoseCard.draw(cv, valueBox.width(), valueBox.height(), frame.history, frame.treatments, frame.nowSec,
             CardStyle(graph = null, rings = emptyList()), pal, d)
@@ -121,7 +172,7 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     val specs = cfg.rings()
     if (specs.isNotEmpty()) {
         val gap = 8 * d
-        val size = min(rowH * 0.9f, min(84 * d, (ringsBox.width() - gap * (specs.size - 1)) / specs.size))
+        val size = min(rowH * 0.9f - pad, min(84 * d, (ringsBox.width() - gap * (specs.size - 1)) / specs.size))
         var x = ringsBox.right
         if (size >= 30 * d) for ((i, spec) in specs.withIndex()) {
             val m = GraphData.metrics(ctx, spec.windowS, cfg.bands, frame.nowSec)
@@ -134,12 +185,41 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     }
 
     // The chart below.
-    val chart = RectF(0f, rowH + 8 * d, w, h)
+    val chart = RectF(pad, rowH + 8 * d, w, h)
     if (chart.height() > 24 * d) cv.withBox(chart) {
         val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
         GlucoseCard.draw(cv, chart.width(), chart.height(), frame.history, frame.treatments, frame.nowSec,
             CardStyle(graph = graph, rings = emptyList(), value = false), pal, d)
     }
+    if (LockscreenWidget.testPattern) testPattern(cv, d)
+}
+
+/**
+ * Text protection without a box: a soft dark shadow around everything drawn (the content's alpha, blurred), like the
+ * shadow SystemUI puts under the lock screen clock.
+ */
+private fun withShadow(src: android.graphics.Bitmap, d: Float): android.graphics.Bitmap {
+    val off = IntArray(2)
+    val mask = src.extractAlpha(android.graphics.Paint().apply {
+        maskFilter = android.graphics.BlurMaskFilter(5 * d, android.graphics.BlurMaskFilter.Blur.NORMAL)
+    }, off)
+    val out = createBitmap(src.width, src.height)
+    val cv = Canvas(out)
+    val p = android.graphics.Paint().apply { color = 0x99000000.toInt() }
+    // twice: the blur spreads the alpha thin, one pass is too faint behind thin lines
+    repeat(2) { cv.drawBitmap(mask, off[0].toFloat(), off[1].toFloat() + 0.5f * d, p) }
+    cv.drawBitmap(src, 0f, 0f, null)
+    mask.recycle(); src.recycle()
+    return out
+}
+
+private fun testPattern(cv: Canvas, d: Float) {
+    val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFF00FF.toInt() }
+    val s = 100 * d
+    val y = cv.height - s
+    val x = cv.width - s
+    cv.drawRect(x, y, x + s, y + s, p)
+    cv.drawCircle(x - 12 * d - s / 2, y + s / 2, s / 2, p)
 }
 
 private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {

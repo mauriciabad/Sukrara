@@ -83,6 +83,7 @@ object RootStatusBar {
             .putExtra("hideIcon", f.hideNotifIcon)
             .putExtra("low", Range.LOW).putExtra("high", Range.HIGH)
             .putExtra("lockWidget", f.lockWidget)
+            .putExtra("lockBg", f.lockBg)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }
@@ -95,6 +96,10 @@ object RootStatusBar {
     class HelloReceiver : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             Features.init(c)
+            if (i.hasExtra("lockWidgetId")) {
+                app.mauri.sukrara.widgets.LockscreenWidget.remember(c, listOf(i.getIntExtra("lockWidgetId", 0)))
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "lock screen widget", force = true)
+            }
             sendToHook(c, Features.value, last)
             if (Features.value.hook && Features.value.hideNotifIcon) repostLater(c)
         }

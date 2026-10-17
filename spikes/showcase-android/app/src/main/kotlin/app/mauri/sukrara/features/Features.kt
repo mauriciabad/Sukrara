@@ -52,6 +52,10 @@ data class FeatureState(
      * by the LSPosed module inside SystemUI, so without the module it does nothing.
      */
     val lockWidget: Boolean = true,
+    /** What sits behind the lock screen widget for contrast: none, shadow, dim, card, blur ([LockBackground]). */
+    val lockBg: String = LockBackground.SHADOW,
+    /** Lock screen widget: in-range values, lines and ring segments in white instead of green. */
+    val lockWhite: Boolean = false,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580 for Garmin watch apps (only binds if the port is free). */
@@ -72,6 +76,7 @@ data class FeatureState(
         .put("bleFollowers", bleFollowers)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
         .put("hideNotifIcon", hideNotifIcon).put("lockWidget", lockWidget)
+        .put("lockBg", lockBg).put("lockWhite", lockWhite)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
@@ -101,6 +106,8 @@ object Features {
             hookColor = p.getBoolean("hookColor", d.hookColor),
             hideNotifIcon = p.getBoolean("hideNotifIcon", d.hideNotifIcon),
             lockWidget = p.getBoolean("lockWidget", d.lockWidget),
+            lockBg = p.getString("lockBg", d.lockBg)!!,
+            lockWhite = p.getBoolean("lockWhite", d.lockWhite),
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -119,6 +126,7 @@ object Features {
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
                 source = if (it.source == "juggluco") "juggluco" else "direct",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
+                lockBg = it.lockBg.takeIf { b -> b in LockBackground.ALL } ?: LockBackground.SHADOW,
             )
         }
         prefs?.edit()?.apply {
@@ -127,6 +135,7 @@ object Features {
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
             putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
             putBoolean("hideNotifIcon", s.hideNotifIcon); putBoolean("lockWidget", s.lockWidget)
+            putString("lockBg", s.lockBg); putBoolean("lockWhite", s.lockWhite)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
@@ -171,6 +180,29 @@ object Features {
             .flatMap { it.inetAddresses.toList() }.filterIsInstance<java.net.Inet4Address>().map { it.hostAddress ?: "" }
             .filter { it.isNotEmpty() }
     }.getOrDefault(emptyList())
+}
+
+/**
+ * Contrast behind the lock screen widget (investigation 17), after Material's text protection (m1.material.io/style/
+ * imagery: scrims). Shadow is drawn by the widget, the others by the LSPosed module around it.
+ */
+object LockBackground {
+    const val NONE = "none"
+    const val SHADOW = "shadow"
+    const val DIM = "dim"
+    const val CARD = "card"
+    const val BLUR = "blur"
+    val ALL = listOf(NONE, SHADOW, DIM, CARD, BLUR)
+    /** Settings: label, value, description. */
+    val CHOICES = listOf(
+        Triple("None", NONE, "On the wallpaper, like the clock"),
+        Triple("Shadow", SHADOW, "A soft shadow behind every number and line"),
+        Triple("Dim", DIM, "Darkens the bottom of the screen"),
+        Triple("Card", CARD, "A dark card like the notifications"),
+        Triple("Blur", BLUR, "Frosted glass: the wallpaper blurred behind it"),
+    )
+    /** Card and blur have an edge: the widget keeps its content off it. */
+    fun boxed(b: String) = b == CARD || b == BLUR
 }
 
 /** Where the SystemUI hook places the glucose view. Shared with the hook through the broadcast. */
