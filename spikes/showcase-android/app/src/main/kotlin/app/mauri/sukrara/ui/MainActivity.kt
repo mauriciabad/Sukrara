@@ -148,8 +148,8 @@ class MainActivity : ComponentActivity() {
         val u by engine.ui.collectAsStateWithLifecycle()
         val relays by engine.relayStats.collectAsStateWithLifecycle()
         val log by engine.log.lines.collectAsStateWithLifecycle()
-        var screen by remember { mutableStateOf("home") }
-        LaunchedEffect(openScreen) { openScreen?.let { screen = it; openScreen = null } }
+        val nav = rememberNav("home")
+        LaunchedEffect(openScreen) { openScreen?.let { nav.reset(it); openScreen = null } }
         var error by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf<String?>(null) }
 
@@ -219,7 +219,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                override fun share() { engine.newInvite(); screen = "share" }
+                override fun share() { engine.newInvite(); nav.open("share") }
 
                 override fun shareLink(link: String) {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -236,7 +236,7 @@ class MainActivity : ComponentActivity() {
                 override suspend fun ncryptsec(password: String) = engine.identityNcryptsec(password)
                 override fun nearbyPairing() { engine.nearbyPairing() }
                 override fun setWriter(f: String, on: Boolean) { engine.setWriter(f, on) }
-                override fun open(s: String) { screen = s }
+                override fun open(s: String) { nav.open(s) }
                 override fun saveProfile(profile: app.mauri.sukrara.core.Profile) { engine.setProfile(profile) }
                 override fun setInviteLabel(label: String) { engine.setInviteLabel(label) }
             }
@@ -246,20 +246,30 @@ class MainActivity : ComponentActivity() {
         val homeScroll = rememberScrollState()
         AnimatedContent(u.hasIdentity, transitionSpec = { fadeThrough() }, label = "identity") { has ->
             if (!has) Page { OwnerOnboarding(busy ?: u.busy, error, actions) }
-            else ScreenHost(screen, home = "home", onBack = { screen = "home" }) { s ->
+            else ScreenHost(nav) { s ->
+                val back = nav::back
                 when (s) {
-                    "share" -> Page { ShareScreen(u, actions) { screen = "home" } }
+                    "share" -> Page { ShareScreen(u, actions, back) }
                     "profile" -> Page {
                         ProfileScreen("Your profile", u.profile ?: app.mauri.sukrara.core.Profile("", null), "Your name",
                             "Your followers get the change at once. New invites show it to the person you invite.",
-                            actions::saveProfile) { screen = "home" }
+                            actions::saveProfile, back)
                     }
-                    "settings" -> Page { SettingsScreen(onSensor = { screen = "sensor" }, onAlerts = { screen = "alerts" },
-                        onGraph = { screen = "graph" }) { screen = "home" } }
-                    "graph" -> Page { GraphScreen { screen = "settings" } }
-                    "alerts" -> Page { AlertsScreen(follower = false) { screen = "settings" } }
-                    "sensor" -> Page { SensorScreen { screen = "home" } }
-                    else -> Page(homeScroll) { OwnerHome(u, relays, log, actions) }
+                    "settings" -> Page { WearerSettings(u, nav::open, back) }
+                    "alerts" -> Page { AlertsScreen(follower = false, back) }
+                    "source" -> Page { SourceSettings(onSensor = { nav.open("sensor") }, onBack = back) }
+                    "sensor" -> Page { SensorScreen(back) }
+                    "sharing" -> Page { SharingSettings(u, actions, back) }
+                    "graph" -> Page { GraphScreen(back) }
+                    "statusbar" -> Page { StatusBarSettings(back) }
+                    "lockscreen" -> Page { LockscreenSettings(back) }
+                    "apps" -> Page { AppsSettings(wearer = true, onLibreView = { nav.open("libreview") }, onBack = back) }
+                    "libreview" -> Page { LibreViewSettings(back) }
+                    "backup" -> Page { BackupSettings(u, actions, back) }
+                    "advanced" -> Page { WearerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
+                    "log" -> Page { LogPage(log, back) }
+                    "about" -> Page { AboutSettings(back) }
+                    else -> Page(homeScroll) { OwnerHome(u, actions) }
                 }
             }
         }
@@ -276,13 +286,13 @@ class MainActivity : ComponentActivity() {
         val log by engine.log.lines.collectAsStateWithLifecycle()
         var error by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf(false) }
-        var screen by remember { mutableStateOf("home") }
-        LaunchedEffect(openScreen) { openScreen?.let { screen = it; openScreen = null } }
+        val nav = rememberNav("home")
+        LaunchedEffect(openScreen) { openScreen?.let { nav.reset(it); openScreen = null } }
 
         val actions = remember {
             object : FollowerActions {
                 override suspend fun resolve(link: String) = engine.resolveInvite(link)
-                override fun editProfile() { screen = "profile" }
+                override fun editProfile() { nav.open("profile") }
                 override fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile) {
                     lifecycleScope.launch {
                         busy = true
@@ -302,8 +312,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                override fun openAlerts() { screen = "alerts" }
-                override fun openGraph() { screen = "graph" }
+                override fun open(screen: String) { nav.open(screen) }
                 override fun setTestUnfiltered(on: Boolean) { engine.setTestUnfiltered(on) }
                 override fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = engine.scanNearby(onFound)
                 override fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile) {
@@ -325,15 +334,22 @@ class MainActivity : ComponentActivity() {
                 "none" -> Page { FollowerJoin(deepLink, busy, error, actions) }
                 "requested" -> Page { FollowerWaiting(u, actions) }
                 "used", "declined" -> Page { FollowerEnded(u, actions) }
-                else -> ScreenHost(screen, home = "home", onBack = { screen = "home" }) { sc ->
+                else -> ScreenHost(nav) { sc ->
+                    val back = nav::back
                     when (sc) {
-                        "alerts" -> Page { AlertsScreen(follower = true) { screen = "home" } }
-                        "graph" -> Page { GraphScreen { screen = "home" } }
+                        "settings" -> Page { FollowerSettings(u, nav::open, back) }
+                        "alerts" -> Page { AlertsScreen(follower = true, back) }
+                        "graph" -> Page { GraphScreen(back) }
+                        "following" -> Page { FollowingSettings(u, actions, back) }
+                        "apps" -> Page { AppsSettings(wearer = false, onLibreView = {}, onBack = back) }
+                        "advanced" -> Page { FollowerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
+                        "log" -> Page { LogPage(log, back) }
+                        "about" -> Page { AboutSettings(back) }
                         "profile" -> Page {
                             ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
-                                "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile) { screen = "home" }
+                                "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile, back)
                         }
-                        else -> Page(homeScroll) { FollowerHome(u, relays, log, actions) }
+                        else -> Page(homeScroll) { FollowerHome(u, actions) }
                     }
                 }
             }

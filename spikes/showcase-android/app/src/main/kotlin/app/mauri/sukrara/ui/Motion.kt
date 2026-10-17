@@ -152,24 +152,50 @@ private fun PageColumn(scroll: ScrollState, corner: Dp, content: @Composable Col
 }
 
 /**
- * Parent [home] + child screens with predictive back: the system back gesture seeks the transition to [home]
- * (NavigationEvent API, what Navigation 3 builds on); releasing completes it, cancelling springs back.
+ * In-app back stack: the first screen is home, [open] pushes a child (or goes back to it if it's already below),
+ * [back] pops one level. Each screen's back arrow and the system back both call [back], so Back from Alerts returns
+ * to Settings, not home.
+ */
+class Nav(home: String) {
+    val stack = androidx.compose.runtime.mutableStateListOf(home)
+    val screen get() = stack.last()
+    fun open(s: String) {
+        val i = stack.indexOf(s)
+        if (i >= 0) while (stack.size > i + 1) stack.removeAt(stack.lastIndex) else stack.add(s)
+    }
+    fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    /** A notification asked for [s]: home, then [s] (so Back leads home). */
+    fun reset(vararg s: String) { while (stack.size > 1) stack.removeAt(stack.lastIndex); s.forEach { if (it != stack[0]) stack.add(it) } }
+}
+
+@Composable
+fun rememberNav(home: String) = remember { Nav(home) }
+
+/**
+ * The screens of a [Nav] with predictive back: the system back gesture seeks the transition to the parent screen
+ * (NavigationEvent API, what Navigation 3 builds on); releasing completes it, cancelling springs back. Going deeper
+ * slides in (shared axis X), going back pops.
  */
 @Composable
-fun ScreenHost(screen: String, home: String, onBack: () -> Unit, content: @Composable AnimatedContentScope.(String) -> Unit) {
+fun ScreenHost(nav: Nav, content: @Composable AnimatedContentScope.(String) -> Unit) {
+    val screen = nav.screen
+    val parent = nav.stack.getOrNull(nav.stack.size - 2)
+    // last known depth of every screen, so the transition knows whether a change goes deeper or back
+    val depth = remember { HashMap<String, Int>() }
+    nav.stack.forEachIndexed { i, s -> depth[s] = i }
     val seekable = remember { SeekableTransitionState(screen) }
     val transition = rememberTransition(seekable, label = "screen")
     val scope = rememberCoroutineScope()
     var gesture by remember { mutableStateOf(false) }
-    val nav = rememberNavigationEventState(NavigationEventInfo.None)
-    NavigationBackHandler(nav, isBackEnabled = screen != home,
+    val navState = rememberNavigationEventState(NavigationEventInfo.None)
+    NavigationBackHandler(navState, isBackEnabled = parent != null,
         onBackCancelled = { scope.launch { seekable.animateTo(screen); gesture = false } },
-        onBackCompleted = onBack)
-    val ts = nav.transitionState
+        onBackCompleted = { nav.back() })
+    val ts = navState.transitionState
     LaunchedEffect(ts) {
-        if (ts is NavigationEventTransitionState.InProgress && screen != home) {
+        if (ts is NavigationEventTransitionState.InProgress && parent != null) {
             gesture = true
-            seekable.seekTo(ts.latestEvent.progress, targetState = home)
+            seekable.seekTo(ts.latestEvent.progress, targetState = parent)
         }
     }
     LaunchedEffect(screen) {
@@ -178,7 +204,9 @@ fun ScreenHost(screen: String, home: String, onBack: () -> Unit, content: @Compo
     }
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     transition.AnimatedContent(
-        transitionSpec = { if (targetState == home) popTransition(gesture, density) else sharedAxisX(true, density) },
+        transitionSpec = {
+            if ((depth[targetState] ?: 0) < (depth[initialState] ?: 0)) popTransition(gesture, density) else sharedAxisX(true, density)
+        },
         contentAlignment = Alignment.TopStart,
     ) { content(it) }
 }

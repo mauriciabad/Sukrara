@@ -26,6 +26,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Card
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -63,8 +67,8 @@ interface FollowerActions {
     fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile)
     fun editProfile()
     fun leave()
-    fun openAlerts()
-    fun openGraph()
+    /** A screen by its route (settings, alerts, graph…). */
+    fun open(screen: String)
     fun setTestUnfiltered(on: Boolean)
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit)
     fun joinNearby(address: String, me: app.mauri.sukrara.core.Profile)
@@ -178,20 +182,21 @@ fun FollowerEnded(u: FollowerUi, a: FollowerActions) {
 }
 
 @Composable
-fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<String>, a: FollowerActions) {
-    var showLog by remember { mutableStateOf(false) }
+fun FollowerHome(u: FollowerUi, a: FollowerActions) {
+    var adding by remember { mutableStateOf(false) }
     val alerts by app.mauri.sukrara.alerts.Alerts.settings.collectAsState()
     val now = nowSeconds()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ProfileRow(u.wearer, "Sukrara", 48.dp) {
-            Text(u.wearer?.name?.ifBlank { null } ?: "Sukrara", style = MaterialTheme.typography.headlineSmall)
-            Text("Following ${u.ownerPub?.let { Proto.shortNpub(it) }}", style = MaterialTheme.typography.bodySmall)
-        }
-        Row(Modifier.clickable { a.editProfile() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("You appear as", style = MaterialTheme.typography.bodySmall)
-            AvatarImage(u.me?.avatar, u.name ?: "", 24.dp)
-            Text(u.name ?: "", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-            Text("Edit", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                ProfileRow(u.wearer, "Sukrara", 48.dp) {
+                    Text(u.wearer?.name?.ifBlank { null } ?: "Sukrara", style = MaterialTheme.typography.headlineSmall)
+                    Text("Following · you appear as ${u.name ?: ""}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            IconButton(onClick = { a.open("settings") }) {
+                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = "Settings")
+            }
         }
         Reveal(u.status == "revoked") {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
@@ -203,8 +208,8 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         }
         val l = u.last
         val noData = u.status == "active" && (l == null || now - l.t >= alerts.cfg(app.mauri.sukrara.alerts.Kind.NO_DATA).value * 60)
-        GlucosePanel(l?.sgv, l?.rate, l?.t,
-            subtitle = l?.let { "via ${it.via.removePrefix("relay:")} · key epoch ${it.epoch}" })
+        // only a roster writer may add entries; follows the newest roster live
+        GlucosePanel(l?.sgv, l?.rate, l?.t, onAdd = if (u.status == "active" && u.canWrite) ({ adding = true }) else null)
         RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
             Text("No data for $it min", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
         }
@@ -217,42 +222,14 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
         GlucoseReport(l?.t)
         Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FollowerEntries(u)
-            // item 1: only a roster writer may add entries; follows the newest roster live (cross-fades when it changes)
-            Swap(u.canWrite) { can ->
-                if (can) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { AddEntry(a) }
-                else Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
+            Reveal(!u.canWrite) {
+                Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } }
-
-        SectionTitle("Alerts")
-        AlertsRow(alerts, follower = true, onClick = a::openAlerts)
-        GraphRow(a::openGraph)
-
-        // Widgets and the status-bar chip follow this person too (FollowerExtras); local servers serve their values.
-        LocalServersSection()
-
-        SectionTitle("Details")
-        val mono = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-        Text("stored readings ${u.count} (this phone's own database) · rejected events ${u.rejects}" +
-            (u.lastReject?.let { " (last: $it)" } ?: ""), style = mono)
-        Text("key epochs known: up to ${u.epoch} · trusted devices ${u.devices.map { it.take(8) }}", style = mono)
-        Text("this phone: ${u.fPub?.let { Proto.npub(it) }}", style = mono)
-        Text("Bluetooth: ${u.ble}", style = MaterialTheme.typography.bodySmall)
-        RelayList(relays)
-        if (BuildConfig.DEBUG) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("TEST: subscribe without relay-side author filter (debug)", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                Switch(u.testUnfiltered, a::setTestUnfiltered)
-            }
-        }
-        Row {
-            TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide log" else "Show log") }
-            TextButton(onClick = a::leave) { Text("Stop following") }
-        }
-        Reveal(showLog) { LogList(log) }
         Spacer(Modifier.size(24.dp))
     }
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { it.forEach { e -> a.addTreatment(e.k, e.a, e.note, e.at) } })
 }
 
 /** Investigation 07: list owners advertising the Sukrara service nearby; tap one to ask for access over BLE. */
@@ -316,13 +293,6 @@ private fun FollowerEntries(u: FollowerUi) {
 }
 
 /** Investigation 07: a follower the owner made a writer can add insulin / carbs / a note (the shared [TreatmentDialog]). */
-@Composable
-private fun AddEntry(a: FollowerActions) {
-    var adding by remember { mutableStateOf(false) }
-    FilledTonalButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) { Text("Add treatment") }
-    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { it.forEach { e -> a.addTreatment(e.k, e.a, e.note, e.at) } })
-}
-
 @Composable
 fun RoleChoice(onOwner: () -> Unit, onFollower: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {

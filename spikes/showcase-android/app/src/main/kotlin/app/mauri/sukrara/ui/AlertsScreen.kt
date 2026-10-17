@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import app.mauri.sukrara.R
 import app.mauri.sukrara.alerts.AlertNotifier
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSounds
@@ -70,19 +71,6 @@ private fun thresholdText(k: String, c: KindCfg): String = when (k) {
 
 private fun repeatText(m: Int) = if (m == 0) "once" else "every $m min"
 
-/** Home-screen / settings entry: "Alerts" + a one-line summary. */
-@Composable
-fun AlertsRow(s: AlertSettings, follower: Boolean, onClick: () -> Unit) {
-    val on = Kind.ALL.filter { s.cfg(it).on }
-    val summary = when {
-        !s.on -> "Off"
-        follower && s.source == "wearer" -> "Same as the wearer's app · ${AlertSounds.label(s.pack)}"
-        else -> "${on.size} of ${Kind.ALL.size} on · low ${s.cfg(Kind.LOW).value.toInt()} · high ${s.cfg(Kind.HIGH).value.toInt()} · " +
-            AlertSounds.label(s.pack)
-    }
-    ValueRow("Glucose alerts", summary, enabled = true, onClick = onClick)
-}
-
 @Composable
 fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     val ctx = LocalContext.current
@@ -98,87 +86,88 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     val mirrored = follower && s.source == "wearer"
     val nm = ctx.getSystemService(NotificationManager::class.java)
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Alerts", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Done") }
-        }
+    var minutes by remember { mutableStateOf<String?>(null) }   // which quiet rule's minutes dialog is open
+    SettingsPage("Alerts", onBack) {
+        // what the rules see now, like a live preview at the top of the page
         Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 val now = state.values.toList()
                 Swap(now.isEmpty()) { empty ->
-                    if (empty) Text(if (s.on) "Nothing to alert about now" else "Alerts are off", style = MaterialTheme.typography.bodyMedium)
+                    if (empty) Text(if (s.on) "Nothing to alert about now" else "Alerts are off", style = MaterialTheme.typography.bodyLarge)
                     else Column {
                         now.forEach { st ->
                             Text(Kind.label(st.kind) + (st.muted?.let { " · quiet: $it" } ?: if (st.n > 0) " · alerted" else " · alerted recently"),
-                                style = MaterialTheme.typography.bodyMedium)
+                                style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
-                history.take(4).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
+                history.take(4).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+        }
+        SettingsMainSwitch("Glucose alerts", s.on) { v -> set { it.copy(on = v) } }
+        if (follower) SettingsGroup {
+            value("Alert rules", if (s.source == "wearer") "Same as the wearer's app" else "This phone's own settings", enabled = s.on) { pickSource = true }
+        }
+
+        // each alert: tap opens its threshold, reminder, sound and volume; the switch turns it on or off
+        @Composable
+        fun kinds(title: String, ks: List<String>) = SettingsGroup(title) {
+            for (k in ks) {
+                val c = s.cfg(k)
+                val ruled = !mirrored || k == Kind.NO_DATA
+                val custom = nm.getNotificationChannel(AlertNotifier.channelId(k, c.alarm))?.sound?.let { it != AlertSounds.uri(ctx, k) } == true
+                val sound = (if (custom) "sound set in system settings" else AlertSounds.label(s.soundOf(k)).substringBefore(" (")) +
+                    if (c.alarm) " · alarm volume" else ""
+                splitSwitch(Kind.label(k), if (!ruled) "Set by the wearer's app · $sound" else "${thresholdText(k, c)} · ${repeatText(c.repeatMin)} · $sound",
+                    checked = c.on && ruled, rowEnabled = s.on, switchEnabled = s.on && ruled, onClick = { editing = k }) { v ->
+                    set { it.copy(kinds = it.kinds + (k to c.copy(on = v))) }
+                }
+            }
+        }
+        kinds("Lows", listOf(Kind.URGENT_LOW, Kind.LOW))
+        kinds("Highs", listOf(Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH))
+        kinds("Fast changes", Kind.RATES)
+        kinds("Signal", listOf(Kind.NO_DATA))
+
+        val rules = s.on && !mirrored
+        val locked = "Set by the wearer's app"
+        SettingsGroup("Quiet alerts") {
+            splitSwitch("After rapid insulin", if (mirrored) locked else "Highs and rising fast wait ${s.muteInsulinMin} min · extremely high always alerts",
+                checked = s.muteInsulin, rowEnabled = rules && s.muteInsulin, switchEnabled = rules, onClick = { minutes = "insulin" }) { v ->
+                set { it.copy(muteInsulin = v) }
+            }
+            splitSwitch("When falling back into range", if (mirrored) locked
+                else "No high alert while it'll be under ${s.cfg(Kind.HIGH).value.toInt()} within ${s.muteFallingMin} min",
+                checked = s.muteFalling, rowEnabled = rules && s.muteFalling, switchEnabled = rules, onClick = { minutes = "falling" }) { v ->
+                set { it.copy(muteFalling = v) }
+            }
+            splitSwitch("After carbs", if (mirrored) locked else "Low and falling fast wait ${s.muteCarbsMin} min · urgent low always alerts",
+                checked = s.muteCarbs, rowEnabled = rules && s.muteCarbs, switchEnabled = rules, onClick = { minutes = "carbs" }) { v ->
+                set { it.copy(muteCarbs = v) }
             }
         }
 
-        Toggle("Glucose alerts", s.on, sub = if (s.on) "Notifications when glucose leaves your range" else "No glucose notifications") { v ->
-            set { it.copy(on = v) }
+        SettingsGroup("Sounds") {
+            value("Sound pack", AlertSounds.label(s.pack), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { pickPack = true }
+            switch("A different sound each time", s.shuffle, enabled = s.on,
+                summary = "${AlertSounds.VARIANTS} sounds per alert in every pack, picked at random") { v -> set { it.copy(shuffle = v) } }
+            link("Notification settings", "Sound, vibration and Do Not Disturb per alert", icon = R.drawable.ic_sym_notifications, external = true) {
+                ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+            }
         }
-        if (follower) ValueRow("Alert rules", if (s.source == "wearer") "Same as the wearer's app" else "This phone's own settings",
-            enabled = s.on) { pickSource = true }
-
-        SectionTitle("Alerts")
-        for (k in Kind.ALL) {
-            val c = s.cfg(k)
-            val ruled = !mirrored || k == Kind.NO_DATA
-            val custom = nm.getNotificationChannel(AlertNotifier.channelId(k, c.alarm))?.sound?.let { it != AlertSounds.uri(ctx, k) } == true
-            val sound = (if (custom) "sound set in system settings" else AlertSounds.label(s.soundOf(k)).substringBefore(" (")) +
-                if (c.alarm) " · alarm volume" else ""
-            KindRow(Kind.label(k), checked = c.on && ruled, enabled = s.on && ruled,
-                sub = if (!ruled) "Set by the wearer's app · $sound" else "${thresholdText(k, c)} · ${repeatText(c.repeatMin)} · $sound",
-                onClick = { editing = k }) { v -> set { it.copy(kinds = it.kinds + (k to c.copy(on = v))) } }
-        }
-
-        SectionTitle("Quiet highs")
-        Toggle("After rapid insulin", s.muteInsulin, enabled = s.on && !mirrored,
-            sub = if (mirrored) "Set by the wearer's app"
-                  else "High, very high and rising fast wait ${s.muteInsulinMin} min after a rapid dose. Extremely high always alerts") { v ->
-            set { it.copy(muteInsulin = v) }
-        }
-        Reveal(s.muteInsulin && !mirrored) {
-            Minutes(s.muteInsulinMin, listOf(30, 45, 60, 90, 120, 180), enabled = s.on) { m -> set { it.copy(muteInsulinMin = m) } }
-        }
-        Toggle("When falling back into range", s.muteFalling, enabled = s.on && !mirrored,
-            sub = if (mirrored) "Set by the wearer's app"
-                  else "No high alert while the current fall brings it under ${s.cfg(Kind.HIGH).value.toInt()} within ${s.muteFallingMin} min") { v ->
-            set { it.copy(muteFalling = v) }
-        }
-        Reveal(s.muteFalling && !mirrored) {
-            Minutes(s.muteFallingMin, listOf(10, 15, 20, 30, 45, 60), enabled = s.on) { m -> set { it.copy(muteFallingMin = m) } }
-        }
-
-        SectionTitle("Quiet lows")
-        Toggle("After carbs", s.muteCarbs, enabled = s.on && !mirrored,
-            sub = if (mirrored) "Set by the wearer's app"
-                  else "Low and falling fast wait ${s.muteCarbsMin} min after carbs. Urgent low always alerts") { v ->
-            set { it.copy(muteCarbs = v) }
-        }
-        Reveal(s.muteCarbs && !mirrored) {
-            Minutes(s.muteCarbsMin, listOf(10, 15, 20, 30, 45), enabled = s.on) { m -> set { it.copy(muteCarbsMin = m) } }
-        }
-
-        SectionTitle("Sounds")
-        ValueRow("Sound pack", AlertSounds.label(s.pack), enabled = s.on) { pickPack = true }
-        Toggle("A different sound each time", s.shuffle, enabled = s.on,
-            sub = "Each alert has ${AlertSounds.VARIANTS} sounds in every pack, picked at random") { v -> set { it.copy(shuffle = v) } }
-        OutlinedButton(onClick = {
-            ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
-        }) { Text("Notification settings") }
-        HorizontalDivider()
-        Text("Each alert is its own notification category. Change its sound, vibration or Do Not Disturb behaviour in the " +
-            "system settings; a sound picked there replaces Sukrara's. Each alert rings at alarm or notification volume " +
-            "(lows at alarm volume unless you change it). Settings stay on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        Spacer(Modifier.size(24.dp))
+        SettingsFooter("Each alert is its own notification category: a sound picked in the system settings replaces " +
+            "Sukrara's. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). " +
+            "Settings stay on this phone.")
     }
 
+    when (minutes) {
+        "insulin" -> ChoiceDialog("After rapid insulin", listOf(30, 45, 60, 90, 120, 180).map { Choice("$it min", it) }, s.muteInsulinMin,
+            { minutes = null }) { m -> set { it.copy(muteInsulinMin = m) } }
+        "falling" -> ChoiceDialog("When falling back into range", listOf(10, 15, 20, 30, 45, 60).map { Choice("Within $it min", it) },
+            s.muteFallingMin, { minutes = null }) { m -> set { it.copy(muteFallingMin = m) } }
+        "carbs" -> ChoiceDialog("After carbs", listOf(10, 15, 20, 30, 45).map { Choice("$it min", it) }, s.muteCarbsMin,
+            { minutes = null }) { m -> set { it.copy(muteCarbsMin = m) } }
+    }
     editing?.let { k -> KindDialog(k, s, editable = !mirrored || k == Kind.NO_DATA, onDismiss = { editing = null }) { c, snd ->
         set { it.copy(kinds = it.kinds + (k to c), packFor = if (snd == null) it.packFor - k else it.packFor + (k to snd)) }
         editing = null
@@ -192,25 +181,6 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         sub = { if (it == "wearer") "Alerts when the wearer's phone alerts, including its quiet rules. No data is checked here."
                 else "The rules below run on this phone with the readings and entries it receives." },
         onDismiss = { pickSource = false }) { v -> set { it.copy(source = v) } }
-}
-
-/** A settings row with a switch on the right and its own tap target for the detail dialog (a "primary switch" row). */
-@Composable
-private fun KindRow(label: String, checked: Boolean, enabled: Boolean, sub: String, onClick: () -> Unit, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f).clickable(enabled = true, onClick = onClick).padding(vertical = 4.dp)) {
-            Text(label, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline)
-            Swap(sub) { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-        }
-        Switch(checked, onCheckedChange = onChange, enabled = enabled)
-    }
-}
-
-@Composable
-private fun Minutes(value: Int, options: List<Int>, enabled: Boolean, onPick: (Int) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for (m in options) FilterChip(value == m, { onPick(m) }, enabled = enabled, label = { Text("$m min") })
-    }
 }
 
 /** Radio list in a dialog (settings guidelines: single choice → dialog). Optional ▶ per option. */

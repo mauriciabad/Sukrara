@@ -113,7 +113,7 @@ fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(5
  * [GlucoseGraph] / [TirRing].
  */
 @Composable
-fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
+fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     val now = nowSeconds()
     val cfg by GraphSettings.state.collectAsState()
@@ -183,6 +183,13 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
                 }
             }
             subtitle?.let { Text(it, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            onAdd?.let {
+                androidx.compose.material3.FilledTonalButton(onClick = it, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
+                    androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_add),
+                        contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+                    Text("Add treatment")
+                }
+            }
         }
     }
 }

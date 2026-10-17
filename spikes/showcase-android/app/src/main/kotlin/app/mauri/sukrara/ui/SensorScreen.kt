@@ -102,11 +102,7 @@ fun SensorScreen(onBack: () -> Unit) {
         onPauseOrDispose { if (listening) nfc.disableReaderMode(activity) }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Sensor", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Done") }
-        }
+    SettingsPage("Sensor", onBack) {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -156,17 +152,16 @@ fun SensorScreen(onBack: () -> Unit) {
             null -> Unit
         }
 
-        if (nfc != null) Toggle("Open Sukrara when you scan a sensor", launchOnScan,
-            sub = "Holding the phone against a Libre sensor opens Sukrara when it isn't already open") {
-            NfcLaunch.set(ctx, it); launchOnScan = it
+        SettingsGroup {
+            if (nfc != null) switch("Open Sukrara when you scan a sensor", launchOnScan, icon = app.mauri.sukrara.R.drawable.ic_sym_nfc,
+                summary = "When it isn't already open") { NfcLaunch.set(ctx, it); launchOnScan = it }
+            if (pairing != null) action("Forget this sensor", icon = app.mauri.sukrara.R.drawable.ic_sym_person_remove) {
+                SensorPairing.forget(ctx)
+                pairing = null
+                outcome = null
+                if (f.source == "direct") scope.launch { App.owner(ctx).restartSource() }
+            }
         }
-
-        if (pairing != null) TextButton(onClick = {
-            SensorPairing.forget(ctx)
-            pairing = null
-            outcome = null
-            if (f.source == "direct") scope.launch { App.owner(ctx).restartSource() }
-        }) { Text("Forget this sensor") }
     }
 }
 

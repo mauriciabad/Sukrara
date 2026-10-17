@@ -113,8 +113,7 @@ fun ProfileEditor(p: Profile, onChange: (Profile) -> Unit, nameLabel: String) {
 @Composable
 fun ProfileScreen(title: String, current: Profile, nameLabel: String, note: String, onSave: (Profile) -> Unit, onBack: () -> Unit) {
     var p by remember { mutableStateOf(current) }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+    SettingsPage(title, onBack) {
         ProfileEditor(p, { p = it }, nameLabel)
         Text(note, style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -22,6 +22,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -115,10 +119,9 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
 }
 
 @Composable
-fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a: OwnerActions) {
-    var confirmRemove by remember { mutableStateOf<Follower?>(null) }
-    var showLog by remember { mutableStateOf(false) }
-    var showRecovery by remember { mutableStateOf(false) }
+fun OwnerHome(u: OwnerUi, a: OwnerActions) {
+    val ctx = LocalContext.current
+    var adding by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // the wearer's own profile: what followers see; tap to edit
@@ -128,103 +131,41 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
                 Column {
                     Text(u.profile?.name?.ifBlank { null } ?: "Add your name", style = MaterialTheme.typography.headlineSmall,
                         color = if (u.profile?.name.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                    Text("Wearer · ${u.iPub?.let { Proto.shortNpub(it) } ?: ""} · key epoch ${u.epoch}", style = MaterialTheme.typography.bodySmall)
+                    val n = u.followers.count { it.revoked == null }
+                    Text("Wearer · $n follower${if (n == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            TextButton(onClick = { a.open("settings") }) { Text("Settings") }
+            IconButton(onClick = { a.open("settings") }) {
+                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = "Settings")
+            }
         }
-        GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t,
-            subtitle = "source: ${u.source}${u.sourceError?.let { " — $it" } ?: ""} · ${u.liveSent} live / ${u.chunksSent} chunks sent")
+        // Settings → Backup holds the details; home only nags while there's no backup (AOSP BannerMessagePreference)
+        Reveal(u.backupSavedAt == 0L) {
+            Card(onClick = { a.open("backup") }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Not backed up", fontWeight = FontWeight.SemiBold)
+                    Text("If you lose this phone, every follower must be invited again. Tap to back up.", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t, subtitle = u.sourceError?.let { "${u.source} — $it" }, onAdd = { adding = true })
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         if (u.source == "direct: no sensor")
             Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text("Scan your sensor") }
         GlucoseReport(u.last?.t)
         TreatmentsSection()
-        Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionTitle("Entries from followers")
             AnimatedItems(u.treatments, { it }) { Text(it, style = MaterialTheme.typography.bodySmall) }
         } }
-        WearerSummary()
-        if (BuildConfig.DEBUG) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Synthetic source (debug build only)", Modifier.weight(1f))
-                Switch(u.synthetic, a::setSynthetic)
-            }
+        Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) {
+            Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_share), contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+            Text("Share with someone")
         }
-
-        SectionTitle("Nearby (Bluetooth)")
-        val pairing = u.nearbyUntil > Proto.nowS()
-        Text(if (!u.bleOn) "Bluetooth transport off (permission or Bluetooth disabled)"
-             else "Advertising · ${u.bleCentrals} follower(s) connected over Bluetooth" +
-                (if (pairing) " · pairing open until ${date(u.nearbyUntil)}" else ""), style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = a::nearbyPairing, enabled = u.bleOn, modifier = Modifier.fillMaxWidth()) {
-            Text(if (pairing) "Pairing nearby… (tap to extend 10 min)" else "Pair nearby (10 min)")
-        }
-
-        SectionTitle("Followers")
-        val active = u.followers.filter { it.revoked == null }
-        Reveal(u.followers.isEmpty()) { Text("Nobody follows you yet.", style = MaterialTheme.typography.bodyMedium) }
-        // a newly approved follower's card expands in; a removed one shrinks out and reappears as a "removed" line
-        AnimatedItems(active, { it.f }) { f ->
-            Card(Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AvatarImage(f.avatar, f.name, 40.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(f.name, fontWeight = FontWeight.SemiBold)
-                        Text("since ${date(f.since)} · ${f.f.take(8)}…", style = MaterialTheme.typography.bodySmall)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Can add entries", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                            Switch(f.f in u.writers, { a.setWriter(f.f, it) })
-                        }
-                    }
-                    OutlinedButton(onClick = { confirmRemove = f }) { Text("Remove") }
-                }
-            }
-        }
-        AnimatedItems(u.followers.filter { it.revoked != null }, { it.f }) { f ->
-            Text("${f.name} — removed ${date(f.revoked!!)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        }
-
-        SectionTitle("Backup")
-        val saved = u.backupSavedAt > 0
-        Card(colors = CardDefaults.cardColors(containerColor = if (saved) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer),
-            modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(if (saved) "Identity saved to a password manager (${date(u.backupSavedAt)})"
-                     else "Not backed up — if you lose this phone, every follower must be invited again.",
-                    fontWeight = FontWeight.SemiBold)
-                Text("Owner backup on relays: ${if (u.backupPublishedAt > 0) date(u.backupPublishedAt) else "not yet"} " +
-                    "(followers, keys and invites, encrypted to your identity)", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = a::saveBackup) { Text(if (saved) "Save again" else "Save to password manager") }
-                    TextButton(onClick = { showRecovery = true }) { Text("Recovery code") }
-                }
-            }
-        }
-
-        SectionTitle("Relays")
-        Text(if (u.inboxLive) "Access requests: live subscription (app open)"
-             else "Access requests: checked with every chunk publish (~5 min)", style = MaterialTheme.typography.bodySmall)
-        RelayList(relays)
-        Row {
-            TextButton(onClick = a::checkNow) { Text("Check requests now") }
-            TextButton(onClick = { showLog = !showLog }) { Text(if (showLog) "Hide log" else "Show log") }
-        }
-        Reveal(showLog) { LogList(log) }
         Spacer(Modifier.size(24.dp))
     }
-
-    confirmRemove?.let { f ->
-        AlertDialog(
-            onDismissRequest = { confirmRemove = null },
-            title = { Text("Remove ${f.name}?") },
-            text = { Text("They stop receiving new readings immediately: Sukrara rotates the read key and re-sends it to everybody else.") },
-            confirmButton = { Button(onClick = { a.revoke(f.f); confirmRemove = null }) { Text("Remove") } },
-            dismissButton = { TextButton(onClick = { confirmRemove = null }) { Text("Cancel") } },
-        )
-    }
-    if (showRecovery) RecoveryDialog(a) { showRecovery = false }
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) })
     u.busy?.let { BusyDialog(it) }
 }
 
@@ -239,7 +180,7 @@ private fun BusyDialog(text: String) {
 
 /** Optional NIP-49 recovery code for people who want a printable sheet (encrypted with their password). */
 @Composable
-private fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
+internal fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
     var pw by remember { mutableStateOf("") }
     var out by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
@@ -275,8 +216,8 @@ private fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
 @Composable
 fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val link = u.invite
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Share your glucose", style = MaterialTheme.typography.headlineSmall)
+    SettingsPage("Share with someone", onBack) { Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
         if (link == null) { CircularProgressIndicator(); return@Column }
         var label by remember(link) { mutableStateOf("") }
         OutlinedTextField(label, { label = it.take(app.mauri.sukrara.core.Profile.MAX_NAME); a.setInviteLabel(label) },
@@ -303,8 +244,7 @@ fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
             Text("Waiting for their request…", style = MaterialTheme.typography.bodySmall)
         }
-        TextButton(onClick = onBack) { Text("Done") }
-    }
+    } }
 }
 
 /** "Mom" vs the invite's "Mom's phone": the same person? null = no label given. Names can be made up, so it's only a hint. */

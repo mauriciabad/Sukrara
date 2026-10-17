@@ -55,272 +55,11 @@ import app.mauri.sukrara.wearer.Live
 import java.text.DateFormat
 import java.util.Date
 
-/** One line per local feature on the wearer's home screen. */
-@Composable
-fun WearerSummary() {
-    val st by Live.status.collectAsState()
-    val f by Features.state.collectAsState()
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            fun on(b: Boolean) = if (b) "on" else "off"
-            Text("Status bar: chip ${on(f.chip)} · number icon ${on(f.icon)}", style = MaterialTheme.typography.bodySmall)
-            Text("Nostr: ${if (!f.nostr) "off" else if (f.nostrIntervalMin == 0) "every reading" else "every ${f.nostrIntervalMin} min"} · " +
-                "Bluetooth followers ${on(f.bleFollowers)}", style = MaterialTheme.typography.bodySmall)
-            Text("Garmin: ${st.garmin}" + (if (st.watchPolledAt > 0) " · watch asked ${sinceText(st.watchPolledAt / 1000)}" else ""),
-                style = MaterialTheme.typography.bodySmall)
-            Text("LibreView: ${if (f.libreview) st.libreview else "off"}", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-private fun sinceText(t: Long): String {
-    val s = System.currentTimeMillis() / 1000 - t
-    return if (s < 90) "now" else "${s / 60} min ago"
-}
-
-/**
- * A settings switch row (Material list item): the whole row toggles, and a disabled row is greyed out as a whole —
- * label, summary and switch (38 % content alpha), like AndroidX Preference's `dependency`.
- */
-@Composable
-internal fun Toggle(label: String, checked: Boolean, enabled: Boolean = true, sub: String? = null, onChange: (Boolean) -> Unit) {
-    val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)) {
-        Column(Modifier.weight(1f).graphicsLayer { this.alpha = alpha }) {
-            Text(label)
-            // the summary (status / "Unavailable while …") cross-fades when it changes
-            Swap(sub) { it?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) } }
-        }
-        Switch(checked, onCheckedChange = null, enabled = enabled)
-    }
-}
-
-/** A settings row that opens something (ListPreference-style): label + current value as summary. */
-@Composable
-internal fun ValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
-    val alpha by animateFloatAsState(if (enabled) 1f else DISABLED_ALPHA, Motion.defaultEffectsSpec(), label = "enabled")
-    Column(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(vertical = 4.dp)
-        .graphicsLayer { this.alpha = alpha }) {
-        Text(label)
-        Swap(value) { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-    }
-}
-
-private const val DISABLED_ALPHA = 0.38f
-
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
-
-/**
- * Garmin watch server + Nightscout read API, for both roles (the follower serves the followed person's values).
- * The LAN URL and API secret are shown here only: nothing else on the screen is a secret.
- */
-@Composable
-fun LocalServersSection() {
-    val ctx = LocalContext.current
-    val f by Features.state.collectAsState()
-    val st by Live.status.collectAsState()
-    var showSecret by remember { mutableStateOf(false) }
-    SectionTitle("Garmin")
-    Toggle("Watch server (xDrip+ compatible, 127.0.0.1:17580)", f.garmin, sub = st.garmin +
-        (if (st.watchPolledAt > 0) " · last request ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
-    SectionTitle("Nightscout API")
-    Toggle("Nightscout-compatible read API", f.nightscout,
-        sub = "For Home Assistant, xDrip+, Nightguard, clocks: http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}") { v ->
-        set { it.copy(nightscout = v) }
-    }
-    Toggle("Also on this network (Wi-Fi)", f.nightscoutLan, enabled = f.nightscout,
-        sub = "Other devices need the API secret. Plain HTTP: only on networks you trust") { v -> set { it.copy(nightscoutLan = v) } }
-    Reveal(f.nightscout && f.nightscoutLan) {
-        TextButton(onClick = { showSecret = !showSecret }) { Text(if (showSecret) "Hide API secret" else "Show API secret") }
-        Reveal(showSecret) {
-            Text("API secret: ${Features.nightscoutSecret(ctx)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-/** Glucose sources, in Settings' order (label, value, one-line description). Libre 3 directly is the default. */
-private val SOURCES = listOf(
-    Triple("Libre 3 directly", "direct", "Sukrara holds the sensor (scan it once with NFC)"),
-    Triple("Juggluco", "juggluco", "Reads Juggluco's web server; Juggluco keeps the sensor and its alarms"),
-)
-
-/**
- * Settings, per the Android settings guidelines (developer.android.com/design/ui/mobile/guides/patterns/settings,
- * source.android.com/docs/core/settings/settings-guidelines): a choice among options is a row whose summary shows the
- * current value and opens radio buttons in a dialog; a parent switch disables (doesn't hide) what depends on it, with
- * a brief reason; longer explanations go in a footer below a divider.
- */
-@Composable
-fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onGraph: () -> Unit, onBack: () -> Unit) {
-    val f by Features.state.collectAsState()
-    val st by Live.status.collectAsState()
-    var confirmDirect by remember { mutableStateOf(false) }
-    var choose by remember { mutableStateOf<String?>(null) }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Done") }
-        }
-
-        SectionTitle("Alerts")
-        val alerts by app.mauri.sukrara.alerts.Alerts.settings.collectAsState()
-        AlertsRow(alerts, follower = false, onClick = onAlerts)
-
-        SectionTitle("Graph")
-        GraphRow(onGraph)
-
-        SectionTitle("Glucose source")
-        val direct = f.source == "direct"
-        ValueRow("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
-            enabled = true) { choose = "source" }
-        ValueRow("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
-            else "Unavailable while Juggluco holds the sensor", enabled = direct, onClick = onSensor)
-        ValueRow("Sensor link priority", if (direct) f.connPriority.replaceFirstChar { it.uppercase() }
-            else "Unavailable while Juggluco holds the sensor", enabled = direct) { choose = "priority" }
-
-        SectionTitle("Sharing")
-        Toggle("Share over Nostr relays", f.nostr, sub = "End-to-end encrypted; followers anywhere") { v -> set { it.copy(nostr = v) } }
-        ValueRow("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over Nostr is off",
-            enabled = f.nostr) { choose = "nostr" }
-        Toggle("Bluetooth followers nearby", f.bleFollowers, sub = "Same encrypted events over Bluetooth LE (no internet needed)") { v ->
-            set { it.copy(bleFollowers = v) }
-        }
-
-        SectionTitle("Status bar")
-        StatusBarSettings(f, st)
-
-        SectionTitle("Lock screen")
-        LockscreenSettings(f)
-
-        LocalServersSection()
-
-        LibreViewSettings(f, st)
-        Spacer(Modifier.size(24.dp))
-    }
-    when (choose) {
-        "source" -> ChoiceDialog("Glucose source", SOURCES.map { Choice(it.first, it.second, it.third) }, f.source, { choose = null }) { v ->
-            if (v == "direct" && f.source != "direct") confirmDirect = true else set { it.copy(source = v) }
-        }
-        "priority" -> ChoiceDialog("Sensor link priority", Features.PRIORITIES.map { Choice(it.replaceFirstChar { c -> c.uppercase() }, it) },
-            f.connPriority, { choose = null }) { v -> set { it.copy(connPriority = v) } }
-        "nostr" -> ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin,
-            { choose = null }) { v -> set { it.copy(nostrIntervalMin = v) } }
-    }
-    if (confirmDirect) AlertDialog(
-        onDismissRequest = { confirmDirect = false },
-        title = { Text("Read the sensor directly?") },
-        text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
-            "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
-            "(low/high) do NOT ring.") },
-        confirmButton = { Button(onClick = { confirmDirect = false; onSensor() }) { Text("Scan sensor") } },
-        dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
-    )
-}
-
-private fun intervalLabel(min: Int) = if (min == 0) "Every reading" else "Every $min min"
-
-@Composable
-private fun StatusBarSettings(f: FeatureState, st: app.mauri.sukrara.wearer.WearerStatus) {
-    val ctx = LocalContext.current
-    Toggle("Live Update chip", f.chip, sub = "The number next to the clock (Android 16+)") { v -> set { it.copy(chip = v) } }
-    val nm = ctx.getSystemService(NotificationManager::class.java)
-    Reveal(f.chip && !nm.canPostPromotedNotifications()) {
-        OutlinedButton(onClick = {
-            ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
-        }) { Text("Allow Live Updates for Sukrara") }
-    }
-    Toggle("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
-    Toggle("Pause refreshes while the screen is off", f.screenOffSkip,
-        sub = "Saves a post per minute; catches up on screen on (${st.notificationPosts} posts, ${st.notificationSkipped} skipped)") { v ->
-        set { it.copy(screenOffSkip = v) }
-    }
-    RootStatusBarSettings(f)
-}
-
-/**
- * Investigation 17: the widget the LSPosed module puts on the lock screen (hook/LockscreenWidgetHost), and its contrast
- * options (Material text protection). Dependents are disabled while the widget is off, like the root status bar.
- */
-@Composable
-private fun LockscreenSettings(f: FeatureState) {
-    val ctx = LocalContext.current
-    var choosing by remember { mutableStateOf(false) }
-    fun change(u: (FeatureState) -> FeatureState) {
-        set(u)
-        app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
-        app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "lock screen style", force = true)
-    }
-    val on = f.lockWidget
-    val off = "Unavailable while the lock screen widget is off"
-    val bg = app.mauri.sukrara.features.LockBackground
-    Toggle("Glucose on the lock screen", on, sub = "Value and graph around the fingerprint icon; tap to add an entry") { v ->
-        change { it.copy(lockWidget = v) }
-    }
-    ValueRow("Background", if (on) bg.CHOICES.first { it.second == f.lockBg }.first else off, enabled = on) { choosing = true }
-    Toggle("In range in white", f.lockWhite, enabled = on, sub = if (on) "Highs and lows keep their colours" else off) { v ->
-        change { it.copy(lockWhite = v) }
-    }
-    HorizontalDivider()
-    Text("Needs the Sukrara module enabled in LSPosed (scope System UI). Entries can be added without unlocking.",
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-
-    if (choosing) ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
-        { choosing = false }) { v -> change { it.copy(lockBg = v) } }
-}
-
-/**
- * LibreView (investigation 04), a parent switch with its dependents: the account row first (the switch needs a
- * login), then *Upload to LibreView*, then what goes up — every part on by default, so switching the upload on
- * uploads everything, like LibreLink — each disabled with the reason while the upload is off.
- */
-@Composable
-private fun LibreViewSettings(f: FeatureState, st: app.mauri.sukrara.wearer.WearerStatus) {
-    val ctx = LocalContext.current
-    remember { Treat.init(ctx) }
-    val uploader = Treat.uploader
-    val s by uploader.settings.collectAsState()
-    val status by uploader.status.collectAsState()
-    var signIn by remember { mutableStateOf(false) }
-    var choosing by remember { mutableStateOf(false) }
-    val signedIn = s.email.isNotEmpty() && s.hasPassword
-    val on = f.libreview && signedIn
-    val off = "Unavailable while the upload is off"
-    val direct = f.source == "direct"
-
-    SectionTitle("LibreView")
-    ValueRow("Account", if (signedIn) s.email else "Not signed in", enabled = true) { signIn = true }
-    Toggle("Upload to LibreView", on, enabled = signedIn, sub = when {
-        !signedIn -> "Unavailable until you sign in"
-        on -> status.replaceFirstChar { it.uppercase() }
-        else -> "Off"
-    }) { v -> set { it.copy(libreview = v) }; uploader.kick() }
-    Toggle("Glucose readings", s.glucose, enabled = on && direct, sub = when {
-        !on -> off
-        !direct -> "Only while Sukrara reads the sensor itself"
-        else -> uploader.glucoseFrom?.let { "From ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))}" }
-            ?: if (s.glucose) "From now on" else "Off"
-    }) { uploader.configure(glucose = it) }
-    Toggle("Insulin, carbs & notes", s.treatments, enabled = on, sub = if (on) "Yours and your followers'" else off) {
-        uploader.configure(treatments = it)
-    }
-    Toggle("Use this phone as the account's device", s.takeover, enabled = on, sub = if (!on) off
-        else if (s.takeover) "The Libre app or Juggluco stops uploading to this account" else "Uploads stop if another app holds the account") {
-        uploader.configure(takeover = it)
-    }
-    ValueRow("Upload every", if (on) intervalLabel(f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
-    HorizontalDivider()
-    Text("LibreView is the record your doctor sees: uploaded entries can't be deleted there. Glucose goes up from the " +
-        "moment you switch it on.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-
-    if (choosing) ChoiceDialog("Upload every", listOf(5, 15, 60).map { Choice(intervalLabel(it), it) }, f.libreviewIntervalMin,
-        { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
-    if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
-}
 
 /** Sign in (or out) of LibreView. The password is only stored; the next upload (or the Sensor screen) uses it. */
 @Composable
-private fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Settings, onClose: () -> Unit) {
+internal fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Settings, onClose: () -> Unit) {
     val uploader = Treat.uploader
     var email by remember { mutableStateOf(s.email) }
     var password by remember { mutableStateOf("") }
@@ -385,8 +124,8 @@ fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClo
 }
 
 /**
- * The owner's treatments on the home screen: *Add treatment* opens the [TreatmentDialog]; below, the last 24 h
- * (also entries from followers and Macs), newest first. Tapping one offers to delete it.
+ * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first.
+ * Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).
  */
 @Composable
 fun TreatmentsSection() {
@@ -394,18 +133,13 @@ fun TreatmentsSection() {
     remember { Treat.init(ctx) }
     val store = Treat.store
     val f by Features.state.collectAsState()
-    var adding by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Treatment?>(null) }
     val items by store.items.collectAsState()
     val since = System.currentTimeMillis() / 1000 - 24 * 3600
     val recent = items.filter { !it.del && it.t >= since }
     val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SectionTitle("Treatments (24 h)")
-        Spacer(Modifier.weight(1f))
-        FilledTonalButton(onClick = { adding = true }) { Text("Add treatment") }
-    }
+    SectionTitle("Treatments (24 h)")
     Reveal(recent.isEmpty()) { Text("Nothing in the last 24 h. Tip: tap a Sukrara widget or the glucose notification to add one from anywhere.",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
     // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
@@ -420,7 +154,6 @@ fun TreatmentsSection() {
         }
     }
 
-    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) })
     deleting?.let { tr ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -441,40 +174,3 @@ private fun describe(tr: Treatment): String = when (tr.k) {
     "long" -> "${units(tr.a)} U long-acting"
     else -> "${units(tr.a)} U rapid"
 } + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") + (if (tr.o != "phone") " · from ${tr.o}" else "")
-
-/**
- * Root status bar (investigation 05), per the Android settings guidelines
- * (developer.android.com/design/ui/mobile/guides/patterns/settings, source.android.com/docs/core/settings/settings-guidelines):
- *  - dependent settings sit below the switch they depend on and are disabled (not hidden) while it's off, with a
- *    brief reason ("Dependency"; AndroidX Preference `dependency`);
- *  - summaries show the status, one line; the longer explanation goes in a footer below a divider;
- *  - a single choice among several options is radio buttons in a dialog (ListPreference), never in the list.
- */
-@Composable
-private fun RootStatusBarSettings(f: FeatureState) {
-    val rootBar = app.mauri.sukrara.status.RootStatusBar
-    val root by rootBar.root.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { rootBar.checkRoot() }
-    val ok = root == true
-    val on = ok && f.hook
-    val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
-    var choosing by remember { mutableStateOf(false) }
-    val off = "Unavailable while the status bar value is off"
-
-    Toggle("Value in the status bar", f.hook && ok, enabled = ok, sub = when (root) {
-        null -> "Checking root…"
-        false -> "Unavailable: needs root for Sukrara (KernelSU)"
-        true -> if (f.hook) "On · $placement" else "Off"
-    }) { v -> set { it.copy(hook = v) } }
-    Toggle("Colour by range", f.hookColor, enabled = on, sub = if (on) null else off) { v -> set { it.copy(hookColor = v) } }
-    ValueRow("Placement", if (on) placement else off, enabled = on) { choosing = true }
-    Toggle("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = on,
-        sub = if (on) "In the status bar only; the notification stays in the shade" else off) { v -> set { it.copy(hideNotifIcon = v) } }
-    HorizontalDivider()
-    Text("Uses root. Colour, hiding the notification icon and every placement except \"With the system icons\" also need the Sukrara module " +
-        "enabled in LSPosed (scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "",
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-
-    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { Choice(it.first, it.second) }, f.hookPosition,
-        { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
-}

@@ -1,0 +1,611 @@
+// CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara.ui
+
+import android.app.NotificationManager
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import app.mauri.sukrara.BuildConfig
+import app.mauri.sukrara.R
+import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertSounds
+import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.core.Proto
+import app.mauri.sukrara.core.RelayStats
+import app.mauri.sukrara.features.FeatureState
+import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.follower.FollowerUi
+import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.owner.Follower
+import app.mauri.sukrara.owner.OwnerUi
+import app.mauri.sukrara.treatments.Treat
+import app.mauri.sukrara.wearer.Live
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/*
+ * The settings of both roles, per the settings guidelines (SettingsUi.kt): an overview with one row per subscreen
+ * ("For 15 or more settings, group related settings under a subscreen"; "the label of the setting that opens a group
+ * must match the subscreen title"), each showing its status. Rarely used, technical and experimental things live in
+ * Advanced; version, source code and the other apps in About.
+ */
+
+private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
+
+private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
+
+private fun intervalLabel(min: Int) = if (min == 0) "Every reading" else "Every $min min"
+
+private fun on(b: Boolean) = if (b) "On" else "Off"
+
+/** Summary of the Alerts row (overview of both roles). */
+private fun alertsSummary(s: AlertSettings, follower: Boolean): String {
+    val n = Kind.ALL.count { s.cfg(it).on }
+    return when {
+        !s.on -> "Off"
+        follower && s.source == "wearer" -> "Same as the wearer's app · ${AlertSounds.label(s.pack).substringBefore(" (")}"
+        else -> "$n of ${Kind.ALL.size} on · ${AlertSounds.label(s.pack).substringBefore(" (")}"
+    }
+}
+
+@Composable
+private fun graphSummary(): String {
+    val g by GraphSettings.state.collectAsState()
+    return "${g.defaultHours} h · " + if (g.ringCount == 0) "no rings" else g.rings().joinToString(" + ") { "${it.kind.short.ifEmpty { "TIR" }} ${it.period}" }
+}
+
+// ================================================================================================ wearer overview
+
+/** The wearer's settings overview. [open] goes to a subscreen by its route. */
+@Composable
+fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    val st by Live.status.collectAsState()
+    val alerts by Alerts.settings.collectAsState()
+    val gs = graphSummary()
+    SettingsPage("Settings", onBack) {
+        SettingsGroup {
+            link(u.profile?.name?.ifBlank { null } ?: "Add your name", "Wearer · what your followers see",
+                leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }) { open("profile") }
+        }
+        SettingsGroup {
+            link("Alerts", alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }) { open("alerts") }
+            link("Glucose source", (if (f.source == "direct") "Libre 3 directly" else "Juggluco") + " · " + st.source,
+                leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }) { open("source") }
+            val n = u.followers.count { it.revoked == null }
+            link("Sharing", "$n follower${if (n == 1) "" else "s"}" + (if (f.nostr) " · relays" else "") + (if (f.bleFollowers) " · Bluetooth" else ""),
+                leading = { CategoryIcon(R.drawable.ic_sym_group, Category.BLUE) }) { open("sharing") }
+        }
+        SettingsGroup {
+            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
+            link("Status bar", listOfNotNull("chip".takeIf { f.chip }, "number icon".takeIf { f.icon }, "value".takeIf { f.hook })
+                .joinToString(" · ").ifEmpty { "Off" }.replaceFirstChar { it.uppercase() },
+                leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }) { open("statusbar") }
+            link("Lock screen", if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.CHOICES.first { it.second == f.lockBg }.first else "Off",
+                leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }) { open("lockscreen") }
+        }
+        SettingsGroup {
+            link("Watch & other apps", appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_watch, Category.ORANGE) }) { open("apps") }
+            link("Backup", if (u.backupSavedAt > 0) "Saved ${date(u.backupSavedAt)}" else "Not backed up",
+                leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }) { open("backup") }
+        }
+        SettingsGroup {
+            link("Advanced", "Relays, log, sensor link, experiments", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }) { open("advanced") }
+            link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
+                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }) { open("about") }
+        }
+    }
+}
+
+private fun appsSummary(f: FeatureState, wearer: Boolean) = listOfNotNull(
+    "Garmin".takeIf { f.garmin }, "Nightscout API".takeIf { f.nightscout }, "LibreView".takeIf { wearer && f.libreview },
+).joinToString(" · ").ifEmpty { "Off" }
+
+// ================================================================================================ glucose source
+
+/** Glucose sources (label, value, one-line description). Libre 3 directly is the default. */
+private val SOURCES = listOf(
+    Triple("Libre 3 directly", "direct", "Sukrara holds the sensor (scan it once with NFC)"),
+    Triple("Juggluco", "juggluco", "Reads Juggluco's web server; Juggluco keeps the sensor and its alarms"),
+)
+
+@Composable
+fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    val st by Live.status.collectAsState()
+    var choosing by remember { mutableStateOf(false) }
+    var confirmDirect by remember { mutableStateOf(false) }
+    val direct = f.source == "direct"
+    SettingsPage("Glucose source", onBack) {
+        SettingsIntro(R.drawable.ic_sym_glucose, "Where Sukrara gets your readings from.")
+        SettingsGroup {
+            value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: "")) { choosing = true }
+            link("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
+                else "Unavailable while Juggluco holds the sensor", icon = R.drawable.ic_sym_nfc, enabled = direct, onClick = onSensor)
+        }
+        SettingsFooter("Only one app can hold a Libre 3. With Libre 3 directly, Juggluco's own alarms don't ring; use Alerts.")
+    }
+    if (choosing) ChoiceDialog("Source", SOURCES.map { Choice(it.first, it.second, it.third) }, f.source, { choosing = false }) { v ->
+        if (v == "direct" && f.source != "direct") confirmDirect = true else set { it.copy(source = v) }
+    }
+    if (confirmDirect) AlertDialog(
+        onDismissRequest = { confirmDirect = false },
+        title = { Text("Read the sensor directly?") },
+        text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
+            "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
+            "(low/high) do NOT ring.") },
+        confirmButton = { Button(onClick = { confirmDirect = false; onSensor() }) { Text("Scan sensor") } },
+        dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
+    )
+}
+
+// ================================================================================================ sharing
+
+@Composable
+fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    var choosing by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Follower?>(null) }
+    val active = u.followers.filter { it.revoked == null }
+    val pairing = u.nearbyUntil > Proto.nowS()
+    SettingsPage("Sharing", onBack) {
+        SettingsIntro(R.drawable.ic_sym_group, "The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.")
+        SettingsGroup {
+            action("Share with someone", "Send an invite link", icon = R.drawable.ic_sym_share, onClick = a::share)
+            action(if (pairing) "Pairing nearby…" else "Pair nearby", when {
+                !u.bleOn -> "Unavailable while Bluetooth is off"
+                pairing -> "Open until ${date(u.nearbyUntil)} · tap to extend 10 min"
+                else -> "For 10 minutes, no internet needed"
+            }, icon = R.drawable.ic_sym_bluetooth_searching, enabled = u.bleOn, onClick = a::nearbyPairing)
+        }
+        SettingsGroup("Followers") {
+            if (active.isEmpty()) info("Nobody follows you yet")
+            for (fl in active) link(fl.name, "Since ${date(fl.since)} · " + if (fl.f in u.writers) "can add entries" else "sees only",
+                leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
+            for (fl in u.followers.filter { it.revoked != null }) info(fl.name, "Removed ${date(fl.revoked!!)}", icon = R.drawable.ic_sym_person_remove)
+        }
+        SettingsGroup("How readings travel") {
+            switch("Over the internet (Nostr relays)", f.nostr, summary = "Followers anywhere") { v -> set { it.copy(nostr = v) } }
+            value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
+                enabled = f.nostr) { choosing = true }
+            switch("Over Bluetooth nearby", f.bleFollowers,
+                summary = if (u.bleOn) "${u.bleCentrals} connected now" else "Bluetooth is off") { v -> set { it.copy(bleFollowers = v) } }
+        }
+        SettingsFooter("Removing someone rotates the read key, so they stop receiving new readings at once. Followers you " +
+            "allow to add entries can log insulin, carbs and notes for you.")
+    }
+    if (choosing) ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin,
+        { choosing = false }) { v -> set { it.copy(nostrIntervalMin = v) } }
+    editing?.let { fl -> FollowerDialog(fl, fl.f in u.writers, a) { editing = null } }
+}
+
+/** One follower: whether they may add entries, and removing them. */
+@Composable
+private fun FollowerDialog(fl: Follower, writer: Boolean, a: OwnerActions, onClose: () -> Unit) {
+    var removing by remember { mutableStateOf(false) }
+    if (removing) AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Remove ${fl.name}?") },
+        text = { Text("They stop receiving new readings immediately: Sukrara rotates the read key and re-sends it to everybody else.") },
+        confirmButton = { Button(onClick = { a.revoke(fl.f); onClose() }) { Text("Remove") } },
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+    ) else AlertDialog(
+        onDismissRequest = onClose,
+        icon = { AvatarImage(fl.avatar, fl.name, 48.dp) },
+        title = { Text(fl.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Following since ${date(fl.since)}", style = MaterialTheme.typography.bodyMedium)
+                SettingsGroup { switch("Can add entries", writer, summary = "Insulin, carbs and notes") { a.setWriter(fl.f, it) } }
+            }
+        },
+        confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
+        dismissButton = { TextButton(onClick = { removing = true }) { Text("Remove", color = MaterialTheme.colorScheme.error) } },
+    )
+}
+
+// ================================================================================================ status bar
+
+@Composable
+fun StatusBarSettings(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val f by Features.state.collectAsState()
+    val rootBar = app.mauri.sukrara.status.RootStatusBar
+    val root by rootBar.root.collectAsState()
+    LaunchedEffect(Unit) { rootBar.checkRoot() }
+    val ok = root == true
+    val hookOn = ok && f.hook
+    val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
+    var choosing by remember { mutableStateOf(false) }
+    val off = "Unavailable while the value in the status bar is off"
+    val nm = ctx.getSystemService(NotificationManager::class.java)
+    SettingsPage("Status bar", onBack) {
+        SettingsIntro(R.drawable.ic_sym_smartphone, "Your glucose at a glance in the status bar, without opening anything.")
+        SettingsGroup {
+            switch("Live Update chip", f.chip, summary = "The number next to the clock") { v -> set { it.copy(chip = v) } }
+            if (f.chip && !nm.canPostPromotedNotifications()) link("Allow Live Updates for Sukrara", "Needed for the chip", external = true) {
+                ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+            }
+            switch("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
+        }
+        SettingsGroup("With root") {
+            switch("Value in the status bar", f.hook && ok, enabled = ok, summary = when (root) {
+                null -> "Checking root…"
+                false -> "Unavailable: needs root for Sukrara (KernelSU)"
+                true -> if (f.hook) placement else "Off"
+            }) { v -> set { it.copy(hook = v) } }
+            switch("Colour by range", f.hookColor, enabled = hookOn, summary = if (hookOn) null else off) { v -> set { it.copy(hookColor = v) } }
+            value("Placement", if (hookOn) placement else off, enabled = hookOn) { choosing = true }
+            switch("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = hookOn,
+                summary = if (hookOn) "In the status bar only; the notification stays in the shade" else off) { v -> set { it.copy(hideNotifIcon = v) } }
+        }
+        SettingsFooter("The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification " +
+            "icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed " +
+            "(scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "")
+    }
+    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { Choice(it.first, it.second) }, f.hookPosition,
+        { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
+}
+
+// ================================================================================================ lock screen
+
+@Composable
+fun LockscreenSettings(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val f by Features.state.collectAsState()
+    var choosing by remember { mutableStateOf(false) }
+    fun change(u: (FeatureState) -> FeatureState) {
+        set(u)
+        app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
+        app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "lock screen style", force = true)
+    }
+    val on = f.lockWidget
+    val off = "Unavailable while glucose on the lock screen is off"
+    val bg = app.mauri.sukrara.features.LockBackground
+    SettingsPage("Lock screen", onBack) {
+        SettingsIntro(R.drawable.ic_sym_screen_lock_portrait, "Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
+        SettingsMainSwitch("Glucose on the lock screen", on) { v -> change { it.copy(lockWidget = v) } }
+        SettingsGroup {
+            value("Background", if (on) bg.CHOICES.first { it.second == f.lockBg }.first else off, enabled = on) { choosing = true }
+            switch("In range in white", f.lockWhite, enabled = on, summary = if (on) "Highs and lows keep their colours" else off) { v ->
+                change { it.copy(lockWhite = v) }
+            }
+        }
+        SettingsFooter("Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked " +
+            "phone can add an entry; turn this off if you don't want that.")
+    }
+    if (choosing) ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
+        { choosing = false }) { v -> change { it.copy(lockBg = v) } }
+}
+
+// ================================================================================================ watch & other apps
+
+/** Garmin watch server + Nightscout read API (both roles) and, on the wearer, LibreView. */
+@Composable
+fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val f by Features.state.collectAsState()
+    val st by Live.status.collectAsState()
+    var secret by remember { mutableStateOf(false) }
+    SettingsPage("Watch & other apps", onBack) {
+        SettingsIntro(R.drawable.ic_sym_watch, "Your glucose on a Garmin watch, in apps that read Nightscout" +
+            if (wearer) ", and in LibreView for your doctor." else ".")
+        SettingsGroup("Garmin") {
+            switch("Watch server", f.garmin, icon = R.drawable.ic_sym_watch, summary = st.garmin +
+                (if (st.watchPolledAt > 0) " · watch asked ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
+        }
+        SettingsGroup("Nightscout API") {
+            switch("Nightscout-compatible API", f.nightscout, icon = R.drawable.ic_sym_lan,
+                summary = "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}") { v -> set { it.copy(nightscout = v) } }
+            switch("Also on this Wi-Fi network", f.nightscoutLan, enabled = f.nightscout,
+                summary = if (f.nightscout) "Other devices need the API secret" else "Unavailable while the API is off") { v -> set { it.copy(nightscoutLan = v) } }
+            if (f.nightscout && f.nightscoutLan) action("Show API secret", icon = R.drawable.ic_sym_key) { secret = true }
+        }
+        if (wearer) {
+            val lv by Treat.uploader.settings.collectAsState()
+            SettingsGroup("LibreView") {
+                link("LibreView", when {
+                    lv.email.isEmpty() || !lv.hasPassword -> "Not signed in"
+                    f.libreview -> "Uploading as ${lv.email}"
+                    else -> "Off · ${lv.email}"
+                }, icon = R.drawable.ic_sym_cloud_upload, onClick = onLibreView)
+            }
+        }
+        SettingsFooter("The watch server speaks xDrip+'s protocol on 127.0.0.1:17580 (Garmin faces and data fields). The " +
+            "Nightscout API is for Home Assistant, xDrip+, Nightguard and clocks; it's plain HTTP, so share it only on networks you trust.")
+    }
+    if (secret) AlertDialog(
+        onDismissRequest = { secret = false },
+        title = { Text("API secret") },
+        text = { Text(Features.nightscoutSecret(ctx), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
+        confirmButton = { TextButton(onClick = { secret = false }) { Text("Close") } },
+    )
+}
+
+private fun sinceText(t: Long): String {
+    val s = System.currentTimeMillis() / 1000 - t
+    return if (s < 90) "now" else "${s / 60} min ago"
+}
+
+/**
+ * LibreView (investigation 04): the account, then the main switch, then what goes up — every part on by default, so
+ * switching the upload on uploads everything, like LibreLink — each disabled with the reason while the upload is off.
+ */
+@Composable
+fun LibreViewSettings(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    remember { Treat.init(ctx) }
+    val f by Features.state.collectAsState()
+    val uploader = Treat.uploader
+    val s by uploader.settings.collectAsState()
+    val status by uploader.status.collectAsState()
+    var signIn by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf(false) }
+    val signedIn = s.email.isNotEmpty() && s.hasPassword
+    val on = f.libreview && signedIn
+    val off = "Unavailable while the upload is off"
+    val direct = f.source == "direct"
+    SettingsPage("LibreView", onBack) {
+        SettingsIntro(R.drawable.ic_sym_cloud_upload, "LibreView is the record your doctor sees. Sukrara can upload your glucose and entries to it.")
+        SettingsGroup { value("Account", if (signedIn) s.email else "Not signed in", icon = R.drawable.ic_sym_person) { signIn = true } }
+        SettingsMainSwitch("Upload to LibreView", on, enabled = signedIn) { v -> set { it.copy(libreview = v) }; uploader.kick() }
+        SettingsGroup {
+            info("Status", if (!signedIn) "Sign in first" else if (on) status.replaceFirstChar { it.uppercase() } else "Off")
+            switch("Glucose readings", s.glucose, enabled = on && direct, summary = when {
+                !on -> off
+                !direct -> "Only while Sukrara reads the sensor itself"
+                else -> uploader.glucoseFrom?.let { "From ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))}" }
+                    ?: if (s.glucose) "From now on" else "Off"
+            }) { uploader.configure(glucose = it) }
+            switch("Insulin, carbs & notes", s.treatments, enabled = on, summary = if (on) "Yours and your followers'" else off) {
+                uploader.configure(treatments = it)
+            }
+            switch("Use this phone as the account's device", s.takeover, enabled = on, summary = if (!on) off
+                else if (s.takeover) "The Libre app or Juggluco stops uploading to this account" else "Uploads stop if another app holds the account") {
+                uploader.configure(takeover = it)
+            }
+            value("Upload every", if (on) intervalLabel(f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
+        }
+        SettingsFooter("Uploaded entries can't be deleted in LibreView. Glucose goes up from the moment you switch it on.")
+    }
+    if (choosing) ChoiceDialog("Upload every", listOf(5, 15, 60).map { Choice(intervalLabel(it), it) }, f.libreviewIntervalMin,
+        { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
+    if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
+}
+
+// ================================================================================================ backup
+
+@Composable
+fun BackupSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
+    var showRecovery by remember { mutableStateOf(false) }
+    val saved = u.backupSavedAt > 0
+    SettingsPage("Backup", onBack) {
+        SettingsIntro(R.drawable.ic_sym_backup, if (saved) "Your identity is in a password manager. A new phone restores it and your followers continue."
+            else "Not backed up: if you lose this phone, every follower must be invited again.")
+        SettingsGroup {
+            action(if (saved) "Save again" else "Save to password manager", if (saved) "Saved ${date(u.backupSavedAt)}" else "Recommended",
+                icon = R.drawable.ic_sym_key, onClick = a::saveBackup)
+            action("Recovery code", "An encrypted key to write down or store elsewhere", icon = R.drawable.ic_sym_history_edu) { showRecovery = true }
+            info("Backup on relays", if (u.backupPublishedAt > 0) "Updated ${date(u.backupPublishedAt)}" else "Not yet", icon = R.drawable.ic_sym_hub)
+        }
+        SettingsFooter("The backup on relays holds your followers, keys and invites, encrypted to your identity: restoring " +
+            "the identity brings them back.")
+    }
+    if (showRecovery) RecoveryDialog(a) { showRecovery = false }
+}
+
+// ================================================================================================ advanced
+
+@Composable
+fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions, onLog: () -> Unit, onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    val st by Live.status.collectAsState()
+    var choosing by remember { mutableStateOf(false) }
+    val direct = f.source == "direct"
+    SettingsPage("Advanced", onBack) {
+        SettingsGroup("Relays") {
+            card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) }
+            info("Access requests", if (u.inboxLive) "Live while the app is open" else "Checked with every upload (~5 min)")
+            action("Check requests now", icon = R.drawable.ic_sym_update, onClick = a::checkNow)
+        }
+        SettingsGroup("Diagnostics") {
+            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, onClick = onLog)
+            info("Identity", "${u.iPub?.let { Proto.shortNpub(it) } ?: "–"} · key epoch ${u.epoch}", icon = R.drawable.ic_sym_key)
+            info("Sent", "${u.liveSent} live · ${u.chunksSent} chunks · ${st.notificationPosts} notification posts, ${st.notificationSkipped} skipped")
+        }
+        SettingsGroup("Experimental") {
+            value("Sensor link priority", if (direct) f.connPriority.replaceFirstChar { it.uppercase() }
+                else "Unavailable while Juggluco holds the sensor", enabled = direct) { choosing = true }
+            switch("Pause refreshes while the screen is off", f.screenOffSkip, summary = "Saves a post per minute; catches up on screen on") { v ->
+                set { it.copy(screenOffSkip = v) }
+            }
+            if (BuildConfig.DEBUG) switch("Synthetic source", u.synthetic, summary = "Debug builds only", icon = R.drawable.ic_sym_bug_report, onChange = a::setSynthetic)
+        }
+    }
+    if (choosing) ChoiceDialog("Sensor link priority", Features.PRIORITIES.map { Choice(it.replaceFirstChar { c -> c.uppercase() }, it) },
+        f.connPriority, { choosing = false }) { v -> set { it.copy(connPriority = v) } }
+}
+
+@Composable
+fun LogPage(log: List<String>, onBack: () -> Unit) {
+    SettingsPage("Log", onBack) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+            Column(Modifier.padding(16.dp)) { if (log.isEmpty()) Text("Nothing yet") else LogList(log, max = 300) }
+        }
+    }
+}
+
+// ================================================================================================ follower
+
+/** The follower's settings overview. */
+@Composable
+fun FollowerSettings(u: FollowerUi, open: (String) -> Unit, onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    val alerts by Alerts.settings.collectAsState()
+    val gs = graphSummary()
+    SettingsPage("Settings", onBack) {
+        SettingsGroup {
+            link(u.name ?: "Add your name", "How you appear to ${u.wearer?.name ?: "the wearer"}",
+                leading = { AvatarImage(u.me?.avatar, u.name ?: "", 40.dp) }) { open("profile") }
+        }
+        SettingsGroup {
+            link("Alerts", alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }) { open("alerts") }
+            link("Following", (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }) { open("following") }
+        }
+        SettingsGroup {
+            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
+            link("Watch & other apps", appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_watch, Category.ORANGE) }) { open("apps") }
+        }
+        SettingsGroup {
+            link("Advanced", "Relays, log, diagnostics", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }) { open("advanced") }
+            link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
+                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }) { open("about") }
+        }
+    }
+}
+
+@Composable
+fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
+    var leaving by remember { mutableStateOf(false) }
+    SettingsPage("Following", onBack) {
+        SettingsGroup {
+            info(u.wearer?.name ?: "Sukrara", u.ownerPub?.let { Proto.shortNpub(it) }, icon = R.drawable.ic_sym_person)
+            info("Can add entries", if (u.canWrite) "Yes, the wearer allowed it" else "No, ask the wearer")
+            info("Bluetooth", u.ble, icon = R.drawable.ic_sym_bluetooth_searching)
+        }
+        SettingsGroup { action("Stop following", "Readings already on this phone stay", icon = R.drawable.ic_sym_person_remove) { leaving = true } }
+    }
+    if (leaving) AlertDialog(
+        onDismissRequest = { leaving = false },
+        title = { Text("Stop following?") },
+        text = { Text("You need a new invite to follow ${u.wearer?.name ?: "them"} again.") },
+        confirmButton = { Button(onClick = { leaving = false; a.leave() }) { Text("Stop following") } },
+        dismissButton = { TextButton(onClick = { leaving = false }) { Text("Cancel") } },
+    )
+}
+
+@Composable
+fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: FollowerActions, onLog: () -> Unit, onBack: () -> Unit) {
+    SettingsPage("Advanced", onBack) {
+        SettingsGroup("Relays") { card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
+        SettingsGroup("Diagnostics") {
+            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, onClick = onLog)
+            info("Stored readings", "${u.count} on this phone · rejected events ${u.rejects}" + (u.lastReject?.let { " (last: $it)" } ?: ""))
+            info("Keys", "Key epochs up to ${u.epoch} · trusted devices ${u.devices.joinToString { it.take(8) }}", icon = R.drawable.ic_sym_key)
+            info("This phone", u.fPub?.let { Proto.npub(it) })
+        }
+        if (BuildConfig.DEBUG) SettingsGroup("Experimental") {
+            switch("Subscribe without the relay-side author filter", u.testUnfiltered, summary = "Debug builds only",
+                icon = R.drawable.ic_sym_bug_report, onChange = a::setTestUnfiltered)
+        }
+    }
+}
+
+// ================================================================================================ about
+
+/** One file of the latest GitHub release: what the About page lists as "Sukrara on other devices". */
+private data class Download(val name: String, val url: String)
+private data class Release(val tag: String, val url: String, val files: List<Download>)
+
+private const val REPO = "https://github.com/mauriciabad/cgm-reading-mac-spike"
+
+/**
+ * The other apps come from the latest release's files, not from a list in this app: a new platform shows up here as
+ * soon as a release attaches it.
+ */
+private suspend fun latestRelease(): Release? = withContext(Dispatchers.IO) {
+    runCatching {
+        val c = URL("https://api.github.com/repos/mauriciabad/cgm-reading-mac-spike/releases/latest").openConnection() as HttpURLConnection
+        c.connectTimeout = 8000; c.readTimeout = 8000
+        c.setRequestProperty("Accept", "application/vnd.github+json")
+        val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
+        val assets = j.getJSONArray("assets")
+        Release(j.getString("tag_name"), j.getString("html_url"), (0 until assets.length()).map { i ->
+            assets.getJSONObject(i).let { Download(it.getString("name"), it.getString("browser_download_url")) }
+        })
+    }.getOrNull()
+}
+
+/** What a release file is for, from its name (unknown kinds still show, by file name). */
+private fun platformOf(name: String): Pair<String, Int> = when {
+    name.endsWith(".apk") -> "Android" to R.drawable.ic_sym_android
+    name.endsWith(".dmg") -> "Mac" to R.drawable.ic_sym_laptop_mac
+    name.contains("mac") && name.endsWith(".zip") -> "Mac (zip)" to R.drawable.ic_sym_laptop_mac
+    name.endsWith(".prg") || name.endsWith(".iq") -> "Garmin watch" to R.drawable.ic_sym_watch
+    else -> name to R.drawable.ic_sym_download
+}
+
+@Composable
+fun AboutSettings(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    fun open(url: String) = ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    // null = loading, Result.failure = offline
+    val release by produceState<Result<Release>?>(null) { value = latestRelease()?.let { Result.success(it) } ?: Result.failure(Exception()) }
+    SettingsPage("About Sukrara", onBack) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // the launcher icon is adaptive (no painterResource): draw what the launcher draws
+            val icon = remember { ctx.packageManager.getApplicationIcon(ctx.packageName).toBitmap(288, 288).asImageBitmap() }
+            androidx.compose.foundation.Image(icon, contentDescription = null, modifier = Modifier.size(96.dp))
+            Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
+            Text("Version ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " (debug)" else "", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        val r = release?.getOrNull()
+        if (r != null && r.tag.removePrefix("v") != BuildConfig.VERSION_NAME) SettingsGroup {
+            action("Update to ${r.tag.removePrefix("v")}", "Download the new version", icon = R.drawable.ic_sym_download) { open(r.url) }
+        }
+        SettingsGroup("Sukrara on other devices") {
+            when {
+                release == null -> info("Looking for the latest release…")
+                r == null -> link("Downloads", "Couldn't reach GitHub · open the releases page", icon = R.drawable.ic_sym_download, external = true) { open("$REPO/releases/latest") }
+                else -> for (d in r.files) {
+                    val (label, icon) = platformOf(d.name)
+                    link(label, d.name + if (label == "Android") " · this app" else "", icon = icon, external = true) { open(d.url) }
+                }
+            }
+        }
+        SettingsGroup {
+            link("Source code", "GitHub · GPL-3.0", icon = R.drawable.ic_sym_code, external = true) { open(REPO) }
+            link("Website", "sukrara.mauri.app", icon = R.drawable.ic_sym_link, external = true) { open("https://sukrara.mauri.app") }
+        }
+        SettingsFooter("An alpha research app, not a medical device. Don't make treatment decisions from it alone.")
+    }
+}
