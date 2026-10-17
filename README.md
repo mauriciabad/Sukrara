@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.12/Sukrara-0.11.12.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.12/Sukrara-0.11.12.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -25,10 +25,10 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
 <p align="center">
-  <img src="spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android: 70 mg/dL, flat arrow, feature summary" width="200">
+  <img src="docs/img/settings/home.png" alt="Sukrara home screen on Android: the glucose card with rings, graph and Add treatment, under reminders to set up LibreView and back up" width="200">
   <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="200">
   <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="200">
-  <img src="docs/img/16/android-app-stale.png" alt="Home panel: value, time-in-range ring and the 12 h chart with the distribution beside it" width="200">
+  <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the LibreView reminder and sections with coloured icons" width="200">
 </p>
 <p align="center">
   <img src="docs/img/16/card-dark.png" alt="The glucose card: number, trend arrow, time-in-range rings for 1 and 7 days, 12 h chart with the time spent at each level and the share of time below, in and above range" width="540">
@@ -67,7 +67,12 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
   (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. With root
-  + LSPosed: system icons or a coloured value next to the clock. [05](docs/05-android-status-bar.md)
+  + LSPosed: system icons or a coloured value next to the clock. Settings detects root and the LSPosed module (via
+  LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI.
+  [05](docs/05-android-status-bar.md)
+- Settings laid out like Android 16/17's: an overview with sections, search (the index is built from the pages
+  themselves, so it never goes out of date), the system's page and back-gesture motion, export / import / reset of
+  the options, and a reminder to set up LibreView. [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
   [16](docs/16-graph.md)
@@ -77,7 +82,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. For busy wallpapers: shadow, dim, card or blur behind it, and in-range values in
   white (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
-- Upload glucose and treatments to LibreView (Settings → LibreView). Off until you sign in and switch it on; then
+- Upload glucose and treatments to LibreView (Settings → Share with apps → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: urgent low, low, high, very high, extremely high, falling/rising fast and no data, each with its own threshold,
   reminder and sound. Highs stay quiet for a while after rapid insulin and while glucose is already falling back into
@@ -112,10 +117,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers.
 
 **Watch and smart home**
-- Garmin: Sukrara speaks the same local web API as Juggluco, so the CGM+ app, datafield and watch faces work
-  unchanged. [08](docs/08-garmin.md)
+- Garmin: Sukrara speaks the same local web API as Juggluco and xDrip+, so the CGM+ app, datafield and watch faces
+  work unchanged (Settings → Share with apps → xDrip+ server, off by default). [08](docs/08-garmin.md)
 - Nightscout-compatible adapter: stock Home Assistant, xDrip+, Nightguard, LoopFollow and others read it without
-  changes. Proven in the Nostr spike, not in the alpha app yet. [03](docs/03-nostr.md)
+  changes (Settings → Share with apps → Nightscout, off by default). [03](docs/03-nostr.md)
 
 **Privacy and keys**
 - Every reading is signed by your phone and encrypted to a read key only your followers have. Relays only see
@@ -206,14 +211,14 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.11.12](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.12) (Android and Mac)
+Downloads: [v0.11.13](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.13) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 **Android** (Android 16+, arm64)
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.12.apk` (allow installing from your browser or file manager). Grant *Notifications* and
+2. Install `Sukrara-0.11.13.apk` (allow installing from your browser or file manager). Grant *Notifications* and
    *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
@@ -229,14 +234,14 @@ Downloads: [v0.11.12](https://github.com/mauriciabad/cgm-reading-mac-spike/relea
   asks. You see their name next to your label for the invite ("Who is it for?") and tap **Allow**. Each link works
   for one person.
 - Tap your name at the top of the home screen to change your name or picture; followers see it at once.
-- Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list, and the wearer types
+- Nearby with no internet: wearer taps **Pair nearby** (Settings → Share with people), the follower picks the phone from the list, and the wearer types
   the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.12.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
+Open `Sukrara-0.11.13.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
 is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.12.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
+`unzip Sukrara-mac-0.11.13.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an

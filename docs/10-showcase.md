@@ -86,7 +86,7 @@ Changes from the source spikes:
 
 1. **Install** the release APK. Grant notifications and Nearby devices. Choose **"I wear the sensor" → Start fresh**
    (or *Restore from password manager* on a new phone).
-2. **Backup**: on the home screen, *Save to password manager* (Proton Pass / Bitwarden / KeePassDX via Credential
+2. **Backup**: Settings → Backup → *Save to password manager* (home shows a reminder until it's done) (Proton Pass / Bitwarden / KeePassDX via Credential
    Manager). Both builds are signed with the same key, so the saved entry works for both.
 3. **Status bar**: the chip needs "Live Updates" allowed. If Settings shows *Allow Live Updates for Sukrara*, tap it.
    On the phone, `adb shell appops set app.mauri.sukrara.poc POST_PROMOTED_NOTIFICATIONS allow` did it. **System
@@ -96,7 +96,7 @@ Changes from the source spikes:
    Sukrara and chooses *I follow someone*. The link opens the app directly (verified App Link), or
    `https://sukrara.mauri.app/join/` if the app isn't installed. The app shows who is inviting; the follower types
    their name (Shuffle / Customize the picture) and asks. The wearer checks the 4-digit code and taps *Allow*. Change
-   your own name or picture by tapping it at the top of the home screen (wearer) or *You appear as … Edit* (follower). **Nearby**: *Pair nearby* (10 min), and the
+   your own name or picture by tapping it at the top of the home screen (wearer) or Settings → your name (follower). **Nearby**: Settings → Share with people → *Pair nearby* (10 min), and the
    follower picks the phone from the list.
 5. **Mac (Sukrara for Mac, `spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: follows end-to-end encrypted over
    Nostr + BLE like any follower: Share → *Copy* (the `https://sukrara.mauri.app/join#…` link) → Sukrara for Mac
@@ -104,12 +104,12 @@ Changes from the source spikes:
    Allow on the phone. Low / high / no-data alarms on the Mac too. The old GlucoseBar follow state is migrated once.
    Details: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
 6. **Garmin**: nothing to do while Juggluco is the source, because Juggluco keeps port 17580 and serves the watch.
-   Sukrara's server takes over only when the port is free (direct mode, Juggluco stopped). Settings → Garmin shows
-   which one is serving. On a **follower's** phone Sukrara's server takes the port and serves the followed person.
+   Sukrara's server takes over only when the port is free (direct mode, Juggluco stopped) and Settings → Share with
+   apps → *xDrip+ server* is on (off by default); its summary shows which one is serving. On a **follower's** phone Sukrara's server takes the port and serves the followed person.
 7. **Widgets**: long-press the home screen → Widgets → Sukrara → *Glucose*, *Glucose graph* or *Glucose + graph*
    (resizable). They show the wearer's readings, or on a follower's phone the followed person's, and don't refresh
    while the screen is off.
-8. **LibreView** (off): Settings → LibreView → *Account* (email + password) → *Upload to LibreView*. Glucose,
+8. **LibreView** (off; home and Settings remind you until it's set up): Settings → Share with apps → LibreView → *Account* (email + password) → *Upload to LibreView*. Glucose,
    insulin/carbs/notes and *Use this phone as the account's device* are on by default, so everything uploads.
    **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. Using this phone as the
    account's device logs the Libre app / Juggluco out of LibreView.
@@ -117,8 +117,8 @@ Changes from the source spikes:
    the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (stop
    Juggluco first: *Pause app* **and** *Force stop*, see "Sensor scan"). Sukrara then pairs over Bluetooth by itself. **Juggluco's alarms stop**; scanning with
    Juggluco gives the sensor back.
-10. **Nightscout API** (Settings → Nightscout API, or the follower's home screen): `http://127.0.0.1:17581` on the
-   phone, on by default, works next to Juggluco. Apps on the same phone (xDrip+ follower, a Garmin app in
+10. **Nightscout API** (Settings → Share with apps → Nightscout, both roles): `http://127.0.0.1:17581` on the
+   phone, off by default, works next to Juggluco. Apps on the same phone (xDrip+ follower, a Garmin app in
    Nightscout mode) point at it. *Also on this network* binds it to Wi-Fi so Home Assistant's
    built-in Nightscout integration, Nightguard or an ESP32 clock can read it at `http://<phone IP>:17581`. They need
    the **API secret** shown there (HA: "API key"; Nightguard/Garmin: `?token=`). Plain HTTP, so only on trusted
@@ -232,8 +232,10 @@ API 102 module, `resources/META-INF/xposed/`), the 403 `sb_*` drawables (kept fr
 with a reason while it's off: "Colour by range" and "Placement" (current value as summary; radio buttons in a
 dialog, like a ListPreference). A footer below a divider explains the root/LSPosed requirements.
 
-![Status bar settings](img/sukrara-statusbar-settings.png) ![Placement dialog](img/sukrara-statusbar-settings-dialog.png)
-![Dependents disabled while the switch is off](img/sukrara-statusbar-settings-off.png)
+<img src="img/settings/statusbar.png" alt="Status bar settings without root: the Root needed banner with Check again" width="270"> <img src="img/sukrara-statusbar-settings-dialog.png" alt="Placement dialog" width="270">
+<img src="img/settings/statusbar-root-off.png" alt="The rows that need root, disabled with the reason" width="270">
+
+(Screenshots from 0.11.13 on the emulator, which has no root: Settings says what's missing; see "Settings" below.)
 
 Sukrara. System-icon placements are coloured by range through a hook on System UI's Compose `Image` (our icons are
 recognised by their content description); the digits match the clock's height (27 px) and the arrow drawables are
@@ -669,6 +671,48 @@ Sukrara widget inside SystemUI. Full report, rootless options and the fingerprin
 | Lock screen wallpaper (GlucoDataHandler's approach), the Notes-role shortcut | not interactive / takes over the user's wallpaper or notes app |
 | A light scrim or card | lock screen content is light; it would need a second palette |
 | Quick Settings tile as the rootless quick entry | on a secure lock screen SystemUI asks for the fingerprint before a third-party tile's `onClick`; the tile stays as a shortcut |
+
+## Settings like Android 16/17 (v0.11.13)
+
+<img src="img/settings/settings.png" alt="Settings overview" width="250"> <img src="img/settings/search.png" alt="Search results for alert" width="250"> <img src="img/settings/apps.png" alt="Share with apps" width="250">
+
+Settings rebuilt after the system Settings app and its guidelines
+([pattern](https://developer.android.com/design/ui/mobile/guides/patterns/settings),
+[AOSP](https://source.android.com/docs/core/settings/settings-guidelines)). Added:
+
+- **Overview → subpages** ("For 15 or more settings, group related settings under a subscreen"): profile, Alerts,
+  Glucose source, Share with people, Share with apps (LibreView, xDrip+ server, Nightscout, Nostr; the two link to
+  each other), Graph, Status bar, Lock screen, Backup (also settings export / import / reset), Advanced (relays,
+  log, link priority, experiments), About (version, source, the other apps from the latest release's files, an
+  update only when the release is newer). Coloured category icons on the overview, Material Symbols elsewhere (the
+  `material-icons` library is deprecated), brand marks from Simple Icons / the projects, scaled to the same 20 dp
+  live area; one 40 dp icon column per group (AOSP `iconSpaceReserved`).
+- **Rows** are material3 1.5 `SegmentedListItem`s (expressive cards; needed Compose BOM 2026.09.00, AGP 9.1.1,
+  Gradle 9.3.1): › opens a page, ↗ leaves the app, the value under the title opens a dialog, a split line + switch
+  opens and toggles (alerts, quiet rules), main switch bars, intro headers, footers, banners. Chip rows became radio
+  dialogs.
+- **Home** keeps the glucose card (now with *Add treatment*), the report, treatments and *Share with someone*; the
+  status card, nearby pairing, followers, backup and relays moved to Settings. Banners: set up LibreView
+  (dismissible) and not backed up.
+- **Motion and back** like Settings, which has none of its own (SettingsLib's `SettingsTransitionHelper` is empty):
+  the system activity transition (96 dp slides, 450 ms fast-out-extra-slow-in, short fades) and the cross-activity
+  predictive back (90 % scale, window corners, 20/80 % scrim). Back is a real back stack (Alerts → Settings → Home).
+- **Search** like SettingsIntelligence: the pill under the title opens the contained full-screen search
+  (`ExpandedFullScreenContainedSearchBar`), recent searches, results with section icon / summary / breadcrumb,
+  ranks 1/3/7/9 (first title word, other title words, summary, breadcrumb); a result opens its page by the menu
+  path and pulses the row like `HighlightablePreferenceGroupAdapter`. **The index can't drift**: it's built by
+  composing the pages themselves in index mode (rows record title, summary, group, icon and the page they link
+  to), so there is no list to keep in sync — PixelXpert's `SearchPreference` needs a hand table of pages
+  (`HeaderFragment.initSearchableItems`); AOSP needs `SEARCH_INDEX_DATA_PROVIDER` + a code inspector test, or the
+  newer Catalyst metadata.
+- **Root and LSPosed** from the source: `su` for root, the libxposed **service** API 102 for the module (scope,
+  System UI's running target: missing, not in scope, not loaded, an older build, active). Pages disable what
+  depends on them with the reason and offer the next step: *Check again*, *Add System UI* (LSPosed's own scope
+  prompt), *Restart System UI*.
+- xDrip+ server and Nightscout API **off by default**.
+
+Discarded: shared-axis transitions (not what Settings shows), a separate search route (the M3 contained search bar
+does it), a fixed list of searchable pages, the `material-icons` library.
 
 ## Next
 

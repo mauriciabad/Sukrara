@@ -46,6 +46,9 @@ class SettingsIndex(private val root: String) {
 
     internal class PageSnapshot(val title: String?, val rows: List<IndexedRow>, val linkIcons: Map<String, @Composable () -> Unit>)
 
+    /** Every page found so far has been indexed (no link waiting to be followed). */
+    val ready get() = routes.all { it in pages }
+
     /** The routes from [root] to [route]. */
     private fun path(route: String): List<String> = generateSequence(route) { parent[it] }.toList().reversed()
 
@@ -63,8 +66,9 @@ class SettingsIndex(private val root: String) {
     fun Run(page: @Composable (String) -> Unit) {
         Box(Modifier.size(0.dp).clipToBounds()) {
             for (r in routes.toList()) key(r) {
+                // fresh for every search session (Run leaves the composition when search closes); not cleared on
+                // recomposition, because Compose then skips the unchanged pages and they would record nothing
                 val idx = remember { PageIndex(r) }
-                idx.rows.clear(); idx.links.clear()
                 CompositionLocalProvider(LocalSettingsIndex provides idx) { page(r) }
                 SideEffect {
                     pages[r] = PageSnapshot(idx.title, idx.rows.values.toList(), HashMap(idx.linkIcons))
@@ -177,6 +181,8 @@ fun SettingsSearchBar() {
     // the index is composed only while searching, here in the activity's composition (the expanded search is a
     // dialog window, whose context isn't the activity some pages need)
     if (expanded) search.index.Run(search.page)
+    // like the stock search, every search starts empty
+    androidx.compose.runtime.LaunchedEffect(expanded) { if (!expanded) text.clearText() }
     androidx.compose.material3.ExpandedFullScreenContainedSearchBar(state, input) {
         val q = text.text.toString()
         val hits = search(search.index.hits(), q)
@@ -192,6 +198,7 @@ fun SettingsSearchBar() {
                         }
                     }
                 }
+                hits.isEmpty() && !search.index.ready -> androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 24.dp))
                 hits.isEmpty() -> androidx.compose.material3.Text("No results", style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
                 else -> SettingsGroup {

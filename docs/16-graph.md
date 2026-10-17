@@ -142,8 +142,8 @@ Alert thresholds are separate (investigation 15) and unchanged.
 
 | | | |
 |---|---|---|
-| ![app](img/16/android-app-stale.png) | ![settings](img/16/android-settings-1.png) | ![config](img/16/android-config.png) |
-| App home, release build, a real *stale* reading (the emulator's source had stopped): struck through, with its time | Settings → Graph & time in range: live preview, the five ranges | A widget's own settings (touch & hold → Reconfigure), preview at that widget's size |
+| ![app](img/settings/home.png) | ![settings](img/settings/graph.png) | ![config](img/16/android-config.png) |
+| App home (0.11.13, synthetic source on the emulator) | Settings → Graph & time in range: live preview, the ranges as sliders | A widget's own settings (touch & hold → Reconfigure), preview at that widget's size |
 
 The emulator ran under very heavy host load (load average 30–46 from parallel sessions); its "isn't responding"
 dialogs came from Android's render thread and system server, not from Sukrara (main-thread stack checked).
