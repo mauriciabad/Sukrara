@@ -11,7 +11,8 @@ menubar and Mac widgets), from the user's draft:
 ![draft](img/16/draft.png)
 
 - **Distribution on the left of the chart.** It grows rightwards from the chart's left edge and shows how much time
-  was spent at each glucose level over the chart's window. The chart underneath fades out towards that edge.
+  was spent at each glucose level over the chart's window. The lines underneath stop short of its dots (they faded
+  out towards that edge until the [cut-out](#lines-very-good-band-and-the-cut-out)).
 - **Time in range as soft rectangles.** One per major band (high, in range, low), each as wide as its share of time,
   with the % next to it. A **"very good" band (70–140)** sits inside "in range" in a second green; **very high
   (> 250)** and **very low (< 54)**, the levels of the LibreView report, sit inside high and low.
@@ -128,8 +129,9 @@ LSPosed hook gets them in its state broadcast) and the notification's semantic s
 caution). Above range is now **orange** (very high a deeper red-orange), as in the draft; it was red above 185.
 Alert thresholds are separate (investigation 15) and unchanged.
 
-- In the chart, very high / very low get a faint dashed line when the y range reaches them; their value is shown
-  unless it would collide with the 180 / 70 label.
+- In the chart, very high / very low get a faint dashed line when the y range reaches them, and so do the user's
+  own lines (100 by default). The very good part of the in-range band has its own colour. The values on the right:
+  70 and 180 always, then 140, 54 / 250 and the extra lines, each only where it doesn't touch one already written.
 - The three % labels are above / in range / below (the rectangles described in the goal were removed in 0.11.9). Labels too close for their bands are pushed apart.
 - The ring has six segments; gaps only between below, in range and above.
 
@@ -186,7 +188,7 @@ worked and were removed in 0.11.8, see below.*
 |---|---|
 | `graph/GlucoseStats.kt` | bands, time weights, time in range, the six distribution algorithms |
 | `graph/Freshness.kt` | the five freshness steps, the reading's time text |
-| `graph/GlucoseGraph.kt` | the chart: band, distribution, faded line, labels, treatments |
+| `graph/GlucoseGraph.kt` | the chart: bands, level lines, line, distribution (cut out of the lines), labels, treatments |
 | `graph/GlucoseCard.kt` | ring + whole card layout (value, arrow, rings, chart) |
 | `graph/GraphSettings.kt`, `graph/GraphData.kt` | settings (app-wide + per widget), multi-day time in range from the role's store |
 | `ui/GraphScreen.kt`, `ui/Widgets.kt` (`GlucosePanel`), `widgets/Widgets.kt`, `widgets/WidgetConfigActivity.kt`, `status/GlucoseNotification.kt` | the surfaces |
@@ -223,6 +225,33 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
 - **Resets (0.11.9):** each section of the graph settings has a reset that shows while it differs from the defaults
   (ranges, windows, slots and rings), plus *Reset all graph settings*; the Mac's Graph submenu has *Reset ranges* and
   *Reset all graph settings*.
+
+## Lines, very good band and the cut-out
+
+The user, after using 0.11.11: a line at **100** and lines of their own, the **very good** range in a different colour
+from the rest of in range, and the distribution should **cut the line under it** instead of fading it: "if the
+distribution is close to 0 in a point, the line doesn't get cut, but if it's high it cuts the line earlier".
+
+- **Lines:** `GraphConfig.lines`, default `[100]`, up to 6 values in 40–400 mg/dL, drawn like the 54 / 250 lines.
+  Android: Settings → Graph & time in range → *Lines*, as Material input chips (tap one to remove it, per the
+  [chip guidance](https://developer.android.com/develop/ui/compose/components/chip): "Input: represents
+  user-provided information … provide an X for removal") plus a number field. Mac: Graph submenu → *Lines* (each
+  line checked, pick it to remove it; *Add line…*), or `defaults write … lines "100,120"`.
+- **Very good band:** low…tight in the very good green (a little stronger), tight…high in the in-range colour
+  (fainter). With *very good up to* = *high* the band is one colour, as before.
+- **The cut-out:** a background-coloured stroke around the dots would show on transparent widgets and the lock
+  screen, so the lines don't get one. The dashed level lines and the glucose line are drawn into their own layer
+  (`Canvas.saveLayer` / `CGContext.beginTransparencyLayer`). Each row of dots is then erased from that layer as a pill
+  1.6 dp bigger than the row (`BlendMode.DST_OUT` / `.destinationOut`), and the layer is put down. Only after that are
+  the dots drawn. The range bands stay underneath, uncut. A row with one dot cuts ~5 dp in, the longest rows ~25 % of
+  the chart.
+
+| Added | Discarded (why) |
+|---|---|
+| Line at 100 + up to 6 custom lines (Android settings, Mac submenu, `lines` key) | — |
+| Very good part of the in-range band in its own colour | the single in-range band colour |
+| Distribution cut out of the lines below it (on any background) | the line fading towards the distribution (the user: looked bad where it overlapped) |
+| The 54 / 250 lines run under the distribution too (cut like the rest) on Android | starting them after the distribution |
 
 ## Open
 
