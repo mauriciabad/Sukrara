@@ -55,6 +55,26 @@ class GlucoseStatsTest {
         assertEquals(Triple(10, 70, 20), GlucoseGraph.pct3(0.1, 0.7, 0.2))
     }
 
+    /** The LibreView report's example: average 141 mg/dL → GMI 6.7 %, 49 mmol/mol. */
+    @Test fun gmi() {
+        val m = GlucoseMetrics.of((0 until 600).map { r(it, 141) }, 0, 600 * 60L, b)
+        assertEquals(141.0, m.mean, 1e-9)
+        assertEquals(6.68, m.gmi, 0.005)
+        assertEquals(49.5, m.gmiMmolMol, 0.1)
+        assertEquals(0.0, m.cv, 1e-9)
+        assertTrue(Goal.GMI.met(m) && Goal.AVERAGE.met(m) && Goal.CV.met(m))
+    }
+
+    /** Mean and SD are time-weighted: half the time at 100 and half at 200 → mean 150, SD 50, CV 33 %. */
+    @Test fun cvTimeWeighted() {
+        val rs = (0 until 60).map { r(it, 100) } + (60 until 120 step 5).map { r(it, 200) }
+        val m = GlucoseMetrics.of(rs, 0, 120 * 60L, b)
+        assertEquals(150.0, m.mean, 0.5)
+        assertEquals(50.0, m.sd, 0.5)
+        assertEquals(33.3, m.cv, 0.5)
+        assertTrue(!Goal.ABOVE.met(m))   // 50 % above range
+    }
+
     @Test fun freshness() {
         assertEquals(Freshness.FRESH, Freshness.of(90)); assertEquals(Freshness.LATE, Freshness.of(91))
         assertEquals(Freshness.STALE, Freshness.of(301)); assertEquals(Freshness.OLD, Freshness.of(1201))

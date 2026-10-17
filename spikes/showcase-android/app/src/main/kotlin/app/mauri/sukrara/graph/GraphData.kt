@@ -10,13 +10,14 @@ import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 
 /**
- * Time in range over days, for the rings: read from the active role's store (the wearer keeps 15 days in `owner.db`,
- * a follower what it received) and cached for [TTL_S], so a widget redraw every minute doesn't query 20 000 rows.
+ * Time in range and the report numbers over days, for the slots and the report card: read from the active role's
+ * store (the wearer keeps 31 days in `owner.db`, a follower what it received) and cached for [TTL_S], so a widget
+ * redraw every minute doesn't query 40 000 rows.
  */
 object GraphData {
     private const val TTL_S = 5 * 60L
     private data class Key(val windowS: Long, val bands: Bands)
-    private val cache = HashMap<Key, Pair<Long, TimeInRange>>()
+    private val cache = HashMap<Key, Pair<Long, GlucoseMetrics>>()
 
     fun readings(c: Context, fromS: Long): List<Reading> = runCatching {
         when (App.role(c)) {
@@ -27,13 +28,15 @@ object GraphData {
     }.getOrElse { Log.w("Sukrara.graph", "history: $it"); emptyList() }
 
     @Synchronized
-    fun tir(c: Context, windowS: Long, bands: Bands, nowS: Long = Proto.nowS()): TimeInRange {
+    fun metrics(c: Context, windowS: Long, bands: Bands, nowS: Long = Proto.nowS()): GlucoseMetrics {
         val k = Key(windowS, bands)
         cache[k]?.let { (at, v) -> if (nowS - at < TTL_S) return v }
-        val v = GlucoseStats.timeInRange(readings(c, nowS - windowS), nowS - windowS, nowS, bands)
+        val v = GlucoseMetrics.of(readings(c, nowS - windowS), nowS - windowS, nowS, bands)
         cache[k] = nowS to v
         return v
     }
+
+    fun tir(c: Context, windowS: Long, bands: Bands, nowS: Long = Proto.nowS()) = metrics(c, windowS, bands, nowS).tir
 
     /** Role change / stop following: the cached numbers belong to someone else now. */
     @Synchronized fun reload() = cache.clear()

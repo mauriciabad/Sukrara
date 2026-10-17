@@ -173,8 +173,8 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
     val bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
     GlucoseCard.draw(Canvas(bmp), bmp.width.toFloat(), bmp.height.toFloat(), frame.history, frame.treatments, frame.nowSec,
         st, systemPalette(ctx), d * scale,
-        tirOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseStats.timeInRange(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) }
-            else { r, b -> GraphData.tir(ctx, r.windowS, b, frame.nowSec) })
+        metricsOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseMetrics.of(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) }
+            else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
     Image(
         ImageProvider(bmp),
         contentDescription = describe(frame.history.lastOrNull(), frame.nowSec),

@@ -89,6 +89,28 @@ class GraphGallery {
         }, 360f, 76f, cols = 2, pal)
     }
 
+    /** Investigation 18: report numbers in the slots. */
+    @Test fun slots() {
+        val data = Synthetic.days(now, 31)
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val day = 86400L
+            val v = listOf(
+                "TIR 1d · TIR 7d · GMI 14d (faded)" to listOf(RingSpec(day), RingSpec(7 * day), RingSpec(14 * day, kind = SlotKind.GMI)),
+                "… GMI 30d at full strength" to listOf(RingSpec(day), RingSpec(7 * day), RingSpec(30 * day, kind = SlotKind.GMI, faded = false)),
+                "GMI · average · CV, 14d" to listOf(RingSpec(14 * day, kind = SlotKind.GMI), RingSpec(14 * day, kind = SlotKind.AVERAGE, faded = false),
+                    RingSpec(14 * day, kind = SlotKind.CV, faded = false)),
+            )
+            sheet("slots-${if (dark) "dark" else "light"}", v.map { (label, rings) ->
+                Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings), pal, d) }
+            }, 440f, 76f, cols = 1, pal)
+            sheet("widget-gmi-${if (dark) "dark" else "light"}", listOf(Tile("4×2 combined, GMI 30d in the third slot", "") { cv, w, h ->
+                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = true),
+                    rings = listOf(RingSpec(day), RingSpec(7 * day), RingSpec(30 * day, kind = SlotKind.GMI, faded = false))), pal, d)
+            }), 340f, 170f, cols = 1, pal)
+        }
+    }
+
     @Test fun sizes() {
         val data = Synthetic.days(now, 15)
         for (dark in listOf(true, false)) {

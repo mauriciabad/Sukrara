@@ -15,8 +15,19 @@ import app.mauri.sukrara.treatments.Treatment
 import kotlin.math.max
 import kotlin.math.min
 
-/** One time-in-range ring: its window and which range its centre number counts. */
-data class RingSpec(val windowS: Long, val range: TirRange = TirRange.IN_RANGE) {
+/** What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers. */
+enum class SlotKind(val label: String, val short: String) {
+    TIR("Time in range", ""), GMI("GMI", "GMI"), AVERAGE("Average glucose", "avg"), CV("Variability (CV)", "CV")
+}
+
+/**
+ * One slot beside the value: its [kind], window and, for a ring, which range its centre number counts. [faded] =
+ * the second and third slots are drawn fainter than the main one (off = full strength wherever it sits).
+ */
+data class RingSpec(
+    val windowS: Long, val range: TirRange = TirRange.IN_RANGE, val kind: SlotKind = SlotKind.TIR,
+    val faded: Boolean = true,
+) {
     val period: String get() = periodLabel(windowS)
 }
 
@@ -60,13 +71,76 @@ object TirRing {
             textSize = radius * 0.34f; typeface = Typeface.create(Typeface.DEFAULT, 600, false)
             color = ColorUtils.setAlphaComponent(if (spec.range == TirRange.TIGHT) pal.tight else pal.inkSoft, alpha)
         }
-        val v = if (tir.empty) "–" else "${(tir.of(spec.range) * 100).let { Math.round(it) }}"
+        val v = if (tir.empty) "–" else "${Math.round(tir.of(spec.range) * 100)}"
         cv.drawText(v, cx, cy + num.textSize * 0.28f, num)
         cv.drawText(spec.period, cx, cy + num.textSize * 0.28f + sub.textSize * 1.1f, sub)
     }
 
     private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean =
         s.size > 1 && s[i].first.group != s[(i + 1) % s.size].first.group
+}
+
+/**
+ * A report number in a slot (investigation 18): the value in the middle (GMI 6.7 %, average 141, CV 37 %), the kind
+ * and window under it, and around it an arc on the number's scale, green when the consensus goal is met and orange
+ * when not, with a tick at the goal.
+ */
+object MetricGauge {
+    /** Scale (min, max) and goal of each kind, in its own unit. */
+    private fun scale(k: SlotKind) = when (k) {
+        SlotKind.GMI -> Triple(5.0, 10.0, 7.0)
+        SlotKind.AVERAGE -> Triple(70.0, 250.0, 154.0)
+        else -> Triple(0.0, 60.0, 36.0)
+    }
+
+    fun value(k: SlotKind, m: GlucoseMetrics) = when (k) { SlotKind.GMI -> m.gmi; SlotKind.AVERAGE -> m.mean; else -> m.cv }
+
+    fun met(k: SlotKind, m: GlucoseMetrics) = when (k) {
+        SlotKind.GMI -> Goal.GMI.met(m); SlotKind.AVERAGE -> Goal.AVERAGE.met(m); else -> Goal.CV.met(m)
+    }
+
+    fun text(k: SlotKind, m: GlucoseMetrics): Pair<String, String> = when (k) {
+        SlotKind.GMI -> "%.1f".format(m.gmi) to "%"
+        SlotKind.AVERAGE -> "${Math.round(m.mean)}" to ""
+        else -> "${Math.round(m.cv)}" to "%"
+    }
+
+    fun draw(cv: Canvas, cx: Float, cy: Float, radius: Float, m: GlucoseMetrics, spec: RingSpec,
+             pal: GraphPalette, emphasis: Float, d: Float) {
+        val alpha = (255 * emphasis).toInt()
+        val sw = radius * 0.2f
+        val oval = RectF(cx - radius + sw / 2, cy - radius + sw / 2, cx + radius - sw / 2, cy + radius - sw / 2)
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.ROUND }
+        ring.color = ColorUtils.setAlphaComponent(pal.grid, alpha)
+        cv.drawOval(oval, ring)
+        val (lo, hi, goal) = scale(spec.kind)
+        if (!m.empty) {
+            val f = ((value(spec.kind, m) - lo) / (hi - lo)).coerceIn(0.02, 1.0).toFloat()
+            ring.color = ColorUtils.setAlphaComponent(if (met(spec.kind, m)) pal.tight else pal.high, alpha)
+            cv.drawArc(oval, -90f, 360f * f, false, ring)
+        }
+        // goal tick across the track
+        val ga = Math.toRadians(-90.0 + 360.0 * (goal - lo) / (hi - lo))
+        val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ColorUtils.setAlphaComponent(pal.ink, alpha); strokeWidth = 1.6f * d }
+        val r0 = radius - sw * 1.15f; val r1 = radius + sw * 0.15f
+        cv.drawLine(cx + (r0 * Math.cos(ga)).toFloat(), cy + (r0 * Math.sin(ga)).toFloat(),
+            cx + (r1 * Math.cos(ga)).toFloat(), cy + (r1 * Math.sin(ga)).toFloat(), tick)
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = ColorUtils.setAlphaComponent(pal.ink, alpha); textAlign = Paint.Align.LEFT
+            typeface = Typeface.create(Typeface.DEFAULT, 800, false); textSize = radius * 0.62f
+        }
+        val unit = Paint(num).apply { textSize = radius * 0.3f; typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
+        val sub = Paint(num).apply {
+            textAlign = Paint.Align.CENTER; textSize = radius * 0.3f; typeface = Typeface.create(Typeface.DEFAULT, 600, false)
+            color = ColorUtils.setAlphaComponent(pal.inkSoft, alpha)
+        }
+        val (v, u) = if (m.empty) "–" to "" else text(spec.kind, m)
+        val w = num.measureText(v) + unit.measureText(u)
+        val base = cy + num.textSize * 0.3f
+        cv.drawText(v, cx - w / 2, base, num)
+        cv.drawText(u, cx - w / 2 + num.measureText(v), base, unit)
+        cv.drawText("${spec.kind.short} ${spec.period}", cx, base + sub.textSize * 1.25f, sub)
+    }
 }
 
 /** What a whole glucose card shows: value header and/or chart, and up to three rings (main first). */
@@ -89,7 +163,7 @@ object GlucoseCard {
     fun draw(
         cv: Canvas, w: Float, h: Float, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: CardStyle, pal: GraphPalette, d: Float,
-        tirOf: (RingSpec, Bands) -> TimeInRange = { r, b -> GlucoseStats.timeInRange(readings, nowS - r.windowS, nowS, b) },
+        metricsOf: (RingSpec, Bands) -> GlucoseMetrics = { r, b -> GlucoseMetrics.of(readings, nowS - r.windowS, nowS, b) },
     ) {
         val latest = readings.maxByOrNull { it.t }
         val fr = Freshness.of(latest?.let { nowS - it.t })
@@ -106,7 +180,7 @@ object GlucoseCard {
 
         if (st.value) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
-            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st.rings, bands, pal, d, tirOf)
+            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st.rings, bands, pal, d, metricsOf)
             drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d)
         }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
@@ -122,7 +196,7 @@ object GlucoseCard {
 
     /** Rings right-aligned in [box] (main rightmost); returns the width used. */
     private fun drawRings(cv: Canvas, box: RectF, rings: List<RingSpec>, bands: Bands, pal: GraphPalette, d: Float,
-                          tirOf: (RingSpec, Bands) -> TimeInRange): Float {
+                          metricsOf: (RingSpec, Bands) -> GlucoseMetrics): Float {
         if (rings.isEmpty()) return 0f
         val size = min(box.height() * 0.96f, 84 * d)
         if (size < 30 * d) return 0f
@@ -131,9 +205,11 @@ object GlucoseCard {
         var x = box.right
         var used = 0f
         for ((i, spec) in rings.take(fit).withIndex()) {
-            val tir = tirOf(spec, bands)
-            if (tir.coverage < MIN_COVERAGE) continue
-            TirRing.draw(cv, x - size / 2, box.centerY(), size / 2, tir, spec, pal, RING_EMPHASIS[i], d)
+            val m = metricsOf(spec, bands)
+            if (m.tir.coverage < MIN_COVERAGE) continue
+            val e = if (spec.faded) RING_EMPHASIS[i] else 1f
+            if (spec.kind == SlotKind.TIR) TirRing.draw(cv, x - size / 2, box.centerY(), size / 2, m.tir, spec, pal, e, d)
+            else MetricGauge.draw(cv, x - size / 2, box.centerY(), size / 2, m, spec, pal, e, d)
             x -= size + gap
             used += size + gap
         }

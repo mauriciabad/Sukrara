@@ -60,7 +60,9 @@ import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.RingSpec
-import app.mauri.sukrara.graph.TimeInRange
+import app.mauri.sukrara.graph.GlucoseMetrics
+import app.mauri.sukrara.graph.MetricGauge
+import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRing
 import app.mauri.sukrara.graph.systemPalette
 import kotlinx.coroutines.Dispatchers
@@ -124,9 +126,9 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
     val history by produceState(emptyList<Reading>(), t, hours, now / 300) {
         value = withContext(Dispatchers.IO) { GraphData.readings(ctx, Proto.nowS() - hours * 3600L - 60) }
     }
-    val rings by produceState(emptyList<Pair<RingSpec, TimeInRange>>(), t, cfg, now / 300) {
+    val rings by produceState(emptyList<Pair<RingSpec, GlucoseMetrics>>(), t, cfg, now / 300) {
         value = withContext(Dispatchers.IO) {
-            cfg.rings().map { it to GraphData.tir(ctx, it.windowS, cfg.bands) }.filter { it.second.coverage >= GlucoseCard.MIN_COVERAGE }
+            cfg.rings().map { it to GraphData.metrics(ctx, it.windowS, cfg.bands) }.filter { it.second.tir.coverage >= GlucoseCard.MIN_COVERAGE }
         }
     }
     val color by animateColorAsState(
@@ -157,8 +159,10 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
                     val (s2, t2) = rings[idx]
                     Canvas(Modifier.padding(start = 8.dp).size(68.dp)) {
                         drawIntoCanvas {
-                            TirRing.draw(it.nativeCanvas, size.width / 2, size.height / 2, size.minDimension / 2, t2, s2, pal,
-                                floatArrayOf(1f, 0.55f, 0.35f)[idx], density)
+                            val e = if (s2.faded) floatArrayOf(1f, 0.55f, 0.35f)[idx] else 1f
+                            val r = size.minDimension / 2
+                            if (s2.kind == SlotKind.TIR) TirRing.draw(it.nativeCanvas, size.width / 2, size.height / 2, r, t2.tir, s2, pal, e, density)
+                            else MetricGauge.draw(it.nativeCanvas, size.width / 2, size.height / 2, r, t2, s2, pal, e, density)
                         }
                     }
                 }

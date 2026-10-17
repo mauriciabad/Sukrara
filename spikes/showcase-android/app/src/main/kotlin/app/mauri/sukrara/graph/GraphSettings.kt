@@ -15,7 +15,7 @@ enum class GraphPlace(val label: String) { APP("App"), NOTIFICATION("Notificatio
 
 /** Choices offered in Settings. */
 val WINDOW_HOURS = listOf(3, 6, 12, 24)
-val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L)
+val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
 
 /**
  * Everything the graph and ring settings decide (investigation 16), for every role. Plain prefs + one StateFlow like
@@ -26,15 +26,16 @@ data class GraphConfig(
     val defaultHours: Int = 12,
     /** Per place; absent = [defaultHours]. */
     val placeHours: Map<GraphPlace, Int> = emptyMap(),
-    /** How many rings show (0–3); the windows of all three, main first. */
+    /** How many slots show (0–3); all three slots (kind, window, faded), main first. */
     val ringCount: Int = 2,
-    val ringWindows: List<Long> = listOf(86400L, 7 * 86400L, 14 * 86400L),
+    val slots: List<RingSpec> = DEFAULT_SLOTS,
+    /** What a time-in-range ring counts in the middle. */
     val ringRange: TirRange = TirRange.IN_RANGE,
     /** The time-in-range rectangles + distribution beside the chart (each widget can turn it off on its own). */
     val side: Boolean = true,
 ) {
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
-    fun rings(count: Int = ringCount, range: TirRange = ringRange) = ringWindows.take(count.coerceIn(0, 3)).map { RingSpec(it, range) }
+    fun rings(count: Int = ringCount, range: TirRange = ringRange) = slots.take(count.coerceIn(0, 3)).map { it.copy(range = range) }
     fun graphStyle(hours: Int, hour24: Boolean) =
         GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24)
 
@@ -43,7 +44,8 @@ data class GraphConfig(
         .put("veryHigh", bands.veryHigh)
         .put("defaultHours", defaultHours)
         .put("placeHours", JSONObject().apply { placeHours.forEach { (k, v) -> put(k.name, v) } })
-        .put("ringCount", ringCount).put("ringWindows", ringWindows.joinToString(",")).put("ringRange", ringRange.name)
+        .put("ringCount", ringCount).put("ringRange", ringRange.name)
+        .put("slots", slots.joinToString(",") { "${it.kind.name}:${it.windowS}:${if (it.faded) 1 else 0}" })
         .put("side", side)
 
     companion object {
@@ -57,8 +59,12 @@ data class GraphConfig(
                     GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS }?.let { k to it } }.toMap()
                 } ?: emptyMap(),
                 ringCount = o.optInt("ringCount", d.ringCount).coerceIn(0, 3),
-                ringWindows = o.optString("ringWindows").split(",").mapNotNull { it.toLongOrNull() }
-                    .filter { it in RING_WINDOWS_S }.takeIf { it.size == 3 } ?: d.ringWindows,
+                slots = o.optString("slots").split(",").mapNotNull { e ->
+                    val p = e.split(":")
+                    val kind = runCatching { SlotKind.valueOf(p[0]) }.getOrNull() ?: return@mapNotNull null
+                    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf { it in RING_WINDOWS_S } ?: return@mapNotNull null
+                    RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
+                }.takeIf { it.size == 3 } ?: d.slots,
                 ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrDefault(d.ringRange),
                 side = o.optBoolean("side", d.side),
             )
@@ -90,6 +96,9 @@ data class WidgetGraphConfig(
         )
     }
 }
+
+/** Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report. */
+val DEFAULT_SLOTS = listOf(RingSpec(86400L), RingSpec(7 * 86400L), RingSpec(14 * 86400L, kind = SlotKind.GMI))
 
 object GraphSettings {
     private var prefs: SharedPreferences? = null

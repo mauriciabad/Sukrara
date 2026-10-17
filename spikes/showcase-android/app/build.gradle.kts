@@ -76,7 +76,9 @@ kotlin {
     jvmToolchain(17)
 }
 
-// Robolectric's SDK 36 sandbox (the graph gallery) needs Java 21+: run unit tests on GALLERY_JAVA_HOME when set.
+// Robolectric's SDK 36 sandbox (the graph/report galleries) needs Java 21+: run unit tests on GALLERY_JAVA_HOME when
+// set, else leave the galleries out so `testDebugUnitTest` passes on the build's JDK 17.
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",
@@ -89,6 +91,10 @@ dependencies {
   testImplementation("org.robolectric:robolectric:4.17")
   testImplementation("org.ow2.asm:asm-commons:9.11")
   testImplementation("org.ow2.asm:asm-tree:9.11")
+  // investigation 18: the report card (Compose) rendered on the JVM for the report pictures
+  testImplementation(platform(libs.androidx.compose.bom))
+  testImplementation("androidx.compose.ui:ui-test-junit4")
+  debugImplementation("androidx.compose.ui:ui-test-manifest")
   testImplementation("org.json:json:20250517")   // real org.json for JVM tests (Android's is a stub there)
   // SystemUI module (investigation 05): provided by LSPosed/Vector at runtime
   compileOnly("io.github.libxposed:api:102.0.0")

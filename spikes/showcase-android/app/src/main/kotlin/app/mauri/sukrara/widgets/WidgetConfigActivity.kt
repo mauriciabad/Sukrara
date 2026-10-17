@@ -154,7 +154,7 @@ private fun Preview(kind: WidgetKind, w: WidgetGraphConfig, size: SizeF) {
             createBitmap((bw * d * scale).toInt().coerceAtLeast(16), (bh * d * scale).toInt().coerceAtLeast(16)).also {
                 GlucoseCard.draw(android.graphics.Canvas(it), it.width.toFloat(), it.height.toFloat(), frame.history,
                     frame.treatments, frame.nowSec, cardStyle(ctx, kind, w), systemPalette(ctx), d * scale,
-                    tirOf = { r, b -> GraphData.tir(ctx, r.windowS, b, frame.nowSec) })
+                    metricsOf = { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
             }
         }
     }

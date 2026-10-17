@@ -571,7 +571,7 @@ class OwnerEngine(private val ctx: Context) {
         if (Proto.nowS() - s.backupPublishedAt > 7 * Proto.DAY) publishBackup()
         if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
         if (Proto.nowS() - lastInboxCheck > chunkEvery() - 30) scope.launch { checkInbox("tick") }
-        db.prune(Proto.nowS() - 15 * Proto.DAY)   // the 14-day time-in-range ring (investigation 16)
+        db.prune(Proto.nowS() - 31 * Proto.DAY)   // 30-day slots and report (investigations 16, 18)
     }
 
     private fun markRecentDirty() {

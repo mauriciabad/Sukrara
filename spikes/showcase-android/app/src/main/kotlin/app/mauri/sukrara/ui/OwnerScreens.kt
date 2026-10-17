@@ -131,6 +131,7 @@ fun OwnerHome(u: OwnerUi, relays: Map<String, RelayStats>, log: List<String>, a:
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         if (u.source == "direct: no sensor")
             Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text("Scan your sensor") }
+        GlucoseReport(u.last?.t)
         TreatmentsSection()
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) { Text("Share with someone") }
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

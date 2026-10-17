@@ -27,6 +27,8 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.RING_WINDOWS_S
+import app.mauri.sukrara.graph.RingSpec
+import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
 import app.mauri.sukrara.graph.periodLabel
@@ -42,7 +44,7 @@ fun GraphRow(onClick: () -> Unit) {
     val g by GraphSettings.state.collectAsState()
     ValueRow("Graph & time in range",
         "${g.defaultHours} h · ranges ${g.bands.veryLow}/${g.bands.low}–${g.bands.tight}–${g.bands.high}/${g.bands.veryHigh} · " +
-            if (g.ringCount == 0) "no rings" else g.rings().joinToString(" + ") { it.period },
+            if (g.ringCount == 0) "no rings" else g.rings().joinToString(" + ") { "${it.kind.short.ifEmpty { "TIR" }} ${it.period}" },
         enabled = true, onClick = onClick)
 }
 
@@ -92,19 +94,23 @@ fun GraphScreen(onBack: () -> Unit) {
         }
         Note("Each widget can have its own window: touch and hold it, then tap Reconfigure.")
 
-        SectionTitle("Time in range rings")
+        SectionTitle("Beside the number")
         Chips(listOf(0, 1, 2, 3), g.ringCount, { if (it == 0) "None" else "$it" }) { n -> set { it.copy(ringCount = n) } }
         for (i in 0 until g.ringCount) {
-            Text(listOf("Main ring", "Second ring", "Third ring")[i], style = MaterialTheme.typography.bodyMedium)
-            Chips(RING_WINDOWS_S, g.ringWindows[i], ::periodLabel) { w ->
-                set { it.copy(ringWindows = it.ringWindows.toMutableList().also { l -> l[i] = w }) }
-            }
+            val slot = g.slots[i]
+            fun setSlot(f: (RingSpec) -> RingSpec) = set { it.copy(slots = it.slots.toMutableList().also { l -> l[i] = f(l[i]) }) }
+            Text(listOf("Main", "Second", "Third")[i], style = MaterialTheme.typography.titleSmall)
+            Chips(SlotKind.entries, slot.kind, { it.label }) { k -> setSlot { s -> s.copy(kind = k) } }
+            Chips(RING_WINDOWS_S, slot.windowS, ::periodLabel) { w -> setSlot { s -> s.copy(windowS = w) } }
+            if (i > 0) Toggle("Fainter than the main one", slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
         }
-        Text("Number in the middle", style = MaterialTheme.typography.bodyMedium)
+        Text("Time in range counts", style = MaterialTheme.typography.bodyMedium)
         Chips(TirRange.entries, g.ringRange, { "${it.label} (${g.bands.low}–${if (it == TirRange.TIGHT) g.bands.tight else g.bands.high})" }) { r ->
             set { it.copy(ringRange = r) }
         }
-        Note("Rings that don't fit are hidden, the last one first. A ring needs data for at least a quarter of its window.")
+        Note("Each slot is a time-in-range ring or a number from your doctor's report: GMI, average glucose or " +
+            "variability (CV), with a green arc when its goal is met. Slots that don't fit are hidden, the last one " +
+            "first. A slot needs data for at least a quarter of its window.")
 
         SectionTitle("Beside the graph")
         Toggle("Time in range and distribution", g.side,

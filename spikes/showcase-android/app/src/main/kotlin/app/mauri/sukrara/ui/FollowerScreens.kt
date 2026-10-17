@@ -190,6 +190,7 @@ fun FollowerHome(u: FollowerUi, relays: Map<String, RelayStats>, log: List<Strin
             }
         }
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
+        GlucoseReport(l?.t)
         Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FollowerEntries(u)
             // item 1: only a roster writer may add entries; follows the newest roster live (cross-fades when it changes)
