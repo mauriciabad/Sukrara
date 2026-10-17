@@ -71,7 +71,7 @@ removed from the code; the only switch left is the distribution + % on or off (a
 
 **Rectangles removed (the user, 0.11.9):** the time-in-range rectangles behind the dots (as wide as each range's
 share) cluttered the chart. The % labels and the dots carry the same information; the rectangles are gone from every
-surface. (The pictures in this report were drawn before that.)
+surface. The pictures in this report show the current design, except the options comparison above and the menubar dropdown.
 
 ## Freshness
 
