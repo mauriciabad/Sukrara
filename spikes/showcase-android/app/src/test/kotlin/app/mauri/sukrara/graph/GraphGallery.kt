@@ -39,26 +39,6 @@ class GraphGallery {
         clear(); set(2026, 9, 17, 22, 14); timeInMillis / 1000
     }
 
-    @Test fun profiles() {
-        val data = Synthetic.days(now, 15)
-        for (dark in listOf(true, false)) {
-            val pal = GraphPalette.of(dark)
-            val tiles = Profile.entries.flatMap { p ->
-                listOf(true, false).filter { p != Profile.NONE || it }.map { dots ->
-                    Tile("${p.label}${if (p == Profile.NONE) "" else if (dots) " · dots" else " · area"}", p.blurb) { cv, w, h ->
-                        GlucoseCard.draw(cv, w, h, data, emptyList(), now,
-                            CardStyle(graph = GraphStyle(profile = p, profileDots = dots, hour24 = false), value = false), pal, d)
-                    }
-                }
-            }
-            sheet("profiles-${if (dark) "dark" else "light"}", tiles, 380f, 180f, cols = 2, pal)
-        }
-    }
-
-    /**
-     * The same sheets on real readings, for looking at locally (never committed): `-Dgallery.real=<entries.json>`
-     * (Nightscout `/api/v1/entries.json` from the phone).
-     */
     @Test fun real() {
         val f = System.getProperty("gallery.real")?.let(::File)?.takeIf { it.exists() } ?: return
         val arr = org.json.JSONArray(f.readText())
@@ -67,17 +47,6 @@ class GraphGallery {
             .sortedBy { it.t }
         val end = data.last().t + 20
         val pal = GraphPalette.DARK
-        for ((name, win) in listOf("12h" to 12 * 3600L, "24h" to 24 * 3600L)) {
-            val tiles = Profile.entries.flatMap { p ->
-                listOf(true, false).filter { p != Profile.NONE || it }.map { dots ->
-                    Tile("${p.label}${if (p == Profile.NONE) "" else if (dots) " · dots" else " · area"}", p.blurb) { cv, w, h ->
-                        GlucoseCard.draw(cv, w, h, data, emptyList(), end,
-                            CardStyle(graph = GraphStyle(windowS = win, profile = p, profileDots = dots), value = false), pal, d)
-                    }
-                }
-            }
-            sheet("real-profiles-$name", tiles, 380f, 180f, cols = 2, pal)
-        }
         sheet("real-card", listOf(Tile("your last 12 h", "") { cv, w, h ->
             GlucoseCard.draw(cv, w, h, data, emptyList(), end, CardStyle(rings = listOf(RingSpec(86400), RingSpec(86400, TirRange.TIGHT))), pal, d)
         }), 560f, 270f, cols = 1, pal)
@@ -195,8 +164,8 @@ object Synthetic {
             fun at(h: Double) = day + (h * 3600).toLong() - tz.getOffset(day * 1000) / 1000 + 0
             meals += Meal(at(8.0 + rnd.nextGaussian() * 0.4), 45 + rnd.nextDouble() * 50, 45 + rnd.nextDouble() * 20)
             meals += Meal(at(13.8 + rnd.nextGaussian() * 0.5), 55 + rnd.nextDouble() * 75, 55 + rnd.nextDouble() * 25)
-            meals += Meal(at(20.6 + rnd.nextGaussian() * 0.4), 50 + rnd.nextDouble() * 70, 60 + rnd.nextDouble() * 25)
-            if (rnd.nextDouble() < 0.6) dips += at(17.0 + rnd.nextGaussian() * 0.6) to (25 + rnd.nextDouble() * 30)
+            meals += Meal(at(20.6 + rnd.nextGaussian() * 0.4), 50 + rnd.nextDouble() * 115, 60 + rnd.nextDouble() * 25)
+            if (rnd.nextDouble() < 0.6) dips += at(17.0 + rnd.nextGaussian() * 0.6) to (25 + rnd.nextDouble() * 45)
             day += 86400
         }
         var walk = 0.0

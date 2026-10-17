@@ -122,7 +122,40 @@ colours (the LSPosed hook gets them in its state broadcast) and the notification
 
 ## Mac
 
-*(filled in from the Mac port)*
+The same renderer, ported line for line to Swift + CoreGraphics in one shared file
+([`spikes/widgets-macos/Shared/SukraraGraph.swift`](../spikes/widgets-macos/Shared/SukraraGraph.swift)) that both the
+menubar app (a symlink in its SwiftPM target) and the widget extension compile. Same ranges, weights, six
+algorithms, freshness steps, colours and layout.
+
+| | |
+|---|---|
+| ![menubar](img/16/mac-menubar-dropdown-dark.png) | ![large](img/16/mac-widget-large-light.png) |
+| Menubar dropdown: the card (12 h) replaces the 3 h sparkline and the "x min ago / rate" lines; treatments as before | Large widget, light |
+
+![two configs](img/16/mac-widget-two-configs-dark.png)
+
+*The same medium widget twice: app settings (left) and its own settings (right: 3 h, one "very good" ring, no
+distribution).*
+
+- **Menubar number:** red below range, orange above, normal ink in range (the fixed 65/145/185 are gone); struck
+  through when stale, "–" from 20 min. A **Graph** submenu sets window, rings, the ring's range, distribution and dots.
+  Settings are `UserDefaults` (`graphHours`, `menubarHours`, `widgetHours`, `ringCount`, `ringWindows`, `ringRange`,
+  `bandLow`/`bandTight`/`bandHigh`, `profile`, `profileDots`).
+- **History for the rings:** the Mac kept 3 h (menu) / 12 h (widget feed). A small store
+  (`~/Library/Application Support/Sukrara/readings.csv`, every reading merged ±20 s, 15 days) now feeds the rings.
+- **Widgets:** the widget file (v2, replaces v1) carries the graph settings, 24 h of readings and the ring numbers
+  precomputed from the store, so the sandboxed extension needs no database. The timeline adds an entry at each
+  freshness step.
+- **Per widget on macOS:** App Intents configuration (window, rings, ring range, distribution on/off), the macOS
+  equivalent of Android's Reconfigure ("Edit Widget"). The widget is built without an Xcode project, so
+  [`appintents.sh`](../spikes/widgets-macos/appintents.sh) runs Xcode's `appintentsmetadataprocessor` itself (needs
+  Xcode installed; without it the widget builds without the options). The generated metadata has the intent and its
+  four parameters. **Not yet seen in the real widget host:** that needs the team-signed Sukrara.app, which is the
+  user's daily copy.
+
+| small | medium | xl |
+|---|---|---|
+| ![s](img/16/mac-widget-small-dark.png) | ![m](img/16/mac-widget-medium-dark.png) | ![xl](img/16/mac-widget-xl-dark.png) |
 
 ## Code
 

@@ -151,7 +151,7 @@ private fun realSize(appWidgetId: Int?): DpSize {
 fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
     val cfg = GraphSettings.value
     val graph = cfg.graphStyle(w.hours ?: cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(c))
-        .copy(side = w.side)
+        .copy(side = w.side ?: cfg.side)
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
     return when (kind) {
         WidgetKind.VALUE -> CardStyle(graph = null, rings = rings)

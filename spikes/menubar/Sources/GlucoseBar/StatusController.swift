@@ -4,11 +4,12 @@
 import AppKit
 
 extension Bands {
-    /// Menubar number colour (investigation 16): below range red, above orange, in range the menubar's own ink.
+    /// Menubar number colour (investigation 16): below range (low or very low) red, above (high or very high) orange,
+    /// in range the menubar's own ink.
     func color(for mgdl: Double) -> NSColor? {
-        switch of(mgdl) {
-        case .low: .systemRed
-        case .high: .systemOrange
+        switch of(mgdl).group {
+        case 0: .systemRed
+        case 2: .systemOrange
         default: nil
         }
     }
@@ -22,7 +23,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 200))
 
     var unit: GlucoseUnit = .mgdl
-    /// Investigation 16: ranges, window, rings, profile (UserDefaults, `menubarHours` over `graphHours`).
+    /// Investigation 16: ranges, window, rings, side (UserDefaults, `menubarHours` over `graphHours`).
     private(set) var graph = GraphConfig.load(place: "menubar")
     /// The 15-day history the card and its rings draw from (ReadingsStore).
     var history: (() -> [GraphReading])?
@@ -223,11 +224,11 @@ final class StatusController: NSObject, NSMenuDelegate {
         header("Time in range rings")
         for n in 0...3 { option(n == 0 ? "None" : "\(n): " + graph.ringWindows.prefix(n).map(periodLabel).joined(separator: " + "), graph.ringCount == n, "ringCount", n) }
         for r in TirRange.allCases { option("Number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
-        header("Distribution beside the graph")
-        for p in Profile.allCases { option(p.label, graph.profile == p, "profile", p.rawValue) }
-        option("Draw it as dots", graph.profileDots, "profileDots", !graph.profileDots)
         menu.addItem(.separator())
-        let note = menu.addItem(withTitle: "Ranges: bandLow / bandTight / bandHigh (defaults write)", action: nil, keyEquivalent: "")
+        option("Time in range beside the graph", graph.side, "side", !graph.side)
+        let b = graph.bands
+        let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) (defaults write band…)",
+                                action: nil, keyEquivalent: "")
         note.isEnabled = false
     }
 

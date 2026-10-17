@@ -117,7 +117,7 @@ class WidgetConfigActivity : ComponentActivity() {
                                 Text("The distribution and rectangles on the left", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline)
                             }
-                            Switch(w.side, { w = w.copy(side = it) })
+                            Switch(w.side ?: app.side, { w = w.copy(side = it) })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { w = WidgetGraphConfig() }) { Text("Use app settings") }

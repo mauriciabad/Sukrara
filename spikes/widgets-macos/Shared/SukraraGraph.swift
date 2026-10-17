@@ -13,27 +13,36 @@ import CoreText
 
 // MARK: - Model
 
-/// The user's major ranges, mg/dL: low < `low` ≤ in range ≤ `high` < high; "very good" (tight) = `low`…`tight`.
+/// The user's ranges, mg/dL: very low < `veryLow` ≤ low < `low` ≤ in range ≤ `high` < high ≤ `veryHigh` < very high;
+/// "very good" (tight) = `low`…`tight`, inside in range.
 struct Bands: Codable, Equatable, Hashable {
-    var low = 70, tight = 140, high = 180
+    var veryLow = 54, low = 70, tight = 140, high = 180, veryHigh = 250
 
     func of(_ mgdl: Double) -> Band {
+        if mgdl < Double(veryLow) { return .veryLow }
         if mgdl < Double(low) { return .low }
         if mgdl <= Double(tight) { return .tight }
         if mgdl <= Double(high) { return .target }
-        return .high
+        if mgdl <= Double(veryHigh) { return .high }
+        return .veryHigh
     }
 
     /// Clamped so the order always holds.
     func sane() -> Bands {
         let l = min(max(low, 40), 120)
         let h = min(max(high, l + 20), 300)
-        return Bands(low: l, tight: min(max(tight, l + 10), h), high: h)
+        return Bands(veryLow: min(max(veryLow, 30), l - 5), low: l, tight: min(max(tight, l + 10), h), high: h,
+                     veryHigh: min(max(veryHigh, h + 10), 400))
     }
 }
 
-/// `.target` = in range but above the tight band; "in range" = tight + target.
-enum Band: Int, CaseIterable { case low, tight, target, high }
+/// `.target` = in range but above the tight band; "in range" = tight + target; below = veryLow + low; above =
+/// high + veryHigh.
+enum Band: Int, CaseIterable {
+    case veryLow, low, tight, target, high, veryHigh
+    /// 0 = below range, 1 = in range, 2 = above.
+    var group: Int { switch self { case .veryLow, .low: 0; case .tight, .target: 1; case .high, .veryHigh: 2 } }
+}
 
 enum TirRange: String, Codable, CaseIterable {
     case inRange = "IN_RANGE", tight = "TIGHT"
@@ -41,30 +50,20 @@ enum TirRange: String, Codable, CaseIterable {
 }
 
 /// Share of time per band in a window (each reading stands for the time until the next one, capped at 15 min).
+/// `low` / `high` are the LOW / HIGH bands only; `below` / `above` include the very low / very high ones.
 struct TimeInRange: Codable, Equatable {
-    var low = 0.0, tight = 0.0, target = 0.0, high = 0.0, coverage = 0.0
+    var veryLow = 0.0, low = 0.0, tight = 0.0, target = 0.0, high = 0.0, veryHigh = 0.0, coverage = 0.0
     var inRange: Double { tight + target }
+    var below: Double { veryLow + low }
+    var above: Double { high + veryHigh }
     var empty: Bool { coverage <= 0 }
     func of(_ r: TirRange) -> Double { r == .tight ? tight : inRange }
     func share(_ b: Band) -> Double {
-        switch b { case .low: low; case .tight: tight; case .target: target; case .high: high }
-    }
-    static let none = TimeInRange()
-}
-
-/// The distribution drawn on the left of the chart. Same six options as Android.
-enum Profile: String, Codable, CaseIterable {
-    case none = "NONE", histogram = "HISTOGRAM", kde = "KDE", kdeLog = "KDE_LOG", occupation = "OCCUPATION", bandExact = "BAND_EXACT"
-    var label: String {
-        switch self {
-        case .none: "Bands only"
-        case .histogram: "Histogram"
-        case .kde: "Gaussian (fixed)"
-        case .kdeLog: "Gaussian (relative)"
-        case .occupation: "Time at level"
-        case .bandExact: "Time at level, band-exact"
+        switch b {
+        case .veryLow: veryLow; case .low: low; case .tight: tight; case .target: target; case .high: high; case .veryHigh: veryHigh
         }
     }
+    static let none = TimeInRange()
 }
 
 /// One reading for the graph: epoch seconds, mg/dL, rate mg/dL/min.
@@ -110,51 +109,28 @@ enum GlucoseStats {
     static func timeInRange(_ all: [GraphReading], from: TimeInterval, to: TimeInterval, bands b: Bands) -> TimeInRange {
         let rs = window(all, from: from, to: to)
         let w = weights(rs, to: to)
-        var sum = [0.0, 0.0, 0.0, 0.0]
+        var sum = Array(repeating: 0.0, count: Band.allCases.count)
         for (i, r) in rs.enumerated() { sum[b.of(Double(r.sgv)).rawValue] += w[i] }
         let total = sum.reduce(0, +)
         guard total > 0 else { return .none }
-        return TimeInRange(low: sum[0] / total, tight: sum[1] / total, target: sum[2] / total, high: sum[3] / total,
-                           coverage: min(1, total / (to - from)))
+        return TimeInRange(veryLow: sum[0] / total, low: sum[1] / total, tight: sum[2] / total, target: sum[3] / total,
+                           high: sum[4] / total, veryHigh: sum[5] / total, coverage: min(1, total / (to - from)))
     }
 
-    /// Relative time at each level, index = mg/dL − minMg, normalised to sum 1.
-    static func profile(_ kind: Profile, _ all: [GraphReading], from: TimeInterval, to: TimeInterval, bands b: Bands,
-                        tir: TimeInRange) -> [Double] {
+    /// The distribution beside the graph ("time at level, band-exact"): between two readings ≤ 15 min apart glucose is
+    /// taken to move linearly, so their time is spread over every level passed; lightly smoothed (σ 4 mg/dL), then each
+    /// band rescaled so its area equals its time share. Index = mg/dL − minMg; sums to 1.
+    static func timeAtLevel(_ all: [GraphReading], from: TimeInterval, to: TimeInterval, bands b: Bands, tir: TimeInRange) -> [Double] {
         let n = maxMg - minMg + 1
         let rs = window(all, from: from, to: to)
-        if rs.isEmpty || kind == .none { return Array(repeating: 0, count: n) }
-        let w = weights(rs, to: to)
-        var d = Array(repeating: 0.0, count: n)
-        switch kind {
-        case .histogram:
-            var bins: [Int: Double] = [:]
-            for (i, r) in rs.enumerated() { bins[Int(floor(Double(r.sgv) / 10)), default: 0] += w[i] }
-            for (bin, m) in bins { for k in 0..<10 { if let i = idx(bin * 10 + k) { d[i] += m / 10 } } }
-        case .kde:
-            for (i, r) in rs.enumerated() { addGauss(&d, mu: Double(r.sgv), s: 10, w: w[i]) }
-        case .kdeLog:
-            let s = 0.07
-            for (i, r) in rs.enumerated() {
-                let mu = Foundation.log(Double(r.sgv))
-                for k in 0..<n {
-                    let g = Double(minMg + k)
-                    let z = (Foundation.log(g) - mu) / s
-                    if abs(z) < 4 { d[k] += w[i] * exp(-0.5 * z * z) / g }
-                }
-            }
-        case .occupation, .bandExact:
-            d = smooth(occupation(rs), s: 4)
-        case .none: break
-        }
+        if rs.isEmpty { return Array(repeating: 0, count: n) }
+        var d = smooth(occupation(rs), s: 4)
         let s = d.reduce(0, +)
         if s > 0 { d = d.map { $0 / s } }
-        if kind == .bandExact {
-            for band in Band.allCases {
-                let ks = (0..<n).filter { b.of(Double(minMg + $0)) == band }
-                let area = ks.reduce(0) { $0 + d[$1] }
-                if area > 0 { for k in ks { d[k] *= tir.share(band) / area } }
-            }
+        for band in Band.allCases {
+            let ks = (0..<n).filter { b.of(Double(minMg + $0)) == band }
+            let area = ks.reduce(0) { $0 + d[$1] }
+            if area > 0 { for k in ks { d[k] *= tir.share(band) / area } }
         }
         return d
     }
@@ -174,12 +150,6 @@ enum GlucoseStats {
     }
 
     private static func idx(_ mg: Int) -> Int? { (0...(maxMg - minMg)).contains(mg - minMg) ? mg - minMg : nil }
-
-    private static func addGauss(_ out: inout [Double], mu: Double, s: Double, w: Double) {
-        let lo = max(minMg, Int(mu - 4 * s)), hi = min(maxMg, Int((mu + 4 * s).rounded()))
-        guard lo <= hi else { return }
-        for g in lo...hi { let z = (Double(g) - mu) / s; out[g - minMg] += w * exp(-0.5 * z * z) }
-    }
 
     private static func smooth(_ d: [Double], s: Double) -> [Double] {
         let r = Int(3 * s)
@@ -228,27 +198,30 @@ enum Freshness {
 /// Colours (same hex values as GraphPalette.kt).
 struct GraphPalette {
     var dark: Bool
-    var bg, ink, inkSoft, grid, low, tight, target, high: CGColor
+    var bg, ink, inkSoft, grid, veryLow, low, tight, target, high, veryHigh: CGColor
 
     func of(_ b: Band) -> CGColor {
-        switch b { case .low: low; case .tight: tight; case .target: target; case .high: high }
+        switch b {
+        case .veryLow: veryLow; case .low: low; case .tight: tight; case .target: target; case .high: high; case .veryHigh: veryHigh
+        }
     }
 
     static func hex(_ v: UInt32) -> CGColor {
         CGColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
     static let darkPalette = GraphPalette(dark: true, bg: hex(0x1C1C1E), ink: hex(0xF2F2F2), inkSoft: hex(0xA3A3A8), grid: hex(0x3A3A3E),
-                                          low: hex(0xF0524F), tight: hex(0x3DD47A), target: hex(0x8CC63F), high: hex(0xF5A524))
+                                          veryLow: hex(0xC2413B), low: hex(0xF0524F), tight: hex(0x3DD47A), target: hex(0x8CC63F),
+                                          high: hex(0xF5A524), veryHigh: hex(0xFF7A45))
     static let lightPalette = GraphPalette(dark: false, bg: hex(0xFFFFFF), ink: hex(0x1C1C1E), inkSoft: hex(0x6B6B70), grid: hex(0xDADADF),
-                                           low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E), high: hex(0xD97706))
+                                           veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
+                                           high: hex(0xD97706), veryHigh: hex(0xC2410C))
     static func of(dark: Bool) -> GraphPalette { dark ? darkPalette : lightPalette }
 }
 
 struct GraphStyle {
     var window: TimeInterval = 12 * 3600
     var bands = Bands()
-    var profile: Profile = .bandExact
-    var profileDots = true
+    /// The time in range beside the graph: rectangles, the distribution dots and the % labels.
     var side = true
     var axisLabels = true
     var treatments = true
@@ -283,31 +256,30 @@ struct GraphConfig: Codable, Equatable {
     var ringCount = 2
     var ringWindows: [TimeInterval] = [86400, 7 * 86400, 14 * 86400]
     var ringRange: TirRange = .inRange
-    var profile: Profile = .bandExact
-    var profileDots = true
+    var side = true
 
     static let windowHours = [3, 6, 12, 24]
     static let ringChoices: [TimeInterval] = [12 * 3600, 86400, 3 * 86400, 7 * 86400, 14 * 86400]
 
     var rings: [RingSpec] { Array(ringWindows.prefix(max(0, min(3, ringCount)))).map { RingSpec(window: $0, range: ringRange) } }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
-        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, profile: profile, profileDots: profileDots)
+        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side)
     }
 
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, ringWindows "86400,604800,1209600", ringRange
-    /// IN_RANGE|TIGHT, bandLow/bandTight/bandHigh, profile (Profile raw value), profileDots.
+    /// IN_RANGE|TIGHT, bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh, side (time in range beside the graph).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
         func int(_ k: String) -> Int? { d.object(forKey: k) != nil ? d.integer(forKey: k) : nil }
-        c.bands = Bands(low: int("bandLow") ?? 70, tight: int("bandTight") ?? 140, high: int("bandHigh") ?? 180).sane()
+        c.bands = Bands(veryLow: int("bandVeryLow") ?? 54, low: int("bandLow") ?? 70, tight: int("bandTight") ?? 140,
+                        high: int("bandHigh") ?? 180, veryHigh: int("bandVeryHigh") ?? 250).sane()
         let h = place.flatMap { int("\($0)Hours") } ?? int("graphHours") ?? 12
         c.hours = windowHours.contains(h) ? h : 12
         c.ringCount = max(0, min(3, int("ringCount") ?? 2))
         let w = (d.string(forKey: "ringWindows") ?? "").split(separator: ",").compactMap { TimeInterval($0) }
         if w.count == 3, w.allSatisfy(ringChoices.contains) { c.ringWindows = w }
         c.ringRange = TirRange(rawValue: d.string(forKey: "ringRange") ?? "") ?? .inRange
-        c.profile = Profile(rawValue: d.string(forKey: "profile") ?? "") ?? .bandExact
-        c.profileDots = d.object(forKey: "profileDots") == nil ? true : d.bool(forKey: "profileDots")
+        c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
         return c
     }
 }
@@ -418,6 +390,20 @@ enum GlucoseGraph {
         if labels {
             for v in [b.low, b.high] { Ink.draw(ctx, "\(v)", x: right + 4 * d, y: y(Double(v)) + 10 * d / 3, text, pal.inkSoft) }
         }
+        // Very low / very high: a faint dashed line and its value, only when the y range reaches it.
+        ctx.saveGState()
+        ctx.setStrokeColor(pal.grid)
+        ctx.setLineWidth(1 * d)
+        ctx.setLineDash(phase: 0, lengths: [4 * d, 4 * d])
+        for v in [b.veryLow, b.veryHigh] where Double(v) >= yMin && Double(v) <= yMax {
+            ctx.strokeLineSegments(between: [CGPoint(x: left, y: y(Double(v))), CGPoint(x: right, y: y(Double(v)))])
+            // its value only where it can't touch the low / high label next to it
+            let near = v == b.veryLow ? b.low : b.high
+            if labels && abs(y(Double(v)) - y(Double(near))) >= 11 * d {
+                Ink.draw(ctx, "\(v)", x: right + 4 * d, y: y(Double(v)) + 10 * d / 3, text, pal.inkSoft)
+            }
+        }
+        ctx.restoreGState()
 
         // Time-in-range rectangles from the left edge.
         if sideW > 0 {
@@ -427,10 +413,13 @@ enum GlucoseGraph {
                 ctx.setFillColor(c.a(alpha))
                 ctx.fill(CGRect(x: left, y: y0, width: sideW * CGFloat(share), height: y1 - y0))
             }
-            rect(tir.high, pal.high, top, y(Double(b.high)), a)
+            let inner = pal.dark ? 0x40 : 0x34
+            rect(tir.above, pal.high, top, y(Double(b.high)), a)
+            rect(tir.veryHigh, pal.veryHigh, top, y(Double(b.veryHigh)), inner)       // y() clamps to the plot
             rect(tir.inRange, pal.target, y(Double(b.high)), y(Double(b.low)), a)
-            rect(tir.tight, pal.tight, y(Double(b.tight)), y(Double(b.low)), pal.dark ? 0x40 : 0x34)
-            rect(tir.low, pal.low, y(Double(b.low)), plotBottom, a)
+            rect(tir.tight, pal.tight, y(Double(b.tight)), y(Double(b.low)), inner)
+            rect(tir.below, pal.low, y(Double(b.low)), plotBottom, a)
+            rect(tir.veryLow, pal.veryLow, y(Double(b.veryLow)), plotBottom, inner)
         }
 
         // The line: a dot per reading, fading out towards the side overlay.
@@ -460,15 +449,15 @@ enum GlucoseGraph {
             }
         }
 
-        if sideW > 0 && st.profile != .none {
-            let prof = GlucoseStats.profile(st.profile, readings, from: from, to: now, bands: b, tir: tir)
-            drawProfile(ctx, prof, b, pal, left: left, sideW: sideW, top: top, bottom: plotBottom, yMin: yMin, yMax: yMax, dots: st.profileDots, d: d)
+        if sideW > 0 {
+            let prof = GlucoseStats.timeAtLevel(readings, from: from, to: now, bands: b, tir: tir)
+            drawProfile(ctx, prof, b, pal, left: left, sideW: sideW, top: top, bottom: plotBottom, yMin: yMin, yMax: yMax, d: d)
         }
 
         // % per major band, centred on its band; a band too short for its label (often low, sometimes high) pushes
         // it outwards so the three never overlap, and it may hang a little past the plot.
         if pctCol > 0 {
-            let p = pct3(tir.low, tir.inRange, tir.high)
+            let p = pct3(tir.below, tir.inRange, tir.above)
             let lh = 13 * d * 0.95
             var c = [(top + y(Double(b.high))) / 2, (y(Double(b.high)) + y(Double(b.low))) / 2, (y(Double(b.low)) + plotBottom) / 2]
             c[0] = min(c[0], c[1] - lh)
@@ -488,7 +477,7 @@ enum GlucoseGraph {
     }
 
     private static func drawProfile(_ ctx: CGContext, _ prof: [Double], _ b: Bands, _ pal: GraphPalette, left: CGFloat, sideW: CGFloat,
-                                    top: CGFloat, bottom: CGFloat, yMin: Double, yMax: Double, dots: Bool, d: CGFloat) {
+                                    top: CGFloat, bottom: CGFloat, yMin: Double, yMax: Double, d: CGFloat) {
         let pxPerMg = Double(bottom - top) / (yMax - yMin)
         func massBetween(_ g0: Double, _ g1: Double) -> Double {
             var s = 0.0
@@ -501,50 +490,26 @@ enum GlucoseGraph {
             }
             return s
         }
-        if dots {
-            let pitch = 3.6 * d, r = 1.35 * d
-            let rows = Int((bottom - top) / pitch)
-            guard rows > 0 else { return }
-            let mass = (0..<rows).map { i -> Double in
-                let yb = Double(bottom - CGFloat(i) * pitch)
-                return massBetween(yMin + (Double(bottom) - yb) / pxPerMg, yMin + (Double(bottom) - yb + Double(pitch)) / pxPerMg)
-            }
-            guard let peak = mass.max(), peak > 0 else { return }
-            let maxDots = Int(floor(sideW * 0.9 / pitch))
-            for i in 0..<rows {
-                var n = Int((mass[i] / peak * Double(maxDots)).rounded())
-                if n == 0 && mass[i] > peak * 0.004 { n = 1 }
-                guard n > 0 else { continue }
-                let cy = bottom - CGFloat(i) * pitch - pitch / 2
-                let g = yMin + Double(bottom - cy) / pxPerMg
-                ctx.setFillColor(pal.of(b.of(g)))
-                for k in 0..<n {
-                    let cx = left + pitch / 2 + CGFloat(k) * pitch
-                    ctx.fillEllipse(in: CGRect(x: cx - r, y: cy - r, width: 2 * r, height: 2 * r))
-                }
-            }
-        } else {
-            let slices = Int((bottom - top) / d)
-            guard slices > 0 else { return }
-            let mass = (0..<slices).map { i in massBetween(yMin + Double(CGFloat(i) * d) / pxPerMg, yMin + Double(CGFloat(i + 1) * d) / pxPerMg) }
-            guard let peak = mass.max(), peak > 0 else { return }
-            for band in Band.allCases {
-                let path = CGMutablePath()
-                var open = false
-                for i in 0..<slices {
-                    let g = yMin + Double((CGFloat(i) + 0.5) * d) / pxPerMg
-                    let yy = bottom - CGFloat(i) * d
-                    if b.of(g) != band { if open { path.addLine(to: CGPoint(x: left, y: yy)); open = false }; continue }
-                    let w = CGFloat(mass[i] / peak) * sideW * 0.9
-                    if !open { path.move(to: CGPoint(x: left, y: yy)); open = true }
-                    path.addLine(to: CGPoint(x: left + w, y: yy))
-                    path.addLine(to: CGPoint(x: left + w, y: yy - d))
-                }
-                if open { path.addLine(to: CGPoint(x: left, y: bottom - CGFloat(slices) * d)) }
-                path.closeSubpath()
-                ctx.setFillColor(pal.of(band).a(0xE0))
-                ctx.addPath(path)
-                ctx.fillPath()
+        // Rows of dots the size of the line's; dots per row ∝ the row's share of time.
+        let pitch = 3.6 * d, r = 1.35 * d
+        let rows = Int((bottom - top) / pitch)
+        guard rows > 0 else { return }
+        let mass = (0..<rows).map { i -> Double in
+            let yb = Double(bottom - CGFloat(i) * pitch)
+            return massBetween(yMin + (Double(bottom) - yb) / pxPerMg, yMin + (Double(bottom) - yb + Double(pitch)) / pxPerMg)
+        }
+        guard let peak = mass.max(), peak > 0 else { return }
+        let maxDots = Int(floor(sideW * 0.9 / pitch))
+        for i in 0..<rows {
+            var n = Int((mass[i] / peak * Double(maxDots)).rounded())
+            if n == 0 && mass[i] > peak * 0.004 { n = 1 }
+            guard n > 0 else { continue }
+            let cy = bottom - CGFloat(i) * pitch - pitch / 2
+            let g = yMin + Double(bottom - cy) / pxPerMg
+            ctx.setFillColor(pal.of(b.of(g)))
+            for k in 0..<n {
+                let cx = left + pitch / 2 + CGFloat(k) * pitch
+                ctx.fillEllipse(in: CGRect(x: cx - r, y: cy - r, width: 2 * r, height: 2 * r))
             }
         }
     }
@@ -636,17 +601,17 @@ enum TirRing {
         ctx.saveGState()
         ctx.setLineWidth(sw)
         ctx.setLineCap(.butt)
-        let shares = [(Band.low, tir.low), (.tight, tir.tight), (.target, tir.target), (.high, tir.high)].filter { $0.1 >= 0.004 }
+        // Clockwise from 12 o'clock in glucose order; gaps only between below | in range | above.
+        let shares = Band.allCases.map { ($0, tir.share($0)) }.filter { $0.1 >= 0.004 }
         func gapAfter(_ i: Int) -> Bool {
             guard shares.count > 1 else { return false }
-            let a = shares[i].0, b = shares[(i + 1) % shares.count].0
-            return !((a == .tight && b == .target) || (a == .target && b == .tight))
+            return shares[i].0.group != shares[(i + 1) % shares.count].0.group
         }
         if shares.isEmpty {
             ctx.setStrokeColor(pal.grid.a(emphasis))
             ctx.strokeEllipse(in: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr))
         } else {
-            let gap: CGFloat = shares.count > 1 ? 7 : 0
+            let gap: CGFloat = 7
             let gaps = CGFloat(shares.indices.filter(gapAfter).count) * gap
             var a: CGFloat = -90
             for (i, s) in shares.enumerated() {
@@ -797,7 +762,7 @@ enum GlucoseCard {
 /// Port of the Android gallery's Synthetic (GraphGallery.kt), for widget previews and evidence renders.
 enum RealisticSynthetic {
     static func readings(until now: TimeInterval, days: Int) -> [GraphReading] {
-        var rng = SplitMix(seed: 16)
+        var rng = JavaRandom(seed: 16)
         let start = now - Double(days) * 86400
         let tz = TimeZone.current
         struct Meal { var t: TimeInterval; var size: Double; var peak: Double }
@@ -805,11 +770,11 @@ enum RealisticSynthetic {
         var day = start - (start + Double(tz.secondsFromGMT(for: Date(timeIntervalSince1970: start)))).truncatingRemainder(dividingBy: 86400)
         while day < now + 86400 {
             let off = Double(tz.secondsFromGMT(for: Date(timeIntervalSince1970: day)))
-            func at(_ h: Double) -> TimeInterval { day + h * 3600 - off }
+            func at(_ h: Double) -> TimeInterval { day + TimeInterval(Int64(h * 3600)) - off }
             meals.append(Meal(t: at(8.0 + rng.gauss() * 0.4), size: 45 + rng.next() * 50, peak: 45 + rng.next() * 20))
             meals.append(Meal(t: at(13.8 + rng.gauss() * 0.5), size: 55 + rng.next() * 75, peak: 55 + rng.next() * 25))
-            meals.append(Meal(t: at(20.6 + rng.gauss() * 0.4), size: 50 + rng.next() * 70, peak: 60 + rng.next() * 25))
-            if rng.next() < 0.6 { dips.append((at(17.0 + rng.gauss() * 0.6), 25 + rng.next() * 30)) }
+            meals.append(Meal(t: at(20.6 + rng.gauss() * 0.4), size: 50 + rng.next() * 115, peak: 60 + rng.next() * 25))
+            if rng.next() < 0.6 { dips.append((at(17.0 + rng.gauss() * 0.6), 25 + rng.next() * 45)) }
             day += 86400
         }
         var walk = 0.0
@@ -833,17 +798,27 @@ enum RealisticSynthetic {
         return out
     }
 
-    struct SplitMix {
-        var state: UInt64
-        init(seed: UInt64) { state = seed }
-        mutating func nextU() -> UInt64 {
-            state &+= 0x9E3779B97F4A7C15
-            var z = state
-            z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
-            z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
-            return z ^ (z >> 31)
+    /// java.util.Random (48-bit LCG, polar Gaussian), so the days match the Android gallery's `Random(16)` exactly.
+    struct JavaRandom {
+        private var seed: UInt64
+        private var nextGaussian: Double? = nil
+        init(seed: Int64) { self.seed = (UInt64(bitPattern: seed) ^ 0x5DEECE66D) & ((1 << 48) - 1) }
+        private mutating func bits(_ n: Int) -> Int64 {
+            seed = (seed &* 0x5DEECE66D &+ 0xB) & ((1 << 48) - 1)
+            return Int64(Int32(truncatingIfNeeded: Int64(seed >> UInt64(48 - n))))
         }
-        mutating func next() -> Double { Double(nextU() >> 11) / Double(1 << 53) }
-        mutating func gauss() -> Double { sqrt(-2 * Foundation.log(max(1e-12, next()))) * cos(2 * .pi * next()) }
+        mutating func next() -> Double {
+            Double((bits(26) << 27) + bits(27)) * 0x1.0p-53
+        }
+        mutating func gauss() -> Double {
+            if let g = nextGaussian { nextGaussian = nil; return g }
+            var v1 = 0.0, v2 = 0.0, s = 0.0
+            repeat {
+                v1 = 2 * next() - 1; v2 = 2 * next() - 1; s = v1 * v1 + v2 * v2
+            } while s >= 1 || s == 0
+            let m = (-2 * Foundation.log(s) / s).squareRoot()
+            nextGaussian = v2 * m
+            return v1 * m
+        }
     }
 }

@@ -45,8 +45,10 @@ enum GraphSelfTest {
         let b = Bands()
         func r(_ min: Int, _ v: Int) -> GraphReading { GraphReading(t: TimeInterval(min * 60), v: Double(v)) }
 
-        check("bands", b.of(69) == .low && b.of(70) == .tight && b.of(140) == .tight && b.of(141) == .target
-              && b.of(180) == .target && b.of(181) == .high)
+        check("bands", b.of(53) == .veryLow && b.of(54) == .low && b.of(69) == .low && b.of(70) == .tight && b.of(140) == .tight
+              && b.of(141) == .target && b.of(180) == .target && b.of(181) == .high && b.of(250) == .high && b.of(251) == .veryHigh)
+        let vs = Bands(veryLow: 90, low: 70, tight: 140, high: 180, veryHigh: 900).sane()
+        check("sane very", vs.veryLow == 65 && vs.veryHigh == 400)
         check("sane", Bands(low: 200, tight: 10, high: 90).sane() == Bands(low: 120, tight: 130, high: 140))
 
         let oneMin = (0..<60).map { r($0, 100) }
@@ -59,14 +61,14 @@ enum GraphSelfTest {
 
         let rs = (0..<600).map { r($0, Int(120 + 80 * sin(Double($0) / 40))) }
         let tir = GlucoseStats.timeInRange(rs, from: 0, to: 600 * 60, bands: b)
-        let p = GlucoseStats.profile(.bandExact, rs, from: 0, to: 600 * 60, bands: b, tir: tir)
+        let p = GlucoseStats.timeAtLevel(rs, from: 0, to: 600 * 60, bands: b, tir: tir)
         for band in Band.allCases {
             let area = p.indices.filter { b.of(Double(GlucoseStats.minMg + $0)) == band }.reduce(0) { $0 + p[$1] }
             check("band-exact \(band)", near(area, tir.share(band), 1e-9))
         }
-        for kind in Profile.allCases.dropFirst() {
-            check("\(kind) sums to 1", near(GlucoseStats.profile(kind, rs, from: 0, to: 600 * 60, bands: b, tir: tir).reduce(0, +), 1, 1e-6))
-        }
+        check("time at level sums to 1", near(p.reduce(0, +), 1, 1e-6))
+        check("below/above", near(tir.below, tir.veryLow + tir.low, 1e-12) && near(tir.above, tir.high + tir.veryHigh, 1e-12)
+              && near(tir.below + tir.inRange + tir.above, 1, 1e-9))
         check("pct3 a", GlucoseGraph.pct3(1 / 3.0, 1 / 3.0 + 0.0001, 1 / 3.0 - 0.0001) == (33, 34, 33))
         check("pct3 b", GlucoseGraph.pct3(0.1, 0.7, 0.2) == (10, 70, 20))
         check("freshness", Freshness.of(age: 90) == .fresh && Freshness.of(age: 91) == .late && Freshness.of(age: 301) == .stale

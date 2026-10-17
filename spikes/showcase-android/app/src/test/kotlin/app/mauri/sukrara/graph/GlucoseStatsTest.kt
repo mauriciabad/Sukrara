@@ -13,9 +13,11 @@ class GlucoseStatsTest {
     private fun r(min: Int, v: Int) = Reading(min * 60L, v, null)
 
     @Test fun bands() {
-        assertEquals(Band.LOW, b.of(69)); assertEquals(Band.TIGHT, b.of(70)); assertEquals(Band.TIGHT, b.of(140))
+        assertEquals(Band.VERY_LOW, b.of(53)); assertEquals(Band.LOW, b.of(54)); assertEquals(Band.LOW, b.of(69))
+        assertEquals(Band.TIGHT, b.of(70)); assertEquals(Band.TIGHT, b.of(140))
         assertEquals(Band.TARGET, b.of(141)); assertEquals(Band.TARGET, b.of(180)); assertEquals(Band.HIGH, b.of(181))
-        assertEquals(Bands(120, 130, 140), Bands(200, 10, 90).sane().let { Bands(it.low, it.tight, it.high) })
+        assertEquals(Band.HIGH, b.of(250)); assertEquals(Band.VERY_HIGH, b.of(251))
+        assertEquals(Bands(54, 120, 130, 140, 150), Bands(54, 200, 10, 90, 100).sane())
     }
 
     /** 1-minute and 5-minute readings count by the time they stand for, not by how many there are. */
@@ -25,6 +27,7 @@ class GlucoseStatsTest {
         val t = GlucoseStats.timeInRange(oneMin + fiveMin, 0, 120 * 60L, b)
         assertEquals(0.5, t.tight, 0.01)
         assertEquals(0.5, t.high, 0.01)
+        assertEquals(0.5, t.above, 0.01)
         assertEquals(1.0, t.coverage, 0.01)
     }
 
@@ -36,17 +39,15 @@ class GlucoseStatsTest {
     }
 
     @Test fun bandExactAreasMatchTimeInRange() {
-        val rs = (0 until 600).map { r(it, (120 + 80 * Math.sin(it / 40.0)).toInt()) }
+        val rs = (0 until 600).map { r(it, (150 + 120 * Math.sin(it / 40.0)).toInt()) }   // 30…270: all six bands
         val tir = GlucoseStats.timeInRange(rs, 0, 600 * 60L, b)
-        val p = GlucoseStats.profile(Profile.BAND_EXACT, rs, 0, 600 * 60L, b, tir)
+        assertTrue(tir.veryLow > 0 && tir.veryHigh > 0)
+        val p = GlucoseStats.profile(rs, 0, 600 * 60L, b, tir)
         for (band in Band.entries) {
             val area = p.indices.filter { b.of(GlucoseStats.MIN_MG + it) == band }.sumOf { p[it] }
             assertEquals("$band", tir.share(band), area, 1e-9)
         }
-        for (kind in Profile.entries.drop(1)) {
-            val q = GlucoseStats.profile(kind, rs, 0, 600 * 60L, b, tir)
-            assertEquals("$kind sums to 1", 1.0, q.sum(), 1e-6)
-        }
+        assertEquals(1.0, p.sum(), 1e-6)
     }
 
     @Test fun percentagesAddUp() {

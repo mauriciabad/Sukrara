@@ -6,7 +6,6 @@ package app.mauri.sukrara.graph
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
@@ -23,17 +22,20 @@ import kotlin.math.roundToInt
 /** Colours of every graph surface; [dark] picks the set. Range colours are the same hue family in both. */
 data class GraphPalette(
     val dark: Boolean, val bg: Int, val ink: Int, val inkSoft: Int, val grid: Int,
-    val low: Int, val tight: Int, val target: Int, val high: Int,
+    val veryLow: Int, val low: Int, val tight: Int, val target: Int, val high: Int, val veryHigh: Int,
 ) {
-    fun of(b: Band) = when (b) { Band.LOW -> low; Band.TIGHT -> tight; Band.TARGET -> target; Band.HIGH -> high }
+    fun of(b: Band) = when (b) {
+        Band.VERY_LOW -> veryLow; Band.LOW -> low; Band.TIGHT -> tight; Band.TARGET -> target; Band.HIGH -> high
+        Band.VERY_HIGH -> veryHigh
+    }
 
     companion object {
         val DARK = GraphPalette(true, bg = 0xFF1C1C1E.toInt(), ink = 0xFFF2F2F2.toInt(), inkSoft = 0xFFA3A3A8.toInt(),
-            grid = 0xFF3A3A3E.toInt(), low = 0xFFF0524F.toInt(), tight = 0xFF3DD47A.toInt(), target = 0xFF8CC63F.toInt(),
-            high = 0xFFF5A524.toInt())
+            grid = 0xFF3A3A3E.toInt(), veryLow = 0xFFC2413B.toInt(), low = 0xFFF0524F.toInt(), tight = 0xFF3DD47A.toInt(),
+            target = 0xFF8CC63F.toInt(), high = 0xFFF5A524.toInt(), veryHigh = 0xFFFF7A45.toInt())
         val LIGHT = GraphPalette(false, bg = 0xFFFFFFFF.toInt(), ink = 0xFF1C1C1E.toInt(), inkSoft = 0xFF6B6B70.toInt(),
-            grid = 0xFFDADADF.toInt(), low = 0xFFD92D2A.toInt(), tight = 0xFF17A34A.toInt(), target = 0xFF6E9E1E.toInt(),
-            high = 0xFFD97706.toInt())
+            grid = 0xFFDADADF.toInt(), veryLow = 0xFFB3261E.toInt(), low = 0xFFD92D2A.toInt(), tight = 0xFF17A34A.toInt(),
+            target = 0xFF6E9E1E.toInt(), high = 0xFFD97706.toInt(), veryHigh = 0xFFC2410C.toInt())
         fun of(dark: Boolean) = if (dark) DARK else LIGHT
     }
 }
@@ -42,10 +44,7 @@ data class GraphPalette(
 data class GraphStyle(
     val windowS: Long = 12 * 3600L,
     val bands: Bands = Bands(),
-    val profile: Profile = Profile.BAND_EXACT,
-    /** Profile drawn as rows of dots (like the line) or as a filled area. */
-    val profileDots: Boolean = true,
-    /** The left overlay: time-in-range rectangles + profile + % labels. */
+    /** The left overlay: time-in-range rectangles, the distribution and the % labels. */
     val side: Boolean = true,
     val axisLabels: Boolean = true,
     val treatments: Boolean = true,
@@ -56,9 +55,10 @@ data class GraphStyle(
  * The glucose chart of investigation 16, drawn on a plain [Canvas] so the app (Compose's native canvas), the widgets
  * and the notification (bitmaps) all show the same picture.
  *
- * Left to right: the % of time in each major band (labels), then, growing rightwards from the plot's left edge, one
- * soft rectangle per band whose width is its share of time (in range with the "very good" rectangle inside it) and the
- * distribution of glucose over the same window ([Profile]). The line underneath fades out towards that edge.
+ * Left to right: the % of time below / in / above range (labels), then, growing rightwards from the plot's left edge,
+ * one soft rectangle per group whose width is its share of time (with very good inside in range, very high inside
+ * above, very low inside below) and the distribution of glucose over the same window ([GlucoseStats.profile], rows
+ * of dots like the line). The line underneath fades out towards that edge.
  */
 object GlucoseGraph {
     fun draw(
@@ -126,6 +126,13 @@ object GlucoseGraph {
             }
             cal.add(Calendar.HOUR_OF_DAY, step)
         }
+        // Very low / very high: a faint dashed line when the y range reaches them.
+        for ((v, next) in listOf(b.veryLow to b.low, b.veryHigh to b.high)) if (v > yMin && v < yMax) {
+            cv.drawLine(left + sideW, y(v.toFloat()), right, y(v.toFloat()), grid)
+            // its value only where it doesn't collide with the low / high label next to it
+            if (labels && kotlin.math.abs(y(v.toFloat()) - y(next.toFloat())) > text.textSize * 1.2f)
+                cv.drawText("$v", right + 4 * d, y(v.toFloat()) + text.textSize / 3, text)
+        }
         if (labels) for (v in listOf(b.low, b.high)) {
             cv.drawText("$v", right + 4 * d, y(v.toFloat()) + text.textSize / 3, text)
         }
@@ -138,10 +145,13 @@ object GlucoseGraph {
                 fill.color = ColorUtils.setAlphaComponent(c, alpha)
                 cv.drawRect(left, y0, left + sideW * share.toFloat(), y1, fill)
             }
-            rect(tir.high, pal.high, top, y(b.high.toFloat()))
+            val inner = if (pal.dark) 0x40 else 0x34   // very good / very high / very low, inside their group
+            rect(tir.above, pal.high, top, y(b.high.toFloat()))
+            rect(tir.veryHigh, pal.veryHigh, top, y(b.veryHigh.toFloat()), inner)
             rect(tir.inRange, pal.target, y(b.high.toFloat()), y(b.low.toFloat()))
-            rect(tir.tight, pal.tight, y(b.tight.toFloat()), y(b.low.toFloat()), alpha = if (pal.dark) 0x40 else 0x34)
-            rect(tir.low, pal.low, y(b.low.toFloat()), plotBottom)
+            rect(tir.tight, pal.tight, y(b.tight.toFloat()), y(b.low.toFloat()), inner)
+            rect(tir.below, pal.low, y(b.low.toFloat()), plotBottom)
+            rect(tir.veryLow, pal.veryLow, y(b.veryLow.toFloat()), plotBottom, inner)
         }
 
         // The line: one dot per reading, coloured by band, fading out towards the side overlay.
@@ -172,14 +182,14 @@ object GlucoseGraph {
         }
 
         // Profile on top of the rectangles.
-        if (sideW > 0 && st.profile != Profile.NONE) {
-            val prof = GlucoseStats.profile(st.profile, readings, from, nowS, b, tir)
-            drawProfile(cv, prof, b, pal, left, sideW, top, plotBottom, yMin, yMax, st.profileDots, d)
+        if (sideW > 0) {
+            val prof = GlucoseStats.profile(readings, from, nowS, b, tir)
+            drawProfile(cv, prof, b, pal, left, sideW, top, plotBottom, yMin, yMax, d)
         }
 
         // % per major band, centred on its band; labels too close for their bands are pushed apart (all three show).
         if (pctCol > 0) {
-            val (lo, inr, hi) = pct3(tir.low, tir.inRange, tir.high)
+            val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
             val gap = pctBig.textSize * 1.05f
             val cIn = (y(b.high.toFloat()) + y(b.low.toFloat())) / 2
             val cHi = min((top + y(b.high.toFloat())) / 2, cIn - gap)
@@ -202,7 +212,7 @@ object GlucoseGraph {
 
     private fun drawProfile(
         cv: Canvas, prof: DoubleArray, b: Bands, pal: GraphPalette, left: Float, sideW: Float,
-        top: Float, bottom: Float, yMin: Float, yMax: Float, dots: Boolean, d: Float,
+        top: Float, bottom: Float, yMin: Float, yMax: Float, d: Float,
     ) {
         val pxPerMg = (bottom - top) / (yMax - yMin)
         fun massBetween(g0: Float, g1: Float): Double {   // profile mass in [g0, g1) mg/dL, fractional at the ends
@@ -217,49 +227,23 @@ object GlucoseGraph {
             return s
         }
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        if (dots) {
-            // Rows of dots the size of the line's, one row per pitch; dots per row ∝ the row's share of time.
-            val pitch = 3.6f * d
-            val r = 1.35f * d
-            val rows = ((bottom - top) / pitch).toInt()
-            val mass = DoubleArray(rows) { i ->
-                val yb = bottom - i * pitch
-                massBetween(yMin + (bottom - yb) / pxPerMg, yMin + (bottom - yb + pitch) / pxPerMg)
-            }
-            val peak = mass.maxOrNull()?.takeIf { it > 0 } ?: return
-            val maxDots = floor(sideW * 0.9f / pitch).toInt()
-            for (i in 0 until rows) {
-                val n = (mass[i] / peak * maxDots).roundToInt().let { if (it == 0 && mass[i] > peak * 0.004) 1 else it }
-                if (n == 0) continue
-                val cy = bottom - i * pitch - pitch / 2
-                val g = yMin + (bottom - cy) / pxPerMg
-                p.color = pal.of(b.of(g.toDouble()))
-                for (k in 0 until n) cv.drawCircle(left + pitch / 2 + k * pitch, cy, r, p)
-            }
-        } else {
-            // Filled area, one horizontal slice per pixel row, coloured by band.
-            val slices = ((bottom - top) / d).toInt()
-            val mass = DoubleArray(slices) { i ->
-                massBetween(yMin + i * d / pxPerMg, yMin + (i + 1) * d / pxPerMg)
-            }
-            val peak = mass.maxOrNull()?.takeIf { it > 0 } ?: return
-            for (band in Band.entries) {
-                val path = Path()
-                var open = false
-                for (i in 0 until slices) {
-                    val g = yMin + (i + 0.5f) * d / pxPerMg
-                    val yy = bottom - i * d
-                    if (b.of(g.toDouble()) != band) { if (open) { path.lineTo(left, yy); open = false }; continue }
-                    val w = (mass[i] / peak).toFloat() * sideW * 0.9f
-                    if (!open) { path.moveTo(left, yy); open = true }
-                    path.lineTo(left + w, yy)
-                    path.lineTo(left + w, yy - d)
-                }
-                if (open) path.lineTo(left, bottom - slices * d)
-                path.close()
-                p.color = ColorUtils.setAlphaComponent(pal.of(band), 0xE0)
-                cv.drawPath(path, p)
-            }
+        // Rows of dots the size of the line's, one row per pitch; dots per row ∝ the row's share of time.
+        val pitch = 3.6f * d
+        val r = 1.35f * d
+        val rows = ((bottom - top) / pitch).toInt()
+        val mass = DoubleArray(rows) { i ->
+            val yb = bottom - i * pitch
+            massBetween(yMin + (bottom - yb) / pxPerMg, yMin + (bottom - yb + pitch) / pxPerMg)
+        }
+        val peak = mass.maxOrNull()?.takeIf { it > 0 } ?: return
+        val maxDots = floor(sideW * 0.9f / pitch).toInt()
+        for (i in 0 until rows) {
+            val n = (mass[i] / peak * maxDots).roundToInt().let { if (it == 0 && mass[i] > peak * 0.004) 1 else it }
+            if (n == 0) continue
+            val cy = bottom - i * pitch - pitch / 2
+            val g = yMin + (bottom - cy) / pxPerMg
+            p.color = pal.of(b.of(g.toDouble()))
+            for (k in 0 until n) cv.drawCircle(left + pitch / 2 + k * pitch, cy, r, p)
         }
     }
 

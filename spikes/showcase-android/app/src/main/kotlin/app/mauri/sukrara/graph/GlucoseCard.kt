@@ -27,7 +27,7 @@ fun periodLabel(s: Long): String = when {
 
 /**
  * The segmented time-in-range ring: the % of [RingSpec.range] in the middle, the window under it, and the perimeter
- * split by band, clockwise from 12 o'clock in glucose order (low, very good, in range, high). [emphasis] fades the
+ * split by band, clockwise from 12 o'clock in glucose order (very low, low, very good, in range, high, very high). [emphasis] fades the
  * secondary rings (1 = main).
  */
 object TirRing {
@@ -37,12 +37,11 @@ object TirRing {
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.BUTT }
         val oval = RectF(cx - radius + sw / 2, cy - radius + sw / 2, cx + radius - sw / 2, cy + radius - sw / 2)
         val alpha = (255 * emphasis).toInt()
-        val shares = listOf(Band.LOW to tir.low, Band.TIGHT to tir.tight, Band.TARGET to tir.target, Band.HIGH to tir.high)
-            .filter { it.second >= 0.004 }
+        val shares = Band.entries.map { it to tir.share(it) }.filter { it.second >= 0.004 }
         if (shares.isEmpty()) {
             ring.color = ColorUtils.setAlphaComponent(pal.grid, alpha); cv.drawOval(oval, ring)
         } else {
-            // Gaps only between bands that are both visible; the two greens touch (very good is part of in range).
+            // Gaps only between the groups below / in / above range; bands of one group touch (very good is in range).
             val gap = if (shares.size > 1) 7f else 0f
             val gaps = shares.indices.count { i -> gapAfter(shares, i) } * gap
             var a = -90f
@@ -66,11 +65,8 @@ object TirRing {
         cv.drawText(spec.period, cx, cy + num.textSize * 0.28f + sub.textSize * 1.1f, sub)
     }
 
-    private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean {
-        val a = s[i].first; val b = s[(i + 1) % s.size].first
-        if (s.size == 1) return false
-        return !((a == Band.TIGHT && b == Band.TARGET) || (a == Band.TARGET && b == Band.TIGHT))
-    }
+    private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean =
+        s.size > 1 && s[i].first.group != s[(i + 1) % s.size].first.group
 }
 
 /** What a whole glucose card shows: value header and/or chart, and up to three rings (main first). */

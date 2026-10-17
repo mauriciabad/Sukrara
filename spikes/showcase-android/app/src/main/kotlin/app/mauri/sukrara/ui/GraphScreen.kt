@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,13 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.graph.Bands
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
-import app.mauri.sukrara.graph.Profile
 import app.mauri.sukrara.graph.RING_WINDOWS_S
 import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
@@ -46,7 +41,7 @@ import kotlin.math.roundToInt
 fun GraphRow(onClick: () -> Unit) {
     val g by GraphSettings.state.collectAsState()
     ValueRow("Graph & time in range",
-        "${g.defaultHours} h · ranges ${g.bands.low}–${g.bands.tight}–${g.bands.high} · " +
+        "${g.defaultHours} h · ranges ${g.bands.veryLow}/${g.bands.low}–${g.bands.tight}–${g.bands.high}/${g.bands.veryHigh} · " +
             if (g.ringCount == 0) "no rings" else g.rings().joinToString(" + ") { it.period },
         enabled = true, onClick = onClick)
 }
@@ -76,13 +71,15 @@ fun GraphScreen(onBack: () -> Unit) {
         GlucosePanel(last?.sgv, last?.rate, last?.t)
 
         SectionTitle("Ranges")
+        BandSlider("Very low below", g.bands.veryLow, 40f..65f) { v -> set { it.copy(bands = it.bands.copy(veryLow = v)) } }
         BandSlider("Low below", g.bands.low, 50f..100f) { v -> set { it.copy(bands = it.bands.copy(low = v)) } }
         BandSlider("Very good up to", g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } }
         BandSlider("High above", g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } }
-        TextButton(onClick = { set { it.copy(bands = Bands()) } }, enabled = g.bands != Bands()) { Text("Reset to 70 / 140 / 180") }
+        BandSlider("Very high above", g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } }
+        TextButton(onClick = { set { it.copy(bands = Bands()) } }, enabled = g.bands != Bands()) { Text("Reset to 54 / 70 / 140 / 180 / 250") }
         Note("In range is ${g.bands.low}–${g.bands.high} mg/dL; very good (${g.bands.low}–${g.bands.tight}) is the part of it " +
-            "where people without diabetes spend most of the day. The ranges colour the number, the line, the status bar " +
-            "and the time in range everywhere.")
+            "where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView " +
+            "report. The ranges colour the number, the line, the status bar and the time in range everywhere.")
 
         SectionTitle("Graph window")
         Text("Default", style = MaterialTheme.typography.bodyMedium)
@@ -109,22 +106,14 @@ fun GraphScreen(onBack: () -> Unit) {
         }
         Note("Rings that don't fit are hidden, the last one first. A ring needs data for at least a quarter of its window.")
 
-        SectionTitle("Distribution beside the graph")
-        Column(Modifier.selectableGroup()) {
-            for (p in Profile.entries) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-                .selectable(g.profile == p, role = Role.RadioButton) { set { it.copy(profile = p) } }) {
-                RadioButton(g.profile == p, onClick = null)
-                Column(Modifier.weight(1f).padding(start = 8.dp, top = 6.dp, bottom = 6.dp)) {
-                    Text(p.label)
-                    Text(p.blurb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                }
-            }
+        SectionTitle("Beside the graph")
+        Toggle("Time in range and distribution", g.side,
+            sub = "Rectangles as wide as the time in each range, and how much time was spent at each level") { v ->
+            set { it.copy(side = v) }
         }
-        Toggle("Draw it as dots", g.profileDots, enabled = g.profile != Profile.NONE,
-            sub = if (g.profileDots) "Rows of dots, like the line" else "A filled area") { v -> set { it.copy(profileDots = v) } }
         HorizontalDivider()
-        Note("The distribution covers the same time as the graph. Its rectangles are as wide as the share of time in each " +
-            "range, and the line fades out underneath.")
+        Note("The distribution covers the same time as the graph, and the line fades out underneath it. Each widget " +
+            "can turn it off on its own.")
     }
 }
 

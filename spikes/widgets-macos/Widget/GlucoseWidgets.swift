@@ -42,6 +42,13 @@ enum RangeChoice: String, AppEnum {
     var range: TirRange? { switch self { case .app: nil; case .inRange: .inRange; case .tight: .tight } }
 }
 
+enum SideChoice: String, AppEnum {
+    case app, on, off
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Time in range beside the graph"
+    static let caseDisplayRepresentations: [SideChoice: DisplayRepresentation] = [.app: "Sukrara's setting", .on: "Shown", .off: "Hidden"]
+    var side: Bool? { switch self { case .app: nil; case .on: true; case .off: false } }
+}
+
 struct GlucoseWidgetIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Glucose widget"
     static let description = IntentDescription("This widget's graph window and time-in-range rings.")
@@ -49,10 +56,10 @@ struct GlucoseWidgetIntent: WidgetConfigurationIntent {
     @Parameter(title: "Graph window", default: .app) var window: WindowChoice
     @Parameter(title: "Time in range rings", default: .app) var rings: RingsChoice
     @Parameter(title: "Ring number", default: .app) var ringRange: RangeChoice
-    @Parameter(title: "Time in range beside the graph", default: true) var side: Bool
+    @Parameter(title: "Time in range beside the graph", default: .app) var side: SideChoice
 
     var overrides: WidgetOverrides {
-        WidgetOverrides(hours: window.hours, rings: rings.count, ringRange: ringRange.range, side: side)
+        WidgetOverrides(hours: window.hours, rings: rings.count, ringRange: ringRange.range, side: side.side)
     }
 }
 

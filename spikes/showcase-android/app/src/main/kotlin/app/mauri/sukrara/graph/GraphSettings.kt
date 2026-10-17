@@ -30,26 +30,28 @@ data class GraphConfig(
     val ringCount: Int = 2,
     val ringWindows: List<Long> = listOf(86400L, 7 * 86400L, 14 * 86400L),
     val ringRange: TirRange = TirRange.IN_RANGE,
-    val profile: Profile = Profile.BAND_EXACT,
-    val profileDots: Boolean = true,
+    /** The time-in-range rectangles + distribution beside the chart (each widget can turn it off on its own). */
+    val side: Boolean = true,
 ) {
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) = ringWindows.take(count.coerceIn(0, 3)).map { RingSpec(it, range) }
     fun graphStyle(hours: Int, hour24: Boolean) =
-        GraphStyle(windowS = hours * 3600L, bands = bands, profile = profile, profileDots = profileDots, hour24 = hour24)
+        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24)
 
     fun toJson(): JSONObject = JSONObject()
-        .put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
+        .put("veryLow", bands.veryLow).put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
+        .put("veryHigh", bands.veryHigh)
         .put("defaultHours", defaultHours)
         .put("placeHours", JSONObject().apply { placeHours.forEach { (k, v) -> put(k.name, v) } })
         .put("ringCount", ringCount).put("ringWindows", ringWindows.joinToString(",")).put("ringRange", ringRange.name)
-        .put("profile", profile.name).put("profileDots", profileDots)
+        .put("side", side)
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
             val d = GraphConfig()
             return GraphConfig(
-                bands = Bands(o.optInt("low", d.bands.low), o.optInt("tight", d.bands.tight), o.optInt("high", d.bands.high)).sane(),
+                bands = Bands(o.optInt("veryLow", d.bands.veryLow), o.optInt("low", d.bands.low), o.optInt("tight", d.bands.tight),
+                    o.optInt("high", d.bands.high), o.optInt("veryHigh", d.bands.veryHigh)).sane(),
                 defaultHours = o.optInt("defaultHours", d.defaultHours).takeIf { it in WINDOW_HOURS } ?: d.defaultHours,
                 placeHours = o.optJSONObject("placeHours")?.let { p ->
                     GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS }?.let { k to it } }.toMap()
@@ -58,8 +60,7 @@ data class GraphConfig(
                 ringWindows = o.optString("ringWindows").split(",").mapNotNull { it.toLongOrNull() }
                     .filter { it in RING_WINDOWS_S }.takeIf { it.size == 3 } ?: d.ringWindows,
                 ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrDefault(d.ringRange),
-                profile = runCatching { Profile.valueOf(o.optString("profile")) }.getOrDefault(d.profile),
-                profileDots = o.optBoolean("profileDots", d.profileDots),
+                side = o.optBoolean("side", d.side),
             )
         }
     }
@@ -73,11 +74,11 @@ data class WidgetGraphConfig(
     val hours: Int? = null,
     val rings: Int? = null,
     val ringRange: TirRange? = null,
-    val side: Boolean = true,
+    val side: Boolean? = null,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         hours?.let { put("hours", it) }; rings?.let { put("rings", it) }; ringRange?.let { put("ringRange", it.name) }
-        put("side", side)
+        side?.let { put("side", it) }
     }
 
     companion object {
@@ -85,7 +86,7 @@ data class WidgetGraphConfig(
             hours = o.optInt("hours", 0).takeIf { it in WINDOW_HOURS },
             rings = if (o.has("rings")) o.optInt("rings").coerceIn(0, 3) else null,
             ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrNull(),
-            side = o.optBoolean("side", true),
+            side = if (o.has("side")) o.optBoolean("side") else null,
         )
     }
 }
