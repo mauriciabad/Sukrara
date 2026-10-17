@@ -91,6 +91,20 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Sukrara.Quick"
             android:windowSoftInputMode="adjustResize|stateVisible" />
+        <!-- investigation 17: Quick Settings tile "Add treatment" (works from the lock screen, no root) -->
+        <service
+            android:name=".ui.TreatmentTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_sukrara"
+            android:label="@string/tile_treatment"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="false" />
+        </service>
         <service
             android:name=".owner.OwnerService"
             android:exported="false"
@@ -164,6 +178,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_combined" />
+        </receiver>
+        <!-- investigation 17: the lock screen widget, hosted by the LSPosed module inside SystemUI -->
+        <receiver
+            android:name=".widgets.LockscreenWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_lockscreen">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_lockscreen" />
         </receiver>
         <!-- widgets/WidgetProbe.kt: measures the size the launcher really gives a graph widget -->
         <provider

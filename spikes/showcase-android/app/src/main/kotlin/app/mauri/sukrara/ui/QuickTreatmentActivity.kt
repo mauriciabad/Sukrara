@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -59,10 +60,14 @@ object QuickEntry {
  * opens this instead of the app (widgets: "generative functions — let the user create new content",
  * developer.android.com/develop/ui/views/appwidgets/overview). Translucent, no task of its own in Recents; when this
  * phone can't add entries (no identity yet, or a follower without "Can add entries") it opens the app instead.
+ *
+ * Shown over the lock screen (investigation 17): from the lock screen widget or the glucose notification an entry can
+ * be added without unlocking; only "open the app" asks to unlock first.
  */
 class QuickTreatmentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setShowWhenLocked(true)
         Features.init(this)
         if (!QuickEntry.canAdd(this)) { openApp(); return }
         val role = App.role(this)
@@ -92,6 +97,17 @@ class QuickTreatmentActivity : ComponentActivity() {
     }
 
     private fun openApp() {
+        val km = getSystemService(KeyguardManager::class.java)
+        if (km.isKeyguardLocked) {
+            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() = launchApp()
+            })
+            return
+        }
+        launchApp()
+    }
+
+    private fun launchApp() {
         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         finish()
     }
