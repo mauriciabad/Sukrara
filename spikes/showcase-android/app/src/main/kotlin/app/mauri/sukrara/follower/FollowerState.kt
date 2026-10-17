@@ -36,6 +36,7 @@ class FollowerState(
     var bleAddr: String? = null,              // investigation 07: owner's BLE address (nearby pairing)
     var avatar: Avatar? = null,               // this follower's own picture (with [name]: what the wearer sees)
     var wearer: Profile? = null,              // the wearer's name + picture: from the invite, then from each roster
+    val nearby: Boolean = false,              // joined over Bluetooth: the wearer types our match code
 ) {
     val me: Profile get() = Profile(name, avatar)
 
@@ -51,12 +52,14 @@ class FollowerState(
         .put("lastKeyAt", lastKeyAt).put("revokedAt", revokedAt)
         .put("testUnfiltered", testUnfiltered)
         .put("writers", JSONArray(writers)).put("bleAddr", bleAddr ?: JSONObject.NULL)
-        .put("avatar", avatar?.json ?: JSONObject.NULL).put("wearer", wearer?.toJson() ?: JSONObject.NULL)
+        .put("avatar", avatar?.json ?: JSONObject.NULL).put("wearer", wearer?.toJson() ?: JSONObject.NULL).put("nearby", nearby)
 
     companion object {
         const val REQUESTED = "requested"
         const val ACTIVE = "active"
         const val REVOKED = "revoked"
+        const val DECLINED = "declined"     // the wearer denied our request (link: "declined" notice)
+        const val USED = "used"             // someone else had already used the invite ("invite-used" notice)
 
         fun fromJson(j: JSONObject) = FollowerState(
             f = Keys.parse(j.getString("F")),
@@ -82,6 +85,7 @@ class FollowerState(
             bleAddr = if (j.has("bleAddr") && !j.isNull("bleAddr")) j.getString("bleAddr") else null,
             avatar = Avatar.of(j.optJSONObject("avatar")),
             wearer = Profile.of(j.optJSONObject("wearer")),
+            nearby = j.optBoolean("nearby"),
         )
     }
 }

@@ -306,7 +306,7 @@ let treatmentStore = MainActor.assumeIsolated {
             name = f.stringValue.isEmpty ? FollowUI.computerName : f.stringValue
         }
         log("BLE v2: nearby pairing with \(phone)")
-        join(inv, name: name)
+        join(inv, name: name, nearby: true)
     }
 
     /// A pasted / opened / test link: look the invite up on the relays first (who is inviting), then ask.
@@ -321,8 +321,8 @@ let treatmentStore = MainActor.assumeIsolated {
         }
     }
 
-    func join(_ inv: V2.Invite, name: String) {
-        switch FollowerV2.join(inv, name: name) {
+    func join(_ inv: V2.Invite, name: String, nearby: Bool = false) {
+        switch FollowerV2.join(inv, name: name, nearby: nearby) {
         case .failure(let why):
             log("v2 join failed: \(why.text)")
             if defaults.string(forKey: "followLink") == nil, defaults.string(forKey: "followLinkFile") == nil { FollowUI.error(why.text) }
@@ -356,9 +356,11 @@ let treatmentStore = MainActor.assumeIsolated {
             let w = n.wearer, who = w.name.isEmpty ? "someone" : w.name
             let pic = Avatar.image(w.avatar, name: who, size: 18)
             switch p {
-            case .waiting(let code): status.setFollow("Following \(who): waiting for approval · code \(code)", image: pic)
+            case .waiting(let code): status.setFollow("Following \(who): waiting for approval" + (code.map { " · code \($0)" } ?? ""), image: pic)
             case .active(let e): status.setFollow("Following \(who) · key epoch \(e) · \(n.relayHosts.count) relays", image: pic)
             case .revoked: status.setFollow("⚠︎ \(who) stopped sharing with this Mac", image: pic)
+            case .ended(let used): status.setFollow(used ? "⚠︎ Invite already used: ask \(who) for a new one"
+                                                          : "\(who) didn't allow this Mac", image: pic)
             }
             status.treatmentsChanged()                   // may add entries? (roster writers)
             alerts.followChanged()                       // "Same as the wearer" works only while approved

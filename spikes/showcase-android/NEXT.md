@@ -15,13 +15,8 @@ Garmin state label. The Juggluco-port fix (§4 below) ships with this round.
 
 ## 2. Open
 
-- **Match code UX** (user question 2026-10-17, research done, not built): now that requests show a name and picture,
-  is the 4-digit code still needed? Yes for security (names/pictures are self-asserted), but asked on every request it
-  trains people to tap Allow. Recommendation: keep the big code on the follower's waiting screen; on the wearer's side
-  show it as a secondary line normally, and require *typing* it when two requests share an invite, for nearby
-  Bluetooth / Mac pairing, or when a name matches an existing follower; approving one denies the rest; optional
-  `type:"used"` notice to the losing follower. Details: docs/10 "Short invites and private profiles". Needs the user's
-  go-ahead.
+- **Match code UX**: done in 0.11.6 (the user's proposal: single-use links, no code; Allow dialog with the invite
+  label; nearby pairing keeps a typed code). See docs/10 "Single-use invites".
 - Investigation 14 is in (0.11.0): short invites, private names + versioned generated pictures. Left out on purpose:
   public kind 0, Blossom, Nostr login, delete-everywhere (docs/14 "In Sukrara").
 - **Thin history fix not seen end to end**: verify with a fresh follower (two emulators: wearer `medium_phone`

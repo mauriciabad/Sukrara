@@ -43,6 +43,7 @@ data class FollowerUi(
     val name: String? = null,
     val me: app.mauri.sukrara.core.Profile? = null,
     val wearer: app.mauri.sukrara.core.Profile? = null,
+    val nearby: Boolean = false,
     val last: FollowedReading? = null,
     val chart: List<FollowedReading> = emptyList(),
     val count: Int = 0,
@@ -133,7 +134,7 @@ class FollowerEngine(private val ctx: Context) {
         val inv = app.mauri.sukrara.core.Invite(info.getString("i"), pair.getString("t"), pair.getLong("x"),
             Proto.strings(info.optJSONArray("relays")), app.mauri.sukrara.core.Profile.of(pair.optJSONObject("profile")))
         log.i("nearby: INFO from $address (owner ${Proto.shortNpub(inv.iPub)}, '${inv.profile?.name}')")
-        val err = join(inv, me)
+        val err = join(inv, me, nearby = true)
         if (err == null) withContext(serial) { st?.bleAddr = address; save() }
         return err
     }
@@ -194,8 +195,15 @@ class FollowerEngine(private val ctx: Context) {
         val l = app.mauri.sukrara.core.Derive.parse(link) ?: return@withContext Result.failure(IllegalArgumentException("Not a Sukrara invite link"))
         val k = Proto.inviteKeys(l)
         val tmp = RelayPool(Proto.RELAYS, log::i) { k }
-        val got = try {
-            tmp.fetch(listOf(JSONObject().put("kinds", JSONArray().put(Proto.WRAP)).put("#p", JSONArray().put(Proto.pub(k)))), 10_000)
+        val filter = listOf(JSONObject().put("kinds", JSONArray().put(Proto.WRAP)).put("#p", JSONArray().put(Proto.pub(k))))
+        // the share screen shows the link before its wrap reaches the relays: a quick scan may need another look
+        var got = emptyList<Pair<JSONObject, String>>()
+        try {
+            for (attempt in 0 until 5) {
+                got = tmp.fetch(filter, 10_000)
+                if (got.isNotEmpty() || attempt == 4) break
+                kotlinx.coroutines.delay(5_000)
+            }
         } finally { tmp.close() }
         Proto.openInvite(l, got.map { it.first }).also { r ->
             log.i("invite: ${got.size} wrap(s) via ${got.map { it.second.removePrefix("relay:") }.distinct()} → " +
@@ -204,13 +212,13 @@ class FollowerEngine(private val ctx: Context) {
     }
 
     /** Make F and send the access request (gift wrap to I) with our [me] profile. Returns an error or null. */
-    suspend fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile): String? = withContext(serial) {
+    suspend fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile, nearby: Boolean = false): String? = withContext(serial) {
         if (inv.expiry < Proto.nowS()) return@withContext "This invite expired — ask for a new one"
         if (inv.relays.isEmpty()) return@withContext "Invite has no relays"
         val f = Keys.generate()
         val code = Proto.matchCode(Proto.pub(f), inv.token)
         st = FollowerState(f, me.name.trim().ifBlank { "Follower" }.take(app.mauri.sukrara.core.Profile.MAX_NAME), inv.iPub,
-            inv.token, inv.relays, code, Proto.nowS(), avatar = me.avatar, wearer = inv.profile)
+            inv.token, inv.relays, code, Proto.nowS(), avatar = me.avatar, wearer = inv.profile, nearby = nearby)
         save()
         log.i("joining ${Proto.shortNpub(inv.iPub)} ('${inv.profile?.name}') via ${inv.relays.size} relays as '${st!!.name}' F=${Proto.pub(f)} code $code")
         startLocked()
@@ -444,6 +452,19 @@ class FollowerEngine(private val ctx: Context) {
                     backfill("new key epoch $n")
                     if (s.bleAddr != null || via.startsWith("ble:")) ble.hello()   // inv. 07: BLE backlog is now readable
                 }
+                publishUi()
+            }
+            // single-use invites: someone else used it first, or the wearer said no. Only meaningful while we wait.
+            "invite-used", "declined" -> {
+                if (s.status != FollowerState.REQUESTED) return
+                val used = u.body.optString("type") == "invite-used"
+                s.status = if (used) FollowerState.USED else FollowerState.DECLINED
+                save()
+                val who = s.wearer?.name?.ifBlank { null } ?: "The wearer"
+                log.i(if (used) "INVITE ALREADY USED by another phone (notice via ${short(via)})" else "DECLINED by the wearer (via ${short(via)})")
+                Notifications.post(ctx, Notifications.ID_STATUS, Notifications.STATUS,
+                    if (used) "This invite was already used" else "$who didn't allow this phone",
+                    if (used) "Ask $who for a new one, and tell them: it may not have been someone they invited." else "Ask $who for a new invite if this was a mistake.")
                 publishUi()
             }
             "revoked" -> {
@@ -683,6 +704,7 @@ class FollowerEngine(private val ctx: Context) {
                 name = s?.name,
                 me = s?.me,
                 wearer = s?.wearer,
+                nearby = s?.nearby ?: false,
                 last = chart.lastOrNull() ?: db.latest(),
                 chart = chart,
                 count = db.count(),

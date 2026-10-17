@@ -108,6 +108,7 @@ class OwnerEngine(private val ctx: Context) {
     private var chunksSent = 0
     private var lastInboxCheck = 0L
     private var invite: Pair<String, Long>? = null
+    private var inviteToken: String? = null
     private var nearby: InviteToken? = null           // investigation 07: short-lived token handed out over BLE INFO
     private var ble: app.mauri.sukrara.core.BleOwner? = null
 
@@ -310,7 +311,7 @@ class OwnerEngine(private val ctx: Context) {
     /** "Pair nearby": a 10-minute invite token offered to anyone connected over BLE (owner still Allows each request). */
     fun nearbyPairing() = scope.launch(serial) {
         val s = st ?: return@launch
-        val tok = InviteToken(Proto.newToken(), Proto.nowS() + 600)
+        val tok = InviteToken(Proto.newToken(), Proto.nowS() + 600, nearby = true, sentAt = Proto.nowS())
         nearby = tok
         s.invites.removeIf { it.x < Proto.nowS() }
         s.invites += tok
@@ -630,6 +631,13 @@ class OwnerEngine(private val ctx: Context) {
         log.i("key delivery → ${f.take(12)} (epoch ${e.n}, gk ${e.gk})")
     }
 
+    /** `invite-used` (a later requester on a claimed invite) or `declined` (the wearer denied the request): no key. */
+    private fun sendNotice(f: String, type: String) {
+        val s = st ?: return
+        publish(Proto.gift(s.i, f, Proto.RUMOR_TO_FOLLOWER, JSONObject().put("v", 2).put("type", type), ttlS = 7 * Proto.DAY), Lane.CONTROL)
+        log.i("$type notice → ${f.take(12)}")
+    }
+
     private fun sendRevoked(f: String) {
         val s = st ?: return
         publish(Proto.gift(s.i, f, Proto.RUMOR_TO_FOLLOWER, JSONObject().put("v", 2).put("type", "revoked")), Lane.CONTROL)
@@ -656,15 +664,16 @@ class OwnerEngine(private val ctx: Context) {
      * A v3 short invite: the link (fingerprint + secret) and a gift wrap on the relays with the rest (expiry, relays,
      * our profile), sealed by I. The secret's base64url is the access-request token.
      */
-    fun newInvite(): String? {
+    fun newInvite(label: String = ""): String? {
         val s = st ?: return null
         val x = Proto.nowS() + INVITE_TTL_S
         val (link, wrap) = Proto.newInvite(s.i, x, s.relays, s.profile)
         val token = app.mauri.sukrara.core.Derive.parse(link)!!.token
         invite = link to x
+        inviteToken = token
         scope.launch(serial) {
             s.invites.removeIf { it.x < Proto.nowS() }
-            s.invites += InviteToken(token, x)
+            s.invites += InviteToken(token, x, label.trim().take(app.mauri.sukrara.core.Profile.MAX_NAME), sentAt = Proto.nowS())
             save()
             publish(wrap, Lane.CONTROL, "invite")
             publishBackup()
@@ -674,6 +683,16 @@ class OwnerEngine(private val ctx: Context) {
         }
         _ui.update { it.copy(invite = link, inviteExpiry = x) }
         return link
+    }
+
+    /** "Who is it for?" on the share screen: kept with the current invite on this phone only, shown when it's used. */
+    fun setInviteLabel(label: String) = scope.launch(serial) {
+        val s = st ?: return@launch
+        val t = inviteToken ?: return@launch
+        s.invites.replaceAll { if (it.t == t) it.copy(label = label.trim().take(app.mauri.sukrara.core.Profile.MAX_NAME)) else it }
+        s.pending.replaceAll { if (it.token == t) it.copy(label = label.trim().take(app.mauri.sukrara.core.Profile.MAX_NAME)) else it }
+        save()
+        publishUi()
     }
 
     suspend fun checkInbox(why: String) {
@@ -732,19 +751,30 @@ class OwnerEngine(private val ctx: Context) {
                     return deliverKey(u.sender)
                 }
                 val token = u.body.optString("token")
-                val inv = s.invites.firstOrNull { it.t == token }
+                val idx = s.invites.indexOfFirst { it.t == token }
+                val inv = s.invites.getOrNull(idx)
                 if (inv == null || inv.x < Proto.nowS()) {
                     return log.i("request from '$name' (${u.sender.take(12)}) REJECTED: unknown or expired invite token")
                 }
-                if (s.pending.any { it.f == u.sender }) return
-                val p = PendingRequest(u.sender, name, token, Proto.matchCode(u.sender, token), Proto.nowS(), profile?.avatar)
+                // single use: the first request claims the invite; anyone later is told it's used, and the claimed
+                // request records the attempt (the wearer sees "another phone also tried this invite")
+                if (inv.claimedBy != null && inv.claimedBy != u.sender) {
+                    sendNotice(u.sender, "invite-used")
+                    val pi = s.pending.indexOfFirst { it.token == token }
+                    if (pi >= 0) s.pending[pi] = s.pending[pi].copy(others = s.pending[pi].others + 1)
+                    save()
+                    log.i("request from '$name' (${u.sender.take(12)}) on an invite already used by ${inv.claimedBy.take(12)} → invite-used")
+                    if (pi >= 0 && !foreground) Notifications.request(ctx, s.pending[pi])
+                    return publishUi()
+                }
+                if (inv.done || s.pending.any { it.f == u.sender }) return
+                s.invites[idx] = inv.copy(claimedBy = u.sender)
+                val p = PendingRequest(u.sender, name, token, Proto.matchCode(u.sender, token), Proto.nowS(), profile?.avatar,
+                    inv.label, inv.nearby, inv.sentAt)
                 s.pending += p
                 save()
-                log.i("access request from '$name' (${u.sender.take(12)}) code ${p.code} via ${via.removePrefix("relay:")}")
-                if (!foreground) {
-                    Notifications.post(ctx, Notifications.ID_REQUEST, Notifications.REQUESTS,
-                        "$name wants to see your glucose", "Code ${p.code} · open Sukrara to allow or deny")
-                }
+                log.i("access request from '$name' (${u.sender.take(12)}) for invite '${inv.label}'${if (inv.nearby) " (nearby, code ${p.code})" else ""} via ${via.removePrefix("relay:")}")
+                if (!foreground) Notifications.request(ctx, p)   // in the app, the Allow dialog shows instead
                 publishUi()
             }
             "profile" -> when {
@@ -777,16 +807,17 @@ class OwnerEngine(private val ctx: Context) {
     fun approve(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        if (s.invites.none { it.t == p.token && it.x > Proto.nowS() }) {
+        val idx = s.invites.indexOfFirst { it.t == p.token }
+        val inv = s.invites.getOrNull(idx)
+        if (inv == null || inv.x < Proto.nowS() || inv.done || inv.claimedBy != f) {
             s.pending.removeIf { it.token == p.token }
             save()
             publishUi()
             return@launch log.i("NOT approved '${p.name}': its invite was already used or expired")
         }
-        // single-use: the invite and every other request made with it are gone (a second request on one invite
-        // means the link reached someone else too)
+        // single use: the invite is done; it stays until it expires so later requesters still get "invite-used"
+        s.invites[idx] = inv.copy(done = true)
         s.pending.removeIf { it.token == p.token }
-        s.invites.removeIf { it.t == p.token }
         s.followers.removeIf { it.f == f }
         s.followers += Follower(f, p.name, Proto.nowS(), avatar = p.avatar)
         save()
@@ -802,12 +833,13 @@ class OwnerEngine(private val ctx: Context) {
     fun deny(f: String) = scope.launch(serial) {
         val s = st ?: return@launch
         val p = s.pending.firstOrNull { it.f == f } ?: return@launch
-        s.pending.removeIf { it.token == p.token }                            // a denied token is burnt, with its other requests
-        s.invites.removeIf { it.t == p.token }
+        s.pending.removeIf { it.token == p.token }                            // a denied invite is used up too
+        s.invites.replaceAll { if (it.t == p.token) it.copy(done = true) else it }
         save()
+        sendNotice(f, "declined")
         publishBackup()
         Notifications.cancel(ctx, Notifications.ID_REQUEST)
-        log.i("DENIED '${p.name}' (${f.take(12)}) code ${p.code} — nothing sent")
+        log.i("DENIED '${p.name}' (${f.take(12)}) — 'declined' sent, no key")
         publishUi()
     }
 

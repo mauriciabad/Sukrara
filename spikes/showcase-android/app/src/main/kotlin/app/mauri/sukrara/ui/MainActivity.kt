@@ -238,6 +238,7 @@ class MainActivity : ComponentActivity() {
                 override fun setWriter(f: String, on: Boolean) { engine.setWriter(f, on) }
                 override fun open(s: String) { screen = s }
                 override fun saveProfile(profile: app.mauri.sukrara.core.Profile) { engine.setProfile(profile) }
+                override fun setInviteLabel(label: String) { engine.setInviteLabel(label) }
             }
         }
 
@@ -317,12 +318,13 @@ class MainActivity : ComponentActivity() {
             }
         }
         FollowerRefresh { engine.refreshUi() }
-        val step = when (u.status) { "none", "requested" -> u.status; else -> "home" }
+        val step = when (u.status) { "none", "requested", "used", "declined" -> u.status; else -> "home" }
         val homeScroll = rememberScrollState()
         AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->
             when (s) {
                 "none" -> Page { FollowerJoin(deepLink, busy, error, actions) }
                 "requested" -> Page { FollowerWaiting(u, actions) }
+                "used", "declined" -> Page { FollowerEnded(u, actions) }
                 else -> ScreenHost(screen, home = "home", onBack = { screen = "home" }) { sc ->
                     when (sc) {
                         "alerts" -> Page { AlertsScreen(follower = true) { screen = "home" } }

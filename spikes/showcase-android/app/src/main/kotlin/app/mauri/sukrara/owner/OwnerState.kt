@@ -27,10 +27,27 @@ data class Follower(val f: String, val name: String, val since: Long, val revoke
     }
 }
 
-data class InviteToken(val t: String, val x: Long)
+/**
+ * One invite (PROTOCOL-v2 "Invite link"): single use. [claimedBy] = the follower whose request arrived first; later
+ * requesters get `invite-used`. [done] = approved or denied; the token stays until [x] so late requesters still get
+ * that notice. [label] = who the wearer said it's for (only on this phone and in the owner backup).
+ * [nearby] = handed out over Bluetooth INFO: the wearer must type the follower's match code to allow.
+ */
+data class InviteToken(val t: String, val x: Long, val label: String = "", val nearby: Boolean = false, val sentAt: Long = 0,
+                       val claimedBy: String? = null, val done: Boolean = false) {
+    fun toJson(): JSONObject = JSONObject().put("t", t).put("x", x).put("label", label).put("nearby", nearby)
+        .put("sentAt", sentAt).put("claimedBy", claimedBy ?: JSONObject.NULL).put("done", done)
 
+    companion object {
+        fun of(j: JSONObject) = InviteToken(j.getString("t"), j.getLong("x"), j.optString("label"), j.optBoolean("nearby"),
+            j.optLong("sentAt"), if (j.isNull("claimedBy")) null else j.optString("claimedBy").ifEmpty { null }, j.optBoolean("done"))
+    }
+}
+
+/** [others] = how many other phones tried the same invite after this one claimed it (a sign the link leaked). */
 data class PendingRequest(val f: String, val name: String, val token: String, val code: String, val at: Long,
-                          val avatar: Avatar? = null)
+                          val avatar: Avatar? = null, val label: String = "", val nearby: Boolean = false,
+                          val inviteAt: Long = 0, val others: Int = 0)
 
 /**
  * Everything the owner knows. Persisted locally in [app.mauri.sukrara.core.SecureStore] (Keystore-encrypted,
@@ -64,7 +81,7 @@ class OwnerState(
         .put("sid", sid)
         .put("epochs", JSONArray(epochs.map { JSONObject().put("n", it.n).put("g", it.g.secretKey().toBech32()) }))
         .put("followers", JSONArray(followers.map { it.toJson() }))
-        .put("invites", JSONArray(invites.map { JSONObject().put("t", it.t).put("x", it.x) }))
+        .put("invites", JSONArray(invites.map { it.toJson() }))
         .put("relays", JSONArray(relays))
         .put("writers", JSONArray(writers.toList()))
         .put("profile", profile.toJson())
@@ -79,7 +96,8 @@ class OwnerState(
         .put("synthetic", synthetic)
         .put("pending", JSONArray(pending.map {
             JSONObject().put("f", it.f).put("name", it.name).put("token", it.token).put("code", it.code).put("at", it.at)
-                .put("avatar", it.avatar?.json ?: JSONObject.NULL)
+                .put("avatar", it.avatar?.json ?: JSONObject.NULL).put("label", it.label).put("nearby", it.nearby)
+                .put("inviteAt", it.inviteAt).put("others", it.others)
         }))
 
     companion object {
@@ -97,7 +115,7 @@ class OwnerState(
             followers = j.optJSONArray("followers")?.let { a -> (0 until a.length()).map { Follower.of(a.getJSONObject(it)) } }
                 ?.toMutableList() ?: mutableListOf(),
             invites = j.optJSONArray("invites")?.let { a ->
-                (0 until a.length()).map { InviteToken(a.getJSONObject(it).getString("t"), a.getJSONObject(it).getLong("x")) }
+                (0 until a.length()).map { InviteToken.of(a.getJSONObject(it)) }
             }?.toMutableList() ?: mutableListOf(),
             writers = Proto.strings(j.optJSONArray("writers")).toMutableSet(),
             profile = Profile.of(j.optJSONObject("profile"))?.let { if (it.avatar == null) it.copy(avatar = Avatar.random()) else it }
@@ -113,7 +131,8 @@ class OwnerState(
             j.optJSONArray("pending")?.let { a ->
                 for (k in 0 until a.length()) a.getJSONObject(k).let {
                     pending += PendingRequest(it.getString("f"), it.getString("name"), it.getString("token"), it.getString("code"),
-                        it.getLong("at"), Avatar.of(it.optJSONObject("avatar")))
+                        it.getLong("at"), Avatar.of(it.optJSONObject("avatar")), it.optString("label"), it.optBoolean("nearby"),
+                        it.optLong("inviteAt"), it.optInt("others"))
                 }
             }
         }

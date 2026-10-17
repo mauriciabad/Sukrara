@@ -103,8 +103,14 @@ enum V2 {
         guard let l = parseLink(link), let k = inviteKeys(l) else {
             return .failure(.init(text: "That isn't a Sukrara invite link (https://sukrara.mauri.app/join#…)."))
         }
-        let wraps = await RelayPool.fetch(urls: relays, authKeys: k,
+        // the phone shows the link before its wrap reaches the relays: a quick paste may need another look
+        var wraps: [String] = []
+        for attempt in 0..<5 {
+            wraps = await RelayPool.fetch(urls: relays, authKeys: k,
                                           filter: ["kinds": [Int(wrap)], "#p": [k.publicKey().toHex()]], timeout: 10)
+            if !wraps.isEmpty || attempt == 4 { break }
+            try? await Task.sleep(for: .seconds(5))
+        }
         var reasons: [String] = []
         for json in wraps {
             guard let ev = try? Event.fromJson(json: json), ev.verify(),
@@ -362,7 +368,8 @@ struct FollowerV2State: Codable {
     var devices: [String] = []
     var writers: [String]? = nil       // roster `writers` (follower keys allowed to add treatments)
     var rosterAt: Int = 0
-    var status: String = "requested"   // requested | active | revoked
+    var status: String = "requested"   // requested | active | revoked | used | declined
+    var nearby: Bool? = nil            // joined over Bluetooth: the wearer types our match code
     var requestedAt: Int = Int(Date().timeIntervalSince1970)
     struct Epoch: Codable { var n: Int; var g: String }
 
@@ -375,7 +382,9 @@ struct FollowerV2State: Codable {
 }
 
 @MainActor final class FollowerV2 {
-    enum Phase: Equatable { case waiting(code: String), active(epoch: Int), revoked }
+    /// `waiting(code:)`: the code only for nearby pairing (the wearer types it); a link request needs none.
+    /// `ended(used:)`: someone else used the invite first (`invite-used`), or the wearer declined.
+    enum Phase: Equatable { case waiting(code: String?), active(epoch: Int), revoked, ended(used: Bool) }
 
     var onReading: ((Reading, String) -> Void)?
     var onHistory: (([Reading], String) -> Void)?
@@ -410,7 +419,9 @@ struct FollowerV2State: Codable {
         switch st.status {
         case "active": .active(epoch: epochKeys.values.map(\.n).max() ?? 0)
         case "revoked": .revoked
-        default: .waiting(code: st.code)
+        case "used": .ended(used: true)
+        case "declined": .ended(used: false)
+        default: .waiting(code: st.nearby == true ? st.code : nil)
         }
     }
     var code: String { st.code }
@@ -481,13 +492,14 @@ struct FollowerV2State: Codable {
     /// `sendRequest()`.
     struct JoinError: Error { let text: String }
 
-    static func join(_ inv: V2.Invite, name: String) -> Result<FollowerV2, JoinError> {
+    static func join(_ inv: V2.Invite, name: String, nearby: Bool = false) -> Result<FollowerV2, JoinError> {
         if inv.x < Int(Date().timeIntervalSince1970) { return .failure(JoinError(text: "This invite has expired — ask for a new one.")) }
         let f = Keys.generate()
         guard let nsec = try? f.secretKey().toBech32() else { return .failure(JoinError(text: "Couldn't create a key.")) }
         var st = FollowerV2State(f: nsec, i: inv.i, relays: inv.r.isEmpty ? V2.relays : inv.r, token: inv.t, name: name,
                                  code: V2.matchCode(f.publicKey().toHex(), inv.t))
         st.avatar = V2.json(Avatar.random())
+        st.nearby = nearby
         st.wearer = inv.profile.map { V2.json($0) }
         st.save()
         guard FollowerV2State.load() != nil, let node = FollowerV2(state: st) else {
@@ -688,6 +700,12 @@ struct FollowerV2State: Codable {
             subscribeData()
             onPhase?(phase)
             onNewKey?()
+        case "invite-used", "declined":
+            guard st.status == "requested" else { return }
+            st.status = body["type"] as? String == "invite-used" ? "used" : "declined"
+            st.save()
+            log("v2: \(st.status == "used" ? "invite already used by another device" : "the wearer declined this Mac")")
+            onPhase?(phase)
         case "revoked":
             st.status = "revoked"
             st.save()

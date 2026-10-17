@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.5/Sukrara-0.11.5.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.5/Sukrara-0.11.5.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.6/Sukrara-0.11.6.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.6/Sukrara-0.11.6.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -21,7 +21,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 
 <p>
   <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android" width="180">
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/p5-request-from-mac.png" alt="Allow dialog with the follower's name, picture and a 4-digit match code" width="180">
+  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog with the follower's name, picture and the invite's label" width="180">
   <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png" alt="Home-screen widgets" width="180">
 </p>
 <p>
@@ -44,8 +44,8 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 - **Alerts:** urgent low, low, high, very high, fast changes and no data, each with your own threshold and sound.
   Highs stay quiet after rapid insulin and while already falling back into range. Video-game sound packs
   ([listen](sounds/)), a different sound each time, and a vibration per alert.
-- **Sharing:** a short link or small QR code that shows who is inviting, a 4-digit code on both screens, then
-  **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
+- **Sharing:** a one-time short link or small QR code that shows who is inviting; you see their name next to who you
+  sent it to, then **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
   you do. Removing someone rotates the key; everyone else carries on.
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged; stock Home Assistant reads it through a

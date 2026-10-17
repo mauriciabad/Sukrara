@@ -134,12 +134,18 @@ import NostrSDK
         window.title = "Follow \(wearer.name.isEmpty ? "someone" : wearer.name)"
         picture.image = Avatar.image(wearer.avatar, name: wearer.name, size: 40)
         switch phase {
-        case .waiting(let code):
-            title.stringValue = "Waiting for \(who) to approve…"
+        case .waiting(let code?):
+            title.stringValue = "Waiting for \(who)…"
             codeLabel.stringValue = code
             codeLabel.textColor = .labelColor
-            detail.stringValue = "Their phone shows a request from \"\(name)\". Check that it shows the same code "
-                + "\(code), then they tap Allow. You can close this window; the menu shows the status."
+            detail.stringValue = "This Mac was offered over Bluetooth, so \(who) types this code on their phone to allow it. "
+                + "You can close this window; the menu shows the status."
+        case .waiting(nil):
+            title.stringValue = "Request sent"
+            codeLabel.stringValue = "…"
+            codeLabel.textColor = .secondaryLabelColor
+            detail.stringValue = "\(who) sees a request from \"\(name)\" and taps Allow. You can close this window; "
+                + "the menubar shows the readings as soon as it happens."
         case .active(let epoch):
             title.stringValue = "Approved ✓"
             codeLabel.stringValue = "✓"
@@ -150,6 +156,13 @@ import NostrSDK
             codeLabel.stringValue = "—"
             codeLabel.textColor = .secondaryLabelColor
             detail.stringValue = "\(who) stopped sharing with this Mac."
+        case .ended(let used):
+            title.stringValue = used ? "This invite was already used" : "\(who) didn't allow this Mac"
+            codeLabel.stringValue = "—"
+            codeLabel.textColor = .secondaryLabelColor
+            detail.stringValue = used
+                ? "Someone opened this link before you. Ask \(who) for a new one, and tell them, in case it wasn't someone they invited."
+                : "Nothing was shared with this Mac. If it was a mistake, ask \(who) for a new invite."
         }
         if !window.isVisible {
             window.center()
@@ -158,7 +171,7 @@ import NostrSDK
         }
         // Evidence aid: `-pairSnapshot out.png` renders the window content (no screen-recording permission needed).
         if let path = UserDefaults.standard.string(forKey: "pairSnapshot") {
-            let tag = switch phase { case .waiting: "waiting"; case .active: "approved"; case .revoked: "revoked" }
+            let tag = switch phase { case .waiting: "waiting"; case .active: "approved"; case .revoked: "revoked"; case .ended: "ended" }
             DispatchQueue.main.async { [window] in
                 guard let v = window.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
                 v.cacheDisplay(in: v.bounds, to: rep)
