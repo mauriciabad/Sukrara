@@ -135,8 +135,7 @@ class DebugReceiver : BroadcastReceiver() {
                 c.startForegroundService(Intent(c, OwnerService::class.java))
                 out.put("cmd", "owner ready")
             }
-<<<<<<< HEAD
-            "invite" -> out.put("invite", App.owner(c).newInvite())   // public link, no secret
+            "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
             "pinWidget" -> {
                 val r = when (i.getStringExtra("kind")) {
@@ -147,9 +146,6 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
                     .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
             }
-=======
-            "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
->>>>>>> f3f30e7 (Sukrara 0.11.6: single-use invites without a code, new Allow dialog with the invite label)
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {

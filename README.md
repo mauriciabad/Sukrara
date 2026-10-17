@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.5/Sukrara-0.11.5.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.6/Sukrara-0.11.6.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.5/Sukrara-0.11.5.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.6/Sukrara-0.11.6.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
