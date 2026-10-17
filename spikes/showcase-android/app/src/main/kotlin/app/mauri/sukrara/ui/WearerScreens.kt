@@ -190,6 +190,9 @@ fun SettingsScreen(onSensor: () -> Unit, onAlerts: () -> Unit, onGraph: () -> Un
         SectionTitle("Status bar")
         StatusBarSettings(f, st)
 
+        SectionTitle("Lock screen")
+        LockscreenSettings(f)
+
         LocalServersSection()
 
         LibreViewSettings(f, st)
@@ -233,6 +236,19 @@ private fun StatusBarSettings(f: FeatureState, st: app.mauri.sukrara.wearer.Wear
         set { it.copy(screenOffSkip = v) }
     }
     RootStatusBarSettings(f)
+}
+
+/** Investigation 17: the widget the LSPosed module puts on the lock screen (hook/LockscreenWidgetHost). */
+@Composable
+private fun LockscreenSettings(f: FeatureState) {
+    val ctx = LocalContext.current
+    Toggle("Glucose on the lock screen", f.lockWidget, sub = "Value and graph around the fingerprint icon; tap to add an entry") { v ->
+        set { it.copy(lockWidget = v) }
+        app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
+    }
+    HorizontalDivider()
+    Text("Needs the Sukrara module enabled in LSPosed (scope System UI). Entries can be added without unlocking.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
 }
 
 /**

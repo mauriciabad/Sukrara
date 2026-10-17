@@ -46,7 +46,7 @@ class DebugReceiver : BroadcastReceiver() {
                 bleFollowers = b("bleFollowers", s.bleFollowers),
                 chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
-                hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon),
+                hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon), lockWidget = b("lockWidget", s.lockWidget),
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,

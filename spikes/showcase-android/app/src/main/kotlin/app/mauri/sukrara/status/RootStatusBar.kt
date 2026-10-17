@@ -70,6 +70,9 @@ object RootStatusBar {
         io.execute { stopDaemon() }
     }
 
+    /** The switches changed outside the wearer pipeline (Settings, any role): tell the module now. */
+    fun pushState(ctx: Context) = sendToHook(ctx, Features.value, last)
+
     // --- 3b: the SystemUI hook --------------------------------------------------------------------------
 
     private fun sendToHook(ctx: Context, f: FeatureState, r: Reading?) {
@@ -79,6 +82,7 @@ object RootStatusBar {
             .putExtra("color", f.hookColor)
             .putExtra("hideIcon", f.hideNotifIcon)
             .putExtra("low", Range.LOW).putExtra("high", Range.HIGH)
+            .putExtra("lockWidget", f.lockWidget)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }

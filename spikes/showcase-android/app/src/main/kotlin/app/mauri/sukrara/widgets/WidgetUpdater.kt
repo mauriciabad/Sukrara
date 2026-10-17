@@ -57,6 +57,7 @@ object WidgetUpdater {
         ValueWidget() to ValueWidgetReceiver::class.java,
         GraphWidget() to GraphWidgetReceiver::class.java,
         CombinedWidget() to CombinedWidgetReceiver::class.java,
+        LockscreenWidget() to LockscreenWidgetReceiver::class.java,
     )
 
     /** For composition when the process just started (system-initiated update): load from disk. */

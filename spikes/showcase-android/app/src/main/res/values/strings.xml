@@ -5,5 +5,8 @@
     <string name="widget_combined">Glucose + graph</string>
     <string name="widget_value_desc">Current glucose, trend arrow and age</string>
     <string name="widget_graph_desc">Last hours of glucose, the 65–185 range band and treatments</string>
+    <string name="tile_treatment">Add treatment</string>
+    <string name="widget_lockscreen">Lock screen</string>
+    <string name="widget_lockscreen_desc">Glucose and the graph in the free space of the lock screen</string>
     <string name="widget_combined_desc">Current glucose and the graph of the last hours</string>
 </resources>

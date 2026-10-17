@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -32,7 +33,7 @@ import app.mauri.sukrara.core.STALE_AFTER_S
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.core.Trend
 import java.lang.ref.WeakReference
-import java.lang.reflect.Method
+import java.lang.reflect.Executable
 
 /**
  * Approach 3b: an LSPosed module running inside SystemUI. It adds its own TextView to the status bar —
@@ -63,6 +64,35 @@ class SystemUiHook : XposedModule() {
         safe("hook icon order") { hookIconOrder(cl) }
         safe("hook icon tint") { hookIconTint(cl) }
         safe("hook notification icons") { hookNotificationIcons(cl) }
+        safe("hook lock screen widget") { hookLockscreenWidget(cl) }
+    }
+
+    /**
+     * Investigation 17: the lock screen widget ([LockscreenWidgetHost]). Its view goes into the notification shade
+     * window's root (SceneWindowRootView, where the Compose lock screen is), which also passes it every touch.
+     */
+    private fun hookLockscreenWidget(cl: ClassLoader) {
+        val rootClass = cl.loadClass("com.android.systemui.scene.ui.view.SceneWindowRootView")
+        after(cl.loadClass("com.android.systemui.scene.domain.interactor.LegacySceneInteractorImpl").declaredConstructors.single()) {
+            lockWidget.onScenes(it.thisObject!!)
+        }
+        lockWidget.resolveAuth(cl)
+        for (c in cl.loadClass("com.android.systemui.biometrics.AuthController").declaredConstructors) {
+            after(c) { lockWidget.onAuth(it.thisObject!!) }
+        }
+        after(cl.loadClass("com.android.systemui.scene.ui.view.WindowRootView").getDeclaredMethod("onAttachedToWindow")) {
+            val root = it.thisObject as ViewGroup
+            if (!rootClass.isInstance(root)) return@after
+            if (Settings.Global.getInt(root.context.contentResolver, KILL_SWITCH, 0) == 1) return@after
+            ensureReceiver(root.context)
+            lockWidget.onRootAttached(root)
+        }
+        hook(rootClass.getDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java))
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                (chain.getArg(0) as? MotionEvent)?.let(lockWidget::onTouch)
+                chain.proceed()
+            }
+        log("lock screen widget hooks: ok")
     }
 
     /**
@@ -270,6 +300,7 @@ class SystemUiHook : XposedModule() {
 
     /** Written on the main thread (receiver), read by the Compose/flow hooks on SystemUI's background threads. */
     @Volatile private var state = State()
+    private val lockWidget = LockscreenWidgetHost(::log)
     private val slots = mutableListOf<Slot>()
     private var receiverRegistered = false
     private val main by lazy { Handler(Looper.getMainLooper()) } // the module is created before the main looper
@@ -296,6 +327,7 @@ class SystemUiHook : XposedModule() {
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
             i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon))
+        if (i.hasExtra("lockWidget")) lockWidget.enabled = i.getBooleanExtra("lockWidget", false)
         slots.removeAll { it.root.get() == null }
         if (state.position != old.position) slots.forEach { place(it) }
         renderAll()
@@ -388,7 +420,7 @@ class SystemUiHook : XposedModule() {
     // --- safety -------------------------------------------------------------------------------------
 
     /** Run [block] after [m]; PROTECTIVE means a throw from our side can't break the original call. */
-    private fun after(m: Method, block: (XposedInterface.Chain) -> Unit) {
+    private fun after(m: Executable, block: (XposedInterface.Chain) -> Unit) {
         hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
             val result = chain.proceed()
             safe("after ${m.name}") { block(chain) }
