@@ -45,7 +45,7 @@ enum Preview {
     }
 }
 
-/// `Sukrara -menuPreview out.png`: the dropdown's glucose card and treatment section as `out-light.png` and
+/// `Sukrara -menuPreview out.png`: the dropdown's glucose card, report and treatment section as `out-light.png` and
 /// `out-dark.png`, from synthetic data (a realistic 15 days for the rings, insulin / carbs / notes, entries in every
 /// v2 delivery state). Uses the same CardView, StatusController.describe and TreatmentPaths code as the live menu; a
 /// temp store, no network.
@@ -104,12 +104,20 @@ enum MenuPreview {
             chart.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
             chart.marks = store.rows.filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
             chart.style = CardStyle(graph: cfg.graphStyle(), rings: cfg.rings, value: true)
-            chart.tirOf = { spec, b in GlucoseStats.timeInRange(all, from: end.timeIntervalSince1970 - spec.window, to: end.timeIntervalSince1970, bands: b) }
+            chart.metricsOf = { spec, b in GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - spec.window, to: end.timeIntervalSince1970, bands: b) }
             chart.now = end.addingTimeInterval(30)
             chart.translatesAutoresizingMaskIntoConstraints = false
             chart.widthAnchor.constraint(equalToConstant: 340).isActive = true
             chart.heightAnchor.constraint(equalToConstant: 200).isActive = true
             stack.addArrangedSubview(chart)
+            // investigation 18: the report under the card (14 days)
+            let report = ReportView(frame: NSRect(x: 0, y: 0, width: 340, height: 300))
+            report.inset = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+            report.metrics = GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - 14 * 86400, to: end.timeIntervalSince1970, bands: cfg.bands)
+            report.translatesAutoresizingMaskIntoConstraints = false
+            report.widthAnchor.constraint(equalToConstant: 340).isActive = true
+            report.heightAnchor.constraint(equalToConstant: report.fittingHeight()).isActive = true
+            stack.addArrangedSubview(report)
             line("Source: Bluetooth · Tartaruga", .secondaryLabelColor)
             line(i == 0 ? "Following (v2) · key epoch 2 · 4 relays" : "Following (v2) · key epoch 2 · 4 relays", .secondaryLabelColor)
             stack.addArrangedSubview(separator(w - 28))

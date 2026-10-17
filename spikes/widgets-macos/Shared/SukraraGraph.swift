@@ -232,10 +232,72 @@ struct GraphStyle {
     }
 }
 
-struct RingSpec: Equatable {
+/// What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers.
+enum SlotKind: String, Codable, CaseIterable {
+    case tir = "TIR", gmi = "GMI", average = "AVERAGE", cv = "CV"
+    var label: String {
+        switch self { case .tir: "Time in range"; case .gmi: "GMI"; case .average: "Average glucose"; case .cv: "Variability (CV)" }
+    }
+    var short: String { switch self { case .tir: ""; case .gmi: "GMI"; case .average: "avg"; case .cv: "CV" } }
+}
+
+/// One slot beside the value: its kind, window and, for a ring, which range its centre counts. `faded` = drawn
+/// fainter by position (second, third); off = full strength wherever it sits.
+struct RingSpec: Codable, Equatable {
     var window: TimeInterval
     var range: TirRange = .inRange
+    var kind: SlotKind = .tir
+    var faded = true
     var period: String { periodLabel(window) }
+}
+
+/// The doctor's report numbers for one window (GlucoseMetrics.kt): time in the five ranges, time-weighted mean and
+/// SD, CV, GMI.
+struct GlucoseMetrics: Codable, Equatable {
+    var tir: TimeInRange
+    var mean: Double
+    var sd: Double
+    var readings: Int
+    var cv: Double { mean > 0 ? sd / mean * 100 : 0 }
+    /// Glucose Management Indicator, % (Bergenstal 2018).
+    var gmi: Double { 3.31 + 0.02392 * mean }
+    var gmiMmolMol: Double { (gmi - 2.152) * 10.929 }
+    var empty: Bool { readings == 0 }
+
+    static func of(_ all: [GraphReading], from: TimeInterval, to: TimeInterval, bands b: Bands) -> GlucoseMetrics {
+        let rs = GlucoseStats.window(all, from: from, to: to)
+        let w = GlucoseStats.weights(rs, to: to)
+        let total = w.reduce(0, +)
+        let tir = GlucoseStats.timeInRange(all, from: from, to: to, bands: b)
+        guard total > 0 else { return GlucoseMetrics(tir: tir, mean: 0, sd: 0, readings: 0) }
+        let mean = rs.indices.reduce(0.0) { $0 + Double(rs[$1].sgv) * w[$1] } / total
+        let variance = rs.indices.reduce(0.0) { let d = Double(rs[$1].sgv) - mean; return $0 + d * d * w[$1] } / total
+        return GlucoseMetrics(tir: tir, mean: mean, sd: variance.squareRoot(), readings: rs.count)
+    }
+}
+
+/// The international consensus targets (Battelino 2019) LibreView prints as "Goals for type 1 and type 2 diabetes".
+enum Goal: CaseIterable {
+    case veryHigh, above, inRange, below, veryLow, average, gmi, cv
+    static let minCoverage = 0.70
+    var text: String {
+        switch self {
+        case .veryHigh: "< 5%"; case .above: "< 25%"; case .inRange: "> 70%"; case .below: "< 4%"; case .veryLow: "< 1%"
+        case .average: "< 154 mg/dL"; case .gmi: "< 7%"; case .cv: "≤ 36%"
+        }
+    }
+    func met(_ m: GlucoseMetrics) -> Bool {
+        switch self {
+        case .veryHigh: m.tir.veryHigh < 0.05
+        case .above: m.tir.above < 0.25
+        case .inRange: m.tir.inRange > 0.70
+        case .below: m.tir.below < 0.04
+        case .veryLow: m.tir.veryLow < 0.01
+        case .average: m.mean < 154
+        case .gmi: m.gmi < 7.0
+        case .cv: m.cv <= 36.0
+        }
+    }
 }
 
 func periodLabel(_ s: TimeInterval) -> String {
@@ -254,19 +316,32 @@ struct GraphConfig: Codable, Equatable {
     var bands = Bands()
     var hours = 12
     var ringCount = 2
-    var ringWindows: [TimeInterval] = [86400, 7 * 86400, 14 * 86400]
+    var slots: [RingSpec] = GraphConfig.defaultSlots
     var ringRange: TirRange = .inRange
     var side = true
 
     static let windowHours = [3, 6, 12, 24]
-    static let ringChoices: [TimeInterval] = [12 * 3600, 86400, 3 * 86400, 7 * 86400, 14 * 86400]
+    static let ringChoices: [TimeInterval] = [12 * 3600, 86400, 3 * 86400, 7 * 86400, 14 * 86400, 30 * 86400]
+    /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
+    static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
 
-    var rings: [RingSpec] { Array(ringWindows.prefix(max(0, min(3, ringCount)))).map { RingSpec(window: $0, range: ringRange) } }
+    var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; return r } }
+
+    /// "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind:window s:faded).
+    static func slotsText(_ s: [RingSpec]) -> String { s.map { "\($0.kind.rawValue):\(Int($0.window)):\($0.faded ? 1 : 0)" }.joined(separator: ",") }
+    static func parseSlots(_ text: String) -> [RingSpec]? {
+        let s = text.split(separator: ",").compactMap { e -> RingSpec? in
+            let p = e.split(separator: ":").map(String.init)
+            guard let kind = SlotKind(rawValue: p[0]), p.count > 1, let w = TimeInterval(p[1]), ringChoices.contains(w) else { return nil }
+            return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
+        }
+        return s.count == 3 ? s : nil
+    }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
         GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side)
     }
 
-    /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, ringWindows "86400,604800,1209600", ringRange
+    /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
     /// IN_RANGE|TIGHT, bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh, side (time in range beside the graph).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
@@ -276,8 +351,7 @@ struct GraphConfig: Codable, Equatable {
         let h = place.flatMap { int("\($0)Hours") } ?? int("graphHours") ?? 12
         c.hours = windowHours.contains(h) ? h : 12
         c.ringCount = max(0, min(3, int("ringCount") ?? 2))
-        let w = (d.string(forKey: "ringWindows") ?? "").split(separator: ",").compactMap { TimeInterval($0) }
-        if w.count == 3, w.allSatisfy(ringChoices.contains) { c.ringWindows = w }
+        if let s = parseSlots(d.string(forKey: "slots") ?? "") { c.slots = s }
         c.ringRange = TirRange(rawValue: d.string(forKey: "ringRange") ?? "") ?? .inRange
         c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
         return c
@@ -286,7 +360,7 @@ struct GraphConfig: Codable, Equatable {
 
 // MARK: - Drawing helpers (y-down CGContext)
 
-private enum Ink {
+enum Ink {
     static func font(_ size: CGFloat, _ weight: NSFont.Weight, rounded: Bool = false) -> CTFont {
         var f = NSFont.systemFont(ofSize: size, weight: weight)
         if rounded, let desc = f.fontDescriptor.withDesign(.rounded) { f = NSFont(descriptor: desc, size: size) ?? f }
@@ -634,6 +708,61 @@ enum TirRing {
     }
 }
 
+/// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
+/// on the number's scale (green = consensus goal met, orange = not) and a tick at the goal.
+enum MetricGauge {
+    static func scale(_ k: SlotKind) -> (Double, Double, Double) {
+        switch k { case .gmi: (5, 10, 7); case .average: (70, 250, 154); default: (0, 60, 36) }
+    }
+    static func value(_ k: SlotKind, _ m: GlucoseMetrics) -> Double {
+        switch k { case .gmi: m.gmi; case .average: m.mean; default: m.cv }
+    }
+    static func met(_ k: SlotKind, _ m: GlucoseMetrics) -> Bool {
+        switch k { case .gmi: Goal.gmi.met(m); case .average: Goal.average.met(m); default: Goal.cv.met(m) }
+    }
+    static func text(_ k: SlotKind, _ m: GlucoseMetrics) -> (String, String) {
+        switch k {
+        case .gmi: (String(format: "%.1f", m.gmi), "%")
+        case .average: ("\(Int(m.mean.rounded()))", "")
+        default: ("\(Int(m.cv.rounded()))", "%")
+        }
+    }
+
+    static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, m: GlucoseMetrics, spec: RingSpec,
+                     _ pal: GraphPalette, emphasis: CGFloat, d: CGFloat) {
+        let sw = radius * 0.2, rr = radius - sw / 2
+        ctx.saveGState()
+        ctx.setLineWidth(sw)
+        ctx.setLineCap(.round)
+        ctx.setStrokeColor(pal.grid.a(emphasis))
+        ctx.strokeEllipse(in: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr))
+        let (lo, hi, goal) = scale(spec.kind)
+        if !m.empty {
+            let f = min(max((value(spec.kind, m) - lo) / (hi - lo), 0.02), 1)
+            ctx.setStrokeColor((met(spec.kind, m) ? pal.tight : pal.high).a(emphasis))
+            ctx.addArc(center: c, radius: rr, startAngle: -.pi / 2, endAngle: -.pi / 2 + 2 * .pi * CGFloat(f), clockwise: false)
+            ctx.strokePath()
+        }
+        // goal tick across the track
+        let ga = -Double.pi / 2 + 2 * .pi * (goal - lo) / (hi - lo)
+        let r0 = radius - sw * 1.15, r1 = radius + sw * 0.15
+        ctx.setLineCap(.butt)
+        ctx.setLineWidth(1.6 * d)
+        ctx.setStrokeColor(pal.ink.a(emphasis))
+        ctx.strokeLineSegments(between: [CGPoint(x: c.x + r0 * CGFloat(cos(ga)), y: c.y + r0 * CGFloat(sin(ga))),
+                                         CGPoint(x: c.x + r1 * CGFloat(cos(ga)), y: c.y + r1 * CGFloat(sin(ga)))])
+        ctx.restoreGState()
+        let num = Ink.font(radius * 0.62, .heavy, rounded: true)
+        let unit = Ink.font(radius * 0.3, .semibold, rounded: true)
+        let (v, u) = m.empty ? ("–", "") : text(spec.kind, m)
+        let w = Ink.width(v, num) + Ink.width(u, unit)
+        let base = c.y + radius * 0.62 * 0.3
+        Ink.draw(ctx, v, x: c.x - w / 2, y: base, num, pal.ink.a(emphasis))
+        Ink.draw(ctx, u, x: c.x - w / 2 + Ink.width(v, num), y: base, unit, pal.ink.a(emphasis))
+        Ink.draw(ctx, "\(spec.kind.short) \(spec.period)", x: c.x, y: base + radius * 0.3 * 1.25, unit, pal.inkSoft.a(emphasis), align: 0.5)
+    }
+}
+
 // MARK: - Card
 
 /// Value + trend arrow + rings + chart in one drawing (GlucoseCard.kt), adapting to the size.
@@ -641,10 +770,10 @@ enum GlucoseCard {
     static let ringEmphasis: [CGFloat] = [1, 0.55, 0.35]
     static let minCoverage = 0.25
 
-    /// `tirOf` gives a ring's numbers; by default computed from `readings` (enough for windows they cover).
+    /// `metricsOf` gives a slot's numbers; by default computed from `readings` (enough for windows they cover).
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1,
-                     tirOf: ((RingSpec, Bands) -> TimeInRange)? = nil) {
+                     metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil) {
         let w = size.width, h = size.height
         let latest = readings.max { $0.t < $1.t }
         let fr = Freshness.of(age: latest.map { now - $0.t })
@@ -653,11 +782,11 @@ enum GlucoseCard {
         let sideBySide = graph != nil && st.value && h < 100 * d && w > 2.6 * h
         let headerH: CGFloat = !st.value ? 0 : (graph == nil || sideBySide) ? h : min(max(h * 0.34, 30 * d), 80 * d)
         let valueRight = sideBySide ? min(w * 0.32, 120 * d) : w
-        let tir = tirOf ?? { r, b in GlucoseStats.timeInRange(readings, from: now - r.window, to: now, bands: b) }
+        let metrics = metricsOf ?? { r, b in GlucoseMetrics.of(readings, from: now - r.window, to: now, bands: b) }
 
         if st.value {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
-            let ringsW = sideBySide ? 0 : drawRings(ctx, box, st.rings, bands, pal, d: d, tir)
+            let ringsW = sideBySide ? 0 : drawRings(ctx, box, st.rings, bands, pal, d: d, metrics)
             drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal, d: d)
         }
         let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
@@ -671,7 +800,7 @@ enum GlucoseCard {
     }
 
     private static func drawRings(_ ctx: CGContext, _ box: CGRect, _ rings: [RingSpec], _ bands: Bands, _ pal: GraphPalette,
-                                  d: CGFloat, _ tirOf: (RingSpec, Bands) -> TimeInRange) -> CGFloat {
+                                  d: CGFloat, _ metricsOf: (RingSpec, Bands) -> GlucoseMetrics) -> CGFloat {
         guard !rings.isEmpty else { return 0 }
         let size = min(box.height * 0.96, 84 * d)
         guard size >= 30 * d else { return 0 }
@@ -679,9 +808,12 @@ enum GlucoseCard {
         let fit = min(Int((box.width * 0.55 + gap) / (size + gap)), min(3, rings.count))
         var x = box.maxX, used: CGFloat = 0
         for (i, spec) in rings.prefix(max(0, fit)).enumerated() {
-            let t = tirOf(spec, bands)
-            if t.coverage < minCoverage { continue }
-            TirRing.draw(ctx, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, tir: t, spec: spec, pal, emphasis: ringEmphasis[i])
+            let m = metricsOf(spec, bands)
+            if m.tir.coverage < minCoverage { continue }
+            let e = spec.faded ? ringEmphasis[i] : 1
+            let c = CGPoint(x: x - size / 2, y: box.midY)
+            if spec.kind == .tir { TirRing.draw(ctx, center: c, radius: size / 2, tir: m.tir, spec: spec, pal, emphasis: e) }
+            else { MetricGauge.draw(ctx, center: c, radius: size / 2, m: m, spec: spec, pal, emphasis: e, d: d) }
             x -= size + gap
             used += size + gap
         }
@@ -745,7 +877,7 @@ enum GlucoseCard {
     /// The card as a bitmap (widgets, PNG evidence): `scale` px per point, y-down.
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                       _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil,
-                      tirOf: ((RingSpec, Bands) -> TimeInRange)? = nil) -> CGImage? {
+                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil) -> CGImage? {
         let pw = max(16, Int(size.width * scale)), ph = max(16, Int(size.height * scale))
         guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -753,7 +885,7 @@ enum GlucoseCard {
         ctx.translateBy(x: 0, y: CGFloat(ph))
         ctx.scaleBy(x: scale, y: -scale)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
-        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, tirOf: tirOf)
+        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf)
         return ctx.makeImage()
     }
 }

@@ -119,5 +119,19 @@ struct RenderMain {
             }
         }
         render(two, to: out.appendingPathComponent("mac-widget-two-configs-dark.png"), dark: true)
+        // Investigation 18: the third slot shows the 14-day GMI at full strength (docs/img/18).
+        var cfg = GraphConfig()
+        cfg.ringCount = 3
+        cfg.slots[2] = RingSpec(window: 14 * 86400, kind: .gmi, faded: false)
+        var gmi = Synthetic.realistic(now: renderNow.addingTimeInterval(-30), config: cfg)
+        gmi.written = renderNow
+        let out18 = out.deletingLastPathComponent().appendingPathComponent("18")
+        try? FileManager.default.createDirectory(at: out18, withIntermediateDirectories: true)
+        for dark in [false, true] {
+            let v = Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: gmi, date: renderNow), mode: .fullColor)
+            }
+            render(v, to: out18.appendingPathComponent("mac-widget-medium-gmi-\(dark ? "dark" : "light").png"), dark: dark)
+        }
     }
 }

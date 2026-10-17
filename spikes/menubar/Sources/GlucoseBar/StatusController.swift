@@ -20,14 +20,22 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private let valueLine = NSMenuItem(), sourceLine = NSMenuItem(), errorLine = NSMenuItem()
     private let chartItem = NSMenuItem()
-    private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 200))
+    private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 368, height: 200))
+    private let reportItem = NSMenuItem()
+    private let report = ReportView(frame: NSRect(x: 0, y: 0, width: 368, height: 300))   // investigation 18
 
     var unit: GlucoseUnit = .mgdl
     /// Investigation 16: ranges, window, rings, side (UserDefaults, `menubarHours` over `graphHours`).
     private(set) var graph = GraphConfig.load(place: "menubar")
     /// The 15-day history the card and its rings draw from (ReadingsStore).
     var history: (() -> [GraphReading])?
-    var ringTir: ((RingSpec, Bands) -> TimeInRange)?
+    /// A window's numbers (rings, gauges, the report) from the readings store.
+    var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
+    /// The report's window, days (`reportDays`, 1|7|14|30, default 14).
+    var reportDays: Int {
+        let d = UserDefaults.standard.integer(forKey: "reportDays")
+        return [1, 7, 14, 30].contains(d) ? d : 14
+    }
     /// The graph settings changed in the "Graph" submenu (the widget feed re-publishes).
     var onGraphChange: (() -> Void)?
     var onRefresh: (() -> Void)?
@@ -65,6 +73,9 @@ final class StatusController: NSObject, NSMenuDelegate {
         chartItem.view = chart
         menu.addItem(valueLine)
         menu.addItem(chartItem)
+        reportItem.view = report
+        reportItem.isHidden = true
+        menu.addItem(reportItem)
         menu.addItem(sourceLine)
         menu.addItem(errorLine)
         followLine.isEnabled = false
@@ -148,6 +159,7 @@ final class StatusController: NSObject, NSMenuDelegate {
             valueLine.isHidden = false
             valueLine.title = "No data yet"
             chartItem.isHidden = true
+            reportItem.isHidden = true
             sourceLine.isHidden = true
             errorLine.isHidden = lastError == nil
             errorLine.title = "Error: " + (lastError ?? "")
@@ -184,7 +196,16 @@ final class StatusController: NSObject, NSMenuDelegate {
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         chart.readings = pts
         chart.marks = marks()
-        chart.tirOf = ringTir
+        chart.metricsOf = metricsOf.map { f in { spec, b in f(spec.window, b) } }
+        if let f = metricsOf {
+            report.bands = graph.bands
+            report.days = reportDays
+            report.metrics = f(TimeInterval(reportDays) * 86400, graph.bands)
+            report.setFrameSize(NSSize(width: 340 + 28, height: report.fittingHeight()))
+            reportItem.isHidden = false
+        } else {
+            reportItem.isHidden = true
+        }
         chart.needsDisplay = true
         sourceLine.isHidden = false
         sourceLine.title = "Source: \(snap.source)"
@@ -221,9 +242,30 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         header("Graph window")
         for h in GraphConfig.windowHours { option("\(h) h", graph.hours == h, "graphHours", h) }
-        header("Time in range rings")
-        for n in 0...3 { option(n == 0 ? "None" : "\(n): " + graph.ringWindows.prefix(n).map(periodLabel).joined(separator: " + "), graph.ringCount == n, "ringCount", n) }
-        for r in TirRange.allCases { option("Number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
+        header("Beside the value")
+        func slotName(_ r: RingSpec) -> String { r.kind == .tir ? "TIR \(r.period)" : "\(r.kind.short) \(r.period)" }
+        for n in 0...3 { option(n == 0 ? "None" : "\(n): " + graph.slots.prefix(n).map(slotName).joined(separator: " + "), graph.ringCount == n, "ringCount", n) }
+        // Each slot: what it shows, its window, and whether it's drawn fainter than the main one.
+        for (i, slot) in graph.slots.enumerated() {
+            let item = menu.addItem(withTitle: "\(["Main", "Second", "Third"][i]): \(slotName(slot))", action: nil, keyEquivalent: "")
+            item.indentationLevel = 1
+            let sub = NSMenu()
+            func add(_ t: String, _ on: Bool, _ field: String, _ value: Any) {
+                let o = sub.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
+                o.target = self
+                o.state = on ? .on : .off
+                o.representedObject = ["slot", i, field, value]
+            }
+            for k in SlotKind.allCases { add(k.label, slot.kind == k, "kind", k.rawValue) }
+            sub.addItem(.separator())
+            for w in GraphConfig.ringChoices { add(periodLabel(w), slot.window == w, "window", w) }
+            sub.addItem(.separator())
+            add("Fainter (second and third)", slot.faded, "faded", !slot.faded)
+            item.submenu = sub
+        }
+        for r in TirRange.allCases { option("Ring number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
+        header("Glucose report")
+        for days in [1, 7, 14, 30] { option("\(days)d", reportDays == days, "reportDays", days) }
         menu.addItem(.separator())
         option("Time in range beside the graph", graph.side, "side", !graph.side)
         let b = graph.bands
@@ -234,6 +276,17 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
+        if key == "slot", let i = kv[1] as? Int, let field = kv[2] as? String {
+            var slots = graph.slots
+            switch field {
+            case "kind": slots[i].kind = SlotKind(rawValue: kv[3] as? String ?? "") ?? .tir
+            case "window": slots[i].window = kv[3] as? TimeInterval ?? slots[i].window
+            default: slots[i].faded = kv[3] as? Bool ?? true
+            }
+            UserDefaults.standard.set(GraphConfig.slotsText(slots), forKey: "slots")
+            reloadGraph()
+            return
+        }
         UserDefaults.standard.set(kv[1], forKey: key)
         if key == "graphHours" { UserDefaults.standard.removeObject(forKey: "menubarHours") }
         reloadGraph()
@@ -377,7 +430,7 @@ final class CardView: NSView {
     var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
     var style = CardStyle()
-    var tirOf: ((RingSpec, Bands) -> TimeInRange)?
+    var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 6, left: 14, bottom: 4, right: 14)
@@ -394,7 +447,7 @@ final class CardView: NSView {
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
         GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, tirOf: tirOf)
+                         style, pal, metricsOf: metricsOf)
         ctx.restoreGState()
     }
 }

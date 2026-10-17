@@ -4,16 +4,16 @@
 import Foundation
 
 /// The Mac's own glucose history for the graph and the time-in-range rings (investigation 16): every reading any
-/// transport delivers, merged (±20 s), kept 15 days (the 14-day ring) in
+/// transport delivers, merged (±20 s), kept 31 days (the 30-day report and slots) in
 /// ~/Library/Application Support/Sukrara/readings.csv ("epoch s,mg/dL" per line). Written at most every 5 minutes;
-/// ring numbers are cached for 5 minutes too, so a redraw never walks 20 000 rows.
+/// slot and report numbers are cached for 5 minutes too, so a redraw never walks 45 000 rows.
 @MainActor final class ReadingsStore {
-    static let keep: TimeInterval = 15 * 86400
+    static let keep: TimeInterval = 31 * 86400
     private let file: URL
     private(set) var readings: [GraphReading] = []
     private var savedAt = Date.distantPast
     private var dirty = false
-    private var tirCache: [String: (Date, TimeInRange)] = [:]
+    private var cache: [String: (Date, GlucoseMetrics)] = [:]
 
     init(directory: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Sukrara")) {
@@ -53,11 +53,11 @@ import Foundation
 
     func since(_ t: TimeInterval) -> [GraphReading] { readings.filter { $0.t >= t } }
 
-    func tir(window: TimeInterval, bands: Bands, now: TimeInterval = Date().timeIntervalSince1970) -> TimeInRange {
-        let key = "\(Int(window))|\(bands.low)|\(bands.tight)|\(bands.high)"
-        if let (at, v) = tirCache[key], Date().timeIntervalSince(at) < 300 { return v }
-        let v = GlucoseStats.timeInRange(readings, from: now - window, to: now, bands: bands)
-        tirCache[key] = (Date(), v)
+    func metrics(window: TimeInterval, bands: Bands, now: TimeInterval = Date().timeIntervalSince1970) -> GlucoseMetrics {
+        let key = "\(Int(window))|\(bands.veryLow)|\(bands.low)|\(bands.tight)|\(bands.high)|\(bands.veryHigh)"
+        if let (at, v) = cache[key], Date().timeIntervalSince(at) < 300 { return v }
+        let v = GlucoseMetrics.of(readings, from: now - window, to: now, bands: bands)
+        cache[key] = (Date(), v)
         return v
     }
 

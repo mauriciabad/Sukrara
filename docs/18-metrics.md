@@ -70,7 +70,16 @@ Settings → Graph & time in range → *Beside the number*. The wearer now keeps
 
 ## Mac
 
-*(filled in from the Mac port)*
+The same numbers through the shared Swift renderer (`SukraraGraph.swift`): metrics, goals, slot kinds and the gauge.
+
+| | |
+|---|---|
+| ![menubar report](img/18/mac-menubar-report-dark.png) | ![widget gmi](img/18/mac-widget-medium-gmi-light.png) |
+| The menubar dropdown: the card, then *Glucose report (14d)* in the LibreView layout (window in the Graph submenu, `reportDays`) | A medium widget with GMI 14 d in the third slot at full strength |
+
+- Slots are `UserDefaults` `slots` (`"TIR:86400:1,TIR:604800:1,GMI:1209600:1"`), editable per slot (kind, window,
+  fainter) in the Graph submenu. The widget file carries each slot's numbers precomputed from the Mac's reading
+  store, which now keeps 31 days.
 
 ## Code
 

@@ -17,9 +17,10 @@ import AppKit
 //   pairNearby  tests: answer a phone's "Pair nearby" offer with this name, without the dialog
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
 //   graphHours  graph window 3|6|12|24 (default 12); menubarHours / widgetHours override it per place
-//   ringCount 0–3 (2) · ringWindows "86400,604800,1209600" · ringRange IN_RANGE|TIGHT · side (time in range beside
-//   the graph, YES) · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh (54/70/140/180/250)   (investigation 16;
-//   most are also in the menu's "Graph" submenu)   readingsDir (tests): keep readings.csv somewhere else
+//   ringCount 0–3 (2) · slots "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind TIR|GMI|AVERAGE|CV : window s : faded)
+//   · ringRange IN_RANGE|TIGHT · side (time in range beside the graph, YES) · bandVeryLow/bandLow/bandTight/bandHigh/
+//   bandVeryHigh (54/70/140/180/250) · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are
+//   in the menu's "Graph" submenu)   readingsDir (tests): keep readings.csv somewhere else
 //   -graphselftest  the shared graph math against the Android unit-test cases
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in "Alerts…")
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
@@ -143,7 +144,7 @@ MainActor.assumeIsolated {
         let w = TimeInterval(status.graph.hours * 3600) + 120
         return readingsStore.since((readingsStore.readings.last?.t ?? 0) - w)
     }
-    status.ringTir = { spec, bands in readingsStore.tir(window: spec.window, bands: bands) }
+    status.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
 }
 NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in

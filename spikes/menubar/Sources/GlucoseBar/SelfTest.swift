@@ -73,6 +73,16 @@ enum GraphSelfTest {
         check("pct3 b", GlucoseGraph.pct3(0.1, 0.7, 0.2) == (10, 70, 20))
         check("freshness", Freshness.of(age: 90) == .fresh && Freshness.of(age: 91) == .late && Freshness.of(age: 301) == .stale
               && Freshness.of(age: 1201) == .old && Freshness.of(age: 3 * 3600 + 1) == .gone && Freshness.of(age: nil) == .gone)
+        // Investigation 18: report metrics. A constant 141 mg/dL: GMI 6.68 %, 49.5 mmol/mol, CV 0.
+        let flat = GlucoseMetrics.of((0..<120).map { r($0, 141) }, from: 0, to: 120 * 60, bands: b)
+        check("GMI 141", near(flat.gmi, 6.683, 0.001) && near(flat.gmiMmolMol, 49.5, 0.05) && near(flat.cv, 0, 1e-9) && near(flat.mean, 141, 1e-9))
+        // Time-weighted: 1 h at 100 (1-min readings) + 1 h at 200 (5-min) → mean 150, SD 50, CV 33.3 %.
+        let tw = GlucoseMetrics.of(oneMin.map { GraphReading(t: $0.t, v: $0.v) } + fiveMin, from: 0, to: 120 * 60, bands: b)
+        check("time-weighted mean/SD/CV", near(tw.mean, 150, 0.5) && near(tw.sd, 50, 0.5) && near(tw.cv, 33.3, 0.3))
+        check("goals", Goal.gmi.met(flat) && Goal.average.met(flat) && Goal.cv.met(flat) && Goal.cv.met(tw))
+        let slots = GraphConfig.parseSlots("TIR:86400:1,CV:2592000:0,GMI:1209600:1")
+        check("slots", slots?[1].kind == .cv && slots?[1].window == 2592000 && slots?[1].faded == false
+              && GraphConfig.slotsText(GraphConfig.defaultSlots) == "TIR:86400:1,TIR:604800:1,GMI:1209600:1")
         print(failures == 0 ? "graph self-test OK" : "graph self-test: \(failures) failed")
         return failures == 0
     }

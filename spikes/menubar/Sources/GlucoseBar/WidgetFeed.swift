@@ -21,9 +21,9 @@ import WidgetKit
         var treatments: [Mark]?
         var unit: String?
         var graph: GraphConfig?
-        var rings: [RingTir]?
+        var slots: [SlotMetrics]?
     }
-    private struct RingTir: Codable { var window: TimeInterval; var tir: TimeInRange }
+    private struct SlotMetrics: Codable { var window: TimeInterval; var metrics: GlucoseMetrics }
 
     /// The longest graph window a widget can choose; older samples stay in the readings store only.
     static let span: TimeInterval = 24 * 3600
@@ -64,11 +64,11 @@ import WidgetKit
         let samples = readings.since(from).map { Sample(t: Date(timeIntervalSince1970: $0.t), v: $0.v) }
         let marks = treatments.filter { !$0.del && Double($0.t) >= from }
             .map { Mark(t: Date(timeIntervalSince1970: TimeInterval($0.t)), k: $0.k, a: $0.a, n: $0.n.isEmpty ? nil : $0.n) }
-        // The widgets' own window (`widgetHours` over `graphHours`) and the rings, computed here from 15 days.
+        // The widgets' own window (`widgetHours` over `graphHours`) and each slot's numbers, computed here from 31 days.
         let cfg = GraphConfig.load(place: "widget")
-        let rings = cfg.ringWindows.map { RingTir(window: $0, tir: readings.tir(window: $0, bands: cfg.bands, now: newest)) }
+        let slots = cfg.slots.map { SlotMetrics(window: $0.window, metrics: readings.metrics(window: $0.window, bands: cfg.bands, now: newest)) }
         let wire = Wire(written: Date(), source: last.source, samples: samples, rate: last.rate, treatments: marks,
-                        unit: last.unit.rawValue, graph: cfg, rings: rings)
+                        unit: last.unit.rawValue, graph: cfg, slots: slots)
         do {
             try Self.encoder.encode(wire).write(to: file, options: .atomic)
             WidgetCenter.shared.reloadAllTimelines()
