@@ -52,7 +52,7 @@ object TirRing {
         if (shares.isEmpty()) {
             ring.color = ColorUtils.setAlphaComponent(pal.grid, alpha); cv.drawOval(oval, ring)
         } else {
-            // Gaps only between the groups below / in / above range; bands of one group touch (very good is in range).
+            // Gaps between below / in / above range and between very good and in range; the two lows and two highs touch.
             val gap = if (shares.size > 1) 7f else 0f
             val gaps = shares.indices.count { i -> gapAfter(shares, i) } * gap
             var a = -90f
@@ -76,8 +76,12 @@ object TirRing {
         cv.drawText(spec.period, cx, cy + num.textSize * 0.28f + sub.textSize * 1.1f, sub)
     }
 
-    private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean =
-        s.size > 1 && s[i].first.group != s[(i + 1) % s.size].first.group
+    /** A gap between groups and between very good and the rest of in range; very low/low and high/very high touch. */
+    private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean {
+        if (s.size < 2) return false
+        val a = s[i].first; val b = s[(i + 1) % s.size].first
+        return a.group != b.group || setOf(a, b) == setOf(Band.TIGHT, Band.TARGET)
+    }
 }
 
 /**

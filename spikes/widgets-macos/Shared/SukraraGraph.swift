@@ -662,11 +662,13 @@ enum TirRing {
         ctx.saveGState()
         ctx.setLineWidth(sw)
         ctx.setLineCap(.butt)
-        // Clockwise from 12 o'clock in glucose order; gaps only between below | in range | above.
+        // Clockwise from 12 o'clock in glucose order; gaps between below | very good | in range | above.
         let shares = Band.allCases.map { ($0, tir.share($0)) }.filter { $0.1 >= 0.004 }
         func gapAfter(_ i: Int) -> Bool {
             guard shares.count > 1 else { return false }
-            return shares[i].0.group != shares[(i + 1) % shares.count].0.group
+            let (x, y) = (shares[i].0, shares[(i + 1) % shares.count].0)
+            // also between very good and the rest of in range (the user, 0.11.9); the two lows / two highs touch
+            return x.group != y.group || Set([x, y]) == Set([Band.tight, Band.target])
         }
         if shares.isEmpty {
             ctx.setStrokeColor(pal.grid.a(emphasis))
