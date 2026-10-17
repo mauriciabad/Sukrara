@@ -5,24 +5,26 @@ package app.mauri.sukrara.alerts
 
 import org.json.JSONObject
 
-/** The 7 alert kinds of spikes/alerts/SPEC.md §1, most severe level first. */
+/** The 8 alert kinds of spikes/alerts/SPEC.md §1. */
 object Kind {
     const val URGENT_LOW = "urgent_low"
     const val LOW = "low"
     const val HIGH = "high"
     const val VERY_HIGH = "very_high"
+    const val EXTREMELY_HIGH = "extremely_high"
     const val FALLING_FAST = "falling_fast"
     const val RISING_FAST = "rising_fast"
     const val NO_DATA = "no_data"
 
-    val ALL = listOf(URGENT_LOW, LOW, HIGH, VERY_HIGH, FALLING_FAST, RISING_FAST, NO_DATA)
+    val ALL = listOf(URGENT_LOW, LOW, HIGH, VERY_HIGH, EXTREMELY_HIGH, FALLING_FAST, RISING_FAST, NO_DATA)
     /** Level alerts by severity: the first that matches wins. */
-    val LEVELS = listOf(URGENT_LOW, VERY_HIGH, LOW, HIGH)
+    val LEVELS = listOf(URGENT_LOW, EXTREMELY_HIGH, VERY_HIGH, LOW, HIGH)
     val RATES = listOf(FALLING_FAST, RISING_FAST)
+    /** What the high-side mute rules can quiet. Extremely high is never muted, like urgent low. */
     val HIGH_SIDE = setOf(HIGH, VERY_HIGH)
 
     fun label(k: String) = when (k) {
-        URGENT_LOW -> "Urgent low"; LOW -> "Low"; HIGH -> "High"; VERY_HIGH -> "Very high"
+        URGENT_LOW -> "Urgent low"; LOW -> "Low"; HIGH -> "High"; VERY_HIGH -> "Very high"; EXTREMELY_HIGH -> "Extremely high"
         FALLING_FAST -> "Falling fast"; RISING_FAST -> "Rising fast"; else -> "No data"
     }
 
@@ -81,6 +83,7 @@ data class AlertSettings(
             Kind.LOW to KindCfg(true, 65.0, 15, alarm = true),
             Kind.HIGH to KindCfg(true, 185.0, 30),
             Kind.VERY_HIGH to KindCfg(true, 250.0, 30),
+            Kind.EXTREMELY_HIGH to KindCfg(true, 300.0, 15),
             Kind.FALLING_FAST to KindCfg(false, 2.0, 30),
             Kind.RISING_FAST to KindCfg(false, 2.0, 30),
             Kind.NO_DATA to KindCfg(true, 20.0, 60),

@@ -82,6 +82,12 @@ enum AlertsSelfTest {
         insulin = [clock.addingTimeInterval(-60)]; at(57)
         check("an insulin entry in the future doesn't mute", { insulin = [clock.addingTimeInterval(600)]; return e.muteReason(.high, Reading(date: clock, mgdl: 200, rate: 0)) == nil }())
         e = engine(); at(0); insulin = [clock.addingTimeInterval(-60)]
+        check("very high muted by insulin", fires(feed(e, 260, 1)).isEmpty)
+        at(1); let xh = feed(e, 305, 1)
+        check("extremely high is never muted (insulin 2 min ago)", fires(xh) == ["extremely_high#1"], "\(fires(xh))")
+        e = engine(); at(0)
+        check("extremely high falling: not muted either", fires(feed(e, 320, -4)) == ["extremely_high#1"])
+        e = engine(); at(0); insulin = [clock.addingTimeInterval(-60)]
         check("lows are never muted by insulin", fires(feed(e, 60, -0.5)) == ["low#1"])
         e = engine { $0.muteAfterInsulin.on = false }; at(0); insulin = [clock.addingTimeInterval(-60)]
         check("muteAfterInsulin off: high fires despite insulin", fires(feed(e, 200, 0.5)) == ["high#1"])
@@ -150,6 +156,7 @@ enum AlertsSelfTest {
         let spec = """
         {"v":1,"on":true,"alerts":{"urgent_low":{"on":true,"mgdl":55,"repeatMin":5},"low":{"on":true,"mgdl":65,"repeatMin":15},
         "high":{"on":true,"mgdl":185,"repeatMin":30},"very_high":{"on":true,"mgdl":250,"repeatMin":30},
+        "extremely_high":{"on":true,"mgdl":300,"repeatMin":15},
         "falling_fast":{"on":false,"rate":2.0,"repeatMin":30},"rising_fast":{"on":false,"rate":2.0,"repeatMin":30},
         "no_data":{"on":true,"min":20,"repeatMin":60}},"muteAfterInsulin":{"on":true,"min":60},
         "muteFallingHigh":{"on":true,"min":20},"muteAfterCarbs":{"on":true,"min":15},"sounds":{"pack":"arcade","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
@@ -181,7 +188,7 @@ enum AlertsSelfTest {
         check("shuffle picks variants 1–3", variants == ["quest_very_high_1.caf", "quest_very_high_2.caf", "quest_very_high_3.caf"], "\(variants)")
         let missing = AlertSettings.packs.flatMap { p in AlertKind.allCases.flatMap { k in (1...3).map { "\(p)_\(k.rawValue)_\($0).caf" } } }
             .filter { Alerts.soundURL($0) == nil }
-        check("all 84 sound files found (bundle or repo)", missing.isEmpty, "missing \(missing.prefix(3))")
+        check("all 96 sound files found (bundle or repo)", missing.isEmpty, "missing \(missing.prefix(3))")
 
         // 10. A wearer's §4 body parses; junk doesn't.
         let body: [String: Any] = ["v": 2, "type": "alert", "id": "0123456789abcdef", "k": "high", "state": "fire", "at": 1760650000,

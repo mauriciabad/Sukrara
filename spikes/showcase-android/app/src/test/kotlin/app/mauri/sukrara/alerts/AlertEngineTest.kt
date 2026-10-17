@@ -61,6 +61,16 @@ class AlertEngineTest {
         assertEquals("high", e.states()["level"]?.kind)
     }
 
+    @Test fun extremelyHighIsNeverMuted() {
+        val d = AlertEngine.Doses(rapid = listOf(t0 - 60))
+        val e = AlertEngine()
+        // very high is muted by the insulin, extremely high fires at once (falling fast too: no falling mute)
+        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0, 260, 1.0), s, d, t0)))
+        assertEquals(listOf("extremely_high"), fires(e.reading(Reading(t0 + 60, 301, 1.0), s, d, t0 + 60)))
+        assertEquals(listOf("extremely_high"), fires(AlertEngine().reading(Reading(t0, 320, -3.0), s, none, t0)))
+        assertEquals(listOf("very_high"), fires(AlertEngine().reading(Reading(t0, 299, 0.0), s, none, t0)))
+    }
+
     @Test fun insulinAfterAlertClearsIt() {
         val e = AlertEngine()
         e.reading(Reading(t0, 200, 0.0), s, none, t0)

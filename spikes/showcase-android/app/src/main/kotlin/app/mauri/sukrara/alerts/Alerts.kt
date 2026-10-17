@@ -191,7 +191,7 @@ object Alerts {
      */
     @Synchronized fun test(ctx: Context, kind: String, share: Boolean) {
         init(ctx)
-        val sgv = when (kind) { Kind.URGENT_LOW -> 50; Kind.LOW -> 62; Kind.VERY_HIGH -> 262; else -> 204 }
+        val sgv = when (kind) { Kind.URGENT_LOW -> 50; Kind.LOW -> 62; Kind.VERY_HIGH -> 262; Kind.EXTREMELY_HIGH -> 312; else -> 204 }
         val r = Reading(Proto.nowS(), sgv, when (kind) { Kind.FALLING_FAST -> -2.6; Kind.RISING_FAST -> 2.4; else -> -0.4 })
         val fire = AlertEngine.Fire(kind, AlertEngine.newId(), 1, r, _settings.value.cfg(kind).value, Proto.nowS())
         val pub = publish

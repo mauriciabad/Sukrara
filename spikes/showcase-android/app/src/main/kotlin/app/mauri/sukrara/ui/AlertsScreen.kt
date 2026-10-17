@@ -62,7 +62,7 @@ import app.mauri.sukrara.alerts.KindCfg
 
 private fun thresholdText(k: String, c: KindCfg): String = when (k) {
     Kind.URGENT_LOW, Kind.LOW -> "≤ ${c.value.toInt()} mg/dL"
-    Kind.HIGH, Kind.VERY_HIGH -> "≥ ${c.value.toInt()} mg/dL"
+    Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "≥ ${c.value.toInt()} mg/dL"
     Kind.FALLING_FAST -> "faster than −${"%.1f".format(c.value)} mg/dL/min"
     Kind.RISING_FAST -> "faster than +${"%.1f".format(c.value)} mg/dL/min"
     else -> "after ${c.value.toInt()} min"
@@ -140,7 +140,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         SectionTitle("Quiet highs")
         Toggle("After rapid insulin", s.muteInsulin, enabled = s.on && !mirrored,
             sub = if (mirrored) "Set by the wearer's app"
-                  else "High, very high and rising fast wait ${s.muteInsulinMin} min after a rapid dose. Lows always alert") { v ->
+                  else "High, very high and rising fast wait ${s.muteInsulinMin} min after a rapid dose. Extremely high always alerts") { v ->
             set { it.copy(muteInsulin = v) }
         }
         Reveal(s.muteInsulin && !mirrored) {

@@ -134,6 +134,7 @@ struct AlertsView: View {
             Section {
                 KindRow(model: model, kind: .high, rulesLocked: model.mirroring)
                 KindRow(model: model, kind: .veryHigh, rulesLocked: model.mirroring)
+                KindRow(model: model, kind: .extremelyHigh, rulesLocked: model.mirroring)
             } header: { Text("Highs") }
             Section {
                 KindRow(model: model, kind: .fallingFast, rulesLocked: model.mirroring)
@@ -154,7 +155,7 @@ struct AlertsView: View {
                     Text("Back under \(Int(model.s[.high].threshold)) mg/dL within \(Int(model.s.muteFallingHigh.min)) min")
                 }.disabled(!model.s.muteFallingHigh.on)
             } header: { Text("Quiet highs") } footer: {
-                note(model.mirroring ? lockedNote : "High, very high and rising fast only.")
+                note(model.mirroring ? lockedNote : "High, very high and rising fast only. Extremely high always alerts.")
             }
             .disabled(model.mirroring || !model.s.on)
             Section {
@@ -257,6 +258,7 @@ private struct KindRow: View {
         case .low: 50...100
         case .high: 120...300
         case .veryHigh: 150...400
+        case .extremelyHigh: 200...450
         case .fallingFast, .risingFast: 0.5...5
         case .noData: 5...120
         }

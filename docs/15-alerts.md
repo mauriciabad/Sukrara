@@ -20,7 +20,7 @@ Alerts when glucose leaves your range, in **every Sukrara app** (Android wearer,
 implemented twice (Kotlin and Swift) and tested the same way. The wearer sends a new encrypted `alert` event to its
 followers over relays and Bluetooth.
 
-**Listen to the packs: [sukrara.mauri.app/sounds](https://sukrara.mauri.app/sounds/)** (4 packs × 7 alerts × 3
+**Listen to the packs: [sukrara.mauri.app/sounds](https://sukrara.mauri.app/sounds/)** (4 packs × 8 alerts × 3
 variants, plus each alert's vibration pattern drawn to scale).
 
 | What | How it was checked | Result |
@@ -72,6 +72,11 @@ Notification text uses symbols (0.11.11): `High · 185 mg/dL ↑` / `≥ 185 mg/
   glucose is usually still at or above the threshold and the alert fired 23 min after an 8 U dose on the user's phone.
 - **When falling back into range** (20 min): no high alert while `sgv + rate × N < high` (the current fall brings it under
   185 within N minutes). Re-checked on every reading; a flattening trend alerts at once.
+
+**Extremely high** (0.11.11, `extremely_high`, on, ≥ 300 mg/dL, every 15 min, *final boss* sounds and vibration):
+the high-side counterpart of urgent low. **No rule mutes it**: not the insulin window, not the falling projection.
+The user asked for it so the insulin mute can stay long (60 min) without hiding a real spike: with insulin logged,
+251 stays quiet as very high, 300 alerts at once.
 
 **Quiet lows** (0.11.11, on by default): **After carbs** (15 min; 10/15/20/30/45 on Android, 5–45 on the Mac): low and
 falling fast wait N minutes after a carbs entry, the same way as the insulin rule (cleared when you log it, alerts

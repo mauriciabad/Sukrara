@@ -68,6 +68,7 @@ object AlertNotifier {
         Kind.LOW to "Glucose ≤ low.",
         Kind.HIGH to "Glucose ≥ high.",
         Kind.VERY_HIGH to "Glucose ≥ very high.",
+        Kind.EXTREMELY_HIGH to "Glucose ≥ extremely high. Never muted.",
         Kind.FALLING_FAST to "Glucose falling ≥ the set rate.",
         Kind.RISING_FAST to "Glucose rising ≥ the set rate.",
         Kind.NO_DATA to "No reading for the set time.",
@@ -91,7 +92,7 @@ object AlertNotifier {
         }
         val text = when (kind) {
             Kind.URGENT_LOW, Kind.LOW -> "≤ $thText $unit"
-            Kind.HIGH, Kind.VERY_HIGH -> "≥ $thText $unit"
+            Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "≥ $thText $unit"
             Kind.FALLING_FAST -> "Falling ${"%.1f".format(-(rate ?: 0.0))} ≥ $thText $unit"
             Kind.RISING_FAST -> "Rising ${"%.1f".format(rate ?: 0.0)} ≥ $thText $unit"
             else -> "Nothing received for $thText min" + (sgv?.let { " · last $it mg/dL" } ?: "")

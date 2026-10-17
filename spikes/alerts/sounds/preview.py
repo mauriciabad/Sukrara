@@ -23,6 +23,7 @@ KINDS = [
     ("low", "Low", "≤ 65 mg/dL", "every 15 min", "Lost a life: short and falling"),
     ("high", "High", "≥ 185 mg/dL", "every 30 min", "Final lap: a riff, then faster and higher"),
     ("very_high", "Very high", "≥ 250 mg/dL", "every 30 min", "Boss incoming: two-note warning, rising"),
+    ("extremely_high", "Extremely high", "≥ 300 mg/dL", "every 15 min", "Final boss: the warning, longer and climbing, then a held cry"),
     ("falling_fast", "Falling fast", "−2 mg/dL/min", "off by default", "A quick sweep down"),
     ("rising_fast", "Rising fast", "+2 mg/dL/min", "off by default", "A quick sweep up"),
     ("no_data", "No data", "20 min silent", "every 60 min", "Connection lost: two blips"),
@@ -34,6 +35,8 @@ HAPTICS = {
     "low": [("QUICK_FALL", .9, 0), ("QUICK_FALL", .8, 200), ("THUD", .9, 280)],
     "high": [("CLICK", .7, 0), ("CLICK", .75, 140), ("CLICK", .8, 100), ("CLICK", .85, 70), ("CLICK", .9, 50), ("QUICK_RISE", 1, 60)],
     "very_high": [("THUD", .8, 0), ("CLICK", 1, 90), ("THUD", .8, 220), ("CLICK", 1, 90), ("SPIN", 1, 220)],
+    "extremely_high": [("THUD", 1, 0), ("THUD", 1, 120), ("CLICK", 1, 90), ("THUD", 1, 200), ("THUD", 1, 120), ("CLICK", 1, 90),
+                       ("SPIN", 1, 220), ("QUICK_RISE", 1, 100)],
     "falling_fast": [("QUICK_FALL", 1, 0), ("LOW_TICK", 1, 120)],
     "rising_fast": [("SLOW_RISE", 1, 0), ("TICK", 1, 60)],
     "no_data": [("TICK", 1, 0), ("TICK", .6, 160), ("LOW_TICK", .4, 160)],
@@ -143,7 +146,7 @@ tbody td { padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-al
 tbody tr:last-child > * { border-bottom: 0; }
 .k { font: 700 17px/1.2 var(--display); display: block; }
 .k-urgent_low, .k-low { color: var(--low); }
-.k-high, .k-very_high { color: var(--high); }
+.k-high, .k-very_high, .k-extremely_high { color: var(--high); }
 .th { display: block; font: 400 12.5px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .mood { display: block; font-size: 14px; margin: 2px 0 8px; }
 .hap { width: calc(100% - 64px); height: 34px; display: inline-block; vertical-align: middle; }
@@ -167,7 +170,7 @@ footer code { font-family: var(--mono); font-size: 13px; }
   <header>
     <span class="eyebrow">Sukrara · glucose alerts · investigation 15</span>
     <h1>Alert sound test</h1>
-    <p>Four packs, seven alerts, three sounds each. The app picks one of the three at random every time an alert
+    <p>Four packs, eight alerts, three sounds each. The app picks one of the three at random every time an alert
       goes off, so it doesn't get repetitive. Every sound is synthesised from code with original melodies.</p>
   </header>
   <div class="bar">

@@ -5,8 +5,9 @@
 
     uv run gen.py            # → out/<pack>_<kind>_<n>.wav  (+ .ogg for Android, .caf for the Mac, .m4a for the web)
 
-4 packs × 7 kinds × 3 variants. Moods (spikes/alerts/SPEC.md §1): urgent low = "game over" (longer, unmistakable,
+4 packs × 8 kinds × 3 variants. Moods (spikes/alerts/SPEC.md §1): urgent low = "game over" (longer, unmistakable,
 not harsh), low = "lost a life", high = "final lap" speed-up (short, it's frequent), very high = "boss incoming",
+extremely high = "final boss" (the high-side urgent low: longer and more insistent than very high, still not harsh),
 rising/falling fast = sweeps, no data = "connection lost".
 """
 from __future__ import annotations
@@ -22,7 +23,7 @@ from scipy.signal import lfilter
 SR = 44100
 LOUDER_DB = 5.0   # notification sounds sit well above music loudness
 OUT = Path(__file__).parent / "out"
-KINDS = ["urgent_low", "low", "high", "very_high", "falling_fast", "rising_fast", "no_data"]
+KINDS = ["urgent_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast", "no_data"]
 rng = np.random.default_rng(15)
 
 
@@ -344,6 +345,12 @@ def finish(y, target_db=-17.0, fade=0.03):
     return y
 
 
+def ceiling(y, peak=0.89):
+    """Hard ≤ -1 dBFS guarantee (finish()'s soft clip can overshoot it by up to ~1.5 dB)."""
+    top = np.max(np.abs(y))
+    return y * (peak / top) if top > peak else y
+
+
 # ============================================================================================= ARCADE (8-bit)
 # pulse leads (12.5/25/50 %), stepped triangle bass, NES-ish noise drums.
 
@@ -411,6 +418,27 @@ def arcade_very_high(v):
     return finish(tr.out(), -17)
 
 
+def arcade_extremely_high(v):
+    """Final boss: the boss alarm, longer, quicker and climbing, then a held siren over a pounding bass."""
+    tr = Track(5)
+    a, b = [(76, 82), (74, 79), (77, 81)][v]
+    t = 0
+    for k, step in enumerate((0, 1, 2, 3, 5)):
+        t = seq(tr, i_pulse, [(a + step, .1), (b + step, .1)], at=t, duty=.25)
+        seq(tr, i_tri, [(40 + step, .1), (40 + step, .1)], at=k * .2, gain=.9)
+        tr.add(k * .2, i_nes_noise(dur=.09, period=12), .8)
+    ending = [
+        [(b + 5, .95, {"vib": .5})],                                                      # long wailing siren
+        [(b + 5, .12), (b + 3, .12), (b + 5, .12), (b + 8, .7, {"vib": .3})],             # turn, then up
+        [(b + 5, .2), (None, .06), (b + 5, .2), (None, .06), (b + 10, .7, {"vib": .3})],  # two hits, octave-ish leap
+    ][v]
+    e = seq(tr, i_pulse, ending, at=t, duty=.5, r=.25)
+    seq(tr, i_tri, [(45, .2)] * int((e - t - .2) / .2) + [(45, .4)], at=t, gain=.9, r=.2)
+    for k in range(4):
+        tr.add(t + k * .2, i_nes_noise(dur=.07, period=6), .5)
+    return ceiling(finish(echo(tr.out(), .14, .2, .2), -16))
+
+
 def arcade_falling_fast(v):
     tr = Track(2)
     m0, m1 = [(86, 62), (84, 58), (88, 64)][v]
@@ -476,6 +504,30 @@ def kart_very_high(v):
         t += .17
     drums_roll(tr, .5, 6, .055)
     return finish(tr.out(), -16)
+
+
+def kart_extremely_high(v):
+    """Final boss: the engine revs twice, a long roll, then a pounding minor brass riff and a held chord."""
+    tr = Track(5)
+    lo, hi = [(38, 52), (36, 50), (39, 55)][v]
+    t = 0
+    for dur, m1 in ((.45, hi - 6), (.6, hi)):
+        n = int(dur * SR)
+        f = freq_curve(n, lo, m1, curve=.7)
+        tr.add(t, lowpass(saw(f, n) + .5 * pulse(f * .5, n, .3), 1800) * env(n, .03, .1, .9, .08) * .6)
+        t += dur + .03
+    drums_roll(tr, t - .55, 10, .055)
+    root = [62, 60, 63][v]
+    riff = [[0, 0, 3, 0, 0, 6, 7], [0, 0, 5, 0, 0, 6, 7], [0, 0, 3, 0, 1, 3, 7]][v]
+    for k, x in enumerate(riff):
+        last = k == len(riff) - 1
+        tr.add(t, sum(i_brass(root + x + y, .9 if last else .13, vib=.15 if last else 0) for y in (0, 7, 12)) / 2)
+        tr.add(t, i_kick(), .75)
+        if k in (0, 3) or last:
+            tr.add(t, i_timpani(root + x - 24, .9 if last else .4), .8)
+        t += .15
+    tr.add(t - .15, i_supersaw(root + 7, .85, vib=.2), .3)
+    return ceiling(finish(reverb(tr.out(), .2), -15.5))
 
 
 def kart_urgent_low(v):
@@ -594,6 +646,26 @@ def quest_very_high(v):
     return finish(reverb(tr.out(), .25), -17)
 
 
+def quest_extremely_high(v):
+    """Final boss: a timpani roll that speeds up, the danger flourish twice (the second higher), bells, a held cry."""
+    tr = Track(5.5)
+    r = [50, 48, 52][v]
+    t = 0
+    for k in range(7):
+        tr.add(t, i_timpani(r, .5), .55 + .07 * k)
+        t += .2 - .02 * k
+    fl = [[0, 1, 0, 3, 7], [0, 3, 2, 3, 8], [0, 1, 3, 1, 6]][v]
+    e = seq(tr, i_flute, [(r + 24 + x, .09, {"vib": 0}) for x in fl] + [(None, .08)], at=t)
+    e = seq(tr, i_flute, [(r + 29 + x, .08, {"vib": 0}) for x in fl[:-1]], at=e)
+    seq(tr, i_flute, [(r + 29 + fl[-1], 1.0, {"vib": .3})], at=e)
+    for k in range(2):
+        tr.add(e + k * .35, i_bell(r + 36 + 3 * k, 1.3, ratio=3.1, tau=.6), .35)
+    for k, x in enumerate((0, 3, 6, 9)):
+        tr.add(e + k * .05, i_harp(r + 12 + x, 1.4), .5)
+    tr.add(e, i_timpani(r - 5, 1.2), .9)
+    return ceiling(finish(reverb(tr.out(), .3), -15.5))
+
+
 def quest_falling_fast(v):
     tr = Track(2)
     scale = [0, 2, 3, 5, 7, 8, 10, 12, 14, 15]
@@ -663,6 +735,24 @@ def soft_very_high(v):
             tr.add(rep * .55 + k * .12, i_marimba(r + x + rep * 2, .6), .9)
     tr.add(1.1, i_glass(r + 14, 1.2, tau=.6), .6)
     return finish(reverb(tr.out(), .25), -18)
+
+
+def soft_extremely_high(v):
+    """Final boss, calmly: the very-high arpeggio three times, quicker and climbing, then two glass chords."""
+    tr = Track(5)
+    r = [70, 69, 72][v]
+    chord = [[0, 3, 7], [0, 4, 7], [0, 3, 8]][v]
+    t = 0
+    for rep in range(3):
+        for k, x in enumerate(chord + [12]):
+            tr.add(t, i_marimba(r + x + rep * [2, 3, 2][v], .6), .9)
+            t += .1
+        t += .14
+    for k in range(2):
+        for x, g in ((14, .6), (7, .35)):
+            tr.add(t + k * .45, i_glass(r + x + 2 * k, 1.4 if k else .6, tau=.7 if k else .35), g)
+    tr.add(t + .45, i_marimba(r - 12, 1.0, tau=.6), .6)
+    return ceiling(finish(reverb(tr.out(), .25), -16))
 
 
 def soft_falling_fast(v):

@@ -9,13 +9,14 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 | `urgent_low` | `sgv ≤ mgdl` | on | 55 mg/dL | 5 min | *game over*: longer (~3–4 s), unmistakable, not harsh |
 | `low` | `sgv ≤ mgdl` (and not urgent low) | on | 65 mg/dL | 15 min | *lost a life*: short, descending |
 | `high` | `sgv ≥ mgdl` (and not very high) | on | 185 mg/dL | 30 min | *final lap*: short "speed up" jingle (frequent → brief) |
-| `very_high` | `sgv ≥ mgdl` | on | 250 mg/dL | 30 min | *boss incoming*: a bit longer than high |
+| `very_high` | `sgv ≥ mgdl` (and not extremely high) | on | 250 mg/dL | 30 min | *boss incoming*: a bit longer than high |
+| `extremely_high` | `sgv ≥ mgdl` | on | 300 mg/dL | 15 min | *final boss*: the most insistent high, never muted |
 | `falling_fast` | `rate ≤ −rate` | off | 2.0 mg/dL/min | 30 min | quick down sweep |
 | `rising_fast` | `rate ≥ +rate` | off | 2.0 mg/dL/min | 30 min | quick up sweep |
 | `no_data` | no reading for `min` minutes | on | 20 min | 60 min | *connection lost* blip |
 
-- **Level alerts** (`urgent_low`, `low`, `high`, `very_high`): at most one is active, the most severe that matches.
-  Moving to a more severe one fires at once (low → urgent low, high → very high).
+- **Level alerts** (`urgent_low`, `low`, `high`, `very_high`, `extremely_high`): at most one is active, the most severe
+  that matches. Moving to a more severe one fires at once (low → urgent low, high → very high → extremely high).
 - **Re-alert**: while the same kind stays active, it fires again every `repeatMin` minutes (0 = never repeat).
   Leaving the condition **clears** it (notification removed). Coming back to a kind within `repeatMin` of its last
   firing doesn't fire again (no flapping around a threshold).
@@ -25,7 +26,7 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 
 ## 2. Mute rules
 
-Urgent low is never muted.
+Urgent low and extremely high are never muted: they are the floor and ceiling no rule can silence.
 
 | Option | Default | Applies to | Rule |
 |---|---|---|---|
@@ -47,6 +48,7 @@ shows why it's quiet ("High, muted: insulin 12 min ago").
     "low":          {"on": true,  "mgdl": 65,  "repeatMin": 15, "alarm": true},
     "high":         {"on": true,  "mgdl": 185, "repeatMin": 30, "alarm": false},
     "very_high":    {"on": true,  "mgdl": 250, "repeatMin": 30, "alarm": false},
+    "extremely_high": {"on": true, "mgdl": 300, "repeatMin": 15, "alarm": false},
     "falling_fast": {"on": false, "rate": 2.0, "repeatMin": 30, "alarm": false},
     "rising_fast":  {"on": false, "rate": 2.0, "repeatMin": 30, "alarm": false},
     "no_data":      {"on": true,  "min": 20,   "repeatMin": 60, "alarm": false}

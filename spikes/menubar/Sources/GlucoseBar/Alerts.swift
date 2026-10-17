@@ -14,14 +14,14 @@ import UserNotifications
 // events, so "wearer" falls back to this Mac's rules (and the Alerts window says so).
 
 enum AlertKind: String, CaseIterable {
-    case urgentLow = "urgent_low", low, high, veryHigh = "very_high"
+    case urgentLow = "urgent_low", low, high, veryHigh = "very_high", extremelyHigh = "extremely_high"
     case fallingFast = "falling_fast", risingFast = "rising_fast", noData = "no_data"
 
     /// One notification per group: a new alert of the group replaces the previous one.
     enum Group: String { case level, rate, noData = "no_data" }
     var group: Group {
         switch self {
-        case .urgentLow, .low, .high, .veryHigh: .level
+        case .urgentLow, .low, .high, .veryHigh, .extremelyHigh: .level
         case .fallingFast, .risingFast: .rate
         case .noData: .noData
         }
@@ -32,14 +32,17 @@ enum AlertKind: String, CaseIterable {
         case .low: "Low"
         case .high: "High"
         case .veryHigh: "Very high"
+        case .extremelyHigh: "Extremely high"
         case .fallingFast: "Falling fast"
         case .risingFast: "Rising fast"
         case .noData: "No glucose data"
         }
     }
     var lowSide: Bool { self == .urgentLow || self == .low }
-    /// Escalation within a side: low → urgent low, high → very high.
-    func moreSevere(than k: AlertKind) -> Bool { (self == .urgentLow && k == .low) || (self == .veryHigh && k == .high) }
+    /// Escalation within a side: low → urgent low, high → very high → extremely high.
+    func moreSevere(than k: AlertKind) -> Bool {
+        (self == .urgentLow && k == .low) || (self == .veryHigh && k == .high) || (self == .extremelyHigh && [.high, .veryHigh].contains(k))
+    }
 
     var defaultRule: AlertRule {
         switch self {
@@ -47,6 +50,7 @@ enum AlertKind: String, CaseIterable {
         case .low: AlertRule(on: true, mgdl: 65, repeatMin: 15, alarm: true)
         case .high: AlertRule(on: true, mgdl: 185, repeatMin: 30)
         case .veryHigh: AlertRule(on: true, mgdl: 250, repeatMin: 30)
+        case .extremelyHigh: AlertRule(on: true, mgdl: 300, repeatMin: 15)
         case .fallingFast, .risingFast: AlertRule(on: false, rate: 2.0, repeatMin: 30)
         case .noData: AlertRule(on: true, min: 20, repeatMin: 60)
         }
@@ -236,6 +240,7 @@ final class AlertEngine {
         let level: AlertKind? =
             rule(.urgentLow).map { r.mgdl <= $0.threshold } == true ? .urgentLow
             : rule(.low).map { r.mgdl <= $0.threshold } == true ? .low
+            : rule(.extremelyHigh).map { r.mgdl >= $0.threshold } == true ? .extremelyHigh
             : rule(.veryHigh).map { r.mgdl >= $0.threshold } == true ? .veryHigh
             : rule(.high).map { r.mgdl >= $0.threshold } == true ? .high : nil
         update(.level, level, r)
@@ -254,7 +259,7 @@ final class AlertEngine {
         update(.noData, lost ? .noData : nil, r)
     }
 
-    /// §2: why an alert is quiet right now, or nil. Urgent low is never muted.
+    /// §2: why an alert is quiet right now, or nil. Urgent low and extremely high are never muted.
     func muteReason(_ k: AlertKind, _ r: Reading) -> String? {
         let t = now()
         func dose(_ m: AlertMute, _ times: [Date], _ what: String) -> String? {
@@ -469,7 +474,7 @@ final class AlertEngine {
             if let sgv = ev.sgv { title += ": \(u.format(sgv)) \(units)" }
             switch ev.k {
             case .urgentLow, .low: body.append("≤ \(u.format(ev.th))")
-            case .high, .veryHigh: body.append("≥ \(u.format(ev.th))")
+            case .high, .veryHigh, .extremelyHigh: body.append("≥ \(u.format(ev.th))")
             default: break
             }
             if let r = ev.r { body.append(u.formatRate(r)) }
@@ -588,7 +593,7 @@ final class AlertEngine {
     func test(_ kind: String) {
         guard let k = AlertKind(rawValue: kind) else { return log("alert-test: unknown kind \(kind) (\(AlertKind.allCases.map(\.rawValue)))") }
         let sample: [AlertKind: (Double, Double)] = [.urgentLow: (52, -1.2), .low: (62, -0.6), .high: (201, 0.8),
-                                                     .veryHigh: (262, 1.1), .fallingFast: (120, -2.6), .risingFast: (150, 2.4), .noData: (110, 0)]
+                                                     .veryHigh: (262, 1.1), .extremelyHigh: (312, 1.4), .fallingFast: (120, -2.6), .risingFast: (150, 2.4), .noData: (110, 0)]
         let (sgv, r) = sample[k]!
         let ev = AlertEvent(id: AlertEvent.newId(), k: k, state: "fire", at: Date(), t: Date().addingTimeInterval(k == .noData ? -25 * 60 : 0),
                             sgv: sgv, r: r, th: settings[k].threshold, n: 1)
