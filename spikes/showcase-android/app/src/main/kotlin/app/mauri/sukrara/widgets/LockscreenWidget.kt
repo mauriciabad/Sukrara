@@ -4,12 +4,12 @@
 package app.mauri.sukrara.widgets
 
 import android.content.Context
-import android.content.res.Configuration
+import android.graphics.Canvas
+import android.graphics.RectF
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.glance.ColorFilter
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.core.graphics.createBitmap
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -22,42 +22,30 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.LocalAppWidgetOptions
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
-import androidx.glance.layout.Column
-import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.ContentScale
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.height
-import androidx.glance.layout.size
-import androidx.glance.layout.width
-import androidx.glance.text.FontFamily
-import androidx.glance.text.FontWeight
-import androidx.glance.text.Text
-import androidx.glance.text.TextAlign
-import androidx.glance.text.TextDecoration
-import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
-import app.mauri.sukrara.core.Range
-import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
-import app.mauri.sukrara.core.ageS
-import app.mauri.sukrara.core.ageText
-import app.mauri.sukrara.core.stale
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import app.mauri.sukrara.graph.CardStyle
+import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.GraphData
+import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.graph.TirRing
+import app.mauri.sukrara.graph.systemPalette
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Investigation 17: the widget for the empty lower part of the lock screen. Not offered by launchers (category
  * `keyguard` only): Sukrara's LSPosed module hosts it inside SystemUI (hook/LockscreenWidgetHost), sized to the space
  * between the notifications and the shortcuts, and tells it where the lock icon is ([HOLE_LEFT], [HOLE_RIGHT],
- * [HOLE_BOTTOM] in the widget options, dp from the widget's top-left). The value sits left of the lock icon, age and
- * rate right of it, the graph below. No background (it floats on the wallpaper like the clock), always the dark
- * palette (lock screen text is light), and a tap opens the treatment dialog, which shows over the lock screen.
+ * [HOLE_BOTTOM] in the widget options, dp from the widget's top-left).
+ *
+ * The same pieces as the other widgets' card ([GlucoseCard], investigation 16), arranged around the lock icon: value
+ * and arrow left of it, the time-in-range rings right of it, the chart below. No background (it floats on the
+ * wallpaper like the clock), always the dark palette (lock screen content is light), and a tap opens the treatment
+ * dialog, which shows over the lock screen.
  */
 class LockscreenWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
@@ -80,79 +68,84 @@ class LockscreenWidget : GlanceAppWidget() {
 
 class LockscreenWidgetReceiver : BaseReceiver() { override val glanceAppWidget: GlanceAppWidget = LockscreenWidget() }
 
-private val LIGHT = ColorProvider(Color.White)
-private val DIM = ColorProvider(Color(0xCCFFFFFF))
+private val RING_EMPHASIS = floatArrayOf(1f, 0.55f, 0.35f)
 
 @Composable
 private fun LockscreenContent(frame: WidgetUpdater.Frame) {
+    val ctx = LocalContext.current
     val size = LocalSize.current
     val opts = LocalAppWidgetOptions.current
     val w = size.width.value
-    val holeLeft = opts.getFloat(LockscreenWidget.HOLE_LEFT, w / 2 - 44)
-    val holeRight = opts.getFloat(LockscreenWidget.HOLE_RIGHT, w / 2 + 44)
-    val rowH = opts.getFloat(LockscreenWidget.HOLE_BOTTOM, 76f)
-    val r = frame.history.lastOrNull()
-    Box(GlanceModifier.fillMaxSize().clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>())) {
-        Column(GlanceModifier.fillMaxSize()) {
-            Row(GlanceModifier.fillMaxWidth().height(rowH.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(GlanceModifier.width(holeLeft.dp).fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
-                    if (r != null) Value(r, frame.nowSec) else Small("No data")
-                }
-                Spacer(GlanceModifier.width((holeRight - holeLeft).dp))
-                Box(GlanceModifier.defaultWeight().fillMaxHeight(), contentAlignment = Alignment.CenterEnd) {
-                    if (r != null) Column(horizontalAlignment = Alignment.End) {
-                        Small(ageText(r.ageS(frame.nowSec)))
-                        Small(r.rate?.let { "%+.1f/min".format(it) } ?: "no trend")
-                    }
-                }
-            }
-            Spacer(GlanceModifier.height(6.dp))
-            LockGraph(frame, w, size.height.value - rowH - 6)
-        }
-    }
-}
-
-@Composable
-private fun Value(r: Reading, now: Long) {
-    val stale = r.stale(now)
-    val color = if (stale) DIM else Range.color(r.sgv)?.let { ColorProvider(Color(it)) } ?: LIGHT
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "${r.sgv}",
-            style = TextStyle(color = color, fontSize = 50.sp, fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily("google-sans-flex"),
-                textDecoration = if (stale) TextDecoration.LineThrough else TextDecoration.None),
-            maxLines = 1,
-        )
-        Image(
-            ImageProvider(Trend.drawable(r.rate)),
-            contentDescription = Trend.word(r.rate),
-            modifier = GlanceModifier.size(36.dp),
-            colorFilter = ColorFilter.tint(color),
-        )
-    }
-}
-
-@Composable
-private fun Small(text: String) = Text(
-    text, style = TextStyle(color = DIM, fontSize = 15.sp, textAlign = TextAlign.End), maxLines = 1,
-)
-
-/** The widgets' graph, always in the dark palette: lock screen content is light on the wallpaper. */
-@Composable
-private fun ColumnScope.LockGraph(frame: WidgetUpdater.Frame, widthDp: Float, heightDp: Float) {
-    if (heightDp < 24) return
-    val ctx = LocalContext.current
-    val night = ctx.createConfigurationContext(Configuration(ctx.resources.configuration).apply {
-        uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_YES
-    })
-    val hours = GraphRenderer.hoursFor(widthDp)
-    val bmp = GraphRenderer.render(night, frame.history, frame.nowSec,
-        GraphRenderer.px(ctx, widthDp), GraphRenderer.px(ctx, heightDp), hours, treatments = frame.treatments)
+    val h = size.height.value
+    val hole = Hole(
+        opts.getFloat(LockscreenWidget.HOLE_LEFT, w / 2 - 44),
+        opts.getFloat(LockscreenWidget.HOLE_RIGHT, w / 2 + 44),
+        opts.getFloat(LockscreenWidget.HOLE_BOTTOM, 76f),
+    )
+    val d = ctx.resources.displayMetrics.density
+    // well under the RemoteViews bitmap limit, like the other widgets
+    val scale = min(1f, 1400f / (maxOf(w, h) * d))
+    val bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
+    draw(ctx, Canvas(bmp), frame, hole, d * scale)
     Image(
         ImageProvider(bmp),
-        contentDescription = "Glucose graph, last $hours hours",
-        modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+        contentDescription = describe(frame),
+        modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>()),
         contentScale = ContentScale.FillBounds,
     )
+}
+
+/** Where the lock icon is, dp from the widget's top-left: [left]…[right] wide, from the top down to [bottom]. */
+private data class Hole(val left: Float, val right: Float, val bottom: Float)
+
+private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float) {
+    val cfg = GraphSettings.value
+    // Transparent: the end dot's halo is drawn in the background colour.
+    val pal = systemPalette(ctx, dark = true).copy(bg = 0)
+    val w = cv.width.toFloat()
+    val h = cv.height.toFloat()
+    val rowH = hole.bottom * d
+
+    // Value + arrow, left of the lock icon (a little shorter than the row so the number isn't taller than the icon).
+    val valueBox = RectF(0f, rowH * 0.1f, hole.left * d, rowH * 0.9f)
+    cv.withBox(valueBox) {
+        GlucoseCard.draw(cv, valueBox.width(), valueBox.height(), frame.history, frame.treatments, frame.nowSec,
+            CardStyle(graph = null, rings = emptyList()), pal, d)
+    }
+
+    // Time-in-range rings, right of the lock icon, main ring rightmost.
+    val ringsBox = RectF(hole.right * d, 0f, w, rowH)
+    val specs = cfg.rings()
+    if (specs.isNotEmpty()) {
+        val gap = 8 * d
+        val size = min(rowH * 0.9f, min(84 * d, (ringsBox.width() - gap * (specs.size - 1)) / specs.size))
+        var x = ringsBox.right
+        if (size >= 30 * d) for ((i, spec) in specs.withIndex()) {
+            val tir = GraphData.tir(ctx, spec.windowS, cfg.bands, frame.nowSec)
+            if (tir.coverage < GlucoseCard.MIN_COVERAGE) continue
+            TirRing.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, tir, spec, pal, RING_EMPHASIS[i], d)
+            x -= size + gap
+        }
+    }
+
+    // The chart below.
+    val chart = RectF(0f, rowH + 8 * d, w, h)
+    if (chart.height() > 24 * d) cv.withBox(chart) {
+        val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
+        GlucoseCard.draw(cv, chart.width(), chart.height(), frame.history, frame.treatments, frame.nowSec,
+            CardStyle(graph = graph, rings = emptyList(), value = false), pal, d)
+    }
+}
+
+private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {
+    save(); translate(box.left, box.top); clipRect(0f, 0f, box.width(), box.height())
+    try { block() } finally { restore() }
+}
+
+private fun describe(frame: WidgetUpdater.Frame): String {
+    val r = frame.history.lastOrNull() ?: return "Glucose: no readings yet. Add treatment"
+    val f = Freshness.of(frame.nowSec - r.t)
+    val value = if (!f.showValue) "no reading since ${Freshness.timeText(r.t, frame.nowSec)}"
+        else "${r.sgv} mg/dL, ${Trend.word(r.rate)}"
+    return "Glucose $value. Add treatment"
 }

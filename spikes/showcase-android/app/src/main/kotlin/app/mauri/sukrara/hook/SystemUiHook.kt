@@ -92,6 +92,16 @@ class SystemUiHook : XposedModule() {
                 (chain.getArg(0) as? MotionEvent)?.let(lockWidget::onTouch)
                 chain.proceed()
             }
+        // The lock screen gives the notification shelf extra room beside the lock icon (spaceForShelf, below the
+        // notifications' space, which ends at the icon's top). With the widget there, the shelf has to fit above it.
+        val calc = cl.loadClass("com.android.systemui.statusbar.notification.stack.NotificationStackSizeCalculator")
+        hook(calc.declaredMethods.single { it.name == "computeMaxKeyguardNotifications" })
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                val space = chain.getArg(1) as Float
+                val shelf = chain.getArg(2) as Float
+                if (!lockWidget.enabled || shelf <= 0f) chain.proceed()
+                else chain.proceed(arrayOf(chain.getArg(0), (space - shelf).coerceAtLeast(0f), shelf, chain.getArg(3)))
+            }
         log("lock screen widget hooks: ok")
     }
 
