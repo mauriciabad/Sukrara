@@ -74,8 +74,9 @@ fun GraphScreen(onBack: () -> Unit) {
         GraphSettings.update(f)
         SukraraHooks.refresh(ctx, "graph settings", force = true)
     }
+    val idx = indexing
     val last by produceState<app.mauri.sukrara.core.Reading?>(null) {
-        value = withContext(Dispatchers.IO) { app.mauri.sukrara.widgets.RecentHistory.readings(ctx).lastOrNull() }
+        if (!idx) value = withContext(Dispatchers.IO) { app.mauri.sukrara.widgets.RecentHistory.readings(ctx).lastOrNull() }
     }
 
     // one radio dialog for every "pick one of" setting on this page
@@ -87,7 +88,7 @@ fun GraphScreen(onBack: () -> Unit) {
 
     SettingsPage("Graph & time in range", onBack) {
         // the real panel as the page's live preview (AOSP IllustrationPreference: "at the top of the screen")
-        GlucosePanel(last?.sgv, last?.rate, last?.t)
+        SettingsHeader { GlucosePanel(last?.sgv, last?.rate, last?.t) }
 
         SettingsGroup("Ranges", titleAction = { Reset("Ranges", g.bands != D.bands) { set { it.copy(bands = D.bands) } } }) {
             card { BandSlider("Very low below", g.bands.veryLow, 40f..65f) { v -> set { it.copy(bands = it.bands.copy(veryLow = v)) } } }

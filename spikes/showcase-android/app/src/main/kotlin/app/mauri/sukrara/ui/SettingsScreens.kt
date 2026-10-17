@@ -95,44 +95,46 @@ private fun graphSummary(): String {
 
 /** The wearer's settings overview. [open] goes to a subscreen by its route. */
 @Composable
-fun WearerSettings(u: OwnerUi, open: (String) -> Unit, onBack: () -> Unit) {
+fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     val alerts by Alerts.settings.collectAsState()
     val gs = graphSummary()
     SettingsPage("Settings", onBack) {
-        LibreViewBanner(onSetUp = { open("libreview") })
+        SettingsSearchBar()
+        val nav = LocalNav.current
+        LibreViewBanner(onSetUp = { nav?.open("libreview") })
         SettingsGroup {
             link(u.profile?.name?.ifBlank { null } ?: "Add your name", "Wearer · what your followers see",
-                leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }) { open("profile") }
+                leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }, to = "profile")
         }
         SettingsGroup {
-            link("Alerts", alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }) { open("alerts") }
+            link("Alerts", alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
             link("Glucose source", (if (f.source == "direct") "Libre 3 directly" else "Juggluco") + " · " + st.source,
-                leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }) { open("source") }
+                leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }, to = "source")
         }
         SettingsGroup {
             val n = u.followers.count { it.revoked == null }
             link(PEOPLE, "$n follower${if (n == 1) "" else "s"}" + (if (f.nostr) " · internet" else "") + (if (f.bleFollowers) " · Bluetooth" else ""),
-                leading = { CategoryIcon(R.drawable.ic_sym_group, Category.BLUE) }) { open("sharing") }
-            link(APPS, appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }) { open("apps") }
+                leading = { CategoryIcon(R.drawable.ic_sym_group, Category.BLUE) }, to = "sharing")
+            link(APPS, appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
         }
         SettingsGroup {
-            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
+            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
             link("Status bar", listOfNotNull("chip".takeIf { f.chip }, "number icon".takeIf { f.icon }, "value".takeIf { f.hook })
                 .joinToString(" · ").ifEmpty { "Off" }.replaceFirstChar { it.uppercase() },
-                leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }) { open("statusbar") }
+                leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }, to = "statusbar")
             link("Lock screen", if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.CHOICES.first { it.second == f.lockBg }.first else "Off",
-                leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }) { open("lockscreen") }
+                leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }, to = "lockscreen")
         }
         SettingsGroup {
             link("Backup", (if (u.backupSavedAt > 0) "Saved ${date(u.backupSavedAt)}" else "Not backed up") + " · export settings",
-                leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }) { open("backup") }
+                leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }, to = "backup")
         }
         SettingsGroup {
-            link("Advanced", "Relays, log, sensor link, experiments", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }) { open("advanced") }
+            link("Advanced", "Relays, log, sensor link, experiments", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
             link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
-                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }) { open("about") }
+                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")
         }
     }
 }
@@ -152,7 +154,7 @@ fun LibreViewBanner(onSetUp: () -> Unit) {
     val lv by Treat.uploader.settings.collectAsState()
     val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
     Reveal(!ready && !f.libreviewBannerDismissed) {
-        SettingsBanner({ AppIcon(R.drawable.ic_brand_libreview, 32.dp) }, "Set up LibreView",
+        SettingsBanner({ AppIcon(R.drawable.ic_brand_libreview) }, "Set up LibreView",
             "Upload your glucose and entries to LibreView, the record your doctor sees.", "Set up", onSetUp) {
             set { it.copy(libreviewBannerDismissed = true) }
         }
@@ -168,19 +170,20 @@ private val SOURCES = listOf(
 )
 
 @Composable
-fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
+fun SourceSettings(onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     var confirmDirect by remember { mutableStateOf(false) }
     val direct = f.source == "direct"
+    val nav = LocalNav.current
     SettingsPage("Glucose source", onBack) {
         SettingsIntro(R.drawable.ic_sym_glucose, "Where Sukrara gets your readings from.")
         SettingsGroup {
             value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
                 icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ AppIcon(R.drawable.ic_brand_juggluco) })) { choosing = true }
             link("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
-                else "Unavailable while Juggluco holds the sensor", icon = R.drawable.ic_sym_nfc, enabled = direct, onClick = onSensor)
+                else "Unavailable while Juggluco holds the sensor", icon = R.drawable.ic_sym_nfc, enabled = direct, to = "sensor")
         }
         SettingsFooter("Only one app can hold a Libre 3. With Libre 3 directly, Juggluco's own alarms don't ring; use Alerts.")
     }
@@ -193,7 +196,7 @@ fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
         text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
             "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
             "(low/high) do NOT ring.") },
-        confirmButton = { Button(onClick = { confirmDirect = false; onSensor() }) { Text("Scan sensor") } },
+        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("sensor") }) { Text("Scan sensor") } },
         dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
     )
 }
@@ -201,7 +204,7 @@ fun SourceSettings(onSensor: () -> Unit, onBack: () -> Unit) {
 // ================================================================================================ sharing
 
 @Composable
-fun SharingSettings(u: OwnerUi, a: OwnerActions, onApps: () -> Unit, onBack: () -> Unit) {
+fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Follower?>(null) }
@@ -228,7 +231,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onApps: () -> Unit, onBack: () 
             switch("Over Bluetooth nearby", f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
                 summary = if (u.bleOn) "${u.bleCentrals} connected now" else "Bluetooth is off") { v -> set { it.copy(bleFollowers = v) } }
         }
-        SettingsGroup { link(APPS, "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, onClick = onApps) } 
+        SettingsGroup { link(APPS, "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") } 
         SettingsFooter("Removing someone rotates the read key, so they stop receiving new readings at once. Followers you " +
             "allow to add entries can log insulin, carbs and notes for you.")
     }
@@ -357,7 +360,7 @@ fun LockscreenSettings(onBack: () -> Unit) {
  * API and the Nostr relays (wearer). Off by default except Nostr; each says how other apps reach it.
  */
 @Composable
-fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onPeople: (() -> Unit)?, onBack: () -> Unit) {
+fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
@@ -373,7 +376,7 @@ fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onPeople: (() -> Unit
                     lv.email.isEmpty() || !lv.hasPassword -> "Not set up"
                     f.libreview -> "Uploading as ${lv.email}"
                     else -> "Off · ${lv.email}"
-                }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, onClick = onLibreView)
+                }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, to = "libreview")
             }
         }
         SettingsGroup("xDrip+") {
@@ -390,7 +393,7 @@ fun AppsSettings(wearer: Boolean, onLibreView: () -> Unit, onPeople: (() -> Unit
             if (f.nightscout && f.nightscoutLan) action("Show API secret", icon = R.drawable.ic_sym_key) { secret = true }
         }
         if (wearer) SettingsGroup("Nostr") { nostrRows(f) { choosing = true } }
-        onPeople?.let { SettingsGroup { link(PEOPLE, "Followers, invites, nearby pairing", icon = R.drawable.ic_sym_group, onClick = it) } }
+        if (wearer) SettingsGroup { link(PEOPLE, "Followers, invites, nearby pairing", icon = R.drawable.ic_sym_group, to = "sharing") }
         SettingsFooter("The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields " +
             "made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.")
     }
@@ -525,7 +528,7 @@ private fun settingsTransfer(): TransferUi {
 // ================================================================================================ advanced
 
 @Composable
-fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions, onLog: () -> Unit, onBack: () -> Unit) {
+fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val st by Live.status.collectAsState()
     var choosing by remember { mutableStateOf(false) }
@@ -537,7 +540,7 @@ fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions,
             action("Check requests now", icon = R.drawable.ic_sym_update, onClick = a::checkNow)
         }
         SettingsGroup("Diagnostics") {
-            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, onClick = onLog)
+            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, to = "log")
             info("Identity", "${u.iPub?.let { Proto.shortNpub(it) } ?: "–"} · key epoch ${u.epoch}", icon = R.drawable.ic_sym_key)
             info("Sent", "${u.liveSent} live · ${u.chunksSent} chunks · ${st.notificationPosts} notification posts, ${st.notificationSkipped} skipped")
         }
@@ -567,27 +570,28 @@ fun LogPage(log: List<String>, onBack: () -> Unit) {
 
 /** The follower's settings overview. */
 @Composable
-fun FollowerSettings(u: FollowerUi, open: (String) -> Unit, onBack: () -> Unit) {
+fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val alerts by Alerts.settings.collectAsState()
     val gs = graphSummary()
     SettingsPage("Settings", onBack) {
+        SettingsSearchBar()
         SettingsGroup {
             link(u.name ?: "Add your name", "How you appear to ${u.wearer?.name ?: "the wearer"}",
-                leading = { AvatarImage(u.me?.avatar, u.name ?: "", 40.dp) }) { open("profile") }
+                leading = { AvatarImage(u.me?.avatar, u.name ?: "", 40.dp) }, to = "profile")
         }
         SettingsGroup {
-            link("Alerts", alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }) { open("alerts") }
-            link("Following", (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }) { open("following") }
+            link("Alerts", alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
+            link("Following", (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }, to = "following")
         }
         SettingsGroup {
-            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }) { open("graph") }
-            link(APPS, appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }) { open("apps") }
+            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
+            link(APPS, appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
         }
         SettingsGroup {
-            link("Advanced", "Relays, log, diagnostics", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }) { open("advanced") }
+            link("Advanced", "Relays, log, diagnostics", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
             link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
-                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }) { open("about") }
+                leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")
         }
     }
 }
@@ -613,14 +617,14 @@ fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
 }
 
 @Composable
-fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: FollowerActions, onLog: () -> Unit, onBack: () -> Unit) {
+fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: FollowerActions, onBack: () -> Unit) {
     val transfer = settingsTransfer()
     transfer.dialogs()
     SettingsPage("Advanced", onBack) {
         transfer.group(this)
         SettingsGroup("Relays") { card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
         SettingsGroup("Diagnostics") {
-            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, onClick = onLog)
+            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, to = "log")
             info("Stored readings", "${u.count} on this phone · rejected events ${u.rejects}" + (u.lastReject?.let { " (last: $it)" } ?: ""))
             info("Keys", "Key epochs up to ${u.epoch} · trusted devices ${u.devices.joinToString { it.take(8) }}", icon = R.drawable.ic_sym_key)
             info("This phone", u.fPub?.let { Proto.npub(it) })
@@ -671,9 +675,12 @@ fun AboutSettings(onBack: () -> Unit) {
     val ctx = LocalContext.current
     fun open(url: String) = ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     // null = loading, Result.failure = offline
-    val release by produceState<Result<Release>?>(null) { value = latestRelease()?.let { Result.success(it) } ?: Result.failure(Exception()) }
+    val idx = indexing
+    val release by produceState<Result<Release>?>(null) {
+        if (!idx) value = latestRelease()?.let { Result.success(it) } ?: Result.failure(Exception())
+    }
     SettingsPage("About Sukrara", onBack) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        SettingsHeader { Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // the launcher icon is adaptive (no painterResource): draw what the launcher draws
             val icon = remember { ctx.packageManager.getApplicationIcon(ctx.packageName).toBitmap(288, 288).asImageBitmap() }
@@ -681,7 +688,7 @@ fun AboutSettings(onBack: () -> Unit) {
             Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
             Text("Version ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " (debug)" else "", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        } }
         val r = release?.getOrNull()
         if (r != null && r.tag.removePrefix("v") != BuildConfig.VERSION_NAME) SettingsGroup {
             action("Update to ${r.tag.removePrefix("v")}", "Download the new version", icon = R.drawable.ic_sym_download) { open(r.url) }

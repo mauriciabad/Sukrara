@@ -77,8 +77,9 @@ fun SensorScreen(onBack: () -> Unit) {
 
     // Sukrara's own LibreView setup (Treatments & LibreView) already knows the account: learn its receiver ID up
     // front, so a sensor started by LibreLink or Juggluco moves over with a single tap.
+    val idx = indexing   // composed for the search index: no network, no NFC reader mode
     LaunchedEffect(Unit) {
-        if (ReceiverId.libreView(ctx) != null) return@LaunchedEffect
+        if (idx || ReceiverId.libreView(ctx) != null) return@LaunchedEffect
         val lv = ctx.getSharedPreferences("libreview", Context.MODE_PRIVATE)
         val email = lv.getString("email", null)
         val password = lv.getString("password", null)
@@ -89,7 +90,7 @@ fun SensorScreen(onBack: () -> Unit) {
     // Reader mode only while this screen is in front: a tap here goes to Sukrara, not to Juggluco or LibreLink.
     LifecycleResumeEffect(nfc, outcome is Outcome.NeedsAccount) {
         nfcOn = nfc?.isEnabled == true
-        val listening = nfc != null && outcome !is Outcome.NeedsAccount
+        val listening = !idx && nfc != null && outcome !is Outcome.NeedsAccount
         if (listening) nfc.enableReaderMode(activity, { tag ->
             activity.runOnUiThread { busy = true; outcome = null }
             val r = Libre3Nfc.scan(tag, ReceiverId.takeoverCandidates(ctx), ReceiverId.forActivation(ctx))

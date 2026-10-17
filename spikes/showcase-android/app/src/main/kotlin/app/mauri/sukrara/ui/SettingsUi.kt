@@ -42,6 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -67,9 +71,42 @@ import app.mauri.sukrara.R
  *    hide) what depends on it, each with a brief reason.
  */
 
+/*
+ * Search (SettingsSearch.kt) indexes the pages by composing them in *index mode* ([LocalSettingsIndex] set): every
+ * row function below records its title, summary, group and the page it links to instead of drawing, and the pages
+ * reached through [link] `to` are indexed next. The index is therefore whatever the pages really show, never a list
+ * kept by hand. Visual-only parts ([SettingsIntro], [SettingsFooter], [SettingsHeader]…) draw nothing in index mode;
+ * pages skip side effects (NFC, network, database) while [indexing] is true.
+ */
+
+/** A row search can find, with its icon (results show it, or else the page's category icon, like AOSP). */
+class IndexedRow(val title: String, val summary: String?, val group: String?, val icon: (@Composable () -> Unit)?, val to: String? = null)
+
+/** What index mode recorded for one page (rows by group + title, so a recomposition doesn't add them twice). */
+class PageIndex(val route: String) {
+    var title: String? = null
+    val rows = LinkedHashMap<Pair<String?, String>, IndexedRow>()
+    val links = LinkedHashSet<String>()
+    /** The icon of the row that opens each linked page (the overview's category icons). */
+    val linkIcons = HashMap<String, @Composable () -> Unit>()
+}
+
+val LocalSettingsIndex = androidx.compose.runtime.staticCompositionLocalOf<PageIndex?> { null }
+
+/** True while the page is being composed for the search index (skip side effects and heavy content). */
+val indexing: Boolean @Composable get() = LocalSettingsIndex.current != null
+
+/** The in-app navigation, for [link] `to` and for the highlight a search result asks for. */
+val LocalNav = androidx.compose.runtime.staticCompositionLocalOf<Nav?> { null }
+
+/** Content at the top of a page that isn't a setting (a live preview, a status card): not composed while indexing. */
+@Composable
+fun SettingsHeader(content: @Composable () -> Unit) { if (!indexing) content() }
+
 /** One settings page: a back arrow and the title (it matches the row that opened it), then [content]. */
 @Composable
 fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    LocalSettingsIndex.current?.let { idx -> idx.title = title; Column { content() }; return }
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.offset(x = (-12).dp)) {
             IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_sym_arrow_back), contentDescription = "Back") }
@@ -81,17 +118,33 @@ fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnS
 
 /** The rows of one [SettingsGroup]; each row gets its segmented shape from its position. */
 class SettingsGroupScope internal constructor() {
-    internal val rows = mutableListOf<@Composable (ListItemShapes) -> Unit>()
+    internal class Entry(val title: String?, val summary: String?, val to: String?, val icon: (@Composable () -> Unit)?,
+                         val draw: @Composable (ListItemShapes) -> Unit)
+    internal val rows = mutableListOf<Entry>()
     /** Some row has an icon: every row then keeps the icon column, so titles line up (AOSP iconSpaceReserved). */
     internal var hasIcon = false
-    /** Any row content (a slider, a follower with its avatar…), drawn inside the group's card shape. */
-    fun row(content: @Composable (ListItemShapes) -> Unit) { rows += content }
+    /**
+     * Any row content (a slider, a follower with its avatar…), drawn inside the group's card shape. [title] makes it
+     * findable by search; [to] is the settings page it opens.
+     */
+    fun row(title: String? = null, summary: String? = null, to: String? = null, icon: (@Composable () -> Unit)? = null,
+            content: @Composable (ListItemShapes) -> Unit) {
+        rows += Entry(title, summary, to, icon, content)
+    }
 }
 
 /** A heading (optional, with [titleAction] at its end, e.g. a reset button) and its rows as one segmented list. */
 @Composable
 fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? = null, content: SettingsGroupScope.() -> Unit) {
     val scope = SettingsGroupScope().apply(content)
+    LocalSettingsIndex.current?.let { idx ->
+        for (r in scope.rows) {
+            r.title?.let { t -> idx.rows[title to t] = IndexedRow(t, r.summary, title, r.icon, r.to) }
+            r.to?.let { idx.links += it; r.icon?.let { i -> idx.linkIcons[it] = i } }
+        }
+        return
+    }
+    val nav = LocalNav.current
     Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         title?.let {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)) {
@@ -102,7 +155,11 @@ fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? 
         }
         val n = scope.rows.size
         androidx.compose.runtime.CompositionLocalProvider(LocalReserveIcon provides scope.hasIcon) {
-            scope.rows.forEachIndexed { i, r -> r(ListItemDefaults.segmentedShapes(i, n)) }
+            scope.rows.forEachIndexed { i, r ->
+                val shapes = ListItemDefaults.segmentedShapes(i, n)
+                if (r.title != null && nav?.highlight == r.title) Highlighted(shapes, onDone = { nav.highlight = null }) { r.draw(shapes) }
+                else r.draw(shapes)
+            }
         }
     }
 }
@@ -145,8 +202,11 @@ private fun lead(@DrawableRes icon: Int?, leading: (@Composable () -> Unit)?, ti
 
 private fun SettingsGroupScope.noteIcon(@DrawableRes icon: Int?, leading: Any?) { if (icon != null || leading != null) hasIcon = true }
 
+private fun iconOf(@DrawableRes icon: Int?, leading: (@Composable () -> Unit)?): (@Composable () -> Unit)? =
+    leading ?: icon?.let { { Icon(painterResource(it), contentDescription = null) } }
+
 /** Free content (a slider, chips, a field) in the group's card colour and shape. */
-fun SettingsGroupScope.card(content: @Composable ColumnScope.() -> Unit) = row { shapes ->
+fun SettingsGroupScope.card(title: String? = null, content: @Composable ColumnScope.() -> Unit) = row(title) { shapes ->
     androidx.compose.material3.Surface(shape = shapes.shape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
@@ -158,10 +218,12 @@ fun SettingsGroupScope.card(content: @Composable ColumnScope.() -> Unit) = row {
  * system settings). [leading] replaces the plain icon (category icons, avatars, app icons).
  */
 fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
-                            external: Boolean = false, leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+                            external: Boolean = false, leading: (@Composable () -> Unit)? = null, to: String? = null,
+                            onClick: (() -> Unit)? = null) {
     noteIcon(icon, leading)
-    row { shapes ->
-        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
+    row(title, summary, to, iconOf(icon, leading)) { shapes ->
+        val nav = LocalNav.current
+        SegmentedListItem(onClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } }, shapes = shapes, colors = rowColors(), enabled = enabled,
             leadingContent = lead(icon, leading),
             supportingContent = summary?.let { { Summary(it) } },
             trailingContent = {
@@ -175,7 +237,7 @@ fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes
 fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = true, @DrawableRes icon: Int? = null,
                              leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
     noteIcon(icon, leading)
-    row { shapes ->
+    row(title, value, icon = iconOf(icon, leading)) { shapes ->
         SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
             leadingContent = lead(icon, leading), supportingContent = { Summary(value) }) { Title(title) }
     }
@@ -185,7 +247,7 @@ fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = tr
 fun SettingsGroupScope.action(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
                               onClick: () -> Unit) {
     noteIcon(icon, null)
-    row { shapes ->
+    row(title, summary, icon = iconOf(icon, null)) { shapes ->
         SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
             leadingContent = lead(icon, null, tint = if (enabled) MaterialTheme.colorScheme.primary else null),
             supportingContent = summary?.let { { Summary(it) } }) {
@@ -197,7 +259,7 @@ fun SettingsGroupScope.action(title: String, summary: String? = null, @DrawableR
 /** Not tappable: a fact (version, an address). */
 fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes icon: Int? = null) {
     noteIcon(icon, null)
-    row { shapes ->
+    row(title, summary, icon = iconOf(icon, null)) { shapes ->
         SegmentedListItem(shapes = shapes, colors = rowColors(), leadingContent = lead(icon, null),
             supportingContent = summary?.let { { Summary(it) } }) { Title(title) }
     }
@@ -207,7 +269,7 @@ fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes
 fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
                               @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
     noteIcon(icon, leading)
-    row { shapes ->
+    row(title, summary, icon = iconOf(icon, leading)) { shapes ->
         SegmentedListItem(checked = checked, onCheckedChange = onChange, shapes = shapes.copy(selectedShape = shapes.shape),
             colors = rowColors(), enabled = enabled, leadingContent = lead(icon, leading),
             supportingContent = summary?.let { { Summary(it) } },
@@ -220,7 +282,7 @@ fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean 
  * [rowEnabled] greys the whole row; [switchEnabled] only the switch.
  */
 fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
-                                   switchEnabled: Boolean = rowEnabled, onClick: () -> Unit, onChange: (Boolean) -> Unit) = row { shapes ->
+                                   switchEnabled: Boolean = rowEnabled, onClick: () -> Unit, onChange: (Boolean) -> Unit) = row(title, summary) { shapes ->
     SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = rowEnabled,
         leadingContent = lead(null, null), supportingContent = summary?.let { { Summary(it) } },
         trailingContent = {
@@ -241,6 +303,16 @@ fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boo
  */
 @Composable
 fun SettingsMainSwitch(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    LocalSettingsIndex.current?.let { idx -> idx.rows[null to title] = IndexedRow(title, null, null, null); return }
+    val nav = LocalNav.current
+    if (nav?.highlight == title) Highlighted(androidx.compose.material3.ListItemShapes(RoundedCornerShape(36.dp), RoundedCornerShape(36.dp),
+        RoundedCornerShape(36.dp), RoundedCornerShape(36.dp), RoundedCornerShape(36.dp), RoundedCornerShape(36.dp)), onDone = { nav.highlight = null }) {
+        MainSwitchBar(title, checked, enabled, onChange)
+    } else MainSwitchBar(title, checked, enabled, onChange)
+}
+
+@Composable
+private fun MainSwitchBar(title: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     val bg = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
     val fg = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
@@ -276,6 +348,7 @@ fun CategoryIcon(@DrawableRes icon: Int, c: Category) {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsIntro(@DrawableRes icon: Int, text: String) {
+    if (indexing) return
     val turn by rememberInfiniteTransition(label = "intro").animateFloat(0f, 360f,
         infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Restart), label = "turn")
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -292,6 +365,7 @@ fun SettingsIntro(@DrawableRes icon: Int, text: String) {
 /** Explanations at the end of a page (AOSP FooterPreference: an info icon, then the text). */
 @Composable
 fun SettingsFooter(text: String) {
+    if (indexing) return
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(painterResource(R.drawable.ic_sym_info), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp))
@@ -305,6 +379,7 @@ fun SettingsFooter(text: String) {
  */
 @Composable
 fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
+    if (indexing) return
     androidx.compose.material3.Card(colors = androidx.compose.material3.CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
         shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
@@ -322,7 +397,49 @@ fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, ac
     }
 }
 
-/** Another app's own icon in its colours (xDrip+, Juggluco, LibreView), round like the launcher shows it. */
+/**
+ * Another app's own icon in its colours (xDrip+, Juggluco, LibreView), round like the launcher shows it, at the size
+ * of the 24 dp icons beside it.
+ */
 @Composable
-fun AppIcon(@DrawableRes res: Int, size: androidx.compose.ui.unit.Dp = 40.dp) =
+fun AppIcon(@DrawableRes res: Int, size: androidx.compose.ui.unit.Dp = 24.dp) =
     androidx.compose.foundation.Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size).clip(CircleShape))
+
+
+/**
+ * The row a search result points at, as AOSP's HighlightablePreferenceGroupAdapter does: after 600 ms it scrolls into
+ * view, then its background pulses in the accent colour at 26 % (200 ms fades, reversed 4 times), stays 15 s and fades
+ * out over 500 ms. Leaving the page earlier drops it ([Nav.open] / [Nav.back] clear the highlight).
+ */
+@Composable
+private fun Highlighted(shapes: ListItemShapes, onDone: () -> Unit, content: @Composable () -> Unit) {
+    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val glow = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(600)
+        bring.bringIntoView()
+        repeat(5) { glow.animateTo(if (it % 2 == 0) 1f else 0f, tween(200)) }
+        kotlinx.coroutines.delay(15_000)
+        glow.animateTo(0f, tween(500))
+        onDone()
+    }
+    val c = MaterialTheme.colorScheme.primary
+    Box(Modifier.bringIntoViewRequester(bring).drawWithContent {
+        drawContent()
+        drawOutline(shapes.shape.createOutline(size, layoutDirection, this), c.copy(alpha = 0.26f * glow.value))
+    }) { content() }
+}
+
+/** A search result: icon, title, summary and where it is ("Page > Group"). */
+fun SettingsGroupScope.result(title: String, summary: String?, where: String, icon: (@Composable () -> Unit)?, onClick: () -> Unit) {
+    hasIcon = true
+    row { shapes ->
+        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), leadingContent = lead(null, icon),
+            supportingContent = {
+                Column {
+                    summary?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2) }
+                    Text(where, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }) { Title(title) }
+    }
+}

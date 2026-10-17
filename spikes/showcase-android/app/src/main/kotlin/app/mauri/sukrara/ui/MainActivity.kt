@@ -23,6 +23,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -244,33 +245,39 @@ class MainActivity : ComponentActivity() {
 
         // the home screen keeps its scroll position while a child screen is open
         val homeScroll = rememberScrollState()
+        val index = remember { SettingsIndex("settings") }
+        // every screen by route: drawn by the screen host, and composed in index mode by settings search
+        @Composable
+        fun page(s: String) {
+            val back = nav::back
+            when (s) {
+                "share" -> Page { ShareScreen(u, actions, back) }
+                "profile" -> Page {
+                    ProfileScreen("Your profile", u.profile ?: app.mauri.sukrara.core.Profile("", null), "Your name",
+                        "Your followers get the change at once. New invites show it to the person you invite.",
+                        actions::saveProfile, back)
+                }
+                "settings" -> Page { WearerSettings(u, back) }
+                "alerts" -> Page { AlertsScreen(follower = false, back) }
+                "source" -> Page { SourceSettings(back) }
+                "sensor" -> Page { SensorScreen(back) }
+                "sharing" -> Page { SharingSettings(u, actions, back) }
+                "graph" -> Page { GraphScreen(back) }
+                "statusbar" -> Page { StatusBarSettings(back) }
+                "lockscreen" -> Page { LockscreenSettings(back) }
+                "apps" -> Page { AppsSettings(wearer = true, back) }
+                "libreview" -> Page { LibreViewSettings(back) }
+                "backup" -> Page { BackupSettings(u, actions, back) }
+                "advanced" -> Page { WearerAdvanced(u, relays, actions, back) }
+                "log" -> Page { LogPage(log, back) }
+                "about" -> Page { AboutSettings(back) }
+                else -> Page(homeScroll) { OwnerHome(u, actions) }
+            }
+        }
         AnimatedContent(u.hasIdentity, transitionSpec = { fadeThrough() }, label = "identity") { has ->
             if (!has) Page { OwnerOnboarding(busy ?: u.busy, error, actions) }
-            else ScreenHost(nav) { s ->
-                val back = nav::back
-                when (s) {
-                    "share" -> Page { ShareScreen(u, actions, back) }
-                    "profile" -> Page {
-                        ProfileScreen("Your profile", u.profile ?: app.mauri.sukrara.core.Profile("", null), "Your name",
-                            "Your followers get the change at once. New invites show it to the person you invite.",
-                            actions::saveProfile, back)
-                    }
-                    "settings" -> Page { WearerSettings(u, nav::open, back) }
-                    "alerts" -> Page { AlertsScreen(follower = false, back) }
-                    "source" -> Page { SourceSettings(onSensor = { nav.open("sensor") }, onBack = back) }
-                    "sensor" -> Page { SensorScreen(back) }
-                    "sharing" -> Page { SharingSettings(u, actions, onApps = { nav.open("apps") }, onBack = back) }
-                    "graph" -> Page { GraphScreen(back) }
-                    "statusbar" -> Page { StatusBarSettings(back) }
-                    "lockscreen" -> Page { LockscreenSettings(back) }
-                    "apps" -> Page { AppsSettings(wearer = true, onLibreView = { nav.open("libreview") }, onPeople = { nav.open("sharing") }, onBack = back) }
-                    "libreview" -> Page { LibreViewSettings(back) }
-                    "backup" -> Page { BackupSettings(u, actions, back) }
-                    "advanced" -> Page { WearerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
-                    "log" -> Page { LogPage(log, back) }
-                    "about" -> Page { AboutSettings(back) }
-                    else -> Page(homeScroll) { OwnerHome(u, actions) }
-                }
+            else CompositionLocalProvider(LocalNav provides nav, LocalSettingsSearch provides SettingsSearch(index) { page(it) }) {
+                ScreenHost(nav) { page(it) }
             }
         }
         if (u.hasIdentity) ApproveDialog(u, actions)
@@ -329,28 +336,33 @@ class MainActivity : ComponentActivity() {
         FollowerRefresh { engine.refreshUi() }
         val step = when (u.status) { "none", "requested", "used", "declined" -> u.status; else -> "home" }
         val homeScroll = rememberScrollState()
+        val index = remember { SettingsIndex("settings") }
+        @Composable
+        fun followerPage(sc: String) {
+            val back = nav::back
+            when (sc) {
+                "settings" -> Page { FollowerSettings(u, back) }
+                "alerts" -> Page { AlertsScreen(follower = true, back) }
+                "graph" -> Page { GraphScreen(back) }
+                "following" -> Page { FollowingSettings(u, actions, back) }
+                "apps" -> Page { AppsSettings(wearer = false, back) }
+                "advanced" -> Page { FollowerAdvanced(u, relays, actions, back) }
+                "log" -> Page { LogPage(log, back) }
+                "about" -> Page { AboutSettings(back) }
+                "profile" -> Page {
+                    ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
+                        "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile, back)
+                }
+                else -> Page(homeScroll) { FollowerHome(u, actions) }
+            }
+        }
         AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->
             when (s) {
                 "none" -> Page { FollowerJoin(deepLink, busy, error, actions) }
                 "requested" -> Page { FollowerWaiting(u, actions) }
                 "used", "declined" -> Page { FollowerEnded(u, actions) }
-                else -> ScreenHost(nav) { sc ->
-                    val back = nav::back
-                    when (sc) {
-                        "settings" -> Page { FollowerSettings(u, nav::open, back) }
-                        "alerts" -> Page { AlertsScreen(follower = true, back) }
-                        "graph" -> Page { GraphScreen(back) }
-                        "following" -> Page { FollowingSettings(u, actions, back) }
-                        "apps" -> Page { AppsSettings(wearer = false, onLibreView = {}, onPeople = null, onBack = back) }
-                        "advanced" -> Page { FollowerAdvanced(u, relays, actions, onLog = { nav.open("log") }, onBack = back) }
-                        "log" -> Page { LogPage(log, back) }
-                        "about" -> Page { AboutSettings(back) }
-                        "profile" -> Page {
-                            ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
-                                "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile, back)
-                        }
-                        else -> Page(homeScroll) { FollowerHome(u, actions) }
-                    }
+                else -> CompositionLocalProvider(LocalNav provides nav, LocalSettingsSearch provides SettingsSearch(index) { followerPage(it) }) {
+                    ScreenHost(nav) { followerPage(it) }
                 }
             }
         }

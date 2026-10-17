@@ -126,10 +126,13 @@ class Nav(home: String) {
     val stack = androidx.compose.runtime.mutableStateListOf(home)
     val screen get() = stack.last()
     fun open(s: String) {
+        highlight = null
         val i = stack.indexOf(s)
         if (i >= 0) while (stack.size > i + 1) stack.removeAt(stack.lastIndex) else stack.add(s)
     }
-    fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    fun back() { highlight = null; if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    /** A setting search opened: the row with this title flashes and scrolls into view on the page, then this clears. */
+    var highlight by mutableStateOf<String?>(null)
     /** A notification asked for [s]: home, then [s] (so Back leads home). */
     fun reset(vararg s: String) { while (stack.size > 1) stack.removeAt(stack.lastIndex); s.forEach { if (it != stack[0]) stack.add(it) } }
 }

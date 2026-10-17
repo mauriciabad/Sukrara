@@ -91,7 +91,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     var minutes by remember { mutableStateOf<String?>(null) }   // which quiet rule's minutes dialog is open
     SettingsPage("Alerts", onBack) {
         // what the rules see now, like a live preview at the top of the page
-        Card(Modifier.fillMaxWidth()) {
+        SettingsHeader { Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 val now = state.values.toList()
                 Swap(now.isEmpty()) { empty ->
@@ -105,7 +105,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                 }
                 history.take(4).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-        }
+        } }
         SettingsMainSwitch("Glucose alerts", s.on) { v -> set { it.copy(on = v) } }
         if (follower) SettingsGroup {
             value("Alert rules", if (s.source == "wearer") "Same as the wearer's app" else "This phone's own settings", enabled = s.on) { pickSource = true }
