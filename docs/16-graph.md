@@ -95,8 +95,10 @@ fresh; the Live Update card's metrics are value + arrow, plus the reading's time
 
 ![rings](img/16/rings.png)
 
-- Segments clockwise from 12 o'clock in glucose order: low (red), very good (green), in range above very good
-  (yellow-green), high (orange). The two greens touch (very good is part of in range); other bands get a gap.
+- Segments clockwise from 12 o'clock, by default (the user, 0.11.9): very good, in range, low, very low, very high,
+  high. In range starts at the top, the lows follow and the highs close the circle. The order is a setting (Android:
+  Settings → Graph → *Ring order*, ↑/↓ per segment; Mac: Graph → Ring order). Gaps between below, very good, in range
+  and above; the two lows and the two highs touch.
 - The middle shows the chosen range (default **in range**; "very good" puts the window label in the very-good green).
 - 0–3 rings, each with its own window (12 h, 1d, 3d, 7d, 14d); defaults 1d + 7d (+14d as the third). Main ring on
   the right at full strength, then 55 %, then 35 %.
@@ -209,6 +211,14 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
 | 0–3 time-in-range rings, windows 12 h – 14 d; wearer keeps 15 days (was 8); a reading store on the Mac | — |
 | Windows: default + per place + per widget; per-widget settings on Android (Reconfigure) | the size-based widget windows (2–6 h by width); per-widget settings on macOS (App Intents: chronod never got the intent without an Xcode project and the widgets froze, removed in 0.11.8) |
 | `--es graph`, `--es widgetGraph`, `cmd pinWidget` in the DebugReceiver | — |
+
+## Mac widget fixes after the release (0.11.9)
+
+- **Gallery previews blank / old:** the card is one image, and macOS redacts placeholder content, so the image came
+  out blank (now `.unredacted()`). macOS also kept its cached previews because the extension's build number was always
+  "1"; `bundle.sh` now stamps a new `CFBundleVersion` on every build, and chronod regenerates them.
+- **Monochrome / tinted widgets:** the grid, the dashed 54/250 lines and the in-range band are drawn much fainter
+  there (macOS turns the bitmap's brightness into opacity).
 
 ## Open
 

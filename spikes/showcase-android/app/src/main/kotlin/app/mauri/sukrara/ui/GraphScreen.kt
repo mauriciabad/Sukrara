@@ -22,7 +22,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.mauri.sukrara.graph.Band
 import app.mauri.sukrara.graph.Bands
+import app.mauri.sukrara.graph.DEFAULT_RING_ORDER
+import app.mauri.sukrara.graph.systemPalette
+import androidx.compose.foundation.layout.size
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
@@ -108,6 +112,7 @@ fun GraphScreen(onBack: () -> Unit) {
         Chips(TirRange.entries, g.ringRange, { "${it.label} (${g.bands.low}–${if (it == TirRange.TIGHT) g.bands.tight else g.bands.high})" }) { r ->
             set { it.copy(ringRange = r) }
         }
+        RingOrder(g) { o -> set { it.copy(ringOrder = o) } }
         Note("Each slot is a time-in-range ring or a number from your doctor's report: GMI, average glucose or " +
             "variability (CV), with a green arc when its goal is met. Slots that don't fit are hidden, the last one " +
             "first. A slot needs data for at least a quarter of its window.")
@@ -121,6 +126,30 @@ fun GraphScreen(onBack: () -> Unit) {
         Note("The distribution covers the same time as the graph, and the line fades out underneath it. Each widget " +
             "can turn it off on its own.")
     }
+}
+
+/** The ring's segments clockwise from 12 o'clock, each movable earlier / later. */
+@Composable
+private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
+    val pal = systemPalette(LocalContext.current, androidx.compose.foundation.isSystemInDarkTheme())
+    val b = g.bands
+    fun name(x: Band) = when (x) {
+        Band.VERY_LOW -> "Very low (< ${b.veryLow})"; Band.LOW -> "Low (${b.veryLow}–${b.low - 1})"
+        Band.TIGHT -> "Very good (${b.low}–${b.tight})"; Band.TARGET -> "In range (${b.tight + 1}–${b.high})"
+        Band.HIGH -> "High (${b.high + 1}–${b.veryHigh})"; Band.VERY_HIGH -> "Very high (> ${b.veryHigh})"
+    }
+    Text("Ring order, clockwise from the top", style = MaterialTheme.typography.bodyMedium)
+    val o = g.ringOrder
+    o.forEachIndexed { i, band ->
+        fun move(to: Int) = onOrder(o.toMutableList().also { l -> l.add(to, l.removeAt(i)) })
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
+            Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
+            TextButton(onClick = { move(i - 1) }, enabled = i > 0) { Text("↑") }
+            TextButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) { Text("↓") }
+        }
+    }
+    TextButton(onClick = { onOrder(DEFAULT_RING_ORDER) }, enabled = o != DEFAULT_RING_ORDER) { Text("Reset order") }
 }
 
 @Composable

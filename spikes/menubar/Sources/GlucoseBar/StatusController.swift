@@ -264,6 +264,29 @@ final class StatusController: NSObject, NSMenuDelegate {
             item.submenu = sub
         }
         for r in TirRange.allCases { option("Ring number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
+        // The ring's segments clockwise from 12 o'clock: move one earlier or later, or go back to the default.
+        let orderItem = menu.addItem(withTitle: "Ring order", action: nil, keyEquivalent: "")
+        orderItem.indentationLevel = 1
+        let orderMenu = NSMenu()
+        for (i, band) in graph.ringOrder.enumerated() {
+            let item = orderMenu.addItem(withTitle: "\(i + 1). \(band.label)", action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            for (title, delta) in [("Move earlier", -1), ("Move later", 1)] {
+                let o = sub.addItem(withTitle: title, action: #selector(setGraph(_:)), keyEquivalent: "")
+                o.target = self
+                o.representedObject = ["ringMove", i, delta]
+                o.isEnabled = (0..<6).contains(i + delta)
+            }
+            sub.autoenablesItems = false
+            item.submenu = sub
+        }
+        orderMenu.addItem(.separator())
+        let reset = orderMenu.addItem(withTitle: "Reset order", action: #selector(setGraph(_:)), keyEquivalent: "")
+        reset.target = self
+        reset.representedObject = ["ringOrderReset", 0]
+        reset.isEnabled = graph.ringOrder != DEFAULT_RING_ORDER
+        orderMenu.autoenablesItems = false
+        orderItem.submenu = orderMenu
         header("Glucose report")
         for days in [1, 7, 14, 30] { option("\(days)d", reportDays == days, "reportDays", days) }
         menu.addItem(.separator())
@@ -276,6 +299,18 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
+        if key == "ringMove", let i = kv[1] as? Int, let delta = kv[2] as? Int, (0..<6).contains(i + delta) {
+            var o = graph.ringOrder
+            o.swapAt(i, i + delta)
+            UserDefaults.standard.set(ringOrderText(o), forKey: "ringOrder")
+            reloadGraph()
+            return
+        }
+        if key == "ringOrderReset" {
+            UserDefaults.standard.removeObject(forKey: "ringOrder")
+            reloadGraph()
+            return
+        }
         if key == "slot", let i = kv[1] as? Int, let field = kv[2] as? String {
             var slots = graph.slots
             switch field {

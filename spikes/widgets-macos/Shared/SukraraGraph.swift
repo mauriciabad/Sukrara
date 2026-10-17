@@ -38,11 +38,29 @@ struct Bands: Codable, Equatable, Hashable {
 
 /// `.target` = in range but above the tight band; "in range" = tight + target; below = veryLow + low; above =
 /// high + veryHigh.
-enum Band: Int, CaseIterable {
+enum Band: Int, CaseIterable, Codable {
     case veryLow, low, tight, target, high, veryHigh
     /// 0 = below range, 1 = in range, 2 = above.
     var group: Int { switch self { case .veryLow, .low: 0; case .tight, .target: 1; case .high, .veryHigh: 2 } }
+    /// The Kotlin enum spelling (settings, `ringOrder`).
+    var name: String { ["VERY_LOW", "LOW", "TIGHT", "TARGET", "HIGH", "VERY_HIGH"][rawValue] }
+    var label: String { ["Very low", "Low", "Very good", "In range", "High", "Very high"][rawValue] }
+    init?(name: String) {
+        guard let b = Band.allCases.first(where: { $0.name == name }) else { return nil }
+        self = b
+    }
 }
+
+/// The time-in-range ring's segments clockwise from 12 o'clock (the user's order): the good part first, then down
+/// through the lows and back up through the highs.
+let DEFAULT_RING_ORDER: [Band] = [.tight, .target, .low, .veryLow, .veryHigh, .high]
+
+/// "TIGHT,TARGET,…" with each of the six bands exactly once, else nil.
+func parseRingOrder(_ text: String) -> [Band]? {
+    let o = text.split(separator: ",").compactMap { Band(name: String($0).trimmingCharacters(in: .whitespaces)) }
+    return o.count == 6 && Set(o).count == 6 ? o : nil
+}
+func ringOrderText(_ o: [Band]) -> String { o.map(\.name).joined(separator: ",") }
 
 enum TirRange: String, Codable, CaseIterable {
     case inRange = "IN_RANGE", tight = "TIGHT"
@@ -199,6 +217,13 @@ enum Freshness {
 struct GraphPalette {
     var dark: Bool
     var bg, ink, inkSoft, grid, veryLow, low, tight, target, high, veryHigh: CGColor
+    /// How strong the chart's decoration is (grid, dashed 54/250 lines, the in-range band): 1 normally. A tinted
+    /// (accented / vibrant) macOS widget turns the bitmap's luminance into opacity, so a faint grey line comes out
+    /// nearly solid there; `tinted()` lowers it.
+    var decor: CGFloat = 1
+
+    /// For the tinted widget rendering modes.
+    func tinted() -> GraphPalette { var p = self; p.decor = 0.25; return p }
 
     func of(_ b: Band) -> CGColor {
         switch b {
@@ -248,6 +273,8 @@ struct RingSpec: Codable, Equatable {
     var range: TirRange = .inRange
     var kind: SlotKind = .tir
     var faded = true
+    /// A ring's segment order (the app-wide `ringOrder`).
+    var order: [Band] = DEFAULT_RING_ORDER
     var period: String { periodLabel(window) }
 }
 
@@ -318,6 +345,7 @@ struct GraphConfig: Codable, Equatable {
     var ringCount = 2
     var slots: [RingSpec] = GraphConfig.defaultSlots
     var ringRange: TirRange = .inRange
+    var ringOrder: [Band] = DEFAULT_RING_ORDER
     var side = true
 
     static let windowHours = [3, 6, 12, 24]
@@ -325,7 +353,7 @@ struct GraphConfig: Codable, Equatable {
     /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
     static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
 
-    var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; return r } }
+    var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; r.order = ringOrder; return r } }
 
     /// "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind:window s:faded).
     static func slotsText(_ s: [RingSpec]) -> String { s.map { "\($0.kind.rawValue):\(Int($0.window)):\($0.faded ? 1 : 0)" }.joined(separator: ",") }
@@ -342,7 +370,8 @@ struct GraphConfig: Codable, Equatable {
     }
 
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
-    /// IN_RANGE|TIGHT, bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh, side (time in range beside the graph).
+    /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,VERY_HIGH,HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
+    /// bandVeryHigh, side (time in range beside the graph).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
         func int(_ k: String) -> Int? { d.object(forKey: k) != nil ? d.integer(forKey: k) : nil }
@@ -353,6 +382,7 @@ struct GraphConfig: Codable, Equatable {
         c.ringCount = max(0, min(3, int("ringCount") ?? 2))
         if let s = parseSlots(d.string(forKey: "slots") ?? "") { c.slots = s }
         c.ringRange = TirRange(rawValue: d.string(forKey: "ringRange") ?? "") ?? .inRange
+        c.ringOrder = parseRingOrder(d.string(forKey: "ringOrder") ?? "") ?? DEFAULT_RING_ORDER
         c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
         return c
     }
@@ -434,7 +464,7 @@ enum GlucoseGraph {
         let sideW: CGFloat = st.side && !tir.empty ? min((right - left) * 0.26, 130 * d) : 0
 
         // Main in-range band across the whole plot.
-        ctx.setFillColor(pal.tight.a(pal.dark ? 0x1E : 0x18))
+        ctx.setFillColor(pal.tight.a(CGFloat(pal.dark ? 0x1E : 0x18) / 255 * (pal.decor < 1 ? 0.5 : 1)))
         ctx.fill(CGRect(x: left, y: y(Double(b.high)), width: right - left, height: y(Double(b.low)) - y(Double(b.high))))
 
         // Hour grid + labels, ≥ ~44 dp apart.
@@ -444,7 +474,7 @@ enum GlucoseGraph {
         var hour = cal.dateInterval(of: .hour, for: Date(timeIntervalSince1970: from))!.start.addingTimeInterval(3600)
         while cal.component(.hour, from: hour) % step != 0 { hour.addTimeInterval(3600) }
         ctx.saveGState()
-        ctx.setStrokeColor(pal.grid)
+        ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [2 * d, 3 * d])
         var lastLabelEnd = -CGFloat.infinity
@@ -470,7 +500,7 @@ enum GlucoseGraph {
         }
         // Very low / very high: a faint dashed line and its value, only when the y range reaches it.
         ctx.saveGState()
-        ctx.setStrokeColor(pal.grid)
+        ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [4 * d, 4 * d])
         for v in [b.veryLow, b.veryHigh] where Double(v) >= yMin && Double(v) <= yMax {
@@ -662,8 +692,9 @@ enum TirRing {
         ctx.saveGState()
         ctx.setLineWidth(sw)
         ctx.setLineCap(.butt)
-        // Clockwise from 12 o'clock in glucose order; gaps between below | very good | in range | above.
-        let shares = Band.allCases.map { ($0, tir.share($0)) }.filter { $0.1 >= 0.004 }
+        // Clockwise from 12 o'clock in the user's order (`ringOrder`); gaps between below | very good | in range | above.
+        let order = Set(spec.order).count == 6 ? spec.order : DEFAULT_RING_ORDER
+        let shares = order.map { ($0, tir.share($0)) }.filter { $0.1 >= 0.004 }
         func gapAfter(_ i: Int) -> Bool {
             guard shares.count > 1 else { return false }
             let (x, y) = (shares[i].0, shares[(i + 1) % shares.count].0)

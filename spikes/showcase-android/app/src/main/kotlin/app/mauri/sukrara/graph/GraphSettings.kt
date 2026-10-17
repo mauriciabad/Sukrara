@@ -31,11 +31,14 @@ data class GraphConfig(
     val slots: List<RingSpec> = DEFAULT_SLOTS,
     /** What a time-in-range ring counts in the middle. */
     val ringRange: TirRange = TirRange.IN_RANGE,
+    /** The ring's segments clockwise from 12 o'clock. */
+    val ringOrder: List<Band> = DEFAULT_RING_ORDER,
     /** The time-in-range rectangles + distribution beside the chart (each widget can turn it off on its own). */
     val side: Boolean = true,
 ) {
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
-    fun rings(count: Int = ringCount, range: TirRange = ringRange) = slots.take(count.coerceIn(0, 3)).map { it.copy(range = range) }
+    fun rings(count: Int = ringCount, range: TirRange = ringRange) =
+        slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder) }
     fun graphStyle(hours: Int, hour24: Boolean) =
         GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24)
 
@@ -44,7 +47,7 @@ data class GraphConfig(
         .put("veryHigh", bands.veryHigh)
         .put("defaultHours", defaultHours)
         .put("placeHours", JSONObject().apply { placeHours.forEach { (k, v) -> put(k.name, v) } })
-        .put("ringCount", ringCount).put("ringRange", ringRange.name)
+        .put("ringCount", ringCount).put("ringRange", ringRange.name).put("ringOrder", ringOrder.joinToString(",") { it.name })
         .put("slots", slots.joinToString(",") { "${it.kind.name}:${it.windowS}:${if (it.faded) 1 else 0}" })
         .put("side", side)
 
@@ -66,6 +69,8 @@ data class GraphConfig(
                     RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
                 }.takeIf { it.size == 3 } ?: d.slots,
                 ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrDefault(d.ringRange),
+                ringOrder = o.optString("ringOrder").split(",").mapNotNull { runCatching { Band.valueOf(it) }.getOrNull() }
+                    .takeIf { it.toSet().size == Band.entries.size && it.size == Band.entries.size } ?: d.ringOrder,
                 side = o.optBoolean("side", d.side),
             )
         }

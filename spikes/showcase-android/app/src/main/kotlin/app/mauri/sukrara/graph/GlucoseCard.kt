@@ -15,6 +15,12 @@ import app.mauri.sukrara.treatments.Treatment
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * The ring's default segment order clockwise from 12 o'clock (the user, 0.11.9): in range starts at the top (very good
+ * first), the lows follow, and the highs close the circle just before 12.
+ */
+val DEFAULT_RING_ORDER = listOf(Band.TIGHT, Band.TARGET, Band.LOW, Band.VERY_LOW, Band.VERY_HIGH, Band.HIGH)
+
 /** What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers. */
 enum class SlotKind(val label: String, val short: String) {
     TIR("Time in range", ""), GMI("GMI", "GMI"), AVERAGE("Average glucose", "avg"), CV("Variability (CV)", "CV")
@@ -27,6 +33,8 @@ enum class SlotKind(val label: String, val short: String) {
 data class RingSpec(
     val windowS: Long, val range: TirRange = TirRange.IN_RANGE, val kind: SlotKind = SlotKind.TIR,
     val faded: Boolean = true,
+    /** A ring's segments clockwise from 12 o'clock (the user's setting). */
+    val order: List<Band> = DEFAULT_RING_ORDER,
 ) {
     val period: String get() = periodLabel(windowS)
 }
@@ -38,7 +46,8 @@ fun periodLabel(s: Long): String = when {
 
 /**
  * The segmented time-in-range ring: the % of [RingSpec.range] in the middle, the window under it, and the perimeter
- * split by band, clockwise from 12 o'clock in glucose order (very low, low, very good, in range, high, very high). [emphasis] fades the
+ * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, very high,
+ * high). [emphasis] fades the
  * secondary rings (1 = main).
  */
 object TirRing {
@@ -48,7 +57,7 @@ object TirRing {
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.BUTT }
         val oval = RectF(cx - radius + sw / 2, cy - radius + sw / 2, cx + radius - sw / 2, cy + radius - sw / 2)
         val alpha = (255 * emphasis).toInt()
-        val shares = Band.entries.map { it to tir.share(it) }.filter { it.second >= 0.004 }
+        val shares = spec.order.map { it to tir.share(it) }.filter { it.second >= 0.004 }
         if (shares.isEmpty()) {
             ring.color = ColorUtils.setAlphaComponent(pal.grid, alpha); cv.drawOval(oval, ring)
         } else {

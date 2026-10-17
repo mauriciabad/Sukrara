@@ -103,7 +103,8 @@ struct GlucoseWidgetView: View {
         if let s = c.snapshot {
             GeometryReader { geo in
                 let now = c.date.timeIntervalSince1970
-                let pal = GraphPalette.of(dark: scheme == .dark)
+                // tinted modes map luminance to opacity: fainter grid and band there
+                let pal = mode.tinted ? GraphPalette.of(dark: scheme == .dark).tinted() : GraphPalette.of(dark: scheme == .dark)
                 if let img = GlucoseCard.image(size: geo.size, scale: 2, readings: s.graphReadings, marks: s.graphMarks,
                                                now: now, style(s.config), pal, metricsOf: { r, b in s.metrics(r, b, now: now) }) {
                     Image(decorative: img, scale: 2)

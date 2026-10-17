@@ -25,6 +25,9 @@ cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
 # looks in the app's Library/Sounds, a shared group container's Library/Sounds, then the main bundle — the bundle
 # keeps them with the app (and its signature) instead of writing into ~/Library/Sounds.
 cp ../alerts/sounds/out/*.caf "$APP/Contents/Resources/"
+# A build number that changes with every build: macOS (chronod) keeps a widget extension's gallery previews and
+# placeholders as long as its CFBundleVersion stays the same, so a constant "1" kept showing old previews.
+BUILD=$(date +%Y%m%d%H%M%S)
 cat > "$APP/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,6 +49,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>NSLocalNetworkUsageDescription</key><string>Read glucose from Juggluco on your phone.</string>
 </dict></plist>
 EOF
+plutil -insert CFBundleVersion -string "$BUILD" "$APP/Contents/Info.plist"
 
 # Desktop / Notification Center widgets (spikes/widgets-macos, docs/13). macOS only loads a widget signed with a
 # Team ID, so they are built only when an Apple-issued identity is in the keychain (Xcode → Settings → Accounts →
@@ -91,6 +95,7 @@ if [ "${WIDGETS:-1}" != 0 ]; then
   plutil -replace CFBundleName -string SukraraWidget "$P"
   plutil -replace CFBundleDisplayName -string Sukrara "$P"
   plutil -replace CFBundleShortVersionString -string "$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")" "$P"
+  plutil -replace CFBundleVersion -string "$BUILD" "$P"
   plutil -replace GlucoseAppGroup -string "$GROUP" "$P"
   plutil -replace GlucoseHTTPPort -integer 0 "$P"          # App Group only; the spike host's HTTP is not used
   plutil -replace GlucoseWidgetURLScheme -string "" "$P"   # a tap just opens Sukrara (sukrara: opens "Follow…")

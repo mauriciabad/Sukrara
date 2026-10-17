@@ -75,6 +75,30 @@ func render<V: View>(_ v: V, to url: URL, dark: Bool) {
     print("wrote", url.path)
 }
 
+/// An approximation of macOS's tinted widget rendering: the bitmap's luminance becomes the opacity of one tint
+/// colour over a dark desktop. Enough to judge how strong the grid and fills come out.
+@MainActor
+func renderTinted<V: View>(_ v: V, size: CGSize, to url: URL) {
+    let r = ImageRenderer(content: v.environment(\.colorScheme, .dark).frame(width: size.width, height: size.height))
+    r.scale = 2
+    guard let cg = r.cgImage else { print("tinted render failed"); return }
+    let w = cg.width, h = cg.height
+    var px = [UInt8](repeating: 0, count: w * h * 4)
+    let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+    let bg: (Double, Double, Double) = (0.12, 0.16, 0.24), tint: (Double, Double, Double) = (0.85, 0.92, 1.0)
+    for i in stride(from: 0, to: px.count, by: 4) {
+        let lum = (0.299 * Double(px[i]) + 0.587 * Double(px[i + 1]) + 0.114 * Double(px[i + 2])) / 255   // premultiplied
+        px[i] = UInt8(255 * (bg.0 + (tint.0 - bg.0) * lum)); px[i + 1] = UInt8(255 * (bg.1 + (tint.1 - bg.1) * lum))
+        px[i + 2] = UInt8(255 * (bg.2 + (tint.2 - bg.2) * lum)); px[i + 3] = 255
+    }
+    let out = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!.makeImage()!
+    try! NSBitmapImageRep(cgImage: out).representation(using: .png, properties: [:])!.write(to: url)
+    print("wrote", url.path)
+}
+
 @main
 struct RenderMain {
     @MainActor static func main() {
@@ -119,6 +143,12 @@ struct RenderMain {
             }
         }
         render(two, to: out.appendingPathComponent("mac-widget-two-configs-dark.png"), dark: true)
+        // Tinted (accented / vibrant) desktop: full-colour decoration (left) vs the fainter tinted palette (right).
+        let medium = sizes[.systemMedium]!
+        for (n, m) in [("tinted-before", RenderMode.fullColor), ("tinted-after", .accented)] {
+            renderTinted(GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: live, date: renderNow), mode: m)
+                .padding(16), size: medium, to: URL(fileURLWithPath: "build/\(n).png"))   // a check, not evidence
+        }
         // Investigation 18: the third slot shows the 14-day GMI at full strength (docs/img/18).
         var cfg = GraphConfig()
         cfg.ringCount = 3
