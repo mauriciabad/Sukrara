@@ -12,7 +12,7 @@ menubar and Mac widgets), from the user's draft:
 
 - **Distribution on the left of the chart.** It grows rightwards from the chart's left edge and shows how much time
   was spent at each glucose level over the chart's window. The lines underneath stop short of its dots (they faded
-  out towards that edge until the [cut-out](#lines-very-good-band-and-the-cut-out)).
+  out towards that edge until the [cut-out](#lines-very-good-band-and-the-cut-out-01112)).
 - **Time in range as soft rectangles.** One per major band (high, in range, low), each as wide as its share of time,
   with the % next to it. A **"very good" band (70–140)** sits inside "in range" in a second green; **very high
   (> 250)** and **very low (< 54)**, the levels of the LibreView report, sit inside high and low.
@@ -229,7 +229,7 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
   (ranges, windows, slots and rings), plus *Reset all graph settings*; the Mac's Graph submenu has *Reset ranges* and
   *Reset all graph settings*.
 
-## Lines, very good band and the cut-out
+## Lines, very good band and the cut-out (0.11.12)
 
 The user, after using 0.11.11: a line at **100** and lines of their own, the **very good** range in a different colour
 from the rest of in range, and the distribution should **cut the line under it** instead of fading it: "if the

@@ -502,7 +502,7 @@ follows the [Glance configuration guide](https://developer.android.com/develop/u
 | Per-widget window, rings, ring range, distribution on/off | `widgets/WidgetConfigActivity.kt`, `GraphSettings.widget` |
 | Mac: the same card in the menubar dropdown and the widgets (shared Swift port), a Graph submenu, a 15-day reading store | `widgets-macos/Shared/SukraraGraph.swift`, `menubar` |
 | DebugReceiver `--es graph JSON`, `--es widgetGraph ID:JSON`, `cmd pinWidget` | `features/DebugReceiver.kt` |
-| Line at 100 + up to 6 custom lines; the very good band in its own colour; the distribution cut out of the lines (layer + `DST_OUT`, works on transparent widgets) — [16](16-graph.md#lines-very-good-band-and-the-cut-out) | `GraphSettings.lines`, `GlucoseGraph`, `ui/GraphScreen.kt` *Lines*, Mac Graph submenu *Lines* |
+| (0.11.12) Line at 100 + up to 6 custom lines, vertical lines setting, extremely high colour; the very good band in its own colour; the distribution cut out of the lines (layer + `DST_OUT`, works on transparent widgets) — [16](16-graph.md#lines-very-good-band-and-the-cut-out-01112) | `GraphSettings.lines`, `GlucoseGraph`, `ui/GraphScreen.kt` *Lines*, Mac Graph submenu *Lines* |
 
 | Discarded | Why |
 |---|---|
