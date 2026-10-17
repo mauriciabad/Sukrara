@@ -67,7 +67,6 @@ object QuickEntry {
 class QuickTreatmentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setShowWhenLocked(true)
         Features.init(this)
         if (!QuickEntry.canAdd(this)) { openApp(); return }
         val role = App.role(this)

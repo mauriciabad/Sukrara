@@ -81,10 +81,12 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_libre" />
         </activity-alias>
-        <!-- the quick treatment dialog: a tap on a widget or the glucose notification opens it over any app -->
+        <!-- the quick treatment dialog: a tap on a widget or the glucose notification opens it over any app, and over
+             the lock screen (inv. 17: SystemUI reads showWhenLocked from the manifest to skip the unlock) -->
         <activity
             android:name=".ui.QuickTreatmentActivity"
             android:exported="false"
+            android:showWhenLocked="true"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:noHistory="true"
