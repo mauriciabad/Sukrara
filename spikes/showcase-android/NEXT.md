@@ -71,7 +71,11 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. The user's daily
   copy is **`~/Applications/Sukrara.app`** (login item, team-signed with the user's Apple Development cert, with the
   widget appex). Don't overwrite it with test builds — use another path, and relaunch it afterwards so the user keeps
-  glucose in the menubar (a different signature means one more Keychain prompt). Logs: `~/Library/Logs/Sukrara.log`.
+  glucose in the menubar (a different signature means one more Keychain prompt). Logs: `~/Library/Logs/Sukrara.log`. **After replacing the app, restart its widget extension**: the running `SukraraWidget`
+  process keeps the old code (seen 2026-10-17: a 0.11.4 extension couldn't read 0.11.7's widget file, so the widgets
+  stopped updating). `pkill -f SukraraWidget.appex` (chronod starts the new one on the next reload, ≤ 1 min), and
+  `pluginkit -mAv | grep -i sukrara` should list only `~/Applications/Sukrara.app`; unregister worktree builds with
+  `pluginkit -r <path>/SukraraWidget.appex`.
 - **Repo**: public, GPL-3.0-or-later; repo-local noreply identity; never commit `secrets/`, keys, APKs, build dirs;
   scan staged files for `nsec1…`; crop screenshots so no other apps' notifications are committed. Site:
   https://sukrara.mauri.app (GitHub Pages from `main:/docs`).
