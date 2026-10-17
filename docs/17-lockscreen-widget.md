@@ -17,19 +17,21 @@ Sukrara as *Settings → Lock screen → Glucose on the lock screen* (on by defa
 
 ![Lock screen widget](img/17/lockscreen-widget.png)
 
-*The value is left of the fingerprint icon, age and rate are right of it, and the last 3 h graph (with treatments)
-is below. It has no card or background, so it floats on the wallpaper like the clock.*
+*Investigation 16's card, arranged around the fingerprint icon: the value and trend arrow on the left, the
+time-in-range rings (7 d, 1 d) on the right, and the chart with the distribution and treatments below. It has no
+background, so it floats on the wallpaper like the clock.*
 
 | What | How it was checked | Result |
 |---|---|---|
 | SystemUI can host our widget | `AppWidgetHost` in SystemUI's process; `bindAppWidgetIdIfAllowed` (SystemUI holds `BIND_APPWIDGET`) | `bound id 22`, `view added (id 22)`; the same id is reused after every SystemUI restart |
 | Placement from SystemUI's geometry | `AuthController.mUdfpsBounds` vs `dumpsys … AuthController` | `lock icon at Rect(441, 1666 - 639, 1864)` = `udfpsBounds=Rect(441, 1666 - 639, 1864)` |
 | Follows the lock screen | screenshots: lock screen / shade pulled down / bouncer / AOD | shown / hidden / dimmed with the lock screen / hidden |
+| Notifications don't cover it | `computeMaxKeyguardNotifications` args logged: `space=1131 shelfSpace=126` (stack top ≈ 538 → space ends at the icon's top 1666, the shelf may use 126 px more beside the icon) | before: the shelf covered the value; after (shelf must fit in `space`): 3 notifications + shelf, all above the widget |
 | Live data | Glance widget in Sukrara's normal widget pipeline | updates with every reading while the screen is on; one catch-up render on screen on |
 | Tap → treatment dialog over the lock screen | `input tap` on the value; `dumpsys activity activities` | dialog + keyboard shown; `KeyguardShowing=true … Occluded=true` (still locked); Cancel returns to the lock screen |
 | Fingerprint still unlocks | the user, then `input tap` on/next to the sensor and a 700 ms press | first build: **a finger on the sensor opened the dialog** (see below); fixed build: sensor, its column and long presses never open it |
 | Swipe up / long press still reach SystemUI | the widget sits *under* the Compose lock screen and only gets copies of taps | lock screen gestures unchanged |
-| Accessibility | `uiautomator dump` | "154", "steady", "now", "-0,4/min", "Glucose graph, last 3 hours" readable |
+| Accessibility | `uiautomator dump` | content description "Glucose 145 mg/dL, steady. Add treatment" |
 
 ![Treatment dialog over the lock screen](img/17/dialog-over-lockscreen.png)
 
@@ -51,20 +53,27 @@ works on the window root instead, in `hook/LockscreenWidgetHost.kt`:
    under-display sensor, SystemUI's `lock_icon_margin_bottom`). Bottom = top of the shortcuts
    (`keyguard_affordance_vertical_offset + keyguard_affordance_fixed_height`) − 8 dp. Sides = 16 dp, like the
    notifications. The icon's position is sent to the widget as **extra widget options**
-   (`sukrara.lockHoleLeft/Right/Bottom`, through `AppWidgetHostView.updateAppWidgetSize(extras, sizes)`), so the
-   Glance layout puts the value left of it and the age/rate right of it.
+   (`sukrara.lockHoleLeft/Right/Bottom`, through `AppWidgetHostView.updateAppWidgetSize(extras, sizes)`). The widget
+   draws one bitmap with investigation 16's pieces: `GlucoseCard` (value only) left of the icon, `TirRing`s right of
+   it, `GlucoseCard` (chart only) below, in the dark palette with a transparent background.
 4. **Follow the scene.** On every frame the window draws (`OnPreDrawListener`, so no cost while nothing moves) the
    module reads the scene interactor's transition state (`LegacySceneInteractorImpl.getTransitionState()`: `Idle` on
    `Scenes.Lockscreen` with no overlay = 1, a `Transition` from/to it = 1 − progress / progress) and sets the
    widget's alpha. The widget is hidden while the screen is off (AOD) and when the app turns the switch off.
-5. **Touches.** The lock screen keeps every gesture (swipe up to unlock, pull down the shade, long press to
+5. **Make room.** SystemUI sizes the lock screen stack in
+   `NotificationStackSizeCalculator.computeMaxKeyguardNotifications(stack, spaceForNotifications, spaceForShelf,
+   shelfHeight)`. The notifications' space ends at the lock icon's top, but the shelf (the pill with the overflow
+   icons) may hang *below* it, beside the icon, which is where our value is. While the widget is on, the hook passes
+   `spaceForNotifications − spaceForShelf`, so the shelf fits above the icon too. At worst, one more notification
+   goes into the shelf.
+6. **Touches.** The lock screen keeps every gesture (swipe up to unlock, pull down the shade, long press to
    customise). The hook on `SceneWindowRootView.dispatchTouchEvent` gives the widget a *copy* of a touch that starts
    on it. That copy is cancelled when the finger moves beyond the touch slop or stays down longer than the long-press
    timeout. Touches in the fingerprint icon's column (± 24 dp) never reach the widget.
 
 ### The fingerprint bug (fixed before the user's second test)
 
-The first build opened the treatment dialog when the user put a finger on the sensor. The filter in step 5 was
+The first build opened the treatment dialog when the user put a finger on the sensor. The filter in step 6 was
 there, but the window *also* delivered touches to the widget the normal way: `SceneWindowRootView` is a
 `FrameLayout`, and when the Compose layer on top doesn't consume a touch (empty space, the sensor), the event falls
 through to the next child, which is our view. The fix is a `GuardedView` (an `AppWidgetHostView` subclass created by
@@ -99,7 +108,8 @@ dialog shows nothing beyond what the lock screen already shows. The switch turns
 | Added | Where |
 |---|---|
 | Lock screen widget hosted by the LSPosed module, around the fingerprint icon | `hook/LockscreenWidgetHost.kt`, hooks in `hook/SystemUiHook.kt` (`hookLockscreenWidget`) |
-| Keyguard-only Glance widget with the lock icon gap | `widgets/LockscreenWidget.kt`, `res/xml/widget_lockscreen.xml` |
+| Keyguard-only Glance widget with the lock icon gap (investigation 16's value, rings and chart) | `widgets/LockscreenWidget.kt`, `res/xml/widget_lockscreen.xml` |
+| Notification shelf kept above the lock icon while the widget is on | `hook/SystemUiHook.kt` (`computeMaxKeyguardNotifications`) |
 | Switch *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `features/Features.kt`, `ui/WearerScreens.kt`, sent to SystemUI with the status-bar broadcast (`status/RootStatusBar.kt`) |
 | Treatment dialog over the lock screen (manifest `showWhenLocked`; "Open Sukrara" asks to unlock) | `AndroidManifest.xml`, `ui/QuickTreatmentActivity.kt` |
 | Quick Settings tile "Add treatment" with the current value | `ui/TreatmentTile.kt` |
@@ -109,24 +119,23 @@ dialog shows nothing beyond what the lock screen already shows. The switch turns
 | Drawing our own view in SystemUI (like the status-bar hook) | Hosting the real widget reuses the widget pipeline, Glance layout and tap handling, and stays in sync with the home-screen widgets |
 | Putting the widget *above* the Compose lock screen | It would cover the fingerprint icon and take swipe gestures |
 | Delivering touches through the normal view tree | Taps on the fingerprint sensor reached the widget (the bug above) |
-| Shrinking the notification stack to make room | Not needed: SystemUI already stops the stack above the fingerprint icon |
+| Moving the widget down when the notification shelf hangs beside the lock icon | No room below (shortcuts); making the shelf fit above the icon is cleaner (step 5) |
 | Lock screen wallpaper, Notes-role shortcut | Not interactive / takes over the user's wallpaper or notes app (table above) |
 
 ## Code
 
 - `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/LockscreenWidgetHost.kt` — host, placement,
   scene alpha, filtered touches.
-- `…/hook/SystemUiHook.kt` — captures `LegacySceneInteractorImpl` and `AuthController` when Dagger creates them, and
-  hooks `WindowRootView.onAttachedToWindow` and `SceneWindowRootView.dispatchTouchEvent`.
-- `…/widgets/LockscreenWidget.kt` — the layout (dark palette, no background, `LocalAppWidgetOptions` for the gap).
+- `…/hook/SystemUiHook.kt` — captures `LegacySceneInteractorImpl` and `AuthController` when Dagger creates them,
+  hooks `WindowRootView.onAttachedToWindow`, `SceneWindowRootView.dispatchTouchEvent` and
+  `NotificationStackSizeCalculator.computeMaxKeyguardNotifications`.
+- `…/widgets/LockscreenWidget.kt` — the drawing (dark palette, no background, `LocalAppWidgetOptions` for the gap).
 
 Safety: as with investigation 05, every hook body is wrapped, the kill switch `sukrara_hook_disabled` disables this
 too, and SystemUI was only restarted by killing it (`hook-safety.sh arm` during the session).
 
 ## Open
 
-- The graph uses `GraphRenderer`; investigation 16 replaces it with `GlucoseCard`. The lock screen widget moves to
-  the new renderer when that lands.
 - Followers: the widget shows whatever the phone's role feeds the widgets (wearer or followed person), but the switch
   is only in the wearer's settings (followers keep the default, on).
 - Other OEM lock screens (Samsung One UI etc.) have different SystemUI classes: the hooks log and do nothing there.
