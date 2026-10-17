@@ -36,6 +36,8 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 | **rekey request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"rekey","have":gk}` (follower saw an unknown `gk`) |
 | **history request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"history","since":hourStart}` (follower's backfill found hours missing) |
 | **revoked notice** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"revoked"}` (courtesy; security comes from rotation) |
+| **invite used** | rumor kind 30501 in gift wrap to `F` | seal by `I` | exp +7 d | `{"v":2,"type":"invite-used"}`: another follower's request had already claimed this invite |
+| **declined** | rumor kind 30501 in gift wrap to `F` | seal by `I` | exp +7 d | `{"v":2,"type":"declined"}`: the owner denied the request (no key follows) |
 
 Gift wraps (kind 1059) are signed by a random one-time key and `p`-tag the recipient; the **seal's signer** is the
 authenticated sender. Their NIP-40 `expiration` is **absolute** (now + TTL): NIP-59 backdates the wrap's `created_at`
@@ -130,11 +132,25 @@ settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../
 Since Sukrara 0.11 the invite is the **v3 short link** of [PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3):
 `https://sukrara.mauri.app/join#<base64url(I.pub[0:8] ‖ secret[16])>`, 63 characters, QR version 5. The secret's
 base64url is the request token `t`. Expiry, relays and the wearer's profile are in the invite gift wrap, so the
-follower sees who is inviting before asking. Anyone holding the link can read that profile and *ask*; nothing in it
-decrypts glucose, and the owner approves each request. Invites expire after 24 h and are single-use: approving or
-denying a request burns the token **and drops every other pending request made with it**. Both screens show a
-**match code** = first 4 decimal digits of `sha256(F.pub_hex + token)` so the owner can confirm "it's really Mom's
-phone". Nearby pairing hands the same fields over BLE INFO (`pair: {t, x, profile}`) while *Pair nearby* is open.
+follower sees who is inviting before asking.
+
+**Single use, no code (0.11.4).** The link is a bearer token: whoever holds it can ask. So:
+- The **first** valid request the owner's phone receives **claims** the invite ("first" = first received;
+  `created_at` can be backdated, so it isn't used). Later requests on it are not queued: each gets an
+  `invite-used` notice, and the claimed request counts them (`others`), so the owner's dialog warns "another phone
+  also tried this invite".
+- The owner still taps **Allow** (no code): the follower's name and picture are self-asserted, and approving sends the
+  last 24 h at once, which "Remove" can't take back. The owner's own label for the invite ("who is it for?", stored
+  only on the owner's phone and in the owner backup) is shown next to the requester's name.
+- **Deny** sends `declined`. Approving or denying marks the invite done; it stays until it expires (24 h) so late
+  requesters still get `invite-used`.
+- A leak before the intended follower uses the link lets someone ask in their place with any name and picture.
+  Protection: the single claim, the `invite-used` notice to the real follower (who then tells the owner), and the
+  owner's Allow.
+
+**Nearby pairing** (BLE INFO `pair: {t, x, profile}`, 10 minutes) reaches every phone in range, so it keeps the
+**match code** = first 4 decimal digits of `sha256(F.pub_hex + token)`: the follower shows it and the **owner types it**
+to allow (copy-entry beats compare-and-confirm in usability studies). The single-claim rule applies too.
 
 ## Profiles
 

@@ -112,6 +112,10 @@
         <receiver
             android:name=".alerts.AlertCheckReceiver"
             android:exported="false" />
+        <!-- Allow / Deny on the access-request notification (PendingIntents only) -->
+        <receiver
+            android:name=".owner.RequestActionReceiver"
+            android:exported="false" />
         <!-- adb-only feature switches (battery lab, investigation 11): DUMP is held by the shell, not by apps -->
         <receiver
             android:name=".features.DebugReceiver"

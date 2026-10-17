@@ -101,6 +101,9 @@ class DebugReceiver : BroadcastReceiver() {
                 .put("pending", u.pending.size).put("liveSent", u.liveSent).put("chunksSent", u.chunksSent)
                 .put("bleOn", u.bleOn).put("bleCentrals", u.bleCentrals).put("source", u.source)
                 .put("profile", u.profile?.toJson() ?: JSONObject.NULL)
+                .put("pendingRequests", org.json.JSONArray(u.pending.map {
+                    JSONObject().put("name", it.name).put("label", it.label).put("nearby", it.nearby).put("others", it.others)
+                }))
                 .put("followerNames", org.json.JSONArray(u.followers.filter { it.revoked == null }.map { "${it.name} ${it.avatar ?: "-"}" })))
         }
         if (App.role(c) == "follower") {
@@ -132,6 +135,7 @@ class DebugReceiver : BroadcastReceiver() {
                 c.startForegroundService(Intent(c, OwnerService::class.java))
                 out.put("cmd", "owner ready")
             }
+<<<<<<< HEAD
             "invite" -> out.put("invite", App.owner(c).newInvite())   // public link, no secret
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
             "pinWidget" -> {
@@ -143,10 +147,16 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
                     .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
             }
+=======
+            "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
+>>>>>>> f3f30e7 (Sukrara 0.11.6: single-use invites without a code, new Allow dialog with the invite label)
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
                 App.owner(c).approve(it.f); out.put("cmd", "approved ${it.name} code ${it.code}")
+            } ?: out.put("cmd", "nothing pending")
+            "deny" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
+                App.owner(c).deny(it.f); out.put("cmd", "denied ${it.name}")
             } ?: out.put("cmd", "nothing pending")
             "follow" -> {
                 if (App.role(c) == null) App.setRole(c, "follower")

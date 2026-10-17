@@ -27,7 +27,7 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 <p align="center">
   <img src="spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android: 70 mg/dL, flat arrow, feature summary" width="200">
   <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="200">
-  <img src="spikes/showcase-android/evidence/p5-request-from-mac.png" alt="Allow dialog: the follower's name, generated picture and 4-digit match code" width="200">
+  <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="200">
   <img src="docs/img/16/android-app-stale.png" alt="Home panel: value, time-in-range ring and the 12 h chart with the distribution beside it" width="200">
 </p>
 <p align="center">
@@ -90,9 +90,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   ID. [13](docs/13-macos-widgets.md)
 
 **Sharing and family**
-- Share with a short link (63 characters) or a small QR code. Opening it shows who is inviting (name and picture);
-  the other person asks, both screens show the same 4-digit code, and you tap **Allow**. Invites are single-use and
-  expire after 24 h. [06](docs/06-sharing-and-keys.md), [14](docs/14-nostr-identity.md)
+- Share with a short link (63 characters) or a small QR code, optionally labelled with who it's for. Opening it shows
+  who is inviting (name and picture); the other person asks and can close the app. You get a notification and a
+  dialog with their name, picture and your label, and tap **Allow**. No code to compare: each link works once (24 h),
+  and anyone who tries it after is told it was already used. [06](docs/06-sharing-and-keys.md), [14](docs/14-nostr-identity.md)
 - Names and generated pictures for wearer and followers, so the follower list shows faces, not keys. They travel
   only end-to-end encrypted to the people you share with and are never posted publicly. The picture is sent as a few
   versioned numbers, not an image, so every Sukrara draws it the same, also after the drawing style changes.
@@ -214,9 +215,11 @@ Downloads: [v0.11.5](https://github.com/mauriciabad/cgm-reading-mac-spike/releas
 **Sharing**
 - Wearer: **Share with someone** shows a QR code and a link. The follower installs Sukrara, chooses
   **I follow someone** and scans or opens the link. Sukrara shows who is inviting; the follower types their name and
-  asks. Check that both screens show the same code, then tap **Allow**.
+  asks. You see their name next to your label for the invite ("Who is it for?") and tap **Allow**. Each link works
+  for one person.
 - Tap your name at the top of the home screen to change your name or picture; followers see it at once.
-- Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list.
+- Nearby with no internet: wearer taps **Pair nearby**, the follower picks the phone from the list, and the wearer types
+  the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
 Open `Sukrara-0.11.5.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
@@ -227,7 +230,7 @@ Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (S
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an
 **Open in Sukrara** button. Nearby pairing over
-Bluetooth works the same way with a match code. Following is the only way the Mac gets glucose from Sukrara for
+Bluetooth works the same way, with a code the wearer types. Following is the only way the Mac gets glucose from Sukrara for
 Android (Juggluco's web server on the same network also works).
 
 ## Repository layout

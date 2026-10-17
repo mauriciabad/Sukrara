@@ -50,4 +50,47 @@ object Notifications {
     }
 
     fun cancel(ctx: Context, id: Int) = ctx.getSystemService(NotificationManager::class.java).cancel(id)
+
+    /**
+     * An access request: "Mom wants to see your glucose · Asked with your invite for Mom · 14:02". A link request gets
+     * Deny / Allow actions (Allow needs an unlocked phone: setAuthenticationRequired). A nearby one only opens the app,
+     * where the wearer types the code shown on the follower's phone.
+     */
+    fun request(ctx: Context, p: app.mauri.sukrara.owner.PendingRequest) {
+        val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date((p.inviteAt.takeIf { it > 0 } ?: p.at) * 1000))
+        val text = when {
+            p.others > 0 -> "Another phone also tried this invite. Check before allowing."
+            p.nearby -> "A phone nearby · open Sukrara and type the code shown on their screen"
+            p.label.isNotBlank() -> "Asked with your invite for ${p.label} · $time"
+            else -> "Asked with your invite from $time"
+        }
+        fun action(what: String, label: String, auth: Boolean) = Notification.Action.Builder(null, label,
+            PendingIntent.getBroadcast(ctx, what.hashCode(), Intent(ctx, app.mauri.sukrara.owner.RequestActionReceiver::class.java)
+                .setAction(what).putExtra("f", p.f), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            .setAuthenticationRequired(auth).build()
+        val b = Notification.Builder(ctx, REQUESTS)
+            .setSmallIcon(app.mauri.sukrara.R.drawable.ic_stat_sukrara)
+            .setContentTitle("${p.name} wants to see your glucose")
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(open(ctx))
+            .setCategory(Notification.CATEGORY_SOCIAL)
+            .setAutoCancel(true)
+        p.avatar?.let { b.setLargeIcon(android.graphics.drawable.Icon.createWithBitmap(it.render(p.name, 192).circle())) }
+        if (!p.nearby && p.others == 0) b.addAction(action(ACTION_DENY, "Deny", false)).addAction(action(ACTION_ALLOW, "Allow", true))
+        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(ID_REQUEST, b.build()) }
+    }
+
+    const val ACTION_ALLOW = "app.mauri.sukrara.ALLOW_REQUEST"
+    const val ACTION_DENY = "app.mauri.sukrara.DENY_REQUEST"
+
+    private fun android.graphics.Bitmap.circle(): android.graphics.Bitmap {
+        val out = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        c.drawCircle(width / 2f, height / 2f, width / 2f, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        c.drawBitmap(this, 0f, 0f, paint)
+        return out
+    }
 }

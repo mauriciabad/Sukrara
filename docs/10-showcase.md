@@ -563,12 +563,62 @@ Keychain item; the Mac was overloaded at load ≈ 25, so some steps used the Deb
 | ![follower home](../spikes/showcase-android/evidence/p7-follower-home-header.png) | ![followers](../spikes/showcase-android/evidence/p8-followers-avatars.png) | ![mac](../spikes/showcase-android/evidence/p9-mac-waiting.png) |
 | Follower header after the wearer renamed to "Alexa" | Follower list with pictures | Sukrara for Mac waiting, with the wearer's picture |
 
-**Open — the match code** (user question, researched 2026-10-17): names and pictures are self-asserted, so they
-don't replace the 4-digit code; but asking for it on every request trains people to tap Allow (in the test above the
-wearer allowed "Intruder" by tapping). The research recommends: keep the code on the follower's screen; on the
-wearer's side show it only as a secondary line normally, and make the wearer *type* it when it matters (two requests
-on one invite, nearby Bluetooth / Mac, a name matching an existing follower). Waiting for the user's decision; see
-`NEXT.md`.
+**Match code**: replaced in 0.11.6, see "Single-use invites" below.
+
+## Single-use invites (v0.11.6)
+
+*2026-10-17, the user's proposal after the match-code research: "make the link work once, so only the person I send it
+to uses it; then no code is needed and the follower can finish on their own".*
+
+**What changed**
+- **Each link works for one person.** The first request the wearer's phone receives claims the invite; anyone who
+  tries it later gets *"This invite was already used. Ask Alex for a new one, and tell them, in case it wasn't
+  someone they invited."* (new `invite-used` message), and the wearer's dialog warns that another phone tried it.
+- **No code on links.** The follower asks and can close the app ("Request sent… Sukrara tells you when it happens").
+  If the wearer denies, the follower is told (new `declined` message) instead of waiting forever.
+- **"Who is it for?"** on the share screen: a label kept only on the wearer's phone.
+- **New Allow dialog** (Material basic dialog, centred variant, custom content; actions end-aligned, Allow last —
+  [MDC Dialog guidance](https://github.com/material-components/material-components-android/blob/master/docs/components/Dialog.md)):
+  the follower's picture (96 dp) and **name as the headline**; a card with the wearer's label for the invite and a
+  ✓ *Matches* / *Different name* pill, when it was sent and when they asked; a red card if other phones tried the
+  same invite; "Allowing sends Mom your last 24 hours and every new reading."
+- **Request notification** with the follower's picture, the label, and *Deny* / *Allow* actions; Allow requires an
+  unlocked phone (`setAuthenticationRequired`). Not offered when other phones tried the invite or for nearby pairing.
+- **Nearby (Bluetooth) keeps a code**, now typed by the wearer: a Bluetooth offer reaches every phone in range. The
+  follower (or Mac) shows the code; Allow unlocks only when the typed code matches.
+- **Sukrara for Mac**: no code for links, "Request sent" window, and *already used* / *didn't allow this Mac* outcomes.
+- **Invite lookup retries** (5 × 5 s): the share screen shows the link before its wrap reaches the relays, and a
+  fast scan found nothing.
+
+Why the Allow tap stays (research, sources in the agent's report summarised in NEXT.md): "one use" means at most one
+person gets in, not that it's the right one — a forwarded link or a photo of the QR lets someone ask first with any
+name. Approving sends the last 24 h at once, so it can't be undone. Products that skip approval (Dexcom, LibreLinkUp,
+Find My, Family Link) bind invites to an account; Sukrara's link is a bearer token like Signal's group links, which
+offer admin approval for that reason. Code-typing for nearby follows the finding that copy-entry beats
+compare-and-confirm (Uzun et al. 2007).
+
+**Tested** (emulator wearer + Sukrara for Mac test copies with throwaway Keychain items; the Mac was at load 30–60,
+the emulator's system process kept ANR-ing):
+
+| | |
+|---|---|
+| Invite "Mom" → Mac "Mom" asks | wearer: request "for invite 'Mom'"; dialog ✓ *Matches*; Allow → key + readings on the Mac |
+| Same link, second Mac "Intruder" | `invite-used` → Mac shows *This invite was already used*; wearer's dialog shows the red warning |
+| Invite "Dad" → Mac "Grandpa" | dialog *Different name*; Deny → Mac shows *Alex didn't allow this Mac* |
+| Unit tests | `LabelMatchTest` 3/3 ("Mom's phone" ≈ "Mom", whole words only), `InviteTest` 4/4, alerts 15/15, NFC 7/7 |
+| Release build on a clean emulator | invite "Mom" → Mac "Mom" → dialog ✓ *Matches*; a second phone also named "Mom" → `invite-used` + red warning; tapping **Allow** → approved. CPU with the dialog open: 0.04 s per 30 s |
+| Lookup race | the first scan right after *Share* found nothing (wrap not on the relays yet) → lookups now retry 5 × 5 s on Android and Mac |
+
+Not tested: nearby pairing with the typed code (emulators have no Bluetooth; the code path is the same `ApproveDialog` with
+a code field, Allow enabled only on a match). The "isn't responding" dialogs seen during testing were the overloaded
+emulators (system, launcher and Digital Wellbeing too; WorkManager / startup timeouts), not the dialog.
+
+| | | |
+|---|---|---|
+| ![match](../spikes/showcase-android/evidence/q1-allow-dialog-matches.png) | ![warning](../spikes/showcase-android/evidence/q2-allow-dialog-another-phone.png) | ![used](../spikes/showcase-android/evidence/q3-mac-invite-already-used.png) |
+| Allow dialog: name as headline, your label, ✓ *Matches* | Another phone (also calling itself "Mom") tried the same invite | Sukrara for Mac: the second requester is told |
+| ![declined](../spikes/showcase-android/evidence/q4-mac-declined.png) | ![sent](../spikes/showcase-android/evidence/q5-mac-request-sent.png) | |
+| Denied: the requester is told | Waiting on the Mac: no code for a link | |
 
 ## Next
 

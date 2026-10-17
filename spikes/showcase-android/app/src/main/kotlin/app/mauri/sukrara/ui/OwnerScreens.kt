@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -51,6 +57,7 @@ import kotlinx.coroutines.launch
 interface OwnerActions {
     fun create(profile: app.mauri.sukrara.core.Profile)
     fun saveProfile(profile: app.mauri.sukrara.core.Profile)
+    fun setInviteLabel(label: String)
     fun restoreFromPasswordManager()
     fun restorePasted(secret: String, password: String?)
     fun saveBackup()
@@ -270,12 +277,17 @@ fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Share your glucose", style = MaterialTheme.typography.headlineSmall)
         if (link == null) { CircularProgressIndicator(); return@Column }
+        var label by remember(link) { mutableStateOf("") }
+        OutlinedTextField(label, { label = it.take(app.mauri.sukrara.core.Profile.MAX_NAME); a.setInviteLabel(label) },
+            label = { Text("Who is it for?") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            supportingText = { Text("Only you see this. When they ask, Sukrara shows it next to their name.") })
         Text("Ask them to install Sukrara, choose \"I follow someone\" and scan this code — or send them the link.",
             style = MaterialTheme.typography.bodyMedium)
         val qr = remember(link) { qrBitmap(link) }
         Image(qr.asImageBitmap(), contentDescription = "invite QR code", modifier = Modifier.size(280.dp))
-        Text("The code holds no key to your glucose: it shows them your name and picture and lets them ask. You approve " +
-            "each request. Expires ${date(u.inviteExpiry)}.", style = MaterialTheme.typography.bodySmall)
+        Text("This link works once, until ${date(u.inviteExpiry)}. Send it only to ${label.trim().ifBlank { "the person you invite" }}: " +
+            "whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.",
+            style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("They'll see", style = MaterialTheme.typography.bodySmall)
             AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 24.dp)
@@ -294,23 +306,103 @@ fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     }
 }
 
-/** Shown wherever the owner is when a valid request arrives. */
+/** "Mom" vs the invite's "Mom's phone": the same person? null = no label given. Names can be made up, so it's only a hint. */
+internal fun labelMatches(label: String, name: String): Boolean? {
+    fun norm(x: String) = x.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()   // "Mom's phone" → "mom s phone"
+    val l = norm(label)
+    val n = norm(name)
+    if (l.isEmpty()) return null
+    return n.isNotEmpty() && (l == n || l.split(' ').contains(n) || n.split(' ').contains(l))
+}
+
+private fun hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(t * 1000))
+
+/**
+ * Shown wherever the wearer is when a request arrives. Material basic dialog, centred variant: the follower's picture
+ * and name are the headline; custom content shows the invite they used (the wearer's own label for it, whether it
+ * matches, when it was sent); actions end-aligned, Allow last. Link requests need no code (the invite is single-use);
+ * nearby ones need the code typed from the follower's screen, because a Bluetooth invite reaches every phone in range.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
     val p = u.pending.firstOrNull() ?: return
-    AlertDialog(
-        onDismissRequest = {},
-        title = { Text("${p.name} wants to see your glucose") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AvatarImage(p.avatar, p.name, 64.dp, Modifier.align(Alignment.CenterHorizontally))
-                Text("Check that their phone shows the same code:")
-                Text(p.code, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.align(Alignment.CenterHorizontally))
-                Text("Only allow people you know. You can remove them later.", style = MaterialTheme.typography.bodySmall)
+    var code by remember(p.f) { mutableStateOf("") }
+    val match = labelMatches(p.label, p.name)
+    val cs = MaterialTheme.colorScheme
+    androidx.compose.material3.BasicAlertDialog(onDismissRequest = {},
+        properties = androidx.compose.ui.window.DialogProperties(dismissOnClickOutside = false)) {
+        androidx.compose.material3.Surface(shape = MaterialTheme.shapes.extraLarge, color = cs.surfaceContainerHigh,
+            tonalElevation = androidx.compose.material3.AlertDialogDefaults.TonalElevation) {
+            Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                AvatarImage(p.avatar, p.name, 96.dp)
+                Spacer(Modifier.height(16.dp))
+                Text(p.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, color = cs.onSurface)
+                Text(if (p.nearby) "is nearby and wants to see your glucose" else "wants to see your glucose",
+                    style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(20.dp))
+                // the invite they used, as the wearer labelled it
+                androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large, color = cs.surfaceContainerHighest,
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(if (p.nearby) "PAIR NEARBY" else "YOUR INVITE", style = MaterialTheme.typography.labelMedium,
+                            color = cs.onSurfaceVariant, letterSpacing = 1.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(when {
+                                    p.label.isNotBlank() -> "For ${p.label}"
+                                    p.nearby -> "Bluetooth, 10 minutes"
+                                    else -> "No name given"
+                                }, style = MaterialTheme.typography.titleMedium, color = cs.onSurface,
+                                modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            when (match) {
+                                true -> Pill("✓ Matches", cs.primaryContainer, cs.onPrimaryContainer)
+                                false -> Pill("Different name", cs.tertiaryContainer, cs.onTertiaryContainer)
+                                null -> {}
+                            }
+                        }
+                        Text((if (p.inviteAt > 0) "Sent ${hhmm(p.inviteAt)} · " else "") + "asked ${hhmm(p.at)}",
+                            style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                    }
+                }
+                if (p.others > 0) {
+                    Spacer(Modifier.height(12.dp))
+                    androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large, color = cs.errorContainer,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text("${if (p.others == 1) "Another phone" else "${p.others} other phones"} also tried this invite. " +
+                            "Names and pictures can be made up: if you're not sure, deny and send a new invite.",
+                            style = MaterialTheme.typography.bodyMedium, color = cs.onErrorContainer, modifier = Modifier.padding(16.dp))
+                    }
+                }
+                if (p.nearby) {
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(code, { code = it.filter(Char::isDigit).take(4) }, singleLine = true,
+                        label = { Text("Code on their screen") },
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center,
+                            letterSpacing = 8.sp),
+                        isError = code.length == 4 && code != p.code,
+                        supportingText = { if (code.length == 4 && code != p.code) Text("That's not the code on their phone") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                        modifier = Modifier.fillMaxWidth())
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Allowing sends ${p.name} your last 24 hours and every new reading. You can remove them later.",
+                    style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                Spacer(Modifier.height(24.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { a.deny(p.f) }) { Text("Deny") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { a.approve(p.f) }, enabled = !p.nearby || code == p.code) { Text("Allow") }
+                }
             }
-        },
-        confirmButton = { Button(onClick = { a.approve(p.f) }) { Text("Allow") } },
-        dismissButton = { TextButton(onClick = { a.deny(p.f) }) { Text("Deny") } },
-    )
+        }
+    }
+}
+
+@Composable
+private fun Pill(text: String, bg: androidx.compose.ui.graphics.Color, fg: androidx.compose.ui.graphics.Color) {
+    androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.CircleShape, color = bg) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = fg, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+    }
 }

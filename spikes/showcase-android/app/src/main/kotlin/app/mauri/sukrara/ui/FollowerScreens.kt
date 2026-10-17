@@ -141,15 +141,39 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
 
 @Composable
 fun FollowerWaiting(u: FollowerUi, a: FollowerActions) {
+    val who = u.wearer?.name?.ifBlank { null } ?: u.ownerPub?.let { Proto.shortNpub(it) } ?: "them"
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Waiting for approval", style = MaterialTheme.typography.headlineSmall)
-        AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 72.dp)
-        Text("Asked ${u.wearer?.name?.ifBlank { null } ?: u.ownerPub?.let { Proto.shortNpub(it) }} as \"${u.name}\". " +
-            "They will see this code — it must match:", style = MaterialTheme.typography.bodyMedium)
-        Text(u.code ?: "", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 96.dp)
+        Text(if (u.nearby) "Waiting for $who" else "Request sent", style = MaterialTheme.typography.headlineSmall)
+        if (u.nearby) {
+            // Bluetooth invites reach every phone in range: the wearer types this code to pick ours
+            Text("$who is asked to type this code to allow this phone:", style = MaterialTheme.typography.bodyMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(u.code ?: "", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, letterSpacing = 8.sp)
+        } else {
+            Text("You'll see $who's readings as soon as $who allows it. You can close the app; Sukrara tells you when it happens.",
+                style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
         CircularProgressIndicator()
-        Text("No glucose is shown until the owner allows this phone.", style = MaterialTheme.typography.bodySmall)
+        Text("You asked as \"${u.name}\".", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = a::leave) { Text("Cancel request") }
+    }
+}
+
+/** The invite was used by someone else first, or the wearer said no: nothing was shared; start over with a new invite. */
+@Composable
+fun FollowerEnded(u: FollowerUi, a: FollowerActions) {
+    val who = u.wearer?.name?.ifBlank { null } ?: "the person who invited you"
+    val used = u.status == "used"
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 96.dp)
+        Text(if (used) "This invite was already used" else "$who didn't allow this phone",
+            style = MaterialTheme.typography.headlineSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(if (used) "Someone opened this link before you. Ask $who for a new one, and tell them, in case it wasn't " +
+                "someone they invited."
+             else "Nothing was shared with this phone. If it was a mistake, ask $who for a new invite.",
+            style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Button(onClick = a::leave) { Text("Use a new invite") }
     }
 }
 
