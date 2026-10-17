@@ -220,6 +220,10 @@ DebugReceiver: `--es graph '{"profile":"KDE_LOG","defaultHours":6,"ringCount":3}
 - **Monochrome / tinted widgets:** the grid, the dashed 54/250 lines and the in-range band are drawn much fainter
   there (macOS turns the bitmap's brightness into opacity).
 
+- **Resets (0.11.9):** each section of the graph settings has a reset that shows while it differs from the defaults
+  (ranges, windows, slots and rings), plus *Reset all graph settings*; the Mac's Graph submenu has *Reset ranges* and
+  *Reset all graph settings*.
+
 ## Open
 
 - macOS per-widget settings would need an Xcode project (so the App Intents metadata is registered properly).

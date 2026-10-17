@@ -295,7 +295,22 @@ final class StatusController: NSObject, NSMenuDelegate {
         let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) (defaults write band…)",
                                 action: nil, keyEquivalent: "")
         note.isEnabled = false
+        let d = UserDefaults.standard
+        let bandKeys = ["bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh"]
+        let resetRanges = menu.addItem(withTitle: "Reset ranges to 54 · 70 · 140 · 180 · 250", action: #selector(setGraph(_:)), keyEquivalent: "")
+        resetRanges.target = self
+        resetRanges.representedObject = ["resetKeys", bandKeys]
+        resetRanges.isHidden = !bandKeys.contains { d.object(forKey: $0) != nil }
+        menu.addItem(.separator())
+        let all = menu.addItem(withTitle: "Reset all graph settings", action: #selector(setGraph(_:)), keyEquivalent: "")
+        all.target = self
+        all.representedObject = ["resetKeys", Self.graphKeys]
+        all.isEnabled = Self.graphKeys.contains { d.object(forKey: $0) != nil }
     }
+
+    /// Every graph setting (UserDefaults); "Reset all graph settings" removes them.
+    static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "side", "reportDays"]
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
@@ -303,6 +318,11 @@ final class StatusController: NSObject, NSMenuDelegate {
             var o = graph.ringOrder
             o.swapAt(i, i + delta)
             UserDefaults.standard.set(ringOrderText(o), forKey: "ringOrder")
+            reloadGraph()
+            return
+        }
+        if key == "resetKeys", let keys = kv[1] as? [String] {
+            keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
             reloadGraph()
             return
         }

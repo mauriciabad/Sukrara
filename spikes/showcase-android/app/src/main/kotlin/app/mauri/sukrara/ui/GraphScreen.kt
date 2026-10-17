@@ -82,7 +82,7 @@ fun GraphScreen(onBack: () -> Unit) {
         BandSlider("Very good up to", g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } }
         BandSlider("High above", g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } }
         BandSlider("Very high above", g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } }
-        TextButton(onClick = { set { it.copy(bands = Bands()) } }, enabled = g.bands != Bands()) { Text("Reset to 54 / 70 / 140 / 180 / 250") }
+        ResetButton("Reset ranges to 54 / 70 / 140 / 180 / 250", g.bands != D.bands) { set { it.copy(bands = D.bands) } }
         Note("In range is ${g.bands.low}–${g.bands.high} mg/dL; very good (${g.bands.low}–${g.bands.tight}) is the part of it " +
             "where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView " +
             "report. The ranges colour the number, the line, the status bar and the time in range everywhere.")
@@ -95,6 +95,9 @@ fun GraphScreen(onBack: () -> Unit) {
             Chips(listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, { if (it == 0) "Default (${g.defaultHours} h)" else "$it h" }) { h ->
                 set { it.copy(placeHours = if (h == 0) it.placeHours - p else it.placeHours + (p to h)) }
             }
+        }
+        ResetButton("Reset windows to 12 h", g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
+            set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }
         }
         Note("Each widget can have its own window: touch and hold it, then tap Reconfigure.")
 
@@ -113,6 +116,10 @@ fun GraphScreen(onBack: () -> Unit) {
             set { it.copy(ringRange = r) }
         }
         RingOrder(g) { o -> set { it.copy(ringOrder = o) } }
+        ResetButton("Reset slots and rings", g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange ||
+            g.ringOrder != D.ringOrder) {
+            set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder) }
+        }
         Note("Each slot is a time-in-range ring or a number from your doctor's report: GMI, average glucose or " +
             "variability (CV), with a green arc when its goal is met. Slots that don't fit are hidden, the last one " +
             "first. A slot needs data for at least a quarter of its window.")
@@ -122,10 +129,21 @@ fun GraphScreen(onBack: () -> Unit) {
             sub = "The % of time below, in and above range, and how much time was spent at each level") { v ->
             set { it.copy(side = v) }
         }
-        HorizontalDivider()
         Note("The distribution covers the same time as the graph, and the line fades out underneath it. Each widget " +
             "can turn it off on its own.")
+        HorizontalDivider()
+        ResetButton("Reset all graph settings", g != D) { set { D } }
+        Note("Each widget's own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).")
     }
+}
+
+/** The defaults every reset goes back to. */
+private val D = GraphConfig()
+
+/** A reset that only shows while its section differs from the defaults. */
+@Composable
+private fun ResetButton(label: String, changed: Boolean, onClick: () -> Unit) {
+    if (changed) TextButton(onClick = onClick) { Text(label) }
 }
 
 /** The ring's segments clockwise from 12 o'clock, each movable earlier / later. */
