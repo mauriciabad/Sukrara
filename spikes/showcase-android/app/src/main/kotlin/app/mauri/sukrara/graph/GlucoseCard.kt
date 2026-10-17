@@ -17,9 +17,9 @@ import kotlin.math.min
 
 /**
  * The ring's default segment order clockwise from 12 o'clock (the user, 0.11.9): in range starts at the top (very good
- * first), the lows follow, and the highs close the circle just before 12.
+ * first), the lows follow, then the highs, very high last (just before 12).
  */
-val DEFAULT_RING_ORDER = listOf(Band.TIGHT, Band.TARGET, Band.LOW, Band.VERY_LOW, Band.VERY_HIGH, Band.HIGH)
+val DEFAULT_RING_ORDER = listOf(Band.TIGHT, Band.TARGET, Band.LOW, Band.VERY_LOW, Band.HIGH, Band.VERY_HIGH)
 
 /** What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers. */
 enum class SlotKind(val label: String, val short: String) {
@@ -46,8 +46,8 @@ fun periodLabel(s: Long): String = when {
 
 /**
  * The segmented time-in-range ring: the % of [RingSpec.range] in the middle, the window under it, and the perimeter
- * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, very high,
- * high). [emphasis] fades the
+ * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, high,
+ * very high). [emphasis] fades the
  * secondary rings (1 = main).
  */
 object TirRing {
@@ -241,31 +241,33 @@ object GlucoseCard {
             return
         }
         val color = if (fr.strike) pal.inkSoft else pal.of(bands.of(r.sgv))
+        // A late reading's time goes under the number (the user: beside it, it took the rings' room).
+        val timeH = if (fr.showTime) small.textSize * 1.25f else 0f
+        val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color; typeface = Typeface.create(Typeface.DEFAULT, 700, false)
-            textSize = box.height() * 1.18f
+            textSize = numBox.height() * 1.18f
             isStrikeThruText = fr.strike
         }
         val s = "${r.sgv}"
-        // Fit the width as well: number + arrow + (time) must stay left of the rings.
+        // Fit the width as well: number + arrow must stay left of the rings.
         val arrowFactor = 0.62f
-        val timeW = if (fr.showTime) small.measureText(Freshness.timeText(r.t, nowS)) + 8 * d else 0f
-        val need = num.measureText(s) + num.textSize * arrowFactor * 1.1f + timeW
+        val need = num.measureText(s) + num.textSize * arrowFactor * 1.1f
         if (need > box.width()) num.textSize *= box.width() / need
         val capH = num.textSize * 0.72f
-        val baseY = box.centerY() + capH / 2
+        val cy = numBox.centerY()
+        val baseY = cy + capH / 2
         cv.drawText(s, box.left - num.textSize * 0.04f, baseY, num)
         var x = box.left + num.measureText(s) + num.textSize * 0.08f
         val arrowSize = num.textSize * arrowFactor
         if (!fr.strike) r.rate?.let { rate ->
             cv.save()
-            cv.translate(x + arrowSize / 2, box.centerY())
+            cv.translate(x + arrowSize / 2, cy)
             cv.rotate(Trend.angleDeg(rate))
             GlucoseNotification.drawArrow(cv, arrowSize * 1.05f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color },
                 double = Trend.isDouble(rate))
             cv.restore()
         }
-        x += arrowSize + 6 * d
-        if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), x, box.centerY() + small.textSize / 3, small)
+        if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), box.left, baseY + small.textSize * 1.25f, small)
     }
 }

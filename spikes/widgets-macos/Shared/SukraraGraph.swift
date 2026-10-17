@@ -53,7 +53,7 @@ enum Band: Int, CaseIterable, Codable {
 
 /// The time-in-range ring's segments clockwise from 12 o'clock (the user's order): the good part first, then down
 /// through the lows and back up through the highs.
-let DEFAULT_RING_ORDER: [Band] = [.tight, .target, .low, .veryLow, .veryHigh, .high]
+let DEFAULT_RING_ORDER: [Band] = [.tight, .target, .low, .veryLow, .high, .veryHigh]
 
 /// "TIGHT,TARGET,…" with each of the six bands exactly once, else nil.
 func parseRingOrder(_ text: String) -> [Band]? {
@@ -370,7 +370,7 @@ struct GraphConfig: Codable, Equatable {
     }
 
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
-    /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,VERY_HIGH,HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
+    /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
     /// bandVeryHigh, side (time in range beside the graph).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
@@ -857,26 +857,28 @@ enum GlucoseCard {
         }
         let color = fr.strike ? pal.inkSoft : pal.of(bands.of(Double(r.sgv)))
         let s = "\(r.sgv)"
-        var numSize = box.height * 1.18
-        let arrowFactor: CGFloat = 0.62
+        // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""
-        let timeW = fr.showTime ? Ink.width(time, small) + 8 * d : 0
-        let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * arrowFactor * 1.1 + timeW
+        let timeH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
+        let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - timeH)
+        var numSize = numBox.height * 1.18
+        let arrowFactor: CGFloat = 0.62
+        let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * arrowFactor * 1.1
         if need > box.width { numSize *= box.width / need }
         let num = Ink.font(numSize, .bold, rounded: true)
         let capH = CTFontGetCapHeight(num)
-        Ink.draw(ctx, s, x: box.minX - numSize * 0.04, y: box.midY + capH / 2, num, color, strike: fr.strike)
-        var x = box.minX + Ink.width(s, num) + numSize * 0.08
+        let baseY = numBox.midY + capH / 2
+        Ink.draw(ctx, s, x: box.minX - numSize * 0.04, y: baseY, num, color, strike: fr.strike)
+        let x = box.minX + Ink.width(s, num) + numSize * 0.08
         let arrowSize = numSize * arrowFactor
         if !fr.strike, let rate = r.rate {
             ctx.saveGState()
-            ctx.translateBy(x: x + arrowSize / 2, y: box.midY)
+            ctx.translateBy(x: x + arrowSize / 2, y: numBox.midY)
             ctx.rotate(by: CGFloat(-max(-1, min(1, rate / 3))) * .pi / 2)
             drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: abs(rate) >= 3)
             ctx.restoreGState()
         }
-        x += arrowSize + 6 * d
-        if fr.showTime { Ink.draw(ctx, time, x: x, y: box.midY + CTFontGetSize(small) / 3, small, pal.inkSoft) }
+        if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
     }
 
     /// Same geometry as GlucoseNotification.drawArrow / the menubar TrendArrow: unit arrow pointing +x.

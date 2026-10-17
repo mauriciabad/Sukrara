@@ -95,8 +95,8 @@ fresh; the Live Update card's metrics are value + arrow, plus the reading's time
 
 ![rings](img/16/rings.png)
 
-- Segments clockwise from 12 o'clock, by default (the user, 0.11.9): very good, in range, low, very low, very high,
-  high. In range starts at the top, the lows follow and the highs close the circle. The order is a setting (Android:
+- Segments clockwise from 12 o'clock, by default (the user, 0.11.9): very good, in range, low, very low, high,
+  very high. In range starts at the top, the lows follow, then the highs, very high last. The order is a setting (Android:
   Settings → Graph → *Ring order*, ↑/↓ per segment; Mac: Graph → Ring order). Gaps between below, very good, in range
   and above; the two lows and the two highs touch.
 - The middle shows the chosen range (default **in range**; "very good" puts the window label in the very-good green).

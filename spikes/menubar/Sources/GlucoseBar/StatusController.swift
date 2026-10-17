@@ -283,6 +283,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         orderMenu.addItem(.separator())
         let reset = orderMenu.addItem(withTitle: "Reset order", action: #selector(setGraph(_:)), keyEquivalent: "")
         reset.target = self
+        reset.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
         reset.representedObject = ["ringOrderReset", 0]
         reset.isEnabled = graph.ringOrder != DEFAULT_RING_ORDER
         orderMenu.autoenablesItems = false
@@ -299,11 +300,13 @@ final class StatusController: NSObject, NSMenuDelegate {
         let bandKeys = ["bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh"]
         let resetRanges = menu.addItem(withTitle: "Reset ranges to 54 · 70 · 140 · 180 · 250", action: #selector(setGraph(_:)), keyEquivalent: "")
         resetRanges.target = self
+        resetRanges.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
         resetRanges.representedObject = ["resetKeys", bandKeys]
         resetRanges.isHidden = !bandKeys.contains { d.object(forKey: $0) != nil }
         menu.addItem(.separator())
         let all = menu.addItem(withTitle: "Reset all graph settings", action: #selector(setGraph(_:)), keyEquivalent: "")
         all.target = self
+        all.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
         all.representedObject = ["resetKeys", Self.graphKeys]
         all.isEnabled = Self.graphKeys.contains { d.object(forKey: $0) != nil }
     }

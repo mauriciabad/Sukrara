@@ -140,16 +140,21 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (sgv != null && fresh.showValue) {
-                    Box {
-                        RollingNumber("$sgv", color, 72.sp, FontWeight.Bold)
-                        if (fresh.strike) Canvas(Modifier.matchParentSize()) {
-                            drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
+                    // A late reading's time goes under the number, so it never takes the rings' room.
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box {
+                                RollingNumber("$sgv", color, 72.sp, FontWeight.Bold)
+                                if (fresh.strike) Canvas(Modifier.matchParentSize()) {
+                                    drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
+                                }
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            if (!fresh.strike) TrendArrow(rate, color)
                         }
+                        if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
+                            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Spacer(Modifier.width(8.dp))
-                    if (!fresh.strike) TrendArrow(rate, color)
-                    if (fresh.showTime && t != null) Text(Freshness.timeText(t, now), Modifier.padding(start = 8.dp),
-                        style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Text(if (t == null) "No readings yet" else "No reading since\n${Freshness.timeText(t, now)}",
                         style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

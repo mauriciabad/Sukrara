@@ -18,7 +18,7 @@ import AppKit
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
 //   graphHours  graph window 3|6|12|24 (default 12); menubarHours / widgetHours override it per place
 //   ringCount 0–3 (2) · slots "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind TIR|GMI|AVERAGE|CV : window s : faded)
-//   · ringRange IN_RANGE|TIGHT · ringOrder "TIGHT,TARGET,LOW,VERY_LOW,VERY_HIGH,HIGH" (the ring clockwise)
+//   · ringRange IN_RANGE|TIGHT · ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH" (the ring clockwise)
 //   · side (time in range beside the graph, YES) · bandVeryLow/bandLow/bandTight/bandHigh/
 //   bandVeryHigh (54/70/140/180/250) · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are
 //   in the menu's "Graph" submenu)   readingsDir (tests): keep readings.csv somewhere else
