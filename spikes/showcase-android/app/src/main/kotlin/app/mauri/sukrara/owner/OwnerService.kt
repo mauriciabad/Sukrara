@@ -42,9 +42,9 @@ class OwnerService : Service() {
             "$n follower${if (n == 1) "" else "s"}" + (if (!f.nostr) " · Nostr off" else "") +
                 (if (u.bleCentrals > 0) " · ${u.bleCentrals} nearby" else "")
         }.also { it.start() }
-        // Investigation 15: alerts on the wearer's readings; rapid insulin from the shared log; fired alerts → followers
+        // Investigation 15: alerts on the wearer's readings; rapid insulin and carbs from the shared log; fired alerts → followers
         app.mauri.sukrara.alerts.Alerts.attach(this, "wearer",
-            rapid = { app.mauri.sukrara.treatments.Treat.store.all().filter { it.k == "rapid" && !it.del }.map { it.t } },
+            doses = { app.mauri.sukrara.alerts.AlertEngine.doses(app.mauri.sukrara.treatments.Treat.store.all()) },
             publish = { engine.publishAlert(it) }, newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull())
         app.mauri.sukrara.treatments.Treat.store.onChange += alertsOnTreatment
         engine.start()

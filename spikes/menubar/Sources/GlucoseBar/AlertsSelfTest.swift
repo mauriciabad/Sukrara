@@ -16,16 +16,19 @@ enum AlertsSelfTest {
         // A fresh engine with default settings; `at(min)` moves the clock, `feed` sends a reading stamped now.
         var clock = Date(timeIntervalSince1970: 1_760_650_000)
         var insulin: [Date] = []
+        var carbs: [Date] = []
         var log: [AlertEvent] = []
         func engine(_ edit: (inout AlertSettings) -> Void = { _ in }) -> AlertEngine {
             var s = AlertSettings()
             edit(&s)
             let e = AlertEngine(settings: s, now: { clock })
             e.rapidInsulin = { insulin }
+            e.carbs = { carbs }
             e.onFire = { log.append($0) }
             e.onClear = { log.append($0) }
             log = []
             insulin = []
+            carbs = []
             return e
         }
         func at(_ min: Double) { clock = Date(timeIntervalSince1970: 1_760_650_000 + min * 60) }
@@ -72,14 +75,28 @@ enum AlertsSelfTest {
         at(0); insulin = [clock.addingTimeInterval(-5 * 60)]
         check("high 5 min after rapid insulin: muted", fires(feed(e, 200, 0.5)).isEmpty)
         check("…state line says why", e.stateLine == "High · muted: insulin 5 min ago", e.stateLine)
-        at(10); check("still muted 15 min after insulin", fires(feed(e, 205, 0.5)).isEmpty)
-        at(16); check("window over (21 min) and still high: fires on the timer", fires(tick(e)) == ["high#1"])
-        insulin = [clock.addingTimeInterval(-60)]; at(17)
+        check("insulin mute lasts 60 min by default", AlertSettings().muteAfterInsulin.min == 60)
+        at(40); check("still muted 45 min after insulin", fires(feed(e, 205, 0.5)).isEmpty)
+        at(50); check("still muted 55 min after insulin", fires(feed(e, 206, 0.1)).isEmpty)
+        at(56); check("window over (61 min) and still high: fires on the timer", fires(tick(e)) == ["high#1"])
+        insulin = [clock.addingTimeInterval(-60)]; at(57)
         check("an insulin entry in the future doesn't mute", { insulin = [clock.addingTimeInterval(600)]; return e.muteReason(.high, Reading(date: clock, mgdl: 200, rate: 0)) == nil }())
         e = engine(); at(0); insulin = [clock.addingTimeInterval(-60)]
         check("lows are never muted by insulin", fires(feed(e, 60, -0.5)) == ["low#1"])
         e = engine { $0.muteAfterInsulin.on = false }; at(0); insulin = [clock.addingTimeInterval(-60)]
         check("muteAfterInsulin off: high fires despite insulin", fires(feed(e, 200, 0.5)) == ["high#1"])
+
+        // 3b. Mute after carbs: low and falling fast, never urgent low; fires when the window ends and it's still low.
+        e = engine(); at(0); carbs = [clock.addingTimeInterval(-5 * 60)]
+        check("carbs mute 15 min by default", AlertSettings().muteAfterCarbs.min == 15)
+        check("low 5 min after carbs: muted", fires(feed(e, 60, 0)).isEmpty && e.stateLine == "Low · muted: carbs 5 min ago", e.stateLine)
+        at(11); check("window over (16 min) and still low: fires on the timer", fires(tick(e)) == ["low#1"])
+        e = engine(); at(0); carbs = [clock.addingTimeInterval(-60)]
+        check("urgent low is never muted by carbs", fires(feed(e, 50, 0)) == ["urgent_low#1"])
+        e = engine(); at(0); carbs = [clock.addingTimeInterval(-60)]
+        check("highs aren't muted by carbs", fires(feed(e, 200, 0.5)) == ["high#1"])
+        e = engine { $0.muteAfterCarbs.on = false }; at(0); carbs = [clock.addingTimeInterval(-60)]
+        check("muteAfterCarbs off: low fires despite carbs", fires(feed(e, 60, 0)) == ["low#1"])
 
         // 4. Falling-high projection.
         e = engine(); at(0)
@@ -134,8 +151,8 @@ enum AlertsSelfTest {
         {"v":1,"on":true,"alerts":{"urgent_low":{"on":true,"mgdl":55,"repeatMin":5},"low":{"on":true,"mgdl":65,"repeatMin":15},
         "high":{"on":true,"mgdl":185,"repeatMin":30},"very_high":{"on":true,"mgdl":250,"repeatMin":30},
         "falling_fast":{"on":false,"rate":2.0,"repeatMin":30},"rising_fast":{"on":false,"rate":2.0,"repeatMin":30},
-        "no_data":{"on":true,"min":20,"repeatMin":60}},"muteAfterInsulin":{"on":true,"min":20},
-        "muteFallingHigh":{"on":true,"min":20},"sounds":{"pack":"arcade","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
+        "no_data":{"on":true,"min":20,"repeatMin":60}},"muteAfterInsulin":{"on":true,"min":60},
+        "muteFallingHigh":{"on":true,"min":20},"muteAfterCarbs":{"on":true,"min":15},"sounds":{"pack":"arcade","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
         """
         let parsed = try? JSONDecoder().decode(AlertSettings.self, from: Data(spec.utf8))
         var expect = AlertSettings(); expect.sounds.kinds = ["high": "kart"]
@@ -145,7 +162,7 @@ enum AlertsSelfTest {
                                                                          && $0.source == "wearer" && $0.sounds.pack == "arcade" && $0[.low] == AlertKind.low.defaultRule } ?? false)
         let out = (try? JSONSerialization.jsonObject(with: Data(AlertSettings().json.utf8))) as? [String: Any] ?? [:]
         let keys = Set(out.keys), ruleKeys = Set(((out["alerts"] as? [String: Any])?["no_data"] as? [String: Any] ?? [:]).keys)
-        check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "sounds", "source"]
+        check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds", "source"]
               && ruleKeys == ["on", "min", "repeatMin", "alarm"], "\(keys) \(ruleKeys)")
         check("lows default to alarm, the rest to notification", AlertSettings()[.low].alarm && AlertSettings()[.urgentLow].alarm
               && !AlertSettings()[.high].alarm && !AlertSettings()[.noData].alarm)

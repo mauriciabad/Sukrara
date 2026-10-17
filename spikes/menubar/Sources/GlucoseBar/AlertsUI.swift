@@ -146,7 +146,7 @@ struct AlertsView: View {
             }
             Section {
                 Toggle("After rapid insulin", isOn: $model.s.muteAfterInsulin.on)
-                Stepper(value: $model.s.muteAfterInsulin.min, in: 5...120, step: 5) {
+                Stepper(value: $model.s.muteAfterInsulin.min, in: 30...180, step: 15) {
                     Text("Stay quiet for \(Int(model.s.muteAfterInsulin.min)) min")
                 }.disabled(!model.s.muteAfterInsulin.on)
                 Toggle("When falling back into range", isOn: $model.s.muteFallingHigh.on)
@@ -154,7 +154,16 @@ struct AlertsView: View {
                     Text("Back under \(Int(model.s[.high].threshold)) mg/dL within \(Int(model.s.muteFallingHigh.min)) min")
                 }.disabled(!model.s.muteFallingHigh.on)
             } header: { Text("Quiet highs") } footer: {
-                note(model.mirroring ? lockedNote : "High, very high and rising fast only. Lows are never muted.")
+                note(model.mirroring ? lockedNote : "High, very high and rising fast only.")
+            }
+            .disabled(model.mirroring || !model.s.on)
+            Section {
+                Toggle("After carbs", isOn: $model.s.muteAfterCarbs.on)
+                Stepper(value: $model.s.muteAfterCarbs.min, in: 5...45, step: 5) {
+                    Text("Stay quiet for \(Int(model.s.muteAfterCarbs.min)) min")
+                }.disabled(!model.s.muteAfterCarbs.on)
+            } header: { Text("Quiet lows") } footer: {
+                note(model.mirroring ? lockedNote : "Low and falling fast only. Urgent low always alerts.")
             }
             .disabled(model.mirroring || !model.s.on)
             Section {
@@ -196,7 +205,7 @@ private struct KindRow: View {
             Toggle(kind.title, isOn: rule.on).disabled(rulesLocked)
             HStack(spacing: 14) {
                 HStack(spacing: 4) {
-                    Text(kind == .noData ? "After" : kind.lowSide ? "At or below" : kind.group == .rate ? "Faster than" : "At or above")
+                    Text(kind == .noData ? "After" : kind.lowSide ? "≤" : kind.group == .rate ? "Faster than" : "≥")
                     TextField("", value: rule.threshold, format: .number.precision(.fractionLength(kind.group == .rate ? 1 : 0)))
                         .labelsHidden().frame(width: 48).multilineTextAlignment(.trailing)
                     Stepper("", value: rule.threshold, in: range, step: step).labelsHidden()

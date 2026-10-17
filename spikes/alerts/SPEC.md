@@ -23,13 +23,14 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 - `no_data` is checked by a timer (Android: `AlarmManager.setAndAllowWhileIdle`; Mac: 60 s timer), cleared by the next
   reading.
 
-## 2. Mute rules (high side only)
+## 2. Mute rules
 
-Lows are never muted by these rules.
+Urgent low is never muted.
 
 | Option | Default | Applies to | Rule |
 |---|---|---|---|
-| `muteAfterInsulin` | on, 20 min | `high`, `very_high`, `rising_fast` | A `rapid` treatment with `t` in `[now − min, now]` (not deleted) mutes them. When the window ends and it is still high, it fires then. |
+| `muteAfterInsulin` | on, 60 min | `high`, `very_high`, `rising_fast` | A `rapid` treatment with `t` in `[now − min, now]` (not deleted) mutes them. When the window ends and it is still high, it fires then. |
+| `muteAfterCarbs` | on, 15 min | `low`, `falling_fast` | A `carbs` treatment with `t` in `[now − min, now]` (not deleted) mutes them. When the window ends and it is still low, it fires then. |
 | `muteFallingHigh` | on, 20 min | `high`, `very_high` | `rate < 0` and `sgv + rate × min < high.mgdl` (it will be back below the high threshold within `min` minutes at the current rate). Re-evaluated on every reading; a flattening or rising trend un-mutes at once. |
 
 A muted alert is not "fired": no notification, no event to followers, and its re-alert timer doesn't start. The UI
@@ -50,8 +51,9 @@ shows why it's quiet ("High, muted: insulin 12 min ago").
     "rising_fast":  {"on": false, "rate": 2.0, "repeatMin": 30, "alarm": false},
     "no_data":      {"on": true,  "min": 20,   "repeatMin": 60, "alarm": false}
   },
-  "muteAfterInsulin": {"on": true, "min": 20},
+  "muteAfterInsulin": {"on": true, "min": 60},
   "muteFallingHigh":  {"on": true, "min": 20},
+  "muteAfterCarbs":   {"on": true, "min": 15},
   "sounds": {"pack": "arcade", "kinds": {"high": "kart"}, "shuffle": true},
   "source": "wearer"
 }

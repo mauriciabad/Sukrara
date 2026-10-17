@@ -64,12 +64,12 @@ object AlertNotifier {
     }
 
     private val DESCRIPTIONS = mapOf(
-        Kind.URGENT_LOW to "Glucose at or below the urgent low threshold. Never muted by the insulin or falling rules.",
-        Kind.LOW to "Glucose at or below the low threshold.",
-        Kind.HIGH to "Glucose at or above the high threshold.",
-        Kind.VERY_HIGH to "Glucose at or above the very high threshold.",
-        Kind.FALLING_FAST to "Glucose falling faster than the set rate.",
-        Kind.RISING_FAST to "Glucose rising faster than the set rate.",
+        Kind.URGENT_LOW to "Glucose ≤ urgent low. Never muted.",
+        Kind.LOW to "Glucose ≤ low.",
+        Kind.HIGH to "Glucose ≥ high.",
+        Kind.VERY_HIGH to "Glucose ≥ very high.",
+        Kind.FALLING_FAST to "Glucose falling ≥ the set rate.",
+        Kind.RISING_FAST to "Glucose rising ≥ the set rate.",
         Kind.NO_DATA to "No reading for the set time.",
     )
 
@@ -90,10 +90,10 @@ object AlertNotifier {
             else -> "${Kind.label(kind)} · ${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
         }
         val text = when (kind) {
-            Kind.URGENT_LOW, Kind.LOW -> "At or below $thText $unit"
-            Kind.HIGH, Kind.VERY_HIGH -> "At or above $thText $unit"
-            Kind.FALLING_FAST -> "Falling ${"%.1f".format(-(rate ?: 0.0))} $unit (alert at $thText)"
-            Kind.RISING_FAST -> "Rising ${"%.1f".format(rate ?: 0.0)} $unit (alert at $thText)"
+            Kind.URGENT_LOW, Kind.LOW -> "≤ $thText $unit"
+            Kind.HIGH, Kind.VERY_HIGH -> "≥ $thText $unit"
+            Kind.FALLING_FAST -> "Falling ${"%.1f".format(-(rate ?: 0.0))} ≥ $thText $unit"
+            Kind.RISING_FAST -> "Rising ${"%.1f".format(rate ?: 0.0)} ≥ $thText $unit"
             else -> "Nothing received for $thText min" + (sgv?.let { " · last $it mg/dL" } ?: "")
         } + if (n > 1) " · reminder $n" else ""
         val b = Notification.Builder(ctx, channelId(kind, alarm))

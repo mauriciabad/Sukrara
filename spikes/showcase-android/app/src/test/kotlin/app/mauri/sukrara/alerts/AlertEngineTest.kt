@@ -13,16 +13,17 @@ import org.junit.Test
 class AlertEngineTest {
     private val s = AlertSettings()
     private val t0 = 1_760_000_000L
+    private val none = AlertEngine.Doses()
 
     private fun fires(a: List<AlertEngine.Action>) = a.filterIsInstance<AlertEngine.Fire>().map { it.kind }
     private fun clears(a: List<AlertEngine.Action>) = a.filterIsInstance<AlertEngine.Clear>().map { it.kind }
 
     /** Feeds one reading per minute; returns all actions with the minute they happened. */
-    private fun run(e: AlertEngine, values: List<Pair<Int, Double?>>, rapid: List<Long> = emptyList(), set: AlertSettings = s,
+    private fun run(e: AlertEngine, values: List<Pair<Int, Double?>>, d: AlertEngine.Doses = none, set: AlertSettings = s,
                     start: Long = t0): List<Pair<Int, AlertEngine.Action>> =
         values.flatMapIndexed { i, (sgv, rate) ->
             val t = start + i * 60L
-            e.reading(Reading(t, sgv, rate), set, rapid, t).map { i to it }
+            e.reading(Reading(t, sgv, rate), set, d, t).map { i to it }
         }
 
     @Test fun highFiresOnceThenRepeatsAfterRepeatMin() {
@@ -53,81 +54,99 @@ class AlertEngineTest {
 
     @Test fun insulinMutesHighThenFiresWhenWindowEnds() {
         val e = AlertEngine()
-        val rapid = listOf(t0 - 5 * 60)   // 5 min before the first reading, window 20 min → ends at minute 15
-        val a = run(e, List(20) { 200 to 0.0 }, rapid)
+        val d = AlertEngine.Doses(rapid = listOf(t0 - 5 * 60))   // 5 min before the first reading, window 60 min → ends at minute 55
+        val a = run(e, List(60) { 200 to 0.0 }, d)
         val f = a.filter { it.second is AlertEngine.Fire }
-        assertEquals(listOf(15 to "high"), f.map { it.first to it.second.kind })
+        assertEquals(listOf(55 to "high"), f.map { it.first to it.second.kind })
         assertEquals("high", e.states()["level"]?.kind)
     }
 
     @Test fun insulinAfterAlertClearsIt() {
         val e = AlertEngine()
-        e.reading(Reading(t0, 200, 0.0), s, emptyList(), t0)
-        val a = e.reading(Reading(t0 + 60, 201, 0.0), s, listOf(t0 + 30), t0 + 60)
+        e.reading(Reading(t0, 200, 0.0), s, none, t0)
+        val a = e.reading(Reading(t0 + 60, 201, 0.0), s, AlertEngine.Doses(rapid = listOf(t0 + 30)), t0 + 60)
         assertEquals(listOf("high"), clears(a))
         assertTrue(e.states()["level"]!!.muted!!.startsWith("insulin"))
     }
 
     @Test fun insulinDoesNotMuteLows() {
         val e = AlertEngine()
-        assertEquals(listOf("low"), fires(e.reading(Reading(t0, 60, 0.0), s, listOf(t0 - 60), t0)))
+        assertEquals(listOf("low"), fires(e.reading(Reading(t0, 60, 0.0), s, AlertEngine.Doses(rapid = listOf(t0 - 60)), t0)))
+    }
+
+    @Test fun carbsMuteLowThenFiresWhenWindowEnds() {
+        val e = AlertEngine()
+        val d = AlertEngine.Doses(carbs = listOf(t0 - 5 * 60))   // window 15 min → ends at minute 10
+        val a = run(e, List(15) { 60 to 0.0 }, d)
+        assertEquals(listOf(10 to "low"), a.filter { it.second is AlertEngine.Fire }.map { it.first to it.second.kind })
+    }
+
+    @Test fun carbsNeverMuteUrgentLowOrHighs() {
+        val d = AlertEngine.Doses(carbs = listOf(t0 - 60))
+        assertEquals(listOf("urgent_low"), fires(AlertEngine().reading(Reading(t0, 50, 0.0), s, d, t0)))
+        assertEquals(listOf("high"), fires(AlertEngine().reading(Reading(t0, 200, 0.0), s, d, t0)))
+        val e = AlertEngine()
+        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0, 60, 0.0), s, d, t0)))
+        assertTrue(e.states()["level"]!!.muted!!.startsWith("carbs"))
+        assertEquals(listOf("urgent_low"), fires(e.reading(Reading(t0 + 60, 54, 0.0), s, d, t0 + 60)))
+        assertEquals(listOf("low"), fires(AlertEngine().reading(Reading(t0, 60, 0.0), s.copy(muteCarbs = false), d, t0)))
     }
 
     @Test fun fallingHighIsMutedOnlyIfBackInRangeWithinWindow() {
         val e = AlertEngine()
         // 200 falling 1/min → 180 in 20 min (< 185): muted
-        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0, 200, -1.0), s, emptyList(), t0)))
+        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0, 200, -1.0), s, none, t0)))
         assertTrue(e.states()["level"]!!.muted!!.contains("back in range"))
         // flattens: fires at once
-        assertEquals(listOf("high"), fires(e.reading(Reading(t0 + 60, 199, 0.0), s, emptyList(), t0 + 60)))
+        assertEquals(listOf("high"), fires(e.reading(Reading(t0 + 60, 199, 0.0), s, none, t0 + 60)))
         // 240 falling 1/min → 220 after 20 min: not muted (other engine)
         val e2 = AlertEngine()
-        assertEquals(listOf("high"), fires(e2.reading(Reading(t0, 240, -1.0), s, emptyList(), t0)))
+        assertEquals(listOf("high"), fires(e2.reading(Reading(t0, 240, -1.0), s, none, t0)))
     }
 
     @Test fun mutesCanBeSwitchedOff() {
         val off = s.copy(muteInsulin = false, muteFalling = false)
         val e = AlertEngine()
-        assertEquals(listOf("high"), fires(e.reading(Reading(t0, 200, -2.0), off, listOf(t0), t0)))
+        assertEquals(listOf("high"), fires(e.reading(Reading(t0, 200, -2.0), off, AlertEngine.Doses(rapid = listOf(t0)), t0)))
     }
 
     @Test fun rateAlertsAreIndependentAndOffByDefault() {
         val on = s.copy(kinds = s.kinds + (Kind.FALLING_FAST to KindCfg(true, 2.0, 30)))
-        assertEquals(emptyList<String>(), fires(AlertEngine().reading(Reading(t0, 120, -3.0), s, emptyList(), t0)))
-        assertEquals(listOf("falling_fast"), fires(AlertEngine().reading(Reading(t0, 120, -3.0), on, emptyList(), t0)))
-        assertEquals(listOf("low", "falling_fast"), fires(AlertEngine().reading(Reading(t0, 60, -3.0), on, emptyList(), t0)))
+        assertEquals(emptyList<String>(), fires(AlertEngine().reading(Reading(t0, 120, -3.0), s, none, t0)))
+        assertEquals(listOf("falling_fast"), fires(AlertEngine().reading(Reading(t0, 120, -3.0), on, none, t0)))
+        assertEquals(listOf("low", "falling_fast"), fires(AlertEngine().reading(Reading(t0, 60, -3.0), on, none, t0)))
     }
 
     @Test fun noDataByTimerAndClearedByNextReading() {
         val e = AlertEngine()
-        e.reading(Reading(t0, 120, 0.0), s, emptyList(), t0)
+        e.reading(Reading(t0, 120, 0.0), s, none, t0)
         assertEquals(t0 + 15 * 60 + 1, e.nextCheckAt(s, t0))
-        assertEquals(emptyList<String>(), fires(e.evaluate(s, emptyList(), t0 + 19 * 60)))
-        assertEquals(listOf("no_data"), fires(e.evaluate(s, emptyList(), t0 + 20 * 60)))
-        assertEquals(listOf("no_data"), clears(e.reading(Reading(t0 + 21 * 60, 121, 0.0), s, emptyList(), t0 + 21 * 60)))
+        assertEquals(emptyList<String>(), fires(e.evaluate(s, none, t0 + 19 * 60)))
+        assertEquals(listOf("no_data"), fires(e.evaluate(s, none, t0 + 20 * 60)))
+        assertEquals(listOf("no_data"), clears(e.reading(Reading(t0 + 21 * 60, 121, 0.0), s, none, t0 + 21 * 60)))
     }
 
     @Test fun seededAfterRestartNoDataStillFires() {
         val e = AlertEngine()
         e.seed(Reading(t0 - 30 * 60, 50, 0.0))   // last stored reading: 30 min ago, low
-        val a = e.evaluate(s, emptyList(), t0)
+        val a = e.evaluate(s, none, t0)
         assertEquals(listOf("no_data"), fires(a))   // no late low alert, but no data counts from it
     }
 
     @Test fun staleReadingsNeverAlert() {
         val e = AlertEngine()
-        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0 - 16 * 60, 40, 0.0), s.copy(), emptyList(), t0)))
+        assertEquals(emptyList<String>(), fires(e.reading(Reading(t0 - 16 * 60, 40, 0.0), s.copy(), none, t0)))
     }
 
     @Test fun masterSwitchClearsEverything() {
         val e = AlertEngine()
-        e.reading(Reading(t0, 50, 0.0), s, emptyList(), t0)
-        assertEquals(listOf("urgent_low"), clears(e.evaluate(s.copy(on = false), emptyList(), t0 + 1)))
+        e.reading(Reading(t0, 50, 0.0), s, none, t0)
+        assertEquals(listOf("urgent_low"), clears(e.evaluate(s.copy(on = false), none, t0 + 1)))
         assertNull(e.states()["level"])
     }
 
     @Test fun settingsJsonRoundTrip() {
-        val x = s.copy(pack = "kart", packFor = mapOf("high" to "quest"), source = "own",
+        val x = s.copy(pack = "kart", packFor = mapOf("high" to "quest"), source = "own", muteCarbs = false, muteCarbsMin = 30,
             kinds = s.kinds + (Kind.RISING_FAST to KindCfg(true, 2.5, 10)))
         val back = AlertSettings.fromJson(JSONObject(x.toJson().toString()))
         assertEquals(x, back)

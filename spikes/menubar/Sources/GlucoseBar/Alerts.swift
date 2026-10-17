@@ -83,8 +83,9 @@ struct AlertSettings: Codable, Equatable {
     var v = 1
     var on = true
     var alerts: [String: AlertRule] = Dictionary(uniqueKeysWithValues: AlertKind.allCases.map { ($0.rawValue, $0.defaultRule) })
-    var muteAfterInsulin = AlertMute(on: true, min: 20)
+    var muteAfterInsulin = AlertMute(on: true, min: 60)
     var muteFallingHigh = AlertMute(on: true, min: 20)
+    var muteAfterCarbs = AlertMute(on: true, min: 15)
     var sounds = AlertSounds(pack: "arcade", kinds: [:], shuffle: true)
     var source = "wearer"           // followers: wearer | own
 
@@ -104,7 +105,7 @@ struct AlertSettings: Codable, Equatable {
         struct PartialRule: Decodable { var on, alarm: Bool?; var mgdl, rate, min, repeatMin: Double? }
         struct PartialMute: Decodable { var on: Bool?; var min: Double? }
         struct PartialSounds: Decodable { var pack: String?; var kinds: [String: String]?; var shuffle: Bool? }
-        enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, sounds, source }
+        enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, muteAfterCarbs, sounds, source }
         let c = try decoder.container(keyedBy: K.self)
         if let on = try? c.decode(Bool.self, forKey: .on) { self.on = on }
         if let src = try? c.decode(String.self, forKey: .source), ["wearer", "own"].contains(src) { source = src }
@@ -126,6 +127,7 @@ struct AlertSettings: Codable, Equatable {
         }
         muteAfterInsulin = mute(.muteAfterInsulin, muteAfterInsulin)
         muteFallingHigh = mute(.muteFallingHigh, muteFallingHigh)
+        muteAfterCarbs = mute(.muteAfterCarbs, muteAfterCarbs)
         if let p = try? c.decode(PartialSounds.self, forKey: .sounds) {
             sounds = AlertSounds(pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
         }
@@ -188,6 +190,8 @@ final class AlertEngine {
     var now: () -> Date
     /// Times of rapid-insulin entries (not deleted) — the treatment log.
     var rapidInsulin: () -> [Date] = { [] }
+    /// Times of carb entries (not deleted).
+    var carbs: () -> [Date] = { [] }
     /// false = only `no_data` runs here (a follower mirroring the wearer).
     var levelAndRate = true
     var onFire: ((AlertEvent) -> Void)?
@@ -250,14 +254,16 @@ final class AlertEngine {
         update(.noData, lost ? .noData : nil, r)
     }
 
-    /// §2: why a high-side alert is quiet right now, or nil. Lows are never muted.
+    /// §2: why an alert is quiet right now, or nil. Urgent low is never muted.
     func muteReason(_ k: AlertKind, _ r: Reading) -> String? {
-        guard [.high, .veryHigh, .risingFast].contains(k) else { return nil }
         let t = now()
-        if settings.muteAfterInsulin.on,
-           let last = rapidInsulin().filter({ $0 <= t && t.timeIntervalSince($0) <= settings.muteAfterInsulin.min * 60 }).max() {
-            return "insulin \(Int(t.timeIntervalSince(last) / 60)) min ago"
+        func dose(_ m: AlertMute, _ times: [Date], _ what: String) -> String? {
+            guard m.on, let last = times.filter({ $0 <= t && t.timeIntervalSince($0) <= m.min * 60 }).max() else { return nil }
+            return "\(what) \(Int(t.timeIntervalSince(last) / 60)) min ago"
         }
+        if [.low, .fallingFast].contains(k) { return dose(settings.muteAfterCarbs, carbs(), "carbs") }
+        guard [.high, .veryHigh, .risingFast].contains(k) else { return nil }
+        if let m = dose(settings.muteAfterInsulin, rapidInsulin(), "insulin") { return m }
         if k != .risingFast, settings.muteFallingHigh.on, let v = r.rate, v < 0 {
             let high = settings[.high].threshold, ahead = settings.muteFallingHigh.min
             if r.mgdl + v * ahead < high {
@@ -369,7 +375,9 @@ final class AlertEngine {
 
     private func wireTreatments() {
         let rows = treatments
-        engine.rapidInsulin = { rows().filter { $0.k == "rapid" && !$0.del }.map { Date(timeIntervalSince1970: TimeInterval($0.t)) } }
+        func times(_ k: String) -> [Date] { rows().filter { $0.k == k && !$0.del }.map { Date(timeIntervalSince1970: TimeInterval($0.t)) } }
+        engine.rapidInsulin = { times("rapid") }
+        engine.carbs = { times("carbs") }
     }
 
     @objc func openWindow() { window.show() }
@@ -460,8 +468,8 @@ final class AlertEngine {
         } else {
             if let sgv = ev.sgv { title += ": \(u.format(sgv)) \(units)" }
             switch ev.k {
-            case .urgentLow, .low: body.append("At or below \(u.format(ev.th))")
-            case .high, .veryHigh: body.append("At or above \(u.format(ev.th))")
+            case .urgentLow, .low: body.append("≤ \(u.format(ev.th))")
+            case .high, .veryHigh: body.append("≥ \(u.format(ev.th))")
             default: break
             }
             if let r = ev.r { body.append(u.formatRate(r)) }

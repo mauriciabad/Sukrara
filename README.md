@@ -79,7 +79,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: urgent low, low, high, very high, falling/rising fast and no data, each with its own threshold,
   reminder and sound. Highs stay quiet for a while after rapid insulin and while glucose is already falling back into
-  range. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  range; lows stay quiet for a while after carbs (never the urgent low). Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)

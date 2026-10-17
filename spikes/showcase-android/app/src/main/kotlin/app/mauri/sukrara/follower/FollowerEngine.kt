@@ -594,7 +594,7 @@ class FollowerEngine(private val ctx: Context) {
         val tr = Treatment.fromWire(body) ?: return reject("treatment: malformed body", author, via)
         if (Proto.tagValue(ev, "d") != Proto.treatmentD(sid, tr.id)) return reject("treatment: d tag mismatch", author, via)
         if (!db.mergeTreatment(tr, author, via, fromOwner)) return
-        if (tr.k == "rapid") Alerts.check(ctx)   // the insulin mute (own rules)
+        if (tr.k == "rapid" || tr.k == "carbs") Alerts.check(ctx)   // the insulin and carbs mutes (own rules)
         log.i("treatment ${if (tr.del) "DELETED" else tr.k + " " + tr.a} \"${tr.n}\" id ${tr.id.take(8)} from " +
             "${if (fromOwner) "wearer" else "writer " + author.take(8)} via ${short(via)}")
         publishUi()

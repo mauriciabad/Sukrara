@@ -40,7 +40,7 @@ class FollowerService : Service() {
         extras = FollowerExtras(this, scope).also { it.start() }
         // Investigation 15: mirror the wearer's alerts, or run this phone's own rules on the followed readings
         app.mauri.sukrara.alerts.Alerts.attach(this, "follower",
-            rapid = { engine.treatments().filter { it.k == "rapid" && !it.del }.map { it.t } }, publish = null, who = "Following",
+            doses = { app.mauri.sukrara.alerts.AlertEngine.doses(engine.treatments()) }, publish = null, who = "Following",
             newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull()
                 ?.let { app.mauri.sukrara.core.Reading(it.t, it.sgv, it.rate) })
     }

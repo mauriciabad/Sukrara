@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
@@ -112,6 +113,12 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val canSave = !invalid && entries(0).isNotEmpty()
     val save = { if (canSave) { onSave(entries(at ?: (System.currentTimeMillis() / 1000))); onDismiss() } }
 
+    val ctx = LocalContext.current
+    val nowS = System.currentTimeMillis() / 1000
+    val quiet = Alerts.quietNote(ctx, r?.isNaN() == false, c?.isNaN() == false, at ?: nowS, nowS)
+    var shownQuiet by remember { mutableStateOf("") }   // keeps the text while the line fades out
+    if (quiet != null) shownQuiet = quiet
+
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.requestFocus() }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
@@ -142,6 +149,9 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
+                Reveal(quiet != null) {
+                    Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Reveal(invalid) {
                     Text("Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)

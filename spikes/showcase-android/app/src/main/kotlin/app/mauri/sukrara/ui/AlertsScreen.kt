@@ -144,7 +144,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             set { it.copy(muteInsulin = v) }
         }
         Reveal(s.muteInsulin && !mirrored) {
-            Minutes(s.muteInsulinMin, listOf(10, 15, 20, 30, 45, 60), enabled = s.on) { m -> set { it.copy(muteInsulinMin = m) } }
+            Minutes(s.muteInsulinMin, listOf(30, 45, 60, 90, 120, 180), enabled = s.on) { m -> set { it.copy(muteInsulinMin = m) } }
         }
         Toggle("When falling back into range", s.muteFalling, enabled = s.on && !mirrored,
             sub = if (mirrored) "Set by the wearer's app"
@@ -153,6 +153,16 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         }
         Reveal(s.muteFalling && !mirrored) {
             Minutes(s.muteFallingMin, listOf(10, 15, 20, 30, 45, 60), enabled = s.on) { m -> set { it.copy(muteFallingMin = m) } }
+        }
+
+        SectionTitle("Quiet lows")
+        Toggle("After carbs", s.muteCarbs, enabled = s.on && !mirrored,
+            sub = if (mirrored) "Set by the wearer's app"
+                  else "Low and falling fast wait ${s.muteCarbsMin} min after carbs. Urgent low always alerts") { v ->
+            set { it.copy(muteCarbs = v) }
+        }
+        Reveal(s.muteCarbs && !mirrored) {
+            Minutes(s.muteCarbsMin, listOf(10, 15, 20, 30, 45), enabled = s.on) { m -> set { it.copy(muteCarbsMin = m) } }
         }
 
         SectionTitle("Sounds")

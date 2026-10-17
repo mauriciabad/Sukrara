@@ -44,9 +44,11 @@ data class AlertSettings(
     val on: Boolean = true,
     val kinds: Map<String, KindCfg> = DEFAULTS,
     val muteInsulin: Boolean = true,
-    val muteInsulinMin: Int = 20,
+    val muteInsulinMin: Int = 60,
     val muteFalling: Boolean = true,
     val muteFallingMin: Int = 20,
+    val muteCarbs: Boolean = true,
+    val muteCarbsMin: Int = 15,
     val pack: String = "arcade",
     val packFor: Map<String, String> = emptyMap(),
     val shuffle: Boolean = true,
@@ -68,6 +70,7 @@ data class AlertSettings(
         return JSONObject().put("v", 1).put("on", on).put("alerts", a)
             .put("muteAfterInsulin", JSONObject().put("on", muteInsulin).put("min", muteInsulinMin))
             .put("muteFallingHigh", JSONObject().put("on", muteFalling).put("min", muteFallingMin))
+            .put("muteAfterCarbs", JSONObject().put("on", muteCarbs).put("min", muteCarbsMin))
             .put("sounds", JSONObject().put("pack", pack).put("kinds", kindsJ).put("shuffle", shuffle))
             .put("source", source)
     }
@@ -95,6 +98,7 @@ data class AlertSettings(
             }
             val mi = j.optJSONObject("muteAfterInsulin")
             val mf = j.optJSONObject("muteFallingHigh")
+            val mc = j.optJSONObject("muteAfterCarbs")
             val s = j.optJSONObject("sounds")
             val pf = s?.optJSONObject("kinds")
             return AlertSettings(
@@ -104,6 +108,8 @@ data class AlertSettings(
                 muteInsulinMin = mi?.optInt("min", d.muteInsulinMin) ?: d.muteInsulinMin,
                 muteFalling = mf?.optBoolean("on", d.muteFalling) ?: d.muteFalling,
                 muteFallingMin = mf?.optInt("min", d.muteFallingMin) ?: d.muteFallingMin,
+                muteCarbs = mc?.optBoolean("on", d.muteCarbs) ?: d.muteCarbs,
+                muteCarbsMin = mc?.optInt("min", d.muteCarbsMin) ?: d.muteCarbsMin,
                 pack = s?.optString("pack", d.pack) ?: d.pack,
                 packFor = pf?.keys()?.asSequence()?.filter { it in Kind.ALL }?.associateWith { pf.getString(it) } ?: emptyMap(),
                 shuffle = s?.optBoolean("shuffle", d.shuffle) ?: d.shuffle,

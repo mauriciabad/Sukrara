@@ -61,12 +61,22 @@ levels (Nightscout's `BG_LOW` is also 55).
 - A kind that comes back within its re-alert time stays quiet (no flapping around 185).
 - Readings older than 15 minutes never alert (backfill, late chunks).
 
-**Quiet highs** (both on by default, 20 min; lows are never muted):
+Notification text uses symbols (0.11.11): `High · 185 mg/dL ↑` / `≥ 185 mg/dL`, `≤ 65 mg/dL` for lows (was
+"At or above 185 mg/dL").
 
-- **After rapid insulin**: high, very high and rising fast wait N minutes after a rapid dose. A high that already
-  fired is cleared when you log the dose. If it's still high when the window ends, it alerts then.
-- **When falling back into range**: no high alert while `sgv + rate × N < high` (the current fall brings it under
+**Quiet highs** (both on by default):
+
+- **After rapid insulin** (60 min; 30/45/60/90/120/180, 20 until 0.11.11): high, very high and rising fast wait N
+  minutes after a rapid dose. A high that already fired is cleared when you log the dose. If it's still high when the
+  window ends, it alerts then. 20 minutes was too short: rapid insulin barely acts by then (it peaks after 1–2 h), so
+  glucose is usually still at or above the threshold and the alert fired 23 min after an 8 U dose on the user's phone.
+- **When falling back into range** (20 min): no high alert while `sgv + rate × N < high` (the current fall brings it under
   185 within N minutes). Re-checked on every reading; a flattening trend alerts at once.
+
+**Quiet lows** (0.11.11, on by default): **After carbs** (15 min; 10/15/20/30/45 on Android, 5–45 on the Mac): low and
+falling fast wait N minutes after a carbs entry, the same way as the insulin rule (cleared when you log it, alerts
+when the window ends if it's still low). 15 min follows the "15-15 rule" for treating a low (15 g, re-check after 15
+min). **Urgent low is never muted**: it fires at once even inside the window.
 
 Prior art agrees: Nightscout's `treatmentnotify` snoozes alarms after a treatment (`TREATMENTNOTIFY_SNOOZE_MINS`,
 default 10), and xDrip+'s *Smart Alerting* ("Don't alert if glucose is heading in the right direction") is on by

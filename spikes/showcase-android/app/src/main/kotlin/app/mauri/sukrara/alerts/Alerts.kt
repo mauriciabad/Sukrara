@@ -42,7 +42,7 @@ object Alerts {
     private val engine = AlertEngine()
     private var role: String? = null
     private var who: String? = null
-    private var rapid: () -> List<Long> = { emptyList() }
+    private var doses: () -> AlertEngine.Doses = { AlertEngine.Doses() }
     private var publish: ((JSONObject) -> Unit)? = null
     /** group → id of the alert whose notification is showing (a clear only removes its own firing). */
     private val posted = HashMap<String, String>()
@@ -57,12 +57,12 @@ object Alerts {
     }
 
     /** Called by the role's service. [who]: the followed person's label on a follower's notifications. */
-    @Synchronized fun attach(ctx: Context, role: String, rapid: () -> List<Long>, publish: ((JSONObject) -> Unit)?, who: String? = null,
+    @Synchronized fun attach(ctx: Context, role: String, doses: () -> AlertEngine.Doses, publish: ((JSONObject) -> Unit)?, who: String? = null,
                              newest: Reading? = null) {
         init(ctx)
         engine.seed(newest)   // after a restart "no data" still counts from the last stored reading
         this.role = role
-        this.rapid = rapid
+        this.doses = doses
         this.publish = publish
         this.who = who
         check(ctx)
@@ -78,6 +78,24 @@ object Alerts {
         check(ctx)
     }
 
+    /**
+     * What logging rapid insulin and/or carbs at [at] silences on this phone, for the treatment dialog
+     * ("Highs quiet for 60 min"), or null: alerts or the rule off, the window already over, or a follower that mirrors
+     * the wearer (the wearer's phone decides).
+     */
+    fun quietNote(ctx: Context, rapid: Boolean, carbs: Boolean, at: Long, now: Long): String? {
+        init(ctx)
+        val s = _settings.value
+        if (!s.on || (role == "follower" && s.source == "wearer")) return null
+        fun left(on: Boolean, min: Int) = if (on) ((at + min * 60L - now) / 60).toInt().takeIf { it > 0 } else null
+        val parts = listOfNotNull(
+            left(rapid && s.muteInsulin, s.muteInsulinMin)?.let { "Highs" to it },
+            left(carbs && s.muteCarbs, s.muteCarbsMin)?.let { "Lows" to it },
+        )
+        return parts.mapIndexed { i, (what, m) -> "${if (i == 0) what else what.lowercase()} quiet for $m min" }
+            .joinToString(" · ").ifEmpty { null }
+    }
+
     /** Rules that run on this phone: all of them, or only no data while a follower mirrors the wearer. */
     private fun effective(): AlertSettings {
         val s = _settings.value
@@ -87,13 +105,13 @@ object Alerts {
 
     @Synchronized fun onReading(ctx: Context, r: Reading) {
         if (role == null) return
-        apply(ctx, engine.reading(r, effective(), rapid(), Proto.nowS()))
+        apply(ctx, engine.reading(r, effective(), doses(), Proto.nowS()))
     }
 
     /** Re-evaluate now: timer, settings change, a treatment logged. */
     @Synchronized fun check(ctx: Context) {
         if (role == null) return
-        apply(ctx, engine.evaluate(effective(), rapid(), Proto.nowS()))
+        apply(ctx, engine.evaluate(effective(), doses(), Proto.nowS()))
     }
 
     private fun apply(ctx: Context, actions: List<AlertEngine.Action>) {
