@@ -1,0 +1,36 @@
+# The website (sukrara.mauri.app) from docs/. Built here instead of Pages' branch build so links that leave docs/
+# (the reports' ../spikes/… evidence, code and specs) can point at the files on GitHub (.github/site_links.py).
+name: Website
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy docs/, point links outside it at GitHub
+        run: python3 .github/site_links.py docs site "${{ github.repository }}" "${{ github.sha }}"
+      - uses: actions/configure-pages@v5
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v3
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

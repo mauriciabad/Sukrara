@@ -16,40 +16,54 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
 > **Alpha, built from research spikes.** Each feature started as a proof of concept with a written report (below);
-> v0.10 bundles them into one app for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
+> The app bundles them for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
 > **Not a medical device:** don't make treatment decisions from it.
 
 <p>
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/01-home-wearer.png" alt="Sukrara home screen on Android" width="180">
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog with the follower's name, picture and the invite's label" width="180">
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png" alt="Home-screen widgets" width="180">
+  <img src="img/settings/home.png" alt="Home: the glucose card with time-in-range rings, the 12 h graph and Add treatment" width="180">
+  <img src="img/settings/settings.png" alt="Settings: search, the LibreView reminder and sections with coloured icons" width="180">
+  <img src="img/settings/search.png" alt="Settings search: results with where each setting lives" width="180">
+  <img src="img/settings/alerts.png" alt="Alerts: urgent low to extremely high, each with its own threshold, reminder and sound" width="180">
 </p>
 <p>
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/statusbar-all.png" alt="Glucose in the Android status bar" width="540">
+  <img src="img/settings/sharing.png" alt="Share with people: invite link, nearby pairing and followers with their pictures" width="180">
+  <img src="img/settings/apps.png" alt="Share with apps: LibreView, the xDrip+ server for Garmin watches, Nightscout, Nostr" width="180">
+  <img src="img/18/report-light.png" alt="The doctor's report: time in ranges, average glucose, GMI and variability with their goals" width="180">
+  <img src="../spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog with the follower's name, picture and the invite's label" width="180">
 </p>
 <p>
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/menubar-button.png" alt="Mac menubar item" height="44">
-  &nbsp;
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/docs/img/menubar-sparkline.png" alt="3 h sparkline" height="70">
-  &nbsp;
-  <img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/widgets-macos/evidence/combined-medium-dark.png" alt="macOS widget render" height="120">
+  <img src="img/17/lockscreen-widget.png" alt="Glucose and graph on the lock screen, around the fingerprint icon" width="540">
+</p>
+<p>
+  <img src="img/statusbar-all.png" alt="Glucose in the Android status bar" width="540">
+</p>
+<p>
+  <img src="img/16/sizes-dark.png" alt="Home-screen widgets in every size" width="540">
+</p>
+<p>
+  <img src="img/16/mac-menubar-dropdown-dark.png" alt="Sukrara for Mac: the menubar dropdown with the same card and report" width="300">
+  <img src="img/16/mac-widget-medium-dark.png" alt="macOS widget" width="300">
 </p>
 
 ## Features
 
-- **Phone:** value, continuous trend arrow and 12 h chart; status-bar chip and number icon; home-screen widgets;
-  with root, the graph on the lock screen; insulin, carbs and notes (also from the lock screen) with optional LibreView upload. Source: Juggluco, or the sensor read directly.
+- **Phone:** value, continuous trend arrow and 12 h chart; the doctor's report; status-bar chip and number icon;
+  home-screen widgets; with root + LSPosed, the graph on the lock screen; insulin, carbs and notes (also from the lock
+  screen) with optional LibreView upload. Source: Juggluco, or the sensor read directly.
+- **Settings like Android 16/17:** sections, search, the system's page and back-gesture motion, export / import /
+  reset, and it tells you when root or the LSPosed module is missing and how to fix it.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
   (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); the same glucose alerts as the phone.
-- **Alerts:** urgent low, low, high, very high, fast changes and no data, each with your own threshold and sound.
-  Highs stay quiet after rapid insulin and while already falling back into range. Video-game sound packs
+- **Alerts:** urgent low, low, high, very high, extremely high, fast changes and no data, each with your own
+  threshold and sound. Highs stay quiet after rapid insulin and while already falling back into range, lows after
+  carbs; urgent low and extremely high always alert. Video-game sound packs
   ([listen](sounds/)), a different sound each time, and a vibration per alert.
 - **Sharing:** a one-time short link or small QR code that shows who is inviting; you see their name next to who you
   sent it to, then **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
   you do. Removing someone rotates the key; everyone else carries on.
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
-- **Watch and smart home:** existing Garmin watch apps work unchanged; stock Home Assistant reads it through a
-  Nightscout-compatible adapter.
+- **Watch and smart home:** existing Garmin watch apps work unchanged through the xDrip+ server; stock Home
+  Assistant reads it through the Nightscout-compatible API (both off until you switch them on).
 - **Keys without lock-in:** back up to Proton Pass, Bitwarden or KeePassDX as a normal password; a new phone restores
   everything and followers don't notice.
 
