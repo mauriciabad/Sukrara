@@ -640,6 +640,31 @@ emulators (system, launcher and Digital Wellbeing too; WorkManager / startup tim
 | ![declined](../spikes/showcase-android/evidence/q4-mac-declined.png) | ![sent](../spikes/showcase-android/evidence/q5-mac-request-sent.png) | |
 | Denied: the requester is told | Waiting on the Mac: no code for a link | |
 
+## Lock screen widget and quick treatments (investigation 17, v0.11.8)
+
+The user marked the empty lower part of the lock screen (around the fingerprint icon, above the shortcuts) and asked
+for the graph there, plus treatments without unlocking. Root is available, so the LSPosed module now also hosts a
+Sukrara widget inside SystemUI. Full report, rootless options and the fingerprint bug:
+[docs/17](17-lockscreen-widget.md).
+
+| Added | Where |
+|---|---|
+| SystemUI hosts a keyguard-only Sukrara widget (`AppWidgetHost`, SystemUI's `BIND_APPWIDGET`) under the Compose lock screen, sized from the fingerprint sensor bounds and the shortcut dimens, fading with the lock screen scene | `hook/LockscreenWidgetHost.kt`, `hook/SystemUiHook.kt` |
+| The widget: value + arrow left of the fingerprint icon, ring slots right of it, chart below (investigation 16/18's renderer, dark palette, no background) | `widgets/LockscreenWidget.kt` |
+| Taps reach the widget only through the hook's filter: never on the sensor's column, never a long press or a drag | `LockscreenWidgetHost.GuardedView` |
+| The notification shelf must fit above the fingerprint icon while the widget is on | `computeMaxKeyguardNotifications` hook |
+| *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `Features`, `WearerScreens`, `RootStatusBar` broadcast |
+| The treatment dialog shows over the lock screen without unlocking (manifest `showWhenLocked`); *Open Sukrara* asks to unlock first | `AndroidManifest.xml`, `QuickTreatmentActivity` |
+| Quick Settings tile *Add treatment* with the current value | `ui/TreatmentTile.kt` |
+
+| Discarded | Why |
+|---|---|
+| Drawing the widget as our own SystemUI view | hosting the real widget reuses the widget pipeline, layout and tap handling |
+| The widget above the Compose lock screen | it would cover the fingerprint icon and take the unlock swipe |
+| Normal touch dispatch to the widget | a finger on the fingerprint sensor opened the dialog (the user's first test) |
+| Lock screen wallpaper (GlucoDataHandler's approach), the Notes-role shortcut | not interactive / takes over the user's wallpaper or notes app |
+| Quick Settings tile as the rootless quick entry | on a secure lock screen SystemUI asks for the fingerprint before a third-party tile's `onClick`; the tile stays as a shortcut |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
