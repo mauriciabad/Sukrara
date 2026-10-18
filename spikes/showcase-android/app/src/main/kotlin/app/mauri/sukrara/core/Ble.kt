@@ -18,12 +18,14 @@ import org.json.JSONObject
  *
  * Frame = `[msgId u16][idx u16][count u16]` (big endian) + up to `mtu - 3 - 6` payload bytes.
  * A message is the UTF-8 of a JSON array, Nostr-wire style:
- *  - `["HELLO", {"v":2}]`      follower → owner: "send me INFO + what you have"
- *  - `["INFO", {...}]`         owner → follower: `{"v":2,"i":<I hex>,"relays":[…],"pair":{"t":token,"x":expiry,"profile":{…}}|null}`
+ *  - `["HELLO", {"v":2,"nonce":<32 hex>}]` follower → owner: "send me INFO + what you have"; `nonce` is fresh per HELLO
+ *  - `["INFO", {...}]`         owner → follower: `{"v":2,"nonce":<the HELLO's>,"m":H("cgm2:ble:"+sid+":"+nonce)}`, plus
+ *    `"i":<I hex>,"relays":[…],"pair":{"t":token,"x":expiry,"profile":{…}}` only while "Pair nearby" is open (P12)
  *  - `["EVENT", <nostr event>]` both ways: live, chunks, roster, gift wraps, treatments — verified by the engine
  *
  * BLE pairing/bonding is NOT used: anyone nearby may connect. Trust comes only from the events (signatures,
- * roster, NIP-44 to G_n, seal signer), exactly as for relays.
+ * roster, NIP-44 to G_n, seal signer), exactly as for relays. A stranger learns neither the phone's name (no scan
+ * response) nor `I` (blinded INFO); a follower writes only to an owner whose INFO proves it holds the stream's `sid`.
  */
 object Ble {
     val SERVICE: UUID = UUID.fromString("7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007")
@@ -51,31 +53,130 @@ object Ble {
         }
     }
 
-    /** Per-peer reassembly; returns the full message when its last missing frame arrives. */
-    class Reassembler {
-        private val parts = HashMap<Int, Array<ByteArray?>>()
+    /** Reassembly limits (spec/ogs-ble.md B§4.3, P13). */
+    const val MAX_MESSAGE = 256 * 1024
+    const val MAX_BUFFERS = 16
+    const val IDLE_MS = 30_000L
 
-        fun add(frame: ByteArray): JSONArray? {
+    /**
+     * Per-peer reassembly; returns the full message when its last missing frame arrives. A buffer idle for
+     * [IDLE_MS] is dropped, a message over [MAX_MESSAGE] bytes is dropped (and its later frames ignored), and at most
+     * [MAX_BUFFERS] are open at once (the oldest goes). [now] in ms, for tests.
+     */
+    class Reassembler(private val now: () -> Long = System::currentTimeMillis) {
+        private class Buf(val count: Int, var touched: Long) {
+            val parts = HashMap<Int, ByteArray>()
+            var size = 0
+            var dead = false   // over the cap: swallow the rest of this message
+        }
+        private val bufs = LinkedHashMap<Int, Buf>()
+        /** Messages dropped for a limit (size or idle), for logs and tests. */
+        var dropped = 0; private set
+
+        /** null: not a valid frame (too short, idx ≥ count, count 0). Doesn't touch any buffer. */
+        fun header(frame: ByteArray): Triple<Int, Int, Int>? {
             if (frame.size < HEADER) return null
             val b = ByteBuffer.wrap(frame)
             val id = b.short.toInt() and 0xFFFF
             val idx = b.short.toInt() and 0xFFFF
             val count = b.short.toInt() and 0xFFFF
-            if (count == 0 || idx >= count) return null
-            var arr = parts[id]
-            if (arr == null || arr.size != count || idx == 0) { arr = arrayOfNulls(count); parts[id] = arr }
-            arr[idx] = frame.copyOfRange(HEADER, frame.size)
-            if (arr.any { it == null }) return null
-            parts.remove(id)
-            val all = arr.fold(ByteArray(0)) { acc, p -> acc + p!! }
-            if (parts.size > 16) parts.clear()
+            return if (count == 0 || idx >= count) null else Triple(id, idx, count)
+        }
+
+        fun add(frame: ByteArray): JSONArray? {
+            val (id, idx, count) = header(frame) ?: return null
+            val t = now()
+            bufs.entries.removeIf { (_, v) -> (t - v.touched > IDLE_MS).also { if (it && !v.dead) dropped++ } }
+            var buf = bufs[id]
+            if (buf == null || buf.count != count || idx == 0) {
+                bufs.remove(id)
+                if (bufs.size >= MAX_BUFFERS) bufs.remove(bufs.keys.first())
+                buf = Buf(count, t)
+                bufs[id] = buf
+            }
+            buf.touched = t
+            if (buf.dead) return null
+            val part = frame.copyOfRange(HEADER, frame.size)
+            buf.size += part.size - (buf.parts.put(idx, part)?.size ?: 0)
+            if (buf.size > MAX_MESSAGE) { buf.dead = true; buf.parts.clear(); dropped++; return null }
+            if (buf.parts.size < count) return null
+            bufs.remove(id)
+            val all = java.io.ByteArrayOutputStream(buf.size).apply { for (i in 0 until count) write(buf.parts[i]!!) }.toByteArray()
             return runCatching { JSONArray(String(all)) }.getOrNull()
         }
     }
 
-    /** The wearer's [profile] is only in `pair`, i.e. only while "Pair nearby" is open (like a v3 invite wrap). */
-    fun info(iPub: String, relays: List<String>, token: String?, expiry: Long, profile: Profile): JSONObject = JSONObject()
-        .put("v", 2).put("i", iPub).put("relays", JSONArray(relays))
-        .put("pair", if (token != null && expiry > Proto.nowS())
-            JSONObject().put("t", token).put("x", expiry).put("profile", profile.toJson()) else JSONObject.NULL)
+    /**
+     * Per-central limits on the owner (B§8, P13): at most [messages] messages and [bytes] bytes per [windowMs]
+     * (token buckets, full at start). [now] in ms, for tests.
+     */
+    class RateLimit(private val messages: Int = 30, private val bytes: Int = 256 * 1024, private val windowMs: Long = 60_000,
+                    private val now: () -> Long = System::currentTimeMillis) {
+        private var msgTokens = messages.toDouble()
+        private var byteTokens = bytes.toDouble()
+        private var at = now()
+
+        private fun refill() {
+            val t = now()
+            val f = (t - at).toDouble() / windowMs
+            at = t
+            msgTokens = minOf(messages.toDouble(), msgTokens + f * messages)
+            byteTokens = minOf(bytes.toDouble(), byteTokens + f * bytes)
+        }
+
+        /** A frame of [size] bytes arrived: false = over the byte budget, drop it. */
+        fun frame(size: Int): Boolean { refill(); if (byteTokens < size) return false; byteTokens -= size; return true }
+
+        /** A whole message arrived: false = over the message budget, drop it. */
+        fun message(): Boolean { refill(); if (msgTokens < 1) return false; msgTokens -= 1; return true }
+    }
+
+    /** A fresh 16-byte nonce, hex (HELLO). */
+    fun newNonce(): String = Proto.hex(ByteArray(16).also { java.security.SecureRandom().nextBytes(it) })
+
+    /** `m = H("cgm2:ble:" + sid + ":" + nonce)`: proves the owner holds the stream's `sid` without naming it (P12). */
+    fun infoM(sid: String, nonce: String) = Proto.h("cgm2:ble:$sid:$nonce")
+
+    /** The HELLO's nonce if it is one (1–64 hex chars), else null (the owner then makes one). */
+    fun nonceOf(hello: JSONObject?): String? = hello?.optString("nonce")?.takeIf { it.length in 1..64 && it.all { c -> c in '0'..'9' || c in 'a'..'f' } }
+
+    /**
+     * INFO (P12): `nonce` + `m` always; `i`, `relays` and `pair` (with the wearer's [profile]) only while "Pair nearby"
+     * is open, like a v3 invite wrap. Without pairing a stranger learns nothing that links two sessions or the stream.
+     */
+    fun info(iPub: String, sid: String, nonce: String, relays: List<String>, token: String?, expiry: Long, profile: Profile,
+             now: Long = Proto.nowS()): JSONObject {
+        val o = JSONObject().put("v", 2).put("nonce", nonce).put("m", infoM(sid, nonce))
+        if (token != null && expiry > now) {
+            o.put("i", iPub).put("relays", JSONArray(relays))
+                .put("pair", JSONObject().put("t", token).put("x", expiry).put("profile", profile.toJson()))
+        }
+        return o
+    }
+
+    enum class Owner { OURS, OTHER, UNKNOWN }
+
+    /**
+     * Is the phone that sent [info] the owner of our stream? [nonces] = the ones our recent HELLOs carried.
+     * OURS: `m` matches our `sid` for one of our nonces, or `i` is our identity. OTHER: it names another identity, or we
+     * know the `sid` and its proof doesn't match. UNKNOWN: we don't know the `sid` yet (request pending) and it shows no
+     * `i` — receive, but don't write.
+     */
+    fun owner(info: JSONObject, iPub: String?, sid: String?, nonces: Collection<String>): Owner {
+        val i = info.optString("i").ifEmpty { null }
+        if (iPub != null && i != null) return if (i == iPub) Owner.OURS else Owner.OTHER
+        if (sid == null) return Owner.UNKNOWN
+        val n = info.optString("nonce")
+        return if (n in nonces && info.optString("m") == infoM(sid, n)) Owner.OURS else Owner.OTHER
+    }
+
+    /** The NIP-40 expiration of an event JSON, or null. */
+    fun expiration(eventJson: String): Long? = runCatching {
+        val tags = JSONObject(eventJson).optJSONArray("tags") ?: return null
+        (0 until tags.length()).map { tags.getJSONArray(it) }.firstOrNull { it.length() > 1 && it.optString(0) == "expiration" }
+            ?.getString(1)?.toLong()
+    }.getOrNull()
+
+    /** The backlog never re-sends an event whose expiration has passed (P13). */
+    fun expired(eventJson: String, now: Long = Proto.nowS()): Boolean = expiration(eventJson)?.let { it <= now } == true
 }

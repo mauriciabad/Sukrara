@@ -512,6 +512,8 @@
     <string name="nearby_looking">Looking for wearers… (they must tap \"Pair nearby\")</string>
     <!-- Join: ask a nearby wearer for access [CHAR LIMIT=15] -->
     <string name="nearby_ask">Ask</string>
+    <!-- Join: a phone found by "Find phones nearby" (phones broadcast no name; the wearer's name shows after Ask) [CHAR LIMIT=30] -->
+    <string name="nearby_phone">Phone nearby</string>
 
     <!-- ========== Follower: waiting and ended ========== -->
     <!-- Waiting: stand-in when the wearer has no name or key yet [CHAR LIMIT=20] -->

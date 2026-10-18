@@ -159,8 +159,11 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
   [15](docs/15-alerts.md)
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
-- Pair nearby over Bluetooth with no internet at all. [07](docs/07-bluetooth-followers.md)
-- Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers.
+- Pair nearby over Bluetooth with no internet at all. The phone broadcasts no name and shows who it is only while
+  *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
+  what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
+- Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,
+  and a writer can change or delete only the entries it made.
 
 **Watch and smart home**
 - Garmin: Sukrara speaks the same local web API as Juggluco and xDrip+, so the CGM+ app, datafield and watch faces
@@ -260,7 +263,7 @@ open standard, the Open Glucose Stream, in [`spec/`](spec) ([24](docs/24-open-st
 | 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
 | 22 | Sukrara in the diabetes-tech ecosystem | Spike emits the three local broadcasts Juggluco has (xDrip+ `BgEstimate`, patched-LibreLink, `glucodata.Minute`) plus Health Connect: GlucoDataHandler 2.5 accepts all three, AAPS's own test classes give a `Libre3` label advanced filtering, 36 Health Connect records written. Dexcom BYODA from a Libre discarded. Top gap: Nightscout upload. **Not in Sukrara yet** ([to bring in](docs/22-ecosystem-outputs.md#to-bring-into-sukrara)) | [docs/22](docs/22-ecosystem-outputs.md) |
 | 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([spikes/sensors-android](spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **Not in Sukrara yet** | [docs/23](docs/23-sensors.md) |
-| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with a 25-step acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes; nothing published yet. **Not in Sukrara** ([proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
+| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with an acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes; nothing published yet. **In Sukrara: the security fixes** (writers edit only their own entries, Bluetooth privacy and limits, Mac wrap expiry / stream id / chunk checks); the draft-2 wire changes wait for v1 ([added / open](docs/24-open-standard.md#in-sukrara), [proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
 
 ## Try it
 

@@ -131,8 +131,8 @@ only once their gk is known (so a backlog that arrives before the key is re-read
 
 ## Test results (2026-10-16, real public relays and the real phone radio)
 
-**Nostr, against the Python v2 owner** (`v2/cli.py owner --every 30`, separate process and storage; the only
-shared thing is the relays):
+**Nostr, against the Python v2 owner** (`v2/cli.py owner --every 30`, since retired (investigation 24, P15); separate
+process and storage; the only shared thing is the relays):
 
 | Test | Result |
 |---|---|

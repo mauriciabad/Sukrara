@@ -125,7 +125,7 @@ Insulin, carbs and notes, entered by the wearer or by a follower who is allowed 
 | `n` | string | free text, at most 100 UTF-8 bytes |
 | `u` | integer, required | last change, **milliseconds**: the version |
 | `del` | boolean | tombstone. A deleted entry is kept and published so the delete spreads. |
-| `o` | string | where it was created. Draft 1: `phone`, `mac` or `follower`. Informative, but it breaks ties (§6.2). |
+| `o` | string | where it was created. Draft 1: `phone` or `mac` (the wearer's own entries) or `follower` (a writer's; every writer sends `follower`). It breaks ties (§6.2) and tells the wearer's own entries from writers' (ogs-nostr N§9.1.8). |
 
 ### D§6.1 Rules
 
@@ -140,7 +140,8 @@ For an `id` held as `cur` and an incoming `inc`, the winner is `inc` if `(inc.u,
 lexicographically, and `cur` otherwise. An unknown `id` is inserted. Every replica converges whatever order the
 entries arrive in.
 
-Which authors may publish which entries is a transport rule (ogs-nostr §5.5 and §9.2).
+Which authors may publish which entries is a transport rule (ogs-nostr §5.5, §9.1.8 and §9.2): a writer changes or
+deletes only the entries it created.
 
 ### D§6.3 Mapping (informative)
 

@@ -79,7 +79,9 @@ Cheap tools:
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
       `screencapture -x -R<rect>` with the rect it logs ("panel window … rect x,y,w,h"); never commit them (real data).
 - [ ] Synthetic renders for docs: `GlucoseBar -panelPreview <dir>` (the real panel over test wallpapers), and
-      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
+      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `SUKRARA_DEV=1` in the environment and
+      `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir> -v2NoRelays YES -bleV2 NO`; a dev build refuses
+      to start the full app without `SUKRARA_DEV=1`, LaunchGuard).
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets

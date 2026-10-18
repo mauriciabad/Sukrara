@@ -9,14 +9,77 @@ import Foundation
 /// rules as relay events (seal signer = I, roster devices, known gk, valid signature). The Bluetooth connection is
 /// `BLELink`'s (one link per phone).
 ///   frame = [msgId u16][idx u16][count u16][payload]  (big endian); message = JSON array
-///   follower → owner: ["HELLO",{"v":2}], ["EVENT",<event>]   owner → follower: ["INFO",{…}], ["EVENT",<event>]
+///   follower → owner: ["HELLO",{"v":2,"nonce":<hex>}], ["EVENT",<event>]   owner → follower: ["INFO",{…}], ["EVENT",<event>]
+/// INFO proves the stream's `sid` over our HELLO's nonce (`m`) and names the identity `I` only while "Pair nearby" is
+/// open (P12); nothing is written to a phone before it proved it's the wearer's (`verifiedOwner`, set by the app).
 final class BLEV2Central: NSObject, BLEService {
     static let service = CBUUID(string: "7c6a0001-5c3e-4f0a-9a57-c95e0b1e0007")
     static let rx = CBUUID(string: "7c6a0002-5c3e-4f0a-9a57-c95e0b1e0007")
     static let tx = CBUUID(string: "7c6a0003-5c3e-4f0a-9a57-c95e0b1e0007")
 
-    /// `profile`: the wearer's `{"name","avatar"}`, only while "Pair nearby" is open (inside `pair`).
-    struct Info { let i: String; let relays: [String]; let token: String?; let expiry: Int?; let profile: [String: Any]? }
+    /// `i`, `relays` and `profile` (the wearer's `{"name","avatar"}`, inside `pair`) only while "Pair nearby" is open;
+    /// `nonce` + `m` = H("cgm2:ble:"+sid+":"+nonce) always.
+    struct Info {
+        let i: String?; let relays: [String]; let token: String?; let expiry: Int?; let profile: [String: Any]?
+        var nonce: String? = nil; var m: String? = nil
+    }
+
+    enum Owner { case ours, other, unknown }
+
+    /// spec/ogs-ble.md B§5: `m = H("cgm2:ble:" + sid + ":" + nonce)` (Android `Ble.infoM`).
+    static func infoM(sid: String, nonce: String) -> String { V2.H("cgm2:ble:\(sid):\(nonce)") }
+
+    /// B§6 "Which owner" (Android `Ble.owner`): ours = `m` proves our `sid` for one of our HELLO nonces, or `i` is our
+    /// identity; other = another identity, or a missing/wrong proof while we know the `sid`; unknown = our request is
+    /// pending (no `sid` yet) and the phone isn't pairing — receive, don't write.
+    static func owner(_ info: Info, i: String?, sid: String?, nonces: [String]) -> Owner {
+        if let i, let theirs = info.i { return theirs == i ? .ours : .other }
+        guard let sid else { return .unknown }
+        guard let n = info.nonce, nonces.contains(n), info.m == infoM(sid: sid, nonce: n) else { return .other }
+        return .ours
+    }
+
+    /// Reassembly with the B§4.3 limits (P13): a buffer idle 30 s is dropped, a message over 256 KiB is dropped, at
+    /// most 16 buffers are open (the oldest goes). Android `Ble.Reassembler`.
+    struct Reassembler {
+        static let maxMessage = 256 * 1024, maxBuffers = 16
+        static let idle: TimeInterval = 30
+        private struct Buf { let count: Int; var touched: Date; var parts: [Int: Data] = [:]; var size = 0; var dead = false }
+        private var bufs: [UInt16: Buf] = [:]
+        private var order: [UInt16] = []
+        private(set) var dropped = 0
+
+        /// The message (a JSON array) once its last frame arrives; nil until then or if dropped.
+        mutating func add(_ d: Data, now: Date = Date()) -> [Any]? {
+            guard d.count >= 6 else { return nil }
+            let b = [UInt8](d)
+            let mid = UInt16(b[0]) << 8 | UInt16(b[1]), idx = Int(UInt16(b[2]) << 8 | UInt16(b[3])),
+                count = Int(UInt16(b[4]) << 8 | UInt16(b[5]))
+            guard count > 0, idx < count else { return nil }
+            for (k, v) in bufs where now.timeIntervalSince(v.touched) > Self.idle {
+                if !v.dead { dropped += 1 }
+                bufs[k] = nil; order.removeAll { $0 == k }
+            }
+            if idx == 0 || bufs[mid]?.count != count {
+                bufs[mid] = nil; order.removeAll { $0 == mid }
+                if bufs.count >= Self.maxBuffers, let oldest = order.first { bufs[oldest] = nil; order.removeFirst() }
+                bufs[mid] = Buf(count: count, touched: now)
+                order.append(mid)
+            }
+            guard var buf = bufs[mid] else { return nil }
+            buf.touched = now
+            defer { if bufs[mid] != nil { bufs[mid] = buf } }
+            if buf.dead { return nil }
+            let part = Data(b[6...])
+            buf.size += part.count - (buf.parts.updateValue(part, forKey: idx)?.count ?? 0)
+            if buf.size > Self.maxMessage { buf.dead = true; buf.parts = [:]; dropped += 1; return nil }
+            guard buf.parts.count == count else { return nil }
+            bufs[mid] = nil; order.removeAll { $0 == mid }
+            let payload = (0..<count).compactMap { buf.parts[$0] }.reduce(Data(), +)
+            guard let msg = try? JSONSerialization.jsonObject(with: payload) as? [Any], msg.first is String, msg.count > 1 else { return nil }
+            return msg
+        }
+    }
 
     var onEvent: ((String, String) -> Void)?        // (event json, via "ble:<name>")
     var onInfo: ((Info, String) -> Void)?           // (info, peripheral name)
@@ -32,14 +95,17 @@ final class BLEV2Central: NSObject, BLEService {
     private var peripheral: CBPeripheral?
     private var rxChar: CBCharacteristic?
     private var txChar: CBCharacteristic?
-    private var parts: [UInt16: [Data?]] = [:]
+    private var reasm = Reassembler()
     /// Frames to write; `done` (on the last frame of a message) runs after its write response.
     private var outbox: [(frame: Data, done: ((Bool) -> Void)?)] = []
     private var inFlight: (frame: Data, done: ((Bool) -> Void)?)?
     private var msgId: UInt16 = 0
     private(set) var connectedName: String?
-    /// Identity key (hex) of the connected phone's wearer, from INFO.
-    private(set) var ownerI: String?
+    /// Identity key (hex) of the wearer whose phone this is, once its INFO proved it (set by the app, P12): events are
+    /// written only to that phone.
+    var verifiedOwner: String?
+    /// Nonces of our last HELLOs: an INFO must prove `sid` over one of them.
+    private(set) var nonces: [String] = []
     private var phoneName: String { peripheral?.name ?? "phone" }
 
     init(link: BLELink) {
@@ -68,8 +134,8 @@ final class BLEV2Central: NSObject, BLEService {
     func detach() {
         if let p = peripheral, let tx = txChar, p.state == .connected { p.setNotifyValue(false, for: tx) }
         let pending = ([inFlight].compactMap { $0 } + outbox).compactMap(\.done)
-        peripheral = nil; rxChar = nil; txChar = nil; parts = [:]; outbox = []; inFlight = nil
-        connectedName = nil; ownerI = nil
+        peripheral = nil; rxChar = nil; txChar = nil; reasm = Reassembler(); outbox = []; inFlight = nil
+        connectedName = nil; verifiedOwner = nil
         pending.forEach { $0(false) }
     }
 
@@ -105,7 +171,12 @@ final class BLEV2Central: NSObject, BLEService {
         send(["EVENT", o], done: done)
     }
 
-    func hello() { send(["HELLO", ["v": 2]]) }
+    /// HELLO with a fresh 16-byte nonce (the last 4 are kept for the INFO check).
+    func hello() {
+        let n = V2.hex((0..<16).map { _ in UInt8.random(in: 0...255) })
+        nonces = Array((nonces + [n]).suffix(4))
+        send(["HELLO", ["v": 2, "nonce": n]])
+    }
 
     private func pump() {
         guard inFlight == nil, !outbox.isEmpty, let p = peripheral, let c = rxChar else { return }
@@ -125,25 +196,14 @@ final class BLEV2Central: NSObject, BLEService {
     // MARK: receiving
 
     private func frame(_ d: Data) {
-        guard d.count >= 6 else { return }
-        let b = [UInt8](d)
-        let mid = UInt16(b[0]) << 8 | UInt16(b[1]), idx = Int(UInt16(b[2]) << 8 | UInt16(b[3])),
-            count = Int(UInt16(b[4]) << 8 | UInt16(b[5]))
-        guard count > 0, idx < count else { return }
-        if idx == 0 || parts[mid]?.count != count { parts[mid] = Array(repeating: nil, count: count) }
-        parts[mid]![idx] = Data(b[6...])
-        guard let all = parts[mid], all.allSatisfy({ $0 != nil }) else { return }
-        parts[mid] = nil
-        let payload = all.compactMap { $0 }.reduce(Data(), +)
-        guard let msg = try? JSONSerialization.jsonObject(with: payload) as? [Any], let type = msg.first as? String,
-              msg.count > 1 else { return }
+        guard let msg = reasm.add(d), let type = msg.first as? String else { return }
         switch type {
         case "INFO":
-            guard let o = msg[1] as? [String: Any], let i = o["i"] as? String else { return }
+            guard let o = msg[1] as? [String: Any] else { return }
             let pair = o["pair"] as? [String: Any]
-            ownerI = i
-            onInfo?(Info(i: i, relays: o["relays"] as? [String] ?? [], token: pair?["t"] as? String,
-                         expiry: (pair?["x"] as? NSNumber)?.intValue, profile: pair?["profile"] as? [String: Any]), phoneName)
+            onInfo?(Info(i: o["i"] as? String, relays: o["relays"] as? [String] ?? [], token: pair?["t"] as? String,
+                         expiry: (pair?["x"] as? NSNumber)?.intValue, profile: pair?["profile"] as? [String: Any],
+                         nonce: o["nonce"] as? String, m: o["m"] as? String), phoneName)
         case "EVENT":
             guard let ev = msg[1] as? [String: Any], let data = try? JSONSerialization.data(withJSONObject: ev) else { return }
             onEvent?(String(decoding: data, as: UTF8.self), "ble:\(phoneName)")

@@ -26,7 +26,7 @@ class OwnerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
             "author text not null, via text not null, received integer not null)")
     }
 
-    /** Last-writer-wins on `u` (then author); returns true if inserted or replaced. */
+    /** Last-writer-wins on `u` (then author); returns true if inserted or replaced. The caller checked the author (P4). */
     fun upsertTreatment(tr: org.json.JSONObject, author: String, via: String): Boolean {
         val id = tr.getString("id")
         val u = tr.optLong("u")
@@ -39,6 +39,12 @@ class OwnerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
         }, SQLiteDatabase.CONFLICT_REPLACE)
         return true
     }
+
+    /** The writer whose entry [id] is (the first writer accepted for it: P4 rejects any other), or null. */
+    fun treatmentAuthor(id: String): String? =
+        readableDatabase.rawQuery("select author from treatments where id = ?", arrayOf(id)).use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
 
     /** Newest first: (treatment JSON, author, via). */
     fun treatments(limit: Int = 20): List<Triple<org.json.JSONObject, String, String>> =

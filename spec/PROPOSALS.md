@@ -1,9 +1,12 @@
 # OGS — proposed changes (draft 1 → draft 2)
 
 Found while auditing the specs against Sukrara for Android (`spikes/showcase-android`, 0.11.17) and Sukrara for Mac
-(`spikes/menubar`) in investigation 24. **Nothing here is in the apps yet.** Each item is a proposal for a later
-integration step, and lands on Android and Mac together (parity groups `protocol-v2`, `identity`, `treatments`). The repo
-has no backwards compatibility, so draft 2 replaces draft 1 outright.
+(`spikes/menubar`) in investigation 24. Each item lands on Android and Mac together (parity groups `protocol-v2`,
+`identity`, `treatments`). The repo has no backwards compatibility, so draft 2 replaces draft 1 outright.
+
+**Status (2026-10-19, branch `w-security`).** The non-breaking security and robustness items are **in the apps** and
+folded into draft 1: P3, P4, P5, P6, P10 (the Mac's chunk `d`/`c` check and rekey trigger only), P12, P13, P15. Still
+open: P1, P2, P7, P8, P9, P11 (draft-2 wire changes, waiting for v1), the rest of P10, and P14.
 
 Android paths are relative to `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`, Mac paths to
 `spikes/menubar/Sources/GlucoseBar/`.
@@ -12,19 +15,19 @@ Android paths are relative to `spikes/showcase-android/app/src/main/kotlin/app/m
 |---|---|---|---|
 | [P1](#p1) | Dedicated kinds 31078/31079/31080 instead of NIP-78's 30078 for chunks, roster, treatments | yes | S |
 | [P2](#p2) | Neutral invite: any `https://<host>/join#`, the `ogs:join#` scheme, salt `ogs/invite/v1`, tag namespace `ogs1` | yes | S |
-| [P3](#p3) | Fix the repo's own spec texts (match code, BLE `INFO`, backlog order, TTLs, backup fields) | no | XS |
-| [P4](#p4) | Writers may only change their own entries; `o` = `follower` from every writer | no | S |
-| [P5](#p5) | Mac: absolute NIP-40 expiration on every gift wrap | no | XS |
-| [P6](#p6) | Mac: refuse a key delivery that changes `sid` | no | XS |
+| [P3](#p3) | Fix the repo's own spec texts (match code, BLE `INFO`, backlog order, TTLs, backup fields) — **done** (match code, `INFO`, backlog order, TTLs) | no | XS |
+| [P4](#p4) | Writers may only change their own entries; `o` = `follower` from every writer — **done** | no | S |
+| [P5](#p5) | Mac: absolute NIP-40 expiration on every gift wrap — **done** | no | XS |
+| [P6](#p6) | Mac: refuse a key delivery that changes `sid` — **done** | no | XS |
 | [P7](#p7) | One version number per draft; alert `r` rounded like live | yes | XS |
 | [P8](#p8) | `caps` in the roster, the access request, `HELLO` and `INFO` | no | S |
 | [P9](#p9) | Unknown enum values ignored and kept, not rejected | no | XS |
-| [P10](#p10) | Receivers enforce expiration, the roster epoch, and chunk `d`/`c` (Mac) | no | S |
+| [P10](#p10) | Receivers enforce expiration, the roster epoch, and chunk `d`/`c` (Mac) — **Mac chunk `d`/`c` and rekey trigger done** | no | S |
 | [P11](#p11) | A newer copy of a reading may correct an older one | no | S |
-| [P12](#p12) | BLE privacy: no phone name, blinded `INFO`, check the owner before writing | yes (BLE) | M |
-| [P13](#p13) | BLE limits: reassembly timeout and size cap, rate limits, no expired backlog | no | S |
+| [P12](#p12) | BLE privacy: no phone name, blinded `INFO`, check the owner before writing — **done** | yes (BLE) | M |
+| [P13](#p13) | BLE limits: reassembly timeout and size cap, rate limits, no expired backlog — **done** | no | S |
 | [P14](#p14) | Optional read-only CGMS (0x181F) bridge | no (new) | L |
-| [P15](#p15) | Retire the outdated Python v2 owner/follower, keep `spec/reference` | no | XS |
+| [P15](#p15) | Retire the outdated Python v2 owner/follower, keep `spec/reference` — **done** | no | XS |
 
 ## P1
 **Dedicated kinds.** NIP-78 (`third_party/nips/78.md`) says kind 30078 is "not meant to be used as a generic
@@ -67,6 +70,10 @@ re-created. That's acceptable before 1.0, and the repo rule is no backwards comp
 - A `clear` alert carries `th:null, n:0, tr:0` plus the last reading (`alerts/Alerts.kt:154`).
 - `gk` hashes the 32 raw bytes of the key, not its hex.
 
+*Done:* PROTOCOL-v2 now says `mod 10000` and lists the TTLs; docs/07 documents `pair.profile`, the new `HELLO`/`INFO`
+(P12) and the real backlog order; ogs-ble B§6 has the order. The backup fields, the `clear` alert and `gk` were
+already in ogs-nostr / ogs-data.
+
 ## P4
 **Writer scope.** The owner accepts a writer's entry for **any** `id` with a higher `u`, so a writer can delete or
 change the wearer's own entries (`owner/OwnerEngine.kt:378-399`, `wearer/WearerExtras.kt:134-137`).
@@ -77,15 +84,25 @@ Proposal:
 - the Mac writer sends `o:"mac"` (`Treatments.swift:20`, `Panel.swift:57`), and the owner overwrites it with
   `follower` anyway. Every writer should send `follower`.
 
+*Done:* the owner checks the creator (`OwnerDb` keeps the first writer per `id`, its own log the wearer's entries);
+followers (Android `FollowerDb.creator`, Mac `TreatmentStore.creators`) apply the same rule, ignore a writer's own copy
+once the wearer's echo is there, and let the wearer's own entry replace a copy a writer forged first. The Mac sends
+`o:"follower"` and offers Delete only on its own entries while it follows someone. Shared rule: `WriterScope` (Kotlin
+and Swift), N§9.1.8 and N§9.2, scenario steps `treatment-writer-hijack` / `treatment-writer-edit`.
+
 ## P5
 **Mac gift wraps without expiration.** `V2.gift` (`NostrV2.swift:133-142`) calls `nip59MakeGiftWrap` without extra
 tags, so access requests, rekeys and history requests from the Mac stay on relays for good. Add the absolute
 `expiration` the spec table gives (request 7 d, history 1 d).
 
+*Done:* `V2.gift(…, ttl:)` adds an absolute `expiration` tag (request and rekey 7 d, history 1 d).
+
 ## P6
 **`sid` must not change.** The Mac overwrites `sid` from any key delivery with `epoch ≥ max` (`NostrV2.swift:736-779`).
 Android rejects a different `sid` (`follower/FollowerEngine.kt:420-493`). The spec (N§9.1) says reject, and so does
 the reference scenario (step 23).
+
+*Done:* the Mac rejects it too (`-v2selftest`).
 
 ## P7
 **One version number.** Draft 1 uses `v:2` (data and messages), `v:3` (invite), and `v:1` (treatment and avatar,
@@ -112,6 +129,9 @@ requests. Add `"caps": ["alerts","sensor","treatments","writer","history"]` to t
 - Android sends a rekey only for an `I`/device author, but the Mac does for **any** verified author with an unknown
   `gk`, so a stranger can make followers spam rekeys.
 
+*Done:* the Mac checks a chunk's `c` and its `d` against `h`, and asks for a rekey only for `I` or a roster device.
+Open: expiration on receivers, the roster epoch check, and ordering rosters strictly by `(epoch, created_at)`.
+
 ## P11
 **Reading corrections.** Followers keep the first copy of each `t` (`follower/FollowerDb.kt:105-114`), so a chunk
 that later adds a missing rate, or a corrected value, is ignored. Proposal: a reading from an event with a newer
@@ -127,6 +147,12 @@ that later adds a missing rate, or a corrected value, is ignored. Proposal: a re
    (`core/BleFollower.kt`), so requests and treatments could go to a neighbour's phone. The Mac already checks
    (`main.swift:295-326`).
 
+*Done:* no scan response; `HELLO` carries a fresh `nonce` and `INFO` answers `m = H(NS+":ble:"+sid+":"+nonce)` (the
+follower's nonce rather than the owner's, so a recorded `INFO` can't be replayed; `NS` like every other derived
+value), with `i`, `relays` and `pair` only while pairing. Both followers write nothing until `INFO` proves the stream,
+and leave another wearer's phone (Android avoids it for 10 min while it keeps scanning). Residual: Android's GAP
+service still gives the phone's name to a connected central.
+
 ## P13
 **Bluetooth limits.**
 - Reassembly has no timeout and no size cap on either platform. Android caps the number of open buffers at 16; the
@@ -135,6 +161,11 @@ that later adds a missing rate, or a corrected value, is ignored. Proposal: a re
 - The backlog cache re-sends expired events.
 
 Add the limits in ogs-ble B§4.3 and B§8, and filter the cache by `expiration`.
+
+*Done:* reassembly drops a buffer idle 30 s and a message over 256 KiB and keeps ≤ 16 buffers (Android `Ble.Reassembler`,
+Mac `BLEV2Central.Reassembler`); the Android owner checks each write before answering (malformed or over the byte
+budget → `GATT_WRITE_NOT_PERMITTED` and disconnect), allows 30 messages and 256 KiB a minute per central and 8
+centrals, sends one backlog per central per 5 s, and drops expired events from the cache.
 
 ## P14
 **CGMS bridge** (ogs-ble Annex B). An opt-in, bonded, read-only CGMS server on the owner phone or a follower device,
@@ -147,3 +178,6 @@ and list relays the spec calls unusable (`relay.nostr.net`, `offchain.pub`). The
 owner. `spec/reference` now does the "independent second implementation" job. Delete the v2 CLI owner and follower,
 or point them at `spec/reference`. The interop harness (`spec/reference/interop/sukrara_side.py`) still uses
 `cgm2`'s primitives, which are fine.
+
+*Done:* `v2/cli.py`, `nodes.py`, `scenarios.py` and `debug_share.py` are deleted; `cgm2.py` keeps the primitives
+(no invite links, no owner/follower state) with the current relay list.

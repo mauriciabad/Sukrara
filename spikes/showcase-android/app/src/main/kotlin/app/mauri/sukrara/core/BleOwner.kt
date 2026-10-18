@@ -29,13 +29,16 @@ import org.nostrdevkit.sdk.Event
  * Investigation 07 — owner side of the BLE transport: GATT server + advertiser (see [Ble] for the framing).
  * Every event the owner publishes is also pushed to subscribed centrals; a central's `HELLO` gets INFO + the cached
  * roster, recent chunks and the latest live event. Incoming `EVENT`s go to the engine's `onEvent(json, "ble:<addr>")`.
+ * [info] builds INFO for a HELLO's nonce (blinded unless pairing is open, P12). Limits (P13, spec/ogs-ble.md B§8): at
+ * most [MAX_CENTRALS] centrals, per-central message and byte budgets, malformed frames refused and the central dropped,
+ * at most one backlog per [BACKLOG_GAP_MS] per central, and no expired event in a backlog.
  */
 @SuppressLint("MissingPermission")
 class BleOwner(
     private val ctx: Context,
     private val log: (String) -> Unit,
     private val onEvent: (JSONObject, String) -> Unit,
-    private val info: () -> JSONObject,
+    private val info: (nonce: String) -> JSONObject,
 ) : Transport {
     private val bm = ctx.getSystemService(BluetoothManager::class.java)
     private var server: BluetoothGattServer? = null
@@ -61,6 +64,9 @@ class BleOwner(
         val queue = ArrayDeque<ByteArray>()
         var inFlight = false
         val rx = Ble.Reassembler()
+        val limit = Ble.RateLimit()
+        var backlogAt = 0L               // ms of the last backlog sent
+        var helloPending: String? = null // nonce of a HELLO that came too soon after the last backlog
     }
 
     fun start(): Boolean {
@@ -80,11 +86,11 @@ class BleOwner(
         svc.addCharacteristic(tx)
         s.addService(svc)
         server = s
+        // No scan response: the phone's Bluetooth name (often its owner's name) stays off the air (P12)
         adapter.bluetoothLeAdvertiser?.startAdvertising(
             AdvertiseSettings.Builder().setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM).setConnectable(true).build(),
             AdvertiseData.Builder().addServiceUuid(ParcelUuid(Ble.SERVICE)).setIncludeDeviceName(false).build(),
-            AdvertiseData.Builder().setIncludeDeviceName(true).build(),
             adv,
         ) ?: log("BLE: no advertiser")
         log("BLE: GATT server up, advertising ${Ble.SERVICE}")
@@ -99,6 +105,11 @@ class BleOwner(
     private val cb = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                if (peers.size >= MAX_CENTRALS) {
+                    log("BLE: central ${device.address} refused (already $MAX_CENTRALS connected)")
+                    runCatching { server?.cancelConnection(device) }
+                    return
+                }
                 peers[device.address] = Peer(device)
                 log("BLE: central ${device.address} connected")
             } else {
@@ -125,12 +136,26 @@ class BleOwner(
 
         override fun onCharacteristicWriteRequest(device: BluetoothDevice, requestId: Int, characteristic: BluetoothGattCharacteristic,
                                                   preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray?) {
-            if (responseNeeded) server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)
-            if (characteristic.uuid != Ble.RX || value == null) return
-            val p = peers[device.address] ?: Peer(device).also { peers[device.address] = it }
-            val m = p.rx.add(value) ?: return
+            val p = peers[device.address] ?: if (peers.size < MAX_CENTRALS) Peer(device).also { peers[device.address] = it } else null
+            // Checked before answering (P13): a frame we drop gets an error, not GATT_SUCCESS
+            val why = when {
+                p == null -> "too many centrals"
+                characteristic.uuid != Ble.RX || value == null || preparedWrite || offset != 0 -> "not a frame write"
+                p.rx.header(value) == null -> "malformed frame"
+                !p.limit.frame(value.size) -> "byte budget"
+                else -> null
+            }
+            if (responseNeeded) server?.sendResponse(device, requestId,
+                if (why == null) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_WRITE_NOT_PERMITTED, offset, null)
+            if (why != null) {
+                log("BLE: ${device.address} write refused ($why) — disconnecting it")
+                runCatching { server?.cancelConnection(device) }
+                return
+            }
+            val m = p!!.rx.add(value!!) ?: return
+            if (!p.limit.message()) return log("BLE: ${device.address} over its message budget, ${m.optString(0)} dropped")
             when (m.optString(0)) {
-                "HELLO" -> sendBacklog(p)
+                "HELLO" -> hello(p, Ble.nonceOf(m.optJSONObject(1)) ?: Ble.newNonce())
                 "EVENT" -> m.optJSONObject(1)?.let { onEvent(it, "ble:${device.address}") }
             }
         }
@@ -142,14 +167,32 @@ class BleOwner(
         }
     }
 
-    private fun sendBacklog(p: Peer) {
+    /** HELLO → INFO + backlog, at most one per [BACKLOG_GAP_MS] per central: a sooner one is answered when it's due. */
+    private fun hello(p: Peer, nonce: String) {
+        val wait = p.backlogAt + BACKLOG_GAP_MS - System.currentTimeMillis()
+        if (wait <= 0) return sendBacklog(p, nonce)
+        val first = p.helloPending == null
+        p.helloPending = nonce
+        if (first) handler.postDelayed({
+            p.helloPending?.let { n -> p.helloPending = null; if (peers[p.dev.address] === p) sendBacklog(p, n) }
+        }, wait)
+    }
+
+    private fun sendBacklog(p: Peer, nonce: String) {
+        p.backlogAt = System.currentTimeMillis()
+        val now = Proto.nowS()
+        // expired events never go out again (P13): drop them from the caches
+        synchronized(cache) { cache.entries.removeIf { Ble.expired(it.value, now) } }
+        synchronized(treatments) { treatments.entries.removeIf { Ble.expired(it.value, now) } }
+        synchronized(wraps) { wraps.removeIf { Ble.expired(it, now) } }
         val items = synchronized(cache) { cache.entries.map { it.key to it.value } }
         val trs = synchronized(treatments) { treatments.entries.map { it.key to it.value } }
-        // roster first (followers need the device list before data), then chunks oldest → newest, treatments, then live
+        // Roster first (followers need the device list before data), then the other cached events in the order they were
+        // last published (chunks: the newest hour first after a flush; sensor; alert), treatments, live, recent wraps.
         val ordered = items.filter { it.first == "roster" } + items.filter { it.first != "roster" && it.first != "live" } +
             trs + items.filter { it.first == "live" } + synchronized(wraps) { wraps.map { "wrap" to it } }
         log("BLE: HELLO from ${p.dev.address} → INFO + ${ordered.size} cached event(s)")
-        enqueue(p, Ble.msg("INFO", info()))
+        enqueue(p, Ble.msg("INFO", info(nonce)))
         ordered.forEach { enqueue(p, Ble.event(it.second)) }
     }
 
@@ -199,6 +242,11 @@ class BleOwner(
     override fun hasSubscription(id: String) = false
     override suspend fun fetch(filters: List<JSONObject>, timeoutMs: Long): List<Pair<JSONObject, String>> = emptyList()
     override fun reconnect() = Unit
+
+    companion object {
+        const val MAX_CENTRALS = 8
+        const val BACKLOG_GAP_MS = 5_000L
+    }
 
     override fun close() {
         runCatching { bm.adapter?.bluetoothLeAdvertiser?.stopAdvertising(adv) }

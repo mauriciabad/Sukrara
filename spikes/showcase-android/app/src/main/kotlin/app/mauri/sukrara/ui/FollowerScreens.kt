@@ -261,7 +261,7 @@ private fun NearbyJoin(me: app.mauri.sukrara.core.Profile, busy: Boolean, a: Fol
         Card(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(o.name, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.nearby_phone), fontWeight = FontWeight.SemiBold)
                     Text("${o.address} · ${o.rssi} dBm", style = MaterialTheme.typography.bodySmall)
                 }
                 Button(onClick = { a.joinNearby(o.address, me) }, enabled = !busy && me.name.isNotBlank()) { Text(stringResource(R.string.nearby_ask)) }

@@ -315,9 +315,9 @@ class OwnerEngine(private val ctx: Context) {
         val granted = listOf(android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE)
             .all { ctx.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
         if (!granted) return log.i("BLE: permissions not granted, Bluetooth transport off")
-        val b = app.mauri.sukrara.core.BleOwner(ctx, log::i, ::onEvent) {
+        val b = app.mauri.sukrara.core.BleOwner(ctx, log::i, ::onEvent) { nonce ->
             val n = nearby?.takeIf { it.x > Proto.nowS() }
-            app.mauri.sukrara.core.Ble.info(s.iPub, s.relays, n?.t, n?.x ?: 0, s.profile)
+            app.mauri.sukrara.core.Ble.info(s.iPub, s.sid, nonce, s.relays, n?.t, n?.x ?: 0, s.profile)
         }
         if (!b.start()) return
         ble = b
@@ -374,7 +374,10 @@ class OwnerEngine(private val ctx: Context) {
             .put("since", Proto.nowS() - 2 * Proto.DAY)) }, ::onEvent)
     }
 
-    /** Treatment from a follower (any transport): accepted only if signed by a roster writer and decryptable with a known epoch. */
+    /**
+     * Treatment from a follower (any transport): accepted only if signed by a roster writer, decryptable with a known
+     * epoch, and for an id that is new or that this writer created (P4, ogs-nostr N§9.2).
+     */
     private fun onTreatment(ev: JSONObject, via: String) {
         val s = st ?: return
         val author = ev.optString("pubkey")
@@ -390,6 +393,11 @@ class OwnerEngine(private val ctx: Context) {
             ?: return log.i("treatment REJECTED: decrypt failed from $name")
         val id = tr.optString("id")
         if (id.isEmpty() || Proto.tagValue(ev, "d") != Proto.treatmentD(s.sid, id)) return log.i("treatment REJECTED: d tag mismatch from $name")
+        // P4: a writer changes only the entries it created (OwnerDb keeps the first writer per id, the log the wearer's)
+        Treat.init(ctx)
+        if (!app.mauri.sukrara.treatments.WriterScope.ownerAllows(author, db.treatmentAuthor(id), Treat.store.entry(id) != null)) {
+            return log.i("treatment REJECTED: $name may only change its own entries (id ${id.take(8)})")
+        }
         if (!db.upsertTreatment(tr, author, via)) return
         Live.followerTreatment(tr)
         log.i("TREATMENT accepted from $name via ${via.removePrefix("relay:")}: ${tr.optString("k")} ${tr.optDouble("a")} " +

@@ -2,35 +2,34 @@
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Offline unit checks of the v2 primitives: uv run v2/test_cgm2.py"""
+import secrets
 import time
 
-from cgm2 import (RUMOR_TO_FOLLOWER, RUMOR_TO_OWNER, OwnerState, Reading, chunk_event, dec, gift, gk, invite_link,
-                  keys, live_event, match_code, new_token, parse_invite, pub, tag, unwrap, verify)
+from cgm2 import (RUMOR_TO_FOLLOWER, RUMOR_TO_OWNER, Reading, chunk_event, dec, gift, gk, keys, live_event, match_code,
+                  pub, tag, unwrap, verify)
 
-o = OwnerState.create()
-F, X = keys(), keys()
+I, D, G, F, X = keys(), keys(), keys(), keys(), keys()
+sid = secrets.token_hex(32)
 now = int(time.time())
 
-ev = live_event(o.D, o.current.pub, Reading(now, 123, -0.4, "test"))
-assert verify(ev) and tag(ev, "gk") == o.current.gk
-assert dec(o.current.g, pub(o.D), ev["content"])["sgv"] == 123
+ev = live_event(D, pub(G), Reading(now, 123, -0.4, "test"))
+assert verify(ev) and tag(ev, "gk") == gk(pub(G))
+assert dec(G, pub(D), ev["content"])["sgv"] == 123
 
-ch = chunk_event(o.D, o.current.pub, o.sid, now - now % 3600, [Reading(now - now % 3600 + 60 * i, 100 + i, None) for i in range(3)])
-assert len(dec(o.current.g, pub(o.D), ch["content"])["r"]) == 3
+ch = chunk_event(D, pub(G), sid, now - now % 3600, [Reading(now - now % 3600 + 60 * i, 100 + i, None) for i in range(3)])
+assert len(dec(G, pub(D), ch["content"])["r"]) == 3
 
-g = gift(F, pub(o.I), RUMOR_TO_OWNER, {"v": 2, "type": "request", "token": "t", "name": "Mom"})
-assert g["kind"] == 1059 and g["pubkey"] not in (pub(F), pub(o.I))          # wrapped by a one-time key
-sender, kind, body = unwrap(o.I, g)
+g = gift(F, pub(I), RUMOR_TO_OWNER, {"v": 2, "type": "request", "token": "t", "name": "Mom"})
+assert g["kind"] == 1059 and g["pubkey"] not in (pub(F), pub(I))            # wrapped by a one-time key
+sender, kind, body = unwrap(I, g)
 assert (sender, kind, body["name"]) == (pub(F), RUMOR_TO_OWNER, "Mom")       # seal signer = authenticated sender
 assert unwrap(X, g) is None                                                   # not for X
 
-d = gift(o.I, pub(F), RUMOR_TO_FOLLOWER, {"v": 2, "type": "key", "epoch": 1})
-assert unwrap(F, d)[0] == pub(o.I)
+d = gift(I, pub(F), RUMOR_TO_FOLLOWER, {"v": 2, "type": "key", "epoch": 1})
+assert unwrap(F, d)[0] == pub(I)
 forged = gift(X, pub(F), RUMOR_TO_FOLLOWER, {"v": 2, "type": "key", "epoch": 1})
-assert unwrap(F, forged)[0] == pub(X) != pub(o.I)                            # follower can tell it's not from I
+assert unwrap(F, forged)[0] == pub(X) != pub(I)                              # follower can tell it's not from I
 
-tok = new_token()
-inv = parse_invite(invite_link(pub(o.I), tok, now + 86400, ["wss://a", "wss://b"]))
-assert inv["i"] == pub(o.I) and inv["t"] == tok and inv["r"] == ["wss://a", "wss://b"]
-assert len(match_code(pub(F), tok)) == 4
-print("all v2 primitive checks passed; gift wrap size", len(str(g)), "B; gk", gk(o.current.pub))
+code = match_code(pub(F), "token")
+assert len(code) == 4 and code.isdigit()
+print("all v2 primitive checks passed; gift wrap size", len(str(g)), "B; gk", gk(pub(G)))

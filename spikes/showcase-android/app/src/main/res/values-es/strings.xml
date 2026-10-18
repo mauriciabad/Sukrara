@@ -508,6 +508,8 @@
     <string name="nearby_looking">Buscando a quien lleva el sensor… (debe tocar «Vincular cerca»)</string>
     <!-- Join: ask a nearby wearer for access [CHAR LIMIT=15] -->
     <string name="nearby_ask">Pedir</string>
+    <!-- Join: a phone found by "Find phones nearby" (phones broadcast no name; the wearer's name shows after Ask) [CHAR LIMIT=30] -->
+    <string name="nearby_phone">Teléfono cercano</string>
 
     <!-- ========== Follower: waiting and ended ========== -->
     <!-- Waiting: stand-in when the wearer has no name or key yet [CHAR LIMIT=20] -->

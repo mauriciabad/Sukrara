@@ -49,7 +49,7 @@ public spec page, so the links are stable.
 > Hi! For parents and partners following a CGM, OGS (<spec link>) offers an end-to-end encrypted alternative to
 > Nightscout and Dexcom Share, with no server. A Swift follower exists (Sukrara for Mac, GPL-3.0). It needs NIP-44 and
 > NIP-59, which rust-nostr's Swift package provides. Would an OGS source fit LoopFollow or nightguard? The spec has a
-> conformance checklist for followers and a 25-step acceptance scenario with test vectors.
+> conformance checklist for followers and a 27-step acceptance scenario with test vectors.
 
 ## Nostr developers (after the NIP PR)
 
