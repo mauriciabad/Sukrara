@@ -39,7 +39,8 @@ The defaults are the user's own settings (2026-10-18). Lows are **strictly below
   `Rising fast`, `No glucose data`. Level alerts acknowledge the treatments logged in the episode (or within the
   mute length before it started), whether or not they muted anything: lows `· eat more` (1 carbs entry), `· eat more
   again` (2 or more); highs `· still high after insulin` / `· still high after more insulin`. Highs never suggest more
-  insulin (stacking rapid doses is dangerous). Body: `69 mg/dL ↘ · < 70 mg/dL`, `200 mg/dL → · ≥ 180 mg/dL`.
+  insulin (stacking rapid doses is dangerous). Body: the value and arrow only (`69 mg/dL ↘`); fast changes add the rate
+  (`120 mg/dL ↓ · falling 2.4 mg/dL/min`); no threshold, no "from the wearer's phone" (user, 2026-10-18).
 
 ## 2. Mute rules
 

@@ -465,14 +465,13 @@ final class AlertEngine {
         let units = u == .mgdl ? "mg/dL" : "mmol/L"
         let value = "\(ev.sgv.map { u.format($0) } ?? "?") \(units) \(Self.arrow(ev.r))"
         func rate(_ x: Double) -> String { u == .mgdl ? String(format: "%.1f", x) : String(format: "%.2f", x / 18.0182) }
-        var body = switch ev.k {
-        case .veryLow, .low: "\(value) · < \(u.format(ev.th)) \(units)"
-        case .high, .veryHigh, .extremelyHigh: "\(value) · ≥ \(u.format(ev.th)) \(units)"
-        case .fallingFast: "\(value) · falling \(rate(-(ev.r ?? 0))) ≥ \(rate(ev.th)) \(units)/min"
-        case .risingFast: "\(value) · rising \(rate(ev.r ?? 0)) ≥ \(rate(ev.th)) \(units)/min"
+        // The value and arrow only: the title already names the alert (no threshold, no "from the wearer's phone").
+        let body = switch ev.k {
+        case .veryLow, .low, .high, .veryHigh, .extremelyHigh: value
+        case .fallingFast: "\(value) · falling \(rate(-(ev.r ?? 0))) \(units)/min"
+        case .risingFast: "\(value) · rising \(rate(ev.r ?? 0)) \(units)/min"
         case .noData: "Nothing received for \(Int(ev.th)) min" + (ev.sgv.map { " · last \(u.format($0)) \(units)" } ?? "")
         }
-        if mirrored { body += " · from the wearer's phone" }
         return (ev.k.message(treated: ev.tr), body)
     }
 

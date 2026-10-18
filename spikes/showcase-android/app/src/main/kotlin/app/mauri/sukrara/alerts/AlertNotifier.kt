@@ -127,10 +127,10 @@ object AlertNotifier {
         val thText = if (kind in Kind.RATES) "%.1f".format(th) else th.toInt().toString()
         val value = "${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
         val text = when (kind) {
-            Kind.VERY_LOW, Kind.LOW -> "$value · < $thText $unit"
-            Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "$value · ≥ $thText $unit"
-            Kind.FALLING_FAST -> "$value · " + ctx.getString(R.string.alert_text_falling, "%.1f".format(-(rate ?: 0.0)), "$thText $unit")
-            Kind.RISING_FAST -> "$value · " + ctx.getString(R.string.alert_text_rising, "%.1f".format(rate ?: 0.0), "$thText $unit")
+            // The value and arrow only; the title already names the alert (no threshold, no "from …").
+            Kind.VERY_LOW, Kind.LOW, Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> value
+            Kind.FALLING_FAST -> "$value · " + ctx.getString(R.string.alert_text_falling, "%.1f".format(-(rate ?: 0.0)) + " $unit")
+            Kind.RISING_FAST -> "$value · " + ctx.getString(R.string.alert_text_rising, "%.1f".format(rate ?: 0.0) + " $unit")
             else -> sgv?.let { ctx.getString(R.string.alert_text_no_data_last, thText, it) } ?: ctx.getString(R.string.alert_text_no_data, thText)
         }
         val b = Notification.Builder(ctx, channelId(kind, alarm))
