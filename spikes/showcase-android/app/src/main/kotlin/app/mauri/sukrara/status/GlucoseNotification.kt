@@ -78,12 +78,22 @@ object GlucoseNotification {
             .setContentIntent(open)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setCategory(Notification.CATEGORY_STATUS)
-        if (r == null) {
+        val now = System.currentTimeMillis() / 1000
+        val fresh = r?.let { Freshness.of(now - it.t) }
+        // round sensor-life: an ended or warming-up sensor says so instead of "waiting" / "No reading since"
+        val sensor = app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t)
+        if (r == null || fresh?.showValue != true) sensor?.let { sl ->
+            val title = when {
+                sl.warmup != null -> c.getString(R.string.card_warming_up) + " · " + c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now))
+                sl.ended -> c.getString(R.string.card_sensor_ended) + " · " + c.getString(R.string.card_sensor_replace)
+                else -> null
+            }
+            if (title != null) return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(title).setContentText(detail).build()
+        }
+        if (r == null || fresh == null) {
             return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_waiting_for_glucose))
                 .setContentText(detail).build()
         }
-        val now = System.currentTimeMillis() / 1000
-        val fresh = Freshness.of(now - r.t)
         val stale = fresh.strike || !fresh.showValue
         // Investigation 16: no rate and no "time ago"; the reading's time only once it's late (Freshness).
         if (!fresh.showValue) {
@@ -238,9 +248,12 @@ object GlucoseNotification {
             val cv = Canvas(bmp)
             val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = surface }
             var x = bmp.width.toFloat()
-            for (item in items) {
+            val main = Slots.mainIndex(items)
+            val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
+            for ((i, item) in items.withIndex()) {
                 cv.drawCircle(x - size / 2, size / 2, size / 2, fill)
                 Slots.draw(cv, item, x - size / 2, size / 2, size / 2 - 3 * d, now, pal, d)
+                if (i == main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(cv, x - size / 2, size / 2, size / 2 - 3 * d, countdown, pal)
                 x -= size + gap
             }
         }

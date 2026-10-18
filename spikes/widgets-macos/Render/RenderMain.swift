@@ -275,6 +275,21 @@ enum TreatmentSheets {
             ]
             sheet(out.appendingPathComponent("mac-marks-\(tag).png"), mv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
                   cellW: 380, cellH: 230, cols: 2, dark: dark)
+            // round sensor-life (GraphGallery.kt `sensorLife`): badge, countdown ring, warm-up, ended
+            func sensor(_ left: TimeInterval) -> SensorInfo { SensorInfo(start: now + left - 15 * day, end: now + left, warmupEnd: now + left - 15 * day + 3600) }
+            func withSensor(_ st: CardStyle, _ s: SensorInfo) -> CardStyle { var x = st; x.sensor = s; return x }
+            let sv: [(String, CGFloat, CGFloat, CardStyle, [GraphReading])] = [
+                ("4×2 · 13 days left", 300, 150, withSensor(CardStyle(graph: g), sensor(13 * day + 5 * 3600)), data15),
+                ("4×2 · 20 h left (8 h window: no ring)", 300, 150, withSensor(CardStyle(graph: g), sensor(20 * 3600)), data15),
+                ("4×2 · 5 h left: the countdown ring", 300, 150, withSensor(CardStyle(graph: g), sensor(5 * 3600)), data15),
+                ("4×2 · 45 min left", 300, 150, withSensor(CardStyle(graph: g), sensor(45 * 60)), data15),
+                ("warming up, 18 min in (old sensor's data)", 300, 150,
+                 withSensor(CardStyle(graph: g), SensorInfo(start: now - 18 * 60, end: now - 18 * 60 + 15 * day, warmupEnd: now - 18 * 60 + 3600)),
+                 data15.filter { $0.t <= now - 40 * 60 }),
+                ("ended 2 h ago, no readings since", 300, 150, withSensor(CardStyle(graph: g), sensor(-2 * 3600)), data15.filter { $0.t <= now - 2 * 3600 }),
+            ]
+            sheet(out.appendingPathComponent("mac-sensor-\(tag).png"), sv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card($0.4, [], $0.3)) },
+                  cellW: 300, cellH: 150, cols: 2, dark: dark)
             // treatments close together (GraphGallery.kt `marksClose`)
             let fullDay = [tr("carbs", 10, 1364), tr("rapid", 5, 859), tr("carbs", 40, 854), tr("rapid", 7, 509), tr("carbs", 70, 504),
                            tr("carbs", 15, 304), tr("carbs", 10, 284), tr("rapid", 8, 104), tr("carbs", 80, 99), tr("rapid", 1.5, 24), tr("long", 18, 9)]

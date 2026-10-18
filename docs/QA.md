@@ -40,6 +40,12 @@ Cheap tools:
 - [ ] JVM gallery before/after: marks, mute lines, badge, slots, bands; light and dark; small and large sizes.
 - [ ] Mac `render treatments` before/after shows the same decisions (same labels, same badge text, same slot order).
 - [ ] Units mg/dL and mmol/L both read right (setting in the app).
+- [ ] Sensor life (JVM gallery `sensorLife`, Mac `render treatments` → `mac-sensor-*.png`; emulator: `--es cmd sensor
+  --el left <s>`): badge `13d` / `20h` (no ring with an 8 h window) / `5h` with the countdown ring over the main ring,
+  legible over every band colour, light and dark; warm-up `42m` + filling ring; ended `Sensor ended` + no-data alert
+  quiet. Follower and Mac show the same from the live events. Evidence 2026-10-18:
+  `spikes/showcase-android/evidence/sensor-life-emulator-{13d,20h,5h}.png` (emulator app panel),
+  `sensor-life-gallery-*.png`, `spikes/widgets-macos/evidence/mac-sensor-*.png`.
 
 ## Q3 Android widgets
 

@@ -13,7 +13,7 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 | `extremely_high` | `sgv ≥ mgdl` | on | 300 mg/dL | 5 min, alarm volume | *final boss*: the most insistent high, never muted |
 | `falling_fast` | `rate ≤ −rate` | off | 2.0 mg/dL/min | 30 min | quick down sweep |
 | `rising_fast` | `rate ≥ +rate` | off | 2.0 mg/dL/min | 30 min | quick up sweep |
-| `no_data` | no reading for `min` minutes | on | 20 min | 60 min | *connection lost* blip |
+| `no_data` | no reading for `min` minutes, unless the sensor has ended or is warming up (core/SensorLife; a running one clears) | on | 20 min | 60 min | *connection lost* blip |
 
 The defaults are the user's own settings (2026-10-18). Lows are **strictly below** the threshold (low 70 alerts at
 69, not at 70); highs are at or above it.
@@ -165,6 +165,8 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
 
 - A line is `<minute>[:<ss>] [events, …] [=> expectations; …]`. Events: `glucose <mg/dL> [rate <mg/dL/min>]
   [age <min>]` (what the sensor reads from now on), `readings every <n>` (default 1 min), `sensor off|on`,
+  `sensor ended` (the sensor reaches its end now; readings stop), `sensor started` (a new sensor starts now, 60 min
+  warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
   `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
 - Settings keys: `alerts=on|off`, `<kind>=on|off|<threshold>`, `<kind>.repeat=<min>`,

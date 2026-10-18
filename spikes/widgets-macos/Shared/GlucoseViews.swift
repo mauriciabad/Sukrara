@@ -99,6 +99,8 @@ struct GlucoseWidgetView: View {
         }
     }
 
+    private func withSensor(_ st: CardStyle, _ sensor: SensorInfo?) -> CardStyle { var st = st; st.sensor = sensor; return st }
+
     var body: some View {
         if let s = c.snapshot {
             GeometryReader { geo in
@@ -106,7 +108,7 @@ struct GlucoseWidgetView: View {
                 // tinted modes map luminance to opacity: fainter grid and band there
                 let pal = mode.tinted ? GraphPalette.of(dark: scheme == .dark).tinted() : GraphPalette.of(dark: scheme == .dark)
                 if let img = GlucoseCard.image(size: geo.size, scale: 2, readings: s.graphReadings, marks: s.graphMarks,
-                                               now: now, style(s.config), pal, metricsOf: { r, b in s.metrics(r, b, now: now) },
+                                               now: now, withSensor(style(s.config), s.sensor), pal, metricsOf: { r, b in s.metrics(r, b, now: now) },
                                                alerts: s.alerts) {
                     Image(decorative: img, scale: 2)
                         .resizable()

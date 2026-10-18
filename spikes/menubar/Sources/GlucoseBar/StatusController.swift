@@ -181,13 +181,31 @@ extension Bands {
         button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
         let unitName = unit == .mgdl ? "mg/dL" : "mmol/L"
         button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
+        // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
+        let nowT = Date().timeIntervalSince1970
+        if !fresh.showValue, let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
+            if let w = sl.warmup {
+                attrs[.foregroundColor] = NSColor.secondaryLabelColor
+                attrs.removeValue(forKey: .strikethroughStyle)
+                button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
+                button.toolTip = "Sukrara · sensor warming up, ready at \(Freshness.timeText(sl.readyAt, now: nowT))"
+                button.setAccessibilityLabel("Sensor warming up, \(w) left")
+                freshTimer?.invalidate()   // no readings come during the warm-up: tick the minutes ourselves
+                freshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
+            } else if sl.ended {
+                button.toolTip = "Sukrara · sensor ended: replace the sensor"
+                button.setAccessibilityLabel("Glucose: sensor ended")
+            }
+        }
 
         var g = graph.graphStyle()
         g.hour24 = GraphStyle.systemHour24
         var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         panelModel.hasData = true
-        panelModel.style = graph.cardStyle(graph: g)
+        var st = graph.cardStyle(graph: g)
+        st.sensor = SensorStore.current
+        panelModel.style = st
         panelModel.alerts = alertSettings?()
         panelModel.readings = pts
         panelModel.tick += 1
@@ -199,7 +217,7 @@ extension Bands {
 
     /// Every graph setting (UserDefaults); "Reset All Graph Settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours"]
 
     /// Settings changed (Settings › Graph or `defaults write`): redraw and re-publish to the widgets.
     func reloadGraph() {

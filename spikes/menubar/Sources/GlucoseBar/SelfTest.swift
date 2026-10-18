@@ -163,7 +163,39 @@ enum GraphFixtures {
             }
         }
         print("graph fixtures: \(n) cases, \(failures) failed")
-        return failures + labels(dir.appendingPathComponent("labels"))
+        return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
+    }
+
+    /// The sensor badge, warm-up and countdown ring (spikes/graph-fixtures/sensor, the files GraphFixtureTest.sensor runs).
+    static func sensor(_ dir: URL) -> Int {
+        let now: TimeInterval = 1_800_000_000
+        var failures = 0, n = 0
+        func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
+        func near(_ a: Double?, _ b: Double?) -> Bool { a == nil || b == nil ? a == nil && b == nil : abs(a! - b!) <= 0.001 }
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        if files.isEmpty { print("FAIL sensor fixtures: none in \(dir.path)"); return 1 }
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL sensor/\(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let start = now + (num(c["start"]) ?? 0)
+                let info = SensorInfo(start: start, end: now + (num(c["end"]) ?? 0), warmupEnd: num(c["warmup"]).map { now + $0 } ?? start + 3600)
+                let latest = num(c["latest"]).map { now + $0 }
+                let want = c["expect"] as? [String: Any] ?? [:]
+                let look = SensorBadge.look(info, now: now, latest: latest)!
+                let ring = SensorBadge.ring(look, info, now: now, hours: (c["countdownHours"] as? Int) ?? 8)
+                let ok = look.label == want["label"] as? String && look.ended == want["ended"] as? Bool
+                    && near(look.life, num(want["life"])) && look.warmup == want["warmup"] as? String && near(ring, num(want["ring"]))
+                if !ok {
+                    print("FAIL sensor/\(f): \(c["name"] as? String ?? "?") (got label=\(look.label) ended=\(look.ended) life=\(look.life) warmup=\(look.warmup ?? "nil") ring=\(ring.map { "\($0)" } ?? "nil"))")
+                    failures += 1
+                }
+                n += 1
+            }
+        }
+        print("sensor fixtures: \(n) cases, \(failures) failed")
+        return failures
     }
 
     /// The treatment label layout (spikes/graph-fixtures/labels/*.json, the files GraphFixtureTest.labels runs): the

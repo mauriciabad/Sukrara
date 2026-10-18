@@ -22,6 +22,8 @@ import AppKit
 //   · side (time in range beside the graph, YES) · lines "100,120" (extra dashed lines, mg/dL; "" = none)
 //   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1)
 //   · lastPlace OFF|NEAR_VALUE|END (the last-treatment slot; NEAR_VALUE) · lastElse "TIR:2592000:1" (its fallback; "" = none)
+//   · countdownHours 1–24 (8: the sensor countdown ring in the sensor's last hours) · sensorStart/sensorEnd/sensorWarmupEnd
+//     (unix s, the wearer's sensor from the live events; SensorStore)
 //   · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/bandExtremelyHigh (54/70/140/180/250/300)
 //   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; Settings › Graph, the report's period in its window)
 //   readingsDir (tests): keep readings.csv somewhere else
@@ -366,6 +368,12 @@ let treatmentStore = MainActor.assumeIsolated {
         n.onHistory = { store.ingest(history: $0, from: $1) }
         n.storedSince = { readingsStore.since($0).map(\.t) }      // chunk backfill window + missing-hours check
         n.onAlert = { alerts.onWearerAlert($0, via: $1) }
+        n.onSensor = { s in
+            guard SensorStore.set(s) else { return }
+            log("v2: sensor \(s.map { "ends \(Int($0.end)), warm-up end \(Int($0.warmupEnd))" } ?? "unknown")")
+            status.reloadGraph()        // the badge, warm-up and ring; re-publishes the widgets
+            alerts.sensorChanged()
+        }
         n.onPhase = { [weak self, weak n] p in
             guard let self, let n else { return }
             let w = n.wearer, who = w.name.isEmpty ? "someone" : w.name

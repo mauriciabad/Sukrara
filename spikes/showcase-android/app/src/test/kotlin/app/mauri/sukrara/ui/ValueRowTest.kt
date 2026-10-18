@@ -81,7 +81,7 @@ class ValueRowTest {
                         Column(Modifier.width(c.width.dp + 32.dp).background(Color(0xFF1C1B1F)).padding(16.dp)) {
                             ValueAndSlots(c.number, { fit -> Slots.arrange(rings, LastPlace.OFF, null, null, fit) },
                                 value = { scale -> ValueNumber(c.number, 1.5, Color(0xFFF2B33D), false, scale) },
-                                slot = { item ->
+                                slot = { item, _ ->
                                     Canvas(Modifier.fillMaxSize()) {
                                         drawIntoCanvas { Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2,
                                             size.minDimension / 2, now, pal, density) }
