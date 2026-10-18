@@ -1,0 +1,18 @@
+# emulator id_wearer, synthetic sensors (TEST serials), 2026-10-18 — adb shell content query
+## after turning it on (own calendar), current sensor TEST0000003
+Row: 0 _id=2, account_name=test@example.com, account_type=LOCAL, calendar_displayName=Personal, calendar_color=-16744448, calendar_access_level=700, visible=1
+Row: 1 _id=3, account_name=Sukrara, account_type=LOCAL, calendar_displayName=Sukrara, calendar_color=-14961207, calendar_access_level=200, visible=1
+Row: 0 _id=9, calendar_id=3, title=Sensor ends, dtstart=1793549780000, _sync_id=sensor:TEST0000003
+## TEST0000003 fails early (end pulled to now=1792340810): the future event moves to the real end
+Row: 0 _id=9, calendar_id=3, title=Sensor ends, dtstart=1792340810000, _sync_id=sensor:TEST0000003
+## a later update with a different end once the event has passed: it stays
+Row: 0 _id=9, calendar_id=3, title=Sensor ends, dtstart=1792340810000, _sync_id=sensor:TEST0000003
+## new sensor TEST0000004: past event kept, new one added
+Row: 0 _id=9, calendar_id=3, title=Sensor ends, dtstart=1792340810000, _sync_id=sensor:TEST0000003
+Row: 1 _id=10, calendar_id=3, title=Sensor ends, dtstart=1793636810000, _sync_id=sensor:TEST0000004
+## after force-stop + reinstall + app start: no duplicates
+Row: 0 _id=9, calendar_id=3, title=Sensor ends, dtstart=1792340810000, _sync_id=sensor:TEST0000003
+Row: 1 _id=10, calendar_id=3, title=Sensor ends, dtstart=1793636810000, _sync_id=sensor:TEST0000004
+## turned off: the Sukrara calendar and its events are gone
+Row: 0 _id=2, calendar_displayName=Personal
+No result found.

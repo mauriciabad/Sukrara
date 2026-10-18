@@ -1092,6 +1092,16 @@
     <string name="apps_show_secret">Mostrar el secreto de la API</string>
     <string name="apps_secret_title">Secreto de la API</string>
     <string name="apps_people_summary">Seguidores, invitaciones, vinculación cercana</string>
+    <string name="calendar_title">Fin del sensor en el calendario</string>
+    <string name="calendar_summary_off">Desactivado · añade a un calendario cuándo termina cada sensor</string>
+    <string name="calendar_summary_denied">Desactivado · necesita acceso a tu calendario</string>
+    <string name="calendar_summary_blocked">Desactivado · el acceso al calendario está bloqueado: toca para permitirlo en los ajustes de la app</string>
+    <string name="calendar_where">Calendario</string>
+    <string name="calendar_own">Sukrara (solo en este teléfono)</string>
+    <string name="calendar_own_sub">Su propio calendario, no se sincroniza con tus otros dispositivos</string>
+    <string name="calendar_picked_sub">%1$s · se sincroniza con tus otros dispositivos</string>
+    <string name="calendar_event_title">Fin del sensor</string>
+    <string name="calendar_event_description">Sensor Libre %1$s, empezado el %2$s. Sukrara mantiene este evento al día.</string>
     <string name="apps_footer">El servidor de xDrip+ escucha en 127.0.0.1:17580, como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen. La API de Nightscout es HTTP sin cifrar: compártela solo en redes de confianza.</string>
 
     <!-- Settings: LibreView -->

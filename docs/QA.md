@@ -124,3 +124,14 @@ Cheap tools:
       `Libre 1/2 chip: not supported, nothing sent` with no command lines.
 - [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in before starting …*, nothing sent; after the
       sign-in the next tap starts it (logcat `patch info … state=1`, then the pairing).
+
+## Q13 Sensor end in calendar
+
+- [ ] Emulator (wearer, debug): `--es cmd fakeSensor` (synthetic TEST serial), then Settings → Sensor end → "Sensor end in calendar" on: the
+      permission dialog; Allow → "On · Sukrara (this phone only)"; Don't allow → stays off with the reason.
+- [ ] `--es cmd calendar` dumps one "Sensor ends" event at the sensor's end; a second `fakeSensor` with a new serial
+      moves the future event to the new sensor (the old future one is removed); restart the app → still one event per sensor.
+- [ ] A calendar app on the device shows the "Sukrara" calendar in the brand colour (if the image has one).
+- [ ] Off → the Sukrara calendar is gone (`content query --uri content://com.android.calendar/calendars`).
+- [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
+      away again when the setting is turned off.

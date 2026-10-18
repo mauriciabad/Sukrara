@@ -122,6 +122,7 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Overview category icons: the 24 dp glyph in the hue's tone 30 on the device's adaptive-icon shape (40 dp) in tone 90 (dark theme: 80), AOSP homepage colours.
 - Page intros are plain body-large text (TopIntroPreference), no illustration.
 - Choice dialogs are SPA ListPreference dialogs: choosing saves and closes.
+- A row shows a changed value at once (switch, summary), without reopening the page (`SettingsGroupTest`).
 - Every list of numbers ends with "Custom": it reveals a number field (unit shown, range under it); OK saves only a value in range; a custom value shows as "Custom" selected with its value, and round-trips through settings export / import.
 - Custom ranges: Nostr interval 1–120 min, LibreView interval 1–240 min, alert reminders 1–240 min, thresholds 40–400 mg/dL, rates 0.5–10 mg/dL/min (one decimal), no data 5–240 min, quiet after insulin 10–360 min, falling / carbs 5–120 min, graph windows 1–48 h, ring periods 1–90 days.
 - Alerts page: main switch, then one two-target row per alert (switch = on/off, row = the alert's page), quiet rules, sounds.
@@ -162,6 +163,20 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 - Channels: *Sensor reminders* (default importance, sound) for reminders / ended / ready; *Sensor countdowns* (default importance so it shows on the lock screen, no sound or vibration) for both countdowns. Not the alert channels.
 - Scheduling: one AlarmManager alarm at a time for the next moment that matters, re-planned on every alarm, new sensor or end change, settings change, boot, app update, clock and time-zone change. Reminders, window start, warm-up give-up and end: `setExactAndAllowWhileIdle` (Sukrara already holds `USE_EXACT_ALARM` for alerts; 10-min window if exact alarms are unavailable); progress refreshes: plain non-waking `set`.
 - Settings export / import / reset include the reminders, both switches and the countdown hours.
+
+## Sensor end in calendar
+
+- Setting "Sensor end in calendar" (wearer only, off by default; Settings → Sensor end, its own group): turning it on asks for READ_CALENDAR + WRITE_CALENDAR; refused → stays off with "needs access to your calendar"; refused for good → the next tap opens the app's system settings. Permission revoked later → the setting turns itself off.
+- Summary: "On · <calendar>" or "Off · adds when each sensor ends to a calendar".
+- Default calendar: Sukrara's own **"Sukrara"** calendar (`ACCOUNT_TYPE_LOCAL`, account "Sukrara", brand colour #1BB5C9, read-only for the user), created when needed and found by account (never twice). It shows in the phone's calendar apps but is **not synced** to other devices (local calendars never sync; an app can't create a calendar in a Google account without the Google Calendar API).
+- "Calendar" row: pick Sukrara's own calendar or any writable calendar on the phone (e.g. the user's Google calendar, "syncs to your other devices"); events in a picked calendar are written as a normal app so the account syncs them, and their ids are remembered for updates. Changing the choice moves the events (removes them from the old place).
+- One event per sensor: title "Sensor ends", description "Libre sensor <serial>, started <date>. Sukrara keeps this event up to date.", a point event (start = end) at the sensor's end (SensorLife), busy = free, no reminder of its own (Sukrara notifies). Keyed by serial (`_SYNC_ID` "sensor:<serial>" in the own calendar), so restarts and repeated updates update it instead of adding another.
+- When the sensor ends early (SensorLife pulls its end to now) a still-future event moves to the real end; once an event's time has passed it never moves again.
+- Changing the calendar carries only the current sensor's event to the new place.
+- Past sensors' events stay (a history of sensor changes); a sensor's event still in the future is deleted once another sensor is the current one (replaced early, that end won't come).
+- Turning it off deletes the Sukrara calendar with all its events, or Sukrara's events in the picked calendar (as deletions the account syncs).
+- Only the wearer's app writes events; followers never do (no serial on the wire).
+- Research and options weighed (Juggluco's ACTION_INSERT, local vs Google account vs picked calendar vs Google Calendar API): `features/SensorCalendar.kt` header.
 
 ## Languages
 

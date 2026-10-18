@@ -89,7 +89,7 @@ tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").with
 
 // Robolectric's SDK 36 sandbox (the graph/report galleries, AlertNotifierTest, ScreenHostTest, ValueRowTest) needs Java 21+: run unit tests on
 // GALLERY_JAVA_HOME when set, else leave those out so `testDebugUnitTest` passes on the build's JDK 17.
-if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/ValueRowTest*", "**/SensorEndNotifyTest*") }
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/ValueRowTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",

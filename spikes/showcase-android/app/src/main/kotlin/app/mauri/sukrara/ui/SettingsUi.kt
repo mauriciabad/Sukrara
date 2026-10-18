@@ -158,7 +158,7 @@ private fun Modifier.fullBleed(h: Dp = SettingsSpace.small1) = layout { m, c ->
 }
 
 /** The rows of one [SettingsGroup]. */
-class SettingsGroupScope internal constructor() {
+class SettingsGroupScope @PublishedApi internal constructor() {
     internal class Entry(val title: String?, val summary: String?, val to: String?, val icon: (@Composable () -> Unit)?,
                          val draw: @Composable () -> Unit)
     internal val rows = mutableListOf<Entry>()
@@ -177,8 +177,17 @@ class SettingsGroupScope internal constructor() {
  * button). Each row can be the target of a search result (SPA's HighlightBox, keyed by the row title).
  */
 @Composable
-fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? = null, content: @Composable SettingsGroupScope.() -> Unit) {
-    val scope = SettingsGroupScope().also { it.content() }
+inline fun SettingsGroup(title: String? = null, noinline titleAction: (@Composable () -> Unit)? = null,
+                         content: @Composable SettingsGroupScope.() -> Unit) {
+    // Inline on purpose: the rows are built in the caller's recompose scope. As a plain lambda parameter, [content]
+    // was a restart scope of its own: a state it read (a switch's checked value) recomposed only the lambda, which
+    // filled a list nobody drew again, so rows kept showing the old value until the page was opened again.
+    SettingsGroupRows(title, titleAction, SettingsGroupScope().also { it.content() })
+}
+
+/** Draws (or, in index mode, records) the rows [SettingsGroup] collected; a new [scope] instance each time. */
+@Composable
+fun SettingsGroupRows(title: String?, titleAction: (@Composable () -> Unit)?, scope: SettingsGroupScope) {
     LocalSettingsIndex.current?.let { idx ->
         for (r in scope.rows) {
             r.title?.let { t -> idx.rows[title to t] = IndexedRow(t, r.summary, title, r.icon, r.to) }

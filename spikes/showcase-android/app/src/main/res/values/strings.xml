@@ -1371,6 +1371,26 @@
     <string name="apps_secret_title">API secret</string>
     <!-- Link to the sharing with people page [CHAR LIMIT=60] -->
     <string name="apps_people_summary">Followers, invites, nearby pairing</string>
+    <!-- Sensor end in calendar: the switch (sensor settings) [CHAR LIMIT=40] -->
+    <string name="calendar_title">Sensor end in calendar</string>
+    <!-- Sensor end in calendar: summary while off [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_off">Off · adds when each sensor ends to a calendar</string>
+    <!-- Sensor end in calendar: summary after the calendar permission was denied [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_denied">Off · needs access to your calendar</string>
+    <!-- Sensor end in calendar: summary when the permission can only be granted in the app's system settings [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_blocked">Off · calendar access is blocked: tap to allow it in app settings</string>
+    <!-- Sensor end in calendar: the row that picks where the events go [CHAR LIMIT=30] -->
+    <string name="calendar_where">Calendar</string>
+    <!-- Sensor end in calendar: Sukrara's own calendar (the default) [CHAR LIMIT=40] -->
+    <string name="calendar_own">Sukrara (this phone only)</string>
+    <!-- Sensor end in calendar: under the own-calendar option [CHAR LIMIT=NONE] -->
+    <string name="calendar_own_sub">Its own calendar, not synced to your other devices</string>
+    <!-- Sensor end in calendar: under a calendar of the user's accounts; %1$s = account (email) [CHAR LIMIT=NONE] -->
+    <string name="calendar_picked_sub">%1$s · syncs to your other devices</string>
+    <!-- Sensor end in calendar: the event's title [CHAR LIMIT=40] -->
+    <string name="calendar_event_title">Sensor ends</string>
+    <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->
+    <string name="calendar_event_description">Libre sensor %1$s, started %2$s. Sukrara keeps this event up to date.</string>
     <!-- Apps page footer [CHAR LIMIT=NONE] -->
     <string name="apps_footer">The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
 

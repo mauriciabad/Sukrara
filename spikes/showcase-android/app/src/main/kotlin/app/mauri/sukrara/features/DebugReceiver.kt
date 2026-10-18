@@ -30,6 +30,8 @@ import org.json.JSONObject
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
  *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…']] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
+ *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] \
+ *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
  *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
@@ -151,6 +153,21 @@ class DebugReceiver : BroadcastReceiver() {
                 if (!o.hasIdentity()) runBlocking { o.createIdentity() }
                 c.startForegroundService(Intent(c, OwnerService::class.java))
                 out.put("cmd", "owner ready")
+            }
+            // sensor life: a made-up sensor (synthetic serial; --el start/end unix s, end default start + 15 d) or --ez clear true
+            "fakeSensor" -> {
+                val start = i.getLongExtra("start", System.currentTimeMillis() / 1000)
+                val info = if (i.getBooleanExtra("clear", false)) null else app.mauri.sukrara.core.SensorInfo(
+                    i.getStringExtra("serial") ?: "TEST0000001", start, i.getLongExtra("end", start + 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN))
+                app.mauri.sukrara.core.SensorLife.update(c, info)
+                out.put("cmd", "sensor ${info ?: "cleared"}")
+            }
+            // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
+            "calendar" -> {
+                SensorCalendar.init(c)
+                if (i.hasExtra("on") && !i.getBooleanExtra("on", true)) SensorCalendar.disable(c)
+                else if (i.getBooleanExtra("on", false)) { if (SensorCalendar.granted(c)) SensorCalendar.enable(c) else out.put("calendar", "grant READ/WRITE_CALENDAR first (pm grant)") }
+                out.put("calendar", SensorCalendar.dump(c))
             }
             "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
