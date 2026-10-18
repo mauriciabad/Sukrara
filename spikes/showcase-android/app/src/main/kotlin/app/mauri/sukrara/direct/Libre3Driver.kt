@@ -3,45 +3,40 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.direct
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
-import android.content.Context
-import android.content.SharedPreferences
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import app.mauri.sukrara.bridge.Bridge
-import app.mauri.sukrara.bridge.GlucoseSource
+import app.mauri.sukrara.core.SensorProfiles
+import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.libreview.LibreViewPayload
 import java.security.SecureRandom
 import java.util.UUID
 
 /**
- * Reads a FreeStyle Libre 3 / 3 Plus sensor directly over BLE, using the pairing data in
- * [SensorPairing]. Right after an NFC scan the pairing has no saved authorization yet: the first connection then
- * runs the fresh pairing (certificates + ephemeral keys, after Juggluco's Libre3GattCallback) and hands the
- * resulting authorization to [onAuthorized]; later connections resume with it.
+ * The FreeStyle Libre 3 / 3 Plus protocol over a [BleLink], using the pairing data in [SensorPairing]. Right after
+ * an NFC scan the pairing has no saved authorization yet: the first connection then runs the fresh pairing
+ * (certificates + ephemeral keys, after Juggluco's Libre3GattCallback) and hands the resulting authorization to
+ * [SensorEvents.onPairingState]; later connections resume with it.
  *
  * Read-only: nothing is ever written to the sensor beyond the security handshake and history requests.
  *
- * Power: no app-level scanning (connect by address with autoConnect, which the Bluetooth controller
- * handles), a low-power connection interval once live, and only the notifications we actually parse.
+ * Power: only the notifications we actually parse where the sensor allows it, and a low-power connection interval
+ * once live; the connection itself (connect by address, no scanning) is [GattLink]'s.
+ *
+ * This is investigation 02's `Libre3Client` with the Bluetooth half moved to [GattLink] (investigation 23, step 1):
+ * the same operations in the same order, the same timers and the same status words. Replayed in `Libre3DriverTest`.
  */
-@SuppressLint("MissingPermission")
-internal class Libre3Client(
-    private val context: Context,
+internal class Libre3Driver(
     private val pairing: SensorPairing,
-    private val sink: GlucoseSource.Sink,
-    private val prefs: SharedPreferences,
-    private val onAuthorized: (ByteArray) -> Unit = {},
-) {
+    private val events: SensorEvents,
+    private val prefs: DriverPrefs,
+    private val security: Libre3Security = Libre3Crypto,
+    /** Sukrara: Features.connPriority (settings / DebugReceiver). */
+    private val connPriority: () -> String = { Features.value.connPriority },
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val random: (ByteArray) -> Unit = { SecureRandom().nextBytes(it) },
+    private val log: (priority: Int, message: String) -> Unit = { p, m -> Log.println(p, TAG, m) },
+) : SensorDriver {
     companion object {
         private const val TAG = "Sukrara.direct"
         private fun u(short: String) = UUID.fromString("0898$short-EF89-11E9-81B4-2A2AE2DBCCE4")
@@ -57,27 +52,22 @@ internal class Libre3Client(
         val CH_HISTORIC: UUID = u("195A")
         val CH_CLINICAL: UUID = u("1AB8")
         val CH_FACTORY: UUID = u("1D24")
-        val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
         /**
          * Every notifying characteristic, in Juggluco's order. The sensor runs a full data cycle
          * every minute and drops the link if we are not subscribed to all of them: subscribing to
          * only the ones we parse cost a disconnect at exactly 60 s (measured 2026-10-15).
          */
-        private val FULL = listOf(CH_PATCH_CONTROL, CH_EVENT_LOG, CH_HISTORIC, CH_CLINICAL, CH_FACTORY,
-                                  CH_GLUCOSE, CH_PATCH_STATUS)
+        val FULL = listOf(CH_PATCH_CONTROL, CH_EVENT_LOG, CH_HISTORIC, CH_CLINICAL, CH_FACTORY,
+                          CH_GLUCOSE, CH_PATCH_STATUS)
         /** Only what we parse. Kept for battery experiments; see [PREF_MINIMAL]. */
-        private val MINIMAL = listOf(CH_PATCH_CONTROL, CH_GLUCOSE, CH_PATCH_STATUS)
+        val MINIMAL = listOf(CH_PATCH_CONTROL, CH_GLUCOSE, CH_PATCH_STATUS)
 
-        private const val PREF_MINIMAL = "useMinimalSubscriptions"
-        /** Set when a sensor has ended ([PatchState]): [DirectSource] doesn't connect to it again. */
-        fun endedKey(serial: String) = "ended:$serial"
-        /** Source status detail for an ended sensor (shown under the card and on the Sensor page). */
-        const val ENDED_HINT = "Replace sensor: tap Pair new sensor on the home screen"
-        private const val PREF_LOW_POWER = "useLowPowerInterval"
-        private const val GLUCOSE_TIMEOUT_MS = 120_000L
+        const val PREF_MINIMAL = "useMinimalSubscriptions"
+        const val PREF_LOW_POWER = "useLowPowerInterval"
+        const val GLUCOSE_TIMEOUT_MS = 120_000L
         /** A drop this soon after authorizing means the session setup was not acceptable to the sensor. */
-        private const val EARLY_DROP_MS = 90_000L
+        const val EARLY_DROP_MS = 90_000L
 
         /** AES-CCM packet descriptors by kind (index = kind). */
         private val DESCRIPTORS = arrayOf(
@@ -94,13 +84,12 @@ internal class Libre3Client(
         private const val HISTORY_STEP = 5
         /** How far back to backfill on connect (minutes): 24 h, the span of CGM+'s watch graph (investigation 08). */
         private const val BACKFILL_MINUTES = 24 * 60
-        /** A Libre 3 gives no glucose for its first hour. */
 
         /**
          * App certificate for security level 1, sent during a fresh pairing (public; from Juggluco's KEYSCrypto.java,
          * LIBRE3_APP_CERTIFICATES_B[1]).
          */
-        private val APP_CERTIFICATE = (
+        val APP_CERTIFICATE = (
             "03030102030405060708090a0b0c0d0e0f10000161897655010000000000000000" +
             "048242be33f1a330880112fa62cc4842a43d1204922ad201d8775bb226f611f75b0ef3d5bc6cc4317caa457584ab003f" +
             "1712336089d3a4f29838ed0dc666deaea2" +
@@ -108,14 +97,12 @@ internal class Libre3Client(
             "cba062373014b7786e4437b177aec3c8").chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var gatt: BluetoothGatt? = null
-    private var closing = false
-    private val chars = HashMap<UUID, BluetoothGattCharacteristic>()
+    override val profile = SensorProfiles.LIBRE_3
 
-    // serialized GATT operations (Android allows one outstanding operation per connection)
-    private val ops = ArrayDeque<() -> Unit>()
-    private var opRunning = false
+    /** The NFC tap gave the address: that device and no other. */
+    override fun matches(advert: Advert) = advert.address.equals(pairing.address, ignoreCase = true)
+
+    private var link: BleLink? = null
 
     // security session
     private var ctx = 0L
@@ -140,150 +127,53 @@ internal class Libre3Client(
     private var endedSeen = false          // the patch status said the sensor has ended (PatchState)
     private val glucoseTimeout = Runnable { onGlucoseTimeout() }
 
-    // MARK: lifecycle
+    // MARK: link lifecycle
 
-    fun connect() {
-        closing = false
-        val adapter = context.getSystemService(BluetoothManager::class.java).adapter
-        if (adapter == null || !adapter.isEnabled) {
-            sink.onStatus("waiting for Bluetooth", "Bluetooth is off")
-            return
-        }
-        val device = adapter.getRemoteDevice(pairing.address)
-        sink.onStatus("connecting to ${pairing.serial}")
-        // autoConnect = true: the controller reconnects whenever the sensor advertises, with no
-        // app-level scanning. Slower to attach, far cheaper than scanning ourselves.
-        gatt = device.connectGatt(context, true, callback, BluetoothDevice.TRANSPORT_LE)
+    override fun onConnected(link: BleLink, characteristics: Set<UUID>, status: Int) {
+        this.link = link
+        if (CH_COMMAND !in characteristics || CH_GLUCOSE !in characteristics)
+            return fail("Libre 3 services not found (status $status)")
+        startAuthorization()
     }
 
-    fun close() {
-        closing = true
-        handler.removeCallbacks(glucoseTimeout)
+    override fun onLinkFailed(why: String) = fail(why)
+
+    override fun onNotification(characteristic: UUID, value: ByteArray) = handleNotification(characteristic, value)
+
+    override fun onDisconnected() {
+        val alive = clock() - authorizedAt
+        log(Log.INFO, "sensor disconnected " + if (authorizedAt > 0) "after ${alive / 1000}s" else "before authorizing")
+        if (authorizedAt > 0 && alive < EARLY_DROP_MS && prefs.getBoolean(PREF_MINIMAL, false)) {
+            log(Log.WARN, "early drop with the minimal subscription set; reverting to all notifications")
+            prefs.putBoolean(PREF_MINIMAL, false)
+        }
+        authorizedAt = 0
         resetSession()
-        gatt?.close()
-        gatt = null
+        link?.cancel(glucoseTimeout)
+    }
+
+    override fun onClosed() {
+        link?.cancel(glucoseTimeout)
+        resetSession()
     }
 
     private fun resetSession() {
-        if (ctx != 0L) Libre3Crypto.free(ctx)
+        if (ctx != 0L) security.free(ctx)
         ctx = 0L
         kEnc = null; ivEnc = null
         outSeq = 1
         backfillRequested = false
         glucoseBuf = ByteArray(0)
         secSeq = -1; secAt = 0; secBuf = ByteArray(0)
-        synchronized(this) { ops.clear(); opRunning = false }
     }
 
-    // MARK: operation queue
-
-    private fun enqueue(op: () -> Unit) {
-        synchronized(this) { ops.addLast(op) }
-        pump()
-    }
-
-    private fun pump() {
-        val next = synchronized(this) {
-            if (opRunning) return
-            val op = ops.removeFirstOrNull() ?: return
-            opRunning = true
-            op
-        }
-        next()
-    }
-
-    private fun opDone() {
-        synchronized(this) { opRunning = false }
-        pump()
-    }
-
-    private fun enableNotify(uuid: UUID) = enqueue {
-        val g = gatt
-        val ch = chars[uuid]
-        if (g == null || ch == null) return@enqueue fail("characteristic $uuid missing")
-        g.setCharacteristicNotification(ch, true)
-        val d = ch.getDescriptor(CCCD) ?: return@enqueue fail("CCCD missing on $uuid")
-        val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        @Suppress("DEPRECATION")
-        val ok = if (Build.VERSION.SDK_INT >= 33) g.writeDescriptor(d, value) == BluetoothGatt.GATT_SUCCESS
-                 else { d.value = value; g.writeDescriptor(d) }
-        if (!ok) fail("writeDescriptor($uuid) rejected")
-    }
-
-    private fun write(uuid: UUID, value: ByteArray) = enqueue {
-        val g = gatt
-        val ch = chars[uuid]
-        if (g == null || ch == null) return@enqueue fail("characteristic $uuid missing")
-        @Suppress("DEPRECATION")
-        val ok = if (Build.VERSION.SDK_INT >= 33)
-            g.writeCharacteristic(ch, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
-        else {
-            ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            ch.value = value
-            g.writeCharacteristic(ch)
-        }
-        if (!ok) fail("writeCharacteristic($uuid) rejected")
-    }
+    private fun subscribe(uuid: UUID) = link?.subscribe(uuid) ?: Unit
+    private fun write(uuid: UUID, value: ByteArray) = link?.write(uuid, value) ?: Unit
 
     private fun fail(why: String) {
-        Log.w(TAG, "sensor: $why")
-        sink.onStatus("reconnecting", why)
-        gatt?.disconnect()   // callback re-arms the connection
-    }
-
-    // MARK: GATT callbacks
-
-    private val callback = object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.i(TAG, "sensor connected")
-                sink.onStatus("discovering services")
-                handler.post { g.discoverServices() }
-            } else {
-                val alive = System.currentTimeMillis() - authorizedAt
-                Log.i(TAG, "sensor disconnected (status $status) " +
-                    if (authorizedAt > 0) "after ${alive / 1000}s" else "before authorizing")
-                if (authorizedAt > 0 && alive < EARLY_DROP_MS && prefs.getBoolean(PREF_MINIMAL, false)) {
-                    Log.w(TAG, "early drop with the minimal subscription set; reverting to all notifications")
-                    prefs.edit().putBoolean(PREF_MINIMAL, false).apply()
-                }
-                authorizedAt = 0
-                resetSession()
-                handler.removeCallbacks(glucoseTimeout)
-                if (!closing) {
-                    sink.onStatus("waiting for sensor")
-                    handler.postDelayed({ if (!closing) g.connect() }, 1_000)
-                }
-            }
-        }
-
-        override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
-            chars.clear()
-            g.services.forEach { s -> s.characteristics.forEach { chars[it.uuid] = it } }
-            if (!chars.containsKey(CH_COMMAND) || !chars.containsKey(CH_GLUCOSE))
-                return fail("Libre 3 services not found (status $status)")
-            startAuthorization()
-        }
-
-        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) return fail("descriptor write failed: $status")
-            opDone()
-        }
-
-        override fun onCharacteristicWrite(g: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) return fail("write to ${ch.uuid} failed: $status")
-            opDone()
-        }
-
-        // API 33+
-        override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) =
-            handleNotification(ch.uuid, value)
-
-        @Deprecated("Deprecated in Java")
-        @Suppress("DEPRECATION")
-        override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic) {
-            handleNotification(ch.uuid, ch.value ?: return)
-        }
+        log(Log.WARN, "sensor: $why")
+        events.onStatus("reconnecting", why)
+        link?.disconnect()   // the transport re-arms the connection
     }
 
     // MARK: security handshake
@@ -291,12 +181,12 @@ internal class Libre3Client(
     private fun startAuthorization() {
         resetSession()
         fresh = kAuth == null
-        ctx = Libre3Crypto.begin(kAuth, 1)
+        ctx = security.begin(kAuth, 1)
         if (ctx == 0L) return fail("saved authorization rejected by the security core")
-        sink.onStatus(if (fresh) "pairing with the sensor" else "authorizing")
-        enableNotify(CH_COMMAND)
-        enableNotify(CH_CERT)
-        enableNotify(CH_CHALLENGE)
+        events.onStatus(if (fresh) "pairing with the sensor" else "authorizing")
+        subscribe(CH_COMMAND)
+        subscribe(CH_CERT)
+        subscribe(CH_CHALLENGE)
         if (fresh) {
             // fresh pairing: 1, 2, our certificate, 3; the sensor answers with 0x04 (certificate accepted)
             write(CH_COMMAND, byteArrayOf(0x01))
@@ -358,8 +248,8 @@ internal class Libre3Client(
     private fun securityDataComplete() {
         if (fresh && secCmd == 10 && secLen == 140) {
             // the sensor's certificate → ask for its ephemeral key and send ours
-            if (!Libre3Crypto.setPatchCertificate(ctx, secBuf)) return fail("sensor certificate rejected")
-            val eph = Libre3Crypto.createEphemeralPublicKey(ctx) ?: return fail("could not create pairing keys")
+            if (!security.setPatchCertificate(ctx, secBuf)) return fail("sensor certificate rejected")
+            val eph = security.createEphemeralPublicKey(ctx) ?: return fail("could not create pairing keys")
             write(CH_COMMAND, byteArrayOf(0x0D))
             writeFragments(CH_CERT, byteArrayOf(0x04) + eph)
             write(CH_COMMAND, byteArrayOf(0x0E))
@@ -367,7 +257,7 @@ internal class Libre3Client(
         }
         if (fresh && secCmd == 15 && secLen == 65) {
             // the sensor's ephemeral key → shared authorization, then the same challenge as a resume
-            if (!Libre3Crypto.deriveAuthorizationRoot(ctx, secBuf)) return fail("pairing key agreement failed")
+            if (!security.deriveAuthorizationRoot(ctx, secBuf)) return fail("pairing key agreement failed")
             write(CH_COMMAND, byteArrayOf(0x11))
             return
         }
@@ -376,44 +266,41 @@ internal class Libre3Client(
             23 -> {
                 r1 = secBuf.copyOfRange(0, 16)
                 val nonce = secBuf.copyOfRange(16, 23)
-                r2 = ByteArray(16).also { SecureRandom().nextBytes(it) }
-                val reply = Libre3Crypto.encryptChallengeReply(ctx, nonce, r1 + r2 + pairing.pin)
+                r2 = ByteArray(16).also { random(it) }
+                val reply = security.encryptChallengeReply(ctx, nonce, r1 + r2 + pairing.pin)
                     ?: return fail("challenge encryption failed")
                 writeFragments(CH_CHALLENGE, reply)
                 write(CH_COMMAND, byteArrayOf(0x08))
             }
             67 -> {
-                val plain = Libre3Crypto.decryptChallengeResponse(ctx, secBuf.copyOfRange(60, 67), secBuf.copyOfRange(0, 60))
+                val plain = security.decryptChallengeResponse(ctx, secBuf.copyOfRange(60, 67), secBuf.copyOfRange(0, 60))
                     ?: return fail("challenge response could not be decrypted")
                 if (!plain.copyOfRange(0, 16).contentEquals(r2) || !plain.copyOfRange(16, 32).contentEquals(r1))
                     return fail("challenge mismatch")
                 kEnc = plain.copyOfRange(32, 48)
                 ivEnc = plain.copyOfRange(48, 56)
                 if (fresh) {
-                    val saved = Libre3Crypto.exportSavedAuthorization(ctx) ?: return fail("could not save the pairing")
+                    val saved = security.exportSavedAuthorization(ctx) ?: return fail("could not save the pairing")
                     kAuth = saved
                     fresh = false
-                    Log.i(TAG, "sensor paired")
-                    onAuthorized(saved)
+                    log(Log.INFO, "sensor paired")
+                    events.onPairingState(saved)
                 }
-                Log.i(TAG, "sensor authorized")
-                sink.onStatus("authorized, subscribing")
-                authorizedAt = System.currentTimeMillis()
+                log(Log.INFO, "sensor authorized")
+                events.onStatus("authorized, subscribing")
+                authorizedAt = clock()
                 subscriptions = if (prefs.getBoolean(PREF_MINIMAL, false)) MINIMAL else FULL
-                subscriptions.forEach { enableNotify(it) }
-                handler.postDelayed(glucoseTimeout, GLUCOSE_TIMEOUT_MS)
-                // Sukrara: Features.connPriority (settings / DebugReceiver); the old pref still means "low".
-                val prio = when (app.mauri.sukrara.features.Features.value.connPriority) {
+                subscriptions.forEach { subscribe(it) }
+                link?.schedule(GLUCOSE_TIMEOUT_MS, glucoseTimeout)
+                // Features.connPriority (settings / DebugReceiver); the old pref still means "low".
+                val prio = when (connPriority()) {
                     "low" -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
                     "balanced" -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
                     "high" -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
                     else -> if (prefs.getBoolean(PREF_LOW_POWER, false)) BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER else null
                 }
-                if (prio != null) enqueue {
-                    // Readings arrive once a minute, so a long connection interval costs no latency.
-                    gatt?.requestConnectionPriority(prio)
-                    opDone()
-                }
+                // Readings arrive once a minute, so a long connection interval costs no latency.
+                if (prio != null) link?.requestConnectionPriority(prio)
             }
             else -> fail("unexpected challenge length $secLen")
         }
@@ -427,7 +314,7 @@ internal class Libre3Client(
         if (packet.size <= 6) return null
         val n = packet.size
         val nonce = byteArrayOf(packet[n - 2], packet[n - 1]) + DESCRIPTORS[kind] + iv
-        return Libre3Crypto.ccmDecrypt(key, nonce, packet.copyOfRange(0, n - 2))
+        return security.ccmDecrypt(key, nonce, packet.copyOfRange(0, n - 2))
     }
 
     private fun onGlucosePacket(packet: ByteArray) {
@@ -441,25 +328,25 @@ internal class Libre3Client(
         val uncapped = u16(15)
         val mgdl = if (uncapped in 39..501) uncapped else reading
         if (mgdl !in 39..501) {
-            Log.w(TAG, "ignoring out-of-range glucose $mgdl")
+            log(Log.WARN, "ignoring out-of-range glucose $mgdl")
             return
         }
 
-        handler.removeCallbacks(glucoseTimeout)
+        link?.cancel(glucoseTimeout)
         if (lifeCount == lastLifeCount) return
         lastLifeCount = lifeCount
-        sink.onStatus("live")
-        val now = System.currentTimeMillis() / 1000
+        events.onStatus("live")
+        val now = clock() / 1000
         val rate = if (rawRate == -32768) null else rawRate / 100.0
-        sink.onReading(Bridge.Reading(epochSec = now, mgdl = mgdl, rate = rate))
+        events.onReading(Bridge.Reading(epochSec = now, mgdl = mgdl, rate = rate))
 
         // The packet also carries the matching 5-minute value, which fills the Mac's chart a bit faster.
         val histLifeCount = u16(10)
         val hist = u16(12)
         val histPoint = if (hist in 39..501 && histLifeCount in 1..lifeCount)
             LibreViewPayload.Glucose(histLifeCount, hist, pairing.startEpoch + 60L * (histLifeCount + 1)) else null
-        histPoint?.let { sink.onHistory(listOf(Bridge.Reading(it.epochSec, it.mgdl, null))) }
-        sink.onSensorGlucose(LibreViewPayload.Glucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
+        histPoint?.let { events.onHistory(listOf(Bridge.Reading(it.epochSec, it.mgdl, null))) }
+        events.onSensorGlucose(LibreViewPayload.Glucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
     }
 
     /** Encrypts a command and writes it to PatchControl (same framing as incoming packets). */
@@ -468,13 +355,13 @@ internal class Libre3Client(
         val iv = ivEnc ?: return
         val seq = outSeq++
         val nonce = byteArrayOf((seq and 0xFF).toByte(), (seq shr 8).toByte()) + DESCRIPTORS[KIND_CONTROL] + iv
-        val body = Libre3Crypto.ccmEncrypt(key, nonce, command) ?: return
+        val body = security.ccmEncrypt(key, nonce, command) ?: return
         write(CH_PATCH_CONTROL, body + byteArrayOf((seq and 0xFF).toByte(), (seq shr 8).toByte()))
     }
 
     /** `{1, 0, arg, from(i32)}`: send stored 5-minute values starting at historic life count [from]. */
     private fun requestHistory(from: Int) {
-        Log.i(TAG, "requesting history from lifeCount $from")
+        log(Log.INFO, "requesting history from lifeCount $from")
         sendControl(byteArrayOf(1, 0, 1,
             (from and 0xFF).toByte(), ((from shr 8) and 0xFF).toByte(),
             ((from shr 16) and 0xFF).toByte(), ((from shr 24) and 0xFF).toByte()))
@@ -486,17 +373,17 @@ internal class Libre3Client(
         if (d.size < 12) return
         val currentLifeCount = (d[8].toInt() and 0xFF) or ((d[9].toInt() and 0xFF) shl 8)
         val state = d[7].toInt() and 0xFF
-        Log.i(TAG, "patch status: state=$state currentLifeCount=$currentLifeCount")
+        log(Log.INFO, "patch status: state=$state currentLifeCount=$currentLifeCount")
         if (PatchState.ended(state, currentLifeCount, pairing.wearMin)) {
-            if (!endedSeen) { endedSeen = true; sink.onSensorEnded(pairing.serial) }
+            if (!endedSeen) { endedSeen = true; events.onSensorEnded(pairing.serial) }
             if (PatchState.stopNow(state)) return stopForGood("patch state $state")
-            sink.onStatus("sensor ended", ENDED_HINT)   // an expired sensor gets one glucose wait (grace period)
+            events.onStatus("sensor ended", DriverPrefs.ENDED_HINT)   // an expired sensor gets one glucose wait (grace period)
         }
         if (currentLifeCount in 0 until pairing.warmupMin) {
             // no glucose yet: wait for the end of the warm-up instead of reconnecting every 2 minutes
-            sink.onStatus("warming up — readings in ${pairing.warmupMin - currentLifeCount} min")
-            handler.removeCallbacks(glucoseTimeout)
-            handler.postDelayed(glucoseTimeout, (pairing.warmupMin - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS)
+            events.onStatus("warming up — readings in ${pairing.warmupMin - currentLifeCount} min")
+            link?.cancel(glucoseTimeout)
+            link?.schedule((pairing.warmupMin - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS, glucoseTimeout)
             return
         }
         if (backfillRequested || currentLifeCount <= 0) return
@@ -522,24 +409,24 @@ internal class Libre3Client(
             lifeCount += HISTORY_STEP
         }
         if (out.isNotEmpty()) {
-            Log.i(TAG, "history: ${out.size} values from lifeCount $start")
-            sink.onHistory(out.map { Bridge.Reading(it.epochSec, it.mgdl, null) })
-            sink.onSensorGlucose(null, out)
+            log(Log.INFO, "history: ${out.size} values from lifeCount $start")
+            events.onHistory(out.map { Bridge.Reading(it.epochSec, it.mgdl, null) })
+            events.onSensorGlucose(null, out)
         }
     }
 
     /** Authorized but no glucose: reconnect, falling back to all notifications if we trimmed them. */
     private fun onGlucoseTimeout() {
         if (endedSeen) return stopForGood("no glucose after the sensor's end")
-        if (prefs.getBoolean(PREF_MINIMAL, false)) prefs.edit().putBoolean(PREF_MINIMAL, false).apply()
+        if (prefs.getBoolean(PREF_MINIMAL, false)) prefs.putBoolean(PREF_MINIMAL, false)
         fail("no glucose data after authorizing")
     }
 
     /** The sensor has ended: no more reconnects (each one costs battery) until a new sensor is scanned. */
     private fun stopForGood(why: String) {
-        Log.w(TAG, "sensor ${pairing.serial} ended ($why): not reconnecting")
-        prefs.edit().putBoolean(endedKey(pairing.serial), true).apply()
-        close()
-        sink.onStatus("sensor ended", ENDED_HINT)
+        log(Log.WARN, "sensor ${pairing.serial} ended ($why): not reconnecting")
+        prefs.putBoolean(DriverPrefs.endedKey(pairing.serial), true)
+        link?.close()
+        events.onStatus("sensor ended", DriverPrefs.ENDED_HINT)
     }
 }

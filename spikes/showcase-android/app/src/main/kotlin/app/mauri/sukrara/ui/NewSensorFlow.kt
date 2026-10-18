@@ -4,6 +4,8 @@
 package app.mauri.sukrara.ui
 
 import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorProfile
+import app.mauri.sukrara.core.SensorProfiles
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -15,7 +17,7 @@ object NewSensorFlow {
     /** The three steps shown at the top of the screen. */
     enum class Step { SCAN, PAIR, READINGS }
 
-    /** The Bluetooth part, from the direct source's status words (direct/Libre3Client `onStatus`). */
+    /** The Bluetooth part, from the direct source's status words (direct/GattLink and direct/Libre3Driver `onStatus`). */
     enum class PairStep { CONNECTING, SECURING, STARTING }
 
     /** What stops the flow. Only [FAILED] is an error; the others are states of the sensor or the phone. */
@@ -41,8 +43,8 @@ object NewSensorFlow {
         }
     }
 
-    /** A successful tap: the sensor's serial, whether it was started now, and when (epoch s). */
-    data class Tapped(val serial: String, val activated: Boolean, val at: Long)
+    /** A successful tap: the sensor's serial, whether it was started now, when (epoch s), and its family. */
+    data class Tapped(val serial: String, val activated: Boolean, val at: Long, val profile: SensorProfile = SensorProfiles.LIBRE_3)
 
     /** Pairing that takes longer than this (s) shows the "another app holds the sensor" hint. */
     const val SLOW_S = 45L
@@ -66,7 +68,7 @@ object NewSensorFlow {
             s == "waiting for Bluetooth" -> Stage.Problem(Trouble.BLUETOOTH_OFF, tap.serial)
             bleUp && first -> Stage.Ready(tap.serial, info?.endEpoch)
             bleUp && (tap.activated || s.startsWith("warming up")) ->
-                Stage.WarmingUp(tap.serial, info?.startEpoch ?: tap.at, info?.warmupEndEpoch ?: (tap.at + 3_600))
+                Stage.WarmingUp(tap.serial, info?.startEpoch ?: tap.at, info?.warmupEndEpoch ?: (tap.at + tap.profile.warmup.inWholeSeconds))
             bleUp -> Stage.Pairing(tap.serial, tap.activated, PairStep.STARTING)   // live, the first reading on its way
             else -> Stage.Pairing(tap.serial, tap.activated, pairStep(s), slow = now - tap.at > SLOW_S)
         }
