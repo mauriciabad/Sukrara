@@ -48,7 +48,7 @@ class DebugReceiver : BroadcastReceiver() {
                 chip = b("chip", s.chip), icon = b("icon", s.icon), hook = b("hook", s.hook),
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
                 hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon), lockWidget = b("lockWidget", s.lockWidget),
-                lockBg = i.getStringExtra("lockBg") ?: s.lockBg, lockWhite = b("lockWhite", s.lockWhite),
+                lockBg = i.getStringExtra("lockBg") ?: s.lockBg, lockLook = i.getStringExtra("lockLook") ?: s.lockLook,
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,
@@ -61,7 +61,7 @@ class DebugReceiver : BroadcastReceiver() {
             )
         }
         // Lock screen widget style: the module and the widget redraw now, not at the next reading.
-        if (listOf("lockWidget", "lockBg", "lockWhite").any(i::hasExtra)) {
+        if (listOf("lockWidget", "lockBg", "lockLook").any(i::hasExtra)) {
             app.mauri.sukrara.status.RootStatusBar.pushState(c)
             app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "lock screen style", force = true)
         }

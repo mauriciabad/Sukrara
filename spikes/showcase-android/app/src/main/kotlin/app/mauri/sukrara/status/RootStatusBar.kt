@@ -84,6 +84,7 @@ object RootStatusBar {
             .putExtra("low", Range.LOW).putExtra("high", Range.HIGH)
             .putExtra("lockWidget", f.lockWidget)
             .putExtra("lockBg", f.lockBg)
+            .putExtra("lockLook", f.lockLook)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }

@@ -27,6 +27,7 @@ import androidx.glance.layout.fillMaxSize
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.features.LockAppearance
 import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.Freshness
@@ -48,9 +49,10 @@ import kotlin.math.roundToInt
  * [HOLE_BOTTOM] in the widget options, dp from the widget's top-left).
  *
  * The same pieces as the other widgets' card ([GlucoseCard], investigation 16), arranged around the lock icon: value
- * and arrow left of it, the time-in-range rings right of it, the chart below. No background (it floats on the
- * wallpaper like the clock), always the dark palette (lock screen content is light), and a tap opens the treatment
- * dialog, which shows over the lock screen.
+ * and arrow left of it, the time-in-range rings right of it, the chart below. The background (frosted glass by
+ * default, [LockBackground]) is drawn by the module around it, except the shadow. Dark or light like the home-screen
+ * widgets ([LockAppearance], default: follows the dark theme), and a tap opens the treatment dialog, which shows over
+ * the lock screen.
  */
 class LockscreenWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
@@ -115,7 +117,6 @@ class LockscreenWidgetReceiver : BaseReceiver() {
 }
 
 private val RING_EMPHASIS = floatArrayOf(1f, 0.55f, 0.35f)
-private const val WHITE = 0xFFF2F2F2.toInt()
 
 @Composable
 private fun LockscreenContent(frame: WidgetUpdater.Frame) {
@@ -135,7 +136,7 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     var bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
     val f = Features.value
     draw(ctx, Canvas(bmp), frame, hole, d * scale, f)
-    if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale)
+    if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale, LockAppearance.dark(f.lockLook, ctx))
     Image(
         ImageProvider(bmp),
         contentDescription = describe(frame),
@@ -149,11 +150,9 @@ private data class Hole(val left: Float, val right: Float, val bottom: Float)
 
 private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float, f: FeatureState) {
     val cfg = GraphSettings.value
-    // Transparent: the end dot's halo is drawn in the background colour.
-    val pal = systemPalette(ctx, dark = true).copy(bg = 0).let {
-        if (f.lockWhite) it.copy(tight = WHITE, target = WHITE) else it
-    }
-    // Card and blur (drawn by the module behind the widget) have an edge: keep the content off it.
+    // The home widgets' palette in the chosen appearance. Transparent: the end dot's halo is drawn in the background colour.
+    val pal = systemPalette(ctx, dark = LockAppearance.dark(f.lockLook, ctx)).copy(bg = 0)
+    // Card and frosted glass (drawn by the module behind the widget) have an edge: keep the content off it.
     val pad = if (LockBackground.boxed(f.lockBg)) 12 * d else 0f
     val w = cv.width.toFloat() - pad
     val h = cv.height.toFloat() - pad
@@ -195,17 +194,17 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
 }
 
 /**
- * Text protection without a box: a soft dark shadow around everything drawn (the content's alpha, blurred), like the
- * shadow SystemUI puts under the lock screen clock.
+ * Text protection without a box: a soft shadow around everything drawn (the content's alpha, blurred), like the
+ * shadow SystemUI puts under the lock screen clock. Dark behind light content, a white glow behind dark content.
  */
-private fun withShadow(src: android.graphics.Bitmap, d: Float): android.graphics.Bitmap {
+private fun withShadow(src: android.graphics.Bitmap, d: Float, dark: Boolean): android.graphics.Bitmap {
     val off = IntArray(2)
     val mask = src.extractAlpha(android.graphics.Paint().apply {
         maskFilter = android.graphics.BlurMaskFilter(5 * d, android.graphics.BlurMaskFilter.Blur.NORMAL)
     }, off)
     val out = createBitmap(src.width, src.height)
     val cv = Canvas(out)
-    val p = android.graphics.Paint().apply { color = 0x99000000.toInt() }
+    val p = android.graphics.Paint().apply { color = if (dark) 0x99000000.toInt() else 0xB3FFFFFF.toInt() }
     // twice: the blur spreads the alpha thin, one pass is too faint behind thin lines
     repeat(2) { cv.drawBitmap(mask, off[0].toFloat(), off[1].toFloat() + 0.5f * d, p) }
     cv.drawBitmap(src, 0f, 0f, null)
