@@ -180,7 +180,7 @@ extension Bands {
         button.imagePosition = .imageTrailing
         button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
         button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
-        button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
+        button.toolTip = "Sukrara · reading at \(Clock.time(snap.latest.date))"
         let unitName = unit == .mgdl ? "mg/dL" : "mmol/L"
         button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
@@ -199,7 +199,7 @@ extension Bands {
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
                 button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
-                button.toolTip = "Sukrara · sensor warming up, ready at \(Freshness.timeText(sl.readyAt, now: nowT))"
+                button.toolTip = "Sukrara · Ready at \(Freshness.timeText(sl.readyAt, now: nowT))"
                 button.setAccessibilityLabel("Sensor warming up, \(w) left")
                 freshTimer?.invalidate()   // no readings come during the warm-up: tick the minutes ourselves
                 freshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
@@ -260,7 +260,7 @@ extension Bands {
     /// "14:05  2.5u rapid · 12m" (amounts lowercase without a space, the time since the entry last; delivery status
     /// comes from `treatmentStatus`).
     static func describe(_ t: Treatment, now: Date = Date()) -> String {
-        let time = Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened)
+        let time = Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t)))
         let what = TreatmentMarks.amount(k: t.k, a: t.a).map { "\($0) \(t.k)" } ?? "note"
         let note = t.n.isEmpty ? "" : (t.k == "note" ? ": " : " · ") + t.n
         return "\(time)  \(what)\(note) · \(TreatmentMarks.duration(now.timeIntervalSince1970 - TimeInterval(t.t)))"

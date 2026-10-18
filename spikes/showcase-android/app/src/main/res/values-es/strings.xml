@@ -175,9 +175,9 @@
     <string name="approve_label_matches">Coincide</string>
     <!-- Approve dialog: pill when the name differs from the invite label [CHAR LIMIT=20] -->
     <string name="approve_label_differs">Otro nombre</string>
-    <!-- Approve dialog: times; %1$s = when the invite was sent, %2$s = when they asked (HH:mm) [CHAR LIMIT=50] -->
+    <!-- Approve dialog: times; %1$s = when the invite was sent, %2$s = when they asked (a clock time) [CHAR LIMIT=50] -->
     <string name="approve_sent_asked">Enviada a las %1$s · pedida a las %2$s</string>
-    <!-- Approve dialog: time they asked; %1$s = HH:mm [CHAR LIMIT=30] -->
+    <!-- Approve dialog: time they asked; %1$s = a clock time [CHAR LIMIT=30] -->
     <string name="approve_asked">Pedida a las %1$s</string>
     <!-- Approve dialog: warning when other phones tried the same invite; %d = how many [CHAR LIMIT=NONE] -->
     <plurals name="approve_others_tried">
@@ -245,9 +245,9 @@
     <string name="request_notif_others">Otro teléfono también ha probado esta invitación. Compruébalo antes de permitirlo.</string>
     <!-- Access request: a nearby (Bluetooth) request [CHAR LIMIT=NONE] -->
     <string name="request_notif_nearby">Un teléfono cercano · abre Sukrara y escribe el código que aparece en su pantalla</string>
-    <!-- Access request: %1$s = the invite's label (e.g. Mom), %2$s = time HH:mm [CHAR LIMIT=NONE] -->
+    <!-- Access request: %1$s = the invite's label (e.g. Mom), %2$s = a clock time [CHAR LIMIT=NONE] -->
     <string name="request_notif_for">Pedido con tu invitación para %1$s · %2$s</string>
-    <!-- Access request: an unlabelled invite; %1$s = time HH:mm when it was sent [CHAR LIMIT=NONE] -->
+    <!-- Access request: an unlabelled invite; %1$s = a clock time when it was sent [CHAR LIMIT=NONE] -->
     <string name="request_notif_from">Pedido con tu invitación de las %1$s</string>
 
     <!-- ========== Glucose notification (ongoing) ========== -->
@@ -339,7 +339,7 @@
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
     <string name="card_warming_up">Calentando</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
-    <string name="card_ready_at">listo a las %1$s</string>
+    <string name="card_ready_at">Listo a las %1$s</string>
     <!-- Trend in words (screen readers, notification): no trend known [CHAR LIMIT=20] -->
     <string name="trend_unknown">tendencia desconocida</string>
     <!-- Trend in words: flat [CHAR LIMIT=20] -->
@@ -796,7 +796,7 @@
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
     <string name="report_footer">Objetivos para la diabetes tipo 1 y tipo 2 (consenso internacional, como en el informe de LibreView). Sensor activo el %1$d %% del periodo.</string>
 
-    <!-- Wearer home, entries from followers; %1$s = time HH:mm, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
+    <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s vía %4$s</string>
 
     <!-- ========== Settings pages ========== -->

@@ -189,7 +189,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                                     drawIntoCanvas { app.mauri.sukrara.graph.SensorBadge.disc(it.nativeCanvas, 0f, 0f, size.height, warmup, pal) }
                                 }
                             }
-                            Text(stringResource(R.string.card_warming_up) + " · " + stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
+                            Text(stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else if (sensorLook?.ended == true) {
