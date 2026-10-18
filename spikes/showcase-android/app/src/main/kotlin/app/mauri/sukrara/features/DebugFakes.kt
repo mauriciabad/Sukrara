@@ -15,7 +15,7 @@ import app.mauri.sukrara.wearer.Live
 import org.json.JSONObject
 
 /**
- * The DebugReceiver commands that replace the sensor (SensorLife) or make up data (readings, unlocks): **debug builds
+ * The DebugReceiver commands that replace the sensor (SensorLife) or show or write made-up data (readings, unlocks, test alerts, status-bar previews, treatments, forced screens): **debug builds
  * only**. On a release build each one changes nothing and says so in the reply.
  *
  * Why (2026-10-18): `--es cmd sensorEnd`, sent to the user's release build only to read the state, faked a sensor
@@ -25,12 +25,37 @@ import org.json.JSONObject
  * runs every command with `debug = false` and checks that nothing changed.
  */
 object DebugFakes {
-    /** The commands handled here (DebugReceiver's `cmd`; `sensorEnd` only with `--ei inMin`, `alertFeed` is an extra). */
-    val COMMANDS = setOf("fakeSensor", "sensor", "backfill", "sensorEnd", "sensorStart", "sensorUnlock", "alertFeed")
+    /**
+     * The commands handled here: DebugReceiver's `cmd` values (`sensorEnd` only with `--ei inMin`, `newSensorStage` =
+     * `newSensor --es stage`), and the extras `alertFeed`, `alertTest`, `previewSgv`. **The release app never shows a
+     * glucose value, an alert, a treatment or a sensor state that isn't real**, because the user acts on what Sukrara
+     * shows (2026-10-19): everything that shows or writes made-up data is here.
+     */
+    val COMMANDS = setOf("fakeSensor", "sensor", "backfill", "sensorEnd", "sensorStart", "sensorUnlock", "alertFeed",
+        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat")
 
     fun run(c: Context, cmd: String, i: Intent, out: JSONObject, debug: Boolean = BuildConfig.DEBUG) {
-        if (!debug) { out.put("cmd", "$cmd: debug builds only, nothing changed"); return }
+        if (!debug) { out.accumulate("debugOnly", "$cmd: debug builds only, nothing changed"); return }
         when (cmd) {
+            // a test alert (fires once, shared with followers)
+            "alertTest" -> { app.mauri.sukrara.alerts.Alerts.test(c, i.getStringExtra("alertTest") ?: "high", share = true); out.put("alertTest", "fired") }
+            // a made-up value in the root status bar only, until the next real reading (screenshots)
+            "previewSgv" -> app.mauri.sukrara.status.RootStatusBar.update(c, Features.value, Reading(System.currentTimeMillis() / 1000,
+                i.getIntExtra("previewSgv", 100), if (i.hasExtra("previewRate")) i.getFloatExtra("previewRate", 0f).toDouble() else null))
+            // the lock screen widget's test pattern (a 100 dp magenta square + circle) instead of the value
+            "locktest" -> {
+                app.mauri.sukrara.widgets.LockscreenWidget.testPattern = i.getBooleanExtra("on", true)
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
+                out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
+            }
+            // the New sensor screen forced to one step (screenshots), whatever the sensor really does
+            "newSensorStage" -> {
+                val stage = app.mauri.sukrara.ui.NewSensorFlow.previewStage(i.getStringExtra("stage") ?: "", System.currentTimeMillis() / 1000)
+                app.mauri.sukrara.ui.NewSensorFlow.preview.value = stage
+                c.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                out.put("cmd", "newSensor $stage")
+            }
+            "treat" -> treat(c, i, out)
             "fakeSensor" -> fakeSensor(c, i, out)
             "sensor" -> sensor(c, i, out)
             "backfill" -> backfill(i, out)
@@ -41,6 +66,21 @@ object DebugFakes {
             }
             "sensorUnlock" -> { SensorEnd.unlocked(c); out.put("cmd", "made-up unlock") }
             "alertFeed" -> alertFeed(c, i, out)
+        }
+    }
+
+    /**
+     * A treatment typed over adb (test data): the wearer's own log (charts, followers, LibreView when on) or a
+     * follower's writer entry. `untreat` (deleting by id) stays allowed on release: it removes, never makes up.
+     */
+    private fun treat(c: Context, i: Intent, out: JSONObject) {
+        val k = i.getStringExtra("k") ?: "note"
+        val a = i.getFloatExtra("a", 0f).toDouble()
+        val n = i.getStringExtra("n") ?: ""
+        if (app.mauri.sukrara.App.role(c) == "follower") { app.mauri.sukrara.App.follower(c).addTreatment(k, a, n); out.put("cmd", "follower entry sent") }
+        else {
+            app.mauri.sukrara.treatments.Treat.init(c)
+            out.put("cmd", "added").put("id", app.mauri.sukrara.treatments.Treat.store.add(k, a, Proto.nowS(), n).id)
         }
     }
 

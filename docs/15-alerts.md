@@ -320,8 +320,9 @@ build signed with that entitlement; today's builds show it as a normal notificat
 | `showcase-android/…/ui/AlertsScreen.kt` | settings screen; Settings → Alerts (wearer), home → Alerts (follower) |
 | `menubar/Sources/GlucoseBar/Alerts*.swift` | the Mac engine, window and self-test |
 
-Debug (`DebugReceiver`, adb only): `--es alertTest high` fires one alert (and sends it to followers),
-`--es alertFeed '204,-0.5'` runs a made-up reading through the rules (debug builds only), `--es alertSettings '<json>'`; the reply has
+Debug (`DebugReceiver`, adb only): `--es alertTest high` fires one alert (and sends it to followers) and
+`--es alertFeed '204,-0.5'` runs a made-up reading through the rules, both **debug builds only** (the release
+app never shows an alert that isn't real; test them on the emulator), `--es alertSettings '<json>'`; the reply has
 `alerts` (settings, state, last events). Mac: `-alert-test`, `-alert-feed`, `-alertsSnapshot`.
 
 ## Open

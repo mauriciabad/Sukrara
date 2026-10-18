@@ -30,8 +30,10 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   `docs/img/` or `spikes/*/evidence/`, full-phone captures flagged)*
 - **Phone / Mac installs contain all merged work:** install only with `tools/install.sh phone|mac` (refuses a dirty
   tree, a HEAD without origin/main / the integration branches / the last installed commit, or failing checks).
-- **Debug commands never fake on a release build:** DebugReceiver commands that replace the sensor or make up data
-  go through `DebugFakes.run` (debug builds only); reading state changes nothing. *(check `debug`; `DebugFakesTest`)*
+- **Debug commands never fake on a release build:** the release app never shows a glucose value, an alert, a treatment
+  or a sensor state that isn't real (the user acts on it). DebugReceiver commands that replace the sensor or show /
+  write made-up data (test alerts, status-bar previews, adb treatments, …) go through `DebugFakes.run` (debug builds
+  only; test them on the emulator); reading state changes nothing. *(check `debug`; `DebugFakesTest`)*
 - **Releases:** a bug fix gets a GitHub release only after the user has confirmed the fix on their device.
   *(not checked)*
 - **Alert rules are guarded by timeline scenarios** (sequences of events → expected alerts, Android and Mac). Every
