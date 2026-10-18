@@ -12,6 +12,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract.ACCOUNT_TYPE_LOCAL
+import android.provider.CalendarContract.Attendees
 import android.provider.CalendarContract.CALLER_IS_SYNCADAPTER
 import android.provider.CalendarContract.Calendars
 import android.provider.CalendarContract.Events
@@ -53,15 +54,18 @@ import java.util.TimeZone
  *   2026-10-18): it shows a non-Google account's calendars only once the user turns the account on under Google
  *   Calendar → Settings → Manage accounts → "Non-Google Accounts" → Sukrara (On this device). Its code (`ica.b`, decompiled)
  *   keeps that switch in its own prefs as `account:<name>:type:<type>|account_enabled_state`; with no stored state the
- *   account is hidden (Exchange excepted), and other apps can't set it (private storage). So the settings row says where to turn it on
- *   (ui/SensorCalendarSetting) when Google Calendar is installed.
+ *   account is hidden (Exchange excepted), and other apps can't set it (private storage). So the settings row says
+ *   where to turn it on (ui/SensorCalendarSetting) when Google Calendar is installed.
  *
  * Events: [DURATION_MS] long (30 min) from the sensor's end, so calendar apps draw a block with its title (a point event,
- * start = end, was a title-less sliver in Google Calendar), free, no reminder of its own (Sukrara notifies). The
- * organizer is the calendar's `OWNER_ACCOUNT` (Sukrara's own: [ACCOUNT]) with complete (empty) attendee data, so
- * calendar apps treat the user as the organizer and offer or describe no RSVP (without it Google Calendar read out
- * "Response: Not responded"). It moves earlier when the sensor fails early, and stays put once its time has passed
- * ([keepTime]: an update then leaves start and end alone). Kept for
+ * start = end, was a title-less sliver in Google Calendar), free, no reminder of its own (Sukrara notifies). No RSVP:
+ * without one Google Calendar read the event out as "Response: Not responded" (the event's `SELF_ATTENDEE_STATUS` was
+ * 0, none). `ORGANIZER` = the calendar's `OWNER_ACCOUNT` (Sukrara's own: [ACCOUNT]) with `HAS_ATTENDEE_DATA` 1 was not
+ * enough (verified on the phone 2026-10-18), and the provider refuses to update `SELF_ATTENDEE_STATUS` directly. What
+ * works is one Attendees row for the owner: accepted, relationship organizer, required ([ensureOwnerAttendee]); the
+ * provider then sets `SELF_ATTENDEE_STATUS` 1 and Google Calendar shows no guest list and no RSVP. It moves earlier
+ * when the sensor fails early, and stays put once its time has passed ([keepTime]: an update then leaves start and
+ * end alone). Kept for
  * past sensors (a history of sensor changes); a sensor's event still in the future is removed once another sensor is
  * the current one (it was replaced early, so that end won't happen). Turning the setting off deletes the Sukrara
  * calendar with all its events, or Sukrara's events in the picked calendar.
@@ -270,7 +274,8 @@ object SensorCalendar {
                 put(Events.CALENDAR_ID, cal); put(Events.TITLE, e.title); put(Events.DESCRIPTION, e.description)
                 put(Events.DTSTART, e.startMs); put(Events.DTEND, e.endMs); put(Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
                 put(Events.AVAILABILITY, Events.AVAILABILITY_FREE)
-                // the user organizes it, with no guests: calendar apps show no RSVP state (updates fix older events)
+                // the user organizes it, with no guests (the owner's accepted Attendees row is what hides the RSVP:
+                // ensureOwnerAttendee below)
                 if (owner.isNotEmpty()) put(Events.ORGANIZER, owner)
                 put(Events.HAS_ATTENDEE_DATA, 1)
                 if (own) put(Events._SYNC_ID, e.key)
@@ -281,7 +286,30 @@ object SensorCalendar {
                 cr.update(ContentUris.withAppendedId(uri, id), v, null, null) }
             else cr.insert(uri, v)?.let { keep[e.key] = ContentUris.parseId(it) }
         }
+        for (id in keep.values) ensureOwnerAttendee(cr, id, owner, own)   // every event Sukrara keeps, past ones too
         if (!own) savePicked(keep)
+    }
+
+    /**
+     * Makes sure event [eventId] has exactly one attendee row for [owner] (the calendar's `OWNER_ACCOUNT`): accepted,
+     * organizer, required. Only inserted when no row with that email exists, so rewrites (and a row added by hand)
+     * never make a second. The provider derives the event's `SELF_ATTENDEE_STATUS` (accepted) from it, which is what
+     * stops Google Calendar from describing an RSVP. Sync-adapter URI for the own calendar, plain URI for a picked one
+     * (so its account syncs it like the event).
+     */
+    private fun ensureOwnerAttendee(cr: ContentResolver, eventId: Long, owner: String, own: Boolean) {
+        if (owner.isEmpty()) return
+        val exists = cr.query(Attendees.CONTENT_URI, arrayOf(Attendees._ID),
+            "${Attendees.EVENT_ID} = ? AND ${Attendees.ATTENDEE_EMAIL} = ?", arrayOf(eventId.toString(), owner), null)
+            ?.use { it.count > 0 } ?: return
+        if (exists) return
+        val v = ContentValues().apply {
+            put(Attendees.EVENT_ID, eventId); put(Attendees.ATTENDEE_EMAIL, owner); put(Attendees.ATTENDEE_NAME, owner)
+            put(Attendees.ATTENDEE_STATUS, Attendees.ATTENDEE_STATUS_ACCEPTED)
+            put(Attendees.ATTENDEE_RELATIONSHIP, Attendees.RELATIONSHIP_ORGANIZER)
+            put(Attendees.ATTENDEE_TYPE, Attendees.TYPE_REQUIRED)
+        }
+        cr.insert(if (own) asSyncAdapter(Attendees.CONTENT_URI) else Attendees.CONTENT_URI, v)
     }
 
     /** Removes everything Sukrara wrote to [target]: its own calendar (with its events) or its events in a picked one. */
