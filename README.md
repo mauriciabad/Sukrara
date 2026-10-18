@@ -77,6 +77,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   a setting), and during a new sensor's warm-up the minutes until the first reading (`42m · ready at 19:45`) with a
   ring that fills up. Once the sensor has ended every surface says *Sensor ended at 18:03* (not an error) and no-data alerts stop. Followers and
   the Mac see the same (it travels with the live readings).
+- Sensor end in your calendar (opt-in, like Juggluco's but without a tap): Sukrara makes its own "Sukrara" calendar
+  on the phone (or uses one of your calendars, e.g. Google, to sync it everywhere) and keeps one "Sensor ends" event
+  per sensor up to date; turning it off removes them.
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root

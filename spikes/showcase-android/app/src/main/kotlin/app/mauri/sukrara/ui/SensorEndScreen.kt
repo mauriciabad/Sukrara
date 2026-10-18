@@ -84,6 +84,7 @@ fun SensorEndSettings(onBack: () -> Unit) {
     var editing by remember { mutableStateOf<Int?>(null) }
     var choosingHours by remember { mutableStateOf(false) }
     fun change(f: (SensorEndConfig) -> SensorEndConfig) = SensorEnd.update(ctx, f)
+    val calendar = sensorCalendarRows()
     SettingsPage(stringResource(R.string.sensorend_title), onBack) {
         SettingsIntro(stringResource(R.string.sensorend_intro))
         SettingsGroup {
@@ -109,7 +110,7 @@ fun SensorEndSettings(onBack: () -> Unit) {
                 enabled = c.countdown) { choosingHours = true }
             switch(stringResource(R.string.sensorend_warmup_switch), c.warmup, summary = stringResource(R.string.sensorend_warmup_summary)) { v -> change { it.copy(warmup = v) } }
         }
-        // ---- calendar agent (round sensor-life): the "Sensor end in calendar" switch goes in its own SettingsGroup here ----
+        SettingsGroup { calendar() }   // sensor end in calendar (features/SensorCalendar)
         SettingsFooter(stringResource(R.string.sensorend_footer))
     }
     editing?.let { i ->
