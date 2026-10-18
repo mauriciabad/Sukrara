@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -93,8 +92,8 @@ private fun Radio(text: String, sub: String?, selected: Boolean, enabled: Boolea
     // a trailing control (48 dp) replaces the row's 12 dp vertical padding, so rows with and without one match
     Row(Modifier.fillMaxWidth().selectable(selected = selected, enabled = enabled, onClick = onClick, role = Role.RadioButton)
         .padding(horizontal = SettingsDimension.dialogItemPaddingHorizontal,
-            vertical = if (trailing != null) 0.dp else SettingsDimension.buttonPaddingVertical)
-        .heightIn(min = SettingsSpace.medium5), verticalAlignment = Alignment.CenterVertically) {
+            vertical = if (trailing != null) 0.dp else SettingsDimension.buttonPaddingVertical),
+        verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selected, onClick = null, enabled = enabled)
         Spacer(Modifier.width(SettingsDimension.itemPaddingEnd))
         Column(Modifier.weight(1f).alphaForEnabled(enabled)) {

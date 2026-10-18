@@ -70,9 +70,12 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   + LSPosed: system icons or a coloured value next to the clock. Settings detects root and the LSPosed module (via
   LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI.
   [05](docs/05-android-status-bar.md)
-- Settings laid out like Android 16/17's: an overview with sections, search (the index is built from the pages
-  themselves, so it never goes out of date), the system's page and back-gesture motion, export / import / reset of
-  the options, and a reminder to set up LibreView. [10](docs/10-showcase.md)
+- Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
+  with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
+  so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
+  export / import / reset of the options, and a reminder to set up LibreView. Each alert has its own page
+  (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
+  [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
   [16](docs/16-graph.md)
