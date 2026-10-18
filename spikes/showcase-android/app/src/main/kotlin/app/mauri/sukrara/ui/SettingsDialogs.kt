@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +19,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -36,6 +39,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.android.settingslib.spa.framework.theme.divider
 import app.mauri.sukrara.R
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsOpacity.alphaForEnabled
@@ -69,7 +74,11 @@ fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClo
             for (o in options) Radio(o.label, o.sub, o.value == selected, o.enabled, o.trailing) {
                 onChoose(o.value); if (closeOnChoose) onClose()
             }
-            bottom?.invoke()
+            bottom?.let {
+                HorizontalDivider(Modifier.padding(horizontal = SettingsDimension.dialogItemPaddingHorizontal, vertical = SettingsSpace.extraSmall4),
+                    color = MaterialTheme.colorScheme.divider)
+                it()
+            }
             if (!closeOnChoose) DialogButtons(confirm = stringResource(R.string.settings_dialog_done), onConfirm = onClose)
         }
     }
@@ -81,8 +90,11 @@ fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClo
  */
 @Composable
 private fun Radio(text: String, sub: String?, selected: Boolean, enabled: Boolean, trailing: (@Composable () -> Unit)?, onClick: () -> Unit) {
+    // a trailing control (48 dp) replaces the row's 12 dp vertical padding, so rows with and without one match
     Row(Modifier.fillMaxWidth().selectable(selected = selected, enabled = enabled, onClick = onClick, role = Role.RadioButton)
-        .padding(SettingsDimension.dialogItemPadding), verticalAlignment = Alignment.CenterVertically) {
+        .padding(horizontal = SettingsDimension.dialogItemPaddingHorizontal,
+            vertical = if (trailing != null) 0.dp else SettingsDimension.buttonPaddingVertical)
+        .heightIn(min = SettingsSpace.medium5), verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selected, onClick = null, enabled = enabled)
         Spacer(Modifier.width(SettingsDimension.itemPaddingEnd))
         Column(Modifier.weight(1f).alphaForEnabled(enabled)) {

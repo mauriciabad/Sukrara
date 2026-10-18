@@ -380,12 +380,13 @@ fun SettingsFooter(text: String) {
  * title, one sentence, then the actions). Shown at the top of the home screen and of the settings overview.
  */
 @Composable
-fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: String?, onAction: () -> Unit, onDismiss: (() -> Unit)? = null) {
+fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: String?, onAction: () -> Unit, onDismiss: (() -> Unit)? = null,
+                   containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
     if (indexing) return
     Box(Modifier.fullBleed()) {
         com.android.settingslib.spa.widget.banner.SettingsBanner(BannerModel(title = title, text = text,
             imageVector = ImageVector.vectorResource(icon), onDismiss = onDismiss,
-            buttons = listOfNotNull(action?.let { BannerButton(it, onClick = onAction) })))
+            buttons = listOfNotNull(action?.let { BannerButton(it, onClick = onAction) }), containerColor = containerColor))
     }
 }
 

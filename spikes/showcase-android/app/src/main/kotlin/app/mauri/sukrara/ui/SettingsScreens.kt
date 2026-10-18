@@ -154,15 +154,14 @@ private fun appsSummary(f: FeatureState, wearer: Boolean) = listOfNotNull(
 
 /** Uploading to LibreView matters (it's the doctor's record): ask until it's set up or the user says not now. */
 @Composable
-fun LibreViewBanner(onSetUp: () -> Unit) {
+fun LibreViewBanner(onSetUp: () -> Unit, containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
     val f by Features.state.collectAsState()
     val lv by Treat.uploader.settings.collectAsState()
     val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
     Reveal(!ready && !f.libreviewBannerDismissed) {
         SettingsBanner(R.drawable.ic_sym_cloud_upload, stringResource(R.string.libreview_banner_title),
-            stringResource(R.string.libreview_banner_text), stringResource(R.string.libreview_banner_action), onSetUp) {
-            set { it.copy(libreviewBannerDismissed = true) }
-        }
+            stringResource(R.string.libreview_banner_text), stringResource(R.string.libreview_banner_action), onSetUp,
+            onDismiss = { set { it.copy(libreviewBannerDismissed = true) } }, containerColor = containerColor)
     }
 }
 

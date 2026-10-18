@@ -299,16 +299,16 @@ fun AlertKindScreen(k: String, follower: Boolean, onBack: () -> Unit) {
                 enabled = on && !locked) { dialog = "repeat" }
         }
         SettingsGroup(stringResource(R.string.alerts_group_sound)) {
-            value(stringResource(R.string.alerts_sound), if (!s.on) off else soundSummary(k, s), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { dialog = "sound" }
+            value(stringResource(R.string.alerts_sound), if (!s.on) off else soundSummary(k, s), enabled = s.on) { dialog = "sound" }
             value(stringResource(R.string.alerts_volume), if (!s.on) off else volume, enabled = s.on) { dialog = "volume" }
         }
         SettingsGroup(stringResource(R.string.alerts_group_test)) {
             action(stringResource(R.string.alerts_play_sound), stringResource(if (vibrate) R.string.alerts_play_sound_vibrate else R.string.alerts_play_sound_only,
-                soundName(s.soundOf(k)), volume), icon = R.drawable.ic_sym_play_arrow, enabled = s.soundOf(k) != AlertSounds.NONE || vibrate) {
+                soundName(s.soundOf(k)), volume), enabled = s.soundOf(k) != AlertSounds.NONE || vibrate) {
                 TestPlayback.play(ctx, k, s.soundOf(k), c.alarm)
             }
             checkbox(stringResource(R.string.alerts_vibrate), vibrate, summary = stringResource(R.string.alerts_vibrate_summary)) { TestPlayback.setVibrate(ctx, it) }
-            action(stringResource(R.string.alerts_test), stringResource(R.string.alerts_test_summary), icon = R.drawable.ic_sym_notifications) {
+            action(stringResource(R.string.alerts_test), stringResource(R.string.alerts_test_summary)) {
                 Alerts.test(ctx, k, share = false)
             }
             link(stringResource(R.string.alerts_channel_settings), stringResource(R.string.alerts_channel_settings_summary), external = true) {

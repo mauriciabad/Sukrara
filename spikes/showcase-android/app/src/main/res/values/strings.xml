@@ -150,10 +150,10 @@
     <string name="alerts_play_sound_vibrate">%1$s · %2$s · with vibration</string>
     <!-- %1$s = sound, %2$s = volume. [CHAR LIMIT=NONE] -->
     <string name="alerts_play_sound_only">%1$s · %2$s</string>
-    <!-- Check box: sound tests also play the alert's vibration. [CHAR LIMIT=30] -->
-    <string name="alerts_vibrate">Vibrate</string>
+    <!-- Check box next to the sound previews (▶): a preview also plays the alert's vibration. Only for previews, not for the alerts. [CHAR LIMIT=40] -->
+    <string name="alerts_vibrate">Play with vibration</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_vibrate_summary">Sound tests play the alert\'s vibration too</string>
+    <string name="alerts_vibrate_summary">For the previews here. The alert\'s own vibration is set in its notification category</string>
     <!-- Fires this alert once as a real notification. [CHAR LIMIT=40] -->
     <string name="alerts_test">Send a test alert</string>
     <!-- [CHAR LIMIT=NONE] -->
