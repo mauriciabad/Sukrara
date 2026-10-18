@@ -247,6 +247,20 @@ adb shell am start -n dev.spike.glucowidgets/.MainActivity --ez restart true   #
 adb shell am broadcast -n dev.spike.glucowidgets/.DebugReceiver --es cmd stats   # renders / skipped counters
 ```
 
+## `notification-android/` — NotifLab: glucose notification templates (Android, Kotlin, investigation 19)
+
+Posts the same synthetic reading as several notifications side by side (custom card, ProgressStyle variants, a Live
+Update, BigPictureStyle, MetricStyle) to compare what each template draws ([19](../docs/19-notification-templates.md)).
+```sh
+cd notification-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew :app:assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell pm grant dev.spike.notiflab android.permission.POST_NOTIFICATIONS
+# variants: baseline bands bands_c tir timeline live picture picture_c metric (extras: sgv, rate, hours, clear)
+adb shell am start -S -n dev.spike.notiflab/.MainActivity --es v live,bands --ei sgv 138 --ef rate 0.7 --ez clear true
+adb logcat -s NotifLab
+```
+
 ## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
 
 Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to

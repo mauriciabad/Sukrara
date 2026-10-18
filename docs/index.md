@@ -99,6 +99,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 | [16](16-graph) | One glucose graph everywhere | Time at each level beside the chart, time-in-range rectangles and rings, six ranges, freshness instead of "time ago", per-widget settings |
 | [17](17-lockscreen-widget) | Glucose on the lock screen | The graph around the fingerprint icon (root + LSPosed); log a treatment without unlocking |
 | [18](18-metrics) | The doctor's report in the app | Time in ranges, average, GMI and CV with their goals, on the home screen and in widget slots |
+| [19](19-notification-templates) | Notification templates | Which templates use the space under the icon: only Android 17's Live Update bar and buttons. Not in Sukrara yet |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.
