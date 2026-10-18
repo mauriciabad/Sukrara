@@ -199,13 +199,13 @@ class GraphGallery {
                 Tile("at the right end", "", 380f, 100f) { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.END, lastElse = fallback), pal, d, alerts = a)
                 },
-                Tile("next to the number, 2 rings + slot", "", 380f, 100f) { cv, w, h ->
+                Tile("next to the number: room for two, the 7d ring gives way", "", 380f, 100f) { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
                 },
                 Tile("no recent one, fallback off", "", 380f, 100f) { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = null), pal, d, alerts = a)
                 },
-                Tile("2×1: the slot pushes the 7d ring out", "", 150f, 60f) { cv, w, h ->
+                Tile("2×1, room for one: the main ring stays", "", 150f, 60f) { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
                 },
             ), 380f, 100f, cols = 2, pal)

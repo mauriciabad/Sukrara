@@ -300,7 +300,8 @@ short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
   belongs in its own small indicator (e.g. a dot on the slot or a line in the notification), not in this slot.
 - **A setting with a place, not a slot kind.** The user's rings stay as they are; the treatment is one more slot that
   comes and goes. Priority when room is short: main ring → recent treatment → second ring → fallback → third ring, so
-  on a 2×1 / 3×1 widget a fresh treatment pushes the second ring out and the fallback only fills spare room.
+  where two slots fit a fresh treatment pushes the second ring out, the fallback only fills spare room, and a widget
+  with room for one keeps the main ring.
 
 ### Other places considered for the last-treatment info
 
