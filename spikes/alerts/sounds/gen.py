@@ -5,9 +5,9 @@
 
     uv run gen.py            # → out/<pack>_<kind>_<n>.wav  (+ .ogg for Android, .caf for the Mac, .m4a for the web)
 
-4 packs × 8 kinds × 3 variants. Moods (spikes/alerts/SPEC.md §1): urgent low = "game over" (longer, unmistakable,
+4 packs × 8 kinds × 3 variants. Moods (spikes/alerts/SPEC.md §1): very low = "game over" (longer, unmistakable,
 not harsh), low = "lost a life", high = "final lap" speed-up (short, it's frequent), very high = "boss incoming",
-extremely high = "final boss" (the high-side urgent low: longer and more insistent than very high, still not harsh),
+extremely high = "final boss" (the high-side very low: longer and more insistent than very high, still not harsh),
 rising/falling fast = sweeps, no data = "connection lost".
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ from scipy.signal import lfilter
 SR = 44100
 LOUDER_DB = 5.0   # notification sounds sit well above music loudness
 OUT = Path(__file__).parent / "out"
-KINDS = ["urgent_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast", "no_data"]
+KINDS = ["very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast", "no_data"]
 rng = np.random.default_rng(15)
 
 
@@ -355,7 +355,7 @@ def ceiling(y, peak=0.89):
 # pulse leads (12.5/25/50 %), stepped triangle bass, NES-ish noise drums.
 
 
-def arcade_urgent_low(v):
+def arcade_very_low(v):
     tr = Track(5)
     if v == 0:   # descending minor, slowing down, long wobbling last note
         e = seq(tr, i_pulse, [(76, .11), (72, .11), (69, .11), (64, .22), (None, .12), (71, .22), (70, .22), (69, .3)], duty=.5)
@@ -530,7 +530,7 @@ def kart_extremely_high(v):
     return ceiling(finish(reverb(tr.out(), .2), -15.5))
 
 
-def kart_urgent_low(v):
+def kart_very_low(v):
     """Race over: descending brass, slowing down, timpani, long last chord."""
     tr = Track(5)
     lines = [[72, 70, 67, 63, 62], [71, 69, 66, 64, 59], [74, 72, 68, 65, 64]]
@@ -596,7 +596,7 @@ def i_sine_beep(m, dur, **_):
 # harp, flute, bells, timpani — gentle but clear.
 
 
-def quest_urgent_low(v):
+def quest_very_low(v):
     """You have fallen: slow harp arpeggio downwards over a minor chord, bell toll, flute sigh."""
     tr = Track(5.5)
     roots = [57, 55, 59]
@@ -696,7 +696,7 @@ def quest_no_data(v):
 # marimba and glass, no drums, slower attacks.
 
 
-def soft_urgent_low(v):
+def soft_very_low(v):
     tr = Track(5)
     r = [64, 62, 65][v]
     pattern = [12, 7, 3, 0]
