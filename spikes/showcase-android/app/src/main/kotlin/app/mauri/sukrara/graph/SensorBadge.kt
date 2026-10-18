@@ -31,7 +31,14 @@ object SensorBadge {
      * figure instead of a value and the disc fills instead of depleting.
      */
     data class Look(val label: String, val life: Float, val ended: Boolean, val warmup: String? = null, val fill: Float = 0f,
-                    val readyAt: Long = 0, val end: Long = 0)
+                    val readyAt: Long = 0, val end: Long = 0) {
+        /** Warming up past the warm-up's end: [warmup] is "Almost ready", the line under it "Waiting for the first reading". */
+        fun waiting(now: Long) = warmup != null && now >= readyAt
+
+        /** The line under the warm-up figure: "Ready at 19:45", or "Waiting for the first reading" once that's past. */
+        fun warmupLine(now: Long, hour24: Boolean, w: Words = Words.current) =
+            if (waiting(now)) w.waitingReading else w.readyAt.format(Freshness.timeText(readyAt, now, hour24))
+    }
 
     /** [latestT] = the newest reading's time (null = none): a reading since the sensor's start ends the warm-up. */
     fun look(info: SensorInfo?, now: Long, latestT: Long? = null, w: Words = Words.current): Look? = info?.let {
@@ -43,7 +50,7 @@ object SensorBadge {
 
     /** For screen readers: "Sensor: 13d left" / "Sensor ended" / "Warming up. Ready at 19:45". */
     fun describe(look: Look, now: Long, w: Words = Words.current): String = when {
-        look.warmup != null -> w.warmingUp + ". " + w.readyAt.format(Freshness.timeText(look.readyAt, now))
+        look.warmup != null -> (if (look.waiting(now)) w.almostReady else w.warmingUp) + ". " + look.warmupLine(now, Clock.hour24, w)
         look.ended -> w.sensorEnded + ". " + w.replaceSensor
         else -> w.sensorLeft.format(look.label)
     }

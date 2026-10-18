@@ -199,8 +199,9 @@ extension Bands {
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
                 button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
-                button.toolTip = "Sukrara · Ready at \(Freshness.timeText(sl.readyAt, now: nowT))"
-                button.setAccessibilityLabel("Sensor warming up, \(w) left")
+                // past the warm-up's end: "Almost ready" (never "0m"), "Waiting for the first reading"
+                button.toolTip = "Sukrara · \(sl.warmupLine(now: nowT))"
+                button.setAccessibilityLabel(sl.waiting(now: nowT) ? "Sensor almost ready, waiting for the first reading" : "Sensor warming up, \(w) left")
                 freshTimer?.invalidate()   // no readings come during the warm-up: tick the minutes ourselves
                 freshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
             } else if sl.end - nowT < 3600 {

@@ -11,7 +11,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Icon
 import android.util.Log
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
@@ -59,7 +58,14 @@ import java.time.ZoneId
  * Hide action. At the end it becomes a normal "Sensor ended" notification (no alarm sound, channel default).
  *
  * The warm-up of a new sensor (no readings for ~60 min) uses the same Live Update, with the bar filling up to the
- * first reading; then a short "Sensor ready" (setTimeoutAfter 10 min) takes its place.
+ * warm-up's end. A countdown never goes below zero: at the warm-up's end (an exact alarm) it turns into "Almost ready"
+ * (full bar, no timer) until the first reading, and the end countdown hands over to "Sensor ended" at the
+ * end. Not `setTimeoutAfter` on the countdowns: a timeout sends the delete intent, which reads as "dismissed". The
+ * first reading cancels the warm-up notification outright (whatever it shows) and posts a separate, short "Sensor
+ * ready" (setTimeoutAfter 10 min); every re-plan without a warm-up cancels it again, and the first reading's time is
+ * remembered ([PlanMemory.firstReading]). On the phone (2026-10-18) "ready" had replaced the countdown at 21:07, an
+ * app update at 21:08 restarted the process with no reading in memory, the restart re-posted the countdown, and
+ * since "ready" counted as shown nothing ever removed it again: stuck, its timer below zero.
  */
 object SensorEnd {
     private const val TAG = "Sukrara.SensorEnd"
@@ -69,8 +75,10 @@ object SensorEnd {
     const val ID_REMIND = 30
     const val ID_COUNTDOWN = 31
     const val ID_ENDED = 32
-    /** The warm-up countdown, then "Sensor ready" in its place. */
+    /** The warm-up countdown, then "Almost ready" until the first reading. */
     const val ID_WARMUP = 33
+    /** "Sensor ready" after the warm-up. */
+    const val ID_READY = 34
     const val ACTION_ALARM = "app.mauri.sukrara.SENSOR_END_ALARM"
     const val ACTION_DISMISSED = "app.mauri.sukrara.SENSOR_COUNTDOWN_DISMISSED"
     const val ACTION_WARMUP_DISMISSED = "app.mauri.sukrara.SENSOR_WARMUP_DISMISSED"
@@ -94,7 +102,12 @@ object SensorEnd {
         // during the warm-up countdown, the first reading ends it ("Sensor ready")
         scope.launch {
             Live.status.map { it.last?.t }.distinctUntilChanged().drop(1).collect {
-                memory(c).let { m -> if (m.warmupShown && !m.readyShown && !m.warmupDismissed) sync(c) }
+                // while a warm-up notification may be up (whatever "ready" says); a failing sync must not end this
+                // collector (it would never see a reading again)
+                val m = memory(c)
+                val info = SensorLife.current.value
+                if (m.warmupShown && m.firstReading == 0L && !m.warmupDismissed && info != null && keyOf(info) == m.key)
+                    runCatching { sync(c) }.onFailure { e -> Log.w(TAG, "first-reading sync failed: $e") }
             }
         }
         sync(c)
@@ -128,11 +141,12 @@ object SensorEnd {
 
     private fun memory(ctx: Context): PlanMemory = prefs(ctx).getString("memory", null)?.let {
         runCatching { JSONObject(it).let { o -> PlanMemory(o.getString("key"), o.getLong("last"), o.getBoolean("dismissed"), o.getBoolean("ended"),
-            o.getBoolean("warmup"), o.getBoolean("warmupDismissed"), o.getBoolean("ready")) } }.getOrNull()
+            o.getBoolean("warmup"), o.getBoolean("warmupDismissed"), o.getBoolean("ready"), o.optLong("first", 0)) } }.getOrNull()
     } ?: PlanMemory()
 
     private fun PlanMemory.toJson() = JSONObject().put("key", key).put("last", lastReminder).put("dismissed", countdownDismissed)
         .put("ended", endedShown).put("warmup", warmupShown).put("warmupDismissed", warmupDismissed).put("ready", readyShown)
+        .put("first", firstReading)
 
     private fun save(ctx: Context, m: PlanMemory) = prefs(ctx).edit().putString("memory", m.toJson().toString()).apply()
 
@@ -144,7 +158,7 @@ object SensorEnd {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         val info = SensorLife.current.value
         if (App.role(ctx) != "owner" || info == null) {   // only the wearer gets these
-            nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP)
+            nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP); nm.cancel(ID_READY)
             if (App.role(ctx) != "owner") nm.cancel(ID_ENDED)
             alarms(ctx).cancel(alarmIntent(ctx))
             return
@@ -152,18 +166,22 @@ object SensorEnd {
         var mem = memory(ctx)
         if (mem.key != keyOf(info)) {   // a new sensor: start fresh, past slots don't fire
             mem = PlanMemory(keyOf(info), now)
-            nm.cancel(ID_ENDED); nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP)
+            nm.cancel(ID_ENDED); nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP); nm.cancel(ID_READY)
         }
         val hours = SensorLife.countdownHours(ctx)
         val zone = ZoneId.systemDefault()
         val first = Live.status.value.last?.t?.takeIf { it >= info.startEpoch && !debugNoReadings }
         val p = SensorEndPlan.plan(info.startEpoch, info.endEpoch, _config.value, hours, now, zone, mem, info.warmupEndEpoch, first,
             SensorLife.WARMUP_GRACE_S)
-        when {
-            p.warmup -> { post(ctx, ID_WARMUP) { warmup(ctx, info, now) }; mem = mem.copy(warmupShown = true) }
-            p.ready -> { post(ctx, ID_WARMUP) { ready(ctx) }; mem = mem.copy(readyShown = true) }
-            !mem.readyShown -> nm.cancel(ID_WARMUP)   // "Sensor ready" stays until it times out
-        }
+        if (p.warmup) {
+            // countdown → "Almost ready": a fresh post, so a dropped update can't leave the timer running below zero
+            if (p.warmupWaiting && showsTimer(nm, ID_WARMUP)) nm.cancel(ID_WARMUP)
+            post(ctx, ID_WARMUP) { if (p.warmupWaiting) waiting(ctx) else warmup(ctx, info, now) }
+            mem = mem.copy(warmupShown = true)
+        } else nm.cancel(ID_WARMUP)   // the first reading (or the give-up) ends it, whatever it shows
+        if (p.ready) { post(ctx, ID_READY) { ready(ctx) }; mem = mem.copy(readyShown = true) }
+        // remembered: a restart (Live starts empty) must not bring the warm-up back
+        if (first != null && mem.firstReading == 0L) mem = mem.copy(firstReading = first)
         p.remind?.let {
             post(ctx, ID_REMIND) { reminder(ctx, info, now, zone) }
             mem = mem.copy(lastReminder = it)
@@ -176,7 +194,7 @@ object SensorEnd {
         }
         save(ctx, mem)
         schedule(ctx, p.next, p.nextExact)
-        Log.i(TAG, "sync end=${info.endEpoch} remind=${p.remind} countdown=${p.countdown} ended=${p.ended} warmup=${p.warmup} ready=${p.ready} next=${p.next} exact=${p.nextExact}")
+        Log.i(TAG, "sync end=${info.endEpoch} remind=${p.remind} countdown=${p.countdown} ended=${p.ended} warmup=${p.warmup} waiting=${p.warmupWaiting} ready=${p.ready} next=${p.next} exact=${p.nextExact}")
     }
 
     /** The countdown was swiped away or hidden: not shown again for this sensor. */
@@ -206,7 +224,8 @@ object SensorEnd {
         if (at == null) { am.cancel(pi); return }
         val ms = at * 1000
         when {
-            !exact -> am.set(AlarmManager.RTC, ms, pi)
+            // the progress tick: non-waking, at most TICK_WINDOW late (the plan keeps it clear of the next event)
+            !exact -> am.setWindow(AlarmManager.RTC, ms, SensorEndPlan.TICK_WINDOW * 1000, pi)
             am.canScheduleExactAlarms() -> am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, pi)
             else -> am.setWindow(AlarmManager.RTC_WAKEUP, ms, 10 * 60_000L, pi)
         }
@@ -223,6 +242,11 @@ object SensorEnd {
      * Promoted notifications are Android 16 QPR2 (API 36.1) APIs: on 36.0 `canPostPromotedNotifications` and
      * `setRequestPromotedOngoing` don't exist (NoSuchMethodError), so both are tried, like GlucoseNotification.
      */
+    /** Whether notification [id] is showing with a timer (a chronometer). */
+    private fun showsTimer(nm: NotificationManager, id: Int) = runCatching {
+        nm.activeNotifications.any { it.id == id && it.notification.extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER) }
+    }.getOrDefault(false)
+
     private fun canPromote(ctx: Context) =
         runCatching { ctx.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false)
 
@@ -254,24 +278,26 @@ object SensorEnd {
             .build()
 
     /**
-     * A Live Update (promotable): ProgressStyle with one segment, the timer as tracker and small icon, a chronometer
+     * A Live Update (promotable): ProgressStyle with one segment and no tracker icon (a plain bar), the timer as small icon, a chronometer
      * counting down to [until] (the chip's timer), silent updates, a Hide action and the same intent on swipe-away.
      */
-    private fun live(ctx: Context, title: String, text: String, until: Long, perMille: Int, dismissAction: String, req: Int,
+    private fun live(ctx: Context, title: String, text: String, until: Long?, perMille: Int, dismissAction: String, req: Int,
                      promote: Boolean): Notification {
         val hide = PendingIntent.getBroadcast(ctx, req, Intent(ctx, SensorEndReceiver::class.java).setAction(dismissAction),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val style = Notification.ProgressStyle()
             .setProgressSegments(listOf(Notification.ProgressStyle.Segment(1000)))
             .setProgress(perMille)
-            .setProgressTrackerIcon(Icon.createWithResource(ctx, R.drawable.ic_sym_timer))
         return Notification.Builder(ctx, CH_COUNTDOWN)
             .setSmallIcon(R.drawable.ic_sym_timer)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(style)
-            .setWhen(until * 1000).setShowWhen(true)
-            .setUsesChronometer(true).setChronometerCountDown(true)
+            .apply {
+                // until == null: no timer at all (a countdown is never left running past its end)
+                if (until != null) setWhen(until * 1000).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+                else setShowWhen(false)
+            }
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
@@ -296,6 +322,11 @@ object SensorEnd {
     private fun warmup(ctx: Context, info: SensorInfo, now: Long): Notification =
         live(ctx, ctx.getString(R.string.sensor_warmup_title), ctx.getString(R.string.sensor_warmup_text, time(ctx, info.warmupEndEpoch)),
             info.warmupEndEpoch, (SensorLife.warmupFraction(info, now) * 1000).toInt(), ACTION_WARMUP_DISMISSED, 2, promote = true)
+
+    /** Past the warm-up's end without a reading yet: no timer, the bar full (the warm-up is done), until the first reading. */
+    private fun waiting(ctx: Context): Notification =
+        live(ctx, ctx.getString(R.string.card_almost_ready), ctx.getString(R.string.card_waiting_reading), null, 1000,
+            ACTION_WARMUP_DISMISSED, 2, promote = true)
 
     /** Short-lived: gone by itself after 10 minutes. */
     private fun ready(ctx: Context): Notification =

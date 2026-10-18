@@ -35,6 +35,9 @@ class SensorLifeTest {
         assertEquals(true, SensorLife.warming(s, null, 1_000 + 18 * 60))
         assertEquals("42m", SensorLife.warmupLabel(s, 1_000 + 18 * 60, w))
         assertEquals("1m", SensorLife.warmupLabel(s, 1_000 + 3_599, w))
+        // past the warm-up's end without a reading: words, never "0m" or a negative time
+        assertEquals("Almost ready", SensorLife.warmupLabel(s, 1_000 + 3_600, w))
+        assertEquals("Almost ready", SensorLife.warmupLabel(s, 1_000 + 3_600 + 6 * 60, w))
         assertEquals(0.3, SensorLife.warmupFraction(s, 1_000 + 18 * 60), 1e-9)
         // the first reading ends it; an older reading (the previous sensor's) doesn't
         assertEquals(false, SensorLife.warming(s, 1_000 + 3_660, 1_000 + 3_700))

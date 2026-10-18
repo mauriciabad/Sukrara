@@ -120,6 +120,52 @@ class SensorEndPlanTest {
         assertFalse(wp(we + 15 * 60).warmup)
     }
 
+    @Test fun theCountdownNeverGoesBelowZero() {
+        // before the end: the timer runs, ticks while they land clear of the end ...
+        assertFalse(wp(ws + 600).warmupWaiting)
+        // ... and the last stretch is the exact alarm at the warm-up's end, never a late tick past it
+        val near = wp(we - 4 * 60)
+        assertFalse(near.warmupWaiting); assertEquals(we, near.next); assertTrue(near.nextExact)
+        val clear = wp(we - 10 * 60)
+        assertEquals(we - 10 * 60 + SensorEndPlan.WARMUP_TICK, clear.next); assertFalse(clear.nextExact)
+        // from the warm-up's end with no reading: "Almost ready" (no timer, no tick), until the give-up (exact)
+        for (now in listOf(we, we + 60, we + 6 * 60, we + 15 * 60 - 1)) {
+            val p = wp(now, PlanMemory("n", ws, warmupShown = true))
+            assertTrue(p.warmup); assertTrue(p.warmupWaiting); assertFalse(p.ready)
+            assertEquals(we + 15 * 60, p.next); assertTrue(p.nextExact)
+        }
+        // the end countdown: the last tick lands before the end; the end itself is an exact alarm → "Sensor ended"
+        val endNear = SensorEndPlan.plan(start, end, cfg, 8, end - 10 * 60, zone, PlanMemory("k", start))
+        assertTrue(endNear.countdown); assertEquals(end, endNear.next); assertTrue(endNear.nextExact)
+        val atEnd = SensorEndPlan.plan(start, end, cfg, 8, end, zone, PlanMemory("k", start))
+        assertFalse(atEnd.countdown); assertTrue(atEnd.ended)
+    }
+
+    @Test fun aReadingEndsTheWarmupInEveryState() {
+        val shown = PlanMemory("n", ws, warmupShown = true)
+        // the reading during the countdown, at its end, or while "Almost ready" (the user's case: 6 min past the end)
+        for ((now, first) in listOf(ws + 3000 to ws + 2990, we to we, we + 6 * 60 to we + 5 * 60, we + 14 * 60 to we + 14 * 60)) {
+            val p = wp(now, shown, first)
+            assertFalse(p.warmup); assertFalse(p.warmupWaiting); assertTrue(p.ready)
+            assertTrue(p.next == null || p.next!! > now)
+        }
+        // "ready" already shown (its post may have been dropped): still no warm-up
+        val again = wp(we + 7 * 60, shown.copy(readyShown = true), first = we + 5 * 60)
+        assertFalse(again.warmup); assertFalse(again.ready)
+    }
+
+    @Test fun aRestartDoesNotBringTheWarmupBack() {
+        // the phone, 2026-10-18: the first reading at 21:07 (59 min in), "ready" shown; an app update at 21:08 restarts
+        // the process, which knows no reading yet (first = null): the remembered first reading keeps the warm-up over
+        val after = PlanMemory("n", ws, warmupShown = true, readyShown = true, firstReading = we - 58)
+        for (now in listOf(we - 20, we + 60, we + 6 * 60)) {
+            val p = wp(now, after, first = null)
+            assertFalse(p.warmup); assertFalse(p.warmupWaiting); assertFalse(p.ready)
+        }
+        // without that memory the same restart would show the countdown again (what the phone did)
+        assertTrue(wp(we - 20, PlanMemory("n", ws, warmupShown = true, readyShown = true), first = null).warmup)
+    }
+
     @Test fun theFirstReadingBringsReadyOnce() {
         val shown = PlanMemory("n", ws, warmupShown = true)
         val early = wp(ws + 3000, shown, first = ws + 2950)

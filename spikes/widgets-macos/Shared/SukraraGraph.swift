@@ -1436,11 +1436,16 @@ enum SensorLife {
         now >= s.start && now < s.warmupEnd + warmupGrace && (latest.map { $0 < s.start } ?? true)
     }
 
-    /// The warm-up's time left as the card's figure: whole minutes rounded up ("42m"); ≥ 1 h → "1h".
+    /// The warm-up's time left as the card's figure: whole minutes rounded up ("42m"); ≥ 1 h → "1h". From the
+    /// warm-up's end until the first reading "Almost ready": a countdown never shows "0m" or less.
     static func warmupLabel(_ s: SensorInfo, now: TimeInterval) -> String {
-        let left = Int(max(0, (s.warmupEnd - now).rounded(.down)))
+        if waitingFirstReading(s, now: now) { return "Almost ready" }
+        let left = Int((s.warmupEnd - now).rounded(.down))
         return left >= 3600 ? "\(left / 3600)h" : "\((left + 59) / 60)m"
     }
+
+    /// While warming up: the warm-up's time is over and the first reading hasn't come yet.
+    static func waitingFirstReading(_ s: SensorInfo, now: TimeInterval) -> Bool { now >= s.warmupEnd }
 
     /// The warm-up ring: fills 0 → 1 from the start to the warm-up's end.
     static func warmupFraction(_ s: SensorInfo, now: TimeInterval) -> Double {
@@ -1460,6 +1465,14 @@ enum SensorBadge {
         var fill: Double
         var readyAt: TimeInterval
         var end: TimeInterval = 0
+
+        /// Warming up past the warm-up's end: `warmup` is "Almost ready", the line under it "Waiting for the first reading".
+        func waiting(now: TimeInterval) -> Bool { warmup != nil && now >= readyAt }
+
+        /// The line under the warm-up figure: "Ready at 19:45", or "Waiting for the first reading" once that's past.
+        func warmupLine(now: TimeInterval) -> String {
+            waiting(now: now) ? "Waiting for the first reading" : "Ready at \(Freshness.timeText(readyAt, now: now))"
+        }
     }
 
     static func look(_ s: SensorInfo?, now: TimeInterval, latest: TimeInterval?) -> Look? {
@@ -1728,7 +1741,7 @@ enum GlucoseCard {
     private static func drawWarmup(_ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ small: CTFont, _ now: TimeInterval,
                                    _ pal: GraphPalette, d: CGFloat) {
         guard let s = look.warmup else { return }
-        let line = "Ready at \(Freshness.timeText(look.readyAt, now: now))"
+        let line = look.warmupLine(now: now)
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - CTFontGetSize(small) * 1.25)
         var numSize = numBox.height * 1.18
         let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * 0.6

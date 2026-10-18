@@ -48,10 +48,13 @@ data class SensorEndConfig(val reminders: List<Reminder> = Reminder.DEFAULTS, va
 /**
  * What the scheduler remembers between runs, per sensor ([key] = serial + start, so an end that moves — the sensor
  * reporting it ended early — keeps the state): the last reminder slot shown, whether the countdown was dismissed, the
- * "ended" notice shown, and the warm-up countdown shown / dismissed / followed by "Sensor ready".
+ * "ended" notice shown, the warm-up countdown shown / dismissed / followed by "Sensor ready", and [firstReading]: the
+ * time of the first reading seen since the start (0 = none yet). Kept here because the newest reading lives only in
+ * memory (Live): after a restart (an app update, 2026-10-18) the warm-up must not come back before the next reading.
  */
 data class PlanMemory(val key: String = "", val lastReminder: Long = 0, val countdownDismissed: Boolean = false, val endedShown: Boolean = false,
-                      val warmupShown: Boolean = false, val warmupDismissed: Boolean = false, val readyShown: Boolean = false)
+                      val warmupShown: Boolean = false, val warmupDismissed: Boolean = false, val readyShown: Boolean = false,
+                      val firstReading: Long = 0)
 
 /**
  * The pure rules (JVM-tested, SensorEndPlanTest), all times unix seconds:
@@ -65,10 +68,14 @@ data class PlanMemory(val key: String = "", val lastReminder: Long = 0, val coun
  *  - The live countdown runs from end − countdownHours to the end (0 h = no countdown), unless dismissed for this end.
  *  - At the end, one "Sensor ended" notice, shown at most [ENDED_GRACE] after the end (not days later after a reboot).
  *  - Warm-up (a new sensor gives no readings for its first ~60 min): a live countdown from the start to [warmupEnd]
- *    while no reading has arrived, unless dismissed; like SensorLife.warming it gives up `grace` after the warm-up
- *    end without a reading (then it just goes). When the first reading arrives, one short "Sensor ready" replaces
- *    it, but only if the warm-up countdown was shown (no "ready" for a sensor that was already running when Sukrara
- *    learned about it) and within [READY_GRACE] of that reading.
+ *    while no reading has arrived, unless dismissed. **A countdown never goes below zero**: at [warmupEnd] (an exact
+ *    alarm) it becomes "Almost ready" without a timer ([Plan.warmupWaiting]) and, like SensorLife.warming, gives up
+ *    `grace` after the warm-up end without a reading (then it just goes). The first reading ends it at once (cancelled,
+ *    whatever state it's in); one short "Sensor ready" follows, but only if the warm-up countdown was shown (no
+ *    "ready" for a sensor that was already running when Sukrara learned about it) and within [READY_GRACE] of that
+ *    reading. The end countdown likewise stops at the end (exact alarm) and hands over to "Sensor ended".
+ *  - A progress tick is inexact (non-waking, at most [TICK_WINDOW] late): it is used only when it fires before the
+ *    next event even if late, so an event (warm-up end, sensor end) is never left to a late tick.
  */
 object SensorEndPlan {
     /** Countdown progress refresh while the window runs (non-waking: it only matters when the screen is on). */
@@ -77,6 +84,8 @@ object SensorEndPlan {
     /** Warm-up progress refresh (the warm-up is about an hour). */
     const val WARMUP_TICK = 5 * 60L
     const val READY_GRACE = 3600L
+    /** How late a progress tick may fire (SensorEnd schedules it with this window). */
+    const val TICK_WINDOW = 60L
 
     data class Plan(
         /** A reminder slot to show now (its time), or null. */
@@ -89,6 +98,8 @@ object SensorEndPlan {
         val nextExact: Boolean,
         /** The warm-up countdown shows now. */
         val warmup: Boolean = false,
+        /** ... past its end, still without a reading: "Almost ready", no timer (never a negative countdown). */
+        val warmupWaiting: Boolean = false,
         /** "Sensor ready" (warm-up over) to show now. */
         val ready: Boolean = false,
     )
@@ -104,27 +115,31 @@ object SensorEndPlan {
 
     /**
      * [warmupEnd]: when the sensor should give its first reading (SensorInfo.warmupEndEpoch, 0 = none);
-     * [firstReading]: the first reading's time since the start, or null while none has arrived; [grace]: how long
+     * [firstReading]: the newest reading's time if it is since the start, or null (none, or none known in this process:
+     * [PlanMemory.firstReading] counts too); [grace]: how long
      * after [warmupEnd] the warm-up countdown waits for it (SensorLife.WARMUP_GRACE_S).
      */
     fun plan(start: Long, end: Long, cfg: SensorEndConfig, hours: Int, now: Long, zone: ZoneId, mem: PlanMemory,
              warmupEnd: Long = 0, firstReading: Long? = null, grace: Long = 15 * 60L): Plan {
+        val first = mem.firstReading.takeIf { it > 0 } ?: firstReading
         val slots = slots(start, end, cfg.reminders, zone)
         val remind = slots.lastOrNull { it > mem.lastReminder && it <= now }?.takeIf { now < end }
         val win = if (cfg.countdown && hours > 0) windowStart(end, hours) else null
         val countdown = win != null && now in win until end && !mem.countdownDismissed
         val ended = now >= end && now < end + ENDED_GRACE && !mem.endedShown
-        val warmingUp = cfg.warmup && warmupEnd > start && now in start until warmupEnd + grace && firstReading == null && now < end
+        val warmingUp = cfg.warmup && warmupEnd > start && now in start until warmupEnd + grace && first == null && now < end
         val warmup = warmingUp && !mem.warmupDismissed
-        val ready = firstReading != null && mem.warmupShown && !mem.warmupDismissed && !mem.readyShown &&
-            now < firstReading + READY_GRACE && now < end
+        val ready = first != null && mem.warmupShown && !mem.warmupDismissed && !mem.readyShown &&
+            now < first + READY_GRACE && now < end
+        val waiting = warmup && now >= warmupEnd
         val events = listOfNotNull(slots.firstOrNull { it > now }, win?.takeIf { it > now }, end.takeIf { it > now },
-            (warmupEnd + grace).takeIf { warmingUp && it > now })
+            warmupEnd.takeIf { warmingUp && it > now }, (warmupEnd + grace).takeIf { warmingUp && it > now })
         val event = events.minOrNull()
-        val tick = when { warmup -> now + WARMUP_TICK; countdown -> now + TICK; else -> null }
+        // "Almost ready" has no timer and no bar to refresh: no tick
+        val tick = when { warmup && !waiting -> now + WARMUP_TICK; countdown -> now + TICK; else -> null }
         return when {
-            tick != null && (event == null || tick < event) -> Plan(remind, countdown, ended, tick, false, warmup, ready)
-            else -> Plan(remind, countdown, ended, event, event != null, warmup, ready)
+            tick != null && (event == null || tick + TICK_WINDOW < event) -> Plan(remind, countdown, ended, tick, false, warmup, waiting, ready)
+            else -> Plan(remind, countdown, ended, event, event != null, warmup, waiting, ready)
         }
     }
 
