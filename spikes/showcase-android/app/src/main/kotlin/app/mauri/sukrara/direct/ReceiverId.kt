@@ -4,6 +4,7 @@
 package app.mauri.sukrara.direct
 
 import android.content.Context
+import app.mauri.sukrara.R
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.SecureRandom
@@ -66,7 +67,7 @@ object ReceiverId {
         val body = buildJsonObject { put("email", email.trim()); put("password", password) }.toString()
         var host = "api.libreview.io"
         repeat(2) {
-            val o = post("https://$host/llu/auth/login", body)
+            val o = post(ctx, "https://$host/llu/auth/login", body)
             val status = o["status"]?.jsonPrimitive?.intOrNull
             val data = o["data"]?.jsonObject
             val region = data?.get("region")?.jsonPrimitive?.content
@@ -80,15 +81,15 @@ object ReceiverId {
                 return rid
             }
             throw LoginFailure(when (status) {
-                2 -> "Wrong email or password"
-                4 -> "LibreView wants you to accept new terms: sign in once in the LibreLinkUp or LibreView app"
-                else -> o["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content ?: "LibreView sign-in failed (status $status)"
+                2 -> ctx.getString(R.string.libreview_error_credentials)
+                4 -> ctx.getString(R.string.libreview_error_terms)
+                else -> o["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content ?: ctx.getString(R.string.libreview_error_status, "$status")
             })
         }
         throw LoginFailure("LibreView kept redirecting")
     }
 
-    private fun post(url: String, body: String) = (URL(url).openConnection() as HttpURLConnection).run {
+    private fun post(ctx: Context, url: String, body: String) = (URL(url).openConnection() as HttpURLConnection).run {
         requestMethod = "POST"
         connectTimeout = 10_000
         readTimeout = 20_000
@@ -100,7 +101,7 @@ object ReceiverId {
         outputStream.use { it.write(body.toByteArray()) }
         val code = responseCode
         val text = (if (code < 400) inputStream else errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
-        if (code == 401) throw LoginFailure("Wrong email or password")
+        if (code == 401) throw LoginFailure(ctx.getString(R.string.libreview_error_credentials))
         if (code != 200) throw LoginFailure("LibreView sign-in: HTTP $code")
         Json.parseToJsonElement(text).jsonObject
     }

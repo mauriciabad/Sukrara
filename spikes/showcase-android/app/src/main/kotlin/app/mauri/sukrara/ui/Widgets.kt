@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -180,7 +182,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                             style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
-                    Text(if (t == null) "No readings yet" else "No reading since\n${Freshness.timeText(t, now)}",
+                    Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
                         style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.weight(1f))
@@ -208,7 +210,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                 androidx.compose.material3.FilledTonalButton(onClick = it, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
                     androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_add),
                         contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
-                    Text("Add treatment")
+                    Text(stringResource(R.string.treatment_title))
                 }
             }
         }
@@ -230,7 +232,7 @@ fun StatusBadgeChip(look: StatusBadge.Look) {
     Surface(shape = CircleShape, color = bg, modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)) {
         Row(Modifier.padding(start = 10.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (look.tonal) androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_notifications_paused),
-                contentDescription = "Alerts paused", tint = fg, modifier = Modifier.size(18.dp))
+                contentDescription = stringResource(R.string.badge_alerts_paused), tint = fg, modifier = Modifier.size(18.dp))
             else KindMark(look.kind, fg)
             Spacer(Modifier.width(6.dp))
             Text(look.text, style = MaterialTheme.typography.labelLarge, color = fg)

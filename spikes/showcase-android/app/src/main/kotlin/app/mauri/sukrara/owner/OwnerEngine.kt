@@ -6,6 +6,7 @@ package app.mauri.sukrara.owner
 import android.content.Context
 import android.os.PowerManager
 import app.mauri.sukrara.BuildConfig
+import app.mauri.sukrara.R
 import app.mauri.sukrara.core.EventLog
 import app.mauri.sukrara.core.Lane
 import app.mauri.sukrara.core.Notifications
@@ -448,9 +449,9 @@ class OwnerEngine(private val ctx: Context) {
             val x = secret.trim()
             if (x.startsWith("ncryptsec1")) Keys(EncryptedSecretKey.fromBech32(x).decrypt(password ?: ""))
             else Keys.parse(x)
-        }.getOrElse { return@withContext "Not a valid nsec / ncryptsec (or wrong password)" }
+        }.getOrElse { return@withContext ctx.getString(R.string.onboarding_error_bad_key) }
         val iPub = Proto.pub(keys)
-        _ui.update { it.copy(busy = "Looking for your backup on the relays…") }
+        _ui.update { it.copy(busy = ctx.getString(R.string.onboarding_busy_looking_for_backup)) }
         val tmp = RelayPool(Proto.RELAYS, log::i) { keys }
         val found = try {
             tmp.fetch(listOf(JSONObject()
@@ -463,11 +464,11 @@ class OwnerEngine(private val ctx: Context) {
             .maxByOrNull { it.createdAt().asSecs() }
         if (newest == null) {
             _ui.update { it.copy(busy = null) }
-            return@withContext "No owner backup for ${Proto.shortNpub(iPub)} found on ${Proto.RELAYS.size} relays"
+            return@withContext ctx.getString(R.string.onboarding_error_no_backup, Proto.shortNpub(iPub), Proto.RELAYS.size)
         }
         val body = runCatching { Proto.dec(keys, iPub, newest.content()) }.getOrElse {
             _ui.update { it.copy(busy = null) }
-            return@withContext "Backup found but could not be decrypted"
+            return@withContext ctx.getString(R.string.onboarding_error_backup_undecryptable)
         }
         val s = OwnerState.fromBackup(keys, body, synthetic = BuildConfig.DEBUG && isEmulator())
         st = s
@@ -852,7 +853,7 @@ class OwnerEngine(private val ctx: Context) {
         s.followers[idx] = fol.copy(revoked = Proto.nowS())
         s.writers -= f
         save()
-        _ui.update { it.copy(busy = "Removing ${fol.name}: rotating keys…") }
+        _ui.update { it.copy(busy = ctx.getString(R.string.sharing_busy_removing, fol.name)) }
         sendRevoked(f)
         rotate("revoked ${fol.name}")
         _ui.update { it.copy(busy = null) }
@@ -888,8 +889,17 @@ class OwnerEngine(private val ctx: Context) {
                 treatments = db.treatments().also { Treat.init(ctx) }.filter { (tr, _, _) -> Treat.store.entry(tr.optString("id"))?.second?.del != true }
                     .map { (tr, author, via) ->
                     val who = s?.followers?.lastOrNull { it.f == author }?.name ?: author.take(8)
-                    "${java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(tr.optLong("t") * 1000))} " +
-                        "${tr.optString("k")} ${tr.optDouble("a")} ${tr.optString("n")} — $who via ${via.substringBefore(":")}"
+                    val a = tr.optDouble("a").let { if (it % 1.0 == 0.0) "${it.toLong()}" else "%.1f".format(java.util.Locale.ROOT, it) }
+                    val n = tr.optString("n")
+                    val what = when (tr.optString("k")) {
+                        "rapid" -> ctx.getString(R.string.treatments_row_rapid, "${a}u")
+                        "long" -> ctx.getString(R.string.treatments_row_long, "${a}u")
+                        "carbs" -> ctx.getString(R.string.treatments_row_carbs, "${a}g")
+                        else -> n.ifEmpty { ctx.getString(R.string.treatment_note) }
+                    } + (if (tr.optString("k") != "note" && n.isNotEmpty()) " · $n" else "")
+                    ctx.getString(R.string.home_follower_entry,
+                        java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(tr.optLong("t") * 1000)),
+                        what, who, via.substringBefore(":"))
                 },
             )
         }

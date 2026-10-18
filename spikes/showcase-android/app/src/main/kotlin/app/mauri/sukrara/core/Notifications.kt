@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.core
 
+import app.mauri.sukrara.R
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,10 +23,10 @@ object Notifications {
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(SERVICE, "Running in background", NotificationManager.IMPORTANCE_LOW))
-        nm.createNotificationChannel(NotificationChannel(REQUESTS, "Access requests", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(SERVICE, ctx.getString(R.string.channel_service), NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(REQUESTS, ctx.getString(R.string.channel_requests), NotificationManager.IMPORTANCE_HIGH))
         nm.deleteNotificationChannel("alarms")   // replaced by one channel per alert kind (alerts/AlertNotifier)
-        nm.createNotificationChannel(NotificationChannel(STATUS, "Sharing status", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(STATUS, ctx.getString(R.string.channel_status), NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     private fun open(ctx: Context) =
@@ -59,10 +60,10 @@ object Notifications {
     fun request(ctx: Context, p: app.mauri.sukrara.owner.PendingRequest) {
         val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date((p.inviteAt.takeIf { it > 0 } ?: p.at) * 1000))
         val text = when {
-            p.others > 0 -> "Another phone also tried this invite. Check before allowing."
-            p.nearby -> "A phone nearby · open Sukrara and type the code shown on their screen"
-            p.label.isNotBlank() -> "Asked with your invite for ${p.label} · $time"
-            else -> "Asked with your invite from $time"
+            p.others > 0 -> ctx.getString(R.string.request_notif_others)
+            p.nearby -> ctx.getString(R.string.request_notif_nearby)
+            p.label.isNotBlank() -> ctx.getString(R.string.request_notif_for, p.label, time)
+            else -> ctx.getString(R.string.request_notif_from, time)
         }
         fun action(what: String, label: String, auth: Boolean) = Notification.Action.Builder(null, label,
             PendingIntent.getBroadcast(ctx, what.hashCode(), Intent(ctx, app.mauri.sukrara.owner.RequestActionReceiver::class.java)
@@ -70,14 +71,14 @@ object Notifications {
             .setAuthenticationRequired(auth).build()
         val b = Notification.Builder(ctx, REQUESTS)
             .setSmallIcon(app.mauri.sukrara.R.drawable.ic_stat_sukrara)
-            .setContentTitle("${p.name} wants to see your glucose")
+            .setContentTitle(ctx.getString(R.string.request_notif_title, p.name))
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(open(ctx))
             .setCategory(Notification.CATEGORY_SOCIAL)
             .setAutoCancel(true)
         p.avatar?.let { b.setLargeIcon(android.graphics.drawable.Icon.createWithBitmap(it.render(p.name, 192).circle())) }
-        if (!p.nearby && p.others == 0) b.addAction(action(ACTION_DENY, "Deny", false)).addAction(action(ACTION_ALLOW, "Allow", true))
+        if (!p.nearby && p.others == 0) b.addAction(action(ACTION_DENY, ctx.getString(R.string.approve_deny), false)).addAction(action(ACTION_ALLOW, ctx.getString(R.string.approve_allow), true))
         runCatching { ctx.getSystemService(NotificationManager::class.java).notify(ID_REQUEST, b.build()) }
     }
 

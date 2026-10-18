@@ -17,6 +17,8 @@ import app.mauri.sukrara.owner.OwnerEngine
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        // the drawing code's words follow the app's language (per-app language, res/values-es)
+        app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(resources) }
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
@@ -24,7 +26,7 @@ class App : Application() {
         app.mauri.sukrara.graph.GraphSettings.init(this)
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
-        app.mauri.sukrara.widgets.SukraraHooks.watchNightMode(this)   // dark theme flips → widgets (both roles)
+        app.mauri.sukrara.widgets.SukraraHooks.watchConfiguration(this)   // dark theme or language → widgets, channel names
         // The debug-exported CMD/DUMP receivers of CGM Share are gone: headless commands now go through the
         // DUMP-protected features.DebugReceiver (adb shell only), in debug and release alike.
     }

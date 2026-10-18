@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -103,40 +105,36 @@ fun SensorScreen(onBack: () -> Unit) {
         onPauseOrDispose { if (listening) nfc.disableReaderMode(activity) }
     }
 
-    SettingsPage("Sensor", onBack) {
+    SettingsPage(stringResource(R.string.sensor_title), onBack) {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val p = pairing
                 if (p == null) {
-                    Text("No sensor yet", style = MaterialTheme.typography.titleMedium)
-                    Text("Scan your FreeStyle Libre 3 or 3 Plus to start reading it here.", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.sensor_none), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.sensor_none_text), style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Text("Libre 3 · ${p.serial}", style = MaterialTheme.typography.titleMedium)
-                    Text("Started ${date(p.startEpoch)}", style = MaterialTheme.typography.bodyMedium)
-                    Text(if (f.source != "direct") "Not in use: the glucose source is Juggluco"
-                         else "Now: ${st.source.removePrefix("direct: ")}${st.sourceError?.let { " — $it" } ?: ""}",
+                    Text(stringResource(R.string.sensor_started, date(p.startEpoch)), style = MaterialTheme.typography.bodyMedium)
+                    Text(if (f.source != "direct") stringResource(R.string.sensor_not_in_use)
+                         else stringResource(R.string.sensor_now, st.source.removePrefix("direct: ") + (st.sourceError?.let { " — $it" } ?: "")),
                         style = MaterialTheme.typography.bodySmall)
                     if (f.source != "direct") Button(onClick = { Features.update { it.copy(source = "direct") } }) {
-                        Text("Read this sensor")
+                        Text(stringResource(R.string.sensor_use))
                     }
                 }
             }
         }
 
-        if (nfc != null) Text(if (busy) "Reading the sensor… keep the phone still" else "Hold the top back of your phone against the sensor",
+        if (nfc != null) Text(stringResource(if (busy) R.string.sensor_reading else R.string.sensor_hold),
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text("A new sensor starts and warms up for 60 minutes. A sensor that is already running moves to Sukrara: " +
-            "only one app can read a Libre 3, so the app that had it (LibreLink, Juggluco) stops getting readings and " +
-            "its alarms stop. To move it back, scan it with that app.", style = MaterialTheme.typography.bodySmall)
-        if (f.source != "direct") Text("Juggluco is your glucose source now. If it is reading this sensor, stop it first: " +
-            "long-press its icon → Pause app, then App info → Force stop (a paused Juggluco keeps its Bluetooth link to the " +
-            "sensor and gets in the way). After the scan Sukrara switches to reading the sensor directly.",
+        Text(stringResource(R.string.sensor_takeover_note), style = MaterialTheme.typography.bodySmall)
+        if (f.source != "direct") Text(stringResource(R.string.sensor_juggluco_note),
             style = MaterialTheme.typography.bodySmall)
 
         when {
-            nfc == null -> Text("This phone has no NFC, so it can't scan a sensor.", color = MaterialTheme.colorScheme.error)
-            !nfcOn -> OutlinedButton(onClick = { ctx.startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }) { Text("Turn on NFC") }
+            nfc == null -> Text(stringResource(R.string.sensor_no_nfc), color = MaterialTheme.colorScheme.error)
+            !nfcOn -> OutlinedButton(onClick = { ctx.startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }) { Text(stringResource(R.string.sensor_turn_on_nfc)) }
         }
 
         when (val o = outcome) {
@@ -148,15 +146,18 @@ fun SensorScreen(onBack: () -> Unit) {
                 Text(o.text, style = MaterialTheme.typography.bodyMedium)
             } }
             is Outcome.NeedsAccount -> LibreViewSignIn(o.serial, onCancel = { outcome = null }) { msg ->
-                outcome = Outcome.Done("Signed in", msg)
+                outcome = Outcome.Done(ctx.getString(R.string.sensor_signed_in), msg)
             }
             null -> Unit
         }
 
+        val launchTitle = stringResource(R.string.sensor_launch_on_scan)
+        val launchSummary = stringResource(R.string.sensor_launch_on_scan_summary)
+        val forget = stringResource(R.string.sensor_forget)
         SettingsGroup {
-            if (nfc != null) switch("Open Sukrara when you scan a sensor", launchOnScan, icon = app.mauri.sukrara.R.drawable.ic_sym_nfc,
-                summary = "When it isn't already open") { NfcLaunch.set(ctx, it); launchOnScan = it }
-            if (pairing != null) action("Forget this sensor", icon = app.mauri.sukrara.R.drawable.ic_sym_person_remove) {
+            if (nfc != null) switch(launchTitle, launchOnScan, icon = app.mauri.sukrara.R.drawable.ic_sym_nfc,
+                summary = launchSummary) { NfcLaunch.set(ctx, it); launchOnScan = it }
+            if (pairing != null) action(forget, icon = app.mauri.sukrara.R.drawable.ic_sym_person_remove) {
                 SensorPairing.forget(ctx)
                 pairing = null
                 outcome = null
@@ -172,15 +173,15 @@ private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
         r.pairing.save(ctx)
         if (Features.value.source != "direct") Features.update { it.copy(source = "direct") }
         else App.owner(ctx).restartSource()
-        if (r.activated) Outcome.Done("Sensor ${r.pairing.serial} started",
-            "Sukrara is pairing with it over Bluetooth. Readings start after the 60-minute warm-up.")
-        else Outcome.Done("Sensor ${r.pairing.serial} is now Sukrara's",
-            "Pairing over Bluetooth — the first reading usually arrives within a minute or two.")
+        if (r.activated) Outcome.Done(ctx.getString(R.string.sensor_started_title, r.pairing.serial),
+            ctx.getString(R.string.sensor_started_text))
+        else Outcome.Done(ctx.getString(R.string.sensor_taken_over_title, r.pairing.serial),
+            ctx.getString(R.string.sensor_taken_over_text))
     }
     is Libre3Nfc.Result.WrongAccount -> Outcome.NeedsAccount(r.serial)
-    is Libre3Nfc.Result.Ended -> Outcome.Problem("Sensor ${r.serial} has ended", "Apply a new sensor and scan it.")
-    is Libre3Nfc.Result.Unsupported -> Outcome.Problem("Not supported", r.why)
-    is Libre3Nfc.Result.Failed -> Outcome.Problem("Scan didn't work", "${r.why}. Try again: hold the phone against the sensor until it vibrates.")
+    is Libre3Nfc.Result.Ended -> Outcome.Problem(ctx.getString(R.string.sensor_ended_title, r.serial), ctx.getString(R.string.sensor_ended_text))
+    is Libre3Nfc.Result.Unsupported -> Outcome.Problem(ctx.getString(R.string.sensor_unsupported), r.why)
+    is Libre3Nfc.Result.Failed -> Outcome.Problem(ctx.getString(R.string.sensor_scan_failed), ctx.getString(R.string.sensor_scan_failed_text, r.why))
 }
 
 /**
@@ -196,13 +197,11 @@ private fun LibreViewSignIn(serial: String, onCancel: () -> Unit, onDone: (Strin
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     Card(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Sensor $serial belongs to another app", style = MaterialTheme.typography.titleMedium)
-        Text("It was started by LibreLink or Juggluco with a LibreView account. Sign in once with that account so " +
-            "Sukrara can take the sensor over. Sukrara only reads your account number: it uploads nothing, doesn't " +
-            "keep your password, and the other app's LibreView uploads keep working.", style = MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(email, { email = it }, label = { Text("LibreView email") }, singleLine = true,
+        Text(stringResource(R.string.sensor_other_app_title, serial), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.sensor_other_app_text), style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(email, { email = it }, label = { Text(stringResource(R.string.sensor_libreview_email)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(password, { password = it }, label = { Text("Password") }, singleLine = true,
+        OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.onboarding_password)) }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -212,13 +211,14 @@ private fun LibreViewSignIn(serial: String, onCancel: () -> Unit, onDone: (Strin
                 scope.launch {
                     val r = withContext(Dispatchers.IO) { runCatching { ReceiverId.fetchLibreView(ctx, email, password) } }
                     busy = false
-                    r.onSuccess { password = ""; onDone("Now hold the phone against the sensor again.") }
+                    r.onSuccess { password = ""; onDone(ctx.getString(R.string.sensor_scan_again)) }
                         .onFailure { error = it.message ?: it.javaClass.simpleName }
                 }
-            }) { Text(if (busy) "Signing in…" else "Sign in") }
-            TextButton(onClick = onCancel) { Text("Cancel") }
+            }) { Text(stringResource(if (busy) R.string.sensor_signing_in else R.string.sensor_sign_in)) }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.treatment_cancel)) }
         }
     } }
 }
 
-private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMHHmm"),
+    Locale.getDefault()).format(Date(t * 1000))

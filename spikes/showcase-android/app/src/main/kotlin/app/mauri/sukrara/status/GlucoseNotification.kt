@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.status
 
+import app.mauri.sukrara.core.Words
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -63,7 +64,7 @@ object GlucoseNotification {
     private const val SLOT_DP = 52f
 
     fun createChannel(c: Context) {
-        val ch = NotificationChannel(CHANNEL, "Glucose (status bar)", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) }
+        val ch = NotificationChannel(CHANNEL, c.getString(R.string.channel_glucose), NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) }
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
     }
 
@@ -78,7 +79,7 @@ object GlucoseNotification {
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setCategory(Notification.CATEGORY_STATUS)
         if (r == null) {
-            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle("Sukrara · waiting for glucose…")
+            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_waiting_for_glucose))
                 .setContentText(detail).build()
         }
         val now = System.currentTimeMillis() / 1000
@@ -86,10 +87,10 @@ object GlucoseNotification {
         val stale = fresh.strike || !fresh.showValue
         // Investigation 16: no rate and no "time ago"; the reading's time only once it's late (Freshness).
         if (!fresh.showValue) {
-            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle("No reading since ${Freshness.timeText(r.t, now)}")
+            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_no_reading_since, Freshness.timeText(r.t, now)))
                 .setContentText(detail).build()
         }
-        val ageText = if (fresh.showTime) "at ${Freshness.timeText(r.t, now)}" else ""
+        val ageText = if (fresh.showTime) c.getString(R.string.notif_reading_at, Freshness.timeText(r.t, now)) else ""
         val line = listOf(ageText, detail).filter { it.isNotEmpty() }.joinToString(" · ")
         b.setContentTitle("${r.sgv} mg/dL ${Trend.arrow(r.rate)}")
             .setContentText(line)
@@ -120,7 +121,7 @@ object GlucoseNotification {
                             addMetric(Notification.Metric(Notification.Metric.FixedText(v), label))
                         }
                         if (fresh.showTime) addMetric(Notification.Metric(Notification.Metric.FixedText(
-                            Freshness.timeText(r.t, now)), "reading"))
+                            Freshness.timeText(r.t, now)), c.getString(R.string.notif_metric_reading)))
                     }
                     .setCriticalMetric(0))
             } else {
@@ -182,7 +183,7 @@ object GlucoseNotification {
         val now = System.currentTimeMillis() / 1000
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         val treatments = app.mauri.sukrara.treatments.TreatmentFeed.items.value
-        val key = "${r.t}|${now / 300}|$night|${treatments.hashCode()}|${GraphSettings.value.hashCode()}|" +
+        val key = "${r.t}|${now / 300}|$night|${java.util.Locale.getDefault()}|${treatments.hashCode()}|${GraphSettings.value.hashCode()}|" +
             "${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}"
         val old = artCache
         if (old != null && (key == artKey || !c.getSystemService(PowerManager::class.java).isInteractive)) return@runCatching old
@@ -240,12 +241,12 @@ object GlucoseNotification {
     private fun metric(item: app.mauri.sukrara.graph.SlotItem, now: Long): Pair<String, String>? = when (item) {
         is app.mauri.sukrara.graph.SlotItem.Metric -> if (item.m.empty) null else when (item.spec.kind) {
             app.mauri.sukrara.graph.SlotKind.TIR -> "${Math.round(item.m.tir.of(item.spec.range) * 100)}%" to
-                "${if (item.spec.range == app.mauri.sukrara.graph.TirRange.TIGHT) "very good" else "in range"} ${item.spec.period}"
+                "${Words.current.let { if (item.spec.range == app.mauri.sukrara.graph.TirRange.TIGHT) it.tirVeryGood else it.tirInRange }} ${item.spec.period}"
             else -> app.mauri.sukrara.graph.MetricGauge.text(item.spec.kind, item.m).let { (v, u) -> "$v$u" } to
                 "${item.spec.kind.short} ${item.spec.period}"
         }
         is app.mauri.sukrara.graph.SlotItem.Last -> (app.mauri.sukrara.treatments.TreatmentMarks.label(item.info.tr, 8) ?: item.info.tr.k) to
-            "${app.mauri.sukrara.treatments.TreatmentMarks.duration(now - item.info.tr.t)} ago"
+            Words.current.ago.format(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - item.info.tr.t))
     }
 
     private fun semantic(mgdl: Int) = when {

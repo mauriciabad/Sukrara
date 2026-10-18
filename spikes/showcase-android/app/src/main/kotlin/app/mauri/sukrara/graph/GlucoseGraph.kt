@@ -293,5 +293,5 @@ object GlucoseGraph {
 
     fun hourLabel(h: Int, hour24: Boolean): String =
         if (hour24) "%02d:00".format(Locale.ROOT, h)
-        else "${if (h % 12 == 0) 12 else h % 12} ${if (h < 12) "AM" else "PM"}"
+        else "${if (h % 12 == 0) 12 else h % 12} ${java.text.DateFormatSymbols.getInstance().amPmStrings[if (h < 12) 0 else 1]}"
 }

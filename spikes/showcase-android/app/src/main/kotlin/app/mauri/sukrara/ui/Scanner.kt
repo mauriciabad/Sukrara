@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -46,7 +48,7 @@ fun QrScanner(onResult: (String) -> Unit) {
     var granted by remember { mutableStateOf(ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     LaunchedEffect(Unit) { if (!granted) ask.launch(Manifest.permission.CAMERA) }
-    if (!granted) { Text("Camera permission is needed to scan the QR code."); return }
+    if (!granted) { Text(stringResource(R.string.join_camera_permission)); return }
     val done = remember { AtomicBoolean(false) }
     val exec = remember { Executors.newSingleThreadExecutor() }
     AndroidView(

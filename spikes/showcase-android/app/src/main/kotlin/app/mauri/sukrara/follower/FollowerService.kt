@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.follower
 
+import app.mauri.sukrara.R
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -32,7 +33,7 @@ class FollowerService : Service() {
         super.onCreate()
         // Same notification as the wearer's (status-bar chip + number icon), showing the followed person's value.
         GlucoseNotification.createChannel(this)
-        startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, "following…"),
+        startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, getString(R.string.notif_starting_follower)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         Features.init(this)
         val engine = App.follower(this)

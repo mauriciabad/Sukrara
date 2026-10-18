@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import app.mauri.sukrara.R
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
@@ -49,10 +50,8 @@ object QuickEntry {
         }
     }
 
-    fun saved(n: Int, role: String?) = when {
-        role == "follower" -> if (n == 1) "Entry sent" else "$n entries sent"
-        else -> if (n == 1) "Entry saved" else "$n entries saved"
-    }
+    fun saved(ctx: Context, n: Int, role: String?): String =
+        ctx.resources.getQuantityString(if (role == "follower") R.plurals.quick_entries_sent else R.plurals.quick_entries_saved, n, n)
 }
 
 /**
@@ -84,7 +83,7 @@ class QuickTreatmentActivity : ComponentActivity() {
                             onDismiss = ::finish,
                             onSave = { list ->
                                 QuickEntry.save(this@QuickTreatmentActivity, list)
-                                Toast.makeText(this@QuickTreatmentActivity, QuickEntry.saved(list.size, role), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@QuickTreatmentActivity, QuickEntry.saved(this@QuickTreatmentActivity, list.size, role), Toast.LENGTH_SHORT).show()
                             },
                             onOpenApp = ::openApp,
                             inWindow = true,

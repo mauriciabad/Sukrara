@@ -4,6 +4,8 @@
 package app.mauri.sukrara.ui
 
 import android.Manifest
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
@@ -93,7 +95,7 @@ class MainActivity : ComponentActivity() {
         when (role) {
             null -> { App.setRole(this, "follower"); role = "follower"; deepLink = link }
             "follower" -> deepLink = link
-            else -> Toast.makeText(this, "This phone is set up as the sensor owner; open the link on the follower's phone.", Toast.LENGTH_LONG).show()
+            else -> Toast.makeText(this, R.string.toast_link_on_wearer_phone, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -170,27 +172,27 @@ class MainActivity : ComponentActivity() {
                     if (err == null) {
                         startForegroundService(Intent(this@MainActivity, OwnerService::class.java))
                         engine.setForeground(true)
-                        toast("Identity restored — your followers continue automatically")
+                        toast(getString(R.string.toast_identity_restored))
                     }
                 }
 
                 override fun restoreFromPasswordManager() {
                     lifecycleScope.launch {
                         error = null
-                        busy = "Asking your password manager…"
+                        busy = getString(R.string.onboarding_busy_asking_password_manager)
                         val secret = try {
                             val res = CredentialManager.create(this@MainActivity)
                                 .getCredential(this@MainActivity, GetCredentialRequest(listOf(GetPasswordOption())))
                             (res.credential as? PasswordCredential)?.password
                         } catch (e: NoCredentialException) {
-                            restored("No saved Sukrara identity in your password managers"); return@launch
+                            restored(getString(R.string.onboarding_error_no_saved_identity)); return@launch
                         } catch (e: GetCredentialCancellationException) {
-                            restored("Cancelled"); return@launch
+                            restored(getString(R.string.onboarding_error_cancelled)); return@launch
                         } catch (e: GetCredentialException) {
                             restored("${e.type}: ${e.message}"); return@launch
                         }
-                        if (secret == null) { restored("Not a password credential"); return@launch }
-                        busy = "Restoring…"
+                        if (secret == null) { restored(getString(R.string.onboarding_error_not_password)); return@launch }
+                        busy = getString(R.string.onboarding_busy_restoring)
                         restored(engine.restore(secret, null))
                     }
                 }
@@ -198,7 +200,7 @@ class MainActivity : ComponentActivity() {
                 override fun restorePasted(secret: String, password: String?) {
                     lifecycleScope.launch {
                         error = null
-                        busy = "Restoring…"
+                        busy = getString(R.string.onboarding_busy_restoring)
                         restored(engine.restore(secret, password))
                     }
                 }
@@ -210,12 +212,12 @@ class MainActivity : ComponentActivity() {
                             CredentialManager.create(this@MainActivity)
                                 .createCredential(this@MainActivity, CreatePasswordRequest(engine.credentialId(), nsec))
                             engine.markBackupSaved()
-                            toast("Saved to your password manager")
+                            toast(getString(R.string.toast_backup_saved))
                         } catch (e: CreateCredentialCancellationException) {
-                            toast("Not saved (cancelled)")
+                            toast(getString(R.string.toast_backup_cancelled))
                         } catch (e: CreateCredentialException) {
                             engine.log.i("Credential Manager save failed: ${e.type}")
-                            toast("Could not save: ${e.type}")
+                            toast(getString(R.string.toast_backup_failed, e.type))
                         }
                     }
                 }
@@ -224,11 +226,11 @@ class MainActivity : ComponentActivity() {
 
                 override fun shareLink(link: String) {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, "Follow my glucose with Sukrara: $link")
-                    startActivity(Intent.createChooser(send, "Send invite"))
+                        .putExtra(Intent.EXTRA_TEXT, getString(R.string.share_invite_message, link))
+                    startActivity(Intent.createChooser(send, getString(R.string.share_invite_chooser)))
                 }
 
-                override fun copy(text: String) { this@MainActivity.copy(text, sensitive = text.startsWith("ncryptsec")); toast("Copied") }
+                override fun copy(text: String) { this@MainActivity.copy(text, sensitive = text.startsWith("ncryptsec")); toast(getString(R.string.toast_copied)) }
                 override fun approve(f: String) { engine.approve(f) }
                 override fun deny(f: String) { engine.deny(f) }
                 override fun revoke(f: String) { engine.revoke(f) }
@@ -253,8 +255,8 @@ class MainActivity : ComponentActivity() {
             when (s) {
                 "share" -> Page { ShareScreen(u, actions, back) }
                 "profile" -> Page {
-                    ProfileScreen("Your profile", u.profile ?: app.mauri.sukrara.core.Profile("", null), "Your name",
-                        "Your followers get the change at once. New invites show it to the person you invite.",
+                    ProfileScreen(stringResource(R.string.profile_title_wearer), u.profile ?: app.mauri.sukrara.core.Profile("", null), stringResource(R.string.profile_name_label),
+                        stringResource(R.string.profile_note_wearer),
                         actions::saveProfile, back)
                 }
                 "settings" -> Page { WearerSettings(u, back) }
@@ -350,8 +352,8 @@ class MainActivity : ComponentActivity() {
                 "log" -> Page { LogPage(log, back) }
                 "about" -> Page { AboutSettings(back) }
                 "profile" -> Page {
-                    ProfileScreen("How you appear", u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
-                        "Your name", "The person you follow sees the change as soon as it reaches them.", engine::setProfile, back)
+                    ProfileScreen(stringResource(R.string.profile_title_follower), u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
+                        stringResource(R.string.profile_name_label), stringResource(R.string.profile_note_follower), engine::setProfile, back)
                 }
                 else -> Page(homeScroll) { FollowerHome(u, actions) }
             }

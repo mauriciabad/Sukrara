@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,7 +59,8 @@ fun ProfileRow(p: Profile?, fallbackName: String, size: Dp = 40.dp, content: @Co
     }
 }
 
-private val SHAPES = listOf("cube" to "Cube", "drop" to "Drop", "dots" to "Dots", "rings" to "Rings", "letter" to "Letter")
+private val SHAPES = listOf("cube" to R.string.avatar_shape_cube, "drop" to R.string.avatar_shape_drop, "dots" to R.string.avatar_shape_dots,
+    "rings" to R.string.avatar_shape_rings, "letter" to R.string.avatar_shape_letter)
 private val PALETTE_SWATCHES = listOf(0xFF1BB5C9, 0xFFC6F432, 0xFFFF8A65, 0xFFBA68C8, 0xFFFFD54F, 0xFF4FC3F7, 0xFFF06292, 0xFF90A4AE)
 
 /**
@@ -75,8 +78,8 @@ fun ProfileEditor(p: Profile, onChange: (Profile) -> Unit, nameLabel: String) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             AvatarImage(p.avatar, p.name, 88.dp)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedButton(onClick = { onChange(p.copy(avatar = Avatar.random())) }) { Text("Shuffle") }
-                TextButton(onClick = { customizing = !customizing }) { Text(if (customizing) "Done" else "Customize") }
+                OutlinedButton(onClick = { onChange(p.copy(avatar = Avatar.random())) }) { Text(stringResource(R.string.avatar_shuffle)) }
+                TextButton(onClick = { customizing = !customizing }) { Text(stringResource(if (customizing) R.string.avatar_done else R.string.avatar_customize)) }
             }
         }
         Reveal(customizing) {
@@ -84,7 +87,7 @@ fun ProfileEditor(p: Profile, onChange: (Profile) -> Unit, nameLabel: String) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SHAPES.forEach { (s, label) ->
                         FilterChip(selected = avatar.shape == s, onClick = { onChange(p.copy(avatar = avatar.with(shape = s))) },
-                            label = { Text(label) })
+                            label = { Text(stringResource(label)) })
                     }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -98,14 +101,13 @@ fun ProfileEditor(p: Profile, onChange: (Profile) -> Unit, nameLabel: String) {
                     }
                 }
                 TextButton(onClick = { onChange(p.copy(avatar = avatar.with(angle = avatar.angle + 45, seed = avatar.seed + 1))) }) {
-                    Text("Turn the colours")
+                    Text(stringResource(R.string.avatar_turn_colours))
                 }
             }
         }
         OutlinedTextField(p.name, { onChange(p.copy(name = it.take(Profile.MAX_NAME))) }, label = { Text(nameLabel) },
             singleLine = true, modifier = Modifier.fillMaxWidth())
-        Text("Only the people you share with see your name and picture. They travel end-to-end encrypted and are " +
-            "never posted publicly.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.profile_privacy_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -117,8 +119,8 @@ fun ProfileScreen(title: String, current: Profile, nameLabel: String, note: Stri
         ProfileEditor(p, { p = it }, nameLabel)
         Text(note, style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onSave(p); onBack() }, enabled = p.name.isNotBlank()) { Text("Save") }
-            TextButton(onClick = onBack) { Text("Cancel") }
+            Button(onClick = { onSave(p); onBack() }, enabled = p.name.isNotBlank()) { Text(stringResource(R.string.treatment_save)) }
+            TextButton(onClick = onBack) { Text(stringResource(R.string.treatment_cancel)) }
         }
     }
 }

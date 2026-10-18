@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import app.mauri.sukrara.R
 import android.app.PendingIntent
 import android.content.Intent
 import android.service.quicksettings.Tile
@@ -23,7 +24,7 @@ class TreatmentTileService : TileService() {
         Features.init(this)
         val r = WidgetUpdater.current(this).history.lastOrNull()
         tile.state = if (QuickEntry.canAdd(this)) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
-        tile.subtitle = r?.let { if (it.stale(System.currentTimeMillis() / 1000)) "${it.sgv} (old)" else "${it.sgv} ${Trend.arrow(it.rate)}" }
+        tile.subtitle = r?.let { if (it.stale(System.currentTimeMillis() / 1000)) getString(R.string.tile_value_old, it.sgv) else "${it.sgv} ${Trend.arrow(it.rate)}" }
         tile.updateTile()
     }
 
