@@ -1473,17 +1473,25 @@ enum SensorBadge {
         return width(look, h: h)
     }
 
-    /// The "sensor ended" checkered flag (Android SensorLife.FLAG_FILL / FLAG_OUTLINE, 24×24 units), `size` square at (`x`, `y`).
-    static func flag(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) {
-        let s = size / 24
-        ctx.saveGState()
-        ctx.setFillColor(color); ctx.setStrokeColor(color)
-        for q in [(4.0, 3.0, 1.6, 18.0), (5.6, 4.0, 4.8, 4.5), (15.2, 4.0, 4.8, 4.5), (10.4, 8.5, 4.8, 4.5)] {
-            ctx.fill(CGRect(x: x + q.0 * s, y: y + q.1 * s, width: q.2 * s, height: q.3 * s))
+    /// The "sensor ended" flag: SF Symbol `flag.checkered` (Android: Material Symbols `sports_score`), `size` pt tall, its
+    /// top-left at (`x`, `y`) in the card's y-down context, tinted `color`. Returns its width (0 if the symbol is missing).
+    @discardableResult
+    static func flag(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) -> CGFloat {
+        guard let sym = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)) else { return 0 }
+        let k = size / max(sym.size.height, 1)
+        let rect = NSRect(x: x, y: y, width: sym.size.width * k, height: size)
+        let tinted = NSImage(size: sym.size, flipped: false) { r in
+            sym.draw(in: r)
+            (NSColor(cgColor: color) ?? .gray).set()
+            r.fill(using: .sourceAtop)
+            return true
         }
-        ctx.setLineWidth(1.2 * s)
-        ctx.stroke(CGRect(x: x + 6.2 * s, y: y + 4.6 * s, width: 13.2 * s, height: 7.8 * s))
-        ctx.restoreGState()
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
+        tinted.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+        return rect.width
     }
 
     /// The ring over a slot of `radius` (the slot rings' stroke is radius × 0.2): ink on a background-coloured halo
@@ -1668,8 +1676,8 @@ enum GlucoseCard {
         let tw = Ink.width(words, Ink.font(size, .semibold)) + size * 1.25
         if tw > box.width - iconRoom, tw > 0 { size *= max(0.45, (box.width - iconRoom) / tw) }
         let f = Ink.font(size, .semibold)
-        let base = textBox.midY + size * 0.36, fs = size * 0.95, cap = CTFontGetCapHeight(f)
-        SensorBadge.flag(ctx, x: box.minX - fs * 0.12, y: base - cap - (fs - cap) / 2, size: fs, color: pal.inkSoft)
+        let base = textBox.midY + size * 0.36, fs = size * 1.05, cap = CTFontGetCapHeight(f)
+        SensorBadge.flag(ctx, x: box.minX, y: base - cap - (fs - cap) / 2, size: fs, color: pal.inkSoft)
         Ink.draw(ctx, words, x: box.minX + size * 1.25, y: base, f, pal.inkSoft)
         if row {
             _ = StatusBadge.draw(ctx, x: box.minX, y: textBox.maxY + badgeH * 0.25, h: badgeH, maxW: box.width, StatusBadge.replaceSensor,

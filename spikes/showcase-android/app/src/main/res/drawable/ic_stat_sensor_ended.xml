@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- CGM research spikes — GPL-3.0-or-later. A checkered flag: the sensor has ended (status bar, notification icon).
-     Same shapes as core/SensorLife.FLAG_FILL / FLAG_OUTLINE (drawn in code by the SystemUI hook); Mac: SF Symbol flag.checkered. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF"
-        android:pathData="M4,3h1.6v18H4z M5.6,4h4.8v4.5H5.6z M15.2,4H20v4.5h-4.8z M10.4,8.5h4.8V13h-4.8z"/>
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.2" android:pathData="M6.2,4.6H19.4V12.4H6.2Z"/>
+<!-- Material Symbols Outlined "sports_score" (Apache 2.0, fonts.google.com/icons), 24 dp: the sensor has ended (status bar,
+     notification icon, card, Settings → Sensor end). The same path is core/SensorLife.FLAG_PATH; the Mac uses SF Symbol flag.checkered. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="false">
+    <group android:translateY="960">
+        <path android:fillColor="@android:color/white" android:pathData="M360-720h80v-80h-80v80Zm160 0v-80h80v80h-80ZM360-400v-80h80v80h-80Zm320-160v-80h80v80h-80Zm0 160v-80h80v80h-80Zm-160 0v-80h80v80h-80Zm160-320v-80h80v80h-80Zm-240 80v-80h80v80h-80ZM200-160v-640h80v80h80v80h-80v80h80v80h-80v320h-80Zm400-320v-80h80v80h-80Zm-160 0v-80h80v80h-80Zm-80-80v-80h80v80h-80Zm160 0v-80h80v80h-80Zm80-80v-80h80v80h-80Z"/>
+    </group>
 </vector>

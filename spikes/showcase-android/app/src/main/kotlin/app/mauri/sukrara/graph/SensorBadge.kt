@@ -64,17 +64,13 @@ object SensorBadge {
     /** The badge's width at height [h]. */
     fun width(look: Look, h: Float, pal: GraphPalette): Float = h + h * 0.3f + text(h, color(look, pal)).measureText(look.label)
 
-    private val flagFill by lazy { androidx.core.graphics.PathParser.createPathFromPathData(SensorLife.FLAG_FILL) }
-    private val flagOutline by lazy { androidx.core.graphics.PathParser.createPathFromPathData(SensorLife.FLAG_OUTLINE) }
+    private val flagPath by lazy { androidx.core.graphics.PathParser.createPathFromPathData(SensorLife.FLAG_PATH) }
 
-    /** The "sensor ended" checkered flag ([SensorLife.FLAG_FILL]), [size] px square, top-left at ([x], [y]). */
+    /** The "sensor ended" flag (Material Symbols `sports_score`, [SensorLife.FLAG_PATH]), [size] px square, top-left at ([x], [y]). */
     fun flag(cv: Canvas, x: Float, y: Float, size: Float, color: Int) {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
         cv.save()
-        cv.translate(x, y); cv.scale(size / 24f, size / 24f)
-        cv.drawPath(flagFill, p)
-        p.style = Paint.Style.STROKE; p.strokeWidth = 1.2f
-        cv.drawPath(flagOutline, p)
+        cv.translate(x, y); cv.scale(size / 960f, size / 960f); cv.translate(0f, 960f)
+        cv.drawPath(flagPath, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
         cv.restore()
     }
 

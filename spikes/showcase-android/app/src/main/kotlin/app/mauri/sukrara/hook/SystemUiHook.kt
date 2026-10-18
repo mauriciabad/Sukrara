@@ -417,20 +417,19 @@ class SystemUiHook : XposedModule() {
         }
     }
 
-    /** The "sensor ended" checkered flag (core/SensorLife.FLAG_FILL / FLAG_OUTLINE, 24×24), as a Drawable. */
+    /** The "sensor ended" flag (Material Symbols `sports_score`, core/SensorLife.FLAG_PATH), as a Drawable. */
     private class FlagDrawable : Drawable() {
         var color = 0
-        private val fill by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_FILL) }
-        private val outline by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_OUTLINE) }
+        private val path by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_PATH) }
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         override fun draw(cv: Canvas) {
             cv.save()
             cv.translate(bounds.left.toFloat(), bounds.top.toFloat())
-            cv.scale(bounds.width() / 24f, bounds.height() / 24f)
+            cv.scale(bounds.width() / 960f, bounds.height() / 960f)
+            cv.translate(0f, 960f)
             paint.color = color
-            paint.style = Paint.Style.FILL; cv.drawPath(fill, paint)
-            paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.2f; cv.drawPath(outline, paint)
+            cv.drawPath(path, paint)
             cv.restore()
         }
 
