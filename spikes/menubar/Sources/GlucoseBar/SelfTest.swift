@@ -164,9 +164,36 @@ enum GraphFixtures {
         }
         print("graph fixtures: \(n) cases, \(failures) failed")
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
+            + clock(dir.appendingPathComponent("clock"))
     }
 
     /// The sensor badge, warm-up and countdown ring (spikes/graph-fixtures/sensor, the files GraphFixtureTest.sensor runs).
+    /// Clock times in the 12/24-hour setting and the graph's hour labels (spikes/graph-fixtures/clock/*.json, the
+    /// files GraphFixtureTest.clock runs). The day period's spaces (U+00A0, U+202F) compare as plain spaces.
+    static func clock(_ dir: URL) -> Int {
+        var failures = 0, n = 0
+        func norm(_ s: String) -> String { s.replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ") }
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        if files.isEmpty { print("FAIL clock fixtures: none in \(dir.path)"); return 1 }
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL clock/\(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let loc = Locale(identifier: c["locale"] as? String ?? "en-US")
+                let m = c["minute"] as? Int ?? 0, h24 = c["hour24"] as? Bool ?? true
+                let want = c["expect"] as? [String: Any] ?? [:]
+                let time = norm(Clock.minuteOfDay(m, hour24: h24, locale: loc)), axis = norm(Clock.hourLabel(m / 60, h24, locale: loc))
+                if time != want["time"] as? String || axis != want["axis"] as? String {
+                    print("FAIL clock/\(f): \(c["name"] as? String ?? "?") (got \(time) / \(axis))"); failures += 1
+                }
+                n += 1
+            }
+        }
+        print("clock fixtures: \(n) cases, \(failures) failed")
+        return failures
+    }
+
     static func sensor(_ dir: URL) -> Int {
         let now: TimeInterval = 1_800_000_000
         var failures = 0, n = 0

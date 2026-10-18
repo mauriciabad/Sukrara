@@ -920,7 +920,7 @@ class OwnerEngine(private val ctx: Context) {
                         else -> n.ifEmpty { ctx.getString(R.string.treatment_note) }
                     } + (if (tr.optString("k") != "note" && n.isNotEmpty()) " · $n" else "")
                     ctx.getString(R.string.home_follower_entry,
-                        java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(tr.optLong("t") * 1000)),
+                        app.mauri.sukrara.graph.Clock.time(tr.optLong("t"), android.text.format.DateFormat.is24HourFormat(ctx)),
                         what, who, via.substringBefore(":"))
                 },
             )

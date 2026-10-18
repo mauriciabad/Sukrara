@@ -56,9 +56,6 @@ import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.owner.Follower
 import app.mauri.sukrara.owner.OwnerUi
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 interface OwnerActions {
@@ -82,8 +79,7 @@ interface OwnerActions {
     fun open(screen: String)
 }
 
-private fun date(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMHHmm"),
-    Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = app.mauri.sukrara.graph.Clock.dayTime(t)
 
 @Composable
 fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
@@ -261,7 +257,7 @@ internal fun labelMatches(label: String, name: String): Boolean? {
     return n.isNotEmpty() && (l == n || l.split(' ').contains(n) || n.split(' ').contains(l))
 }
 
-private fun hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(t * 1000))
+private fun hhmm(t: Long) = app.mauri.sukrara.graph.Clock.time(t)
 
 /**
  * Shown wherever the wearer is when a request arrives. Material basic dialog, centred variant: the follower's picture

@@ -101,6 +101,28 @@ class GraphFixtureTest {
     }
 
     /** The sensor badge + countdown ring (the files in spikes/graph-fixtures/sensor); the same in the Mac's `-graphselftest`. */
+    /** Clock times in the 12/24-hour setting and the graph's hour labels (graph-fixtures/clock, Mac: -graphselftest). */
+    @Test fun clock() {
+        val files = File(dir(), "clock").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no clock fixtures", files.isNotEmpty())
+        fun norm(s: String) = s.replace('\u00A0', ' ').replace('\u202F', ' ')
+        val fails = ArrayList<String>()
+        var n = 0
+        for (f in files) {
+            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val loc = java.util.Locale.forLanguageTag(c.getString("locale"))
+                val m = c.getInt("minute"); val h24 = c.getBoolean("hour24")
+                val time = norm(Clock.minuteOfDay(m, h24, loc)); val axis = norm(Clock.hourLabel(m / 60, h24, loc))
+                val want = c.getJSONObject("expect")
+                if (time != want.getString("time") || axis != want.getString("axis")) fails += "${f.name}: ${c.getString("name")} (got $time / $axis)"
+                n++
+            }
+        }
+        assertTrue("clock fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+    }
+
     @Test fun sensor() {
         val files = File(dir(), "sensor").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
         assertTrue("no sensor fixtures", files.isNotEmpty())

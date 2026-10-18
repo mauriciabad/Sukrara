@@ -227,7 +227,7 @@ enum Delivery: Equatable {
         }
     }
     func text(who: String, at: Date) -> String {
-        let t = at.formatted(date: .omitted, time: .shortened)
+        let t = Clock.time(at)
         switch self {
         case .sending: return "Sending to \(who)'s phone…"
         case .sent: return "Sent \(t), waiting for \(who)'s phone"

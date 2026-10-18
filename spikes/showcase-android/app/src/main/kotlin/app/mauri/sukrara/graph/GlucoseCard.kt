@@ -179,6 +179,8 @@ data class CardStyle(
     val last: LastPlace = LastPlace.OFF,
     val lastElse: RingSpec? = null,
     val badge: Boolean = true,
+    /** The phone's 24-hour setting for the card's clock times (the graph's when it has one). */
+    val hour24: Boolean = graph?.hour24 ?: Clock.hour24,
 )
 
 /**
@@ -224,7 +226,7 @@ object GlucoseCard {
             val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf, countdown)
             val look = if (st.badge) StatusBadge.look(status, nowS) else null
             drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look,
-                sl)
+                sl, st.hour24)
         }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
         when {
@@ -234,7 +236,7 @@ object GlucoseCard {
                 val msg = when {
                     sl?.warmup != null -> Words.current.warmingUp
                     sl?.ended == true -> Words.current.sensorEnded
-                    else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS)) } ?: Words.current.noReadingsYet
+                    else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS, st.hour24)) } ?: Words.current.noReadingsYet
                 }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
             }
@@ -303,11 +305,11 @@ object GlucoseCard {
 
     /**
      * A new sensor warming up: the time left until the first reading ("42m") where the number goes, in the secondary
-     * colour, the sensor disc beside it filling up, and "Warming up · ready at 19:45" under it.
+     * colour, the sensor disc beside it filling up, and "Ready at 19:45" under it.
      */
-    private fun drawWarmup(cv: Canvas, box: RectF, look: SensorBadge.Look, small: Paint, nowS: Long, pal: GraphPalette, d: Float) {
-        val w = Words.current
-        val line = w.warmingUp + " · " + w.readyAt.format(Freshness.timeText(look.readyAt, nowS))
+    private fun drawWarmup(cv: Canvas, box: RectF, look: SensorBadge.Look, small: Paint, nowS: Long, pal: GraphPalette, d: Float,
+                           hour24: Boolean) {
+        val line = Words.current.readyAt.format(Freshness.timeText(look.readyAt, nowS, hour24))
         val numBox = RectF(box.left, box.top, box.right, box.bottom - small.textSize * 1.25f)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; typeface = RoundedFont.typeface(700); textSize = numBox.height() * 1.18f }
         val s = look.warmup ?: return
@@ -330,16 +332,17 @@ object GlucoseCard {
      * beside the arrow, or is left out when there's no room there either.
      */
     private fun drawValue(cv: Canvas, box: RectF, r: Reading?, fr: Freshness, nowS: Long, bands: Bands,
-                          pal: GraphPalette, d: Float, look: StatusBadge.Look? = null, sensor: SensorBadge.Look? = null) {
+                          pal: GraphPalette, d: Float, look: StatusBadge.Look? = null, sensor: SensorBadge.Look? = null,
+                          hour24: Boolean = Clock.hour24) {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
-        if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d)
+        if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d, hour24)
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
         if (sensor?.ended == true) return drawEnded(cv, box, nowS, pal, d)
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
             val w = Words.current
             val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
-            val line2 = r?.let { Freshness.timeText(it.t, nowS) }
+            val line2 = r?.let { Freshness.timeText(it.t, nowS, hour24) }
             val y = box.centerY() - if (line2 == null) -big.textSize / 3 else big.textSize * 0.15f
             cv.drawText(line1, box.left, y, big)
             if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, big)
@@ -391,7 +394,7 @@ object GlucoseCard {
             if (fr.showTime) {
                 val t = Paint(small).apply { textSize = badgeH * 0.56f }
                 val tx = box.left + bw + badgeH * 0.35f
-                val text = Freshness.timeText(r.t, nowS)
+                val text = Freshness.timeText(r.t, nowS, hour24)
                 if (tx + t.measureText(text) <= box.right) cv.drawText(text, tx, top + badgeH / 2 + t.textSize * 0.36f, t)
             }
         } else {
@@ -399,7 +402,7 @@ object GlucoseCard {
                 val ih = min(numBox.height() * 0.5f, 24 * d)
                 StatusBadge.draw(cv, x + arrowSize * 1.15f, cy - ih / 2, ih, ih, look, pal.dark)
             }
-            if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), box.left, baseY + small.textSize * 1.25f, small)
+            if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS, hour24), box.left, baseY + small.textSize * 1.25f, small)
         }
     }
 }

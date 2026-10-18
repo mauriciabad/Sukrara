@@ -16,6 +16,7 @@ import android.util.Log
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
 import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.ui.MainActivity
@@ -228,7 +229,7 @@ object SensorEnd {
     private fun open(ctx: Context) = PendingIntent.getActivity(ctx, 0,
         Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
 
-    private fun time(ctx: Context, t: Long) = android.text.format.DateFormat.getTimeFormat(ctx).format(java.util.Date(t * 1000))
+    private fun time(ctx: Context, t: Long) = Clock.time(t, android.text.format.DateFormat.is24HourFormat(ctx))
 
     /** "Sensor ends today at 14:30" / "tomorrow at 14:30" / "on Wednesday at 14:30". */
     fun endsText(ctx: Context, end: Long, now: Long, zone: ZoneId): String {

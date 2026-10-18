@@ -19,6 +19,8 @@ class App : Application() {
         super.onCreate()
         // the drawing code's words follow the app's language (per-app language, res/values-es)
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(resources) }
+        // every clock time follows Settings → 24-hour time, read live (graph/Clock)
+        app.mauri.sukrara.graph.Clock.hour24Source = { android.text.format.DateFormat.is24HourFormat(this) }
         app.mauri.sukrara.graph.RoundedFont.init(this)   // the card's rounded numbers (Google Sans Flex, ROND 100)
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)

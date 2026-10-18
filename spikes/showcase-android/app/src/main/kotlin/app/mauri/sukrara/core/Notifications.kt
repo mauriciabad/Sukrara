@@ -58,7 +58,7 @@ object Notifications {
      * where the wearer types the code shown on the follower's phone.
      */
     fun request(ctx: Context, p: app.mauri.sukrara.owner.PendingRequest) {
-        val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date((p.inviteAt.takeIf { it > 0 } ?: p.at) * 1000))
+        val time = app.mauri.sukrara.graph.Clock.time(p.inviteAt.takeIf { it > 0 } ?: p.at, android.text.format.DateFormat.is24HourFormat(ctx))
         val text = when {
             p.others > 0 -> ctx.getString(R.string.request_notif_others)
             p.nearby -> ctx.getString(R.string.request_notif_nearby)

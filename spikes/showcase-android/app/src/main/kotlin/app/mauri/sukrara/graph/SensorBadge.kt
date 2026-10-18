@@ -18,7 +18,7 @@ import app.mauri.sukrara.core.Words
  *   that depletes clockwise from 12 o'clock over the sensor's life, then the time left ("13d", "20h", "45m"), in the
  *   secondary text colour; ended: "0m", disc and text in the alert colour (very low). Hidden when nothing is known.
  * - warming up ([SensorLife.warming]): the card shows the warm-up's time left ("42m") instead of a value, the disc
- *   alone beside it filling up, "Warming up · ready at 19:45" under it; the ring over the main ring fills up over the
+ *   alone beside it filling up, "Ready at 19:45" under it; the ring over the main ring fills up over the
  *   warm-up (the opposite of the end countdown, which drains). The first reading ends it.
  * - the countdown ring: in the last [SensorLife.countdownHours], a thin ring over the main slot's ring (same size,
  *   on top of whatever is there) that drains from full to empty at the sensor's end; ink on a background-coloured
@@ -41,9 +41,9 @@ object SensorBadge {
             it.endEpoch)
     }
 
-    /** For screen readers: "Sensor: 13d left" / "Sensor ended" / "Warming up, ready at 19:45". */
+    /** For screen readers: "Sensor: 13d left" / "Sensor ended" / "Warming up. Ready at 19:45". */
     fun describe(look: Look, now: Long, w: Words = Words.current): String = when {
-        look.warmup != null -> w.warmingUp + ", " + w.readyAt.format(Freshness.timeText(look.readyAt, now))
+        look.warmup != null -> w.warmingUp + ". " + w.readyAt.format(Freshness.timeText(look.readyAt, now))
         look.ended -> w.sensorEnded + ". " + w.replaceSensor
         else -> w.sensorLeft.format(look.label)
     }

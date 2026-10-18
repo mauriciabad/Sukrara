@@ -218,7 +218,7 @@ fun KindMark(kind: String, color: Color) {
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
     if (at == null) return stringResource(R.string.treatment_time_now)
-    val fmt = DateFormat.getTimeFormat(ctx).format(java.util.Date(at * 1000))
+    val fmt = app.mauri.sukrara.graph.Clock.time(at, DateFormat.is24HourFormat(ctx))
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
     return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)

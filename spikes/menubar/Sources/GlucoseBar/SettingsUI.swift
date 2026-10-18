@@ -182,7 +182,7 @@ import SwiftUI
         defer { loading = false }
         source = status.sourceText
         lastReading = status.snapshot.map {
-            $0.latest.date.formatted(date: .abbreviated, time: .shortened) + " · "
+            Clock.dateTime($0.latest.date) + " · "
                 + RelativeDateTimeFormatter().localizedString(for: $0.latest.date, relativeTo: Date())
         } ?? "None yet"
         problem = status.lastError
