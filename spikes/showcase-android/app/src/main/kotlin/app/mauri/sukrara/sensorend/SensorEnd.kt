@@ -20,6 +20,7 @@ import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.ui.MainActivity
 import app.mauri.sukrara.wearer.Live
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,7 +77,8 @@ object SensorEnd {
     private val _config = MutableStateFlow(SensorEndConfig())
     val config: StateFlow<SensorEndConfig> = _config
     private var app: Context? = null
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default +
+        CoroutineExceptionHandler { _, e -> Log.w(TAG, "re-plan failed: $e") })
 
     @Synchronized fun init(ctx: Context) {
         if (app != null) return
@@ -157,18 +159,18 @@ object SensorEnd {
         val p = SensorEndPlan.plan(info.startEpoch, info.endEpoch, _config.value, hours, now, zone, mem, info.warmupEndEpoch, first,
             SensorLife.WARMUP_GRACE_S)
         when {
-            p.warmup -> { post(ctx, ID_WARMUP, warmup(ctx, info, now)); mem = mem.copy(warmupShown = true) }
-            p.ready -> { post(ctx, ID_WARMUP, ready(ctx)); mem = mem.copy(readyShown = true) }
+            p.warmup -> { post(ctx, ID_WARMUP) { warmup(ctx, info, now) }; mem = mem.copy(warmupShown = true) }
+            p.ready -> { post(ctx, ID_WARMUP) { ready(ctx) }; mem = mem.copy(readyShown = true) }
             !mem.readyShown -> nm.cancel(ID_WARMUP)   // "Sensor ready" stays until it times out
         }
         p.remind?.let {
-            post(ctx, ID_REMIND, reminder(ctx, info, now, zone))
+            post(ctx, ID_REMIND) { reminder(ctx, info, now, zone) }
             mem = mem.copy(lastReminder = it)
         }
-        if (p.countdown) post(ctx, ID_COUNTDOWN, countdown(ctx, info, hours, now)) else nm.cancel(ID_COUNTDOWN)
+        if (p.countdown) post(ctx, ID_COUNTDOWN) { countdown(ctx, info, hours, now) } else nm.cancel(ID_COUNTDOWN)
         if (p.ended) {
             nm.cancel(ID_REMIND)
-            post(ctx, ID_ENDED, ended(ctx))
+            post(ctx, ID_ENDED) { ended(ctx) }
             mem = mem.copy(endedShown = true)
         }
         save(ctx, mem)
@@ -211,9 +213,17 @@ object SensorEnd {
 
     // ------------------------------------------------------------------------------------------- notifications
 
-    private fun post(ctx: Context, id: Int, n: Notification) {
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(id, n) }.onFailure { Log.w(TAG, "post $id: $it") }
+    /** Builds and posts; a failure (building included) is logged, never thrown into sync / App.onCreate. */
+    private fun post(ctx: Context, id: Int, build: () -> Notification) {
+        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(id, build()) }.onFailure { Log.w(TAG, "post $id: $it") }
     }
+
+    /**
+     * Promoted notifications are Android 16 QPR2 (API 36.1) APIs: on 36.0 `canPostPromotedNotifications` and
+     * `setRequestPromotedOngoing` don't exist (NoSuchMethodError), so both are tried, like GlucoseNotification.
+     */
+    private fun canPromote(ctx: Context) =
+        runCatching { ctx.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false)
 
     private fun open(ctx: Context) = PendingIntent.getActivity(ctx, 0,
         Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
@@ -261,12 +271,13 @@ object SensorEnd {
             .setStyle(style)
             .setWhen(until * 1000).setShowWhen(true)
             .setUsesChronometer(true).setChronometerCountDown(true)
-            .setOngoing(true).setRequestPromotedOngoing(promote)
+            .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(open(ctx))
             .setDeleteIntent(hide)
             .addAction(Notification.Action.Builder(null, ctx.getString(R.string.sensor_countdown_hide), hide).build())
+            .apply { if (promote && canPromote(ctx)) runCatching { setRequestPromotedOngoing(true) } }
             .build()
     }
 
@@ -336,7 +347,7 @@ object SensorEnd {
         return JSONObject().put("config", _config.value.toJson()).put("countdownHours", SensorLife.countdownHours(ctx))
             .put("sensor", SensorLife.current.value?.let { JSONObject().put("serial", it.serial).put("start", it.startEpoch).put("end", it.endEpoch) })
             .put("memory", m.toJson())
-            .put("canPostPromoted", ctx.getSystemService(NotificationManager::class.java).canPostPromotedNotifications())
+            .put("canPostPromoted", canPromote(ctx))
     }
 }
 
