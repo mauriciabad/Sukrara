@@ -46,6 +46,12 @@ data class Words(
     val sensorLeft: String = "Sensor: %1\$s left",
     val sensorEnded: String = "Sensor ended",
     val sensorReplace: String = "Replace the sensor",
+    /** When it ended, after [sensorEnded]: today / yesterday / this week (a weekday + time) / older (a date). */
+    val endedAt: String = "at %1\$s",
+    val endedYesterdayAt: String = "yesterday at %1\$s",
+    val endedOn: String = "%1\$s",
+    /** [sensorEnded] + one of the above: "Sensor ended at 18:03". */
+    val sensorEndedWhen: String = "%1\$s %2\$s",
     val warmingUp: String = "Warming up",
     val readyAt: String = "ready at %1\$s",
     // trend in words (screen readers, the notification)
@@ -91,6 +97,8 @@ data class Words(
             noReadingSince = r.getString(R.string.card_no_reading_since),
             sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
             sensorReplace = r.getString(R.string.card_sensor_replace),
+            endedAt = r.getString(R.string.card_sensor_ended_at), endedYesterdayAt = r.getString(R.string.card_sensor_ended_yesterday_at),
+            endedOn = r.getString(R.string.card_sensor_ended_on), sensorEndedWhen = r.getString(R.string.card_sensor_ended_when),
             warmingUp = r.getString(R.string.card_warming_up), readyAt = r.getString(R.string.card_ready_at),
             trendUnknown = r.getString(R.string.trend_unknown), trendSteady = r.getString(R.string.trend_steady),
             trendRising = r.getString(R.string.trend_rising), trendRisingFast = r.getString(R.string.trend_rising_fast),

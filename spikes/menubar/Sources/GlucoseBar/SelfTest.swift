@@ -177,8 +177,15 @@ enum GraphFixtures {
         for f in files {
             guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
                   let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL sensor/\(f): unreadable"); failures += 1; continue }
-            for c in cases {
+                  root["cases"] != nil || root["ended"] != nil else { print("FAIL sensor/\(f): unreadable"); failures += 1; continue }
+            for c in root["ended"] as? [[String: Any]] ?? [] {
+                let got = SensorLife.endedDaysAgo(end: now + (num(c["end"]) ?? 0), now: now, zone: TimeZone(identifier: c["zone"] as? String ?? "") ?? .current)
+                if got != (c["expect"] as? [String: Any])?["daysAgo"] as? Int {
+                    print("FAIL sensor/\(f): \(c["name"] as? String ?? "?") (got daysAgo \(got))"); failures += 1
+                }
+                n += 1
+            }
+            for c in root["cases"] as? [[String: Any]] ?? [] {
                 let start = now + (num(c["start"]) ?? 0)
                 let info = SensorInfo(start: start, end: now + (num(c["end"]) ?? 0), warmupEnd: num(c["warmup"]).map { now + $0 } ?? start + 3600)
                 let latest = num(c["latest"]).map { now + $0 }

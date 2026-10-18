@@ -188,6 +188,9 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
 private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
     val r = frame.history.lastOrNull()
     val now = frame.nowSec
+    app.mauri.sukrara.core.SensorLife.current.value?.takeIf { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, now) }?.let {
+        return app.mauri.sukrara.core.SensorLife.endedText(it.endEpoch, now) + ". " + c.getString(R.string.card_sensor_replace)
+    }
     if (r == null) return c.getString(R.string.widget_desc_no_readings)
     val f = Freshness.of(now - r.t)
     if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))

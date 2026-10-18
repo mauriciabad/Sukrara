@@ -1371,6 +1371,28 @@ enum SensorLife {
 
     static func ended(end: TimeInterval, now: TimeInterval) -> Bool { now >= end }
 
+    /// Calendar days from the sensor's end to `now` in `zone`: 0 = it ended today, 1 = yesterday… (ended.json).
+    static func endedDaysAgo(end: TimeInterval, now: TimeInterval, zone: TimeZone = .current) -> Int {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = zone
+        let a = cal.startOfDay(for: Date(timeIntervalSince1970: end)), b = cal.startOfDay(for: Date(timeIntervalSince1970: now))
+        return cal.dateComponents([.day], from: a, to: b).day ?? 0
+    }
+
+    /// When it ended: "at 18:03" (today), "yesterday at 18:03", "Sat 18:03" (this week), "12 Oct" (older).
+    static func endedWhen(end: TimeInterval, now: TimeInterval) -> String {
+        let d = Date(timeIntervalSince1970: end)
+        let time = d.formatted(date: .omitted, time: .shortened)
+        switch endedDaysAgo(end: end, now: now) {
+        case 0: return "at \(time)"
+        case 1: return "yesterday at \(time)"
+        case 2..<7: return "\(d.formatted(.dateTime.weekday(.abbreviated))) \(time)"
+        default: return d.formatted(.dateTime.day().month(.abbreviated))
+        }
+    }
+
+    /// The ended card's first line: "Sensor ended at 18:03" (Android SensorLife.endedText).
+    static func endedText(end: TimeInterval, now: TimeInterval) -> String { "Sensor ended \(endedWhen(end: end, now: now))" }
+
     /// ≥ 24 h left → whole days ("13d"), ≥ 1 h → hours ("20h"), else minutes ("45m", "0m" once ended); floor.
     static func label(end: TimeInterval, now: TimeInterval) -> String {
         let left = Int(max(0, (end - now).rounded(.down)))
@@ -1418,6 +1440,7 @@ enum SensorBadge {
         var warmup: String?
         var fill: Double
         var readyAt: TimeInterval
+        var end: TimeInterval = 0
     }
 
     static func look(_ s: SensorInfo?, now: TimeInterval, latest: TimeInterval?) -> Look? {
@@ -1425,7 +1448,7 @@ enum SensorBadge {
         let warm = SensorLife.warming(s, latest: latest, now: now)
         return Look(label: SensorLife.label(end: s.end, now: now), life: SensorLife.lifeFraction(s, now: now),
                     ended: SensorLife.ended(end: s.end, now: now), warmup: warm ? SensorLife.warmupLabel(s, now: now) : nil,
-                    fill: SensorLife.warmupFraction(s, now: now), readyAt: s.warmupEnd)
+                    fill: SensorLife.warmupFraction(s, now: now), readyAt: s.warmupEnd, end: s.end)
     }
 
     /// The ring over the main ring: the warm-up filling up, else the end countdown draining (nil = none).
@@ -1522,7 +1545,7 @@ enum GlucoseCard {
         if let graph {
             GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts)
         } else if st.graph != nil && chart.height > 24 * d {
-            let msg = sl?.warmup != nil ? "Warming up" : sl?.ended == true ? "Sensor ended"
+            let msg = sl?.warmup != nil ? "Warming up" : sl?.ended == true ? SensorLife.endedText(end: sl!.end, now: now)
                 : latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
             Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
         }
@@ -1565,18 +1588,17 @@ enum GlucoseCard {
                                   sensor: SensorBadge.Look? = nil) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
         if let sensor, sensor.warmup != nil { return drawWarmup(ctx, box, sensor, small, now, pal, d: d) }
+        // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
+        if let sensor, sensor.ended { return drawEnded(ctx, box, sensor, now, pal, d: d) }
         guard let r, fr.showValue else {
             // Fit the longer line into the space left of the rings.
-            // an ended sensor says so instead of "No reading since" (it won't come back by waiting)
-            let ended = sensor?.ended == true
-            let lines = ended ? ["Sensor ended", "Replace the sensor"]
-                : r.map { ["No reading since", Freshness.timeText($0.t, now: now)] } ?? ["No readings yet"]
+            let lines = r.map { ["No reading since", Freshness.timeText($0.t, now: now)] } ?? ["No readings yet"]
             var size = min(box.height * 0.26, 20 * d)
             let widest = lines.map { Ink.width($0, Ink.font(size, .semibold)) }.max() ?? 0
             if widest > box.width - 8 * d, widest > 0 { size *= max(0.4, (box.width - 8 * d) / widest) }
             let big = Ink.font(size, .semibold)
             let y = box.midY - (lines.count == 1 ? -size / 3 : size * 0.15)
-            Ink.draw(ctx, lines[0], x: box.minX, y: y, big, ended ? pal.veryLow : pal.inkSoft)
+            Ink.draw(ctx, lines[0], x: box.minX, y: y, big, pal.inkSoft)
             if lines.count > 1 { Ink.draw(ctx, lines[1], x: box.minX, y: y + size * 1.25, big, pal.inkSoft) }
             return
         }
@@ -1631,6 +1653,25 @@ enum GlucoseCard {
             }
             if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
         }
+    }
+
+    /// The sensor has ended: "Sensor ended at 18:03" (very-low colour) and "Replace the sensor" under it when it fits; a
+    /// narrow box splits it into "Sensor ended" / "at 18:03"; room for one line only: the first, shrunk to fit
+    /// (GlucoseCard.drawEnded on Android).
+    private static func drawEnded(_ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ now: TimeInterval, _ pal: GraphPalette, d: CGFloat) {
+        let base = min(box.height * 0.26, 20 * d)
+        let full = SensorLife.endedText(end: look.end, now: now), replace = "Replace the sensor"
+        let two = box.height >= base * 2.4
+        let fullFit = box.width / max(Ink.width(full, Ink.font(base, .semibold)), 1)
+        let lines = !two ? [full] : fullFit >= 0.8 ? [full, replace] : ["Sensor ended", SensorLife.endedWhen(end: look.end, now: now)]
+        let must = lines.count == 2 && lines[1] == replace ? [lines[0]] : lines
+        let widest = must.map { Ink.width($0, Ink.font(base, .semibold)) }.max() ?? 1
+        let size = base * max(0.45, min(1, box.width / max(widest, 1)))
+        let f = Ink.font(size, .semibold)
+        let shown = lines.filter { $0 != replace || Ink.width($0, f) <= box.width }
+        let y = box.midY - (shown.count == 1 ? -size / 3 : size * 0.15)
+        Ink.draw(ctx, shown[0], x: box.minX, y: y, f, pal.veryLow)
+        if shown.count > 1 { Ink.draw(ctx, shown[1], x: box.minX, y: y + size * 1.25, f, pal.inkSoft) }
     }
 
     /// A new sensor warming up: the time left ("42m") where the number goes, in the secondary colour, the sensor disc
