@@ -160,12 +160,33 @@ real Libre 2 from DiaBLE `App.swift:238`) printing `usefulFunction`, the activat
 payload, a FRAM decryption, a BLE packet round trip, its parsed raw values and four factory-calibrated glucose
 values (`spikes/showcase-android/tools/libre2-vectors/gen.sh` regenerates them). All match exactly. Real-sensor vectors: pending the user's first scan.
 
+### Could Sukrara use Abbott's library like Juggluco? (feasibility, 2026-10-18)
+
+- **How Juggluco gets it:** bundled. The official `Juggluco-11.5.0-arm64.apk` (SourceForge, sha256 `0ff898d1…df985`)
+  carries `lib/arm64-v8a/libcalibrat2.so` (3.4 MB, sha256 `c15a1efa…49a93`) — Abbott's `libDataProcessing.so` from a
+  LibreLink build (`mklibs.sh`, `mklibsca.sh`: LibreLink DE 2.4.2, Libre 2 CA 2.5.3), kept out of Juggluco's git. It
+  is used for every Libre 2, gen 1 too (`libre2.cpp:870-910`, `gen2 = true`).
+- **Integrity checks it works around:** the shipped copy is binary-patched (`llvm-nm -D`: imports `getTimeofday`,
+  `pthread_Detach` resolve to Juggluco's hooks; `share/hooks.cpp` also has `Fork`, `Pipe`, `FOpen`, `d1sym`, …); no
+  `Java_` exports, only `JNI_OnLoad`, called with a fake JavaVM/JNIEnv (`jnisub.cpp`) whose `RegisterNatives` grabs
+  the 20/22 entry points (`libre2.cpp:145-200`); a fixed 72-byte token on every call (`libre2.cpp:61`); a faked
+  `pm path` answer (`package:<libdir>/libcalibrate.so`) through the fork/pipe hooks, swapped `PATH`/`environ`; and a
+  ptrace "debug clone" that intercepts raw syscalls against root/debugger detection (`debugclone.cpp`, 2258 lines).
+- **Coverage:** everything (activation command/payload, streaming enable, unlock, `processStream` → official mg/dL,
+  trend, history, warm-up/wear) for the Libre 2 Plus EU.
+- **Effort:** re-creating that native layer (libre2.cpp, jnisub, hooks, debugclone, scan state, fake env) plus a
+  pinned build-time fetch: ~5–8k lines of tightly coupled C++, verifiable only on a device, fragile to library
+  updates, and an anti-tamper trip tends to give wrong results rather than a crash. Several days; not attempted here.
+- **xDrip+** (third_party/xDrip at 8532095) doesn't decode the Libre 2 itself: it hands raw NFC/BLE data to the closed
+  OOP2 app by broadcast (`LibreOOPAlgorithm.java:90-183`) or receives glucose from a patched LibreLink / Juggluco
+  (`LibreReceiver.java`); `WebLibre2ConnectCode` only re-serves OOP2's unlock buffer.
+
 ### In Sukrara
 
 - **Added:** NFC routing by chip; Libre 2 / 2 Plus (EU) start with confirmation, takeover, streaming enable; BLE
   client with unlock, decryption, warm-up, wear length from FRAM, ended detection; approximate mg/dL; en + es texts;
   `Libre2Test`; QA Q11.
-- **Discarded:** Juggluco's Libre 2 path (Abbott's closed library; can't ship it). Gen2 (US/Canada) sensors (closed
+- **Discarded:** Juggluco's Libre 2 path (Abbott's closed library: can't commit it, and the anti-tamper glue is a multi-day port, above). Gen2 (US/Canada) sensors (closed
   crypto). FRAM history backfill on scan (BLE trend + 3 history values cover the last 15 min; a new sensor has none).
   LibreView upload of Libre 2 values (approximate, and the uploader models a Libre 3 device).
 
