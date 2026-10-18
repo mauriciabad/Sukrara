@@ -112,6 +112,7 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 | [18](18-metrics) | The doctor's report in the app | Time in ranges, average, GMI and CV with their goals, on the home screen and in widget slots |
 | [19](19-notification-templates) | Notification templates | Which templates use the space under the icon: only Android 17's Live Update bar and buttons. Not in Sukrara yet |
 | [20](20-publishing) | Publishing on every platform | Research, nothing shipped: notarized Mac app + Homebrew tap, Google Play plus GitHub/IzzyOnDroid for Android, Connect IQ Store for Garmin |
+| [23](23-sensors) | More sensors, more brands | Dexcom G7 / ONE+ (reading along with the official Dexcom app), Dexcom G6 / ONE, Accu-Chek SmartGuide and Aidex X ported as a proof of concept, tested against recorded traces; what every other brand would cost |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.
