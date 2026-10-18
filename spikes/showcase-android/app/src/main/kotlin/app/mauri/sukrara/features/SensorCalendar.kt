@@ -38,8 +38,8 @@ import java.util.TimeZone
  * Where (research 2026-10-18, sources in docs/FEATURES.md "Sensor end in calendar"):
  * - default: **its own "Sukrara" calendar** with `ACCOUNT_TYPE_LOCAL`, the only way the provider documents for an app
  *   to create a calendar ("If a local calendar is required an app can do so by inserting as a sync adapter and using an
- *   ACCOUNT_TYPE of ACCOUNT_TYPE_LOCAL", CalendarContract.Calendars). Calendar apps on the phone show it (Google
- *   Calendar lists device calendars); it is never synced, so it stays on this phone.
+ *   ACCOUNT_TYPE of ACCOUNT_TYPE_LOCAL", CalendarContract.Calendars). Calendar apps on the phone list it (Google
+ *   Calendar only once the user turns it on, below); it is never synced, so it stays on this phone.
  * - a calendar created under the user's Google account (`com.google`) through the sync-adapter URI is not uploaded:
  *   sync-adapter writes are not marked DIRTY and notify with syncToNetwork=false (CALLER_IS_SYNCADAPTER docs), the row
  *   has no server `_SYNC_ID`, and Google's adapter treats the server as the truth (bullet-to/device_calendar_plus #132:
@@ -49,9 +49,19 @@ import java.util.TimeZone
  *   adapter uploads (the fix in device_calendar_plus #167).
  * - a real Google calendar via the Google Calendar API would need a Cloud project, OAuth consent and Play services
  *   sign-in: too heavy for one event per two weeks. Not used.
+ * - **Google Calendar hides the own calendar by default** (seen on the user's Pixel, Google Calendar 2026.39,
+ *   2026-10-18): it shows a non-Google account's calendars only once the user turns the account on under Google
+ *   Calendar → Settings → Manage accounts → "Non-Google Accounts" → Sukrara (On this device). Its code (`ica.b`, decompiled)
+ *   keeps that switch in its own prefs as `account:<name>:type:<type>|account_enabled_state`; with no stored state the
+ *   account is hidden (Exchange excepted), and other apps can't set it (private storage). So the settings row says where to turn it on
+ *   (ui/SensorCalendarSetting) when Google Calendar is installed.
  *
- * Events: a point event (start = end) at the sensor's end, free, no reminder of its own (Sukrara notifies); it moves
- * earlier when the sensor fails early, and stays put once its time has passed ([keepTime]). Kept for
+ * Events: [DURATION_MS] long (30 min) from the sensor's end, so calendar apps draw a block with its title (a point event,
+ * start = end, was a title-less sliver in Google Calendar), free, no reminder of its own (Sukrara notifies). The
+ * organizer is the calendar's `OWNER_ACCOUNT` (Sukrara's own: [ACCOUNT]) with complete (empty) attendee data, so
+ * calendar apps treat the user as the organizer and offer or describe no RSVP (without it Google Calendar read out
+ * "Response: Not responded"). It moves earlier when the sensor fails early, and stays put once its time has passed
+ * ([keepTime]: an update then leaves start and end alone). Kept for
  * past sensors (a history of sensor changes); a sensor's event still in the future is removed once another sensor is
  * the current one (it was replaced early, so that end won't happen). Turning the setting off deletes the Sukrara
  * calendar with all its events, or Sukrara's events in the picked calendar.
@@ -68,17 +78,23 @@ object SensorCalendar {
     /** [target] is a calendar id, or [OWN]; [targetName] is what the settings row shows for it. */
     data class Settings(val on: Boolean = false, val target: Long = OWN, val targetName: String = "")
 
-    /** A calendar the user may pick: writable, visible, not Sukrara's own; [synced] = its account syncs (not local). */
-    data class Choice(val id: Long, val name: String, val account: String, val synced: Boolean)
+    /**
+     * A calendar the user may pick: writable, visible, not Sukrara's own; [synced] = its account syncs (not local);
+     * [owner] = its `OWNER_ACCOUNT`, the events' organizer.
+     */
+    data class Choice(val id: Long, val name: String, val account: String, val synced: Boolean, val owner: String)
 
     /** One event, independent of the provider (unit-tested). [key] identifies the sensor across restarts. */
     data class EventSpec(val key: String, val title: String, val description: String, val startMs: Long, val endMs: Long)
 
+    /** How long the event is: long enough that calendar apps draw it as a block with its title. */
+    const val DURATION_MS = 30 * 60_000L
+
     fun key(serial: String) = "sensor:$serial"
 
-    /** The event for a sensor: a point event at [endEpoch] (unix s). */
+    /** The event for a sensor: [DURATION_MS] from [endEpoch] (unix s), the moment the sensor stops. */
     fun event(serial: String, endEpoch: Long, title: String, description: String) =
-        EventSpec(key(serial), title, description, endEpoch * 1000, endEpoch * 1000)
+        EventSpec(key(serial), title, description, endEpoch * 1000, endEpoch * 1000 + DURATION_MS)
 
     /**
      * Which of the written events ([existing]: key → event start, ms) to delete when [currentKey] is the sensor now:
@@ -157,12 +173,12 @@ object SensorCalendar {
         if (!granted(ctx)) return emptyList()
         val out = mutableListOf<Choice>()
         ctx.contentResolver.query(Calendars.CONTENT_URI,
-            arrayOf(Calendars._ID, Calendars.CALENDAR_DISPLAY_NAME, Calendars.ACCOUNT_NAME, Calendars.ACCOUNT_TYPE),
+            arrayOf(Calendars._ID, Calendars.CALENDAR_DISPLAY_NAME, Calendars.ACCOUNT_NAME, Calendars.ACCOUNT_TYPE, Calendars.OWNER_ACCOUNT),
             "${Calendars.CALENDAR_ACCESS_LEVEL} >= ? AND ${Calendars.VISIBLE} = 1",
             arrayOf(Calendars.CAL_ACCESS_CONTRIBUTOR.toString()), Calendars.ACCOUNT_NAME)?.use { c ->
             while (c.moveToNext()) {
                 if (c.getString(3) == ACCOUNT_TYPE_LOCAL && c.getString(2) == ACCOUNT) continue
-                out += Choice(c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) != ACCOUNT_TYPE_LOCAL)
+                out += Choice(c.getLong(0), c.getString(1) ?: "", c.getString(2) ?: "", c.getString(3) != ACCOUNT_TYPE_LOCAL, c.getString(4) ?: "")
             }
         }
         return out
@@ -177,10 +193,11 @@ object SensorCalendar {
         out.put("ownCalendar", ownCalendar(cr, create = false) ?: JSONObject.NULL)
         val cal = if (s.target == OWN) ownCalendar(cr, create = false) else s.target
         val events = org.json.JSONArray()
-        if (cal != null) cr.query(Events.CONTENT_URI, arrayOf(Events._ID, Events.TITLE, Events.DESCRIPTION, Events.DTSTART, Events._SYNC_ID),
-            "${Events.CALENDAR_ID} = ? AND ${Events.DELETED} = 0", arrayOf(cal.toString()), null)?.use { c ->
+        if (cal != null) cr.query(Events.CONTENT_URI, arrayOf(Events._ID, Events.TITLE, Events.DESCRIPTION, Events.DTSTART, Events._SYNC_ID,
+            Events.DTEND, Events.ORGANIZER), "${Events.CALENDAR_ID} = ? AND ${Events.DELETED} = 0", arrayOf(cal.toString()), null)?.use { c ->
             while (c.moveToNext()) events.put(JSONObject().put("id", c.getLong(0)).put("title", c.getString(1))
-                .put("description", c.getString(2)).put("start", c.getLong(3)).put("syncId", c.getString(4) ?: JSONObject.NULL))
+                .put("description", c.getString(2)).put("start", c.getLong(3)).put("syncId", c.getString(4) ?: JSONObject.NULL)
+                .put("end", c.getLong(5)).put("organizer", c.getString(6) ?: JSONObject.NULL))
         }
         return out.put("events", events)
     }
@@ -233,8 +250,8 @@ object SensorCalendar {
         val cr = ctx.contentResolver
         val own = s.target == OWN
         val cal = if (own) ownCalendar(cr, create = true) ?: return else s.target
-        if (!own && choices(ctx).none { it.id == cal }) {   // the picked calendar (or its account) is gone
-            save(s.copy(target = OWN, targetName = "")); write(ctx); return
+        val owner = if (own) ACCOUNT else choices(ctx).firstOrNull { it.id == cal }?.owner ?: run {
+            save(s.copy(target = OWN, targetName = "")); write(ctx); return   // the picked calendar (or its account) is gone
         }
         val have = written(cr, cal, own)
         val cur = SensorLife.current.value?.takeIf { it.serial.isNotEmpty() }
@@ -253,6 +270,9 @@ object SensorCalendar {
                 put(Events.CALENDAR_ID, cal); put(Events.TITLE, e.title); put(Events.DESCRIPTION, e.description)
                 put(Events.DTSTART, e.startMs); put(Events.DTEND, e.endMs); put(Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
                 put(Events.AVAILABILITY, Events.AVAILABILITY_FREE)
+                // the user organizes it, with no guests: calendar apps show no RSVP state (updates fix older events)
+                if (owner.isNotEmpty()) put(Events.ORGANIZER, owner)
+                put(Events.HAS_ATTENDEE_DATA, 1)
                 if (own) put(Events._SYNC_ID, e.key)
             }
             val uri = if (own) asSyncAdapter(Events.CONTENT_URI) else Events.CONTENT_URI

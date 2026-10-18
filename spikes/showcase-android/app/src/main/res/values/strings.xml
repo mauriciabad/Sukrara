@@ -1459,6 +1459,10 @@
     <string name="calendar_own_sub">Its own calendar, not synced to your other devices</string>
     <!-- Sensor end in calendar: under a calendar of the user's accounts; %1$s = account (email) [CHAR LIMIT=NONE] -->
     <string name="calendar_picked_sub">%1$s · syncs to your other devices</string>
+    <!-- Sensor end in calendar: row shown with Sukrara's own calendar when Google Calendar is installed; opens Google Calendar [CHAR LIMIT=40] -->
+    <string name="calendar_gcal_title">Show in Google Calendar</string>
+    <!-- Sensor end in calendar: under that row; Google Calendar hides Sukrara's calendar until it is turned on there [CHAR LIMIT=NONE] -->
+    <string name="calendar_gcal_hint">Turn on Sukrara in Google Calendar → Settings → Manage accounts, or the events won\'t show there</string>
     <!-- Sensor end in calendar: the event's title [CHAR LIMIT=40] -->
     <string name="calendar_event_title">Sensor ends</string>
     <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->

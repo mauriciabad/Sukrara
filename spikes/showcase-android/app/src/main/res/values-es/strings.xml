@@ -1174,6 +1174,8 @@
     <string name="calendar_own">Sukrara (solo en este teléfono)</string>
     <string name="calendar_own_sub">Su propio calendario, no se sincroniza con tus otros dispositivos</string>
     <string name="calendar_picked_sub">%1$s · se sincroniza con tus otros dispositivos</string>
+    <string name="calendar_gcal_title">Mostrar en Google Calendar</string>
+    <string name="calendar_gcal_hint">Activa Sukrara en Google Calendar → Ajustes → Gestionar cuentas o los eventos no aparecerán allí</string>
     <string name="calendar_event_title">Fin del sensor</string>
     <string name="calendar_event_description">Sensor Libre %1$s, empezado el %2$s. Sukrara mantiene este evento al día.</string>
     <string name="apps_footer">El servidor de xDrip+ escucha en 127.0.0.1:17580, como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen. La API de Nightscout es HTTP sin cifrar: compártela solo en redes de confianza.</string>
