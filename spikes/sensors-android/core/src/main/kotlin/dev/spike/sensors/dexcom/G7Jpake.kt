@@ -40,9 +40,14 @@ class G7Jpake(
         private val params = ECNamedCurveTable.getByName("secp256r1")
         val G: ECPoint = params.g
         val N: BigInteger = params.n
-        /** Party ids hashed into the proofs: "client" (phone), and the sensor's 6 bytes. */
+        /**
+         * Party ids hashed into the proofs: "client" (phone) and "server" (sensor). The sensor's id is pinned by two
+         * round packets recorded from a sensor (Juggluco's `packby1` / `packby2`), which verify under "server" and
+         * under nothing else tried. Juggluco itself hashes the nibble-swapped bytes 37 56 27 67 56 27 (see
+         * spikes/sensors-android/upstream/).
+         */
         val PHONE = "client".toByteArray()
-        val SENSOR = byteArrayOf(0x37, 0x56, 0x27, 0x67, 0x56, 0x27)
+        val SENSOR = "server".toByteArray()
         const val PACKET = 160
 
         /**

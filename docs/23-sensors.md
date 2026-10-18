@@ -95,15 +95,19 @@ has to be collected passively instead of requested.
 
 Two things to know before trusting the references:
 
-- **Juggluco's zero-knowledge-proof check is inverted.** `validateZeroKnowledgeProof` ends with
-  `EC_POINT_cmp(group, res1, gv, ctx)==1`, but `EC_POINT_cmp` returns **0** for equal points
-  (`cpp/dexcom/ecJPake.cpp`). Its two embedded round packets (`packby1`, `packby2`) do not verify under any party id
-  or hash variant tried, so they are useless as test vectors — which is why this spike tests the J-PAKE by running
-  both halves against each other instead.
-- **Juggluco's round-3 proof uses a constant nonce** (`BN_hex2bn(&ran3.data,"fbc971b8…")`, same file). A nonce reused
-  across sessions and users is a textbook way to leak the secret it is supposed to hide. This port draws a fresh
-  random nonce, and pads coordinates to 32 bytes (Juggluco's `BN_bn2bin` drops leading zeros, which shifts the
-  160-byte packet whenever a coordinate starts with a zero byte).
+- **Juggluco's zero-knowledge-proof check never rejects anything.** It hashes the sensor's party id as
+  `37 56 27 67 56 27` (`cpp/dexcom/ecJPake.cpp:334`), the nibble-swapped form of ASCII `"server"`, and
+  `validateZeroKnowledgeProof` then returns `EC_POINT_cmp(...)==1` (`:564`), but `EC_POINT_cmp` returns **0** for
+  equal points. The two mistakes cancel: a genuine sensor packet gives "not equal" under the wrong id, which the
+  inverted test reports as valid, so pairing works while nothing is checked. Juggluco's two embedded sensor packets
+  (`packby1`, `packby2`) verify under `"server"` and under nothing else tried, so they pin the right id; this spike
+  first copied Juggluco's bytes and now uses `"server"`, with those packets as a test.
+- **Juggluco's round-3 proof uses a constant nonce** (`ecJPake.cpp:489`). The nonce is published in the source, so the
+  round-3 packet gives away the secret its proof is meant to hide. This port draws a fresh random nonce, and pads
+  coordinates to 32 bytes (Juggluco's `BN_bn2bin` drops leading zeros, which shifts the 160-byte packet whenever a
+  coordinate starts with a zero byte).
+- Both are written up for the Juggluco maintainer, as a private report and a public issue, not sent:
+  [`spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md`](../spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md).
 
 Where implementations disagree on decoding, this spike follows the one with tests: LoopKit's G7SensorKit reads the
 display-only flag from the message's last byte and treats `0xFFFF` as "no value", while Juggluco and xDrip+ read the
@@ -150,7 +154,7 @@ interface SensorDriver {
 ```sh
 cd spikes/sensors-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
-./gradlew :core:test            # 35 tests, all the decoding and crypto below
+./gradlew :core:test            # 36 tests, all the decoding and crypto below
 ./gradlew :core:run             # the harness: replay every bundled trace through its driver
 ./gradlew :core:run --args="g7 core/src/main/resources/traces/g7-session.txt"
 ./gradlew :android:assembleRelease   # the GATT transport compiles against the Android SDK
@@ -164,7 +168,7 @@ sensor, and the running Libre 3 Plus was not touched. What is checked instead:
 | Driver | Fixtures | What the tests assert |
 |---|---|---|
 | Dexcom G7 / ONE+ | LoopKit `G7GlucoseMessageTests.swift` (MIT): a 9-message sensor lifecycle plus two documented readings; DiaBLE `DexcomG7.swift` comments (MIT) | the same glucose, timestamps, sequences, states and display-only flags LoopKit's own tests expect; backfill records; the `0x59` request bytes; observer mode starts on the vendor app's `05 01 01` and **writes nothing**; a certificate demand ends in a `Failed` status |
-| Dexcom G7 J-PAKE | none usable (see above) | both halves of the exchange derive the same 16-byte key; a wrong code yields a different key (and the sensor's AES challenge is where that is caught); 160-byte packets round-trip |
+| Dexcom G7 J-PAKE | two sensor round packets embedded in Juggluco `ecJPake.cpp` | the sensor's packets verify under the party id `"server"` and not under Juggluco's bytes; both halves of the exchange derive the same 16-byte key; a wrong code yields a different key (and the sensor's AES challenge is where that is caught); 160-byte packets round-trip |
 | Dexcom G6 / ONE | DiaBLE `Dexcom.swift` comments (MIT) | every recorded frame passes CRC-16/XMODEM; the backfill reply decodes; the key is the transmitter id twice; the handshake verifies the transmitter's hash before answering and drops a wrong one; an unauthenticated status is a `Failed` |
 | Accu-Chek SmartGuide | real frames quoted in Juggluco `cpp/accu/java.cpp` | SFLOAT including its "no number" patterns; a sensor-error frame; a below-range frame → 39 mg/dL, as Juggluco posts; the status read → session start; the E2E-CRC on control-point writes (`02 95 2c`, byte for byte what Juggluco sends); a bad CRC is dropped; a stopped session ends the driver |
 | Aidex X | the GATT trace in Juggluco `cpp/aidexx/decrypt.cpp`, a vendor-app log line in `glucose.h`, checksum vectors in `crc.cpp` | the IV and ask-key derived from the serial equal the bytes that went over the air (two different serials); the session key decrypts to the recorded one and its CRC-8 matches; our encryption of each command equals the recorded ciphertext; the replies decrypt to the recorded plaintexts (device info "GX-01S", start time); the glucose reply is the 119 mg/dL the vendor app logged; a 62-byte advertisement gives 92/84/78 mg/dL and passes its seeded CRC-32; a tampered advertisement fails it; a wrong serial ends in a `Failed` |

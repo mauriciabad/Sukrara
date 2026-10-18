@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package dev.spike.sensors.dexcom
 
+import dev.spike.sensors.harness.Trace
 import dev.spike.sensors.hex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,14 +14,25 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 /**
- * The EC-J-PAKE port is checked by running **both halves** against each other: the same key must come out of the
- * phone's side and the sensor's side, a mismatched pairing code must give different keys (which the sensor's AES
- * challenge then rejects — see [G7MessagesTest]), and the 160-byte wire format must survive a round trip.
- *
- * Juggluco's two embedded round packets are not used: their proofs do not verify under any party id or hash
- * variant tried, so they are no cross-check (docs/23).
+ * The EC-J-PAKE port is checked against two round packets recorded from a sensor (Juggluco's `packby1` /
+ * `packby2`), and by running both halves against each other: the same key must come out of both sides, a
+ * mismatched pairing code must give different keys (which the sensor's AES challenge then rejects — see
+ * [G7MessagesTest]), and the 160-byte wire format must survive a round trip.
  */
 class G7JpakeTest {
+    private val trace = Trace.resource("g7-jpake-rounds")
+
+    @Test fun `a sensor's recorded round packets verify under the party id server`() {
+        for (label in listOf("round1", "round2")) {
+            val packet = G7Jpake.Packet.parse(trace[label])
+            assertTrue("$label should verify", G7Jpake.verify(G7Jpake.G, packet, "server".toByteArray()))
+            assertFalse("$label must not verify as the phone", G7Jpake.verify(G7Jpake.G, packet, G7Jpake.PHONE))
+            // Juggluco's b_bytes, the nibble-swapped "server", do not verify them (spikes/sensors-android/upstream).
+            assertFalse(G7Jpake.verify(G7Jpake.G, packet, byteArrayOf(0x37, 0x56, 0x27, 0x67, 0x56, 0x27)))
+            assertEquals(trace[label].hex(), packet.bytes().hex())
+        }
+    }
+
     @Test fun `both sides end up with the same key`() {
         val code = "1234"
         val key = exchange(code, code)
