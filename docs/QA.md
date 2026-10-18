@@ -20,10 +20,12 @@ Cheap tools:
   launching a test build renders the dropdown.
 - **Emulator**: `medium_phone` (wearer, debug build = synthetic glucose) and `small_phone` (follower); at most two at
   once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver
-  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules; debug builds only, like every command that
-  fakes the sensor or data), `--es cmd treat …`, see docs/10.
+  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules), `--es alertTest KIND` (a test alert),
+  `--ei previewSgv N` (a status-bar preview), `--es cmd treat …`, `cmd locktest`, `cmd newSensor --es stage …`, see
+  docs/10. **These fake commands run only on the emulator's debug build**: the release app never shows a glucose
+  value, an alert, a treatment or a sensor state that isn't real (a release build refuses them, `debugOnly` in the reply).
 - **Phone** (`62240DLCH0005W`): only after `tools/install.sh phone`; read-only adb, `adb exec-out screencap -p`
-  while unlocked.
+  while unlocked. No fake commands (they're refused on release); root/LSPosed checks that need a value use the real one.
 
 ## Q1 App home and screens
 
