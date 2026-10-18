@@ -42,7 +42,7 @@ enum class Band { VERY_LOW, LOW, TIGHT, TARGET, HIGH, VERY_HIGH;
 }
 
 /** Which band a time-in-range number counts. */
-enum class TirRange(val label: String) { IN_RANGE("In range"), TIGHT("Very good") }
+enum class TirRange { IN_RANGE, TIGHT }
 
 /**
  * Share of time per band in a window. Every reading stands for the time until the next one (capped at [MAX_GAP_S]),

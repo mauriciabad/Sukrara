@@ -45,10 +45,9 @@ data class GlucoseMetrics(
  * The international consensus targets (Battelino et al., Diabetes Care 2019) that LibreView prints as "Goals for
  * type 1 and type 2 diabetes". [met] is how the report and the gauges colour a number.
  */
-enum class Goal(val label: String, val text: String) {
-    VERY_HIGH("Very high", "< 5%"), ABOVE("High", "< 25%"), IN_RANGE("Target", "> 70%"),
-    BELOW("Low", "< 4%"), VERY_LOW("Very low", "< 1%"),
-    AVERAGE("Average glucose", "< 154 mg/dL"), GMI("GMI", "< 7%"), CV("Glucose variability", "≤ 36%");
+enum class Goal(val text: String) {
+    VERY_HIGH("< 5%"), ABOVE("< 25%"), IN_RANGE("> 70%"), BELOW("< 4%"), VERY_LOW("< 1%"),
+    AVERAGE("< 154 mg/dL"), GMI("< 7%"), CV("≤ 36%");
 
     fun met(m: GlucoseMetrics): Boolean = when (this) {
         VERY_HIGH -> m.tir.veryHigh < 0.05

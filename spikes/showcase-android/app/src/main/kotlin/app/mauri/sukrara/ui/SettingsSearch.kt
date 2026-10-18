@@ -164,15 +164,15 @@ fun SettingsSearchBar() {
         androidx.compose.material3.SearchBarDefaults.InputField(
             textFieldState = text, searchBarState = state,
             onSearch = { q -> if (q.isNotBlank()) recent = RecentSearches.add(ctx, q) },
-            placeholder = { androidx.compose.material3.Text("Search settings") },
+            placeholder = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_hint)) },
             leadingIcon = {
                 if (expanded) androidx.compose.material3.IconButton(onClick = { scope.launch { state.animateToCollapsed() } }) {
-                    androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_arrow_back), "Back")
+                    androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_arrow_back), androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_back))
                 } else androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_search), null)
             },
             trailingIcon = if (expanded && text.text.isNotEmpty()) ({
                 androidx.compose.material3.IconButton(onClick = { text.clearText() }) {
-                    androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_close), "Clear")
+                    androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_close), androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_clear))
                 }
             }) else null,
         )
@@ -190,8 +190,8 @@ fun SettingsSearchBar() {
             .padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
             when {
                 q.isBlank() -> if (recent.isNotEmpty()) {
-                    SettingsGroup("Recent searches", titleAction = {
-                        androidx.compose.material3.TextButton(onClick = { RecentSearches.clear(ctx); recent = emptyList() }) { androidx.compose.material3.Text("Clear history") }
+                    SettingsGroup(androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_recent), titleAction = {
+                        androidx.compose.material3.TextButton(onClick = { RecentSearches.clear(ctx); recent = emptyList() }) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_clear_history)) }
                     }) {
                         for (r in recent.take(5)) link(r, icon = app.mauri.sukrara.R.drawable.ic_sym_history) {
                             text.setTextAndPlaceCursorAtEnd(r)
@@ -199,11 +199,11 @@ fun SettingsSearchBar() {
                     }
                 }
                 hits.isEmpty() && !search.index.ready -> androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 24.dp))
-                hits.isEmpty() -> androidx.compose.material3.Text("No results", style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                hits.isEmpty() -> androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.search_no_results), style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
                 else -> SettingsGroup {
                     for (h in hits.take(60)) result(h.row.title, h.row.summary,
-                        (h.crumbs + listOfNotNull(h.row.group)).ifEmpty { listOf("Settings") }.joinToString(" > "), h.icon) { open(h) }
+                        (h.crumbs + listOfNotNull(h.row.group)).ifEmpty { listOf(androidx.compose.ui.res.stringResource(app.mauri.sukrara.R.string.settings_title)) }.joinToString(" > "), h.icon) { open(h) }
                 }
             }
         }

@@ -79,6 +79,7 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   `ctx.getString`. Plain-Kotlin drawing code (card, graph, badge) reads `core/Words` (English defaults for the JVM
   tests, loaded from the resources in the app) — add the field there too. `StringsParityTest` fails on a missing key
   or argument. The alert engine stays English (scenarios); the notifier words its headlines (`AlertNotifier.headline`).
+  Enum and option labels on the settings pages resolve in `ui/SettingsLabels.kt` (models keep no text).
 - **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` = no widgets), then `./dmg.sh` →
   `build/Sukrara-<ver>.dmg` (needs `uv tool install dmgbuild`). **Releases attach the dmg** (what the README's
   Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. The user's daily

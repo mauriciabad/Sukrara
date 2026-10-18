@@ -47,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.LastPlace
 import app.mauri.sukrara.graph.DEFAULT_LAST_ELSE
@@ -56,6 +57,8 @@ import app.mauri.sukrara.graph.RingSpec
 import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
+import app.mauri.sukrara.graph.WINDOW_HOURS_RANGE
+import app.mauri.sukrara.graph.RING_DAYS_RANGE
 import app.mauri.sukrara.graph.periodLabel
 import app.mauri.sukrara.widgets.SukraraHooks
 import androidx.compose.runtime.produceState
@@ -87,114 +90,130 @@ fun GraphScreen(onBack: () -> Unit) {
         @Suppress("UNCHECKED_CAST")
         pick = Pick(title, options.map { Choice(label(it), it as Any?) }, selected) { onPick(it as T) }
     }
+    // and one for numbers, which also take a custom value
+    var numPick by remember { mutableStateOf<NumPick?>(null) }
+    val daysUnit = androidx.compose.ui.res.stringResource(R.string.unit_d)
+    val hoursRange = NumberRange(WINDOW_HOURS_RANGE.first.toDouble(), WINDOW_HOURS_RANGE.last.toDouble(), androidx.compose.ui.res.stringResource(R.string.unit_h))
 
-    SettingsPage("Graph & time in range", onBack) {
+    SettingsPage(stringResource(R.string.graph_title), onBack) {
         // the real panel as the page's live preview (AOSP IllustrationPreference: "at the top of the screen")
         SettingsHeader { GlucosePanel(last?.sgv, last?.rate, last?.t) }
 
-        SettingsGroup("Ranges", titleAction = { Reset("Ranges", g.bands != D.bands) { set { it.copy(bands = D.bands) } } }) {
-            card { BandSlider("Very low below", g.bands.veryLow, 40f..65f) { v -> set { it.copy(bands = it.bands.copy(veryLow = v)) } } }
-            card { BandSlider("Low below", g.bands.low, 50f..100f) { v -> set { it.copy(bands = it.bands.copy(low = v)) } } }
-            card { BandSlider("Very good up to", g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } } }
-            card { BandSlider("High above", g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } } }
-            card { BandSlider("Very high above", g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } } }
-            card { BandSlider("Extremely high from", g.bands.extremelyHigh, 260f..400f) { v -> set { it.copy(bands = it.bands.copy(extremelyHigh = v)) } } }
+        SettingsGroup(stringResource(R.string.graph_group_ranges), titleAction = { Reset(stringResource(R.string.graph_group_ranges), g.bands != D.bands) { set { it.copy(bands = D.bands) } } }) {
+            card { BandSlider(stringResource(R.string.graph_very_low_below), g.bands.veryLow, 40f..65f) { v -> set { it.copy(bands = it.bands.copy(veryLow = v)) } } }
+            card { BandSlider(stringResource(R.string.graph_low_below), g.bands.low, 50f..100f) { v -> set { it.copy(bands = it.bands.copy(low = v)) } } }
+            card { BandSlider(stringResource(R.string.graph_very_good_up_to), g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } } }
+            card { BandSlider(stringResource(R.string.graph_high_above), g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } } }
+            card { BandSlider(stringResource(R.string.graph_very_high_above), g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } } }
+            card { BandSlider(stringResource(R.string.graph_extremely_high_from), g.bands.extremelyHigh, 260f..400f) { v -> set { it.copy(bands = it.bands.copy(extremelyHigh = v)) } } }
         }
-        Note("In range is ${g.bands.low}–${g.bands.high} mg/dL; very good (${g.bands.low}–${g.bands.tight}) is the part of it " +
-            "where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView " +
-            "report. Extremely high only changes the colour of the line and the number; the report counts it as very high. The ranges colour the number, the line, the status bar and the time in range everywhere.")
+        Note(stringResource(R.string.graph_ranges_note, g.bands.low, g.bands.high, g.bands.tight))
 
-        SettingsGroup("Lines", titleAction = {
-            Reset("Lines", g.lines != D.lines || g.gridHours != D.gridHours) { set { it.copy(lines = D.lines, gridHours = D.gridHours) } }
+        SettingsGroup(stringResource(R.string.graph_group_lines), titleAction = {
+            Reset(stringResource(R.string.graph_group_lines), g.lines != D.lines || g.gridHours != D.gridHours) { set { it.copy(lines = D.lines, gridHours = D.gridHours) } }
         }) {
             card { GraphLines(g.lines) { l -> set { it.copy(lines = l) } } }
             card {
                 val gi = GRID_HOURS.indexOf(g.gridHours).coerceAtLeast(0)
-                Text("Vertical lines: " + if (g.gridHours == 0) "off" else "every ${g.gridHours} h", style = MaterialTheme.typography.bodyLarge)
+                Text(if (g.gridHours == 0) stringResource(R.string.graph_vertical_lines_off) else stringResource(R.string.graph_vertical_lines_every, g.gridHours), style = MaterialTheme.typography.bodyLarge)
                 Slider(gi.toFloat(), { v -> GRID_HOURS[v.roundToInt()].let { h -> if (h != g.gridHours) set { it.copy(gridHours = h) } } },
                     valueRange = 0f..GRID_HOURS.lastIndex.toFloat(), steps = GRID_HOURS.size - 2)
             }
         }
-        Note("Dashed lines across the graph at the levels you pick, besides the range limits. Vertical lines all the way " +
-            "left turns them off; the times under the graph stay. Small graphs space them further apart.")
+        Note(stringResource(R.string.graph_lines_note))
 
-        SettingsGroup("Graph window", titleAction = {
-            Reset("Graph window", g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
+        SettingsGroup(stringResource(R.string.graph_group_window), titleAction = {
+            Reset(stringResource(R.string.graph_group_window), g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
                 set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }
             }
         }) {
-            value("Default", "${g.defaultHours} h") { choose("Default", WINDOW_HOURS, g.defaultHours, { "$it h" }) { h -> set { it.copy(defaultHours = h) } } }
+            val hours: (Int) -> String = { ctx.getString(R.string.graph_hours, it) }
+            val default = stringResource(R.string.graph_window_default)
+            value(default, hours(g.defaultHours)) {
+                numPick = NumPick(default, WINDOW_HOURS, g.defaultHours, hours, hoursRange) { h -> set { it.copy(defaultHours = h) } }
+            }
             for (p in GraphPlace.entries) {
-                val label: (Int) -> String = { if (it == 0) "Default (${g.defaultHours} h)" else "$it h" }
-                value(p.label, label(g.placeHours[p] ?: 0)) {
-                    choose(p.label, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label) { h ->
+                val label: (Int) -> String = { if (it == 0) ctx.getString(R.string.graph_window_default_hours, g.defaultHours) else hours(it) }
+                val place = stringResource(graphPlaceLabel(p))
+                value(place, label(g.placeHours[p] ?: 0)) {
+                    numPick = NumPick(place, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label, hoursRange) { h ->
                         set { it.copy(placeHours = if (h == 0) it.placeHours - p else it.placeHours + (p to h)) }
                     }
                 }
             }
         }
-        Note("Each widget can have its own window: touch and hold it, then tap Reconfigure.")
+        Note(stringResource(R.string.graph_window_note))
 
-        SettingsGroup("Beside the number", titleAction = {
-            Reset("Beside the number", g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder ||
+        SettingsGroup(stringResource(R.string.graph_group_beside_number), titleAction = {
+            Reset(stringResource(R.string.graph_group_beside_number), g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder ||
                     g.lastPlace != D.lastPlace || g.lastElse != D.lastElse) {
                 set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder,
                     lastPlace = D.lastPlace, lastElse = D.lastElse) }
             }
         }) {
-            val count: (Int) -> String = { if (it == 0) "None" else "$it" }
-            value("Rings and numbers", count(g.ringCount)) { choose("Rings and numbers", listOf(0, 1, 2, 3), g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
+            val none = stringResource(R.string.graph_none)
+            val count: (Int) -> String = { if (it == 0) none else "$it" }
+            val rings = stringResource(R.string.graph_slots)
+            value(rings, count(g.ringCount)) { choose(rings, listOf(0, 1, 2, 3), g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
             for (i in 0 until g.ringCount) {
                 val slot = g.slots[i]
                 fun setSlot(f: (RingSpec) -> RingSpec) = set { it.copy(slots = it.slots.toMutableList().also { l -> l[i] = f(l[i]) }) }
-                val name = listOf("Main", "Second", "Third")[i]
-                value(name, slot.kind.label + " · " + periodLabel(slot.windowS)) {
-                    choose("$name: what it shows", SlotKind.entries, slot.kind, { it.label }) { k -> setSlot { s -> s.copy(kind = k) } }
+                val name = stringResource(listOf(R.string.graph_slot_main, R.string.graph_slot_second, R.string.graph_slot_third)[i])
+                val kindLabel: (SlotKind) -> String = { ctx.getString(slotKindLabel(it)) }
+                value(name, kindLabel(slot.kind) + " · " + periodLabel(slot.windowS)) {
+                    choose(ctx.getString(R.string.graph_slot_what, name), SlotKind.entries, slot.kind, kindLabel) { k -> setSlot { s -> s.copy(kind = k) } }
                 }
-                value("$name: period", periodLabel(slot.windowS)) {
-                    choose("$name: period", RING_WINDOWS_S, slot.windowS, ::periodLabel) { w -> setSlot { s -> s.copy(windowS = w) } }
+                val period = stringResource(R.string.graph_slot_period, name)
+                value(period, periodLabel(slot.windowS)) {
+                    numPick = NumPick(period, RING_WINDOWS_S.map { it.toInt() }, slot.windowS.toInt(), { periodLabel(it.toLong()) },
+                        NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), daysUnit, scale = 86400.0)) { w ->
+                        setSlot { s -> s.copy(windowS = w.toLong()) }
+                    }
                 }
-                if (i > 0) switch("$name fainter than the main one", slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
+                if (i > 0) switch(stringResource(R.string.graph_slot_faded, name), slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
             }
-            value("Last treatment", g.lastPlace.label) {
-                choose("Last treatment", LastPlace.entries, g.lastPlace, { it.label }) { p -> set { it.copy(lastPlace = p) } }
+            val last = stringResource(R.string.graph_last)
+            value(last, stringResource(lastPlaceLabel(g.lastPlace))) {
+                choose(last, LastPlace.entries, g.lastPlace, { ctx.getString(lastPlaceLabel(it)) }) { p -> set { it.copy(lastPlace = p) } }
             }
             if (g.lastPlace != LastPlace.OFF) {
                 val other = g.lastElse
-                val none: SlotKind? = null
-                val what: (SlotKind?) -> String = { it?.label ?: "Nothing" }
-                value("Without a recent one", other?.let { it.kind.label + " · " + periodLabel(it.windowS) } ?: "Nothing") {
-                    choose("Without a recent treatment", listOf(none) + SlotKind.entries, other?.kind, what) { k ->
+                val noKind: SlotKind? = null
+                val nothing = stringResource(R.string.graph_nothing)
+                val what: (SlotKind?) -> String = { it?.let { k -> ctx.getString(slotKindLabel(k)) } ?: nothing }
+                value(stringResource(R.string.graph_last_else), other?.let { what(it.kind) + " · " + periodLabel(it.windowS) } ?: nothing) {
+                    choose(ctx.getString(R.string.graph_last_else_dialog), listOf(noKind) + SlotKind.entries, other?.kind, what) { k ->
                         set { it.copy(lastElse = k?.let { kind -> (it.lastElse ?: DEFAULT_LAST_ELSE).copy(kind = kind) }) }
                     }
                 }
-                if (other != null) value("Without a recent one: period", periodLabel(other.windowS)) {
-                    choose("Without a recent treatment: period", RING_WINDOWS_S, other.windowS, ::periodLabel) { w ->
+                if (other != null) value(stringResource(R.string.graph_last_else_period), periodLabel(other.windowS)) {
+                    choose(ctx.getString(R.string.graph_last_else_period_dialog), RING_WINDOWS_S, other.windowS, ::periodLabel) { w ->
                         set { it.copy(lastElse = it.lastElse?.copy(windowS = w)) }
                     }
                 }
             }
-            val range: (TirRange) -> String = { "${it.label} (${g.bands.low}–${if (it == TirRange.TIGHT) g.bands.tight else g.bands.high})" }
-            value("Time in range counts", range(g.ringRange)) { choose("Time in range counts", TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
+            val range: (TirRange) -> String = { ctx.getString(R.string.graph_tir_with_span, ctx.getString(tirRangeLabel(it)), g.bands.low, if (it == TirRange.TIGHT) g.bands.tight else g.bands.high) }
+            val counts = stringResource(R.string.graph_tir_counts)
+            value(counts, range(g.ringRange)) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
             card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
         }
-        Note("Each slot is a time-in-range ring or a number from your doctor's report: GMI, average glucose or " +
-            "variability (CV), with a green arc when its goal is met. Slots that don't fit are hidden, the last one " +
-            "first. A slot needs data for at least a quarter of its window. Last treatment shows your latest rapid " +
-            "insulin (for 4 h) or carbs (for 3 h): the amount, the time since, and a ring for the time left before " +
-            "alerts come back. It takes the second slot's place when there's room for only two.")
+        Note(stringResource(R.string.graph_beside_number_note))
 
-        SettingsGroup("Beside the graph", titleAction = { Reset("Beside the graph", g.side != D.side) { set { it.copy(side = D.side) } } }) {
-            switch("Time in range and distribution", g.side,
-                summary = "The % of time below, in and above range, and how much time was spent at each level") { v -> set { it.copy(side = v) } }
+        SettingsGroup(stringResource(R.string.graph_group_beside_graph), titleAction = { Reset(stringResource(R.string.graph_group_beside_graph), g.side != D.side) { set { it.copy(side = D.side) } } }) {
+            switch(stringResource(R.string.graph_side), g.side,
+                summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
         }
-        Note("The distribution covers the same time as the graph; the lines stop short of its dots. Each widget " +
-            "can turn it off on its own.")
-        if (g != D) SettingsGroup { action("Reset all graph settings", icon = R.drawable.ic_sym_restart_alt) { set { D } } }
-        SettingsFooter("Each widget's own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).")
+        Note(stringResource(R.string.graph_side_note))
+        if (g != D) SettingsGroup { action(stringResource(R.string.graph_reset_all), icon = R.drawable.ic_sym_restart_alt) { set { D } } }
+        SettingsFooter(stringResource(R.string.graph_footer))
     }
     pick?.let { p -> ChoiceDialog(p.title, p.options, p.selected, onClose = { pick = null }, onChoose = p.onPick) }
+    numPick?.let { p -> IntChoiceDialog(p.title, p.presets, p.selected, p.label, p.range, onClose = { numPick = null }, onChoose = p.onPick) }
 }
+
+/** An open "pick a number" dialog: presets and a custom value in [range]. */
+private class NumPick(val title: String, val presets: List<Int>, val selected: Int, val label: (Int) -> String, val range: NumberRange,
+                      val onPick: (Int) -> Unit)
 
 /** An open "pick one of" dialog. */
 private class Pick(val title: String, val options: List<Choice<Any?>>, val selected: Any?, val onPick: (Any?) -> Unit)
@@ -206,7 +225,7 @@ private val D = GraphConfig()
 @Composable
 private fun Reset(title: String, changed: Boolean, onReset: () -> Unit) {
     if (changed) IconButton(onClick = onReset) {
-        Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = "Reset $title to the defaults")
+        Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = stringResource(R.string.graph_reset_section, title))
     }
 }
 
@@ -215,12 +234,13 @@ private fun Reset(title: String, changed: Boolean, onReset: () -> Unit) {
 private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
     val pal = systemPalette(LocalContext.current, androidx.compose.foundation.isSystemInDarkTheme())
     val b = g.bands
+    val ctx = LocalContext.current
     fun name(x: Band) = when (x) {
-        Band.VERY_LOW -> "Very low (< ${b.veryLow})"; Band.LOW -> "Low (${b.veryLow}–${b.low - 1})"
-        Band.TIGHT -> "Very good (${b.low}–${b.tight})"; Band.TARGET -> "In range (${b.tight + 1}–${b.high})"
-        Band.HIGH -> "High (${b.high + 1}–${b.veryHigh})"; Band.VERY_HIGH -> "Very high (> ${b.veryHigh})"
+        Band.VERY_LOW -> ctx.getString(bandLabel(x), b.veryLow); Band.LOW -> ctx.getString(bandLabel(x), b.veryLow, b.low - 1)
+        Band.TIGHT -> ctx.getString(bandLabel(x), b.low, b.tight); Band.TARGET -> ctx.getString(bandLabel(x), b.tight + 1, b.high)
+        Band.HIGH -> ctx.getString(bandLabel(x), b.high + 1, b.veryHigh); Band.VERY_HIGH -> ctx.getString(bandLabel(x), b.veryHigh)
     }
-    Text("Ring order, clockwise from the top", style = MaterialTheme.typography.bodyLarge)
+    Text(stringResource(R.string.graph_ring_order), style = MaterialTheme.typography.bodyLarge)
     val o = g.ringOrder
     o.forEachIndexed { i, band ->
         fun move(to: Int) = onOrder(o.toMutableList().also { l -> l.add(to, l.removeAt(i)) })
@@ -228,10 +248,10 @@ private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
             androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
             Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
             IconButton(onClick = { move(i - 1) }, enabled = i > 0) {
-                Icon(painterResource(R.drawable.ic_sym_arrow_upward), contentDescription = "Move ${name(band)} earlier")
+                Icon(painterResource(R.drawable.ic_sym_arrow_upward), contentDescription = stringResource(R.string.graph_ring_move_earlier, name(band)))
             }
             IconButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) {
-                Icon(painterResource(R.drawable.ic_sym_arrow_downward), contentDescription = "Move ${name(band)} later")
+                Icon(painterResource(R.drawable.ic_sym_arrow_downward), contentDescription = stringResource(R.string.graph_ring_move_later, name(band)))
             }
         }
     }
@@ -250,20 +270,20 @@ private fun GraphLines(lines: List<Int>, onLines: (List<Int>) -> Unit) {
     if (lines.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         for (l in lines) InputChip(selected = false, onClick = { onLines(lines - l) }, label = { Text("$l mg/dL") },
             trailingIcon = {
-                Icon(painterResource(R.drawable.ic_sym_close), contentDescription = "Remove the $l line",
+                Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.graph_line_remove, l),
                     Modifier.size(InputChipDefaults.AvatarSize))
             })
     }
     if (lines.size < MAX_LINES) Row(verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(text, { t -> text = t.filter(Char::isDigit).take(3) }, Modifier.weight(1f),
-            label = { Text("Add a line at (mg/dL)") }, singleLine = true,
+            label = { Text(stringResource(R.string.graph_line_add_label)) }, singleLine = true,
             isError = text.isNotEmpty() && !ok,
             supportingText = if (text.isNotEmpty() && !ok) {
-                { Text(if (v in lines) "Already on the graph" else "${LINE_RANGE.first}–${LINE_RANGE.last} mg/dL") }
+                { Text(if (v in lines) stringResource(R.string.graph_line_exists) else "${LINE_RANGE.first}–${LINE_RANGE.last} mg/dL") }
             } else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { add() }))
-        TextButton(onClick = ::add, enabled = ok, modifier = Modifier.padding(start = 8.dp)) { Text("Add") }
+        TextButton(onClick = ::add, enabled = ok, modifier = Modifier.padding(start = 8.dp)) { Text(stringResource(R.string.graph_line_add)) }
     }
 }
 

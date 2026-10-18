@@ -11,13 +11,17 @@ import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 
 /** Where a graph is shown; each place can follow the default window or have its own. */
-enum class GraphPlace(val label: String) { APP("App"), NOTIFICATION("Notification"), WIDGETS("Widgets") }
+enum class GraphPlace { APP, NOTIFICATION, WIDGETS }
 
-/** Choices offered in Settings. */
+/** Choices offered in Settings; a custom window is any whole number of hours in [WINDOW_HOURS_RANGE]. */
 val WINDOW_HOURS = listOf(3, 6, 12, 24)
+val WINDOW_HOURS_RANGE = 1..48
 /** Hours between the vertical lines; 0 = none. */
 val GRID_HOURS = listOf(0, 1, 2, 3, 4, 6, 12)
 val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
+/** A custom ring period: whole days in this range. */
+val RING_DAYS_RANGE = 1..90
+fun validRingWindow(s: Long) = s in RING_WINDOWS_S || (s % 86400 == 0L && s / 86400 in RING_DAYS_RANGE)
 
 /** The chart's extra lines: 100 mg/dL unless the user changes them; at most [MAX_LINES], each in [LINE_RANGE]. */
 val DEFAULT_LINES = listOf(100)
@@ -83,9 +87,9 @@ data class GraphConfig(
                 bands = Bands(o.optInt("veryLow", d.bands.veryLow), o.optInt("low", d.bands.low), o.optInt("tight", d.bands.tight),
                     o.optInt("high", d.bands.high), o.optInt("veryHigh", d.bands.veryHigh),
                     o.optInt("extremelyHigh", d.bands.extremelyHigh)).sane(),
-                defaultHours = o.optInt("defaultHours", d.defaultHours).takeIf { it in WINDOW_HOURS } ?: d.defaultHours,
+                defaultHours = o.optInt("defaultHours", d.defaultHours).takeIf { it in WINDOW_HOURS_RANGE } ?: d.defaultHours,
                 placeHours = o.optJSONObject("placeHours")?.let { p ->
-                    GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS }?.let { k to it } }.toMap()
+                    GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS_RANGE }?.let { k to it } }.toMap()
                 } ?: emptyMap(),
                 ringCount = o.optInt("ringCount", d.ringCount).coerceIn(0, 3),
                 slots = o.optString("slots").split(",").mapNotNull(::parseSlot).takeIf { it.size == 3 } ?: d.slots,
@@ -119,7 +123,7 @@ data class WidgetGraphConfig(
 
     companion object {
         fun fromJson(o: JSONObject) = WidgetGraphConfig(
-            hours = o.optInt("hours", 0).takeIf { it in WINDOW_HOURS },
+            hours = o.optInt("hours", 0).takeIf { it in WINDOW_HOURS_RANGE },
             rings = if (o.has("rings")) o.optInt("rings").coerceIn(0, 3) else null,
             ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrNull(),
             side = if (o.has("side")) o.optBoolean("side") else null,
@@ -133,7 +137,7 @@ private fun slotText(s: RingSpec) = "${s.kind.name}:${s.windowS}:${if (s.faded) 
 private fun parseSlot(e: String): RingSpec? {
     val p = e.split(":")
     val kind = runCatching { SlotKind.valueOf(p[0]) }.getOrNull() ?: return null
-    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf { it in RING_WINDOWS_S } ?: return null
+    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf(::validRingWindow) ?: return null
     return RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
 }
 

@@ -253,27 +253,28 @@ class MainActivity : ComponentActivity() {
         fun page(s: String) {
             val back = nav::back
             when (s) {
-                "share" -> Page { ShareScreen(u, actions, back) }
-                "profile" -> Page {
+                "share" -> SettingsRoute { ShareScreen(u, actions, back) }
+                "profile" -> SettingsRoute {
                     ProfileScreen(stringResource(R.string.profile_title_wearer), u.profile ?: app.mauri.sukrara.core.Profile("", null), stringResource(R.string.profile_name_label),
                         stringResource(R.string.profile_note_wearer),
                         actions::saveProfile, back)
                 }
-                "settings" -> Page { WearerSettings(u, back) }
-                "alerts" -> Page { AlertsScreen(follower = false, back) }
-                "source" -> Page { SourceSettings(back) }
-                "sensor" -> Page { SensorScreen(back) }
-                "sharing" -> Page { SharingSettings(u, actions, back) }
-                "graph" -> Page { GraphScreen(back) }
-                "statusbar" -> Page { StatusBarSettings(back) }
-                "lockscreen" -> Page { LockscreenSettings(back) }
-                "apps" -> Page { AppsSettings(wearer = true, back) }
-                "libreview" -> Page { LibreViewSettings(back) }
-                "backup" -> Page { BackupSettings(u, actions, back) }
-                "advanced" -> Page { WearerAdvanced(u, relays, actions, back) }
-                "log" -> Page { LogPage(log, back) }
-                "about" -> Page { AboutSettings(back) }
-                else -> Page(homeScroll) { OwnerHome(u, actions) }
+                "settings" -> SettingsRoute { WearerSettings(u, back) }
+                "alerts" -> SettingsRoute { AlertsScreen(follower = false, back) }
+                "source" -> SettingsRoute { SourceSettings(back) }
+                "sensor" -> SettingsRoute { SensorScreen(back) }
+                "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
+                "graph" -> SettingsRoute { GraphScreen(back) }
+                "statusbar" -> SettingsRoute { StatusBarSettings(back) }
+                "lockscreen" -> SettingsRoute { LockscreenSettings(back) }
+                "apps" -> SettingsRoute { AppsSettings(wearer = true, back) }
+                "libreview" -> SettingsRoute { LibreViewSettings(back) }
+                "backup" -> SettingsRoute { BackupSettings(u, actions, back) }
+                "advanced" -> SettingsRoute { WearerAdvanced(u, relays, actions, back) }
+                "log" -> SettingsRoute { LogPage(log, back) }
+                "about" -> SettingsRoute { AboutSettings(back) }
+                else -> if (s.startsWith(ALERT_ROUTE)) SettingsRoute { AlertKindScreen(s.removePrefix(ALERT_ROUTE), follower = false, back) }
+                    else Page(homeScroll) { OwnerHome(u, actions) }
             }
         }
         AnimatedContent(u.hasIdentity, transitionSpec = { fadeThrough() }, label = "identity") { has ->
@@ -343,19 +344,20 @@ class MainActivity : ComponentActivity() {
         fun followerPage(sc: String) {
             val back = nav::back
             when (sc) {
-                "settings" -> Page { FollowerSettings(u, back) }
-                "alerts" -> Page { AlertsScreen(follower = true, back) }
-                "graph" -> Page { GraphScreen(back) }
-                "following" -> Page { FollowingSettings(u, actions, back) }
-                "apps" -> Page { AppsSettings(wearer = false, back) }
-                "advanced" -> Page { FollowerAdvanced(u, relays, actions, back) }
-                "log" -> Page { LogPage(log, back) }
-                "about" -> Page { AboutSettings(back) }
-                "profile" -> Page {
+                "settings" -> SettingsRoute { FollowerSettings(u, back) }
+                "alerts" -> SettingsRoute { AlertsScreen(follower = true, back) }
+                "graph" -> SettingsRoute { GraphScreen(back) }
+                "following" -> SettingsRoute { FollowingSettings(u, actions, back) }
+                "apps" -> SettingsRoute { AppsSettings(wearer = false, back) }
+                "advanced" -> SettingsRoute { FollowerAdvanced(u, relays, actions, back) }
+                "log" -> SettingsRoute { LogPage(log, back) }
+                "about" -> SettingsRoute { AboutSettings(back) }
+                "profile" -> SettingsRoute {
                     ProfileScreen(stringResource(R.string.profile_title_follower), u.me ?: app.mauri.sukrara.core.Profile(u.name ?: "", null),
                         stringResource(R.string.profile_name_label), stringResource(R.string.profile_note_follower), engine::setProfile, back)
                 }
-                else -> Page(homeScroll) { FollowerHome(u, actions) }
+                else -> if (sc.startsWith(ALERT_ROUTE)) SettingsRoute { AlertKindScreen(sc.removePrefix(ALERT_ROUTE), follower = true, back) }
+                    else Page(homeScroll) { FollowerHome(u, actions) }
             }
         }
         AnimatedContent(step, transitionSpec = { fadeThrough() }, label = "follower") { s ->

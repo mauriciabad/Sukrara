@@ -714,6 +714,39 @@ Settings rebuilt after the system Settings app and its guidelines
 Discarded: shared-axis transitions (not what Settings shows), a separate search route (the M3 contained search bar
 does it), a fixed list of searchable pages, the `material-icons` library.
 
+### On AOSP's own settings library (2026-10-18 round)
+
+The pages now use the code the Settings app draws its Compose pages with: **SettingsLib SPA**
+(`frameworks/base/packages/SettingsLib/Spa`, branch `android17-release`, commit `94b4c163`), vendored as the
+`settingslib-spa` Gradle module (Apache-2.0, headers kept, `NOTICE`). Values cross-checked against the View-based
+SettingsLib of the same branch (`SettingsTheme/res/*-v36`, `CollapsingToolbarBaseActivity`, `TwoTargetPreference`,
+`MainSwitchPreference`) and the 36.1 emulator's Settings. Added:
+
+- **Collapsing large title** (SPA `SettingsScaffold` / `CustomizedLargeTopAppBar`): 36 dp title, collapses into the
+  22 dp top-bar title on scroll; the expressive round back button. SPA starts collapsed; Sukrara opens expanded like
+  Android 17's View pages (`BasePreferencesFragment.onResume` → `setExpanded(true)`), the one change to SPA's
+  behaviour.
+- **Rows and groups** are SPA's `Category`, `Preference`, `SwitchPreference` (check / close thumb icons),
+  `TwoTargetSwitchPreference` (› chevron, 1 × 40 dp line, switch), `MainSwitchPreference`, `CheckboxPreference`,
+  `Footer`, `SettingsBanner`, and `HighlightBox` for search hits (on our nav). Titles are titleMedium (500) in the
+  device's Settings fonts (`SettingsTheme`), rows are centred vertically, plain rows have no chevron.
+- **Homepage icons** like AOSP `ic_homepage_*`: glyph in tone 30 on the adaptive-icon shape in tone 90 (80 dark),
+  from the Material reference palettes. The rotating cookie shape with the page icon is gone: page intros are
+  TopIntroPreference text.
+- **Dialogs** are SPA's `ListPreference` dialog; number lists end with **Custom**, which reveals a number field with
+  the unit and the range (the AOSP keyboard key-delay dialog is the only stock "Custom" option: a last radio that
+  reveals its control). Custom values survive export / import (graph windows and ring periods now validate a range
+  instead of the preset list).
+- **Each alert has its own page** instead of the old all-in-one dialog: "If a setting has related settings, show them
+  on a separate screen" ([pattern](https://developer.android.com/design/ui/mobile/guides/patterns/settings)), like
+  Settings → Notifications → app → category. Followers mirroring the wearer see the rule read-only.
+- **Sound previews vibrate**: every ▶ plays the alert's `AlertHaptics` effect with the sound, unless "Play with
+  vibration" is unticked (a per-phone UI preference).
+
+Discarded: SPA's page framework (`SettingsPageProvider`, `BrowseActivity`, navigation-compose): our in-app back stack
+keeps the system motion, predictive back and the index-mode search; SPA's chart and Lottie widgets (MPAndroidChart,
+Lottie); the ↗ / › end icons on plain rows (stock rows have none); the per-group icon column (SPA doesn't reserve it).
+
 ## Treatments on the card (2026-10-18 feedback round)
 
 Details and pictures: [16 → Treatments on the card](16-graph.md#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18).

@@ -115,12 +115,12 @@ fun ProfileEditor(p: Profile, onChange: (Profile) -> Unit, nameLabel: String) {
 @Composable
 fun ProfileScreen(title: String, current: Profile, nameLabel: String, note: String, onSave: (Profile) -> Unit, onBack: () -> Unit) {
     var p by remember { mutableStateOf(current) }
-    SettingsPage(title, onBack) {
+    SettingsPage(title, onBack) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ProfileEditor(p, { p = it }, nameLabel)
         Text(note, style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onSave(p); onBack() }, enabled = p.name.isNotBlank()) { Text(stringResource(R.string.treatment_save)) }
             TextButton(onClick = onBack) { Text(stringResource(R.string.treatment_cancel)) }
         }
-    }
+    } }
 }

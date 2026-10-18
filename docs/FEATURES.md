@@ -69,6 +69,20 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 ## Settings
 
+- Settings pages are AOSP SettingsLib SPA (android17-release, vendored as `settingslib-spa`): SettingsTheme, SettingsScaffold, Category, Preference / SwitchPreference / TwoTargetSwitchPreference / MainSwitchPreference / CheckboxPreference, Footer, SettingsBanner, HighlightBox.
+- A page opens with the large title (36 dp) expanded; scrolling collapses it into the 22 dp title of the top bar; the round tonal back button stays.
+- Groups are 20 dp rounded cards (4 dp inner corners) 16 dp from the screen edges, 2 dp between rows, surfaceBright on a surfaceContainer page; group titles in primary.
+- Rows: 72 dp min height, centred vertically, title 16 sp medium (500), summary 14 sp onSurfaceVariant, icons 24 dp in a 40 dp box tinted onSurfaceVariant; plain rows show no chevron.
+- A row that both toggles and opens something (two targets) shows › then a 1 × 40 dp line, then the switch; switches show a check (on) / close (off) thumb icon.
+- Overview category icons: the 24 dp glyph in the hue's tone 30 on the device's adaptive-icon shape (40 dp) in tone 90 (dark theme: 80), AOSP homepage colours.
+- Page intros are plain body-large text (TopIntroPreference), no illustration.
+- Choice dialogs are SPA ListPreference dialogs: choosing saves and closes.
+- Every list of numbers ends with "Custom": it reveals a number field (unit shown, range under it); OK saves only a value in range; a custom value shows as "Custom" selected with its value, and round-trips through settings export / import.
+- Custom ranges: Nostr interval 1–120 min, LibreView interval 1–240 min, alert reminders 1–240 min, thresholds 40–400 mg/dL, rates 0.5–10 mg/dL/min (one decimal), no data 5–240 min, quiet after insulin 10–360 min, falling / carbs 5–120 min, graph windows 1–48 h, ring periods 1–90 days.
+- Alerts page: main switch, then one two-target row per alert (switch = on/off, row = the alert's page), quiet rules, sounds.
+- Each alert has its own page: main switch "Use <alert> alert", Alert when (threshold, remind), Sound (sound, volume), Test (play sound, Play with vibration, send a test alert, notification category). Followers mirroring the wearer see threshold and reminders read-only ("Set by the wearer's app").
+- Every ▶ (sound pack list, an alert's sound list, Play sound) also plays that alert's vibration (AlertHaptics, alarm or notification usage) unless "Play with vibration" is unticked; the check box is a per-phone UI preference, on by default, and only affects previews.
+
 ## Live notification
 
 - Chip off (or Live Updates unavailable): a colorized foreground-service card (background = range colour, ink black or white by contrast) with a custom layout inside the system's decoration.
@@ -91,9 +105,11 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 ## Languages
 
-- English (default) and Spanish (Spain) for everything except the settings pages; the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
+- English (default) and Spanish (Spain) everywhere, settings pages included (every page, alert page, dialog, search and the alerts page's "lately" list); the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
+- Settings search finds rows in the shown language, accents optional ("insulina rapida" finds "Tras insulina rápida"): the index is built from the pages as they are drawn.
+- Settings words follow Android's own Spanish where a stock setting exists: Ajustes, Activado / Desactivado, Pantalla de bloqueo, Barra de estado, No molestar, Restablecer, Buscar en Ajustes.
 - Text lives in `res/values/strings.xml` and `res/values-es/strings.xml`; a unit test fails when a key or a format argument is missing in a translation.
 - Numbers, dates and times follow the chosen language (decimal comma in Spanish, localized day and month names); units stay as they are (mg/dL, `4.5u`, `30g`).
 - Spanish terms: hidratos (carbs), insulina rápida / lenta, tiempo en rango, seguidores; alert headlines like "Glucosa baja · come más".
 - Changing the language renames the notification channels and redraws the widgets, the notification and the lock screen widget at once.
-- Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification words them.
+- Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification and the settings pages word them. The log and the debug dump stay in English.

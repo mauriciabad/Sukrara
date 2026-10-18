@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,7 +40,6 @@ import app.mauri.sukrara.BuildConfig
 import app.mauri.sukrara.R
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.alerts.AlertSettings
-import app.mauri.sukrara.alerts.AlertSounds
 import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.RelayStats
@@ -57,9 +58,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.DateFormat
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /*
  * The settings of both roles, per the settings guidelines (SettingsUi.kt): an overview with one row per subscreen
@@ -70,26 +69,35 @@ import java.util.Locale
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
-private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(t * 1000))
 
-private fun intervalLabel(min: Int) = if (min == 0) "Every reading" else "Every $min min"
+private fun intervalLabel(ctx: android.content.Context, min: Int) =
+    if (min == 0) ctx.getString(R.string.interval_every_reading) else ctx.getString(R.string.interval_every_min, min)
 
-private fun on(b: Boolean) = if (b) "On" else "Off"
+/** "On" / "Off" as the stock Settings summaries say it. */
+@Composable
+private fun onOff(b: Boolean) = stringResource(if (b) R.string.settings_on else R.string.settings_off)
 
 /** Summary of the Alerts row (overview of both roles). */
+@Composable
 private fun alertsSummary(s: AlertSettings, follower: Boolean): String {
+    val ctx = LocalContext.current
     val n = Kind.ALL.count { s.cfg(it).on }
+    val pack = soundName(ctx, s.pack)
     return when {
-        !s.on -> "Off"
-        follower && s.source == "wearer" -> "Same as the wearer's app · ${AlertSounds.label(s.pack).substringBefore(" (")}"
-        else -> "$n of ${Kind.ALL.size} on · ${AlertSounds.label(s.pack).substringBefore(" (")}"
+        !s.on -> stringResource(R.string.settings_off)
+        follower && s.source == "wearer" -> stringResource(R.string.settings_alerts_summary_wearer, pack)
+        else -> stringResource(R.string.settings_alerts_summary, n, Kind.ALL.size, pack)
     }
 }
 
 @Composable
 private fun graphSummary(): String {
     val g by GraphSettings.state.collectAsState()
-    return "${g.defaultHours} h · " + if (g.ringCount == 0) "no rings" else g.rings().joinToString(" + ") { "${it.kind.short.ifEmpty { "TIR" }} ${it.period}" }
+    val tir = stringResource(R.string.settings_graph_summary_tir)
+    val rings = if (g.ringCount == 0) stringResource(R.string.settings_graph_summary_no_rings)
+        else g.rings().joinToString(" + ") { "${it.kind.short.ifEmpty { tir }} ${it.period}" }
+    return stringResource(R.string.settings_graph_summary, g.defaultHours, rings)
 }
 
 // ================================================================================================ wearer overview
@@ -102,75 +110,77 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
     val alerts by Alerts.settings.collectAsState()
     val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
     val gs = graphSummary()
-    SettingsPage("Settings", onBack) {
+    SettingsPage(stringResource(R.string.settings_title), onBack) {
         SettingsSearchBar()
         val nav = LocalNav.current
         LibreViewBanner(onSetUp = { nav?.open("libreview") })
         SettingsGroup {
-            link(u.profile?.name?.ifBlank { null } ?: "Add your name", "Wearer · what your followers see",
+            link(u.profile?.name?.ifBlank { null } ?: stringResource(R.string.home_add_your_name), stringResource(R.string.settings_profile_wearer),
                 leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }, to = "profile")
         }
         SettingsGroup {
-            link("Alerts", alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
-            link("Glucose source", (if (f.source == "direct") "Libre 3 directly" else "Juggluco") + " · " + st.source,
+            link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
+            link(stringResource(R.string.source_title), stringResource(sourceLabel(f.source)) + " · " + st.source,
                 leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }, to = "source")
         }
         SettingsGroup {
             val n = u.followers.count { it.revoked == null }
-            link(PEOPLE, "$n follower${if (n == 1) "" else "s"}" + (if (f.nostr) " · internet" else "") + (if (f.bleFollowers) " · Bluetooth" else ""),
+            link(stringResource(R.string.people_title), pluralStringResource(R.plurals.notif_followers, n, n) +
+                (if (f.nostr) " · " + stringResource(R.string.settings_people_summary_internet) else "") +
+                (if (f.bleFollowers) " · " + stringResource(R.string.settings_people_summary_bluetooth) else ""),
                 leading = { CategoryIcon(R.drawable.ic_sym_group, Category.BLUE) }, to = "sharing")
-            link(APPS, appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
+            link(stringResource(R.string.apps_title), appsSummary(f, wearer = true), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
         }
         SettingsGroup {
-            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
-            link("Status bar", listOfNotNull("chip".takeIf { f.chip }, "number icon".takeIf { f.icon }, "value".takeIf { f.hook })
-                .joinToString(" · ").ifEmpty { "Off" }.replaceFirstChar { it.uppercase() },
+            link(stringResource(R.string.graph_title), gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
+            val bar = listOfNotNull(R.string.settings_statusbar_summary_chip.takeIf { f.chip }, R.string.settings_statusbar_summary_icon.takeIf { f.icon },
+                R.string.settings_statusbar_summary_value.takeIf { f.hook }).map { stringResource(it) }
+            link(stringResource(R.string.statusbar_title), bar.joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }.replaceFirstChar { it.uppercase() },
                 leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }, to = "statusbar")
-            link("Lock screen", if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) NEEDS_MODULE
-                else if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.label(f.lockBg) else "Off",
+            link(stringResource(R.string.lock_title), if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) stringResource(R.string.settings_needs_module)
+                else if (f.lockWidget) stringResource(R.string.settings_on_with, stringResource(lockBackgroundLabel(f.lockBg))) else stringResource(R.string.settings_off),
                 leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }, to = "lockscreen")
         }
         SettingsGroup {
-            link("Backup", (if (u.backupSavedAt > 0) "Saved ${date(u.backupSavedAt)}" else "Not backed up") + " · export settings",
+            link(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_summary,
+                if (u.backupSavedAt > 0) stringResource(R.string.backup_saved_at, date(u.backupSavedAt)) else stringResource(R.string.backup_not_backed_up)),
                 leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }, to = "backup")
         }
         SettingsGroup {
-            link("Advanced", "Relays, log, sensor link, experiments", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
-            link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
+            link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_wearer), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
+            link(stringResource(R.string.about_title), stringResource(R.string.settings_about_summary, BuildConfig.VERSION_NAME),
                 leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")
         }
     }
 }
 
-/** Sharing with people (followers) and with apps (LibreView, xDrip+, Nightscout clients, Nostr): two pages that link to each other. */
-private const val PEOPLE = "Share with people"
-private const val APPS = "Share with apps"
-
+@Composable
 private fun appsSummary(f: FeatureState, wearer: Boolean) = listOfNotNull(
     "LibreView".takeIf { wearer && f.libreview }, "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
-).joinToString(" · ").ifEmpty { "Off" }
+).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
 
 /** Uploading to LibreView matters (it's the doctor's record): ask until it's set up or the user says not now. */
 @Composable
-fun LibreViewBanner(onSetUp: () -> Unit) {
+fun LibreViewBanner(onSetUp: () -> Unit, containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
     val f by Features.state.collectAsState()
     val lv by Treat.uploader.settings.collectAsState()
     val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
     Reveal(!ready && !f.libreviewBannerDismissed) {
-        SettingsBanner({ AppIcon(R.drawable.ic_brand_libreview) }, "Set up LibreView",
-            "Upload your glucose and entries to LibreView, the record your doctor sees.", "Set up", onSetUp) {
-            set { it.copy(libreviewBannerDismissed = true) }
-        }
+        SettingsBanner(R.drawable.ic_sym_cloud_upload, stringResource(R.string.libreview_banner_title),
+            stringResource(R.string.libreview_banner_text), stringResource(R.string.libreview_banner_action), onSetUp,
+            onDismiss = { set { it.copy(libreviewBannerDismissed = true) } }, containerColor = containerColor)
     }
 }
 
 // ================================================================================================ glucose source
 
-/** Glucose sources (label, value, one-line description). Libre 3 directly is the default. */
+/** Glucose sources (value, label, one-line description). Libre 3 directly is the default. */
 private val SOURCES = listOf(
-    Triple("Libre 3 directly", "direct", "Sukrara holds the sensor (scan it once with NFC)"),
-    Triple("Juggluco", "juggluco", "Reads Juggluco's web server; Juggluco keeps the sensor and its alarms"),
+    Triple("direct", R.string.source_direct, R.string.source_direct_summary),
+    Triple("juggluco", R.string.source_juggluco, R.string.source_juggluco_summary),
 )
+
+private fun sourceLabel(v: String) = (SOURCES.firstOrNull { it.first == v } ?: SOURCES[0]).second
 
 @Composable
 fun SourceSettings(onBack: () -> Unit) {
@@ -180,27 +190,25 @@ fun SourceSettings(onBack: () -> Unit) {
     var confirmDirect by remember { mutableStateOf(false) }
     val direct = f.source == "direct"
     val nav = LocalNav.current
-    SettingsPage("Glucose source", onBack) {
-        SettingsIntro(R.drawable.ic_sym_glucose, "Where Sukrara gets your readings from.")
+    SettingsPage(stringResource(R.string.source_title), onBack) {
+        SettingsIntro(stringResource(R.string.source_intro))
         SettingsGroup {
-            value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
+            value(stringResource(R.string.source_source), stringResource(sourceLabel(f.source)) + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
                 icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ AppIcon(R.drawable.ic_brand_juggluco) })) { choosing = true }
-            link("Sensor", if (direct) st.sensorSerial?.let { "Libre 3 $it · scan to start or take over" } ?: "Scan to start or take over"
-                else "Unavailable while Juggluco holds the sensor", icon = R.drawable.ic_sym_nfc, enabled = direct, to = "sensor")
+            link(stringResource(R.string.sensor_title), if (direct) st.sensorSerial?.let { stringResource(R.string.source_sensor_summary, it) } ?: stringResource(R.string.source_sensor_summary_none)
+                else stringResource(R.string.source_sensor_unavailable), icon = R.drawable.ic_sym_nfc, enabled = direct, to = "sensor")
         }
-        SettingsFooter("Only one app can hold a Libre 3. With Libre 3 directly, Juggluco's own alarms don't ring; use Alerts.")
+        SettingsFooter(stringResource(R.string.source_footer))
     }
-    if (choosing) ChoiceDialog("Source", SOURCES.map { Choice(it.first, it.second, it.third) }, f.source, { choosing = false }) { v ->
+    if (choosing) ChoiceDialog(stringResource(R.string.source_source), SOURCES.map { Choice(stringResource(it.second), it.first, stringResource(it.third)) }, f.source, { choosing = false }) { v ->
         if (v == "direct" && f.source != "direct") confirmDirect = true else set { it.copy(source = v) }
     }
     if (confirmDirect) AlertDialog(
         onDismissRequest = { confirmDirect = false },
-        title = { Text("Read the sensor directly?") },
-        text = { Text("Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a " +
-            "Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco's alarms " +
-            "(low/high) do NOT ring.") },
-        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("sensor") }) { Text("Scan sensor") } },
-        dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.source_direct_confirm_title)) },
+        text = { Text(stringResource(R.string.source_direct_confirm_text)) },
+        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("sensor") }) { Text(stringResource(R.string.source_direct_confirm_scan)) } },
+        dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
     )
 }
 
@@ -213,49 +221,51 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<Follower?>(null) }
     val active = u.followers.filter { it.revoked == null }
     val pairing = u.nearbyUntil > Proto.nowS()
-    SettingsPage(PEOPLE, onBack) {
-        SettingsIntro(R.drawable.ic_sym_group, "The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.")
+    SettingsPage(stringResource(R.string.people_title), onBack) {
+        SettingsIntro(stringResource(R.string.people_intro))
         SettingsGroup {
-            action("Share with someone", "Send an invite link", icon = R.drawable.ic_sym_share, onClick = a::share)
-            action(if (pairing) "Pairing nearby…" else "Pair nearby", when {
-                !u.bleOn -> "Unavailable while Bluetooth is off"
-                pairing -> "Open until ${date(u.nearbyUntil)} · tap to extend 10 min"
-                else -> "For 10 minutes, no internet needed"
+            action(stringResource(R.string.share_title), stringResource(R.string.people_share_summary), icon = R.drawable.ic_sym_share, onClick = a::share)
+            action(stringResource(if (pairing) R.string.people_pairing else R.string.people_pair), when {
+                !u.bleOn -> stringResource(R.string.people_pair_bluetooth_off)
+                pairing -> stringResource(R.string.people_pairing_summary, date(u.nearbyUntil))
+                else -> stringResource(R.string.people_pair_summary)
             }, icon = R.drawable.ic_sym_bluetooth_searching, enabled = u.bleOn, onClick = a::nearbyPairing)
         }
-        SettingsGroup("Followers") {
-            if (active.isEmpty()) info("Nobody follows you yet")
-            for (fl in active) link(fl.name, "Since ${date(fl.since)} · " + if (fl.f in u.writers) "can add entries" else "sees only",
+        SettingsGroup(stringResource(R.string.people_group_followers)) {
+            if (active.isEmpty()) info(stringResource(R.string.people_nobody))
+            for (fl in active) link(fl.name, stringResource(R.string.people_follower_summary, date(fl.since),
+                    stringResource(if (fl.f in u.writers) R.string.people_can_add_entries else R.string.people_sees_only)),
                 leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
-            for (fl in u.followers.filter { it.revoked != null }) info(fl.name, "Removed ${date(fl.revoked!!)}", icon = R.drawable.ic_sym_person_remove)
+            for (fl in u.followers.filter { it.revoked != null }) info(fl.name, stringResource(R.string.people_removed_at, date(fl.revoked!!)), icon = R.drawable.ic_sym_person_remove)
         }
-        SettingsGroup("How readings travel") {
+        SettingsGroup(stringResource(R.string.people_group_travel)) {
             nostrRows(f) { choosing = true }
-            switch("Over Bluetooth nearby", f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
-                summary = if (u.bleOn) "${u.bleCentrals} connected now" else "Bluetooth is off") { v -> set { it.copy(bleFollowers = v) } }
+            switch(stringResource(R.string.people_bluetooth), f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
+                summary = if (u.bleOn) stringResource(R.string.people_bluetooth_connected, u.bleCentrals) else stringResource(R.string.people_bluetooth_off)) { v -> set { it.copy(bleFollowers = v) } }
         }
-        SettingsGroup { link(APPS, "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") } 
-        SettingsFooter("Removing someone rotates the read key, so they stop receiving new readings at once. Followers you " +
-            "allow to add entries can log insulin, carbs and notes for you.")
+        SettingsGroup { link(stringResource(R.string.apps_title), "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") }
+        SettingsFooter(stringResource(R.string.people_footer))
     }
     if (choosing) NostrIntervalDialog(f) { choosing = false }
     editing?.let { fl -> FollowerDialog(fl, fl.f in u.writers, a) { editing = null } }
 }
 
 /** Nostr relays, on both sharing pages (followers' phones and Macs read from them). */
+@Composable
 private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit) {
-    switch("Over the internet (Nostr relays)", f.nostr, icon = R.drawable.ic_brand_nostr, summary = "End-to-end encrypted; followers anywhere") { v ->
+    switch(stringResource(R.string.people_nostr), f.nostr, icon = R.drawable.ic_brand_nostr, summary = stringResource(R.string.people_nostr_summary)) { v ->
         set { it.copy(nostr = v) }
     }
-    value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
+    value(stringResource(R.string.sharing_upload_interval), if (f.nostr) intervalLabel(LocalContext.current, f.nostrIntervalMin) else stringResource(R.string.sharing_upload_interval_off),
         enabled = f.nostr, onClick = onInterval)
 }
 
 @Composable
-private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) =
-    ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin, onClose) { v ->
-        set { it.copy(nostrIntervalMin = v) }
-    }
+private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    IntChoiceDialog(stringResource(R.string.sharing_upload_interval), listOf(0, 5, 15, 30), f.nostrIntervalMin, { intervalLabel(ctx, it) },
+        NumberRange(1.0, 120.0, stringResource(R.string.unit_min)), onClose) { v -> set { it.copy(nostrIntervalMin = v) } }
+}
 
 /** One follower: whether they may add entries, and removing them. */
 @Composable
@@ -263,28 +273,26 @@ private fun FollowerDialog(fl: Follower, writer: Boolean, a: OwnerActions, onClo
     var removing by remember { mutableStateOf(false) }
     if (removing) AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Remove ${fl.name}?") },
-        text = { Text("They stop receiving new readings immediately: Sukrara rotates the read key and re-sends it to everybody else.") },
-        confirmButton = { Button(onClick = { a.revoke(fl.f); onClose() }) { Text("Remove") } },
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.people_remove_title, fl.name)) },
+        text = { Text(stringResource(R.string.people_remove_text)) },
+        confirmButton = { Button(onClick = { a.revoke(fl.f); onClose() }) { Text(stringResource(R.string.people_remove)) } },
+        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_cancel)) } },
     ) else AlertDialog(
         onDismissRequest = onClose,
         icon = { AvatarImage(fl.avatar, fl.name, 48.dp) },
         title = { Text(fl.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Following since ${date(fl.since)}", style = MaterialTheme.typography.bodyMedium)
-                SettingsGroup { switch("Can add entries", writer, summary = "Insulin, carbs and notes") { a.setWriter(fl.f, it) } }
+                Text(stringResource(R.string.people_following_since, date(fl.since)), style = MaterialTheme.typography.bodyMedium)
+                SettingsGroup { switch(stringResource(R.string.people_writer), writer, summary = stringResource(R.string.people_writer_summary)) { a.setWriter(fl.f, it) } }
             }
         },
-        confirmButton = { TextButton(onClick = onClose) { Text("Done") } },
-        dismissButton = { TextButton(onClick = { removing = true }) { Text("Remove", color = MaterialTheme.colorScheme.error) } },
+        confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_done)) } },
+        dismissButton = { TextButton(onClick = { removing = true }) { Text(stringResource(R.string.people_remove), color = MaterialTheme.colorScheme.error) } },
     )
 }
 
 // ================================================================================================ root & LSPosed
-
-private const val NEEDS_MODULE = "Needs the Sukrara LSPosed module"
 
 /**
  * What a page's features are missing, with the one step that fixes it: root for Sukrara, then the LSPosed module
@@ -293,7 +301,6 @@ private const val NEEDS_MODULE = "Needs the Sukrara LSPosed module"
 @Composable
 private fun SystemAccessBanner(root: Boolean, module: Boolean) {
     if (indexing) return
-    val ctx = LocalContext.current
     val rootOk by app.mauri.sukrara.status.RootStatusBar.root.collectAsState()
     val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
     var restarting by remember { mutableStateOf(false) }
@@ -304,22 +311,18 @@ private fun SystemAccessBanner(root: Boolean, module: Boolean) {
         onPauseOrDispose {}
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val icon: @Composable () -> Unit = { androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_sym_key), null) }
+    val icon = R.drawable.ic_sym_key
     when {
-        root && rootOk == false -> SettingsBanner(icon, "Root needed",
-            "Grant Sukrara root in KernelSU (or Magisk): Superuser → Sukrara → allow. Then check again.",
-            "Check again", { app.mauri.sukrara.status.RootStatusBar.checkRoot() })
-        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.MISSING -> SettingsBanner(icon, "LSPosed module off",
-            "Install LSPosed, enable the Sukrara module and tick System UI in its scope, then restart System UI.", null, {})
-        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.NO_SCOPE -> SettingsBanner(icon, "System UI not in scope",
-            "The Sukrara module is enabled in ${access.framework ?: "LSPosed"} but not for System UI." + (problem?.let { " ($it)" } ?: ""),
-            "Add System UI", { app.mauri.sukrara.features.SystemAccess.requestSystemUi { problem = it } })
-        module && access.module in setOf(app.mauri.sukrara.features.SystemAccess.Module.RESTART,
-            app.mauri.sukrara.features.SystemAccess.Module.UPDATE) -> SettingsBanner(icon, "Restart System UI",
-            if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE)
-                "Sukrara was updated: System UI still runs the previous module. Restart it to load the new one (the status bar redraws for a moment)."
-            else "System UI runs without the Sukrara module. Restarting it loads the module (the status bar redraws for a moment).",
-            if (rootOk == true && !restarting) "Restart System UI" else null, {
+        root && rootOk == false -> SettingsBanner(icon, stringResource(R.string.access_root_title), stringResource(R.string.access_root_text),
+            stringResource(R.string.access_root_action), { app.mauri.sukrara.status.RootStatusBar.checkRoot() })
+        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.MISSING -> SettingsBanner(icon, stringResource(R.string.access_module_title),
+            stringResource(R.string.access_module_text), null, {})
+        module && access.module == app.mauri.sukrara.features.SystemAccess.Module.NO_SCOPE -> SettingsBanner(icon, stringResource(R.string.access_scope_title),
+            stringResource(R.string.access_scope_text, access.framework ?: "LSPosed") + (problem?.let { " ($it)" } ?: ""),
+            stringResource(R.string.access_scope_action), { app.mauri.sukrara.features.SystemAccess.requestSystemUi { problem = it } })
+        module && access.module in setOf(app.mauri.sukrara.features.SystemAccess.Module.RESTART, app.mauri.sukrara.features.SystemAccess.Module.UPDATE) -> SettingsBanner(icon, stringResource(R.string.access_restart_title),
+            stringResource(if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE) R.string.access_restart_text_updated else R.string.access_restart_text),
+            if (rootOk == true && !restarting) stringResource(R.string.access_restart_title) else null, {
                 restarting = true
                 scope.launch {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.mauri.sukrara.status.RootStatusBar.restartSystemUi() }
@@ -344,43 +347,42 @@ fun StatusBarSettings(onBack: () -> Unit) {
     val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
     val module = access.active
     val hookOn = ok && f.hook
-    val placement = Features.HOOK_POSITIONS.firstOrNull { it.second == f.hookPosition }?.first ?: f.hookPosition
+    val placement = hookPositionLabel(f.hookPosition)?.let { stringResource(it) } ?: f.hookPosition
     // "With the system icons" works with root alone; the other placements are drawn by the module
     fun needsModule(pos: String) = pos != app.mauri.sukrara.features.HookPosition.SLOT_PREFIX
     var choosing by remember { mutableStateOf(false) }
-    val off = "Unavailable while the value in the status bar is off"
+    val off = stringResource(R.string.statusbar_unavailable)
+    val needs = stringResource(R.string.settings_needs_module)
     val nm = ctx.getSystemService(NotificationManager::class.java)
-    SettingsPage("Status bar", onBack) {
-        SettingsIntro(R.drawable.ic_sym_smartphone, "Your glucose at a glance in the status bar, without opening anything.")
+    SettingsPage(stringResource(R.string.statusbar_title), onBack) {
+        SettingsIntro(stringResource(R.string.statusbar_intro))
         SystemAccessBanner(root = true, module = true)
         SettingsGroup {
-            switch("Live Update chip", f.chip, summary = "The number next to the clock") { v -> set { it.copy(chip = v) } }
-            if (f.chip && !nm.canPostPromotedNotifications()) link("Allow Live Updates for Sukrara", "Needed for the chip", external = true) {
+            switch(stringResource(R.string.statusbar_chip), f.chip, summary = stringResource(R.string.statusbar_chip_summary)) { v -> set { it.copy(chip = v) } }
+            if (f.chip && !nm.canPostPromotedNotifications()) link(stringResource(R.string.statusbar_allow_live_updates), stringResource(R.string.statusbar_allow_live_updates_summary), external = true) {
                 ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
             }
-            switch("Number as notification icon", f.icon) { v -> set { it.copy(icon = v) } }
+            switch(stringResource(R.string.statusbar_icon), f.icon) { v -> set { it.copy(icon = v) } }
         }
-        SettingsGroup("With root") {
-            switch("Value in the status bar", f.hook && ok, enabled = ok, summary = when (root) {
-                null -> "Checking root…"
-                false -> "Unavailable: needs root for Sukrara (KernelSU)"
-                true -> if (!f.hook) "Off" else if (needsModule(f.hookPosition) && !module) "Not shown: $placement needs the LSPosed module" else placement
+        SettingsGroup(stringResource(R.string.statusbar_group_root)) {
+            switch(stringResource(R.string.statusbar_value), f.hook && ok, enabled = ok, summary = when (root) {
+                null -> stringResource(R.string.statusbar_value_checking)
+                false -> stringResource(R.string.statusbar_value_no_root)
+                true -> if (!f.hook) stringResource(R.string.settings_off) else if (needsModule(f.hookPosition) && !module) stringResource(R.string.statusbar_value_needs_module, placement) else placement
             }) { v -> set { it.copy(hook = v) } }
-            switch("Colour by range", f.hookColor, enabled = hookOn && module,
-                summary = if (!hookOn) off else if (!module) NEEDS_MODULE else null) { v -> set { it.copy(hookColor = v) } }
-            value("Placement", if (hookOn) placement else off, enabled = hookOn) { choosing = true }
-            switch("Hide Sukrara's notification icon", f.hideNotifIcon, enabled = hookOn && module,
-                summary = if (!hookOn) off else if (!module) NEEDS_MODULE else "In the status bar only; the notification stays in the shade") { v ->
+            switch(stringResource(R.string.statusbar_colour), f.hookColor, enabled = hookOn && module,
+                summary = if (!hookOn) off else if (!module) needs else null) { v -> set { it.copy(hookColor = v) } }
+            value(stringResource(R.string.statusbar_placement), if (hookOn) placement else off, enabled = hookOn) { choosing = true }
+            switch(stringResource(R.string.statusbar_hide_icon), f.hideNotifIcon, enabled = hookOn && module,
+                summary = if (!hookOn) off else if (!module) needs else stringResource(R.string.statusbar_hide_icon_summary)) { v ->
                 set { it.copy(hideNotifIcon = v) }
             }
         }
-        SettingsFooter("The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification " +
-            "icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed " +
-            "(scope System UI), then a System UI restart." + if (f.systemIcons) " Icons: ${rootBar.state}." else "")
+        SettingsFooter(stringResource(R.string.statusbar_footer) + if (f.systemIcons) " Icons: ${rootBar.state}." else "")   // i18n-ok: debug state
     }
-    if (choosing) ChoiceDialog("Placement", Features.HOOK_POSITIONS.map { (label, pos) ->
+    if (choosing) ChoiceDialog(stringResource(R.string.statusbar_placement), Features.HOOK_POSITIONS.map { pos ->
             val ok = module || !needsModule(pos)
-            Choice(label, pos, sub = if (ok) null else NEEDS_MODULE, enabled = ok)
+            Choice(stringResource(hookPositionLabel(pos)!!), pos, sub = if (ok) null else needs, enabled = ok)
         }, f.hookPosition,
         { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
 }
@@ -400,25 +402,24 @@ fun LockscreenSettings(onBack: () -> Unit) {
     val access by app.mauri.sukrara.features.SystemAccess.status.collectAsState()
     val module = access.active
     val on = f.lockWidget && module
-    val off = if (!module) NEEDS_MODULE else "Unavailable while glucose on the lock screen is off"
+    val off = stringResource(if (!module) R.string.settings_needs_module else R.string.lock_unavailable)
     val bg = app.mauri.sukrara.features.LockBackground
     val look = app.mauri.sukrara.features.LockAppearance
-    SettingsPage("Lock screen", onBack) {
-        SettingsIntro(R.drawable.ic_sym_screen_lock_portrait, "Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
+    SettingsPage(stringResource(R.string.lock_title), onBack) {
+        SettingsIntro(stringResource(R.string.lock_intro))
         SystemAccessBanner(root = false, module = true)
-        SettingsMainSwitch("Glucose on the lock screen", on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
+        SettingsMainSwitch(stringResource(R.string.lock_main_switch), on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
         SettingsGroup {
-            value("Background", if (on) bg.label(f.lockBg) else off, enabled = on) { choosing = "bg" }
-            value("Appearance", if (on) look.label(f.lockLook) else off, enabled = on) { choosing = "look" }
+            value(stringResource(R.string.lock_background), if (on) stringResource(lockBackgroundLabel(f.lockBg)) else off, enabled = on) { choosing = "bg" }
+            value(stringResource(R.string.lock_appearance), if (on) stringResource(lockAppearanceLabel(f.lockLook)) else off, enabled = on) { choosing = "look" }
         }
-        SettingsFooter("Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked " +
-            "phone can add an entry; turn this off if you don't want that.")
+        SettingsFooter(stringResource(R.string.lock_footer))
     }
     when (choosing) {
-        "bg" -> ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
-            { choosing = null }) { v -> change { it.copy(lockBg = v) } }
-        "look" -> ChoiceDialog("Appearance", look.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockLook,
-            { choosing = null }) { v -> change { it.copy(lockLook = v) } }
+        "bg" -> ChoiceDialog(stringResource(R.string.lock_background), bg.ALL.map { Choice(stringResource(lockBackgroundLabel(it)), it, stringResource(lockBackgroundSummary(it))) },
+            f.lockBg, { choosing = null }) { v -> change { it.copy(lockBg = v) } }
+        "look" -> ChoiceDialog(stringResource(R.string.lock_appearance), look.ALL.map { Choice(stringResource(lockAppearanceLabel(it)), it, stringResource(lockAppearanceSummary(it))) },
+            f.lockLook, { choosing = null }) { v -> change { it.copy(lockLook = v) } }
     }
 }
 
@@ -435,49 +436,48 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
     val st by Live.status.collectAsState()
     var secret by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
-    SettingsPage(APPS, onBack) {
-        SettingsIntro(R.drawable.ic_sym_apps, "Your glucose in other apps: " + (if (wearer) "LibreView for your doctor, " else "") +
-            "Garmin watches through the xDrip+ server, and anything that reads Nightscout.")
+    SettingsPage(stringResource(R.string.apps_title), onBack) {
+        SettingsIntro(stringResource(if (wearer) R.string.apps_intro_wearer else R.string.apps_intro_follower))
         if (wearer) {
             val lv by Treat.uploader.settings.collectAsState()
             SettingsGroup("LibreView") {
                 link("LibreView", when {
-                    lv.email.isEmpty() || !lv.hasPassword -> "Not set up"
-                    f.libreview -> "Uploading as ${lv.email}"
-                    else -> "Off · ${lv.email}"
+                    lv.email.isEmpty() || !lv.hasPassword -> stringResource(R.string.apps_libreview_not_set_up)
+                    f.libreview -> stringResource(R.string.apps_libreview_uploading, lv.email)
+                    else -> stringResource(R.string.settings_off) + " · " + lv.email
                 }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, to = "libreview")
             }
         }
         SettingsGroup("xDrip+") {
-            switch("xDrip+ server", f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = "For Garmin watch faces and data fields · " + st.garmin +
-                (if (st.watchPolledAt > 0) " · last asked ${sinceText(st.watchPolledAt / 1000)}" else "")) { v -> set { it.copy(garmin = v) } }
+            switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +
+                (if (st.watchPolledAt > 0) " · " + stringResource(R.string.apps_xdrip_last_asked, sinceText(st.watchPolledAt / 1000)) else "")) { v -> set { it.copy(garmin = v) } }
         }
         SettingsGroup("Nightscout") {
-            switch("Nightscout-compatible API", f.nightscout, icon = R.drawable.ic_nightscout,
-                summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else "For Home Assistant, Nightguard, clocks") { v ->
+            switch(stringResource(R.string.apps_nightscout), f.nightscout, icon = R.drawable.ic_nightscout,
+                summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else stringResource(R.string.apps_nightscout_summary)) { v ->
                 set { it.copy(nightscout = v) }
             }
-            switch("Also on this Wi-Fi network", f.nightscoutLan, enabled = f.nightscout,
-                summary = if (f.nightscout) "Other devices need the API secret" else "Unavailable while the API is off") { v -> set { it.copy(nightscoutLan = v) } }
-            if (f.nightscout && f.nightscoutLan) action("Show API secret", icon = R.drawable.ic_sym_key) { secret = true }
+            switch(stringResource(R.string.apps_nightscout_lan), f.nightscoutLan, enabled = f.nightscout,
+                summary = stringResource(if (f.nightscout) R.string.apps_nightscout_lan_summary else R.string.apps_nightscout_unavailable)) { v -> set { it.copy(nightscoutLan = v) } }
+            if (f.nightscout && f.nightscoutLan) action(stringResource(R.string.apps_show_secret), icon = R.drawable.ic_sym_key) { secret = true }
         }
         if (wearer) SettingsGroup("Nostr") { nostrRows(f) { choosing = true } }
-        if (wearer) SettingsGroup { link(PEOPLE, "Followers, invites, nearby pairing", icon = R.drawable.ic_sym_group, to = "sharing") }
-        SettingsFooter("The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields " +
-            "made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.")
+        if (wearer) SettingsGroup { link(stringResource(R.string.people_title), stringResource(R.string.apps_people_summary), icon = R.drawable.ic_sym_group, to = "sharing") }
+        SettingsFooter(stringResource(R.string.apps_footer))
     }
     if (choosing) NostrIntervalDialog(f) { choosing = false }
     if (secret) AlertDialog(
         onDismissRequest = { secret = false },
-        title = { Text("API secret") },
+        title = { Text(stringResource(R.string.apps_secret_title)) },
         text = { Text(Features.nightscoutSecret(ctx), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
-        confirmButton = { TextButton(onClick = { secret = false }) { Text("Close") } },
+        confirmButton = { TextButton(onClick = { secret = false }) { Text(stringResource(R.string.recovery_close)) } },
     )
 }
 
+@Composable
 private fun sinceText(t: Long): String {
     val s = System.currentTimeMillis() / 1000 - t
-    return if (s < 90) "now" else "${s / 60} min ago"
+    return if (s < 90) stringResource(R.string.duration_now) else stringResource(R.string.duration_ago, stringResource(R.string.duration_minutes, (s / 60).toInt()))
 }
 
 /**
@@ -496,33 +496,33 @@ fun LibreViewSettings(onBack: () -> Unit) {
     var choosing by remember { mutableStateOf(false) }
     val signedIn = s.email.isNotEmpty() && s.hasPassword
     val on = f.libreview && signedIn
-    val off = "Unavailable while the upload is off"
+    val off = stringResource(R.string.libreview_unavailable)
     val direct = f.source == "direct"
     SettingsPage("LibreView", onBack) {
-        SettingsIntro(R.drawable.ic_sym_cloud_upload, "LibreView is the record your doctor sees. Sukrara can upload your glucose and entries to it.")
-        SettingsGroup { value("Account", if (signedIn) s.email else "Not signed in", icon = R.drawable.ic_sym_person) { signIn = true } }
-        SettingsMainSwitch("Upload to LibreView", on, enabled = signedIn) { v -> set { it.copy(libreview = v) }; uploader.kick() }
+        SettingsIntro(stringResource(R.string.libreview_intro))
+        SettingsGroup { value(stringResource(R.string.libreview_account), if (signedIn) s.email else stringResource(R.string.libreview_not_signed_in), icon = R.drawable.ic_sym_person) { signIn = true } }
+        SettingsMainSwitch(stringResource(R.string.libreview_main_switch), on, enabled = signedIn) { v -> set { it.copy(libreview = v) }; uploader.kick() }
         SettingsGroup {
-            info("Status", if (!signedIn) "Sign in first" else if (on) status.replaceFirstChar { it.uppercase() } else "Off")
-            switch("Glucose readings", s.glucose, enabled = on && direct, summary = when {
+            info(stringResource(R.string.libreview_status), if (!signedIn) stringResource(R.string.libreview_sign_in_first) else if (on) status.replaceFirstChar { it.uppercase() } else stringResource(R.string.settings_off))
+            switch(stringResource(R.string.libreview_glucose), s.glucose, enabled = on && direct, summary = when {
                 !on -> off
-                !direct -> "Only while Sukrara reads the sensor itself"
-                else -> uploader.glucoseFrom?.let { "From ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))}" }
-                    ?: if (s.glucose) "From now on" else "Off"
+                !direct -> stringResource(R.string.libreview_glucose_needs_direct)
+                else -> uploader.glucoseFrom?.let { stringResource(R.string.libreview_glucose_from, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))) }
+                    ?: if (s.glucose) stringResource(R.string.libreview_glucose_from_now) else stringResource(R.string.settings_off)
             }) { uploader.configure(glucose = it) }
-            switch("Insulin, carbs & notes", s.treatments, enabled = on, summary = if (on) "Yours and your followers'" else off) {
+            switch(stringResource(R.string.libreview_entries), s.treatments, enabled = on, summary = if (on) stringResource(R.string.libreview_entries_summary) else off) {
                 uploader.configure(treatments = it)
             }
-            switch("Use this phone as the account's device", s.takeover, enabled = on, summary = if (!on) off
-                else if (s.takeover) "The Libre app or Juggluco stops uploading to this account" else "Uploads stop if another app holds the account") {
+            switch(stringResource(R.string.libreview_takeover), s.takeover, enabled = on, summary = if (!on) off
+                else stringResource(if (s.takeover) R.string.libreview_takeover_on else R.string.libreview_takeover_off)) {
                 uploader.configure(takeover = it)
             }
-            value("Upload every", if (on) intervalLabel(f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
+            value(stringResource(R.string.libreview_upload_every), if (on) intervalLabel(ctx, f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
         }
-        SettingsFooter("Uploaded entries can't be deleted in LibreView. Glucose goes up from the moment you switch it on.")
+        SettingsFooter(stringResource(R.string.libreview_footer))
     }
-    if (choosing) ChoiceDialog("Upload every", listOf(5, 15, 60).map { Choice(intervalLabel(it), it) }, f.libreviewIntervalMin,
-        { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
+    if (choosing) IntChoiceDialog(stringResource(R.string.libreview_upload_every), listOf(5, 15, 60), f.libreviewIntervalMin, { intervalLabel(ctx, it) },
+        NumberRange(1.0, 240.0, stringResource(R.string.unit_min)), { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
     if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
 }
 
@@ -533,19 +533,18 @@ fun BackupSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     var showRecovery by remember { mutableStateOf(false) }
     val saved = u.backupSavedAt > 0
     val transfer = settingsTransfer()
-    SettingsPage("Backup", onBack) {
-        SettingsIntro(R.drawable.ic_sym_backup, if (saved) "Your identity is in a password manager. A new phone restores it and your followers continue."
-            else "Not backed up: if you lose this phone, every follower must be invited again.")
+    SettingsPage(stringResource(R.string.backup_title), onBack) {
+        SettingsIntro(stringResource(if (saved) R.string.backup_intro_saved else R.string.backup_intro_not_saved))
         SettingsGroup {
-            action(if (saved) "Save again" else "Save to password manager", if (saved) "Saved ${date(u.backupSavedAt)}" else "Recommended",
+            action(stringResource(if (saved) R.string.backup_save_again else R.string.backup_save),
+                if (saved) stringResource(R.string.backup_saved_at, date(u.backupSavedAt)) else stringResource(R.string.backup_recommended),
                 icon = R.drawable.ic_sym_key, onClick = a::saveBackup)
-            action("Recovery code", "An encrypted key to write down or store elsewhere", icon = R.drawable.ic_sym_history_edu) { showRecovery = true }
-            info("Backup on relays", if (u.backupPublishedAt > 0) "Updated ${date(u.backupPublishedAt)}" else "Not yet", icon = R.drawable.ic_sym_hub)
+            action(stringResource(R.string.recovery_title), stringResource(R.string.backup_recovery_summary), icon = R.drawable.ic_sym_history_edu) { showRecovery = true }
+            info(stringResource(R.string.backup_relays), if (u.backupPublishedAt > 0) stringResource(R.string.backup_relays_updated, date(u.backupPublishedAt))
+                else stringResource(R.string.backup_relays_not_yet), icon = R.drawable.ic_sym_hub)
         }
         transfer.group(this)
-        SettingsFooter("The backup on relays holds your followers, keys and invites, encrypted to your identity: restoring " +
-            "the identity brings them back. A settings file holds only the options: alerts, graph, status bar, lock " +
-            "screen and sharing switches.")
+        SettingsFooter(stringResource(R.string.backup_footer))
     }
     if (showRecovery) RecoveryDialog(a) { showRecovery = false }
     transfer.dialogs()
@@ -564,33 +563,32 @@ private fun settingsTransfer(): TransferUi {
         androidx.activity.result.contract.ActivityResultContracts.CreateDocument(T.MIME)) { uri ->
         if (uri != null) message = runCatching {
             ctx.contentResolver.openOutputStream(uri)!!.use { it.write(T.export().toString(2).toByteArray()) }
-            "Settings exported"
-        }.getOrElse { "Couldn't write the file: ${it.message}" }
+            ctx.getString(R.string.transfer_exported)
+        }.getOrElse { ctx.getString(R.string.transfer_write_failed, it.message) }
     }
     val importer = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) message = runCatching {
             val j = JSONObject(ctx.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() })
-            T.import(ctx, j) ?: "Settings imported"
-        }.getOrElse { "Couldn't read the file: ${it.message}" }
+            T.import(ctx, j) ?: ctx.getString(R.string.transfer_imported)
+        }.getOrElse { ctx.getString(R.string.transfer_read_failed, it.message) }
     }
     return TransferUi(group = {
-        SettingsGroup("Settings") {
-            action("Export settings", "Save the options to a file", icon = R.drawable.ic_sym_file_export) { exporter.launch(T.fileName()) }
-            action("Import settings", "Use the options from a file", icon = R.drawable.ic_sym_file_upload) { importer.launch(arrayOf(T.MIME, "text/plain", "*/*")) }
-            action("Reset settings", "Every option back to its default", icon = R.drawable.ic_sym_restart_alt) { resetting = true }
+        SettingsGroup(stringResource(R.string.transfer_group)) {
+            action(stringResource(R.string.transfer_export), stringResource(R.string.transfer_export_summary), icon = R.drawable.ic_sym_file_export) { exporter.launch(T.fileName()) }
+            action(stringResource(R.string.transfer_import), stringResource(R.string.transfer_import_summary), icon = R.drawable.ic_sym_file_upload) { importer.launch(arrayOf(T.MIME, "text/plain", "*/*")) }
+            action(stringResource(R.string.transfer_reset), stringResource(R.string.transfer_reset_summary), icon = R.drawable.ic_sym_restart_alt) { resetting = true }
         }
     }, dialogs = {
         if (resetting) AlertDialog(
             onDismissRequest = { resetting = false },
-            title = { Text("Reset settings?") },
-            text = { Text("Alerts, graph, status bar, lock screen and sharing options go back to their defaults. Your identity, " +
-                "followers, sensor, glucose source and LibreView upload stay as they are.") },
-            confirmButton = { Button(onClick = { T.reset(ctx); resetting = false; message = "Settings reset" }) { Text("Reset") } },
-            dismissButton = { TextButton(onClick = { resetting = false }) { Text("Cancel") } },
+            title = { Text(stringResource(R.string.transfer_reset_title)) },
+            text = { Text(stringResource(R.string.transfer_reset_text)) },
+            confirmButton = { Button(onClick = { T.reset(ctx); resetting = false; message = ctx.getString(R.string.transfer_reset_done) }) { Text(stringResource(R.string.transfer_reset_confirm)) } },
+            dismissButton = { TextButton(onClick = { resetting = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
         )
         message?.let { m -> AlertDialog(onDismissRequest = { message = null }, text = { Text(m) },
-            confirmButton = { TextButton(onClick = { message = null }) { Text("OK") } }) }
+            confirmButton = { TextButton(onClick = { message = null }) { Text(stringResource(R.string.settings_dialog_ok)) } }) }
     })
 }
 
@@ -602,35 +600,35 @@ fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions,
     val st by Live.status.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     val direct = f.source == "direct"
-    SettingsPage("Advanced", onBack) {
-        SettingsGroup("Relays") {
-            card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) }
-            info("Access requests", if (u.inboxLive) "Live while the app is open" else "Checked with every upload (~5 min)")
-            action("Check requests now", icon = R.drawable.ic_sym_update, onClick = a::checkNow)
+    SettingsPage(stringResource(R.string.advanced_title), onBack) {
+        SettingsGroup(stringResource(R.string.advanced_relays)) {
+            card { if (relays.isEmpty()) Text(stringResource(R.string.advanced_no_relays), style = MaterialTheme.typography.bodyMedium) else RelayList(relays) }
+            info(stringResource(R.string.advanced_requests), stringResource(if (u.inboxLive) R.string.advanced_requests_live else R.string.advanced_requests_polled))
+            action(stringResource(R.string.advanced_check_requests), icon = R.drawable.ic_sym_update, onClick = a::checkNow)
         }
-        SettingsGroup("Diagnostics") {
-            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, to = "log")
-            info("Identity", "${u.iPub?.let { Proto.shortNpub(it) } ?: "–"} · key epoch ${u.epoch}", icon = R.drawable.ic_sym_key)
-            info("Sent", "${u.liveSent} live · ${u.chunksSent} chunks · ${st.notificationPosts} notification posts, ${st.notificationSkipped} skipped")
+        SettingsGroup(stringResource(R.string.advanced_diagnostics)) {
+            link(stringResource(R.string.advanced_log), stringResource(R.string.advanced_log_summary), icon = R.drawable.ic_sym_receipt_long, to = "log")
+            info(stringResource(R.string.advanced_identity), stringResource(R.string.advanced_identity_summary, u.iPub?.let { Proto.shortNpub(it) } ?: "–", u.epoch), icon = R.drawable.ic_sym_key)
+            info(stringResource(R.string.advanced_sent), stringResource(R.string.advanced_sent_summary, u.liveSent, u.chunksSent, st.notificationPosts, st.notificationSkipped))
         }
-        SettingsGroup("Experimental") {
-            value("Sensor link priority", if (direct) f.connPriority.replaceFirstChar { it.uppercase() }
-                else "Unavailable while Juggluco holds the sensor", enabled = direct) { choosing = true }
-            switch("Pause refreshes while the screen is off", f.screenOffSkip, summary = "Saves a post per minute; catches up on screen on") { v ->
+        SettingsGroup(stringResource(R.string.advanced_experimental)) {
+            value(stringResource(R.string.advanced_priority), if (direct) stringResource(priorityLabel(f.connPriority))
+                else stringResource(R.string.source_sensor_unavailable), enabled = direct) { choosing = true }
+            switch(stringResource(R.string.advanced_screen_off), f.screenOffSkip, summary = stringResource(R.string.advanced_screen_off_summary)) { v ->
                 set { it.copy(screenOffSkip = v) }
             }
-            if (BuildConfig.DEBUG) switch("Synthetic source", u.synthetic, summary = "Debug builds only", icon = R.drawable.ic_sym_bug_report, onChange = a::setSynthetic)
+            if (BuildConfig.DEBUG) switch(stringResource(R.string.advanced_synthetic), u.synthetic, summary = stringResource(R.string.advanced_debug_only), icon = R.drawable.ic_sym_bug_report, onChange = a::setSynthetic)
         }
     }
-    if (choosing) ChoiceDialog("Sensor link priority", Features.PRIORITIES.map { Choice(it.replaceFirstChar { c -> c.uppercase() }, it) },
+    if (choosing) ChoiceDialog(stringResource(R.string.advanced_priority), Features.PRIORITIES.map { Choice(stringResource(priorityLabel(it)), it) },
         f.connPriority, { choosing = false }) { v -> set { it.copy(connPriority = v) } }
 }
 
 @Composable
 fun LogPage(log: List<String>, onBack: () -> Unit) {
-    SettingsPage("Log", onBack) {
+    SettingsPage(stringResource(R.string.advanced_log), onBack) {
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-            Column(Modifier.padding(16.dp)) { if (log.isEmpty()) Text("Nothing yet") else LogList(log, max = 300) }
+            Column(Modifier.padding(16.dp)) { if (log.isEmpty()) Text(stringResource(R.string.advanced_log_empty)) else LogList(log, max = 300) }
         }
     }
 }
@@ -643,23 +641,24 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     val alerts by Alerts.settings.collectAsState()
     val gs = graphSummary()
-    SettingsPage("Settings", onBack) {
+    SettingsPage(stringResource(R.string.settings_title), onBack) {
         SettingsSearchBar()
         SettingsGroup {
-            link(u.name ?: "Add your name", "How you appear to ${u.wearer?.name ?: "the wearer"}",
+            link(u.name ?: stringResource(R.string.home_add_your_name),
+                u.wearer?.name?.let { stringResource(R.string.settings_profile_follower, it) } ?: stringResource(R.string.settings_profile_follower_unnamed),
                 leading = { AvatarImage(u.me?.avatar, u.name ?: "", 40.dp) }, to = "profile")
         }
         SettingsGroup {
-            link("Alerts", alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
-            link("Following", (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }, to = "following")
+            link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
+            link(stringResource(R.string.following_title), (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }, to = "following")
         }
         SettingsGroup {
-            link("Graph & time in range", gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
-            link(APPS, appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
+            link(stringResource(R.string.graph_title), gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
+            link(stringResource(R.string.apps_title), appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
         }
         SettingsGroup {
-            link("Advanced", "Relays, log, diagnostics", leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
-            link("About Sukrara", "Version ${BuildConfig.VERSION_NAME} · source code · other devices",
+            link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_follower), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
+            link(stringResource(R.string.about_title), stringResource(R.string.settings_about_summary, BuildConfig.VERSION_NAME),
                 leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")
         }
     }
@@ -668,20 +667,20 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
 @Composable
 fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
     var leaving by remember { mutableStateOf(false) }
-    SettingsPage("Following", onBack) {
+    SettingsPage(stringResource(R.string.following_title), onBack) {
         SettingsGroup {
             info(u.wearer?.name ?: "Sukrara", u.ownerPub?.let { Proto.shortNpub(it) }, icon = R.drawable.ic_sym_person)
-            info("Can add entries", if (u.canWrite) "Yes, the wearer allowed it" else "No, ask the wearer")
+            info(stringResource(R.string.people_writer), stringResource(if (u.canWrite) R.string.following_can_write else R.string.following_cannot_write))
             info("Bluetooth", u.ble, icon = R.drawable.ic_brand_bluetooth)
         }
-        SettingsGroup { action("Stop following", "Readings already on this phone stay", icon = R.drawable.ic_sym_person_remove) { leaving = true } }
+        SettingsGroup { action(stringResource(R.string.following_stop), stringResource(R.string.following_stop_summary), icon = R.drawable.ic_sym_person_remove) { leaving = true } }
     }
     if (leaving) AlertDialog(
         onDismissRequest = { leaving = false },
-        title = { Text("Stop following?") },
-        text = { Text("You need a new invite to follow ${u.wearer?.name ?: "them"} again.") },
-        confirmButton = { Button(onClick = { leaving = false; a.leave() }) { Text("Stop following") } },
-        dismissButton = { TextButton(onClick = { leaving = false }) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.following_stop_title)) },
+        text = { Text(u.wearer?.name?.let { stringResource(R.string.following_stop_text, it) } ?: stringResource(R.string.following_stop_text_unnamed)) },
+        confirmButton = { Button(onClick = { leaving = false; a.leave() }) { Text(stringResource(R.string.following_stop)) } },
+        dismissButton = { TextButton(onClick = { leaving = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
     )
 }
 
@@ -689,17 +688,17 @@ fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
 fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: FollowerActions, onBack: () -> Unit) {
     val transfer = settingsTransfer()
     transfer.dialogs()
-    SettingsPage("Advanced", onBack) {
+    SettingsPage(stringResource(R.string.advanced_title), onBack) {
         transfer.group(this)
-        SettingsGroup("Relays") { card { if (relays.isEmpty()) Text("No relays yet", style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
-        SettingsGroup("Diagnostics") {
-            link("Log", "What Sukrara did lately", icon = R.drawable.ic_sym_receipt_long, to = "log")
-            info("Stored readings", "${u.count} on this phone · rejected events ${u.rejects}" + (u.lastReject?.let { " (last: $it)" } ?: ""))
-            info("Keys", "Key epochs up to ${u.epoch} · trusted devices ${u.devices.joinToString { it.take(8) }}", icon = R.drawable.ic_sym_key)
-            info("This phone", u.fPub?.let { Proto.npub(it) })
+        SettingsGroup(stringResource(R.string.advanced_relays)) { card { if (relays.isEmpty()) Text(stringResource(R.string.advanced_no_relays), style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
+        SettingsGroup(stringResource(R.string.advanced_diagnostics)) {
+            link(stringResource(R.string.advanced_log), stringResource(R.string.advanced_log_summary), icon = R.drawable.ic_sym_receipt_long, to = "log")
+            info(stringResource(R.string.advanced_stored), stringResource(R.string.advanced_stored_summary, u.count, u.rejects) + (u.lastReject?.let { " ($it)" } ?: ""))
+            info(stringResource(R.string.advanced_keys), stringResource(R.string.advanced_keys_summary, u.epoch, u.devices.joinToString { it.take(8) }), icon = R.drawable.ic_sym_key)
+            info(stringResource(R.string.advanced_this_phone), u.fPub?.let { Proto.npub(it) })
         }
-        if (BuildConfig.DEBUG) SettingsGroup("Experimental") {
-            switch("Subscribe without the relay-side author filter", u.testUnfiltered, summary = "Debug builds only",
+        if (BuildConfig.DEBUG) SettingsGroup(stringResource(R.string.advanced_experimental)) {
+            switch(stringResource(R.string.advanced_unfiltered), u.testUnfiltered, summary = stringResource(R.string.advanced_debug_only),
                 icon = R.drawable.ic_sym_bug_report, onChange = a::setTestUnfiltered)
         }
     }
@@ -742,11 +741,12 @@ internal fun newer(tag: String, installed: String): Boolean {
 }
 
 /** What a release file is for, from its name (unknown kinds still show, by file name). */
+@Composable
 private fun platformOf(name: String): Pair<String, Int> = when {
     name.endsWith(".apk") -> "Android" to R.drawable.ic_brand_android
     name.endsWith(".dmg") -> "Mac" to R.drawable.ic_brand_apple
     name.contains("mac") && name.endsWith(".zip") -> "Mac (zip)" to R.drawable.ic_brand_apple
-    name.endsWith(".prg") || name.endsWith(".iq") -> "Garmin watch" to R.drawable.ic_brand_garmin
+    name.endsWith(".prg") || name.endsWith(".iq") -> stringResource(R.string.about_garmin) to R.drawable.ic_brand_garmin
     else -> name to R.drawable.ic_sym_download
 }
 
@@ -759,35 +759,35 @@ fun AboutSettings(onBack: () -> Unit) {
     val release by produceState<Result<Release>?>(null) {
         if (!idx) value = latestRelease()?.let { Result.success(it) } ?: Result.failure(Exception())
     }
-    SettingsPage("About Sukrara", onBack) {
+    SettingsPage(stringResource(R.string.about_title), onBack) {
         SettingsHeader { Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // the launcher icon is adaptive (no painterResource): draw what the launcher draws
             val icon = remember { ctx.packageManager.getApplicationIcon(ctx.packageName).toBitmap(288, 288).asImageBitmap() }
             androidx.compose.foundation.Image(icon, contentDescription = null, modifier = Modifier.size(96.dp))
             Text("Sukrara", style = MaterialTheme.typography.headlineSmall)
-            Text("Version ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " (debug)" else "", style = MaterialTheme.typography.bodyMedium,
+            Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME) + if (BuildConfig.DEBUG) " (debug)" else "", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
         val r = release?.getOrNull()
         if (r != null && newer(r.tag, BuildConfig.VERSION_NAME)) SettingsGroup {
-            action("Update to ${r.tag.removePrefix("v")}", "Download the new version", icon = R.drawable.ic_sym_download) { open(r.url) }
+            action(stringResource(R.string.about_update, r.tag.removePrefix("v")), stringResource(R.string.about_update_summary), icon = R.drawable.ic_sym_download) { open(r.url) }
         }
-        SettingsGroup("Sukrara on other devices") {
+        SettingsGroup(stringResource(R.string.about_other_devices)) {
             when {
-                release == null -> info("Looking for the latest release…")
-                r == null -> link("Downloads", "Couldn't reach GitHub · open the releases page", icon = R.drawable.ic_sym_download, external = true) { open("$REPO/releases/latest") }
+                release == null -> info(stringResource(R.string.about_looking))
+                r == null -> link(stringResource(R.string.about_downloads), stringResource(R.string.about_downloads_offline), icon = R.drawable.ic_sym_download, external = true) { open("$REPO/releases/latest") }
                 else -> for (d in r.files) {
                     val (label, icon) = platformOf(d.name)
                     val mine = label == "Android" && r.tag.removePrefix("v") == BuildConfig.VERSION_NAME
-                    link(label, d.name + if (mine) " · this app" else "", icon = icon, external = true) { open(d.url) }
+                    link(label, d.name + if (mine) " · " + stringResource(R.string.about_this_app) else "", icon = icon, external = true) { open(d.url) }
                 }
             }
         }
         SettingsGroup {
-            link("Source code", "GitHub · GPL-3.0", icon = R.drawable.ic_brand_github, external = true) { open(REPO) }
-            link("Website", "sukrara.mauri.app", icon = R.drawable.ic_sym_link, external = true) { open("https://sukrara.mauri.app") }
+            link(stringResource(R.string.about_source), "GitHub · GPL-3.0", icon = R.drawable.ic_brand_github, external = true) { open(REPO) }
+            link(stringResource(R.string.about_website), "sukrara.mauri.app", icon = R.drawable.ic_sym_link, external = true) { open("https://sukrara.mauri.app") }
         }
-        SettingsFooter("An alpha research app, not a medical device. Don't make treatment decisions from it alone.")
+        SettingsFooter(stringResource(R.string.about_footer))
     }
 }

@@ -106,7 +106,7 @@ object StatusBadge {
  * Where the last-treatment slot sits among the slots beside the value (2026-10-18 round): one more slot, not a slot
  * kind, so the user's rings stay as they are. [NEAR_VALUE] = leftmost, next to the number; [END] = rightmost.
  */
-enum class LastPlace(val label: String) { OFF("Off"), NEAR_VALUE("Next to the number"), END("At the right end") }
+enum class LastPlace { OFF, NEAR_VALUE, END }
 
 /** One slot beside the value, ready to draw. */
 sealed interface SlotItem {

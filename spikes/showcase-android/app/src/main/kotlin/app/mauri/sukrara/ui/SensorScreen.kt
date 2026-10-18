@@ -106,7 +106,7 @@ fun SensorScreen(onBack: () -> Unit) {
     }
 
     SettingsPage(stringResource(R.string.sensor_title), onBack) {
-
+        SettingsHeader { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val p = pairing
@@ -150,6 +150,7 @@ fun SensorScreen(onBack: () -> Unit) {
             }
             null -> Unit
         }
+        } }
 
         val launchTitle = stringResource(R.string.sensor_launch_on_scan)
         val launchSummary = stringResource(R.string.sensor_launch_on_scan_summary)
