@@ -190,3 +190,21 @@ object LastSlot {
         cv.drawText(TreatmentMarks.duration(nowS - info.tr.t), cx, cy + radius * 0.17f + sub.textSize * 1.25f, sub)
     }
 }
+
+/**
+ * The slots beside the value with the app's own settings (rings, last-treatment slot and its fallback) and the
+ * role's stored metrics, for surfaces that lay the slots out themselves (the lock screen widget around the lock icon,
+ * the notification): the same choice as [GlucoseCard]'s header, at most [max] slots, right to left (main first).
+ */
+fun appSlots(c: android.content.Context, readings: List<app.mauri.sukrara.core.Reading>,
+             treatments: List<app.mauri.sukrara.treatments.Treatment>, nowS: Long, max: Int): List<SlotItem> {
+    val cfg = GraphSettings.value
+    val bands = cfg.bands.sane()
+    val alerts = app.mauri.sukrara.alerts.Alerts.settings.value
+    val last = if (cfg.lastPlace == LastPlace.OFF) null
+        else LastTreatment.of(treatments, alerts, AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, nowS), nowS)
+    fun metrics(s: RingSpec) = GraphData.metrics(c, s.windowS, bands, nowS).takeIf { it.tir.coverage >= GlucoseCard.MIN_COVERAGE }
+    val rings = cfg.rings().take(3).mapIndexedNotNull { i, s -> metrics(s)?.let { Triple(i, s, it) } }
+    val fallback = if (cfg.lastPlace != LastPlace.OFF && last == null) cfg.lastElseRing()?.let { s -> metrics(s)?.let { s to it } } else null
+    return Slots.arrange(rings, cfg.lastPlace, last, fallback, max)
+}

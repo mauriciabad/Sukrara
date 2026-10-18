@@ -62,6 +62,24 @@ object SukraraHooks {
     }
 
     /**
+     * Once per process: the widgets bake their colours into bitmaps, so a dark theme flip (e.g. the automatic
+     * schedule) redraws them at once, including the lock screen widget's automatic appearance, instead of at the
+     * next reading.
+     */
+    fun watchNightMode(c: Context) {
+        val app = c.applicationContext
+        fun night() = app.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        var last = night()
+        app.registerComponentCallbacks(object : android.content.ComponentCallbacks {
+            override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+                val now = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                if (now != last) { last = now; refresh(app, "night mode") }
+            }
+            @Deprecated("Deprecated in Java") override fun onLowMemory() {}
+        })
+    }
+
+    /**
      * A graph widget was placed or resized: measure its real size ([WidgetProbe]) once Glance's own update for the
      * new options has landed, then redraw. If the screen is off, the next refresh with the screen on measures it.
      */

@@ -18,6 +18,7 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import app.mauri.sukrara.features.LockAppearance
 import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.widgets.LockscreenWidget
@@ -50,13 +51,25 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
     @Volatile var enabled = false
         set(v) { field = v; root?.get()?.let { r -> r.post { safe("enable") { if (v) ensureView(r) else hide() } } } }
 
-    /** [LockBackground]: card, blur and dim are drawn here (shadow by the widget itself). */
+    /** [LockBackground]: card, frosted glass and dim are drawn here (shadow by the widget itself). */
     @Volatile var background = LockBackground.NONE
         set(v) {
             if (field == v) return
             field = v
             root?.get()?.let { r -> r.post { safe("background") { applyBackground() } } }
         }
+
+    /** [LockAppearance]: whether the background is a dark or a light tint ("auto" follows SystemUI's night mode). */
+    @Volatile var look = LockAppearance.AUTO
+        set(v) {
+            if (field == v) return
+            field = v
+            root?.get()?.let { r -> r.post { safe("look") { applyBackground() } } }
+        }
+
+    /** The tint in use, to redo the background only when the dark theme really flips. */
+    private var drawnDark: Boolean? = null
+    private fun dark(c: Context) = LockAppearance.dark(look, c)
 
     private var root: WeakReference<ViewGroup>? = null
     private var host: AppWidgetHost? = null
@@ -113,6 +126,7 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
         }
         val info = mgr.getAppWidgetInfo(id) ?: run { log("lock screen widget: no provider info"); return }
         val v = h.createView(ctx, id, info)
+        (v as? GuardedView)?.onConfig = { safe("config") { if (drawnDark != dark(v.context)) applyBackground() } }
         // Glance/RemoteViews own the content; no host padding or background.
         v.setPadding(0, 0, 0, 0)
         // Bottom of the window: under every lock screen layer. The fingerprint icon, the shortcuts and the indication
@@ -148,52 +162,60 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
         @Suppress("DiscouragedApi")
         val radius = res.getIdentifier("notification_corner_radius", "dimen", SystemUiHook.SYSTEMUI)
             .takeIf { it != 0 }?.let(res::getDimension) ?: (28 * d)
-        blur = if (background == LockBackground.BLUR) blurDrawable(r, radius) else null
+        val dark = dark(v.context)
+        drawnDark = dark
+        blur = if (background == LockBackground.FROSTED) blurDrawable(r, radius, dark) else null
         v.background = when (background) {
-            LockBackground.BLUR -> blur ?: card(v.context, radius)
-            LockBackground.CARD -> card(v.context, radius)
+            LockBackground.FROSTED -> blur ?: card(v.context, radius, dark)
+            LockBackground.CARD -> card(v.context, radius, dark)
             else -> null
         }
+        scrim?.let { r.removeView(it); scrim = null }
         if (background == LockBackground.DIM) {
-            if (scrim == null) {
-                scrim = ScrimView(r.context).also { s -> r.addView(s, r.indexOfChild(v), FrameLayout.LayoutParams(0, 0)) }
-            }
-        } else scrim?.let { r.removeView(it); scrim = null }
+            scrim = ScrimView(r.context, dark).also { s -> r.addView(s, r.indexOfChild(v), FrameLayout.LayoutParams(0, 0)) }
+        }
         lastAlpha = -1f
         place()
         follow()
     }
 
-    /** Like a notification: the dark surface colour, a little see-through. */
-    private fun card(c: Context, radius: Float) = android.graphics.drawable.GradientDrawable().apply {
+    /**
+     * Like a notification, a little see-through: dark = the dark surface colour; light = the home-screen widgets'
+     * background (Glance's widgetBackground: Material You's system_accent2_50, near white).
+     */
+    private fun card(c: Context, radius: Float, dark: Boolean) = android.graphics.drawable.GradientDrawable().apply {
         cornerRadius = radius
-        setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(c.getColor(android.R.color.system_surface_container_high_dark), 0xE0))
+        setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(c.getColor(
+            if (dark) android.R.color.system_surface_container_high_dark else LIGHT_BG), 0xE0))
     }
 
     /**
-     * The wallpaper behind the widget, blurred: SystemUI's own BackgroundBlurDrawable (ViewRootImpl, hidden API; the
-     * shade uses it). Null when cross-window blur is off (battery saver, some devices) → the card instead.
+     * Frosted glass: the wallpaper behind the widget blurred and tinted, with SystemUI's own BackgroundBlurDrawable
+     * (ViewRootImpl, hidden API; the shade uses it). Dark = black 35 %; light = the home widgets' background colour
+     * 60 %. Null when cross-window blur is off (battery saver, some devices) → the card instead.
      */
-    private fun blurDrawable(r: View, radius: Float): android.graphics.drawable.Drawable? = runCatching {
+    private fun blurDrawable(r: View, radius: Float, dark: Boolean): android.graphics.drawable.Drawable? = runCatching {
         if (r.context.getSystemService(android.view.WindowManager::class.java)?.isCrossWindowBlurEnabled != true) return null
         val vri = View::class.java.getMethod("getViewRootImpl").invoke(r) ?: return null
         val dr = vri.javaClass.getMethod("createBackgroundBlurDrawable").invoke(vri) as android.graphics.drawable.Drawable
         val d = r.resources.displayMetrics.density
         dr.javaClass.getMethod("setBlurRadius", Int::class.javaPrimitiveType).invoke(dr, (24 * d).toInt())
-        dr.javaClass.getMethod("setColor", Int::class.javaPrimitiveType).invoke(dr, 0x59000000)
+        val tint = if (dark) 0x59000000 else androidx.core.graphics.ColorUtils.setAlphaComponent(r.context.getColor(LIGHT_BG), 0x99)
+        dr.javaClass.getMethod("setColor", Int::class.javaPrimitiveType).invoke(dr, tint)
         dr.javaClass.getMethod("setCornerRadius", Float::class.javaPrimitiveType).invoke(dr, radius)
         dr
     }.onFailure { log("lock screen widget: no blur: $it") }.getOrNull()
 
     /**
      * Dim: Material's gradient scrim (dark end 60 %, its middle 3/10 towards the dark end, fading to 0) over the bottom
-     * of the screen, from a little above the widget down to the bottom edge, full width.
+     * of the screen, from a little above the widget down to the bottom edge, full width. Light: the same in white.
      */
-    private class ScrimView(c: Context) : View(c) {
+    private class ScrimView(c: Context, private val dark: Boolean) : View(c) {
         private val paint = android.graphics.Paint()
         override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+            val rgb = if (dark) 0 else 0xFFFFFF
             paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, h.toFloat(),
-                intArrayOf(0x00000000, 0x4D000000, 0x99000000.toInt()), floatArrayOf(0f, 0.35f, 1f),
+                intArrayOf(rgb, 0x4D000000 or rgb, 0x99000000.toInt() or rgb), floatArrayOf(0f, 0.35f, 1f),
                 android.graphics.Shader.TileMode.CLAMP)
         }
         override fun onDraw(cv: android.graphics.Canvas) { cv.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint) }
@@ -385,7 +407,13 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
      */
     private class GuardedView(c: Context) : AppWidgetHostView(c) {
         var allow = false
+        /** The dark theme may have flipped: an automatic appearance redoes its tint. */
+        var onConfig: (() -> Unit)? = null
         override fun dispatchTouchEvent(ev: MotionEvent) = allow && super.dispatchTouchEvent(ev)
+        override fun onConfigurationChanged(c: android.content.res.Configuration?) {
+            super.onConfigurationChanged(c)
+            onConfig?.invoke()
+        }
     }
 
     private class GuardedHost(c: Context) : AppWidgetHost(c, HOST_ID) {
@@ -403,5 +431,7 @@ internal class LockscreenWidgetHost(private val log: (String) -> Unit) {
         const val HOST_ID = 0x53554B
         /** Extra width on each side of the lock icon where touches are never the widget's. */
         const val LOCK_MARGIN_DP = 24
+        /** The home-screen widgets' light background (Glance's widgetBackground on Android 12+). */
+        val LIGHT_BG = android.R.color.system_accent2_50
     }
 }

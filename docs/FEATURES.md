@@ -65,4 +65,20 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 ## Live notification
 
+- Chip off (or Live Updates unavailable): a colorized foreground-service card (background = range colour, ink black or white by contrast) with a custom layout inside the system's decoration.
+- Collapsed (≤ 48 dp): value 30 sp + arrow, the reading's time only once it's late, and the slots (same choice as the home widgets: `GraphConfig.slots`, ring count, last-treatment slot and fallback; `appSlots` → `Slots.arrange`) as 42 dp discs at the end.
+- Expanded: value 44 sp + arrow + late time + slots as 52 dp discs on one row; below it the graph (notification window, default 12 h) at the content column's full width, 96 dp tall, on a rounded surface (surface container high, light/dark), scaled uniformly (never stretched).
+- Slot discs are filled with the same surface colour as the graph panel, so rings read on every range colour; as many as fit beside ≈ 110 dp of value (≤ 4).
+- The follower/state line ("1 follower · 1 nearby") is the header's sub text beside "Sukrara", not a row of its own.
+- Android 12+ keeps custom content in the column right of the icon and clips it there (a −52 dp margin was cut off on API 36; Android 17's column starts at 72 dp): nothing can be drawn under the icon, so the card is kept short instead.
+- Pictures (graph + slots) are cached per reading / 5-min tick / theme / treatments / graph and alert settings, and not redrawn while the screen is off.
+- Chip on (Android 17 Live Update, MetricStyle): metrics = value (mg/dL, semantic colour by range), then the slots as text (`86%` · `in range 1d`, `6.7%` · `GMI 14d`, `4.5u` · `12m ago`), three metrics in all; once the reading is late its time takes the last one. The trend is the chip's arrow and the title's word.
+
 ## Lock screen widget
+
+- Background (Settings → Lock screen → Background, `lockBg`): None, Shadow, Dim, Card, **Frosted glass** (`frosted`, default): the wallpaper blurred (24 dp, SystemUI's BackgroundBlurDrawable) and tinted; falls back to the card when cross-window blur is off. Unknown values fall back to Frosted glass.
+- Appearance (`lockLook`): **Automatic** (default, follows the system dark theme), Light, Dark.
+- Dark: the widget's dark palette; frosted tint black 35 %, card = surface container high dark 88 %, dim = black gradient (0 → 30 % → 60 %), shadow = black 60 %.
+- Light: the home widgets' look; light palette, frosted tint = Glance's widget background (`system_accent2_50`, Material You, near white) 60 %, card = the same colour 88 %, dim = white gradient, shadow = white glow 70 %.
+- A dark-theme flip redraws at once: the module re-tints on its view's configuration change, the app redraws the widgets from a `ComponentCallbacks` night-mode watcher.
+- Slots right of the lock icon use the same choice as the home widgets (`appSlots`: rings, report numbers, last treatment, fallback), main rightmost, as many as fit (≤ 4).
