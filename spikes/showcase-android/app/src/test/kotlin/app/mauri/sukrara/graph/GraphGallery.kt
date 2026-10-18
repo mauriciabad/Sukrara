@@ -90,6 +90,21 @@ class GraphGallery {
         }, 360f, 76f, cols = 2, pal)
     }
 
+    /** The ring's number next to the > 70 % goal (ShareText): 70.2 not "70", 8.3 under 10 %, 86 whole. */
+    @Test fun ringShares() {
+        val pal = GraphPalette.DARK
+        fun tir(inRange: Double, tight: Double) = TimeInRange(0.01, 0.03, tight, inRange - tight, 0.96 - inRange, 0.0, 1.0)
+        val v = listOf(
+            "in range 70.2 %" to (tir(0.702, 0.4) to RingSpec(86400L)),
+            "in range 69.8 %" to (tir(0.698, 0.4) to RingSpec(86400L)),
+            "very good 8.3 %" to (tir(0.3, 0.083) to RingSpec(86400L, TirRange.TIGHT)),
+            "in range 86 %" to (tir(0.857, 0.5) to RingSpec(7 * 86400L)),
+        )
+        sheet("ring-shares", v.map { (label, p) ->
+            Tile(label, "") { cv, w, h -> TirRing.draw(cv, w / 2, h / 2, h / 2 - 4 * d, p.first, p.second, pal, 1f, d) }
+        }, 120f, 76f, cols = 4, pal)
+    }
+
     /** Investigation 18: report numbers in the slots. */
     @Test fun slots() {
         val data = Synthetic.days(now, 31)

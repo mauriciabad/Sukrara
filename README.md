@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.21/Sukrara-0.11.21.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.22/Sukrara-0.11.22.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.21/Sukrara-0.11.21.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.22/Sukrara-0.11.22.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -61,7 +61,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.
   [16](docs/16-graph.md)
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
-  variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days. Any of them can sit beside the number
+  variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days; a share next to its goal gets
+  decimals when rounding would put it on the wrong side (5.2 %, not 5 %, against < 5 %). Any of them can sit beside the number
   in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the
   sensor with NFC to start a new one (tied to your LibreView account, so LibreLink or Juggluco can take it over
   later) or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
@@ -117,6 +118,11 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
   like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
+- Export your readings and treatments as a CSV file (Settings → Export data): this sensor or the last 7, 14 or 30
+  days, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
+  Tidepool's uploader imports it and any spreadsheet opens it, plus the time with its UTC offset, the trend and who
+  entered each treatment (phone, Mac or follower, never a name). Followers export what is already on their phone.
+  [22](docs/22-ecosystem-outputs.md#in-sukrara-csv-export)
 - Upload glucose and treatments to LibreView (Settings → Share with apps → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: very low, low, high, very high, extremely high, falling/rising fast and no data, each with its own threshold,
@@ -133,7 +139,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
   *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then a log field — type
   `4.5u`, `30g`, `12 long` or a note and press Return (Undo right after). **Glucose Report…** opens a window with the
-  1/7/14/30-day report and the last 7 days of treatments (delete there); right-click for Settings and Quit.
+  1/7/14/30-day report (with *Export CSV…* for its period, the same file as the phone's) and the last 7 days of
+  treatments (delete there); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
   six ranges and Open at Login; it reopens on the last pane.
@@ -159,14 +166,24 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
   [15](docs/15-alerts.md)
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
-- Pair nearby over Bluetooth with no internet at all. [07](docs/07-bluetooth-followers.md)
-- Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers.
+- Pair nearby over Bluetooth with no internet at all. The phone broadcasts no name and shows who it is only while
+  *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
+  what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
+- Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,
+  and a writer can change or delete only the entries it made.
 
 **Watch and smart home**
 - Garmin: Sukrara speaks the same local web API as Juggluco and xDrip+, so the CGM+ app, datafield and watch faces
   work unchanged (Settings → Share with apps → xDrip+ server, off by default). [08](docs/08-garmin.md)
 - Nightscout-compatible adapter: stock Home Assistant, xDrip+, Nightguard, LoopFollow and others read it without
   changes (Settings → Share with apps → Nightscout, off by default). [03](docs/03-nostr.md)
+- Apps on the same phone: AAPS, GlucoDataHandler (and through it Wear OS, Android Auto, WatchDrip+, Tasker) and
+  xDrip+ get each reading as the xDrip+, LibreLink and Juggluco broadcasts, with the sensor named `Libre3`. Each app
+  has its own switch (Settings → Share with apps → Apps on this phone), all off by default; only the wearer's phone
+  reading the sensor itself sends them, never a follower. [22](docs/22-ecosystem-outputs.md#in-sukrara)
+- Health Connect: blood glucose (interstitial fluid) for health apps, off until you allow it in Health Connect's own
+  sheet; then the stored history once and every reading, one record per minute (no duplicates).
+  [22](docs/22-ecosystem-outputs.md#in-sukrara)
 
 **Privacy and keys**
 - Every reading is signed by your phone and encrypted to a read key only your followers have. Relays only see
@@ -258,19 +275,19 @@ open standard, the Open Glucose Stream, in [`spec/`](spec) ([24](docs/24-open-st
 | 19 | Notification templates: the space under the icon | Custom views stay right of the icon; only Android 17's Live Update layout draws a ProgressStyle bar and action buttons across the whole card. Range bar with a tracker at the value, colours honoured (darkened when colorized), at most 10 segments and 4 points, no bar when collapsed. **Not in Sukrara yet** (proposal: the Live Update as ProgressStyle) | [docs/19](docs/19-notification-templates.md) |
 | 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
 | 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
-| 22 | Sukrara in the diabetes-tech ecosystem | Spike emits the three local broadcasts Juggluco has (xDrip+ `BgEstimate`, patched-LibreLink, `glucodata.Minute`) plus Health Connect: GlucoDataHandler 2.5 accepts all three, AAPS's own test classes give a `Libre3` label advanced filtering, 36 Health Connect records written. Dexcom BYODA from a Libre discarded. Top gap: Nightscout upload. **Not in Sukrara yet** ([to bring in](docs/22-ecosystem-outputs.md#to-bring-into-sukrara)) | [docs/22](docs/22-ecosystem-outputs.md) |
+| 22 | Sukrara in the diabetes-tech ecosystem | Spike emits the three local broadcasts Juggluco has (xDrip+ `BgEstimate`, patched-LibreLink, `glucodata.Minute`) plus Health Connect: GlucoDataHandler 2.5 accepts all three, AAPS's own test classes give a `Libre3` label advanced filtering, 36 Health Connect records written. Dexcom BYODA from a Libre discarded. Top gap: Nightscout upload. **In Sukrara**: the three broadcasts per allowed app (wearer only) and Health Connect ([in Sukrara](docs/22-ecosystem-outputs.md#in-sukrara)) | [docs/22](docs/22-ecosystem-outputs.md) |
 | 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([spikes/sensors-android](spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **Not in Sukrara yet** | [docs/23](docs/23-sensors.md) |
-| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with a 25-step acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes; nothing published yet. **Not in Sukrara** ([proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
+| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with an acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes; nothing published yet. **In Sukrara: the security fixes** (writers edit only their own entries, Bluetooth privacy and limits, Mac wrap expiry / stream id / chunk checks); the draft-2 wire changes wait for v1 ([added / open](docs/24-open-standard.md#in-sukrara), [proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
 | 26 | The full AGP report: percentile profile, daily profiles, a page for the doctor | The IDC AGP layout and goals (2019/2023 consensus, 2025 tight range); method as Tidepool's IDC-licensed print view (1 h bins, type-7 percentiles, 1-4-1 smoothing) on a 5-minute grid so 1-minute live data can't outweigh history (up to ~20 mg/dL otherwise). Kotlin engine + Swift port + pandas/numpy and d3-array checks agree to 0.0000 mg/dL on 3 synthetic 14-day fixtures (DST both ways, sensor change, gaps, sparse); one display list painted by Java2D and CoreGraphics (vector PDF). **Not in Sukrara yet** ([to bring in](docs/26-agp-report.md#to-bring-into-sukrara)) | [docs/26](docs/26-agp-report.md) |
 
 ## Try it
 
-Downloads: [v0.11.21](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.21) (Android and Mac)
+Downloads: [v0.11.22](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.22) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.21.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.22.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -280,10 +297,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.21.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.22.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.21.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.22.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

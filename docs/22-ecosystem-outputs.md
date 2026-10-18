@@ -147,8 +147,8 @@ Notes from the run:
 - On Android 14+ the platform `requestPermissions` with a health permission opens Health Connect's sheet. The app must
   have the `VIEW_PERMISSION_USAGE` + `HEALTH_PERMISSIONS` activity alias (in the spike's manifest). No Jetpack client is
   needed.
-- **Not verified:** that rewriting the same minute replaces the record instead of duplicating it (`clientRecordId`).
-  That needs a read permission. Check it when integrating.
+- Rewriting the same minute replaces the record instead of duplicating it (`clientRecordId`): verified in the
+  integration step, see [In Sukrara](#in-sukrara).
 
 ## 5. Dexcom BYODA, and other things we won't emit
 
@@ -222,7 +222,7 @@ possible with #2. I did not check the current state of Sugarmate itself.
 
 ## To bring into Sukrara
 
-Draft for the integration step. Nothing below is in the app yet.
+The plan written before the integration step. What actually went in is under [In Sukrara](#in-sukrara).
 
 **Files** (Android, `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`):
 - `bridge/Broadcasts.kt`: port `Payloads.kt` + `Emitter.kt`. One `send(reading)` that emits `BgEstimate`, `GLUCOSE_READING`
@@ -265,6 +265,63 @@ Draft for the integration step. Nothing below is in the app yet.
 | Broadcasts from the follower role | **Discard (for now)** | a follower's copy must not reach AAPS as if it were a local sensor |
 | Nightscout upload, CSV export, AGP | **Next investigations** | §6 #2, #4, #5 |
 
+## In Sukrara
+
+*2026-10-19 · branch `w-outputs` (after v0.11.21) · verified on a fresh dedicated emulator (`outputs_sukrara`,
+Android 16, port 5590) with the debug build's synthetic source and GlucoDataHandler 2.5; not on the user's phone.*
+
+Settings → Share with apps has two new groups for the wearer: **Apps on this phone** (one switch per installed app
+that listens for any of the broadcasts, all off) and **Health Connect** (one switch, off; it opens Health Connect's
+own permission sheet). Followers see neither.
+
+<img src="img/22/sukrara-share-with-apps.png" alt="Sukrara Settings, Share with apps: LibreView not set up, Apps on this phone with a GlucoDataHandler switch on, Health Connect on (Writing every reading), xDrip+ server off" width="260"> <img src="img/22/sukrara-health-connect-sheet.png" alt="Health Connect's own sheet asking to allow Sukrara to write blood glucose" width="260"> <img src="img/22/sukrara-health-connect-entries.png" alt="Health Connect blood glucose entries from Sukrara, one per minute, interstitial fluid" width="260"> <img src="img/22/sukrara-gdh.png" alt="GlucoDataHandler showing 142 mg/dL with a down-right arrow, 1 min ago, from Sukrara's synthetic readings" width="260">
+
+| Added | Where |
+|---|---|
+| The four payloads (keys and types from the receivers), the trend names, the who-gets-what plan and the 55 s throttle, as plain Kotlin | `bridge/BroadcastPayloads.kt`, `BroadcastPayloadsTest` (11 tests) |
+| xDrip+ `BgEstimate` with `SourceInfo=Libre3` (AAPS advanced filtering for a true Libre 3 label), `SourceDesc=Sukrara` | `BroadcastPayloads.xdrip` |
+| Patched-LibreLink `GLUCOSE_READING`; `SENSOR_ACTIVATE` once per new sensor serial | `BroadcastPayloads.libre` / `libreActivate`, `AppBroadcasts` (remembers the last serial activated) |
+| `glucodata.Minute` | `BroadcastPayloads.glucodata` |
+| Receiver discovery (`<queries>` + `queryBroadcastReceivers`), one explicit copy per **allowed** package, only the actions it declares | `bridge/AppBroadcasts.kt`, `AndroidManifest.xml` |
+| Per-app allow list, default none, own icon and label per app | Settings → Share with apps → *Apps on this phone* (`ui/SettingsScreens.kt` `phoneAppsGroups`) |
+| **Wearer role only**, and only while Sukrara reads the sensor itself (in Juggluco mode Juggluco broadcasts; switches greyed with the reason) | `BroadcastPayloads.plan(wearer, direct, …)`, called from `wearer/WearerExtras.onReading` |
+| Health Connect blood glucose, platform API: interstitial fluid, Abbott "FreeStyle Libre 3", automatically recorded; history (≤ 30 days) on enable, then every reading and backfill | `bridge/HealthConnect.kt`, manifest permission + `VIEW_PERMISSION_USAGE` / `HEALTH_PERMISSIONS` alias |
+| No duplicates: `clientRecordId = sukrara-glucose-<epoch minute>`, version 1 | `HealthConnect.clientId` |
+
+**The open question from §4, answered.** Writing the same minute twice does **not** duplicate the record. Turning
+Health Connect off and on again re-wrote the whole history (1 450 readings) and Health Connect returned **the same
+record ids** as the first time for every minute (`46f552ac-…` for the first minute both times; the ids are
+name-based UUIDs derived from the client record id), and Health Connect → Blood glucose lists one entry per minute.
+Evidence: [`sukrara-gdh-emulator.txt`](../spikes/outputs-android/evidence/sukrara-gdh-emulator.txt).
+
+**Verification** (emulator only, synthetic data):
+
+| Check | Result |
+|---|---|
+| Unit tests | `BroadcastPayloadsTest` 11/11 (payload keys + types for AAPS / GDH / xDrip+, `Libre3` and no Dexcom anywhere, unknown rate / start left out, nothing allowed by default, only allowed apps and only declared actions, follower and Juggluco mode get nothing, throttle, per-minute record id); all app unit tests pass |
+| Default | GlucoDataHandler listed under *Apps on this phone* with its switch off; nothing sent (`Sukrara.broadcast` silent) |
+| Allowed | each minute `→ de.michelinside.glucodatahandler 3` (xDrip+, LibreLink, glucodata); GDH logs `XDripBroadcastReceiver … SourceInfo => Libre3` and `LibrePatchedReceiver … GLUCOSE_READING`, then `Glucodata received from XDRIP … mgdl=147, Rate=-0.64` and shows the value, arrow and delta |
+| New sensor | after a `fakeSensor` serial: one minute with 4 actions; GDH `setSensorStartTime for TEST0000022`; the next minutes 3 again |
+| Health Connect | the switch opens Health Connect's onboarding, then its sheet (*Allow "Sukrara" to write: Blood glucose*); allowed → 1 442 readings written in 3 batches, then one per reading; summary *Writing every reading* |
+| Release build (R8) | Settings page draws; Health Connect off → on re-writes the history with the same ids again |
+
+GDH keeps the first broadcast per timestamp, so with every format going to it the later ones of the same reading are
+received and dropped (the spike checked each format on its own; the payloads are the same apart from `SourceDesc`).
+
+| Discarded | Why |
+|---|---|
+| Dexcom BYODA (`com.dexcom.cgm/g7.EXTERNAL_BROADCAST`) and any Dexcom label | False origin in AAPS's database and Nightscout; AAPS's safety gates key on the sensor; a true `Libre3` label already gets advanced filtering (§5). Only for a real Dexcom sensor, if Sukrara ever reads one |
+| `NS_EMULATOR` broadcast | AAPS files it as a Medtronic 600-series sensor (wrong label); the LibreLink broadcast covers xDrip+ and GDH |
+| Glimp (`it.ct.glicemia.ACTION_GLUCOSE_MEASURED`) | Libre 1-era, AAPS-only; nobody gains from it |
+| Gadgetbridge weather hack | Glucose as a fake weather report in kelvin; small audience |
+| Broadcasts from the follower role | A follower's copy must never reach AAPS as if it were a local sensor; followers send nothing |
+| Broadcasts in Juggluco mode | Juggluco reads the sensor and broadcasts itself; two copies would reach AAPS |
+| A switch per broadcast format | Juggluco's model: an allowed app gets every format it listens for |
+| Broadcasting backfilled history | Receivers expect live readings (Juggluco sends only new ones); history goes to Health Connect only |
+| Health Connect read permission | Not needed: the insert result's ids answer the duplicate question |
+
+The Mac has no equivalent (no Android broadcasts or Health Connect on macOS).
+
 ## Run it
 
 ```sh
@@ -279,3 +336,48 @@ adb logcat -s Outputs 'GDH.ReceiveData'
 AAPS check: copy `evidence/SukraraPayloadScratchTest.kt` into AndroidAPS's
 `plugins/source/src/test/kotlin/app/aaps/plugins/source/` and run
 `./gradlew :plugins:source:testFullDebugUnitTest --tests '*SukraraPayloadScratchTest*'` with JDK 21.
+
+## In Sukrara: CSV export
+
+Gap #4, done in the app (Android Settings → Export data, Mac Glucose Report › *Export CSV…*). Behaviour in
+[FEATURES.md](FEATURES.md#data-export); writers `export/GlucoseCsv.kt` and `menubar/…/GlucoseCsv.swift`, both
+checked against the shared cases in [`spikes/export-fixtures`](../spikes/export-fixtures/).
+
+**Format: LibreView's "Glucose Data" CSV.** What the community tools read, from source:
+
+| Tool | Reads a file? | Source |
+|---|---|---|
+| Tidepool Uploader | **Yes: LibreView CSV** (glucose rows: historic, scan, strip, ketone; columns by position; year-first or day/month dates) | `uploader/lib/drivers/abbott/libreViewDriver.js` |
+| Juggluco | writes the same layout (incl. insulin, carbs, notes) | `Juggluco/Common/src/main/cpp/export/libreviewexport.cpp` |
+| DiaBLE | reads it by column name | `DiaBLE/DiaBLE/ConsoleTools.swift:54` |
+| Nightscout | no file import: CSV is only a response format of its REST API (`/api/v3/entries.csv`) | `cgm-remote-monitor/lib/api3/doc/formats.md:5-12` |
+| xDrip+ | exports its own SiDiary CSV / DB zip; imports only its own DB | `xDrip/…/utils/DatabaseUtil.java:215` |
+
+So one file in that layout, readings and treatments together (LibreView puts them in one file; no zip), plus three
+columns at the end that position-based readers ignore: `Time (ISO 8601)` (with the offset), `Trend (mg/dL/min)`,
+`Entered By`. Verified: Tidepool's own driver code (`spikes/export-fixtures/tidepool-check`) reads every fixture and
+the emulator's export into CBG records with the right UTC times, units (mg/dL, and mmol/L) and one device per sensor
+serial. Emulator check (debug build, synthetic data, Android 16): *Save file* wrote
+`sukrara-glucose-2026-10-12-to-2026-10-19.csv` to Downloads (293 five-minute rows, the three test treatments with
+quoting, the formula guard and `phone`), Tidepool's driver read it as 293 CBG records; *Share* offers the file by its
+dates only; the page in Spanish.
+
+![Export data](img/22/export-data.png) ![Share sheet](img/22/export-share.png) ![Spanish](img/22/export-data-es.png)
+
+| Added | Why |
+|---|---|
+| One row per ≥ 280 s (5-minute rows) | LibreView's historic rate; Tidepool counts rows as 5-minute samples, so the 1-minute stream would skew its time in range (Juggluco thins the same way) |
+| Year-first local `Device Timestamp` + ISO 8601 column | LibreView has no offset; Tidepool accepts year-first unambiguously; the ISO column keeps the repeated hour apart when the clocks go back (Tidepool itself maps both to the same instant: a limit of the layout) |
+| `Serial Number` = the current sensor's serial inside its wear time | the only serial Sukrara keeps; followers and the Mac have none, so the column is empty there |
+| `Device` = `Sukrara`, `Generated by` = `Sukrara`, `Entered By` = phone / mac / follower | no person's name in the file or its name (`sukrara-glucose-<from>-to-<to>.csv`): share targets show both |
+| Formula guard on notes (`'` before `= + - @`) | follower-written notes open in spreadsheets |
+| Save (SAF create document) + Share (FileProvider, cache only) | the two ways the brief asked for; the shared file is replaced every time |
+| Followers export what they already have | no extra fetching; same page and format |
+
+| Discarded | Why |
+|---|---|
+| A Nightscout-JSON or own CSV format | nothing reads a Nightscout file; a plain own CSV would be read by nobody but spreadsheets |
+| Zip with two files | LibreView and Tidepool expect one file |
+| mmol/L in the apps | neither app has a unit setting; the writer supports it (tested) for when one exists |
+| A UTF-8 BOM | Tidepool and Juggluco don't use one; Excel on Windows may show accents in notes wrongly |
+

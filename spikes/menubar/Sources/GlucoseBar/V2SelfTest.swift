@@ -30,7 +30,7 @@ enum V2SelfTest {
         func key(sealedBy s: Keys, g: Keys) -> String {
             V2.gift(s, F.publicKey().toHex(), kind: V2.toFollower,
                     ["v": 2, "type": "key", "sid": sid, "epoch": 1, "g": try! g.secretKey().toBech32(),
-                     "devices": [D.publicKey().toHex()], "relays": []])!
+                     "devices": [D.publicKey().toHex()], "relays": []], ttl: 30 * 86400)!
         }
         func live(_ by: Keys, _ sgv: Int, gk g: String = gk) -> String {
             event(by, kind: V2.live, encTo: G, ["v": 2, "t": now, "sgv": sgv, "r": 0.1, "dev": "test"], tags: [["gk", g]])
@@ -59,8 +59,17 @@ enum V2SelfTest {
                                           content: V2.json(["v": 2, "t": now, "sgv": 333]), version: .v2))
         node.onEvent(V2.json(o), via: "test")
         check("tampered content (bad id/signature) rejected", readings == [111])
+        var sentOut: [String] = []
+        node.extraPublish = { ev, _ in sentOut.append(ev) }
+        node.onEvent(live(X, 444, gk: "0badbeef"), via: "test")
+        check("unknown gk from a stranger: no rekey request (P10)", sentOut.isEmpty)
         node.onEvent(live(D, 444, gk: "deadbeef"), via: "test")
-        check("unknown gk not accepted (rekey requested)", readings == [111])
+        check("unknown gk not accepted (rekey requested)", readings == [111] && sentOut.count == 1)
+        if let w = sentOut.first, let o = try? JSONSerialization.jsonObject(with: Data(w.utf8)) as? [String: Any],
+           let exp = ((o["tags"] as? [[String]]) ?? []).first(where: { $0.first == "expiration" }).flatMap({ Int($0[1]) }) {
+            check("rekey wrap expires in an absolute now + 7 d (P5)", abs(exp - (now + V2.ttlRequest)) < 60)
+        } else { check("rekey wrap carries an expiration tag (P5)", false) }
+        node.extraPublish = nil
         let fakeRoster = event(X, kind: V2.chunk, encTo: G, ["v": 2, "epoch": 1, "devices": [X.publicKey().toHex()], "writers": []],
                                tags: [["d", V2.rosterD(sid)], ["gk", gk]])
         node.onEvent(fakeRoster, via: "test")
@@ -71,10 +80,22 @@ enum V2SelfTest {
         node.onEvent(roster, via: "test")
         node.onEvent(live(X, 666), via: "test")
         check("device added by an identity-signed roster accepted", readings == [111, 666])
-        let chunk = event(D, kind: V2.chunk, encTo: G, ["v": 2, "h": now - now % 3600, "dev": "t", "r": [[0, 90, 12], [60, 91, nil as Any? ?? NSNull()]]],
-                          tags: [["d", "x"], ["c", V2.chunkC(sid)], ["gk", gk]])
-        node.onEvent(chunk, via: "test")
+        let hour = now - now % 3600
+        func chunk(d: String, c: String, sgv: Int) -> String {
+            event(D, kind: V2.chunk, encTo: G, ["v": 2, "h": hour, "dev": "t", "r": [[0, sgv, 12], [60, sgv + 1, NSNull()]]],
+                  tags: [["d", d], ["c", c], ["gk", gk]])
+        }
+        node.onEvent(chunk(d: V2.chunkD(sid, hour - 3600), c: V2.chunkC(sid), sgv: 70), via: "test")
+        check("chunk whose d isn't its hour's rejected (P10)", readings.count == 2)
+        node.onEvent(chunk(d: V2.chunkD(sid, hour), c: "x", sgv: 75), via: "test")
+        check("30078 from a device without the chunk c tag rejected (P10)", readings.count == 2)
+        node.onEvent(chunk(d: V2.chunkD(sid, hour), c: V2.chunkC(sid), sgv: 90), via: "test")
         check("hour chunk decoded (2 rows)", readings.suffix(2) == [90, 91])
+        node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower,
+                             ["v": 2, "type": "key", "sid": String(repeating: "ab", count: 32), "epoch": 2,
+                              "g": try! G2.secretKey().toBech32(), "devices": [X.publicKey().toHex()], "relays": []], ttl: 30 * 86400)!, via: "test")
+        check("key delivery naming another sid rejected, devices kept (P6)",
+              node.phase == .active(epoch: 1) && node.st.sid == sid && node.st.devices.contains(D.publicKey().toHex()))
         treatments(node, sid: sid, I: I, D: D, G: G, X: X, F: F, check: check)
         // Alert events (alerts SPEC §4): kind 21079, same checks as live, deduped by id, ≤ 10 min old.
         var alerts: [String] = []
@@ -93,9 +114,9 @@ enum V2SelfTest {
         check("alert older than 10 min ignored", alerts == ["high:fire"])
         node.onEvent(alert(D, "low", type: "live"), via: "test")
         check("kind 21079 whose type isn't \"alert\" rejected", alerts == ["high:fire"])
-        node.onEvent(V2.gift(X, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")
+        node.onEvent(V2.gift(X, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"], ttl: 7 * 86400)!, via: "test")
         check("forged revoked notice ignored", node.phase == .active(epoch: 1))
-        node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"])!, via: "test")
+        node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"], ttl: 7 * 86400)!, via: "test")
         check("revoked notice from I → access removed", node.phase == .revoked)
         check("match code is 4 digits", node.code.count == 4 && Int(node.code) != nil)
         node.stop()
@@ -105,11 +126,11 @@ enum V2SelfTest {
         let st2 = FollowerV2State(f: try! F2.secretKey().toBech32(), i: I.publicKey().toHex(), relays: [], token: "tok2",
                                   name: "selftest2", code: V2.matchCode(F2.publicKey().toHex(), "tok2"))
         if let n2 = FollowerV2(state: st2) {
-            n2.onEvent(V2.gift(X, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"])!, via: "test")
+            n2.onEvent(V2.gift(X, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"], ttl: 7 * 86400)!, via: "test")
             check("forged invite-used ignored", n2.phase == .waiting(code: nil))
-            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"])!, via: "test")
+            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "invite-used"], ttl: 7 * 86400)!, via: "test")
             check("invite-used from I → request ended (already used)", n2.phase == .ended(used: true))
-            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "declined"])!, via: "test")
+            n2.onEvent(V2.gift(I, F2.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "declined"], ttl: 7 * 86400)!, via: "test")
             check("a later notice doesn't change an ended request", n2.phase == .ended(used: true))
             n2.stop()
         } else { check("second follower node", false) }
@@ -137,7 +158,11 @@ enum V2SelfTest {
         defer { try? FileManager.default.removeItem(at: dir) }
         let store = TreatmentStore(directory: dir)
         var got: [(Treatment, Bool)] = []
-        node.onTreatment = { t, fromWearer, via in got.append((t, fromWearer)); store.receiveV2(t, fromWearer: fromWearer, via: via) }
+        node.treatmentCreator = { store.creator($0) }
+        node.treatmentStoredO = { store.row($0)?.o }
+        node.onTreatment = { t, fromWearer, via, creator, force in
+            got.append((t, fromWearer)); store.receiveV2(t, fromWearer: fromWearer, via: via, creator: creator, force: force)
+        }
         let gk = V2.gk(G.publicKey().toHex()), W = Keys.generate()
         func roster(writers: [Keys]) -> String {
             let ct = try! nip44Encrypt(secretKey: I.secretKey(), publicKey: G.publicKey(), content: V2.json(
@@ -163,7 +188,7 @@ enum V2SelfTest {
         check("not a writer: canWrite false, nothing published", !node.canWrite && !node.publishTreatment(mine))
         node.onEvent(roster(writers: [W, F]), via: "test")
         check("roster lists this Mac in writers: canWrite true", node.canWrite)
-        store.upsertLocal(mine)
+        store.upsertLocal(mine, creator: node.followerPub)
         let sent = node.publishTreatment(mine)
         if sent { store.setV2(mine.id, u: mine.u, .sending) }
         check("writer: entry published (sending)", sent && store.v2Status(mine.id)?.state == .sending)
@@ -199,17 +224,49 @@ enum V2SelfTest {
         // Echo = acceptance: our own copy (author F, a writer) doesn't count, the wearer's device key does — only with u ≥ ours.
         node.onEvent(tr(F, mine), via: "test")
         check("own event echoed by a relay is not acceptance", store.v2Status(mine.id)?.state == .sending)
-        var older = mine; older.u -= 1
+        var echo = mine; echo.o = "follower"            // the owner stores a writer's entry as o "follower" (P4)
+        var older = echo; older.u -= 1
         node.onEvent(tr(D, older), via: "test")
         check("wearer copy with u < ours is not acceptance", store.v2Status(mine.id)?.state != .accepted)
         store.setV2(mine.id, u: mine.u, .sent, via: "relay:test")
         check("relay OK → sent; shown 'v2 sent'", TreatmentPaths.v2Text(store.v2Status(mine.id)!) == "v2 sent")
         check("…after 2 min without echo: 'v2 not accepted yet'",
               TreatmentPaths.v2Text(store.v2Status(mine.id)!, now: Date().addingTimeInterval(121)) == "v2 not accepted yet")
-        node.onEvent(tr(D, mine), via: "test")
+        node.onEvent(tr(D, echo), via: "test")
         check("wearer's device key echoes the same id with u ≥ ours → accepted", store.v2Status(mine.id)?.state == .accepted)
         store.setV2(mine.id, u: mine.u, .sent)
         check("status never moves back (accepted stays)", store.v2Status(mine.id)?.state == .accepted)
+
+        // P4: a writer changes only the entries it created
+        let gotBefore = got.count
+        var hijack = wearerCarbs; hijack.del = true; hijack.u += 60_000; hijack.o = "follower"
+        node.onEvent(tr(W, hijack), via: "test")
+        check("writer tombstoning the wearer's entry rejected (P4)", got.count == gotBefore && store.row(wearerCarbs.id)?.del == false)
+        var noteEdit = writerNote; noteEdit.n = "long walk"; noteEdit.u += 5
+        node.onEvent(tr(W, noteEdit), via: "test")
+        check("writer editing its own entry accepted (P4)", store.row(writerNote.id)?.n == "long walk")
+        let W2 = Keys.generate()
+        node.onEvent(roster(writers: [W, W2, F]), via: "test")
+        var steal = writerNote; steal.n = "stolen"; steal.u += 50_000
+        node.onEvent(tr(W2, steal), via: "test")
+        check("writer editing another writer's entry rejected (P4)", store.row(writerNote.id)?.n == "long walk")
+        check("only this Mac's own entries are deletable here (P4)",
+              TreatmentPaths.mayChange(mine, store: store, node: node) && !TreatmentPaths.mayChange(wearerCarbs, store: store, node: node))
+        let echoFirst = Treatment(k: "carbs", a: 12, t: now - 200, o: "follower")
+        node.onEvent(tr(D, echoFirst), via: "test")                 // the wearer's copy of W's entry arrives first
+        let rejectedBefore = node.rejected
+        node.onEvent(tr(W, echoFirst), via: "test")                 // …then W's own copy: redundant, not a rejection
+        check("a writer's own copy after the wearer's echo is ignored, not rejected (P4)", node.rejected == rejectedBefore && store.row(echoFirst.id)?.a == 12)
+        // a writer that saw the wearer's id first forges it (huge u) before the real entry reaches this Mac
+        let late = Treatment(k: "rapid", a: 4, t: now - 120, o: "phone")
+        var forged = late; forged.a = 40; forged.u += 9_000_000; forged.o = "follower"
+        node.onEvent(tr(W2, forged), via: "test")
+        check("…the forged copy is taken first (unknown id)", store.row(late.id)?.a == 40)
+        node.onEvent(tr(D, late), via: "test")
+        check("the wearer's own entry replaces the forged copy whatever its u (P4)", store.row(late.id)?.a == 4 && store.creator(late.id) == D.publicKey().toHex())
+        var forged2 = forged; forged2.u += 1
+        node.onEvent(tr(W2, forged2), via: "test")
+        check("…and the forger can't change it again", store.row(late.id)?.a == 4)
 
         // Deletes travel as tombstones
         var gone = writerNote; gone.del = true; gone.u += 10
@@ -244,9 +301,11 @@ enum V2RelayTest {
         defer { try? FileManager.default.removeItem(at: dir) }
         let store = TreatmentStore(directory: dir)
         var fromWearer: [String] = [], sentVia = ""
-        node.onTreatment = { t, w, via in
+        node.treatmentCreator = { store.creator($0) }
+        node.treatmentStoredO = { store.row($0)?.o }
+        node.onTreatment = { t, w, via, creator, force in
             if w { fromWearer.append(t.id) }
-            if store.receiveV2(t, fromWearer: w, via: via) { print("  accepted via \(via)") }
+            if store.receiveV2(t, fromWearer: w, via: via, creator: creator, force: force) { print("  accepted via \(via)") }
         }
         node.onTreatmentSent = { id, u, via in sentVia = via; store.setV2(id, u: u, .sent, via: via) }
         let wearer = RelayPool(urls: relays, authKeys: D)
@@ -276,7 +335,7 @@ enum V2RelayTest {
         check("wearer's treatment received over relays (#c + authors filter) and merged",
               wait(20) { fromWearer.contains(carbs.id) } && store.row(carbs.id)?.a == 30)
         let mine = Treatment(k: "rapid", a: 1.5, t: Int64(Date().timeIntervalSince1970), o: "mac")
-        store.upsertLocal(mine)
+        store.upsertLocal(mine, creator: node.followerPub)
         if node.publishTreatment(mine) { store.setV2(mine.id, u: mine.u, .sending) }
         let sent = wait(20) { store.v2Status(mine.id)?.state == .sent }
         check("own entry: relay OK → sent (\(sentVia))", sent)
@@ -284,6 +343,65 @@ enum V2RelayTest {
         check("wearer's echo over relays → accepted", wait(20) { store.v2Status(mine.id)?.state == .accepted })
         node.stop(); wearer.stop()
         print(ok ? "v2 relay test OK" : "v2 relay test FAILED")
+        return ok
+    }
+}
+
+/// `Sukrara -bleselftest [-ogsVectors <file>]`: the Bluetooth limits (P13) and the blinded INFO / owner check (P12),
+/// against spec/test-vectors/ogs-draft1.json (the same cases as Android `BleTest`). No radio, no Keychain.
+enum BLESelfTest {
+    static func run() -> Bool {
+        var ok = true
+        func check(_ name: String, _ c: Bool) { print("\(c ? "PASS" : "FAIL")  \(name)"); ok = ok && c }
+        let path = UserDefaults.standard.string(forKey: "ogsVectors") ?? "../../spec/test-vectors/ogs-draft1.json"
+        guard let data = FileManager.default.contents(atPath: path),
+              let vec = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ble = vec["ble"] as? [String: Any], let im = ble["info_m"] as? [String: String],
+              let byMtu = ble["frames_by_att_mtu"] as? [String: [String]],
+              let iPub = ((vec["keys"] as? [String: Any])?["I"] as? [String: String])?["pub"] else {
+            print("ble self-test FAILED: vectors not found at \(path) (run from spikes/menubar or pass -ogsVectors)")
+            return false
+        }
+        func unhex(_ s: String) -> Data {
+            Data(stride(from: 0, to: s.count, by: 2).map { i in UInt8(s.dropFirst(i).prefix(2), radix: 16)! })
+        }
+        func frame(_ id: Int, _ idx: Int, _ count: Int, _ payload: Data = Data()) -> Data {
+            Data([UInt8(id >> 8), UInt8(id & 0xff), UInt8(idx >> 8), UInt8(idx & 0xff), UInt8(count >> 8), UInt8(count & 0xff)]) + payload
+        }
+        // framing: the vector frames reassemble at every MTU
+        for (mtu, frames) in byMtu.sorted(by: { $0.key < $1.key }) {
+            var r = BLEV2Central.Reassembler()
+            let out = frames.map { r.add(unhex($0)) }
+            check("vector frames reassemble at MTU \(mtu)", out.dropLast().allSatisfy { $0 == nil } && (out.last??.first as? String) == "EVENT")
+        }
+        // P13 limits
+        var r = BLEV2Central.Reassembler()
+        let t0 = Date()
+        let p = Data(#"["HELLO",{"v":2}]"#.utf8)
+        _ = r.add(frame(1, 0, 2, p.prefix(5)), now: t0)
+        check("a buffer idle > 30 s is dropped", r.add(frame(1, 1, 2, p.dropFirst(5)), now: t0 + 31) == nil && r.dropped == 1)
+        r = BLEV2Central.Reassembler()
+        let chunk = Data(repeating: UInt8(ascii: "x"), count: 500), n = BLEV2Central.Reassembler.maxMessage / 500 + 2
+        let big = (0..<n).map { r.add(frame(9, $0, n, chunk)) }
+        check("a message over 256 KiB is dropped", big.allSatisfy { $0 == nil } && r.dropped == 1)
+        r = BLEV2Central.Reassembler()
+        for id in 0..<(BLEV2Central.Reassembler.maxBuffers + 4) { _ = r.add(frame(id, 0, 2, Data("[".utf8))) }
+        check("at most 16 open buffers (the oldest goes)",
+              r.add(frame(0, 1, 2, Data(#""HELLO",{}]"#.utf8))) == nil
+              && (r.add(frame(BLEV2Central.Reassembler.maxBuffers + 3, 1, 2, Data(#""HELLO",{}]"#.utf8)))?.first as? String) == "HELLO")
+        check("malformed frames ignored", r.add(Data([0, 1, 0])) == nil && r.add(frame(1, 2, 2)) == nil && r.add(frame(1, 0, 0)) == nil)
+        // P12 blinded INFO
+        let sid = im["sid"]!, nonce = im["nonce"]!
+        check("m = H(cgm2:ble:sid:nonce) matches the vectors", BLEV2Central.infoM(sid: sid, nonce: nonce) == im["m"])
+        let info = BLEV2Central.Info(i: nil, relays: [], token: nil, expiry: nil, profile: nil, nonce: nonce, m: im["m"])
+        check("owner proves our sid over our nonce → ours", BLEV2Central.owner(info, i: iPub, sid: sid, nonces: [nonce]) == .ours)
+        check("a replayed INFO (not our nonce) → other", BLEV2Central.owner(info, i: iPub, sid: sid, nonces: [String(repeating: "0", count: 32)]) == .other)
+        check("another stream's phone → other", BLEV2Central.owner(info, i: iPub, sid: String(repeating: "e", count: 64), nonces: [nonce]) == .other)
+        check("request pending, phone not pairing → unknown (receive only)", BLEV2Central.owner(info, i: iPub, sid: nil, nonces: []) == .unknown)
+        let pairing = BLEV2Central.Info(i: iPub, relays: [], token: "t", expiry: 1, profile: nil, nonce: nonce, m: im["m"])
+        check("pairing INFO naming our I → ours", BLEV2Central.owner(pairing, i: iPub, sid: nil, nonces: []) == .ours)
+        check("pairing INFO naming another I → other", BLEV2Central.owner(pairing, i: String(repeating: "c", count: 64), sid: sid, nonces: [nonce]) == .other)
+        print(ok ? "ble self-test OK" : "ble self-test FAILED")
         return ok
     }
 }

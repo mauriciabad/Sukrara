@@ -508,6 +508,8 @@
     <string name="nearby_looking">Buscando a quien lleva el sensor… (debe tocar «Vincular cerca»)</string>
     <!-- Join: ask a nearby wearer for access [CHAR LIMIT=15] -->
     <string name="nearby_ask">Pedir</string>
+    <!-- Join: a phone found by "Find phones nearby" (phones broadcast no name; the wearer's name shows after Ask) [CHAR LIMIT=30] -->
+    <string name="nearby_phone">Teléfono cercano</string>
 
     <!-- ========== Follower: waiting and ended ========== -->
     <!-- Waiting: stand-in when the wearer has no name or key yet [CHAR LIMIT=20] -->
@@ -834,7 +836,7 @@
     <!-- Report card: no data in the chosen window [CHAR LIMIT=NONE] -->
     <string name="report_empty">Aún no hay lecturas en este periodo</string>
     <!-- Report card: too little data; %1$d = percent, %2$s = window like 14d [CHAR LIMIT=NONE] -->
-    <string name="report_low_coverage">Datos del sensor durante el %1$d %% de los últimos %2$s. El informe está pensado para 14 días con al menos un 70 %%.</string>
+    <string name="report_low_coverage">Datos del sensor durante el %1$s %% de los últimos %2$s. El informe está pensado para 14 días con al menos un 70 %%.</string>
     <!-- Report range (as in the AGP / LibreView report) [CHAR LIMIT=25] -->
     <string name="report_very_high">Muy alta</string>
     <!-- Report range [CHAR LIMIT=25] -->
@@ -868,7 +870,7 @@
     <!-- Report goal chip; %1$s = the goal like < 5% [CHAR LIMIT=20] -->
     <string name="report_goal">Objetivo %1$s</string>
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
-    <string name="report_footer">Objetivos para la diabetes tipo 1 y tipo 2 (consenso internacional, como en el informe de LibreView). Sensor activo el %1$d %% del periodo.</string>
+    <string name="report_footer">Objetivos para la diabetes tipo 1 y tipo 2 (consenso internacional, como en el informe de LibreView). Sensor activo el %1$s %% del periodo.</string>
 
     <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s vía %4$s</string>
@@ -1160,7 +1162,7 @@
 
     <!-- Settings: sharing with apps -->
     <string name="apps_title">Compartir con apps</string>
-    <string name="apps_intro_wearer">Tu glucosa en otras apps: LibreView para tu médico, relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
+    <string name="apps_intro_wearer">Tu glucosa en otras apps: LibreView para tu médico, apps de este móvil como AAPS o GlucoDataHandler, Health Connect, relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
     <string name="apps_intro_follower">Tu glucosa en otras apps: relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
     <string name="apps_libreview_not_set_up">Sin configurar</string>
     <string name="apps_libreview_uploading">Subiendo como %1$s</string>
@@ -1174,6 +1176,16 @@
     <string name="apps_nightscout_unavailable">No disponible mientras la API esté desactivada</string>
     <string name="apps_show_secret">Mostrar el secreto de la API</string>
     <string name="apps_secret_title">Secreto de la API</string>
+    <string name="apps_phone_group">Apps de este móvil</string>
+    <string name="apps_phone_none">Ninguna app de este móvil escucha emisiones de glucosa</string>
+    <string name="apps_phone_needs_direct">Solo mientras Sukrara lee el sensor</string>
+    <plurals name="apps_phone_summary">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="apps_health_connect_summary">Glucosa en sangre para tus apps de salud</string>
+    <string name="apps_health_connect_on">Escribiendo cada lectura</string>
+    <string name="apps_health_connect_denied">Desactivado · necesita acceso en Health Connect</string>
     <string name="apps_people_summary">Seguidores, invitaciones, vinculación cercana</string>
     <string name="calendar_title">Fin del sensor en el calendario</string>
     <string name="calendar_summary_off">Desactivado · añade a un calendario cuándo termina cada sensor</string>
@@ -1187,7 +1199,7 @@
     <string name="calendar_gcal_hint">Activa Sukrara en Google Calendar → Ajustes → Gestionar cuentas o los eventos no aparecerán allí</string>
     <string name="calendar_event_title">Fin del sensor</string>
     <string name="calendar_event_description">Sensor Libre %1$s, empezado el %2$s. Sukrara mantiene este evento al día.</string>
-    <string name="apps_footer">El servidor de xDrip+ escucha en 127.0.0.1:17580, como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen. La API de Nightscout es HTTP sin cifrar: compártela solo en redes de confianza.</string>
+    <string name="apps_footer">Las apps de este móvil reciben tu glucosa en cada formato que escuchan: emisiones de xDrip+, LibreLink y Juggluco, con el sensor llamado Libre3. El servidor de xDrip+ escucha en 127.0.0.1:17580, como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen. La API de Nightscout es HTTP sin cifrar: compártela solo en redes de confianza.</string>
 
     <!-- Settings: LibreView -->
     <string name="libreview_intro">LibreView es el historial que ve tu médico. Sukrara puede subir a él tu glucosa y tus registros.</string>
@@ -1238,6 +1250,30 @@
     <string name="transfer_write_failed">No se ha podido escribir el archivo: %1$s</string>
     <string name="transfer_read_failed">No se ha podido leer el archivo: %1$s</string>
     <string name="transfer_not_settings_file">No es un archivo de ajustes de Sukrara</string>
+
+    <!-- Settings: export data -->
+    <string name="export_title">Exportar datos</string>
+    <string name="settings_export_summary">CSV para Tidepool y hojas de cálculo</string>
+    <string name="export_intro">Tus lecturas y tratamientos en un archivo CSV con el formato de la exportación de LibreView: Tidepool lo importa y las hojas de cálculo lo abren.</string>
+    <string name="export_intro_follower">Las lecturas y tratamientos que ya hay en este móvil, en un archivo CSV con el formato de la exportación de LibreView: Tidepool lo importa y las hojas de cálculo lo abren.</string>
+    <string name="export_period">Periodo</string>
+    <string name="export_period_sensor">Este sensor</string>
+    <string name="export_period_days">Últimos %1$d días</string>
+    <string name="export_contents">En el archivo</string>
+    <string name="export_counting">Contando…</string>
+    <plurals name="export_readings">
+        <item quantity="one">%d lectura</item>
+        <item quantity="other">%d lecturas</item>
+    </plurals>
+    <plurals name="export_treatments">
+        <item quantity="one">%d tratamiento</item>
+        <item quantity="other">%d tratamientos</item>
+    </plurals>
+    <string name="export_save">Guardar archivo</string>
+    <string name="export_share">Compartir</string>
+    <string name="export_share_chooser">Compartir datos de glucosa</string>
+    <string name="export_saved">Archivo guardado</string>
+    <string name="export_footer">Una lectura cada 5 minutos, en mg/dL. El nombre del archivo solo lleva las fechas, y los tratamientos dicen qué dispositivo los anotó (móvil, Mac o seguidor), nunca un nombre.</string>
 
     <!-- Settings: advanced -->
     <string name="advanced_title">Avanzado</string>

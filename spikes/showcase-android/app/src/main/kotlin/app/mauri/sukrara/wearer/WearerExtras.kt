@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.PowerManager
 import android.util.Log
+import app.mauri.sukrara.bridge.AppBroadcasts
 import app.mauri.sukrara.bridge.Bridge
+import app.mauri.sukrara.bridge.HealthConnect
 import app.mauri.sukrara.bridge.LocalServers
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.FeatureState
@@ -33,7 +35,8 @@ import org.json.JSONObject
 
 /**
  * The wearer's local features around the owner engine, all driven by [Live] (no polling of their own):
- * status-bar notification (chip + icon), Garmin xDrip server, LibreView uploader.
+ * status-bar notification (chip + icon), Garmin xDrip server, LibreView uploader, the apps' broadcasts and Health
+ * Connect (investigation 22; wearer only: a follower never broadcasts).
  * Each one follows its [Features] switch live.
  */
 class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, private val detail: () -> String) : Live.Listener {
@@ -114,6 +117,13 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         render(force = false)
         SukraraHooks.onReadings(ctx, listOf(r), "reading")
         app.mauri.sukrara.alerts.Alerts.onReading(ctx, r)
+        // investigation 22: the allowed apps' broadcasts + Health Connect (both off until the user turns them on). Off the
+        // caller's thread: the direct source delivers on the main thread, and these read prefs, query PackageManager
+        // and build Health Connect records.
+        outputs.execute {
+            runCatching { AppBroadcasts.onReading(ctx, r) }.onFailure { Log.w(tag, "broadcasts: $it") }
+            runCatching { HealthConnect.onReading(ctx, r) }.onFailure { Log.w(tag, "health connect: $it") }
+        }
     }
 
     override fun onHistory(list: List<Reading>) {
@@ -121,6 +131,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         b.forEach { local.add(it) }
         render(force = false)
         SukraraHooks.onReadings(ctx, list, "history")
+        outputs.execute { runCatching { HealthConnect.onHistory(ctx, list) }.onFailure { Log.w(tag, "health connect: $it") } }
     }
 
     override fun onSensor(serial: String, startEpoch: Long) {
@@ -164,5 +175,10 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
             Live.status.update { it.copy(notificationPosts = it.notificationPosts + 1) }
         }
         runCatching { RootStatusBar.update(ctx, f, r) }   // system icons (root) + SystemUI hook (LSPosed)
+    }
+
+    private companion object {
+        /** Investigation 22's outputs, in reading order and never on the main thread (one per process). */
+        val outputs: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newSingleThreadExecutor()
     }
 }

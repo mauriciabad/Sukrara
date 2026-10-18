@@ -378,6 +378,36 @@ enum Goal: CaseIterable {
         case .cv: m.cv <= 36.0
         }
     }
+    /// For the time-in-range goals: whether a share (0...1) meets it; nil for the goals that aren't a share.
+    func metShare(_ x: Double) -> Bool? {
+        switch self {
+        case .veryHigh: x < 0.05
+        case .above: x < 0.25
+        case .inRange: x > 0.70
+        case .below: x < 0.04
+        case .veryLow: x < 0.01
+        default: nil
+        }
+    }
+}
+
+/// A time share as the number of a percentage, without the "%": "64", "5.2", "70.2" (ShareText in GlucoseMetrics.kt,
+/// cases in spikes/graph-fixtures/share). Whole percent from 10 %, one decimal under 10 %, and more decimals (up to two)
+/// whenever rounding would put the number on the other side of its goal than the value; a non-zero share too small to
+/// show is "<0.1". [locale] nil = "." (the Mac's texts are English, like its other numbers).
+enum ShareText {
+    private static func format(_ x: Double, _ met: ((Double) -> Bool)?, _ locale: Locale?) -> String {
+        func shown(_ d: Int) -> Double { let k = pow(10.0, Double(d + 2)); return (x * k).rounded() / k }
+        var d = x < 0.095 ? 1 : 0
+        while d < 2, let met, met(shown(d)) != met(x) { d += 1 }
+        if x > 0 && shown(d) == 0 { return "<" + String(format: "%.1f", locale: locale, 0.1) }
+        return String(format: "%.\(d)f", locale: locale, shown(d) * 100)
+    }
+    static func of(_ x: Double, _ goal: Goal? = nil, locale: Locale? = nil) -> String {
+        format(x, goal.map { g in { g.metShare($0) ?? true } }, locale)
+    }
+    /// Coverage against the report's 70 % (the "only … % has data" note).
+    static func coverage(_ x: Double, locale: Locale? = nil) -> String { format(x, { $0 >= Goal.minCoverage }, locale) }
 }
 
 func periodLabel(_ s: TimeInterval) -> String {
@@ -1078,9 +1108,10 @@ enum TirRing {
         ctx.restoreGState()
         let num = Ink.font(radius * 0.78, .heavy, rounded: true)
         let sub = Ink.font(radius * 0.34, .semibold, rounded: true)
-        let v = tir.empty ? "–" : "\(Int((tir.of(spec.range) * 100).rounded()))"
+        let v = tir.empty ? "–" : ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil)
         let base = c.y + radius * 0.78 * 0.28
-        Ink.draw(ctx, v, x: c.x, y: base, num, pal.ink.a(emphasis), align: 0.5)
+        // "69.7", "<0.1": the decimals fit inside the ring (TirRing.draw on Android)
+        Ink.draw(ctx, v, x: c.x, y: base, v.count > 3 ? Ink.font(radius * 0.78 * 0.7, .heavy, rounded: true) : num, pal.ink.a(emphasis), align: 0.5)
         Ink.draw(ctx, spec.period, x: c.x, y: base + radius * 0.34 * 1.1, sub,
                  (spec.range == .tight ? pal.tight : pal.inkSoft).a(emphasis), align: 0.5)
     }

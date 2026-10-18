@@ -512,6 +512,8 @@
     <string name="nearby_looking">Looking for wearers… (they must tap \"Pair nearby\")</string>
     <!-- Join: ask a nearby wearer for access [CHAR LIMIT=15] -->
     <string name="nearby_ask">Ask</string>
+    <!-- Join: a phone found by "Find phones nearby" (phones broadcast no name; the wearer's name shows after Ask) [CHAR LIMIT=30] -->
+    <string name="nearby_phone">Phone nearby</string>
 
     <!-- ========== Follower: waiting and ended ========== -->
     <!-- Waiting: stand-in when the wearer has no name or key yet [CHAR LIMIT=20] -->
@@ -838,7 +840,7 @@
     <!-- Report card: no data in the chosen window [CHAR LIMIT=NONE] -->
     <string name="report_empty">No readings in this window yet</string>
     <!-- Report card: too little data; %1$d = percent, %2$s = window like 14d [CHAR LIMIT=NONE] -->
-    <string name="report_low_coverage">Sensor data for %1$d %% of the last %2$s. The report is meant for 14 days with at least 70 %%.</string>
+    <string name="report_low_coverage">Sensor data for %1$s %% of the last %2$s. The report is meant for 14 days with at least 70 %%.</string>
     <!-- Report range (as in the AGP / LibreView report) [CHAR LIMIT=25] -->
     <string name="report_very_high">Very high</string>
     <!-- Report range [CHAR LIMIT=25] -->
@@ -872,7 +874,7 @@
     <!-- Report goal chip; %1$s = the goal like < 5% [CHAR LIMIT=20] -->
     <string name="report_goal">Goal %1$s</string>
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
-    <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$d %% of the window.</string>
+    <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$s %% of the window.</string>
 
     <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s via %4$s</string>
@@ -1432,7 +1434,7 @@
     <!-- Page and overview row [CHAR LIMIT=30] -->
     <string name="apps_title">Share with apps</string>
     <!-- Apps page intro (wearer) [CHAR LIMIT=NONE] -->
-    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, apps on this phone such as AAPS or GlucoDataHandler, Health Connect, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
     <!-- Apps page intro (follower) [CHAR LIMIT=NONE] -->
     <string name="apps_intro_follower">Your glucose in other apps: Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
     <!-- LibreView row summary [CHAR LIMIT=40] -->
@@ -1459,6 +1461,25 @@
     <string name="apps_show_secret">Show API secret</string>
     <!-- Dialog title [CHAR LIMIT=30] -->
     <string name="apps_secret_title">API secret</string>
+    <!-- Group: installed apps that listen for glucose broadcasts (xDrip+, LibreLink, Juggluco formats) [CHAR LIMIT=40] -->
+    <string name="apps_phone_group">Apps on this phone</string>
+    <!-- Shown when no installed app listens for glucose broadcasts [CHAR LIMIT=NONE] -->
+    <string name="apps_phone_none">No app on this phone listens for glucose broadcasts</string>
+    <!-- Why the app switches are disabled: Juggluco reads the sensor (it broadcasts itself) [CHAR LIMIT=60] -->
+    <string name="apps_phone_needs_direct">Only while Sukrara reads the sensor itself</string>
+    <!-- Overview summary: how many apps on this phone get the glucose [CHAR LIMIT=30] -->
+    <plurals name="apps_phone_summary">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <!-- Switch: write blood glucose to Health Connect [CHAR LIMIT=40] -->
+    <string name="apps_health_connect" translatable="false">Health Connect</string>
+    <!-- Health Connect summary while off [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_summary">Blood glucose for your health apps</string>
+    <!-- Health Connect summary while on [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_on">Writing every reading</string>
+    <!-- Health Connect summary after its permission was denied [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_denied">Off · needs access in Health Connect</string>
     <!-- Link to the sharing with people page [CHAR LIMIT=60] -->
     <string name="apps_people_summary">Followers, invites, nearby pairing</string>
     <!-- Sensor end in calendar: the switch (sensor settings) [CHAR LIMIT=40] -->
@@ -1486,7 +1507,7 @@
     <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->
     <string name="calendar_event_description">Libre sensor %1$s, started %2$s. Sukrara keeps this event up to date.</string>
     <!-- Apps page footer [CHAR LIMIT=NONE] -->
-    <string name="apps_footer">The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
+    <string name="apps_footer">Apps on this phone get your glucose in every format they listen for: xDrip+, LibreLink and Juggluco broadcasts, with the sensor named Libre3. The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
 
     <!-- ========== Settings: LibreView ========== -->
     <!-- LibreView page intro [CHAR LIMIT=NONE] -->
@@ -1583,6 +1604,46 @@
     <string name="transfer_read_failed">Couldn\'t read the file: %1$s</string>
     <!-- Error when importing another kind of file [CHAR LIMIT=60] -->
     <string name="transfer_not_settings_file">Not a Sukrara settings file</string>
+
+    <!-- ========== Settings: export data ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="export_title">Export data</string>
+    <!-- Overview: Export data row summary; CSV, Tidepool are names [CHAR LIMIT=60] -->
+    <string name="settings_export_summary">CSV for Tidepool and spreadsheets</string>
+    <!-- Page intro (wearer); LibreView, Tidepool are product names [CHAR LIMIT=NONE] -->
+    <string name="export_intro">Your readings and treatments in one CSV file, laid out like LibreView\'s export: Tidepool imports it and spreadsheets open it.</string>
+    <!-- Page intro (follower) [CHAR LIMIT=NONE] -->
+    <string name="export_intro_follower">The readings and treatments already on this phone, in one CSV file laid out like LibreView\'s export: Tidepool imports it and spreadsheets open it.</string>
+    <!-- Row: which days go into the file [CHAR LIMIT=30] -->
+    <string name="export_period">Period</string>
+    <!-- Period option: since the current sensor started [CHAR LIMIT=30] -->
+    <string name="export_period_sensor">This sensor</string>
+    <!-- Period option; %1$d = number of days (7, 14 or 30) [CHAR LIMIT=30] -->
+    <string name="export_period_days">Last %1$d days</string>
+    <!-- Row: what the file will contain [CHAR LIMIT=30] -->
+    <string name="export_contents">In the file</string>
+    <!-- In the file summary while counting [CHAR LIMIT=30] -->
+    <string name="export_counting">Counting…</string>
+    <!-- In the file summary, first half [CHAR LIMIT=30] -->
+    <plurals name="export_readings">
+        <item quantity="one">%d reading</item>
+        <item quantity="other">%d readings</item>
+    </plurals>
+    <!-- In the file summary, second half [CHAR LIMIT=30] -->
+    <plurals name="export_treatments">
+        <item quantity="one">%d treatment</item>
+        <item quantity="other">%d treatments</item>
+    </plurals>
+    <!-- Button: save the CSV through the system file picker [CHAR LIMIT=20] -->
+    <string name="export_save">Save file</string>
+    <!-- Button: send the CSV through the share sheet [CHAR LIMIT=20] -->
+    <string name="export_share">Share</string>
+    <!-- Share sheet title [CHAR LIMIT=40] -->
+    <string name="export_share_chooser">Share glucose data</string>
+    <!-- Message after saving [CHAR LIMIT=40] -->
+    <string name="export_saved">File saved</string>
+    <!-- Footer [CHAR LIMIT=NONE] -->
+    <string name="export_footer">One reading every 5 minutes, in mg/dL. The file name only has the dates, and treatments say which device entered them (phone, Mac or follower), never a name.</string>
 
     <!-- ========== Settings: advanced ========== -->
     <!-- Page and overview row [CHAR LIMIT=30] -->

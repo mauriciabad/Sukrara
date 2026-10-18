@@ -33,8 +33,9 @@ The UUIDs are random 128-bit values, not Bluetooth SIG assigned numbers, and no 
 
 - The owner advertises **connectable**, with the 128-bit service UUID in the advertising data. It SHOULD use a
   resolvable private address, which is the Android default.
-- Draft 1: the scan response carries the phone's Bluetooth name (on Android, the name the user gave the phone).
-  **[P12]** Draft 2 sends no name: the follower shows the owner's profile from `INFO` instead.
+- The owner MUST NOT put a name in the advertising data or a scan response (on Android the phone's Bluetooth name is
+  often its owner's name, broadcast next to a recognisable service). Followers list a found phone generically and show
+  the owner's profile from `INFO.pair`. (P12; Sukrara 0.11.20 and older sent the name.)
 - The owner SHOULD advertise only while it has at least one follower, or while nearby pairing is open.
 - Followers scan **by service UUID**. They MUST NOT reconnect by a stored address alone, because the private address
   changes when the owner app restarts.
@@ -70,8 +71,9 @@ The receiver keeps one buffer per `msgId`. A frame with `idx` = 0, or with a dif
 again. When all `count` parts are there, it joins the payloads and decodes them as **UTF-8 JSON**. The result is one
 message (B§5). Frames shorter than 6 bytes, or with `idx ≥ count` or `count = 0`, are dropped.
 
-**[P13]** Draft 1 apps set no limits. A receiver MUST drop a buffer that has been idle for 30 s, MUST drop a message
-over 256 KiB, and SHOULD keep at most 16 open buffers.
+A receiver MUST drop a buffer that has been idle for 30 s (since its last frame), MUST drop a message over 256 KiB
+(and ignore the rest of its frames), and SHOULD keep at most 16 open buffers, dropping the oldest. (Sukrara applies
+these on both platforms since P13 was integrated.)
 
 Payloads are not compressed. They are mostly NIP-44 ciphertext, which doesn't compress.
 
@@ -81,8 +83,8 @@ Each message is a JSON array in the Nostr wire style:
 
 | Message | Direction | Meaning |
 |---|---|---|
-| `["HELLO", {"v":2}]` | follower → owner | "send `INFO`, then everything you have". Sent after notifications are enabled, and again after accepting a key with a new `gk`. |
-| `["INFO", {"v":2,"i":"<I hex>","relays":["wss://…"],"pair":null}]` | owner → follower | the answer to `HELLO`. `pair` is non-null only while nearby pairing is open: `{"t":"<token>","x":<expiry>,"profile":{…}}`. |
+| `["HELLO", {"v":2,"nonce":"<hex>"}]` | follower → owner | "send `INFO`, then everything you have". Sent after notifications are enabled, and again after accepting a key with a new `gk`. `nonce`: 16 fresh random bytes per `HELLO`, lowercase hex. |
+| `["INFO", {"v":2,"nonce":"<hex>","m":"<hex>"}]` | owner → follower | the answer to `HELLO`. `nonce` echoes the `HELLO`'s (the owner makes one if the `HELLO` had none or an invalid one: 1–64 lowercase hex characters) and `m = H(NS + ":ble:" + sid + ":" + nonce)` (N§4), which only holders of `sid` can check. While nearby pairing is open, and only then, it also carries `"i":"<I hex>","relays":["wss://…"],"pair":{"t":"<token>","x":<expiry>,"profile":{…}}`. |
 | `["EVENT", <signed event>]` | both | any OGS event: live (21078), alert (21079), chunk, roster or treatment (30078), and gift wraps (1059: key deliveries, requests, rekeys and the rest) |
 
 Receivers MUST ignore message types they don't know. **[P8]** Draft 2 adds `"caps"` to `HELLO` and `INFO`.
@@ -99,31 +101,36 @@ follower                                              owner
   ── EVENT request / rekey / history / treatment ───▶  owner applies ogs-nostr N§9.2
 ```
 
-- **Backlog.** On `HELLO`, the owner sends what it has cached:
-  - the newest roster;
-  - the hour chunks of the last ~38 hours;
-  - the newest sensor update and the newest alert;
-  - the treatments of the last 30 days (the newest 200);
-  - the newest live event;
-  - the last 10 gift wraps, so a follower that dropped out during approval still gets its key.
+- **Backlog.** On `HELLO`, the owner sends what it has cached, in this order (Sukrara):
+  1. the newest roster;
+  2. the other cached events in the order they were last published: in practice the hour chunks of the last ~38
+     hours, newest hour first (the current hour moves to the end each time it is republished), then the newest sensor
+     update and the newest alert;
+  3. the treatments of the last 30 days (the newest 200);
+  4. the newest live event;
+  5. the last 10 gift wraps, so a follower that dropped out during approval still gets its key.
 
   The **owner backup and the invite wrap MUST NOT be sent over Bluetooth**. Followers MUST NOT depend on the order.
-  **[P13]** The owner MUST NOT send cached events whose expiration has passed.
+  The owner MUST NOT send cached events whose expiration has passed, and SHOULD send at most one backlog per follower
+  every few seconds (Sukrara: 5 s; a sooner `HELLO` is answered when that time is up).
 - **Push.** After the backlog, the owner sends every event it publishes to every subscribed follower. When it
   receives a treatment over Bluetooth and accepts it, it forwards the event to its other followers.
 - **Both transports.** A follower SHOULD keep its relay subscriptions while connected over Bluetooth. Copies are
   deduplicated by event `id`, and the first to arrive wins.
-- **Which owner.** A follower that already follows a stream MUST check that `INFO.i` is its stream's `I` before it
-  sends anything but `HELLO`. If not, it MUST disconnect and keep scanning. **[P12]** The Android reference reconnects
-  to the first owner it finds without this check. Events are verified anyway, but requests and treatments could go
-  to the wrong phone.
+- **Which owner.** A follower that already follows a stream MUST NOT send anything but `HELLO` until the phone's
+  `INFO` proves it's the stream's owner: `m` equals `H(NS + ":ble:" + sid + ":" + nonce)` for a `nonce` the follower
+  sent in one of its recent `HELLO`s (Sukrara keeps the last 4), or, while pairing is open, `i` is the stream's `I`.
+  A phone that names another `I`, or whose `m` doesn't match once the follower knows `sid`, is another wearer's: the
+  follower MUST disconnect and keep scanning (Sukrara avoids that phone for 10 minutes). A follower whose request is
+  still pending (no `sid` yet) MAY stay connected to a phone that isn't pairing to receive events, but MUST NOT write.
 
 ## B§7 Nearby pairing
 
 1. The wearer opens "pair nearby". The owner creates an ordinary invite token (single use, expiring in 10 minutes)
    and puts it in `INFO.pair`, together with the owner's profile.
-2. A follower that follows nobody connects, reads `INFO`, and shows the owner's profile. If the user picks it, the
-   follower sends an access request (ogs-nostr N§7.4) as an `EVENT` over RX, and shows the match code.
+2. A follower that follows nobody lists the phones advertising the service (no names: B§3). When the user picks
+   one, it connects, reads `INFO` (`i`, `relays`, `pair` with the owner's profile), sends an access request
+   (ogs-nostr N§7.4) as an `EVENT` over RX, and shows the match code.
 3. Every phone in range can see the token. So the owner MUST make the wearer **type the follower's match code**
    (ogs-nostr N§7.5) before allowing. Comparing two codes on screen isn't enough.
 4. The key delivery comes back as an `EVENT`. The follower sends `HELLO` again, and now it can read the backlog.
@@ -134,22 +141,25 @@ The single-claim rule and `invite-used` apply as for QR invites.
 
 - **No pairing or bonding.** Anyone in range can connect. All trust comes from the events: signatures, the roster,
   NIP-44 to `G`, and the gift wrap's seal signer.
-- **What a stranger in range learns** in draft 1: `I` (from `INFO`), the activity rhythm and sizes of encrypted
-  events, and the phone's Bluetooth name. **[P12]** In draft 2:
-  - `INFO.i` appears only while nearby pairing is open;
-  - otherwise `INFO` carries `"m": H(sid + ":" + nonce)` and `"nonce"` (16 random bytes, new on every connection),
-    which only followers holding `sid` can match;
-  - there is no name in the scan response.
-- **Abuse limits [P13].** Draft 1 owners take writes from anyone and answer `GATT_SUCCESS` before parsing. An owner
-  SHOULD:
-  - rate-limit each central (for example 20 messages a minute before it has sent a valid follower event);
-  - disconnect a central that sends frames that don't parse;
-  - cap the number of centrals at once (for example 8).
+- **What a stranger in range learns:** that a phone runs an OGS owner (the service UUID), the activity rhythm and
+  sizes of the encrypted events, and, only while nearby pairing is open, `I`, the relays and the owner's profile.
+  Outside pairing `INFO` carries only `nonce` and `m`; a fresh nonce per `HELLO` makes two sessions unlinkable to
+  anyone without `sid`. There is no name in the advertisement. Not covered: on Android, a *connected* central can read
+  the phone's name from the platform's GAP service (0x1800, Device Name), which apps can't turn off. Removed followers
+  still know `sid`, so they can still recognise the phone (as they can recognise the stream's tags on relays).
+- **Abuse limits.** An owner MUST check a write before answering it and SHOULD:
+  - cap the number of centrals at once (Sukrara: 8);
+  - refuse a frame shorter than 6 bytes, with `idx ≥ count` or `count = 0`, with an ATT error instead of success,
+    and disconnect that central;
+  - rate-limit each central (Sukrara: 30 messages and 256 KiB a minute; a frame over the byte budget is refused and
+    the central disconnected, a message over the message budget is dropped);
+  - send at most one backlog per central every few seconds (B§6).
 
 ## B§9 Test vectors
 
 `test-vectors/ogs-draft1.json` → `ble`: one `["EVENT", live]` message split with `msgId` 7 at ATT MTU 23, 185 and
-517, with the exact frames.
+517, with the exact frames; a `HELLO` with its nonce, `info_m` (`sid`, `nonce`, `m`), and the `INFO` an owner sends
+for it outside and during pairing. Sukrara checks them in Android `BleTest` and Mac `-bleselftest`.
 
 ## Annex A — Why not NIP-BE
 

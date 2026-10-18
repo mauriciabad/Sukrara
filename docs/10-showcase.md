@@ -943,6 +943,70 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 
 ![New sensor flow](img/21/flow-new-sensor.png)
 
+## Sharing security fixes (investigation 24 integration, 2026-10-19)
+
+The spec audit of investigation 24 found that a writer could delete or change the wearer's entries, that the phone
+broadcast its Bluetooth name and identity key to anyone in range, that the Android follower wrote to the first
+Sukrara phone it found, that Bluetooth had no limits, and four Mac follower gaps. Fixed on Android and Mac together,
+with `spec/` (draft 1), the test vectors and `spec/reference` updated. Details: [docs/24](24-open-standard.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| Writers change only their own entries (owner and followers) | `treatments/WriterScope.kt`, `OwnerEngine.onTreatment`, `FollowerDb` (`creator`, db v3); Mac `WriterScope`, `TreatmentStore.creators`; `WriterScopeTest`, `-v2selftest` |
+| Mac: Delete only on its own entries while following; writers send `o:"follower"` | `ReportWindow.swift`, `TreatmentPaths.mayChange`, `FollowerV2.publishTreatment` |
+| No phone name over Bluetooth; blinded `INFO` (`nonce`, `m`); follower checks the owner before writing | `core/Ble.kt`, `BleOwner.kt`, `BleFollower.kt`; Mac `BLEV2Central.swift`, `main.swift`; `BleTest`, `-bleselftest` |
+| Bluetooth limits: reassembly, rate, centrals, backlog pacing, no expired backlog | `Ble.Reassembler`, `Ble.RateLimit`, `BleOwner`; Mac `BLEV2Central.Reassembler` |
+| Mac: wrap expiration, `sid` fixed, chunk `c`/`d` checks, rekey only for the wearer's keys | `NostrV2.swift` |
+| Python v2 CLI owner/follower removed | `spikes/nostr/v2` |
+
+| Discarded / left | Why |
+|---|---|
+| The phone's name in the nearby list | Broadcast to everyone in range; the list says *Phone nearby* and the wearer's profile shows after *Ask* |
+| Leaving a phone that can't prove itself while a request is pending | It may be the wearer's phone with pairing closed; the follower listens without writing instead |
+| Draft-2 wire changes (P1, P2, P7–P9, P11), the rest of P10, the CGMS bridge (P14) | The user wants to wait for v1; P14 is a separate PoC |
+
+## Apps on this phone and Health Connect (investigation 22)
+
+The wearer's readings reach other apps on the same phone: xDrip+ `BgEstimate` (`SourceInfo=Libre3`), patched-LibreLink
+`GLUCOSE_READING` (+ `SENSOR_ACTIVATE` per new sensor) and `glucodata.Minute`, one explicit copy per app the user
+allowed under Settings → Share with apps → *Apps on this phone* (all off by default), and Health Connect blood glucose
+behind its own permission sheet (off by default). Followers never broadcast. Verified on a fresh emulator with
+GlucoDataHandler 2.5; details, screenshots and the full tables: [docs/22](22-ecosystem-outputs.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| Payloads, trend names, who-gets-what plan (wearer + direct source + allowed + declared), 55 s throttle | `bridge/BroadcastPayloads.kt`, `BroadcastPayloadsTest` |
+| Receiver discovery, per-app allow list, explicit sends | `bridge/AppBroadcasts.kt`, manifest `<queries>` |
+| Health Connect write (history on enable, then each reading; one record per minute, no duplicates) | `bridge/HealthConnect.kt`, manifest permission + rationale alias |
+| Settings groups *Apps on this phone* and *Health Connect*; overview summary | `ui/SettingsScreens.kt` |
+| Hook into the wearer's fan-out | `wearer/WearerExtras.kt` |
+
+| Discarded | Why |
+|---|---|
+| Dexcom BYODA / any Dexcom label | False origin; a true `Libre3` label already gets AAPS's advanced filtering |
+| `NS_EMULATOR` | AAPS labels it Medtronic 600-series |
+| Glimp | Libre 1-era, AAPS-only |
+| Gadgetbridge weather hack | Glucose as fake weather; small audience |
+| Follower broadcasts | A follower's copy must not reach AAPS as a local sensor |
+| Broadcasts in Juggluco mode | Juggluco broadcasts itself |
+
+![Share with apps](img/22/sukrara-share-with-apps.png)
+
+## CSV export (docs/22 gap #4)
+
+Readings and treatments of a period as one CSV in LibreView's layout (Tidepool Uploader reads it), on both roles and
+the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/22](22-ecosystem-outputs.md#in-sukrara-csv-export).
+
+| Added | Where |
+|---|---|
+| CSV writer + shared cases (Android + Mac) | `export/GlucoseCsv.kt`, `GlucoseCsvTest`; `menubar/…/GlucoseCsv.swift`, `-exportselftest`; `spikes/export-fixtures` |
+| Settings → Export data (period, count, *Save file* / *Share* pills) | `ui/ExportScreen.kt`, `export/Export.kt`, FileProvider `${applicationId}.export` |
+| Mac Glucose Report › *Export CSV…* (report's period, save panel) | `ReportWindow.swift`, `GlucoseCsv.save` |
+
+| Discarded | Why |
+|---|---|
+| Fetching more history for a follower's export | only what the device already has |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
