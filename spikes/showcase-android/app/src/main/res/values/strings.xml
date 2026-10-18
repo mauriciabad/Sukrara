@@ -840,7 +840,7 @@
     <!-- Report card: no data in the chosen window [CHAR LIMIT=NONE] -->
     <string name="report_empty">No readings in this window yet</string>
     <!-- Report card: too little data; %1$d = percent, %2$s = window like 14d [CHAR LIMIT=NONE] -->
-    <string name="report_low_coverage">Sensor data for %1$d %% of the last %2$s. The report is meant for 14 days with at least 70 %%.</string>
+    <string name="report_low_coverage">Sensor data for %1$s %% of the last %2$s. The report is meant for 14 days with at least 70 %%.</string>
     <!-- Report range (as in the AGP / LibreView report) [CHAR LIMIT=25] -->
     <string name="report_very_high">Very high</string>
     <!-- Report range [CHAR LIMIT=25] -->
@@ -874,7 +874,7 @@
     <!-- Report goal chip; %1$s = the goal like < 5% [CHAR LIMIT=20] -->
     <string name="report_goal">Goal %1$s</string>
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
-    <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$d %% of the window.</string>
+    <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$s %% of the window.</string>
 
     <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s via %4$s</string>

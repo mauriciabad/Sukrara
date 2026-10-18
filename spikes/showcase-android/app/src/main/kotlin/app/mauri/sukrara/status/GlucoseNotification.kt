@@ -313,7 +313,7 @@ object GlucoseNotification {
     /** A slot as a Live Update metric: value and a short label ("86%" · "in range 1d", "4.5u" · "12m ago"). */
     private fun metric(item: app.mauri.sukrara.graph.SlotItem, now: Long): Pair<String, String>? = when (item) {
         is app.mauri.sukrara.graph.SlotItem.Metric -> if (item.m.empty) null else when (item.spec.kind) {
-            app.mauri.sukrara.graph.SlotKind.TIR -> "${Math.round(item.m.tir.of(item.spec.range) * 100)}%" to
+            app.mauri.sukrara.graph.SlotKind.TIR -> "${app.mauri.sukrara.graph.TirRing.text(item.m.tir, item.spec)}%" to
                 "${Words.current.let { if (item.spec.range == app.mauri.sukrara.graph.TirRange.TIGHT) it.tirVeryGood else it.tirInRange }} ${item.spec.period}"
             else -> app.mauri.sukrara.graph.MetricGauge.text(item.spec.kind, item.m).let { (v, u) -> "$v$u" } to
                 "${item.spec.kind.short} ${item.spec.period}"

@@ -45,6 +45,7 @@ import app.mauri.sukrara.graph.Bands
 import app.mauri.sukrara.graph.GraphPalette
 import app.mauri.sukrara.graph.GlucoseMetrics
 import app.mauri.sukrara.graph.Goal
+import app.mauri.sukrara.graph.ShareText
 import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.periodLabel
@@ -88,7 +89,7 @@ fun GlucoseReportContent(m: GlucoseMetrics?, window: Long, onWindow: (Long) -> U
                 return@Column
             }
             if (mm.tir.coverage < Goal.MIN_COVERAGE) Text(
-                stringResource(R.string.report_low_coverage, Math.round(mm.tir.coverage * 100).toInt(), periodLabel(window)),
+                stringResource(R.string.report_low_coverage, ShareText.coverage(mm.tir.coverage), periodLabel(window)),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             // Time in ranges: a stacked bar, high on top, like the report.
@@ -124,13 +125,12 @@ fun GlucoseReportContent(m: GlucoseMetrics?, window: Long, onWindow: (Long) -> U
             MetricRow(stringResource(R.string.report_gmi), "%.1f %%  ·  %d mmol/mol".format(mm.gmi, Math.round(mm.gmiMmolMol)),
                 Goal.GMI, mm, good, bad, extraGoal = "< 53 mmol/mol", caption = stringResource(R.string.report_gmi_caption))
             MetricRow(stringResource(R.string.report_cv), "%.1f %%".format(mm.cv), Goal.CV, mm, good, bad)
-            Text(stringResource(R.string.report_footer, Math.round(mm.tir.coverage * 100).toInt()),
+            Text(stringResource(R.string.report_footer, ShareText.coverage(mm.tir.coverage)),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
     }
 }
 
-private fun pct(x: Double) = if (x > 0 && x < 0.005) "<1 %" else "${Math.round(x * 100)} %"
 
 @Composable
 private fun GoalChip(text: String, met: Boolean, good: Color, bad: Color) {
@@ -153,8 +153,8 @@ private fun RangeRow(name: String, mg: String, share: Double, goal: Goal?, m: Gl
             Text(mg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         goal?.let { GoalChip(it.text, it.met(m), good, bad) }
-        Text(pct(share), fontSize = if (strong) 20.sp else 15.sp, fontWeight = if (strong) FontWeight.Bold else FontWeight.SemiBold,
-            modifier = Modifier.width(56.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        Text("${ShareText.of(share, goal)} %", fontSize = if (strong) 20.sp else 15.sp, fontWeight = if (strong) FontWeight.Bold else FontWeight.SemiBold,
+            modifier = Modifier.width(76.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, maxLines = 1, softWrap = false)
     }
 }
 

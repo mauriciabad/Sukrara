@@ -836,7 +836,7 @@
     <!-- Report card: no data in the chosen window [CHAR LIMIT=NONE] -->
     <string name="report_empty">Aún no hay lecturas en este periodo</string>
     <!-- Report card: too little data; %1$d = percent, %2$s = window like 14d [CHAR LIMIT=NONE] -->
-    <string name="report_low_coverage">Datos del sensor durante el %1$d %% de los últimos %2$s. El informe está pensado para 14 días con al menos un 70 %%.</string>
+    <string name="report_low_coverage">Datos del sensor durante el %1$s %% de los últimos %2$s. El informe está pensado para 14 días con al menos un 70 %%.</string>
     <!-- Report range (as in the AGP / LibreView report) [CHAR LIMIT=25] -->
     <string name="report_very_high">Muy alta</string>
     <!-- Report range [CHAR LIMIT=25] -->
@@ -870,7 +870,7 @@
     <!-- Report goal chip; %1$s = the goal like < 5% [CHAR LIMIT=20] -->
     <string name="report_goal">Objetivo %1$s</string>
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
-    <string name="report_footer">Objetivos para la diabetes tipo 1 y tipo 2 (consenso internacional, como en el informe de LibreView). Sensor activo el %1$d %% del periodo.</string>
+    <string name="report_footer">Objetivos para la diabetes tipo 1 y tipo 2 (consenso internacional, como en el informe de LibreView). Sensor activo el %1$s %% del periodo.</string>
 
     <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s vía %4$s</string>
