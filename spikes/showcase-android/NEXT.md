@@ -89,7 +89,12 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   process keeps the old code (seen 2026-10-17: a 0.11.4 extension couldn't read 0.11.7's widget file, so the widgets
   stopped updating). `pkill -f SukraraWidget.appex` (chronod starts the new one on the next reload, ≤ 1 min), and
   `pluginkit -mAv | grep -i sukrara` should list only `~/Applications/Sukrara.app`; unregister worktree builds with
-  `pluginkit -r <path>/SukraraWidget.appex`.
+  `pluginkit -r <path>/SukraraWidget.appex`. **Notarized release** (needs the paid Apple Developer Program; until then
+  users click Open Anyway, README): once, create a *Developer ID Application* certificate (Xcode → Settings → Accounts
+  → Manage Certificates → +) and `xcrun notarytool store-credentials sukrara --apple-id … --team-id … --password
+  <app-specific password>`; then `SIGN_ID="Developer ID Application: … (TEAMID)" NOTARY_PROFILE=sukrara ./bundle.sh &&
+  NOTARY_PROFILE=sukrara ./dmg.sh` (notarizes + staples the app, then the dmg; writes the release zip too). No
+  provisioning profile: the `<TEAMID>.app.mauri.sukrara.poc` App Group is authorised by the Team ID.
 - **Repo**: public, GPL-3.0-or-later; repo-local noreply identity; never commit `secrets/`, keys, APKs, build dirs;
   scan staged files for `nsec1…`; crop screenshots so no other apps' notifications are committed. Site:
   https://sukrara.mauri.app (GitHub Pages from `main:/docs`).

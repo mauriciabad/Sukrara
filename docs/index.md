@@ -15,6 +15,11 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
+**First open on a Mac:** the app isn't notarized yet, so macOS says it *could not verify "Sukrara" is free of
+malware*. Click **Done**, then **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway**
+next to Sukrara and confirm with your password or Touch ID. Only once; Control-click → Open no longer skips this on
+macOS 15+ ([Apple: open an app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
+
 > **Alpha, built from research spikes.** Each feature started as a proof of concept with a written report (below);
 > The app bundles them for daily use. The real Sukrara will be rebuilt from scratch with what we learned.
 > **Not a medical device:** don't make treatment decisions from it.

@@ -253,8 +253,12 @@ Downloads: [v0.11.13](https://github.com/mauriciabad/cgm-reading-mac-spike/relea
   the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
 **Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.13.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized, so the first launch
-is blocked: open **System Settings → Privacy & Security**, click **Open Anyway** and confirm (once). Allow Bluetooth.
+Open `Sukrara-0.11.13.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized yet, so the first
+launch says *Apple could not verify "Sukrara" is free of malware*: click **Done**, open **System Settings → Privacy &
+Security**, scroll to **Security**, click **Open Anyway** next to Sukrara (shown for about an hour after the attempt)
+and confirm with your password or Touch ID. Once only; Control-click → Open no longer skips this on macOS 15+
+([Apple: open an app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac),
+[Safely open apps on your Mac](https://support.apple.com/en-us/102445)). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
 `unzip Sukrara-mac-0.11.13.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
 **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
