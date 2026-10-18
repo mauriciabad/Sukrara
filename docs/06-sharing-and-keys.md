@@ -53,6 +53,8 @@ entry** and followers notice nothing. Real-phone tests with Proton Pass / Bitwar
 ## Reference implementation + end-to-end tests (Python, real public relays)
 
 [`spikes/nostr/v2/`](../spikes/nostr/v2): `cgm2.py` (protocol), `nodes.py` (owner / follower), `scenarios.py`.
+*(2026-10-19: `nodes.py`, `scenarios.py` and the CLI were retired with their `cgmshare:join?` links (investigation 24,
+P15); `cgm2.py` keeps the primitives, and [`spec/reference`](../spec/reference) is the independent implementation.)*
 Every node has its own keys, own SQLite and own relay connections — **the only shared thing is the public relays**,
 so a follower can only show data that really travelled through Nostr. Result: **19/19 checks pass**
 ([`results/v2-scenarios.txt`](../spikes/nostr/results/v2-scenarios.txt)):

@@ -1,16 +1,16 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""CGM-over-Nostr protocol v2 — reference implementation (see ../PROTOCOL-v2.md).
+"""CGM-over-Nostr protocol v2 primitives (see ../PROTOCOL-v2.md): keys, tags, event builders, gift wraps.
 
-Pure protocol: keys, event builders, gift wraps, parsing/acceptance. Relay I/O reuses ../cgmnostr.Pool.
+The v2 CLI owner and follower built on these (and their removed `cgmshare:join?` links) are gone: the independent
+implementation is spec/reference (OGS), and the identity spike, the attack harness and the OGS interop harness
+(spec/reference/interop/sukrara_side.py) still use these primitives. Relay I/O reuses ../cgmnostr.Pool.
 """
 from __future__ import annotations
 
-import base64, hashlib, json, secrets, sys, time
-from dataclasses import dataclass, field
+import hashlib, json, sys, time
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import nostr_sdk as n                                    # noqa: E402
@@ -18,7 +18,8 @@ from cgmnostr import Pool, Reading, hour_of, log         # noqa: E402,F401
 
 LIVE, CHUNK, WRAP = 21078, 30078, 1059
 RUMOR_TO_OWNER, RUMOR_TO_FOLLOWER = 30500, 30501
-RELAYS = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.nostr.net"]
+# Same set as Android Proto.RELAYS / Mac V2.relays (relay.nostr.net can't serve gift wraps; measured 2026-10-17)
+RELAYS = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social"]
 DAY = 86400
 
 
@@ -132,106 +133,7 @@ def unwrap(recipient: n.Keys, ev: dict):
         return None
 
 
-# ---------------- invites ----------------
-
-def invite_link(i_pub: str, token: str, expiry: int, relays) -> str:
-    npub = n.PublicKey.parse(i_pub).to_bech32()
-    return f"cgmshare:join?i={npub}&t={token}&x={expiry}&r={quote(','.join(relays), safe='')}"
-
-
-def parse_invite(link: str) -> dict:
-    q = parse_qs(urlparse(link.replace("cgmshare:join?", "cgmshare://join/?")).query)
-    return {"i": n.PublicKey.parse(q["i"][0]).to_hex(), "t": q["t"][0], "x": int(q["x"][0]), "r": q["r"][0].split(",")}
-
-
-def new_token() -> str:
-    return base64.urlsafe_b64encode(secrets.token_bytes(16)).decode().rstrip("=")
-
+# ---------------- access requests ----------------
 
 def match_code(f_pub: str, token: str) -> str:
     return f"{int(hashlib.sha256((f_pub + token).encode()).hexdigest(), 16) % 10000:04d}"
-
-
-# ---------------- state files ----------------
-
-@dataclass
-class Epoch:
-    n: int
-    g: n.Keys
-
-    @property
-    def pub(self):
-        return pub(self.g)
-
-    @property
-    def gk(self):
-        return gk(self.pub)
-
-
-@dataclass
-class OwnerState:
-    I: n.Keys
-    D: n.Keys
-    sid: str
-    epochs: list[Epoch]
-    followers: list[dict] = field(default_factory=list)    # {"f","name","since","revoked"?}
-    invites: list[dict] = field(default_factory=list)      # {"t","x"}
-    relays: list[str] = field(default_factory=lambda: list(RELAYS))
-
-    @property
-    def current(self) -> Epoch:
-        return self.epochs[-1]
-
-    def backup_body(self) -> dict:
-        return {"v": 2, "sid": self.sid, "epochs": [{"n": e.n, "g": e.g.secret_key().to_bech32()} for e in self.epochs],
-                "followers": self.followers, "invites": self.invites, "relays": self.relays}
-
-    def save(self, path: Path):
-        d = self.backup_body() | {"I": self.I.secret_key().to_bech32(), "D": self.D.secret_key().to_bech32()}
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(d, indent=1))
-
-    @staticmethod
-    def load(path: Path) -> "OwnerState":
-        d = json.loads(path.read_text())
-        return OwnerState(keys(d["I"]), keys(d["D"]), d["sid"], [Epoch(e["n"], keys(e["g"])) for e in d["epochs"]],
-                          d["followers"], d["invites"], d["relays"])
-
-    @staticmethod
-    def from_backup(I: n.Keys, body: dict) -> "OwnerState":
-        return OwnerState(I, keys(), body["sid"], [Epoch(e["n"], keys(e["g"])) for e in body["epochs"]],
-                          body["followers"], body["invites"], body["relays"])
-
-    @staticmethod
-    def create() -> "OwnerState":
-        return OwnerState(keys(), keys(), secrets.token_hex(32), [Epoch(1, keys())])
-
-    def active_followers(self):
-        return [f for f in self.followers if not f.get("revoked")]
-
-
-@dataclass
-class FollowerState:
-    F: n.Keys
-    i_pub: str
-    relays: list[str]
-    sid: str | None = None
-    epochs: dict[str, tuple[int, n.Keys]] = field(default_factory=dict)   # gk → (n, G)
-    devices: list[str] = field(default_factory=list)
-    status: str = "requested"                                              # requested | active | revoked
-
-    def save(self, path: Path):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"F": self.F.secret_key().to_bech32(), "i": self.i_pub, "relays": self.relays,
-                                    "sid": self.sid, "devices": self.devices, "status": self.status,
-                                    "epochs": [{"n": e, "g": g.secret_key().to_bech32()} for e, g in self.epochs.values()]},
-                                   indent=1))
-
-    @staticmethod
-    def load(path: Path) -> "FollowerState":
-        d = json.loads(path.read_text())
-        st = FollowerState(keys(d["F"]), d["i"], d["relays"], d["sid"], {}, d["devices"], d["status"])
-        for e in d["epochs"]:
-            g = keys(e["g"])
-            st.epochs[gk(pub(g))] = (e["n"], g)
-        return st

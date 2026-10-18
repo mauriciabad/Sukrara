@@ -52,9 +52,9 @@ print("3. Short invite link")
 owner = I.Account.generated()
 secret = secrets.token_bytes(16)
 short = I.short_link(I.pub(owner.root), secret)
-# the investigation-06 link, only to measure what the short form saves
-v2 = cgm2.invite_link(I.pub(owner.root), I.b64u(secret), int(time.time()) + I.DAY, cgm2.RELAYS) \
-    .replace("cgmshare:join?", "https://sukrara.mauri.app/join#")
+# the investigation-06 link (its builder is gone with the v2 CLI), only to check it's refused and what the short form saves
+v2 = (f"https://sukrara.mauri.app/join#i={n.PublicKey.parse(I.pub(owner.root)).to_bech32()}&t={I.b64u(secret)}"
+      f"&x={int(time.time()) + I.DAY}&r=wss%3A%2F%2Fnos.lol%2Cwss%3A%2F%2Frelay.primal.net")
 p = I.parse_link(short)
 check("parses", p["secret"] == secret and I.pub(owner.root).startswith(p["fp"]))
 for label, bad in [("06-style link", v2), ("cgmshare: link", v2.replace("https://sukrara.mauri.app/join#", "cgmshare:join?")),
