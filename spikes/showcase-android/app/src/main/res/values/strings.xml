@@ -1345,8 +1345,22 @@
     <string name="sensorend_warmup_summary">A new sensor\'s first hour, until readings start</string>
     <!-- Unit for the custom hours field [CHAR LIMIT=10] -->
     <string name="sensorend_hours_unit">h</string>
+    <!-- Switch in the Reminders group: morning reminders (and the evening one) come at the first unlock [CHAR LIMIT=40] -->
+    <string name="sensorend_unlock_switch">Remind me when I first unlock the phone</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="sensorend_unlock_summary">Morning and evening reminders come at your first unlock, if that\'s before their time</string>
+    <!-- Group title: the sensor ending while the user sleeps [CHAR LIMIT=30] -->
+    <string name="sensorend_night_group">Night</string>
+    <!-- Switch: a reminder the evening before a night-time end [CHAR LIMIT=40] -->
+    <string name="sensorend_evening_switch">Remind me the evening before</string>
+    <!-- Switch summary; %1$s = time of the evening reminder (e.g. 21:00) [CHAR LIMIT=NONE] -->
+    <string name="sensorend_evening_summary">If it ends during the night, at %1$s</string>
+    <!-- Row and time picker title: when the night starts [CHAR LIMIT=30] -->
+    <string name="sensorend_bedtime">Bedtime</string>
+    <!-- Row and time picker title: when the night ends [CHAR LIMIT=30] -->
+    <string name="sensorend_wakeup">Wake-up time</string>
     <!-- Page footer [CHAR LIMIT=NONE] -->
-    <string name="sensorend_footer">The countdown start also sets when the graph shows the sensor\'s countdown ring. A reminder that would come after the sensor ends is skipped. While the glucose chip is on, the end countdown stays in the notifications so the status bar keeps your glucose.</string>
+    <string name="sensorend_footer">The countdown start also sets when the graph shows the sensor\'s countdown ring. A reminder that would come after the sensor ends is skipped. While the glucose chip is on, the end countdown stays in the notifications so the status bar keeps your glucose. Android doesn\'t share its Bedtime schedule with apps, so set your night here.</string>
     <!-- Notification channel name [CHAR LIMIT=40] -->
     <string name="channel_sensor_end">Sensor reminders</string>
     <!-- Notification channel description [CHAR LIMIT=NONE] -->
@@ -1363,6 +1377,12 @@
     <string name="sensor_end_notif_on_day">Sensor ends on %1$s at %2$s</string>
     <!-- Reminder text [CHAR LIMIT=NONE] -->
     <string name="sensor_end_notif_reminder_text">Have a new sensor ready.</string>
+    <!-- Reminder text on the end day, the end later today and not at night [CHAR LIMIT=40] -->
+    <string name="sensor_end_notif_spare_text">Take your spare sensor with you</string>
+    <!-- Evening reminder title before a night-time end; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_end_notif_tonight">Sensor ends tonight at %1$s</string>
+    <!-- Evening reminder text [CHAR LIMIT=40] -->
+    <string name="sensor_end_notif_tonight_text">Change it before bed</string>
     <!-- Countdown title; %1$s = time [CHAR LIMIT=50] -->
     <string name="sensor_countdown_title">Sensor ends at %1$s</string>
     <!-- Countdown text [CHAR LIMIT=NONE] -->

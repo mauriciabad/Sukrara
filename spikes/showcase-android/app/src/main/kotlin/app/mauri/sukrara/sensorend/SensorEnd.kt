@@ -37,7 +37,8 @@ import java.time.ZoneId
 /**
  * Sensor end reminders and the live countdown (wearer only; the rules are [SensorEndPlan]).
  *
- * Every trigger (the alarm, a new sensor, a settings change, boot, app update, time or time-zone change) runs
+ * Every trigger (the alarm, a new sensor, a settings change, boot, app update, time or time-zone change, and an unlock
+ * that brings a reminder forward: [unlocked]) runs
  * [sync], which recomputes what should be showing *now* and sets one alarm for the next moment that matters. Nothing
  * is queued ahead, so a changed sensor, zone or setting can't leave a stale alarm behind.
  *
@@ -141,12 +142,12 @@ object SensorEnd {
 
     private fun memory(ctx: Context): PlanMemory = prefs(ctx).getString("memory", null)?.let {
         runCatching { JSONObject(it).let { o -> PlanMemory(o.getString("key"), o.getLong("last"), o.getBoolean("dismissed"), o.getBoolean("ended"),
-            o.getBoolean("warmup"), o.getBoolean("warmupDismissed"), o.getBoolean("ready"), o.optLong("first", 0)) } }.getOrNull()
+            o.getBoolean("warmup"), o.getBoolean("warmupDismissed"), o.getBoolean("ready"), o.optLong("first", 0), o.optLong("unlock", 0)) } }.getOrNull()
     } ?: PlanMemory()
 
     private fun PlanMemory.toJson() = JSONObject().put("key", key).put("last", lastReminder).put("dismissed", countdownDismissed)
         .put("ended", endedShown).put("warmup", warmupShown).put("warmupDismissed", warmupDismissed).put("ready", readyShown)
-        .put("first", firstReading)
+        .put("first", firstReading).put("unlock", lastUnlock)
 
     private fun save(ctx: Context, m: PlanMemory) = prefs(ctx).edit().putString("memory", m.toJson().toString()).apply()
 
@@ -183,7 +184,7 @@ object SensorEnd {
         // remembered: a restart (Live starts empty) must not bring the warm-up back
         if (first != null && mem.firstReading == 0L) mem = mem.copy(firstReading = first)
         p.remind?.let {
-            post(ctx, ID_REMIND) { reminder(ctx, info, now, zone) }
+            post(ctx, ID_REMIND) { reminder(ctx, info, now, zone, p.remindText) }
             mem = mem.copy(lastReminder = it)
         }
         if (p.countdown) post(ctx, ID_COUNTDOWN) { countdown(ctx, info, hours, now) } else nm.cancel(ID_COUNTDOWN)
@@ -195,6 +196,22 @@ object SensorEnd {
         save(ctx, mem)
         schedule(ctx, p.next, p.nextExact)
         Log.i(TAG, "sync end=${info.endEpoch} remind=${p.remind} countdown=${p.countdown} ended=${p.ended} warmup=${p.warmup} waiting=${p.warmupWaiting} ready=${p.ready} next=${p.next} exact=${p.nextExact}")
+    }
+
+    /**
+     * The phone was unlocked (`ACTION_USER_PRESENT`, registered at runtime by the wearer service: it can't be declared
+     * in the manifest). Recorded and re-planned only when it brings a reminder forward
+     * ([SensorEndPlan.unlockWanted]: the first unlock of the morning, or of the evening before a night-time end).
+     */
+    fun unlocked(ctx: Context, now: Long = System.currentTimeMillis() / 1000) {
+        init(ctx)
+        val info = SensorLife.current.value ?: return
+        if (App.role(ctx) != "owner") return
+        val mem = memory(ctx)
+        if (mem.key != keyOf(info)) return   // a sensor the planner hasn't seen yet: sync starts it fresh
+        if (!SensorEndPlan.unlockWanted(info.startEpoch, info.endEpoch, _config.value, now, ZoneId.systemDefault(), mem)) return
+        save(ctx, mem.copy(lastUnlock = now))
+        sync(ctx, now)
     }
 
     /** The countdown was swiped away or hidden: not shown again for this sensor. */
@@ -267,11 +284,24 @@ object SensorEnd {
         }
     }
 
-    private fun reminder(ctx: Context, info: SensorInfo, now: Long, zone: ZoneId): Notification =
+    /**
+     * A reminder: a plain notification on the reminders channel (DEFAULT importance, "Information that should be seen
+     * at the user's earliest convenience, but not interrupt what they're doing … task reminders"), never an alarm and
+     * never a Live Update ("Inappropriate uses: … upcoming calendar events"; developer.android.com/develop/ui/views/
+     * notifications/live-update). Words per the notification design guide (developer.android.com/design/ui/mobile/
+     * guides/home-screen/notifications): the most important information in the title (when it ends), the text short
+     * and not repeating it (what to do: [ReminderText]).
+     */
+    private fun reminder(ctx: Context, info: SensorInfo, now: Long, zone: ZoneId, kind: ReminderText): Notification =
         Notification.Builder(ctx, CH_REMIND)
             .setSmallIcon(R.drawable.ic_stat_sukrara)
-            .setContentTitle(endsText(ctx, info.endEpoch, now, zone))
-            .setContentText(ctx.getString(R.string.sensor_end_notif_reminder_text))
+            .setContentTitle(if (kind == ReminderText.TONIGHT) ctx.getString(R.string.sensor_end_notif_tonight, time(ctx, info.endEpoch))
+                else endsText(ctx, info.endEpoch, now, zone))
+            .setContentText(ctx.getString(when (kind) {
+                ReminderText.ENDS -> R.string.sensor_end_notif_reminder_text
+                ReminderText.SPARE -> R.string.sensor_end_notif_spare_text
+                ReminderText.TONIGHT -> R.string.sensor_end_notif_tonight_text
+            }))
             .setCategory(Notification.CATEGORY_REMINDER)
             .setContentIntent(open(ctx))
             .setAutoCancel(true)

@@ -48,6 +48,11 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
 
     private val screen = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
+            // an unlock may bring a sensor end reminder forward (USER_PRESENT can't be declared in the manifest)
+            if (i.action == Intent.ACTION_USER_PRESENT) {
+                runCatching { app.mauri.sukrara.sensorend.SensorEnd.unlocked(ctx) }.onFailure { Log.w(tag, "unlock: $it") }
+                return
+            }
             screenOn = i.action == Intent.ACTION_SCREEN_ON
             Live.status.update { it.copy(screenOn = screenOn) }
             if (screenOn) { render(force = true); SukraraHooks.refresh(ctx, "screen on") }
@@ -58,7 +63,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         Treat.init(ctx)
         GlucoseNotification.createChannel(ctx)
         Live.listener = this
-        ctx.registerReceiver(screen, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF) })
+        ctx.registerReceiver(screen, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_USER_PRESENT) })
         Live.status.update { it.copy(screenOn = screenOn) }
         apply(null, Features.value)
         jobs += scope.launch {

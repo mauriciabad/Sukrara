@@ -20,18 +20,18 @@ class SensorEndPlanTest {
     private val cfg = SensorEndConfig()
 
     @Test fun defaultSlotsAreTheDayBeforeAndTheEndDayAtNine() {
-        assertEquals(listOf(t("2026-10-20T09:00"), t("2026-10-21T09:00")), SensorEndPlan.slots(start, end, cfg.reminders, zone))
+        assertEquals(listOf(t("2026-10-20T09:00"), t("2026-10-21T09:00")), SensorEndPlan.slots(start, end, cfg, zone).map { it.at })
     }
 
     @Test fun aSlotAfterTheEndIsSkipped() {
         val early = t("2026-10-21T07:30")
-        assertEquals(listOf(t("2026-10-20T09:00")), SensorEndPlan.slots(start, early, cfg.reminders, zone))
+        assertEquals(listOf(t("2026-10-20T09:00")), SensorEndPlan.slots(start, early, cfg, zone).map { it.at })
     }
 
     @Test fun slotsFollowTheTimeZoneAcrossTheDstChange() {
         // Europe/Madrid leaves summer time on 2026-10-25: 09:00 local on both sides
         val e = t("2026-10-26T12:00")
-        assertEquals(listOf(t("2026-10-25T09:00"), t("2026-10-26T09:00")), SensorEndPlan.slots(start, e, cfg.reminders, zone))
+        assertEquals(listOf(t("2026-10-25T09:00"), t("2026-10-26T09:00")), SensorEndPlan.slots(start, e, cfg, zone).map { it.at })
     }
 
     @Test fun nextIsTheFirstReminderExactly() {
@@ -182,5 +182,130 @@ class SensorEndPlanTest {
         assertFalse(wp(ws + 600, PlanMemory("n", ws, warmupShown = true, warmupDismissed = true)).warmup)
         assertFalse(wp(we + 60, PlanMemory("n", ws, warmupShown = true, warmupDismissed = true), first = we + 30).ready)
         assertFalse(SensorEndPlan.plan(ws, wEnd, cfg.copy(warmup = false), 8, ws + 600, zone, PlanMemory("n", ws), we, null).warmup)
+    }
+
+    // ------------------------------------------------------------------------- fitted to the day (round routine)
+
+    private fun p(now: Long, mem: PlanMemory, c: SensorEndConfig = cfg, s: Long = start, e: Long = end) =
+        SensorEndPlan.plan(s, e, c, 8, now, zone, mem)
+    private fun wanted(now: Long, mem: PlanMemory, c: SensorEndConfig = cfg, s: Long = start, e: Long = end) =
+        SensorEndPlan.unlockWanted(s, e, c, now, zone, mem)
+
+    @Test fun anUnlockBeforeTheTimeFiresTheReminderOnceAcrossLaterUnlocksAndRestarts() {
+        val mem0 = PlanMemory("k", t("2026-10-19T20:00"))
+        val unlock = t("2026-10-20T06:40")
+        assertTrue(wanted(unlock, mem0))
+        val mem1 = mem0.copy(lastUnlock = unlock)   // what SensorEnd.unlocked saves
+        val fired = p(unlock, mem1)
+        assertEquals(t("2026-10-20T09:00"), fired.remind)
+        assertEquals(ReminderText.ENDS, fired.remindText)   // "Sensor ends tomorrow at 14:30"
+        // no alarm left at 09:00 for it: the next moment is the countdown's start the next morning
+        assertEquals(t("2026-10-21T06:30"), fired.next)
+        val mem2 = mem1.copy(lastReminder = fired.remind!!)   // what sync saves
+        // a later unlock isn't wanted, and even if recorded it doesn't show it again
+        val later = t("2026-10-20T07:30")
+        assertFalse(wanted(later, mem2))
+        assertNull(p(later, mem2.copy(lastUnlock = later)).remind)
+        // the 09:00 fallback alarm (a stale one, or a restart replaying the memory) shows nothing either
+        for (now in listOf(t("2026-10-20T09:00"), t("2026-10-20T09:00") + 5, t("2026-10-20T12:00"))) assertNull(p(now, mem2).remind)
+        // the next morning has its own first unlock: the end day's 09:00 reminder
+        val next = t("2026-10-21T06:10")
+        assertTrue(wanted(next, mem2))
+        val endDay = p(next, mem2.copy(lastUnlock = next))
+        assertEquals(t("2026-10-21T09:00"), endDay.remind)
+        assertEquals(ReminderText.SPARE, endDay.remindText)   // ends today at 14:30, not at night
+    }
+
+    @Test fun withoutAnUnlockTheReminderFiresAtItsTime() {
+        val mem = PlanMemory("k", t("2026-10-19T20:00"))
+        val before = p(t("2026-10-20T08:59"), mem)
+        assertNull(before.remind); assertEquals(t("2026-10-20T09:00"), before.next); assertTrue(before.nextExact)
+        assertEquals(t("2026-10-20T09:00"), p(t("2026-10-20T09:00"), mem).remind)
+    }
+
+    @Test fun onlyMorningUnlocksFromFiveCount() {
+        val mem = PlanMemory("k", t("2026-10-19T20:00"))
+        // before 05:00 (a night-time look at the phone) and after the time: nothing to bring forward
+        assertFalse(wanted(t("2026-10-20T04:59"), mem))
+        assertNull(p(t("2026-10-20T04:59"), mem.copy(lastUnlock = t("2026-10-20T04:59"))).remind)
+        assertTrue(wanted(t("2026-10-20T05:00"), mem))
+        assertFalse(wanted(t("2026-10-20T09:00"), mem))
+        // the switch off: the clock time only
+        val off = cfg.copy(unlock = false)
+        assertFalse(wanted(t("2026-10-20T06:40"), mem, off))
+        assertNull(p(t("2026-10-20T06:40"), mem.copy(lastUnlock = t("2026-10-20T06:40")), off).remind)
+        // an afternoon reminder ignores unlocks
+        val afternoon = cfg.copy(reminders = listOf(Reminder(1, 15 * 60)))
+        assertFalse(wanted(t("2026-10-20T10:00"), mem, afternoon))
+        assertEquals(listOf<Long?>(null), SensorEndPlan.slots(start, end, afternoon, zone).map { it.unlockFrom })
+        // an unlock from before a settings change / a new sensor (lastReminder = then) doesn't count
+        val changed = PlanMemory("k", t("2026-10-20T07:00"), lastUnlock = t("2026-10-20T06:40"))
+        assertNull(p(t("2026-10-20T07:00"), changed).remind)
+    }
+
+    private val night = t("2026-10-21T03:10")   // ends in the night, after midnight
+    private val nStart = night - 15 * 86400
+
+    @Test fun anEndAfterMidnightGetsAReminderTheEveningBefore() {
+        val slots = SensorEndPlan.slots(nStart, night, cfg, zone)
+        // the day before at 09:00, the evening at 21:00 (the end day's 09:00 is after the end)
+        assertEquals(listOf(t("2026-10-20T09:00"), t("2026-10-20T21:00")), slots.map { it.at })
+        assertEquals(Slot(t("2026-10-20T21:00"), t("2026-10-20T19:00"), evening = true), slots[1])
+        val mem = PlanMemory("k", t("2026-10-20T09:00"))
+        val atNine = p(t("2026-10-20T21:00"), mem, s = nStart, e = night)
+        assertEquals(t("2026-10-20T21:00"), atNine.remind); assertEquals(ReminderText.TONIGHT, atNine.remindText)
+        // or at the first unlock from 19:00, once
+        assertFalse(wanted(t("2026-10-20T18:59"), mem, s = nStart, e = night))
+        assertTrue(wanted(t("2026-10-20T19:30"), mem, s = nStart, e = night))
+        val early = p(t("2026-10-20T19:30"), mem.copy(lastUnlock = t("2026-10-20T19:30")), s = nStart, e = night)
+        assertEquals(t("2026-10-20T21:00"), early.remind); assertEquals(ReminderText.TONIGHT, early.remindText)
+        val shown = mem.copy(lastUnlock = t("2026-10-20T19:30"), lastReminder = early.remind!!)
+        assertFalse(wanted(t("2026-10-20T20:00"), shown, s = nStart, e = night))
+        assertNull(p(t("2026-10-20T21:00"), shown, s = nStart, e = night).remind)
+        // switched off: no evening slot
+        assertEquals(listOf(t("2026-10-20T09:00")), SensorEndPlan.slots(nStart, night, cfg.copy(evening = false), zone).map { it.at })
+    }
+
+    @Test fun theNightWindowEdges() {
+        fun evening(end: String, c: SensorEndConfig = cfg) = SensorEndPlan.eveningSlot(t(end), c, zone)?.at
+        assertEquals(t("2026-10-21T21:00"), evening("2026-10-21T23:00"))   // the start is in the night
+        assertEquals(t("2026-10-21T21:00"), evening("2026-10-21T23:59"))
+        assertEquals(t("2026-10-20T21:00"), evening("2026-10-21T00:00"))
+        assertEquals(t("2026-10-20T21:00"), evening("2026-10-21T06:59"))
+        assertNull(evening("2026-10-21T07:00"))   // the end isn't
+        assertNull(evening("2026-10-21T22:59"))
+        // an edited window: bedtime 22:00 → the reminder at 20:00, the unlock from 18:00
+        val early = cfg.copy(nightStart = 22 * 60, nightEnd = 6 * 60)
+        assertEquals(Slot(t("2026-10-20T20:00"), t("2026-10-20T18:00"), true), SensorEndPlan.eveningSlot(t("2026-10-21T05:00"), early, zone))
+        assertNull(evening("2026-10-21T06:30", early))
+        // a window that doesn't wrap midnight (00:30–08:00): the evening before, 22:30
+        val late = cfg.copy(nightStart = 30, nightEnd = 8 * 60)
+        assertEquals(t("2026-10-20T22:30"), evening("2026-10-21T03:00", late))
+        assertNull(evening("2026-10-21T00:10", late))
+        assertNull(evening("2026-10-21T08:00", late))
+        // no unlock window when first-unlock reminders are off
+        assertNull(SensorEndPlan.eveningSlot(t("2026-10-21T03:00"), cfg.copy(unlock = false), zone)?.unlockFrom)
+    }
+
+    @Test fun theEndDayReminderSaysTakeTheSpareUnlessItEndsAtNight() {
+        val evening = t("2026-10-21T19:08")
+        val s = evening - 15 * 86400
+        val mem = PlanMemory("k", t("2026-10-19T20:00"))
+        assertEquals(ReminderText.ENDS, p(t("2026-10-20T09:00"), mem, s = s, e = evening).remindText)   // tomorrow
+        assertEquals(ReminderText.SPARE, p(t("2026-10-21T09:00"), mem, s = s, e = evening).remindText)  // today, 7:08 pm
+        // an end at 23:30 is in the night: the end-day reminder just names the time, the evening one says "tonight"
+        val lateEnd = t("2026-10-21T23:30")
+        val ls = lateEnd - 15 * 86400
+        assertEquals(ReminderText.ENDS, p(t("2026-10-21T09:00"), mem, s = ls, e = lateEnd).remindText)
+        assertEquals(ReminderText.TONIGHT, p(t("2026-10-21T21:00"), mem.copy(lastReminder = t("2026-10-21T09:00")), s = ls, e = lateEnd).remindText)
+        // with the evening reminder off, a night-time end still isn't "take your spare"
+        assertEquals(ReminderText.ENDS, p(t("2026-10-21T09:00"), mem, cfg.copy(evening = false), s = ls, e = lateEnd).remindText)
+    }
+
+    @Test fun nightSettingsRoundTripAndAnInvalidWindowFallsBack() {
+        val c = cfg.copy(unlock = false, evening = false, nightStart = 22 * 60 + 30, nightEnd = 6 * 60)
+        assertEquals(c, SensorEndConfig.fromJson(c.toJson()))
+        assertEquals(cfg, SensorEndConfig.fromJson(JSONObject("""{"nightStart":600,"nightEnd":600}""")))
+        assertEquals(cfg, SensorEndConfig.fromJson(JSONObject("""{"nightStart":-5,"nightEnd":3000}""")))
     }
 }

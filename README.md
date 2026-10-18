@@ -73,8 +73,11 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   warm-up countdown and the first reading. Turning NFC or Bluetooth on, the LibreView sign-in and every problem
   (ended sensor, Libre 2, a failed scan, another app holding the sensor) are handled on the same screen. Tapping a
   sensor while Sukrara is closed opens this screen and uses that tap. [21](docs/21-new-sensor-flow.md)
-- Sensor end reminders at the times you choose (default: the day before and on the end day at 09:00, "Sensor ends
-  tomorrow at 14:30"), a live countdown notification in the sensor's last hours (8 by default) and another while a
+- Sensor end reminders that fit your day: at the times you choose (default: the day before and on the end day at
+  09:00, "Sensor ends tomorrow at 14:30"), or earlier at your first unlock of the morning (from 05:00); on the last
+  day "Take your spare sensor with you"; and if the sensor ends during your night (23:00–07:00, editable), a reminder
+  the evening before, at 21:00 or your first unlock from 19:00 ("Sensor ends tonight at 3:10 · Change it before bed").
+  Also a live countdown notification in the sensor's last hours (8 by default) and another while a
   new sensor warms up ("Readings at 19:45", "Almost ready" once its time is up, then "Sensor ready"). The countdowns
   show a timer in the status bar when the glucose chip doesn't need it, and never run below zero. Settings → Sensor end.
 - Sensor life on the card (phone, widgets, lock screen, Mac): a small sensor disc next to the trend arrow with the

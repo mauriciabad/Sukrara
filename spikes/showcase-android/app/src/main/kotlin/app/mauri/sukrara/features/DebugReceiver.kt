@@ -29,7 +29,7 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
- *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…']] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
+ *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…'] [--ez unlock B] [--ez evening B] [--es night 'MIN-MIN']] [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
  *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] \
  *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
  *       [--es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]]
@@ -227,18 +227,27 @@ class DebugReceiver : BroadcastReceiver() {
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             // round sensor-life: a made-up sensor ending in --ei inMin N (default 10); --ei countdownHours H;
-            // --ez countdown B; --es reminders '1@540,0@540' (daysBefore@minuteOfDay); state only: --es cmd sensorEndState
+            // --ez countdown B; --es reminders '1@540,0@540' (daysBefore@minuteOfDay); --ez unlock B (first-unlock reminders);
+            // --ez evening B; --es night '1380-420' (night window, minutes of the day); state only: --es cmd sensorEndState;
+            // an unlock (as ACTION_USER_PRESENT): --es cmd sensorUnlock
             "sensorEnd" -> {
                 val se = app.mauri.sukrara.sensorend.SensorEnd
                 if (i.hasExtra("countdownHours")) se.setCountdownHours(c, i.getIntExtra("countdownHours", 8))
-                if (i.hasExtra("countdown") || i.hasExtra("reminders")) se.update(c) { cfg ->
+                if (listOf("countdown", "reminders", "unlock", "evening", "night").any { i.hasExtra(it) }) se.update(c) { cfg ->
+                    val night = i.getStringExtra("night")?.split('-')?.map { it.trim().toInt() }
                     cfg.copy(countdown = i.getBooleanExtra("countdown", cfg.countdown),
                         reminders = i.getStringExtra("reminders")?.split(',')?.filter { it.isNotBlank() }?.map {
                             app.mauri.sukrara.sensorend.Reminder(it.substringBefore('@').trim().toInt(), it.substringAfter('@').trim().toInt())
-                        } ?: cfg.reminders)
+                        } ?: cfg.reminders,
+                        unlock = i.getBooleanExtra("unlock", cfg.unlock), evening = i.getBooleanExtra("evening", cfg.evening),
+                        nightStart = night?.get(0) ?: cfg.nightStart, nightEnd = night?.get(1) ?: cfg.nightEnd)
                 }
                 se.fake(c, i.getIntExtra("inMin", 10))
                 out.put("sensorEnd", se.state(c))
+            }
+            "sensorUnlock" -> {
+                app.mauri.sukrara.sensorend.SensorEnd.unlocked(c)
+                out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
             }
             // warm-up countdown: a made-up sensor that started --ei agoMin N ago (default 50)
             "sensorStart" -> {

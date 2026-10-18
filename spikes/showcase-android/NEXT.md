@@ -37,6 +37,12 @@ Garmin state label. The Juggluco-port fix (§4 below) ships with this round.
 - Needs the user: **first real NFC scan + fresh Bluetooth pairing** (branch `n-nfc`, docs/10 "Sensor scan"; the user
   pauses Juggluco and scans in Sukrara, then scans with Juggluco to hand the sensor back), Proton Pass /
   Bitwarden save+restore on the real phone, real-camera QR scan. (macOS widgets: done 2026-10-16, hosted by Sukrara for Mac, docs/13.)
+- **Two sensors at once** (user, 2026-10-18): Sukrara follows one sensor; pairing replaces it. Juggluco can keep
+  several sensors connected, so the user can pair (and warm up) the new one before the old one ends, with no gap.
+  Then the "change it before bed" reminder could say "pair the new one now". Where Juggluco does it:
+  `third_party/Juggluco/Common/src/main/java/tk/glucodata/SensorBluetooth.java` (`gattcallbacks`: one GATT callback
+  per active sensor, filled by `setDevices(Natives.activeSensors())`; `removeDevice` drops one by serial), with the
+  list from `activeSensors` / `setusedsensors()` in `Common/src/main/cpp/g.cpp`.
 - Leftover test state: the `medium_phone` emulator wearer has test followers ("n5 small follower" …); harmless.
 
 ## 3. Phone settings to restore when development ends

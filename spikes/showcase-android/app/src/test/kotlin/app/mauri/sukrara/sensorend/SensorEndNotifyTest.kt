@@ -96,4 +96,29 @@ class SensorEndNotifyTest {
         SensorEnd.sync(ctx, t1 + 60)
         assertNull(warmupShown())
     }
+
+    /**
+     * Round routine, the Android glue: a sensor ending at 03:10 gets the evening reminder at the first unlock from
+     * 19:00 (SensorEnd.unlocked, what ACTION_USER_PRESENT calls), worded "tonight"; a later unlock doesn't repost it.
+     */
+    @Test fun anEveningUnlockPostsTheTonightReminderOnce() {
+        owner()
+        val zone = java.time.ZoneId.systemDefault()
+        val day = java.time.LocalDate.now(zone).plusDays(40)
+        fun at(d: java.time.LocalDate, h: Int, m: Int) = d.atTime(h, m).atZone(zone).toEpochSecond()
+        val end = at(day.plusDays(1), 3, 10)
+        SensorLife.update(ctx, SensorInfo("T4", end - 15 * 86_400L, end))
+        SensorEnd.sync(ctx, at(day, 18, 0))
+        nm.cancel(SensorEnd.ID_REMIND)
+        SensorEnd.unlocked(ctx, at(day, 19, 30))
+        val n = nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_REMIND }?.notification
+        assertNotNull(n)
+        val time = app.mauri.sukrara.graph.Clock.time(end, android.text.format.DateFormat.is24HourFormat(ctx))
+        assertEquals(ctx.getString(app.mauri.sukrara.R.string.sensor_end_notif_tonight, time), n!!.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals(ctx.getString(app.mauri.sukrara.R.string.sensor_end_notif_tonight_text), n.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
+        nm.cancel(SensorEnd.ID_REMIND)
+        SensorEnd.unlocked(ctx, at(day, 20, 0))
+        SensorEnd.sync(ctx, at(day, 21, 0))   // the fallback alarm's time
+        assertNull(nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_REMIND })
+    }
 }
