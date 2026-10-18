@@ -64,7 +64,7 @@ import app.mauri.sukrara.alerts.KindCfg
  */
 
 private fun thresholdText(k: String, c: KindCfg): String = when (k) {
-    Kind.URGENT_LOW, Kind.LOW -> "≤ ${c.value.toInt()} mg/dL"
+    Kind.VERY_LOW, Kind.LOW -> "< ${c.value.toInt()} mg/dL"
     Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "≥ ${c.value.toInt()} mg/dL"
     Kind.FALLING_FAST -> "faster than −${"%.1f".format(c.value)} mg/dL/min"
     Kind.RISING_FAST -> "faster than +${"%.1f".format(c.value)} mg/dL/min"
@@ -126,7 +126,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                 }
             }
         }
-        kinds("Lows", listOf(Kind.URGENT_LOW, Kind.LOW))
+        kinds("Lows", listOf(Kind.VERY_LOW, Kind.LOW))
         kinds("Highs", listOf(Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH))
         kinds("Fast changes", Kind.RATES)
         kinds("Signal", listOf(Kind.NO_DATA))
@@ -143,7 +143,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                 checked = s.muteFalling, rowEnabled = rules && s.muteFalling, switchEnabled = rules, onClick = { minutes = "falling" }) { v ->
                 set { it.copy(muteFalling = v) }
             }
-            splitSwitch("After carbs", if (mirrored) locked else "Low and falling fast wait ${s.muteCarbsMin} min · urgent low always alerts",
+            splitSwitch("After carbs", if (mirrored) locked else "Lows and falling fast wait ${s.muteCarbsMin} min",
                 checked = s.muteCarbs, rowEnabled = rules && s.muteCarbs, switchEnabled = rules, onClick = { minutes = "carbs" }) { v ->
                 set { it.copy(muteCarbs = v) }
             }

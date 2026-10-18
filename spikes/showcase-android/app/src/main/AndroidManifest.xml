@@ -14,6 +14,8 @@
     <!-- investigation 05: Live Update chip (promoted ongoing notification) -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Investigation 15: the alert timer wakes exactly when a mute window ends (Alerts.schedule) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- restart the wearer service after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- investigation 07: BLE transport (owner = GATT server + advertiser, follower = central); no location use -->

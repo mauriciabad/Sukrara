@@ -34,7 +34,7 @@ object AlertHaptics {
     /** Same rhythm as [rich], as off/on milliseconds with amplitudes. */
     private fun fallback(kind: String): VibrationEffect {
         val (t, a) = when (kind) {
-            Kind.URGENT_LOW -> longArrayOf(0, 120, 120, 120, 180, 120, 260, 400, 200, 400) to intArrayOf(0, 255, 0, 220, 0, 190, 0, 255, 0, 255)
+            Kind.VERY_LOW -> longArrayOf(0, 120, 120, 120, 180, 120, 260, 400, 200, 400) to intArrayOf(0, 255, 0, 220, 0, 190, 0, 255, 0, 255)
             Kind.LOW -> longArrayOf(0, 120, 160, 120, 220, 350) to intArrayOf(0, 230, 0, 200, 0, 230)
             Kind.HIGH -> longArrayOf(0, 40, 140, 40, 100, 40, 70, 40, 50, 40, 60, 160) to intArrayOf(0, 180, 0, 190, 0, 200, 0, 215, 0, 230, 0, 255)
             Kind.VERY_HIGH -> longArrayOf(0, 200, 90, 40, 200, 200, 90, 40, 220, 300) to intArrayOf(0, 200, 0, 255, 0, 200, 0, 255, 0, 255)
@@ -49,7 +49,7 @@ object AlertHaptics {
 
     private fun rich(kind: String): VibrationEffect = when (kind) {
         // "game over": three falls slowing down, then a heavy thud
-        Kind.URGENT_LOW -> c()
+        Kind.VERY_LOW -> c()
             .addPrimitive(Composition.PRIMITIVE_QUICK_FALL, 1f)
             .addPrimitive(Composition.PRIMITIVE_QUICK_FALL, 0.7f, 180)
             .addPrimitive(Composition.PRIMITIVE_QUICK_FALL, 0.5f, 260)
