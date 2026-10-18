@@ -182,14 +182,16 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
-                                Text(warmup.warmup!!, fontSize = (72 * scale).sp, fontWeight = FontWeight.Bold, fontFamily = rounded,
+                                // "Almost ready" (past the warm-up's end) is words, not a figure: smaller
+                                Text(warmup.warmup!!, fontSize = ((if (warmup.waiting(now)) 32 else 72) * scale).sp, fontWeight = FontWeight.Bold, fontFamily = rounded,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 val dh = (26 * scale).dp
                                 Canvas(Modifier.padding(start = (8 * scale).dp).size(dh)) {
                                     drawIntoCanvas { app.mauri.sukrara.graph.SensorBadge.disc(it.nativeCanvas, 0f, 0f, size.height, warmup, pal) }
                                 }
                             }
-                            Text(stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
+                            Text(if (warmup.waiting(now)) stringResource(R.string.card_waiting_reading)
+                                else stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else if (sensorLook?.ended == true) {

@@ -309,7 +309,7 @@ object GlucoseCard {
      */
     private fun drawWarmup(cv: Canvas, box: RectF, look: SensorBadge.Look, small: Paint, nowS: Long, pal: GraphPalette, d: Float,
                            hour24: Boolean) {
-        val line = Words.current.readyAt.format(Freshness.timeText(look.readyAt, nowS, hour24))
+        val line = look.warmupLine(nowS, hour24)
         val numBox = RectF(box.left, box.top, box.right, box.bottom - small.textSize * 1.25f)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; typeface = RoundedFont.typeface(700); textSize = numBox.height() * 1.18f }
         val s = look.warmup ?: return

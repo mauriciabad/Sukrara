@@ -49,7 +49,7 @@ start + 60 min). `expect`:
 | `label` | the badge text, English words: ≥ 24 h left → whole days (`13d`), ≥ 1 h → hours (`20h`), else minutes (`45m`, `0m` once ended) |
 | `ended` | `now ≥ end`: badge in the alert colour, "Sensor ended" once readings stop |
 | `life` | the disc's arc: share of the sensor's life left, 1 → 0 (± 0.001) |
-| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`); `null` = not warming |
+| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`), `Almost ready` from the warm-up's end until the first reading (never `0m` or less); `null` = not warming |
 | `pill` | ended → the action pill under "Sensor ended", `{kind: "sensor", text, short, tonal}` (StatusBadge.replaceSensor, English words); else `null` |
 | `ring` | the ring over the main ring: warming → the warm-up done (fills 0 → 1); else the countdown, share of the window left; `null` = no ring (more than the window left, or ended) (± 0.001) |
 

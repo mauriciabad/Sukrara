@@ -75,12 +75,12 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   sensor while Sukrara is closed opens this screen and uses that tap. [21](docs/21-new-sensor-flow.md)
 - Sensor end reminders at the times you choose (default: the day before and on the end day at 09:00, "Sensor ends
   tomorrow at 14:30"), a live countdown notification in the sensor's last hours (8 by default) and another while a
-  new sensor warms up ("Readings at 19:45", then "Sensor ready"). The countdowns show a timer in the status bar
-  when the glucose chip doesn't need it. Settings → Sensor end.
+  new sensor warms up ("Readings at 19:45", "Almost ready" once its time is up, then "Sensor ready"). The countdowns
+  show a timer in the status bar when the glucose chip doesn't need it, and never run below zero. Settings → Sensor end.
 - Sensor life on the card (phone, widgets, lock screen, Mac): a small sensor disc next to the trend arrow with the
   time left (`13d`, `20h`, `45m`), a ring over the main ring that counts down the sensor's last 8 hours (1–24 h,
-  a setting), and during a new sensor's warm-up the minutes until the first reading (`42m`, *Ready at 19:45*) with a
-  ring that fills up. Once the sensor has ended every surface says *Sensor ended* with a *Replace sensor* pill (a checkered flag in the status bar and the Mac menubar) and no-data alerts stop. Followers and
+  a setting), and during a new sensor's warm-up the minutes until the first reading (`42m`, *Ready at 19:45*; then
+  *Almost ready* until it comes) with a ring that fills up. Once the sensor has ended every surface says *Sensor ended* with a *Replace sensor* pill (a checkered flag in the status bar and the Mac menubar) and no-data alerts stop. Followers and
   the Mac see the same (it travels with the live readings).
 - Sensor end in your calendar (opt-in, like Juggluco's but without a tap): Sukrara makes its own "Sukrara" calendar
   on the phone (or uses one of your calendars, e.g. Google, to sync it everywhere) and keeps one "Sensor ends" event

@@ -115,11 +115,21 @@ object SensorLife {
     fun warming(info: SensorInfo, latestT: Long?, now: Long): Boolean =
         now >= info.startEpoch && now < info.warmupEndEpoch + WARMUP_GRACE_S && (latestT == null || latestT < info.startEpoch)
 
-    /** The warm-up's time left as the card's figure: whole minutes rounded up ("42m"), "0m" at the end; ≥ 1 h → "1h". */
+    /**
+     * The warm-up's time left as the card's figure: whole minutes rounded up ("42m"); ≥ 1 h → "1h". From the warm-up's
+     * end until the first reading "Almost ready" ([waitingFirstReading]): a countdown never shows "0m" or less.
+     */
     fun warmupLabel(info: SensorInfo, now: Long, w: Words = Words.current): String {
-        val left = (info.warmupEndEpoch - now).coerceAtLeast(0)
-        return if (left >= 3_600) w.durHours.format(left / 3_600) else w.durMinutes.format((left + 59) / 60)
+        val left = info.warmupEndEpoch - now
+        return when {
+            waitingFirstReading(info, now) -> w.almostReady
+            left >= 3_600 -> w.durHours.format(left / 3_600)
+            else -> w.durMinutes.format((left + 59) / 60)
+        }
     }
+
+    /** While warming up: the warm-up's time is over and the first reading hasn't come yet. */
+    fun waitingFirstReading(info: SensorInfo, now: Long) = now >= info.warmupEndEpoch
 
     /** The warm-up ring over the main ring: fills 0 → 1 from the start to the warm-up's end. */
     fun warmupFraction(info: SensorInfo, now: Long): Double {

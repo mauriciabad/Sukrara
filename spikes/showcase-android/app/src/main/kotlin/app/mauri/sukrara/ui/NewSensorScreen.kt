@@ -368,8 +368,13 @@ private fun Hero(stage: Stage, nfc: NfcAdapter?, now: Long) {
                 CircularWavyProgressIndicator(progress = { frac }, modifier = Modifier.size(220.dp), stroke = thick, trackStroke = track)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     val rounded = remember { FontFamily(RoundedFont.typeface(700)) }
-                    Text("$left", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = rounded, color = cs.onSurface)
-                    Text(stringResource(R.string.newsensor_minutes_left), style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
+                    // past the warm-up's end without a reading yet: words, never "0 min left"
+                    if (now >= stage.readyAt) Text(stringResource(R.string.card_almost_ready), fontSize = 32.sp, fontWeight = FontWeight.Bold,
+                        fontFamily = rounded, color = cs.onSurface)
+                    else {
+                        Text("$left", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = rounded, color = cs.onSurface)
+                        Text(stringResource(R.string.newsensor_minutes_left), style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -529,7 +534,8 @@ private fun body(s: Stage, now: Long): String? = when (s) {
     is Stage.Reading -> stringResource(R.string.newsensor_reading_text)
     is Stage.SignIn -> stringResource(if (s.newSensor) R.string.sensor_new_account_text else R.string.sensor_other_app_text)
     is Stage.Pairing -> stringResource(R.string.newsensor_pair_text, s.serial)
-    is Stage.WarmingUp -> stringResource(R.string.newsensor_warmup_text, Freshness.timeText(s.readyAt, now))
+    is Stage.WarmingUp -> if (now >= s.readyAt) stringResource(R.string.card_waiting_reading)
+        else stringResource(R.string.newsensor_warmup_text, Freshness.timeText(s.readyAt, now))
     is Stage.Ready -> s.endEpoch?.let { stringResource(R.string.newsensor_ready_text, s.serial, endDate(it)) }
         ?: stringResource(R.string.sensor_ready_text)
     is Stage.Problem -> when (s.trouble) {

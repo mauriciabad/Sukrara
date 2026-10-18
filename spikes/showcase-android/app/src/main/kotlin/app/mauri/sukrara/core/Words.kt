@@ -50,6 +50,9 @@ data class Words(
     val replaceSensorShort: String = "Sensor",
     val warmingUp: String = "Warming up",
     val readyAt: String = "Ready at %1\$s",
+    /** Past the warm-up's end, before the first reading: the figure and the line under it (never "0m" / "-3m"). */
+    val almostReady: String = "Almost ready",
+    val waitingReading: String = "Waiting for the first reading",
     // trend in words (screen readers, the notification)
     val trendUnknown: String = "trend unknown",
     val trendSteady: String = "steady",
@@ -94,6 +97,7 @@ data class Words(
             sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
             replaceSensor = r.getString(R.string.badge_replace_sensor), replaceSensorShort = r.getString(R.string.badge_replace_sensor_short),
             warmingUp = r.getString(R.string.card_warming_up), readyAt = r.getString(R.string.card_ready_at),
+            almostReady = r.getString(R.string.card_almost_ready), waitingReading = r.getString(R.string.card_waiting_reading),
             trendUnknown = r.getString(R.string.trend_unknown), trendSteady = r.getString(R.string.trend_steady),
             trendRising = r.getString(R.string.trend_rising), trendRisingFast = r.getString(R.string.trend_rising_fast),
             trendFalling = r.getString(R.string.trend_falling), trendFallingFast = r.getString(R.string.trend_falling_fast),

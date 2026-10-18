@@ -237,7 +237,7 @@
    }
   },
   {
-   "name": "warm-up over, no reading yet (within 15 min): 0m, ring full",
+   "name": "warm-up over, no reading yet (within 15 min): Almost ready (never 0m or less), ring full",
    "start": -3900,
    "end": 1292100,
    "countdownHours": 8,
@@ -246,7 +246,22 @@
     "label": "14d",
     "ended": false,
     "life": 0.997,
-    "warmup": "0m",
+    "warmup": "Almost ready",
+    "ring": 1,
+    "pill": null
+   }
+  },
+  {
+   "name": "the warm-up's very end: Almost ready, not 0m",
+   "start": -3600,
+   "end": 1292400,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9972,
+    "warmup": "Almost ready",
     "ring": 1,
     "pill": null
    }

@@ -346,6 +346,10 @@
     <string name="card_warming_up">Warming up</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
     <string name="card_ready_at">Ready at %1$s</string>
+    <!-- The card (and the warm-up notification) past the warm-up end, before the first reading, in place of the time left [CHAR LIMIT=20] -->
+    <string name="card_almost_ready">Almost ready</string>
+    <!-- Under "Almost ready" [CHAR LIMIT=40] -->
+    <string name="card_waiting_reading">Waiting for the first reading</string>
     <!-- Trend in words (screen readers, notification): no trend known [CHAR LIMIT=20] -->
     <string name="trend_unknown">trend unknown</string>
     <!-- Trend in words: flat [CHAR LIMIT=20] -->
