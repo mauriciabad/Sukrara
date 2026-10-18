@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import app.mauri.sukrara.core.Words
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
@@ -26,8 +27,13 @@ import kotlin.math.min
 val DEFAULT_RING_ORDER = listOf(Band.TIGHT, Band.TARGET, Band.LOW, Band.VERY_LOW, Band.HIGH, Band.VERY_HIGH)
 
 /** What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers. */
-enum class SlotKind(val label: String, val short: String) {
-    TIR("Time in range", ""), GMI("GMI", "GMI"), AVERAGE("Average glucose", "avg"), CV("Variability (CV)", "CV")
+enum class SlotKind(val label: String) {
+    TIR("Time in range"), GMI("GMI"), AVERAGE("Average glucose"), CV("Variability (CV)");
+
+    /** The word under a number slot (none under a ring). */
+    val short: String get() = when (this) {
+        TIR -> ""; GMI -> Words.current.slotGmi; AVERAGE -> Words.current.slotAverage; CV -> Words.current.slotCv
+    }
 }
 
 /**
@@ -44,8 +50,8 @@ data class RingSpec(
 }
 
 fun periodLabel(s: Long): String = when {
-    s % 86400 == 0L -> "${s / 86400}d"
-    else -> "${s / 3600}h"
+    s % 86400 == 0L -> Words.current.periodDays.format(s / 86400)
+    else -> Words.current.periodHours.format(s / 3600)
 }
 
 /**
@@ -218,7 +224,7 @@ object GlucoseCard {
             graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts)
             st.graph != null && chart.height() > 24 * d -> {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
-                val msg = latest?.let { "No readings since ${Freshness.timeText(it.t, nowS)}" } ?: "No readings yet"
+                val msg = latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS)) } ?: Words.current.noReadingsYet
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
             }
         }
@@ -260,7 +266,7 @@ object GlucoseCard {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
-            val line1 = if (r == null) "No readings yet" else "No reading since"
+            val line1 = if (r == null) Words.current.noReadingsYet else Words.current.noReadingSince
             val y = box.centerY() - if (r == null) -big.textSize / 3 else big.textSize * 0.15f
             cv.drawText(line1, box.left, y, big)
             if (r != null) cv.drawText(Freshness.timeText(r.t, nowS), box.left, y + big.textSize * 1.25f, big)

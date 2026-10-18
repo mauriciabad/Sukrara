@@ -4,6 +4,8 @@
 package app.mauri.sukrara.ui
 
 import android.text.format.DateFormat
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -141,19 +143,19 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
         ) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Add treatment", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField("Rapid", "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
-                    AmountField("Long", "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
-                    AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
+                    AmountField(stringResource(R.string.treatment_rapid), "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
+                    AmountField(stringResource(R.string.treatment_long), "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
+                    AmountField(stringResource(R.string.treatment_carbs), "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
                     note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth(),
-                    label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text("Note") } },
-                    placeholder = { Text("Pizza, exercise, sick…") },
+                    label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.treatment_note)) } },
+                    placeholder = { Text(stringResource(R.string.treatment_note_placeholder)) },
                     maxLines = 3,
                     supportingText = if (note.toByteArray().size > NOTE_BYTES - 20) ({ Text("${note.toByteArray().size} / $NOTE_BYTES") }) else null,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
@@ -163,15 +165,15 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Reveal(invalid) {
-                    Text("Insulin: up to ${MAX_UNITS.toInt()}u · carbs: up to ${MAX_GRAMS.toInt()}g",
+                    Text(stringResource(R.string.treatment_limits, MAX_UNITS.toInt(), MAX_GRAMS.toInt()),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    onOpenApp?.let { TextButton(onClick = it) { Text("Open Sukrara") } }
+                    onOpenApp?.let { TextButton(onClick = it) { Text(stringResource(R.string.treatment_open_app)) } }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
                     Spacer(Modifier.size(8.dp))
-                    Button(onClick = save, enabled = canSave) { Text("Save") }
+                    Button(onClick = save, enabled = canSave) { Text(stringResource(R.string.treatment_save)) }
                 }
             }
         }
@@ -214,11 +216,11 @@ fun KindMark(kind: String, color: Color) {
 @Composable
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
-    if (at == null) return "Now"
+    if (at == null) return stringResource(R.string.treatment_time_now)
     val fmt = DateFormat.getTimeFormat(ctx).format(java.util.Date(at * 1000))
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
-    return if (day == today) "Today $fmt" else "Yesterday $fmt"
+    return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)
 }
 
 /** M3 time picker; a time later than now means yesterday (entries are logged after the fact, never ahead). */
@@ -230,7 +232,7 @@ private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit
     val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), DateFormat.is24HourFormat(ctx))
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("When?") },
+        title = { Text(stringResource(R.string.treatment_time_title)) },
         text = { TimePicker(state) },
         confirmButton = {
             Button(onClick = {
@@ -241,12 +243,12 @@ private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit
                 }
                 // within the current minute = now
                 onPick(if (now.timeInMillis - pick.timeInMillis < 60_000) null else pick.timeInMillis / 1000)
-            }) { Text("OK") }
+            }) { Text(stringResource(android.R.string.ok)) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = { onPick(null) }) { Text("Now") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = { onPick(null) }) { Text(stringResource(R.string.treatment_time_now)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
             }
         },
     )

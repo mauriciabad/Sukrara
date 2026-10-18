@@ -48,13 +48,13 @@ object AlertNotifier {
         val ids = Kind.ALL.flatMap { listOf(channelId(it, false), channelId(it, true)) }.toSet()
         // channels of kinds and layouts that no longer exist (0.11.1 `alert_<kind>`, the renamed `urgent_low`)
         nm.notificationChannels.filter { it.id.startsWith("alert_") && it.id !in ids }.forEach { nm.deleteNotificationChannel(it.id) }
-        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP, "Glucose alerts"))
-        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_ALARM, "Glucose alerts at alarm volume"))
+        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP, ctx.getString(R.string.channel_group_alerts)))
+        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_ALARM, ctx.getString(R.string.channel_group_alerts_alarm)))
         for (k in Kind.ALL) for (alarm in listOf(false, true)) {
-            nm.createNotificationChannel(NotificationChannel(channelId(k, alarm), Kind.label(k), NotificationManager.IMPORTANCE_HIGH).apply {
+            nm.createNotificationChannel(NotificationChannel(channelId(k, alarm), label(ctx, k), NotificationManager.IMPORTANCE_HIGH).apply {
                 group = if (alarm) GROUP_ALARM else GROUP
-                description = DESCRIPTIONS.getValue(k) +
-                    if (alarm) " Rings at alarm volume, like an alarm clock." else " Rings at notification volume."
+                description = ctx.getString(if (alarm) R.string.channel_alert_description_alarm else R.string.channel_alert_description,
+                    ctx.getString(DESCRIPTIONS.getValue(k)))
                 setSound(AlertSounds.uri(ctx, k), audioAttributes(alarm))
                 enableVibration(true)
                 vibrationEffect = AlertHaptics.effect(ctx, k)
@@ -66,15 +66,43 @@ object AlertNotifier {
     }
 
     private val DESCRIPTIONS = mapOf(
-        Kind.VERY_LOW to "Glucose < very low.",
-        Kind.LOW to "Glucose < low.",
-        Kind.HIGH to "Glucose ≥ high.",
-        Kind.VERY_HIGH to "Glucose ≥ very high.",
-        Kind.EXTREMELY_HIGH to "Glucose ≥ extremely high. Never muted.",
-        Kind.FALLING_FAST to "Glucose falling ≥ the set rate.",
-        Kind.RISING_FAST to "Glucose rising ≥ the set rate.",
-        Kind.NO_DATA to "No reading for the set time.",
+        Kind.VERY_LOW to R.string.channel_alert_very_low,
+        Kind.LOW to R.string.channel_alert_low,
+        Kind.HIGH to R.string.channel_alert_high,
+        Kind.VERY_HIGH to R.string.channel_alert_very_high,
+        Kind.EXTREMELY_HIGH to R.string.channel_alert_extremely_high,
+        Kind.FALLING_FAST to R.string.channel_alert_falling_fast,
+        Kind.RISING_FAST to R.string.channel_alert_rising_fast,
+        Kind.NO_DATA to R.string.channel_alert_no_data,
     )
+
+    /** The alert's name in the app's language ("Very low"): channel names, the sound's title. */
+    fun label(ctx: Context, k: String): String = ctx.getString(when (k) {
+        Kind.VERY_LOW -> R.string.alert_kind_very_low; Kind.LOW -> R.string.alert_kind_low; Kind.HIGH -> R.string.alert_kind_high
+        Kind.VERY_HIGH -> R.string.alert_kind_very_high; Kind.EXTREMELY_HIGH -> R.string.alert_kind_extremely_high
+        Kind.FALLING_FAST -> R.string.alert_kind_falling_fast; Kind.RISING_FAST -> R.string.alert_kind_rising_fast
+        else -> R.string.alert_kind_no_data
+    })
+
+    /**
+     * [Kind.message] in the app's language: the engine's structured headline (kind + [treated], see [AlertEngine.Fire])
+     * worded here, so the engine and its timeline scenarios stay Android-free and in English.
+     */
+    fun headline(ctx: Context, k: String, treated: Int): String {
+        val base = ctx.getString(when (k) {
+            Kind.VERY_LOW -> R.string.alert_headline_very_low; Kind.LOW -> R.string.alert_headline_low
+            Kind.HIGH -> R.string.alert_headline_high; Kind.VERY_HIGH -> R.string.alert_headline_very_high
+            Kind.EXTREMELY_HIGH -> R.string.alert_headline_extremely_high
+            Kind.FALLING_FAST -> R.string.alert_kind_falling_fast; Kind.RISING_FAST -> R.string.alert_kind_rising_fast
+            else -> R.string.alert_headline_no_data
+        })
+        val more = when {
+            treated <= 0 || k !in Kind.LEVELS -> return base
+            k in Kind.LOW_SIDE -> if (treated == 1) R.string.alert_context_eat_more else R.string.alert_context_eat_more_again
+            else -> if (treated == 1) R.string.alert_context_after_insulin else R.string.alert_context_after_more_insulin
+        }
+        return ctx.getString(R.string.alert_headline_with_context, base, ctx.getString(more))
+    }
 
     fun notificationId(kind: String) = ID_BASE + when (Kind.group(kind)) { "level" -> 1; "rate" -> 2; else -> 3 }
 
@@ -92,14 +120,14 @@ object AlertNotifier {
         val text = when (kind) {
             Kind.VERY_LOW, Kind.LOW -> "$value · < $thText $unit"
             Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "$value · ≥ $thText $unit"
-            Kind.FALLING_FAST -> "$value · falling ${"%.1f".format(-(rate ?: 0.0))} ≥ $thText $unit"
-            Kind.RISING_FAST -> "$value · rising ${"%.1f".format(rate ?: 0.0)} ≥ $thText $unit"
-            else -> "Nothing received for $thText min" + (sgv?.let { " · last $it mg/dL" } ?: "")
+            Kind.FALLING_FAST -> "$value · " + ctx.getString(R.string.alert_text_falling, "%.1f".format(-(rate ?: 0.0)), "$thText $unit")
+            Kind.RISING_FAST -> "$value · " + ctx.getString(R.string.alert_text_rising, "%.1f".format(rate ?: 0.0), "$thText $unit")
+            else -> sgv?.let { ctx.getString(R.string.alert_text_no_data_last, thText, it) } ?: ctx.getString(R.string.alert_text_no_data, thText)
         }
         val b = Notification.Builder(ctx, channelId(kind, alarm))
             .setSmallIcon(R.drawable.ic_stat_sukrara)
             .setColor(if (isLow(kind)) Range.RED else Range.ORANGE)
-            .setContentTitle(Kind.message(kind, treated))
+            .setContentTitle(headline(ctx, kind, treated))
             .setContentText(text)
             .setContentIntent(open(ctx))
             .setAutoCancel(true)

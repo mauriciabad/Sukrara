@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import app.mauri.sukrara.R
 import android.content.Context
 import android.graphics.Canvas
 import androidx.compose.runtime.Composable
@@ -177,24 +178,25 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
             else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
+        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
         modifier = GlanceModifier.fillMaxSize(),
         contentScale = ContentScale.FillBounds,
     )
 }
 
 /** The value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
-private fun describe(frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
+private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
     val r = frame.history.lastOrNull()
     val now = frame.nowSec
-    if (r == null) return "Glucose: no readings yet"
+    if (r == null) return c.getString(R.string.widget_desc_no_readings)
     val f = Freshness.of(now - r.t)
-    if (!f.showValue) return "Glucose: no reading since ${Freshness.timeText(r.t, now)}"
+    if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
     val badge = treatments?.let {
         app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now), now)
     }
-    return "Glucose ${r.sgv} mg/dL, ${Trend.word(r.rate)}${if (f.showTime) ", at ${Freshness.timeText(r.t, now)}" else ""}" +
-        (badge?.let { ". $it" } ?: "")
+    val value = if (f.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
+        else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
+    return value + (badge?.let { ". $it" } ?: "")
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */

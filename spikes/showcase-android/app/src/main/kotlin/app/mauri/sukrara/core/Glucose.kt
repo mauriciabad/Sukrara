@@ -47,10 +47,10 @@ object Trend {
     }
 
     fun word(rate: Double?): String = when {
-        rate == null -> "trend unknown"
-        abs(rate) < 1 -> "steady"
-        rate > 0 -> if (rate >= 2) "rising fast" else "rising"
-        else -> if (rate <= -2) "falling fast" else "falling"
+        rate == null -> Words.current.trendUnknown
+        abs(rate) < 1 -> Words.current.trendSteady
+        rate > 0 -> if (rate >= 2) Words.current.trendRisingFast else Words.current.trendRising
+        else -> if (rate <= -2) Words.current.trendFallingFast else Words.current.trendFalling
     }
 
     /**

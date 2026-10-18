@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.Words
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
@@ -115,7 +116,7 @@ class AlertSoundProvider : ContentProvider() {
     /** The name the channel's settings page shows for the sound. */
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, args: Array<out String>?, sort: String?): Cursor {
         val kind = uri.lastPathSegment ?: ""
-        val title = "Sukrara · ${Kind.label(kind)}"
+        val title = "Sukrara · ${Words.current.kind(kind)}"
         val cols = projection ?: arrayOf(OpenableColumns.DISPLAY_NAME, "title")
         return MatrixCursor(cols).apply {
             addRow(cols.map { c -> when (c) { OpenableColumns.DISPLAY_NAME, "title" -> title; "_id" -> 0; else -> null } })

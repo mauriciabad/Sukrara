@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import app.mauri.sukrara.core.Words
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -35,15 +36,17 @@ object StatusBadge {
     fun look(s: AlertStatus, now: Long): Look? = when (s) {
         AlertStatus.None -> null
         is AlertStatus.Needed ->
-            if (s.kind in Kind.LOW_SIDE) Look("carbs", "Eat carbs", "Carbs", false) else Look("rapid", "Take insulin", "Insulin", false)
-        is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, "$it left", it, true) }
+            Words.current.let { w ->
+                if (s.kind in Kind.LOW_SIDE) Look("carbs", w.eatCarbs, w.carbsShort, false) else Look("rapid", w.takeInsulin, w.insulinShort, false)
+            }
+        is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
     }
 
     /** For screen readers (widget descriptions). */
     fun describe(s: AlertStatus, now: Long): String? = when (s) {
         AlertStatus.None -> null
         is AlertStatus.Needed -> look(s, now)?.text
-        is AlertStatus.Taken -> "${Kind.label(s.kind)}: alerts paused, ${TreatmentMarks.duration(s.until - now, up = true)} left"
+        is AlertStatus.Taken -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
     }
 
     /** Material Symbols "notifications_paused" (Apache 2.0), viewBox 0 -960 960 960; also `ic_sym_notifications_paused`. */

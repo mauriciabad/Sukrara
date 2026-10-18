@@ -48,6 +48,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // Per-app language (developer.android.com/guide/topics/resources/app-languages): AGP generates the LocaleConfig
+    // and the manifest's android:localeConfig from the values-* folders (default locale: res/resources.properties),
+    // so Settings → Apps → Sukrara → Language lists English and Spanish. localeFilters keeps libraries' other
+    // translations out of the APK.
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "es")
+    }
     buildFeatures {
       compose = true
       aidl = false

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -78,16 +80,15 @@ fun GlucoseReportContent(m: GlucoseMetrics?, window: Long, onWindow: (Long) -> U
     val bad = Color(pal.high)
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Glucose report", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.report_title), style = MaterialTheme.typography.titleMedium)
             Chips(REPORT_WINDOWS, window, ::periodLabel, onWindow)
             val mm = m
             if (mm == null || mm.empty) {
-                Text("No readings in this window yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.report_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 return@Column
             }
             if (mm.tir.coverage < Goal.MIN_COVERAGE) Text(
-                "Sensor data for ${Math.round(mm.tir.coverage * 100)} % of the last ${periodLabel(window)}. The report " +
-                    "is meant for 14 days with at least 70 %.",
+                stringResource(R.string.report_low_coverage, Math.round(mm.tir.coverage * 100).toInt(), periodLabel(window)),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             // Time in ranges: a stacked bar, high on top, like the report.
@@ -106,25 +107,24 @@ fun GlucoseReportContent(m: GlucoseMetrics?, window: Long, onWindow: (Long) -> U
                     }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RangeRow("Very high", "> ${b.veryHigh} mg/dL", mm.tir.veryHigh, Goal.VERY_HIGH, mm, good, bad)
-                    RangeRow("High", "${b.high + 1}–${b.veryHigh} mg/dL", mm.tir.high, null, mm, good, bad)
-                    RangeRow("Above range", "very high + high", mm.tir.above, Goal.ABOVE, mm, good, bad, strong = true)
+                    RangeRow(stringResource(R.string.report_very_high), "> ${b.veryHigh} mg/dL", mm.tir.veryHigh, Goal.VERY_HIGH, mm, good, bad)
+                    RangeRow(stringResource(R.string.report_high), "${b.high + 1}–${b.veryHigh} mg/dL", mm.tir.high, null, mm, good, bad)
+                    RangeRow(stringResource(R.string.report_above), stringResource(R.string.report_above_detail), mm.tir.above, Goal.ABOVE, mm, good, bad, strong = true)
                     HorizontalDivider()
-                    RangeRow("Target", "${b.low}–${b.high} mg/dL", mm.tir.inRange, Goal.IN_RANGE, mm, good, bad, strong = true)
-                    RangeRow("Very good", "${b.low}–${b.tight} mg/dL, part of target", mm.tir.tight, null, mm, good, bad)
+                    RangeRow(stringResource(R.string.report_target), "${b.low}–${b.high} mg/dL", mm.tir.inRange, Goal.IN_RANGE, mm, good, bad, strong = true)
+                    RangeRow(stringResource(R.string.report_very_good), stringResource(R.string.report_very_good_detail, "${b.low}–${b.tight}"), mm.tir.tight, null, mm, good, bad)
                     HorizontalDivider()
-                    RangeRow("Low", "${b.veryLow}–${b.low - 1} mg/dL", mm.tir.low, null, mm, good, bad)
-                    RangeRow("Very low", "< ${b.veryLow} mg/dL", mm.tir.veryLow, Goal.VERY_LOW, mm, good, bad)
-                    RangeRow("Below range", "low + very low", mm.tir.below, Goal.BELOW, mm, good, bad, strong = true)
+                    RangeRow(stringResource(R.string.report_low), "${b.veryLow}–${b.low - 1} mg/dL", mm.tir.low, null, mm, good, bad)
+                    RangeRow(stringResource(R.string.report_very_low), "< ${b.veryLow} mg/dL", mm.tir.veryLow, Goal.VERY_LOW, mm, good, bad)
+                    RangeRow(stringResource(R.string.report_below), stringResource(R.string.report_below_detail), mm.tir.below, Goal.BELOW, mm, good, bad, strong = true)
                 }
             }
             HorizontalDivider()
-            MetricRow("Average glucose", "${Math.round(mm.mean)} mg/dL", Goal.AVERAGE, mm, good, bad)
-            MetricRow("GMI", "%.1f %%  ·  %d mmol/mol".format(mm.gmi, Math.round(mm.gmiMmolMol)),
-                Goal.GMI, mm, good, bad, extraGoal = "< 53 mmol/mol", caption = "Glucose Management Indicator")
-            MetricRow("Glucose variability (CV)", "%.1f %%".format(mm.cv), Goal.CV, mm, good, bad)
-            Text("Goals for type 1 and type 2 diabetes (international consensus, as in LibreView's report). " +
-                "Sensor active ${Math.round(mm.tir.coverage * 100)} % of the window.",
+            MetricRow(stringResource(R.string.report_average), "${Math.round(mm.mean)} mg/dL", Goal.AVERAGE, mm, good, bad)
+            MetricRow(stringResource(R.string.report_gmi), "%.1f %%  ·  %d mmol/mol".format(mm.gmi, Math.round(mm.gmiMmolMol)),
+                Goal.GMI, mm, good, bad, extraGoal = "< 53 mmol/mol", caption = stringResource(R.string.report_gmi_caption))
+            MetricRow(stringResource(R.string.report_cv), "%.1f %%".format(mm.cv), Goal.CV, mm, good, bad)
+            Text(stringResource(R.string.report_footer, Math.round(mm.tir.coverage * 100).toInt()),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
     }
@@ -139,7 +139,7 @@ private fun GoalChip(text: String, met: Boolean, good: Color, bad: Color) {
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         if (met) androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_check), contentDescription = null,
             tint = c, modifier = Modifier.padding(end = 2.dp).size(12.dp))
-        Text("Goal $text", style = MaterialTheme.typography.labelSmall, color = c)
+        Text(stringResource(R.string.report_goal, text), style = MaterialTheme.typography.labelSmall, color = c)
     }
 }
 

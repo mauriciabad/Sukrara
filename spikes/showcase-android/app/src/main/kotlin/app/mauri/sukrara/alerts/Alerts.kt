@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
+import app.mauri.sukrara.R
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -88,12 +89,14 @@ object Alerts {
         val s = _settings.value
         if (!s.on || (role == "follower" && s.source == "wearer")) return null
         fun left(on: Boolean, min: Int) = if (on) ((at + min * 60L - now) / 60).toInt().takeIf { it > 0 } else null
-        val parts = listOfNotNull(
-            left(rapid && s.muteInsulin, s.muteInsulinMin)?.let { "Highs" to it },
-            left(carbs && s.muteCarbs, s.muteCarbsMin)?.let { "Lows" to it },
-        )
-        return parts.mapIndexed { i, (what, m) -> "${if (i == 0) what else what.lowercase()} quiet for $m min" }
-            .joinToString(" · ").ifEmpty { null }
+        val highs = left(rapid && s.muteInsulin, s.muteInsulinMin)
+        val lows = left(carbs && s.muteCarbs, s.muteCarbsMin)
+        return when {
+            highs != null && lows != null -> ctx.getString(R.string.treatment_quiet_both, highs, lows)
+            highs != null -> ctx.getString(R.string.treatment_quiet_highs, highs)
+            lows != null -> ctx.getString(R.string.treatment_quiet_lows, lows)
+            else -> null
+        }
     }
 
     /** Rules that run on this phone: all of them, or only no data while a follower mirrors the wearer. */

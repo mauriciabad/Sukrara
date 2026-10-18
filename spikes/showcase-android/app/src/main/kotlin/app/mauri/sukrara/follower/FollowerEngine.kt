@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.follower
 
+import app.mauri.sukrara.R
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -128,9 +129,9 @@ class FollowerEngine(private val ctx: Context) {
         val got = kotlinx.coroutines.CompletableDeferred<JSONObject>()
         ble.onInfo = { if (!got.isCompleted) got.complete(it) }
         ble.connect(address)
-        val info = kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return "Could not reach that phone over Bluetooth"
+        val info = kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return ctx.getString(R.string.follower_error_ble_unreachable)
         ble.onInfo = null
-        val pair = info.optJSONObject("pair") ?: return "The owner has not turned on \"Pair nearby\""
+        val pair = info.optJSONObject("pair") ?: return ctx.getString(R.string.follower_error_pairing_off)
         val inv = app.mauri.sukrara.core.Invite(info.getString("i"), pair.getString("t"), pair.getLong("x"),
             Proto.strings(info.optJSONArray("relays")), app.mauri.sukrara.core.Profile.of(pair.optJSONObject("profile")))
         log.i("nearby: INFO from $address (owner ${Proto.shortNpub(inv.iPub)}, '${inv.profile?.name}')")
@@ -192,7 +193,7 @@ class FollowerEngine(private val ctx: Context) {
      * where a relay wants it), check the seal against the link's fingerprint. Shows who is inviting before asking.
      */
     suspend fun resolveInvite(link: String): Result<app.mauri.sukrara.core.Invite> = withContext(Dispatchers.IO) {
-        val l = app.mauri.sukrara.core.Derive.parse(link) ?: return@withContext Result.failure(IllegalArgumentException("Not a Sukrara invite link"))
+        val l = app.mauri.sukrara.core.Derive.parse(link) ?: return@withContext Result.failure(IllegalArgumentException(ctx.getString(R.string.follower_error_not_invite)))
         val k = Proto.inviteKeys(l)
         val tmp = RelayPool(Proto.RELAYS, log::i) { k }
         val filter = listOf(JSONObject().put("kinds", JSONArray().put(Proto.WRAP)).put("#p", JSONArray().put(Proto.pub(k))))
@@ -213,11 +214,11 @@ class FollowerEngine(private val ctx: Context) {
 
     /** Make F and send the access request (gift wrap to I) with our [me] profile. Returns an error or null. */
     suspend fun join(inv: app.mauri.sukrara.core.Invite, me: app.mauri.sukrara.core.Profile, nearby: Boolean = false): String? = withContext(serial) {
-        if (inv.expiry < Proto.nowS()) return@withContext "This invite expired — ask for a new one"
-        if (inv.relays.isEmpty()) return@withContext "Invite has no relays"
+        if (inv.expiry < Proto.nowS()) return@withContext ctx.getString(R.string.follower_error_invite_expired)
+        if (inv.relays.isEmpty()) return@withContext ctx.getString(R.string.follower_error_invite_no_relays)
         val f = Keys.generate()
         val code = Proto.matchCode(Proto.pub(f), inv.token)
-        st = FollowerState(f, me.name.trim().ifBlank { "Follower" }.take(app.mauri.sukrara.core.Profile.MAX_NAME), inv.iPub,
+        st = FollowerState(f, me.name.trim().ifBlank { ctx.getString(R.string.follower_default_name) }.take(app.mauri.sukrara.core.Profile.MAX_NAME), inv.iPub,
             inv.token, inv.relays, code, Proto.nowS(), avatar = me.avatar, wearer = inv.profile, nearby = nearby)
         save()
         log.i("joining ${Proto.shortNpub(inv.iPub)} ('${inv.profile?.name}') via ${inv.relays.size} relays as '${st!!.name}' F=${Proto.pub(f)} code $code")
@@ -460,11 +461,20 @@ class FollowerEngine(private val ctx: Context) {
                 val used = u.body.optString("type") == "invite-used"
                 s.status = if (used) FollowerState.USED else FollowerState.DECLINED
                 save()
-                val who = s.wearer?.name?.ifBlank { null } ?: "The wearer"
+                val name = s.wearer?.name?.ifBlank { null }
                 log.i(if (used) "INVITE ALREADY USED by another phone (notice via ${short(via)})" else "DECLINED by the wearer (via ${short(via)})")
                 Notifications.post(ctx, Notifications.ID_STATUS, Notifications.STATUS,
-                    if (used) "This invite was already used" else "$who didn't allow this phone",
-                    if (used) "Ask $who for a new one, and tell them: it may not have been someone they invited." else "Ask $who for a new invite if this was a mistake.")
+                    when {
+                        used -> ctx.getString(R.string.follower_notif_invite_used_title)
+                        name != null -> ctx.getString(R.string.follower_notif_declined_title, name)
+                        else -> ctx.getString(R.string.follower_notif_declined_title_unnamed)
+                    },
+                    when {
+                        used && name != null -> ctx.getString(R.string.follower_notif_invite_used_text, name)
+                        used -> ctx.getString(R.string.follower_notif_invite_used_text_unnamed)
+                        name != null -> ctx.getString(R.string.follower_notif_declined_text, name)
+                        else -> ctx.getString(R.string.follower_notif_declined_text_unnamed)
+                    })
                 publishUi()
             }
             "revoked" -> {
@@ -475,8 +485,8 @@ class FollowerEngine(private val ctx: Context) {
                 save()
                 unsubscribeData()
                 log.i("REVOKED by the owner (notice via ${short(via)}): no further data will be decrypted")
-                Notifications.post(ctx, Notifications.ID_STATUS, Notifications.STATUS, "Access removed",
-                    "The owner stopped sharing glucose with this phone")
+                Notifications.post(ctx, Notifications.ID_STATUS, Notifications.STATUS, ctx.getString(R.string.follower_notif_revoked_title),
+                    ctx.getString(R.string.follower_notif_revoked_text))
                 publishUi()
             }
         }

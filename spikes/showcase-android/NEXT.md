@@ -66,6 +66,13 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
 - **Android**: Kotlin only — never Java source; newest APIs; GPL header on every file; sign debug + release with
   `~/.android/debug.keystore`. JDK 17: `export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`.
   Watch R8 (widget classes merged once; keep rules in `proguard-rules.pro`) — test release builds after a restart.
+- **Strings** (English + Spanish): add every user-visible text to `app/src/main/res/values/strings.xml` (snake_case
+  name grouped by screen, `<!-- what it is [CHAR LIMIT=…] -->` above it, `%1$s` positional arguments, `<plurals>` for
+  counts, `translatable="false"` for brand names and units) and the same key to `values-es/strings.xml` (Spain
+  Spanish; terms: hidratos, insulina rápida / lenta, tiempo en rango). Compose: `stringResource`; elsewhere
+  `ctx.getString`. Plain-Kotlin drawing code (card, graph, badge) reads `core/Words` (English defaults for the JVM
+  tests, loaded from the resources in the app) — add the field there too. `StringsParityTest` fails on a missing key
+  or argument. The alert engine stays English (scenarios); the notifier words its headlines (`AlertNotifier.headline`).
 - **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` = no widgets), then `./dmg.sh` →
   `build/Sukrara-<ver>.dmg` (needs `uv tool install dmgbuild`). **Releases attach the dmg** (what the README's
   Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. The user's daily

@@ -82,3 +82,12 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Light: the home widgets' look; light palette, frosted tint = Glance's widget background (`system_accent2_50`, Material You, near white) 60 %, card = the same colour 88 %, dim = white gradient, shadow = white glow 70 %.
 - A dark-theme flip redraws at once: the module re-tints on its view's configuration change, the app redraws the widgets from a `ComponentCallbacks` night-mode watcher.
 - Slots right of the lock icon use the same choice as the home widgets (`appSlots`: rings, report numbers, last treatment, fallback), main rightmost, as many as fit (≤ 4).
+
+## Languages
+
+- English (default) and Spanish (Spain) for everything except the settings pages; the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
+- Text lives in `res/values/strings.xml` and `res/values-es/strings.xml`; a unit test fails when a key or a format argument is missing in a translation.
+- Numbers, dates and times follow the chosen language (decimal comma in Spanish, localized day and month names); units stay as they are (mg/dL, `4.5u`, `30g`).
+- Spanish terms: hidratos (carbs), insulina rápida / lenta, tiempo en rango, seguidores; alert headlines like "Glucosa baja · come más".
+- Changing the language renames the notification channels and redraws the widgets, the notification and the lock screen widget at once.
+- Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification words them.

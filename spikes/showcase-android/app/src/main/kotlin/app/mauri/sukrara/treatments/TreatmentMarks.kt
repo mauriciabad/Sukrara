@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.treatments
 
+import app.mauri.sukrara.core.Words
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -58,12 +59,13 @@ object TreatmentMarks {
      */
     fun duration(s: Long, up: Boolean = false): String {
         val m = if (up) (s.coerceAtLeast(0) + 59) / 60 else s.coerceAtLeast(0) / 60
+        val w = Words.current
         return when {
-            m < 1 -> "now"
-            m < 60 -> "${m}m"
-            m < 6 * 60 -> if (m % 60 == 0L) "${m / 60}h" else "${m / 60}h ${m % 60}m"
-            m < 48 * 60 -> "${m / 60}h"
-            else -> "${m / 1440}d"
+            m < 1 -> w.durNow
+            m < 60 -> w.durMinutes.format(m)
+            m < 6 * 60 -> if (m % 60 == 0L) w.durHours.format(m / 60) else w.durHoursMinutes.format(m / 60, m % 60)
+            m < 48 * 60 -> w.durHours.format(m / 60)
+            else -> w.durDays.format(m / 1440)
         }
     }
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import app.mauri.sukrara.R
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.RectF
@@ -135,7 +136,7 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale, LockAppearance.dark(f.lockLook, ctx))
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(frame),
+        contentDescription = describe(ctx, frame),
         modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>()),
         contentScale = ContentScale.FillBounds,
     )
@@ -218,10 +219,13 @@ private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {
     try { block() } finally { restore() }
 }
 
-private fun describe(frame: WidgetUpdater.Frame): String {
-    val r = frame.history.lastOrNull() ?: return "Glucose: no readings yet. Add treatment"
-    val f = Freshness.of(frame.nowSec - r.t)
-    val value = if (!f.showValue) "no reading since ${Freshness.timeText(r.t, frame.nowSec)}"
-        else "${r.sgv} mg/dL, ${Trend.word(r.rate)}"
-    return "Glucose $value. Add treatment"
+private fun describe(c: android.content.Context, frame: WidgetUpdater.Frame): String {
+    val r = frame.history.lastOrNull()
+    val f = r?.let { Freshness.of(frame.nowSec - it.t) }
+    val value = when {
+        r == null -> c.getString(R.string.widget_desc_no_readings)
+        !f!!.showValue -> c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, frame.nowSec))
+        else -> c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
+    }
+    return c.getString(R.string.lock_widget_desc, value)
 }

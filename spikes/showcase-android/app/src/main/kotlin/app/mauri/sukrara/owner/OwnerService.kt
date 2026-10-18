@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.owner
 
+import app.mauri.sukrara.R
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -32,15 +33,15 @@ class OwnerService : Service() {
         super.onCreate()
         Features.init(this)
         GlucoseNotification.createChannel(this)
-        startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, "starting…"),
+        startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, getString(R.string.notif_starting)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         val engine = App.owner(this)
         extras = WearerExtras(this, scope) {
             val u = engine.ui.value
             val f = Features.value
             val n = u.followers.count { it.revoked == null }
-            "$n follower${if (n == 1) "" else "s"}" + (if (!f.nostr) " · Nostr off" else "") +
-                (if (u.bleCentrals > 0) " · ${u.bleCentrals} nearby" else "")
+            resources.getQuantityString(R.plurals.notif_followers, n, n) + (if (!f.nostr) " · " + getString(R.string.notif_nostr_off) else "") +
+                (if (u.bleCentrals > 0) " · " + getString(R.string.notif_nearby, u.bleCentrals) else "")
         }.also { it.start() }
         // Investigation 15: alerts on the wearer's readings; rapid insulin and carbs from the shared log; fired alerts → followers
         app.mauri.sukrara.alerts.Alerts.attach(this, "wearer",
