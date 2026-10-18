@@ -30,6 +30,10 @@ Cheap tools:
 - [ ] Spanish: switch the per-app language (Settings → Apps → Sukrara → Language) and repeat for the changed screens;
       no clipped or English-only text outside the settings pages.
 - [ ] Rotation / small window (`small_phone`) keeps the layout usable.
+- [ ] Screen transitions (a change to `Motion.kt` / `ScreenHost`, a page's scaffold or a vendored SPA widget): set
+      Animator duration scale to 5×, `screenrecord` home ↔ settings, a settings page push / pop and a predictive back
+      swipe, and step the frames: no page drawn from scratch at the start or end of a move (empty chart, rows in another
+      layout for one frame). `ScreenHostTest` (run with `GALLERY_JAVA_HOME`) checks a page isn't composed twice.
 
 ## Q2 Graph and value card
 

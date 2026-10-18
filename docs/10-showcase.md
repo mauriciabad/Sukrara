@@ -747,6 +747,14 @@ Discarded: SPA's page framework (`SettingsPageProvider`, `BrowseActivity`, navig
 keeps the system motion, predictive back and the index-mode search; SPA's chart and Lottie widgets (MPAndroidChart,
 Lottie); the ↗ / › end icons on plain rows (stock rows have none); the per-group icon column (SPA doesn't reserve it).
 
+**Transition flash (fixed after 0.11.14).** The screen host drew the page at rest and the pages in motion from
+different call sites, so every move composed the page again from scratch at its start and end: home's chart was
+redrawn empty for a frame when Settings opened, and SPA pages showed one frame of rows in a different layout at the
+end of an open and the start of a back. Present since the system page motion (0.11.13), visible with the SPA pages.
+`ScreenHost` now keeps each page in a fixed slot for as long as it's drawn (z-order by `zIndex`), so no page is ever
+recomposed from scratch mid-move; a back during an open now animates the half-open page back out. Guarded by
+`ScreenHostTest` and a QA Q1 step (record at 5× animator scale, step the frames).
+
 ## Treatments on the card (2026-10-18 feedback round)
 
 Details and pictures: [16 → Treatments on the card](16-graph.md#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18).
