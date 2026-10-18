@@ -80,11 +80,14 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
+  The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low). Tapping a widget or the glucose notification
   opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
   *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
-  it keeps alerts quiet. [10](docs/10-showcase.md)
+  it keeps alerts quiet. On the charts the labels sit under their markers, in the time axis' row, never over the
+  line; a meal shares one label (`4.5u · 45g 1h 35m`), and close ones slide or take a second row, the same way on
+  Android and Mac. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left; without a recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)

@@ -84,10 +84,10 @@ object TirRing {
         }
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ColorUtils.setAlphaComponent(pal.ink, alpha); textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, 800, false); textSize = radius * 0.78f
+            typeface = RoundedFont.typeface(800); textSize = radius * 0.78f
         }
         val sub = Paint(num).apply {
-            textSize = radius * 0.34f; typeface = Typeface.create(Typeface.DEFAULT, 600, false)
+            textSize = radius * 0.34f; typeface = RoundedFont.typeface(600)
             color = ColorUtils.setAlphaComponent(if (spec.range == TirRange.TIGHT) pal.tight else pal.inkSoft, alpha)
         }
         val v = if (tir.empty) "–" else "${Math.round(tir.of(spec.range) * 100)}"
@@ -150,11 +150,11 @@ object MetricGauge {
             cx + (r1 * Math.cos(ga)).toFloat(), cy + (r1 * Math.sin(ga)).toFloat(), tick)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ColorUtils.setAlphaComponent(pal.ink, alpha); textAlign = Paint.Align.LEFT
-            typeface = Typeface.create(Typeface.DEFAULT, 800, false); textSize = radius * 0.62f
+            typeface = RoundedFont.typeface(800); textSize = radius * 0.62f
         }
-        val unit = Paint(num).apply { textSize = radius * 0.3f; typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
+        val unit = Paint(num).apply { textSize = radius * 0.3f; typeface = RoundedFont.typeface(600) }
         val sub = Paint(num).apply {
-            textAlign = Paint.Align.CENTER; textSize = radius * 0.3f; typeface = Typeface.create(Typeface.DEFAULT, 600, false)
+            textAlign = Paint.Align.CENTER; textSize = radius * 0.3f; typeface = RoundedFont.typeface(600)
             color = ColorUtils.setAlphaComponent(pal.inkSoft, alpha)
         }
         val (v, u) = if (m.empty) "–" to "" else text(spec.kind, m)
@@ -280,7 +280,7 @@ object GlucoseCard {
         val timeH = if (badgeRow) badgeH * 1.25f else if (fr.showTime) small.textSize * 1.25f else 0f
         val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color; typeface = Typeface.create(Typeface.DEFAULT, 700, false)
+            this.color = color; typeface = RoundedFont.typeface(700); fontFeatureSettings = RoundedFont.TABULAR
             textSize = numBox.height() * 1.18f
             isStrikeThruText = fr.strike
         }

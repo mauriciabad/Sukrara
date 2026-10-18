@@ -163,6 +163,62 @@ enum GraphFixtures {
             }
         }
         print("graph fixtures: \(n) cases, \(failures) failed")
+        return failures + labels(dir.appendingPathComponent("labels"))
+    }
+
+    /// The treatment label layout (spikes/graph-fixtures/labels/*.json, the files GraphFixtureTest.labels runs): the
+    /// plot's edges, the lanes, which labels are drawn (entries, text, lane, centre in dp from the chart's left) or
+    /// dropped. dp values match within 0.5 (Float on Android, Double here; both rounded to 0.5).
+    static func labels(_ dir: URL) -> Int {
+        let now: TimeInterval = 1_800_000_000
+        var failures = 0, n = 0
+        func r(_ v: CGFloat) -> Double { (Double(v) * 2).rounded() / 2 }
+        func near(_ a: Any?, _ b: Double) -> Bool { ((a as? NSNumber)?.doubleValue).map { abs($0 - b) <= 0.5 } ?? false }
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        if files.isEmpty { print("FAIL label fixtures: none in \(dir.path)"); return 1 }
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL labels/\(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let name = "labels/\(f): \(c["name"] as? String ?? "?")"
+                let chart = c["chart"] as? [String: Double] ?? [:]
+                let w = CGFloat(chart["w"] ?? 0), h = CGFloat(chart["h"] ?? 0)
+                let window = ((c["hours"] as? Double) ?? 12) * 3600
+                let (left, right) = GlucoseGraph.plotX(0, w, pct: c["pct"] as? Bool ?? true, labels: true, d: 1)
+                let from = now - window
+                let marks = (c["treatments"] as? [[String: Any]] ?? []).map {
+                    GraphMark(t: now + (($0["t"] as? Double) ?? 0), k: $0["k"] as? String ?? "", a: ($0["a"] as? Double) ?? 0, id: $0["id"] as? String ?? "")
+                }.filter { $0.t >= from && $0.t <= now }
+                let lanes = GlucoseGraph.lanes(h, d: 1)
+                let lay = TreatmentMarks.layout(marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now,
+                                                minX: 0, maxX: w, lanes: lanes, d: 1)
+                let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
+                // the width model holds the real text (SF Pro, the wider font) of every label
+                let bold = Ink.font(TreatmentMarks.labelSize, .bold), medium = Ink.font(TreatmentMarks.labelSize, .medium)
+                for l in got {
+                    let real = l.amounts.reduce(0) { $0 + Ink.width($1, bold) } + CGFloat(l.amounts.count - 1) * Ink.width(TreatmentMarks.sep, medium)
+                        + (l.time.map { Ink.width(" " + $0, medium) } ?? 0)
+                    if real > l.w + 0.01 { print("FAIL \(name): \"\(l.text)\" is \(real) wide, modelled \(l.w)"); failures += 1 }
+                }
+                let e = c["expect"] as? [String: Any] ?? [:]
+                let plot = e["plot"] as? [Any] ?? []
+                var ok = plot.count == 2 && near(plot[0], r(left)) && near(plot[1], r(right)) && (e["lanes"] as? Int) == lanes
+                ok = ok && (e["dropped"] as? [[String]] ?? []) == lay.dropped.map { $0.map(\.id) }
+                let want = e["labels"] as? [[String: Any]] ?? []
+                ok = ok && want.count == got.count && zip(want, got).allSatisfy { wl, l in
+                    (wl["ids"] as? [String]) == l.members.map(\.id) && (wl["text"] as? String) == l.text
+                        && (wl["lane"] as? Int) == l.lane && near(wl["x"], r(l.left + l.w / 2))
+                }
+                if !ok {
+                    let dump = got.map { "{\($0.members.map(\.id)) \"\($0.text)\" lane \($0.lane) x \(r($0.left + $0.w / 2))}" }.joined(separator: ", ")
+                    print("FAIL \(name)\n  got plot [\(r(left)), \(r(right))] lanes \(lanes) dropped \(lay.dropped.map { $0.map(\.id) }) labels \(dump)")
+                    failures += 1
+                }
+                n += 1
+            }
+        }
+        print("label fixtures: \(n) cases, \(failures) failed")
         return failures
     }
 }

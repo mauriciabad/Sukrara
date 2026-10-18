@@ -275,6 +275,25 @@ enum TreatmentSheets {
             ]
             sheet(out.appendingPathComponent("mac-marks-\(tag).png"), mv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
                   cellW: 380, cellH: 230, cols: 2, dark: dark)
+            // treatments close together (GraphGallery.kt `marksClose`)
+            let fullDay = [tr("carbs", 10, 1364), tr("rapid", 5, 859), tr("carbs", 40, 854), tr("rapid", 7, 509), tr("carbs", 70, 504),
+                           tr("carbs", 15, 304), tr("carbs", 10, 284), tr("rapid", 8, 104), tr("carbs", 80, 99), tr("rapid", 1.5, 24), tr("long", 18, 9)]
+            let cv: [(String, CGFloat, CGFloat, CardStyle, [GraphMark])] = [
+                ("4×2, 12 h: two 5g snacks 11 h ago", 300, 150, CardStyle(graph: g),
+                 [tr("carbs", 5, 680), tr("carbs", 5, 665), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
+                ("4×2, 3 h: meal, snack, correction", 300, 150, CardStyle(graph: gw(3)),
+                 [tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
+                ("notification, 12 h: insulin + carbs just now", 340, 110, CardStyle(graph: g, value: false),
+                 [tr("rapid", 6, 490), tr("carbs", 60, 480), tr("carbs", 30, 5), tr("rapid", 3, 2)]),
+                ("2×2 graph widget, 12 h", 150, 150, CardStyle(graph: g, rings: [], value: false),
+                 [tr("rapid", 6, 490), tr("carbs", 60, 480), tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
+                ("5×3, 24 h: a full day", 380, 230, CardStyle(graph: gw(24)), fullDay),
+                ("app, 12 h: corrections close together", 360, 210, CardStyle(graph: g, value: false),
+                 [tr("rapid", 1, 190), tr("rapid", 1.5, 170), tr("carbs", 10, 160), tr("rapid", 4.5, 95), tr("carbs", 45, 95),
+                  tr("carbs", 15, 40), tr("rapid", 2, 20)]),
+            ]
+            sheet(out.appendingPathComponent("mac-marks-close-\(tag).png"), cv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, $0.4, $0.3)) },
+                  cellW: 380, cellH: 230, cols: 2, dark: dark)
             // badge
             let states: [(String, [GraphReading], [GraphMark])] = [
                 ("in range: no badge", endAt(base31, 120), []),

@@ -1,0 +1,62 @@
+{
+  "about": "Treatment label layout shared by Android (GraphFixtureTest.labels) and Mac (Sukrara -graphselftest). Format: ../README.md; rules: docs/16-graph.md, Treatment labels.",
+  "cases": [
+    {"name": "4×2, 12 h: two 5g snacks 11 h ago share a label at the left edge; carbs + bolus 20 min apart share one at the right", "chart": {"w": 300, "h": 93}, "hours": 12, "pct": true, "treatments": [{"id": "old", "k": "carbs", "a": 20, "t": -48000}, {"id": "c1", "k": "carbs", "a": 5, "t": -40800}, {"id": "c2", "k": "carbs", "a": 5, "t": -39900}, {"id": "c3", "k": "carbs", "a": 15, "t": -2400}, {"id": "r1", "k": "rapid", "a": 2, "t": -1200}],
+     "expect": {"plot": [43, 273.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["c1", "c2"], "text": "5g · 5g 11h", "lane": 0, "x": 58.5},
+                  {"ids": ["r1", "c3"], "text": "2u · 15g 20m", "lane": 0, "x": 264}]}},
+    {"name": "4×2, 3 h: a meal (insulin + carbs the same minute) is one label; the snack's label slides left to make room for the correction's", "chart": {"w": 300, "h": 93}, "hours": 3, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 4.5, "t": -5700}, {"id": "c1", "k": "carbs", "a": 45, "t": -5700}, {"id": "c2", "k": "carbs", "a": 15, "t": -2400}, {"id": "r2", "k": "rapid", "a": 2, "t": -1200}],
+     "expect": {"plot": [43, 273.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["r1", "c1"], "text": "4.5u · 45g 1h 35m", "lane": 0, "x": 133},
+                  {"ids": ["c2"], "text": "15g 40m", "lane": 0, "x": 203.5},
+                  {"ids": ["r2"], "text": "2u 20m", "lane": 0, "x": 248}]}},
+    {"name": "notification, 12 h: insulin 2 min and carbs 5 min ago (≤ 3 min apart) share a label kept inside the right edge", "chart": {"w": 340, "h": 110}, "hours": 12, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 6, "t": -29400}, {"id": "c1", "k": "carbs", "a": 60, "t": -28800}, {"id": "c2", "k": "carbs", "a": 30, "t": -300}, {"id": "r2", "k": "rapid", "a": 3, "t": -120}],
+     "expect": {"plot": [43, 313.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["r1", "c1"], "text": "6u · 60g 8h", "lane": 0, "x": 131.5},
+                  {"ids": ["r2", "c2"], "text": "3u · 30g 2m", "lane": 0, "x": 311}]}},
+    {"name": "2×2 graph widget, 12 h: no % column, crowded right end", "chart": {"w": 150, "h": 150}, "hours": 12, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 6, "t": -29400}, {"id": "c1", "k": "carbs", "a": 60, "t": -28800}, {"id": "r2", "k": "rapid", "a": 4.5, "t": -5700}, {"id": "c2", "k": "carbs", "a": 45, "t": -5700}, {"id": "c3", "k": "carbs", "a": 15, "t": -2400}, {"id": "r3", "k": "rapid", "a": 2, "t": -1200}],
+     "expect": {"plot": [0, 123.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["r1", "c1"], "text": "6u · 60g 8h", "lane": 0, "x": 40.5},
+                  {"ids": ["r2", "c2"], "text": "4.5u · 45g 1h 35m", "lane": 1, "x": 105},
+                  {"ids": ["r3", "c3"], "text": "2u · 15g 20m", "lane": 0, "x": 117.5}]}},
+    {"name": "5×3, 24 h: a full day", "chart": {"w": 380, "h": 146}, "hours": 24, "pct": true, "treatments": [{"id": "c0", "k": "carbs", "a": 10, "t": -81840}, {"id": "r1", "k": "rapid", "a": 5, "t": -51540}, {"id": "c1", "k": "carbs", "a": 40, "t": -51240}, {"id": "r2", "k": "rapid", "a": 7, "t": -30540}, {"id": "c2", "k": "carbs", "a": 70, "t": -30240}, {"id": "c3", "k": "carbs", "a": 15, "t": -18240}, {"id": "c4", "k": "carbs", "a": 10, "t": -17040}, {"id": "r3", "k": "rapid", "a": 8, "t": -6240}, {"id": "c5", "k": "carbs", "a": 80, "t": -5940}, {"id": "r4", "k": "rapid", "a": 1.5, "t": -1440}, {"id": "l1", "k": "long", "a": 18, "t": -540}],
+     "expect": {"plot": [43, 353.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["c0"], "text": "10g 22h", "lane": 0, "x": 59.5},
+                  {"ids": ["r1", "c1"], "text": "5u · 40g 14h", "lane": 0, "x": 169},
+                  {"ids": ["r2", "c2"], "text": "7u · 70g 8h", "lane": 1, "x": 244.5},
+                  {"ids": ["c3", "c4"], "text": "15g · 10g 4h 44m", "lane": 0, "x": 264.5},
+                  {"ids": ["r3", "c5"], "text": "8u · 80g 1h 39m", "lane": 1, "x": 331.5},
+                  {"ids": ["r4", "l1"], "text": "1.5u · 18u 9m", "lane": 0, "x": 346}]}},
+    {"name": "4×1 side by side, 6 h: one lane (chart under 90 dp): the two snacks between the meal and the correction find no room and keep only their markers", "chart": {"w": 198, "h": 70}, "hours": 6, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 4.5, "t": -5700}, {"id": "c1", "k": "carbs", "a": 45, "t": -5700}, {"id": "c2", "k": "carbs", "a": 15, "t": -3600}, {"id": "c3", "k": "carbs", "a": 10, "t": -2400}, {"id": "r2", "k": "rapid", "a": 2, "t": -1200}],
+     "expect": {"plot": [0, 171.5], "lanes": 1, "dropped": [["c3"], ["c2"]],
+                "labels": [
+                  {"ids": ["r1", "c1"], "text": "4.5u · 45g 1h 35m", "lane": 0, "x": 94.5},
+                  {"ids": ["r2"], "text": "2u 20m", "lane": 0, "x": 162}]}},
+    {"name": "app, 12 h: two corrections 20 min apart share a label group; the newer snack takes the room, so the older pair loses its label (markers stay); a note gets a marker but no label", "chart": {"w": 328, "h": 210}, "hours": 12, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 1, "t": -11400}, {"id": "r2", "k": "rapid", "a": 1.5, "t": -10200}, {"id": "c1", "k": "carbs", "a": 10, "t": -9600}, {"id": "n1", "k": "note", "a": 0, "t": -9000}, {"id": "r3", "k": "rapid", "a": 4.5, "t": -5700}, {"id": "c2", "k": "carbs", "a": 45, "t": -5700}, {"id": "c3", "k": "carbs", "a": 15, "t": -2400}, {"id": "r4", "k": "rapid", "a": 2, "t": -1200}],
+     "expect": {"plot": [43, 301.5], "lanes": 2, "dropped": [["r1", "r2"]],
+                "labels": [
+                  {"ids": ["c1"], "text": "10g 2h 40m", "lane": 0, "x": 225},
+                  {"ids": ["r3", "c2"], "text": "4.5u · 45g 1h 35m", "lane": 1, "x": 267.5},
+                  {"ids": ["r4", "c3"], "text": "2u · 15g 20m", "lane": 0, "x": 290.5}]}},
+    {"name": "no time in range yet: no % column, a single fresh bolus", "chart": {"w": 300, "h": 93}, "hours": 12, "pct": false, "treatments": [{"id": "r1", "k": "rapid", "a": 0.5, "t": 0}],
+     "expect": {"plot": [0, 273.5], "lanes": 2, "dropped": [],
+                "labels": [
+                  {"ids": ["r1"], "text": "0.5u now", "lane": 0, "x": 273.5}]}},
+    {"name": "2×2 graph widget, 12 h: a snack every 40 min: markers closer than 9 dp pair up (not one long chain); both lanes fill and the pair with no room keeps only its markers", "chart": {"w": 150, "h": 150}, "hours": 12, "pct": true, "treatments": [{"id": "c1", "k": "carbs", "a": 12, "t": -600}, {"id": "c2", "k": "carbs", "a": 15, "t": -3000}, {"id": "c3", "k": "carbs", "a": 20, "t": -5400}, {"id": "c4", "k": "carbs", "a": 10, "t": -7800}, {"id": "c5", "k": "carbs", "a": 25, "t": -10200}, {"id": "c6", "k": "carbs", "a": 15, "t": -12600}, {"id": "c7", "k": "carbs", "a": 30, "t": -15000}],
+     "expect": {"plot": [0, 123.5], "lanes": 2, "dropped": [["c5", "c4"]],
+                "labels": [
+                  {"ids": ["c7", "c6"], "text": "30g · 15g 3h 30m", "lane": 0, "x": 52.5},
+                  {"ids": ["c3", "c2"], "text": "20g · 15g 50m", "lane": 1, "x": 111.5},
+                  {"ids": ["c1"], "text": "12g 10m", "lane": 0, "x": 121.5}]}},
+    {"name": "4×1 side by side, 6 h: one lane: squeezed between the left edge and a newer label, a label drops its time and keeps the amount", "chart": {"w": 198, "h": 70}, "hours": 6, "pct": true, "treatments": [{"id": "c1", "k": "carbs", "a": 20, "t": -20340}, {"id": "r1", "k": "rapid", "a": 2, "t": -14820}],
+     "expect": {"plot": [0, 171.5], "lanes": 1, "dropped": [],
+                "labels": [
+                  {"ids": ["c1"], "text": "20g", "lane": 0, "x": 10},
+                  {"ids": ["r1"], "text": "2u 4h 7m", "lane": 0, "x": 54}]}}
+  ]
+}

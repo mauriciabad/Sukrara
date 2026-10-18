@@ -10,10 +10,9 @@
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical">
 
-        <TextView android:id="@+id/value"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textSize="44sp" android:fontFamily="sans-serif-condensed" android:textStyle="bold"
-            android:includeFontPadding="false" android:maxLines="1" />
+        <!-- the value as a picture: the card's rounded face (graph/RoundedFont.kt), which RemoteViews text can't use -->
+        <ImageView android:id="@+id/value"
+            android:layout_width="wrap_content" android:layout_height="wrap_content" />
 
         <ImageView android:id="@+id/arrow"
             android:layout_width="34dp" android:layout_height="34dp" android:layout_marginStart="6dp"

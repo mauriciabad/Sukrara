@@ -74,4 +74,70 @@ class GraphFixtureTest {
         }
         println("graph fixtures: $n cases passed")
     }
+
+    /**
+     * The treatment label layout (spikes/graph-fixtures/labels/\*.json, format in the README): the plot's edges, the
+     * lanes, and which labels are drawn (entries, text, lane, centre in dp from the chart's left) or dropped. Same files
+     * in the Mac's `-graphselftest`.
+     */
+    @Test fun labels() {
+        val files = File(dir(), "labels").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no label fixtures", files.isNotEmpty())
+        var n = 0
+        val fails = ArrayList<String>()
+        for (f in files) {
+            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val name = "${f.name}: ${c.getString("name")}"
+                val got = labelDump(c)
+                val want = c.getJSONObject("expect")
+                if (!sameDump(want, got)) fails += "$name\n  want ${want}\n  got  $got"
+                n++
+            }
+        }
+        assertTrue("label fixtures failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+        println("label fixtures: $n cases passed")
+    }
+
+    /** What the graph decides for a label case, in the fixtures' `expect` form. */
+    private fun labelDump(c: JSONObject): JSONObject {
+        val w = c.getJSONObject("chart").getDouble("w").toFloat()
+        val h = c.getJSONObject("chart").getDouble("h").toFloat()
+        val windowS = (c.getDouble("hours") * 3600).toLong()
+        val (left, right) = GlucoseGraph.plotX(0f, w, c.optBoolean("pct", true), true, 1f)
+        val trs = c.getJSONArray("treatments").let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.map {
+                Treatment(id = it.getString("id"), k = it.getString("k"), a = it.getDouble("a"), t = now + it.getLong("t"), u = 0, o = "phone")
+            }
+        }
+        val from = now - windowS
+        val lay = TreatmentMarks.layout(trs.filter { it.t in from..now }, { t -> left + (t - from).toFloat() / windowS * (right - left) },
+            now, 0f, w, GlucoseGraph.lanes(h, 1f), 1f)
+        fun r(v: Float) = Math.round(v * 2) / 2.0
+        return JSONObject()
+            .put("plot", org.json.JSONArray(listOf(r(left), r(right))))
+            .put("lanes", GlucoseGraph.lanes(h, 1f))
+            .put("labels", org.json.JSONArray(lay.labels.sortedBy { it.left + it.w / 2 }.map { l ->
+                JSONObject().put("ids", org.json.JSONArray(l.members.map { it.id })).put("text", l.text)
+                    .put("lane", l.lane).put("x", r(l.left + l.w / 2))
+            }))
+            .put("dropped", org.json.JSONArray(lay.dropped.map { g -> org.json.JSONArray(g.map { it.id }) }))
+    }
+
+    /** Equal, with dp values within 0.5 (float vs double, rounding to the nearest 0.5). */
+    private fun sameDump(a: JSONObject, b: JSONObject): Boolean {
+        fun near(x: Double, y: Double) = kotlin.math.abs(x - y) <= 0.5
+        val pa = a.getJSONArray("plot"); val pb = b.getJSONArray("plot")
+        if (!near(pa.getDouble(0), pb.getDouble(0)) || !near(pa.getDouble(1), pb.getDouble(1))) return false
+        if (a.getInt("lanes") != b.getInt("lanes")) return false
+        if (a.getJSONArray("dropped").toString() != b.getJSONArray("dropped").toString()) return false
+        val la = a.getJSONArray("labels"); val lb = b.getJSONArray("labels")
+        if (la.length() != lb.length()) return false
+        return (0 until la.length()).all { i ->
+            val x = la.getJSONObject(i); val y = lb.getJSONObject(i)
+            x.getJSONArray("ids").toString() == y.getJSONArray("ids").toString() && x.getString("text") == y.getString("text") &&
+                x.getInt("lane") == y.getInt("lane") && near(x.getDouble("x"), y.getDouble("x"))
+        }
+    }
 }

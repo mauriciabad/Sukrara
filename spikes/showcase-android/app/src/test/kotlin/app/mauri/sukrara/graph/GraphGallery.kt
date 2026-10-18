@@ -238,6 +238,41 @@ class GraphGallery {
         }
     }
 
+    /**
+     * Treatments close together (the label layout, docs/16-graph.md "Treatment labels"): the same states as the Mac's
+     * `render treatments` `mac-marks-close` sheet.
+     */
+    @Test fun marksClose() {
+        val data = Synthetic.endAt(Synthetic.days(now, 15), now, 150)
+        val a = AlertSettings()
+        fun tr(k: String, a: Double, minAgo: Int) = Treatment(id = "$k$minAgo", t = now - minAgo * 60L, k = k, a = a, u = 0, o = "phone")
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true)
+            val day = listOf(tr("carbs", 10.0, 1364), tr("rapid", 5.0, 859), tr("carbs", 40.0, 854), tr("rapid", 7.0, 509),
+                tr("carbs", 70.0, 504), tr("carbs", 15.0, 304), tr("carbs", 10.0, 284), tr("rapid", 8.0, 104),
+                tr("carbs", 80.0, 99), tr("rapid", 1.5, 24), tr("long", 18.0, 9))
+            val v = listOf(
+                Triple("4×2, 12 h: two 5g snacks 11 h ago", 300f to 150f, CardStyle(graph = g) to
+                    listOf(tr("carbs", 5.0, 680), tr("carbs", 5.0, 665), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
+                Triple("4×2, 3 h: meal, snack, correction", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L)) to
+                    listOf(tr("rapid", 4.5, 95), tr("carbs", 45.0, 95), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
+                Triple("notification, 12 h: insulin + carbs just now", 340f to 110f, CardStyle(graph = g, value = false) to
+                    listOf(tr("rapid", 6.0, 490), tr("carbs", 60.0, 480), tr("carbs", 30.0, 5), tr("rapid", 3.0, 2))),
+                Triple("2×2 graph widget, 12 h", 150f to 150f, CardStyle(graph = g, value = false, rings = emptyList()) to
+                    listOf(tr("rapid", 6.0, 490), tr("carbs", 60.0, 480), tr("rapid", 4.5, 95), tr("carbs", 45.0, 95),
+                        tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
+                Triple("5×3, 24 h: a full day", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L)) to day),
+                Triple("app, 12 h: corrections close together", 360f to 210f, CardStyle(graph = g, value = false) to
+                    listOf(tr("rapid", 1.0, 190), tr("rapid", 1.5, 170), tr("carbs", 10.0, 160), tr("rapid", 4.5, 95),
+                        tr("carbs", 45.0, 95), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
+            )
+            sheet("marks-close-${if (dark) "dark" else "light"}", v.map { (label, sz, s) ->
+                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, s.second, now, s.first, pal, d, alerts = a) }
+            }, 380f, 230f, cols = 2, pal)
+        }
+    }
+
     // ---- sheet plumbing -------------------------------------------------------------------------------------------
 
     private class Tile(val title: String, val sub: String, val w: Float? = null, val h: Float? = null,

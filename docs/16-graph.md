@@ -193,6 +193,8 @@ worked and were removed in 0.11.8, see below.*
 | `graph/Freshness.kt` | the five freshness steps, the reading's time text |
 | `graph/GlucoseGraph.kt` | the chart: bands, level lines, line, distribution (cut out of the lines), labels, treatments |
 | `graph/GlucoseCard.kt` | ring + whole card layout (value, arrow, badge, slots, chart) |
+| `treatments/TreatmentMarks.kt`, `graph/TextModel.kt` | treatment markers, mute lines, the label layout ([below](#treatment-labels-under-the-markers-2026-10-18)) and its width model |
+| `graph/RoundedFont.kt`, `assets/fonts/` | the rounded face of the card's numbers (Google Sans Flex, ROND 100) + its OFL licence |
 | `graph/CardStatus.kt`, `treatments/LastTreatment.kt` | status badge, last-treatment slot, slot priority ([2026-10-18](#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18)) |
 | `graph/GraphSettings.kt`, `graph/GraphData.kt` | settings (app-wide + per widget), multi-day time in range from the role's store |
 | `ui/GraphScreen.kt`, `ui/Widgets.kt` (`GlucosePanel`), `widgets/Widgets.kt`, `widgets/WidgetConfigActivity.kt`, `status/GlucoseNotification.kt` | the surfaces |
@@ -269,7 +271,8 @@ the chart, the badge, the slot and the alerts can't disagree.
 
 ![marks](img/16/marks-dark.png)
 
-*Marks: amount + time since (`4.5u 1h 35m`, once per meal), and a line from each rapid / carbs mark to the end of its
+*Marks: amount + time since (`4.5u · 45g 1h 35m` for a meal; labels under the markers since the
+[label layout](#treatment-labels-under-the-markers-2026-10-18)), and a line from each rapid / carbs mark to the end of its
 mute (60 / 15 min by default): a tick when over, a chevron at the edge while it lasts. At 12 h a 60-minute line is
 short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
 
@@ -330,9 +333,99 @@ line by line; `AlertStatus` and `LastTreatment` sit in `spikes/widgets-macos/Sha
 alert settings themselves, shared by the menubar app (its `AlertEngine` uses the same `level`, `mutedBy` and `muteS`)
 and the widgets (the host writes its alert settings and the fallback ring's numbers into the widget snapshot).
 `-alerts-selftest` runs the `CardStatusTest` cases. `render treatments <dir>` (Render CLI) draws the gallery's
-`marks`, `badge`, `last` and `last-places` sheets with the same states, sizes and clock: they match the Android
-sheets above except where SF Pro is a little wider than Roboto (a label that just fits on Android, e.g. `60g 8h` on
-the 24 h chart, is dropped on the Mac by the same no-overlap rule).
+`marks`, `badge`, `last` and `last-places` sheets with the same states, sizes and clock. (Here SF Pro being wider
+than Roboto used to drop labels on the Mac that fit on Android; the label layout below decides on a width model
+instead, so both platforms now place the same labels.)
+
+## Treatment labels: under the markers (2026-10-18)
+
+The user, after using the marks: "the treatment labels cover the chart data. I prefer they show under the icon, and
+that they cover the axis labels, which are less important"; they need an outline "otherwise when they overlap the
+content under them they can't be read well"; close treatments should be handled (the Mac showed two `5g 11h` on top of
+each other at the left edge); for every graph, Android and Mac.
+
+| | |
+|---|---|
+| ![close, Android](img/16/marks-close-dark.png) | ![close, Mac](img/16/mac-marks-close-dark.png) |
+| Android (`GraphGallery.marksClose`) | Mac (`render treatments`, `mac-marks-close`): the same labels in the same places |
+
+### Spec (Android `TreatmentMarks.layout` / `place`, Mac `TreatmentMarks.layout` / `place`)
+
+Units are dp, times seconds; the chart's area is `minX`…`maxX`, the plot `left`…`right` inside it.
+
+1. **Rows.** Row 1 is the time axis' row under the marker lane. Row 2 (11 dp, under row 1) exists only when the
+   chart is at least 90 dp tall, and takes space (the plot shrinks by 11 dp) only when a label is put there. Nothing
+   is ever placed over the plot.
+2. **Groups.** Entries with an amount (rapid, long-acting, carbs; notes keep only their marker), oldest first. One
+   joins the previous group when it is ≤ 180 s after the group's last entry (a meal: chained) or its marker is < 9 dp
+   (a marker's width) from the group's *first* marker (not chained, so a run of snacks doesn't become one label).
+3. **Text.** The group's amounts in kind order (insulin, long-acting, carbs; then time), joined by ` · `, then the
+   time since its newest entry: `4.5u · 45g 1h 35m`. Its anchor is the middle of its first and last marker.
+4. **Width.** `TextModel.width(text, 9 dp)`: a per-character table in em (digits 0.72, `.`/`·` 0.38, space 0.3,
+   `m` 0.96, other lowercase 0.68, …), at or just above SF Pro Text Bold at 9 pt, the wider of the two fonts (Roboto's
+   digits are 0.56 em). Decisions never measure the font; the drawing centres the real text in the modelled box.
+5. **Order.** Groups newest first. Each takes the first of these that has a free place: row 1 with its time, row 2
+   with its time, row 1 without it, row 2 without it. None: no label (its markers stay).
+6. **Free place** (`place`). Preferred: centred on the anchor, kept inside `minX`…`maxX` (labels may run under the
+   % column and the values on the right). The label may slide as long as the anchor stays ≥ 3 dp inside it (when that
+   and the chart's edge can't both hold, only the preferred place counts; a label wider than the chart has none).
+   Candidates in this order: preferred, the slide's two ends, then for each label already in the row (in placing
+   order) just right of it and just left of it; a candidate is free when, with 2 dp on each side, it overlaps no
+   label in the row (4 dp apart; overlaps under 0.01 dp ignored). The free candidate nearest the preferred place
+   wins, the first one on a tie.
+7. **Axis labels give way.** An hour label whose box ± 3 dp touches a row-1 treatment label is not drawn.
+8. **Halo.** The whole chart is drawn in one layer (Android `saveLayer`, Mac `beginTransparencyLayer`, 6 dp wider
+   than the area so a marker at the edge isn't clipped). Each label's outline, 3 dp wide with round joins, is erased
+   from it (`DST_OUT` / `.destinationOut`) before the text is drawn. Unlike a stroke in the background colour this
+   is right on every surface: the card, transparent Android widgets, the lock screen, the colorized notification,
+   the Mac's material panel and tinted Mac widgets — so it is used everywhere, not only on the transparent ones.
+9. **Side columns** (`plotX`): the % column (`100` at 13 dp + `%` at 8.5 dp + 6 dp) and the values on the right
+   (`180` at 10 dp + 5 dp) are sized by the same model, so the plot, and with it every decision above, is the same on
+   both platforms. (The columns are ~5 dp wider on Android than before.)
+
+**Why not more rows or leader lines:** two rows already take 25 dp of a 4×2 widget's 93 dp chart; a third would
+take the plot's room, and a leader line would cross the marker lane's mute lines.
+
+### Fixtures (the layout dump)
+
+`spikes/graph-fixtures/labels/labels.json`: 10 cases (two 5g snacks 11 h ago at the left edge, a meal with insulin
+and carbs in the same minute, insulin + carbs 2 and 5 min ago at the right edge, a 2×2 graph widget without the %
+column, a full 24 h day, a one-row 4×1 side-by-side chart, corrections close together with a note, a snack every
+40 min, a label squeezed between the left edge and a newer one (drops its time), a lone bolus with no time in range
+yet). Each expects the plot's edges, the number of rows, every label (entries, text, row, centre in dp from the
+chart's left, ± 0.5) and the groups left without one. Android `GraphFixtureTest.labels` and the Mac's
+`-graphselftest` read the same file: **10/10 on both**. The Mac also checks that SF Pro's real width of every fixture
+label fits its modelled box (the font that could break it).
+
+## Rounded numbers (2026-10-18)
+
+The user: "On Mac I like the round font on the graph's big numbers, can't we have a similar one on Android?" The
+Mac draws them in SF Pro Rounded (value bold; the ring and slot numbers heavy, their window labels semibold).
+
+![SF Pro Rounded and Google Sans Flex rounded](img/16/rounded-numbers.png)
+
+| Option | Verdict |
+|---|---|
+| **Google Sans Flex, roundness axis at 100** | chosen. Google's own variable face ([google/fonts `ofl/googlesansflex`](https://github.com/google/fonts/tree/main/ofl/googlesansflex), SIL OFL 1.1, no Reserved Font Name) has a `ROND` axis (0–100); at 100 its digits are the closest to SF Pro Rounded (same rounded terminals, similar proportions, a touch heavier) and it has tabular figures (`tnum`) |
+| Nunito, M PLUS Rounded 1c | rounded too, but rounder / softer digits than SF Pro Rounded; not needed once Google Sans Flex was available |
+| a downloadable font (Google Play services) | widgets, the notification and the lock screen are drawn on a plain `Canvas` in the background; a bundled file is simpler and always there |
+
+The 3.9 MB variable font is instanced with fontTools at `ROND` 100, `opsz` 18, `wdth` 100, `slnt` 0 and weights
+600 / 700 / 800, each subset to Basic Latin, a few accented letters and `–`, `−`, `·`, `…` (~33 KB each, ~100 KB in
+all), in `assets/fonts/` next to `OFL.txt`. Used for the same texts as on the Mac: the value (700, tabular figures)
+in the widgets, the lock screen and the app panel's rolling digits (Compose `FontFamily(Typeface)`), the ring and
+slot numbers (800) and their labels (600). The notification's value is a `TextView` in `RemoteViews`, which
+can't use an app font (the system inflates it with a restricted context), so it is now drawn as a picture in the
+same face (with the number as its content description). The last-treatment slot keeps the system face, as on the
+Mac.
+
+| Added | Discarded (why) |
+|---|---|
+| Treatment labels under the markers, in the time axis' row (hour labels give way) and a second row when needed | labels above the markers inside the plot (they covered the line); a stroke in the background colour (wrong on transparent / tinted surfaces) |
+| Close entries share a label (meal ≤ 3 min, or markers < 9 dp apart), labels slide to keep their marker inside, newest first, time dropped before the label | chained pixel merging (a run of snacks became one label wider than the chart) |
+| A width model shared by both platforms + label fixtures with a layout dump on both | measuring each platform's font (SF Pro dropped labels that fit with Roboto) |
+| A halo on every label, cut out of the chart | — |
+| Rounded numbers on Android (Google Sans Flex, ROND 100), notification value as a picture | Nunito / M PLUS Rounded (further from SF Pro Rounded) |
 
 ## Open
 

@@ -169,7 +169,9 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box {
-                                RollingNumber("$sgv", color, 72.sp, FontWeight.Bold)
+                                // the rounded face of the card's numbers (graph/RoundedFont.kt), like SF Pro Rounded on the Mac
+                                val rounded = remember { androidx.compose.ui.text.font.FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
+                                RollingNumber("$sgv", color, 72.sp, FontWeight.Bold, rounded)
                                 if (fresh.strike) Canvas(Modifier.matchParentSize()) {
                                     drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
                                 }
