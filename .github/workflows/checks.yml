@@ -34,12 +34,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
+        id: jdk21
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: Unit tests (alert scenarios, graph fixtures, strings parity, stats)
+      - name: Unit tests (alert scenarios, graph fixtures, strings parity, stats; Robolectric + galleries on JDK 21)
         working-directory: spikes/showcase-android
+        env:
+          GALLERY_JAVA_HOME: ${{ steps.jdk21.outputs.path }}
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 
   mac:
