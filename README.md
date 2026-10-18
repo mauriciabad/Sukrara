@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -232,19 +232,49 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 17 | Glucose and quick treatments on the lock screen | With root: SystemUI hosts a Sukrara widget under the Compose lock screen, around the fingerprint icon; taps (never on the sensor) open the treatment dialog over the lock screen. Without root: glanceable hub, the notification, a Quick Settings tile (asks to unlock). **In Sukrara 0.11.10** ([added / discarded](docs/17-lockscreen-widget.md#in-sukrara)) | [docs/17](docs/17-lockscreen-widget.md) |
 | 18 | The doctor's report in the app | Time in ranges, average, GMI, CV with the consensus goals, as a home-screen card and as slots in the widgets; time-weighted like the rings. **In Sukrara 0.11.7** ([added / discarded](docs/18-metrics.md#in-sukrara-0117)) | [docs/18](docs/18-metrics.md) |
 | 19 | Notification templates: the space under the icon | Custom views stay right of the icon; only Android 17's Live Update layout draws a ProgressStyle bar and action buttons across the whole card. Range bar with a tracker at the value, colours honoured (darkened when colorized), at most 10 segments and 4 points, no bar when collapsed. **Not in Sukrara yet** (proposal: the Live Update as ProgressStyle) | [docs/19](docs/19-notification-templates.md) |
-| 20 | Publishing on every platform | Research, nothing shipped. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
+| 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
 
 ## Try it
 
-Downloads: [v0.11.13](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.13) (Android and Mac)
+Downloads: [v0.11.14](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.14) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
-**Android** (Android 16+, arm64)
+### Install on Android
+
+Android 16+, arm64. Download `Sukrara-0.11.14.apk` on the phone and open it. Android asks to allow installs from your
+browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
+**Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
+install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
+URL picks up new releases automatically.
+
+### Install on Mac
+
+Apple Silicon, macOS 14+. Either way works:
+
+- **Download** `Sukrara-0.11.14.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
+  `brew upgrade` gets new releases).
+- **Scripts**: the release also has `Sukrara-mac-0.11.14.zip` (same app); after unzipping, `xattr -dr
+  com.apple.quarantine Sukrara.app` skips the first-open step below.
+
+**First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not
+Opened — Apple could not verify "Sukrara" is free of malware that may harm your Mac or compromise your privacy.*
+1. Click **Done** (not *Move to Trash*).
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**. It says *"Sukrara" was blocked to
+   protect your Mac.* Click **Open Anyway** (shown for about an hour after the attempt).
+3. Confirm with **Open Anyway** and your password or Touch ID. Sukrara starts and from then on opens normally.
+
+Control-click → Open no longer skips this on macOS 15+ ([Apple: open a Mac app from an unknown
+developer](https://support.apple.com/guide/mac-help/mh40616/mac), [Safely open apps on your
+Mac](https://support.apple.com/en-us/102445)). Sukrara lives in the **menu bar** (no Dock icon): click the value for
+the panel, **⌘,** for Settings.
+
+### Set up on Android
+
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
    against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
-2. Install `Sukrara-0.11.13.apk` (allow installing from your browser or file manager). Grant *Notifications* and
-   *Nearby devices*.
+2. Open Sukrara. Grant *Notifications* and *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,
    or **Restore from password manager** on a new phone.
 4. Tap **Save to password manager** so a lost phone doesn't mean re-inviting everyone.
@@ -262,16 +292,10 @@ Downloads: [v0.11.13](https://github.com/mauriciabad/cgm-reading-mac-spike/relea
 - Nearby with no internet: wearer taps **Pair nearby** (Settings → Share with people), the follower picks the phone from the list, and the wearer types
   the 4-digit code shown on the follower's screen (a Bluetooth offer reaches every phone in range).
 
-**Mac — Sukrara for Mac** (Apple Silicon, macOS 14+)
-Open `Sukrara-0.11.13.dmg` and drag **Sukrara** onto **Applications**. The build isn't notarized yet, so the first
-launch says *Apple could not verify "Sukrara" is free of malware*: click **Done**, open **System Settings → Privacy &
-Security**, scroll to **Security**, click **Open Anyway** next to Sukrara (shown for about an hour after the attempt)
-and confirm with your password or Touch ID. Once only; Control-click → Open no longer skips this on macOS 15+
-([Apple: open an app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac),
-[Safely open apps on your Mac](https://support.apple.com/en-us/102445)). Allow Bluetooth.
-Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
-`unzip Sukrara-mac-0.11.13.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
-**Share** (copy the `https://sukrara.mauri.app/join#…` link), then in Sukrara's **Settings → Following → Follow with Invite Link…** (or **Follow Someone…** in
+### Set up on Mac
+
+Allow Bluetooth when asked. Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. To follow
+end-to-end encrypted: on the phone, **Share** (copy the `https://sukrara.mauri.app/join#…` link), then in Sukrara's **Settings → Following → Follow with Invite Link…** (or **Follow Someone…** in
 the panel before the first follow), paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an

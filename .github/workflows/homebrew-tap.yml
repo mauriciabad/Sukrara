@@ -1,0 +1,54 @@
+# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Keeps the Homebrew cask (github.com/mauriciabad/homebrew-tap, Casks/sukrara.rb) on the latest release: when a release
+# is published, read the version from its tag (v0.11.14 → 0.11.14), hash its Sukrara-<version>.dmg and commit the new
+# version + sha256 to the tap. Pushes with the tap's deploy key (write access to that repo only), stored here as the
+# secret HOMEBREW_TAP_DEPLOY_KEY. Re-run by hand with workflow_dispatch (tag) if a release was edited.
+name: Homebrew tap
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (e.g. v0.11.14)
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: homebrew-tap
+  cancel-in-progress: false
+jobs:
+  bump:
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Hash the release dmg
+        id: dmg
+        run: |
+          VER="${TAG#v}"
+          gh release download "$TAG" -R "${{ github.repository }}" -p "Sukrara-$VER.dmg" -D dl
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "dl/Sukrara-$VER.dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: mauriciabad/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+      - name: Commit the new version to the tap
+        working-directory: tap
+        env:
+          VER: ${{ steps.dmg.outputs.version }}
+          SHA: ${{ steps.dmg.outputs.sha256 }}
+        run: |
+          sed -i -E "s/^  version \".*\"/  version \"$VER\"/; s/^  sha256 \".*\"/  sha256 \"$SHA\"/" Casks/sukrara.rb
+          grep -q "version \"$VER\"" Casks/sukrara.rb && grep -q "sha256 \"$SHA\"" Casks/sukrara.rb
+          if git diff --quiet; then echo "cask already at $VER"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "sukrara $VER" -m "From ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
+          git push

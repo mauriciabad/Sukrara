@@ -69,6 +69,21 @@ as several taps do [[H5]](https://github.com/nelsonlove/homebrew-tap/pull/3), bu
 unverified binary. **Recommendation: publish the tap only together with the first notarized build**, then submit to
 `homebrew/cask` once notability is plausible; the tap cask moves over unchanged.
 
+**Update (v0.11.14, user's call):** the tap is live with the not-yet-notarized build:
+[`mauriciabad/homebrew-tap`](https://github.com/mauriciabad/homebrew-tap), `brew install --cask
+mauriciabad/tap/sukrara`. No quarantine stripping: the cask's caveats explain the one-time **Open Anyway** step, the
+same as the dmg (tested 2026-10-18 on macOS 27: brew-installed app blocked with *"Sukrara" Not Opened*, runs after the
+approval). `brew audit --cask --strict` and `brew style` pass. `.github/workflows/homebrew-tap.yml` bumps `version` +
+`sha256` in the tap on every published release; it pushes with a write **deploy key** of the tap, stored here as the
+secret `HOMEBREW_TAP_DEPLOY_KEY`. One-time setup (the repo owner):
+
+```sh
+ssh-keygen -t ed25519 -N '' -C 'release workflow → homebrew-tap' -f /tmp/tapkey
+gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'cgm-reading-mac-spike release workflow'
+gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/cgm-reading-mac-spike < /tmp/tapkey
+rm /tmp/tapkey /tmp/tapkey.pub
+```
+
 ### Developer ID + notarization (the real fix for "could not verify")
 
 - **Apple Developer Program: 99 USD per membership year** (local price shown at enrolment), individuals can enrol
