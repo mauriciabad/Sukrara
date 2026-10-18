@@ -1,0 +1,57 @@
+# Sukrara (debug build, synthetic source, wearer) → GlucoDataHandler 2.5 on a fresh Android 16 emulator, 2026-10-19.
+# Serial TEST0000022 = a DebugReceiver fakeSensor. GDH logs each broadcast once per registered receiver and keeps the first value per timestamp.
+
+## Sukrara: broadcasts per allowed app (actions sent)
+10-19 00:34:05.155  7648  7710 I Sukrara.broadcast: 148 mg/dL @1792359240 → de.michelinside.glucodatahandler 3
+10-19 00:35:00.047  7648  9671 I Sukrara.broadcast: 147 mg/dL @1792359300 → de.michelinside.glucodatahandler 3
+10-19 00:36:04.383  7648  9673 I Sukrara.broadcast: 147 mg/dL @1792359360 → de.michelinside.glucodatahandler 3
+10-19 00:38:12.706  7648  9675 I Sukrara.broadcast: 146 mg/dL @1792359420 → de.michelinside.glucodatahandler 3
+10-19 00:38:14.476  7648  9675 I Sukrara.broadcast: 145 mg/dL @1792359480 → de.michelinside.glucodatahandler 3
+10-19 00:39:00.433  7648 10104 I Sukrara.broadcast: 145 mg/dL @1792359540 → de.michelinside.glucodatahandler 4
+
+## GDH receivers
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver: onReceive called for com.eveningoutpost.dexdrip.BgEstimate: {
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgSlope => Double: -1.0666666666666667E-5
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.Time => Long: 1792359300000
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgSlopeName => String: Flat
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgEstimate => Double: 147.0
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SourceDesc => String: Sukrara
+10-19 00:35:00.046  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SourceInfo => String: Libre3
+10-19 00:35:00.048  9893  9893 I GDH.ReceiveData: Glucodata received from XDRIP: Bundle[{glucodata.Minute.Alarm=0, glucodata.Minute.Rate=-0.64, glucodata.Minute.Time=1792359300000, glucodata.Minute.mgdl=147, glucodata.Minute.SerialNumber=Libre3}] - timestamp: Oct 19, 2026 12:35:00 AM
+10-19 00:35:00.149  9893  9893 I GDH.LibrePatchedReceiver: onReceive called for com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING: {
+10-19 00:35:00.149  9893  9893 I GDH.LibrePatchedReceiver:   bleManager => Bundle: {
+10-19 00:35:00.149  9893  9893 I GDH.LibrePatchedReceiver:     sensorSerial => String: 
+10-19 00:35:00.149  9893  9893 I GDH.LibrePatchedReceiver:   timestamp => Long: 1792359300000
+10-19 00:35:00.149  9893  9893 I GDH.LibrePatchedReceiver:   glucose => Double: 147.0
+10-19 00:39:00.443  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgSlope => Double: -1.0833333333333334E-5
+10-19 00:39:00.443  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.Time => Long: 1792359540000
+10-19 00:39:00.443  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SensorStartedAt => Long: 1792100294000
+10-19 00:39:00.443  9893  9893 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgEstimate => Double: 145.0
+10-19 00:39:00.456  9893  9893 I GDH.ReceiveData: Glucodata received from XDRIP: Bundle[{glucodata.Minute.Alarm=0, glucodata.Minute.Rate=-0.65, glucodata.Minute.Time=1792359540000, glucodata.Minute.mgdl=145, glucodata.Minute.SerialNumber=Libre3}] - timestamp: Oct 19, 2026 12:39:00 AM
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:     sensorSerial => String: TEST0000022
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:   sas => Bundle: {
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:     currentSensor => Bundle: {
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:       sensorStartTime => Long: 1792100294000
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:   timestamp => Long: 1792359540000
+10-19 00:39:02.408  9893  9893 I GDH.LibrePatchedReceiver:   glucose => Double: 145.0
+10-19 00:39:03.628  9893  9893 I GDH.LibrePatchedReceiver: onReceive called for com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE: {
+10-19 00:39:03.628  9893  9893 I GDH.LibrePatchedReceiver:   sensor => Bundle: {
+10-19 00:39:03.628  9893  9893 I GDH.LibrePatchedReceiver:     sensorStartTime => Long: 1792100294000
+10-19 00:39:03.628  9893  9893 I GDH.ReceiveData: setSensorStartTime for TEST0000022: Oct 16, 2026 12:38:14 AM
+
+## Health Connect: backfill, then the same backfill again after Off → On (same record ids = updated, not duplicated)
+10-19 00:34:20.086  7648  9956 I Sukrara.health: backfill 1442 readings
+10-19 00:34:20.475  7648  9956 I Sukrara.health: wrote 500 (1792272780…1792302720) ids 46f552ac-fe80-33f3-8dbf-9d24c2e2235d, 5438dfe6-d040-3b39-9ecf-c0337fc013fa, 17d87d4b-7ea1-3cfe-9cb0-09e615a7ebf7, ...
+10-19 00:34:20.494  7648  9956 I Sukrara.health: wrote 500 (1792302780…1792332720) ids 1e8244a1-f44c-3a3d-88fc-33b18314b1dd, 5ec97582-ea3a-3b72-85ae-cecc52fe0dcb, 9f1e8f50-d4d4-35ea-b7a6-3b2c1521eb11, ...
+10-19 00:34:20.506  7648  9956 I Sukrara.health: wrote 442 (1792332780…1792359240) ids dc02fa02-6594-33a9-976f-d033589c7cb2, 46286653-65cd-3884-9d53-e15571ca2f77, d5b10e65-aea7-3a04-8e71-6b0b4d2b46cc, ...
+10-19 00:35:00.071  7648  9956 I Sukrara.health: wrote 1 (1792359300…1792359300) ids 1cd2bf87-ad65-39ff-9ff6-89e4cbd00b2b
+10-19 00:36:05.914  7648  9956 I Sukrara.health: wrote 1 (1792359360…1792359360) ids a30d8ffc-ad81-303d-922b-f72f3c8229c5
+10-19 00:38:14.548  7648  9956 I Sukrara.health: wrote 1 (1792359420…1792359420) ids 57eb76e5-2d9b-3487-b3ab-c7bb7e926ba1
+10-19 00:38:19.723  7648  9956 I Sukrara.health: wrote 1 (1792359480…1792359480) ids 7cf4c3ef-71cc-3df2-819a-80f36370a494
+10-19 00:39:01.115  7648  9956 I Sukrara.health: wrote 1 (1792359540…1792359540) ids 8822dfc5-c1a6-3dc6-a7dd-080abdb622fc
+10-19 00:42:03.900  7648  9956 I Sukrara.health: backfill 1450 readings
+10-19 00:42:04.266  7648  9956 I Sukrara.health: wrote 500 (1792272780…1792302720) ids 46f552ac-fe80-33f3-8dbf-9d24c2e2235d, 5438dfe6-d040-3b39-9ecf-c0337fc013fa, 17d87d4b-7ea1-3cfe-9cb0-09e615a7ebf7, ...
+10-19 00:42:04.490  7648  9956 I Sukrara.health: wrote 500 (1792302780…1792332720) ids 1e8244a1-f44c-3a3d-88fc-33b18314b1dd, 5ec97582-ea3a-3b72-85ae-cecc52fe0dcb, 9f1e8f50-d4d4-35ea-b7a6-3b2c1521eb11, ...
+10-19 00:42:04.715  7648  9956 I Sukrara.health: wrote 450 (1792332780…1792359720) ids dc02fa02-6594-33a9-976f-d033589c7cb2, 46286653-65cd-3884-9d53-e15571ca2f77, d5b10e65-aea7-3a04-8e71-6b0b4d2b46cc, ...
+10-19 00:43:02.124  7648  9956 I Sukrara.health: wrote 1 (1792359780…1792359780) ids cba23ffc-ba19-363a-88f8-e907369430f5
+10-19 00:44:46.330  7648  9956 I Sukrara.health: wrote 1 (1792359840…1792359840) ids bd1863c4-613e-3238-a99c-7beec01613e4
