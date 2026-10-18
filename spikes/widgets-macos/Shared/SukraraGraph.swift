@@ -1473,6 +1473,19 @@ enum SensorBadge {
         return width(look, h: h)
     }
 
+    /// The "sensor ended" checkered flag (Android SensorLife.FLAG_FILL / FLAG_OUTLINE, 24×24 units), `size` square at (`x`, `y`).
+    static func flag(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) {
+        let s = size / 24
+        ctx.saveGState()
+        ctx.setFillColor(color); ctx.setStrokeColor(color)
+        for q in [(4.0, 3.0, 1.6, 18.0), (5.6, 4.0, 4.8, 4.5), (15.2, 4.0, 4.8, 4.5), (10.4, 8.5, 4.8, 4.5)] {
+            ctx.fill(CGRect(x: x + q.0 * s, y: y + q.1 * s, width: q.2 * s, height: q.3 * s))
+        }
+        ctx.setLineWidth(1.2 * s)
+        ctx.stroke(CGRect(x: x + 6.2 * s, y: y + 4.6 * s, width: 13.2 * s, height: 7.8 * s))
+        ctx.restoreGState()
+    }
+
     /// The ring over a slot of `radius` (the slot rings' stroke is radius × 0.2): ink on a background-coloured halo
     /// (black / white where the background is transparent; cut out in tinted widgets).
     static func drawCountdown(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, _ fraction: Double?, _ pal: GraphPalette) {
@@ -1651,15 +1664,18 @@ enum GlucoseCard {
         let textBox = row ? CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - badgeH * 1.25) : box
         var size = min(textBox.height * 0.5, 20 * d)
         let iconRoom: CGFloat = row ? 0 : badgeH * 1.3
-        let tw = Ink.width(words, Ink.font(size, .semibold))
+        // the checkered flag before the words: the menubar's "sensor ended" glyph, so the two read as one thing
+        let tw = Ink.width(words, Ink.font(size, .semibold)) + size * 1.25
         if tw > box.width - iconRoom, tw > 0 { size *= max(0.45, (box.width - iconRoom) / tw) }
         let f = Ink.font(size, .semibold)
-        Ink.draw(ctx, words, x: box.minX, y: textBox.midY + size * 0.36, f, pal.inkSoft)
+        let base = textBox.midY + size * 0.36, fs = size * 0.95, cap = CTFontGetCapHeight(f)
+        SensorBadge.flag(ctx, x: box.minX - fs * 0.12, y: base - cap - (fs - cap) / 2, size: fs, color: pal.inkSoft)
+        Ink.draw(ctx, words, x: box.minX + size * 1.25, y: base, f, pal.inkSoft)
         if row {
             _ = StatusBadge.draw(ctx, x: box.minX, y: textBox.maxY + badgeH * 0.25, h: badgeH, maxW: box.width, StatusBadge.replaceSensor,
                              dark: pal.dark, knockout: pal.knockout)
         } else {
-            let x = box.minX + Ink.width(words, f) + badgeH * 0.3
+            let x = box.minX + size * 1.25 + Ink.width(words, f) + badgeH * 0.3
             if x + badgeH <= box.maxX {
                 _ = StatusBadge.draw(ctx, x: x, y: box.midY - badgeH / 2, h: badgeH, maxW: badgeH, StatusBadge.replaceSensor, dark: pal.dark, knockout: pal.knockout)
             }

@@ -286,13 +286,17 @@ object GlucoseCard {
             color = pal.inkSoft; typeface = Typeface.create(Typeface.DEFAULT, 600, false); textSize = min(textBox.height() * 0.5f, 20 * d)
         }
         val iconRoom = if (row) 0f else badgeH * 1.3f
-        val tw = p.measureText(w.sensorEnded)
+        // the checkered flag before the words: the status bar's "sensor ended" glyph, so the two read as one thing
+        fun flagW() = p.textSize * 1.25f
+        val tw = p.measureText(w.sensorEnded) + flagW()
         if (tw > box.width() - iconRoom) p.textSize *= ((box.width() - iconRoom) / tw).coerceAtLeast(0.45f)
         val base = textBox.centerY() + p.textSize * 0.36f
-        cv.drawText(w.sensorEnded, box.left, base, p)
+        val fs = p.textSize * 0.95f
+        SensorBadge.flag(cv, box.left - fs * 0.12f, base - p.textSize * 0.72f - (fs - p.textSize * 0.72f) / 2, fs, pal.inkSoft)
+        cv.drawText(w.sensorEnded, box.left + flagW(), base, p)
         if (row) StatusBadge.draw(cv, box.left, textBox.bottom + badgeH * 0.25f, badgeH, box.width(), pill, pal.dark)
         else {
-            val x = box.left + p.measureText(w.sensorEnded) + badgeH * 0.3f
+            val x = box.left + flagW() + p.measureText(w.sensorEnded) + badgeH * 0.3f
             if (x + badgeH <= box.right) StatusBadge.draw(cv, x, box.centerY() - badgeH / 2, badgeH, badgeH, pill, pal.dark)
         }
     }

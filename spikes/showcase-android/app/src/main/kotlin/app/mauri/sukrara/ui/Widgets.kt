@@ -195,8 +195,13 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                     } else if (sensorLook?.ended == true) {
                         // an ended sensor: a state (not an error) and the action, the same pill as "Eat carbs"
                         Column {
-                            Text(stringResource(R.string.card_sensor_ended), style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // the status bar's checkered flag, so the two read as one thing
+                                androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_stat_sensor_ended), contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp).size(24.dp))
+                                Text(stringResource(R.string.card_sensor_ended), style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             val owner = app.mauri.sukrara.App.role(ctx) == "owner"
                             Box(if (owner) Modifier.clip(CircleShape).clickable { ctx.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(ctx)) } else Modifier) {
                                 StatusBadgeChip(StatusBadge.replaceSensor())

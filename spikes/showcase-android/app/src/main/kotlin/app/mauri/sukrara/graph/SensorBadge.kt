@@ -64,6 +64,20 @@ object SensorBadge {
     /** The badge's width at height [h]. */
     fun width(look: Look, h: Float, pal: GraphPalette): Float = h + h * 0.3f + text(h, color(look, pal)).measureText(look.label)
 
+    private val flagFill by lazy { androidx.core.graphics.PathParser.createPathFromPathData(SensorLife.FLAG_FILL) }
+    private val flagOutline by lazy { androidx.core.graphics.PathParser.createPathFromPathData(SensorLife.FLAG_OUTLINE) }
+
+    /** The "sensor ended" checkered flag ([SensorLife.FLAG_FILL]), [size] px square, top-left at ([x], [y]). */
+    fun flag(cv: Canvas, x: Float, y: Float, size: Float, color: Int) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        cv.save()
+        cv.translate(x, y); cv.scale(size / 24f, size / 24f)
+        cv.drawPath(flagFill, p)
+        p.style = Paint.Style.STROKE; p.strokeWidth = 1.2f
+        cv.drawPath(flagOutline, p)
+        cv.restore()
+    }
+
     /** Just the disc (warm-up: no label, the figure beside it says the time). */
     fun disc(cv: Canvas, x: Float, y: Float, h: Float, look: Look, pal: GraphPalette) = draw(cv, x, y, h, look, pal, label = false)
 
