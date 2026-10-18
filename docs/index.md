@@ -105,6 +105,7 @@ macOS 15+ ([Apple: open an app from an unknown developer](https://support.apple.
 | [17](17-lockscreen-widget) | Glucose on the lock screen | The graph around the fingerprint icon (root + LSPosed); log a treatment without unlocking |
 | [18](18-metrics) | The doctor's report in the app | Time in ranges, average, GMI and CV with their goals, on the home screen and in widget slots |
 | [19](19-notification-templates) | Notification templates | Which templates use the space under the icon: only Android 17's Live Update bar and buttons. Not in Sukrara yet |
+| [20](20-publishing) | Publishing on every platform | Research, nothing shipped: notarized Mac app + Homebrew tap, Google Play plus GitHub/IzzyOnDroid for Android, Connect IQ Store for Garmin |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.
