@@ -357,7 +357,12 @@ So one file in that layout, readings and treatments together (LibreView puts the
 columns at the end that position-based readers ignore: `Time (ISO 8601)` (with the offset), `Trend (mg/dL/min)`,
 `Entered By`. Verified: Tidepool's own driver code (`spikes/export-fixtures/tidepool-check`) reads every fixture and
 the emulator's export into CBG records with the right UTC times, units (mg/dL, and mmol/L) and one device per sensor
-serial.
+serial. Emulator check (debug build, synthetic data, Android 16): *Save file* wrote
+`sukrara-glucose-2026-10-12-to-2026-10-19.csv` to Downloads (293 five-minute rows, the three test treatments with
+quoting, the formula guard and `phone`), Tidepool's driver read it as 293 CBG records; *Share* offers the file by its
+dates only; the page in Spanish.
+
+![Export data](img/22/export-data.png) ![Share sheet](img/22/export-share.png) ![Spanish](img/22/export-data-es.png)
 
 | Added | Why |
 |---|---|
