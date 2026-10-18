@@ -301,7 +301,7 @@ hardware** — the user owns none of these sensors.
 ```sh
 cd sensors-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
-./gradlew :core:test                 # 35 tests: crypto, checksums, decoders, handshake decisions
+./gradlew :core:test                 # 36 tests: crypto, checksums, decoders, handshake decisions
 ./gradlew :core:run                  # the decoder harness over every bundled trace
 ./gradlew :core:run --args="aidex"   # one driver (g7, g6, smartguide, aidex), or add a trace file path
 ./gradlew :android:assembleRelease   # the BluetoothGatt transport (compiled, never run against a sensor)

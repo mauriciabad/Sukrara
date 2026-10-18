@@ -1,0 +1,5 @@
+# Dexcom G7 EC-J-PAKE round packets sent by a sensor (160 bytes: X ‖ V ‖ r).
+# Origin: Juggluco Common/src/main/cpp/dexcom/ecJPake.cpp, arrays packby1/packby2 in its #ifdef TEST main (GPL-3).
+# Their Schnorr proofs verify under the party id "server" (ASCII), and not under Juggluco's own b_bytes.
+round1 7ccc36e133643a357a1ffba9a2a266246ed504697f4ba03e6b2f4e7b62b4bb88b47e39052e0c11f525f344d6b3b0924f3d33cc25775b8a55cdc6117a518cff262cc2267b156f5bfc4bbbb0f93bf1f9ce09e17d621398c2b36e0acd772e713a77b14e175ae07b943411918fcfed480066a47c06f4c25b01cb20b148c036819f4afed6f7aaf7dfcfbcf0965ae8e11900022e9298b6a546b14769cbfee1c77b9170
+round2 0b7d5bc678f018f2d0d86ef4b982813e7f501c0d142975efda08e539dbf8e04d0ab6fd611dbcfe1bafd46a2fb806640c75872a2186b747a6afb8bea721e381bf823e7be9be45757c219f6a9f0f5d2d9de01cd05d3d72c911d0bae22c48ef05717ad3fc962bc47915f983285c4b78174be1d63151725dec834c4cf0769b44f8367dffb961d2a174bf3f8148707e5dae974adffb3f41c3e378a8c44d8666168ef3
