@@ -28,6 +28,8 @@ object Libre3Nfc {
         /** The sensor is bound to a receiver ID we don't know (started by another app with another account). */
         data class WrongAccount(val serial: String) : Result
         data class Ended(val serial: String) : Result
+        /** A Libre 1 / 2 / 2 Plus (TI chip): not supported, nothing was sent to it (docs/02, "Libre 2 / 2 Plus"). */
+        data object Libre2 : Result
         data class Unsupported(val why: String) : Result
         data class Failed(val why: String) : Result
     }
@@ -64,7 +66,27 @@ object Libre3Nfc {
         else -> null
     }
 
+    /** The tag's chip, from the UID's IC manufacturer byte (`Tag.getId()` is LSB first: `[7]` = 0xE0, `[6]` = maker). */
+    enum class Chip { LIBRE3, LIBRE2, OTHER }
+
+    /**
+     * 0x7A (Abbott) is the Libre 3 / 3 Plus — the only chip our 0x7A custom commands are for; 0x07 (Texas
+     * Instruments) is a Libre 1 / 2 / 2 Plus (Juggluco ScanNfcV.java:254, DiaBLE NFC.swift:344-348). Anything but
+     * [Chip.LIBRE3] gets no command at all.
+     */
+    internal fun chip(uid: ByteArray?): Chip = when {
+        uid == null || uid.size != 8 || uid[7] != 0xE0.toByte() -> Chip.OTHER
+        uid[6] == 0x7A.toByte() -> Chip.LIBRE3
+        uid[6] == 0x07.toByte() -> Chip.LIBRE2
+        else -> Chip.OTHER
+    }
+
     fun scan(tag: Tag, candidates: List<Long>, forActivation: Long): Result {
+        when (chip(tag.id)) {
+            Chip.LIBRE3 -> Unit
+            Chip.LIBRE2 -> return Result.Libre2.also { Log.i(TAG, "Libre 1/2 chip: not supported, nothing sent") }
+            Chip.OTHER -> return Result.Unsupported("not a FreeStyle Libre 3")
+        }
         val nfc = NfcV.get(tag) ?: return Result.Failed("not a Libre 3 (no NfcV)")
         return try {
             nfc.connect()

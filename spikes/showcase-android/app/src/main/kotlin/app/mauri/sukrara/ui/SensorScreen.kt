@@ -57,6 +57,8 @@ private sealed interface Outcome {
     data class Done(val title: String, val text: String) : Outcome
     data class Problem(val title: String, val text: String) : Outcome
     data class NeedsAccount(val serial: String) : Outcome
+    /** A Libre 1 / 2 / 2 Plus was tapped: not supported, point to Juggluco. */
+    data object Libre2 : Outcome
 }
 
 /**
@@ -145,6 +147,17 @@ fun SensorScreen(onBack: () -> Unit) {
                 Text(o.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                 Text(o.text, style = MaterialTheme.typography.bodyMedium)
             } }
+            is Outcome.Libre2 -> Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.sensor_libre2_title), style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.sensor_libre2_text), style = MaterialTheme.typography.bodyMedium)
+                    val nav = LocalNav.current
+                    if (nav != null) OutlinedButton(onClick = { nav.open("source") }) {
+                        Text(stringResource(R.string.sensor_libre2_source))
+                    }
+                }
+            }
             is Outcome.NeedsAccount -> LibreViewSignIn(o.serial, onCancel = { outcome = null }) { msg ->
                 outcome = Outcome.Done(ctx.getString(R.string.sensor_signed_in), msg)
             }
@@ -180,6 +193,7 @@ private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
             ctx.getString(R.string.sensor_taken_over_text))
     }
     is Libre3Nfc.Result.WrongAccount -> Outcome.NeedsAccount(r.serial)
+    is Libre3Nfc.Result.Libre2 -> Outcome.Libre2
     is Libre3Nfc.Result.Ended -> Outcome.Problem(ctx.getString(R.string.sensor_ended_title, r.serial), ctx.getString(R.string.sensor_ended_text))
     is Libre3Nfc.Result.Unsupported -> Outcome.Problem(ctx.getString(R.string.sensor_unsupported), r.why)
     is Libre3Nfc.Result.Failed -> Outcome.Problem(ctx.getString(R.string.sensor_scan_failed), ctx.getString(R.string.sensor_scan_failed_text, r.why))

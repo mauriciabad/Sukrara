@@ -63,4 +63,16 @@ class Libre3NfcTest {
         // Juggluco's getlibreaccountidnumber(), computed independently in Python
         assertEquals(3078366504L, ReceiverId.fromAccountId("01234567-89ab-cdef-0123-456789abcdef"))
     }
+
+    /** Only an Abbott chip (UID maker byte 0x7A) ever gets a Libre 3 command; a Libre 1/2/2 Plus (TI, 0x07) gets none. */
+    @Test fun chipGate() {
+        fun uid(s: String) = ByteArray(8) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        assertEquals(Libre3Nfc.Chip.LIBRE3, Libre3Nfc.chip(uid("0102030405067ae0")))
+        // a real Libre 2's UID (DiaBLE App.swift:238, serial 3MH001DG75W)
+        assertEquals(Libre3Nfc.Chip.LIBRE2, Libre3Nfc.chip(uid("2fe7b10000a407e0")))
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(uid("0102030405060ae0")))   // another maker
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(uid("0102030405067a00")))   // not an ISO 15693 UID
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(byteArrayOf(1, 2, 3, 4)))
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(null))
+    }
 }

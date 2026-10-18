@@ -107,6 +107,10 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Debug builds: `DebugReceiver --es cmd sensor --el left <s> [--el len <s>] [--ei countdown <h>] [--ez clear true]` sets a synthetic sensor; the status JSON lists `sensor` (serial, start, end, label).
 - Direct source, ended sensor (`direct/PatchState`; seen on the user's Libre 3 Plus: `state=5 currentLifeCount=21635`, then no glucose and a reconnect every 2 min for ever): the BLE patch state ≥ 5 (5 expired, 6 terminated, 7 error, 8 error terminated) or a life count ≥ the wear length marks the sensor ended (its end moves to now if earlier) and the source state reads `sensor ended` / `Replace the sensor, then scan the new one: Settings → Sensor`. States 6–8 stop at once; an expired sensor (5, or past its wear length) keeps the session for one glucose wait (120 s, a possible grace period) and then stops for good. Stopped = no reconnects (`ended:<serial>` in the direct prefs) until a new sensor is scanned; a reading that does arrive keeps it running.
 
+## Sensor scan: other sensors
+
+- The Sensor screen's NFC tap checks the chip first (UID maker byte): only 0x7A (Abbott, Libre 3 / 3 Plus) gets Libre 3 commands. 0x07 (Texas Instruments: Libre 1 / 2 / 2 Plus) gets no command at all and shows *Libre 2 sensors aren't supported* — start it with Juggluco, then pick Juggluco as the glucose source — with a *Glucose source* button; any other tag → *Not supported* / "not a FreeStyle Libre 3".
+
 ## Settings
 
 - Settings pages are AOSP SettingsLib SPA (android17-release, vendored as `settingslib-spa`): SettingsTheme, SettingsScaffold, Category, Preference / SwitchPreference / TwoTargetSwitchPreference / MainSwitchPreference / CheckboxPreference, Footer, SettingsBanner, HighlightBox.
