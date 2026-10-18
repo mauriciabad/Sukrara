@@ -31,3 +31,5 @@ plugins {
 
 rootProject.name = "Sukrara showcase"
 include(":app")
+// AOSP SettingsLib SPA (frameworks/base/packages/SettingsLib/Spa/spa), vendored: see settingslib-spa/README.md
+include(":settingslib-spa")

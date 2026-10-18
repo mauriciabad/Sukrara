@@ -101,6 +101,7 @@ dependencies {
   // the app's side: LSPosed hands an active module its XposedService (scope, running targets) → features/SystemAccess
   implementation("io.github.libxposed:service:102.0.0")
 
+  implementation(project(":settingslib-spa"))
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
