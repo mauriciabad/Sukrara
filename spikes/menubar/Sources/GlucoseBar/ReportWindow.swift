@@ -2,20 +2,18 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
+import SwiftUI
 
-/// "Glucose Report…": the doctor's report (investigation 18, ReportView.swift) in its own window instead of 300 pt of
-/// the menu — HIG "Menus": be mindful of menu length; a menu bar extra's menu is for the glance and frequent
-/// commands. The window (HIG "Windows") keeps its position (frame autosave), closes with ⌘W, and carries its one
-/// option, the period, right above what it changes (HIG "Settings" › Task-specific options), saved as `reportDays`.
+/// "Glucose Report…": the doctor's report (investigation 18, ReportView.swift) and the treatment history, in a
+/// normal window rather than the menu bar panel (HIG "The menu bar": the panel is for the glance; HIG "Windows").
+/// Two views switched by a segmented control at the top (the window's title follows it); the report's period sits
+/// with the report (HIG "Settings" › Task-specific options), saved as `reportDays`. The Treatments list replaces the
+/// menu's old 24 h rows: the last 7 days, newest first, each with its delivery state; Delete (context menu or ⌫)
+/// when this Mac may log. Position remembered (frame autosave), closes with ⌘W.
 @MainActor final class ReportWindow: NSObject {
     static let periods = [1, 7, 14, 30]
+    let model = HistoryModel()
     private var window: NSWindow?
-    private let report = ReportView(frame: NSRect(x: 0, y: 0, width: 368, height: 300))
-    private let picker = NSSegmentedControl(labels: periods.map { $0 == 1 ? "1 day" : "\($0) days" },
-                                            trackingMode: .selectOne, target: nil, action: nil)
-    private var height: NSLayoutConstraint?
-    var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
-    var bands: () -> Bands = { Bands() }
 
     /// The report's window, days (`reportDays`, 1|7|14|30, default 14).
     static var days: Int {
@@ -25,77 +23,225 @@ import AppKit
 
     var isVisible: Bool { window?.isVisible == true }
 
-    func show() {
+    func show(_ tab: HistoryModel.Tab = .report) {
         let w = window ?? make()
         window = w
+        model.tab = tab
         refresh()
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
     }
 
-    /// New readings or settings: redraw while open.
-    func refresh() {
-        guard let w = window else { return }
-        let days = Self.days
-        picker.selectedSegment = Self.periods.firstIndex(of: days) ?? 2
-        report.bands = bands()
-        report.days = days
-        report.metrics = metricsOf?(TimeInterval(days) * 86400, report.bands)
-        height?.constant = report.fittingHeight()
-        w.contentView?.layoutSubtreeIfNeeded()
-        w.setContentSize(w.contentView?.fittingSize ?? w.frame.size)
-    }
+    /// New readings, treatments or settings: redraw while open.
+    func refresh() { model.reload() }
 
     private func make() -> NSWindow {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 380), styleMask: [.titled, .closable, .miniaturizable],
-                         backing: .buffered, defer: true)
-        w.title = "Glucose Report"
+        let host = NSHostingController(rootView: HistoryView(model: model))
+        host.sizingOptions = [.preferredContentSize]
+        let w = NSWindow(contentViewController: host)
+        w.styleMask = [.titled, .closable, .miniaturizable]
         w.isReleasedWhenClosed = false
-        // The report's colours were checked against the palette's ground (as on Android and the widgets).
-        w.backgroundColor = NSColor(name: nil) { a in
-            NSColor(cgColor: MacSurface.palette(dark: a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua).bg) ?? .windowBackgroundColor
-        }
-        picker.target = self
-        picker.action = #selector(pick)
-        picker.setAccessibilityLabel("Report period")
-        report.inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-        let content = NSView()
-        for v in [picker, report] as [NSView] { v.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(v) }
-        height = report.heightAnchor.constraint(equalToConstant: 300)
-        NSLayoutConstraint.activate([
-            picker.topAnchor.constraint(equalTo: content.topAnchor, constant: 14),
-            picker.centerXAnchor.constraint(equalTo: content.centerXAnchor),
-            report.topAnchor.constraint(equalTo: picker.bottomAnchor, constant: 14),
-            report.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
-            report.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
-            report.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -20),
-            report.widthAnchor.constraint(equalToConstant: GlucoseReport.width),
-            height!,
-        ])
-        w.contentView = content
+        w.titlebarAppearsTransparent = false
+        model.onTitle = { [weak w] t in w?.title = t }
+        w.title = model.tab.title
         if !w.setFrameUsingName("SukraraReport") { w.center() }
         w.setFrameAutosaveName("SukraraReport")
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
                                                           object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.report.needsDisplay = true }
+            MainActor.assumeIsolated { self?.model.reload() }
         }
         return w
     }
 
-    @objc private func pick() {
-        UserDefaults.standard.set(Self.periods[max(0, picker.selectedSegment)], forKey: "reportDays")
-        refresh()
+    /// Evidence aid: `-reportSnapshot <dir>` → report.png and treatments.png (screencapture -l).
+    func snapshot(to dir: String) {
+        show(.report)
+        func shot(_ name: String, then: (() -> Void)? = nil) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                guard let n = self?.window?.windowNumber else { return }
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                p.arguments = ["-x", "-o", "-l\(n)", "\(dir)/\(name).png"]
+                try? p.run(); p.waitUntilExit()
+                log("report snapshot → \(dir)/\(name).png")
+                then?()
+            }
+        }
+        shot("report") { [weak self] in self?.model.tab = .treatments; shot("treatments") }
+    }
+}
+
+@MainActor final class HistoryModel: ObservableObject {
+    enum Tab: String, CaseIterable {
+        case report, treatments
+        var title: String { self == .report ? "Glucose Report" : "Treatments" }
+    }
+    @Published var tab = Tab.report { didSet { onTitle?(tab.title) } }
+    @Published var days = ReportWindow.days {
+        didSet { UserDefaults.standard.set(days, forKey: "reportDays"); reload() }
+    }
+    @Published private(set) var metrics: GlucoseMetrics?
+    @Published private(set) var bands = Bands()
+    @Published private(set) var rows: [Treatment] = []
+    @Published private(set) var canDelete = false
+    @Published var selection: String?
+
+    var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
+    var bandsOf: () -> Bands = { Bands() }
+    var treatments: () -> [Treatment] = { [] }
+    var status: (Treatment) -> String = { _ in "" }
+    var details: (Treatment) -> [String] = { _ in [] }
+    var canLog: () -> Bool = { false }
+    var onDelete: ((String) -> Void)?
+    var onTitle: ((String) -> Void)?
+
+    func reload() {
+        bands = bandsOf()
+        metrics = metricsOf?(TimeInterval(days) * 86400, bands)
+        let since = Int64(Date().timeIntervalSince1970) - 7 * 86400
+        rows = treatments().filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
+        canDelete = canLog()
     }
 
-    /// Evidence aid: `-reportSnapshot out.png`.
-    func snapshot(to path: String) {
-        show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let frame = self?.window?.contentView?.superview,
-                  let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return }
-            frame.cacheDisplay(in: frame.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-            log("report snapshot → \(path)")
+    func delete(_ id: String?) {
+        guard canDelete, let id else { return }
+        onDelete?(id)
+        reload()
+    }
+}
+
+struct HistoryView: View {
+    @ObservedObject var model: HistoryModel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("View", selection: $model.tab) {
+                Text("Report").tag(HistoryModel.Tab.report)
+                Text("Treatments").tag(HistoryModel.Tab.treatments)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.vertical, 12)
+            Divider()
+            switch model.tab {
+            case .report: report
+            case .treatments: treatments
+            }
         }
+        .frame(width: 420)
+    }
+
+    private var report: some View {
+        VStack(spacing: 14) {
+            Picker("Period", selection: $model.days) {
+                ForEach(ReportWindow.periods, id: \.self) { Text($0 == 1 ? "1 day" : "\($0) days").tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            ReportRep(metrics: model.metrics, bands: model.bands, days: model.days)
+                .frame(width: GlucoseReport.width, height: reportHeight)
+        }
+        .padding(.top, 14).padding(.bottom, 20)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var reportHeight: CGFloat {
+        let v = ReportView(frame: .zero)
+        v.metrics = model.metrics
+        v.bands = model.bands
+        v.days = model.days
+        v.inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        return v.fittingHeight()
+    }
+
+    @ViewBuilder private var treatments: some View {
+        if model.rows.isEmpty {
+            Text("No treatments in the last 7 days")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 200)
+        } else {
+            List(selection: $model.selection) {
+                ForEach(days, id: \.0) { day, rows in
+                    Section(day) {
+                        ForEach(rows, id: \.id) { t in
+                            TreatmentRow(t: t, state: model.status(t))
+                                .tag(t.id)
+                                .help(model.details(t).joined(separator: "\n"))
+                                .contextMenu {
+                                    Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.canDelete)
+                                }
+                        }
+                    }
+                }
+            }
+            .onDeleteCommand { model.delete(model.selection) }
+            .frame(height: 420)
+        }
+    }
+
+    /// Rows grouped by day: "Today", "Yesterday", "Thursday 16 October".
+    private var days: [(String, [Treatment])] {
+        let cal = Calendar.current
+        var out: [(String, [Treatment])] = []
+        for t in model.rows {
+            let d = Date(timeIntervalSince1970: TimeInterval(t.t))
+            let name = cal.isDateInToday(d) ? "Today" : cal.isDateInYesterday(d) ? "Yesterday" : d.formatted(.dateTime.weekday(.wide).day().month(.wide))
+            if out.last?.0 == name { out[out.count - 1].1.append(t) } else { out.append((name, [t])) }
+        }
+        return out
+    }
+}
+
+private struct TreatmentRow: View {
+    let t: Treatment
+    let state: String
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: QuickLog.kinds.first { $0.k == t.k }?.symbol ?? "circle")
+                .foregroundStyle(Color(cgColor: TreatmentMarks.color(t.k, dark: scheme == .dark)))
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                if !t.n.isEmpty, t.k != "note" { Text(t.n).font(.callout).foregroundStyle(.secondary) }
+            }
+            Spacer()
+            if !state.isEmpty { Text(state).font(.callout).foregroundStyle(.secondary) }
+            Text(Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var title: String {
+        switch t.k {
+        case "rapid": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") rapid insulin"
+        case "long": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") long insulin"
+        case "carbs": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") carbs"
+        default: t.n.isEmpty ? "Note" : t.n
+        }
+    }
+}
+
+private struct ReportRep: NSViewRepresentable {
+    let metrics: GlucoseMetrics?
+    let bands: Bands
+    let days: Int
+
+    func makeNSView(context: Context) -> ReportView {
+        let v = ReportView(frame: NSRect(x: 0, y: 0, width: GlucoseReport.width, height: 300))
+        v.inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        return v
+    }
+
+    func updateNSView(_ v: ReportView, context: Context) {
+        v.metrics = metrics
+        v.bands = bands
+        v.days = days
+        v.needsDisplay = true
     }
 }

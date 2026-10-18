@@ -45,153 +45,89 @@ enum Preview {
     }
 }
 
-/// `Sukrara -menuPreview out.png`: the dropdown as `out-light.png`, `out-dark.png` and, with Increase Contrast,
-/// `out-light-hc.png` / `out-dark-hc.png`, from synthetic data (a realistic 15 days for the rings, insulin / carbs /
-/// notes, entries in every v2 delivery state). Uses the same CardView, InfoView, StatusController.describe and
-/// TreatmentPaths code as the live menu; a temp store, no network. The menu's material is simulated over a vivid
-/// wallpaper (a 72 % tint, like a menu over a bright desktop): the live material can't be captured offscreen.
-/// `-menuPreviewPlatter NO` draws the card as it was before the platter (round 19's "before").
-enum MenuPreview {
-    @MainActor static func render(to path: String) {
-        // 22:14 local today: the evening of the mock-up, with the day's meals in the 12 h window.
+/// `Sukrara -panelPreview <dir>`: the real glance panel (PanelView on the menu material, the same view the status
+/// item opens) over a bright and a dark test wallpaper, in light, dark and Increase Contrast, from synthetic data (a
+/// realistic 15 days, insulin / carbs / notes). Each one is an on-screen window whose material blends with the
+/// wallpaper drawn inside it (`.withinWindow`; the live panel blends with the desktop, `.behindWindow`), captured
+/// with `screencapture -l` → `<dir>/panel-<appearance>-<wallpaper>.png`. Needs Screen Recording for the capture.
+enum PanelPreview {
+    @MainActor static func run(dir: String) {
         var dc = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         dc.hour = 22; dc.minute = 14
         let end = Calendar.current.date(from: dc)!
         let all = RealisticSynthetic.readings(until: end.timeIntervalSince1970, days: 15)
         let cfg = GraphConfig()
         let now = Int64(end.timeIntervalSince1970)
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-preview-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let store = TreatmentStore(directory: dir)
         func at(_ min: Int64) -> Int64 { now - min * 60 }
         let rows = [
-            Treatment(k: "rapid", a: 4.5, t: at(165), o: "phone"),
-            Treatment(k: "carbs", a: 30, t: at(160), o: "phone"),
-            Treatment(k: "long", a: 12, t: at(110), o: "phone"),
-            Treatment(k: "note", a: 0, t: at(75), n: "walk", o: "follower"),
-            Treatment(k: "rapid", a: 1.5, t: at(40), o: "mac"),
-            Treatment(k: "carbs", a: 15, t: at(22), o: "mac"),
-            Treatment(k: "note", a: 0, t: at(4), n: "sensor ok", o: "mac"),
+            Treatment(k: "rapid", a: 4.5, t: at(165)), Treatment(k: "carbs", a: 30, t: at(160)),
+            Treatment(k: "long", a: 12, t: at(110)), Treatment(k: "note", a: 0, t: at(75), n: "walk"),
+            Treatment(k: "rapid", a: 1.5, t: at(40)), Treatment(k: "carbs", a: 15, t: at(22)),
         ]
-        for t in rows {
-            if t.o == "mac" { store.upsertLocal(t) } else { store.receive(t) }
+        func model(entry: String, logged: Bool) -> PanelModel {
+            let m = PanelModel()
+            m.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
+            m.marks = rows.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
+            m.style = cfg.cardStyle(graph: cfg.graphStyle())
+            m.alerts = AlertSettings()
+            m.metricsOf = { spec, b in GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - spec.window, to: end.timeIntervalSince1970, bands: b) }
+            m.now = end.addingTimeInterval(30)
+            m.hasData = true
+            m.following = true
+            m.kind = "rapid"
+            m.entry = entry
+            if logged { m.logged = ("15g carbs", "x") }
+            return m
         }
-        store.setV2(rows[4].id, u: rows[4].u, .accepted, via: "ble:Tartaruga")
-        store.setV2(rows[5].id, u: rows[5].u, .sent, via: "relay:nos.lol")
-        store.setV2(rows[6].id, u: rows[6].u, .sending)
-        let platter = UserDefaults.standard.object(forKey: "menuPreviewPlatter") == nil || UserDefaults.standard.bool(forKey: "menuPreviewPlatter")
-
-        let w: CGFloat = 368
-        let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
-        for (dark, hc) in [(false, false), (true, false), (false, true), (true, true)] {
-            let stack = NSStackView()
-            stack.orientation = .vertical
-            stack.alignment = .leading
-            stack.spacing = 0
-            stack.edgeInsets = NSEdgeInsets(top: 5, left: 0, bottom: 5, right: 0)
-            func item(_ s: String, _ c: NSColor = .labelColor, key: String? = nil, header: Bool = false, chevron: Bool = false) {
-                let f = NSTextField(labelWithString: s)
-                f.font = header ? .systemFont(ofSize: 11, weight: .semibold) : .menuFont(ofSize: 0)
-                f.textColor = c
-                let row = NSStackView(views: [f])
-                row.edgeInsets = NSEdgeInsets(top: 3, left: 14, bottom: 3, right: 14)
-                row.translatesAutoresizingMaskIntoConstraints = false
-                row.widthAnchor.constraint(equalToConstant: w).isActive = true
-                if let key {
-                    row.addView(NSView(), in: .trailing)
-                    let k = NSTextField(labelWithString: key)
-                    k.font = .menuFont(ofSize: 0)
-                    k.textColor = .tertiaryLabelColor
-                    row.addView(k, in: .trailing)
-                }
-                if chevron {
-                    let k = NSTextField(labelWithString: "›")
-                    k.font = .menuFont(ofSize: 0)
-                    k.textColor = .secondaryLabelColor
-                    row.addView(k, in: .trailing)
-                }
-                stack.addArrangedSubview(row)
-            }
-            let chart = CardView(frame: NSRect(x: 0, y: 0, width: w, height: platter ? 212 : 200))
-            if !platter { chart.platterInset = nil; chart.inset = NSEdgeInsets(top: 6, left: 14, bottom: 4, right: 14) }
-            chart.increaseContrast = hc
-            chart.reduceTransparency = false
-            chart.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
-            chart.marks = store.rows.filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
-            chart.style = cfg.cardStyle(graph: cfg.graphStyle())
-            chart.alerts = AlertSettings()
-            chart.metricsOf = { spec, b in GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - spec.window, to: end.timeIntervalSince1970, bands: b) }
-            chart.now = end.addingTimeInterval(30)
-            chart.translatesAutoresizingMaskIntoConstraints = false
-            chart.widthAnchor.constraint(equalToConstant: w).isActive = true
-            chart.heightAnchor.constraint(equalToConstant: chart.frame.height).isActive = true
-            stack.addArrangedSubview(chart)
-            let info = InfoView()
-            info.set([("Source: Bluetooth · Tartaruga", .secondaryLabelColor), ("Following Ana · key epoch 2 · 4 relays", .secondaryLabelColor)],
-                     image: Avatar.image(nil, name: "Ana", size: 18))
-            info.translatesAutoresizingMaskIntoConstraints = false
-            info.widthAnchor.constraint(equalToConstant: w).isActive = true
-            info.heightAnchor.constraint(equalToConstant: info.frame.height).isActive = true
-            stack.addArrangedSubview(info)
-            stack.addArrangedSubview(separator(w))
-            item("Treatments (24 h)", .secondaryLabelColor, header: true)
-            for t in store.rows.sorted(by: { $0.t > $1.t }).prefix(StatusController.maxTreatmentRows) {
-                let st = TreatmentPaths.status(of: t, store: store)
-                item(StatusController.describe(t) + (st.isEmpty ? "" : "   " + st), chevron: true)
-            }
-            item("Log Treatment…", key: "⌘L")
-            stack.addArrangedSubview(separator(w))
-            item("Glucose Report…")
-            item("Settings…", key: "⌘,")
-            stack.addArrangedSubview(separator(w))
-            item("Quit Sukrara", key: "⌘Q")
-
-            let box = MaterialBackdrop(frame: NSRect(x: 0, y: 0, width: w, height: 10))
-            box.appearance = NSAppearance(named: hc ? (dark ? .accessibilityHighContrastDarkAqua : .accessibilityHighContrastAqua) : (dark ? .darkAqua : .aqua))
-            box.dark = dark
-            stack.translatesAutoresizingMaskIntoConstraints = false
-            box.addSubview(stack)
-            NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: box.leadingAnchor),
-                                         stack.topAnchor.constraint(equalTo: box.topAnchor),
-                                         stack.widthAnchor.constraint(equalToConstant: w)])
-            box.layoutSubtreeIfNeeded()
-            box.setFrameSize(NSSize(width: w, height: stack.fittingSize.height))
-            box.layoutSubtreeIfNeeded()
-            let scale: CGFloat = 2
-            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(box.bounds.width * scale), pixelsHigh: Int(box.bounds.height * scale),
-                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
-            rep.size = box.bounds.size
-            box.cacheDisplay(in: box.bounds, to: rep)
-            let out = "\(base)-\(dark ? "dark" : "light")\(hc ? "-hc" : "").png"
-            try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out))
-            print("wrote", out)
+        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, entry: String, logged: Bool)
+        let shots: [Shot] = [
+            ("light-bright", .aqua, true, "4.5u", false), ("light-dark", .aqua, false, "", true),
+            ("dark-bright", .darkAqua, true, "", true), ("dark-dark", .darkAqua, false, "30g pasta", false),
+        ]
+        var windows: [NSWindow] = []
+        for (i, shot) in shots.enumerated() {
+            let m = model(entry: shot.entry, logged: shot.logged)
+            let panel = GlancePanel.content(m, blending: .withinWindow)
+            panel.appearance = NSAppearance(named: shot.appearance)
+            panel.layoutSubtreeIfNeeded()
+            let size = panel.fittingSize
+            let pad: CGFloat = 36
+            let frame = NSRect(x: 0, y: 0, width: size.width + 2 * pad, height: size.height + 2 * pad)
+            let root = Wallpaper(frame: frame)
+            root.bright = shot.bright
+            panel.frame = NSRect(x: pad, y: pad, width: size.width, height: size.height)
+            root.addSubview(panel)
+            let w = NSWindow(contentRect: frame.offsetBy(dx: 40 + CGFloat(i) * 30, dy: 80), styleMask: [.borderless], backing: .buffered, defer: false)
+            w.contentView = root
+            w.appearance = NSAppearance(named: shot.appearance)
+            w.orderFrontRegardless()
+            windows.append(w)
         }
-    }
-
-    private static func separator(_ width: CGFloat) -> NSView {
-        let b = NSBox()
-        b.boxType = .separator
-        let wrap = NSStackView(views: [b])
-        wrap.edgeInsets = NSEdgeInsets(top: 5, left: 14, bottom: 5, right: 14)
-        wrap.translatesAutoresizingMaskIntoConstraints = false
-        wrap.widthAnchor.constraint(equalToConstant: width).isActive = true
-        return wrap
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            for (w, shot) in zip(windows, shots) {
+                let out = "\(dir)/panel-\(shot.name).png"
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                p.arguments = ["-x", "-o", "-l\(w.windowNumber)", out]
+                try? p.run()
+                p.waitUntilExit()
+                print(FileManager.default.fileExists(atPath: out) ? "wrote \(out)" : "FAILED \(out) (Screen Recording permission?)")
+            }
+            exit(0)
+        }
+        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.run()
     }
 }
 
-/// A stand-in for the menu's material: a vivid "wallpaper" (blurred, so smooth) under the menu tint.
-private final class MaterialBackdrop: NSView {
-    var dark = false
-    override var isFlipped: Bool { true }
+/// Test wallpapers: a bright pastel one (white, yellow, pink, sky) and a dark one (navy, plum, black, teal).
+private final class Wallpaper: NSView {
+    var bright = true
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let cs = CGColorSpaceCreateDeviceRGB()
-        let colors = [GraphPalette.hex(0x2F6BFF), GraphPalette.hex(0xF26B3A), GraphPalette.hex(0xFFD23F), GraphPalette.hex(0x19B37D)] as CFArray
-        let g = CGGradient(colorsSpace: cs, colors: colors, locations: [0, 0.4, 0.7, 1])!
+        let hexes: [UInt32] = bright ? [0xFFF4C2, 0xFF9DB0, 0xFFFFFF, 0x8FD8FF] : [0x07102E, 0x3A0F4F, 0x000000, 0x003A44]
+        let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: hexes.map(GraphPalette.hex) as CFArray, locations: [0, 0.35, 0.65, 1])!
         ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: bounds.width, y: bounds.height), options: [])
-        ctx.setFillColor(dark ? CGColor(srgbRed: 0.12, green: 0.12, blue: 0.13, alpha: 0.72) : CGColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 0.72))
-        ctx.fill(bounds)
     }
 }
 

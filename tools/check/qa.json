@@ -2,10 +2,10 @@
   "_about": "Changed path -> docs/QA.md sections to check by hand (printed by tools/check/run.sh). Globs: fnmatch.",
   "map": [
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"],
-     "qa": ["Q2 Graph and value card", "Q3 Android widgets", "Q4 Lock screen widget", "Q5 Glucose notification", "Q6 Mac menubar dropdown", "Q7 Mac widgets"]},
-    {"paths": ["spikes/widgets-macos/Shared/*"], "qa": ["Q6 Mac menubar dropdown", "Q7 Mac widgets"]},
+     "qa": ["Q2 Graph and value card", "Q3 Android widgets", "Q4 Lock screen widget", "Q5 Glucose notification", "Q6 Mac menubar panel", "Q7 Mac widgets"]},
+    {"paths": ["spikes/widgets-macos/Shared/*"], "qa": ["Q6 Mac menubar panel", "Q7 Mac widgets"]},
     {"paths": ["spikes/widgets-macos/Widget/*", "spikes/menubar/Sources/GlucoseBar/WidgetFeed.swift"], "qa": ["Q7 Mac widgets"]},
-    {"paths": ["spikes/menubar/Sources/*"], "qa": ["Q6 Mac menubar dropdown"]},
+    {"paths": ["spikes/menubar/Sources/*"], "qa": ["Q6 Mac menubar panel"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/*"], "qa": ["Q1 App home and screens"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/*", "spikes/showcase-android/app/src/main/res/xml/widget_*"], "qa": ["Q3 Android widgets", "Q4 Lock screen widget"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/*"], "qa": ["Q4 Lock screen widget"]},

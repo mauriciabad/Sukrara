@@ -28,7 +28,7 @@ import AppKit
 //   -graphselftest  the shared graph math against the Android unit-test cases
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in Settings › Alerts)
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
-//                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot out.png: render
+//                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot <dir>: render
 //                      Settings › Alerts / every Settings pane / the report window
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
@@ -51,14 +51,14 @@ if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
     exit(0)
 }
-if let path = defaults.string(forKey: "menuPreview") {
-    MainActor.assumeIsolated { MenuPreview.render(to: path) }
+if let dir = defaults.string(forKey: "panelPreview") {
+    MainActor.assumeIsolated { PanelPreview.run(dir: dir) }
     exit(0)
 }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
-if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() ? 0 : 1) }
+if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && QuickLog.selfTest() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
@@ -73,9 +73,14 @@ if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLi
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // menubar only, no Dock icon
+// Tests / captures: `-appearance dark|light` forces the app's appearance.
+if let a = defaults.string(forKey: "appearance") { app.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
 
-let status = StatusController()
-status.unit = GlucoseUnit(rawValue: defaults.string(forKey: "unit") ?? "") ?? .mgdl
+let status = MainActor.assumeIsolated {
+    let s = StatusController()
+    s.unit = GlucoseUnit(rawValue: defaults.string(forKey: "unit") ?? "") ?? .mgdl
+    return s
+}
 // Glucose alerts (Alerts.swift, spikes/alerts/SPEC.md): this Mac's rules or the wearer's `alert` events.
 let alerts = MainActor.assumeIsolated { Alerts() }
 MainActor.assumeIsolated {
@@ -521,8 +526,14 @@ MainActor.assumeIsolated {
 // Settings (⌘,) and the Glucose Report window: everything that configures the app lives there, not in the menu.
 let reportWindow = MainActor.assumeIsolated {
     let r = ReportWindow()
-    r.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
-    r.bands = { status.graph.bands }
+    r.model.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
+    r.model.bandsOf = { status.graph.bands }
+    r.model.treatments = { treatmentStore.rows }
+    r.model.status = { TreatmentPaths.status(of: $0, store: treatmentStore) }
+    r.model.details = { TreatmentPaths.details(of: $0, store: treatmentStore) }
+    r.model.canLog = { TreatmentPaths.current(node: following.node).canLog }
+    r.model.onDelete = { status.onDeleteTreatment?($0) }
+    treatmentStore.onChange.append { if r.isVisible { r.refresh() } }
     return r
 }
 let settings = MainActor.assumeIsolated {
@@ -549,8 +560,8 @@ MainActor.assumeIsolated {
     }
     status.onFollowChange = { settings.followingModel.refresh() }
     alerts.onOpenWindow = { settings.show(.alerts) }
-    MainMenu.install()
-    // Evidence aids: render windows to PNGs without screen-recording permission.
+    MainMenu.install(settings: { settings.show() })
+    // Evidence aids: render windows to PNGs (the report needs Screen Recording for screencapture -l).
     let args = CommandLine.arguments
     func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
     if let path = arg("-alertsSnapshot") {
@@ -562,9 +573,11 @@ MainActor.assumeIsolated {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { settings.snapshotDetails(.low, to: "\(dir)/settings-alert-details.png") }
     }
-    if let path = arg("-reportSnapshot") {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { reportWindow.snapshot(to: path) }
+    if let dir = arg("-reportSnapshot") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { reportWindow.snapshot(to: dir) }
     }
+    // Debug aid: open the glance panel at launch (it can't be clicked open from a script without Accessibility).
+    if args.contains("-openPanel") { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { status.openPanel() } }
 }
 
 // After sleep the SSE/WebSocket sockets are dead but URLSession would only notice after its idle timeout.

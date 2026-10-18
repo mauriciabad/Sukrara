@@ -850,6 +850,42 @@ click Open Anyway once.
 | Screenshots of the live menu | This session has no Screen Recording / Accessibility permission (`screencapture`: "could not create image from display"); the live build was run and its windows rendered offscreen, the menu simulated |
 | The report inside Settings | It is data, not a setting |
 
+## Mac menu bar panel (2026-10-18, second Mac round)
+
+The user, after the first round: the treatments look awful in the menu; logging through a popup is the wrong tool;
+the graph on a solid white platter looks awful and would blind in dark mode; the source / following lines are
+unnecessary. So the menu became a panel, designed from the HIG
+([The menu bar › Menu bar extras](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar):
+"display a menu — not a popover — … unless the app functionality you want to expose is too complex for a menu";
+[Entering data](https://developer.apple.com/design/human-interface-guidelines/entering-data);
+[Keyboard](https://developer.apple.com/design/human-interface-guidelines/keyboards);
+[Materials](https://developer.apple.com/design/human-interface-guidelines/materials)) and the system's own panels
+(Control Center, Wi-Fi, Bluetooth; SwiftUI's `MenuBarExtra(.window)`).
+
+![Dark over a bright wallpaper](img/mac-ux/panel-dark-bright.png) ![Light over a dark wallpaper](img/mac-ux/panel-light-dark.png)
+
+*Synthetic data, the real `PanelView` on the real menu material (`GlucoseBar -panelPreview`), captured with
+`screencapture`. Also: [dark over dark](img/mac-ux/panel-dark-dark.png), [light over bright](img/mac-ux/panel-light-bright.png).
+Before: [the first round's menu](img/mac-ux/menu-light.png).*
+
+| Added | Why | Where |
+|---|---|---|
+| A window-style panel under the item (borderless, non-activating, menu material, closes on Escape / click outside) | A text field can't live in a menu; the panel is what `MenuBarExtra(.window)` and Control Center use | `Panel.swift` (`GlancePanel`, `KeyPanel`) |
+| The card in a recessed module instead of the solid platter: black 18 % in dark, white 50 % in light; no bright surface in the dark; the palette without its background colour, grid one step stronger | The user's ask; the module keeps the graph's ink on its side of the appearance (light ink on darker, dark ink on lighter) over any wallpaper, like Control Center's modules (HIG Materials) | `ModuleBackground`, `MacSurface.materialPalette` |
+| Quick log, keyboard-first: focus in the field on open, `4.5u` / `30g pasta` / `12 long` / a note, Return; the unit picks the kind, the segmented control shows it (⌘1–⌘4), *Now ▾* for earlier; preview line, then *Logged … · Undo* | HIG Entering data ("minimize the amount of data that people need to supply"; "be clear about the data you need … display a prompt in a text field"; prefill reasonable defaults); Keyboard (Return confirms, Escape cancels); the popup dialog is gone | `PanelModel`, `QuickLog` (grammar self-tested in `-treatmentsselftest`) |
+| Treatments list moved to Glucose Report › Treatments (7 days by day, state, delete) | Out of the glance (the user); deleting still needs a home | `ReportWindow.swift` |
+| Right-click menu: Glucose Report…, Settings…, Quit | The familiar secondary path for menu bar items; Quit is also in Settings › General | `StatusController` |
+| `-openPanel`, `-appearance dark|light`, the logged capture rect | Real captures of the running build (Screen Recording granted to the terminal) | `StatusController.openPanel`, `main.swift` |
+
+| Discarded | Why |
+|---|---|
+| SwiftUI `MenuBarExtra` itself | Needs the SwiftUI `App` lifecycle; the app is AppKit. The panel reproduces its window style |
+| The solid platter (first round) | Bright in dark mode (the user) |
+| Two-pass vibrant drawing of the card's neutral ink | The shared renderer draws ink, colours and the distribution cut-out in one pass; splitting it would fork the one graph. The module gives the contrast instead |
+| Source / following / error lines in the panel | Diagnostic: Settings › General and Following |
+| Activating the app when the panel opens (accent-coloured selection) | It would take focus from the app the user was in; the panel works like Spotlight (non-activating), so the selected segment draws in the inactive style |
+| Faked Increase Contrast renders | Setting a high-contrast appearance on a view doesn't change the material; the real setting is read from the system (`accessibilityDisplayShouldIncreaseContrast`) |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

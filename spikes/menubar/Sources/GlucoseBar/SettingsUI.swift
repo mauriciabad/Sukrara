@@ -24,7 +24,7 @@ import SwiftUI
             switch self { case .general: "gearshape"; case .graph: "chart.xyaxis.line"; case .alerts: "bell.badge"; case .following: "person.2" }
         }
         var height: CGFloat {
-            switch self { case .general: 330; case .graph: 720; case .alerts: 720; case .following: 300 }
+            switch self { case .general: 400; case .graph: 720; case .alerts: 720; case .following: 300 }
         }
         var id: NSToolbarItem.Identifier { .init(rawValue) }
     }
@@ -222,6 +222,10 @@ struct GeneralView: View {
             }
             Section {
                 LabeledContent("Version", value: model.version)
+                HStack { Spacer(); Button("Quit Sukrara") { NSApp.terminate(nil) } }
+            } footer: {
+                Text("Right-click the number in the menu bar for Glucose Report, Settings and Quit.")
+                    .font(.callout).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -508,10 +512,22 @@ struct FollowingView: View {
 /// `NSApp.mainMenu`: without one, ⌘W, ⌘Q and the Edit commands (⌘C / ⌘V in the invite-link field, ⌘Z) do nothing.
 /// HIG "Keyboard" › Standard keyboard shortcuts: people expect them to work everywhere.
 @MainActor enum MainMenu {
-    static func install() {
+    /// The Settings… item's target (menus hold their target weakly, so it's kept here).
+    private final class Target: NSObject {
+        let open: () -> Void
+        init(_ open: @escaping () -> Void) { self.open = open }
+        @objc func settings() { open() }
+    }
+    private static var target: Target?
+
+    static func install(settings: @escaping () -> Void) {
+        let t = Target(settings)
+        target = t
         let main = NSMenu()
         let appItem = NSMenuItem()
         let app = NSMenu(title: "Sukrara")
+        app.addItem(withTitle: "Settings…", action: #selector(Target.settings), keyEquivalent: ",").target = t
+        app.addItem(.separator())
         app.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         app.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = app
