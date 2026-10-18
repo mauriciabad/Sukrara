@@ -12,7 +12,6 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.PathEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -59,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -153,9 +154,13 @@ fun rememberNav(home: String) = remember { Nav(home) }
  *    cancelling springs back.
  */
 private const val SYSTEM_MS = 450
-private val FastOutExtraSlowIn = PathEasing(androidx.compose.ui.graphics.Path().apply {
-    moveTo(0f, 0f); cubicTo(0.05f, 0f, 0.133333f, 0.06f, 0.166666f, 0.4f); cubicTo(0.208333f, 0.82f, 0.25f, 1f, 1f, 1f)
-})
+// AOSP fast_out_extra_slow_in: the path M0,0 C0.05,0 0.133333,0.06 0.166666,0.4 C0.208333,0.82 0.25,1 1,1, as its two
+// cubic segments (PathEasing would need androidx.graphics' native path iterator, missing in JVM tests)
+private val FoesiStart = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+private val FoesiEnd = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val FastOutExtraSlowIn = androidx.compose.animation.core.Easing { x ->
+    if (x < 0.166666f) 0.4f * FoesiStart.transform(x / 0.166666f) else 0.4f + 0.6f * FoesiEnd.transform((x - 0.166666f) / 0.833334f)
+}
 private val BackGesture = CubicBezierEasing(0.1f, 0.1f, 0f, 1f)
 
 private enum class Move { OPEN, BACK, GESTURE, COMMIT }
@@ -170,7 +175,7 @@ fun ScreenHost(nav: Nav, content: @Composable (String) -> Unit) {
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     // the device's own window corner radius, what the system rounds a page to during the back gesture
     val cornerPx = remember {
-        ctx.display?.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: with(density) { 28.dp.toPx() }
+        runCatching { ctx.display }.getOrNull()?.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: with(density) { 28.dp.toPx() }
     }
     // last known depth of every screen: a change to a shallower one is a back
     val depth = remember { HashMap<String, Int>() }
@@ -179,6 +184,7 @@ fun ScreenHost(nav: Nav, content: @Composable (String) -> Unit) {
     var shown by remember { mutableStateOf(nav.screen) }        // the page at rest / the one being left
     var other by remember { mutableStateOf<String?>(null) }     // the page coming in, or the parent during a gesture
     var move by remember { mutableStateOf(Move.OPEN) }
+    val slots = remember { arrayOfNulls<String>(2) }               // which page each of the two page slots holds
     val t = remember { Animatable(0f) }                         // linear time 0..1 of OPEN / BACK / COMMIT
     val g = remember { Animatable(0f) }                         // gesture progress (interpolated)
     var dy by remember { mutableStateOf(0f) }                   // finger travel up/down since the gesture started
@@ -207,6 +213,9 @@ fun ScreenHost(nav: Nav, content: @Composable (String) -> Unit) {
     LaunchedEffect(nav.screen) {
         val target = nav.screen
         if (target == shown && other == null) return@LaunchedEffect
+        // back to the page being left before the move finished: go back from the page that was coming in (drawing
+        // the same page twice isn't possible)
+        if (target == shown && move != Move.GESTURE) other?.let { shown = it }
         val back = (depth[target] ?: 0) < (depth[shown] ?: 0)
         move = if (move == Move.GESTURE && back) Move.COMMIT else if (back) Move.BACK else Move.OPEN
         other = target
@@ -221,50 +230,70 @@ fun ScreenHost(nav: Nav, content: @Composable (String) -> Unit) {
         val d96 = with(density) { 96.dp.toPx() }
         val d8 = with(density) { 8.dp.toPx() }
         val scrimMax = if (dark) 0.8f else 0.2f
-        @Composable
-        fun page(key: String, layer: androidx.compose.ui.graphics.GraphicsLayerScope.() -> Unit) =
-            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().graphicsLayer(layer)) { holder.SaveableStateProvider(key) { content(key) } }
         val o = other
-        if (o == null) page(shown) {}
-        else when (move) {
-            Move.OPEN -> {
-                // shown slides out to the start, the new page comes in from the end on top of it
-                page(shown) { translationX = -d96 * FastOutExtraSlowIn.transform(t.value) }
-                page(o) {
-                    translationX = d96 * (1 - FastOutExtraSlowIn.transform(t.value))
-                    alpha = ((t.value * SYSTEM_MS - 50f) / 83f).coerceIn(0f, 1f)
+        // The pages to draw, bottom first: (screen, its layer, the scrim drawn over it). A page must keep its
+        // composition when it starts or stops moving (at rest → leaving, arriving → at rest): drawing it from a
+        // different call site per case disposed it and composed it again from scratch, which flashed its first frame
+        // (charts redrawn empty, settings rows laid out before their final size).
+        val layers: List<Triple<String, androidx.compose.ui.graphics.GraphicsLayerScope.() -> Unit, () -> Float>> =
+            if (o == null) listOf(Triple(shown, {}, { 0f }))
+            else when (move) {
+                Move.OPEN -> listOf(
+                    // shown slides out to the start, the new page comes in from the end on top of it
+                    Triple(shown, { translationX = -d96 * FastOutExtraSlowIn.transform(t.value) }, { 0f }),
+                    Triple(o, {
+                        translationX = d96 * (1 - FastOutExtraSlowIn.transform(t.value))
+                        alpha = ((t.value * SYSTEM_MS - 50f) / 83f).coerceIn(0f, 1f)
+                    }, { 0f }),
+                )
+                Move.BACK -> listOf(
+                    Triple(o, { translationX = -d96 * (1 - FastOutExtraSlowIn.transform(t.value)) }, { 0f }),
+                    Triple(shown, {
+                        translationX = d96 * FastOutExtraSlowIn.transform(t.value)
+                        alpha = 1f - ((t.value * SYSTEM_MS - 35f) / 83f).coerceIn(0f, 1f)
+                    }, { 0f }),
+                )
+                Move.GESTURE, Move.COMMIT -> {
+                    val p = g.value
+                    val c = if (move == Move.COMMIT) FastOutExtraSlowIn.transform(t.value) else 0f
+                    val scale = 1f - 0.1f * p
+                    // at full progress the page's end edge sits 8 dp from the screen's
+                    val toEnd = p * (w * 0.05f - d8).coerceAtLeast(0f)
+                    val maxY = (h * (1f - scale) / 2f - d8).coerceAtLeast(0f)
+                    val yn = (kotlin.math.abs(dy) / (h / 2f)).coerceIn(0f, 1f)
+                    val y = kotlin.math.sign(dy) * (1f - (1f - yn) * (1f - yn)) * maxY
+                    val sBelow = scale + (1f - scale) * c
+                    val scrim = if (p > 0f) scrimMax * (1f - if (move == Move.COMMIT) t.value else 0f) else 0f
+                    listOf(
+                        Triple(o, {
+                            scaleX = sBelow; scaleY = sBelow
+                            translationX = -d96 * (1f - c); translationY = y * (1f - c)
+                            shape = RoundedCornerShape(cornerPx * (1f - c)); clip = p > 0f
+                        }, { scrim }),
+                        Triple(shown, {
+                            scaleX = scale; scaleY = scale
+                            translationX = toEnd + d96 * c; translationY = y
+                            alpha = (1f - c * 5f).coerceAtLeast(0f)
+                            shape = RoundedCornerShape(cornerPx); clip = p > 0f
+                        }, { 0f }),
+                    )
                 }
             }
-            Move.BACK -> {
-                page(o) { translationX = -d96 * (1 - FastOutExtraSlowIn.transform(t.value)) }
-                page(shown) {
-                    translationX = d96 * FastOutExtraSlowIn.transform(t.value)
-                    alpha = 1f - ((t.value * SYSTEM_MS - 35f) / 83f).coerceIn(0f, 1f)
-                }
-            }
-            Move.GESTURE, Move.COMMIT -> {
-                val p = g.value
-                val c = if (move == Move.COMMIT) FastOutExtraSlowIn.transform(t.value) else 0f
-                val scale = 1f - 0.1f * p
-                // at full progress the page's end edge sits 8 dp from the screen's
-                val toEnd = p * (w * 0.05f - d8).coerceAtLeast(0f)
-                val maxY = (h * (1f - scale) / 2f - d8).coerceAtLeast(0f)
-                val yn = (kotlin.math.abs(dy) / (h / 2f)).coerceIn(0f, 1f)
-                val y = kotlin.math.sign(dy) * (1f - (1f - yn) * (1f - yn)) * maxY
-                val sBelow = scale + (1f - scale) * c
-                page(o) {
-                    scaleX = sBelow; scaleY = sBelow
-                    translationX = -d96 * (1f - c); translationY = y * (1f - c)
-                    shape = RoundedCornerShape(cornerPx * (1f - c)); clip = p > 0f
-                }
-                val scrim = if (p > 0f) scrimMax * (1f - if (move == Move.COMMIT) t.value else 0f) else 0f
-                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) { drawRect(Color.Black, alpha = scrim) }
-                page(shown) {
-                    scaleX = scale; scaleY = scale
-                    translationX = toEnd + d96 * c; translationY = y
-                    alpha = (1f - c * 5f).coerceAtLeast(0f)
-                    shape = RoundedCornerShape(cornerPx); clip = p > 0f
-                }
+        // Two fixed slots: a page takes a free slot when it appears and keeps it until it's gone, the drawing order
+        // comes from zIndex. No composition is ever moved (moving a page's group between positions recreated it or,
+        // with SubcomposeLayouts inside, hung the app).
+        val visible = layers.map { it.first }
+        for (i in slots.indices) if (slots[i] !in visible) slots[i] = null
+        for (v in visible) if (v !in slots) slots[slots.indexOfFirst { it == null }] = v
+        for (i in slots.indices) key(i) {
+            val s = slots[i]
+            val z = visible.indexOf(s)
+            if (s != null && z >= 0) key(s) {
+                val (_, layer, scrim) = layers[z]
+                androidx.compose.foundation.layout.Box(Modifier.zIndex(z.toFloat()).fillMaxSize()
+                    // the scrim covers the whole screen over this page, outside its (scaled, moved) layer
+                    .drawWithContent { drawContent(); scrim().let { if (it > 0f) drawRect(Color.Black, alpha = it) } }
+                    .graphicsLayer(layer)) { holder.SaveableStateProvider(s) { content(s) } }
             }
         }
     }
