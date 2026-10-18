@@ -149,6 +149,20 @@ adb -s <emulator> shell am broadcast -n dev.spike.nostrid/.DebugReceiver --es cm
 adb -s <emulator> shell run-as dev.spike.nostrid cat files/state.json      # redacted state (debug builds)
 ```
 
+## `../spec/reference/` — Open Glucose Stream reference (investigation 24)
+
+Independent Python implementation of the OGS spec ([`spec/`](../spec), [24](../docs/24-open-standard.md)): standard-library
+crypto, a follower with every acceptance rule, deterministic test vectors, a live relay follower. Throwaway keys only.
+```sh
+cd ../spec/reference
+uv run ogs vectors verify                 # 28 events, invite checks, BLE frames, 25-step scenario
+uv run python -m unittest discover tests  # NIP-44 / BIP-340 / RFC 5869 vectors, framing, CGMS, app identity vectors
+uv run ogs follow '<invite link>' --minutes 5      # third-party follower against public relays
+# Sukrara side (repo v2 code + rust-nostr), run in the nostr/ environment:
+uv run --project ../../spikes/nostr python interop/sukrara_side.py oracle ../test-vectors/ogs-draft1.json
+uv run --project ../../spikes/nostr python interop/sukrara_side.py serve --minutes 4 --link-file /tmp/link.txt
+```
+
 ## `statusbar-android/` — GlucoStatus (Android, Kotlin)
 
 Glucose in the phone's status bar, every approach from [05](../docs/05-android-status-bar.md) switchable in one app:

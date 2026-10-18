@@ -227,7 +227,8 @@ Libre 3 ──BLE──▶ phone (Sukrara) ───┤                         
 - Relays keep one live event per reading (expires in an hour) and one replaceable chunk per hour (expires in a week).
   Bluetooth carries exactly the same events, so a follower checks them the same way whichever path they came by.
 
-The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PROTOCOL-v2.md).
+The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PROTOCOL-v2.md), and as a vendor-neutral
+open standard, the Open Glucose Stream, in [`spec/`](spec) ([24](docs/24-open-standard.md)).
 
 ## Investigations
 
@@ -254,6 +255,7 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 19 | Notification templates: the space under the icon | Custom views stay right of the icon; only Android 17's Live Update layout draws a ProgressStyle bar and action buttons across the whole card. Range bar with a tracker at the value, colours honoured (darkened when colorized), at most 10 segments and 4 points, no bar when collapsed. **Not in Sukrara yet** (proposal: the Live Update as ProgressStyle) | [docs/19](docs/19-notification-templates.md) |
 | 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
 | 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
+| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with a 25-step acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes; nothing published yet. **Not in Sukrara** ([proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
 
 ## Try it
 
@@ -328,6 +330,7 @@ Android (Juggluco's web server on the same network also works).
 
 ```
 docs/                     reports (one per investigation), images, evidence; also the sukrara.mauri.app site
+spec/                     Open Glucose Stream: the open sharing standard, test vectors, independent Python reference
 spikes/
   showcase-android/       Sukrara — the alpha Android app (Kotlin), bundles everything below
   menubar/                Sukrara for Mac (formerly GlucoseBar) — menubar app and follower (Swift, AppKit, CoreBluetooth)
