@@ -33,6 +33,7 @@ object AlertNotifier {
     private const val GROUP = "alerts"
     private const val GROUP_ALARM = "alerts_alarm"
     private const val ID_BASE = 100
+    const val SILENT_GROUP = "alert_silent"
 
     fun channelId(kind: String, alarm: Boolean) = if (alarm) "alert_a_$kind" else "alert_n_$kind"
 
@@ -111,9 +112,17 @@ object AlertNotifier {
 
     /**
      * [who] = the followed person when this mirrors a wearer's alert or follows someone, null on the wearer's phone.
-     * [sgv]/[rate] null for no data. [treated]: see [Kind.message].
+     * [sgv]/[rate] null for no data. [treated]: see [Kind.message]. [silent]: an alert shown again after a restart
+     * (it already rang; see Alerts.resume).
      */
-    fun post(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int) {
+    fun post(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
+             silent: Boolean = false) {
+        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind),
+            build(ctx, kind, sgv, rate, th, at, who, alarm, treated, silent)) }
+    }
+
+    fun build(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
+              silent: Boolean = false): Notification {
         val unit = Kind.unit(kind)
         val thText = if (kind in Kind.RATES) "%.1f".format(th) else th.toInt().toString()
         val value = "${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
@@ -134,8 +143,11 @@ object AlertNotifier {
             .setWhen(at * 1000)
             .setShowWhen(true)
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
+        // silent: what NotificationCompat.setSilent does: a group member that defers alerting to a summary that never
+        // exists (NotificationRecord: suppressAlertingDueToGrouping); the channel's sound and vibration are skipped
+        if (silent) b.setGroup(SILENT_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
         who?.let { b.setSubText(it) }
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), b.build()) }
+        return b.build()
     }
 
     fun cancel(ctx: Context, kind: String) = ctx.getSystemService(NotificationManager::class.java).cancel(notificationId(kind))

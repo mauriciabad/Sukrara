@@ -289,4 +289,34 @@ class AlertEngineTest {
         assertEquals(70.0, flipped.cfg(Kind.LOW).value, 0.0)
         assertEquals(55.0, flipped.cfg(Kind.VERY_LOW).value, 0.0)   // the old id is simply gone
     }
+    /**
+     * Two sounds at once (docs/15): an app update kills the process; the new one must not take an ongoing alert for a
+     * new one. The episode comes back from its snapshot, the notification that was up is handed back (shown again
+     * silently), and the next sound is the repeat, on its normal time.
+     */
+    @Test fun restartResumesWithoutRingingAgain() {
+        val before = AlertEngine()
+        val first = run(before, List(4) { 200 to 0.0 })
+        assertEquals(listOf(0 to "High glucose"), headlines(first))
+        val saved = JSONObject(before.snapshot().toString())
+
+        val after = AlertEngine()
+        after.seed(Reading(min(3), 200, 0.0))
+        val shown = after.restore(saved, s, min(4))
+        assertEquals(listOf(Kind.HIGH), shown.map { it.kind })
+        assertEquals((first.single().second as AlertEngine.Fire).id, shown.single().id)
+        val rest = run(after, List(16) { 200 to 0.0 }, start = min(4)).map { (m, a) -> m + 4 to a }
+        assertEquals(listOf(15 to "High glucose"), headlines(rest))   // repeat 15 min after the first, not at the restart
+
+        // a fresh engine (the old behaviour) rings at once: the second sound
+        assertEquals(listOf(0 to "High glucose"), headlines(run(AlertEngine(), listOf(200 to 0.0), start = min(4))))
+    }
+
+    @Test fun restoreDropsEpisodesThatEndedWhileDown() {
+        val before = AlertEngine()
+        run(before, listOf(200 to 0.0))
+        val after = AlertEngine()
+        assertTrue(after.restore(before.snapshot(), s, min(60)).isEmpty())
+        assertNull(after.states()["level"])
+    }
 }
