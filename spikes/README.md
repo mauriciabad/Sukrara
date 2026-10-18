@@ -261,6 +261,26 @@ adb shell am start -S -n dev.spike.notiflab/.MainActivity --es v live,bands --ei
 adb logcat -s NotifLab
 ```
 
+## `sensors-android/` — sensor drivers for other brands (Kotlin, investigation 23)
+
+Drivers for sensors Sukrara does not read yet, with **no app and no Bluetooth**: a `SensorDriver` abstraction the
+Libre 3 code also fits, and decoders tested against packet traces and test vectors from the open projects
+([23](../docs/23-sensors.md)). Ported: Dexcom G7 / ONE+ / Stelo (observer mode: reads along with the official
+Dexcom app, writing nothing; its own pairing stops at the Dexcom app certificate it refuses to borrow), Dexcom
+G6 / ONE, Accu-Chek SmartGuide (the standard Bluetooth CGM Service) and Aidex X. **Every driver is untested on
+hardware** — the user owns none of these sensors.
+
+```sh
+cd sensors-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew :core:test                 # 36 tests: crypto, checksums, decoders, handshake decisions
+./gradlew :core:run                  # the decoder harness over every bundled trace
+./gradlew :core:run --args="aidex"   # one driver (g7, g6, smartguide, aidex), or add a trace file path
+./gradlew :android:assembleRelease   # the BluetoothGatt transport (compiled, never run against a sensor)
+```
+
+Traces and where each byte comes from: `core/src/main/resources/traces/README.md`.
+
 ## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
 
 Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to
