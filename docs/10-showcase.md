@@ -921,6 +921,27 @@ The user: "v2 accepted" makes no sense; treatments miss their relative times; no
 |---|---|
 | A diagnostics section (relays, key epoch) in Settings › Following | Not useful to the user; the log has it |
 
+## New sensor flow (investigation 21, v0.11.16)
+
+Starting or replacing a sensor moved off the Settings → Sensor page to a guided full screen: *Pair new sensor* on
+home when it's due, a step bar *Scan · Pair · Readings*, the phone's NFC antenna spot drawn, Bluetooth steps from the
+source's status, the warm-up countdown and the first reading; a tap that opens Sukrara is read at once. Details,
+screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| New sensor screen + flow rules (tested) | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt`, `NewSensorFlowTest` |
+| Home *Pair new sensor* (filled / tonal / hidden) | `ui/OwnerScreens.kt` `NewSensorButton`, `NewSensorDue` |
+| Every way in (pill, notifications, widgets, source switch, tag launch) → the screen | `MainActivity.sensorIntent`, `takeSensorTag` |
+| Settings → Sensor: end date, *Pair new sensor*, Android 16 tag-intent block | `ui/SensorScreen.kt`, `ui/NfcLaunch.kt` |
+
+| Discarded | Why |
+|---|---|
+| Scanning on the Settings → Sensor page | Replaced by the New sensor screen |
+| A permanent home button | Noise while the sensor works; it shows when it's due |
+
+![New sensor flow](img/21/flow-new-sensor.png)
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

@@ -52,9 +52,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     companion object {
-        /** Opens the Sensor screen (scan a new sensor): the "Replace sensor" pill, its notification action, widget taps. */
+        /** Opens the New sensor screen: the "Replace sensor" pill, its notification actions, widget taps. */
         fun sensorIntent(c: android.content.Context): android.content.Intent =
-            android.content.Intent(c, MainActivity::class.java).putExtra("screen", "sensor")
+            android.content.Intent(c, MainActivity::class.java).putExtra("screen", "newsensor")
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
         fun sensorPendingIntent(c: android.content.Context): android.app.PendingIntent = android.app.PendingIntent.getActivity(c, 7,
@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
         role = App.role(this)
         takeLink(intent)
         openScreen = intent?.getStringExtra("screen")
+        takeSensorTag(intent)
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN), 1)
         startServiceIfReady()
@@ -95,6 +96,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         takeLink(intent)
         intent.getStringExtra("screen")?.let { openScreen = it }
+        takeSensorTag(intent)
+    }
+
+    /** A sensor tapped while Sukrara wasn't reading NFC (the NfcLaunch alias): the New sensor screen reads that tap. */
+    private fun takeSensorTag(i: Intent?) {
+        if (i?.action != android.nfc.NfcAdapter.ACTION_TECH_DISCOVERED || role != "owner") return
+        val tag = i.getParcelableExtra(android.nfc.NfcAdapter.EXTRA_TAG, android.nfc.Tag::class.java) ?: return
+        NewSensorLaunch.tag.value = tag
+        openScreen = "newsensor"
     }
 
     private fun takeLink(i: Intent?) {
@@ -273,6 +283,7 @@ class MainActivity : ComponentActivity() {
                 "alerts" -> SettingsRoute { AlertsScreen(follower = false, back) }
                 "source" -> SettingsRoute { SourceSettings(back) }
                 "sensor" -> SettingsRoute { SensorScreen(back) }
+                "newsensor" -> NewSensorScreen(back)
                 "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
                 "graph" -> SettingsRoute { GraphScreen(back) }

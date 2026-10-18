@@ -32,6 +32,8 @@ import org.json.JSONObject
  *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…']] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
  *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] \
  *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
+ *       [--es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]]
+ *           (opens the New sensor screen; a stage forces that step for screenshots, none = the live flow) \
  *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
@@ -168,6 +170,12 @@ class DebugReceiver : BroadcastReceiver() {
                 if (i.hasExtra("on") && !i.getBooleanExtra("on", true)) SensorCalendar.disable(c)
                 else if (i.getBooleanExtra("on", false)) { if (SensorCalendar.granted(c)) SensorCalendar.enable(c) else out.put("calendar", "grant READ/WRITE_CALENDAR first (pm grant)") }
                 out.put("calendar", SensorCalendar.dump(c))
+            }
+            "newSensor" -> {
+                val stage = i.getStringExtra("stage")?.let { app.mauri.sukrara.ui.NewSensorFlow.previewStage(it, System.currentTimeMillis() / 1000) }
+                app.mauri.sukrara.ui.NewSensorFlow.preview.value = stage
+                c.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                out.put("cmd", "newSensor ${stage ?: "live"}")
             }
             "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)

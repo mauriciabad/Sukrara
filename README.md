@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.15/Sukrara-0.11.15.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.16/Sukrara-0.11.16.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.15/Sukrara-0.11.15.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.16/Sukrara-0.11.16.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -65,9 +65,14 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the
   sensor with NFC to start a new one (tied to your LibreView account, so LibreLink or Juggluco can take it over
   later) or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
-  Juggluco's web server, if Juggluco keeps the sensor (the way to use a Libre 2 / 2 Plus: Sukrara itself refuses those). Scanning a sensor opens Sukrara
-  (switch on the Sensor screen). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
+  Juggluco's web server, if Juggluco keeps the sensor (the way to use a Libre 2 / 2 Plus: Sukrara itself refuses those). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
   and stops trying to connect until you scan the new one. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- A guided *New sensor* screen: *Pair new sensor* on home (when there's no sensor, it has ended, or in its last
+  day), the *Replace sensor* pill and the reminders open it. It waits for the tap with a drawing of where this
+  phone's NFC antenna is, vibrates when the sensor answers, then shows the Bluetooth pairing step by step, the
+  warm-up countdown and the first reading. Turning NFC or Bluetooth on, the LibreView sign-in and every problem
+  (ended sensor, Libre 2, a failed scan, another app holding the sensor) are handled on the same screen. Tapping a
+  sensor while Sukrara is closed opens this screen and uses that tap. [21](docs/21-new-sensor-flow.md)
 - Sensor end reminders at the times you choose (default: the day before and on the end day at 09:00, "Sensor ends
   tomorrow at 14:30"), a live countdown notification in the sensor's last hours (8 by default) and another while a
   new sensor warms up ("Readings at 19:45", then "Sensor ready"). The countdowns show a timer in the status bar
@@ -247,15 +252,16 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 | 18 | The doctor's report in the app | Time in ranges, average, GMI, CV with the consensus goals, as a home-screen card and as slots in the widgets; time-weighted like the rings. **In Sukrara 0.11.7** ([added / discarded](docs/18-metrics.md#in-sukrara-0117)) | [docs/18](docs/18-metrics.md) |
 | 19 | Notification templates: the space under the icon | Custom views stay right of the icon; only Android 17's Live Update layout draws a ProgressStyle bar and action buttons across the whole card. Range bar with a tracker at the value, colours honoured (darkened when colorized), at most 10 segments and 4 points, no bar when collapsed. **Not in Sukrara yet** (proposal: the Live Update as ProgressStyle) | [docs/19](docs/19-notification-templates.md) |
 | 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
+| 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
 
 ## Try it
 
-Downloads: [v0.11.15](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.15) (Android and Mac)
+Downloads: [v0.11.16](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.16) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.15.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.16.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -265,10 +271,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.15.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.16.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.15.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.16.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not
@@ -285,8 +291,8 @@ the panel, **⌘,** for Settings.
 
 ### Set up on Android
 
-1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Scan your sensor* and hold the phone
-   against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
+1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Pair a sensor* and hold the back of the
+   phone against it (stop Juggluco or LibreLink first). To keep Juggluco on the sensor instead, turn on its *Settings → Web
    server* ("Local only" can stay on) and pick *Settings → Glucose source → Juggluco* in Sukrara.
 2. Open Sukrara. Grant *Notifications* and *Nearby devices*.
 3. Choose **I wear the sensor**, type your name (Shuffle or Customize the picture if you like), then **Start fresh**,

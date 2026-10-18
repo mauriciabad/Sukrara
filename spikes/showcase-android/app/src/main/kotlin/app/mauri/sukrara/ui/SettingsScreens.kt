@@ -206,7 +206,7 @@ fun SourceSettings(onBack: () -> Unit) {
         onDismissRequest = { confirmDirect = false },
         title = { Text(stringResource(R.string.source_direct_confirm_title)) },
         text = { Text(stringResource(R.string.source_direct_confirm_text)) },
-        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("sensor") }) { Text(stringResource(R.string.source_direct_confirm_scan)) } },
+        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("newsensor") }) { Text(stringResource(R.string.source_direct_confirm_scan)) } },
         dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
     )
 }
