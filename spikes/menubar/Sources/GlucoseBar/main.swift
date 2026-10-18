@@ -32,8 +32,15 @@ import AppKit
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
 //                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot <dir>: render
 //                      Settings › Alerts / every Settings pane / the report window
+//   -argsselftest   the launch guard (LaunchGuard.swift): unknown flags and dev builds never start the full app
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
+// An argument this binary doesn't understand never falls through to the full app (LaunchGuard).
+if let why = LaunchGuard.problem(Array(CommandLine.arguments.dropFirst())) {
+    FileHandle.standardError.write(Data("Sukrara: \(why). Nothing started.\n".utf8))
+    exit(2)
+}
+if CommandLine.arguments.contains("-argsselftest") { exit(LaunchGuard.selfTest() ? 0 : 1) }
 /// stdout, and for the bundled app (launched by `open`, no terminal) also ~/Library/Logs/Sukrara.log.
 let logFile: FileHandle? = Bundle.main.bundleIdentifier == nil ? nil : {
     let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sukrara.log")
@@ -47,8 +54,6 @@ func log(_ s: String) {
     print(line)
     logFile?.write(Data((line + "\n").utf8))
 }
-Migration.run()
-
 if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
     exit(0)
@@ -73,6 +78,14 @@ if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLi
     DistributedNotificationCenter.default().postNotificationName(debugNote, object: msg, userInfo: nil, deliverImmediately: true)
     exit(0)
 }
+
+// The full app: only an installed copy, or a dev build started on purpose (SUKRARA_DEV=1; LaunchGuard).
+if let why = LaunchGuard.devRefusal(bundlePath: Bundle.main.bundlePath, isBundle: Bundle.main.bundleIdentifier != nil,
+                                    env: ProcessInfo.processInfo.environment) {
+    FileHandle.standardError.write(Data("Sukrara: \(why)\n".utf8))
+    exit(3)
+}
+Migration.run()
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // menubar only, no Dock icon

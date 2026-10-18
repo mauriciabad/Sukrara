@@ -71,6 +71,8 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Following: not following → a short explanation, **Follow from QR Image…** and **Follow with Invite Link…** (default button); following → the wearer's avatar and state, where entries logged here go, **Stop Following…** with a confirmation sheet.
 - The app installs a main menu (Settings… ⌘,, Close Window ⌘W, Quit ⌘Q, Edit: Undo, Redo, Cut, Copy, Paste, Select All) so the standard shortcuts work in its windows and dialogs, although a menubar-only app never shows it.
 
+- Mac launch guard (`LaunchGuard`): an argument the binary doesn't understand (an unknown `-…selftest`, a bare unknown `-flag`, a stray word) prints why and exits 2 without starting anything; a dev build (the `swift build` executable, or an app inside a git checkout such as `build/Sukrara.app`) starts the full app only with `SUKRARA_DEV=1` (else exit 3), so it can't share the installed app's Keychain item, data files and settings by accident. Installed and downloaded copies start as before.
+
 ## Readings and backfill
 
 - Mac user-facing words never use protocol terms (v2, relay, roster, writer, epoch, BLE): the data source reads `Internet`, `Bluetooth · <phone>` or `Wi-Fi · Juggluco`; the follow state `Following Ana`; logs stay technical.

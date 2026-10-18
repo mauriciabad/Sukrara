@@ -64,3 +64,13 @@ jobs:
           .build/debug/GlucoseBar -graphselftest
           .build/debug/GlucoseBar -treatmentsselftest
           .build/debug/GlucoseBar -bleselftest
+          .build/debug/GlucoseBar -argsselftest
+      - name: Launch guard (unknown flags and dev builds never start the full app)
+        working-directory: spikes/menubar
+        run: |
+          set +e
+          for args in "-nosuchselftest" "-nosuchflag" ""; do
+            perl -e 'alarm 30; exec @ARGV' .build/debug/GlucoseBar $args; rc=$?
+            echo "GlucoseBar '$args' → exit $rc"
+            if [ $rc -ne 2 ] && [ $rc -ne 3 ]; then echo "expected exit 2 or 3"; exit 1; fi
+          done
