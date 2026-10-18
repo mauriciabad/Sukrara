@@ -1,0 +1,43 @@
+# Falling-high mute, rate alerts, no data (format: SPEC.md §7)
+
+scenario Falling back into range quiets a high; it only postpones the repeat
+ 0  glucose 200          => High glucose
+ 2  glucose 195 rate -1  => clear high   # 195 − 20 = 175: under 180 within 20 min
+ 3  glucose 200                          # flat again: the repeat stays due at 15
+15                       => High glucose
+16
+
+scenario A fall that doesn't get back into range in 20 min doesn't quiet the high
+ 0  glucose 240 rate -1  => High glucose
+ 1
+
+scenario Falling-high mute off
+settings falling.mute=off
+ 0  glucose 195 rate -1  => High glucose
+ 1
+
+scenario Rate alerts are off by default
+ 0  glucose 120 rate -3
+ 1
+
+scenario Falling fast next to a low; carbs quiet it too, and its message gives no advice
+settings falling_fast=on
+ 0  glucose 60 rate -3   => Low glucose; Falling fast
+ 1  carbs 15             => clear low; clear falling_fast
+16                       => Low glucose · eat more; Falling fast
+17
+
+scenario Rising fast; insulin quiets it
+settings rising_fast=on
+ 0  glucose 150 rate 3   => Rising fast
+ 1  insulin 2            => clear rising_fast
+61                       => Rising fast
+62
+
+scenario No data after 20 min without a reading, every 60 min, cleared by the next reading
+ 0  glucose 120
+ 1  sensor off
+20                       => No glucose data
+80                       => No glucose data
+90  sensor on            => clear no_data
+91
