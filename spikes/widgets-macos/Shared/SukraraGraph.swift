@@ -224,9 +224,13 @@ struct GraphPalette {
     /// (accented / vibrant) macOS widget turns the bitmap's luminance into opacity, so a faint grey line comes out
     /// nearly solid there; `tinted()` lowers it.
     var decor: CGFloat = 1
+    /// Tinted rendering: the system keeps a pixel's opacity (accented) or its luminance × opacity (vibrant) and drops
+    /// its hue, so dark text on a filled pill comes out as solid as the pill. With `knockout` the text and icons on
+    /// filled shapes are cut out of them instead (transparent), and the "background-coloured" gaps are cut too.
+    var knockout = false
 
     /// For the tinted widget rendering modes.
-    func tinted() -> GraphPalette { var p = self; p.decor = 0.25; return p }
+    func tinted() -> GraphPalette { var p = self; p.decor = 0.25; p.knockout = true; return p }
 
     func of(_ b: Band) -> CGColor {
         switch b {
@@ -597,7 +601,12 @@ enum GlucoseGraph {
                 ctx.strokeLineSegments(between: [CGPoint(x: x(pts[i - 1].t), y: y(Double(pts[i - 1].sgv))), CGPoint(x: px, y: py)])
             }
             if i == pts.count - 1 {
-                ctx.setFillColor(pal.bg); ctx.fillEllipse(in: CGRect(x: px - r - 2.6 * d, y: py - r - 2.6 * d, width: 2 * (r + 2.6 * d), height: 2 * (r + 2.6 * d)))
+                // the gap around the latest dot: background-coloured, or (tinted) cut out of the lines and band below
+                ctx.saveGState()
+                if pal.knockout { ctx.setBlendMode(.destinationOut) }
+                ctx.setFillColor(pal.knockout ? GraphPalette.hex(0) : pal.bg)
+                ctx.fillEllipse(in: CGRect(x: px - r - 2.6 * d, y: py - r - 2.6 * d, width: 2 * (r + 2.6 * d), height: 2 * (r + 2.6 * d)))
+                ctx.restoreGState()
                 ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: px - r - 1.4 * d, y: py - r - 1.4 * d, width: 2 * (r + 1.4 * d), height: 2 * (r + 1.4 * d)))
             } else {
                 ctx.setFillColor(c)
@@ -992,7 +1001,10 @@ enum StatusBadge {
         ctx.saveGState(); ctx.addPath(p); ctx.setFillColor(color); ctx.fillPath(); ctx.restoreGState()
     }
 
-    private static func colors(_ look: Look, dark: Bool) -> (bg: CGColor, fg: CGColor) {
+    private static func colors(_ look: Look, dark: Bool, knockout: Bool) -> (bg: CGColor, fg: CGColor) {
+        // Tinted: white (full opacity in either tinted mode); needed = solid pill with the words cut out, taken = a
+        // faint pill under solid words, so the two stay apart as in full colour.
+        if knockout { return look.tonal ? (CGColor(gray: 1, alpha: 0.22), CGColor(gray: 1, alpha: 1)) : (CGColor(gray: 1, alpha: 1), CGColor(gray: 0, alpha: 1)) }
         let c = TreatmentMarks.color(look.kind, dark: dark)
         return look.tonal ? (c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, c) : (c, TreatmentMarks.onColor(dark: dark))
     }
@@ -1005,9 +1017,12 @@ enum StatusBadge {
 
     /// Draw the badge `h` tall with its top-left at (`x`, `y`), at most `maxW` wide: the full words, the short ones, or
     /// (no room for words) only the icon in a circle. Returns the width used, 0 if not even the circle fits.
+    /// `knockout` (tinted widgets): see `GraphPalette.knockout`.
     @discardableResult
-    static func draw(_ ctx: CGContext, x: CGFloat, y: CGFloat, h: CGFloat, maxW: CGFloat, _ look: Look, dark: Bool) -> CGFloat {
-        let (bg, fg) = colors(look, dark: dark)
+    static func draw(_ ctx: CGContext, x: CGFloat, y: CGFloat, h: CGFloat, maxW: CGFloat, _ look: Look, dark: Bool,
+                     knockout: Bool = false) -> CGFloat {
+        let (bg, fg) = colors(look, dark: dark, knockout: knockout)
+        let cut = knockout && !look.tonal
         let words: String?
         if width(look, h: h) <= maxW { words = look.text }
         else if width(look, h: h, short: true) <= maxW { words = look.short }
@@ -1015,10 +1030,15 @@ enum StatusBadge {
         else { return 0 }
         let icon = h * 0.62, f = font(h)
         let w = words.map { h * 0.4 + icon + h * 0.25 + Ink.width($0, f) + h * 0.45 } ?? h
+        if cut { ctx.beginTransparencyLayer(in: CGRect(x: x, y: y, width: w, height: h), auxiliaryInfo: nil) }
+        defer { if cut { ctx.endTransparencyLayer() } }
         ctx.saveGState()
         ctx.addPath(CGPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
         ctx.setFillColor(bg); ctx.fillPath()
         ctx.restoreGState()
+        ctx.saveGState()
+        defer { ctx.restoreGState() }
+        if cut { ctx.setBlendMode(.destinationOut) }
         let ix = words == nil ? x + (h - icon) / 2 : x + h * 0.4
         if look.tonal { bell(ctx, x: ix, y: y + (h - icon) / 2, size: icon, color: fg) }
         else { TreatmentMarks.marker(ctx, look.kind, x: ix + icon / 2, y: y + h / 2, r: icon * 0.42, color: fg) }
@@ -1088,9 +1108,10 @@ enum LastSlot {
         let sw = radius * 0.2, rr = radius - sw / 2
         ctx.saveGState()
         ctx.setLineWidth(sw); ctx.setLineCap(.round)
-        ctx.setStrokeColor(pal.grid)
+        // Tinted: hue is lost, so the grey track would be as solid as the coloured arc; a faint white track, white arc.
+        ctx.setStrokeColor(pal.knockout ? CGColor(gray: 1, alpha: 0.25) : pal.grid)
         ctx.strokeEllipse(in: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr))
-        let col = TreatmentMarks.color(info.tr.k, dark: pal.dark)
+        let col = pal.knockout ? CGColor(gray: 1, alpha: 1) : TreatmentMarks.color(info.tr.k, dark: pal.dark)
         let left = info.left(now)
         if left > 0 {
             ctx.setStrokeColor(col)
@@ -1100,7 +1121,7 @@ enum LastSlot {
         }
         ctx.restoreGState()
         TreatmentMarks.marker(ctx, info.tr.k, x: c.x, y: c.y - radius * 0.4, r: radius * 0.14, color: col,
-                              hole: pal.bg.alpha > 0 ? pal.bg : nil)
+                              hole: pal.knockout ? nil : pal.bg.alpha > 0 ? pal.bg : nil)
         let inner = (radius - sw) * 2 * 0.86
         let s = TreatmentMarks.amount(info.tr) ?? ""
         var size = radius * 0.5
@@ -1294,7 +1315,7 @@ enum GlucoseCard {
         }
         if badgeRow, let look {
             let top = numBox.maxY + badgeH * 0.25
-            let bw = StatusBadge.draw(ctx, x: box.minX, y: top, h: badgeH, maxW: box.width, look, dark: pal.dark)
+            let bw = StatusBadge.draw(ctx, x: box.minX, y: top, h: badgeH, maxW: box.width, look, dark: pal.dark, knockout: pal.knockout)
             if fr.showTime {
                 let t = Ink.font(badgeH * 0.56, .regular)
                 let tx = box.minX + bw + badgeH * 0.35
@@ -1302,7 +1323,8 @@ enum GlucoseCard {
             }
         } else {
             if iconBadge, let look {
-                StatusBadge.draw(ctx, x: x + arrowSize * 1.15, y: numBox.midY - iconH / 2, h: iconH, maxW: iconH, look, dark: pal.dark)
+                StatusBadge.draw(ctx, x: x + arrowSize * 1.15, y: numBox.midY - iconH / 2, h: iconH, maxW: iconH, look, dark: pal.dark,
+                                 knockout: pal.knockout)
             }
             if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
         }
