@@ -27,7 +27,4 @@ object RoundedFont {
             runCatching { Typeface.createFromAsset(a, "fonts/GoogleSansFlexRounded-$w.ttf") }.getOrNull()
         }?.also { cache[w] = it } ?: Typeface.create(Typeface.DEFAULT, weight, false))
     }
-
-    /** Tabular figures: a rolling or updating number keeps its width. */
-    const val TABULAR = "'tnum'"
 }

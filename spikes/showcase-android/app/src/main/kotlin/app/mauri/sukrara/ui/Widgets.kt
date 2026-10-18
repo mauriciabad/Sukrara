@@ -76,6 +76,10 @@ import app.mauri.sukrara.graph.Slots
 import app.mauri.sukrara.graph.StatusBadge
 import app.mauri.sukrara.treatments.LastTreatment
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.requiredSize
+import app.mauri.sukrara.graph.ValueFit
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
@@ -159,44 +163,29 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         }, Motion.slowEffectsSpec(), label = "range")
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            // as many slots as fit beside a three-digit value + arrow (~188 dp), 76 dp each
-            BoxWithConstraints {
-            val fit = ((maxWidth.value - 188f) / 76f).toInt().coerceIn(1, 3)
-            val slots = Slots.arrange(rings, cfg.lastPlace, last, fallback, fit)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (sgv != null && fresh.showValue) {
-                    // A late reading's time goes under the number, so it never takes the rings' room.
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box {
-                                // the rounded face of the card's numbers (graph/RoundedFont.kt), like SF Pro Rounded on the Mac
-                                val rounded = remember { androidx.compose.ui.text.font.FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
-                                RollingNumber("$sgv", color, 72.sp, FontWeight.Bold, rounded)
-                                if (fresh.strike) Canvas(Modifier.matchParentSize()) {
-                                    drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
-                                }
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            if (!fresh.strike) TrendArrow(rate, color)
+            val number = if (sgv != null && fresh.showValue) "$sgv" else null
+            ValueAndSlots(number, { fit -> Slots.arrange(rings, cfg.lastPlace, last, fallback, fit) },
+                value = { scale ->
+                    if (number != null) {
+                        // A late reading's time goes under the number, so it never takes the rings' room.
+                        Column {
+                            ValueNumber(number, rate, color, fresh.strike, scale)
+                            RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
+                            if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
+                                style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
-                        if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
-                            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
+                            style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                } else {
-                    Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
-                        style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Spacer(Modifier.weight(1f))
-                for (item in slots.reversed()) {   // main ring rightmost
-                    Canvas(Modifier.padding(start = 8.dp).size(68.dp)) {
+                },
+                slot = { item ->
+                    Canvas(Modifier.fillMaxSize()) {
                         drawIntoCanvas {
                             Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal, density)
                         }
                     }
-                }
-            }
-            }
+                })
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
                 val st = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx))
@@ -215,6 +204,50 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                     Text(stringResource(R.string.treatment_title))
                 }
             }
+        }
+    }
+}
+
+/** The big number in the card's rounded face (graph/RoundedFont.kt, like SF Pro Rounded on the Mac) and the trend arrow, at [scale]. */
+@Composable
+fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, scale: Float = 1f) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box {
+            val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
+            RollingNumber(number, color, (72 * scale).sp, FontWeight.Bold, rounded)
+            if (strike) Canvas(Modifier.matchParentSize()) {
+                drawLine(color, Offset(0f, size.height * 0.55f), Offset(size.width, size.height * 0.55f), strokeWidth = 4.dp.toPx())
+            }
+        }
+        Spacer(Modifier.width((8 * scale).dp))
+        if (!strike) TrendArrow(rate, color, Modifier.size((56 * scale).dp))
+    }
+}
+
+/**
+ * The panel's header row ([ValueFit]): [value] on the left at the scale that fits, the slots ([slotsFor] = the items
+ * for at most n slots, main first) on the right at their designed size, main rightmost. The value is the row's only
+ * flexible part, so it can never squeeze a slot.
+ */
+@Composable
+fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Composable (scale: Float) -> Unit,
+                      slot: @Composable (T) -> Unit) {
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    BoxWithConstraints {
+        // RollingNumber draws each digit on its own: the number is the sum of the digits' widths
+        fun widthDp(s: String) = s.sumOf { c ->
+            measurer.measure(c.toString(), androidx.compose.ui.text.TextStyle(fontSize = ValueFit.NUMBER_SP.sp, fontFamily = rounded,
+                fontWeight = FontWeight.Bold, fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None)).size.width
+        } / density.density
+        val all = slotsFor(3)
+        val fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
+            else ValueFit.of(maxWidth.value, maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), all.size)
+        val slots = slotsFor(fit.slots)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { value(fit.scale) }
+            for (item in slots.reversed()) Box(Modifier.padding(start = ValueFit.SLOT_GAP_DP.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item) }
         }
     }
 }
