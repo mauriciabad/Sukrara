@@ -1116,7 +1116,14 @@
     <string name="sensorend_warmup_switch">Cuenta atrás del calentamiento</string>
     <string name="sensorend_warmup_summary">La primera hora de un sensor nuevo, hasta que llegan las lecturas</string>
     <string name="sensorend_hours_unit">h</string>
-    <string name="sensorend_footer">El inicio de la cuenta atrás también fija cuándo muestra el gráfico el anillo de cuenta atrás del sensor. Un recordatorio que llegaría después de que termine el sensor se omite. Con el chip de glucosa activado, la cuenta atrás del final se queda en las notificaciones para que la barra de estado siga mostrando tu glucosa.</string>
+    <string name="sensorend_unlock_switch">Avisarme al desbloquear el móvil</string>
+    <string name="sensorend_unlock_summary">Los recordatorios de la mañana y de la noche llegan al primer desbloqueo, si es antes de su hora</string>
+    <string name="sensorend_night_group">Noche</string>
+    <string name="sensorend_evening_switch">Avisarme antes de dormir</string>
+    <string name="sensorend_evening_summary">Si termina durante la noche, a las %1$s</string>
+    <string name="sensorend_bedtime">Hora de dormir</string>
+    <string name="sensorend_wakeup">Hora de despertarse</string>
+    <string name="sensorend_footer">El inicio de la cuenta atrás también fija cuándo muestra el gráfico el anillo de cuenta atrás del sensor. Un recordatorio que llegaría después de que termine el sensor se omite. Con el chip de glucosa activado, la cuenta atrás del final se queda en las notificaciones para que la barra de estado siga mostrando tu glucosa. Android no comparte su horario de descanso con otras apps, así que indica aquí tu noche.</string>
     <string name="channel_sensor_end">Recordatorios del sensor</string>
     <string name="channel_sensor_end_description">Antes de que termine el sensor, cuando ha terminado y cuando uno nuevo está listo.</string>
     <string name="channel_sensor_countdown">Cuentas atrás del sensor</string>
@@ -1125,6 +1132,9 @@
     <string name="sensor_end_notif_tomorrow">El sensor termina mañana a las %1$s</string>
     <string name="sensor_end_notif_on_day">El sensor termina el %1$s a las %2$s</string>
     <string name="sensor_end_notif_reminder_text">Ten listo un sensor nuevo.</string>
+    <string name="sensor_end_notif_spare_text">Llévate el sensor de repuesto</string>
+    <string name="sensor_end_notif_tonight">El sensor termina esta noche a las %1$s</string>
+    <string name="sensor_end_notif_tonight_text">Cámbialo antes de dormir</string>
     <string name="sensor_countdown_title">El sensor termina a las %1$s</string>
     <string name="sensor_countdown_text">Ten listo un sensor nuevo para cambiarlo.</string>
     <string name="sensor_countdown_hide">Ocultar</string>

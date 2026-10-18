@@ -40,6 +40,7 @@ import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.sensorend.Reminder
 import app.mauri.sukrara.sensorend.SensorEnd
 import app.mauri.sukrara.sensorend.SensorEndConfig
+import app.mauri.sukrara.sensorend.SensorEndPlan
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsSpace
 import com.android.settingslib.spa.framework.theme.divider
@@ -53,6 +54,8 @@ import com.android.settingslib.spa.widget.ui.SettingsDialogItem
  * title ("show the specific details"), radio buttons only in a dialog ("Radio buttons should not be used in settings
  * list"), explanations in the footer. Each reminder is a row (when · time); tapping it opens its dialog (days before
  * as radio buttons, the time through the M3 time picker, Remove); "Add reminder" opens the same dialog empty.
+ * Round "routine": a switch for first-unlock reminders under the list, and a Night group (the evening-before reminder,
+ * bedtime and wake-up through the same time picker: Android's Bedtime schedule isn't readable by other apps).
  */
 
 /** "On the end day" / "1 day before". */
@@ -81,6 +84,8 @@ fun SensorEndSettings(onBack: () -> Unit) {
     // null = closed; index -1 = a new reminder
     var editing by remember { mutableStateOf<Int?>(null) }
     var choosingHours by remember { mutableStateOf(false) }
+    // the night window's time picker: true = bedtime, false = wake-up, null = closed
+    var pickingNight by remember { mutableStateOf<Boolean?>(null) }
     fun change(f: (SensorEndConfig) -> SensorEndConfig) = SensorEnd.update(ctx, f)
     val calendar = sensorCalendarRows()
     SettingsPage(stringResource(R.string.sensorend_title), onBack) {
@@ -101,6 +106,14 @@ fun SensorEndSettings(onBack: () -> Unit) {
             }
             action(stringResource(R.string.sensorend_add), icon = R.drawable.ic_sym_add,
                 enabled = c.reminders.size < SensorEndConfig.MAX_REMINDERS) { editing = -1 }
+            switch(stringResource(R.string.sensorend_unlock_switch), c.unlock, summary = stringResource(R.string.sensorend_unlock_summary)) { v -> change { it.copy(unlock = v) } }
+        }
+        SettingsGroup(stringResource(R.string.sensorend_night_group)) {
+            val evening = (c.nightStart - SensorEndPlan.EVENING_BEFORE + 24 * 60) % (24 * 60)
+            switch(stringResource(R.string.sensorend_evening_switch), c.evening,
+                summary = stringResource(R.string.sensorend_evening_summary, minuteText(ctx, evening))) { v -> change { it.copy(evening = v) } }
+            value(stringResource(R.string.sensorend_bedtime), minuteText(ctx, c.nightStart), enabled = c.evening) { pickingNight = true }
+            value(stringResource(R.string.sensorend_wakeup), minuteText(ctx, c.nightEnd), enabled = c.evening) { pickingNight = false }
         }
         SettingsGroup(stringResource(R.string.sensorend_countdown_group)) {
             switch(stringResource(R.string.sensorend_countdown_switch), c.countdown, summary = stringResource(R.string.sensorend_countdown_summary)) { v -> change { it.copy(countdown = v) } }
@@ -120,6 +133,31 @@ fun SensorEndSettings(onBack: () -> Unit) {
         { ctx.resources.getQuantityString(R.plurals.sensorend_hours_before, it, it) },
         NumberRange(SensorLife.COUNTDOWN_RANGE.first.toDouble(), SensorLife.COUNTDOWN_RANGE.last.toDouble(), stringResource(R.string.sensorend_hours_unit)),
         onClose = { choosingHours = false }) { SensorEnd.setCountdownHours(ctx, it) }
+    pickingNight?.let { bed ->
+        TimeDialog(stringResource(if (bed) R.string.sensorend_bedtime else R.string.sensorend_wakeup),
+            if (bed) c.nightStart else c.nightEnd, onClose = { pickingNight = null }) { m ->
+            // the window needs two different times: the same time as its other end is ignored
+            change { cfg -> when {
+                bed && m != cfg.nightEnd -> cfg.copy(nightStart = m)
+                !bed && m != cfg.nightStart -> cfg.copy(nightEnd = m)
+                else -> cfg
+            } }
+        }
+    }
+}
+
+/** The M3 time picker in a dialog (a reminder's time, bedtime, wake-up). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(title: String, minute: Int, onClose: () -> Unit, onPick: (Int) -> Unit) {
+    val state = rememberTimePickerState(minute / 60, minute % 60, DateFormat.is24HourFormat(LocalContext.current))
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(title) },
+        text = { TimePicker(state) },
+        confirmButton = { Button(onClick = { onPick(state.hour * 60 + state.minute); onClose() }) { Text(stringResource(R.string.settings_dialog_ok)) } },
+        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_cancel)) } },
+    )
 }
 
 /** A reminder's dialog: days before (radio buttons), the time (a row that opens the time picker), Remove / Cancel / Save. */
@@ -151,14 +189,5 @@ private fun ReminderDialog(r: Reminder?, onClose: () -> Unit, onRemove: () -> Un
             }
         }
     }
-    if (picking) {
-        val state = rememberTimePickerState(minute / 60, minute % 60, DateFormat.is24HourFormat(ctx))
-        AlertDialog(
-            onDismissRequest = { picking = false },
-            title = { Text(stringResource(R.string.sensorend_time)) },
-            text = { TimePicker(state) },
-            confirmButton = { Button(onClick = { minute = state.hour * 60 + state.minute; picking = false }) { Text(stringResource(R.string.settings_dialog_ok)) } },
-            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
-        )
-    }
+    if (picking) TimeDialog(stringResource(R.string.sensorend_time), minute, onClose = { picking = false }) { minute = it }
 }
