@@ -114,3 +114,11 @@ Cheap tools:
 - [ ] Settings → Sensor end: add / edit / remove a reminder (dialog: days radio, time picker), countdown hours,
       both switches; the card's countdown ring follows the hours. Spanish texts.
 - [ ] Follower role: none of these notifications.
+
+## Q12 Sensor scan
+
+- [ ] Unit tests first: `Libre3NfcTest` (commands, answers, receiver ID, `chipGate`), `PatchStateTest`.
+- [ ] Phone, the user does the tap, Settings → Glucose source → Sensor. Libre 3 / 3 Plus: starts or takes over;
+      `adb logcat -s Sukrara.nfc Sukrara.direct` shows the patch info and the pairing. A Libre 1 / 2 / 2 Plus (or any
+      other NfcV tag) shows *Libre 2 sensors aren't supported* / *Not supported*, and logcat shows
+      `Libre 1/2 chip: not supported, nothing sent` with no command lines.

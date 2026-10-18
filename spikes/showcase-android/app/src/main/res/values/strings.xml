@@ -708,6 +708,12 @@
     <string name="sensor_ended_title">Sensor %1$s has ended</string>
     <!-- Scan result: the sensor's life is over [CHAR LIMIT=NONE] -->
     <string name="sensor_ended_text">Apply a new sensor and scan it.</string>
+    <!-- Sensor screen: a Libre 1 / 2 / 2 Plus was scanned; nothing was sent to it [CHAR LIMIT=50] -->
+    <string name="sensor_libre2_title">Libre 2 sensors aren\'t supported</string>
+    <!-- Sensor screen: what to do with a Libre 2 instead; Juggluco is an app name [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_text">Sukrara reads the FreeStyle Libre 3 and 3 Plus. Nothing was sent to this sensor. Start it with Juggluco, then pick Juggluco as the glucose source.</string>
+    <!-- Sensor screen: button to the Glucose source settings page [CHAR LIMIT=30] -->
+    <string name="sensor_libre2_source">Glucose source</string>
     <!-- Scan result: not a supported sensor [CHAR LIMIT=30] -->
     <string name="sensor_unsupported">Not supported</string>
     <!-- Scan result: the NFC read failed [CHAR LIMIT=30] -->
