@@ -60,13 +60,17 @@ Cheap tools:
 - [ ] Lock screen version (public/redacted) shows what the settings say.
 - [ ] Live Update chip / status bar value if the change touched them (phone).
 
-## Q6 Mac menubar dropdown
+## Q6 Mac menubar panel
 
-- [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour, dropdown card
-      on its platter, treatments list, Glucose Report window, Settings (each pane; ⌘, ⌘W, paste in the invite field);
-      light and dark menubar, Increase Contrast and Reduce Transparency (System Settings → Accessibility → Display).
-- [ ] Offscreen renders: `GlucoseBar -menuPreview out.png` (light/dark/high contrast) and
-      `-settingsSnapshot <dir>` / `-reportSnapshot out.png` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
+- [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour; click → panel
+      (card in its module, focus in the log field: `4.5u` ↩ logs, Undo, ⌘1–⌘4, *Now ▾*, Escape / click outside
+      closes); right-click menu; Glucose Report (Report + Treatments, delete); Settings (each pane; ⌘, ⌘W, paste in
+      the invite field); light and dark, over a bright and a dark window/wallpaper, Increase Contrast and Reduce
+      Transparency (System Settings → Accessibility → Display).
+- [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
+      `screencapture -x -R<rect>` with the rect it logs ("panel window … rect x,y,w,h"); never commit them (real data).
+- [ ] Synthetic renders for docs: `GlucoseBar -panelPreview <dir>` (the real panel over test wallpapers), and
+      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets

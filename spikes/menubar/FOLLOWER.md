@@ -23,7 +23,7 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   the rejection of the old forms, and the avatar "dots" against `spikes/nostr/identity/avatar-v1.json`.
 - **Names and pictures (0.11)**: the request carries this Mac's name and a random generated picture (`Avatar.swift`,
   same drawing as Android's `core/Avatar.kt`); the wearer's name and picture come with the invite and every roster.
-  The menu line and the pairing window show them.
+  Settings › Following and the pairing window show them.
 - **Migration** (`Migration.swift`), once, on the first launch under the new id: copies the `dev.spike.GlucoseBar`
   defaults domain (missing keys only), `~/Library/Application Support/GlucoseBar` → `…/Sukrara` (treatments,
   LibreView ledger) and, on a background thread, the follower Keychain item `dev.spike.GlucoseBar.follower` →
@@ -44,21 +44,21 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
   (It carried the legacy GlucoBridge service too until v0.10.9, when that link was removed from both apps.)
 - **Treatments for the follower** (SPEC §5, PROTOCOL-v2 "Treatments"): `#c` subscription from roster writers ∪
   devices (30 d); accepted iff valid signature, author ∈ writers ∪ devices, known `gk`, decrypts, `d` matches the id,
-  known kind; merged (§1 LWW, by id) into the `TreatmentStore` with this Mac's own entries, so the menu and the
-  chart show one log. The phone uploads to LibreView; the Mac doesn't.
-- **Writer gating**: "Log treatment…" lists where an entry goes — "→ wearer over Sukrara sharing (v2) · allowed" or
-  "✕ … the wearer hasn't allowed this Mac to add entries" (then it's disabled). Following no one, entries stay on
+  known kind; merged (§1 LWW, by id) into the `TreatmentStore` with this Mac's own entries, so the panel's chart and
+  Glucose Report › Treatments show one log. The phone uploads to LibreView; the Mac doesn't.
+- **Writer gating**: the panel's log field is replaced by "The wearer hasn't allowed this Mac to log treatments"
+  when this Mac isn't a roster writer; Settings › Following says where entries go. Following no one, entries stay on
   this Mac. Per entry: `v2 sending… → sent → accepted ✓` (wearer's device key echoes the id with u ≥ ours) or
-  `v2 not accepted yet` (no echo after 2 min); details in the row's submenu.
+  `v2 not accepted yet` (no echo after 2 min), in Glucose Report › Treatments (details as the row's tooltip).
 - **Chart**: insulin (rapid = filled blue triangle, long = outlined indigo) with "4.5U" along the top, carbs
   (amber dot, "30g") along the bottom, notes as a dashed grey line — `evidence/n-menu-treatments.png`
-  (`Sukrara -menuPreview out.png`). The macOS widget views draw the same (`evidence/n-widget-*.png`).
+  (today: `Sukrara -panelPreview <dir>`). The macOS widget views draw the same (`evidence/n-widget-*.png`).
 - Tests: `-v2selftest` 33/33 (20 new treatment checks), `-v2relaytest` (throwaway wearer on 3 public relays:
   receive → merged, own entry OK → sent, echo → accepted), `-treatmentsselftest`.
 
 ## How to use
 
-- Settings → Following → **Follow with Invite Link…** (or the menu's **Follow Someone…** before any data) → paste the `https://sukrara.mauri.app/join#…` link (pre-filled if it's on the clipboard) and a
+- Settings → Following → **Follow with Invite Link…** (or the panel's **Follow Someone…** before any data) → paste the `https://sukrara.mauri.app/join#…` link (pre-filled if it's on the clipboard) and a
   name for this Mac (defaults to the computer name) → a window shows the **match code** until the wearer allows it.
 - **Follow from QR Image…** (same pane) decodes a screenshot/photo of the share QR (CoreImage, no new dependency).
 - Opening a `sukrara:join#…` link launches the dialog (URL scheme registered by `bundle.sh`).
@@ -118,7 +118,8 @@ carbs; when a treatment's window ends it alerts at once. Checked by the shared t
 | `Alerts.swift` | alert settings (SPEC §3 JSON), `AlertEngine` (rules, mutes, repeats, injected clock), `Alerts` (notifications, sounds, wearer mirroring, test hooks) |
 | `AlertsUI.swift` | the Alerts pane of the Settings window and its per-kind Details sheet |
 | `SettingsUI.swift` | the Settings window (General, Graph, Alerts, Following; preference toolbar) and the app's main menu (⌘W, Edit) |
-| `ReportWindow.swift` | the Glucose Report window (1/7/14/30 days) |
+| `ReportWindow.swift` | the Glucose Report window (report 1/7/14/30 days, Treatments: last 7 days, delete) |
+| `Panel.swift` | the glance panel under the menubar item (card, quick-log field + grammar, rows) |
 | `AlertsSelfTest.swift` | `GlucoseBar -alerts-selftest` |
 | `main.swift` | `Following` controller, wiring, debug commands (`follow-status`, `readings`, `unfollow`, `v2-treat`, `follower-pub`) |
 
