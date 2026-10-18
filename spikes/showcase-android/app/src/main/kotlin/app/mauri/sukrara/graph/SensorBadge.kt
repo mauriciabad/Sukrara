@@ -44,7 +44,7 @@ object SensorBadge {
     /** For screen readers: "Sensor: 13d left" / "Sensor ended" / "Warming up, ready at 19:45". */
     fun describe(look: Look, now: Long, w: Words = Words.current): String = when {
         look.warmup != null -> w.warmingUp + ", " + w.readyAt.format(Freshness.timeText(look.readyAt, now))
-        look.ended -> SensorLife.endedText(look.end, now, w)
+        look.ended -> w.sensorEnded + ". " + w.replaceSensor
         else -> w.sensorLeft.format(look.label)
     }
 

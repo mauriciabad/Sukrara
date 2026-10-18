@@ -233,7 +233,7 @@ object GlucoseCard {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
                 val msg = when {
                     sl?.warmup != null -> Words.current.warmingUp
-                    sl?.ended == true -> SensorLife.endedText(sl.end, nowS)
+                    sl?.ended == true -> Words.current.sensorEnded
                     else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS)) } ?: Words.current.noReadingsYet
                 }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
@@ -271,29 +271,30 @@ object GlucoseCard {
     }
 
     /**
-     * The sensor has ended ([SensorBadge.Look.ended]): "Sensor ended at 18:03" (very-low colour) and "Replace the
-     * sensor" under it when it fits; a narrow box splits it into "Sensor ended" / "at 18:03" instead; a box with room
-     * for one line only gets the first, shrunk to fit. The Mac does the same (SukraraGraph.swift `drawEnded`).
+     * The sensor has ended ([SensorBadge.Look.ended]): "Sensor ended" in the secondary colour (a state, not an error) and
+     * under it the action pill "Replace sensor" ([StatusBadge.replaceSensor], the same pill as "Eat carbs": full words,
+     * short words or icon only as room allows). A box too short for the pill's row gets the icon-only pill beside the
+     * words. The Mac does the same (SukraraGraph.swift `drawEnded`).
      */
-    private fun drawEnded(cv: Canvas, box: RectF, look: SensorBadge.Look, nowS: Long, pal: GraphPalette, d: Float) {
+    private fun drawEnded(cv: Canvas, box: RectF, nowS: Long, pal: GraphPalette, d: Float) {
         val w = Words.current
-        val base = min(box.height() * 0.26f, 20 * d)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = base; typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
-        val full = SensorLife.endedText(look.end, nowS, w)
-        val two = box.height() >= base * 2.4f
-        val fullFit = box.width() / max(p.measureText(full), 1f)
-        val lines = when {
-            !two -> listOf(full)
-            fullFit >= 0.8f -> listOf(full, w.sensorReplace)
-            else -> listOf(w.sensorEnded, SensorLife.endedWhen(look.end, nowS, w))
+        val pill = StatusBadge.replaceSensor(w)
+        val badgeH = (box.height() * 0.24f).coerceIn(14 * d, 24 * d)
+        val row = box.height() - badgeH * 1.25f >= 20 * d
+        val textBox = if (row) RectF(box.left, box.top, box.right, box.bottom - badgeH * 1.25f) else box
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = pal.inkSoft; typeface = Typeface.create(Typeface.DEFAULT, 600, false); textSize = min(textBox.height() * 0.5f, 20 * d)
         }
-        // the first line(s) that carry the end must fit; "Replace the sensor" only goes where it fits as it is
-        val must = if (lines.size == 2 && lines[1] == w.sensorReplace) lines.take(1) else lines
-        p.textSize = base * min(1f, box.width() / max(must.maxOf { p.measureText(it) }, 1f)).coerceAtLeast(0.45f)
-        val shown = lines.filter { it != w.sensorReplace || p.measureText(it) <= box.width() }
-        val y = box.centerY() - if (shown.size == 1) -p.textSize / 3 else p.textSize * 0.15f
-        cv.drawText(shown[0], box.left, y, Paint(p).apply { color = pal.veryLow })
-        if (shown.size > 1) cv.drawText(shown[1], box.left, y + p.textSize * 1.25f, Paint(p).apply { color = pal.inkSoft })
+        val iconRoom = if (row) 0f else badgeH * 1.3f
+        val tw = p.measureText(w.sensorEnded)
+        if (tw > box.width() - iconRoom) p.textSize *= ((box.width() - iconRoom) / tw).coerceAtLeast(0.45f)
+        val base = textBox.centerY() + p.textSize * 0.36f
+        cv.drawText(w.sensorEnded, box.left, base, p)
+        if (row) StatusBadge.draw(cv, box.left, textBox.bottom + badgeH * 0.25f, badgeH, box.width(), pill, pal.dark)
+        else {
+            val x = box.left + p.measureText(w.sensorEnded) + badgeH * 0.3f
+            if (x + badgeH <= box.right) StatusBadge.draw(cv, x, box.centerY() - badgeH / 2, badgeH, badgeH, pill, pal.dark)
+        }
     }
 
     /**
@@ -329,7 +330,7 @@ object GlucoseCard {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d)
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
-        if (sensor?.ended == true) return drawEnded(cv, box, sensor, nowS, pal, d)
+        if (sensor?.ended == true) return drawEnded(cv, box, nowS, pal, d)
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
             val w = Words.current

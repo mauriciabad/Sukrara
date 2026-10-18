@@ -50,10 +50,7 @@ start + 60 min). `expect`:
 | `ended` | `now ≥ end`: badge in the alert colour, "Sensor ended" once readings stop |
 | `life` | the disc's arc: share of the sensor's life left, 1 → 0 (± 0.001) |
 | `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`); `null` = not warming |
+| `pill` | ended → the action pill under "Sensor ended", `{kind: "sensor", text, short, tonal}` (StatusBadge.replaceSensor, English words); else `null` |
 | `ring` | the ring over the main ring: warming → the warm-up done (fills 0 → 1); else the countdown, share of the window left; `null` = no ring (more than the window left, or ended) (± 0.001) |
-
-`sensor/ended.json` (key `ended`, not `cases`): the ended card's day. A case: `name`, `zone` (IANA), `end` (seconds
-relative to now = 1800000000); `expect.daysAgo` = calendar days from the end to now in that zone (0 → "Sensor ended at
-18:03", 1 → "Sensor ended yesterday at 18:03", 2–6 → "Sensor ended Sat 18:03", 7+ → "Sensor ended 12 Oct").
 
 Not covered yet: mute-line endpoints, slot order.

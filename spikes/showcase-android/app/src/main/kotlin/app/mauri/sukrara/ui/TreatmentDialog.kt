@@ -208,6 +208,7 @@ fun KindMark(kind: String, color: Color) {
                 if (kind == "rapid") drawPath(p, color) else drawPath(p, color, style = Stroke(w * 0.16f))
             }
             "carbs" -> drawCircle(color, w / 2, Offset(w / 2, w / 2))
+            "sensor" -> { drawCircle(color, w * 0.42f, Offset(w / 2, w / 2), style = Stroke(w * 0.16f)); drawCircle(color, w * 0.16f, Offset(w / 2, w / 2)) }
             else -> drawPath(Path().apply { moveTo(w / 2, 0f); lineTo(w, w / 2); lineTo(w / 2, w); lineTo(0f, w / 2); close() }, color)
         }
     }

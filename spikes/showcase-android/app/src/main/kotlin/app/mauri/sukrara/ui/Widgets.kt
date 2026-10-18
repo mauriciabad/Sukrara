@@ -85,6 +85,8 @@ import androidx.compose.foundation.layout.requiredSize
 import app.mauri.sukrara.graph.ValueFit
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
 
@@ -191,12 +193,14 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else if (sensorLook?.ended == true) {
-                        // an ended sensor says so as soon as it has ended (not an error; the last value stays in the chart)
+                        // an ended sensor: a state (not an error) and the action, the same pill as "Eat carbs"
                         Column {
-                            Text(app.mauri.sukrara.core.SensorLife.endedText(sensorLook.end, now), style = MaterialTheme.typography.titleLarge,
-                                color = Color(pal.veryLow))
-                            Text(stringResource(R.string.card_sensor_replace), style = MaterialTheme.typography.titleMedium,
+                            Text(stringResource(R.string.card_sensor_ended), style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            val owner = app.mauri.sukrara.App.role(ctx) == "owner"
+                            Box(if (owner) Modifier.clip(CircleShape).clickable { ctx.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(ctx)) } else Modifier) {
+                                StatusBadgeChip(StatusBadge.replaceSensor())
+                            }
                         }
                     } else if (number != null) {
                         // A late reading's time goes under the number, so it never takes the rings' room.

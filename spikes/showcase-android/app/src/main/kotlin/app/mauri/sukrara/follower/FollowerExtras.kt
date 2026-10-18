@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
 
 /**
  * The follower role's local features, fed by the follower DB (gap audit 2026-10-16: before this they existed only
@@ -61,6 +62,8 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
             var old = Features.value
             Features.state.collect { f -> if (f != old) { val o = old; old = f; local.apply(o, f); render() } }
         }
+        // the wearer's sensor ended / a new one started (live ss/se/sw): the notification and the status bar follow
+        jobs += scope.launch { app.mauri.sukrara.core.SensorLife.current.drop(1).collect { render() } }
         // Re-render the notification when what it shows changes (status, newest reading, transport).
         jobs += scope.launch {
             engine.ui.map { Triple(it.status, it.last?.t, it.lastVia) }.distinctUntilChanged().collect { render() }
