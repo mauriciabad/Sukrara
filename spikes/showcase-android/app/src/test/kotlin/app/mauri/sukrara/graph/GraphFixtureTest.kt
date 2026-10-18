@@ -123,6 +123,30 @@ class GraphFixtureTest {
         assertTrue("clock fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
     }
 
+    /** Time shares against a goal (graph-fixtures/share, Mac: -graphselftest). */
+    @Test fun share() {
+        val files = File(dir(), "share").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no share fixtures", files.isNotEmpty())
+        val fails = ArrayList<String>()
+        var n = 0
+        for (f in files) {
+            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val loc = java.util.Locale.forLanguageTag(c.getString("locale"))
+                val x = c.getDouble("x")
+                val got = when (val g = if (c.isNull("goal")) null else c.getString("goal")) {
+                    null -> ShareText.of(x, null, loc)
+                    "coverage" -> ShareText.coverage(x, loc)
+                    else -> ShareText.of(x, Goal.entries.first { it.name.replace("_", "").equals(g, ignoreCase = true) }, loc)
+                }
+                if (got != c.getString("expect")) fails += "${f.name}: ${c.getString("name")} (got $got)"
+                n++
+            }
+        }
+        assertTrue("share fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+    }
+
     @Test fun sensor() {
         val files = File(dir(), "sensor").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
         assertTrue("no sensor fixtures", files.isNotEmpty())

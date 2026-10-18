@@ -92,10 +92,16 @@ object TirRing {
             textSize = radius * 0.34f; typeface = RoundedFont.typeface(600)
             color = ColorUtils.setAlphaComponent(if (spec.range == TirRange.TIGHT) pal.tight else pal.inkSoft, alpha)
         }
-        val v = if (tir.empty) "–" else "${Math.round(tir.of(spec.range) * 100)}"
-        cv.drawText(v, cx, cy + num.textSize * 0.28f, num)
-        cv.drawText(spec.period, cx, cy + num.textSize * 0.28f + sub.textSize * 1.1f, sub)
+        val v = if (tir.empty) "–" else text(tir, spec)
+        val base = cy + num.textSize * 0.28f
+        if (v.length > 3) num.textSize *= 0.7f // "69.7", "<0.1": the decimals fit inside the ring
+        cv.drawText(v, cx, base, num)
+        cv.drawText(spec.period, cx, base + sub.textSize * 1.1f, sub)
     }
+
+    /** The number in the middle: in range against its > 70 % goal, very good on its own (ShareText's rule). */
+    fun text(tir: TimeInRange, spec: RingSpec): String =
+        ShareText.of(tir.of(spec.range), if (spec.range == TirRange.IN_RANGE) Goal.IN_RANGE else null)
 
     /** A gap between groups and between very good and the rest of in range; very low/low and high/very high touch. */
     private fun gapAfter(s: List<Pair<Band, Double>>, i: Int): Boolean {
