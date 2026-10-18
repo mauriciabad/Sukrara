@@ -280,7 +280,7 @@ object GlucoseCard {
         val timeH = if (badgeRow) badgeH * 1.25f else if (fr.showTime) small.textSize * 1.25f else 0f
         val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color; typeface = RoundedFont.typeface(700); fontFeatureSettings = RoundedFont.TABULAR
+            this.color = color; typeface = RoundedFont.typeface(700)
             textSize = numBox.height() * 1.18f
             isStrikeThruText = fr.strike
         }

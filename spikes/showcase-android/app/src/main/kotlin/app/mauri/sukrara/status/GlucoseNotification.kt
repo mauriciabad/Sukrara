@@ -222,10 +222,17 @@ object GlucoseNotification {
                 plot.recycle()
             }
         }
-        // Slots: at most what fits beside the value and arrow (≈ 110 dp) in the column, 3 + the last treatment.
+        // Slots: at most what fits beside the value (measured, at least as wide as "388"), the arrow (6 + 34 dp), the
+        // info's 12 dp margin and the slots' 8 dp one, so the row never has to squeeze a disc; 3 + the last treatment.
         val size = SLOT_DP * d
         val gap = 6 * d
-        val max = ((wDp - 110f) * d / (size + gap)).toInt().coerceIn(0, 4)
+        val vp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = app.mauri.sukrara.graph.RoundedFont.typeface(700)
+            textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, dm)
+        }
+        val valueDp = (maxOf(vp.measureText("${r.sgv}?"), vp.measureText(app.mauri.sukrara.graph.ValueFit.REFERENCE)) + 2) / d
+        val room = (wDp - valueDp - 6f - 34f - 12f - 8f) * d
+        val max = ((room + gap) / (size + gap)).toInt().coerceIn(0, 4)
         val items = appSlots(c, history, treatments, now, max)
         val slots = if (items.isEmpty()) null else createBitmap((items.size * size + (items.size - 1) * gap).toInt(), size.toInt()).also { bmp ->
             val cv = Canvas(bmp)
@@ -295,13 +302,12 @@ object GlucoseNotification {
 
     /** The same arrow in a colour, for the card's layout. */
     /**
-     * The value drawn in the card's rounded face ([app.mauri.sukrara.graph.RoundedFont], tabular figures) at [px] text
+     * The value drawn in the card's rounded face ([app.mauri.sukrara.graph.RoundedFont], proportional figures like SF Pro Rounded) at [px] text
      * size, cropped to the digits' height (like a TextView without font padding).
      */
     private fun valueBitmap(s: String, color: Int, px: Float): Bitmap {
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color; textSize = px; typeface = app.mauri.sukrara.graph.RoundedFont.typeface(700)
-            fontFeatureSettings = app.mauri.sukrara.graph.RoundedFont.TABULAR
         }
         val b = android.graphics.Rect().also { p.getTextBounds("0123456789", 0, 10, it) }
         val pad = (px * 0.06f).toInt() + 1

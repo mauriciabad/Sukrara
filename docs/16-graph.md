@@ -406,13 +406,13 @@ Mac draws them in SF Pro Rounded (value bold; the ring and slot numbers heavy, t
 
 | Option | Verdict |
 |---|---|
-| **Google Sans Flex, roundness axis at 100** | chosen. Google's own variable face ([google/fonts `ofl/googlesansflex`](https://github.com/google/fonts/tree/main/ofl/googlesansflex), SIL OFL 1.1, no Reserved Font Name) has a `ROND` axis (0–100); at 100 its digits are the closest to SF Pro Rounded (same rounded terminals, similar proportions, a touch heavier) and it has tabular figures (`tnum`) |
+| **Google Sans Flex, roundness axis at 100** | chosen. Google's own variable face ([google/fonts `ofl/googlesansflex`](https://github.com/google/fonts/tree/main/ofl/googlesansflex), SIL OFL 1.1, no Reserved Font Name) has a `ROND` axis (0–100); at 100 its digits are the closest to SF Pro Rounded (same rounded terminals, similar proportions, a touch heavier) |
 | Nunito, M PLUS Rounded 1c | rounded too, but rounder / softer digits than SF Pro Rounded; not needed once Google Sans Flex was available |
 | a downloadable font (Google Play services) | widgets, the notification and the lock screen are drawn on a plain `Canvas` in the background; a bundled file is simpler and always there |
 
 The 3.9 MB variable font is instanced with fontTools at `ROND` 100, `opsz` 18, `wdth` 100, `slnt` 0 and weights
 600 / 700 / 800, each subset to Basic Latin, a few accented letters and `–`, `−`, `·`, `…` (~33 KB each, ~100 KB in
-all), in `assets/fonts/` next to `OFL.txt`. Used for the same texts as on the Mac: the value (700, tabular figures)
+all), in `assets/fonts/` next to `OFL.txt`. Used for the same texts as on the Mac: the value (700, proportional figures like SF Pro Rounded)
 in the widgets, the lock screen and the app panel's rolling digits (Compose `FontFamily(Typeface)`), the ring and
 slot numbers (800) and their labels (600). The notification's value is a `TextView` in `RemoteViews`, which
 can't use an app font (the system inflates it with a restricted context), so it is now drawn as a picture in the
@@ -426,6 +426,33 @@ Mac.
 | A width model shared by both platforms + label fixtures with a layout dump on both | measuring each platform's font (SF Pro dropped labels that fit with Roboto) |
 | A halo on every label, cut out of the chart | — |
 | Rounded numbers on Android (Google Sans Flex, ROND 100), notification value as a picture | Nunito / M PLUS Rounded (further from SF Pro Rounded) |
+
+## Value and rings: the number shrinks, never the ring (2026-10-18)
+
+The user, after the rounded numbers: "the main time-in-range ring is smaller than it should be … the number should
+be the one shrinking", and "the letter spacing on the big glucose numbers is too much" (Android only). Both came from
+the value's **tabular figures**: in Google Sans Flex every digit is 0.66 em wide with `tnum` (proportional: "1"
+0.42, "8" 0.59), so "188" grew from ~121 dp (Roboto) to 143 dp at 72 sp. The app panel guessed the value at 188 dp
+and laid the row out as value → spacer → 68 dp slots; Compose measures the row's children in order, so the last one,
+the main ring, got what was left (56 dp on a 1080 px / 420 dpi phone).
+
+- Android's value is in proportional figures again (app panel, widgets, lock screen, notification), as on the Mac.
+- App panel (`ValueAndSlots`, `graph/ValueFit.kt`): the slots are fixed (`requiredSize` 68 dp) and the value is the
+  row's only flexible child. The value is measured in the real face (the wider of the reading and "388", so it
+  doesn't change size between 99 and 188), shrinks down to 75 % (54 sp) and only then the lowest-priority slot
+  goes ([`Slots.arrange`](#rings)); the main ring always stays.
+- Notification: the slot count comes from the measured value instead of a 110 dp guess.
+- Widgets, lock screen and the Mac (menubar + widgets) already worked this way: their rings are sized from the
+  card's height and the number fits the rest, so nothing changes there.
+
+Guards: `ValueFitTest` (plain JVM, the bundled font's digit widths: "388" ↗ at 296 / 347 / 411 dp, font ×1 / 1.3 / 2)
+and `ValueRowTest` (Robolectric: the panel's slots measure 68 dp at 347 and 296 dp with "188" / "388" ↗; the canvas
+card's main ring is pixel-identical with "388" ↗ and "68" → at 2×1, 3×1 and 4×2; writes the `value-row` sheet).
+
+| Added | Discarded (why) |
+|---|---|
+| proportional figures for the value on Android | tabular figures (wide gaps around "1", and the value outgrew the row) |
+| a measured value width in the app panel and notification, value shrinks before a slot goes | the fixed 188 dp / 110 dp guesses (wrong as soon as the face changed) |
 
 ## Open
 

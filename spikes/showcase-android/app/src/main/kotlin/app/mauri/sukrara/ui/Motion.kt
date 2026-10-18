@@ -386,8 +386,7 @@ fun RollingNumber(text: String, color: Color, fontSize: TextUnit, fontWeight: Fo
             key(text.length - i) {
                 AnimatedContent(ch, transitionSpec = { digitRoll(up, m) }, label = "digit") { c ->
                     Text(c.toString(), color = color, fontSize = fontSize, fontWeight = fontWeight, fontFamily = fontFamily,
-                        style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum",
-                            fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None))
+                        style = androidx.compose.ui.text.TextStyle(fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None))
                 }
             }
         }
