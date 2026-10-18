@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AOSP Settings res/values-night/colors.xml: in dark theme the icon background is tone 80, the glyph stays 30. -->
+<resources>
+    <color name="homepage_blue_variant_bg">@color/m3_ref_palette_blue_variant80</color>
+    <color name="homepage_blue_bg">@color/m3_ref_palette_blue80</color>
+    <color name="homepage_pink_bg">@color/m3_ref_palette_pink80</color>
+    <color name="homepage_orange_bg">@color/m3_ref_palette_orange80</color>
+    <color name="homepage_yellow_bg">@color/m3_ref_palette_yellow80</color>
+    <color name="homepage_green_bg">@color/m3_ref_palette_green80</color>
+    <color name="homepage_grey_bg">@color/m3_ref_palette_grey80</color>
+    <color name="homepage_cyan_bg">@color/m3_ref_palette_cyan80</color>
+    <color name="homepage_red_bg">@color/m3_ref_palette_red80</color>
+    <color name="homepage_purple_bg">@color/m3_ref_palette_purple80</color>
+</resources>

@@ -54,6 +54,8 @@ import app.mauri.sukrara.graph.RingSpec
 import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
+import app.mauri.sukrara.graph.WINDOW_HOURS_RANGE
+import app.mauri.sukrara.graph.RING_DAYS_RANGE
 import app.mauri.sukrara.graph.periodLabel
 import app.mauri.sukrara.widgets.SukraraHooks
 import androidx.compose.runtime.produceState
@@ -85,6 +87,9 @@ fun GraphScreen(onBack: () -> Unit) {
         @Suppress("UNCHECKED_CAST")
         pick = Pick(title, options.map { Choice(label(it), it as Any?) }, selected) { onPick(it as T) }
     }
+    // and one for numbers, which also take a custom value
+    var numPick by remember { mutableStateOf<NumPick?>(null) }
+    val hoursRange = NumberRange(WINDOW_HOURS_RANGE.first.toDouble(), WINDOW_HOURS_RANGE.last.toDouble(), "h")
 
     SettingsPage("Graph & time in range", onBack) {
         // the real panel as the page's live preview (AOSP IllustrationPreference: "at the top of the screen")
@@ -121,11 +126,13 @@ fun GraphScreen(onBack: () -> Unit) {
                 set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }
             }
         }) {
-            value("Default", "${g.defaultHours} h") { choose("Default", WINDOW_HOURS, g.defaultHours, { "$it h" }) { h -> set { it.copy(defaultHours = h) } } }
+            value("Default", "${g.defaultHours} h") {
+                numPick = NumPick("Default", WINDOW_HOURS, g.defaultHours, { "$it h" }, hoursRange) { h -> set { it.copy(defaultHours = h) } }
+            }
             for (p in GraphPlace.entries) {
                 val label: (Int) -> String = { if (it == 0) "Default (${g.defaultHours} h)" else "$it h" }
                 value(p.label, label(g.placeHours[p] ?: 0)) {
-                    choose(p.label, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label) { h ->
+                    numPick = NumPick(p.label, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label, hoursRange) { h ->
                         set { it.copy(placeHours = if (h == 0) it.placeHours - p else it.placeHours + (p to h)) }
                     }
                 }
@@ -148,7 +155,10 @@ fun GraphScreen(onBack: () -> Unit) {
                     choose("$name: what it shows", SlotKind.entries, slot.kind, { it.label }) { k -> setSlot { s -> s.copy(kind = k) } }
                 }
                 value("$name: period", periodLabel(slot.windowS)) {
-                    choose("$name: period", RING_WINDOWS_S, slot.windowS, ::periodLabel) { w -> setSlot { s -> s.copy(windowS = w) } }
+                    numPick = NumPick("$name: period", RING_WINDOWS_S.map { it.toInt() }, slot.windowS.toInt(), { periodLabel(it.toLong()) },
+                        NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), "d", scale = 86400.0)) { w ->
+                        setSlot { s -> s.copy(windowS = w.toLong()) }
+                    }
                 }
                 if (i > 0) switch("$name fainter than the main one", slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
             }
@@ -170,7 +180,12 @@ fun GraphScreen(onBack: () -> Unit) {
         SettingsFooter("Each widget's own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).")
     }
     pick?.let { p -> ChoiceDialog(p.title, p.options, p.selected, onClose = { pick = null }, onChoose = p.onPick) }
+    numPick?.let { p -> IntChoiceDialog(p.title, p.presets, p.selected, p.label, p.range, onClose = { numPick = null }, onChoose = p.onPick) }
 }
+
+/** An open "pick a number" dialog: presets and a custom value in [range]. */
+private class NumPick(val title: String, val presets: List<Int>, val selected: Int, val label: (Int) -> String, val range: NumberRange,
+                      val onPick: (Int) -> Unit)
 
 /** An open "pick one of" dialog. */
 private class Pick(val title: String, val options: List<Choice<Any?>>, val selected: Any?, val onPick: (Any?) -> Unit)

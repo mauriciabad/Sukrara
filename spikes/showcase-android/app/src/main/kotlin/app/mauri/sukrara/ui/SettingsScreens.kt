@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -72,7 +73,8 @@ private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
 private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
 
-private fun intervalLabel(min: Int) = if (min == 0) "Every reading" else "Every $min min"
+private fun intervalLabel(ctx: android.content.Context, min: Int) =
+    if (min == 0) ctx.getString(R.string.interval_every_reading) else ctx.getString(R.string.interval_every_min, min)
 
 private fun on(b: Boolean) = if (b) "On" else "Off"
 
@@ -157,8 +159,8 @@ fun LibreViewBanner(onSetUp: () -> Unit) {
     val lv by Treat.uploader.settings.collectAsState()
     val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
     Reveal(!ready && !f.libreviewBannerDismissed) {
-        SettingsBanner({ AppIcon(R.drawable.ic_brand_libreview) }, "Set up LibreView",
-            "Upload your glucose and entries to LibreView, the record your doctor sees.", "Set up", onSetUp) {
+        SettingsBanner(R.drawable.ic_sym_cloud_upload, stringResource(R.string.libreview_banner_title),
+            stringResource(R.string.libreview_banner_text), stringResource(R.string.libreview_banner_action), onSetUp) {
             set { it.copy(libreviewBannerDismissed = true) }
         }
     }
@@ -181,7 +183,7 @@ fun SourceSettings(onBack: () -> Unit) {
     val direct = f.source == "direct"
     val nav = LocalNav.current
     SettingsPage("Glucose source", onBack) {
-        SettingsIntro(R.drawable.ic_sym_glucose, "Where Sukrara gets your readings from.")
+        SettingsIntro("Where Sukrara gets your readings from.")
         SettingsGroup {
             value("Source", SOURCES.first { it.second == f.source }.first + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
                 icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ AppIcon(R.drawable.ic_brand_juggluco) })) { choosing = true }
@@ -214,7 +216,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val active = u.followers.filter { it.revoked == null }
     val pairing = u.nearbyUntil > Proto.nowS()
     SettingsPage(PEOPLE, onBack) {
-        SettingsIntro(R.drawable.ic_sym_group, "The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.")
+        SettingsIntro("The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.")
         SettingsGroup {
             action("Share with someone", "Send an invite link", icon = R.drawable.ic_sym_share, onClick = a::share)
             action(if (pairing) "Pairing nearby…" else "Pair nearby", when {
@@ -243,19 +245,21 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
 }
 
 /** Nostr relays, on both sharing pages (followers' phones and Macs read from them). */
+@Composable
 private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit) {
     switch("Over the internet (Nostr relays)", f.nostr, icon = R.drawable.ic_brand_nostr, summary = "End-to-end encrypted; followers anywhere") { v ->
         set { it.copy(nostr = v) }
     }
-    value("Upload interval", if (f.nostr) intervalLabel(f.nostrIntervalMin) else "Unavailable while sharing over the internet is off",
+    value(stringResource(R.string.sharing_upload_interval), if (f.nostr) intervalLabel(LocalContext.current, f.nostrIntervalMin) else stringResource(R.string.sharing_upload_interval_off),
         enabled = f.nostr, onClick = onInterval)
 }
 
 @Composable
-private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) =
-    ChoiceDialog("Upload interval", listOf(0, 5, 15, 30).map { Choice(intervalLabel(it), it) }, f.nostrIntervalMin, onClose) { v ->
-        set { it.copy(nostrIntervalMin = v) }
-    }
+private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    IntChoiceDialog(stringResource(R.string.sharing_upload_interval), listOf(0, 5, 15, 30), f.nostrIntervalMin, { intervalLabel(ctx, it) },
+        NumberRange(1.0, 120.0, stringResource(R.string.unit_min)), onClose) { v -> set { it.copy(nostrIntervalMin = v) } }
+}
 
 /** One follower: whether they may add entries, and removing them. */
 @Composable
@@ -304,7 +308,7 @@ private fun SystemAccessBanner(root: Boolean, module: Boolean) {
         onPauseOrDispose {}
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val icon: @Composable () -> Unit = { androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_sym_key), null) }
+    val icon = R.drawable.ic_sym_key
     when {
         root && rootOk == false -> SettingsBanner(icon, "Root needed",
             "Grant Sukrara root in KernelSU (or Magisk): Superuser → Sukrara → allow. Then check again.",
@@ -351,7 +355,7 @@ fun StatusBarSettings(onBack: () -> Unit) {
     val off = "Unavailable while the value in the status bar is off"
     val nm = ctx.getSystemService(NotificationManager::class.java)
     SettingsPage("Status bar", onBack) {
-        SettingsIntro(R.drawable.ic_sym_smartphone, "Your glucose at a glance in the status bar, without opening anything.")
+        SettingsIntro("Your glucose at a glance in the status bar, without opening anything.")
         SystemAccessBanner(root = true, module = true)
         SettingsGroup {
             switch("Live Update chip", f.chip, summary = "The number next to the clock") { v -> set { it.copy(chip = v) } }
@@ -403,7 +407,7 @@ fun LockscreenSettings(onBack: () -> Unit) {
     val off = if (!module) NEEDS_MODULE else "Unavailable while glucose on the lock screen is off"
     val bg = app.mauri.sukrara.features.LockBackground
     SettingsPage("Lock screen", onBack) {
-        SettingsIntro(R.drawable.ic_sym_screen_lock_portrait, "Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
+        SettingsIntro("Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
         SystemAccessBanner(root = false, module = true)
         SettingsMainSwitch("Glucose on the lock screen", on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
         SettingsGroup {
@@ -433,7 +437,7 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
     var secret by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
     SettingsPage(APPS, onBack) {
-        SettingsIntro(R.drawable.ic_sym_apps, "Your glucose in other apps: " + (if (wearer) "LibreView for your doctor, " else "") +
+        SettingsIntro("Your glucose in other apps: " + (if (wearer) "LibreView for your doctor, " else "") +
             "Garmin watches through the xDrip+ server, and anything that reads Nightscout.")
         if (wearer) {
             val lv by Treat.uploader.settings.collectAsState()
@@ -496,7 +500,7 @@ fun LibreViewSettings(onBack: () -> Unit) {
     val off = "Unavailable while the upload is off"
     val direct = f.source == "direct"
     SettingsPage("LibreView", onBack) {
-        SettingsIntro(R.drawable.ic_sym_cloud_upload, "LibreView is the record your doctor sees. Sukrara can upload your glucose and entries to it.")
+        SettingsIntro("LibreView is the record your doctor sees. Sukrara can upload your glucose and entries to it.")
         SettingsGroup { value("Account", if (signedIn) s.email else "Not signed in", icon = R.drawable.ic_sym_person) { signIn = true } }
         SettingsMainSwitch("Upload to LibreView", on, enabled = signedIn) { v -> set { it.copy(libreview = v) }; uploader.kick() }
         SettingsGroup {
@@ -514,12 +518,12 @@ fun LibreViewSettings(onBack: () -> Unit) {
                 else if (s.takeover) "The Libre app or Juggluco stops uploading to this account" else "Uploads stop if another app holds the account") {
                 uploader.configure(takeover = it)
             }
-            value("Upload every", if (on) intervalLabel(f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
+            value(stringResource(R.string.libreview_upload_every), if (on) intervalLabel(ctx, f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
         }
         SettingsFooter("Uploaded entries can't be deleted in LibreView. Glucose goes up from the moment you switch it on.")
     }
-    if (choosing) ChoiceDialog("Upload every", listOf(5, 15, 60).map { Choice(intervalLabel(it), it) }, f.libreviewIntervalMin,
-        { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
+    if (choosing) IntChoiceDialog(stringResource(R.string.libreview_upload_every), listOf(5, 15, 60), f.libreviewIntervalMin, { intervalLabel(ctx, it) },
+        NumberRange(1.0, 240.0, stringResource(R.string.unit_min)), { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
     if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
 }
 
@@ -531,7 +535,7 @@ fun BackupSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val saved = u.backupSavedAt > 0
     val transfer = settingsTransfer()
     SettingsPage("Backup", onBack) {
-        SettingsIntro(R.drawable.ic_sym_backup, if (saved) "Your identity is in a password manager. A new phone restores it and your followers continue."
+        SettingsIntro(if (saved) "Your identity is in a password manager. A new phone restores it and your followers continue."
             else "Not backed up: if you lose this phone, every follower must be invited again.")
         SettingsGroup {
             action(if (saved) "Save again" else "Save to password manager", if (saved) "Saved ${date(u.backupSavedAt)}" else "Recommended",

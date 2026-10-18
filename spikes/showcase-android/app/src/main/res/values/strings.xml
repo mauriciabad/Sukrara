@@ -9,4 +9,178 @@
     <string name="widget_lockscreen">Lock screen</string>
     <string name="widget_lockscreen_desc">Glucose and the graph in the free space of the lock screen</string>
     <string name="widget_combined_desc">Current glucose and the graph of the last hours</string>
+    <!-- Settings dialogs -->
+    <!-- Button that closes a settings dialog whose choices apply at once. [CHAR LIMIT=20] -->
+    <string name="settings_dialog_done">Done</string>
+    <!-- Button that saves the value typed in a settings dialog. [CHAR LIMIT=20] -->
+    <string name="settings_dialog_ok">OK</string>
+    <!-- Button that closes a settings dialog without saving. [CHAR LIMIT=20] -->
+    <string name="settings_dialog_cancel">Cancel</string>
+    <!-- Last option of a list of numbers: lets the user type their own number. [CHAR LIMIT=30] -->
+    <string name="settings_custom_value">Custom</string>
+    <!-- Label of the field where the user types a custom number. [CHAR LIMIT=30] -->
+    <string name="settings_custom_value_label">Value</string>
+    <!-- Hint and error under the custom number field: the allowed range. %1$s = smallest, %2$s = largest, %3$s = unit (e.g. "min"). [CHAR LIMIT=NONE] -->
+    <string name="settings_custom_value_range">From %1$s to %2$s %3$s</string>
+
+    <!-- Alerts settings -->
+    <!-- Unit: minutes, after a number. [CHAR LIMIT=10] -->
+    <string name="unit_min">min</string>
+    <!-- Title of the alerts settings page; matches the row that opens it. [CHAR LIMIT=40] -->
+    <string name="alerts_title">Alerts</string>
+    <!-- Status card on the alerts page when no alert is active. [CHAR LIMIT=NONE] -->
+    <string name="alerts_now_nothing">Nothing to alert about now</string>
+    <!-- Status card on the alerts page when alerts are switched off. [CHAR LIMIT=NONE] -->
+    <string name="alerts_now_off">Alerts are off</string>
+    <!-- Status of an active alert that a quiet rule holds back. %1$s = the rule. [CHAR LIMIT=NONE] -->
+    <string name="alerts_now_quiet">quiet: %1$s</string>
+    <!-- Status of an active alert that has rung. [CHAR LIMIT=40] -->
+    <string name="alerts_now_alerted">alerted</string>
+    <!-- Status of an alert that rang a short while ago. [CHAR LIMIT=40] -->
+    <string name="alerts_now_alerted_recently">alerted recently</string>
+    <!-- Main switch of the alerts page. [CHAR LIMIT=40] -->
+    <string name="alerts_main_switch">Glucose alerts</string>
+    <!-- Follower: where the alert rules come from. [CHAR LIMIT=40] -->
+    <string name="alerts_rules">Alert rules</string>
+    <!-- Follower alert rules option: mirror the wearer's alerts. [CHAR LIMIT=60] -->
+    <string name="alerts_rules_wearer">Same as the wearer\'s app</string>
+    <!-- Follower alert rules option: run the rules on this phone. [CHAR LIMIT=60] -->
+    <string name="alerts_rules_own">This phone\'s own settings</string>
+    <!-- Explains the mirror option. [CHAR LIMIT=NONE] -->
+    <string name="alerts_rules_wearer_summary">Alerts when the wearer\'s phone alerts, including its quiet rules. No data is checked here.</string>
+    <!-- Explains the own-rules option. [CHAR LIMIT=NONE] -->
+    <string name="alerts_rules_own_summary">The rules below run on this phone with the readings and entries it receives.</string>
+    <!-- Summary of a rule a follower can't change because it mirrors the wearer. [CHAR LIMIT=NONE] -->
+    <string name="alerts_set_by_wearer">Set by the wearer\'s app</string>
+    <!-- Category of low glucose alerts. [CHAR LIMIT=40] -->
+    <string name="alerts_group_lows">Lows</string>
+    <!-- Category of high glucose alerts. [CHAR LIMIT=40] -->
+    <string name="alerts_group_highs">Highs</string>
+    <!-- Category of rate-of-change alerts. [CHAR LIMIT=40] -->
+    <string name="alerts_group_rates">Fast changes</string>
+    <!-- Category of the no-data alert. [CHAR LIMIT=40] -->
+    <string name="alerts_group_signal">Signal</string>
+    <!-- Category of rules that hold alerts back. [CHAR LIMIT=40] -->
+    <string name="alerts_group_quiet">Quiet alerts</string>
+    <!-- Category of sound options. [CHAR LIMIT=40] -->
+    <string name="alerts_group_sounds">Sounds</string>
+    <!-- Low threshold: alerts below this value. %1$d = mg/dL. [CHAR LIMIT=30] -->
+    <string name="alerts_threshold_below">&lt; %1$d mg/dL</string>
+    <!-- High threshold: alerts at or above this value. %1$d = mg/dL. [CHAR LIMIT=30] -->
+    <string name="alerts_threshold_above">≥ %1$d mg/dL</string>
+    <!-- Falling-fast threshold. %1$s = rate. [CHAR LIMIT=NONE] -->
+    <string name="alerts_threshold_falling">faster than −%1$s mg/dL/min</string>
+    <!-- Rising-fast threshold. %1$s = rate. [CHAR LIMIT=NONE] -->
+    <string name="alerts_threshold_rising">faster than +%1$s mg/dL/min</string>
+    <!-- No-data threshold. %1$d = minutes without a reading. [CHAR LIMIT=30] -->
+    <string name="alerts_threshold_no_data">after %1$d min</string>
+    <!-- Reminder option: alert only once. [CHAR LIMIT=30] -->
+    <string name="alerts_remind_once">Once</string>
+    <!-- Reminder option: alert again every N minutes. [CHAR LIMIT=30] -->
+    <string name="alerts_remind_every">Every %1$d min</string>
+    <!-- A number of minutes. [CHAR LIMIT=20] -->
+    <string name="alerts_minutes">%1$d min</string>
+    <!-- Quiet rule option: in range again within N minutes. [CHAR LIMIT=30] -->
+    <string name="alerts_within_minutes">Within %1$d min</string>
+    <!-- Quiet rule: hold highs back after rapid insulin. [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_insulin">After rapid insulin</string>
+    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
+    <string name="alerts_quiet_insulin_summary">Highs and rising fast wait %1$d min · extremely high always alerts</string>
+    <!-- Quiet rule: no high alert while glucose is returning to range. [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_falling">When falling back into range</string>
+    <!-- %1$d = mg/dL, %2$d = minutes. [CHAR LIMIT=NONE] -->
+    <string name="alerts_quiet_falling_summary">No high alert while it\'ll be under %1$d within %2$d min</string>
+    <!-- Quiet rule: hold lows back after carbs. [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_carbs">After carbs</string>
+    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
+    <string name="alerts_quiet_carbs_summary">Low and falling fast wait %1$d min · very low always alerts</string>
+    <!-- The set of sounds the alerts use. [CHAR LIMIT=40] -->
+    <string name="alerts_sound_pack">Sound pack</string>
+    <!-- Sound option: the sound pack's sound. %1$s = pack name. [CHAR LIMIT=60] -->
+    <string name="alerts_sound_pack_default">Pack default (%1$s)</string>
+    <!-- Summary when the user picked the sound in the system notification settings. [CHAR LIMIT=NONE] -->
+    <string name="alerts_sound_system_settings">sound set in system settings</string>
+    <!-- Switch: pick one of the pack's sounds at random. [CHAR LIMIT=60] -->
+    <string name="alerts_shuffle">A different sound each time</string>
+    <!-- %1$d = sounds per alert. [CHAR LIMIT=NONE] -->
+    <string name="alerts_shuffle_summary">%1$d sounds per alert in every pack, picked at random</string>
+    <!-- Opens the system notification settings of the app. [CHAR LIMIT=40] -->
+    <string name="alerts_notification_settings">Notification settings</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_notification_settings_summary">Sound, vibration and Do Not Disturb per alert</string>
+    <!-- Footer of the alerts page. [CHAR LIMIT=NONE] -->
+    <string name="alerts_footer">Each alert is its own notification category: a sound picked in the system settings replaces Sukrara\'s. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). Settings stay on this phone.</string>
+    <!-- Main switch of one alert's page. %1$s = the alert's name, e.g. Low. [CHAR LIMIT=60] -->
+    <string name="alerts_kind_main_switch">Use %1$s alert</string>
+    <!-- Summary of a disabled row. [CHAR LIMIT=NONE] -->
+    <string name="alerts_unavailable_off">Unavailable while this alert is off</string>
+    <!-- Summary of a disabled row. [CHAR LIMIT=NONE] -->
+    <string name="alerts_unavailable_all_off">Unavailable while glucose alerts are off</string>
+    <!-- Category: when the alert rings. [CHAR LIMIT=40] -->
+    <string name="alerts_group_when">Alert when</string>
+    <!-- Category: how the alert sounds. [CHAR LIMIT=40] -->
+    <string name="alerts_group_sound">Sound</string>
+    <!-- Category: try the alert. [CHAR LIMIT=40] -->
+    <string name="alerts_group_test">Test</string>
+    <!-- The glucose level that sets off the alert. [CHAR LIMIT=40] -->
+    <string name="alerts_threshold">Threshold</string>
+    <!-- How fast glucose changes to set off the alert. [CHAR LIMIT=40] -->
+    <string name="alerts_rate">Rate</string>
+    <!-- How long without readings sets off the alert. [CHAR LIMIT=40] -->
+    <string name="alerts_after">After</string>
+    <!-- How often the alert repeats while it lasts. [CHAR LIMIT=40] -->
+    <string name="alerts_remind">Remind</string>
+    <!-- This alert's sound. [CHAR LIMIT=40] -->
+    <string name="alerts_sound">Sound</string>
+    <!-- Which volume the alert rings at. [CHAR LIMIT=40] -->
+    <string name="alerts_volume">Volume</string>
+    <!-- Volume option. [CHAR LIMIT=40] -->
+    <string name="alerts_volume_alarm">Alarm volume</string>
+    <!-- Volume option. [CHAR LIMIT=40] -->
+    <string name="alerts_volume_notification">Notification volume</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_volume_alarm_summary">Like an alarm clock. Rings in Do Not Disturb when alarms are allowed</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_volume_notification_summary">Rings in Do Not Disturb only if reminders are allowed</string>
+    <!-- Content description of the play button next to a sound. [CHAR LIMIT=20] -->
+    <string name="alerts_play">Play</string>
+    <!-- Plays this alert's sound. [CHAR LIMIT=40] -->
+    <string name="alerts_play_sound">Play sound</string>
+    <!-- %1$s = sound, %2$s = volume. [CHAR LIMIT=NONE] -->
+    <string name="alerts_play_sound_vibrate">%1$s · %2$s · with vibration</string>
+    <!-- %1$s = sound, %2$s = volume. [CHAR LIMIT=NONE] -->
+    <string name="alerts_play_sound_only">%1$s · %2$s</string>
+    <!-- Check box: sound tests also play the alert's vibration. [CHAR LIMIT=30] -->
+    <string name="alerts_vibrate">Vibrate</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_vibrate_summary">Sound tests play the alert\'s vibration too</string>
+    <!-- Fires this alert once as a real notification. [CHAR LIMIT=40] -->
+    <string name="alerts_test">Send a test alert</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_test_summary">A real notification with its sound and vibration; followers don\'t get it</string>
+    <!-- Opens this alert's notification category in the system settings. [CHAR LIMIT=40] -->
+    <string name="alerts_channel_settings">Notification category</string>
+    <!-- [CHAR LIMIT=NONE] -->
+    <string name="alerts_channel_settings_summary">Vibration, Do Not Disturb and more in the system settings</string>
+    <!-- Footer of one alert's page. [CHAR LIMIT=NONE] -->
+    <string name="alerts_kind_footer">The sound and vibration of this alert are its notification category\'s: a sound picked there replaces Sukrara\'s.</string>
+    <!-- Footer for followers mirroring the wearer. [CHAR LIMIT=NONE] -->
+    <string name="alerts_kind_footer_follower">The threshold and reminders come from the wearer\'s app. Sound and volume are this phone\'s.</string>
+    <!-- Settings pages -->
+    <!-- Upload interval option: send every reading at once. [CHAR LIMIT=40] -->
+    <string name="interval_every_reading">Every reading</string>
+    <!-- Upload interval option: send in batches every N minutes. %1$d = minutes. [CHAR LIMIT=40] -->
+    <string name="interval_every_min">Every %1$d min</string>
+    <!-- How often readings go to the Nostr relays. [CHAR LIMIT=40] -->
+    <string name="sharing_upload_interval">Upload interval</string>
+    <!-- Summary of the disabled upload interval row. [CHAR LIMIT=NONE] -->
+    <string name="sharing_upload_interval_off">Unavailable while sharing over the internet is off</string>
+    <!-- How often Sukrara uploads to LibreView. [CHAR LIMIT=40] -->
+    <string name="libreview_upload_every">Upload every</string>
+    <!-- Banner asking to set up the LibreView upload. [CHAR LIMIT=40] -->
+    <string name="libreview_banner_title">Set up LibreView</string>
+    <!-- Banner text: why to set up LibreView. [CHAR LIMIT=NONE] -->
+    <string name="libreview_banner_text">Upload your glucose and entries to LibreView, the record your doctor sees.</string>
+    <!-- Banner button that opens the LibreView settings. [CHAR LIMIT=20] -->
+    <string name="libreview_banner_action">Set up</string>
 </resources>

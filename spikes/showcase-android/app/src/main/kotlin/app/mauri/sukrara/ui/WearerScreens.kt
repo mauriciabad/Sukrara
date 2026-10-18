@@ -93,36 +93,6 @@ internal fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Se
     )
 }
 
-/** One option of a [ChoiceDialog]. */
-data class Choice<T>(val label: String, val value: T, val sub: String? = null, val enabled: Boolean = true)
-
-/** ListPreference: radio buttons in a dialog; choosing saves and closes, Cancel keeps the old value. */
-@Composable
-fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClose: () -> Unit, onChoose: (T) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(title) },
-        text = {
-            Column(Modifier.selectableGroup()) {
-                for (o in options) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
-                        .selectable(selected = o.value == selected, enabled = o.enabled, role = Role.RadioButton, onClick = { onChoose(o.value); onClose() })
-                        .padding(vertical = 6.dp).graphicsLayer { alpha = if (o.enabled) 1f else 0.38f }) {
-                        RadioButton(selected = o.value == selected, onClick = null, enabled = o.enabled)
-                        Spacer(Modifier.size(12.dp))
-                        Column {
-                            Text(o.label)
-                            o.sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
-    )
-}
-
 /**
  * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first.
  * Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).

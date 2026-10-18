@@ -4,71 +4,79 @@
 package app.mauri.sukrara.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ListItemShapes
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.runtime.remember
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.R
+import com.android.settingslib.spa.framework.compose.HighlightBox
+import com.android.settingslib.spa.framework.compose.LocalNavController
+import com.android.settingslib.spa.framework.compose.NavControllerWrapper
+import com.android.settingslib.spa.framework.theme.SettingsDimension
+import com.android.settingslib.spa.framework.theme.SettingsSize
+import com.android.settingslib.spa.framework.theme.SettingsSpace
+import com.android.settingslib.spa.widget.banner.BannerButton
+import com.android.settingslib.spa.widget.banner.BannerModel
+import com.android.settingslib.spa.widget.preference.CheckboxPreference
+import com.android.settingslib.spa.widget.preference.CheckboxPreferenceModel
+import com.android.settingslib.spa.widget.preference.MainSwitchPreference
+import com.android.settingslib.spa.widget.preference.Preference
+import com.android.settingslib.spa.widget.preference.PreferenceModel
+import com.android.settingslib.spa.widget.preference.SwitchPreference
+import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
+import com.android.settingslib.spa.widget.preference.TwoTargetSwitchPreference
+import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
+import com.android.settingslib.spa.widget.ui.Category
+import com.android.settingslib.spa.widget.ui.Footer
+import com.android.settingslib.spa.widget.ui.SettingsIcon
 
 /*
- * Settings building blocks, after the Android 16 Settings app (Material 3 Expressive) and the settings guidelines
- * (source.android.com/docs/core/settings/settings-guidelines, developer.android.com/design/ui/mobile/guides/patterns/settings):
+ * Settings building blocks. Everything you see is AOSP's own Compose settings library, SettingsLib SPA
+ * (frameworks/base/packages/SettingsLib/Spa, vendored as :settingslib-spa, android17-release), the code the Settings
+ * app draws its Compose pages with:
  *
- *  - Rows are expressive *segmented* list items (material3 1.5 SegmentedListItem + ListItemDefaults.segmentedShapes):
- *    each row is its own tappable card with a press state, large outer corners on the group's first and last row,
- *    a 2 dp gap between rows (AOSP SettingsLib: 20/4 dp corners, surfaceBright cards). Headings sit between groups.
- *  - What a row does shows at its end: › opens another screen ([link]), a switch toggles ([switch]), a split line
- *    then a switch is a row that opens a dialog AND has its own switch ([splitSwitch], AOSP "split" rows). A row that
- *    opens a dialog shows the current value below the title ([value]: "Below the title, show the status").
- *  - The settings overview uses coloured category icons ([CategoryIcon]); pages may start with an illustration or a
- *    short intro ([SettingsIntro]: "The animation or image should be presented at the top of the screen") and end with
- *    a footer ([SettingsFooter]: "Footer text can be used to add explanatory content").
- *  - A feature's own on/off on its page is a main switch bar ([SettingsMainSwitch]); turning it off disables (doesn't
- *    hide) what depends on it, each with a brief reason.
+ *  - a page is SPA's SettingsScaffold (RegularScaffold's layout): the large title collapses into the top app bar as
+ *    the page scrolls, with the expressive round back button;
+ *  - a group is SPA's Category (rounded 20 dp card, 2 dp between rows, the title in primary above it);
+ *  - rows are SPA's Preference / SwitchPreference / TwoTargetSwitchPreference (chevron, 40 dp line, switch with
+ *    check / close thumb icons) / MainSwitchPreference, a search hit is highlighted by SPA's HighlightBox;
+ *  - SPA's Footer and SettingsBanner; the page intro is the TopIntroPreference text.
+ *
+ * What this file adds on top: the row DSL the pages use (one call per row: [link], [value], [action], [info],
+ * [switch], [splitSwitch], [card]) and the search index below. Settings guidelines: source.android.com/docs/core/
+ * settings/settings-guidelines, developer.android.com/design/ui/mobile/guides/patterns/settings.
  */
 
 /*
@@ -99,44 +107,78 @@ val indexing: Boolean @Composable get() = LocalSettingsIndex.current != null
 /** The in-app navigation, for [link] `to` and for the highlight a search result asks for. */
 val LocalNav = androidx.compose.runtime.staticCompositionLocalOf<Nav?> { null }
 
+/**
+ * SPA's navigation interface on our [Nav]: SPA's back button calls [navigateBack], `navigator(route)` opens a page,
+ * and [isHighLightItem] is what SPA's HighlightBox asks once per row (the row a search result opened).
+ */
+private class SukraraNavController(private val nav: Nav?, private val onBack: () -> Unit) : NavControllerWrapper {
+    override fun navigate(route: String, popUpCurrent: Boolean) { nav?.open(route) }
+    override fun navigateBack() = onBack()
+    override fun isHighLightItem(highlightItemKey: String): Boolean =
+        (nav?.highlight == highlightItemKey).also { if (it) nav?.highlight = null }
+}
+
 /** Content at the top of a page that isn't a setting (a live preview, a status card): not composed while indexing. */
 @Composable
-fun SettingsHeader(content: @Composable () -> Unit) { if (!indexing) content() }
+fun SettingsHeader(content: @Composable () -> Unit) {
+    if (indexing) return
+    Box(Modifier.padding(vertical = SettingsSpace.extraSmall4)) { content() }
+}
 
-/** One settings page: a back arrow and the title (it matches the row that opened it), then [content]. */
+/**
+ * One settings page: SPA's SettingsScaffold with the page [title] (it matches the row that opened it) as the
+ * collapsing large title, then [content] in a scrolling column, laid out like SPA's RegularScaffold. Rows and groups
+ * reach the screen edges the SPA way; any other content gets the 16 dp side margin of the cards.
+ */
 @Composable
 fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     LocalSettingsIndex.current?.let { idx -> idx.title = title; Column { content() }; return }
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.offset(x = (-12).dp)) {
-            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_sym_arrow_back), contentDescription = "Back") }
-            Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 4.dp))
+    val nav = LocalNav.current
+    val controller = remember(nav, onBack) { SukraraNavController(nav, onBack) }
+    CompositionLocalProvider(LocalNavController provides controller) {
+        SettingsScaffold(title) { padding ->
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = SettingsSpace.small1)) {
+                Spacer(Modifier.height(padding.calculateTopPadding()))
+                content()
+                Spacer(Modifier.height(padding.calculateBottomPadding()))
+            }
         }
-        content()
     }
 }
 
-/** The rows of one [SettingsGroup]; each row gets its segmented shape from its position. */
+/** A settings screen and its dialogs in SPA's SettingsTheme: dynamic colours and the Settings typography (device fonts). */
+@Composable
+fun SettingsRoute(content: @Composable () -> Unit) = com.android.settingslib.spa.framework.theme.SettingsTheme(content)
+
+/** SPA widgets bring their own 16 dp side margin: undo the page's, so they sit exactly where SPA puts them. */
+private fun Modifier.fullBleed(h: Dp = SettingsSpace.small1) = layout { m, c ->
+    val px = h.roundToPx()
+    val p = m.measure(c.copy(minWidth = (c.minWidth + 2 * px).coerceAtLeast(0), maxWidth = c.maxWidth + 2 * px))
+    layout(p.width - 2 * px, p.height) { p.place(-px, 0) }
+}
+
+/** The rows of one [SettingsGroup]. */
 class SettingsGroupScope internal constructor() {
     internal class Entry(val title: String?, val summary: String?, val to: String?, val icon: (@Composable () -> Unit)?,
-                         val draw: @Composable (ListItemShapes) -> Unit)
+                         val draw: @Composable () -> Unit)
     internal val rows = mutableListOf<Entry>()
-    /** Some row has an icon: every row then keeps the icon column, so titles line up (AOSP iconSpaceReserved). */
-    internal var hasIcon = false
     /**
-     * Any row content (a slider, a follower with its avatar…), drawn inside the group's card shape. [title] makes it
+     * Any row content (a slider, a follower with its avatar…), drawn as one row of the group. [title] makes it
      * findable by search; [to] is the settings page it opens.
      */
     fun row(title: String? = null, summary: String? = null, to: String? = null, icon: (@Composable () -> Unit)? = null,
-            content: @Composable (ListItemShapes) -> Unit) {
+            content: @Composable () -> Unit) {
         rows += Entry(title, summary, to, icon, content)
     }
 }
 
-/** A heading (optional, with [titleAction] at its end, e.g. a reset button) and its rows as one segmented list. */
+/**
+ * A group: SPA's Category with an optional [title] (and, our addition, [titleAction] at its end, e.g. a reset
+ * button). Each row can be the target of a search result (SPA's HighlightBox, keyed by the row title).
+ */
 @Composable
-fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? = null, content: SettingsGroupScope.() -> Unit) {
-    val scope = SettingsGroupScope().apply(content)
+fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? = null, content: @Composable SettingsGroupScope.() -> Unit) {
+    val scope = SettingsGroupScope().also { it.content() }
     LocalSettingsIndex.current?.let { idx ->
         for (r in scope.rows) {
             r.title?.let { t -> idx.rows[title to t] = IndexedRow(t, r.summary, title, r.icon, r.to) }
@@ -144,256 +186,206 @@ fun SettingsGroup(title: String? = null, titleAction: (@Composable () -> Unit)? 
         }
         return
     }
-    val nav = LocalNav.current
-    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-        title?.let {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp)) {
-                Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f).padding(start = 16.dp, bottom = 6.dp))
-                titleAction?.invoke()
-            }
-        }
-        val n = scope.rows.size
-        androidx.compose.runtime.CompositionLocalProvider(LocalReserveIcon provides scope.hasIcon) {
-            scope.rows.forEachIndexed { i, r ->
-                val shapes = ListItemDefaults.segmentedShapes(i, n)
-                if (r.title != null && nav?.highlight == r.title) Highlighted(shapes, onDone = { nav.highlight = null }) { r.draw(shapes) }
-                else r.draw(shapes)
-            }
+    if (scope.rows.isEmpty()) return
+    Column(Modifier.fullBleed()) {
+        if (title != null && titleAction != null) CategoryTitleWithAction(title, titleAction)
+        Category(title = title.takeIf { titleAction == null }) {
+            for (r in scope.rows) HighlightBox(r.title ?: "") { r.draw() }
         }
     }
 }
 
-/** Cards a step brighter/darker than the page in both themes (the page background is the app's, not surfaceContainer). */
+/** SPA's CategoryTitle (same padding, colour and style) with a trailing action. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun rowColors(): androidx.compose.material3.ListItemColors {
-    val c = MaterialTheme.colorScheme.surfaceContainerHigh
-    // a switch that is on isn't a "selected" row, and a disabled row keeps its card (only its content dims)
-    return ListItemDefaults.segmentedColors(containerColor = c, selectedContainerColor = c, disabledContainerColor = c,
-        selectedContentColor = MaterialTheme.colorScheme.onSurface, selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        selectedLeadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant, selectedTrailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-@Composable
-private fun Title(text: String) = Text(text, style = MaterialTheme.typography.bodyLarge)
-
-@Composable
-private fun Summary(text: String?) = text?.let { s -> Swap(s) { Text(it, style = MaterialTheme.typography.bodyMedium) } }
-
-private val LocalReserveIcon = androidx.compose.runtime.staticCompositionLocalOf { false }
-
-/**
- * The icon column: 40 dp wide whatever the icon (a 24 dp symbol or brand mark, a 40 dp app icon or avatar), and kept
- * empty on rows without one when their group has icons, so every title in a group starts at the same place.
- */
-@Composable
-private fun lead(@DrawableRes icon: Int?, leading: (@Composable () -> Unit)?, tint: Color? = null): (@Composable () -> Unit)? {
-    if (icon == null && leading == null && !LocalReserveIcon.current) return null
-    return {
-        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            when {
-                leading != null -> leading()
-                icon != null -> if (tint != null) Icon(painterResource(icon), contentDescription = null, tint = tint)
-                    else Icon(painterResource(icon), contentDescription = null)
-            }
-        }
+private fun CategoryTitleWithAction(title: String, action: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = SettingsSpace.small1, end = SettingsSpace.extraSmall4),
+        verticalAlignment = Alignment.Bottom) {
+        Text(title, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLargeEmphasized,
+            modifier = Modifier.weight(1f).padding(start = SettingsSpace.extraSmall4, top = SettingsSpace.small3,
+                end = SettingsSpace.extraSmall4, bottom = SettingsSpace.extraSmall4))
+        action()
     }
 }
 
-private fun SettingsGroupScope.noteIcon(@DrawableRes icon: Int?, leading: Any?) { if (icon != null || leading != null) hasIcon = true }
-
+/** A row's icon as SPA draws it: a 24 dp symbol in onSurfaceVariant ([SettingsIcon]), or the given composable. */
 private fun iconOf(@DrawableRes icon: Int?, leading: (@Composable () -> Unit)?): (@Composable () -> Unit)? =
-    leading ?: icon?.let { { Icon(painterResource(it), contentDescription = null) } }
+    leading ?: icon?.let { { SettingsIcon(ImageVector.vectorResource(it)) } }
 
-/** Free content (a slider, chips, a field) in the group's card colour and shape. */
-fun SettingsGroupScope.card(title: String? = null, content: @Composable ColumnScope.() -> Unit) = row(title) { shapes ->
-    androidx.compose.material3.Surface(shape = shapes.shape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp), content = content)
+/** The model every plain row uses. */
+private fun model(title: String, summary: CharSequence?, icon: (@Composable () -> Unit)?, enabled: Boolean, onClick: (() -> Unit)?) =
+    object : PreferenceModel {
+        override val title = title
+        override val summary = { summary ?: "" }
+        override val icon = icon
+        override val enabled = { enabled }
+        override val onClick = onClick
     }
-}
 
 /**
- * Opens another screen: › at the end (Android 16 Settings), or ↗ when it leaves the app ([external]: a web page, the
- * system settings). [leading] replaces the plain icon (category icons, avatars, app icons).
+ * Opens another screen (or, [external], a web page or the system settings). Stock rows show no chevron; [leading]
+ * replaces the plain icon (category icons, avatars, app icons).
  */
 fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
                             external: Boolean = false, leading: (@Composable () -> Unit)? = null, to: String? = null,
                             onClick: (() -> Unit)? = null) {
-    noteIcon(icon, leading)
-    row(title, summary, to, iconOf(icon, leading)) { shapes ->
+    val i = iconOf(icon, leading)
+    row(title, summary, to, i) {
         val nav = LocalNav.current
-        SegmentedListItem(onClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } }, shapes = shapes, colors = rowColors(), enabled = enabled,
-            leadingContent = lead(icon, leading),
-            supportingContent = summary?.let { { Summary(it) } },
-            trailingContent = {
-                Icon(painterResource(if (external) R.drawable.ic_sym_open_in_new else R.drawable.ic_sym_chevron_right),
-                    contentDescription = if (external) "Opens outside Sukrara" else null)
-            }) { Title(title) }
+        Preference(model(title, summary, i, enabled) { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
     }
 }
 
-/** Opens a dialog (a choice, an editor): the current value below the title. */
+/** Opens a dialog (a choice, an editor): the current value below the title (SPA ListPreference's summary). */
 fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = true, @DrawableRes icon: Int? = null,
                              leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
-    noteIcon(icon, leading)
-    row(title, value, icon = iconOf(icon, leading)) { shapes ->
-        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
-            leadingContent = lead(icon, leading), supportingContent = { Summary(value) }) { Title(title) }
-    }
+    val i = iconOf(icon, leading)
+    row(title, value, icon = i) { Preference(model(title, value, i, enabled, onClick)) }
 }
 
-/** Does something now (pair, save, copy…): the title in the accent colour ("Links should use an accent color"). */
+/** Does something now (pair, save, copy…). */
 fun SettingsGroupScope.action(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
                               onClick: () -> Unit) {
-    noteIcon(icon, null)
-    row(title, summary, icon = iconOf(icon, null)) { shapes ->
-        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = enabled,
-            leadingContent = lead(icon, null, tint = if (enabled) MaterialTheme.colorScheme.primary else null),
-            supportingContent = summary?.let { { Summary(it) } }) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) MaterialTheme.colorScheme.primary else Color.Unspecified)
-        }
-    }
+    val i = iconOf(icon, null)
+    row(title, summary, icon = i) { Preference(model(title, summary, i, enabled, onClick)) }
 }
 
 /** Not tappable: a fact (version, an address). */
 fun SettingsGroupScope.info(title: String, summary: String? = null, @DrawableRes icon: Int? = null) {
-    noteIcon(icon, null)
-    row(title, summary, icon = iconOf(icon, null)) { shapes ->
-        SegmentedListItem(shapes = shapes, colors = rowColors(), leadingContent = lead(icon, null),
-            supportingContent = summary?.let { { Summary(it) } }) { Title(title) }
-    }
+    val i = iconOf(icon, null)
+    row(title, summary, icon = i) { Preference(model(title, summary, i, true, null)) }
 }
 
-/** The whole row toggles; disabled rows are greyed out with the reason as the summary. */
+private fun switchModel(title: String, summary: String?, icon: (@Composable () -> Unit)?, checked: Boolean, enabled: Boolean,
+                        onChange: (Boolean) -> Unit) = object : SwitchPreferenceModel {
+    override val title = title
+    override val summary = { summary ?: "" }
+    override val icon = icon
+    override val checked = { checked }
+    override val changeable = { enabled }
+    override val onCheckedChange = onChange
+}
+
+/** SPA SwitchPreference: the whole row toggles; disabled rows are greyed out with the reason as the summary. */
 fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
                               @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
-    noteIcon(icon, leading)
-    row(title, summary, icon = iconOf(icon, leading)) { shapes ->
-        SegmentedListItem(checked = checked, onCheckedChange = onChange, shapes = shapes.copy(selectedShape = shapes.shape),
-            colors = rowColors(), enabled = enabled, leadingContent = lead(icon, leading),
-            supportingContent = summary?.let { { Summary(it) } },
-            trailingContent = { Switch(checked, onCheckedChange = null, enabled = enabled) }) { Title(title) }
+    val i = iconOf(icon, leading)
+    row(title, summary, icon = i) { SwitchPreference(switchModel(title, summary, i, checked, enabled, onChange)) }
+}
+
+/**
+ * SPA TwoTargetSwitchPreference (AOSP PrimarySwitchPreference): left of the chevron and line opens [to] (a page) or
+ * [onClick] (a dialog), the switch toggles. [rowEnabled] greys the left part; [switchEnabled] only the switch.
+ */
+fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
+                                   switchEnabled: Boolean = rowEnabled, to: String? = null, onClick: (() -> Unit)? = null,
+                                   onChange: (Boolean) -> Unit) = row(title, summary, to) {
+    val nav = LocalNav.current
+    TwoTargetSwitchPreference(switchModel(title, summary, null, checked, switchEnabled, onChange), primaryEnabled = { rowEnabled },
+        primaryOnClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
+}
+
+/** SPA CheckboxPreference: the whole row toggles a check box at its end (an option, not a feature switch). */
+fun SettingsGroupScope.checkbox(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
+                                @DrawableRes icon: Int? = null, onChange: (Boolean) -> Unit) {
+    val i = iconOf(icon, null)
+    row(title, summary, icon = i) {
+        CheckboxPreference(object : CheckboxPreferenceModel {
+            override val title = title
+            override val summary = { summary ?: "" }
+            override val icon = i
+            override val checked = { checked }
+            override val changeable = { enabled }
+            override val onCheckedChange = onChange
+        })
     }
 }
 
-/**
- * AOSP split row: the part left of the line opens [onClick] (a dialog or screen), the switch on the right toggles.
- * [rowEnabled] greys the whole row; [switchEnabled] only the switch.
- */
-fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
-                                   switchEnabled: Boolean = rowEnabled, onClick: () -> Unit, onChange: (Boolean) -> Unit) = row(title, summary) { shapes ->
-    SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), enabled = rowEnabled,
-        leadingContent = lead(null, null), supportingContent = summary?.let { { Summary(it) } },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                VerticalDivider(Modifier.height(32.dp))
-                Box(Modifier.padding(start = 4.dp).clip(CircleShape)
-                    .toggleable(checked, enabled = switchEnabled, role = Role.Switch, onValueChange = onChange)
-                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp)) {
-                    Switch(checked, onCheckedChange = null, enabled = switchEnabled)
-                }
-            }
-        }) { Title(title) }
+/** Free content (a slider, chips, a field) as one row of the group: the card colour and SPA's item padding. */
+fun SettingsGroupScope.card(title: String? = null, content: @Composable ColumnScope.() -> Unit) = row(title) {
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceBright).padding(SettingsDimension.itemPadding),
+        verticalArrangement = Arrangement.spacedBy(SettingsSpace.extraSmall2), content = content)
 }
 
 /**
- * A feature's own switch at the top of its page (AOSP MainSwitchPreference: a 72 dp pill in the primary container
- * colour): "Using the main setting to disable the feature disables all other related settings."
+ * A feature's own switch at the top of its page, SPA's MainSwitchPreference: "Using the main setting to disable the
+ * feature disables all other related settings."
  */
 @Composable
 fun SettingsMainSwitch(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     LocalSettingsIndex.current?.let { idx -> idx.rows[null to title] = IndexedRow(title, null, null, null); return }
-    val nav = LocalNav.current
-    if (nav?.highlight == title) Highlighted(androidx.compose.material3.ListItemShapes(RoundedCornerShape(36.dp), RoundedCornerShape(36.dp),
-        RoundedCornerShape(36.dp), RoundedCornerShape(36.dp), RoundedCornerShape(36.dp), RoundedCornerShape(36.dp)), onDone = { nav.highlight = null }) {
-        MainSwitchBar(title, checked, enabled, onChange)
-    } else MainSwitchBar(title, checked, enabled, onChange)
-}
-
-@Composable
-private fun MainSwitchBar(title: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    val bg = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
-    val fg = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
-        .clip(RoundedCornerShape(36.dp)).background(bg)
-        .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
-        .padding(start = 24.dp, end = 20.dp)
-        .graphicsLayer { alpha = if (enabled) 1f else 0.38f }) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = fg, modifier = Modifier.weight(1f))
-        Switch(checked, onCheckedChange = null, enabled = enabled)
+    Box(Modifier.fullBleed()) {
+        HighlightBox(title) { MainSwitchPreference(switchModel(title, null, null, checked, enabled, onChange)) }
     }
 }
 
-/** The colour of a category on the settings overview. */
-enum class Category(val light: Long, val dark: Long) {
-    RED(0xFFC5221F, 0xFFF28B82), ORANGE(0xFFB45F06, 0xFFFDBA74), GREEN(0xFF137333, 0xFF81C995), TEAL(0xFF00796B, 0xFF80CBC4),
-    BLUE(0xFF1A73E8, 0xFF8AB4F8), INDIGO(0xFF3F51B5, 0xFF9FA8DA), PURPLE(0xFF8430CE, 0xFFC58AF9), GREY(0xFF5F6368, 0xFFBDC1C6),
+/** The colour of a category on the settings overview: AOSP Settings' homepage icon colours. */
+enum class Category(val bg: Int, val fg: Int) {
+    RED(R.color.homepage_red_bg, R.color.homepage_red_fg), ORANGE(R.color.homepage_orange_bg, R.color.homepage_orange_fg),
+    GREEN(R.color.homepage_green_bg, R.color.homepage_green_fg), TEAL(R.color.homepage_cyan_bg, R.color.homepage_cyan_fg),
+    BLUE(R.color.homepage_blue_bg, R.color.homepage_blue_fg), INDIGO(R.color.homepage_blue_variant_bg, R.color.homepage_blue_variant_fg),
+    PURPLE(R.color.homepage_purple_bg, R.color.homepage_purple_fg), GREY(R.color.homepage_grey_bg, R.color.homepage_grey_fg),
+    PINK(R.color.homepage_pink_bg, R.color.homepage_pink_fg), YELLOW(R.color.homepage_yellow_bg, R.color.homepage_yellow_fg),
 }
 
-/** Settings-app style category icon: a white glyph on a coloured circle (AOSP ic_homepage_*). */
-@Composable
-fun CategoryIcon(@DrawableRes icon: Int, c: Category) {
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    Box(Modifier.size(40.dp).clip(CircleShape).background(Color(if (dark) c.dark else c.light)), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, tint = if (dark) Color(0xFF202124) else Color.White,
-            modifier = Modifier.size(24.dp))
+/**
+ * The device's adaptive icon mask (what SettingsLib's AdaptiveIconShapeDrawable fills): a circle, squircle… as the
+ * launcher shapes icons. [android.graphics.drawable.AdaptiveIconDrawable.getIconMask] is in a 100 × 100 box.
+ */
+private object AdaptiveIconShape : Shape {
+    private val mask by lazy {
+        android.graphics.drawable.AdaptiveIconDrawable(android.graphics.drawable.ColorDrawable(), android.graphics.drawable.ColorDrawable()).iconMask
+    }
+    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                               density: androidx.compose.ui.unit.Density): Outline {
+        val p = android.graphics.Path(mask)
+        p.transform(android.graphics.Matrix().apply { setScale(size.width / 100f, size.height / 100f) })
+        return Outline.Generic(p.asComposePath())
     }
 }
 
 /**
- * The top of a page (AOSP IllustrationPreference + TopIntroPreference): the page's symbol in a slowly turning
- * Material 3 Expressive shape, then one or two sentences on what the page is for.
+ * Settings-homepage category icon (AOSP Settings ic_homepage_*): the 24 dp glyph in the hue's tone 30 on the 40 dp
+ * icon-mask shape in tone 90 (80 in dark theme), from the Material reference palettes.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SettingsIntro(@DrawableRes icon: Int, text: String) {
-    if (indexing) return
-    val turn by rememberInfiniteTransition(label = "intro").animateFloat(0f, 360f,
-        infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Restart), label = "turn")
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
-            val shape = MaterialShapes.Cookie9Sided.toShape()
-            Box(Modifier.size(112.dp).graphicsLayer { rotationZ = turn }.clip(shape).background(MaterialTheme.colorScheme.primaryContainer))
-            Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(48.dp))
-        }
-        Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 8.dp))
+fun CategoryIcon(@DrawableRes icon: Int, c: Category) {
+    Box(Modifier.size(SettingsSize.medium3).clip(AdaptiveIconShape).background(colorResource(c.bg)), contentAlignment = Alignment.Center) {
+        Icon(painterResource(icon), contentDescription = null, tint = colorResource(c.fg), modifier = Modifier.size(SettingsDimension.itemIconSize))
     }
 }
 
-/** Explanations at the end of a page (AOSP FooterPreference: an info icon, then the text). */
+/**
+ * The top of a page, AOSP TopIntroPreference: one or two sentences on what the page is for, in body large, on the
+ * page background (SPA's SettingsIntro text; TopIntro's 16 dp padding inside the list, top 8, bottom 16).
+ */
+@Composable
+fun SettingsIntro(text: String) {
+    if (indexing) return
+    Box(Modifier.padding(start = SettingsSpace.extraSmall4, end = SettingsSpace.extraSmall4, top = SettingsSpace.extraSmall4,
+        bottom = SettingsSpace.small1)) {
+        com.android.settingslib.spa.widget.ui.SettingsIntro(text)
+    }
+}
+
+/** Explanations at the end of a page: SPA's Footer (an info icon, then the text). */
 @Composable
 fun SettingsFooter(text: String) {
     if (indexing) return
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(painterResource(R.drawable.ic_sym_info), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+    Box(Modifier.fullBleed()) { Footer(text) }
 }
 
 /**
- * Something the user should set up, dismissible (AOSP BannerMessagePreference): an icon, a title, one sentence, then
- * "Not now" and the action. Shown at the top of the home screen and of the settings overview.
+ * Something the user should set up, dismissible: SPA's SettingsBanner (expressive card, icon in the accent colour,
+ * title, one sentence, then the actions). Shown at the top of the home screen and of the settings overview.
  */
 @Composable
-fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, action: String?, onAction: () -> Unit, onDismiss: (() -> Unit)? = null) {
+fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: String?, onAction: () -> Unit, onDismiss: (() -> Unit)? = null) {
     if (indexing) return
-    androidx.compose.material3.Card(colors = androidx.compose.material3.CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
-        shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 20.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                icon()
-                Text(title, style = MaterialTheme.typography.titleMedium)
-            }
-            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                onDismiss?.let { androidx.compose.material3.TextButton(onClick = it) { Text("Not now") } }
-                action?.let { androidx.compose.material3.TextButton(onClick = onAction) { Text(it) } }
-            }
-        }
+    Box(Modifier.fullBleed()) {
+        com.android.settingslib.spa.widget.banner.SettingsBanner(BannerModel(title = title, text = text,
+            imageVector = ImageVector.vectorResource(icon), onDismiss = onDismiss,
+            buttons = listOfNotNull(action?.let { BannerButton(it, onClick = onAction) })))
     }
 }
 
@@ -402,44 +394,15 @@ fun SettingsBanner(icon: @Composable () -> Unit, title: String, text: String, ac
  * of the 24 dp icons beside it.
  */
 @Composable
-fun AppIcon(@DrawableRes res: Int, size: androidx.compose.ui.unit.Dp = 24.dp) =
-    androidx.compose.foundation.Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size).clip(CircleShape))
+fun AppIcon(@DrawableRes res: Int, size: Dp = 24.dp) =
+    androidx.compose.foundation.Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size).clip(androidx.compose.foundation.shape.CircleShape))
 
-
-/**
- * The row a search result points at, as AOSP's HighlightablePreferenceGroupAdapter does: after 600 ms it scrolls into
- * view, then its background pulses in the accent colour at 26 % (200 ms fades, reversed 4 times), stays 15 s and fades
- * out over 500 ms. Leaving the page earlier drops it ([Nav.open] / [Nav.back] clear the highlight).
- */
-@Composable
-private fun Highlighted(shapes: ListItemShapes, onDone: () -> Unit, content: @Composable () -> Unit) {
-    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
-    val glow = remember { androidx.compose.animation.core.Animatable(0f) }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(600)
-        bring.bringIntoView()
-        repeat(5) { glow.animateTo(if (it % 2 == 0) 1f else 0f, tween(200)) }
-        kotlinx.coroutines.delay(15_000)
-        glow.animateTo(0f, tween(500))
-        onDone()
+/** A search result: icon, title, summary and where it is ("Page > Group", in the accent colour). */
+fun SettingsGroupScope.result(title: String, summary: String?, where: String, icon: (@Composable () -> Unit)?, onClick: () -> Unit) = row {
+    val accent = MaterialTheme.colorScheme.primary
+    val text = buildAnnotatedString {
+        summary?.takeIf { it.isNotBlank() }?.let { append(it); append("\n") }
+        withStyle(SpanStyle(color = accent)) { append(where) }
     }
-    val c = MaterialTheme.colorScheme.primary
-    Box(Modifier.bringIntoViewRequester(bring).drawWithContent {
-        drawContent()
-        drawOutline(shapes.shape.createOutline(size, layoutDirection, this), c.copy(alpha = 0.26f * glow.value))
-    }) { content() }
-}
-
-/** A search result: icon, title, summary and where it is ("Page > Group"). */
-fun SettingsGroupScope.result(title: String, summary: String?, where: String, icon: (@Composable () -> Unit)?, onClick: () -> Unit) {
-    hasIcon = true
-    row { shapes ->
-        SegmentedListItem(onClick = onClick, shapes = shapes, colors = rowColors(), leadingContent = lead(null, icon),
-            supportingContent = {
-                Column {
-                    summary?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2) }
-                    Text(where, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                }
-            }) { Title(title) }
-    }
+    Preference(model(title, text, icon, true, onClick))
 }

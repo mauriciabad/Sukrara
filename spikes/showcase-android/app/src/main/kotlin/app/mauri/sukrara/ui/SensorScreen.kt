@@ -104,7 +104,7 @@ fun SensorScreen(onBack: () -> Unit) {
     }
 
     SettingsPage("Sensor", onBack) {
-
+        SettingsHeader { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val p = pairing
@@ -152,6 +152,7 @@ fun SensorScreen(onBack: () -> Unit) {
             }
             null -> Unit
         }
+        } }
 
         SettingsGroup {
             if (nfc != null) switch("Open Sukrara when you scan a sensor", launchOnScan, icon = app.mauri.sukrara.R.drawable.ic_sym_nfc,
