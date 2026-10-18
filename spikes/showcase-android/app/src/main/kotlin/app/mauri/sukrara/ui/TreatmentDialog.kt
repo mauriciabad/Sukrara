@@ -51,7 +51,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.widgets.RecentHistory
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
@@ -63,7 +66,7 @@ private const val MAX_UNITS = 100.0
 private const val MAX_GRAMS = 500.0
 private const val NOTE_BYTES = 100
 
-/** "4", "4.5" (insulin, 0.1 U steps) or whole grams; null = empty; NaN = not a valid amount. */
+/** "4", "4.5" (insulin, 0.1u steps) or whole grams; null = empty; NaN = not a valid amount. */
 private fun parse(s: String, grams: Boolean): Double? {
     val t = s.trim().replace(',', '.')
     if (t.isEmpty()) return null
@@ -80,8 +83,10 @@ private fun parse(s: String, grams: Boolean): Double? {
  * A form with several fields is a custom `Dialog` (developer.android.com/develop/ui/compose/components/dialog: "if you
  * want to create a more complex dialog, perhaps with forms and multiple buttons, you should use `Dialog` with custom
  * content"), laid out like an M3 basic dialog: 28 dp corners, surface-container-high, 24 dp padding, start-aligned
- * title, end-aligned actions with the confirming one last. The first field takes focus so the number pad is up at once;
- * the keyboard's Next walks rapid → long → carbs → note, and Done on the note saves.
+ * title, end-aligned actions with the confirming one last. The first field takes focus so the number pad is up at once
+ * (carbs instead while the glucose is low: [AlertStatus.level] on the low side, where eating is what's needed); the
+ * keyboard's Next walks rapid → long → carbs → note, and Done on the note saves. Units are lowercase with no space
+ * ("4.5u", "30g").
  *
  * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
  * [inWindow] draws the dialog surface in the caller's own window instead of a `Dialog` window: the quick activity
@@ -120,7 +125,12 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     if (quiet != null) shownQuiet = quiet
 
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { first.requestFocus() }
+    val carbsFocus = remember { FocusRequester() }
+    // low now (the latest reading, the alert rules' low thresholds): the carbs field takes the focus
+    val low = remember {
+        AlertStatus.level(RecentHistory.readings(ctx).lastOrNull(), Alerts.settings.value, nowS) in Kind.LOW_SIDE
+    }
+    LaunchedEffect(Unit) { (if (low) carbsFocus else first).requestFocus() }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
     val card: @Composable () -> Unit = {
@@ -135,9 +145,9 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField("Rapid", "U", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
-                    AmountField("Long", "U", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
-                    AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f)) { carbs = it }
+                    AmountField("Rapid", "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
+                    AmountField("Long", "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
+                    AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
@@ -153,7 +163,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Reveal(invalid) {
-                    Text("Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g",
+                    Text("Insulin: up to ${MAX_UNITS.toInt()}u · carbs: up to ${MAX_GRAMS.toInt()}g",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
