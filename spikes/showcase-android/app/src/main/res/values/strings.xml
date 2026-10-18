@@ -1605,6 +1605,46 @@
     <!-- Error when importing another kind of file [CHAR LIMIT=60] -->
     <string name="transfer_not_settings_file">Not a Sukrara settings file</string>
 
+    <!-- ========== Settings: export data ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="export_title">Export data</string>
+    <!-- Overview: Export data row summary; CSV, Tidepool are names [CHAR LIMIT=60] -->
+    <string name="settings_export_summary">CSV for Tidepool and spreadsheets</string>
+    <!-- Page intro (wearer); LibreView, Tidepool are product names [CHAR LIMIT=NONE] -->
+    <string name="export_intro">Your readings and treatments in one CSV file, laid out like LibreView\'s export: Tidepool imports it and spreadsheets open it.</string>
+    <!-- Page intro (follower) [CHAR LIMIT=NONE] -->
+    <string name="export_intro_follower">The readings and treatments already on this phone, in one CSV file laid out like LibreView\'s export: Tidepool imports it and spreadsheets open it.</string>
+    <!-- Row: which days go into the file [CHAR LIMIT=30] -->
+    <string name="export_period">Period</string>
+    <!-- Period option: since the current sensor started [CHAR LIMIT=30] -->
+    <string name="export_period_sensor">This sensor</string>
+    <!-- Period option; %1$d = number of days (7, 14 or 30) [CHAR LIMIT=30] -->
+    <string name="export_period_days">Last %1$d days</string>
+    <!-- Row: what the file will contain [CHAR LIMIT=30] -->
+    <string name="export_contents">In the file</string>
+    <!-- In the file summary while counting [CHAR LIMIT=30] -->
+    <string name="export_counting">Counting…</string>
+    <!-- In the file summary, first half [CHAR LIMIT=30] -->
+    <plurals name="export_readings">
+        <item quantity="one">%d reading</item>
+        <item quantity="other">%d readings</item>
+    </plurals>
+    <!-- In the file summary, second half [CHAR LIMIT=30] -->
+    <plurals name="export_treatments">
+        <item quantity="one">%d treatment</item>
+        <item quantity="other">%d treatments</item>
+    </plurals>
+    <!-- Button: save the CSV through the system file picker [CHAR LIMIT=20] -->
+    <string name="export_save">Save file</string>
+    <!-- Button: send the CSV through the share sheet [CHAR LIMIT=20] -->
+    <string name="export_share">Share</string>
+    <!-- Share sheet title [CHAR LIMIT=40] -->
+    <string name="export_share_chooser">Share glucose data</string>
+    <!-- Message after saving [CHAR LIMIT=40] -->
+    <string name="export_saved">File saved</string>
+    <!-- Footer [CHAR LIMIT=NONE] -->
+    <string name="export_footer">One reading every 5 minutes, in mg/dL. The file name only has the dates, and treatments say which device entered them (phone, Mac or follower), never a name.</string>
+
     <!-- ========== Settings: advanced ========== -->
     <!-- Page and overview row [CHAR LIMIT=30] -->
     <string name="advanced_title">Advanced</string>

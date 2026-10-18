@@ -992,6 +992,21 @@ GlucoDataHandler 2.5; details, screenshots and the full tables: [docs/22](22-eco
 
 ![Share with apps](img/22/sukrara-share-with-apps.png)
 
+## CSV export (docs/22 gap #4)
+
+Readings and treatments of a period as one CSV in LibreView's layout (Tidepool Uploader reads it), on both roles and
+the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/22](22-ecosystem-outputs.md#in-sukrara-csv-export).
+
+| Added | Where |
+|---|---|
+| CSV writer + shared cases (Android + Mac) | `export/GlucoseCsv.kt`, `GlucoseCsvTest`; `menubar/…/GlucoseCsv.swift`, `-exportselftest`; `spikes/export-fixtures` |
+| Settings → Export data (period, count, *Save file* / *Share* pills) | `ui/ExportScreen.kt`, `export/Export.kt`, FileProvider `${applicationId}.export` |
+| Mac Glucose Report › *Export CSV…* (report's period, save panel) | `ReportWindow.swift`, `GlucoseCsv.save` |
+
+| Discarded | Why |
+|---|---|
+| Fetching more history for a follower's export | only what the device already has |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

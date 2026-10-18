@@ -223,6 +223,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_lockscreen" />
         </receiver>
+        <!-- Settings → Export data: the CSV handed to the share sheet (export/Export.kt, cache/export/ only) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.export"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/export_paths" />
+        </provider>
         <!-- widgets/WidgetProbe.kt: measures the size the launcher really gives a graph widget -->
         <provider
             android:name=".widgets.ProbeProvider"

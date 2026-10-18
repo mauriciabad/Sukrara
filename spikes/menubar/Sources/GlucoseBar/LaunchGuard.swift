@@ -17,7 +17,7 @@ import Foundation
 enum LaunchGuard {
     /// Flags that take no value: the self-tests main.swift dispatches.
     static let bareFlags: Set<String> = ["-v2selftest", "-v2relaytest", "-bleselftest", "-qrselftest", "-treatmentsselftest",
-                                         "-alerts-selftest", "-graphselftest", "-argsselftest"]
+                                         "-alerts-selftest", "-graphselftest", "-exportselftest", "-argsselftest"]
 
     /// Why these arguments (without the executable) must not start anything, or nil when they're fine.
     static func problem(_ args: [String]) -> String? {

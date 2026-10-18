@@ -145,6 +145,8 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_summary,
                 if (u.backupSavedAt > 0) stringResource(R.string.backup_saved_at, date(u.backupSavedAt)) else stringResource(R.string.backup_not_backed_up)),
                 leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }, to = "backup")
+            link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
+                leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
         SettingsGroup {
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_wearer), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
@@ -711,6 +713,10 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
         SettingsGroup {
             link(stringResource(R.string.graph_title), gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
             link(stringResource(R.string.apps_title), appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
+        }
+        SettingsGroup {
+            link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
+                leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
         SettingsGroup {
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_follower), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")

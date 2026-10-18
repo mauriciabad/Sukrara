@@ -117,6 +117,11 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
   like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
+- Export your readings and treatments as a CSV file (Settings → Export data): this sensor or the last 7, 14 or 30
+  days, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
+  Tidepool's uploader imports it and any spreadsheet opens it, plus the time with its UTC offset, the trend and who
+  entered each treatment (phone, Mac or follower, never a name). Followers export what is already on their phone.
+  [22](docs/22-ecosystem-outputs.md#in-sukrara-csv-export)
 - Upload glucose and treatments to LibreView (Settings → Share with apps → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: very low, low, high, very high, extremely high, falling/rising fast and no data, each with its own threshold,
@@ -133,7 +138,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
   *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then a log field — type
   `4.5u`, `30g`, `12 long` or a note and press Return (Undo right after). **Glucose Report…** opens a window with the
-  1/7/14/30-day report and the last 7 days of treatments (delete there); right-click for Settings and Quit.
+  1/7/14/30-day report (with *Export CSV…* for its period, the same file as the phone's) and the last 7 days of
+  treatments (delete there); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
   six ranges and Open at Login; it reopens on the last pane.

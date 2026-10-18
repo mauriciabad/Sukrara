@@ -184,6 +184,9 @@ class FollowerEngine(private val ctx: Context) {
     /** The received treatments (last 30 d, tombstones included), for the follower's Nightscout API. */
     fun treatments(): List<Treatment> = db.treatments(Proto.nowS() - 30 * Proto.DAY).map { it.tr }
 
+    /** The received treatments with `t` ≥ [fromS], tombstones included (Settings → Export data). */
+    fun treatmentsSince(fromS: Long): List<Treatment> = db.treatments(fromS).map { it.tr }
+
     fun hasJoined() = st != null
 
     /** The newest roster lists this phone as a writer (it may add treatments). */

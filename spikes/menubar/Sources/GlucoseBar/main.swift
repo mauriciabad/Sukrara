@@ -28,6 +28,7 @@ import AppKit
 //   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; Settings › Graph, the report's period in its window)
 //   readingsDir (tests): keep readings.csv somewhere else
 //   -graphselftest  the shared graph math against the Android unit-test cases
+//   -exportselftest  the CSV export against spikes/export-fixtures (Android's GlucoseCsvTest runs the same files)
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in Settings › Alerts)
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
 //                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot <dir>: render
@@ -69,6 +70,7 @@ if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && QuickLog.selfTest() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
+if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
 // delete {id} | dump), like the phone's DebugReceiver.
@@ -571,6 +573,7 @@ let reportWindow = MainActor.assumeIsolated {
     r.model.canLog = { TreatmentPaths.current(node: following.node).canLog }
     r.model.mayChange = { TreatmentPaths.mayChange($0, store: treatmentStore, node: following.node) }
     r.model.onDelete = { status.onDeleteTreatment?($0) }
+    r.model.onExport = { days in GlucoseCsv.save(days: days, readings: readingsStore.readings, treatments: treatmentStore.rows) }
     treatmentStore.onChange.append { if r.isVisible { r.refresh() } }
     return r
 }

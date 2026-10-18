@@ -57,11 +57,12 @@ jobs:
       - name: swift build
         working-directory: spikes/menubar
         run: swift build
-      - name: Self-tests (alert scenarios, graph math + fixtures, treatments merge, Bluetooth limits + INFO vectors)
+      - name: Self-tests (alert scenarios, graph math + fixtures, CSV export, treatments merge, Bluetooth limits + INFO vectors)
         working-directory: spikes/menubar
         run: |
           .build/debug/GlucoseBar -alerts-selftest
           .build/debug/GlucoseBar -graphselftest
+          .build/debug/GlucoseBar -exportselftest
           .build/debug/GlucoseBar -treatmentsselftest
           .build/debug/GlucoseBar -bleselftest
           .build/debug/GlucoseBar -argsselftest
