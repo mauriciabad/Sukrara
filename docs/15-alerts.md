@@ -25,7 +25,7 @@ variants, plus each alert's vibration pattern drawn to scale).
 
 | What | How it was checked | Result |
 |---|---|---|
-| Rules (thresholds, severity, re-alerts, no flapping, both mutes, rate alerts, no data, stale readings, master switch, settings JSON) | Android unit tests [`AlertEngineTest`](../spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt); Mac `swift run GlucoseBar -alerts-selftest` | **15/15** and **55/55** pass |
+| Rules (thresholds, severity, episodes, treatment mutes and repeats, headlines, rate alerts, no data, stale readings, master switch, settings JSON) | the 31 shared timelines in [`spikes/alerts/scenarios`](../spikes/alerts/scenarios/) on both engines; Android [`AlertEngineTest`](../spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt) + `AlertStatusTest` + `AlertScenarioTest`; Mac `swift run GlucoseBar -alerts-selftest` | Android **61/61** (26 + 4 + 31), Mac **49/49** (31 scenarios + 18 checks), 2026-10-18 |
 | Sound packs through the native channel | emulator: SystemUI's `RingtonePlayer` plays `content://app.mauri.sukrara.poc.alertsound/<kind>`; our provider logs every open | `sound high → arcade_high_2 for com.android.systemui`, `sound very_high → arcade_very_high_1`, `sound no_data → arcade_no_data_1`, `sound urgent_low → arcade_urgent_low_3` |
 | Channel keeps our sound and vibration | `dumpsys notification` | `mSound=content://…alertsound/urgent_low`, `mVibrationEffect=Composed{…QUICK_FALL…}` (not reset to the default sound) |
 | Insulin mute, live | emulator wearer: reading 214 → high fires; `cmd treat k=rapid`; next reading | `High · 214 mg/dL` → `High cleared`, state `muted: "insulin 0 min ago"` |
