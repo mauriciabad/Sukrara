@@ -121,7 +121,7 @@ struct AlertsView: View {
 
     private var sourceNote: String {
         if model.s.source == "own" { return "Alerts come from the rules below, run on this Mac with the readings it receives." }
-        if !model.following { return "Not following over Sukrara sharing — using this Mac's settings." }
+        if !model.following { return "Not following anyone, so this Mac's settings are used." }
         return "Alerts when the wearer's phone does, with this Mac's sounds. " + lockedNote
     }
 

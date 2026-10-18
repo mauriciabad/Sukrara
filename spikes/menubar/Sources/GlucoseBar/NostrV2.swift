@@ -126,7 +126,7 @@ enum V2 {
             return .success(Invite(i: sender, t: l.token, x: x, r: r, profile: body["profile"] as? [String: Any]))
         }
         let why = Array(Set(reasons)).sorted().joined(separator: "; ")
-        return .failure(.init(text: "Can't open this invite: \(why.isEmpty ? "nothing found on the relays (expired?)" : why)."))
+        return .failure(.init(text: "Can't open this invite: \(why.isEmpty ? "it wasn't found online (it may have expired)" : why)."))
     }
 
     /// Gift wrap a JSON body as rumor `kind`, sealed by `sender`, to `recipientHex`.
@@ -716,7 +716,7 @@ struct FollowerV2State: Codable {
     }
 
     static func label(_ via: String) -> String {
-        if via.hasPrefix("relay:") { return "Nostr · " + via.dropFirst(6) }
+        if via.hasPrefix("relay:") { return "Internet" }
         if via.hasPrefix("ble:") { return "Bluetooth · " + via.dropFirst(4) }
         return via
     }

@@ -139,18 +139,18 @@ import NostrSDK
             codeLabel.stringValue = code
             codeLabel.textColor = .labelColor
             detail.stringValue = "This Mac was offered over Bluetooth, so \(who) types this code on their phone to allow it. "
-                + "You can close this window; the menu shows the status."
+                + "You can close this window; Settings › Following shows the status."
         case .waiting(nil):
             title.stringValue = "Request sent"
             codeLabel.stringValue = "…"
             codeLabel.textColor = .secondaryLabelColor
             detail.stringValue = "\(who) sees a request from \"\(name)\" and taps Allow. You can close this window; "
                 + "the menubar shows the readings as soon as it happens."
-        case .active(let epoch):
+        case .active:
             title.stringValue = "Approved ✓"
             codeLabel.stringValue = "✓"
             codeLabel.textColor = .systemGreen
-            detail.stringValue = "Receiving glucose (key epoch \(epoch)). The menubar shows the latest reading."
+            detail.stringValue = "Receiving glucose. The menu bar shows the latest reading."
         case .revoked:
             title.stringValue = "Access removed"
             codeLabel.stringValue = "—"

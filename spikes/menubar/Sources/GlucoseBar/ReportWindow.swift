@@ -89,7 +89,9 @@ import SwiftUI
     var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
     var bandsOf: () -> Bands = { Bands() }
     var treatments: () -> [Treatment] = { [] }
-    var status: (Treatment) -> String = { _ in "" }
+    var delivery: (Treatment) -> (Delivery, Date)? = { _ in nil }
+    /// The wearer's name for the delivery wording ("On Ana's phone since 14:07").
+    var who: () -> String = { "the wearer" }
     var details: (Treatment) -> [String] = { _ in [] }
     var canLog: () -> Bool = { false }
     var onDelete: ((String) -> Void)?
@@ -166,7 +168,7 @@ struct HistoryView: View {
                 ForEach(days, id: \.0) { day, rows in
                     Section(day) {
                         ForEach(rows, id: \.id) { t in
-                            TreatmentRow(t: t, state: model.status(t))
+                            TreatmentRow(t: t, delivery: model.delivery(t), who: model.who())
                                 .tag(t.id)
                                 .help(model.details(t).joined(separator: "\n"))
                                 .contextMenu {
@@ -196,7 +198,8 @@ struct HistoryView: View {
 
 private struct TreatmentRow: View {
     let t: Treatment
-    let state: String
+    let delivery: (Delivery, Date)?
+    let who: String
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -209,10 +212,24 @@ private struct TreatmentRow: View {
                 if !t.n.isEmpty, t.k != "note" { Text(t.n).font(.callout).foregroundStyle(.secondary) }
             }
             Spacer()
-            if !state.isEmpty { Text(state).font(.callout).foregroundStyle(.secondary) }
-            Text(Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened))
+            // Delivery like Messages' "Delivered": a symbol, its sentence as tooltip and for VoiceOver.
+            if let (d, at) = delivery {
+                let text = d.text(who: who, at: at)
+                Image(systemName: d.symbol)
+                    .foregroundStyle(d == .delivered ? AnyShapeStyle(.green) : d == .late ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .help(text)
+                    .accessibilityLabel(text)
+            }
+            // Time of day, then the time since it like Android's lists (`12m`, `3h`), refreshed while shown.
+            TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                HStack(spacing: 6) {
+                    Text(Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened))
+                        .foregroundStyle(.secondary)
+                    Text(TreatmentMarks.duration(ctx.date.timeIntervalSince1970 - TimeInterval(t.t)))
+                        .frame(minWidth: 34, alignment: .trailing)
+                }
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 2)
     }
