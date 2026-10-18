@@ -62,7 +62,13 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   user's status-bar settings (chip, icon, hook, placement, colour, hide icon) as found. SystemUI work:
   `spikes/statusbar-android/HANDOFF.md` (safety procedure).
 - **One build line on the phone**: several sessions/agents build Sukrara; every phone install must contain all
-  merged work (merge the integration branch first), or features silently disappear from the user's phone.
+  merged work (merge the integration branch first), or features silently disappear from the user's phone. Install
+  with **`tools/install.sh phone`** (and `tools/install.sh mac`; `--dry-run` first): it refuses a dirty tree, a HEAD
+  without origin/main, the branches in `tools/check/integration.txt` or the commit installed last time, and failing
+  `tools/check/run.sh`; it builds the release, updates in place (`install -r`), reads `versionName` back and records
+  the commit in `<git common dir>/sukrara-installed-phone|mac`. Keep `integration.txt` on the round's branch.
+- **Guards**: `tools/check/run.sh` (rules from CLAUDE.md as checks), hooks via `tools/hooks/install.sh`, CI
+  `.github/workflows/checks.yml`, manual surface checks in `docs/QA.md`.
 - **Android**: Kotlin only — never Java source; newest APIs; GPL header on every file; sign debug + release with
   `~/.android/debug.keystore`. JDK 17: `export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`.
   Watch R8 (widget classes merged once; keep rules in `proguard-rules.pro`) — test release builds after a restart.
