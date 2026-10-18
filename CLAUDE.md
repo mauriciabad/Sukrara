@@ -14,3 +14,6 @@ Rules every session follows in this repo. The detailed know-how (phone, Mac, sig
 - **No backwards compatibility.** PoCs are throwaway: replace formats outright and delete superseded code paths.
 - **Android: Kotlin only** (JNI/C is fine). Use the newest API generation. Put a GPL header on every file.
 - **Releases:** a bug fix gets a GitHub release only after the user has confirmed the fix on their device.
+- **Alert rules are guarded by timeline scenarios** (sequences of events → expected alerts, Android and Mac). Every
+  alert-rule change adds or updates a scenario; never change a scenario's expectations without the user's OK.
+- **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
