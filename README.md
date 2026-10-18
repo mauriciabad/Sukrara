@@ -76,9 +76,13 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
   [16](docs/16-graph.md)
-- Log rapid and long-acting insulin, carbs and a note in one dialog. Tapping a widget or the glucose notification
+- Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low). Tapping a widget or the glucose notification
   opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
-  *Add treatment*. [10](docs/10-showcase.md)
+  *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
+  it keeps alerts quiet. [10](docs/10-showcase.md)
+- Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
+  are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
+  since and a ring for the quiet time left; without a recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. For busy wallpapers: shadow, dim, card or blur behind it, and in-range values in
   white (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)

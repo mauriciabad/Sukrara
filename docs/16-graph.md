@@ -192,7 +192,8 @@ worked and were removed in 0.11.8, see below.*
 | `graph/GlucoseStats.kt` | bands, time weights, time in range, the six distribution algorithms |
 | `graph/Freshness.kt` | the five freshness steps, the reading's time text |
 | `graph/GlucoseGraph.kt` | the chart: bands, level lines, line, distribution (cut out of the lines), labels, treatments |
-| `graph/GlucoseCard.kt` | ring + whole card layout (value, arrow, rings, chart) |
+| `graph/GlucoseCard.kt` | ring + whole card layout (value, arrow, badge, slots, chart) |
+| `graph/CardStatus.kt`, `treatments/LastTreatment.kt` | status badge, last-treatment slot, slot priority ([2026-10-18](#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18)) |
 | `graph/GraphSettings.kt`, `graph/GraphData.kt` | settings (app-wide + per widget), multi-day time in range from the role's store |
 | `ui/GraphScreen.kt`, `ui/Widgets.kt` (`GlucosePanel`), `widgets/Widgets.kt`, `widgets/WidgetConfigActivity.kt`, `status/GlucoseNotification.kt` | the surfaces |
 | `app/src/test/…/graph/GraphGallery.kt` | the picture sheets (`GALLERY_JAVA_HOME=<JDK 21+> ./gradlew testDebugUnitTest --tests '*GraphGallery*' -Dgallery.out=…`) |
@@ -258,6 +259,68 @@ distribution is close to 0 in a point, the line doesn't get cut, but if it's hig
 | The y axis always reaches very low / very high (the 250 line used to show only above ~220) | — |
 | Distribution cut out of the lines below it (on any background) | the line fading towards the distribution (the user: looked bad where it overlapped) |
 | The 54 / 250 lines run under the distribution too (cut like the rest) on Android | starting them after the distribution |
+
+## Treatments on the card: times, mute lines, badge, last treatment (2026-10-18)
+
+The user's feedback round: treatment units as `5g` / `8u`, how long ago each treatment was, how long its alert mute
+still runs, what to do when out of range, and the last treatment beside the number. All of it follows the alert
+rules through one shared, pure function (`alerts/AlertStatus.kt`: `of()` → None / Needed / Taken, `muteUntil()`), so
+the chart, the badge, the slot and the alerts can't disagree.
+
+![marks](img/16/marks-dark.png)
+
+*Marks: amount + time since (`4.5u 1h 35m`, once per meal), and a line from each rapid / carbs mark to the end of its
+mute (60 / 15 min by default): a tick when over, a chevron at the edge while it lasts. At 12 h a 60-minute line is
+short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
+
+| | |
+|---|---|
+| ![badge](img/16/badge-dark.png) | ![badge small](img/16/badge-small-light.png) |
+| Badge on a 4×2 widget: none in range; *Eat carbs* / *Take insulin* (filled); muted after a logged treatment (tonal, paused bell, time left); extremely high is never muted | 2×1 value widget, light |
+
+![last treatment](img/16/last-treatment-dark.png)
+
+*The last-treatment slot: rapid 12 min ago (ring 80 % of the 60-min mute left), carbs 10 min ago, rapid 2 h ago
+(grey: mute over), 5 h ago (hidden → the 30-day ring), long-acting only (never shown).*
+
+![places](img/16/last-treatment-places-dark.png)
+
+- **Badge**, not a Material badge (those are counts on icons) and not an assist chip (it isn't an action): a status
+  pill with the chip shape. Needed is filled (highest emphasis: act now); Taken is tonal, the Material 3 way to lower
+  emphasis with colour instead of size ([Material 3 in Compose](https://developer.android.com/develop/ui/compose/designsystems/material3):
+  "Emphasis in M3 is provided using variations of color and its on-color combinations"). The bell is Material Symbols
+  *notifications_paused*. Colours are the treatment kinds' (carbs amber, insulin blue), so the badge, the mark and the
+  slot of the same treatment match.
+- **Slot ring** = a determinate circular progress indicator ("displays exactly how much progress has been made",
+  [progress indicators](https://developer.android.com/develop/ui/compose/components/progress)) counting down the mute.
+- **How long the slot keeps a treatment:** rapid insulin 4 h (rapid analogues act for ~3–5 h: the slot answers "is
+  insulin still working?" and guards against stacking a correction); carbs 3 h (a meal is mostly absorbed in 2–3 h).
+- **Long-acting insulin is left out.** It mutes nothing, and at one dose a day it would hold the slot all day,
+  hiding every bolus and snack. A "basal taken today" check (a 24 h ring) is a different question; if wanted, it
+  belongs in its own small indicator (e.g. a dot on the slot or a line in the notification), not in this slot.
+- **A setting with a place, not a slot kind.** The user's rings stay as they are; the treatment is one more slot that
+  comes and goes. Priority when room is short: main ring → recent treatment → second ring → fallback → third ring, so
+  on a 2×1 / 3×1 widget a fresh treatment pushes the second ring out and the fallback only fills spare room.
+
+### Other places considered for the last-treatment info
+
+| Place | Verdict |
+|---|---|
+| Its own slot (built) | the right default: same size and language as the rings, its own ring counts down |
+| Replacing the main slot | hides the user's main ring exactly when glucose is moving; rejected |
+| Under the value | taken by the badge, which already says "muted, 45m left" while a mute runs; the amount + time since would make it two lines |
+| Notification | recommended next (owned by the notification work): the Taken badge's words ("Alerts paused · 45m left") fit the collapsed text; the expanded chart already has the marks and lines |
+| Lock screen widget | gets the badge already (it draws the value through `GlucoseCard`); its slots are drawn by its own loop, so the slot needs `Slots.arrange` there (one call) |
+| Mac menubar / widgets | not ported yet (the Swift renderer would need `AlertStatus`, the slot and the badge) |
+
+| Added | Discarded (why) |
+|---|---|
+| Lowercase units without a space everywhere (`4.5u`, `30g`) | `4.5 U`, `30 g`, `4.5U` (the user) |
+| Time since each treatment on the marks, the home list and the follower list | — (the "no x min ago" rule stays for glucose only) |
+| Mute lines from rapid / carbs marks | lines for long-acting and notes (they mute nothing) |
+| Status badge under the value (None / Needed / Taken) | a badge for no data (out of scope this round); a clickable chip (it's a status) |
+| Last-treatment slot with a fallback (default 30-day ring), placement setting | a new `SlotKind` (it would replace one of the user's rings); long-acting in the slot |
+| Carbs focused in the treatment dialog when low | — |
 
 ## Open
 

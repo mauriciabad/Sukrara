@@ -714,6 +714,19 @@ Settings rebuilt after the system Settings app and its guidelines
 Discarded: shared-axis transitions (not what Settings shows), a separate search route (the M3 contained search bar
 does it), a fixed list of searchable pages, the `material-icons` library.
 
+## Treatments on the card (2026-10-18 feedback round)
+
+Details and pictures: [16 → Treatments on the card](16-graph.md#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18).
+
+| Added | Where | Discarded (why) |
+|---|---|---|
+| Units `4.5u` / `30g` everywhere | `TreatmentMarks.amount`, lists, dialog, Nightscout note | `4.5 U`, `30 g` (the user) |
+| Time since on chart marks and in the treatment lists | `TreatmentMarks.duration`, `TreatmentsSection`, `FollowerEntries` | — |
+| Mute lines on the chart | `TreatmentMarks.draw(muteUntil)` | lines for long-acting / notes (they mute nothing) |
+| Status badge under the value | `graph/CardStatus.kt` (`StatusBadge`), `ui/Widgets.kt` (`StatusBadgeChip`) | a no-data badge (out of scope) |
+| Last-treatment slot, Settings → Graph → *Beside the number* → *Last treatment* / *Without a recent one* | `LastTreatment`, `Slots`, `LastSlot`, `GraphConfig.lastPlace/lastElse` | a new slot kind; long-acting in the slot |
+| Carbs focused in the dialog when low | `TreatmentDialog` | — |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
