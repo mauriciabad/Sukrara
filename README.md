@@ -63,7 +63,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
   variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days. Any of them can sit beside the number
   in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the
-  sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
+  sensor with NFC to start a new one (tied to your LibreView account, so LibreLink or Juggluco can take it over
+  later) or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
   Juggluco's web server, if Juggluco keeps the sensor (the way to use a Libre 2 / 2 Plus: Sukrara itself refuses those). Scanning a sensor opens Sukrara
   (switch on the Sensor screen). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
   and stops trying to connect until you scan the new one. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
