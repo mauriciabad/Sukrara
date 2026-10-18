@@ -25,7 +25,7 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 
 | Event | kind | signed by | tags | content (decrypted) |
 |---|---|---|---|---|
-| **live** | 21078 | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"t":unix_s,"sgv":mgdl,"r":rate|null,"dev":src}` → `G_n` |
+| **live** | 21078 | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"t":unix_s,"sgv":mgdl,"r":rate|null,"dev":src,"ss"?,"se"?,"sw"?}` → `G_n`; or reading-less `{"v":2,"ss","se","sw"}` ([sensor life](#sensor-life)) |
 | **hour chunk** | 30078 | `D` | `["d", H("cgm2:h:"+sid+":"+hourStart)]`, `["c", H("cgm2:glucose:"+sid)]`, `["gk", gk_n]`, exp hour+7 d | `{"v":2,"h":hourStart,"dev":src,"r":[[dt,sgv,rate100],…]}` → `G_n` |
 | **roster** | 30078 | `I` | `["d", H("cgm2:roster:"+sid)]`, `["gk", gk_n]`, exp now+30 d (refreshed weekly) | `{"v":2,"epoch":n,"devices":[hex D…],"writers":[hex W…],"relays":[…],"profile":{…}}` → `G_n` (`profile`: the wearer's, see [Profiles](#profiles)) |
 | **owner backup** | 30078 | `I` | `["d", H("cgm2:backup:"+I.pub_hex)]`, exp now+90 d (refreshed weekly) | `{"v":2,"sid","epochs":[{"n","g":nsec}],"followers":[{"f":hex,"name","avatar","since","revoked"?}],"invites":[{"t","x"}],"relays":[…],"profile":{…}}` → **`I` itself** |
@@ -127,6 +127,23 @@ settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../
   `alert`, next to `live`).
 - Followers subscribe with `kinds: [21078, 21079]` in the live REQ, apply the live acceptance rules, dedupe by event
   id, drop `type ≠ "alert"` and anything with `at` older than 10 min.
+
+## Sensor life — v2 addition, 2026-10-18 (round sensor-life)
+
+The live event carries the owner's current sensor (unix s): `ss` = its start, `se` = its end (start + wear length;
+the Libre 3 Plus says 15 days in its patch info; earlier when the sensor reported that it ended), `sw` = its warm-up's
+end (start + the patch info's warm-up, 60 min). All three are left out when the owner knows no sensor. Juggluco as the
+owner's source gives the start only (`sgv.json?sensor=Y`): end = start + 15 days, warm-up 60 min.
+
+- Every reading's live event carries them. A new sensor has no readings for its warm-up, so the owner also publishes
+  a **reading-less live event** `{"v":2,"ss","se","sw"}` (same kind, envelope and expiry) whenever its sensor info
+  changes (new sensor, ended early) and every chunk tick (5 min) while the sensor warms up.
+- Followers and the Mac take the sensor from the live event with the newest `created_at` (an older one from a backlog
+  doesn't overwrite it); a live event without `se` clears what they knew. A reading-less event adds no reading.
+- They draw the value card's sensor badge, warm-up and countdown ring from it (docs/FEATURES.md, "Sensor life") and
+  keep `no_data` quiet while the sensor has ended or warms up (spikes/alerts/SPEC.md §2).
+- No serial on the wire (the start identifies the sensor). Chunks don't carry it; the BLE companion path relays the
+  same live events.
 
 ## Invite link / QR
 

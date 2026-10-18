@@ -41,3 +41,24 @@ scenario No data after 20 min without a reading, every 60 min, cleared by the ne
 80                       => No glucose data
 90  sensor on            => clear no_data
 91
+
+scenario No data stays quiet once the sensor has ended; a running no-data alert clears (round sensor-life)
+ 0  glucose 120
+ 1  sensor off
+20                       => No glucose data
+30  sensor ended         => clear no_data
+200                                          # no repeats: nothing more is expected from this sensor
+
+scenario A new sensor's warm-up doesn't alert no data; a warm-up that brings nothing does, 15 min after its end
+ 0  glucose 120
+ 1  sensor ended
+ 5  sensor started                           # warm-up 60 min: ends at 65
+80                       => No glucose data
+81
+
+scenario The first reading after the warm-up: back to normal
+ 0  glucose 120
+ 1  sensor ended
+ 5  sensor started
+65  sensor on
+90

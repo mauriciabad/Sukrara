@@ -47,6 +47,11 @@ enum V2SelfTest {
         check("key delivery sealed by I accepted", node.phase == .active(epoch: 1))
         node.onEvent(live(D, 111), via: "test")
         check("live from roster device accepted", readings == [111])
+        var sensor: SensorInfo?
+        node.onSensor = { sensor = $0 }
+        node.onEvent(event(D, kind: V2.live, encTo: G, ["v": 2, "ss": now - 600, "se": now + 1_295_400, "sw": now + 3000], tags: [["gk", gk]]), via: "test")
+        check("reading-less live event: the sensor only, no reading (PROTOCOL-v2 Sensor life)",
+              readings == [111] && sensor == SensorInfo(start: TimeInterval(now - 600), end: TimeInterval(now + 1_295_400), warmupEnd: TimeInterval(now + 3000)))
         node.onEvent(live(X, 222), via: "test")
         check("live from non-roster key (knows G) rejected", readings == [111])
         var o = try! JSONSerialization.jsonObject(with: Data(live(D, 123).utf8)) as! [String: Any]

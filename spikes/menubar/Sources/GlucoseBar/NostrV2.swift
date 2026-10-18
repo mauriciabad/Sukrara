@@ -404,6 +404,9 @@ struct FollowerV2State: Codable {
     var storedSince: ((TimeInterval) -> [TimeInterval])?
     /// The wearer's `alert` event (alerts SPEC §4) that passed the live checks and is ≤ 10 min old: decrypted body.
     var onAlert: (([String: Any], _ via: String) -> Void)?
+    /// The wearer's sensor from the newest live event (PROTOCOL-v2 "Sensor life"); nil = the wearer knows none.
+    var onSensor: ((SensorInfo?) -> Void)?
+    private var sensorCreatedAt: Int64 = 0
 
     private(set) var st: FollowerV2State
     private let F: Keys
@@ -679,7 +682,16 @@ struct FollowerV2State: Codable {
         func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
         switch kind {
         case V2.live:
-            guard let t = num(body["t"]), let sgv = num(body["sgv"]) else { return }
+            // the sensor (ss/se/sw) from the live event signed last; a reading-less one carries only that
+            let created = Int64(ev.createdAt().asSecs())
+            if created >= sensorCreatedAt {
+                sensorCreatedAt = created
+                onSensor?(num(body["se"]).map { se in
+                    let ss = num(body["ss"]) ?? 0
+                    return SensorInfo(start: ss, end: se, warmupEnd: num(body["sw"]) ?? ss + 3600)
+                })
+            }
+            guard let t = num(body["t"]), let sgv = num(body["sgv"]) else { return log("v2 live: sensor only, epoch \(epoch) via \(via)") }
             onReading?(Reading(date: Date(timeIntervalSince1970: t), mgdl: sgv, rate: num(body["r"])), label)
             log("v2 live \(Int(sgv)) mg/dL epoch \(epoch) via \(via)")
         case V2.alert:

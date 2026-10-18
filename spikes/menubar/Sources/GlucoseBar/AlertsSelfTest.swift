@@ -271,9 +271,11 @@ enum AlertScenarios {
         var clock = Date(timeIntervalSince1970: TimeInterval(t0))
         var trs: [(k: String, t: Date, del: Bool)] = []
         var got: [Int: [String]] = [:]
+        var sensorInfo: SensorInfo?
         func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
         func engine() -> AlertEngine {
             let e = AlertEngine(settings: s, now: { clock })
+            e.sensor = { sensorInfo }
             e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
             e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
             e.onFire = { record($0.k.message(treated: $0.tr)) }
@@ -299,8 +301,15 @@ enum AlertScenarios {
                     if nextReading == nil { nextReading = t }
                 case "readings": every = Int(w[2])!
                 case "sensor":
-                    sensor = w[1] == "on"
-                    if sensor { nextReading = t }
+                    let at = TimeInterval(t)
+                    switch w[1] {
+                    // round sensor-life: the sensor ends now (no more readings) / a new one starts now (60 min warm-up)
+                    case "ended": sensor = false; sensorInfo = SensorInfo(start: at - 15 * 86400, end: at, warmupEnd: at - 15 * 86400 + 3600); e.tick()
+                    case "started": sensor = false; sensorInfo = SensorInfo(start: at, end: at + 15 * 86400, warmupEnd: at + 3600); e.tick()
+                    default:
+                        sensor = w[1] == "on"
+                        if sensor { nextReading = t }
+                    }
                 case "carbs", "insulin":
                     trs.append((w[0] == "carbs" ? "carbs" : "rapid", clock, false))
                     e.tick()

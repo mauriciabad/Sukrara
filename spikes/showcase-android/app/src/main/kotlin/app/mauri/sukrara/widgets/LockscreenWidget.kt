@@ -170,8 +170,12 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     if (size >= 30 * d) {
         val fit = ((ringsBox.width() + gap) / (size + gap)).toInt().coerceIn(0, 4)
         var x = ringsBox.right
-        for (item in appSlots(ctx, frame.history, frame.treatments, frame.nowSec, fit)) {
+        val items = appSlots(ctx, frame.history, frame.treatments, frame.nowSec, fit)
+        val main = Slots.mainIndex(items)
+        val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(frame.nowSec)
+        for ((i, item) in items.withIndex()) {
             Slots.draw(cv, item, x - size / 2, ringsBox.centerY(), size / 2, frame.nowSec, pal, d)
+            if (i == main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(cv, x - size / 2, ringsBox.centerY(), size / 2, countdown, pal)
             x -= size + gap
         }
     }

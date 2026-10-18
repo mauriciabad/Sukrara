@@ -150,6 +150,12 @@ object Slots {
         }
     }
 
+    /**
+     * Which of [items] (as [arrange] returns them) is the main ring, the one the sensor countdown ring
+     * ([SensorBadge.drawCountdown]) covers: the first ring, else the only slot there is; -1 = none.
+     */
+    fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
+
     /** Draw [item] as a circle of [radius] around ([cx], [cy]). */
     fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float) =
         when (item) {

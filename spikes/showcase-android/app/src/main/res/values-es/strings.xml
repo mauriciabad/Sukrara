@@ -328,6 +328,16 @@
     <string name="card_no_readings_since">Sin lecturas desde %1$s</string>
     <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
     <string name="card_no_reading_since">Sin lecturas desde</string>
+    <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d" [CHAR LIMIT=40] -->
+    <string name="card_sensor_left">Sensor: quedan %1$s</string>
+    <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
+    <string name="card_sensor_ended">Sensor terminado</string>
+    <!-- Value card: second line under "Sensor ended" [CHAR LIMIT=28] -->
+    <string name="card_sensor_replace">Cambia el sensor</string>
+    <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
+    <string name="card_warming_up">Calentando</string>
+    <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
+    <string name="card_ready_at">listo a las %1$s</string>
     <!-- Trend in words (screen readers, notification): no trend known [CHAR LIMIT=20] -->
     <string name="trend_unknown">tendencia desconocida</string>
     <!-- Trend in words: flat [CHAR LIMIT=20] -->

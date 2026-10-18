@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.SensorLife
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -128,12 +129,14 @@ object Alerts {
 
     @Synchronized fun onReading(ctx: Context, r: Reading) {
         if (role == null) return
+        engine.sensor = SensorLife.current.value
         apply(ctx, engine.reading(r, effective(), doses(), Proto.nowS()))
     }
 
     /** Re-evaluate now: timer, settings change, a treatment logged. */
     @Synchronized fun check(ctx: Context) {
         if (role == null) return
+        engine.sensor = SensorLife.current.value
         apply(ctx, engine.evaluate(effective(), doses(), Proto.nowS()))
     }
 

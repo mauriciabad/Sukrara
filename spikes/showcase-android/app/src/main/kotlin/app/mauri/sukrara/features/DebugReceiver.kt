@@ -131,6 +131,10 @@ class DebugReceiver : BroadcastReceiver() {
                         .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
                 })))
         }
+        app.mauri.sukrara.core.SensorLife.current.value?.let { si ->
+            out.put("sensor", JSONObject().put("serial", si.serial).put("start", si.startEpoch).put("end", si.endEpoch)
+                .put("label", app.mauri.sukrara.core.SensorLife.label(si.endEpoch, app.mauri.sukrara.core.Proto.nowS())))
+        }
         out.put("widgets", app.mauri.sukrara.widgets.WidgetUpdater.placements(c))
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
@@ -163,6 +167,20 @@ class DebugReceiver : BroadcastReceiver() {
                 app.mauri.sukrara.widgets.LockscreenWidget.testPattern = i.getBooleanExtra("on", true)
                 app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
                 out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
+            }
+            // round sensor-life, debug builds only: a synthetic sensor `--el left <s>` before its end (`--el len <s>`,
+            // default 15 d), `--es serial`, or `--ez clear true`; `--ei countdown <h>` sets the countdown window
+            "sensor" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
+                val now = app.mauri.sukrara.core.Proto.nowS()
+                if (i.hasExtra("countdown")) app.mauri.sukrara.core.SensorLife.setCountdownHours(c, i.getIntExtra("countdown", 8))
+                if (i.getBooleanExtra("clear", false)) app.mauri.sukrara.core.SensorLife.update(c, null)
+                else if (i.hasExtra("left")) {
+                    val end = now + i.getLongExtra("left", 0)
+                    val len = i.getLongExtra("len", 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN)
+                    app.mauri.sukrara.core.SensorLife.update(c, app.mauri.sukrara.core.SensorInfo(i.getStringExtra("serial") ?: "DEBUG", end - len, end))
+                }
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "sensor", force = true)
+                out.put("cmd", "sensor ${app.mauri.sukrara.core.SensorLife.current.value} countdown ${app.mauri.sukrara.core.SensorLife.countdown.value} h")
             }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }

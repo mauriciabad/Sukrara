@@ -23,6 +23,7 @@ import WidgetKit
         var graph: GraphConfig?
         var slots: [SlotMetrics]?
         var alerts: AlertSettings?
+        var sensor: SensorInfo?
     }
     private struct SlotMetrics: Codable { var window: TimeInterval; var metrics: GlucoseMetrics }
 
@@ -71,7 +72,7 @@ import WidgetKit
         let cfg = GraphConfig.load(place: "widget")
         let slots = (cfg.slots + [cfg.lastElse].compactMap { $0 }).map { SlotMetrics(window: $0.window, metrics: readings.metrics(window: $0.window, bands: cfg.bands, now: newest)) }
         let wire = Wire(written: Date(), source: last.source, samples: samples, rate: last.rate, treatments: marks,
-                        unit: last.unit.rawValue, graph: cfg, slots: slots, alerts: alerts())
+                        unit: last.unit.rawValue, graph: cfg, slots: slots, alerts: alerts(), sensor: SensorStore.current)
         do {
             try Self.encoder.encode(wire).write(to: file, options: .atomic)
             WidgetCenter.shared.reloadAllTimelines()

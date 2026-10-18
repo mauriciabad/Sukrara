@@ -37,4 +37,19 @@ Positions are rounded to 0.5 dp; Android computes in `Float`, the Mac in `Double
 empty `expect`, run `GraphFixtureTest` (`--rerun`: Gradle doesn't see the fixture files as inputs), check the dump in
 the failure message against the rules, paste it, and run the Mac self-test.
 
+## Sensor life (`sensor/*.json`)
+
+The sensor badge and the countdown ring (docs/FEATURES.md, "Sensor life"). Run by `GraphFixtureTest.sensor` (Android)
+and `-graphselftest` (Mac). A case: `name`; `start`, `end` (the sensor's, seconds relative to "now"); `countdownHours`
+(the window); `latest` (the newest reading's time, `null` = none); optional `warmup` (the warm-up's end; default
+start + 60 min). `expect`:
+
+| key | meaning |
+|---|---|
+| `label` | the badge text, English words: ≥ 24 h left → whole days (`13d`), ≥ 1 h → hours (`20h`), else minutes (`45m`, `0m` once ended) |
+| `ended` | `now ≥ end`: badge in the alert colour, "Sensor ended" once readings stop |
+| `life` | the disc's arc: share of the sensor's life left, 1 → 0 (± 0.001) |
+| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`); `null` = not warming |
+| `ring` | the ring over the main ring: warming → the warm-up done (fills 0 → 1); else the countdown, share of the window left; `null` = no ring (more than the window left, or ended) (± 0.001) |
+
 Not covered yet: mute-line endpoints, slot order.
