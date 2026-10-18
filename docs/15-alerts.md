@@ -6,7 +6,7 @@
 
 Alerts when glucose leaves your range, in **every Sukrara app** (Android wearer, Android follower, Mac), with:
 
-- your own thresholds for urgent low, low, high, very high, falling fast, rising fast and no data;
+- your own thresholds for very low, low, high, very high, falling fast, rising fast and no data;
 - two ways to keep highs quiet: **after rapid insulin** (give it time to work) and **when glucose is already falling
   back into range**;
 - **followers alert when the wearer's app alerts** (default), or use their own settings;
@@ -47,22 +47,26 @@ Screenshots (emulator, debug build):
 
 | Alert | Default | Re-alert | Sound mood |
 |---|---|---|---|
-| Urgent low | ≤ 55 mg/dL | 5 min | *game over*: longer (3–4.5 s), unmistakable, not harsh |
-| Low | ≤ 65 | 15 min | *lost a life*: short, falling |
-| High | ≥ 185 | 30 min (60 until 0.11.4) | *final lap*: a riff, then the same riff faster and higher (≈ 1 s, it's the frequent one) |
-| Very high | ≥ 250 | 30 min | *boss incoming* |
+| Very low (`very_low`, "urgent low" until 2026-10-18) | < 55 mg/dL | 5 min, alarm volume | *game over*: longer (3–4.5 s), unmistakable, not harsh |
+| Low | < 70 | 5 min | *lost a life*: short, falling |
+| High | ≥ 180 | 15 min | *final lap*: a riff, then the same riff faster and higher (≈ 1 s, it's the frequent one) |
+| Very high | ≥ 250 | 10 min | *boss incoming* |
+| Extremely high | ≥ 300 | 5 min, alarm volume | *final boss* |
 | Falling / rising fast | 2 mg/dL/min | 30 min, **off** | quick sweeps |
 | No data | 20 min | 60 min | *connection lost* |
 
-Low and high default to your personal 65 / 185. Urgent low 55 and very high 250 follow the consensus Time-in-Range
-levels (Nightscout's `BG_LOW` is also 55).
+The defaults are the user's own settings since 2026-10-18 (before: low 65, high 185, repeats 15/30/30/15, Arcade).
+Lows are **strictly below** the threshold since 2026-10-18 (low 70 alerts at 69, not at 70: 70 is in range, as in
+LibreView's ranges); highs are at or above it. Very low 55 and very high 250 follow the consensus Time-in-Range levels
+(Nightscout's `BG_LOW` is also 55).
 
 - Level alerts: one at a time, the most severe wins; moving to a worse one fires at once (high → very high).
-- A kind that comes back within its re-alert time stays quiet (no flapping around 185).
+- Episodes, treatment-anchored repeats and the headlines: see [the 2026-10-18 round](#episodes-and-treatment-anchored-repeats-2026-10-18).
 - Readings older than 15 minutes never alert (backfill, late chunks).
 
-Notification text uses symbols (0.11.11): `High · 185 mg/dL ↑` / `≥ 185 mg/dL`, `≤ 65 mg/dL` for lows (was
-"At or above 185 mg/dL").
+Notification text: the headline as the title (`Low glucose · eat more`), the value and threshold as the body
+(`69 mg/dL ↘ · < 70 mg/dL`, `200 mg/dL → · ≥ 180 mg/dL`). Until 2026-10-18 the title was `High · 185 mg/dL ↑` with
+`≥ 185 mg/dL · reminder 2` below.
 
 **Quiet highs** (both on by default):
 
@@ -71,21 +75,78 @@ Notification text uses symbols (0.11.11): `High · 185 mg/dL ↑` / `≥ 185 mg/
   window ends, it alerts then. 20 minutes was too short: rapid insulin barely acts by then (it peaks after 1–2 h), so
   glucose is usually still at or above the threshold and the alert fired 23 min after an 8 U dose on the user's phone.
 - **When falling back into range** (20 min): no high alert while `sgv + rate × N < high` (the current fall brings it under
-  185 within N minutes). Re-checked on every reading; a flattening trend alerts at once.
+  180 within N minutes). Re-checked on every reading. It only postpones: when the trend flattens, an alert that came
+  due meanwhile fires at once, otherwise the repeat keeps its time.
 
-**Extremely high** (0.11.11, `extremely_high`, on, ≥ 300 mg/dL, every 15 min, *final boss* sounds and vibration):
-the high-side counterpart of urgent low. **No rule mutes it**: not the insulin window, not the falling projection.
+**Extremely high** (0.11.11, `extremely_high`, on, ≥ 300 mg/dL, every 5 min, *final boss* sounds and vibration):
+the high side's safety net. **No rule mutes it**: not the insulin window, not the falling projection.
 The user asked for it so the insulin mute can stay long (60 min) without hiding a real spike: with insulin logged,
 251 stays quiet as very high, 300 alerts at once.
 
-**Quiet lows** (0.11.11, on by default): **After carbs** (15 min; 10/15/20/30/45 on Android, 5–45 on the Mac): low and
-falling fast wait N minutes after a carbs entry, the same way as the insulin rule (cleared when you log it, alerts
-when the window ends if it's still low). 15 min follows the "15-15 rule" for treating a low (15 g, re-check after 15
-min). **Urgent low is never muted**: it fires at once even inside the window.
+**Quiet lows** (0.11.11, on by default): **After carbs** (15 min; 10/15/20/30/45 on Android, 5–45 on the Mac): very
+low, low and falling fast wait N minutes after a carbs entry, the same way as the insulin rule (cleared when you log
+it, alerts when the window ends if it's still low). 15 min follows the "15-15 rule" for treating a low (15 g,
+re-check after 15 min). Very low was never muted until 2026-10-18; the user asked for it to wait for the carbs too.
 
 Prior art agrees: Nightscout's `treatmentnotify` snoozes alarms after a treatment (`TREATMENTNOTIFY_SNOOZE_MINS`,
 default 10), and xDrip+'s *Smart Alerting* ("Don't alert if glucose is heading in the right direction") is on by
 default. Neither combines both, and neither has a projection: xDrip+ only checks that the last readings dropped.
+
+## Episodes and treatment-anchored repeats (2026-10-18)
+
+The user's report: after a mute window ended while still low, the alert seemed to come only on a multiple of the
+repeat interval counted from the start of the low, and a reading back at 70 for a minute started everything over.
+They wrote down what should happen (repeat 5 min, carbs mute 5 min):
+
+| min | | alert |
+|---|---|---|
+| 0 | glucose 69 | **Low glucose** (first of the episode) |
+| 3 | logs 5 g carbs | (the alert goes away) |
+| 5 | | nothing: would have been the repeat, the count starts at the carbs now |
+| 8 | | **Low glucose · eat more** |
+| 13 | | **Low glucose · eat more** |
+| 14 | logs 5 g more | |
+| 15–16 | 70 (in range), then 69 | nothing |
+| 19 | | **Low glucose · eat more again** |
+| 20–21 | 70, then 69 | nothing |
+| 24 | | **Low glucose · eat more again** |
+
+**Rules** (both platforms, [SPEC §1–§2](../spikes/alerts/SPEC.md)):
+
+- **Episodes.** One per group and side (lows, highs, falling fast, rising fast, no data). It ends once nothing of that
+  side has matched for the **hold time**, the kind's repeat interval (at least 5 min). A brief exit clears the
+  notification, but doesn't start a new episode: no new "first" alert, the repeat count and the logged treatments
+  carry on. Getting better within the side (very low → low) doesn't alert either.
+- **A treatment restarts the count.** Carbs (for very low, low, falling fast) and rapid insulin (high, very high,
+  rising fast) clear the alert and mute it for their window; when the window ends and it still matches, it alerts
+  **at once**, and the next repeats count from there. Extremely high is never muted.
+- **Headlines acknowledge treatments** logged in the episode: `Low glucose · eat more` / `· eat more again`. On the high
+  side they never advise more insulin (stacking rapid doses risks a hypo): `High glucose · still high after insulin` /
+  `· still high after more insulin`. The wearer sends the count (`tr`) in the `alert` event, so followers and the Mac
+  show the same words.
+- **Timer.** Android schedules the next check with an exact alarm (`setExactAndAllowWhileIdle`, `USE_EXACT_ALARM`,
+  granted at install) instead of the inexact `setAndAllowWhileIdle`; the Mac adds a one-shot timer at the engine's
+  next check to its 60 s tick.
+
+**Why the old alert looked repeat-aligned.** Replaying the user's timeline on the old Android engine (per-minute
+readings) gives alerts at 0, 8, 13, 19 and 24, the right times, so the Android carbs path itself wasn't it. What the
+old code did get wrong:
+
+- Every firing after a treatment was a new "first" alert (`n = 1`, same text), and a reading at 70 counted as low
+  (`≤`), so nothing told the user the alert knew about the carbs.
+- **The Mac** kept the episode's last alert through a treatment mute and only re-alerted at `last alert + repeat`:
+  with a mute shorter than the repeat (e.g. low every 15 min, carbs mute 5–10) the alert after the carbs came on the
+  episode's repeat grid, exactly the reported pattern.
+- **Android, falling-high mute:** when it ended, the alert waited for `last alert + repeat`.
+- **Android timer:** the check at the mute end was an inexact alarm; `AlarmManager` may deliver it well after the
+  requested time (the window grows with the delay, more in Doze). With a reading every minute that doesn't matter (the
+  next reading re-checks), but with readings every 5 min or a gap, the alert at the mute end waited for the next
+  reading, i.e. on the 5-minute grid.
+
+**Scenarios as the regression guard.** The rules are now timelines in
+[`spikes/alerts/scenarios/`](../spikes/alerts/scenarios/) (the user's table verbatim first, then one per rule), run by
+both platforms: Android `AlertScenarioTest` and the Mac `-alerts-selftest`. Every change to the rules adds or updates
+one ([SPEC §7](../spikes/alerts/SPEC.md#7-scenarios-the-regression-guard)).
 
 ## Mirroring (wearer → follower)
 
@@ -154,9 +215,9 @@ the Mac (in the app bundle, where `UNNotificationSound(named:)` looks; files mus
 
 | Pack | Character |
 |---|---|
-| **Arcade** (default) | 8-bit: pulse leads at 12.5/25/50 % duty, stepped-triangle bass, NES-style noise. Urgent low includes a "wah wah wah wahhh" variant |
+| **Arcade** (the default until 2026-10-18) | 8-bit: pulse leads at 12.5/25/50 % duty, stepped-triangle bass, NES-style noise. Very low includes a "wah wah wah wahhh" variant |
 | **Kart** | racing: supersaw riffs, brass stabs, snare rolls, an engine rev for very high, a turbo whoosh for rising fast |
-| **Quest** | adventure: harp arpeggios, flute runs, bells, timpani; urgent low is a slow "you have fallen" |
+| **Quest** (default) | adventure: harp arpeggios, flute runs, bells, timpani; very low is a slow "you have fallen" |
 | **Soft** | calm, not a game: marimba and glass, no drums |
 
 ## Haptics
@@ -175,7 +236,7 @@ You asked for vibrations that match the sounds, or at least one pattern per aler
 
 | Alert | Pattern |
 |---|---|
-| Urgent low | three falls getting weaker, then two heavy thuds (≈ 2.2 s) |
+| Very low | three falls getting weaker, then two heavy thuds (≈ 2.2 s) |
 | Low | two falls and a thud |
 | High | clicks speeding up, then a rise (the "final lap") |
 | Very high | thud-click, thud-click, spin |
@@ -198,7 +259,8 @@ You asked for vibrations that match the sounds, or at least one pattern per aler
 
 Every alert has a **Volume** choice (the user's request after 0.11.1): **Alarm** rings like an alarm clock, at the
 alarm volume, and comes through Do Not Disturb when alarms are allowed. **Notification** uses the notification volume
-and comes through Do Not Disturb only if reminders are allowed. Lows default to Alarm, everything else to Notification.
+and comes through Do Not Disturb only if reminders are allowed. Very low and extremely high default to Alarm, everything else to Notification (the user's settings; lows were Alarm
+until 2026-10-18).
 It's a per-device choice, also on a follower that mirrors the wearer.
 
 Android doesn't let an app change a channel's audio attributes once it exists, so each alert has **two channels**:
@@ -245,8 +307,7 @@ Debug (`DebugReceiver`, adb only): `--es alertTest high` fires one alert (and se
 ## Open
 
 - **Not a medical device.** Alerts depend on the phone being on, the app not being killed, and Do Not Disturb. The
-  urgent low can't be set to bypass DND unless the user allows alarms.
-- Mute rules for lows (e.g. after carbs) were left out on purpose.
+  very low can't be set to bypass DND unless the user allows alarms.
 - macOS Time Sensitive needs a provisioned build (Developer ID).
 - The follower's local "no data" uses its own threshold even when mirroring.
 - Mirroring over Bluetooth only (no internet) between two real phones wasn't run; the emulators have no Bluetooth.

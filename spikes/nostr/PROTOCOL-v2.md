@@ -118,10 +118,11 @@ settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../
 
 | Event | kind | signed by | tags | content (decrypted) |
 |---|---|---|---|---|
-| **alert** | 21079 (ephemeral) | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"type":"alert","id","k","state":"fire"\|"clear","at","t","sgv","r","th","n"}` → `G_n` |
+| **alert** | 21079 (ephemeral) | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"type":"alert","id","k","state":"fire"\|"clear","at","t","sgv","r","th","n","tr"}` → `G_n` |
 
-- `k` ∈ `urgent_low|low|high|very_high|extremely_high|falling_fast|rising_fast|no_data`; `id` is random per firing and a `clear`
-  repeats it; `n` counts reminders. A muted alert (after rapid insulin or carbs, falling back into range) is never sent.
+- `k` ∈ `very_low|low|high|very_high|extremely_high|falling_fast|rising_fast|no_data`; `id` is random per firing and a `clear`
+  repeats it; `n` counts the episode's alerts; `tr` = treatments the headline acknowledges (0, 1, 2 = two or more:
+  "Low glucose · eat more again"). A muted alert (after rapid insulin or carbs, falling back into range) is never sent.
 - Sent at once on relays (LIVE lane, also when the upload interval batches readings) and over BLE (backlog key
   `alert`, next to `live`).
 - Followers subscribe with `kinds: [21078, 21079]` in the live REQ, apply the live acceptance rules, dedupe by event

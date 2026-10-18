@@ -23,7 +23,7 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
   <img src="img/settings/home.png" alt="Home: the glucose card with time-in-range rings, the 12 h graph and Add treatment" width="180">
   <img src="img/settings/settings.png" alt="Settings: search, the LibreView reminder and sections with coloured icons" width="180">
   <img src="img/settings/search.png" alt="Settings search: results with where each setting lives" width="180">
-  <img src="img/settings/alerts.png" alt="Alerts: urgent low to extremely high, each with its own threshold, reminder and sound" width="180">
+  <img src="img/settings/alerts.png" alt="Alerts: very low to extremely high, each with its own threshold, reminder and sound" width="180">
 </p>
 <p>
   <img src="img/settings/sharing.png" alt="Share with people: invite link, nearby pairing and followers with their pictures" width="180">
@@ -54,9 +54,9 @@ anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ar
   reset, and it tells you when root or the LSPosed module is missing and how to fix it.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
   (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); the same glucose alerts as the phone.
-- **Alerts:** urgent low, low, high, very high, extremely high, fast changes and no data, each with your own
+- **Alerts:** very low, low, high, very high, extremely high, fast changes and no data, each with your own
   threshold and sound. Highs stay quiet after rapid insulin and while already falling back into range, lows after
-  carbs; urgent low and extremely high always alert. Video-game sound packs
+  carbs, and the alert after a treatment says so ("Low glucose · eat more"); extremely high always alerts. Video-game sound packs
   ([listen](sounds/)), a different sound each time, and a vibration per alert.
 - **Sharing:** a one-time short link or small QR code that shows who is inviting; you see their name next to who you
   sent it to, then **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
