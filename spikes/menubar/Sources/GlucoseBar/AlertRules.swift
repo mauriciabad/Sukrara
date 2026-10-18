@@ -1,0 +1,1 @@
+../../../widgets-macos/Shared/AlertRules.swift

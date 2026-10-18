@@ -96,7 +96,7 @@ struct GraphReading: Equatable {
 }
 
 /// A treatment as the chart draws it (rapid | long | carbs | note).
-struct GraphMark {
+struct GraphMark: Equatable {
     var t: TimeInterval
     var k: String
     var a: Double
@@ -342,10 +342,15 @@ func periodLabel(_ s: TimeInterval) -> String {
     return i % 86400 == 0 ? "\(i / 86400)d" : "\(i / 3600)h"
 }
 
+/// What a whole glucose card shows: value header and/or chart, up to three rings (main first), the last-treatment slot
+/// (`last`, with `lastElse` while there's none) and the status badge under the value (`badge`).
 struct CardStyle {
     var graph: GraphStyle? = GraphStyle()
     var rings: [RingSpec] = [RingSpec(window: 86400), RingSpec(window: 7 * 86400)]
     var value = true
+    var last: LastPlace = .off
+    var lastElse: RingSpec? = nil
+    var badge = true
 }
 
 /// Everything the graph settings decide (UserDefaults on the Mac; the widget gets it in its snapshot).
@@ -361,6 +366,18 @@ struct GraphConfig: Codable, Equatable {
     var lines = GraphConfig.defaultLines
     /// Hours between the vertical lines at least (`gridChoices`; small charts space them further apart), 0 = none.
     var gridHours = 1
+    /// The last-treatment slot beside the value (on by default, next to the number).
+    var lastPlace: LastPlace = .nearValue
+    /// What that slot shows while there's no recent treatment (nil = nothing): a 30-day time-in-range ring by default.
+    var lastElse: RingSpec? = GraphConfig.defaultLastElse
+
+    static let defaultLastElse = RingSpec(window: 30 * 86400)
+    /// `lastElse` with the ring settings applied.
+    var lastElseRing: RingSpec? { lastElse.map { var r = $0; r.range = ringRange; r.order = ringOrder; return r } }
+    /// The card style of a surface with a value: the rings, the last-treatment slot and its fallback.
+    func cardStyle(graph g: GraphStyle?, rings: [RingSpec]? = nil) -> CardStyle {
+        CardStyle(graph: g, rings: rings ?? self.rings, value: true, last: lastPlace, lastElse: lastElseRing)
+    }
 
     static let gridChoices = [0, 1, 2, 3, 4, 6, 12]
     static let defaultLines = [100]
@@ -383,12 +400,14 @@ struct GraphConfig: Codable, Equatable {
     /// "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind:window s:faded).
     static func slotsText(_ s: [RingSpec]) -> String { s.map { "\($0.kind.rawValue):\(Int($0.window)):\($0.faded ? 1 : 0)" }.joined(separator: ",") }
     static func parseSlots(_ text: String) -> [RingSpec]? {
-        let s = text.split(separator: ",").compactMap { e -> RingSpec? in
-            let p = e.split(separator: ":").map(String.init)
-            guard let kind = SlotKind(rawValue: p[0]), p.count > 1, let w = TimeInterval(p[1]), ringChoices.contains(w) else { return nil }
-            return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
-        }
+        let s = text.split(separator: ",").compactMap { parseSlot(String($0)) }
         return s.count == 3 ? s : nil
+    }
+    /// One slot, "TIR:2592000:1"; nil when malformed (or "" = none, for `lastElse`).
+    static func parseSlot(_ e: String) -> RingSpec? {
+        let p = e.split(separator: ":").map(String.init)
+        guard p.count > 1, let kind = SlotKind(rawValue: p[0]), let w = TimeInterval(p[1]), ringChoices.contains(w) else { return nil }
+        return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
         GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, lines: lines, gridHours: gridHours)
@@ -397,7 +416,8 @@ struct GraphConfig: Codable, Equatable {
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
     /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
     /// bandVeryHigh/bandExtremelyHigh, side (time in range beside the graph), lines "100,120" (extra dashed lines,
-    /// mg/dL), gridHours 0|1|2|3|4|6|12 (vertical lines, 0 = off).
+    /// mg/dL), gridHours 0|1|2|3|4|6|12 (vertical lines, 0 = off), lastPlace OFF|NEAR_VALUE|END (the last-treatment
+    /// slot), lastElse "TIR:2592000:1" or "" (its fallback; same spellings as Android's GraphConfig JSON).
     static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
         var c = GraphConfig()
         func int(_ k: String) -> Int? { d.object(forKey: k) != nil ? d.integer(forKey: k) : nil }
@@ -413,6 +433,8 @@ struct GraphConfig: Codable, Equatable {
         c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
         c.lines = d.object(forKey: "lines") == nil ? defaultLines : parseLines(d.string(forKey: "lines") ?? "")
         c.gridHours = int("gridHours").flatMap { gridChoices.contains($0) ? $0 : nil } ?? 1
+        c.lastPlace = LastPlace(rawValue: d.string(forKey: "lastPlace") ?? "") ?? .nearValue
+        if let e = d.string(forKey: "lastElse") { c.lastElse = parseSlot(e) }
         return c
     }
 }
@@ -466,8 +488,9 @@ private extension CGColor {
 enum GlucoseGraph {
     /// Narrowest chart (pt) that still gets the % labels beside it.
     static let pctMinWidth: CGFloat = 240
+    /// `alerts` = the rules behind the treatments' mute lines (nil = no lines).
     static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
-                     _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat = 1) {
+                     _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat = 1, alerts: AlertSettings? = nil) {
         let from = now - st.window
         let b = st.bands.sane()
         let pts = GlucoseStats.window(readings, from: from - 60, to: now)
@@ -625,7 +648,10 @@ enum GlucoseGraph {
             }
         }
 
-        if !shownMarks.isEmpty { TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d) }
+        if !shownMarks.isEmpty {
+            TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d, now: now,
+                                muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
+        }
     }
 
     /// The distribution's dots: rows `profilePitch` apart, dots of radius `profileR`; its outline is `profileGap` wider.
@@ -687,7 +713,8 @@ enum GlucoseGraph {
 }
 
 /// Treatments along the bottom lane, as TreatmentMarks.kt: rapid = filled blue drop, long = outlined violet drop,
-/// carbs = amber dot, note = grey diamond; the amount above, one row, overlapping labels dropped (marker stays).
+/// carbs = amber dot, note = grey diamond; above them the amount and the time since (`4.5u 12m`, once per meal), up to
+/// two rows, and from each rapid / carbs mark a line to the end of its alert mute.
 enum TreatmentMarks {
     static func color(_ k: String, dark: Bool) -> CGColor {
         switch k {
@@ -698,48 +725,124 @@ enum TreatmentMarks {
         }
     }
 
-    static func label(_ m: GraphMark) -> String? {
-        switch m.k {
-        case "rapid", "long": (m.a == m.a.rounded() ? String(Int(m.a)) : String(format: "%.1f", m.a)) + "U"
-        case "carbs": "\(Int(m.a.rounded()))g"
+    /// Text on a filled chip of a kind's colour: near-black on the light dark-theme colours, white on the deep light ones.
+    static func onColor(dark: Bool) -> CGColor { GraphPalette.hex(dark ? 0x1C1C1E : 0xFFFFFF) }
+
+    /// "4.5u", "12u", "30g" (lowercase, no space: the user, 2026-10-18); nil for notes.
+    static func amount(k: String, a: Double) -> String? {
+        switch k {
+        case "rapid", "long": (a == a.rounded() ? String(Int(a)) : String(format: "%.1f", a)) + "u"
+        case "carbs": "\(Int(a.rounded()))g"
         default: nil
         }
     }
+    static func amount(_ m: GraphMark) -> String? { amount(k: m.k, a: m.a) }
 
-    static func draw(_ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
-                     bottom: CGFloat, dark: Bool, d: CGFloat) {
-        let order = ["rapid": 0, "long": 1, "carbs": 2, "note": 3]
-        let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter { $0.1 >= left - 1 && $0.1 <= right + 1 }
-        let cy = bottom - 5 * d
-        for (m, px) in items.sorted(by: { order[$0.0.k]! > order[$1.0.k]! }) {
-            let c = color(m.k, dark: dark)
-            switch m.k {
-            case "rapid", "long":
-                let p = CGMutablePath()
-                p.move(to: CGPoint(x: px - 4.5 * d, y: cy - 3.5 * d)); p.addLine(to: CGPoint(x: px + 4.5 * d, y: cy - 3.5 * d))
-                p.addLine(to: CGPoint(x: px, y: cy + 4 * d)); p.closeSubpath()
-                ctx.addPath(p)
-                if m.k == "rapid" { ctx.setFillColor(c); ctx.fillPath() } else { ctx.setStrokeColor(c); ctx.setLineWidth(1.5 * d); ctx.strokePath() }
-            case "carbs":
-                ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: px - 3.6 * d, y: cy - 3.6 * d, width: 7.2 * d, height: 7.2 * d))
-            default:
-                let p = CGMutablePath()
-                p.move(to: CGPoint(x: px, y: cy - 3 * d)); p.addLine(to: CGPoint(x: px + 3 * d, y: cy))
-                p.addLine(to: CGPoint(x: px, y: cy + 3 * d)); p.addLine(to: CGPoint(x: px - 3 * d, y: cy)); p.closeSubpath()
-                ctx.addPath(p); ctx.setFillColor(c); ctx.fillPath()
-            }
+    /// A short duration: "now" under a minute, "12m", "1h 5m", "3h" (whole hours drop the minutes; from 6 h only
+    /// hours), "2d" from two days. `up` rounds partial minutes up (time left: "1m" until it is over).
+    static func duration(_ s: TimeInterval, up: Bool = false) -> String {
+        let sec = Int64(max(0, s))
+        let m = up ? (sec + 59) / 60 : sec / 60
+        switch m {
+        case ..<1: return "now"
+        case ..<60: return "\(m)m"
+        case ..<(6 * 60): return m % 60 == 0 ? "\(m / 60)h" : "\(m / 60)h \(m % 60)m"
+        case ..<(48 * 60): return "\(m / 60)h"
+        default: return "\(m / 1440)d"
         }
-        let font = Ink.font(9 * d, .bold)
+    }
+
+    private static let order = ["rapid": 0, "long": 1, "carbs": 2, "note": 3]
+
+    /// One marker of kind `k` centred on (`x`, `y`), `r` = its half-size (4.5 on the chart). `hole` fills the
+    /// outlined long-acting drop (the background colour, or nil for none).
+    static func marker(_ ctx: CGContext, _ k: String, x: CGFloat, y: CGFloat, r: CGFloat, color c: CGColor, hole: CGColor? = nil) {
+        ctx.saveGState()
+        defer { ctx.restoreGState() }
+        switch k {
+        case "rapid", "long":
+            let p = CGMutablePath()
+            p.move(to: CGPoint(x: x - r, y: y - r * 0.78)); p.addLine(to: CGPoint(x: x + r, y: y - r * 0.78))
+            p.addLine(to: CGPoint(x: x, y: y + r * 0.89)); p.closeSubpath()
+            if k == "rapid" { ctx.addPath(p); ctx.setFillColor(c); ctx.fillPath(); return }
+            if let hole { ctx.addPath(p); ctx.setFillColor(hole); ctx.fillPath() }
+            ctx.addPath(p); ctx.setStrokeColor(c); ctx.setLineWidth(r / 3); ctx.setLineJoin(.round); ctx.strokePath()
+        case "carbs":
+            ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: x - r * 0.8, y: y - r * 0.8, width: r * 1.6, height: r * 1.6))
+        default:
+            let p = CGMutablePath(), q = r * 0.67
+            p.move(to: CGPoint(x: x, y: y - q)); p.addLine(to: CGPoint(x: x + q, y: y))
+            p.addLine(to: CGPoint(x: x, y: y + q)); p.addLine(to: CGPoint(x: x - q, y: y)); p.closeSubpath()
+            ctx.addPath(p); ctx.setFillColor(c); ctx.fillPath()
+        }
+    }
+
+    /// Draw `marks` (live entries) into the plot `left`…`right` × …`bottom`. `now` (the plot's right edge) adds the
+    /// time since each entry to its label; `muteUntil` gives the end of an entry's alert mute (nil = none) for its line.
+    static func draw(_ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
+                     bottom: CGFloat, dark: Bool, d: CGFloat, textSize: CGFloat = 9, rows: Int = 2,
+                     now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil) {
+        let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter { $0.1 >= left - 1 && $0.1 <= right + 1 }
+        guard !items.isEmpty else { return }
+        let cy = bottom - 5 * d
+        let back = items.sorted { order[$0.0.k]! > order[$1.0.k]! }   // notes at the back, insulin in front
+
+        if let muteUntil {
+            ctx.saveGState()
+            ctx.setLineWidth(2 * d); ctx.setLineCap(.round); ctx.setLineJoin(.round)
+            // Insulin's line just above the lane's middle, carbs' just below: a meal's two lines lie side by side.
+            for (m, px) in back {
+                guard let until = muteUntil(m) else { continue }
+                let ly = cy + (m.k == "carbs" ? 1.5 : -1.5) * d
+                let running = now.map { until > $0 } ?? false
+                let ex = running ? right : min(x(until), right)
+                if ex <= px + d { continue }
+                ctx.setStrokeColor(color(m.k, dark: dark).copy(alpha: 0xB0 / 255.0)!)
+                ctx.strokeLineSegments(between: [CGPoint(x: px, y: ly), CGPoint(x: ex, y: ly)])
+                if running {
+                    if ex - px > 8 * d {   // still muting: a chevron at the edge
+                        ctx.move(to: CGPoint(x: ex - 3 * d, y: ly - 3 * d)); ctx.addLine(to: CGPoint(x: ex, y: ly))
+                        ctx.addLine(to: CGPoint(x: ex - 3 * d, y: ly + 3 * d)); ctx.strokePath()
+                    }
+                } else {
+                    ctx.strokeLineSegments(between: [CGPoint(x: ex, y: ly - 3 * d), CGPoint(x: ex, y: ly + 3 * d)])   // over: a tick
+                }
+            }
+            ctx.restoreGState()
+        }
+        for (m, px) in back { marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark)) }
+
+        // Labels, stacked up to `rows` rows above the lane; with the time first, then without it, else skipped.
+        let font = Ink.font(textSize * d, .bold), agoFont = Ink.font(textSize * d, .medium)
+        let ascent = CTFontGetAscent(font), descent = CTFontGetDescent(font)
+        let lineH = ascent + descent
         var placed: [CGRect] = []
+        var timed: [TimeInterval] = []   // entries whose label carries the time: one per meal (entries ≤ 3 min apart)
+        let gap = 2 * d
         for (m, px) in items.sorted(by: { (order[$0.0.k]!, -$0.0.t) < (order[$1.0.k]!, -$1.0.t) }) {
-            guard let s = label(m) else { continue }
-            let w = Ink.width(s, font)
-            let lx = min(max(px - w / 2, left), max(left, right - w))
-            let baseline = cy - 5.5 * d - 2 * d
-            let r = CGRect(x: lx - d, y: baseline - 9 * d, width: w + 2 * d, height: 11 * d)
-            if placed.contains(where: { $0.intersects(r) }) { continue }
-            placed.append(r)
-            Ink.draw(ctx, s, x: lx, y: baseline, font, color(m.k, dark: dark))
+            guard let s = amount(m) else { continue }
+            let t = now.flatMap { n in timed.contains { abs($0 - m.t) <= 180 } ? nil : " " + duration(n - m.t) }
+            func place(_ withTime: Bool) -> Bool {
+                guard !withTime || t != nil else { return false }
+                let tail = withTime ? t! : ""
+                let sw = Ink.width(s, font), w = sw + (tail.isEmpty ? 0 : Ink.width(tail, agoFont))
+                let lx = min(max(px - w / 2, left), max(left, right - w))
+                for row in 0..<rows {
+                    let baseline = cy - 5.5 * d - descent - CGFloat(row) * lineH
+                    let r = CGRect(x: lx - gap / 2, y: baseline - ascent, width: w + gap, height: lineH)
+                    if placed.contains(where: { $0.intersects(r) }) { continue }
+                    placed.append(r)
+                    let c = color(m.k, dark: dark)
+                    Ink.draw(ctx, s, x: lx, y: baseline, font, c)
+                    if !tail.isEmpty {
+                        Ink.draw(ctx, tail, x: lx + sw, y: baseline, agoFont, c.copy(alpha: 0xC0 / 255.0)!)
+                        timed.append(m.t)
+                    }
+                    return true
+                }
+                return false
+            }
+            if !place(true) { _ = place(false) }
         }
     }
 }
@@ -846,19 +949,250 @@ enum MetricGauge {
     }
 }
 
+// MARK: - Status badge and last-treatment slot (CardStatus.kt)
+
+/// The badge under the glucose value, from `AlertStatus`: none → nothing; needed → a filled pill in the colour of what
+/// to log, with its marker ("Eat carbs" / "Take insulin"); taken → the same pill tonal, with the "notifications
+/// paused" bell and the time left of the mute ("45m left").
+enum StatusBadge {
+    /// `kind` = the treatment kind whose colour and marker the badge uses; `tonal` = taken.
+    struct Look: Equatable { var kind: String; var text: String; var short: String; var tonal: Bool }
+
+    static func look(_ s: AlertStatus, now: TimeInterval) -> Look? {
+        switch s {
+        case .none: return nil
+        case .needed(let k):
+            return k.lowSide ? Look(kind: "carbs", text: "Eat carbs", short: "Carbs", tonal: false)
+                : Look(kind: "rapid", text: "Take insulin", short: "Insulin", tonal: false)
+        case .taken(_, let tr, let until):
+            let d = TreatmentMarks.duration(until - now, up: true)
+            return Look(kind: tr.k, text: "\(d) left", short: d, tonal: true)
+        }
+    }
+
+    /// For screen readers.
+    static func describe(_ s: AlertStatus, now: TimeInterval) -> String? {
+        switch s {
+        case .none: nil
+        case .needed: look(s, now: now)?.text
+        case .taken(let k, _, let until): "\(k.title): alerts paused, \(TreatmentMarks.duration(until - now, up: true)) left"
+        }
+    }
+
+    /// Material Symbols "notifications_paused" (Apache 2.0), viewBox 0 -960 960 960.
+    static let bellPaused = "M370-320h220v-72H480l110-136v-72H370v72h110L370-392v72ZM160-200v-80h80v-280q0-83 50-147.5" +
+        "T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 " +
+        "0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"
+    private static let bellPath: CGPath = SVGPath.parse(bellPaused)
+
+    /// The bell, `size` square, top-left at (`x`, `y`).
+    static func bell(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) {
+        var t = CGAffineTransform(translationX: x, y: y).scaledBy(x: size / 960, y: size / 960).translatedBy(x: 0, y: 960)
+        guard let p = bellPath.copy(using: &t) else { return }
+        ctx.saveGState(); ctx.addPath(p); ctx.setFillColor(color); ctx.fillPath(); ctx.restoreGState()
+    }
+
+    private static func colors(_ look: Look, dark: Bool) -> (bg: CGColor, fg: CGColor) {
+        let c = TreatmentMarks.color(look.kind, dark: dark)
+        return look.tonal ? (c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, c) : (c, TreatmentMarks.onColor(dark: dark))
+    }
+    private static func font(_ h: CGFloat) -> CTFont { Ink.font(h * 0.56, .semibold) }
+
+    /// Width of the full badge `h` tall; `short` = the shorter words.
+    static func width(_ look: Look, h: CGFloat, short: Bool = false) -> CGFloat {
+        h * 0.4 + h * 0.62 + h * 0.25 + Ink.width(short ? look.short : look.text, font(h)) + h * 0.45
+    }
+
+    /// Draw the badge `h` tall with its top-left at (`x`, `y`), at most `maxW` wide: the full words, the short ones, or
+    /// (no room for words) only the icon in a circle. Returns the width used, 0 if not even the circle fits.
+    @discardableResult
+    static func draw(_ ctx: CGContext, x: CGFloat, y: CGFloat, h: CGFloat, maxW: CGFloat, _ look: Look, dark: Bool) -> CGFloat {
+        let (bg, fg) = colors(look, dark: dark)
+        let words: String?
+        if width(look, h: h) <= maxW { words = look.text }
+        else if width(look, h: h, short: true) <= maxW { words = look.short }
+        else if h <= maxW { words = nil }
+        else { return 0 }
+        let icon = h * 0.62, f = font(h)
+        let w = words.map { h * 0.4 + icon + h * 0.25 + Ink.width($0, f) + h * 0.45 } ?? h
+        ctx.saveGState()
+        ctx.addPath(CGPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
+        ctx.setFillColor(bg); ctx.fillPath()
+        ctx.restoreGState()
+        let ix = words == nil ? x + (h - icon) / 2 : x + h * 0.4
+        if look.tonal { bell(ctx, x: ix, y: y + (h - icon) / 2, size: icon, color: fg) }
+        else { TreatmentMarks.marker(ctx, look.kind, x: ix + icon / 2, y: y + h / 2, r: icon * 0.42, color: fg) }
+        if let words {
+            Ink.draw(ctx, words, x: ix + icon + h * 0.25, y: y + h / 2 + (CTFontGetAscent(f) - CTFontGetDescent(f)) / 2, f, fg)
+        }
+        return w
+    }
+}
+
+/// Where the last-treatment slot sits among the slots beside the value: one more slot, not a slot kind, so the user's
+/// rings stay as they are. `nearValue` = leftmost, next to the number; `end` = rightmost. Raw values = Android's.
+enum LastPlace: String, Codable, CaseIterable {
+    case off = "OFF", nearValue = "NEAR_VALUE", end = "END"
+    var label: String { switch self { case .off: "Off"; case .nearValue: "Next to the number"; case .end: "At the right end" } }
+}
+
+/// One slot beside the value, ready to draw.
+enum SlotItem: Equatable {
+    case metric(RingSpec, GlucoseMetrics, emphasis: CGFloat)
+    case last(LastTreatment.Info)
+}
+
+enum Slots {
+    private static let ringEmphasis: [CGFloat] = [1, 0.55, 0.35]
+    /// The fallback ring (no recent treatment) when it is faded: like a second slot.
+    private static let fallbackEmphasis: CGFloat = 0.55
+
+    /// What to draw, right to left (main first), at most `max` slots. `rings` = the user's slots (index, spec,
+    /// metrics; main first) already without the ones lacking data. When room is short: main ring, recent treatment,
+    /// second ring, fallback ring, third ring.
+    static func arrange(_ rings: [(Int, RingSpec, GlucoseMetrics)], place: LastPlace, last: LastTreatment.Info?,
+                        fallback: (RingSpec, GlucoseMetrics)?, max n: Int) -> [SlotItem] {
+        let metric = rings.map { (i, s, m) in (i, SlotItem.metric(s, m, emphasis: s.faded ? ringEmphasis[min(max(i, 0), 2)] : 1)) }
+        let extra: SlotItem? = place == .off ? nil
+            : last.map { .last($0) } ?? fallback.map { (s, m) in .metric(s, m, emphasis: s.faded ? fallbackEmphasis : 1) }
+        var isLast = false
+        if case .last = extra { isLast = true }
+        var priority: [SlotItem] = []
+        if let m = metric.first(where: { $0.0 == 0 }) { priority.append(m.1) }
+        if isLast, let extra { priority.append(extra) }
+        if let m = metric.first(where: { $0.0 == 1 }) { priority.append(m.1) }
+        if !isLast, let extra { priority.append(extra) }
+        priority += metric.filter { $0.0 >= 2 }.map(\.1)
+        let keep = Array(priority.prefix(Swift.max(n, 0)))
+        let ordered = metric.map(\.1).filter { keep.contains($0) }
+        guard let extra, keep.contains(extra) else { return ordered }
+        return place == .end ? [extra] + ordered : ordered + [extra]
+    }
+
+    /// Draw `item` as a circle of `radius` around `c`.
+    static func draw(_ ctx: CGContext, _ item: SlotItem, center c: CGPoint, radius: CGFloat, now: TimeInterval, _ pal: GraphPalette, d: CGFloat) {
+        switch item {
+        case let .metric(spec, m, e):
+            if spec.kind == .tir { TirRing.draw(ctx, center: c, radius: radius, tir: m.tir, spec: spec, pal, emphasis: e) }
+            else { MetricGauge.draw(ctx, center: c, radius: radius, m: m, spec: spec, pal, emphasis: e, d: d) }
+        case let .last(info): LastSlot.draw(ctx, center: c, radius: radius, info: info, now: now, pal)
+        }
+    }
+}
+
+/// The last-treatment slot: the kind's marker, the amount ("4.5u", "30g") in the kind's colour and the time since it
+/// ("12m"); around it a ring in the kind's colour for the share of the alert mute still left, shrinking back to 12
+/// o'clock. When the mute is over (or the kind mutes nothing) only the grey track is left.
+enum LastSlot {
+    static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, info: LastTreatment.Info, now: TimeInterval, _ pal: GraphPalette) {
+        let sw = radius * 0.2, rr = radius - sw / 2
+        ctx.saveGState()
+        ctx.setLineWidth(sw); ctx.setLineCap(.round)
+        ctx.setStrokeColor(pal.grid)
+        ctx.strokeEllipse(in: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr))
+        let col = TreatmentMarks.color(info.tr.k, dark: pal.dark)
+        let left = info.left(now)
+        if left > 0 {
+            ctx.setStrokeColor(col)
+            let sweep = max(2, 360 * CGFloat(left)) * .pi / 180
+            ctx.addArc(center: c, radius: rr, startAngle: -.pi / 2, endAngle: -.pi / 2 + sweep, clockwise: false)
+            ctx.strokePath()
+        }
+        ctx.restoreGState()
+        TreatmentMarks.marker(ctx, info.tr.k, x: c.x, y: c.y - radius * 0.4, r: radius * 0.14, color: col,
+                              hole: pal.bg.alpha > 0 ? pal.bg : nil)
+        let inner = (radius - sw) * 2 * 0.86
+        let s = TreatmentMarks.amount(info.tr) ?? ""
+        var size = radius * 0.5
+        size = min(size, size * inner / max(Ink.width(s, Ink.font(size, .heavy)), 1))
+        Ink.draw(ctx, s, x: c.x, y: c.y + radius * 0.17, Ink.font(size, .heavy), col, align: 0.5)
+        let sub = radius * 0.3
+        Ink.draw(ctx, TreatmentMarks.duration(now - info.tr.t), x: c.x, y: c.y + radius * 0.17 + sub * 1.25,
+                 Ink.font(sub, .semibold), pal.inkSoft, align: 0.5)
+    }
+}
+
+/// A minimal SVG path-data parser (M L H V Q T Z, absolute and relative) for the Material Symbols icons.
+enum SVGPath {
+    static func parse(_ d: String) -> CGPath {
+        let p = CGMutablePath()
+        var cmd: Character = "M"
+        var nums: [CGFloat] = []
+        var tokens: [(Character, [CGFloat])] = []
+        var num = ""
+        func flushNum() { if let v = Double(num) { nums.append(CGFloat(v)) }; num = "" }
+        for ch in d {
+            if ch.isLetter && ch != "e" {
+                flushNum(); tokens.append((cmd, nums)); nums = []; cmd = ch
+            } else if ch == "-" && !num.isEmpty && num.last != "e" {
+                flushNum(); num = "-"
+            } else if ch == "." && num.contains(".") {
+                flushNum(); num = "."
+            } else if ch == " " || ch == "," {
+                flushNum()
+            } else { num.append(ch) }
+        }
+        flushNum(); tokens.append((cmd, nums))
+        var cur = CGPoint.zero, start = CGPoint.zero, lastCtrl: CGPoint? = nil
+        for (c, a) in tokens {
+            let rel = c.isLowercase
+            func pt(_ i: Int) -> CGPoint { rel ? CGPoint(x: cur.x + a[i], y: cur.y + a[i + 1]) : CGPoint(x: a[i], y: a[i + 1]) }
+            switch c.uppercased() {
+            case "M":
+                var i = 0
+                while i + 1 < a.count {
+                    let q = pt(i)
+                    if i == 0 { p.move(to: q); start = q } else { p.addLine(to: q) }
+                    cur = q; i += 2
+                }
+                lastCtrl = nil
+            case "L":
+                var i = 0
+                while i + 1 < a.count { let q = pt(i); p.addLine(to: q); cur = q; i += 2 }
+                lastCtrl = nil
+            case "H":
+                for v in a { cur = CGPoint(x: rel ? cur.x + v : v, y: cur.y); p.addLine(to: cur) }
+                lastCtrl = nil
+            case "V":
+                for v in a { cur = CGPoint(x: cur.x, y: rel ? cur.y + v : v); p.addLine(to: cur) }
+                lastCtrl = nil
+            case "Q":
+                var i = 0
+                while i + 3 < a.count {
+                    let ctrl = pt(i), end = pt(i + 2)
+                    p.addQuadCurve(to: end, control: ctrl); lastCtrl = ctrl; cur = end; i += 4
+                }
+            case "T":
+                var i = 0
+                while i + 1 < a.count {
+                    let ctrl = lastCtrl.map { CGPoint(x: 2 * cur.x - $0.x, y: 2 * cur.y - $0.y) } ?? cur
+                    let end = pt(i)
+                    p.addQuadCurve(to: end, control: ctrl); lastCtrl = ctrl; cur = end; i += 2
+                }
+            case "Z":
+                p.closeSubpath(); cur = start; lastCtrl = nil
+            default: break
+            }
+        }
+        return p
+    }
+}
+
 // MARK: - Card
 
 /// Value + trend arrow + rings + chart in one drawing (GlucoseCard.kt), adapting to the size.
 enum GlucoseCard {
-    static let ringEmphasis: [CGFloat] = [1, 0.55, 0.35]
     static let minCoverage = 0.25
 
     /// `metricsOf` gives a slot's numbers; by default computed from `readings` (enough for windows they cover).
+    /// `alerts` = the alert rules behind the badge, the mute lines and the last-treatment slot (nil = none of them).
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1,
-                     metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil) {
+                     metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil) {
         let w = size.width, h = size.height
         let latest = readings.max { $0.t < $1.t }
+        let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now) } ?? .none
+        let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
         let fr = Freshness.of(age: latest.map { now - $0.t })
         let graph = fr.showGraph ? st.graph : nil
         let bands = (st.graph?.bands ?? Bands()).sane()
@@ -869,42 +1203,52 @@ enum GlucoseCard {
 
         if st.value {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
-            let ringsW = sideBySide ? 0 : drawRings(ctx, box, st.rings, bands, pal, d: d, metrics)
-            drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal, d: d)
+            let ringsW = sideBySide ? 0 : drawRings(ctx, box, st, last, now, bands, pal, d: d, metrics)
+            let look = st.badge ? StatusBadge.look(status, now: now) : nil
+            drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal,
+                      d: d, look: look)
         }
         let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
             : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
         if let graph {
-            GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d)
+            GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts)
         } else if st.graph != nil && chart.height > 24 * d {
             let msg = latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
             Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
         }
     }
 
-    private static func drawRings(_ ctx: CGContext, _ box: CGRect, _ rings: [RingSpec], _ bands: Bands, _ pal: GraphPalette,
-                                  d: CGFloat, _ metricsOf: (RingSpec, Bands) -> GlucoseMetrics) -> CGFloat {
-        guard !rings.isEmpty else { return 0 }
+    /// Slots (`Slots.arrange`) right-aligned in `box` (main rightmost); returns the width used.
+    private static func drawRings(_ ctx: CGContext, _ box: CGRect, _ st: CardStyle, _ last: LastTreatment.Info?, _ now: TimeInterval,
+                                  _ bands: Bands, _ pal: GraphPalette, d: CGFloat,
+                                  _ metricsOf: (RingSpec, Bands) -> GlucoseMetrics) -> CGFloat {
+        let extra = st.last != .off && (last != nil || st.lastElse != nil)
+        guard !st.rings.isEmpty || extra else { return 0 }
         let size = min(box.height * 0.96, 84 * d)
         guard size >= 30 * d else { return 0 }
         let gap = size * 0.14
-        let fit = min(Int((box.width * 0.55 + gap) / (size + gap)), min(3, rings.count))
-        var x = box.maxX, used: CGFloat = 0
-        for (i, spec) in rings.prefix(max(0, fit)).enumerated() {
+        let fit = min(Int((box.width * 0.55 + gap) / (size + gap)), 4)
+        guard fit >= 1 else { return 0 }
+        let rings = st.rings.prefix(3).enumerated().compactMap { (i, spec) -> (Int, RingSpec, GlucoseMetrics)? in
             let m = metricsOf(spec, bands)
-            if m.tir.coverage < minCoverage { continue }
-            let e = spec.faded ? ringEmphasis[i] : 1
-            let c = CGPoint(x: x - size / 2, y: box.midY)
-            if spec.kind == .tir { TirRing.draw(ctx, center: c, radius: size / 2, tir: m.tir, spec: spec, pal, emphasis: e) }
-            else { MetricGauge.draw(ctx, center: c, radius: size / 2, m: m, spec: spec, pal, emphasis: e, d: d) }
+            return m.tir.coverage >= minCoverage ? (i, spec, m) : nil
+        }
+        let fallback: (RingSpec, GlucoseMetrics)? = st.last != .off && last == nil
+            ? st.lastElse.flatMap { s in let m = metricsOf(s, bands); return m.tir.coverage >= minCoverage ? (s, m) : nil } : nil
+        var x = box.maxX, used: CGFloat = 0
+        for item in Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit) {
+            Slots.draw(ctx, item, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, now: now, pal, d: d)
             x -= size + gap
             used += size + gap
         }
         return used
     }
 
+    /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a
+    /// row under the number when the box is tall enough to keep the number at least 26 pt; otherwise it shrinks to its
+    /// icon beside the arrow, or is left out when there's no room there either.
     private static func drawValue(_ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
-                                  _ bands: Bands, _ pal: GraphPalette, d: CGFloat) {
+                                  _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look? = nil) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
         guard let r, fr.showValue else {
             // Fit the longer line into the space left of the rings.
@@ -922,13 +1266,20 @@ enum GlucoseCard {
         let s = "\(r.sgv)"
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""
-        let timeH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
+        let smallH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
+        let badgeH = min(max(box.height * 0.24, 14 * d), 24 * d)
+        let badgeRow = look != nil && box.height - badgeH * 1.25 - smallH >= 26 * d
+        // the late time shares the badge's row (after the badge) when there is one
+        let timeH = badgeRow ? badgeH * 1.25 : smallH
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - timeH)
         var numSize = numBox.height * 1.18
         let arrowFactor: CGFloat = 0.62
         let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * arrowFactor * 1.1
         if need > box.width { numSize *= box.width / need }
         let num = Ink.font(numSize, .bold, rounded: true)
+        // no row for the badge: its icon goes beside the arrow if there's room
+        let iconH = min(numBox.height * 0.5, 24 * d)
+        let iconBadge = look != nil && !badgeRow && box.width - (Ink.width(s, num) + numSize * arrowFactor * 1.2) >= iconH
         let capH = CTFontGetCapHeight(num)
         let baseY = numBox.midY + capH / 2
         Ink.draw(ctx, s, x: box.minX - numSize * 0.04, y: baseY, num, color, strike: fr.strike)
@@ -941,7 +1292,20 @@ enum GlucoseCard {
             drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: abs(rate) >= 3)
             ctx.restoreGState()
         }
-        if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
+        if badgeRow, let look {
+            let top = numBox.maxY + badgeH * 0.25
+            let bw = StatusBadge.draw(ctx, x: box.minX, y: top, h: badgeH, maxW: box.width, look, dark: pal.dark)
+            if fr.showTime {
+                let t = Ink.font(badgeH * 0.56, .regular)
+                let tx = box.minX + bw + badgeH * 0.35
+                if tx + Ink.width(time, t) <= box.maxX { Ink.draw(ctx, time, x: tx, y: top + badgeH / 2 + badgeH * 0.56 * 0.36, t, pal.inkSoft) }
+            }
+        } else {
+            if iconBadge, let look {
+                StatusBadge.draw(ctx, x: x + arrowSize * 1.15, y: numBox.midY - iconH / 2, h: iconH, maxW: iconH, look, dark: pal.dark)
+            }
+            if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
+        }
     }
 
     /// Same geometry as GlucoseNotification.drawArrow / the menubar TrendArrow: unit arrow pointing +x.
@@ -962,7 +1326,7 @@ enum GlucoseCard {
     /// The card as a bitmap (widgets, PNG evidence): `scale` px per point, y-down.
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                       _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil,
-                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil) -> CGImage? {
+                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil) -> CGImage? {
         let pw = max(16, Int(size.width * scale)), ph = max(16, Int(size.height * scale))
         guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -970,7 +1334,7 @@ enum GlucoseCard {
         ctx.translateBy(x: 0, y: CGFloat(ph))
         ctx.scaleBy(x: scale, y: -scale)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
-        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf)
+        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf, alerts: alerts)
         return ctx.makeImage()
     }
 }

@@ -312,7 +312,7 @@ short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
 | Under the value | taken by the badge, which already says "muted, 45m left" while a mute runs; the amount + time since would make it two lines |
 | Notification | recommended next (owned by the notification work): the Taken badge's words ("Alerts paused · 45m left") fit the collapsed text; the expanded chart already has the marks and lines |
 | Lock screen widget | gets the badge already (it draws the value through `GlucoseCard`); its slots are drawn by its own loop, so the slot needs `Slots.arrange` there (one call) |
-| Mac menubar / widgets | not ported yet (the Swift renderer would need `AlertStatus`, the slot and the badge) |
+| Mac menubar / widgets | ported in the same round (below) |
 
 | Added | Discarded (why) |
 |---|---|
@@ -322,6 +322,17 @@ short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
 | Status badge under the value (None / Needed / Taken) | a badge for no data (out of scope this round); a clickable chip (it's a status) |
 | Last-treatment slot with a fallback (default 30-day ring), placement setting | a new `SlotKind` (it would replace one of the user's rings); long-acting in the slot |
 | Carbs focused in the treatment dialog when low | — |
+
+### On the Mac (same round)
+
+`SukraraGraph.swift` ports the marks (times, mute lines), `StatusBadge`, `Slots.arrange`, `LastSlot` and `LastPlace`
+line by line; `AlertStatus` and `LastTreatment` sit in `spikes/widgets-macos/Shared/AlertRules.swift` with the
+alert settings themselves, shared by the menubar app (its `AlertEngine` uses the same `level`, `mutedBy` and `muteS`)
+and the widgets (the host writes its alert settings and the fallback ring's numbers into the widget snapshot).
+`-alerts-selftest` runs the `CardStatusTest` cases. `render treatments <dir>` (Render CLI) draws the gallery's
+`marks`, `badge`, `last` and `last-places` sheets with the same states, sizes and clock: they match the Android
+sheets above except where SF Pro is a little wider than Roboto (a label that just fits on Android, e.g. `60g 8h` on
+the 24 h chart, is dropped on the Mac by the same no-overlap rule).
 
 ## Open
 
