@@ -57,9 +57,10 @@ jobs:
       - name: swift build
         working-directory: spikes/menubar
         run: swift build
-      - name: Self-tests (alert scenarios, graph math + fixtures, treatments merge)
+      - name: Self-tests (alert scenarios, graph math + fixtures, treatments merge, Bluetooth limits + INFO vectors)
         working-directory: spikes/menubar
         run: |
           .build/debug/GlucoseBar -alerts-selftest
           .build/debug/GlucoseBar -graphselftest
           .build/debug/GlucoseBar -treatmentsselftest
+          .build/debug/GlucoseBar -bleselftest

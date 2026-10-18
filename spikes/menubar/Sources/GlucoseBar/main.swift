@@ -59,6 +59,7 @@ if let dir = defaults.string(forKey: "panelPreview") {
 }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
+if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && QuickLog.selfTest() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
@@ -294,15 +295,21 @@ let treatmentStore = MainActor.assumeIsolated {
 
     func nearby(_ info: BLEV2Central.Info, from phone: String) {
         if let n = node {
-            if n.st.i != info.i {
+            // P12: write only to a phone that proved it's our wearer's (its m over our nonce, or I while pairing)
+            switch BLEV2Central.owner(info, i: n.st.i, sid: n.st.sid, nonces: ble?.nonces ?? []) {
+            case .ours:
+                if ble?.verifiedOwner != n.st.i { log("BLE v2: \(phone) is our wearer's phone") }
+                ble?.verifiedOwner = n.st.i
+            case .unknown: log("BLE v2: \(phone) can't prove it's our wearer's phone yet — receiving only")
+            case .other:
                 log("BLE v2: \(phone) belongs to another wearer — ignored")
                 ble?.disconnect(retryAfter: 600)
             }
             return
         }
-        guard let t = info.token, !offeredTokens.contains(t) else { ble?.disconnect(retryAfter: 60); return }
+        guard let i = info.i, let t = info.token, !offeredTokens.contains(t) else { ble?.disconnect(retryAfter: 60); return }
         offeredTokens.insert(t)
-        let inv = V2.Invite(i: info.i, t: t, x: info.expiry ?? Int(Date().timeIntervalSince1970) + 600, r: info.relays,
+        let inv = V2.Invite(i: i, t: t, x: info.expiry ?? Int(Date().timeIntervalSince1970) + 600, r: info.relays,
                             profile: info.profile)
         let who = (info.profile?["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? phone
         var name = defaults.string(forKey: "pairNearby") ?? ""                   // tests: no dialog
@@ -322,6 +329,7 @@ let treatmentStore = MainActor.assumeIsolated {
             name = f.stringValue.isEmpty ? FollowUI.computerName : f.stringValue
         }
         log("BLE v2: nearby pairing with \(phone)")
+        ble?.verifiedOwner = i                                  // the user picked this phone: the request goes to it
         join(inv, name: name, nearby: true)
     }
 
@@ -354,11 +362,14 @@ let treatmentStore = MainActor.assumeIsolated {
     private func attach(_ n: FollowerV2) {
         node = n
         n.extraPublish = { [weak self, weak n] ev, done in     // only to the phone of the wearer we follow
-            if let b = self?.ble, b.ownerI != nil, b.ownerI == n?.st.i { b.sendEvent(ev, done: done) }
+            if let b = self?.ble, b.verifiedOwner != nil, b.verifiedOwner == n?.st.i { b.sendEvent(ev, done: done) }
+            else { done?(false) }
         }
-        n.onTreatment = { t, fromWearer, via in
+        n.treatmentCreator = { treatmentStore.creator($0) }
+        n.treatmentStoredO = { treatmentStore.row($0)?.o }
+        n.onTreatment = { t, fromWearer, via, creator, force in
             // Accepted = the wearer merged it: its device key republished this id with a version ≥ the one we sent.
-            if treatmentStore.receiveV2(t, fromWearer: fromWearer, via: via) {
+            if treatmentStore.receiveV2(t, fromWearer: fromWearer, via: via, creator: creator, force: force) {
                 log("v2: treatment \(t.id.prefix(8)) accepted by the wearer (via \(via))")
             }
         }
@@ -426,7 +437,7 @@ MainActor.assumeIsolated {
         b.onEvent = { json, via in MainActor.assumeIsolated { following.node?.onEvent(json, via: via) } }
         b.onInfo = { info, phone in
             MainActor.assumeIsolated {
-                log("BLE v2: INFO from \(phone): owner \(info.i.prefix(12))…, pairing \(info.token == nil ? "closed" : "OPEN")")
+                log("BLE v2: INFO from \(phone): \(info.i.map { "owner \($0.prefix(12))…" } ?? "owner blinded"), pairing \(info.token == nil ? "closed" : "OPEN")")
                 following.nearby(info, from: phone)
             }
         }
@@ -459,7 +470,7 @@ MainActor.assumeIsolated {
         let p = paths()
         if p.canLog { log("treatment logged: \(StatusController.describe(t)) → \(p.route.rawValue)") }
         switch p.route {
-        case .v2: treatments.upsertLocal(t); following.sendTreatment(t)
+        case .v2: treatments.upsertLocal(t, creator: following.node?.followerPub); following.sendTreatment(t)
         case .local: treatments.upsertLocal(t)
         case .none: log("treatment NOT logged: \(TreatmentPaths.notAllowed)")
         }
@@ -467,7 +478,11 @@ MainActor.assumeIsolated {
     status.onDeleteTreatment = { id in
         let p = paths()
         switch p.route {
-        case .v2: if let t = treatments.delete(id) { following.sendTreatment(t) }
+        case .v2:
+            guard let row = treatments.row(id), TreatmentPaths.mayChange(row, store: treatments, node: following.node) else {
+                return log("treatment NOT deleted: made by someone else (a writer deletes only its own entries)")
+            }
+            if let t = treatments.delete(id) { following.sendTreatment(t) }
         case .local: treatments.delete(id)
         case .none: log("treatment NOT deleted: \(TreatmentPaths.notAllowed)")
         }
@@ -541,6 +556,7 @@ let reportWindow = MainActor.assumeIsolated {
     r.model.who = { following.node.map { $0.wearer.name }.flatMap { $0.isEmpty ? nil : $0 } ?? "the wearer" }
     r.model.details = { [weak r] t in TreatmentPaths.details(of: t, store: treatmentStore, who: r?.model.who() ?? "the wearer") }
     r.model.canLog = { TreatmentPaths.current(node: following.node).canLog }
+    r.model.mayChange = { TreatmentPaths.mayChange($0, store: treatmentStore, node: following.node) }
     r.model.onDelete = { status.onDeleteTreatment?($0) }
     treatmentStore.onChange.append { if r.isVisible { r.refresh() } }
     return r

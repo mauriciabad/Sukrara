@@ -342,6 +342,58 @@
    "id": "56cac6a3c360c935c38ebdda825f6fd5501f58561606fc0dae9b872b7d600e06",
    "sig": "bf0d79203733f374465edd5f529feaed6e963aba8929105b56b90a31068896e41ccfc4c4da0bcb6eb39ca5ea0ec35cf87115be4ac9a7b1272424786acf0c3f88"
   },
+  "treatment-writer-hijack": {
+   "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+   "created_at": 1792086930,
+   "kind": 30078,
+   "tags": [
+    [
+     "d",
+     "41cdbeda69e48d05003435df33e9792e"
+    ],
+    [
+     "c",
+     "b96c0424ae639a1208b7556446d40fd1"
+    ],
+    [
+     "gk",
+     "a10d4e6e"
+    ],
+    [
+     "expiration",
+     "1794678930"
+    ]
+   ],
+   "content": "Apb2fIfA8TfyxdjVc7aibkc5uP3aP9Old5sG5xGuRcpDUdRNuo1B1PDQEBHuzuUxs0+9asBcY4ta4/AGMMswCYhTVVQcP0y28faJOx3pm30DwshCvtXzBfsy2esYmtctwnLSorHbC3OY8ivzkE00wmUYyPlX8MecR3qNzSXaRhrOa6qNH1fH0bckQ/wRFOZdz6aFWOx0I4cdxLIqvZRWJP0OtISN8Pl2DwLkpFi7jjB3llW7Q+yw/nWFA4ehsb2rE05dzxwRMy41fecHMxdcOt5f8XrHKQNiXR51PE1xTis4d2I=",
+   "id": "5817a75fc1365f1a6b88f2269ec70e876458351a4ed263cae38b31f4c16bc7ae",
+   "sig": "0d3377e10e31bbe83bae91c6a195000d81987d8c67b5068341e4689d426fc2e4aab8faaa995ec91fdb2966847ad714b4d195c7f34c988d2d056086bc596a6dc5"
+  },
+  "treatment-writer-edit": {
+   "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+   "created_at": 1792086940,
+   "kind": 30078,
+   "tags": [
+    [
+     "d",
+     "20b4b72b878f2d8ac557b7cf8a0b4a86"
+    ],
+    [
+     "c",
+     "b96c0424ae639a1208b7556446d40fd1"
+    ],
+    [
+     "gk",
+     "a10d4e6e"
+    ],
+    [
+     "expiration",
+     "1794678940"
+    ]
+   ],
+   "content": "Amv+Nm8THA6dewd/XH0w1BQULRfSZDSWlIYJr/2kPitTtMDmCZjBv2uS4BrM3tkUlPhs5gUDyYxgZd1x0m1bPpsAjRMvPjVzmpKlzywM9oyJU7CVCT4vJFSee+kqErl8tfXYYLN/RNsCwMF9eF4BbMw1d1RC+b3uGUM4Wc/7hyfCOCC9CM8TW78hoDILWy85sJGNfd2zwexbtqylcpcuHFJKo/Fk2FKUjCMAfXGHJ6wR7uBTsly/SW8aaX8OkpyX0tttNZkedd9P21OPf+/6GWntq2oZh4F/dMkgsWBJhXzGAzk=",
+   "id": "ab5d404eb56be333242186eeaed5d25e2979c4e9980dc469f093543ef6fb9a80",
+   "sig": "bd103477ffac7be002bf87b1dc49c8c770ab8fcb1ee8da13b063ad9a48bd9d2ee8cdc48a16aaf7a6637412f42561a16c101150b9e306447a26eb0048cf70fb49"
+  },
   "live-outsider": {
    "pubkey": "cd3dd40e364347735f7412f840fa6791e356e9c3548d52c5811fab798791c86b",
    "created_at": 1792087185,
@@ -723,6 +775,16 @@
    "author": "cd3dd40e364347735f7412f840fa6791e356e9c3548d52c5811fab798791c86b",
    "content": "{\"v\":1,\"id\":\"11111111-2222-4333-8444-555555555555\",\"k\":\"rapid\",\"a\":2.5,\"t\":1792086900,\"n\":\"lunch\",\"u\":1792086910000,\"del\":false,\"o\":\"follower\"}"
   },
+  "treatment-writer-hijack": {
+   "read_key": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a",
+   "author": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+   "content": "{\"v\":1,\"id\":\"6f1c2b9a-0d3e-4c5f-8a7b-0123456789ab\",\"k\":\"carbs\",\"a\":30,\"t\":1792086600,\"n\":\"\",\"u\":1792086930000,\"del\":true,\"o\":\"follower\"}"
+  },
+  "treatment-writer-edit": {
+   "read_key": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a",
+   "author": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+   "content": "{\"v\":1,\"id\":\"0b9e3f52-7c1d-4e8a-9f60-123456789abc\",\"k\":\"rapid\",\"a\":2.5,\"t\":1792086900,\"n\":\"lunch, late\",\"u\":1792086940000,\"del\":false,\"o\":\"follower\"}"
+  },
   "live-outsider": {
    "read_key": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a",
    "author": "cd3dd40e364347735f7412f840fa6791e356e9c3548d52c5811fab798791c86b",
@@ -901,6 +963,14 @@
     "expect": "rejected:author-not-in-roster"
    },
    {
+    "event": "treatment-writer-hijack",
+    "expect": "rejected:writer-not-creator"
+   },
+   {
+    "event": "treatment-writer-edit",
+    "expect": "accepted:treatment"
+   },
+   {
     "event": "live-outsider",
     "expect": "rejected:author-not-device"
    },
@@ -965,6 +1035,7 @@
    ],
    "readings": 62,
    "treatments": 2,
+   "deleted": 0,
    "writers": [
     "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
    ],
@@ -1060,7 +1131,54 @@
     "0007000000025b224556454e54222c7b227075626b6579223a2238623733626663346237383062346433646265636164323766353739636535346664326634366335646231363633643533306135363062366131383265393734222c22637265617465645f6174223a313739323038373137352c226b696e64223a32313037382c2274616773223a5b5b22676b222c226131306434653665225d2c5b2265787069726174696f6e222c2231373932303930373735225d5d2c22636f6e74656e74223a224175455a7138502f4a2b30646c56386b626475382b586d6a4938345455706d61513955514b6e6d63394b52723269596a733479543973496d567538356f344e666344474f3931616c4f6b4c785441517548574432566f6951356a5132783034497a6c4e7638774d53552f6a43444a6234776e312b573337334b364762657447587a68792f57347173794241546331705767724a6d4a536a7545464a476c33587678634445444a766a35507039317162792f79542f36345a6e48374d5334575a43667654792f464b772f4556413158686431502b39714232696d554b575142766b36654744505834316e3277322f42696b486d4161437078433671412b6f7747356f773753222c226964223a2237386264313439663437323633303136373466633730643362613739633334396564323064613266643039313163376234",
     "000700010002363866346534653861393464633364222c22736967223a226561393132656461336464623933313561323163626139383030396530383135306134383535633662366236333637376261343430646431393531663632343963643630346339323365313830663962333864623363393238636461383732336662393135373262646566653037313065306535333962386363306437393166227d5d"
    ]
-  }
+  },
+  "hello": [
+   "HELLO",
+   {
+    "v": 2,
+    "nonce": "d06523d57ab24aea0bae2e3fe29d950e"
+   }
+  ],
+  "info_m": {
+   "sid": "74767bf125c92e2efb705d29cb173f5bafda20bce46bf81e1a0a603e854c913a",
+   "nonce": "d06523d57ab24aea0bae2e3fe29d950e",
+   "m": "a5f3bf1f6b7e7fd70bd1f0f33e22c899"
+  },
+  "info": [
+   "INFO",
+   {
+    "v": 2,
+    "nonce": "d06523d57ab24aea0bae2e3fe29d950e",
+    "m": "a5f3bf1f6b7e7fd70bd1f0f33e22c899"
+   }
+  ],
+  "info_pairing": [
+   "INFO",
+   {
+    "v": 2,
+    "nonce": "d06523d57ab24aea0bae2e3fe29d950e",
+    "m": "a5f3bf1f6b7e7fd70bd1f0f33e22c899",
+    "i": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+    "relays": [
+     "wss://relay.example.org",
+     "wss://nos.lol"
+    ],
+    "pair": {
+     "t": "C_TX2IzrmRf7hg8cATyckQ",
+     "x": 1792087800,
+     "profile": {
+      "name": "Alex",
+      "avatar": {
+       "v": 1,
+       "c": 0,
+       "s": "cube",
+       "a": 45,
+       "n": 1497950029
+      }
+     }
+    }
+   }
+  ]
  },
  "cgms": [
   {

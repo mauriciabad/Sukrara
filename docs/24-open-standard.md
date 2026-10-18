@@ -147,8 +147,28 @@ Nothing has been published, and no PR, issue or post has been made. This is the 
 
 ## In Sukrara
 
-**Nothing was added to the app in this investigation** (it is a standalone PoC). The proposals above are the candidate
-integration list. Every one of them is still open: none was rejected, and none was taken in.
+**Nothing was added to the app in the investigation itself** (it is a standalone PoC). The security and robustness
+proposals were then integrated (2026-10-19, branch `w-security`, Android and Mac together, draft 1 updated to match):
+
+| Added | How |
+|---|---|
+| **P4** writer scope | The owner keeps the first writer per `id` and refuses a writer's change to the wearer's or another writer's entry. Followers keep the creator per `id` too: a writer's copy after the wearer's echo is ignored, the wearer's own entry replaces a copy a writer forged first. Every writer sends `o:"follower"`; the Mac offers Delete only on its own entries while following. `WriterScope` (Kotlin + Swift), scenario steps 12–13. |
+| **P5** Mac wrap expiration | Absolute `expiration` on the Mac's request (7 d), rekey (7 d) and history (1 d) wraps. |
+| **P6** `sid` never changes | The Mac rejects a key delivery naming another `sid`, as Android did. |
+| **P10** (part) Mac chunk tags and rekey trigger | The Mac checks a chunk's `c` and its `d` against `h`, and asks for a rekey only for `I` or a roster device. |
+| **P12** Bluetooth privacy | No scan response (no phone name). `HELLO` carries a fresh nonce; `INFO` carries `nonce` + `m = H(NS:ble:sid:nonce)` and `i`/`relays`/`pair` only while pairing. Followers write nothing until `INFO` proves the stream; another wearer's phone is left (Android avoids it 10 min). |
+| **P13** Bluetooth limits | Reassembly: 30 s idle, 256 KiB, 16 buffers (both apps). Owner: 8 centrals, writes checked before the response, 30 messages and 256 KiB a minute per central, one backlog per 5 s, no expired event in a backlog. |
+| **P3** spec texts | PROTOCOL-v2: match code `mod 10000`, gift-wrap TTLs, writer scope, receiver checks; docs/07: `pair.profile`, the new `HELLO`/`INFO`, the real backlog order, the limits. |
+| **P15** repo hygiene | The Python v2 CLI owner and follower (`cli.py`, `nodes.py`, `scenarios.py`, `debug_share.py`) and the `cgmshare:join?` link code are deleted; `cgm2.py` keeps the primitives the identity spike, the attack harness and the OGS interop harness use. |
+
+Choices made along the way: `m` is computed over the **follower's** nonce from `HELLO` (the proposal had the owner
+pick one), so a recorded `INFO` can't be replayed to impersonate the wearer's phone, and it is namespaced with `NS`
+like every other derived value. A follower whose request is pending (no `sid` yet) and meets a phone that isn't
+pairing receives but doesn't write, rather than leaving it.
+
+**Still open (not rejected):** P1, P2, P7, P8, P9 and P11 change the wire for draft 2 and wait for v1; the rest of P10
+(expiration and roster-epoch checks on receivers, strict `(epoch, created_at)` roster order on the Mac); P14 (CGMS
+bridge). Not covered by P12: a *connected* central can still read the phone's name from Android's GAP service.
 
 ## Not done / open
 

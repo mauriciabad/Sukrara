@@ -46,6 +46,7 @@ class Follower:
         self.sensor: m.Sensor | None = None
         self.sensor_at = -1
         self.treatments: dict[str, m.Treatment] = {}
+        self.creators: dict[str, str] = {}   # treatment id → key that signed the first accepted version (N§9.1.8)
         self.alerts: list[m.Alert] = []
         self._alert_seen: set[tuple] = set()
         self._seen: set[str] = set()
@@ -147,8 +148,22 @@ class Follower:
             tr = m.parse_treatment(json.loads(decrypt(G, author, ev["content"])))
             if d != m.d_treatment(self.sid, tr.id):
                 return Result("rejected", "d-mismatch")
+            # writer scope: a writer changes only entries it created; the wearer's own entry (o != follower) beats a
+            # copy a writer created first, whatever its u
+            creator = self.creators.get(tr.id)
+            override = False
+            if author not in self.devices:
+                if creator is not None and creator != author:
+                    held = self.treatments.get(tr.id)
+                    if creator in self.devices and held is not None and held.o == "follower":
+                        return Result("ignored", "treatment-held-by-wearer")   # its echo came first
+                    return Result("rejected", "writer-not-creator")
+            elif tr.o != "follower" and creator is not None and creator not in self.devices:
+                override = True
+            if creator is None or override:
+                self.creators[tr.id] = author
             cur = self.treatments.get(tr.id)
-            if cur is None or m.treatment_newer(tr, cur):
+            if cur is None or override or m.treatment_newer(tr, cur):
                 self.treatments[tr.id] = tr
                 return Result("accepted", "treatment", f"{tr.k} {tr.a:g}{' deleted' if tr.deleted else ''}")
             return Result("ignored", "treatment-older")

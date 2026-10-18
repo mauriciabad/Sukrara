@@ -34,6 +34,7 @@ enum V2 {
     }
     static func rosterD(_ sid: String) -> String { H("cgm2:roster:\(sid)") }
     static func chunkC(_ sid: String) -> String { H("cgm2:glucose:\(sid)") }
+    static func chunkD(_ sid: String, _ hour: Int) -> String { H("cgm2:h:\(sid):\(hour)") }
     /// Treatments (libreview SPEC §5): `#c` index shared by every treatment, `d` per treatment id.
     static func treatmentsC(_ sid: String) -> String { H("cgm2:treatments:\(sid)") }
     static func treatmentD(_ sid: String, _ id: String) -> String { H("cgm2:tr:\(sid):\(id)") }
@@ -129,12 +130,18 @@ enum V2 {
         return .failure(.init(text: "Can't open this invite: \(why.isEmpty ? "it wasn't found online (it may have expired)" : why)."))
     }
 
-    /// Gift wrap a JSON body as rumor `kind`, sealed by `sender`, to `recipientHex`.
-    static func gift(_ sender: Keys, _ recipientHex: String, kind: UInt16, _ body: [String: Any]) -> String? {
+    /// Gift-wrap TTLs (spec/ogs-nostr.md N§6): request, profile and rekey 7 d, history 1 d (P5).
+    static let ttlRequest = 7 * 86400, ttlHistory = 86400
+
+    /// Gift wrap a JSON body as rumor `kind`, sealed by `sender`, to `recipientHex`, with an **absolute** NIP-40
+    /// expiration of now + `ttl` s: NIP-59 backdates the wrap's created_at by up to 2 days, so one anchored to it (the
+    /// library's `expiration:`) could arrive already expired (P5; Android `Proto.gift` does the same).
+    static func gift(_ sender: Keys, _ recipientHex: String, kind: UInt16, _ body: [String: Any], ttl: Int) -> String? {
         do {
             let to = try PublicKey.parse(publicKey: recipientHex)
             let rumor = EventBuilder(kind: Kind(kind: kind), content: json(body)).finalizeUnsigned(publicKey: sender.publicKey())
-            return try nip59MakeGiftWrap(signer: sender, receiverPubkey: to, rumor: rumor).asJson()
+            let exp = try Tag.parse(data: ["expiration", String(Int(Date().timeIntervalSince1970) + ttl)])
+            return try nip59MakeGiftWrap(signer: sender, receiverPubkey: to, rumor: rumor, extraTags: [exp]).asJson()
         } catch {
             log("v2: gift wrap failed: \(error)")
             return nil
@@ -393,8 +400,14 @@ struct FollowerV2State: Codable {
     /// BLE link to the wearer's phone. `done(true)` once the phone acknowledged the write; nil = nobody listening.
     var extraPublish: ((String, ((Bool) -> Void)?) -> Void)?
     /// A treatment event that passed every check (SPEC §5): author ∈ roster writers ∪ devices, known gk, d tag
-    /// matches the id. `fromWearer` = signed by a wearer device key (its merged log), not by another writer.
-    var onTreatment: ((Treatment, _ fromWearer: Bool, _ via: String) -> Void)?
+    /// matches the id, and a writer only changes its own entries (P4). `fromWearer` = signed by a wearer device key
+    /// (its merged log), not by another writer; `creator` = who created the entry (store it); `force` = the wearer's
+    /// own entry replaces a writer's forged version whatever its `u`.
+    var onTreatment: ((Treatment, _ fromWearer: Bool, _ via: String, _ creator: String, _ force: Bool) -> Void)?
+    /// The key recorded as the creator of a treatment id (the TreatmentStore), nil = never seen (P4).
+    var treatmentCreator: ((String) -> String?)?
+    /// The `o` of the version the TreatmentStore holds for an id (nil = none).
+    var treatmentStoredO: ((String) -> String?)?
     /// One of our treatment events reached a relay (OK true) or the wearer's phone over BLE (write acknowledged).
     var onTreatmentSent: ((_ id: String, _ u: Int64, _ via: String) -> Void)?
     /// A new epoch key arrived (BLE asks the owner for its backlog again — it is readable now).
@@ -445,6 +458,7 @@ struct FollowerV2State: Codable {
         guard canWrite, let sid = st.sid, let (_, G) = epochKeys.values.max(by: { $0.n < $1.n }) else { return false }
         var body = t.dict
         body["v"] = 1                                      // PROTOCOL-v2 "Treatments"
+        body["o"] = "follower"                             // every writer sends follower (P4); "mac" stays local
         // created_at strictly increasing per (author, d): relays drop a same-second replacement (an edit or delete
         // right after the entry would otherwise be lost).
         let d = V2.treatmentD(sid, t.id)
@@ -532,7 +546,8 @@ struct FollowerV2State: Codable {
     func stop() { historyCheck?.cancel(); pool.stop() }
 
     func sendRequest() {
-        guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "profile": myProfile])
+        guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "profile": myProfile],
+                              ttl: V2.ttlRequest)
         else { return }
         pool.publish(g)
         extraPublish?(g, nil)
@@ -596,7 +611,8 @@ struct FollowerV2State: Codable {
                       let from = missing.min() else { return }
                 if attempt == 0 { log("v2 history: \(missing.count) of the last 12 h missing → check again in 90 s"); continue }
                 guard Date().timeIntervalSince(self.historyAskedAt) >= 30 * 60,
-                      let g = V2.gift(self.F, self.st.i, kind: V2.toOwner, ["v": 2, "type": "history", "since": from]) else { return }
+                      let g = V2.gift(self.F, self.st.i, kind: V2.toOwner, ["v": 2, "type": "history", "since": from],
+                                      ttl: V2.ttlHistory) else { return }
                 self.historyAskedAt = Date()
                 self.pool.publish(g)
                 self.extraPublish?(g, nil)
@@ -629,8 +645,11 @@ struct FollowerV2State: Codable {
 
         guard let g = tag("gk") else { return reject("no gk tag", id) }
         guard let (epoch, G) = epochKeys[g] else {
-            if st.status == "active", Date().timeIntervalSince(rekeyAsked[g] ?? .distantPast) > 300,
-               let w = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "rekey", "have": g]) {
+            // Only the identity or a roster device can mean a missed rotation (P10): a stranger's unknown gk is ignored,
+            // so nobody can make this Mac spam rekey requests.
+            if st.status == "active", author == st.i || st.devices.contains(author),
+               Date().timeIntervalSince(rekeyAsked[g] ?? .distantPast) > 300,
+               let w = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "rekey", "have": g], ttl: V2.ttlRequest) {
                 rekeyAsked[g] = Date()
                 pool.publish(w)
                 extraPublish?(w, nil)
@@ -701,7 +720,10 @@ struct FollowerV2State: Codable {
             log("v2 alert \(body["k"] ?? "?") \(body["state"] ?? "?") n=\(body["n"] ?? "?") epoch \(epoch) via \(via)")
             onAlert?(body, via)
         case V2.chunk:
+            // P10: a chunk is only what the stream's chunk index names, in the slot its own hour derives
+            guard tag("c") == V2.chunkC(sid) else { return reject("30078 from a device that isn't a chunk (c tag)", id) }
             guard let h = num(body["h"]), let rows = body["r"] as? [[Any]] else { return }
+            guard tag("d") == V2.chunkD(sid, Int(h)) else { return reject("chunk d tag doesn't match its hour", id) }
             let pts = rows.compactMap { row -> Reading? in
                 guard row.count >= 2, let dt = num(row[0]), let sgv = num(row[1]) else { return nil }
                 return Reading(date: Date(timeIntervalSince1970: h + dt), mgdl: sgv, rate: row.count > 2 ? num(row[2]).map { $0 / 100 } : nil)
@@ -721,10 +743,15 @@ struct FollowerV2State: Codable {
               let t = Treatment(dict: body) else { return reject("treatment decrypt/parse failed", id) }
         guard dTag == V2.treatmentD(sid, t.id) else { return reject("treatment d tag doesn't match its id", id) }
         guard Treatment.kinds.contains(t.k) else { return reject("treatment kind \(t.k) unknown", id) }
-        accepted += 1
         let fromWearer = st.devices.contains(author)
+        let creator = treatmentCreator?(t.id)
+        let verdict = WriterScope.follower(author: author, fromDevice: fromWearer, incO: t.o, creator: creator,
+                                           storedO: treatmentStoredO?(t.id), devices: st.devices)
+        guard verdict != .reject else { return reject("treatment: writer \(author.prefix(8)) changed an entry it didn't create", id) }
+        guard verdict != .ignore else { return }        // the wearer's copy of this writer entry is already here
+        accepted += 1
         log("v2 treatment \(t.k) \(t.id.prefix(8)) u \(t.u)\(t.del ? " (deleted)" : "") from \(fromWearer ? "wearer" : "writer \(author.prefix(8))") via \(via)")
-        onTreatment?(t, fromWearer, via)
+        onTreatment?(t, fromWearer, via, WriterScope.creatorAfter(verdict, author: author, creator: creator), verdict == .override)
     }
 
     static func label(_ via: String) -> String {
@@ -746,6 +773,8 @@ struct FollowerV2State: Codable {
         case "key":
             guard let g = body["g"] as? String, let gKeys = try? Keys.parse(secretKey: g),
                   let n = body["epoch"] as? Int, let sid = body["sid"] as? String else { return }
+            // P6 (N§9.1): a stream keeps its sid for life; a delivery naming another one is not for this stream
+            if let known = st.sid, known != sid { return reject("key delivery for another stream id", id) }
             let k = V2.gk(gKeys.publicKey().toHex())
             guard epochKeys[k] == nil else { return }
             epochKeys[k] = (n, gKeys)

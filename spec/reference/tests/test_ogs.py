@@ -149,6 +149,31 @@ class Ble(unittest.TestCase):
         r.push(struct.pack(">HHH", 2, 0, 2) + b"[")    # any frame triggers expiry of idle buffers
         self.assertNotIn(1, r.buf)
 
+    def test_size_and_buffer_caps(self):
+        big = ble.split(3, ble.encode(["EVENT", {"x": "z" * (ble.MAX_MESSAGE + 10)}]), 517)
+        r = ble.Reassembler()
+        self.assertTrue(all(r.push(f) is None for f in big))     # over 256 KiB: dropped, never decoded
+        r = ble.Reassembler()
+        for mid in range(ble.MAX_BUFFERS + 4):
+            r.push(struct.pack(">HHH", mid, 0, 2) + b"[")
+        self.assertEqual(len(r.buf), ble.MAX_BUFFERS)
+        self.assertNotIn(0, r.buf)                               # the oldest went first
+
+    def test_blinded_info_and_owner_check(self):
+        sid, i = "ab" * 32, "cd" * 32
+        info = ble.info(sid, "0f" * 16)[1]
+        self.assertNotIn("i", info)
+        self.assertEqual(ble.owner_check(info, i, sid, ["0f" * 16]), "ours")
+        self.assertEqual(ble.owner_check(info, i, sid, ["00" * 16]), "other")      # replayed for another HELLO
+        self.assertEqual(ble.owner_check(info, i, "ef" * 32, ["0f" * 16]), "other")  # another stream
+        self.assertEqual(ble.owner_check(info, i, None, []), "unknown")             # request pending, not pairing
+        pairing = ble.info(sid, "0f" * 16, i_pub=i, relays=[], pair={"t": "x", "x": 1})[1]
+        self.assertEqual(ble.owner_check(pairing, i, None, []), "ours")
+
+    def test_backlog_drops_expired(self):
+        evs = [{"tags": [["expiration", "100"]]}, {"tags": [["expiration", "300"]]}, {"tags": []}]
+        self.assertEqual(ble.backlog(evs, 200), evs[1:])
+
 
 class Cgms(unittest.TestCase):
     def test_sfloat(self):

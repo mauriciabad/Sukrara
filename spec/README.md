@@ -23,7 +23,7 @@ password that sees everything in plaintext. OGS is a third way:
 | [ogs-ble.md](ogs-ble.md) | **Bluetooth LE transport**: GATT service, framing, session, nearby pairing, limits. Annexes: NIP-BE, and the Bluetooth SIG CGM Service (0x181F) as an optional bridge |
 | [conformance.md](conformance.md) | **Checklist** per class (follower, writer, owner, Bluetooth, portable owner, CGMS bridge), and where the apps stand |
 | [PROPOSALS.md](PROPOSALS.md) | **Changes for draft 2**: what Sukrara should change before anyone else ships (P1–P15) |
-| [test-vectors/ogs-draft1.json](test-vectors/ogs-draft1.json) | **Vectors**: throwaway keys, derivations, the invite, 28 events with their plaintexts, a 25-step acceptance scenario, Bluetooth frames, CGMS packets |
+| [test-vectors/ogs-draft1.json](test-vectors/ogs-draft1.json) | **Vectors**: throwaway keys, derivations, the invite, 30 events with their plaintexts, a 27-step acceptance scenario, Bluetooth frames and `INFO`, CGMS packets |
 | [reference/](reference) | **Reference tool**: standard-library crypto, a follower, vector generation and checking, a live relay follower, and the interop harness |
 | [drafts/](drafts) | **Unsent texts**: the NIP pull request, the web page, and messages to other projects. Publishing is the maintainer's call. |
 
@@ -51,7 +51,8 @@ Principles:
 
 ## Status and naming
 
-- *Draft 1* describes what Sukrara 0.11 sends today, so other apps can interoperate now. *Draft 2* will be draft 1
+- *Draft 1* describes what Sukrara 0.11 sends today, so other apps can interoperate now. The non-breaking fixes
+  P3–P6, P10 (in part), P12, P13 and P15 are in the apps and in draft 1 (P12 changed the Bluetooth `HELLO`/`INFO`). *Draft 2* will be draft 1
   plus [PROPOSALS.md](PROPOSALS.md), after Sukrara has made those changes. A NIP pull request makes sense only for
   draft 2 (see [drafts/nip-pr.md](drafts/nip-pr.md)).
 - The name is vendor-neutral on purpose. "Open Glucose Stream" and "OGS" are working titles. Constants that still
@@ -64,7 +65,7 @@ Principles:
 
 ```sh
 cd spec/reference
-uv run ogs vectors verify                 # signatures, NIP-44, derivations, invite checks, BLE frames, 25-step scenario
+uv run ogs vectors verify                 # signatures, NIP-44, derivations, invite checks, BLE frames + INFO, 27-step scenario
 uv run python -m unittest discover tests  # crypto against the official NIP-44 and BIP-340 vectors, framing, CGMS
 uv run ogs follow '<invite link>'         # join a real stream as a third-party follower (throwaway key)
 # interop with the Sukrara side (repo v2 code + rust-nostr, in the spikes/nostr environment):

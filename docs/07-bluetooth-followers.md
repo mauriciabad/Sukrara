@@ -48,8 +48,8 @@ emulator's Wi-Fi and mobile data **off** for the whole app↔app run. Transport 
 ```
    follower (central)                                  owner phone (GATT server, advertises service UUID)
    ─ scan for service UUID ─────────────────────────►
-   ─ connect, MTU 517, notify on TX, write HELLO ───►
-   ◄──────────────────── INFO {i, relays, pair?} ────  pair = {token, expiry} only while "Pair nearby" is open
+   ─ connect, MTU 517, notify on TX, write HELLO {nonce} ►
+   ◄──────────── INFO {nonce, m, (i, relays, pair)} ─  m proves sid; i/relays/pair only while "Pair nearby" is open
    ◄── EVENT roster, EVENT chunk ×24, EVENT live, EVENT recent gift wraps (backlog cache)
    ── EVENT gift wrap "request" (to I) ─────────────►  onEvent(json, "ble:<addr>") → same rules → Allow dialog
    ◄──────────────── EVENT gift wrap "key" (to F) ───  every publish() also goes to BLE peers
@@ -65,7 +65,8 @@ emulator's Wi-Fi and mobile data **off** for the whole app↔app run. Transport 
 - **Relays stay on.** A BLE follower still subscribes to the relays; whichever copy arrives first wins (`via` is
   stored per reading). With no internet the relay connections just fail and BLE carries everything.
 - **Backlog cache on the owner** (in memory): last roster, last ~38 hour chunks (by `d`), latest live, last 10 gift
-  wraps. Sent on every `HELLO`. Caching wraps means a follower that drops out during approval still gets its key
+  wraps. Sent on every `HELLO` (at most one backlog per central every 5 s; events whose expiration has passed are
+  dropped from the cache, never re-sent). Caching wraps means a follower that drops out during approval still gets its key
   when it reconnects. A follower re-sends `HELLO` after accepting a *new* key, so chunks received before approval
   become readable.
 - **Nearby pairing token**: "Pair nearby (10 min)" creates a normal invite token (stored with the QR ones, single
@@ -80,9 +81,11 @@ emulator's Wi-Fi and mobile data **off** for the whole app↔app run. Transport 
 
 ## GATT framing
 
-Owner phone = peripheral / GATT server (advertises the service UUID in the advertising packet, device name in the
-scan response). Follower = central. **No BLE pairing/bonding**: anyone nearby may connect; trust comes only from
-the v2 events themselves (signatures, roster, NIP-44 to `G_n`, gift-wrap seal signer), exactly as for relays.
+Owner phone = peripheral / GATT server (advertises the service UUID in the advertising packet and **no scan
+response**: the phone's Bluetooth name, often its owner's name, isn't broadcast — investigation 24, P12). Follower =
+central. **No BLE pairing/bonding**: anyone nearby may connect; trust comes only from the v2 events themselves
+(signatures, roster, NIP-44 to `G_n`, gift-wrap seal signer), exactly as for relays. (Android's own GAP service still
+answers a *connected* central's Device Name read; an app can't turn that off.)
 
 | what | UUID | properties |
 |---|---|---|
@@ -99,6 +102,12 @@ the v2 events themselves (signatures, roster, NIP-44 to `G_n`, gift-wrap seal si
 - `msgId` increments per message per sender (wraps at 65535); `idx` = 0..count-1; frames are sent in order.
 - Receiver keeps one buffer per `msgId`; a frame with `idx == 0` restarts that buffer. When all `count` parts are
   present, concatenate payloads → UTF-8 → one JSON array (the message).
+- **Limits** (P13, Android and Mac): a buffer idle for 30 s is dropped; a message over 256 KiB is dropped (its later
+  frames ignored); at most 16 buffers are open (the oldest goes).
+- **Owner limits** (P13): at most 8 centrals at once; a write is checked *before* the GATT response, and a frame
+  shorter than the header, with `idx ≥ count` or `count = 0`, or over the central's byte budget (256 KiB a minute)
+  gets `GATT_WRITE_NOT_PERMITTED` and the central is disconnected; at most 30 messages a minute per central (more are
+  dropped).
 - Central requests MTU 517 (Android) / uses `maximumWriteValueLength` (CoreBluetooth); the owner uses each
   central's negotiated MTU for its notifications (23 if never negotiated → 14 payload bytes per frame).
 - Owner sends one notification at a time per central (next one after `onNotificationSent`); central writes one
@@ -108,15 +117,24 @@ the v2 events themselves (signatures, roster, NIP-44 to `G_n`, gift-wrap seal si
 
 | message | direction | meaning |
 |---|---|---|
-| `["HELLO", {"v":2}]` | follower → owner | sent right after enabling notifications: "send INFO + what you have" |
-| `["INFO", {"v":2,"i":"<I pubkey hex>","relays":[…],"pair":{"t":"<token>","x":<expiry>} \| null}]` | owner → follower | reply to HELLO. `pair` is non-null only while the owner has "Pair nearby" open (10 min); it is an invite token like the QR one (owner still has to Allow, match code shown on both screens) |
+| `["HELLO", {"v":2,"nonce":"<16 random bytes, hex>"}]` | follower → owner | sent right after enabling notifications: "send INFO + what you have"; a fresh `nonce` every time |
+| `["INFO", {"v":2,"nonce":"<the HELLO's>","m":"<H(\"cgm2:ble:\"+sid+\":\"+nonce)>"}]` | owner → follower | reply to HELLO. `m` proves the phone holds the stream's `sid` without naming the stream (P12). Only while the owner has "Pair nearby" open (10 min) it also carries `"i":"<I pubkey hex>","relays":[…],"pair":{"t":"<token>","x":<expiry>,"profile":{"name","avatar"}}`: an invite token like the QR one plus the wearer's profile (owner still has to Allow and type the match code) |
 | `["EVENT", <signed nostr event>]` | both | any v2 event: live (21078), hour chunks / roster / treatments (30078), gift wraps (1059: access requests, key deliveries, rekey, revoked) |
 
-After `HELLO` the owner sends `INFO`, then its cached events: the roster first, then up to ~38 recent hour chunks
-(oldest → newest), then the latest live event. After that every event the owner publishes (live, chunks, roster,
+After `HELLO` the owner sends `INFO`, then its cached events, none expired: the roster first, then the other cached
+events in the order they were last published (in practice the hour chunks newest hour first, up to ~38, then the
+sensor update and the newest alert), then the treatments of the last 30 days (newest 200), the latest live event and
+the last 10 gift wraps. After that every event the owner publishes (live, chunks, roster,
 key deliveries…) is also pushed to every subscribed central. The owner backup event is never sent over BLE.
 Followers send access requests (gift wrap to `I`), rekey requests and treatments (kind 30078, see below) as
 `EVENT`s on RX; the owner feeds them into the same `onEvent(json, "ble:<addr>")` as relay events.
+
+**Which owner** (P12, Android and Mac): a follower writes nothing but `HELLO` until the phone's `INFO` proves it's
+its wearer's: `m` matches `H("cgm2:ble:"+sid+":"+nonce)` for one of its last 4 HELLO nonces (a recorded INFO can't be
+replayed), or `i` is its stream's `I` while pairing. Another wearer's phone (a different `i`, or a wrong/missing `m`
+once the follower knows the `sid`) is left and avoided for 10 minutes, and the scan goes on. While a request is still
+pending (no `sid` yet) and the phone isn't pairing, the follower receives (events are verified anyway) but writes
+nothing.
 
 **Treatments** (libreview SPEC §5): kind 30078, signed by the writer `W` (the follower key `F`), tags
 `d = H("cgm2:tr:"+sid+":"+id)`, `c = H("cgm2:treatments:"+sid)`, `gk`, `expiration` (+30 d); content =
@@ -154,8 +172,9 @@ build was run on devices).
    BLE-only follower had no `writers`/devices update. The owner now re-publishes the roster when BLE starts.
 3. **Rotating private addresses.** Android advertises from a resolvable private address that changes when the app
    restarts; reconnecting to the stored address failed with status 147 forever. The follower now re-scans by service
-   UUID (first owner found) and falls back to the stored address. *For several owners in range it should check
-   `INFO.i` before trusting the link for writes — events are verified anyway.*
+   UUID and falls back to the stored address. ~~For several owners in range it should check `INFO.i` before trusting
+   the link for writes~~ — done (investigation 24, P12): the INFO must prove the stream's `sid` before any write, and
+   another wearer's phone is skipped.
 4. **Re-`HELLO` loop** in the Mac client: the backlog contains cached key wraps, so "new key → HELLO" looped. Only
    a key with an unknown `gk` triggers `HELLO` now (the Android engine already ignores repeated keys).
 5. **CoreBluetooth stale identifiers**: the Mac sometimes got a peripheral id that never connected (30 s timeout)
@@ -171,10 +190,12 @@ build was run on devices).
 - Writer treatments **over relays** (follower away from the owner) — code path present, not tested.
 - ~~Followers don't show treatments~~ — done in Sukrara (docs/10, polish round 2). No edits/deletes UI, no
   LibreView upload (showcase app wires investigation 04's uploader).
-- **No GATT-level abuse limits**: anyone in range can connect, receive the encrypted stream, see `I`'s public key
-  in `INFO` and write events (verified, but CPU cost). Add a per-peer rate limit and drop peers that send garbage.
-- Privacy: while BLE is on, `INFO` reveals the owner's identity pubkey to anyone nearby, and the encrypted events
-  reveal activity timing. Consider gating `INFO.i` behind "Pair nearby" and advertising only while followers exist.
+- ~~No GATT-level abuse limits~~ — done (investigation 24, P13): reassembly timeout and size cap, per-central
+  message and byte budgets, malformed frames refused before the response, at most 8 centrals, one backlog per 5 s.
+- Privacy: ~~`INFO` reveals the owner's identity pubkey to anyone nearby~~ — done (P12: `I` only while pairing, a
+  blinded `m` otherwise; no name in the scan response). Still open: the encrypted events reveal activity timing, the
+  phone advertises whenever sharing is on (not only while followers exist), and a connected central can read the
+  phone's name from Android's GAP service.
 - Battery cost of advertising + GATT server with a follower connected all day: not measured (see investigation 11).
 - Screen-off/Doze behaviour of the follower's background re-scan (Android limits background scans) and the owner's
   advertising over hours: not tested; only ~30 min runs.

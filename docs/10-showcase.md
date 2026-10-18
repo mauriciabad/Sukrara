@@ -943,6 +943,28 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 
 ![New sensor flow](img/21/flow-new-sensor.png)
 
+## Sharing security fixes (investigation 24 integration, 2026-10-19)
+
+The spec audit of investigation 24 found that a writer could delete or change the wearer's entries, that the phone
+broadcast its Bluetooth name and identity key to anyone in range, that the Android follower wrote to the first
+Sukrara phone it found, that Bluetooth had no limits, and four Mac follower gaps. Fixed on Android and Mac together,
+with `spec/` (draft 1), the test vectors and `spec/reference` updated. Details: [docs/24](24-open-standard.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| Writers change only their own entries (owner and followers) | `treatments/WriterScope.kt`, `OwnerEngine.onTreatment`, `FollowerDb` (`creator`, db v3); Mac `WriterScope`, `TreatmentStore.creators`; `WriterScopeTest`, `-v2selftest` |
+| Mac: Delete only on its own entries while following; writers send `o:"follower"` | `ReportWindow.swift`, `TreatmentPaths.mayChange`, `FollowerV2.publishTreatment` |
+| No phone name over Bluetooth; blinded `INFO` (`nonce`, `m`); follower checks the owner before writing | `core/Ble.kt`, `BleOwner.kt`, `BleFollower.kt`; Mac `BLEV2Central.swift`, `main.swift`; `BleTest`, `-bleselftest` |
+| Bluetooth limits: reassembly, rate, centrals, backlog pacing, no expired backlog | `Ble.Reassembler`, `Ble.RateLimit`, `BleOwner`; Mac `BLEV2Central.Reassembler` |
+| Mac: wrap expiration, `sid` fixed, chunk `c`/`d` checks, rekey only for the wearer's keys | `NostrV2.swift` |
+| Python v2 CLI owner/follower removed | `spikes/nostr/v2` |
+
+| Discarded / left | Why |
+|---|---|
+| The phone's name in the nearby list | Broadcast to everyone in range; the list says *Phone nearby* and the wearer's profile shows after *Ask* |
+| Leaving a phone that can't prove itself while a request is pending | It may be the wearer's phone with pairing closed; the follower listens without writing instead |
+| Draft-2 wire changes (P1, P2, P7–P9, P11), the rest of P10, the CGMS bridge (P14) | The user wants to wait for v1; P14 is a separate PoC |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

@@ -37,7 +37,7 @@ Why new kinds rather than NIP-78: NIP-78 asks interoperable data to use dedicate
 
 Implementations:
 - Sukrara (Android and macOS, GPL-3.0): an owner and a follower in production use by its author since 2026-10;
-- an independent Python reference (standard-library crypto) with deterministic test vectors: 28 events, a 25-step
+- an independent Python reference (standard-library crypto) with deterministic test vectors: 30 events, a 27-step
   acceptance scenario, and Bluetooth frames. Repository: <link to the spec repo>.
 
 A companion spec, not proposed as a NIP, carries the same signed events over Bluetooth LE for followers with no
