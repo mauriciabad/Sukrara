@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -61,14 +63,21 @@ import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.RingSpec
 import app.mauri.sukrara.graph.GlucoseMetrics
-import app.mauri.sukrara.graph.MetricGauge
-import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRing
 import app.mauri.sukrara.graph.systemPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import app.mauri.sukrara.treatments.TreatmentFeed
 import app.mauri.sukrara.treatments.TreatmentMarks
+import app.mauri.sukrara.alerts.AlertStatus
+import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.graph.LastPlace
+import app.mauri.sukrara.graph.Slots
+import app.mauri.sukrara.graph.StatusBadge
+import app.mauri.sukrara.treatments.LastTreatment
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
 
 /** Seconds since epoch, refreshed every [everyMs] while composed. */
@@ -107,7 +116,8 @@ fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(5
 
 /**
  * The home screen's glucose panel (investigation 16), the same picture as the widgets and the notification: value +
- * trend arrow, the time-in-range rings, and the chart with the time-in-range side profile. The value follows
+ * trend arrow, the status badge under it ([StatusBadgeChip]), the slots (time-in-range rings, report numbers, the last
+ * treatment: [Slots]), and the chart with the time-in-range side profile. The value follows
  * [Freshness]: no age while fresh, the reading's time once late, struck through when stale, gone when old; no chart
  * at all when very old. The number rolls and the arrow turns like before (Motion.kt); everything else is drawn by
  * [GlucoseGraph] / [TirRing].
@@ -120,15 +130,26 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val dark = isSystemInDarkTheme()
     val pal = remember(dark) { systemPalette(ctx, dark) }
     val treatments by TreatmentFeed.items.collectAsState()
+    val alerts by Alerts.settings.collectAsState()
     val fresh = Freshness.of(t?.let { now - it })
+    val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
+    val status = AlertStatus.of(reading, alerts, treatments, now)
+    val last = if (cfg.lastPlace != LastPlace.OFF) LastTreatment.of(treatments, alerts, status, now) else null
     val hours = cfg.hours(GraphPlace.APP)
     // History for the chart and the rings: from the role's store, again for every new reading / setting / 5 min.
     val history by produceState(emptyList<Reading>(), t, hours, now / 300) {
         value = withContext(Dispatchers.IO) { GraphData.readings(ctx, Proto.nowS() - hours * 3600L - 60) }
     }
-    val rings by produceState(emptyList<Pair<RingSpec, GlucoseMetrics>>(), t, cfg, now / 300) {
+    // the user's slots (index, spec, metrics) without the ones lacking data, and the last-treatment slot's fallback
+    val rings by produceState(emptyList<Triple<Int, RingSpec, GlucoseMetrics>>(), t, cfg, now / 300) {
         value = withContext(Dispatchers.IO) {
-            cfg.rings().map { it to GraphData.metrics(ctx, it.windowS, cfg.bands) }.filter { it.second.tir.coverage >= GlucoseCard.MIN_COVERAGE }
+            cfg.rings().mapIndexed { i, s -> Triple(i, s, GraphData.metrics(ctx, s.windowS, cfg.bands)) }
+                .filter { it.third.tir.coverage >= GlucoseCard.MIN_COVERAGE }
+        }
+    }
+    val fallback by produceState<Pair<RingSpec, GlucoseMetrics>?>(null, t, cfg, now / 300) {
+        value = withContext(Dispatchers.IO) {
+            cfg.lastElseRing()?.let { s -> GraphData.metrics(ctx, s.windowS, cfg.bands).takeIf { it.tir.coverage >= GlucoseCard.MIN_COVERAGE }?.let { s to it } }
         }
     }
     val color by animateColorAsState(
@@ -138,6 +159,10 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         }, Motion.slowEffectsSpec(), label = "range")
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
+            // as many slots as fit beside a three-digit value + arrow (~188 dp), 76 dp each
+            BoxWithConstraints {
+            val fit = ((maxWidth.value - 188f) / 76f).toInt().coerceIn(1, 3)
+            val slots = Slots.arrange(rings, cfg.lastPlace, last, fallback, fit)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (sgv != null && fresh.showValue) {
                     // A late reading's time goes under the number, so it never takes the rings' room.
@@ -152,25 +177,23 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                             Spacer(Modifier.width(8.dp))
                             if (!fresh.strike) TrendArrow(rate, color)
                         }
+                        RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
                         if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
                             style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
-                    Text(if (t == null) "No readings yet" else "No reading since\n${Freshness.timeText(t, now)}",
+                    Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
                         style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.weight(1f))
-                for (idx in rings.indices.reversed()) {   // main ring rightmost
-                    val (s2, t2) = rings[idx]
+                for (item in slots.reversed()) {   // main ring rightmost
                     Canvas(Modifier.padding(start = 8.dp).size(68.dp)) {
                         drawIntoCanvas {
-                            val e = if (s2.faded) floatArrayOf(1f, 0.55f, 0.35f)[idx] else 1f
-                            val r = size.minDimension / 2
-                            if (s2.kind == SlotKind.TIR) TirRing.draw(it.nativeCanvas, size.width / 2, size.height / 2, r, t2.tir, s2, pal, e, density)
-                            else MetricGauge.draw(it.nativeCanvas, size.width / 2, size.height / 2, r, t2, s2, pal, e, density)
+                            Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal, density)
                         }
                     }
                 }
+            }
             }
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
@@ -187,9 +210,32 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                 androidx.compose.material3.FilledTonalButton(onClick = it, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
                     androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_add),
                         contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
-                    Text("Add treatment")
+                    Text(stringResource(R.string.treatment_title))
                 }
             }
+        }
+    }
+}
+
+/**
+ * The status badge under the value ([StatusBadge] draws the same one into the widgets): a filled pill to act ("Eat
+ * carbs", "Take insulin"), a tonal one while a treatment mutes the alerts (paused bell + time left). Not clickable: a
+ * status, so a plain Surface with the chip shape rather than an AssistChip (developer.android.com/develop/ui/compose/components/chip:
+ * an assist chip "guides the user during a task").
+ */
+@Composable
+fun StatusBadgeChip(look: StatusBadge.Look) {
+    val dark = isSystemInDarkTheme()
+    val c by animateColorAsState(Color(TreatmentMarks.color(TreatmentMarks.palette(dark), look.kind)), Motion.slowEffectsSpec(), label = "badge")
+    val bg = if (look.tonal) c.copy(alpha = if (dark) 0.24f else 0.18f) else c
+    val fg = if (look.tonal) c else Color(TreatmentMarks.onColor(dark))
+    Surface(shape = CircleShape, color = bg, modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)) {
+        Row(Modifier.padding(start = 10.dp, end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (look.tonal) androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_notifications_paused),
+                contentDescription = stringResource(R.string.badge_alerts_paused), tint = fg, modifier = Modifier.size(18.dp))
+            else KindMark(look.kind, fg)
+            Spacer(Modifier.width(6.dp))
+            Text(look.text, style = MaterialTheme.typography.labelLarge, color = fg)
         }
     }
 }

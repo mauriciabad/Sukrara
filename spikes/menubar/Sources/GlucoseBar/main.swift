@@ -21,6 +21,7 @@ import AppKit
 //   · ringRange IN_RANGE|TIGHT · ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH" (the ring clockwise)
 //   · side (time in range beside the graph, YES) · lines "100,120" (extra dashed lines, mg/dL; "" = none)
 //   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1)
+//   · lastPlace OFF|NEAR_VALUE|END (the last-treatment slot; NEAR_VALUE) · lastElse "TIR:2592000:1" (its fallback; "" = none)
 //   · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/bandExtremelyHigh (54/70/140/180/250/300)
 //   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are in the menu's "Graph" submenu)
 //   readingsDir (tests): keep readings.csv somewhere else
@@ -149,6 +150,7 @@ MainActor.assumeIsolated {
     }
     status.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
+    widgetFeed.alerts = { alerts.settings }
 }
 NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
     MainActor.assumeIsolated { readingsStore.save() }
@@ -424,7 +426,13 @@ MainActor.assumeIsolated {
     let treatments = treatmentStore
     treatments.onChange.append { status.treatmentsChanged() }
     treatments.onChange.append { widgetFeed.treatmentsChanged(treatments.rows) }
+    treatments.onChange.append { alerts.treatmentsChanged() }       // mutes start or end at once
     status.treatments = { treatments.rows }
+    status.alertSettings = { alerts.settings }
+    alerts.onSettingsChange = {
+        status.alertsChanged()
+        widgetFeed.treatmentsChanged(treatments.rows)   // the widgets' badge, mute lines and slot follow the rules
+    }
     status.treatmentPaths = { TreatmentPaths.current(node: following.node) }
     status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments) }
     status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments) }

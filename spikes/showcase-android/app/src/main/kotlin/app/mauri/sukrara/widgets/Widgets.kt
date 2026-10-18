@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import app.mauri.sukrara.R
 import android.content.Context
 import android.graphics.Canvas
 import androidx.compose.runtime.Composable
@@ -154,9 +155,9 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
         .copy(side = w.side ?: cfg.side)
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
     return when (kind) {
-        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings)
+        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
         WidgetKind.GRAPH -> CardStyle(graph = graph, rings = emptyList(), value = false)
-        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings)
+        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
     }
 }
 
@@ -177,17 +178,25 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
             else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(frame.history.lastOrNull(), frame.nowSec),
+        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
         modifier = GlanceModifier.fillMaxSize(),
         contentScale = ContentScale.FillBounds,
     )
 }
 
-private fun describe(r: Reading?, now: Long): String {
-    if (r == null) return "Glucose: no readings yet"
+/** The value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
+private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
+    val r = frame.history.lastOrNull()
+    val now = frame.nowSec
+    if (r == null) return c.getString(R.string.widget_desc_no_readings)
     val f = Freshness.of(now - r.t)
-    return if (!f.showValue) "Glucose: no reading since ${Freshness.timeText(r.t, now)}"
-    else "Glucose ${r.sgv} mg/dL, ${Trend.word(r.rate)}${if (f.showTime) ", at ${Freshness.timeText(r.t, now)}" else ""}"
+    if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+    val badge = treatments?.let {
+        app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now), now)
+    }
+    val value = if (f.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
+        else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
+    return value + (badge?.let { ". $it" } ?: "")
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */

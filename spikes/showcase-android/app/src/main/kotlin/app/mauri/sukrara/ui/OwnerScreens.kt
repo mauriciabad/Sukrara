@@ -49,6 +49,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.mauri.sukrara.BuildConfig
+import app.mauri.sukrara.R
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.owner.Follower
@@ -79,7 +82,8 @@ interface OwnerActions {
     fun open(screen: String)
 }
 
-private fun date(t: Long) = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMHHmm"),
+    Locale.getDefault()).format(Date(t * 1000))
 
 @Composable
 fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
@@ -88,9 +92,9 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
     var pw by remember { mutableStateOf("") }
     var profile by remember { mutableStateOf(app.mauri.sukrara.core.Profile("", app.mauri.sukrara.core.Avatar.random())) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("I wear the sensor", style = MaterialTheme.typography.headlineSmall)
-        Text("This phone reads your glucose and shares it, end-to-end encrypted, through public Nostr relays.")
-        ProfileEditor(profile, { profile = it }, "Your name")
+        Text(stringResource(R.string.onboarding_wearer_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.onboarding_wearer_intro))
+        ProfileEditor(profile, { profile = it }, stringResource(R.string.profile_name_label))
         RevealValue(busy) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(20.dp)); Text(it)
@@ -98,22 +102,22 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
         }
         RevealValue(error) { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = { a.create(profile) }, enabled = busy == null && profile.name.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-            Text("Start fresh (new identity)")
+            Text(stringResource(R.string.onboarding_start_fresh))
         }
         OutlinedButton(onClick = a::restoreFromPasswordManager, enabled = busy == null, modifier = Modifier.fillMaxWidth()) {
-            Text("Restore from password manager")
+            Text(stringResource(R.string.onboarding_restore_password_manager))
         }
-        Text("New phone? Restoring keeps all your followers, your name and your picture — nobody has to scan again.",
+        Text(stringResource(R.string.onboarding_restore_note),
             style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = { paste = !paste }) { Text(if (paste) "Hide manual restore" else "Restore by pasting a key (nsec / ncryptsec)") }
+        TextButton(onClick = { paste = !paste }) { Text(stringResource(if (paste) R.string.onboarding_hide_paste else R.string.onboarding_show_paste)) }
         Reveal(paste) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(secret, { secret = it }, label = { Text("nsec1… or ncryptsec1…") }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             Reveal(secret.trim().startsWith("ncryptsec1")) {
-                OutlinedTextField(pw, { pw = it }, label = { Text("Password") }, singleLine = true,
+                OutlinedTextField(pw, { pw = it }, label = { Text(stringResource(R.string.onboarding_password)) }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
             }
-            Button(onClick = { a.restorePasted(secret, pw) }, enabled = busy == null && secret.isNotBlank()) { Text("Restore") }
+            Button(onClick = { a.restorePasted(secret, pw) }, enabled = busy == null && secret.isNotBlank()) { Text(stringResource(R.string.onboarding_restore)) }
         } }
     }
 }
@@ -129,14 +133,14 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 48.dp)
                 Column {
-                    Text(u.profile?.name?.ifBlank { null } ?: "Add your name", style = MaterialTheme.typography.headlineSmall,
+                    Text(u.profile?.name?.ifBlank { null } ?: stringResource(R.string.home_add_your_name), style = MaterialTheme.typography.headlineSmall,
                         color = if (u.profile?.name.isNullOrBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                     val n = u.followers.count { it.revoked == null }
-                    Text("Wearer · $n follower${if (n == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall)
+                    Text(pluralStringResource(R.plurals.home_wearer_followers, n, n), style = MaterialTheme.typography.bodySmall)
                 }
             }
             IconButton(onClick = { a.open("settings") }) {
-                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = "Settings")
+                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = stringResource(R.string.home_settings))
             }
         }
         LibreViewBanner(onSetUp = { a.open("libreview") }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -145,24 +149,24 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
             Card(onClick = { a.open("backup") }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                 modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Not backed up", fontWeight = FontWeight.SemiBold)
-                    Text("If you lose this phone, every follower must be invited again. Tap to back up.", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.home_backup_banner_title), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.home_backup_banner_text), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
         GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t, subtitle = u.sourceError?.let { "${u.source} — $it" }, onAdd = { adding = true })
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         if (u.source == "direct: no sensor")
-            Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text("Scan your sensor") }
+            Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.home_scan_sensor)) }
         GlucoseReport(u.last?.t)
         TreatmentsSection()
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionTitle("Entries from followers")
+            SectionTitle(stringResource(R.string.home_follower_entries))
             AnimatedItems(u.treatments, { it }) { Text(it, style = MaterialTheme.typography.bodySmall) }
         } }
         Button(onClick = a::share, modifier = Modifier.fillMaxWidth()) {
             Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_share), contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
-            Text("Share with someone")
+            Text(stringResource(R.string.share_title))
         }
         Spacer(Modifier.size(24.dp))
     }
@@ -188,13 +192,13 @@ internal fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Recovery code") },
+        title = { Text(stringResource(R.string.recovery_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("An encrypted copy of your identity (NIP-49). Print it or keep it somewhere safe; you need the password to use it.")
+                Text(stringResource(R.string.recovery_text))
                 Swap(out) { code ->
                     if (code == null) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(pw, { pw = it }, label = { Text("Password (12+ characters)") }, singleLine = true,
+                        OutlinedTextField(pw, { pw = it }, label = { Text(stringResource(R.string.recovery_password)) }, singleLine = true,
                             visualTransformation = PasswordVisualTransformation())
                         Reveal(working) { CircularProgressIndicator(Modifier.size(20.dp)) }
                     } else {
@@ -207,43 +211,43 @@ internal fun RecoveryDialog(a: OwnerActions, onClose: () -> Unit) {
             if (out == null) Button(enabled = pw.length >= 12 && !working, onClick = {
                 working = true
                 scope.launch { out = a.ncryptsec(pw); working = false }
-            }) { Text("Create") }
-            else Button(onClick = { a.copy(out!!); onClose() }) { Text("Copy & close") }
+            }) { Text(stringResource(R.string.recovery_create)) }
+            else Button(onClick = { a.copy(out!!); onClose() }) { Text(stringResource(R.string.recovery_copy_close)) }
         },
-        dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.recovery_close)) } },
     )
 }
 
 @Composable
 fun ShareScreen(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val link = u.invite
-    SettingsPage("Share with someone", onBack) { Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp),
+    SettingsPage(stringResource(R.string.share_title), onBack) { Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
         if (link == null) { CircularProgressIndicator(); return@Column }
         var label by remember(link) { mutableStateOf("") }
         OutlinedTextField(label, { label = it.take(app.mauri.sukrara.core.Profile.MAX_NAME); a.setInviteLabel(label) },
-            label = { Text("Who is it for?") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            supportingText = { Text("Only you see this. When they ask, Sukrara shows it next to their name.") })
-        Text("Ask them to install Sukrara, choose \"I follow someone\" and scan this code — or send them the link.",
+            label = { Text(stringResource(R.string.share_label_hint)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            supportingText = { Text(stringResource(R.string.share_label_support)) })
+        Text(stringResource(R.string.share_instructions),
             style = MaterialTheme.typography.bodyMedium)
         val qr = remember(link) { qrBitmap(link) }
-        Image(qr.asImageBitmap(), contentDescription = "invite QR code", modifier = Modifier.size(280.dp))
-        Text("This link works once, until ${date(u.inviteExpiry)}. Send it only to ${label.trim().ifBlank { "the person you invite" }}: " +
-            "whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.",
+        Image(qr.asImageBitmap(), contentDescription = stringResource(R.string.share_qr_description), modifier = Modifier.size(280.dp))
+        Text(label.trim().let { l -> if (l.isBlank()) stringResource(R.string.share_link_note_unnamed, date(u.inviteExpiry))
+            else stringResource(R.string.share_link_note, date(u.inviteExpiry), l) },
             style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("They'll see", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.share_they_see), style = MaterialTheme.typography.bodySmall)
             AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 24.dp)
-            Text(u.profile?.name?.ifBlank { null } ?: "no name", fontWeight = FontWeight.SemiBold)
-            TextButton(onClick = { a.open("profile") }) { Text("Edit") }
+            Text(u.profile?.name?.ifBlank { null } ?: stringResource(R.string.share_no_name), fontWeight = FontWeight.SemiBold)
+            TextButton(onClick = { a.open("profile") }) { Text(stringResource(R.string.share_edit)) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { a.shareLink(link) }) { Text("Send link…") }
-            OutlinedButton(onClick = { a.copy(link) }) { Text("Copy") }
+            Button(onClick = { a.shareLink(link) }) { Text(stringResource(R.string.share_send_link)) }
+            OutlinedButton(onClick = { a.copy(link) }) { Text(stringResource(R.string.share_copy)) }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-            Text("Waiting for their request…", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.share_waiting), style = MaterialTheme.typography.bodySmall)
         }
     } }
 }
@@ -281,29 +285,29 @@ fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
                 Spacer(Modifier.height(16.dp))
                 Text(p.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, color = cs.onSurface)
-                Text(if (p.nearby) "is nearby and wants to see your glucose" else "wants to see your glucose",
+                Text(stringResource(if (p.nearby) R.string.approve_wants_nearby else R.string.approve_wants),
                     style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(20.dp))
                 // the invite they used, as the wearer labelled it
                 androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large, color = cs.surfaceContainerHighest,
                     modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(if (p.nearby) "PAIR NEARBY" else "YOUR INVITE", style = MaterialTheme.typography.labelMedium,
+                        Text(stringResource(if (p.nearby) R.string.approve_pair_nearby else R.string.approve_your_invite).uppercase(), style = MaterialTheme.typography.labelMedium,
                             color = cs.onSurfaceVariant, letterSpacing = 1.sp)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(when {
-                                    p.label.isNotBlank() -> "For ${p.label}"
-                                    p.nearby -> "Bluetooth, 10 minutes"
-                                    else -> "No name given"
+                                    p.label.isNotBlank() -> stringResource(R.string.approve_invite_for, p.label)
+                                    p.nearby -> stringResource(R.string.approve_nearby_window)
+                                    else -> stringResource(R.string.approve_no_label)
                                 }, style = MaterialTheme.typography.titleMedium, color = cs.onSurface,
                                 modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             when (match) {
-                                true -> Pill("Matches", cs.primaryContainer, cs.onPrimaryContainer, check = true)
-                                false -> Pill("Different name", cs.tertiaryContainer, cs.onTertiaryContainer)
+                                true -> Pill(stringResource(R.string.approve_label_matches), cs.primaryContainer, cs.onPrimaryContainer, check = true)
+                                false -> Pill(stringResource(R.string.approve_label_differs), cs.tertiaryContainer, cs.onTertiaryContainer)
                                 null -> {}
                             }
                         }
-                        Text((if (p.inviteAt > 0) "Sent ${hhmm(p.inviteAt)} · " else "") + "asked ${hhmm(p.at)}",
+                        Text(if (p.inviteAt > 0) stringResource(R.string.approve_sent_asked, hhmm(p.inviteAt), hhmm(p.at)) else stringResource(R.string.approve_asked, hhmm(p.at)),
                             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                     }
                 }
@@ -311,31 +315,30 @@ fun ApproveDialog(u: OwnerUi, a: OwnerActions) {
                     Spacer(Modifier.height(12.dp))
                     androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large, color = cs.errorContainer,
                         modifier = Modifier.fillMaxWidth()) {
-                        Text("${if (p.others == 1) "Another phone" else "${p.others} other phones"} also tried this invite. " +
-                            "Names and pictures can be made up: if you're not sure, deny and send a new invite.",
+                        Text(pluralStringResource(R.plurals.approve_others_tried, p.others, p.others),
                             style = MaterialTheme.typography.bodyMedium, color = cs.onErrorContainer, modifier = Modifier.padding(16.dp))
                     }
                 }
                 if (p.nearby) {
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(code, { code = it.filter(Char::isDigit).take(4) }, singleLine = true,
-                        label = { Text("Code on their screen") },
+                        label = { Text(stringResource(R.string.approve_code_label)) },
                         textStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center,
                             letterSpacing = 8.sp),
                         isError = code.length == 4 && code != p.code,
-                        supportingText = { if (code.length == 4 && code != p.code) Text("That's not the code on their phone") },
+                        supportingText = { if (code.length == 4 && code != p.code) Text(stringResource(R.string.approve_code_wrong)) },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
                         modifier = Modifier.fillMaxWidth())
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("Allowing sends ${p.name} your last 24 hours and every new reading. You can remove them later.",
+                Text(stringResource(R.string.approve_note, p.name),
                     style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(24.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { a.deny(p.f) }) { Text("Deny") }
+                    TextButton(onClick = { a.deny(p.f) }) { Text(stringResource(R.string.approve_deny)) }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { a.approve(p.f) }, enabled = !p.nearby || code == p.code) { Text("Allow") }
+                    Button(onClick = { a.approve(p.f) }, enabled = !p.nearby || code == p.code) { Text(stringResource(R.string.approve_allow)) }
                 }
             }
         }

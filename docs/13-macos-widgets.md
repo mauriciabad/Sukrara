@@ -103,7 +103,9 @@ What the widgets do:
   never reloads.
 - **Graph window**: 3 h (small/medium), 6 h (large), 12 h (extra large). The large layouts add % time in range.
 - **Native bits**: `containerBackground(.fill.tertiary, for: .widget)`, `widgetAccentable()` on the
-  value/arrow, a monochrome chart in accented/vibrant mode, and
+  value/arrow, a monochrome chart in accented/vibrant mode (text on filled shapes, like the status badge's words, is
+  knocked out with `.destinationOut` because the tinted modes keep only opacity / luminance; `render treatments`
+  writes `mac-badge-{accented,vibrant}-*.png` and `mac-last-{accented,vibrant}-*.png` to check it), and
   `widgetURL(glucosewidgets://open?from=<kind>)`. The host app registers that URL scheme; tested with `open`, and
   the host logs `opened via URL glucosewidgets://open?from=combined`.
 - **Families**: Value is small and medium. Graph and Combined are small, medium, large and extra large.
@@ -186,6 +188,11 @@ for an hour of experiments. Likewise `Extension is not entitled to run in the Ap
 restricted or unknown extension` keep appearing for extensions that work. **To check a widget, open *Edit
 Widgets…* and look, or look for `getTimeline` in the widget's log, not for chronod's install messages.**
 
+**Treatments and alerts (2026-10-18).** The snapshot also carries the host's alert settings (`alerts`) and the
+numbers of the last-treatment slot's fallback window, so the widgets draw the same mute lines, *Eat carbs* / *Take
+insulin* badge and last-treatment slot as the menubar card and Android ([16](16-graph.md)). Changing the alert
+settings rewrites the snapshot.
+
 ## Data sharing (host app → sandboxed widget)
 
 Tested with **`Probe/`**: the widget's exact loader (`Shared/Loader.swift`) in a CLI. It is signed ad hoc with the
@@ -248,6 +255,7 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
 - `Shared/GlucoseData.swift`: model, synthetic generator, thresholds, paths.
 - `Shared/GlucoseViews.swift`: all widget SwiftUI/Charts views.
 - `Shared/Loader.swift`: the transports.
+- `Shared/AlertRules.swift`: the alert settings, `AlertStatus` and `LastTreatment` (shared with the menubar app; the badge, mute lines and last-treatment slot).
 - `Widget/`: `WidgetBundle`, providers, Info.plist and entitlements.
 - `Host/`: headless host app (synthetic data, HTTP, file publishing, reloads, URL scheme).
 - `Render/`: the ImageRenderer CLI that writes the PNGs.

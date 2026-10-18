@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
 import org.junit.Test
@@ -133,6 +134,110 @@ class GraphGallery {
         }
     }
 
+    /** 2026-10-18 round: the status badge under the value, at the widget sizes and in both themes. */
+    @Test fun badge() {
+        val base = Synthetic.days(now, 31)
+        val a = AlertSettings()
+        val day = 86400L
+        fun tr(k: String, a: Double, minAgo: Int) = Treatment(id = "$k$minAgo", t = now - minAgo * 60L, k = k, a = a, u = 0, o = "phone")
+        val states = listOf(
+            Triple("in range: no badge", Synthetic.endAt(base, now, 120), emptyList<Treatment>()),
+            Triple("low (62), nothing logged: eat carbs", Synthetic.endAt(base, now, 62), emptyList()),
+            Triple("low, 15g logged 6 min ago: muted", Synthetic.endAt(base, now, 62), listOf(tr("carbs", 15.0, 6))),
+            Triple("high (212), nothing logged: take insulin", Synthetic.endAt(base, now, 212), emptyList()),
+            Triple("high, 3u 22 min ago: muted", Synthetic.endAt(base, now, 212), listOf(tr("rapid", 3.0, 22))),
+            Triple("extremely high (318) after insulin: never muted", Synthetic.endAt(base, now, 318), listOf(tr("rapid", 4.0, 10))),
+        )
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true, windowS = 6 * 3600L)
+            val sizes = listOf(
+                Triple("4×2 combined", 300f to 150f, CardStyle(graph = g)),
+                Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null)),
+                Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(day)))),
+                Triple("4×1 side by side", 300f to 70f, CardStyle(graph = g)),
+            )
+            for ((si, sz) in sizes.withIndex()) {
+                sheet("badge-${si + 1}-${if (dark) "dark" else "light"}", states.map { (label, data, trs) ->
+                    Tile("${sz.first} · $label", "", sz.second.first, sz.second.second) { cv, w, h ->
+                        GlucoseCard.draw(cv, w, h, data, trs, now, sz.third, pal, d, alerts = a)
+                    }
+                }, 300f, 150f, cols = 2, pal)
+            }
+        }
+    }
+
+    /** 2026-10-18 round: the last-treatment slot (states, places, fallback) and the marks' times and mute lines. */
+    @Test fun lastTreatment() {
+        val data = Synthetic.endAt(Synthetic.days(now, 31), now, 150)
+        val a = AlertSettings()
+        val day = 86400L
+        fun tr(k: String, a: Double, minAgo: Int) = Treatment(id = "$k$minAgo", t = now - minAgo * 60L, k = k, a = a, u = 0, o = "phone")
+        val rings = listOf(RingSpec(day), RingSpec(7 * day))
+        val fallback = RingSpec(30 * day)
+        val states = listOf(
+            "rapid 4.5u, 12 min ago (mute 60 min)" to listOf(tr("rapid", 4.5, 12), tr("carbs", 45.0, 12)),
+            "carbs 15g, 10 min ago (mute 15 min)" to listOf(tr("carbs", 15.0, 10)),
+            "rapid 6u, 2 h ago: mute over, grey ring" to listOf(tr("rapid", 6.0, 125)),
+            "rapid 6u, 5 h ago: hidden → 30d ring" to listOf(tr("rapid", 6.0, 300)),
+            "long-acting only: not shown → 30d ring" to listOf(tr("long", 18.0, 40)),
+        )
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            sheet("last-${if (dark) "dark" else "light"}", states.flatMap { (label, trs) ->
+                listOf(
+                    Tile("3×1 · $label", "", 230f, 60f) { cv, w, h ->
+                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    },
+                    Tile("4×2 combined · next to the number", "", 300f, 150f) { cv, w, h ->
+                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = GraphStyle(hour24 = true, windowS = 6 * 3600L), rings = rings,
+                            last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    },
+                )
+            }, 300f, 150f, cols = 2, pal)
+            sheet("last-places-${if (dark) "dark" else "light"}", listOf(
+                Tile("at the right end", "", 380f, 100f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.END, lastElse = fallback), pal, d, alerts = a)
+                },
+                Tile("next to the number: room for two, the 7d ring gives way", "", 380f, 100f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                },
+                Tile("no recent one, fallback off", "", 380f, 100f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = null), pal, d, alerts = a)
+                },
+                Tile("2×1, room for one: the main ring stays", "", 150f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                },
+            ), 380f, 100f, cols = 2, pal)
+        }
+    }
+
+    /** 2026-10-18 round: treatment marks with the time since each and their mute lines, on every chart size. */
+    @Test fun marks() {
+        val data = Synthetic.endAt(Synthetic.days(now, 15), now, 150)
+        val a = AlertSettings()
+        fun tr(k: String, a: Double, minAgo: Int) = Treatment(id = "$k$minAgo", t = now - minAgo * 60L, k = k, a = a, u = 0, o = "phone")
+        val trs = listOf(
+            tr("rapid", 6.0, 8 * 60 + 10), tr("carbs", 60.0, 8 * 60), tr("long", 18.0, 6 * 60),
+            tr("rapid", 4.5, 95), tr("carbs", 45.0, 95), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20), tr("note", 0.0, 150),
+        )
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true)
+            val v = listOf(
+                Triple("4×2 combined, 12 h", 300f to 150f, CardStyle(graph = g)),
+                Triple("4×2 combined, 3 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L))),
+                Triple("4×1 combined (side by side), 6 h", 300f to 70f, CardStyle(graph = g.copy(windowS = 6 * 3600L))),
+                Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g, value = false)),
+                Triple("5×3 combined, 24 h", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L))),
+                Triple("app, 12 h", 360f to 210f, CardStyle(graph = g, value = false)),
+            )
+            sheet("marks-${if (dark) "dark" else "light"}", v.map { (label, sz, st) ->
+                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, trs, now, st, pal, d, alerts = a) }
+            }, 380f, 230f, cols = 2, pal)
+        }
+    }
+
     // ---- sheet plumbing -------------------------------------------------------------------------------------------
 
     private class Tile(val title: String, val sub: String, val w: Float? = null, val h: Float? = null,
@@ -209,6 +314,15 @@ object Synthetic {
         }
         // rates for the arrow: last 5 min slope
         return out.mapIndexed { i, r -> if (i >= 5) r.copy(rate = (r.sgv - out[i - 5].sgv) / 5.0) else r }
+    }
+
+    /** [data] bent over its last 40 minutes so the latest reading is [mgdl] (with a matching trend). */
+    fun endAt(data: List<Reading>, now: Long, mgdl: Int): List<Reading> {
+        val last = data.last().sgv
+        return data.map { r ->
+            val f = 1 - (now - r.t) / 2400.0
+            if (f <= 0) r else r.copy(sgv = max(40, (r.sgv + (mgdl - last) * f).roundToInt()))
+        }.let { l -> l.mapIndexed { i, r -> if (i >= 5) r.copy(rate = (r.sgv - l[i - 5].sgv) / 5.0) else r } }
     }
 
     fun treatments(now: Long): List<Treatment> = listOf(

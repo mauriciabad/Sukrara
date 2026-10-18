@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.app.NotificationManager
 import android.content.Intent
 import android.provider.Settings
@@ -66,15 +68,15 @@ internal fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Se
     val signedIn = s.email.isNotEmpty() && s.hasPassword
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("LibreView account") },
+        title = { Text(stringResource(R.string.libreview_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("The account your doctor's clinic sees. Sukrara also learns your sensor's receiver ID from it.",
+                Text(stringResource(R.string.libreview_dialog_text),
                     style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Email") },
+                OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(stringResource(R.string.libreview_email)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
                 OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text("Password") }, placeholder = if (s.hasPassword) ({ Text("Saved · type to change") }) else null,
+                    label = { Text(stringResource(R.string.onboarding_password)) }, placeholder = if (s.hasPassword) ({ Text(stringResource(R.string.libreview_password_saved)) }) else null,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done))
             }
@@ -82,20 +84,21 @@ internal fun LibreViewSignIn(s: app.mauri.sukrara.libreview.LibreViewUploader.Se
         confirmButton = {
             Button(enabled = email.isNotBlank() && (password.isNotEmpty() || s.hasPassword), onClick = {
                 uploader.configure(email = email, password = password.ifEmpty { null }); onClose()
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.treatment_save)) }
         },
         dismissButton = {
             Row {
-                if (signedIn) TextButton(onClick = { set { it.copy(libreview = false) }; uploader.signOut(); onClose() }) { Text("Sign out") }
-                TextButton(onClick = onClose) { Text("Cancel") }
+                if (signedIn) TextButton(onClick = { set { it.copy(libreview = false) }; uploader.signOut(); onClose() }) { Text(stringResource(R.string.libreview_sign_out)) }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.treatment_cancel)) }
             }
         },
     )
 }
 
 /**
- * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first.
- * Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).
+ * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first, each
+ * with the time since it at the end of the row ("12m", "3h"; trailing supporting text, like a list item's trailing
+ * content). Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).
  */
 @Composable
 fun TreatmentsSection() {
@@ -105,12 +108,13 @@ fun TreatmentsSection() {
     val f by Features.state.collectAsState()
     var deleting by remember { mutableStateOf<Treatment?>(null) }
     val items by store.items.collectAsState()
-    val since = System.currentTimeMillis() / 1000 - 24 * 3600
+    val now = nowSeconds(30_000)
+    val since = now - 24 * 3600
     val recent = items.filter { !it.del && it.t >= since }
     val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
-    SectionTitle("Treatments (24 h)")
-    Reveal(recent.isEmpty()) { Text("Nothing in the last 24 h. Tip: tap a Sukrara widget or the glucose notification to add one from anywhere.",
+    SectionTitle(stringResource(R.string.treatments_title))
+    Reveal(recent.isEmpty()) { Text(stringResource(R.string.treatments_empty),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
     // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
     AnimatedItems(recent, { it.id }) { tr ->
@@ -118,10 +122,12 @@ fun TreatmentsSection() {
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
             Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)), fontWeight = FontWeight.Medium)
-            Text(describe(tr), Modifier.weight(1f), maxLines = 2)
+            Text(describe(ctx, tr), Modifier.weight(1f), maxLines = 2)
+            Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (f.libreview) androidx.compose.material3.Icon(
                 androidx.compose.ui.res.painterResource(if (tr.needsUpload) app.mauri.sukrara.R.drawable.ic_sym_cloud_upload else app.mauri.sukrara.R.drawable.ic_sym_cloud_done),
-                contentDescription = if (tr.needsUpload) "Not in LibreView yet" else "In LibreView", tint = MaterialTheme.colorScheme.outline,
+                contentDescription = stringResource(if (tr.needsUpload) R.string.treatments_not_uploaded else R.string.treatments_uploaded), tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(18.dp))
         }
     }
@@ -129,20 +135,22 @@ fun TreatmentsSection() {
     deleting?.let { tr ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete this entry?") },
-            text = { Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)) + " · " + describe(tr) +
-                if (f.libreview && !tr.needsUpload) "\n\nIt stays in LibreView: entries can't be deleted there." else "") },
-            confirmButton = { Button(onClick = { store.delete(tr.id); Treat.uploader.kick(); deleting = null }) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+            title = { Text(stringResource(R.string.treatments_delete_title)) },
+            text = { Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)) + " · " + describe(ctx, tr) +
+                if (f.libreview && !tr.needsUpload) "\n\n" + stringResource(R.string.treatments_delete_libreview) else "") },
+            confirmButton = { Button(onClick = { store.delete(tr.id); Treat.uploader.kick(); deleting = null }) { Text(stringResource(R.string.treatments_delete)) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.treatment_cancel)) } },
         )
     }
 }
 
-private fun units(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else "%.1f".format(a)
-
-private fun describe(tr: Treatment): String = when (tr.k) {
-    "carbs" -> "${tr.a.toInt()} g carbs"
-    "note" -> tr.n.ifEmpty { "Note" }
-    "long" -> "${units(tr.a)} U long-acting"
-    else -> "${units(tr.a)} U rapid"
-} + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") + (if (tr.o != "phone") " · from ${tr.o}" else "")
+private fun describe(c: android.content.Context, tr: Treatment): String {
+    val amount = app.mauri.sukrara.treatments.TreatmentMarks.amount(tr) ?: ""
+    return when (tr.k) {
+        "carbs" -> c.getString(R.string.treatments_row_carbs, amount)
+        "note" -> tr.n.ifEmpty { c.getString(R.string.treatment_note) }
+        "long" -> c.getString(R.string.treatments_row_long, amount)
+        else -> c.getString(R.string.treatments_row_rapid, amount)
+    } + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") +
+        (if (tr.o != "phone") " · " + c.getString(R.string.treatments_row_from, tr.o) else "")
+}

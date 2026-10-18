@@ -12,8 +12,8 @@ android {
         // Credential Manager *providers* (Proton Pass, Bitwarden, KeePassDX) plug into the framework on Android 14+.
         minSdk = 36
         targetSdk = 37
-        versionCode = 11013
-        versionName = "0.11.13"
+        versionCode = 11014
+        versionName = "0.11.14"
         // libnostr_sdk_ffi.so is ~7-9 MB per ABI; ship only arm64 (Pixel + Apple-silicon emulators).
         ndk { abiFilters += "arm64-v8a" }
     }
@@ -48,6 +48,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // Per-app language (developer.android.com/guide/topics/resources/app-languages): AGP generates the LocaleConfig
+    // and the manifest's android:localeConfig from the values-* folders (default locale: res/resources.properties),
+    // so Settings → Apps → Sukrara → Language lists English and Spanish. localeFilters keeps libraries' other
+    // translations out of the APK.
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "es")
+    }
     buildFeatures {
       compose = true
       aidl = false
@@ -76,9 +84,12 @@ kotlin {
     jvmToolchain(17)
 }
 
-// Robolectric's SDK 36 sandbox (the graph/report galleries) needs Java 21+: run unit tests on GALLERY_JAVA_HOME when
-// set, else leave the galleries out so `testDebugUnitTest` passes on the build's JDK 17.
-if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*") }
+// The shared alert timelines (spikes/alerts/scenarios) are inputs of AlertScenarioTest: editing one re-runs the tests.
+tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").withPropertyName("alertScenarios") }
+
+// Robolectric's SDK 36 sandbox (the graph/report galleries, AlertNotifierTest) needs Java 21+: run unit tests on
+// GALLERY_JAVA_HOME when set, else leave those out so `testDebugUnitTest` passes on the build's JDK 17.
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",

@@ -154,7 +154,7 @@ object NightscoutApi {
             "carbs" -> o.put("eventType", "Carb Correction").put("carbs", t.a)
             else -> o.put("eventType", "Note")
         }
-        val notes = listOfNotNull(if (t.k == "long") "Long-acting insulin ${t.a} U" else null, t.n.ifBlank { null })
+        val notes = listOfNotNull(if (t.k == "long") "Long-acting insulin ${app.mauri.sukrara.treatments.TreatmentMarks.amount(t)}" else null, t.n.ifBlank { null })
         if (notes.isNotEmpty()) o.put("notes", notes.joinToString(" · "))
         return o
     }

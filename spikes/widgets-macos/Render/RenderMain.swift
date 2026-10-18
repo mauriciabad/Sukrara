@@ -102,6 +102,10 @@ func renderTinted<V: View>(_ v: V, size: CGSize, to url: URL) {
 @main
 struct RenderMain {
     @MainActor static func main() {
+        if CommandLine.arguments.dropFirst().first == "treatments" {   // render treatments <out-dir>
+            TreatmentSheets.run(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "evidence"))
+            return
+        }
         let out = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "evidence")
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let live = scenario()
@@ -162,6 +166,175 @@ struct RenderMain {
                 GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: gmi, date: renderNow), mode: .fullColor)
             }
             render(v, to: out18.appendingPathComponent("mac-widget-medium-gmi-\(dark ? "dark" : "light").png"), dark: dark)
+        }
+    }
+}
+
+/// `render treatments <out-dir>`: the 2026-10-18 round's sheets (marks, badge, last treatment, places) with the same
+/// states, sizes and clock as the Android gallery (GraphGallery.kt `marks`, `badge`, `lastTreatment`), for a side by
+/// side comparison with docs/img/16.
+enum TreatmentSheets {
+    struct Tile { var title: String; var w: CGFloat; var h: CGFloat; var draw: (CGContext, CGSize, GraphPalette) -> Void }
+
+    /// GraphGallery's `now`: 2026-10-17 22:14 local.
+    static let now: TimeInterval = {
+        var c = DateComponents(); c.year = 2026; c.month = 10; c.day = 17; c.hour = 22; c.minute = 14
+        return Calendar.current.date(from: c)!.timeIntervalSince1970
+    }()
+
+    /// Synthetic.endAt: `data` bent over its last 40 minutes so the latest reading is `mgdl`, with a matching trend.
+    static func endAt(_ data: [GraphReading], _ mgdl: Int) -> [GraphReading] {
+        let last = Double(data.last!.sgv)
+        var l = data.map { r -> GraphReading in
+            let f = 1 - (now - r.t) / 2400
+            var x = r
+            if f > 0 { x.v = Double(max(40, Int((Double(r.sgv) + (Double(mgdl) - last) * f).rounded()))) }
+            return x
+        }
+        for i in l.indices where i >= 5 { l[i].rate = Double(l[i].sgv - l[i - 5].sgv) / 5 }
+        return l
+    }
+    static func tr(_ k: String, _ a: Double, _ minAgo: Int) -> GraphMark { GraphMark(t: now - TimeInterval(minAgo * 60), k: k, a: a) }
+
+    static func card(_ data: [GraphReading], _ marks: [GraphMark], _ st: CardStyle) -> (CGContext, CGSize, GraphPalette) -> Void {
+        { ctx, size, pal in GlucoseCard.draw(ctx, size: size, readings: data, marks: marks, now: now, st, pal, alerts: AlertSettings()) }
+    }
+
+    /// A tile drawn on its own transparent bitmap, then turned into what a tinted desktop shows: `.accented` keeps only
+    /// the alpha (every drawn pixel takes the tint, whatever its colour), `.vibrant` multiplies it by the luminance.
+    /// Both are approximations of macOS's rendering; the real one lies between them, so the badge must read in both.
+    static func tintedTile(_ t: Tile, pal: GraphPalette, mode: RenderMode, scale: CGFloat) -> CGImage {
+        let w = Int(t.w * scale), h = Int(t.h * scale)
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!, info = CGImageAlphaInfo.premultipliedLast.rawValue
+        let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: info)!
+        ctx.translateBy(x: 0, y: CGFloat(h)); ctx.scaleBy(x: scale, y: -scale)
+        t.draw(ctx, CGSize(width: t.w, height: t.h), pal)
+        let tint: (Double, Double, Double) = (0.85, 0.92, 1.0)
+        for i in stride(from: 0, to: px.count, by: 4) {
+            let a = Double(px[i + 3]) / 255
+            let lum = a > 0 ? (0.299 * Double(px[i]) + 0.587 * Double(px[i + 1]) + 0.114 * Double(px[i + 2])) / 255 / a : 0
+            let o = mode == .vibrant ? a * lum : a
+            px[i] = UInt8(255 * tint.0 * o); px[i + 1] = UInt8(255 * tint.1 * o); px[i + 2] = UInt8(255 * tint.2 * o)
+            px[i + 3] = UInt8(255 * o)
+        }
+        return CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: space, bitmapInfo: info)!.makeImage()!
+    }
+
+    static func sheet(_ url: URL, _ tiles: [Tile], cellW: CGFloat, cellH: CGFloat, cols: Int, dark: Bool, mode: RenderMode = .fullColor) {
+        let pal = mode.tinted ? GraphPalette.of(dark: dark).tinted() : GraphPalette.of(dark: dark), pad: CGFloat = 14, cap: CGFloat = 34, scale: CGFloat = 2
+        let rows = (tiles.count + cols - 1) / cols
+        let sw = (cellW + 2 * pad) * CGFloat(cols) + pad, sh = (cellH + 2 * pad + cap) * CGFloat(rows) + pad
+        let ctx = CGContext(data: nil, width: Int(sw * scale), height: Int(sh * scale), bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.translateBy(x: 0, y: sh * scale); ctx.scaleBy(x: scale, y: -scale)
+        ctx.setFillColor(mode.tinted ? CGColor(srgbRed: 0.12, green: 0.16, blue: 0.24, alpha: 1) : GraphPalette.hex(dark ? 0x0E0E10 : 0xE9E9EE))
+        ctx.fill(CGRect(x: 0, y: 0, width: sw, height: sh))
+        for (i, t) in tiles.enumerated() {
+            let cx = pad + CGFloat(i % cols) * (cellW + 2 * pad), cy = pad + CGFloat(i / cols) * (cellH + 2 * pad + cap)
+            Ink.draw(ctx, t.title, x: cx + 4, y: cy + 14, Ink.font(13, .semibold), mode.tinted ? GraphPalette.hex(0xF2F2F2) : pal.ink)
+            let top = cy + cap
+            ctx.addPath(CGPath(roundedRect: CGRect(x: cx, y: top, width: t.w + 2 * pad, height: t.h + 2 * pad), cornerWidth: 22, cornerHeight: 22, transform: nil))
+            ctx.setFillColor(mode.tinted ? CGColor(gray: 1, alpha: 0.14) : pal.bg); ctx.fillPath()
+            if mode.tinted {
+                ctx.saveGState()
+                ctx.translateBy(x: cx + pad, y: top + pad + t.h); ctx.scaleBy(x: 1, y: -1)
+                ctx.draw(tintedTile(t, pal: pal, mode: mode, scale: scale), in: CGRect(x: 0, y: 0, width: t.w, height: t.h))
+                ctx.restoreGState()
+                continue
+            }
+            ctx.saveGState()
+            ctx.translateBy(x: cx + pad, y: top + pad)
+            ctx.clip(to: CGRect(x: 0, y: 0, width: t.w, height: t.h))
+            t.draw(ctx, CGSize(width: t.w, height: t.h), pal)
+            ctx.restoreGState()
+        }
+        try! NSBitmapImageRep(cgImage: ctx.makeImage()!).representation(using: .png, properties: [:])!.write(to: url)
+        print("wrote", url.path)
+    }
+
+    static func run(_ out: URL) {
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        let day: TimeInterval = 86400
+        var g = GraphStyle(); g.hour24 = true
+        func gw(_ h: Int) -> GraphStyle { var x = g; x.window = TimeInterval(h * 3600); return x }
+        let base31 = RealisticSynthetic.readings(until: now, days: 31)
+        for dark in [true, false] {
+            let tag = dark ? "dark" : "light"
+            // marks
+            let data15 = endAt(RealisticSynthetic.readings(until: now, days: 15), 150)
+            let trs = [tr("rapid", 6, 8 * 60 + 10), tr("carbs", 60, 8 * 60), tr("long", 18, 6 * 60), tr("rapid", 4.5, 95),
+                       tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20), tr("note", 0, 150)]
+            let mv: [(String, CGFloat, CGFloat, CardStyle)] = [
+                ("4×2 combined, 12 h", 300, 150, CardStyle(graph: g)),
+                ("4×2 combined, 3 h", 300, 150, CardStyle(graph: gw(3))),
+                ("4×1 combined (side by side), 6 h", 300, 70, CardStyle(graph: gw(6))),
+                ("notification (no value, 12 h)", 340, 110, CardStyle(graph: g, value: false)),
+                ("5×3 combined, 24 h", 380, 230, CardStyle(graph: gw(24))),
+                ("app, 12 h", 360, 210, CardStyle(graph: g, value: false)),
+            ]
+            sheet(out.appendingPathComponent("mac-marks-\(tag).png"), mv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
+                  cellW: 380, cellH: 230, cols: 2, dark: dark)
+            // badge
+            let states: [(String, [GraphReading], [GraphMark])] = [
+                ("in range: no badge", endAt(base31, 120), []),
+                ("low (62), nothing logged: eat carbs", endAt(base31, 62), []),
+                ("low, 15g logged 6 min ago: muted", endAt(base31, 62), [tr("carbs", 15, 6)]),
+                ("high (212), nothing logged: take insulin", endAt(base31, 212), []),
+                ("high, 3u 22 min ago: muted", endAt(base31, 212), [tr("rapid", 3, 22)]),
+                ("extremely high (318) after insulin: never muted", endAt(base31, 318), [tr("rapid", 4, 10)]),
+            ]
+            let sizes: [(String, CGFloat, CGFloat, CardStyle)] = [
+                ("4×2 combined", 300, 150, CardStyle(graph: gw(6))),
+                ("3×1 value + 2 rings", 230, 60, CardStyle(graph: nil)),
+                ("2×1 value + 1 ring", 150, 60, CardStyle(graph: nil, rings: [RingSpec(window: day)])),
+                ("4×1 side by side", 300, 70, CardStyle(graph: gw(6))),
+            ]
+            for (si, sz) in sizes.enumerated() {
+                sheet(out.appendingPathComponent("mac-badge-\(si + 1)-\(tag).png"),
+                      states.map { Tile(title: "\(sz.0) · \($0.0)", w: sz.1, h: sz.2, draw: card($0.1, $0.2, sz.3)) },
+                      cellW: 300, cellH: 150, cols: 2, dark: dark)
+            }
+            // Tinted desktop (accented / vibrant): the badge in every state and size, and the last-treatment slot.
+            for mode in [RenderMode.accented, .vibrant] {
+                let m = mode == .accented ? "accented" : "vibrant"
+                let compact = ("value only, short: icon badge", CGFloat(130), CGFloat(40), CardStyle(graph: nil, rings: []))
+                sheet(out.appendingPathComponent("mac-badge-\(m)-\(tag).png"), (sizes + [compact]).flatMap { sz in
+                    states.dropFirst().map { Tile(title: "\(sz.0) · \($0.0)", w: sz.1, h: sz.2, draw: card($0.1, $0.2, sz.3)) }
+                }, cellW: 300, cellH: 150, cols: 5, dark: dark, mode: mode)
+            }
+            // last treatment
+            let data = endAt(base31, 150)
+            let rings = [RingSpec(window: day), RingSpec(window: 7 * day)]
+            let fallback = RingSpec(window: 30 * day)
+            func lst(_ graph: GraphStyle?, _ place: LastPlace = .nearValue, _ fb: RingSpec? = fallback) -> CardStyle {
+                CardStyle(graph: graph, rings: rings, last: place, lastElse: fb)
+            }
+            let trsLast = [tr("long", 18, 5 * 60), tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20), tr("note", 0, 150)]
+            let ls: [(String, [GraphMark])] = [
+                ("rapid 4.5u, 12 min ago (mute 60 min)", [tr("rapid", 4.5, 12), tr("carbs", 45, 12)]),
+                ("carbs 15g, 10 min ago (mute 15 min)", [tr("carbs", 15, 10)]),
+                ("rapid 6u, 2 h ago: mute over, grey ring", [tr("rapid", 6, 125)]),
+                ("rapid 6u, 5 h ago: hidden → 30d ring", [tr("rapid", 6, 300)]),
+                ("long-acting only: not shown → 30d ring", [tr("long", 18, 40)]),
+            ]
+            sheet(out.appendingPathComponent("mac-last-\(tag).png"), ls.flatMap { l in [
+                Tile(title: "3×1 · \(l.0)", w: 230, h: 60, draw: card(data, l.1, lst(nil))),
+                Tile(title: "4×2 combined · next to the number", w: 300, h: 150, draw: card(data, l.1, lst(gw(6)))),
+            ] }, cellW: 300, cellH: 150, cols: 2, dark: dark)
+            sheet(out.appendingPathComponent("mac-last-places-\(tag).png"), [
+                Tile(title: "at the right end", w: 380, h: 100, draw: card(data, ls[0].1, lst(nil, .end))),
+                Tile(title: "next to the number, 2 rings + slot", w: 380, h: 100, draw: card(data, ls[0].1, lst(nil))),
+                Tile(title: "no recent one, fallback off", w: 380, h: 100, draw: card(data, [], lst(nil, .nearValue, nil))),
+                Tile(title: "2×1: the slot pushes the 7d ring out", w: 150, h: 60, draw: card(data, ls[0].1, lst(nil))),
+            ], cellW: 380, cellH: 100, cols: 2, dark: dark)
+            for mode in [RenderMode.accented, .vibrant] {
+                sheet(out.appendingPathComponent("mac-last-\(mode == .accented ? "accented" : "vibrant")-\(tag).png"), ls.prefix(3).flatMap { l in [
+                    Tile(title: "3×1 · \(l.0)", w: 230, h: 60, draw: card(data, l.1, lst(nil))),
+                    Tile(title: "4×2 · \(l.0)", w: 300, h: 150, draw: card(data, l.1, lst(gw(6)))),
+                ] } + [Tile(title: "4×2 · marks", w: 300, h: 150, draw: card(data, trsLast, lst(gw(6))))],
+                      cellW: 300, cellH: 150, cols: 3, dark: dark, mode: mode)
+            }
         }
     }
 }

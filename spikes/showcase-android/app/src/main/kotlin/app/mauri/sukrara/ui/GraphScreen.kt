@@ -48,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.LastPlace
+import app.mauri.sukrara.graph.DEFAULT_LAST_ELSE
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.RING_WINDOWS_S
 import app.mauri.sukrara.graph.RingSpec
@@ -142,8 +144,10 @@ fun GraphScreen(onBack: () -> Unit) {
         Note("Each widget can have its own window: touch and hold it, then tap Reconfigure.")
 
         SettingsGroup("Beside the number", titleAction = {
-            Reset("Beside the number", g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder) {
-                set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder) }
+            Reset("Beside the number", g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder ||
+                    g.lastPlace != D.lastPlace || g.lastElse != D.lastElse) {
+                set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder,
+                    lastPlace = D.lastPlace, lastElse = D.lastElse) }
             }
         }) {
             val count: (Int) -> String = { if (it == 0) "None" else "$it" }
@@ -163,13 +167,33 @@ fun GraphScreen(onBack: () -> Unit) {
                 }
                 if (i > 0) switch("$name fainter than the main one", slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
             }
+            value("Last treatment", g.lastPlace.label) {
+                choose("Last treatment", LastPlace.entries, g.lastPlace, { it.label }) { p -> set { it.copy(lastPlace = p) } }
+            }
+            if (g.lastPlace != LastPlace.OFF) {
+                val other = g.lastElse
+                val none: SlotKind? = null
+                val what: (SlotKind?) -> String = { it?.label ?: "Nothing" }
+                value("Without a recent one", other?.let { it.kind.label + " · " + periodLabel(it.windowS) } ?: "Nothing") {
+                    choose("Without a recent treatment", listOf(none) + SlotKind.entries, other?.kind, what) { k ->
+                        set { it.copy(lastElse = k?.let { kind -> (it.lastElse ?: DEFAULT_LAST_ELSE).copy(kind = kind) }) }
+                    }
+                }
+                if (other != null) value("Without a recent one: period", periodLabel(other.windowS)) {
+                    choose("Without a recent treatment: period", RING_WINDOWS_S, other.windowS, ::periodLabel) { w ->
+                        set { it.copy(lastElse = it.lastElse?.copy(windowS = w)) }
+                    }
+                }
+            }
             val range: (TirRange) -> String = { "${it.label} (${g.bands.low}–${if (it == TirRange.TIGHT) g.bands.tight else g.bands.high})" }
             value("Time in range counts", range(g.ringRange)) { choose("Time in range counts", TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
             card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
         }
         Note("Each slot is a time-in-range ring or a number from your doctor's report: GMI, average glucose or " +
             "variability (CV), with a green arc when its goal is met. Slots that don't fit are hidden, the last one " +
-            "first. A slot needs data for at least a quarter of its window.")
+            "first. A slot needs data for at least a quarter of its window. Last treatment shows your latest rapid " +
+            "insulin (for 4 h) or carbs (for 3 h): the amount, the time since, and a ring for the time left before " +
+            "alerts come back. It takes the second slot's place when there's room for only two.")
 
         SettingsGroup("Beside the graph", titleAction = { Reset("Beside the graph", g.side != D.side) { set { it.copy(side = D.side) } } }) {
             switch("Time in range and distribution", g.side,

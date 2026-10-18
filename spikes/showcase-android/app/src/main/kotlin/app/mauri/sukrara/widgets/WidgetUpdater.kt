@@ -74,10 +74,10 @@ object WidgetUpdater {
         val latest = history.lastOrNull()
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         // Redraw for a new reading, a freshness step (late → stale → …), the 5-min ring refresh, theme, treatments or
-        // settings. A fresh card shows no age, so nothing ticks in between.
+        // settings (graph and alerts: the badge, the mute lines and the last-treatment ring follow the alert rules). A fresh card shows no age, so nothing ticks in between.
         val fresh = latest?.let { app.mauri.sukrara.graph.Freshness.of(now - it.t) }
-        val key = "${latest?.t}|$fresh|${now / 300}|$night|${history.size}|${treatments.hashCode()}|" +
-            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}"
+        val key = "${latest?.t}|$fresh|${now / 300}|$night|${java.util.Locale.getDefault()}|${history.size}|${treatments.hashCode()}|" +
+            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock

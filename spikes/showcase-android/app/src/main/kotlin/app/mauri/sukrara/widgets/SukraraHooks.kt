@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import app.mauri.sukrara.alerts.AlertNotifier
+import app.mauri.sukrara.core.Notifications
+import app.mauri.sukrara.status.GlucoseNotification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -59,6 +62,33 @@ object SukraraHooks {
                 if (runCatching { RecentHistory.setTreatments(app, list) }.getOrDefault(false)) refresh(app, "treatments")
             }
         }
+    }
+
+    /**
+     * Once per process: the widgets bake their colours into bitmaps, so a dark theme flip (e.g. the automatic
+     * schedule) redraws them at once, including the lock screen widget's automatic appearance, instead of at the
+     * next reading. A language change (per-app language) renames the notification channels and redraws the words.
+     */
+    fun watchConfiguration(c: Context) {
+        val app = c.applicationContext
+        fun night() = app.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        var last = night()
+        var lastLocales = app.resources.configuration.locales
+        app.registerComponentCallbacks(object : android.content.ComponentCallbacks {
+            override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+                val now = newConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                if (newConfig.locales != lastLocales) {
+                    // the app's language changed: channel names and every drawn word follow
+                    lastLocales = newConfig.locales
+                    Notifications.channels(app)
+                    AlertNotifier.channels(app)
+                    GlucoseNotification.createChannel(app)
+                    last = now
+                    refresh(app, "language", force = true)
+                } else if (now != last) { last = now; refresh(app, "night mode") }
+            }
+            @Deprecated("Deprecated in Java") override fun onLowMemory() {}
+        })
     }
 
     /**

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 
-/// `Sukrara -alerts-selftest`: the AlertEngine over scripted readings with an injected clock (spikes/alerts/SPEC.md
-/// §1–§3), plus the settings JSON and sound naming. No notifications, no network.
+/// `Sukrara -alerts-selftest`: the AlertEngine over the shared scenario timelines with an injected clock
+/// (spikes/alerts/SPEC.md §1–§3, §7), plus the settings JSON and sound naming. No notifications, no network.
 enum AlertsSelfTest {
     static func run() -> Bool {
         var ok = true
@@ -13,174 +13,60 @@ enum AlertsSelfTest {
             ok = ok && cond
         }
 
-        // A fresh engine with default settings; `at(min)` moves the clock, `feed` sends a reading stamped now.
-        var clock = Date(timeIntervalSince1970: 1_760_650_000)
-        var insulin: [Date] = []
-        var carbs: [Date] = []
+        // 1. The shared timelines (spikes/alerts/scenarios, SPEC §7): the same files Android's AlertScenarioTest runs.
+        let scenarios = AlertScenarios.load()
+        check("scenario files found", !scenarios.isEmpty, AlertScenarios.dir()?.path ?? "no spikes/alerts/scenarios above \(#filePath)")
+        var passed = 0
+        for sc in scenarios {
+            let errors = AlertScenarios.run(sc)
+            if errors.isEmpty { passed += 1 } else { print("FAIL  \(sc.file): \(sc.title)\n      " + errors.joined(separator: "\n      ")) }
+        }
+        check("scenarios: \(passed)/\(scenarios.count) pass", passed == scenarios.count)
+
+        // 2. Mac only: a follower mirroring the wearer runs just no_data here.
+        var clock = Date(timeIntervalSince1970: 1_760_650_020)
         var log: [AlertEvent] = []
-        func engine(_ edit: (inout AlertSettings) -> Void = { _ in }) -> AlertEngine {
-            var s = AlertSettings()
-            edit(&s)
-            let e = AlertEngine(settings: s, now: { clock })
-            e.rapidInsulin = { insulin }
-            e.carbs = { carbs }
-            e.onFire = { log.append($0) }
-            e.onClear = { log.append($0) }
-            log = []
-            insulin = []
-            carbs = []
-            return e
-        }
-        func at(_ min: Double) { clock = Date(timeIntervalSince1970: 1_760_650_000 + min * 60) }
-        func feed(_ e: AlertEngine, _ sgv: Double, _ rate: Double? = 0) -> [AlertEvent] {
-            let before = log.count
-            e.reading(Reading(date: clock, mgdl: sgv, rate: rate))
-            return Array(log[before...])
-        }
-        func tick(_ e: AlertEngine) -> [AlertEvent] {
-            let before = log.count
-            e.tick()
-            return Array(log[before...])
-        }
-        func fires(_ evs: [AlertEvent]) -> [String] { evs.filter { $0.state == "fire" }.map { "\($0.k.rawValue)#\($0.n)" } }
-        func clears(_ evs: [AlertEvent]) -> [String] { evs.filter { $0.state == "clear" }.map(\.k.rawValue) }
-
-        // 1. Rising into high, repeat timing, no flapping, escalation, clear (timings below assume repeatMin 60).
-        check("high reminds every 30 min by default", AlertSettings()[.high].repeatMin == 30)
-        var e = engine { $0[.high].repeatMin = 60 }
-        at(0); check("in range: nothing", feed(e, 170, 1).isEmpty)
-        at(5); let h1 = feed(e, 186, 0.5)
-        check("rising into high fires high", fires(h1) == ["high#1"], "\(fires(h1))")
-        check("event carries th/sgv/r/n", h1.first.map { $0.th == 185 && $0.sgv == 186 && $0.r == 0.5 && $0.n == 1 && $0.id.count == 16 } ?? false)
-        at(35); check("still high at +30 min: no repeat (repeatMin 60)", feed(e, 190, 0.1).isEmpty)
-        at(65); let h2 = feed(e, 192, 0.1)
-        check("still high at +60 min: re-alert n=2, new id", fires(h2) == ["high#2"] && h2.first?.id != h1.first?.id, "\(fires(h2))")
-        at(70); let c1 = feed(e, 180, 0)
-        check("back under: clear repeats the last firing's id", clears(c1) == ["high"] && c1.first?.id == h2.first?.id)
-        at(75); check("back to high within repeatMin of its last firing: no flapping", fires(feed(e, 187, 0.2)).isEmpty)
-        check("…state says it's waiting", e.stateLine.contains("not repeated yet"), e.stateLine)
-        at(126); check("…fires once repeatMin since the last firing has passed", fires(feed(e, 188, 0.2)) == ["high#1"])
-        at(127); let vh = feed(e, 255, 1)
-        check("high → very high fires at once (escalation)", fires(vh) == ["very_high#1"] && clears(vh) == ["high"], "\(vh.map { "\($0.k.rawValue) \($0.state)" })")
-        at(130); let back = feed(e, 120, -1)
-        check("back in range: very high cleared", clears(back) == ["very_high"] && e.active.isEmpty)
-
-        // 2. Stale readings never alert.
-        e = engine()
-        at(30); e.reading(Reading(date: clock.addingTimeInterval(-16 * 60), mgdl: 300, rate: 0))
-        check("reading 16 min old: no alert", log.filter { $0.state == "fire" && $0.k != .noData }.isEmpty)
-
-        // 3. Mute after rapid insulin; it fires when the window ends and it's still high.
-        e = engine()
-        at(0); insulin = [clock.addingTimeInterval(-5 * 60)]
-        check("high 5 min after rapid insulin: muted", fires(feed(e, 200, 0.5)).isEmpty)
-        check("…state line says why", e.stateLine == "High · muted: insulin 5 min ago", e.stateLine)
-        check("insulin mute lasts 60 min by default", AlertSettings().muteAfterInsulin.min == 60)
-        at(40); check("still muted 45 min after insulin", fires(feed(e, 205, 0.5)).isEmpty)
-        at(50); check("still muted 55 min after insulin", fires(feed(e, 206, 0.1)).isEmpty)
-        at(56); check("window over (61 min) and still high: fires on the timer", fires(tick(e)) == ["high#1"])
-        insulin = [clock.addingTimeInterval(-60)]; at(57)
-        check("an insulin entry in the future doesn't mute", { insulin = [clock.addingTimeInterval(600)]; return e.muteReason(.high, Reading(date: clock, mgdl: 200, rate: 0)) == nil }())
-        e = engine(); at(0); insulin = [clock.addingTimeInterval(-60)]
-        check("very high muted by insulin", fires(feed(e, 260, 1)).isEmpty)
-        at(1); let xh = feed(e, 305, 1)
-        check("extremely high is never muted (insulin 2 min ago)", fires(xh) == ["extremely_high#1"], "\(fires(xh))")
-        e = engine(); at(0)
-        check("extremely high falling: not muted either", fires(feed(e, 320, -4)) == ["extremely_high#1"])
-        e = engine(); at(0); insulin = [clock.addingTimeInterval(-60)]
-        check("lows are never muted by insulin", fires(feed(e, 60, -0.5)) == ["low#1"])
-        e = engine { $0.muteAfterInsulin.on = false }; at(0); insulin = [clock.addingTimeInterval(-60)]
-        check("muteAfterInsulin off: high fires despite insulin", fires(feed(e, 200, 0.5)) == ["high#1"])
-
-        // 3b. Mute after carbs: low and falling fast, never urgent low; fires when the window ends and it's still low.
-        e = engine(); at(0); carbs = [clock.addingTimeInterval(-5 * 60)]
-        check("carbs mute 15 min by default", AlertSettings().muteAfterCarbs.min == 15)
-        check("low 5 min after carbs: muted", fires(feed(e, 60, 0)).isEmpty && e.stateLine == "Low · muted: carbs 5 min ago", e.stateLine)
-        at(11); check("window over (16 min) and still low: fires on the timer", fires(tick(e)) == ["low#1"])
-        e = engine(); at(0); carbs = [clock.addingTimeInterval(-60)]
-        check("urgent low is never muted by carbs", fires(feed(e, 50, 0)) == ["urgent_low#1"])
-        e = engine(); at(0); carbs = [clock.addingTimeInterval(-60)]
-        check("highs aren't muted by carbs", fires(feed(e, 200, 0.5)) == ["high#1"])
-        e = engine { $0.muteAfterCarbs.on = false }; at(0); carbs = [clock.addingTimeInterval(-60)]
-        check("muteAfterCarbs off: low fires despite carbs", fires(feed(e, 60, 0)) == ["low#1"])
-
-        // 4. Falling-high projection.
-        e = engine(); at(0)
-        check("195 falling 1/min (→175 in 20 min < 185): muted", fires(feed(e, 195, -1)).isEmpty && e.stateLine.contains("muted: falling"), e.stateLine)
-        at(1); check("trend flattens (195 − 0.2×20 = 191): un-muted at once", fires(feed(e, 195, -0.2)) == ["high#1"])
-        e = engine(); at(0)
-        check("very high falling into range: muted too", fires(feed(e, 255, -4)).isEmpty)
-        check("…but a rise isn't", fires(feed(e, 255, 0.5)) == ["very_high#1"])
-
-        // 5. Low → urgent low, urgent repeats every 5 min, clear.
-        e = engine(); at(0)
-        check("64: low", fires(feed(e, 64, -1)) == ["low#1"])
-        at(2); let ul = feed(e, 54, -1)
-        check("54: urgent low at once (low cleared first)", fires(ul) == ["urgent_low#1"] && clears(ul) == ["low"])
-        at(4); check("urgent low +2 min: no repeat", fires(feed(e, 53, 0)).isEmpty)
-        at(7); check("urgent low +5 min: re-alert n=2", fires(feed(e, 52, 0)) == ["urgent_low#2"])
-        at(12); check("urgent low repeats on the timer with no new reading", fires(tick(e)) == ["urgent_low#3"])
-        at(13); let cl = feed(e, 90, 1)
-        check("back in range: urgent low cleared with the last firing's id", clears(cl) == ["urgent_low"] && cl.first?.id == log.last(where: { $0.state == "fire" && $0.k == .urgentLow })?.id)
-        e = engine { $0[.urgentLow].on = false }; at(0)
-        check("urgent low off: 50 is a low", fires(feed(e, 50, 0)) == ["low#1"])
-        e = engine { $0[.low].repeatMin = 0 }; at(0); _ = feed(e, 60, 0)
-        at(200); check("repeatMin 0: never repeats", fires(feed(e, 60, 0)).isEmpty)
-
-        // 6. Rate alerts (off by default), independent of level; rising fast muted by insulin.
-        e = engine(); at(0)
-        check("rate alerts off by default", fires(feed(e, 120, -3)).isEmpty)
-        e = engine { $0[.fallingFast].on = true; $0[.risingFast].on = true }; at(0)
-        check("falling fast at −2.5", fires(feed(e, 120, -2.5)) == ["falling_fast#1"])
-        at(1); let rr = feed(e, 120, nil)
-        check("no rate → rate alert cleared", clears(rr) == ["falling_fast"])
-        at(2); check("high + rising fast: both groups fire", Set(fires(feed(e, 200, 2.5))) == ["high#1", "rising_fast#1"])
-        e = engine { $0[.risingFast].on = true }; at(0); insulin = [clock.addingTimeInterval(-120)]
-        check("rising fast muted by insulin", fires(feed(e, 150, 3)).isEmpty)
-
-        // 7. No data: timer, cleared by the next reading, repeats.
-        e = engine(); at(0); _ = feed(e, 120, 0)
-        at(19); check("no reading for 19 min: nothing", tick(e).isEmpty)
-        at(20); let nd = tick(e)
-        check("20 min: no_data fires (th 20, last reading attached)", fires(nd) == ["no_data#1"] && nd.first?.th == 20 && nd.first?.sgv == 120)
-        at(50); check("no_data doesn't repeat before 60 min", tick(e).isEmpty)
-        at(80); check("no_data repeats after 60 min", fires(tick(e)) == ["no_data#2"])
-        at(81); check("next reading clears no_data", clears(feed(e, 118, 0)) == ["no_data"])
-        e = engine(); at(0); e.levelAndRate = false; _ = feed(e, 300, 3)
+        let e = AlertEngine(settings: AlertSettings(), now: { clock })
+        e.onFire = { log.append($0) }
+        e.onClear = { log.append($0) }
+        e.levelAndRate = false
+        e.reading(Reading(date: clock, mgdl: 300, rate: 3))
         check("wearer mode: no level/rate rules here…", log.isEmpty)
-        at(25); check("…but no_data still runs locally", fires(tick(e)) == ["no_data#1"])
-        e = engine { $0.on = false }; at(0); _ = feed(e, 40, -3); at(60); _ = tick(e)
-        check("master switch off: nothing at all", log.isEmpty && e.stateLine == "Alerts are off")
+        clock += 25 * 60; e.tick()
+        check("…but no_data still runs locally", log.map { "\($0.k.rawValue) \($0.state)" } == ["no_data fire"], "\(log.map(\.k))")
+        check("no_data carries th and the last reading", log.first.map { $0.th == 20 && $0.sgv == 300 && $0.id.count == 16 } ?? false)
 
-        // 8. Settings JSON (§3): the spec example, partial and junk input keep defaults, same keys out.
+        // 3. Settings JSON (§3): the spec example, partial and junk input keep defaults, same keys out.
         let spec = """
-        {"v":1,"on":true,"alerts":{"urgent_low":{"on":true,"mgdl":55,"repeatMin":5},"low":{"on":true,"mgdl":65,"repeatMin":15},
-        "high":{"on":true,"mgdl":185,"repeatMin":30},"very_high":{"on":true,"mgdl":250,"repeatMin":30},
-        "extremely_high":{"on":true,"mgdl":300,"repeatMin":15},
+        {"v":1,"on":true,"alerts":{"very_low":{"on":true,"mgdl":55,"repeatMin":5,"alarm":true},"low":{"on":true,"mgdl":70,"repeatMin":5},
+        "high":{"on":true,"mgdl":180,"repeatMin":15},"very_high":{"on":true,"mgdl":250,"repeatMin":10},
+        "extremely_high":{"on":true,"mgdl":300,"repeatMin":5,"alarm":true},
         "falling_fast":{"on":false,"rate":2.0,"repeatMin":30},"rising_fast":{"on":false,"rate":2.0,"repeatMin":30},
         "no_data":{"on":true,"min":20,"repeatMin":60}},"muteAfterInsulin":{"on":true,"min":60},
-        "muteFallingHigh":{"on":true,"min":20},"muteAfterCarbs":{"on":true,"min":15},"sounds":{"pack":"arcade","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
+        "muteFallingHigh":{"on":true,"min":20},"muteAfterCarbs":{"on":true,"min":15},"sounds":{"pack":"quest","kinds":{"high":"kart"},"shuffle":true},"source":"wearer"}
         """
         let parsed = try? JSONDecoder().decode(AlertSettings.self, from: Data(spec.utf8))
         var expect = AlertSettings(); expect.sounds.kinds = ["high": "kart"]
         check("SPEC §3 example parses to the defaults (+ kart for high)", parsed == expect)
         let partial = try? JSONDecoder().decode(AlertSettings.self, from: Data(#"{"on":false,"alerts":{"high":{"mgdl":200}},"source":"bogus","sounds":7}"#.utf8))
-        check("partial / junk JSON keeps the other defaults", partial.map { !$0.on && $0[.high].threshold == 200 && $0[.high].on && $0[.high].repeatMin == 30
-                                                                         && $0.source == "wearer" && $0.sounds.pack == "arcade" && $0[.low] == AlertKind.low.defaultRule } ?? false)
+        check("partial / junk JSON keeps the other defaults", partial.map { !$0.on && $0[.high].threshold == 200 && $0[.high].on && $0[.high].repeatMin == 15
+                                                                         && $0.source == "wearer" && $0.sounds.pack == "quest" && $0[.low] == AlertKind.low.defaultRule } ?? false)
         let out = (try? JSONSerialization.jsonObject(with: Data(AlertSettings().json.utf8))) as? [String: Any] ?? [:]
         let keys = Set(out.keys), ruleKeys = Set(((out["alerts"] as? [String: Any])?["no_data"] as? [String: Any] ?? [:]).keys)
         check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds", "source"]
               && ruleKeys == ["on", "min", "repeatMin", "alarm"], "\(keys) \(ruleKeys)")
-        check("lows default to alarm, the rest to notification", AlertSettings()[.low].alarm && AlertSettings()[.urgentLow].alarm
-              && !AlertSettings()[.high].alarm && !AlertSettings()[.noData].alarm)
+        check("very low and extremely high default to alarm, the rest to notification", AlertSettings()[.veryLow].alarm
+              && AlertSettings()[.extremelyHigh].alarm && !AlertSettings()[.low].alarm && !AlertSettings()[.high].alarm && !AlertSettings()[.noData].alarm)
+        let old = try? JSONDecoder().decode(AlertSettings.self, from: Data(#"{"v":1,"alerts":{"urgent_low":{"mgdl":40}}}"#.utf8))
+        check("the old urgent_low key is ignored", old?[.veryLow] == AlertKind.veryLow.defaultRule)
         let flipped = try? JSONDecoder().decode(AlertSettings.self,
-            from: Data(#"{"v":1,"alerts":{"low":{"alarm":false},"high":{"alarm":true}}}"#.utf8))
-        check("\"alarm\" is read per alert", flipped?[.low].alarm == false && flipped?[.high].alarm == true && flipped?[.low].mgdl == 65)
+            from: Data(#"{"v":1,"alerts":{"very_low":{"alarm":false},"low":{"alarm":true}}}"#.utf8))
+        check("\"alarm\" is read per alert", flipped?[.veryLow].alarm == false && flipped?[.low].alarm == true && flipped?[.low].mgdl == 70)
         check("round trip", (try? JSONDecoder().decode(AlertSettings.self, from: Data(expect.json.utf8))) == expect)
 
-        // 9. Sounds: pack, per-kind override, system/none, shuffle off = variant 1, files exist for every combination.
+        // 4. Sounds: pack, per-kind override, system/none, shuffle off = variant 1, files exist for every combination.
         var s = AlertSettings(); s.sounds = AlertSounds(pack: "quest", kinds: ["high": "kart", "low": "none", "no_data": "system"], shuffle: false)
-        check("pack + overrides + no shuffle", Alerts.sound(for: .urgentLow, s).label == "quest_urgent_low_1.caf"
+        check("pack + overrides + no shuffle", Alerts.sound(for: .veryLow, s).label == "quest_very_low_1.caf"
               && Alerts.sound(for: .high, s).label == "kart_high_1.caf" && Alerts.sound(for: .low, s).label == "none"
               && Alerts.sound(for: .noData, s).label == "system")
         s.sounds.shuffle = true
@@ -190,14 +76,223 @@ enum AlertsSelfTest {
             .filter { Alerts.soundURL($0) == nil }
         check("all 96 sound files found (bundle or repo)", missing.isEmpty, "missing \(missing.prefix(3))")
 
-        // 10. A wearer's §4 body parses; junk doesn't.
+        // 5. A wearer's §4 body parses; junk doesn't.
         let body: [String: Any] = ["v": 2, "type": "alert", "id": "0123456789abcdef", "k": "high", "state": "fire", "at": 1760650000,
-                                   "t": 1760649990, "sgv": 192, "r": -0.4, "th": 185, "n": 2]
-        check("§4 alert body parses", AlertEvent(body: body).map { $0.k == .high && $0.n == 2 && $0.sgv == 192 && $0.th == 185 } ?? false)
+                                   "t": 1760649990, "sgv": 192, "r": -0.4, "th": 180, "n": 2, "tr": 1]
+        check("§4 alert body parses", AlertEvent(body: body).map { $0.k == .high && $0.n == 2 && $0.sgv == 192 && $0.th == 180 && $0.tr == 1 } ?? false)
+        check("…its headline", AlertEvent(body: body)?.k.message(treated: 1) == "High glucose · still high after insulin")
+        var plain = body; plain["tr"] = nil
+        check("no \"tr\": treated 0", AlertEvent(body: plain)?.tr == 0)
         var bad = body; bad["k"] = "meteor"
         check("unknown kind rejected", AlertEvent(body: bad) == nil)
 
         print(ok ? "alerts self-test OK" : "alerts self-test FAILED")
+        // 6. The card's status (CardStatusTest.kt): units, durations, AlertStatus, LastTreatment, badge, slot priority,
+        //    the graph settings' lastPlace / lastElse keys.
+        let now: TimeInterval = 1_800_000_000
+        let st = AlertSettings()
+        func tr(_ k: String, _ a: Double, _ minAgo: Int) -> GraphMark { GraphMark(t: now - TimeInterval(minAgo * 60), k: k, a: a) }
+        func rd(_ v: Double) -> GraphReading { GraphReading(t: now - 30, v: v) }
+        check("units 4.5u 18u 30g", [tr("rapid", 4.5, 0), tr("long", 18, 0), tr("carbs", 30, 0)].map(TreatmentMarks.amount) == ["4.5u", "18u", "30g"]
+              && TreatmentMarks.amount(tr("note", 0, 0)) == nil)
+        let durs = [TreatmentMarks.duration(30), TreatmentMarks.duration(12 * 60 + 40), TreatmentMarks.duration(65 * 60),
+                    TreatmentMarks.duration(3 * 3600), TreatmentMarks.duration(7 * 3600 + 50 * 60), TreatmentMarks.duration(50 * 3600),
+                    TreatmentMarks.duration(10, up: true)]
+        check("durations", durs == ["now", "12m", "1h 5m", "3h", "7h", "2d", "1m"], "\(durs)")
+        check("last: a meal at the same minute shows the insulin",
+              LastTreatment.of([tr("carbs", 45, 12), tr("rapid", 4.5, 12)], st, .none, now: now)?.tr.k == "rapid")
+        check("last: long and notes never", LastTreatment.of([tr("long", 18, 5), tr("note", 0, 1)], st, .none, now: now) == nil)
+        check("last: kept 4 h rapid / 3 h carbs", LastTreatment.of([tr("rapid", 6, 241), tr("carbs", 20, 181)], st, .none, now: now) == nil
+              && LastTreatment.of([tr("rapid", 6, 200), tr("carbs", 20, 179)], st, .none, now: now)?.tr.a == 20)
+        var noInsulinMute = st; noInsulinMute.muteAfterInsulin.on = false
+        check("last: ring = share of the mute left",
+              abs((LastTreatment.of([tr("rapid", 4.5, 12)], st, .none, now: now)?.left(now) ?? 0) - 0.8) < 0.001
+              && LastTreatment.of([tr("carbs", 15, 20)], st, .none, now: now)?.left(now) == 0
+              && LastTreatment.of([tr("rapid", 4.5, 12)], noInsulinMute, .none, now: now)?.left(now) == 0)
+        let carbs = tr("carbs", 15, 8)
+        check("last: the muting treatment wins over a newer one",
+              LastTreatment.of([carbs, tr("rapid", 1, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr == carbs)
+        check("badge: Eat carbs / Take insulin / none",
+              StatusBadge.look(AlertStatus.of(rd(60), st, [], now: now), now: now)?.text == "Eat carbs"
+              && StatusBadge.look(AlertStatus.of(rd(220), st, [], now: now), now: now)?.text == "Take insulin"
+              && StatusBadge.look(AlertStatus.of(rd(120), st, [], now: now), now: now) == nil)
+        check("badge: muted 9m left", StatusBadge.look(AlertStatus.of(rd(60), st, [tr("carbs", 15, 6)], now: now), now: now)
+              == StatusBadge.Look(kind: "carbs", text: "9m left", short: "9m", tonal: true))
+        check("badge: extremely high never muted", AlertStatus.of(rd(318), st, [tr("rapid", 4, 10)], now: now) == .needed(.extremelyHigh))
+        check("badge: same level as the engine",
+              AlertStatus.of(rd(69), st, [], now: now) == .needed(.low) && AlertStatus.of(GraphReading(t: now - 16 * 60, v: 40), st, [], now: now) == .none)
+        check("mute line ends: rapid +60, carbs +15, long none",
+              AlertStatus.muteUntil(tr("rapid", 1, 0), st) == now + 3600 && AlertStatus.muteUntil(tr("carbs", 1, 0), st) == now + 900
+              && AlertStatus.muteUntil(tr("long", 1, 0), st) == nil && AlertStatus.muteUntil(tr("rapid", 1, 0), noInsulinMute) == nil)
+        let m = GlucoseMetrics.of([], from: 0, to: 1, bands: Bands())
+        let rings = [(0, RingSpec(window: 86400), m), (1, RingSpec(window: 7 * 86400), m), (2, RingSpec(window: 14 * 86400), m)]
+        let info = LastTreatment.Info(tr: tr("rapid", 4.5, 5), until: now + 55 * 60)
+        let fb = (RingSpec(window: 30 * 86400), m)
+        func names(_ l: [SlotItem]) -> [String] {
+            l.map { if case let .metric(s, _, _) = $0 { "\(Int(s.window) / 86400)d" } else { "last" } }
+        }
+        check("slots: right to left, the treatment pushes the second ring out",
+              names(Slots.arrange(rings, place: .nearValue, last: info, fallback: fb, max: 2)) == ["1d", "last"]
+              && names(Slots.arrange(rings, place: .nearValue, last: info, fallback: fb, max: 3)) == ["1d", "7d", "last"]
+              && names(Slots.arrange(rings, place: .end, last: info, fallback: fb, max: 3)) == ["last", "1d", "7d"])
+        check("slots: the fallback only fills spare room",
+              names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: fb, max: 2)) == ["1d", "7d"]
+              && names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: fb, max: 3)) == ["1d", "7d", "30d"]
+              && names(Slots.arrange(rings, place: .off, last: info, fallback: fb, max: 3)) == ["1d", "7d", "14d"]
+              && !names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: nil, max: 4)).contains("last"))
+        let ud = UserDefaults(suiteName: "sukrara-selftest-\(UUID().uuidString)")!
+        let dflt = GraphConfig.load(ud)
+        ud.set("END", forKey: "lastPlace"); ud.set("GMI:1209600:0", forKey: "lastElse")
+        let set = GraphConfig.load(ud)
+        ud.set("", forKey: "lastElse")
+        check("settings: lastPlace / lastElse (Android spellings)",
+              dflt.lastPlace == .nearValue && dflt.lastElse == GraphConfig.defaultLastElse
+              && set.lastPlace == .end && set.lastElse == RingSpec(window: 14 * 86400, kind: .gmi, faded: false)
+              && GraphConfig.load(ud).lastElse == nil)
         return ok
+    }
+}
+
+/// The shared alert timelines (spikes/alerts/scenarios/*.txt, format and driver in spikes/alerts/SPEC.md §7): the same
+/// parser and driver loop as Android's AlertScenarioTest, so both engines must produce the same headlines and clears,
+/// minute by minute, in order.
+enum AlertScenarios {
+    struct Line { var minute: Int, at: Int, events: [String], expect: [String] }
+    struct Scenario { var file: String, title: String, settings: [String], lines: [Line], end: Int }
+
+    static let t0 = 1_760_000_040     // a whole minute
+
+    /// spikes/alerts/scenarios, found by walking up from this source file.
+    static func dir() -> URL? {
+        var u = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let fm = FileManager.default
+        while u.path != "/" {
+            for sub in ["spikes/alerts/scenarios", "alerts/scenarios"] {
+                var isDir: ObjCBool = false
+                let d = u.appendingPathComponent(sub)
+                if fm.fileExists(atPath: d.path, isDirectory: &isDir), isDir.boolValue { return d }
+            }
+            u.deleteLastPathComponent()
+        }
+        return nil
+    }
+
+    static func load() -> [Scenario] {
+        guard let d = dir(), let names = try? FileManager.default.contentsOfDirectory(atPath: d.path) else { return [] }
+        return names.filter { $0.hasSuffix(".txt") }.sorted().flatMap { n in
+            parse(n, (try? String(contentsOf: d.appendingPathComponent(n), encoding: .utf8)) ?? "")
+        }
+    }
+
+    static func parse(_ file: String, _ text: String) -> [Scenario] {
+        func trim(_ s: some StringProtocol) -> String { s.trimmingCharacters(in: .whitespaces) }
+        var out: [Scenario] = []
+        var title: String?, settings: [String] = [], lines: [Line] = [], end: Int?
+        func flush() {
+            guard let t = title else { return }
+            out.append(Scenario(file: file, title: t, settings: settings, lines: lines, end: end ?? lines.map(\.minute).max() ?? 0))
+            title = nil; settings = []; lines = []; end = nil
+        }
+        for raw in text.components(separatedBy: "\n") {
+            let l = trim(raw.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
+            if l.isEmpty { continue }
+            if l.hasPrefix("scenario ") { flush(); title = trim(l.dropFirst(9)) }
+            else if l.hasPrefix("settings ") { settings = trim(l.dropFirst(9)).split(whereSeparator: \.isWhitespace).map(String.init) }
+            else if l.hasPrefix("end ") { end = Int(trim(l.dropFirst(4))) }
+            else {
+                let (left, right) = l.range(of: "=>").map { (trim(l[..<$0.lowerBound]), String(l[$0.upperBound...])) } ?? (l, "")
+                let time = String(left.prefix { $0 != " " })
+                let ms = time.split(separator: ":").map { Int($0) ?? 0 }
+                let at = ms[0] * 60 + (ms.count > 1 ? ms[1] : 0)
+                let events = left.dropFirst(time.count).split(separator: ",").map(trim).filter { !$0.isEmpty }
+                let expect = right.split(separator: ";").map(trim).filter { !$0.isEmpty && $0 != "nothing" }
+                precondition(!lines.contains { $0.minute == at / 60 }, "\(file): two lines for minute \(at / 60)")
+                lines.append(Line(minute: at / 60, at: at, events: events, expect: expect))
+            }
+        }
+        flush()
+        return out
+    }
+
+    /// One `key=value` of a `settings` line or `set` event on top of `s`.
+    static func set(_ s: inout AlertSettings, _ kv: String) {
+        let p = kv.split(separator: "=", maxSplits: 1).map(String.init)
+        let (k, v) = (p[0], p[1])
+        let mute = AlertMute(on: v != "off", min: Double(v) ?? 0)
+        switch k {
+        case "alerts": s.on = v == "on"
+        case "carbs.mute": s.muteAfterCarbs = v == "off" ? AlertMute(on: false, min: s.muteAfterCarbs.min) : mute
+        case "insulin.mute": s.muteAfterInsulin = v == "off" ? AlertMute(on: false, min: s.muteAfterInsulin.min) : mute
+        case "falling.mute": s.muteFallingHigh = v == "off" ? AlertMute(on: false, min: s.muteFallingHigh.min) : mute
+        default:
+            let parts = k.split(separator: ".", maxSplits: 1).map(String.init)
+            guard let kind = AlertKind(rawValue: parts[0]) else { fatalError("unknown setting \(kv)") }
+            if parts.count == 1 {
+                switch v { case "on": s[kind].on = true; case "off": s[kind].on = false; default: s[kind].threshold = Double(v)! }
+            } else if parts[1] == "repeat" { s[kind].repeatMin = Int(v)! } else { fatalError("unknown setting \(kv)") }
+        }
+    }
+
+    /// Runs `sc` (driver: SPEC.md §7); returns one line per minute that differs, empty when it all matches.
+    static func run(_ sc: Scenario) -> [String] {
+        var s = AlertSettings()
+        for kv in sc.settings { set(&s, kv) }
+        var clock = Date(timeIntervalSince1970: TimeInterval(t0))
+        var trs: [(k: String, t: Date, del: Bool)] = []
+        var got: [Int: [String]] = [:]
+        let e = AlertEngine(settings: s, now: { clock })
+        e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
+        e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
+        func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
+        e.onFire = { record($0.k.message(treated: $0.tr)) }
+        e.onClear = { record("clear \($0.k.rawValue)") }
+        var glucose = 0.0, rate = 0.0, age = 0, sensor = true, every = 1
+        var nextReading: Int?, timer: Int?
+        let byTime = Dictionary(sc.lines.map { (t0 + $0.at, $0) }, uniquingKeysWith: { a, _ in a })
+        let stop = t0 + (sc.end + 1) * 60
+        var t = t0
+        while t < stop {
+            clock = Date(timeIntervalSince1970: TimeInterval(t))
+            for ev in byTime[t]?.events ?? [] {
+                let w = ev.split(whereSeparator: \.isWhitespace).map(String.init)
+                func after(_ key: String) -> String? { w.firstIndex(of: key).flatMap { $0 > 0 ? w[$0 + 1] : nil } }
+                switch w[0] {
+                case "glucose":
+                    glucose = Double(w[1])!
+                    rate = after("rate").flatMap(Double.init) ?? 0
+                    age = after("age").flatMap(Int.init) ?? 0
+                    if nextReading == nil { nextReading = t }
+                case "readings": every = Int(w[2])!
+                case "sensor":
+                    sensor = w[1] == "on"
+                    if sensor { nextReading = t }
+                case "carbs", "insulin":
+                    trs.append((w[0] == "carbs" ? "carbs" : "rapid", clock, false))
+                    e.tick()
+                case "delete":
+                    let k = w[1] == "carbs" ? "carbs" : "rapid"
+                    if let i = trs.lastIndex(where: { $0.k == k && !$0.del }) { trs[i].del = true }
+                    e.tick()
+                case "set":
+                    for kv in w.dropFirst() { set(&s, kv) }
+                    e.settings = s
+                    e.tick()
+                default: fatalError("unknown event: \(ev)")
+                }
+            }
+            if sensor, let r = nextReading, r <= t {
+                e.reading(Reading(date: clock.addingTimeInterval(TimeInterval(-age * 60)), mgdl: glucose, rate: rate))
+                nextReading = t + every * 60
+            } else if let tm = timer, tm <= t { e.tick() }
+            timer = e.nextCheckAt(clock).map { Int($0.timeIntervalSince1970.rounded(.up)) }
+            guard let next = [byTime.keys.filter { $0 > t }.min(), sensor ? nextReading : nil, timer].compactMap({ $0 }).min() else { break }
+            t = next
+        }
+        let expected = Dictionary(sc.lines.map { ($0.minute, $0.expect) }, uniquingKeysWith: { a, _ in a })
+        return (0...sc.end).compactMap { m in
+            let want = expected[m] ?? [], have = got[m] ?? []
+            func show(_ l: [String]) -> String { l.isEmpty ? "[nothing]" : "[\(l.joined(separator: ", "))]" }
+            return want == have ? nil : "minute \(m): expected \(show(want)), got \(show(have))"
+        }
     }
 }

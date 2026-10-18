@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Settings: a sound test plays the alert's vibration too -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Investigation 15: the alert timer wakes exactly when a mute window ends (Alerts.schedule) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- restart the wearer service after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- investigation 07: BLE transport (owner = GATT server + advertiser, follower = central); no location use -->

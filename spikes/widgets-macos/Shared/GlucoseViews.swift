@@ -93,9 +93,9 @@ struct GlucoseWidgetView: View {
         rc.ringCount = overrides.rings ?? cfg.ringCount
         rc.ringRange = overrides.ringRange ?? cfg.ringRange
         switch kind {
-        case .value: return CardStyle(graph: nil, rings: rc.rings, value: true)
+        case .value: return rc.cardStyle(graph: nil)
         case .graph: return CardStyle(graph: g, rings: [], value: false)
-        case .combined: return CardStyle(graph: g, rings: rc.rings, value: true)
+        case .combined: return rc.cardStyle(graph: g)
         }
     }
 
@@ -106,7 +106,8 @@ struct GlucoseWidgetView: View {
                 // tinted modes map luminance to opacity: fainter grid and band there
                 let pal = mode.tinted ? GraphPalette.of(dark: scheme == .dark).tinted() : GraphPalette.of(dark: scheme == .dark)
                 if let img = GlucoseCard.image(size: geo.size, scale: 2, readings: s.graphReadings, marks: s.graphMarks,
-                                               now: now, style(s.config), pal, metricsOf: { r, b in s.metrics(r, b, now: now) }) {
+                                               now: now, style(s.config), pal, metricsOf: { r, b in s.metrics(r, b, now: now) },
+                                               alerts: s.alerts) {
                     Image(decorative: img, scale: 2)
                         .resizable()
                         .frame(width: geo.size.width, height: geo.size.height)

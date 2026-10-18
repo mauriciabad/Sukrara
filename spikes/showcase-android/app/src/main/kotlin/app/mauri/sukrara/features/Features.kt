@@ -52,10 +52,10 @@ data class FeatureState(
      * by the LSPosed module inside SystemUI, so without the module it does nothing.
      */
     val lockWidget: Boolean = true,
-    /** What sits behind the lock screen widget for contrast: none, shadow, dim, card, blur ([LockBackground]). */
-    val lockBg: String = LockBackground.BLUR,
-    /** Lock screen widget: in-range values, lines and ring segments in white instead of green. */
-    val lockWhite: Boolean = false,
+    /** What sits behind the lock screen widget for contrast: none, shadow, dim, card, frosted ([LockBackground]). */
+    val lockBg: String = LockBackground.FROSTED,
+    /** Lock screen widget light or dark, or following the system's dark theme ([LockAppearance]). */
+    val lockLook: String = LockAppearance.AUTO,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580, what Garmin watch apps read (only binds if the port is free). Off until wanted. */
@@ -78,7 +78,7 @@ data class FeatureState(
         .put("bleFollowers", bleFollowers)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
         .put("hideNotifIcon", hideNotifIcon).put("lockWidget", lockWidget)
-        .put("lockBg", lockBg).put("lockWhite", lockWhite)
+        .put("lockBg", lockBg).put("lockLook", lockLook)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
@@ -92,7 +92,7 @@ data class FeatureState(
             chip = j.optBoolean("chip", d.chip), icon = j.optBoolean("icon", d.icon), hook = j.optBoolean("hook", d.hook),
             hookPosition = j.optString("hookPosition", d.hookPosition), hookColor = j.optBoolean("hookColor", d.hookColor),
             hideNotifIcon = j.optBoolean("hideNotifIcon", d.hideNotifIcon), lockWidget = j.optBoolean("lockWidget", d.lockWidget),
-            lockBg = j.optString("lockBg", d.lockBg), lockWhite = j.optBoolean("lockWhite", d.lockWhite),
+            lockBg = j.optString("lockBg", d.lockBg), lockLook = j.optString("lockLook", d.lockLook),
             screenOffSkip = j.optBoolean("screenOffSkip", d.screenOffSkip), garmin = j.optBoolean("garmin", d.garmin),
             nightscout = j.optBoolean("nightscout", d.nightscout), nightscoutLan = j.optBoolean("nightscoutLan", d.nightscoutLan),
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = j.optInt("libreviewInterval", d.libreviewIntervalMin),
@@ -125,8 +125,8 @@ object Features {
             hookColor = p.getBoolean("hookColor", d.hookColor),
             hideNotifIcon = p.getBoolean("hideNotifIcon", d.hideNotifIcon),
             lockWidget = p.getBoolean("lockWidget", d.lockWidget),
-            lockBg = p.getString("lockBg", d.lockBg)!!,
-            lockWhite = p.getBoolean("lockWhite", d.lockWhite),
+            lockBg = LockBackground.valid(p.getString("lockBg", d.lockBg)),
+            lockLook = LockAppearance.valid(p.getString("lockLook", d.lockLook)),
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -146,7 +146,8 @@ object Features {
                 libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
                 source = if (it.source == "juggluco") "juggluco" else "direct",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
-                lockBg = it.lockBg.takeIf { b -> b in LockBackground.ALL } ?: LockBackground.BLUR,
+                lockBg = LockBackground.valid(it.lockBg),
+                lockLook = LockAppearance.valid(it.lockLook),
             )
         }
         prefs?.edit()?.apply {
@@ -155,7 +156,7 @@ object Features {
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
             putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
             putBoolean("hideNotifIcon", s.hideNotifIcon); putBoolean("lockWidget", s.lockWidget)
-            putString("lockBg", s.lockBg); putBoolean("lockWhite", s.lockWhite)
+            putString("lockBg", s.lockBg); putString("lockLook", s.lockLook)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
@@ -205,25 +206,54 @@ object Features {
 
 /**
  * Contrast behind the lock screen widget (investigation 17), after Material's text protection (m1.material.io/style/
- * imagery: scrims). Shadow is drawn by the widget, the others by the LSPosed module around it.
+ * imagery: scrims). Shadow is drawn by the widget, the others by the LSPosed module around it. Each follows the
+ * widget's [LockAppearance]: dark (black tint, light content) or light (the home widgets' background colour, dark
+ * content).
  */
 object LockBackground {
     const val NONE = "none"
     const val SHADOW = "shadow"
     const val DIM = "dim"
     const val CARD = "card"
-    const val BLUR = "blur"
-    val ALL = listOf(NONE, SHADOW, DIM, CARD, BLUR)
+    /** The wallpaper blurred *and* tinted (dark: black 35 %, light: the home widgets' background colour). */
+    const val FROSTED = "frosted"
+    val ALL = listOf(NONE, SHADOW, DIM, CARD, FROSTED)
     /** Settings: label, value, description. */
     val CHOICES = listOf(
         Triple("None", NONE, "On the wallpaper, like the clock"),
-        Triple("Shadow", SHADOW, "A soft shadow behind every number and line"),
-        Triple("Dim", DIM, "Darkens the bottom of the screen"),
-        Triple("Card", CARD, "A dark card like the notifications"),
-        Triple("Blur", BLUR, "Frosted glass: the wallpaper blurred behind it"),
+        Triple("Shadow", SHADOW, "A soft shadow around every number and line"),
+        Triple("Dim", DIM, "Shades the bottom of the screen"),
+        Triple("Card", CARD, "A solid card like the notifications"),
+        Triple("Frosted glass", FROSTED, "The wallpaper blurred and tinted behind it"),
     )
-    /** Card and blur have an edge: the widget keeps its content off it. */
-    fun boxed(b: String) = b == CARD || b == BLUR
+    fun label(v: String) = CHOICES.first { it.second == v }.first
+    /** Unknown or old values (no backwards compatibility) → the default. */
+    fun valid(v: String?) = v?.takeIf { it in ALL } ?: FROSTED
+    /** Card and frosted glass have an edge: the widget keeps its content off it. */
+    fun boxed(b: String) = b == CARD || b == FROSTED
+}
+
+/**
+ * The lock screen widget's colours: dark (light content on a black tint, the original look) or light (the home-screen
+ * widgets' look: their Material You background colour, dark content), or [AUTO] = the system's dark theme decides.
+ */
+object LockAppearance {
+    const val AUTO = "auto"
+    const val LIGHT = "light"
+    const val DARK = "dark"
+    val ALL = listOf(AUTO, LIGHT, DARK)
+    val CHOICES = listOf(
+        Triple("Automatic", AUTO, "Follows the dark theme"),
+        Triple("Light", LIGHT, "Like the home screen widgets in light mode"),
+        Triple("Dark", DARK, "Like the home screen widgets in dark mode"),
+    )
+    fun label(v: String) = CHOICES.first { it.second == v }.first
+    fun valid(v: String?) = v?.takeIf { it in ALL } ?: AUTO
+    /** Whether [look] draws dark, given the system's current night mode. */
+    fun dark(look: String, systemNight: Boolean) = when (look) { LIGHT -> false; DARK -> true; else -> systemNight }
+    fun dark(look: String, c: android.content.Context) = dark(look,
+        (c.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES)
 }
 
 /** Where the SystemUI hook places the glucose view. Shared with the hook through the broadcast. */

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -82,13 +84,14 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
     var link by remember(prefill) { mutableStateOf(prefill ?: "") }
     // a pasted / scanned / opened link is looked up at once, so they see who is inviting before they ask
     var invite by remember { mutableStateOf<app.mauri.sukrara.core.Invite?>(null) }
-    var lookup by remember { mutableStateOf<String?>(null) }
+    /** The lookup line and whether it is an error. */
+    var lookup by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     LaunchedEffect(link) {
         invite = null
         lookup = null
         if (!Proto.isInvite(link)) return@LaunchedEffect
-        lookup = "Looking up the invite…"
-        a.resolve(link).fold({ invite = it; lookup = null }, { lookup = "Can't open this invite: ${it.message}" })
+        lookup = ctx.getString(R.string.join_looking_up) to false
+        a.resolve(link).fold({ invite = it; lookup = null }, { lookup = ctx.getString(R.string.join_error_invite, it.message) to true })
     }
     var scanning by remember { mutableStateOf(false) }
     var imgError by remember { mutableStateOf<String?>(null) }
@@ -97,47 +100,48 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
         if (uri != null) scope.launch {
             // decoding a full-screen screenshot takes a while: never on the main thread
             val got = withContext(Dispatchers.Default) { decodeQrImage(ctx, uri) }
-            if (got != null) { link = got; imgError = null } else imgError = "No Sukrara QR code found in that image"
+            if (got != null) { link = got; imgError = null } else imgError = ctx.getString(R.string.join_error_no_qr)
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("I follow someone", style = MaterialTheme.typography.headlineSmall)
-        Text("Scan the code on their phone (Share with someone), or open the link they sent you.")
+        Text(stringResource(R.string.onboarding_follower_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.join_intro))
         // the camera preview expands in place of the buttons; back closes it (instead of leaving the app)
         BackHandler(enabled = scanning) { scanning = false }
         Swap(scanning) { on ->
             if (on) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 QrScanner { link = it; scanning = false }
-                TextButton(onClick = { scanning = false }) { Text("Stop camera") }
+                TextButton(onClick = { scanning = false }) { Text(stringResource(R.string.join_stop_camera)) }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { scanning = true }) { Text("Scan QR code") }
+                    Button(onClick = { scanning = true }) { Text(stringResource(R.string.join_scan_qr)) }
                     OutlinedButton(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                        Text("From image")
+                        Text(stringResource(R.string.join_from_image))
                     }
                 }
             }
         }
-        OutlinedTextField(link, { link = it.trim() }, label = { Text("…or paste the invite link") },
+        OutlinedTextField(link, { link = it.trim() }, label = { Text(stringResource(R.string.join_paste_link)) },
             modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
-        RevealValue(lookup) { Text(it, style = MaterialTheme.typography.bodySmall,
-            color = if (it.startsWith("Can't")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+        RevealValue(lookup) { (text, isError) -> Text(text, style = MaterialTheme.typography.bodySmall,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
         RevealValue(invite) { inv ->
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
-                    ProfileRow(inv.profile, "Someone", 56.dp) {
-                        Text(inv.profile?.name?.ifBlank { null } ?: "Someone", style = MaterialTheme.typography.titleMedium)
-                        Text("wants to share their glucose with you", style = MaterialTheme.typography.bodySmall)
+                    val someone = stringResource(R.string.join_someone)
+                    ProfileRow(inv.profile, someone, 56.dp) {
+                        Text(inv.profile?.name?.ifBlank { null } ?: someone, style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.join_wants_to_share), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
         }
-        SectionTitle("How they will see you")
-        ProfileEditor(me, { me = it }, "Your name")
+        SectionTitle(stringResource(R.string.join_how_they_see_you))
+        ProfileEditor(me, { me = it }, stringResource(R.string.profile_name_label))
         RevealValue(error ?: imgError) { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = { invite?.let { a.join(it, me) } }, enabled = !busy && invite != null && me.name.isNotBlank(),
             modifier = Modifier.fillMaxWidth()) {
-            Text("Ask for access")
+            Text(stringResource(R.string.join_ask_access))
         }
         NearbyJoin(me, busy, a)
     }
@@ -145,39 +149,46 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
 
 @Composable
 fun FollowerWaiting(u: FollowerUi, a: FollowerActions) {
-    val who = u.wearer?.name?.ifBlank { null } ?: u.ownerPub?.let { Proto.shortNpub(it) } ?: "them"
+    val who = u.wearer?.name?.ifBlank { null } ?: u.ownerPub?.let { Proto.shortNpub(it) } ?: stringResource(R.string.waiting_them)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 96.dp)
-        Text(if (u.nearby) "Waiting for $who" else "Request sent", style = MaterialTheme.typography.headlineSmall)
+        Text(if (u.nearby) stringResource(R.string.waiting_for, who) else stringResource(R.string.waiting_request_sent), style = MaterialTheme.typography.headlineSmall)
         if (u.nearby) {
             // Bluetooth invites reach every phone in range: the wearer types this code to pick ours
-            Text("$who is asked to type this code to allow this phone:", style = MaterialTheme.typography.bodyMedium,
+            Text(stringResource(R.string.waiting_code_intro, who), style = MaterialTheme.typography.bodyMedium,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Text(u.code ?: "", fontSize = 64.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, letterSpacing = 8.sp)
         } else {
-            Text("You'll see $who's readings as soon as $who allows it. You can close the app; Sukrara tells you when it happens.",
+            Text(stringResource(R.string.waiting_note, who),
                 style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
         CircularProgressIndicator()
-        Text("You asked as \"${u.name}\".", style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = a::leave) { Text("Cancel request") }
+        Text(stringResource(R.string.waiting_asked_as, u.name ?: ""), style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = a::leave) { Text(stringResource(R.string.waiting_cancel)) }
     }
 }
 
 /** The invite was used by someone else first, or the wearer said no: nothing was shared; start over with a new invite. */
 @Composable
 fun FollowerEnded(u: FollowerUi, a: FollowerActions) {
-    val who = u.wearer?.name?.ifBlank { null } ?: "the person who invited you"
+    val name = u.wearer?.name?.ifBlank { null }
     val used = u.status == "used"
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         AvatarImage(u.wearer?.avatar, u.wearer?.name ?: "", 96.dp)
-        Text(if (used) "This invite was already used" else "$who didn't allow this phone",
+        Text(when {
+                used -> stringResource(R.string.follower_notif_invite_used_title)
+                name != null -> stringResource(R.string.follower_notif_declined_title, name)
+                else -> stringResource(R.string.ended_declined_title_unnamed)
+            },
             style = MaterialTheme.typography.headlineSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Text(if (used) "Someone opened this link before you. Ask $who for a new one, and tell them, in case it wasn't " +
-                "someone they invited."
-             else "Nothing was shared with this phone. If it was a mistake, ask $who for a new invite.",
+        Text(when {
+                used && name != null -> stringResource(R.string.ended_used_text, name)
+                used -> stringResource(R.string.ended_used_text_unnamed)
+                name != null -> stringResource(R.string.ended_declined_text, name)
+                else -> stringResource(R.string.ended_declined_text_unnamed)
+            },
             style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Button(onClick = a::leave) { Text("Use a new invite") }
+        Button(onClick = a::leave) { Text(stringResource(R.string.ended_new_invite)) }
     }
 }
 
@@ -191,18 +202,18 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
             Box(Modifier.weight(1f)) {
                 ProfileRow(u.wearer, "Sukrara", 48.dp) {
                     Text(u.wearer?.name?.ifBlank { null } ?: "Sukrara", style = MaterialTheme.typography.headlineSmall)
-                    Text("Following · you appear as ${u.name ?: ""}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.follower_home_subtitle, u.name ?: ""), style = MaterialTheme.typography.bodySmall)
                 }
             }
             IconButton(onClick = { a.open("settings") }) {
-                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = "Settings")
+                Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_settings), contentDescription = stringResource(R.string.home_settings))
             }
         }
         Reveal(u.status == "revoked") {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("Access removed", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Text("The owner stopped sharing with this phone. No new readings will arrive; older ones stay on this phone.")
+                    Text(stringResource(R.string.follower_notif_revoked_title), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(stringResource(R.string.follower_home_revoked_text))
                 }
             }
         }
@@ -211,11 +222,11 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
         // only a roster writer may add entries; follows the newest roster live
         GlucosePanel(l?.sgv, l?.rate, l?.t, onAdd = if (u.status == "active" && u.canWrite) ({ adding = true }) else null)
         RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
-            Text("No data for $it min", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.follower_home_no_data, it), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
         }
         Reveal(u.status == "active" && l == null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Approved — fetching history…")
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text(stringResource(R.string.follower_home_fetching))
             }
         }
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
@@ -223,7 +234,7 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
         Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FollowerEntries(u)
             Reveal(!u.canWrite) {
-                Text("The wearer hasn't allowed you to add entries", style = MaterialTheme.typography.bodySmall,
+                Text(stringResource(R.string.follower_home_no_write), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } }
@@ -237,13 +248,13 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
 private fun NearbyJoin(me: app.mauri.sukrara.core.Profile, busy: Boolean, a: FollowerActions) {
     var scanning by remember { mutableStateOf(false) }
     val found = remember { androidx.compose.runtime.mutableStateMapOf<String, app.mauri.sukrara.core.NearbyOwner>() }
-    SectionTitle("Nearby (Bluetooth, no internet needed)")
+    SectionTitle(stringResource(R.string.nearby_title))
     Swap(if (!scanning) 0 else if (found.isEmpty()) 1 else 2) { step ->
         if (step == 0) OutlinedButton(onClick = { scanning = true; a.scanNearby { found[it.address] = it } }, modifier = Modifier.fillMaxWidth()) {
-            Text("Find phones nearby")
+            Text(stringResource(R.string.nearby_find))
         } else if (step == 1) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-            Text("Looking for Sukrara owners… (they must tap \"Pair nearby\")", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.nearby_looking), style = MaterialTheme.typography.bodySmall)
         }
     }
     AnimatedItems(found.values.sortedByDescending { it.rssi }, { it.address }) { o ->
@@ -253,37 +264,44 @@ private fun NearbyJoin(me: app.mauri.sukrara.core.Profile, busy: Boolean, a: Fol
                     Text(o.name, fontWeight = FontWeight.SemiBold)
                     Text("${o.address} · ${o.rssi} dBm", style = MaterialTheme.typography.bodySmall)
                 }
-                Button(onClick = { a.joinNearby(o.address, me) }, enabled = !busy && me.name.isNotBlank()) { Text("Ask") }
+                Button(onClick = { a.joinNearby(o.address, me) }, enabled = !busy && me.name.isNotBlank()) { Text(stringResource(R.string.nearby_ask)) }
             }
         }
     }
 }
 
-/** Treatments received from the wearer (SPEC §5), last 24 h; entries this phone sent show their delivery status. */
+/**
+ * Treatments received from the wearer (SPEC §5), last 24 h, with the time since each ("12m"); entries this phone sent
+ * show their delivery status.
+ */
 @Composable
 private fun FollowerEntries(u: FollowerUi) {
-    SectionTitle("Insulin, carbs & notes (24 h)")
+    SectionTitle(stringResource(R.string.follower_entries_title))
     val rows = u.treatments.filter { !it.tr.del }
-    Reveal(rows.isEmpty()) { Text("Nothing in the last 24 h", style = MaterialTheme.typography.bodySmall) }
+    Reveal(rows.isEmpty()) { Text(stringResource(R.string.follower_entries_empty), style = MaterialTheme.typography.bodySmall) }
     val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val now = nowSeconds(30_000)
     AnimatedItems(rows, { it.tr.id }) { e ->
         val tr = e.tr
+        val amount = app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)
         val what = when (tr.k) {
-            "rapid" -> "Insulin ${tr.a} U"
-            "long" -> "Long-acting ${tr.a} U"
-            "carbs" -> "Carbs ${tr.a.toInt()} g"
-            else -> "Note"
+            "rapid" -> stringResource(R.string.follower_entry_rapid, amount ?: "")
+            "long" -> stringResource(R.string.follower_entry_long, amount ?: "")
+            "carbs" -> stringResource(R.string.follower_entry_carbs, amount ?: "")
+            else -> stringResource(R.string.treatment_note)
         } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(fmt.format(java.util.Date(tr.t * 1000)), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
             Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+            Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             // sending… → sent → accepted: the label cross-fades, its colour follows
             e.status?.let { st ->
                 val (label, color) = when (st) {
-                    "accepted" -> "accepted" to MaterialTheme.colorScheme.primary
-                    "waiting" -> "not accepted yet" to MaterialTheme.colorScheme.error
-                    "sent" -> "sent" to MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> "sending…" to MaterialTheme.colorScheme.onSurfaceVariant
+                    "accepted" -> stringResource(R.string.follower_entry_accepted) to MaterialTheme.colorScheme.primary
+                    "waiting" -> stringResource(R.string.follower_entry_waiting) to MaterialTheme.colorScheme.error
+                    "sent" -> stringResource(R.string.follower_entry_sent) to MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> stringResource(R.string.follower_entry_sending) to MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 val tint by animateColorAsState(color, Motion.defaultEffectsSpec(), label = "status")
                 Swap(label) { Text(it, color = tint, style = MaterialTheme.typography.labelMedium) }
@@ -297,10 +315,10 @@ private fun FollowerEntries(u: FollowerUi) {
 fun RoleChoice(onOwner: () -> Unit, onFollower: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Sukrara", style = MaterialTheme.typography.headlineMedium)
-        Text("Share glucose readings end-to-end encrypted over Nostr — no account, no server to run.")
-        Button(onClick = onOwner, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("I wear the sensor") }
-        OutlinedButton(onClick = onFollower, modifier = Modifier.fillMaxWidth()) { Text("I follow someone") }
-        Text("Each phone has one role. A follower never sees an owner's local data — only what arrives through the relays.",
+        Text(stringResource(R.string.role_intro))
+        Button(onClick = onOwner, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(stringResource(R.string.onboarding_wearer_title)) }
+        OutlinedButton(onClick = onFollower, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_follower_title)) }
+        Text(stringResource(R.string.role_note),
             style = MaterialTheme.typography.bodySmall)
     }
 }

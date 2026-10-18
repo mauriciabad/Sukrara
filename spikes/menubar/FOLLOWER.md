@@ -70,10 +70,11 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
 
 ## Glucose alerts (2026-10-17, investigation 15)
 
-Same rules and settings JSON as Sukrara for Android ([alerts SPEC](../alerts/SPEC.md)): urgent low / low / high /
-very high (one at a time, escalation fires at once), falling / rising fast, no data; re-alert every `repeatMin`, no
-flapping, readings > 15 min old never alert; highs muted after rapid insulin (the Mac's treatment log) and when the
-trend brings it back under the high threshold soon.
+Same rules and settings JSON as Sukrara for Android ([alerts SPEC](../alerts/SPEC.md)): very low / low / high /
+very high / extremely high (one at a time, escalation fires at once, lows strictly below the threshold), falling /
+rising fast, no data; episodes that survive a brief exit, re-alert every `repeatMin`, readings > 15 min old never
+alert; highs muted after rapid insulin and when the trend brings it back under the high threshold soon, lows after
+carbs; when a treatment's window ends it alerts at once. Checked by the shared timelines (`-alerts-selftest`).
 
 - **Menu → Alerts…** (⌘,) opens a settings window (HIG macOS settings: preference toolbar with one *Alerts* pane, no
   minimize/zoom, changes apply at once): master switch, state line ("High · muted: insulin 12 min ago"), alert source,

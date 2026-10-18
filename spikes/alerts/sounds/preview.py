@@ -19,11 +19,11 @@ OUT = Path(__file__).parent / "out"
 PACKS = [("arcade", "Arcade", "8-bit pulse waves"), ("kart", "Kart", "racing brass & engines"),
          ("quest", "Quest", "harp, flute, bells"), ("soft", "Soft", "marimba & glass")]
 KINDS = [
-    ("urgent_low", "Urgent low", "≤ 55 mg/dL", "every 5 min", "Game over: longer, slows down, ends low"),
-    ("low", "Low", "≤ 65 mg/dL", "every 15 min", "Lost a life: short and falling"),
-    ("high", "High", "≥ 185 mg/dL", "every 30 min", "Final lap: a riff, then faster and higher"),
-    ("very_high", "Very high", "≥ 250 mg/dL", "every 30 min", "Boss incoming: two-note warning, rising"),
-    ("extremely_high", "Extremely high", "≥ 300 mg/dL", "every 15 min", "Final boss: the warning, longer and climbing, then a held cry"),
+    ("very_low", "Very low", "< 55 mg/dL", "every 5 min", "Game over: longer, slows down, ends low"),
+    ("low", "Low", "< 70 mg/dL", "every 5 min", "Lost a life: short and falling"),
+    ("high", "High", "≥ 180 mg/dL", "every 15 min", "Final lap: a riff, then faster and higher"),
+    ("very_high", "Very high", "≥ 250 mg/dL", "every 10 min", "Boss incoming: two-note warning, rising"),
+    ("extremely_high", "Extremely high", "≥ 300 mg/dL", "every 5 min", "Final boss: the warning, longer and climbing, then a held cry"),
     ("falling_fast", "Falling fast", "−2 mg/dL/min", "off by default", "A quick sweep down"),
     ("rising_fast", "Rising fast", "+2 mg/dL/min", "off by default", "A quick sweep up"),
     ("no_data", "No data", "20 min silent", "every 60 min", "Connection lost: two blips"),
@@ -31,7 +31,7 @@ KINDS = [
 # (primitive, scale, delay before ms) from AlertHaptics.rich; durations = `dumpsys vibrator_manager` on the Pixel
 DUR = {"CLICK": 29, "THUD": 300, "SPIN": 133, "QUICK_RISE": 150, "SLOW_RISE": 500, "QUICK_FALL": 100, "TICK": 5, "LOW_TICK": 12}
 HAPTICS = {
-    "urgent_low": [("QUICK_FALL", 1, 0), ("QUICK_FALL", .7, 180), ("QUICK_FALL", .5, 260), ("THUD", 1, 360), ("THUD", 1, 500)],
+    "very_low": [("QUICK_FALL", 1, 0), ("QUICK_FALL", .7, 180), ("QUICK_FALL", .5, 260), ("THUD", 1, 360), ("THUD", 1, 500)],
     "low": [("QUICK_FALL", .9, 0), ("QUICK_FALL", .8, 200), ("THUD", .9, 280)],
     "high": [("CLICK", .7, 0), ("CLICK", .75, 140), ("CLICK", .8, 100), ("CLICK", .85, 70), ("CLICK", .9, 50), ("QUICK_RISE", 1, 60)],
     "very_high": [("THUD", .8, 0), ("CLICK", 1, 90), ("THUD", .8, 220), ("CLICK", 1, 90), ("SPIN", 1, 220)],
@@ -145,7 +145,7 @@ tbody th { text-align: left; font-weight: 400; padding: 14px 12px; width: 40%; b
 tbody td { padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tbody tr:last-child > * { border-bottom: 0; }
 .k { font: 700 17px/1.2 var(--display); display: block; }
-.k-urgent_low, .k-low { color: var(--low); }
+.k-very_low, .k-low { color: var(--low); }
 .k-high, .k-very_high, .k-extremely_high { color: var(--high); }
 .th { display: block; font: 400 12.5px/1.6 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .mood { display: block; font-size: 14px; margin: 2px 0 8px; }

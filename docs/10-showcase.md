@@ -747,6 +747,39 @@ Discarded: SPA's page framework (`SettingsPageProvider`, `BrowseActivity`, navig
 keeps the system motion, predictive back and the index-mode search; SPA's chart and Lottie widgets (MPAndroidChart,
 Lottie); the ↗ / › end icons on plain rows (stock rows have none); the per-group icon column (SPA doesn't reserve it).
 
+## Treatments on the card (2026-10-18 feedback round)
+
+Details and pictures: [16 → Treatments on the card](16-graph.md#treatments-on-the-card-times-mute-lines-badge-last-treatment-2026-10-18).
+
+| Added | Where | Discarded (why) |
+|---|---|---|
+| Units `4.5u` / `30g` everywhere | `TreatmentMarks.amount`, lists, dialog, Nightscout note | `4.5 U`, `30 g` (the user) |
+| Time since on chart marks and in the treatment lists | `TreatmentMarks.duration`, `TreatmentsSection`, `FollowerEntries` | — |
+| Mute lines on the chart | `TreatmentMarks.draw(muteUntil)` | lines for long-acting / notes (they mute nothing) |
+| Status badge under the value | `graph/CardStatus.kt` (`StatusBadge`), `ui/Widgets.kt` (`StatusBadgeChip`) | a no-data badge (out of scope) |
+| Last-treatment slot, Settings → Graph → *Beside the number* → *Last treatment* / *Without a recent one* | `LastTreatment`, `Slots`, `LastSlot`, `GraphConfig.lastPlace/lastElse` | a new slot kind; long-acting in the slot |
+| Carbs focused in the dialog when low | `TreatmentDialog` | — |
+
+## Notification and lock screen surfaces (2026-10-18 round)
+
+The user: the notification wastes the area below the app icon and doesn't show the time-in-range slots; the lock
+screen widget's black tint looks bad in light mode, and "Blur" is really blurred + tinted.
+
+| Added | Where |
+|---|---|
+| The home widgets' slots (rings, report numbers, last treatment) on the custom card's value row, collapsed and expanded, as discs of the graph panel's surface colour | `GlucoseNotification.art`, `graph/CardStatus.kt` `appSlots`, `res/layout/notif_glucose_*.xml` |
+| A shorter expanded card: the follower line as the header's sub text, the graph at the content column's width and its real aspect (it was drawn 112 dp tall into a 96 dp view) | `GlucoseNotification`, `notif_glucose_expanded.xml` |
+| Live Update (Android 17 MetricStyle): the slots as metrics after the value (`86%` · `in range 1d`) | `GlucoseNotification.metric` |
+| Lock screen *Appearance*: Automatic (default) / Light / Dark; light = the home widgets' background (`system_accent2_50`) and light palette, for every background; re-tints on a dark-theme flip | `LockAppearance`, `LockscreenWidgetHost`, `LockscreenWidget`, `SukraraHooks.watchNightMode` |
+| "Blur" renamed *Frosted glass* (`frosted`, default) | `LockBackground` |
+| The lock screen widget's slots through the same helper, so the last-treatment slot shows there too | `LockscreenWidget` |
+
+| Discarded | Why |
+|---|---|
+| Drawing under the notification's icon (the user's ask) | Android 12+ puts custom content in the column right of the icon and clips it ([custom notification guide](https://developer.android.com/develop/ui/views/notifications/custom-notification): "the system applies a standard template"); a −52 dp start margin was cut off on the emulator, and Android 17's templates indent the content 72 dp. The card is shorter instead, so less of that column is empty |
+| *In range in white* on the lock screen (`lockWhite`) | dark-only; the appearance option replaces it |
+| The trend metric in the Live Update card | the chip's arrow and the title already say it; the room goes to the slots |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

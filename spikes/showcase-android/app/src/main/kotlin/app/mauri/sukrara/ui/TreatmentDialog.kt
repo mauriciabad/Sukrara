@@ -4,6 +4,8 @@
 package app.mauri.sukrara.ui
 
 import android.text.format.DateFormat
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +53,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.widgets.RecentHistory
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
@@ -63,7 +68,7 @@ private const val MAX_UNITS = 100.0
 private const val MAX_GRAMS = 500.0
 private const val NOTE_BYTES = 100
 
-/** "4", "4.5" (insulin, 0.1 U steps) or whole grams; null = empty; NaN = not a valid amount. */
+/** "4", "4.5" (insulin, 0.1u steps) or whole grams; null = empty; NaN = not a valid amount. */
 private fun parse(s: String, grams: Boolean): Double? {
     val t = s.trim().replace(',', '.')
     if (t.isEmpty()) return null
@@ -80,8 +85,10 @@ private fun parse(s: String, grams: Boolean): Double? {
  * A form with several fields is a custom `Dialog` (developer.android.com/develop/ui/compose/components/dialog: "if you
  * want to create a more complex dialog, perhaps with forms and multiple buttons, you should use `Dialog` with custom
  * content"), laid out like an M3 basic dialog: 28 dp corners, surface-container-high, 24 dp padding, start-aligned
- * title, end-aligned actions with the confirming one last. The first field takes focus so the number pad is up at once;
- * the keyboard's Next walks rapid → long → carbs → note, and Done on the note saves.
+ * title, end-aligned actions with the confirming one last. The first field takes focus so the number pad is up at once
+ * (carbs instead while the glucose is low: [AlertStatus.level] on the low side, where eating is what's needed); the
+ * keyboard's Next walks rapid → long → carbs → note, and Done on the note saves. Units are lowercase with no space
+ * ("4.5u", "30g").
  *
  * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
  * [inWindow] draws the dialog surface in the caller's own window instead of a `Dialog` window: the quick activity
@@ -120,7 +127,12 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     if (quiet != null) shownQuiet = quiet
 
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { first.requestFocus() }
+    val carbsFocus = remember { FocusRequester() }
+    // low now (the latest reading, the alert rules' low thresholds): the carbs field takes the focus
+    val low = remember {
+        AlertStatus.level(RecentHistory.readings(ctx).lastOrNull(), Alerts.settings.value, nowS) in Kind.LOW_SIDE
+    }
+    LaunchedEffect(Unit) { (if (low) carbsFocus else first).requestFocus() }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
     val card: @Composable () -> Unit = {
@@ -131,19 +143,19 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
         ) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Add treatment", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField("Rapid", "U", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
-                    AmountField("Long", "U", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
-                    AmountField("Carbs", "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f)) { carbs = it }
+                    AmountField(stringResource(R.string.treatment_rapid), "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
+                    AmountField(stringResource(R.string.treatment_long), "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
+                    AmountField(stringResource(R.string.treatment_carbs), "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
                     note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth(),
-                    label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text("Note") } },
-                    placeholder = { Text("Pizza, exercise, sick…") },
+                    label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.treatment_note)) } },
+                    placeholder = { Text(stringResource(R.string.treatment_note_placeholder)) },
                     maxLines = 3,
                     supportingText = if (note.toByteArray().size > NOTE_BYTES - 20) ({ Text("${note.toByteArray().size} / $NOTE_BYTES") }) else null,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
@@ -153,15 +165,15 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Reveal(invalid) {
-                    Text("Insulin: up to ${MAX_UNITS.toInt()} U · carbs: up to ${MAX_GRAMS.toInt()} g",
+                    Text(stringResource(R.string.treatment_limits, MAX_UNITS.toInt(), MAX_GRAMS.toInt()),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    onOpenApp?.let { TextButton(onClick = it) { Text("Open Sukrara") } }
+                    onOpenApp?.let { TextButton(onClick = it) { Text(stringResource(R.string.treatment_open_app)) } }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
                     Spacer(Modifier.size(8.dp))
-                    Button(onClick = save, enabled = canSave) { Text("Save") }
+                    Button(onClick = save, enabled = canSave) { Text(stringResource(R.string.treatment_save)) }
                 }
             }
         }
@@ -204,11 +216,11 @@ fun KindMark(kind: String, color: Color) {
 @Composable
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
-    if (at == null) return "Now"
+    if (at == null) return stringResource(R.string.treatment_time_now)
     val fmt = DateFormat.getTimeFormat(ctx).format(java.util.Date(at * 1000))
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
-    return if (day == today) "Today $fmt" else "Yesterday $fmt"
+    return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)
 }
 
 /** M3 time picker; a time later than now means yesterday (entries are logged after the fact, never ahead). */
@@ -220,7 +232,7 @@ private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit
     val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), DateFormat.is24HourFormat(ctx))
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("When?") },
+        title = { Text(stringResource(R.string.treatment_time_title)) },
         text = { TimePicker(state) },
         confirmButton = {
             Button(onClick = {
@@ -231,12 +243,12 @@ private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit
                 }
                 // within the current minute = now
                 onPick(if (now.timeInMillis - pick.timeInMillis < 60_000) null else pick.timeInMillis / 1000)
-            }) { Text("OK") }
+            }) { Text(stringResource(android.R.string.ok)) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = { onPick(null) }) { Text("Now") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = { onPick(null) }) { Text(stringResource(R.string.treatment_time_now)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
             }
         },
     )

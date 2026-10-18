@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.follower
 
+import app.mauri.sukrara.R
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -109,11 +110,11 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
             FollowerState.ACTIVE -> {
                 val r = u.last?.let { Reading(it.t, it.sgv, it.rate) }
                 GlucoseNotification.build(ctx, r, f.chip, f.icon,
-                    "following" + (u.lastVia?.let { " · via ${it.removePrefix("relay:")}" } ?: ""))
+                    u.lastVia?.let { ctx.getString(R.string.notif_following_via, it.removePrefix("relay:")) } ?: ctx.getString(R.string.notif_following))
             }
-            FollowerState.REQUESTED -> GlucoseNotification.build(ctx, null, false, false, "Waiting for approval · code ${u.code}")
-            FollowerState.REVOKED -> GlucoseNotification.build(ctx, null, false, false, "Access removed by the wearer")
-            else -> GlucoseNotification.build(ctx, null, false, false, "Not following anyone")
+            FollowerState.REQUESTED -> GlucoseNotification.build(ctx, null, false, false, ctx.getString(R.string.notif_waiting_approval, u.code))
+            FollowerState.REVOKED -> GlucoseNotification.build(ctx, null, false, false, ctx.getString(R.string.notif_access_removed))
+            else -> GlucoseNotification.build(ctx, null, false, false, ctx.getString(R.string.notif_not_following))
         }
         runCatching { nm.notify(GlucoseNotification.ID, n) }
     }

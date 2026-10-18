@@ -1,14 +1,788 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+  Copyright (C) 2026 Maurici Abad
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Sukrara's user-visible text (English, the default). Spanish (Spain) is in values-es/strings.xml; every key here
+  must exist there with the same format arguments (StringsParityTest). The settings pages keep their own strings.
+-->
 <resources>
-    <string name="app_name">Sukrara</string>
+    <!-- Brand and units: never translated -->
+    <string name="app_name" translatable="false">Sukrara</string>
+    <string name="unit_mgdl" translatable="false">mg/dL</string>
+
+    <!-- ========== Launcher widgets (widget picker) ========== -->
+    <!-- Widget picker: name of the glucose value widget [CHAR LIMIT=30] -->
     <string name="widget_value">Glucose</string>
+    <!-- Widget picker: name of the glucose graph widget [CHAR LIMIT=30] -->
     <string name="widget_graph">Glucose graph</string>
+    <!-- Widget picker: name of the widget with value and graph [CHAR LIMIT=30] -->
     <string name="widget_combined">Glucose + graph</string>
+    <!-- Widget picker: description of the value widget [CHAR LIMIT=80] -->
     <string name="widget_value_desc">Current glucose, trend arrow and age</string>
+    <!-- Widget picker: description of the graph widget [CHAR LIMIT=80] -->
     <string name="widget_graph_desc">Last hours of glucose, the 65–185 range band and treatments</string>
-    <string name="tile_treatment">Add treatment</string>
-    <string name="widget_lockscreen">Lock screen</string>
-    <string name="widget_lockscreen_desc">Glucose and the graph in the free space of the lock screen</string>
+    <!-- Widget picker: description of the combined widget [CHAR LIMIT=80] -->
     <string name="widget_combined_desc">Current glucose and the graph of the last hours</string>
+    <!-- Widget picker: name of the lock screen widget [CHAR LIMIT=30] -->
+    <string name="widget_lockscreen">Lock screen</string>
+    <!-- Widget picker: description of the lock screen widget [CHAR LIMIT=80] -->
+    <string name="widget_lockscreen_desc">Glucose and the graph in the free space of the lock screen</string>
+    <!-- Quick Settings tile label that opens the treatment dialog [CHAR LIMIT=20] -->
+    <string name="tile_treatment">Add treatment</string>
+
+    <!-- ========== App-wide messages (MainActivity) ========== -->
+    <!-- Toast: an invite link was opened on the wearer's phone [CHAR LIMIT=NONE] -->
+    <string name="toast_link_on_wearer_phone">This phone is set up as the sensor wearer; open the link on the follower\'s phone.</string>
+    <!-- Toast after restoring the identity [CHAR LIMIT=NONE] -->
+    <string name="toast_identity_restored">Identity restored — your followers continue automatically</string>
+    <!-- Toast: identity saved to the password manager [CHAR LIMIT=60] -->
+    <string name="toast_backup_saved">Saved to your password manager</string>
+    <!-- Toast: the user cancelled saving to the password manager [CHAR LIMIT=60] -->
+    <string name="toast_backup_cancelled">Not saved (cancelled)</string>
+    <!-- Toast: saving failed; %1$s = the system's error type [CHAR LIMIT=NONE] -->
+    <string name="toast_backup_failed">Could not save: %1$s</string>
+    <!-- Toast: text copied to the clipboard [CHAR LIMIT=30] -->
+    <string name="toast_copied">Copied</string>
+    <!-- Share sheet text with the invite; %1$s = the invite link [CHAR LIMIT=NONE] -->
+    <string name="share_invite_message">Follow my glucose with Sukrara: %1$s</string>
+    <!-- Share sheet title for the invite [CHAR LIMIT=30] -->
+    <string name="share_invite_chooser">Send invite</string>
+    <!-- ========== Wearer onboarding ========== -->
+    <!-- Onboarding (wearer): title of the "I wear the sensor" step [CHAR LIMIT=40] -->
+    <string name="onboarding_wearer_title">I wear the sensor</string>
+    <!-- Onboarding (wearer): what this role does [CHAR LIMIT=NONE] -->
+    <string name="onboarding_wearer_intro">This phone reads your glucose and shares it, end-to-end encrypted, through public Nostr relays.</string>
+    <!-- Onboarding (wearer): button that creates a new identity [CHAR LIMIT=40] -->
+    <string name="onboarding_start_fresh">Start fresh (new identity)</string>
+    <!-- Onboarding (wearer): button that restores the identity from a password manager [CHAR LIMIT=40] -->
+    <string name="onboarding_restore_password_manager">Restore from password manager</string>
+    <!-- Onboarding (wearer): note under the restore button [CHAR LIMIT=NONE] -->
+    <string name="onboarding_restore_note">New phone? Restoring keeps all your followers, your name and your picture — nobody has to scan again.</string>
+    <!-- Onboarding (wearer): link that shows the field to paste a key; nsec/ncryptsec are key formats, keep them [CHAR LIMIT=50] -->
+    <string name="onboarding_show_paste">Restore by pasting a key (nsec / ncryptsec)</string>
+    <!-- Onboarding (wearer): link that hides the paste field again [CHAR LIMIT=50] -->
+    <string name="onboarding_hide_paste">Hide manual restore</string>
+    <!-- Onboarding (wearer): password field for an encrypted key [CHAR LIMIT=30] -->
+    <string name="onboarding_password">Password</string>
+    <!-- Onboarding (wearer): button that restores from the pasted key [CHAR LIMIT=20] -->
+    <string name="onboarding_restore">Restore</string>
+    <!-- Onboarding (wearer): progress while the password manager is open [CHAR LIMIT=60] -->
+    <string name="onboarding_busy_asking_password_manager">Asking your password manager…</string>
+    <!-- Onboarding (wearer): progress while restoring [CHAR LIMIT=40] -->
+    <string name="onboarding_busy_restoring">Restoring…</string>
+    <!-- Onboarding (wearer): progress while searching the relays for the backup [CHAR LIMIT=60] -->
+    <string name="onboarding_busy_looking_for_backup">Looking for your backup on the relays…</string>
+    <!-- Onboarding (wearer) error: no identity saved in any password manager [CHAR LIMIT=NONE] -->
+    <string name="onboarding_error_no_saved_identity">No saved Sukrara identity in your password managers</string>
+    <!-- Onboarding (wearer) error: the user cancelled the password manager [CHAR LIMIT=40] -->
+    <string name="onboarding_error_cancelled">Cancelled</string>
+    <!-- Onboarding (wearer) error: the chosen credential isn't a password [CHAR LIMIT=NONE] -->
+    <string name="onboarding_error_not_password">Not a password credential</string>
+    <!-- Onboarding (wearer) error: the pasted key is invalid; nsec/ncryptsec are key formats [CHAR LIMIT=NONE] -->
+    <string name="onboarding_error_bad_key">Not a valid nsec / ncryptsec (or wrong password)</string>
+    <!-- Onboarding (wearer) error: no backup on the relays; %1$s = short key id, %2$d = number of relays [CHAR LIMIT=NONE] -->
+    <string name="onboarding_error_no_backup">No wearer backup for %1$s found on %2$d relays</string>
+    <!-- Onboarding (wearer) error: the backup exists but can't be decrypted [CHAR LIMIT=NONE] -->
+    <string name="onboarding_error_backup_undecryptable">Backup found but could not be decrypted</string>
+
+    <!-- ========== Profile (both roles) ========== -->
+    <!-- Profile screen title on the wearer's phone [CHAR LIMIT=30] -->
+    <string name="profile_title_wearer">Your profile</string>
+    <!-- Profile screen title on a follower's phone [CHAR LIMIT=30] -->
+    <string name="profile_title_follower">How you appear</string>
+    <!-- Profile: name field label [CHAR LIMIT=30] -->
+    <string name="profile_name_label">Your name</string>
+    <!-- Profile (wearer): who sees a change [CHAR LIMIT=NONE] -->
+    <string name="profile_note_wearer">Your followers get the change at once. New invites show it to the person you invite.</string>
+    <!-- Profile (follower): who sees a change [CHAR LIMIT=NONE] -->
+    <string name="profile_note_follower">The person you follow sees the change as soon as it reaches them.</string>
+
+    <!-- ========== Wearer home ========== -->
+    <!-- Wearer home: placeholder when no name is set yet [CHAR LIMIT=30] -->
+    <string name="home_add_your_name">Add your name</string>
+    <!-- Wearer home: role line under the name; %d = number of followers [CHAR LIMIT=40] -->
+    <plurals name="home_wearer_followers">
+        <item quantity="one">Wearer · %d follower</item>
+        <item quantity="other">Wearer · %d followers</item>
+    </plurals>
+    <!-- Home: accessibility label of the settings button [CHAR LIMIT=30] -->
+    <string name="home_settings">Settings</string>
+    <!-- Wearer home: banner title when the identity isn't backed up [CHAR LIMIT=40] -->
+    <string name="home_backup_banner_title">Not backed up</string>
+    <!-- Wearer home: banner text when the identity isn't backed up [CHAR LIMIT=NONE] -->
+    <string name="home_backup_banner_text">If you lose this phone, every follower must be invited again. Tap to back up.</string>
+    <!-- Wearer home: button shown when no sensor is paired [CHAR LIMIT=30] -->
+    <string name="home_scan_sensor">Scan your sensor</string>
+    <!-- Wearer home: title of the list of treatments logged by followers [CHAR LIMIT=40] -->
+    <string name="home_follower_entries">Entries from followers</string>
+
+    <!-- ========== Recovery code dialog ========== -->
+    <!-- Recovery code dialog: title [CHAR LIMIT=30] -->
+    <string name="recovery_title">Recovery code</string>
+    <!-- Recovery code dialog: explanation; NIP-49 is a standard's name [CHAR LIMIT=NONE] -->
+    <string name="recovery_text">An encrypted copy of your identity (NIP-49). Print it or keep it somewhere safe; you need the password to use it.</string>
+    <!-- Recovery code dialog: password field [CHAR LIMIT=40] -->
+    <string name="recovery_password">Password (12+ characters)</string>
+    <!-- Recovery code dialog: button that creates the code [CHAR LIMIT=20] -->
+    <string name="recovery_create">Create</string>
+    <!-- Recovery code dialog: button that copies the code and closes [CHAR LIMIT=25] -->
+    <string name="recovery_copy_close">Copy &amp; close</string>
+    <!-- Recovery code dialog: close button [CHAR LIMIT=20] -->
+    <string name="recovery_close">Close</string>
+
+    <!-- ========== Share (invite) ========== -->
+    <!-- Wearer home button and screen title: invite a follower [CHAR LIMIT=30] -->
+    <string name="share_title">Share with someone</string>
+    <!-- Share: field for the wearer's own label of the invite [CHAR LIMIT=30] -->
+    <string name="share_label_hint">Who is it for?</string>
+    <!-- Share: help under the label field [CHAR LIMIT=NONE] -->
+    <string name="share_label_support">Only you see this. When they ask, Sukrara shows it next to their name.</string>
+    <!-- Share: instructions; quote the follower button's text exactly (onboarding_follower_title) [CHAR LIMIT=NONE] -->
+    <string name="share_instructions">Ask them to install Sukrara, choose \"I follow someone\" and scan this code — or send them the link.</string>
+    <!-- Share: accessibility label of the QR code [CHAR LIMIT=40] -->
+    <string name="share_qr_description">Invite QR code</string>
+    <!-- Share: note about the link; %1$s = expiry date and time, %2$s = the label typed for the invite [CHAR LIMIT=NONE] -->
+    <string name="share_link_note">This link works once, until %1$s. Send it only to %2$s: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
+    <!-- Share: note about the link when no label was typed; %1$s = expiry date and time [CHAR LIMIT=NONE] -->
+    <string name="share_link_note_unnamed">This link works once, until %1$s. Send it only to the person you invite: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
+    <!-- Share: before the wearer's picture and name as the follower will see them [CHAR LIMIT=20] -->
+    <string name="share_they_see">They\'ll see</string>
+    <!-- Share: shown instead of the name when none is set [CHAR LIMIT=20] -->
+    <string name="share_no_name">no name</string>
+    <!-- Share: edit the profile [CHAR LIMIT=15] -->
+    <string name="share_edit">Edit</string>
+    <!-- Share: button that opens the share sheet [CHAR LIMIT=20] -->
+    <string name="share_send_link">Send link…</string>
+    <!-- Share: copy the link [CHAR LIMIT=15] -->
+    <string name="share_copy">Copy</string>
+    <!-- Share: progress line while waiting [CHAR LIMIT=40] -->
+    <string name="share_waiting">Waiting for their request…</string>
+
+    <!-- ========== Approve dialog (a follower asks to follow) ========== -->
+    <!-- Approve dialog: under the follower's name (link invite) [CHAR LIMIT=50] -->
+    <string name="approve_wants">wants to see your glucose</string>
+    <!-- Approve dialog: under the follower's name (Bluetooth pairing) [CHAR LIMIT=50] -->
+    <string name="approve_wants_nearby">is nearby and wants to see your glucose</string>
+    <!-- Approve dialog: overline of the invite card for a Bluetooth pairing (shown in capitals) [CHAR LIMIT=25] -->
+    <string name="approve_pair_nearby">Pair nearby</string>
+    <!-- Approve dialog: overline of the invite card for a link invite (shown in capitals) [CHAR LIMIT=25] -->
+    <string name="approve_your_invite">Your invite</string>
+    <!-- Approve dialog: the invite's label; %1$s = what the wearer typed, e.g. "Mom" [CHAR LIMIT=40] -->
+    <string name="approve_invite_for">For %1$s</string>
+    <!-- Approve dialog: a Bluetooth pairing window [CHAR LIMIT=40] -->
+    <string name="approve_nearby_window">Bluetooth, 10 minutes</string>
+    <!-- Approve dialog: the invite had no label [CHAR LIMIT=40] -->
+    <string name="approve_no_label">No name given</string>
+    <!-- Approve dialog: pill when the follower's name matches the invite label [CHAR LIMIT=20] -->
+    <string name="approve_label_matches">Matches</string>
+    <!-- Approve dialog: pill when the name differs from the invite label [CHAR LIMIT=20] -->
+    <string name="approve_label_differs">Different name</string>
+    <!-- Approve dialog: times; %1$s = when the invite was sent, %2$s = when they asked (HH:mm) [CHAR LIMIT=50] -->
+    <string name="approve_sent_asked">Sent %1$s · asked %2$s</string>
+    <!-- Approve dialog: time they asked; %1$s = HH:mm [CHAR LIMIT=30] -->
+    <string name="approve_asked">Asked %1$s</string>
+    <!-- Approve dialog: warning when other phones tried the same invite; %d = how many [CHAR LIMIT=NONE] -->
+    <plurals name="approve_others_tried">
+        <item quantity="one">Another phone also tried this invite. Names and pictures can be made up: if you\'re not sure, deny and send a new invite.</item>
+        <item quantity="other">%d other phones also tried this invite. Names and pictures can be made up: if you\'re not sure, deny and send a new invite.</item>
+    </plurals>
+    <!-- Approve dialog: field for the 4-digit code shown on the follower's phone [CHAR LIMIT=40] -->
+    <string name="approve_code_label">Code on their screen</string>
+    <!-- Approve dialog: the typed code is wrong [CHAR LIMIT=50] -->
+    <string name="approve_code_wrong">That\'s not the code on their phone</string>
+    <!-- Approve dialog: what allowing does; %1$s = the follower's name [CHAR LIMIT=NONE] -->
+    <string name="approve_note">Allowing sends %1$s your last 24 hours and every new reading. You can remove them later.</string>
+    <!-- Approve dialog: deny button [CHAR LIMIT=15] -->
+    <string name="approve_deny">Deny</string>
+    <!-- Approve dialog: allow button [CHAR LIMIT=15] -->
+    <string name="approve_allow">Allow</string>
+
+    <!-- Wearer: progress while removing a follower; %1$s = the follower's name [CHAR LIMIT=60] -->
+    <string name="sharing_busy_removing">Removing %1$s: rotating keys…</string>
+
+    <!-- ========== Follower: errors, notifications ========== -->
+    <!-- Follower: name sent to the wearer when none was typed [CHAR LIMIT=30] -->
+    <string name="follower_default_name">Follower</string>
+    <!-- Follower error: the nearby phone didn't answer over Bluetooth [CHAR LIMIT=NONE] -->
+    <string name="follower_error_ble_unreachable">Could not reach that phone over Bluetooth</string>
+    <!-- Follower error: the wearer hasn't opened nearby pairing; quote the wearer's setting name [CHAR LIMIT=NONE] -->
+    <string name="follower_error_pairing_off">The wearer has not turned on \"Pair nearby\"</string>
+    <!-- Follower error: the scanned or pasted text isn't an invite [CHAR LIMIT=NONE] -->
+    <string name="follower_error_not_invite">Not a Sukrara invite link</string>
+    <!-- Follower error: the invite expired [CHAR LIMIT=NONE] -->
+    <string name="follower_error_invite_expired">This invite expired — ask for a new one</string>
+    <!-- Follower error: a broken invite (no relays to reach the wearer) [CHAR LIMIT=NONE] -->
+    <string name="follower_error_invite_no_relays">Invite has no relays</string>
+    <!-- Follower notification title: someone else used the single-use invite first [CHAR LIMIT=50] -->
+    <string name="follower_notif_invite_used_title">This invite was already used</string>
+    <!-- Follower notification text: invite used by someone else; %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="follower_notif_invite_used_text">Ask %1$s for a new one, and tell them: it may not have been someone they invited.</string>
+    <!-- Follower notification text: invite used by someone else, the wearer has no name [CHAR LIMIT=NONE] -->
+    <string name="follower_notif_invite_used_text_unnamed">Ask the wearer for a new one, and tell them: it may not have been someone they invited.</string>
+    <!-- Follower notification title: the wearer denied the request; %1$s = the wearer's name [CHAR LIMIT=50] -->
+    <string name="follower_notif_declined_title">%1$s didn\'t allow this phone</string>
+    <!-- Follower notification title: the wearer denied the request, no name [CHAR LIMIT=50] -->
+    <string name="follower_notif_declined_title_unnamed">The wearer didn\'t allow this phone</string>
+    <!-- Follower notification text after a denial; %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="follower_notif_declined_text">Ask %1$s for a new invite if this was a mistake.</string>
+    <!-- Follower notification text after a denial, no name [CHAR LIMIT=NONE] -->
+    <string name="follower_notif_declined_text_unnamed">Ask the wearer for a new invite if this was a mistake.</string>
+    <!-- Follower notification title: the wearer stopped sharing [CHAR LIMIT=40] -->
+    <string name="follower_notif_revoked_title">Access removed</string>
+    <!-- Follower notification text: the wearer stopped sharing [CHAR LIMIT=NONE] -->
+    <string name="follower_notif_revoked_text">The wearer stopped sharing glucose with this phone</string>
+
+    <!-- ========== Notification channels and the access request ========== -->
+    <!-- Notification channel: the ongoing service notification [CHAR LIMIT=40] -->
+    <string name="channel_service">Running in background</string>
+    <!-- Notification channel: requests to follow the wearer [CHAR LIMIT=40] -->
+    <string name="channel_requests">Access requests</string>
+    <!-- Notification channel: invite used, request denied, access removed [CHAR LIMIT=40] -->
+    <string name="channel_status">Sharing status</string>
+    <!-- Notification channel: the ongoing glucose notification (status bar chip and card) [CHAR LIMIT=40] -->
+    <string name="channel_glucose">Glucose (status bar)</string>
+    <!-- Access request notification title; %1$s = the follower's name [CHAR LIMIT=60] -->
+    <string name="request_notif_title">%1$s wants to see your glucose</string>
+    <!-- Access request: other phones tried the same invite [CHAR LIMIT=NONE] -->
+    <string name="request_notif_others">Another phone also tried this invite. Check before allowing.</string>
+    <!-- Access request: a nearby (Bluetooth) request [CHAR LIMIT=NONE] -->
+    <string name="request_notif_nearby">A phone nearby · open Sukrara and type the code shown on their screen</string>
+    <!-- Access request: %1$s = the invite's label (e.g. Mom), %2$s = time HH:mm [CHAR LIMIT=NONE] -->
+    <string name="request_notif_for">Asked with your invite for %1$s · %2$s</string>
+    <!-- Access request: an unlabelled invite; %1$s = time HH:mm when it was sent [CHAR LIMIT=NONE] -->
+    <string name="request_notif_from">Asked with your invite from %1$s</string>
+
+    <!-- ========== Glucose notification (ongoing) ========== -->
+    <!-- Glucose notification before the first reading; Sukrara is the brand [CHAR LIMIT=50] -->
+    <string name="notif_waiting_for_glucose">Sukrara · waiting for glucose…</string>
+    <!-- Glucose notification title when the last reading is too old; %1$s = a time like 14:05, Tue 14:05 or 12 Oct [CHAR LIMIT=40] -->
+    <string name="notif_no_reading_since">No reading since %1$s</string>
+    <!-- Glucose notification: when the (late) reading was taken; %1$s = a time like 14:05 [CHAR LIMIT=30] -->
+    <string name="notif_reading_at">at %1$s</string>
+    <!-- Live Update card: label under the reading's time [CHAR LIMIT=12] -->
+    <string name="notif_metric_reading">reading</string>
+    <!-- Glucose notification (wearer) while the service starts [CHAR LIMIT=30] -->
+    <string name="notif_starting">starting…</string>
+    <!-- Glucose notification (follower) while the service starts [CHAR LIMIT=30] -->
+    <string name="notif_starting_follower">following…</string>
+    <!-- Glucose notification (follower): following someone [CHAR LIMIT=30] -->
+    <string name="notif_following">following</string>
+    <!-- Glucose notification (follower): following, with the last transport; %1$s = a relay host or "ble" [CHAR LIMIT=50] -->
+    <string name="notif_following_via">following · via %1$s</string>
+    <!-- Glucose notification (follower) while the wearer hasn't answered; %1$s = 4-digit code [CHAR LIMIT=50] -->
+    <string name="notif_waiting_approval">Waiting for approval · code %1$s</string>
+    <!-- Glucose notification (follower) after the wearer removed access [CHAR LIMIT=50] -->
+    <string name="notif_access_removed">Access removed by the wearer</string>
+    <!-- Glucose notification (follower) when not following anyone [CHAR LIMIT=50] -->
+    <string name="notif_not_following">Not following anyone</string>
+    <!-- Glucose notification (wearer): number of followers [CHAR LIMIT=30] -->
+    <plurals name="notif_followers">
+        <item quantity="one">%d follower</item>
+        <item quantity="other">%d followers</item>
+    </plurals>
+    <!-- Glucose notification (wearer): Nostr sharing is turned off; Nostr is a protocol name [CHAR LIMIT=20] -->
+    <string name="notif_nostr_off">Nostr off</string>
+    <!-- Glucose notification (wearer): followers connected over Bluetooth; %1$d = how many [CHAR LIMIT=20] -->
+    <string name="notif_nearby">%1$d nearby</string>
+
+    <!-- ========== Glucose card, graph and badge (drawn on every surface) ========== -->
+    <!-- Badge under the value when glucose is low: log carbs [CHAR LIMIT=16] -->
+    <string name="badge_eat_carbs">Eat carbs</string>
+    <!-- Badge, short form of badge_eat_carbs when space is tight [CHAR LIMIT=10] -->
+    <string name="badge_carbs_short">Carbs</string>
+    <!-- Badge under the value when glucose is high: log rapid insulin [CHAR LIMIT=16] -->
+    <string name="badge_take_insulin">Take insulin</string>
+    <!-- Badge, short form of badge_take_insulin [CHAR LIMIT=10] -->
+    <string name="badge_insulin_short">Insulin</string>
+    <!-- Badge after a treatment: time until alerts resume; %1$s = a short duration like 45m [CHAR LIMIT=16] -->
+    <string name="badge_time_left">%1$s left</string>
+    <!-- Screen reader text of the paused badge; %1$s = alert name (e.g. Low), %2$s = short duration [CHAR LIMIT=NONE] -->
+    <string name="badge_alerts_paused_description">%1$s: alerts paused, %2$s left</string>
+    <!-- Short duration under a minute [CHAR LIMIT=6] -->
+    <string name="duration_now">now</string>
+    <!-- Short duration in minutes, as compact as possible; %1$d = minutes [CHAR LIMIT=7] -->
+    <string name="duration_minutes">%1$dm</string>
+    <!-- Short duration in hours; %1$d = hours [CHAR LIMIT=6] -->
+    <string name="duration_hours">%1$dh</string>
+    <!-- Short duration in hours and minutes; %1$d = hours, %2$d = minutes [CHAR LIMIT=10] -->
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
+    <!-- Short duration in days; %1$d = days [CHAR LIMIT=6] -->
+    <string name="duration_days">%1$dd</string>
+    <!-- How long ago; %1$s = a short duration like 12m [CHAR LIMIT=14] -->
+    <string name="duration_ago">%1$s ago</string>
+    <!-- Window of a slot (time-in-range ring, average) in days, e.g. 14d; %1$d = days [CHAR LIMIT=5] -->
+    <string name="period_days">%1$dd</string>
+    <!-- Window of a slot in hours, e.g. 12h; %1$d = hours [CHAR LIMIT=5] -->
+    <string name="period_hours">%1$dh</string>
+    <!-- Slot word under the average glucose number [CHAR LIMIT=5] -->
+    <string name="slot_average_short">avg</string>
+    <!-- Slot word under the GMI number; GMI = Glucose Management Indicator [CHAR LIMIT=5] -->
+    <string name="slot_gmi_short">GMI</string>
+    <!-- Slot word under the coefficient of variation; CV = coefficient of variation [CHAR LIMIT=5] -->
+    <string name="slot_cv_short">CV</string>
+    <!-- Live Update card: label of a time-in-range slot (70–180) [CHAR LIMIT=10] -->
+    <string name="slot_tir_in_range">in range</string>
+    <!-- Live Update card: label of a time-in-tight-range slot (70–140) [CHAR LIMIT=10] -->
+    <string name="slot_tir_very_good">very good</string>
+    <!-- Card without any reading [CHAR LIMIT=30] -->
+    <string name="card_no_readings_yet">No readings yet</string>
+    <!-- Card whose last reading is old; %1$s = a time like 14:05, Tue 14:05 or 12 Oct [CHAR LIMIT=40] -->
+    <string name="card_no_readings_since">No readings since %1$s</string>
+    <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
+    <string name="card_no_reading_since">No reading since</string>
+    <!-- Trend in words (screen readers, notification): no trend known [CHAR LIMIT=20] -->
+    <string name="trend_unknown">trend unknown</string>
+    <!-- Trend in words: flat [CHAR LIMIT=20] -->
+    <string name="trend_steady">steady</string>
+    <!-- Trend in words: going up [CHAR LIMIT=20] -->
+    <string name="trend_rising">rising</string>
+    <!-- Trend in words: going up quickly [CHAR LIMIT=20] -->
+    <string name="trend_rising_fast">rising fast</string>
+    <!-- Trend in words: going down [CHAR LIMIT=20] -->
+    <string name="trend_falling">falling</string>
+    <!-- Trend in words: going down quickly [CHAR LIMIT=20] -->
+    <string name="trend_falling_fast">falling fast</string>
+
+    <!-- ========== Widgets: screen reader text, configuration ========== -->
+    <!-- Widget description for screen readers: no reading at all [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_no_readings">Glucose: no readings yet</string>
+    <!-- Widget description: last reading too old; %1$s = a time like 14:05 or Tue 14:05 [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_no_reading_since">Glucose: no reading since %1$s</string>
+    <!-- Widget description: %1$d = glucose in mg/dL, %2$s = trend in words (e.g. rising) [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_value">Glucose %1$d mg/dL, %2$s</string>
+    <!-- Widget description with the reading's time; %1$d = mg/dL, %2$s = trend in words, %3$s = time [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_value_at">Glucose %1$d mg/dL, %2$s, at %3$s</string>
+    <!-- Lock screen widget description: %1$s = widget_desc_* text; a tap adds a treatment [CHAR LIMIT=NONE] -->
+    <string name="lock_widget_desc">%1$s. Add treatment</string>
+    <!-- Widget configuration screen title [CHAR LIMIT=30] -->
+    <string name="widget_config_title">This widget</string>
+    <!-- Widget configuration: section for the graph's time span [CHAR LIMIT=30] -->
+    <string name="widget_config_graph_window">Graph window</string>
+    <!-- Widget configuration: section for the time-in-range rings [CHAR LIMIT=30] -->
+    <string name="widget_config_rings">Time in range rings</string>
+    <!-- Widget configuration chip: follow the app-wide value; %1$s = that value (e.g. 6 h, 2, In range) [CHAR LIMIT=30] -->
+    <string name="widget_config_app_setting">App setting (%1$s)</string>
+    <!-- Widget configuration chip: no rings [CHAR LIMIT=15] -->
+    <string name="widget_config_rings_none">None</string>
+    <!-- Widget configuration chip: rings count the 70–180 range [CHAR LIMIT=15] -->
+    <string name="widget_config_tir_in_range">In range</string>
+    <!-- Widget configuration chip: rings count the tight 70–140 range [CHAR LIMIT=15] -->
+    <string name="widget_config_tir_very_good">Very good</string>
+    <!-- Widget configuration switch: show time in range next to the graph [CHAR LIMIT=40] -->
+    <string name="widget_config_side">Time in range beside the graph</string>
+    <!-- Widget configuration switch summary [CHAR LIMIT=60] -->
+    <string name="widget_config_side_summary" formatted="false">The distribution and % on the left</string>
+    <!-- Widget configuration: reset to the app's settings [CHAR LIMIT=25] -->
+    <string name="widget_config_use_app_settings">Use app settings</string>
+    <!-- Widget configuration: save button [CHAR LIMIT=15] -->
+    <string name="widget_config_save">Save</string>
+    <!-- Widget configuration: accessibility label of the preview image [CHAR LIMIT=30] -->
+    <string name="widget_config_preview">Preview</string>
+
+    <!-- ========== Alerts: names, notifications, channels ========== -->
+    <!-- Alert name: glucose under the very low threshold [CHAR LIMIT=25] -->
+    <string name="alert_kind_very_low">Very low</string>
+    <!-- Alert name: glucose under the low threshold [CHAR LIMIT=25] -->
+    <string name="alert_kind_low">Low</string>
+    <!-- Alert name: glucose over the high threshold [CHAR LIMIT=25] -->
+    <string name="alert_kind_high">High</string>
+    <!-- Alert name: glucose over the very high threshold [CHAR LIMIT=25] -->
+    <string name="alert_kind_very_high">Very high</string>
+    <!-- Alert name: glucose over the extremely high threshold [CHAR LIMIT=25] -->
+    <string name="alert_kind_extremely_high">Extremely high</string>
+    <!-- Alert name and headline: glucose falling quickly [CHAR LIMIT=25] -->
+    <string name="alert_kind_falling_fast">Falling fast</string>
+    <!-- Alert name and headline: glucose rising quickly [CHAR LIMIT=25] -->
+    <string name="alert_kind_rising_fast">Rising fast</string>
+    <!-- Alert name: no reading received for a while [CHAR LIMIT=25] -->
+    <string name="alert_kind_no_data">No data</string>
+    <!-- Alert notification headline [CHAR LIMIT=30] -->
+    <string name="alert_headline_very_low">Very low glucose</string>
+    <!-- Alert notification headline [CHAR LIMIT=30] -->
+    <string name="alert_headline_low">Low glucose</string>
+    <!-- Alert notification headline [CHAR LIMIT=30] -->
+    <string name="alert_headline_high">High glucose</string>
+    <!-- Alert notification headline [CHAR LIMIT=30] -->
+    <string name="alert_headline_very_high">Very high glucose</string>
+    <!-- Alert notification headline [CHAR LIMIT=30] -->
+    <string name="alert_headline_extremely_high">Extremely high glucose</string>
+    <!-- Alert notification headline: no reading for a while [CHAR LIMIT=30] -->
+    <string name="alert_headline_no_data">No glucose data</string>
+    <!-- Alert headline with what was already logged; %1$s = headline (e.g. Low glucose), %2$s = alert_context_* [CHAR LIMIT=60] -->
+    <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
+    <string name="alert_context_eat_more">eat more</string>
+    <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
+    <string name="alert_context_eat_more_again">eat more again</string>
+    <!-- High alert after rapid insulin was logged; must never suggest taking more insulin [CHAR LIMIT=35] -->
+    <string name="alert_context_after_insulin">still high after insulin</string>
+    <!-- High alert after rapid insulin was logged twice or more; must never suggest more insulin [CHAR LIMIT=35] -->
+    <string name="alert_context_after_more_insulin">still high after more insulin</string>
+    <!-- Falling fast alert text; %1$s = rate (e.g. 2.4), %2$s = threshold with unit (e.g. 2.0 mg/dL/min) [CHAR LIMIT=NONE] -->
+    <string name="alert_text_falling">falling %1$s ≥ %2$s</string>
+    <!-- Rising fast alert text; %1$s = rate, %2$s = threshold with unit [CHAR LIMIT=NONE] -->
+    <string name="alert_text_rising">rising %1$s ≥ %2$s</string>
+    <!-- No data alert text; %1$s = minutes without a reading [CHAR LIMIT=NONE] -->
+    <string name="alert_text_no_data">Nothing received for %1$s min</string>
+    <!-- No data alert text with the last value; %1$s = minutes, %2$d = last glucose in mg/dL [CHAR LIMIT=NONE] -->
+    <string name="alert_text_no_data_last">Nothing received for %1$s min · last %2$d mg/dL</string>
+    <!-- Notification channel group of the alerts at notification volume [CHAR LIMIT=40] -->
+    <string name="channel_group_alerts">Glucose alerts</string>
+    <!-- Notification channel group of the alerts at alarm volume [CHAR LIMIT=40] -->
+    <string name="channel_group_alerts_alarm">Glucose alerts at alarm volume</string>
+    <!-- Alert channel description; %1$s = channel_alert_* [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_description">%1$s Rings at notification volume.</string>
+    <!-- Alert channel description at alarm volume; %1$s = channel_alert_* [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_description_alarm">%1$s Rings at alarm volume, like an alarm clock.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_very_low">Glucose &lt; very low.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_low">Glucose &lt; low.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_high">Glucose ≥ high.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_very_high">Glucose ≥ very high.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_extremely_high">Glucose ≥ extremely high. Never muted.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_falling_fast">Glucose falling ≥ the set rate.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_rising_fast">Glucose rising ≥ the set rate.</string>
+    <!-- Alert channel: when it rings [CHAR LIMIT=NONE] -->
+    <string name="channel_alert_no_data">No reading for the set time.</string>
+
+    <!-- ========== Role choice ========== -->
+    <!-- Role choice: what the app does [CHAR LIMIT=NONE] -->
+    <string name="role_intro">Share glucose readings end-to-end encrypted over Nostr — no account, no server to run.</string>
+    <!-- Role choice: note under the buttons [CHAR LIMIT=NONE] -->
+    <string name="role_note">Each phone has one role. A follower never sees the wearer\'s local data — only what arrives through the relays.</string>
+    <!-- Role choice button and follower onboarding title [CHAR LIMIT=40] -->
+    <string name="onboarding_follower_title">I follow someone</string>
+
+    <!-- ========== Follower onboarding (join) ========== -->
+    <!-- Join: how to get the invite; quote the wearer's button share_title [CHAR LIMIT=NONE] -->
+    <string name="join_intro">Scan the code on their phone (Share with someone), or open the link they sent you.</string>
+    <!-- Join: close the camera preview [CHAR LIMIT=25] -->
+    <string name="join_stop_camera">Stop camera</string>
+    <!-- Join: open the camera to scan the invite [CHAR LIMIT=25] -->
+    <string name="join_scan_qr">Scan QR code</string>
+    <!-- Join: read the QR code from a picture [CHAR LIMIT=25] -->
+    <string name="join_from_image">From image</string>
+    <!-- Join: field to paste the link [CHAR LIMIT=40] -->
+    <string name="join_paste_link">…or paste the invite link</string>
+    <!-- Join: progress while the invite is fetched [CHAR LIMIT=40] -->
+    <string name="join_looking_up">Looking up the invite…</string>
+    <!-- Join error: the invite can't be opened; %1$s = the reason [CHAR LIMIT=NONE] -->
+    <string name="join_error_invite">Can\'t open this invite: %1$s</string>
+    <!-- Join error: the chosen picture has no invite QR code [CHAR LIMIT=NONE] -->
+    <string name="join_error_no_qr">No Sukrara QR code found in that image</string>
+    <!-- Join: name shown when the inviting wearer has no name [CHAR LIMIT=25] -->
+    <string name="join_someone">Someone</string>
+    <!-- Join: under the inviting wearer's name [CHAR LIMIT=60] -->
+    <string name="join_wants_to_share">wants to share their glucose with you</string>
+    <!-- Join: section with the follower's own name and picture [CHAR LIMIT=40] -->
+    <string name="join_how_they_see_you">How they will see you</string>
+    <!-- Join: send the access request [CHAR LIMIT=30] -->
+    <string name="join_ask_access">Ask for access</string>
+    <!-- Join: section for Bluetooth pairing [CHAR LIMIT=50] -->
+    <string name="nearby_title">Nearby (Bluetooth, no internet needed)</string>
+    <!-- Join: start the Bluetooth scan [CHAR LIMIT=30] -->
+    <string name="nearby_find">Find phones nearby</string>
+    <!-- Join: scanning; quote the wearer's setting name [CHAR LIMIT=NONE] -->
+    <string name="nearby_looking">Looking for wearers… (they must tap \"Pair nearby\")</string>
+    <!-- Join: ask a nearby wearer for access [CHAR LIMIT=15] -->
+    <string name="nearby_ask">Ask</string>
+
+    <!-- ========== Follower: waiting and ended ========== -->
+    <!-- Waiting: stand-in when the wearer has no name or key yet [CHAR LIMIT=20] -->
+    <string name="waiting_them">them</string>
+    <!-- Waiting (nearby) title; %1$s = the wearer's name [CHAR LIMIT=40] -->
+    <string name="waiting_for">Waiting for %1$s</string>
+    <!-- Waiting (link) title [CHAR LIMIT=40] -->
+    <string name="waiting_request_sent">Request sent</string>
+    <!-- Waiting (nearby): above the 4-digit code; %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="waiting_code_intro">%1$s is asked to type this code to allow this phone:</string>
+    <!-- Waiting (link); %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="waiting_note">You\'ll see the readings of %1$s as soon as they allow it. You can close the app; Sukrara tells you when it happens.</string>
+    <!-- Waiting: the name the follower asked with; %1$s = that name [CHAR LIMIT=50] -->
+    <string name="waiting_asked_as">You asked as \"%1$s\".</string>
+    <!-- Waiting: withdraw the request [CHAR LIMIT=25] -->
+    <string name="waiting_cancel">Cancel request</string>
+    <!-- Ended: title when the wearer denied, no name [CHAR LIMIT=50] -->
+    <string name="ended_declined_title_unnamed">The person who invited you didn\'t allow this phone</string>
+    <!-- Ended: the invite was used by someone else; %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="ended_used_text">Someone opened this link before you. Ask %1$s for a new one, and tell them, in case it wasn\'t someone they invited.</string>
+    <!-- Ended: the invite was used by someone else, no name [CHAR LIMIT=NONE] -->
+    <string name="ended_used_text_unnamed">Someone opened this link before you. Ask the person who invited you for a new one, and tell them, in case it wasn\'t someone they invited.</string>
+    <!-- Ended: the wearer denied; %1$s = the wearer's name [CHAR LIMIT=NONE] -->
+    <string name="ended_declined_text">Nothing was shared with this phone. If it was a mistake, ask %1$s for a new invite.</string>
+    <!-- Ended: the wearer denied, no name [CHAR LIMIT=NONE] -->
+    <string name="ended_declined_text_unnamed">Nothing was shared with this phone. If it was a mistake, ask the person who invited you for a new invite.</string>
+    <!-- Ended: start over [CHAR LIMIT=30] -->
+    <string name="ended_new_invite">Use a new invite</string>
+
+    <!-- ========== Follower home ========== -->
+    <!-- Follower home: under the wearer's name; %1$s = the follower's own name [CHAR LIMIT=50] -->
+    <string name="follower_home_subtitle">Following · you appear as %1$s</string>
+    <!-- Follower home: banner text after the wearer stopped sharing [CHAR LIMIT=NONE] -->
+    <string name="follower_home_revoked_text">The wearer stopped sharing with this phone. No new readings will arrive; older ones stay on this phone.</string>
+    <!-- Follower home: no reading for a while; %1$d = minutes [CHAR LIMIT=30] -->
+    <string name="follower_home_no_data">No data for %1$d min</string>
+    <!-- Follower home: just approved, the history is loading [CHAR LIMIT=40] -->
+    <string name="follower_home_fetching">Approved — fetching history…</string>
+    <!-- Follower home: this follower may not log treatments [CHAR LIMIT=NONE] -->
+    <string name="follower_home_no_write">The wearer hasn\'t allowed you to add entries</string>
+    <!-- Follower home: section title of the treatments [CHAR LIMIT=40] -->
+    <string name="follower_entries_title">Insulin, carbs &amp; notes (24 h)</string>
+    <!-- Follower home: no treatments [CHAR LIMIT=40] -->
+    <string name="follower_entries_empty">Nothing in the last 24 h</string>
+    <!-- Follower entry: rapid insulin; %1$s = amount like 4.5u [CHAR LIMIT=30] -->
+    <string name="follower_entry_rapid">Insulin %1$s</string>
+    <!-- Follower entry: long-acting insulin; %1$s = amount like 12u [CHAR LIMIT=30] -->
+    <string name="follower_entry_long">Long-acting %1$s</string>
+    <!-- Follower entry: carbs; %1$s = amount like 30g [CHAR LIMIT=30] -->
+    <string name="follower_entry_carbs">Carbs %1$s</string>
+    <!-- Follower entry status: the wearer's phone took it [CHAR LIMIT=20] -->
+    <string name="follower_entry_accepted">accepted</string>
+    <!-- Follower entry status: sent long ago, not taken yet [CHAR LIMIT=20] -->
+    <string name="follower_entry_waiting">not accepted yet</string>
+    <!-- Follower entry status: sent [CHAR LIMIT=20] -->
+    <string name="follower_entry_sent">sent</string>
+    <!-- Follower entry status: being sent [CHAR LIMIT=20] -->
+    <string name="follower_entry_sending">sending…</string>
+
+    <!-- ========== Treatment dialog ========== -->
+    <!-- Treatment dialog title (also the home button) [CHAR LIMIT=30] -->
+    <string name="treatment_title">Add treatment</string>
+    <!-- Treatment dialog: rapid-acting insulin field (narrow: a third of the dialog) [CHAR LIMIT=10] -->
+    <string name="treatment_rapid">Rapid</string>
+    <!-- Treatment dialog: long-acting (basal) insulin field [CHAR LIMIT=10] -->
+    <string name="treatment_long">Long</string>
+    <!-- Treatment dialog: carbohydrates field [CHAR LIMIT=10] -->
+    <string name="treatment_carbs">Carbs</string>
+    <!-- Treatment dialog: free text field [CHAR LIMIT=15] -->
+    <string name="treatment_note">Note</string>
+    <!-- Treatment dialog: note examples [CHAR LIMIT=40] -->
+    <string name="treatment_note_placeholder">Pizza, exercise, sick…</string>
+    <!-- Treatment dialog error; %1$d = max insulin units, %2$d = max carbs in grams; keep u and g [CHAR LIMIT=NONE] -->
+    <string name="treatment_limits">Insulin: up to %1$du · carbs: up to %2$dg</string>
+    <!-- Treatment dialog (quick, over other apps): open the app [CHAR LIMIT=20] -->
+    <string name="treatment_open_app">Open Sukrara</string>
+    <!-- Treatment dialog: cancel [CHAR LIMIT=15] -->
+    <string name="treatment_cancel">Cancel</string>
+    <!-- Treatment dialog: save [CHAR LIMIT=15] -->
+    <string name="treatment_save">Save</string>
+    <!-- Treatment dialog: time chip and picker button for the current time [CHAR LIMIT=12] -->
+    <string name="treatment_time_now">Now</string>
+    <!-- Treatment dialog time chip; %1$s = time [CHAR LIMIT=20] -->
+    <string name="treatment_time_today">Today %1$s</string>
+    <!-- Treatment dialog time chip; %1$s = time [CHAR LIMIT=20] -->
+    <string name="treatment_time_yesterday">Yesterday %1$s</string>
+    <!-- Treatment time picker title [CHAR LIMIT=20] -->
+    <string name="treatment_time_title">When?</string>
+    <!-- Treatment dialog: rapid insulin pauses high alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
+    <string name="treatment_quiet_highs">Highs quiet for %1$d min</string>
+    <!-- Treatment dialog: carbs pause low alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
+    <string name="treatment_quiet_lows">Lows quiet for %1$d min</string>
+    <!-- Treatment dialog: both; %1$d = minutes for highs, %2$d = minutes for lows [CHAR LIMIT=NONE] -->
+    <string name="treatment_quiet_both">Highs quiet for %1$d min · lows quiet for %2$d min</string>
+
+    <!-- ========== Profile editor (picture) ========== -->
+    <!-- Profile picture: draw a new random picture [CHAR LIMIT=15] -->
+    <string name="avatar_shuffle">Shuffle</string>
+    <!-- Profile picture: show the shape and colour choices [CHAR LIMIT=15] -->
+    <string name="avatar_customize">Customize</string>
+    <!-- Profile picture: hide the choices [CHAR LIMIT=15] -->
+    <string name="avatar_done">Done</string>
+    <!-- Profile picture shape [CHAR LIMIT=12] -->
+    <string name="avatar_shape_cube">Cube</string>
+    <!-- Profile picture shape [CHAR LIMIT=12] -->
+    <string name="avatar_shape_drop">Drop</string>
+    <!-- Profile picture shape [CHAR LIMIT=12] -->
+    <string name="avatar_shape_dots">Dots</string>
+    <!-- Profile picture shape [CHAR LIMIT=12] -->
+    <string name="avatar_shape_rings">Rings</string>
+    <!-- Profile picture shape: the name's first letter [CHAR LIMIT=12] -->
+    <string name="avatar_shape_letter">Letter</string>
+    <!-- Profile picture: rotate the colour pattern [CHAR LIMIT=30] -->
+    <string name="avatar_turn_colours">Turn the colours</string>
+    <!-- Profile: privacy note under the name [CHAR LIMIT=NONE] -->
+    <string name="profile_privacy_note">Only the people you share with see your name and picture. They travel end-to-end encrypted and are never posted publicly.</string>
+
+    <!-- ========== Wearer: treatments list, LibreView account ========== -->
+    <!-- Wearer home: section title of the treatments [CHAR LIMIT=40] -->
+    <string name="treatments_title">Treatments (24 h)</string>
+    <!-- Wearer home: no treatments yet [CHAR LIMIT=NONE] -->
+    <string name="treatments_empty">Nothing in the last 24 h. Tip: tap a Sukrara widget or the glucose notification to add one from anywhere.</string>
+    <!-- Treatment row: rapid insulin; %1$s = amount like 4.5u [CHAR LIMIT=30] -->
+    <string name="treatments_row_rapid">%1$s rapid</string>
+    <!-- Treatment row: long-acting insulin; %1$s = amount like 12u [CHAR LIMIT=30] -->
+    <string name="treatments_row_long">%1$s long-acting</string>
+    <!-- Treatment row: carbs; %1$s = amount like 30g [CHAR LIMIT=30] -->
+    <string name="treatments_row_carbs">%1$s carbs</string>
+    <!-- Treatment row: who logged it; %1$s = a follower's name or a device [CHAR LIMIT=30] -->
+    <string name="treatments_row_from">from %1$s</string>
+    <!-- Treatment row icon: not uploaded to LibreView yet [CHAR LIMIT=40] -->
+    <string name="treatments_not_uploaded">Not in LibreView yet</string>
+    <!-- Treatment row icon: uploaded to LibreView [CHAR LIMIT=40] -->
+    <string name="treatments_uploaded">In LibreView</string>
+    <!-- Delete treatment dialog title [CHAR LIMIT=40] -->
+    <string name="treatments_delete_title">Delete this entry?</string>
+    <!-- Delete treatment dialog: an uploaded entry stays in LibreView [CHAR LIMIT=NONE] -->
+    <string name="treatments_delete_libreview">It stays in LibreView: entries can\'t be deleted there.</string>
+    <!-- Delete treatment dialog: confirm [CHAR LIMIT=15] -->
+    <string name="treatments_delete">Delete</string>
+    <!-- LibreView account dialog title; LibreView is a product name [CHAR LIMIT=40] -->
+    <string name="libreview_dialog_title">LibreView account</string>
+    <!-- LibreView account dialog text [CHAR LIMIT=NONE] -->
+    <string name="libreview_dialog_text">The account your doctor\'s clinic sees. Sukrara also learns your sensor\'s receiver ID from it.</string>
+    <!-- LibreView account dialog: email field [CHAR LIMIT=20] -->
+    <string name="libreview_email">Email</string>
+    <!-- LibreView account dialog: a password is stored [CHAR LIMIT=40] -->
+    <string name="libreview_password_saved">Saved · type to change</string>
+    <!-- LibreView account dialog: sign out [CHAR LIMIT=15] -->
+    <string name="libreview_sign_out">Sign out</string>
+    <!-- LibreView sign-in error [CHAR LIMIT=NONE] -->
+    <string name="libreview_error_credentials">Wrong email or password</string>
+    <!-- LibreView sign-in error: the account must accept new terms first [CHAR LIMIT=NONE] -->
+    <string name="libreview_error_terms">LibreView wants you to accept new terms: sign in once in the LibreLinkUp or LibreView app</string>
+    <!-- LibreView sign-in error; %1$s = LibreView's status code [CHAR LIMIT=NONE] -->
+    <string name="libreview_error_status">LibreView sign-in failed (status %1$s)</string>
+
+    <!-- ========== Sensor (NFC scan) ========== -->
+    <!-- Sensor screen title [CHAR LIMIT=30] -->
+    <string name="sensor_title">Sensor</string>
+    <!-- Sensor screen: no sensor paired [CHAR LIMIT=40] -->
+    <string name="sensor_none">No sensor yet</string>
+    <!-- Sensor screen: what to do; FreeStyle Libre is a product name [CHAR LIMIT=NONE] -->
+    <string name="sensor_none_text">Scan your FreeStyle Libre 3 or 3 Plus to start reading it here.</string>
+    <!-- Sensor screen: when the sensor started; %1$s = date and time [CHAR LIMIT=40] -->
+    <string name="sensor_started">Started %1$s</string>
+    <!-- Sensor screen: another source is selected [CHAR LIMIT=NONE] -->
+    <string name="sensor_not_in_use">Not in use: the glucose source is Juggluco</string>
+    <!-- Sensor screen: the connection state; %1$s = technical status (English) [CHAR LIMIT=NONE] -->
+    <string name="sensor_now">Now: %1$s</string>
+    <!-- Sensor screen: switch the source to this sensor [CHAR LIMIT=30] -->
+    <string name="sensor_use">Read this sensor</string>
+    <!-- Sensor screen: NFC reading in progress [CHAR LIMIT=NONE] -->
+    <string name="sensor_reading">Reading the sensor… keep the phone still</string>
+    <!-- Sensor screen: how to scan [CHAR LIMIT=NONE] -->
+    <string name="sensor_hold">Hold the top back of your phone against the sensor</string>
+    <!-- Sensor screen: what a scan does [CHAR LIMIT=NONE] -->
+    <string name="sensor_takeover_note">A new sensor starts and warms up for 60 minutes. A sensor that is already running moves to Sukrara: only one app can read a Libre 3, so the app that had it (LibreLink, Juggluco) stops getting readings and its alarms stop. To move it back, scan it with that app.</string>
+    <!-- Sensor screen: stop Juggluco first; quote Android's menu names as the system shows them [CHAR LIMIT=NONE] -->
+    <string name="sensor_juggluco_note">Juggluco is your glucose source now. If it is reading this sensor, stop it first: long-press its icon → Pause app, then App info → Force stop (a paused Juggluco keeps its Bluetooth link to the sensor and gets in the way). After the scan Sukrara switches to reading the sensor directly.</string>
+    <!-- Sensor screen error [CHAR LIMIT=NONE] -->
+    <string name="sensor_no_nfc">This phone has no NFC, so it can\'t scan a sensor.</string>
+    <!-- Sensor screen: open the NFC settings [CHAR LIMIT=25] -->
+    <string name="sensor_turn_on_nfc">Turn on NFC</string>
+    <!-- Sensor screen: LibreView sign-in worked [CHAR LIMIT=30] -->
+    <string name="sensor_signed_in">Signed in</string>
+    <!-- Sensor screen switch: open the app on a sensor scan [CHAR LIMIT=50] -->
+    <string name="sensor_launch_on_scan">Open Sukrara when you scan a sensor</string>
+    <!-- Sensor screen switch summary [CHAR LIMIT=50] -->
+    <string name="sensor_launch_on_scan_summary">When it isn\'t already open</string>
+    <!-- Sensor screen action [CHAR LIMIT=30] -->
+    <string name="sensor_forget">Forget this sensor</string>
+    <!-- Scan result: a new sensor was started; %1$s = serial number [CHAR LIMIT=40] -->
+    <string name="sensor_started_title">Sensor %1$s started</string>
+    <!-- Scan result: a new sensor was started [CHAR LIMIT=NONE] -->
+    <string name="sensor_started_text">Sukrara is pairing with it over Bluetooth. Readings start after the 60-minute warm-up.</string>
+    <!-- Scan result: a running sensor moved to Sukrara; %1$s = serial number [CHAR LIMIT=50] -->
+    <string name="sensor_taken_over_title">Sensor %1$s is now Sukrara\'s</string>
+    <!-- Scan result: a running sensor moved to Sukrara [CHAR LIMIT=NONE] -->
+    <string name="sensor_taken_over_text">Pairing over Bluetooth — the first reading usually arrives within a minute or two.</string>
+    <!-- Scan result: the sensor's life is over; %1$s = serial number [CHAR LIMIT=40] -->
+    <string name="sensor_ended_title">Sensor %1$s has ended</string>
+    <!-- Scan result: the sensor's life is over [CHAR LIMIT=NONE] -->
+    <string name="sensor_ended_text">Apply a new sensor and scan it.</string>
+    <!-- Scan result: not a supported sensor [CHAR LIMIT=30] -->
+    <string name="sensor_unsupported">Not supported</string>
+    <!-- Scan result: the NFC read failed [CHAR LIMIT=30] -->
+    <string name="sensor_scan_failed">Scan didn\'t work</string>
+    <!-- Scan result: the NFC read failed; %1$s = technical reason (English) [CHAR LIMIT=NONE] -->
+    <string name="sensor_scan_failed_text">%1$s. Try again: hold the phone against the sensor until it vibrates.</string>
+    <!-- Sensor of another app: title; %1$s = serial number [CHAR LIMIT=50] -->
+    <string name="sensor_other_app_title">Sensor %1$s belongs to another app</string>
+    <!-- Sensor of another app: why to sign in [CHAR LIMIT=NONE] -->
+    <string name="sensor_other_app_text">It was started by LibreLink or Juggluco with a LibreView account. Sign in once with that account so Sukrara can take the sensor over. Sukrara only reads your account number: it uploads nothing, doesn\'t keep your password, and the other app\'s LibreView uploads keep working.</string>
+    <!-- Sensor of another app: email field [CHAR LIMIT=30] -->
+    <string name="sensor_libreview_email">LibreView email</string>
+    <!-- Sensor of another app: after sign-in [CHAR LIMIT=NONE] -->
+    <string name="sensor_scan_again">Now hold the phone against the sensor again.</string>
+    <!-- Sensor of another app: sign in button [CHAR LIMIT=20] -->
+    <string name="sensor_sign_in">Sign in</string>
+    <!-- Sensor of another app: signing in [CHAR LIMIT=20] -->
+    <string name="sensor_signing_in">Signing in…</string>
+
+    <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
+    <string name="badge_alerts_paused">Alerts paused</string>
+    <!-- Join: the camera permission was refused [CHAR LIMIT=NONE] -->
+    <string name="join_camera_permission">Camera permission is needed to scan the QR code.</string>
+
+    <!-- ========== Quick treatment (widgets, notification, Quick Settings tile) ========== -->
+    <!-- Toast after the wearer logged entries; %d = how many [CHAR LIMIT=30] -->
+    <plurals name="quick_entries_saved">
+        <item quantity="one">Entry saved</item>
+        <item quantity="other">%d entries saved</item>
+    </plurals>
+    <!-- Toast after a follower sent entries to the wearer; %d = how many [CHAR LIMIT=30] -->
+    <plurals name="quick_entries_sent">
+        <item quantity="one">Entry sent</item>
+        <item quantity="other">%d entries sent</item>
+    </plurals>
+    <!-- Quick Settings tile subtitle: the last value is old; %1$d = glucose in mg/dL [CHAR LIMIT=15] -->
+    <string name="tile_value_old">%1$d (old)</string>
+
+    <!-- ========== Glucose report ========== -->
+    <!-- Report card title [CHAR LIMIT=30] -->
+    <string name="report_title">Glucose report</string>
+    <!-- Report card: no data in the chosen window [CHAR LIMIT=NONE] -->
+    <string name="report_empty">No readings in this window yet</string>
+    <!-- Report card: too little data; %1$d = percent, %2$s = window like 14d [CHAR LIMIT=NONE] -->
+    <string name="report_low_coverage">Sensor data for %1$d %% of the last %2$s. The report is meant for 14 days with at least 70 %%.</string>
+    <!-- Report range (as in the AGP / LibreView report) [CHAR LIMIT=25] -->
+    <string name="report_very_high">Very high</string>
+    <!-- Report range [CHAR LIMIT=25] -->
+    <string name="report_high">High</string>
+    <!-- Report group: very high + high [CHAR LIMIT=25] -->
+    <string name="report_above">Above range</string>
+    <!-- Report group detail [CHAR LIMIT=30] -->
+    <string name="report_above_detail">very high + high</string>
+    <!-- Report range: in target (70–180) [CHAR LIMIT=25] -->
+    <string name="report_target">Target</string>
+    <!-- Report range: the tight range inside the target [CHAR LIMIT=25] -->
+    <string name="report_very_good">Very good</string>
+    <!-- Report range detail; %1$s = range like 70–140 [CHAR LIMIT=40] -->
+    <string name="report_very_good_detail">%1$s mg/dL, part of target</string>
+    <!-- Report range [CHAR LIMIT=25] -->
+    <string name="report_low">Low</string>
+    <!-- Report range [CHAR LIMIT=25] -->
+    <string name="report_very_low">Very low</string>
+    <!-- Report group: low + very low [CHAR LIMIT=25] -->
+    <string name="report_below">Below range</string>
+    <!-- Report group detail [CHAR LIMIT=30] -->
+    <string name="report_below_detail">low + very low</string>
+    <!-- Report metric [CHAR LIMIT=30] -->
+    <string name="report_average">Average glucose</string>
+    <!-- Report metric: abbreviation of Glucose Management Indicator (use the local one) [CHAR LIMIT=10] -->
+    <string name="report_gmi">GMI</string>
+    <!-- Report metric caption: GMI spelled out [CHAR LIMIT=50] -->
+    <string name="report_gmi_caption">Glucose Management Indicator</string>
+    <!-- Report metric: coefficient of variation [CHAR LIMIT=40] -->
+    <string name="report_cv">Glucose variability (CV)</string>
+    <!-- Report goal chip; %1$s = the goal like < 5% [CHAR LIMIT=20] -->
+    <string name="report_goal">Goal %1$s</string>
+    <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
+    <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$d %% of the window.</string>
+
+    <!-- Wearer home, entries from followers; %1$s = time HH:mm, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
+    <string name="home_follower_entry">%1$s %2$s — %3$s via %4$s</string>
+
+
+    <!-- ========== Settings pages ========== -->
     <!-- Settings dialogs -->
     <!-- Button that closes a settings dialog whose choices apply at once. [CHAR LIMIT=20] -->
     <string name="settings_dialog_done">Done</string>
@@ -97,7 +871,7 @@
     <!-- Quiet rule: hold lows back after carbs. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_carbs">After carbs</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_carbs_summary">Low and falling fast wait %1$d min · very low always alerts</string>
+    <string name="alerts_quiet_carbs_summary">Lows and falling fast wait %1$d min</string>
     <!-- The set of sounds the alerts use. [CHAR LIMIT=40] -->
     <string name="alerts_sound_pack">Sound pack</string>
     <!-- Sound option: the sound pack's sound. %1$s = pack name. [CHAR LIMIT=60] -->

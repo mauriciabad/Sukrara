@@ -129,7 +129,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
                 .joinToString(" · ").ifEmpty { "Off" }.replaceFirstChar { it.uppercase() },
                 leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }, to = "statusbar")
             link("Lock screen", if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) NEEDS_MODULE
-                else if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.CHOICES.first { it.second == f.lockBg }.first else "Off",
+                else if (f.lockWidget) "On · " + app.mauri.sukrara.features.LockBackground.label(f.lockBg) else "Off",
                 leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }, to = "lockscreen")
         }
         SettingsGroup {
@@ -394,7 +394,7 @@ fun StatusBarSettings(onBack: () -> Unit) {
 fun LockscreenSettings(onBack: () -> Unit) {
     val ctx = LocalContext.current
     val f by Features.state.collectAsState()
-    var choosing by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf<String?>(null) }
     fun change(u: (FeatureState) -> FeatureState) {
         set(u)
         app.mauri.sukrara.status.RootStatusBar.pushState(ctx)
@@ -405,21 +405,24 @@ fun LockscreenSettings(onBack: () -> Unit) {
     val on = f.lockWidget && module
     val off = if (!module) NEEDS_MODULE else "Unavailable while glucose on the lock screen is off"
     val bg = app.mauri.sukrara.features.LockBackground
+    val look = app.mauri.sukrara.features.LockAppearance
     SettingsPage("Lock screen", onBack) {
         SettingsIntro("Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.")
         SystemAccessBanner(root = false, module = true)
         SettingsMainSwitch("Glucose on the lock screen", on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
         SettingsGroup {
-            value("Background", if (on) bg.CHOICES.first { it.second == f.lockBg }.first else off, enabled = on) { choosing = true }
-            switch("In range in white", f.lockWhite, enabled = on, summary = if (on) "Highs and lows keep their colours" else off) { v ->
-                change { it.copy(lockWhite = v) }
-            }
+            value("Background", if (on) bg.label(f.lockBg) else off, enabled = on) { choosing = "bg" }
+            value("Appearance", if (on) look.label(f.lockLook) else off, enabled = on) { choosing = "look" }
         }
         SettingsFooter("Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked " +
             "phone can add an entry; turn this off if you don't want that.")
     }
-    if (choosing) ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
-        { choosing = false }) { v -> change { it.copy(lockBg = v) } }
+    when (choosing) {
+        "bg" -> ChoiceDialog("Background", bg.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockBg,
+            { choosing = null }) { v -> change { it.copy(lockBg = v) } }
+        "look" -> ChoiceDialog("Appearance", look.CHOICES.map { Choice(it.first, it.second, it.third) }, f.lockLook,
+            { choosing = null }) { v -> change { it.copy(lockLook = v) } }
+    }
 }
 
 // ================================================================================================ watch & other apps

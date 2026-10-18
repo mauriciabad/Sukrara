@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.widgets
 
+import androidx.compose.ui.res.stringResource
+import app.mauri.sukrara.R
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
@@ -93,35 +95,40 @@ class WidgetConfigActivity : ComponentActivity() {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     var w by remember { mutableStateOf(GraphSettings.widget(ctx, id)) }
                     val app = GraphSettings.value
+                    val inRange = stringResource(R.string.widget_config_tir_in_range)
+                    val veryGood = stringResource(R.string.widget_config_tir_very_good)
+                    val rangeLabel = { r: TirRange -> if (r == TirRange.TIGHT) veryGood else inRange }
+                    val appSetting = { v: String -> getString(R.string.widget_config_app_setting, v) }
+                    val none = stringResource(R.string.widget_config_rings_none)
                     Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("This widget", style = MaterialTheme.typography.headlineSmall)
+                        Text(stringResource(R.string.widget_config_title), style = MaterialTheme.typography.headlineSmall)
                         Preview(kind, w, size)
-                        Text("Graph window", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.widget_config_graph_window), style = MaterialTheme.typography.titleMedium)
                         if (kind != WidgetKind.VALUE)
-                            Chips(listOf(0) + WINDOW_HOURS, w.hours ?: 0, { if (it == 0) "App setting (${app.hours(GraphPlace.WIDGETS)} h)" else "$it h" }) {
+                            Chips(listOf(0) + WINDOW_HOURS, w.hours ?: 0, { if (it == 0) appSetting("${app.hours(GraphPlace.WIDGETS)} h") else "$it h" }) {
                                 w = w.copy(hours = it.takeIf { h -> h != 0 })
                             }
                         if (kind != WidgetKind.GRAPH) {
-                            Text("Time in range rings", style = MaterialTheme.typography.titleMedium)
-                            Chips(listOf(-1, 0, 1, 2, 3), w.rings ?: -1, { if (it == -1) "App setting (${app.ringCount})" else if (it == 0) "None" else "$it" }) {
+                            Text(stringResource(R.string.widget_config_rings), style = MaterialTheme.typography.titleMedium)
+                            Chips(listOf(-1, 0, 1, 2, 3), w.rings ?: -1, { if (it == -1) appSetting("${app.ringCount}") else if (it == 0) none else "$it" }) {
                                 w = w.copy(rings = it.takeIf { n -> n >= 0 })
                             }
-                            Chips(listOf<TirRange?>(null) + TirRange.entries, w.ringRange, { it?.label ?: "App setting (${app.ringRange.label})" }) {
+                            Chips(listOf<TirRange?>(null) + TirRange.entries, w.ringRange, { it?.let(rangeLabel) ?: appSetting(rangeLabel(app.ringRange)) }) {
                                 w = w.copy(ringRange = it)
                             }
                         }
                         if (kind != WidgetKind.VALUE) Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Time in range beside the graph")
-                                Text("The distribution and % on the left", style = MaterialTheme.typography.bodySmall,
+                                Text(stringResource(R.string.widget_config_side))
+                                Text(stringResource(R.string.widget_config_side_summary), style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.outline)
                             }
                             Switch(w.side ?: app.side, { w = w.copy(side = it) })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { w = WidgetGraphConfig() }) { Text("Use app settings") }
-                            Button(onClick = { save(id, w) }) { Text("Save") }
+                            TextButton(onClick = { w = WidgetGraphConfig() }) { Text(stringResource(R.string.widget_config_use_app_settings)) }
+                            Button(onClick = { save(id, w) }) { Text(stringResource(R.string.widget_config_save)) }
                         }
                     }
                 }
@@ -161,7 +168,7 @@ private fun Preview(kind: WidgetKind, w: WidgetGraphConfig, size: SizeF) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)
             .size(bw.dp, bh.dp)) {
-            bmp?.let { Image(it.asImageBitmap(), contentDescription = "Preview", Modifier.size(bw.dp, bh.dp)) }
+            bmp?.let { Image(it.asImageBitmap(), contentDescription = stringResource(R.string.widget_config_preview), Modifier.size(bw.dp, bh.dp)) }
         }
     }
 }

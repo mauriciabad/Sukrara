@@ -128,7 +128,7 @@ struct AlertsView: View {
             }
             .disabled(!model.s.on)
             Section {
-                KindRow(model: model, kind: .urgentLow, rulesLocked: model.mirroring)
+                KindRow(model: model, kind: .veryLow, rulesLocked: model.mirroring)
                 KindRow(model: model, kind: .low, rulesLocked: model.mirroring)
             } header: { Text("Lows") }
             Section {
@@ -164,7 +164,7 @@ struct AlertsView: View {
                     Text("Stay quiet for \(Int(model.s.muteAfterCarbs.min)) min")
                 }.disabled(!model.s.muteAfterCarbs.on)
             } header: { Text("Quiet lows") } footer: {
-                note(model.mirroring ? lockedNote : "Low and falling fast only. Urgent low always alerts.")
+                note(model.mirroring ? lockedNote : "Very low, low and falling fast only.")
             }
             .disabled(model.mirroring || !model.s.on)
             Section {
@@ -206,7 +206,7 @@ private struct KindRow: View {
             Toggle(kind.title, isOn: rule.on).disabled(rulesLocked)
             HStack(spacing: 14) {
                 HStack(spacing: 4) {
-                    Text(kind == .noData ? "After" : kind.lowSide ? "≤" : kind.group == .rate ? "Faster than" : "≥")
+                    Text(kind == .noData ? "After" : kind.lowSide ? "<" : kind.group == .rate ? "Faster than" : "≥")
                     TextField("", value: rule.threshold, format: .number.precision(.fractionLength(kind.group == .rate ? 1 : 0)))
                         .labelsHidden().frame(width: 48).multilineTextAlignment(.trailing)
                     Stepper("", value: rule.threshold, in: range, step: step).labelsHidden()
@@ -254,7 +254,7 @@ private struct KindRow: View {
     }
     private var range: ClosedRange<Double> {
         switch kind {
-        case .urgentLow: 40...80
+        case .veryLow: 40...80
         case .low: 50...100
         case .high: 120...300
         case .veryHigh: 150...400

@@ -21,7 +21,7 @@ swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button 
 ./bundle.sh                              # → build/Sukrara.app (app.mauri.sukrara.poc; Apple identity + widgets if any, else ad hoc)
 ./dmg.sh                                 # → build/Sukrara-<version>.dmg, the drag-to-Applications installer
 swift run GlucoseBar -alerts-selftest    # glucose alert rules (spikes/alerts/SPEC.md) over a scripted series
-open build/Sukrara.app --args -alert-test urgent_low     # one test notification with its sound (-alert-feed "200,1")
+open build/Sukrara.app --args -alert-test very_low     # one test notification with its sound (-alert-feed "200,1")
 ```
 Glucose alerts: menu → **Alerts…** (settings window; `alertSettings` default = the SPEC §3 JSON); by default the Mac
 mirrors the wearer's `alert` events and checks "no data" itself. Details: [FOLLOWER.md](menubar/FOLLOWER.md).

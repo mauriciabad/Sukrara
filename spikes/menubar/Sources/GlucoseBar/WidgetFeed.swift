@@ -22,6 +22,7 @@ import WidgetKit
         var unit: String?
         var graph: GraphConfig?
         var slots: [SlotMetrics]?
+        var alerts: AlertSettings?
     }
     private struct SlotMetrics: Codable { var window: TimeInterval; var metrics: GlucoseMetrics }
 
@@ -31,6 +32,8 @@ import WidgetKit
     private var reloadedFor: Date?
     private var last: (source: String, rate: Double?, unit: GlucoseUnit)?
     private let readings: ReadingsStore
+    /// The alert rules the widgets' badge, mute lines and last-treatment slot follow.
+    var alerts: () -> AlertSettings = { AlertSettings.load() }
 
     init(readings: ReadingsStore) {
         self.readings = readings
@@ -66,9 +69,9 @@ import WidgetKit
             .map { Mark(t: Date(timeIntervalSince1970: TimeInterval($0.t)), k: $0.k, a: $0.a, n: $0.n.isEmpty ? nil : $0.n) }
         // The widgets' own window (`widgetHours` over `graphHours`) and each slot's numbers, computed here from 31 days.
         let cfg = GraphConfig.load(place: "widget")
-        let slots = cfg.slots.map { SlotMetrics(window: $0.window, metrics: readings.metrics(window: $0.window, bands: cfg.bands, now: newest)) }
+        let slots = (cfg.slots + [cfg.lastElse].compactMap { $0 }).map { SlotMetrics(window: $0.window, metrics: readings.metrics(window: $0.window, bands: cfg.bands, now: newest)) }
         let wire = Wire(written: Date(), source: last.source, samples: samples, rate: last.rate, treatments: marks,
-                        unit: last.unit.rawValue, graph: cfg, slots: slots)
+                        unit: last.unit.rawValue, graph: cfg, slots: slots, alerts: alerts())
         do {
             try Self.encoder.encode(wire).write(to: file, options: .atomic)
             WidgetCenter.shared.reloadAllTimelines()
