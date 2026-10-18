@@ -98,6 +98,8 @@ let historySpan: TimeInterval = 3 * 3600
     private var lastSource = ""
 
     func ingest(history new: [Reading], from source: String) {
+        // Backfill (hour chunks, BLE backlog) can be older than the 3 h `history` window: store it before the trim.
+        readingsStore.merge(new)
         new.forEach { merge($0) }
         publish(source)
     }
@@ -357,6 +359,7 @@ let treatmentStore = MainActor.assumeIsolated {
         n.onNewKey = { [weak self] in self?.ble?.hello() }
         n.onReading = { store.ingest($0, from: $1) }
         n.onHistory = { store.ingest(history: $0, from: $1) }
+        n.storedSince = { readingsStore.since($0).map(\.t) }      // chunk backfill window + missing-hours check
         n.onAlert = { alerts.onWearerAlert($0, via: $1) }
         n.onPhase = { [weak self, weak n] p in
             guard let self, let n else { return }

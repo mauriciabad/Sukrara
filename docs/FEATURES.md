@@ -53,6 +53,12 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - The home treatments list (wearer) and the follower's list end each row with the time since the entry (`12m`, `3h`), refreshed every 30 s. Mac: the menu's *Treatments (24 h)* rows end with ` · 12m` (refreshed every 15 s while the menu is open).
 - The treatment dialog focuses carbs instead of rapid insulin when the latest fresh reading is below an enabled low-side alert threshold (`AlertStatus.level` in `Kind.LOW_SIDE`); otherwise rapid.
 
+## Readings and backfill
+
+- Mac: every backfilled reading (v2 hour chunks over relays or Bluetooth, the BLE backlog, v1 Nostr, Juggluco's Wi-Fi history) goes into the 31-day readings store as it arrives, whatever its age; only the live 3 h working window is trimmed (a chunk older than 3 h before the newest reading used to be dropped, which left gaps in the graph after every launch, wake or reconnect).
+- Mac follower (protocol v2): the chunk subscription starts 1 h before the newest stored reading, at least 13 h and at most 7 days back (the chunks' expiry); recomputed on every reconnect (wake, manual reconnect).
+- Mac follower: 90 s after the chunk subscription starts (and again 90 s later) it checks the last 12 whole hours of the store; hours still empty while the stream is fresh (newest reading ≤ 15 min old) send one `history` request (`since` = the first empty hour) to the wearer over relays and Bluetooth, at most every 30 min (PROTOCOL-v2 "Missing history", as Android's follower).
+
 ## Graph and value card
 
 - Treatment marks on every chart (Android + Mac: app, widgets, notification, lock screen, menubar dropdown, Mac widgets) are labelled with the amount and the time since it: `4.5u 12m`; entries ≤ 3 min apart (a meal) show the time once; a label that doesn't fit with its time is placed without it, then dropped.
