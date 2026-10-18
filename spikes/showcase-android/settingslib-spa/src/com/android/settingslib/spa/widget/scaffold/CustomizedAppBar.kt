@@ -129,6 +129,9 @@ internal fun CustomizedTopAppBarWithTitleScalable(
     )
 }
 
+/** Sukrara: open pages with the large title expanded (see TwoRowsTopAppBar). */
+private const val OpenExpanded = true
+
 /** The customized LargeTopAppBar for Settings. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -371,7 +374,9 @@ private fun TwoRowsTopAppBar(
     // visible when collapsed.
     val heightOffsetLimit = pinnedHeightPx - maxHeightPx.floatValue
     scrollBehavior?.state?.heightOffsetLimit = heightOffsetLimit
-    if (isSpaExpressiveEnabled) {
+    // Sukrara: pages open with the large title expanded, as Android 17's View-based Settings pages do
+    // (SettingsLib BasePreferencesFragment.onResume calls setExpanded(true)); SPA starts collapsed.
+    if (isSpaExpressiveEnabled && !OpenExpanded) {
         var hasCollapsedInitially by rememberSaveable(heightOffsetLimit) { mutableStateOf(false) }
         LaunchedEffect(heightOffsetLimit) {
             if (!hasCollapsedInitially) {
