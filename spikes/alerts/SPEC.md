@@ -164,10 +164,12 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
 
 - A line is `<minute>[:<ss>] [events, …] [=> expectations; …]`. Events: `glucose <mg/dL> [rate <mg/dL/min>]
   [age <min>]` (what the sensor reads from now on), `readings every <n>` (default 1 min), `sensor off|on`,
-  `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`.
+  `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
+  `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
 - Settings keys: `alerts=on|off`, `<kind>=on|off|<threshold>`, `<kind>.repeat=<min>`,
   `carbs.mute|insulin.mute|falling.mute=off|<min>`.
-- Expectations: the fired headline (§1) or `clear <kind>`, in the order they happen; `nothing` (or none) = no
+- Expectations: the fired headline (§1), `clear <kind>`, or `resume <kind>` (a `restart` shows that alert again
+  without sound), in the order they happen; `nothing` (or none) = no
   action. **Strict**: every minute without a line must have no action, and every action must be listed.
 - Driver (same on both platforms): time starts on a whole minute. At each instant, first the line's events in order
   (a treatment, a deletion or a `set` re-evaluates at once, like the apps do when the log or the settings change),

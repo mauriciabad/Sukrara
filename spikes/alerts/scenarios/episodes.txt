@@ -38,3 +38,9 @@ scenario Switching alerts off clears everything; back on, it alerts again
  5                                 # nothing while off
  8  set alerts=on    => Very low glucose
  9
+
+scenario An app restart (update) resumes the ongoing high without ringing again; the repeat keeps its time
+ 0  glucose 200  => High glucose
+ 4  restart      => resume high  # shown again without sound (docs/15, "Two sounds at once")
+15               => High glucose # the repeat, 15 min after the first
+16

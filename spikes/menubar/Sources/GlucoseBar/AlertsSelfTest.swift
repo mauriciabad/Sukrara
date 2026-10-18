@@ -36,6 +36,37 @@ enum AlertsSelfTest {
         check("…but no_data still runs locally", log.map { "\($0.k.rawValue) \($0.state)" } == ["no_data fire"], "\(log.map(\.k))")
         check("no_data carries th and the last reading", log.first.map { $0.th == 20 && $0.sgv == 300 && $0.id.count == 16 } ?? false)
 
+        // 2b. Restart (AlertEngineTest.restartResumesWithoutRingingAgain / restoreDropsEpisodesThatEndedWhileDown):
+        //     an update or relaunch must not take an ongoing alert for a new one (docs/15, "Two sounds at once").
+        let t0 = Date(timeIntervalSince1970: 1_760_000_040)
+        func minute(_ m: Int) -> Date { t0 + TimeInterval(m * 60) }
+        /// One 200 mg/dL reading per minute from `start` for `count` minutes; "minute headline" per firing.
+        var ids: [String] = []
+        func highs(_ e: AlertEngine, _ count: Int, start: Int = 0) -> [String] {
+            var out: [String] = [], m = start
+            e.now = { minute(m) }
+            e.onFire = { out.append("\(m) \($0.k.message(treated: $0.tr))"); ids.append($0.id) }
+            e.onClear = { out.append("\(m) clear \($0.k.rawValue)") }
+            for i in 0..<count { m = start + i; e.reading(Reading(date: minute(m), mgdl: 200, rate: 0)) }
+            return out
+        }
+        let before = AlertEngine(settings: AlertSettings())
+        let first = highs(before, 4)
+        check("restart: the high fires once before", first == ["0 High glucose"], "\(first)")
+        let after = AlertEngine(settings: AlertSettings())
+        after.seed(Reading(date: minute(3), mgdl: 200, rate: 0))
+        let shown = after.restore(before.snapshot(), at: minute(4))
+        check("restart: the high that was up comes back (shown again silently), same firing",
+              shown.map(\.k) == [.high] && shown.first?.id == ids.first, "\(shown.map(\.k))")
+        let rest = highs(after, 16, start: 4)
+        check("restart: the next sound is the repeat 15 min after the first, not the restart", rest == ["15 High glucose"], "\(rest)")
+        check("restart: a fresh engine (the old behaviour) rings at once", highs(AlertEngine(settings: AlertSettings()), 1, start: 4) == ["4 High glucose"])
+        let ended = AlertEngine(settings: AlertSettings())
+        _ = highs(ended, 1)
+        let late = AlertEngine(settings: AlertSettings())
+        check("restart: episodes that ended while down are dropped",
+              late.restore(ended.snapshot(), at: minute(60)).isEmpty && late.active[.level] == nil)
+
         // 3. Settings JSON (§3): the spec example, partial and junk input keep defaults, same keys out.
         let spec = """
         {"v":1,"on":true,"alerts":{"very_low":{"on":true,"mgdl":55,"repeatMin":5,"alarm":true},"low":{"on":true,"mgdl":70,"repeatMin":5},
@@ -240,12 +271,16 @@ enum AlertScenarios {
         var clock = Date(timeIntervalSince1970: TimeInterval(t0))
         var trs: [(k: String, t: Date, del: Bool)] = []
         var got: [Int: [String]] = [:]
-        let e = AlertEngine(settings: s, now: { clock })
-        e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
-        e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
         func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
-        e.onFire = { record($0.k.message(treated: $0.tr)) }
-        e.onClear = { record("clear \($0.k.rawValue)") }
+        func engine() -> AlertEngine {
+            let e = AlertEngine(settings: s, now: { clock })
+            e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
+            e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
+            e.onFire = { record($0.k.message(treated: $0.tr)) }
+            e.onClear = { record("clear \($0.k.rawValue)") }
+            return e
+        }
+        var e = engine()
         var glucose = 0.0, rate = 0.0, age = 0, sensor = true, every = 1
         var nextReading: Int?, timer: Int?
         let byTime = Dictionary(sc.lines.map { (t0 + $0.at, $0) }, uniquingKeysWith: { a, _ in a })
@@ -277,6 +312,11 @@ enum AlertScenarios {
                     for kv in w.dropFirst() { set(&s, kv) }
                     e.settings = s
                     e.tick()
+                case "restart":
+                    let saved = e.snapshot(), last = e.latest
+                    e = engine()
+                    e.seed(last)
+                    for f in e.restore(saved, at: clock) { record("resume \(f.k.rawValue)") }
                 default: fatalError("unknown event: \(ev)")
                 }
             }

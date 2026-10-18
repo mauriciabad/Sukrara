@@ -15,7 +15,7 @@ import UserNotifications
 
 // MARK: alert event (SPEC §4 body)
 
-struct AlertEvent: Equatable {
+struct AlertEvent: Equatable, Codable {
     var id: String
     var k: AlertKind
     var state: String               // fire | clear
@@ -46,6 +46,8 @@ struct AlertEvent: Equatable {
 }
 
 // MARK: engine (SPEC §1–§2)
+
+extension AlertKind: Codable {}
 
 /// The rules, without any UI — a 1:1 port of Android's AlertEngine: feed it the newest reading (`reading`) and call
 /// `tick()` every minute and at `nextCheckAt`; it reports firings and clears through `onFire` / `onClear`. Time comes
@@ -80,7 +82,7 @@ final class AlertEngine {
     /// What the UI shows per group: the matching kind, and why it's quiet if it is.
     struct State { var kind: AlertKind; var muted: String?; var firedAt: Date?; var n: Int }
 
-    private final class Episode {
+    private final class Episode: Codable {
         let side: String, start: Date
         var kind: AlertKind
         /// The condition held at the last evaluation, and when it last did.
@@ -107,6 +109,29 @@ final class AlertEngine {
     init(settings: AlertSettings, now: @escaping () -> Date = Date.init) {
         self.settings = settings
         self.now = now
+    }
+
+    /// The newest stored reading after a restart: no data counts from it. No evaluation (no alert for old news).
+    func seed(_ r: Reading?) { if let r, latest.map({ r.date > $0.date }) ?? true { latest = r } }
+
+    /// The episodes, saved after every evaluation so a restart resumes them (Android's `AlertEngine.snapshot`): without
+    /// it the next check after an update or relaunch takes an ongoing alert for a new one and rings again at once
+    /// (docs/15, "Two sounds at once").
+    func snapshot() -> Data {
+        (try? JSONEncoder().encode(Dictionary(uniqueKeysWithValues: episodes.map { ($0.key.rawValue, $0.value) }))) ?? Data("{}".utf8)
+    }
+
+    /// Back to the `snapshot` state (episodes over by `t` are dropped). Returns the firings whose notification was up:
+    /// the caller shows them again without sound. The next evaluation goes on from there: a repeat that came due while
+    /// the app was down alerts, anything else waits for its time.
+    @discardableResult func restore(_ data: Data, at t: Date) -> [AlertEvent] {
+        episodes = [:]
+        let saved = (try? JSONDecoder().decode([String: Episode].self, from: data)) ?? [:]
+        for (g, e) in saved {
+            guard let group = AlertKind.Group(rawValue: g), t.timeIntervalSince(e.lastIn) < hold(e, settings) else { continue }
+            episodes[group] = e
+        }
+        return [AlertKind.Group.level, .rate, .noData].compactMap { episodes[$0]?.shown }
     }
 
     /// The newest reading (any transport), `rate` already the best available (Snapshot.rate). Older ones are ignored.
@@ -283,6 +308,8 @@ final class AlertEngine {
     private lazy var window = AlertsWindow(alerts: self)
     private let center: UNUserNotificationCenter? = Bundle.main.bundleIdentifier == nil ? nil : .current()
     private var playing: NSSound?
+    /// The engine's episodes (AlertEngine.snapshot), saved after every evaluation; read back once by `resume`.
+    private static let episodesKey = "alertEpisodes"
 
     /// Time Sensitive needs the `com.apple.developer.usernotifications.time-sensitive` entitlement, which only a
     /// provisioning profile can grant (bundle.sh signs without one, and an unprovisioned com.apple.developer.*
@@ -322,6 +349,20 @@ final class AlertEngine {
         engine.carbs = { times("carbs") }
     }
 
+    /// At launch, before any reading or tick: the episodes go on where they were and the alerts that were showing come
+    /// back without sound (same identifier); only a repeat that's due rings (Android's Alerts.resume, docs/15).
+    /// `newest`: the last stored reading, so no data still counts from it.
+    func resume(newest: Reading?) {
+        engine.seed(newest)
+        guard let data = UserDefaults.standard.data(forKey: Self.episodesKey) else { return scheduleCheck() }
+        let shown = engine.restore(data, at: Date())
+        for ev in shown { post(ev, mirrored: false, silent: true) }
+        if !shown.isEmpty { log("alerts: resumed \(shown.map(\.k.title).joined(separator: ", ")) (no sound)") }
+        scheduleCheck()
+    }
+
+    private func saveEpisodes() { UserDefaults.standard.set(engine.snapshot(), forKey: Self.episodesKey) }
+
     @objc func openWindow() { window.show() }
     func snapshot(to path: String) { window.snapshot(to: path) }
 
@@ -337,6 +378,7 @@ final class AlertEngine {
     func onLatest(_ r: Reading) {
         engine.levelAndRate = mode == .own
         engine.reading(r)
+        saveEpisodes()
         scheduleCheck()
         onChange?()
     }
@@ -347,6 +389,7 @@ final class AlertEngine {
     private func tick() {
         engine.levelAndRate = mode == .own
         engine.tick()
+        saveEpisodes()
         scheduleCheck()
         onChange?()
     }
@@ -442,10 +485,11 @@ final class AlertEngine {
         return r >= 3 ? "⇈" : r >= 2 ? "↑" : r >= 1 ? "↗" : r > -1 ? "→" : r > -2 ? "↘" : r > -3 ? "↓" : "⇊"
     }
 
-    func post(_ ev: AlertEvent, mirrored: Bool, test: Bool = false) {
+    /// `silent`: an alert shown again after a restart (it already rang; see `resume`).
+    func post(_ ev: AlertEvent, mirrored: Bool, test: Bool = false, silent: Bool = false) {
         var (title, body) = text(ev, mirrored: mirrored)
         if test { title = "Test · " + title }
-        let sound = Self.sound(for: ev.k, settings)
+        let sound = silent ? .none : Self.sound(for: ev.k, settings)
         log("ALERT \(title) — \(body) [\(ev.k.group.rawValue), sound \(sound.label)]")
         guard center != nil else {           // `swift run`: no bundle, no notification center
             play(sound)
@@ -567,6 +611,7 @@ final class AlertEngine {
             guard let sgv = f.first else { continue }
             engine.levelAndRate = true
             engine.reading(Reading(date: Date(), mgdl: sgv, rate: f.count > 1 ? f[1] : nil))
+            saveEpisodes()
             log("alert-feed \(Int(sgv)) \(f.count > 1 ? String(f[1]) : "-") → \(engine.stateLine)")
         }
         onChange?()

@@ -151,6 +151,8 @@ MainActor.assumeIsolated {
     status.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
     widgetFeed.alerts = { alerts.settings }
+    // before any transport delivers: ongoing alerts resume silently instead of ringing again (docs/15)
+    alerts.resume(newest: readingsStore.readings.last.map { Reading(date: Date(timeIntervalSince1970: $0.t), mgdl: $0.v, rate: $0.rate) })
 }
 NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
     MainActor.assumeIsolated { readingsStore.save() }
