@@ -26,7 +26,7 @@ data class OutboxEntry(val id: String, val u: Long, val ev: String, val createdA
  * The FOLLOWER's own database (`follower.db`). Only the follower package touches it; nothing in here can come
  * from the owner role's `owner.db` — every row was decrypted from a relay event and records `via` = relay host.
  */
-class FollowerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
+class FollowerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("create table readings(t integer primary key, sgv integer not null, rate real, epoch integer not null, " +
             "via text not null, received integer not null)")
@@ -42,13 +42,27 @@ class FollowerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
             db.execSQL("create table outbox(id text primary key, u integer not null, ev text not null, created integer not null, " +
                 "sent integer not null)")
         }
+        // P4: the key that created each entry (writers may change only their own); before 3, the winner's signer
+        if (oldVersion < 3) {
+            db.execSQL("alter table treatments add column creator text")
+            db.execSQL("update treatments set creator = author")
+        }
     }
+
+    /** (the key that signed the first accepted version of entry [id] (P4), the `o` of the version held); nulls if unknown. */
+    fun treatmentCreator(id: String): Pair<String?, String?> =
+        readableDatabase.rawQuery("select creator, o from treatments where id = ?", arrayOf(id)).use { c ->
+            if (c.moveToFirst()) (if (c.isNull(0)) null else c.getString(0)) to c.getString(1) else null to null
+        }
 
     /**
      * SPEC §1 merge (newest `(u, o)` wins) of a treatment signed by [author]; [fromOwner] = signed by a roster device
-     * key, which also raises `owner_u`. Returns true if anything changed.
+     * key, which also raises `owner_u`. [creator] is stored with the row (P4: the caller checked the author with
+     * `WriterScope`); [force] = the wearer's own entry replaces a writer's forged version whatever its `u`.
+     * Returns true if anything changed.
      */
-    fun mergeTreatment(inc: Treatment, author: String, via: String, fromOwner: Boolean): Boolean {
+    fun mergeTreatment(inc: Treatment, author: String, via: String, fromOwner: Boolean, creator: String = author,
+                       force: Boolean = false): Boolean {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -60,13 +74,17 @@ class FollowerDb(context: Context) : SQLiteOpenHelper(context, NAME, null, 2) {
                     curAuthor = c.getString(1); curVia = c.getString(2); ownerU = c.getLong(3)
                 }
             }
-            val win = Treatment.merge(cur, inc).copy(lv = 0)
+            var curCreator: String? = null
+            db.rawQuery("select creator from treatments where id = ?", arrayOf(inc.id)).use { c ->
+                if (c.moveToFirst() && !c.isNull(0)) curCreator = c.getString(0)
+            }
+            val win = (if (force) inc else Treatment.merge(cur, inc)).copy(lv = 0)
             val incWon = cur == null || win != cur
             val newOwnerU = if (fromOwner) maxOf(ownerU, inc.u) else ownerU
-            if (!incWon && newOwnerU == ownerU) return false
+            if (!incWon && newOwnerU == ownerU && curCreator == creator) return false
             db.insertWithOnConflict("treatments", null, ContentValues().apply {
                 put("id", win.id); put("json", TreatmentJson.encodeToString(Treatment.serializer(), win)); put("u", win.u)
-                put("o", win.o); put("t", win.t)
+                put("o", win.o); put("t", win.t); put("creator", creator)
                 put("author", if (incWon) author else curAuthor); put("via", if (incWon) via else curVia)
                 put("received", System.currentTimeMillis() / 1000); put("owner_u", newOwnerU)
             }, SQLiteDatabase.CONFLICT_REPLACE)

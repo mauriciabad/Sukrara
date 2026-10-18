@@ -1,0 +1,11 @@
+[versions]
+kotlin = "2.3.20"
+serialization = "1.9.0"
+junit = "4.13.2"
+
+[libraries]
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

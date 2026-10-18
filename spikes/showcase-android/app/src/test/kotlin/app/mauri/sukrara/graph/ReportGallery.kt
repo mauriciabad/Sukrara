@@ -30,9 +30,12 @@ class ReportGallery {
     @get:Rule val compose = createAndroidComposeRule<androidx.activity.ComponentActivity>()
     private val out = File(System.getProperty("gallery.out") ?: "build/gallery").also { it.mkdirs() }
 
-    private fun render(dark: Boolean) {
+    private fun render(dark: Boolean, edges: Boolean = false) {
         val now = java.util.Calendar.getInstance().run { clear(); set(2026, 9, 17, 22, 14); timeInMillis / 1000 }
-        val m = GlucoseMetrics.of(Synthetic.days(now, 31), now - 14 * 86400L, now, Bands())
+        // edges: shares next to their goals (very high 5.2 %, in range 70.2 %, very low 0.96 %, 69.7 % coverage), for the
+        // rounding rule (ShareText, spikes/graph-fixtures/share)
+        val m = if (edges) GlucoseMetrics(TimeInRange(0.0096, 0.0424, 0.40, 0.302, 0.194, 0.052, 0.697), 150.0, 45.0, 4000)
+            else GlucoseMetrics.of(Synthetic.days(now, 31), now - 14 * 86400L, now, Bands())
         val act = compose.activity
         val view = androidx.compose.ui.platform.ComposeView(act).apply {
             setContent {
@@ -55,9 +58,10 @@ class ReportGallery {
             view.layout(0, 0, view.measuredWidth, view.measuredHeight)
             Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, Bitmap.Config.ARGB_8888).also { view.draw(android.graphics.Canvas(it)) }
         }
-        File(out, "report-${if (dark) "dark" else "light"}.png").outputStream().use { crop.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(out, "report-${if (edges) "edges-" else ""}${if (dark) "dark" else "light"}.png").outputStream().use { crop.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test fun light() = render(false)
     @Test fun dark() = render(true)
+    @Test fun edges() = render(false, edges = true)
 }

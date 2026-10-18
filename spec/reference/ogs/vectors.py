@@ -87,6 +87,10 @@ def generate() -> dict:
     ev["treatment-writer"] = E.treatment(W, g1, SID, rapid, at=NOW - 290, **n("treatment writer"))
     ev["treatment-outsider"] = E.treatment(X, g1, SID, {**rapid, "id": "11111111-2222-4333-8444-555555555555"},
                                            at=NOW - 280, **n("treatment X"))
+    ev["treatment-writer-hijack"] = E.treatment(W, g1, SID, {**carbs, "del": True, "u": (NOW - 270) * 1000,
+                                                             "o": "follower"}, at=NOW - 270, **n("treatment W hijack"))
+    ev["treatment-writer-edit"] = E.treatment(W, g1, SID, {**rapid, "n": "lunch, late", "u": (NOW - 260) * 1000},
+                                              at=NOW - 260, **n("treatment W edit"))
     ev["live-outsider"] = E.live(X, g1, t=rd.t, sgv=40, r=None, at=NOW - 15, **n("live X"))
     ev["roster-by-device"] = E.roster(D, g1, SID, epoch=1, devices=[X.pub], writers=[], relays=[], profile=None,
                                       at=NOW - 10, **n("roster D"))
@@ -121,6 +125,8 @@ def generate() -> dict:
                 ("alert", "accepted:alert"), ("treatment-owner", "accepted:treatment"),
                 ("roster-1-writer", "accepted:roster"), ("treatment-writer", "accepted:treatment"),
                 ("treatment-outsider", "rejected:author-not-in-roster"),
+                ("treatment-writer-hijack", "rejected:writer-not-creator"),
+                ("treatment-writer-edit", "accepted:treatment"),
                 ("live-outsider", "rejected:author-not-device"),
                 ("roster-by-device", "rejected:roster-not-by-identity"), ("live-tampered", "rejected:bad-signature"),
                 ("chunk-wrong-d", "rejected:d-mismatch"), ("key-forged", "rejected:wrap-not-from-identity"),
@@ -143,6 +149,7 @@ def generate() -> dict:
             plain[name] = {"read_key": G.pub, "author": e["pubkey"], "content": decrypt(G, e["pubkey"],
                                                                                          e["content"])}
     msg = ["EVENT", ev["live"]]
+    ble_nonce = nonce("ble hello")[:16].hex()
     frames = {str(mtu): [f.hex() for f in ble.split(7, ble.encode(msg), mtu)] for mtu in (23, 185, 517)}
     return {
         "about": "OGS draft 1 (wire version 2) test vectors. Throwaway keys derived from public strings; synthetic "
@@ -168,9 +175,14 @@ def generate() -> dict:
                           {"wrap": "invite", "now": NOW + 86400, "expect": "expired"}],
         "scenario": {"follower": "F", "i": I.pub, "now": NOW,
                      "steps": [{"event": e, "expect": x} for e, x in scenario],
-                     "final": {"status": "revoked", "epochs": [1, 2], "readings": 62, "treatments": 2,
+                     "final": {"status": "revoked", "epochs": [1, 2], "readings": 62, "treatments": 2, "deleted": 0,
                                "writers": [W.pub], "sensor": sensor, "alerts": 1}},
-        "ble": {"message": msg, "msg_id": 7, "frames_by_att_mtu": frames},
+        "ble": {"message": msg, "msg_id": 7, "frames_by_att_mtu": frames,
+                "hello": ble.hello(ble_nonce),
+                "info_m": {"sid": SID, "nonce": ble_nonce, "m": ble.info_m(SID, ble_nonce)},
+                "info": ble.info(SID, ble_nonce),
+                "info_pairing": ble.info(SID, ble_nonce, i_pub=I.pub, relays=RELAYS,
+                                         pair={"t": inv.token, "x": NOW + 600, "profile": PROFILE})},
         "cgms": [{"ogs": {"sgv": rd.sgv, "t": rd.t, "r": rd.rate, "ss": sensor["ss"], "se": sensor["se"]},
                   "measurement": cgms.from_ogs(rd.sgv, rd.t, rd.rate, sensor["ss"], sensor["se"], NOW).hex()},
                  {"ogs": {"sgv": 192, "t": rd.t, "r": -0.4, "ss": sensor["ss"], "se": sensor["se"], "alert": "high"},
@@ -193,7 +205,8 @@ def run_scenario(vec: dict) -> list[str]:
             fails.append(f"step {i} {step['event']}: expected {step['expect']}, got {r}")
     fin = sc["final"]
     state = {"status": f.status, "epochs": sorted(n for n, _ in f.epochs.values()), "readings": len(f.readings),
-             "treatments": len(f.treatments), "writers": f.writers,
+             "treatments": len(f.treatments), "deleted": sum(t.deleted for t in f.treatments.values()),
+             "writers": f.writers,
              "sensor": f.sensor and {"ss": f.sensor.ss, "se": f.sensor.se, "sw": f.sensor.sw},
              "alerts": len(f.alerts)}
     for k, v in fin.items():
@@ -235,6 +248,14 @@ def verify_file(vec: dict) -> list[str]:
             got = "fingerprint-mismatch" if "fingerprint" in str(ex) else "expired" if "expired" in str(ex) else str(ex)
         if got != chk["expect"]:
             fails.append(f"invite check {chk}: got {got}")
+    b = vec["ble"]
+    im = b["info_m"]
+    if ble.info_m(im["sid"], im["nonce"]) != im["m"] or b["info"] != ble.info(im["sid"], im["nonce"]):
+        fails.append("ble INFO m")
+    if ble.owner_check(b["info"][1], vec["keys"]["I"]["pub"], vec["sid"], [im["nonce"]]) != "ours" or \
+            ble.owner_check(b["info"][1], vec["keys"]["I"]["pub"], vec["sid"], ["00" * 16]) != "other" or \
+            ble.owner_check(b["info_pairing"][1], vec["keys"]["X"]["pub"], None, []) != "other":
+        fails.append("ble owner check")
     re = ble.Reassembler()
     for mtu, frames in vec["ble"]["frames_by_att_mtu"].items():
         out = [re.push(bytes.fromhex(fr)) for fr in frames]

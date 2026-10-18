@@ -103,14 +103,14 @@ Followers need the link shown in the app (text + QR). With a debug build (`assem
 
 ### Protocol v2 — sharing and keys (investigation 06)
 
-Spec: [`nostr/PROTOCOL-v2.md`](nostr/PROTOCOL-v2.md). Python reference + end-to-end tests on public relays:
+Spec: [`nostr/PROTOCOL-v2.md`](nostr/PROTOCOL-v2.md). Python primitives (the v2 CLI owner/follower and its
+`cgmshare:join?` links were retired in investigation 24, P15; the independent implementation is
+[`../spec/reference`](../spec/reference), which also joins a real stream as a follower):
 
 ```sh
 cd nostr
 uv run v2/test_cgm2.py                      # offline protocol checks
-uv run v2/scenarios.py --every 10           # share, deny, forged key, revoke, phone change, missed rotation (≈ 2.5 min)
-uv run v2/cli.py owner  --dir secrets/v2-owner --every 30        # long-running owner (writes invite.txt)
-uv run v2/cli.py follow --dir secrets/v2-follower --link '<cgmshare:join?…>'
+cd ../../spec/reference && uv run ogs vectors verify && uv run ogs follow '<invite link>'
 ```
 
 `nostr/android-app/` — **CGM Share** (`dev.spike.cgmshare`, Kotlin): one app, "I wear the sensor" / "I follow
@@ -239,6 +239,21 @@ Phone/emulator: `--es graph '{"defaultHours":6,"ringCount":3}'`, `--es widgetGra
 On the Mac the same settings are `UserDefaults` (`graphHours`, `ringCount`, `ringWindows`, `ringRange`,
 `bandVeryLow` … `bandVeryHigh`, `side`) or Settings → Graph. The Mac widgets have no per-widget settings
 (App Intents need an Xcode project to register; see docs/16).
+
+## `agp-report/` — the AGP report page (Kotlin JVM + Swift, investigation 26)
+
+Engine (modal-day percentiles, daily profiles, sufficiency) + A4 page as a display list, painted by Java2D (PNG) and
+CoreGraphics (vector PDF). Shared fixtures in `fixtures/` (synthetic), checked by the Kotlin tests, the Swift port and
+an independent pandas/numpy script. No emulator.
+
+```sh
+cd agp-report
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew test && ./gradlew run --args="render build/render"      # tests; PNGs + display lists
+uv run --with numpy,pandas python -I check/independent.py fixtures/*.json
+cd mac && swift build -c release && .build/release/AgpMac selftest ../fixtures
+.build/release/AgpMac paint ../build/render/spring-dst.page.json /tmp/report.pdf /tmp/report.png
+```
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 

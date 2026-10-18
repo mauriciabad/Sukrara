@@ -45,6 +45,10 @@ by up to 2 days, so an expiration computed from it makes anything shorter than 2
 request) arrive already expired ("invalid: event expired", found 2026-10-17). Followers accept a key delivery **only if the seal is signed by `I`**; the owner accepts a
 request only with a valid, unexpired invite token (and the owner still confirms it in the UI).
 
+TTLs (Android and Mac, both from now): access request, profile update, rekey request, invite used and declined **7 d**;
+history request **1 d**; key delivery and revoked **30 d**; the invite wrap until the invite expires. A key delivery
+whose `sid` differs from the one the follower already has is rejected: a stream's `sid` never changes.
+
 ### Relay rules (learned while testing, 2026-10-16)
 
 - **NIP-42 AUTH**: some relays only serve kind 1059 `#p` subscriptions to the recipient. Answer
@@ -72,8 +76,11 @@ and writers use it. Same bytes over relays and over BLE (`["EVENT", ev]`, [docs/
 
 - `created_at` = publish time, **strictly increasing per (author, `d`)** (relays drop a same-second replacement).
   `u` (ms, inside the content) is the merge version; `created_at` is not.
-- `o` is kept as created: `phone`, `mac` (legacy-link entries) or `follower` (writer entries). Deletes are the same
-  event with `"del":true` (tombstone, never dropped from the log).
+- `o` is kept as created: `phone`, `mac` (legacy-link entries) or `follower` (writer entries; **every writer sends
+  `follower`**, the Mac included). Deletes are the same event with `"del":true` (tombstone, never dropped from the log).
+- **Writer scope** (investigation 24, P4): a writer may create entries and change or delete **only the entries it
+  created**; the wearer may change any entry. Every receiver remembers the *creator* of each `id`: the key that signed
+  the first version it accepted (any roster device counts as the wearer).
 
 **Owner** (the wearer's phone) publishes its **whole merged log** signed by its device key `D` (the key in
 `roster.devices`, the one that signs live/chunks): its own entries, the Mac's (legacy link), accepted writer
@@ -86,16 +93,21 @@ entries, deletes.
 - Sukrara for Mac follows over v2 like any follower; while it is a writer, its entries go over v2 only (not the
   legacy Mac link), so "Can add entries" governs the Mac too. The legacy link (SPEC §2) refuses entries unless the
   wearer explicitly allows that unauthenticated path on the phone.
-- The owner accepts a writer event only if the author ∈ roster `writers` ∧ active follower (docs/07), merges it (§1)
-  into the log, and so re-publishes it signed by `D` (**the echo**; a BLE writer event is also forwarded as-is to the
-  other BLE centrals).
+- The owner accepts a writer event only if the author ∈ roster `writers` ∧ active follower (docs/07) **and** the `id`
+  is new or that writer created it (the owner keeps the first writer per `id`; an `id` in its log with no writer is the
+  wearer's own), merges it (§1) into the log, and so re-publishes it signed by `D` (**the echo**; a BLE writer event is
+  also forwarded as-is to the other BLE centrals).
 
 **Followers** (Android + Mac) receive treatments:
 - `REQ {"kinds":[30078], "#c":[H("cgm2:treatments:"+sid)], "authors": roster.devices ∪ roster.writers,
   "since": now − 30 d}`; re-issued when the roster's devices or writers change. Over BLE they arrive unasked.
 - Accept iff: valid signature; author ∈ current `roster.devices ∪ roster.writers`; `gk` names a known epoch
   (unknown `gk` from a device ⇒ rekey request, as for chunks); NIP-44 decrypt with `(G_n.sec, author.pub)`;
-  `d` == `H("cgm2:tr:"+sid+":"+id)`; `k` ∈ `rapid|long|carbs|note`.
+  `d` == `H("cgm2:tr:"+sid+":"+id)`; `k` ∈ `rapid|long|carbs|note`; **writer scope**: a writer's version only for a
+  new `id` or one that writer created. When the wearer's copy of a writer's entry (`o` = `follower`) came first, the
+  writer's own copy is ignored (the echo already holds it), not counted as a rejection. A wearer's own entry (`o` ≠
+  `follower`) signed by a device replaces a version a writer created first for that `id`, whatever its `u` (a writer
+  that forged the id before the real entry reached this follower).
 - Merge with SPEC §1 (newest `(u, o)` wins), persist in the follower's own DB, draw them, serve them from the
   follower's Nightscout API (`/api/v1/treatments`, SPEC §5 mapping).
 
@@ -167,7 +179,7 @@ follower sees who is inviting before asking.
   owner's Allow.
 
 **Nearby pairing** (BLE INFO `pair: {t, x, profile}`, 10 minutes) reaches every phone in range, so it keeps the
-**match code** = first 4 decimal digits of `sha256(F.pub_hex + token)`: the follower shows it and the **owner types it**
+**match code** = `int(sha256(F.pub_hex + token)) mod 10000`, zero-padded to 4 digits: the follower shows it and the **owner types it**
 to allow (copy-entry beats compare-and-confirm in usability studies). The single-claim rule applies too.
 
 ## Profiles
@@ -242,7 +254,12 @@ all unmerged as of 2026-10.)
 ## Acceptance rules (followers)
 
 - Roster: author == `I`, newest `created_at` wins.
-- Data (live/chunk): author ∈ current `roster.devices`, `gk` matches a known epoch, decrypts, `v == 2`.
+- Data (live/chunk): author ∈ current `roster.devices`, `gk` matches a known epoch, decrypts, `v == 2`. A chunk's `c`
+  must be `H("cgm2:glucose:"+sid)` and its `d` must be `H("cgm2:h:"+sid+":"+h)` for the payload's own hour `h`.
+- Unknown `gk`: a rekey request only when the event is signed by `I` or a roster device (≤ 1 per `gk` per 5 min), so a
+  stranger can't make followers send them.
+- Key delivery: sealed by `I`, and its `sid` equal to the one already known (if any).
+- Treatments: see [Treatments](#treatments-insulin--carbs--notes--v2-addition-2026-10-16) (writer scope).
 - Never trust a reading because of *where* it came from inside the app — each stored reading records `via`
   (`relay:<host>`), and the follower DB is separate from the owner role's DB.
 

@@ -9,7 +9,7 @@ screenshots so no other apps' notifications show, and keep phone checks read-onl
 
 Automated already (don't repeat by hand): `tools/check/run.sh` (repo rules), Android unit tests
 (`./gradlew :app:testDebugUnitTest`: alert scenarios, graph fixtures, strings parity, stats), Mac self-tests
-(`.build/debug/GlucoseBar -alerts-selftest`, `-graphselftest`). CI runs all of them (`.github/workflows/checks.yml`).
+(`.build/debug/GlucoseBar -alerts-selftest`, `-graphselftest`, `-exportselftest`). CI runs all of them (`.github/workflows/checks.yml`).
 
 Cheap tools:
 
@@ -79,7 +79,9 @@ Cheap tools:
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
       `screencapture -x -R<rect>` with the rect it logs ("panel window … rect x,y,w,h"); never commit them (real data).
 - [ ] Synthetic renders for docs: `GlucoseBar -panelPreview <dir>` (the real panel over test wallpapers), and
-      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
+      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `SUKRARA_DEV=1` in the environment and
+      `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir> -v2NoRelays YES -bleV2 NO`; a dev build refuses
+      to start the full app without `SUKRARA_DEV=1`, LaunchGuard).
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets
@@ -144,3 +146,32 @@ Cheap tools:
 - [ ] Off → the Sukrara calendar is gone (`content query --uri content://com.android.calendar/calendars`).
 - [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
       away again when the setting is turned off.
+
+## Q14 Apps on this phone and Health Connect
+
+- [ ] Emulator (wearer, debug = synthetic glucose) with GlucoDataHandler installed: Settings → Share with apps lists
+      it under *Apps on this phone* with its own icon, switch **off**; `adb logcat -s Sukrara.broadcast` stays silent.
+- [ ] Switch on → each minute `→ de.michelinside.glucodatahandler 3`; GDH (`logcat | grep GDH`) logs
+      `XDripBroadcastReceiver … SourceInfo => Libre3` and `Glucodata received from XDRIP`, and shows the value.
+- [ ] `--es cmd fakeSensor --es serial TEST…`: the next minute sends 4 (SENSOR_ACTIVATE), GDH `setSensorStartTime`.
+- [ ] Source → Juggluco: the app switches are greyed with "Only while Sukrara reads the sensor itself"; nothing sent.
+- [ ] Follower role: the page has neither group.
+- [ ] Health Connect on → Health Connect's own sheet; Don't allow → stays off with "needs access in Health Connect";
+      Allow → `Sukrara.health backfill N`, Health Connect → Blood glucose lists Sukrara entries, one per minute.
+- [ ] Off → On again: the `wrote …` ids repeat the first run's ids; still one entry per minute in Health Connect.
+- [ ] Spanish: the two groups and summaries are translated.
+
+## Q15 Data export
+
+- [ ] Emulator (wearer, debug = synthetic glucose): Settings → Export data; the count updates when the period changes;
+      This sensor shows only when a sensor is known (`--es cmd fakeSensor`).
+- [ ] *Save file*: the system picker suggests `sukrara-glucose-<from>-to-<to>.csv`; saving shows "File saved";
+      `adb shell cat` the file (or open it in Files): line 1 `Glucose Data,…`, 5-minute rows, treatments with
+      `Entered By`.
+- [ ] *Share*: the share sheet shows the CSV (a preview line with the file name, no person's name); sending it to an
+      app (Drive, Gmail, Files) attaches the file.
+- [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.
+- [ ] Mac: Glucose Report › Report › *Export CSV…*: the save panel suggests the same name for the report's period; the
+      file opens in Numbers.
+- [ ] Import check (optional): `spikes/export-fixtures/tidepool-check` runs Tidepool Uploader's LibreView driver on a
+      file and prints the records it would upload.

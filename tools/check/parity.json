@@ -160,6 +160,15 @@
         "en": ["spikes/showcase-android/app/src/main/res/values/strings.xml"],
         "es": ["spikes/showcase-android/app/src/main/res/values-es/strings.xml"]
       }
+    },
+    {
+      "name": "export",
+      "why": "One CSV export: Android export/GlucoseCsv.kt and Mac GlucoseCsv.swift write the same bytes (spikes/export-fixtures)",
+      "level": "fail",
+      "sides": {
+        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/GlucoseCsv.kt"],
+        "mac": ["spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift"]
+      }
     }
   ],
   "features": {

@@ -34,6 +34,8 @@
     <!-- Libre 3: start or take over a sensor with an NFC tap (ui/SensorScreen, direct/Libre3Nfc) -->
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <!-- investigation 22: Health Connect blood glucose (opt-in switch in Share with apps) -->
+    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
 
     <!-- Only this app may feed the SystemUI hook (status/RootStatusBar → hook/SystemUiHook). -->
     <permission
@@ -44,6 +46,11 @@
     <!-- Sensor end in calendar: the settings hint shows only when Google Calendar is installed (and opens it) -->
     <queries>
         <package android:name="com.google.android.calendar" />
+        <!-- investigation 22: which apps declare a receiver for Sukrara's broadcasts (bridge/AppBroadcasts) -->
+        <intent><action android:name="com.eveningoutpost.dexdrip.BgEstimate" /></intent>
+        <intent><action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" /></intent>
+        <intent><action android:name="com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE" /></intent>
+        <intent><action android:name="glucodata.Minute" /></intent>
     </queries>
 
     <application
@@ -80,6 +87,17 @@
                 <data android:pathPrefix="/join" />
             </intent-filter>
         </activity>
+        <!-- Android 14+: Health Connect grants health permissions only to apps that show their privacy rationale -->
+        <activity-alias
+            android:name=".ui.HealthPermissionsRationale"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".ui.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
         <!-- Tapping a Libre sensor while Sukrara isn't in front opens it (Sensor screen switch, ui/NfcLaunch). The Sensor
              screen's reader mode still takes the tap first when it's open. -->
         <activity-alias
@@ -205,6 +223,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_lockscreen" />
         </receiver>
+        <!-- Settings → Export data: the CSV handed to the share sheet (export/Export.kt, cache/export/ only) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.export"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/export_paths" />
+        </provider>
         <!-- widgets/WidgetProbe.kt: measures the size the launcher really gives a graph widget -->
         <provider
             android:name=".widgets.ProbeProvider"

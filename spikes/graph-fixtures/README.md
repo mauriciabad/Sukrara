@@ -62,3 +62,13 @@ Clock times in the device's 12/24-hour setting rather than the locale's default,
 plain spaces.
 
 Not covered yet: mute-line endpoints, slot order.
+
+## Time shares against a goal (`share/*.json`)
+
+How a time-in-range share is written next to its goal (report card / Mac report rows, the rings' number, the
+coverage note). Run by `GraphFixtureTest.share` (Android, `ShareText` in graph/GlucoseMetrics.kt) and `-graphselftest`
+(Mac, `ShareText` in SukraraGraph.swift). A case: `name`; `x` (the share, 0..1); `goal` (`veryHigh`, `above`,
+`inRange`, `below`, `veryLow`, `coverage` = at least 70 %, or `null`); `locale`; `expect` (the number without "%").
+Rule: whole percent from 10 %, one decimal under 10 %, and more decimals (up to two) whenever the rounded number would
+be on the other side of the goal than the value; a non-zero share that rounds to 0 is `<0.1`.
+

@@ -164,7 +164,30 @@ enum GraphFixtures {
         }
         print("graph fixtures: \(n) cases, \(failures) failed")
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
-            + clock(dir.appendingPathComponent("clock"))
+            + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
+    }
+
+    /// Time shares against a goal (spikes/graph-fixtures/share/*.json, the files GraphFixtureTest.share runs).
+    static func share(_ dir: URL) -> Int {
+        var failures = 0, n = 0
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        if files.isEmpty { print("FAIL share fixtures: none in \(dir.path)"); return 1 }
+        let goals: [String: Goal] = ["veryHigh": .veryHigh, "above": .above, "inRange": .inRange, "below": .below, "veryLow": .veryLow]
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL share/\(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let loc = Locale(identifier: c["locale"] as? String ?? "en-US")
+                let x = (c["x"] as? NSNumber)?.doubleValue ?? 0
+                let g = c["goal"] as? String
+                let got = g == "coverage" ? ShareText.coverage(x, locale: loc) : ShareText.of(x, g.flatMap { goals[$0] }, locale: loc)
+                if got != c["expect"] as? String { print("FAIL share/\(f): \(c["name"] as? String ?? "?") (got \(got))"); failures += 1 }
+                n += 1
+            }
+        }
+        print("share fixtures: \(n) cases, \(failures) failed")
+        return failures
     }
 
     /// The sensor badge, warm-up and countdown ring (spikes/graph-fixtures/sensor, the files GraphFixtureTest.sensor runs).

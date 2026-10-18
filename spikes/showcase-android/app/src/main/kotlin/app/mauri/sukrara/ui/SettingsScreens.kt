@@ -28,6 +28,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -144,6 +145,8 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link(stringResource(R.string.backup_title), stringResource(R.string.settings_backup_summary,
                 if (u.backupSavedAt > 0) stringResource(R.string.backup_saved_at, date(u.backupSavedAt)) else stringResource(R.string.backup_not_backed_up)),
                 leading = { CategoryIcon(R.drawable.ic_sym_backup, if (u.backupSavedAt > 0) Category.GREEN else Category.RED) }, to = "backup")
+            link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
+                leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
         SettingsGroup {
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_wearer), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
@@ -154,9 +157,17 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
 }
 
 @Composable
-private fun appsSummary(f: FeatureState, wearer: Boolean) = listOfNotNull(
-    "LibreView".takeIf { wearer && f.libreview }, "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
-).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
+private fun appsSummary(f: FeatureState, wearer: Boolean): String {
+    val ctx = LocalContext.current
+    val allowed by app.mauri.sukrara.bridge.AppBroadcasts.allowed.collectAsState()
+    val hc by app.mauri.sukrara.bridge.HealthConnect.on.collectAsState()
+    remember { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.HealthConnect.init(ctx) }
+    val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
+    return listOfNotNull(
+        "LibreView".takeIf { wearer && f.libreview }, apps, "Health Connect".takeIf { wearer && hc },
+        "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
+    ).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
+}
 
 /** Uploading to LibreView matters (it's the doctor's record): ask until it's set up or the user says not now. */
 @Composable
@@ -446,6 +457,7 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
                     else -> stringResource(R.string.settings_off) + " · " + lv.email
                 }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, to = "libreview")
             }
+            phoneAppsGroups(f.source == "direct")
         }
         SettingsGroup("xDrip+") {
             switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +
@@ -471,6 +483,56 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
         text = { Text(Features.nightscoutSecret(ctx), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
         confirmButton = { TextButton(onClick = { secret = false }) { Text(stringResource(R.string.recovery_close)) } },
     )
+}
+
+/**
+ * Investigation 22 (wearer only): the installed apps that listen for glucose broadcasts, each with its own switch (off
+ * until the user allows it), and Health Connect behind its own permission sheet.
+ */
+@Composable
+private fun phoneAppsGroups(direct: Boolean) {
+    val ctx = LocalContext.current
+    val allowed by app.mauri.sukrara.bridge.AppBroadcasts.allowed.collectAsState()
+    // PackageManager queries off the main thread; null until they answer
+    val receivers by produceState<List<app.mauri.sukrara.bridge.AppBroadcasts.Receiver>?>(null) {
+        value = withContext(Dispatchers.IO) { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.AppBroadcasts.receivers(ctx) }
+    }
+    SettingsGroup(stringResource(R.string.apps_phone_group)) {
+        if (receivers?.isEmpty() == true) info(stringResource(R.string.apps_phone_none))
+        for (r in receivers.orEmpty()) switch(r.label, direct && r.pkg in allowed, enabled = direct,
+            summary = if (direct) null else stringResource(R.string.apps_phone_needs_direct), leading = { PackageIcon(r.pkg) }) { v ->
+            app.mauri.sukrara.bridge.AppBroadcasts.setAllowed(ctx, r.pkg, v)
+        }
+    }
+    val hc = app.mauri.sukrara.bridge.HealthConnect
+    remember { hc.init(ctx) }
+    val hcOn by hc.on.collectAsState()
+    var granted by remember { mutableStateOf(hc.granted(ctx)) }
+    var denied by remember { mutableStateOf(false) }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        granted = ok; denied = !ok
+        if (ok) hc.setOn(ctx, true)
+    }
+    SettingsGroup("Health Connect") {
+        val on = hcOn && granted
+        switch(stringResource(R.string.apps_health_connect), on, enabled = hc.available(ctx), icon = R.drawable.ic_sym_monitoring, summary = stringResource(when {
+            on -> R.string.apps_health_connect_on
+            denied || (hcOn && !granted) -> R.string.apps_health_connect_denied
+            else -> R.string.apps_health_connect_summary
+        })) { v ->
+            if (!v) hc.setOn(ctx, false) else if (hc.granted(ctx)) { granted = true; hc.setOn(ctx, true) } else ask.launch(hc.PERMISSION)
+        }
+    }
+}
+
+/** An installed app's own launcher icon (round, like [AppIcon]). */
+@Composable
+private fun PackageIcon(pkg: String) {
+    val ctx = LocalContext.current
+    val bmp = remember(pkg) { runCatching { ctx.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull() }
+    if (bmp != null) androidx.compose.foundation.Image(bmp, contentDescription = null,
+        modifier = Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape))
+    else androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_sym_apps), contentDescription = null, modifier = Modifier.size(24.dp))
 }
 
 @Composable
@@ -654,6 +716,10 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
         SettingsGroup {
             link(stringResource(R.string.graph_title), gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
             link(stringResource(R.string.apps_title), appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
+        }
+        SettingsGroup {
+            link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
+                leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
         SettingsGroup {
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_follower), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")

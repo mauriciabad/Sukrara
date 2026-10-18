@@ -37,3 +37,6 @@ local.properties
 captures/
 
 /tmp/
+
+# Python bytecode (spike check scripts)
+__pycache__/

@@ -86,6 +86,13 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   tests, loaded from the resources in the app) — add the field there too. `StringsParityTest` fails on a missing key
   or argument. The alert engine stays English (scenarios); the notifier words its headlines (`AlertNotifier.headline`).
   Enum and option labels on the settings pages resolve in `ui/SettingsLabels.kt` (models keep no text).
+- **Mac self-tests and dev runs**: run a self-test only after a build that succeeded (`swift build && .build/debug/GlucoseBar
+  -v2selftest`, or `set -e`). A failed build leaves the previous binary, and on 2026-10-19 such a stale binary
+  didn't know the new flag and started as a second Sukrara on the user's real Keychain item, data files and phone. The
+  binary now refuses that (`LaunchGuard`, `-argsselftest`, CI): an unknown `-…selftest`, a bare unknown `-flag` or a
+  stray word exits 2, and a dev build (`swift build` output, or an app inside the repo like `build/Sukrara.app`)
+  starts the full app only with `SUKRARA_DEV=1` (exit 3 otherwise). With `SUKRARA_DEV=1`, also pass
+  `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir>` to keep the real data out.
 - **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` = no widgets), then `./dmg.sh` →
   `build/Sukrara-<ver>.dmg` (needs `uv tool install dmgbuild`). **Releases attach the dmg** (what the README's
   Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. Publishing a release also updates the Homebrew cask (`mauriciabad/homebrew-tap`, `.github/workflows/homebrew-tap.yml`; needs the `HOMEBREW_TAP_DEPLOY_KEY` secret, docs/20). The user's daily

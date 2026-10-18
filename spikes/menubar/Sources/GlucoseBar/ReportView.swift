@@ -19,7 +19,7 @@ enum GlucoseReport {
         var y: CGFloat = 14
         Ink.draw(ctx, "Glucose report (\(days)d)", x: 0, y: y, title, pal.ink)
         if !m.empty {
-            Ink.draw(ctx, "sensor active \(Int((m.tir.coverage * 100).rounded())) %", x: w, y: y, small, pal.inkSoft, align: 1)
+            Ink.draw(ctx, "sensor active \(ShareText.coverage(m.tir.coverage)) %", x: w, y: y, small, pal.inkSoft, align: 1)
         }
         y += 8
         guard !m.empty else {
@@ -28,7 +28,7 @@ enum GlucoseReport {
         }
         if m.tir.coverage < Goal.minCoverage {
             y += 13
-            Ink.draw(ctx, "Only \(Int((m.tir.coverage * 100).rounded())) % of the window has sensor data; the report needs 70 %.",
+            Ink.draw(ctx, "Only \(ShareText.coverage(m.tir.coverage)) % of the window has sensor data; the report needs 70 %.",
                      x: 0, y: y, small, pal.high)
         }
         y += 6
@@ -44,7 +44,6 @@ enum GlucoseReport {
             ctx.fillPath()
             Ink.draw(ctx, text, x: r.minX + 5, y: cy + 3.5, chip, c)
         }
-        func pct(_ x: Double) -> String { x > 0 && x < 0.005 ? "<1%" : "\(Int((x * 100).rounded()))%" }
 
         // Time in ranges, high on top: a stacked bar, and a row per range or group total.
         struct Row { var label: String; var mg: String; var share: Double; var goal: Goal?; var strong: Bool }
@@ -65,7 +64,7 @@ enum GlucoseReport {
             let cy = y + rowH / 2
             Ink.draw(ctx, r.label, x: textX, y: cy + 4, r.strong ? strong : name, r.strong ? pal.ink : pal.inkSoft)
             if !r.mg.isEmpty { Ink.draw(ctx, r.mg, x: mgX, y: cy + 4, small, pal.inkSoft) }
-            Ink.draw(ctx, pct(r.share), x: pctR, y: cy + 4.5, r.strong ? big : mid, r.strong ? pal.ink : pal.inkSoft, align: 1)
+            Ink.draw(ctx, ShareText.of(r.share, r.goal) + "%", x: pctR, y: cy + 4.5, r.strong ? big : mid, r.strong ? pal.ink : pal.inkSoft, align: 1)
             if let g = r.goal { goalChip(g, right: w, mid: cy) }
             y += rowH
             if i == 2 || i == 4 {               // a hairline between above | target | below
