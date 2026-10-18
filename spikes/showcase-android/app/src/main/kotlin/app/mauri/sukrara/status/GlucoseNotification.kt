@@ -68,6 +68,47 @@ object GlucoseNotification {
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
     }
 
+    /** Delayed (conflated) posts run here, off the main thread. */
+    private val poster by lazy {
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor { Thread(it, "Sukrara.notify").apply { isDaemon = true } }
+    }
+    private val gate = PostGate(1_000, System::currentTimeMillis) { d, run ->
+        poster.schedule({ runCatching(run).onFailure { Log.w("Sukrara.notify", "post: $it") } }, d, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    /**
+     * The only way the roles post [ID] after `startForeground`: skipped when [key] (see [contentKey]) is what was
+     * posted last, at most one post per second, a burst conflated into its latest content ([PostGate]).
+     * [build] runs when the post happens, so a delayed post shows the newest state.
+     */
+    fun post(c: Context, key: Any?, force: Boolean = false, build: () -> Notification, onPosted: () -> Unit = {}) {
+        val app = c.applicationContext
+        gate.submit(key, force) {
+            runCatching { app.getSystemService(NotificationManager::class.java).notify(ID, build()) }
+                .onSuccess { onPosted() }.onFailure { Log.w("Sukrara.notify", "notify: $it") }
+        }
+    }
+
+    /** Re-post the current notification unchanged (SystemUI rebuilds its icon list on a notification change). */
+    fun repost(c: Context) {
+        val nm = c.applicationContext.getSystemService(NotificationManager::class.java)
+        val cur = runCatching { nm.activeNotifications.firstOrNull { it.id == ID }?.notification }.getOrNull() ?: return
+        post(c, Any(), force = true, build = { cur })
+    }
+
+    /**
+     * Everything [build] reads, so equal keys mean the same card: the inputs, the minute (age text, freshness steps,
+     * sensor countdown), the sensor's life, the treatments, graph / alert settings, theme, locale, Live Update grant.
+     */
+    fun contentKey(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): List<Any?> = listOf(
+        r?.t, r?.sgv, r?.rate, chip, icon, detail, System.currentTimeMillis() / 60_000,
+        app.mauri.sukrara.core.SensorLife.current.value,
+        app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode(),
+        GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
+        c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
+        chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
+    )
+
     fun build(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): Notification {
         // a tap (card or Live Update chip) opens the quick treatment dialog over any app; it opens the app itself when
         // this phone can't add entries

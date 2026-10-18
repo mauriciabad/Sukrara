@@ -114,10 +114,7 @@ object RootStatusBar {
     fun repostLater(ctx: Context) {
         val app = ctx.applicationContext
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            runCatching {
-                val nm = app.getSystemService(android.app.NotificationManager::class.java)
-                nm.activeNotifications.firstOrNull { it.id == GlucoseNotification.ID }?.let { nm.notify(it.id, it.notification) }
-            }.onFailure { Log.w(TAG, "re-post", it) }
+            runCatching { GlucoseNotification.repost(app) }.onFailure { Log.w(TAG, "re-post", it) }
         }, 1_500)
     }
 
