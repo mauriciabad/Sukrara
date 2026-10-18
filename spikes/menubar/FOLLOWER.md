@@ -58,9 +58,9 @@ bundle id **`app.mauri.sukrara.poc`**, the brand icon `spikes/brand/assets/sukra
 
 ## How to use
 
-- Menubar → **Follow someone…** → paste the `https://sukrara.mauri.app/join#…` link (pre-filled if it's on the clipboard) and a
+- Settings → Following → **Follow with Invite Link…** (or the menu's **Follow Someone…** before any data) → paste the `https://sukrara.mauri.app/join#…` link (pre-filled if it's on the clipboard) and a
   name for this Mac (defaults to the computer name) → a window shows the **match code** until the wearer allows it.
-- **Follow from QR image…** decodes a screenshot/photo of the share QR (CoreImage, no new dependency).
+- **Follow from QR Image…** (same pane) decodes a screenshot/photo of the share QR (CoreImage, no new dependency).
 - Opening a `sukrara:join#…` link launches the dialog (URL scheme registered by `bundle.sh`).
 - **Nearby (Bluetooth, no internet, no QR)**: when the wearer opens *Pair nearby*, GlucoseBar offers
   "Follow <phone> nearby?"; the request and the key travel over GATT, same match code.
@@ -76,9 +76,10 @@ rising fast, no data; episodes that survive a brief exit, re-alert every `repeat
 alert; highs muted after rapid insulin and when the trend brings it back under the high threshold soon, lows after
 carbs; when a treatment's window ends it alerts at once. Checked by the shared timelines (`-alerts-selftest`).
 
-- **Menu → Alerts…** (⌘,) opens a settings window (HIG macOS settings: preference toolbar with one *Alerts* pane, no
-  minimize/zoom, changes apply at once): master switch, state line ("High · muted: insulin 12 min ago"), alert source,
-  per kind on/threshold/repeat/sound + ▶︎ preview, quiet-highs options, sound pack + "Different sound each time".
+- **Menu → Settings…** (⌘,) → **Alerts** (HIG macOS settings: preference toolbar, no minimize/zoom, changes apply at
+  once): master switch, state line ("High · muted: insulin 12 min ago"), alert source, one row per kind (name, summary,
+  switch, **Details…** sheet with threshold / repeat / sound + ▶︎ / Like an alarm), quiet highs and lows, sound pack +
+  "Different sound each time".
 - **Settings**: one JSON string, `defaults read app.mauri.sukrara.poc alertSettings` (SPEC §3 keys and defaults; any
   missing key keeps its default). The old `alarms` bool is gone.
 - **Alert source**: *Same as the wearer* (default) mirrors the wearer's kind **21079** `alert` events (relays: the
@@ -115,7 +116,9 @@ carbs; when a treatment's window ends it alerts at once. Checked by the shared t
 | `V2SelfTest.swift` | `GlucoseBar -v2selftest`: genuine vs. forged events through `onEvent` |
 | `Migration.swift` | one-time GlucoseBar → Sukrara copy (defaults, Application Support, follower Keychain item) |
 | `Alerts.swift` | alert settings (SPEC §3 JSON), `AlertEngine` (rules, mutes, repeats, injected clock), `Alerts` (notifications, sounds, wearer mirroring, test hooks) |
-| `AlertsUI.swift` | "Alerts…" settings window (SwiftUI in an NSWindow, preference toolbar) |
+| `AlertsUI.swift` | the Alerts pane of the Settings window and its per-kind Details sheet |
+| `SettingsUI.swift` | the Settings window (General, Graph, Alerts, Following; preference toolbar) and the app's main menu (⌘W, Edit) |
+| `ReportWindow.swift` | the Glucose Report window (1/7/14/30 days) |
 | `AlertsSelfTest.swift` | `GlucoseBar -alerts-selftest` |
 | `main.swift` | `Following` controller, wiring, debug commands (`follow-status`, `readings`, `unfollow`, `v2-treat`, `follower-pub`) |
 

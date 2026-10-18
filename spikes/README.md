@@ -23,7 +23,7 @@ swift run GlucoseBar -snapshot /tmp/item.png     # dump the live menubar button 
 swift run GlucoseBar -alerts-selftest    # glucose alert rules (spikes/alerts/SPEC.md) over a scripted series
 open build/Sukrara.app --args -alert-test very_low     # one test notification with its sound (-alert-feed "200,1")
 ```
-Glucose alerts: menu → **Alerts…** (settings window; `alertSettings` default = the SPEC §3 JSON); by default the Mac
+Glucose alerts: menu → **Settings…** → Alerts (`alertSettings` default = the SPEC §3 JSON); by default the Mac
 mirrors the wearer's `alert` events and checks "no data" itself. Details: [FOLLOWER.md](menubar/FOLLOWER.md).
 The Swift target is still called `GlucoseBar` (hence `swift run GlucoseBar`); the bundle is Sukrara. Options are
 `UserDefaults`, so for the `.app` use `defaults write app.mauri.sukrara.poc <key> <value>` (the first launch copies the
@@ -223,7 +223,7 @@ cd ../menubar && swift run GlucoseBar -graphselftest     # the Swift port's chec
 Phone/emulator: `--es graph '{"defaultHours":6,"ringCount":3}'`, `--es widgetGraph '<id>:{"hours":3,"rings":1}'`,
 `--es cmd pinWidget --es kind combined` (asks the launcher to add a widget; the app must be in the foreground).
 On the Mac the same settings are `UserDefaults` (`graphHours`, `ringCount`, `ringWindows`, `ringRange`,
-`bandVeryLow` … `bandVeryHigh`, `side`) or the dropdown's Graph submenu. The Mac widgets have no per-widget settings
+`bandVeryLow` … `bandVeryHigh`, `side`) or Settings → Graph. The Mac widgets have no per-widget settings
 (App Intents need an Xcode project to register; see docs/16).
 
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)

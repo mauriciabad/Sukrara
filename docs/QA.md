@@ -58,8 +58,11 @@ Cheap tools:
 
 ## Q6 Mac menubar dropdown
 
-- [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour, dropdown card,
-      graph, report, treatments list; light and dark menubar.
+- [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour, dropdown card
+      on its platter, treatments list, Glucose Report window, Settings (each pane; ⌘, ⌘W, paste in the invite field);
+      light and dark menubar, Increase Contrast and Reduce Transparency (System Settings → Accessibility → Display).
+- [ ] Offscreen renders: `GlucoseBar -menuPreview out.png` (light/dark/high contrast) and
+      `-settingsSnapshot <dir>` / `-reportSnapshot out.png` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets

@@ -780,6 +780,68 @@ screen widget's black tint looks bad in light mode, and "Blur" is really blurred
 | *In range in white* on the lock screen (`lockWhite`) | dark-only; the appearance option replaces it |
 | The trend metric in the Live Update card | the chip's arrow and the title already say it; the room goes to the slots |
 
+## Mac UI/UX round (2026-10-18)
+
+The user: the graph in the menubar dropdown is hard to read, the graph has gaps although Nostr and Bluetooth should
+fill them, the menu shows too much (the report doesn't belong there), the Mac needs a proper settings window, and the
+dmg triggers *Apple could not verify "Sukrara" is free of malware*. Then, mid-round: the alerts settings look
+terrible. Guidelines read for every decision: Apple HIG [The menu bar](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar),
+[Menus](https://developer.apple.com/design/human-interface-guidelines/menus),
+[Settings](https://developer.apple.com/design/human-interface-guidelines/settings),
+[Windows](https://developer.apple.com/design/human-interface-guidelines/windows),
+[Materials](https://developer.apple.com/design/human-interface-guidelines/materials),
+[Color](https://developer.apple.com/design/human-interface-guidelines/color),
+[Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility).
+
+![Before: the old menu](img/mac-ux/menu-before-dark.png) ![After: dark](img/mac-ux/menu-dark.png) ![After: light](img/mac-ux/menu-light.png)
+
+*Synthetic data (`GlucoseBar -menuPreview`). Left: the menu before this round (report, follow items, Graph
+submenu, Alerts…, Refresh). Middle/right: now, on a simulated menu material over a bright wallpaper.*
+Old menu [light](img/mac-ux/menu-before-light.png) · no platter, same wallpaper: [light](img/mac-ux/card-no-platter-light.png), [dark](img/mac-ux/card-no-platter-dark.png) ·
+[Increase Contrast, dark](img/mac-ux/menu-dark-hc.png) · [light](img/mac-ux/menu-light-hc.png)
+
+![Settings → Alerts](img/mac-ux/settings-alerts.png) ![Details sheet](img/mac-ux/settings-alert-details.png)
+![Settings → Graph](img/mac-ux/settings-graph.png) ![General](img/mac-ux/settings-general.png) ![Following](img/mac-ux/settings-following.png)
+
+| Added | Why (guideline) | Where |
+|---|---|---|
+| The card on a platter in the palette's own background (94 % opaque; opaque + hairline with Reduce Transparency / Increase Contrast) | The palette was tuned for opaque grounds (phone, widgets); on the menu's translucent material the wallpaper bled through: axis labels, % labels and ring captions fell to ~2.5:1 over a bright wallpaper. On the platter they are ≥ 5:1 (WCAG AA 4.5:1). HIG Materials: "thicker materials … provide better contrast for text and other elements with fine features"; Color/Accessibility: meet AA, add a higher-contrast variant for Increase Contrast | `MacSurface`, `CardView` (StatusController.swift) |
+| Increase Contrast variant: secondary ink ≥ 11:1, grid ≥ 3.4:1 against the platter | HIG Accessibility: "ensure it at least provides a higher contrast color scheme when … Increase Contrast is turned on" | `MacSurface.palette` |
+| Info lines as real labels in the system label colours (not disabled items) | Disabled menu items mean "unavailable command" and are dimmed below readable contrast (HIG Menus) | `InfoView` |
+| Menu = glance + frequent actions: card, info, last 24 h treatments (≤ 6), Log Treatment…, Glucose Report…, Settings… ⌘,, Quit | HIG Menus: "be mindful of menu length", most frequent items first, group with separators, title-style capitalization, ellipsis when more input follows; HIG The menu bar: a menu, not a popover | `StatusController` |
+| Glucose Report in its own window (period picker above it, position remembered) | 300 pt of report made the menu long; the period is a task-specific option, so it sits with the report (HIG Settings › Task-specific options) | `ReportWindow.swift` |
+| Settings window: General · Graph · Alerts · Following | HIG Settings (macOS): toolbar of panes, non-customizable, title = pane, minimize/zoom dimmed, window takes the pane's size, restore the last pane, ⌘, | `SettingsUI.swift` |
+| Graph pane with everything from the old Graph submenu (two levels deep) plus the six ranges (were `defaults write` only) | HIG Menus: "use submenus sparingly", "limit the depth"; settings belong in the settings window | `GraphModel`, `GraphSettingsView` |
+| Alerts pane redesigned (user: "looks terrible"): one row per alert with a summary and a switch, Details… sheet for threshold / repeat / sound / like an alarm | macOS System Settings' own pattern (Notifications, Wi-Fi details); HIG Settings: keep it scannable | `AlertsUI.swift` |
+| Following pane (follow by link / QR, state, Stop Following… with confirmation) | Configuration out of the menu; destructive action confirmed | `FollowingModel`, `FollowingView` |
+| Open at login (SMAppService) | HIG The menu bar: let people decide whether the extra is in the menu bar | `GeneralModel` |
+| A main menu (⌘W, ⌘Q, Edit) for the windows | A menubar-only app has no Edit menu, so ⌘V didn't paste the invite link and ⌘W didn't close windows | `MainMenu` |
+| Backfilled readings kept (graph gaps) + PROTOCOL-v2 *Missing history* request + chunk window from the newest stored reading | The gaps were data the Mac had received and dropped (see below) | `main.swift`, `NostrV2.swift` |
+| Developer ID + notarization path in `bundle.sh` / `dmg.sh`; first-open steps in the README and site | Gatekeeper (below) | `spikes/menubar` |
+
+**Gaps.** The data existed and arrived: every missing hour came in as full 72-reading chunks over relays and
+Bluetooth, many times. `Store.ingest(history:)` merged them into the 3 h live window, trimmed it, and only then copied
+that window into the 31-day store, so anything older than 3 h before the newest reading was dropped — after every
+launch, wake and reconnect. Backfill now goes straight into the store; a relaunch of the test build filled the
+10-18 01:25–08:43 gaps. An older hole (10-16 14:00–16:00) stays: it is outside the 13 h chunk window and the 12 h
+*Missing history* check that the protocol defines.
+
+**Gatekeeper.** The message is what macOS shows for any app that isn't notarized; only a Developer ID signature plus
+Apple's notarization removes it, and that needs the paid Apple Developer Program. `bundle.sh` / `dmg.sh` now do the
+whole release path (`SIGN_ID="Developer ID Application: …" NOTARY_PROFILE=…`, NEXT.md §5); until then the
+development-signed dmg verifies cleanly (`syspolicy_check distribution`: only "Notary Ticket Missing") and users
+click Open Anyway once.
+
+| Discarded | Why |
+|---|---|
+| A SwiftUI `Settings` scene | The app is AppKit (`NSApplication.run`, no SwiftUI `App`); the same window (preference toolbar of SwiftUI forms) is built directly |
+| A sidebar settings window (System Settings style) | Four panes fit a toolbar; HIG Settings describes the toolbar of panes for app settings |
+| A unit (mg/dL / mmol/L) setting | The graph, report and alerts are mg/dL-only on the Mac; a switch that changes only the menubar number would mislead. HIG Settings: minimize settings |
+| Source toggles (Wi-Fi / Bluetooth / Nostr) | They take effect only at launch; General shows the source and *Reconnect Now* instead |
+| Changing the shared graph palette (grid, bands) on every platform | On opaque grounds (phone, widgets) it reads as designed; the problem was the menu material, so the fix is Mac-only and the shared drawing code is unchanged |
+| Screenshots of the live menu | This session has no Screen Recording / Accessibility permission (`screencapture`: "could not create image from display"); the live build was run and its windows rendered offscreen, the menu simulated |
+| The report inside Settings | It is data, not a setting |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

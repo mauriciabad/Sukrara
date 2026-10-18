@@ -103,12 +103,18 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   Android's app settings.
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
-- The number and trend arrow in the menubar, coloured by range; the dropdown shows the same graph card as the phone
-  (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the *Eat carbs* / *Take insulin*
-  badge and the last-treatment slot), set from its Graph submenu. [01](docs/01-connectivity.md), [16](docs/16-graph.md)
-- Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone.
-  The menu shows who you follow (name and picture). Keys stay in the macOS Keychain. [07](docs/07-bluetooth-followers.md)
-- The same glucose alerts and sound packs as the phone (menu → **Alerts…**): alert when the wearer's phone does, or
+- The number and trend arrow in the menubar, coloured by range. The dropdown is a glance: the same graph card as the
+  phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the *Eat carbs* / *Take
+  insulin* badge and the last-treatment slot) on its own solid platter so it stays readable on any wallpaper (light,
+  dark, Increase Contrast, Reduce Transparency), where the data comes from, the last 24 h of treatments and **Log
+  Treatment…**, then **Glucose Report…** (its own window, 1/7/14/30 days), **Settings…** (⌘,) and Quit.
+  [01](docs/01-connectivity.md), [16](docs/16-graph.md)
+- A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
+  six ranges and Open at Login; it reopens on the last pane.
+- Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone
+  (Settings → Following). The menu shows who you follow (name and picture). Keys stay in the macOS Keychain. Hours
+  the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
+- The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does, or
   with the Mac's own settings. [15](docs/15-alerts.md)
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
 - Desktop and Notification Center widgets (value, graph, graph + value) with the same card, redrawn every minute.
@@ -261,7 +267,8 @@ and confirm with your password or Touch ID. Once only; Control-click → Open no
 [Safely open apps on your Mac](https://support.apple.com/en-us/102445)). Allow Bluetooth.
 Desktop widgets: right-click the desktop → **Edit Widgets…** → Sukrara. (Scripts can use the zip instead:
 `unzip Sukrara-mac-0.11.13.zip && xattr -dr com.apple.quarantine Sukrara.app && open Sukrara.app`.) To follow end-to-end encrypted: on the phone,
-**Share** (copy the `https://sukrara.mauri.app/join#…` link), then in the menubar **Follow someone…**, paste, and
+**Share** (copy the `https://sukrara.mauri.app/join#…` link), then in Sukrara's **Settings → Following → Follow with Invite Link…** (or **Follow Someone…** in
+the menu before the first follow), paste, and
 Allow on the phone. Sukrara for Mac 0.11 and the phone app 0.11 must be used together: older builds read only the
 old, long links. On the Mac, the link's web page also has an
 **Open in Sukrara** button. Nearby pairing over

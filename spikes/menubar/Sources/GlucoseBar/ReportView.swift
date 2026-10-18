@@ -110,7 +110,7 @@ enum GlucoseReport {
     }
 }
 
-/// The report as a menu item view (flipped, sized to its content).
+/// The report as a view (flipped, sized to its content): the Glucose Report window (ReportWindow.swift).
 final class ReportView: NSView {
     var metrics: GlucoseMetrics? { didSet { needsDisplay = true } }
     var bands = Bands()
@@ -132,7 +132,7 @@ final class ReportView: NSView {
         let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         ctx.saveGState()
         ctx.translateBy(x: inset.left, y: inset.top)
-        GlucoseReport.draw(ctx, width: bounds.width - inset.left - inset.right, m: m, bands: bands, days: days, GraphPalette.of(dark: dark))
+        GlucoseReport.draw(ctx, width: bounds.width - inset.left - inset.right, m: m, bands: bands, days: days, MacSurface.palette(dark: dark))
         ctx.restoreGState()
     }
 }

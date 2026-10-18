@@ -288,11 +288,10 @@ final class AlertEngine {
 
 // MARK: the Mac app side
 
-/// Owns the settings, the engine and the notifications. `Alerts…` in the menu opens AlertsWindow (AlertsUI.swift).
+/// Owns the settings, the engine and the notifications. Settings › Alerts (SettingsUI.swift, AlertsUI.swift) edits them.
 @MainActor final class Alerts: NSObject, UNUserNotificationCenterDelegate {
     private(set) var settings = AlertSettings.load()
     let engine: AlertEngine
-    let menuItem = NSMenuItem(title: "Alerts…", action: nil, keyEquivalent: ",")
     /// Following someone over protocol v2 (approved) — the only path that carries the wearer's `alert` events.
     var followingV2: () -> Bool = { false }
     var treatments: () -> [Treatment] = { [] } { didSet { wireTreatments() } }
@@ -305,7 +304,8 @@ final class AlertEngine {
     private var timer: Timer?
     /// One-shot at `engine.nextCheckAt`: a mute window or repeat that ends between readings alerts on time.
     private var checkTimer: Timer?
-    private lazy var window = AlertsWindow(alerts: self)
+    /// Opens Settings on the Alerts pane (main.swift).
+    var onOpenWindow: (() -> Void)?
     private let center: UNUserNotificationCenter? = Bundle.main.bundleIdentifier == nil ? nil : .current()
     private var playing: NSSound?
     /// The engine's episodes (AlertEngine.snapshot), saved after every evaluation; read back once by `resume`.
@@ -328,8 +328,6 @@ final class AlertEngine {
     override init() {
         engine = AlertEngine(settings: settings)
         super.init()
-        menuItem.target = self
-        menuItem.action = #selector(openWindow)
         center?.delegate = self
         engine.onFire = { [weak self] ev in self?.post(ev, mirrored: false) }
         engine.onClear = { [weak self] ev in self?.remove(ev.k.group, "\(ev.k.rawValue) cleared") }
@@ -363,8 +361,7 @@ final class AlertEngine {
 
     private func saveEpisodes() { UserDefaults.standard.set(engine.snapshot(), forKey: Self.episodesKey) }
 
-    @objc func openWindow() { window.show() }
-    func snapshot(to path: String) { window.snapshot(to: path) }
+    func openWindow() { onOpenWindow?() }
 
     private func authorize() {
         center?.requestAuthorization(options: [.alert, .sound]) { ok, err in
