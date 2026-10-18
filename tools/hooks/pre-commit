@@ -1,0 +1,8 @@
+#!/bin/sh
+# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Static rules on the staged files (secrets, Kotlin only, GPL header, images, large files, hardcoded UI text,
+# en/es string keys) fail the commit. Parity / FEATURES.md / QA reminders come from the commit-msg hook (trailers).
+# Bypass only for an emergency: git commit --no-verify (CI runs the same checks).
+exec "$(git rev-parse --show-toplevel)/tools/check/run.sh" --staged --only static

@@ -89,7 +89,76 @@ enum GraphSelfTest {
               && GraphConfig().ringOrder == DEFAULT_RING_ORDER && GraphConfig().rings.allSatisfy { $0.order == DEFAULT_RING_ORDER })
         check("ring order parse", parseRingOrder("HIGH,VERY_HIGH,TARGET,TIGHT,LOW,VERY_LOW") == [.high, .veryHigh, .target, .tight, .low, .veryLow]
               && parseRingOrder("TIGHT,TARGET,LOW,VERY_LOW,VERY_HIGH") == nil && parseRingOrder("TIGHT,TIGHT,LOW,VERY_LOW,VERY_HIGH,HIGH") == nil)
+        failures += GraphFixtures.run()
         print(failures == 0 ? "graph self-test OK" : "graph self-test: \(failures) failed")
         return failures == 0
+    }
+}
+
+/// The shared card decisions (spikes/graph-fixtures/*.json, format in its README), the same files Android's
+/// GraphFixtureTest.kt runs: status, badge, last-treatment slot, amount labels. Found by walking up from the working
+/// directory (run from the repo). Returns the number of failures.
+enum GraphFixtures {
+    static func run() -> Int {
+        var dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        while !FileManager.default.fileExists(atPath: dir.appendingPathComponent("spikes/graph-fixtures").path) {
+            if dir.path == "/" { print("FAIL graph fixtures: spikes/graph-fixtures not found above the working directory"); return 1 }
+            dir.deleteLastPathComponent()
+        }
+        dir.appendPathComponent("spikes/graph-fixtures")
+        let now: TimeInterval = 1_800_000_000
+        var failures = 0, n = 0
+        func check(_ name: String, _ ok: Bool, _ got: Any?) { if !ok { print("FAIL \(name) (got \(got ?? "nil"))"); failures += 1 } }
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL \(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let name = "\(f): \(c["name"] as? String ?? "?")"
+                var settings = AlertSettings()
+                if let js = c["settings"], let d = try? JSONSerialization.data(withJSONObject: js),
+                   let s = try? JSONDecoder().decode(AlertSettings.self, from: d) { settings = s }
+                let rd = c["reading"] as? [String: Any] ?? [:]
+                let r = GraphReading(t: now + ((rd["t"] as? Double) ?? 0), v: (rd["sgv"] as? Double) ?? 0)
+                var ids: [Int: String] = [:]
+                let marks: [GraphMark] = (c["treatments"] as? [[String: Any]] ?? []).enumerated().map { i, j in
+                    ids[i] = j["id"] as? String
+                    return GraphMark(t: now + ((j["t"] as? Double) ?? 0), k: j["k"] as? String ?? "", a: (j["a"] as? Double) ?? 0, n: j["n"] as? String ?? "")
+                }
+                func id(_ m: GraphMark) -> String? { marks.firstIndex(of: m).flatMap { ids[$0] } }
+                let e = c["expect"] as? [String: Any] ?? [:]
+                let st = AlertStatus.of(r, settings, marks, now: now)
+                let stText: String
+                switch st {
+                case .none: stText = "none"
+                case .needed(let k): stText = "needed:\(k.rawValue)"
+                case .taken(let k, let tr, let until):
+                    stText = "taken:\(k.rawValue):\(id(tr) ?? "?")"
+                    check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)
+                }
+                check("\(name): status", stText == e["status"] as? String, stText)
+                let look = StatusBadge.look(st, now: now)
+                if let b = e["badge"] as? [String: Any] {
+                    let want = StatusBadge.Look(kind: b["kind"] as? String ?? "", text: b["text"] as? String ?? "",
+                                                short: b["short"] as? String ?? "", tonal: b["tonal"] as? Bool ?? false)
+                    check("\(name): badge", look == want, look)
+                } else { check("\(name): badge", look == nil, look) }
+                let last = LastTreatment.of(marks, settings, st, now: now)
+                if let l = e["last"] as? [String: Any] {
+                    check("\(name): last id", last.flatMap { id($0.tr) } == l["id"] as? String, last.flatMap { id($0.tr) })
+                    let until = (l["until"] as? Double).map { now + $0 }
+                    check("\(name): last until", last?.until == until, last?.until.map { $0 - now })
+                } else { check("\(name): last", last == nil, last) }
+                for (key, want) in e["amounts"] as? [String: Any] ?? [:] {
+                    guard let m = marks.first(where: { id($0) == key }) else { check("\(name): amount \(key) exists", false, nil); continue }
+                    let got = TreatmentMarks.amount(m)
+                    check("\(name): amount \(key)", got == want as? String, got)
+                }
+                n += 1
+            }
+        }
+        print("graph fixtures: \(n) cases, \(failures) failed")
+        return failures
     }
 }

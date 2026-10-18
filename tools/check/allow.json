@@ -1,0 +1,26 @@
+{
+  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify.",
+  "header_exts": [".kt", ".swift", ".py", ".sh", ".c", ".h", ".js", ".mjs"],
+  "header_exempt": ["*.gradle.kts", "*/gradlew", "spikes/brand/assets/*"],
+  "images_ok": [
+    "docs/img/*",
+    "spikes/*/evidence/*",
+    "spikes/brand/*",
+    "*/src/main/res/*"
+  ],
+  "images_extra": [],
+  "large_bytes": 2000000,
+  "large_ok": [],
+  "secret_ok": [
+    "spikes/nostr/identity/vectors.json",
+    "tools/check/check.py"
+  ],
+  "strings_scope": ["spikes/showcase-android/app/src/main/kotlin/*.kt"],
+  "strings_warn_only": [
+    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/Settings*.kt",
+    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/GraphScreen.kt",
+    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/AlertsScreen.kt",
+    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/DebugReceiver.kt",
+    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/*"
+  ]
+}
