@@ -66,7 +66,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
   Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
   (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
-- Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. With root
+- Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
+  glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
+  and the graph. With root
   + LSPosed: system icons or a coloured value next to the clock. Settings detects root and the LSPosed module (via
   LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI.
   [05](docs/05-android-status-bar.md)
@@ -84,8 +86,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left; without a recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
-  log a treatment without unlocking. For busy wallpapers: shadow, dim, card or blur behind it, and in-range values in
-  white (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
+  log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
+  like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
 - Upload glucose and treatments to LibreView (Settings → Share with apps → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
 - Glucose alerts: very low, low, high, very high, extremely high, falling/rising fast and no data, each with its own threshold,

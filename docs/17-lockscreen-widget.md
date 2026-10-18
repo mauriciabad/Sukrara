@@ -14,7 +14,8 @@ phones without root, find the next best thing.
 **It works with root.** SystemUI itself hosts a real Sukrara app widget in that space, laid out around the
 fingerprint icon. A tap opens the treatment dialog **over the lock screen; the phone stays locked**. Shipped in
 Sukrara as *Settings → Lock screen → Glucose on the lock screen* (on by default; does nothing without the module),
-with five backgrounds for busy wallpapers ([Contrast](#contrast-on-busy-wallpapers)).
+with five backgrounds for busy wallpapers ([Contrast](#contrast-on-busy-wallpapers)), light or dark
+([Light and dark](#light-and-dark-2026-10-18)).
 
 ![Lock screen widget](img/17/lockscreen-widget.png)
 
@@ -131,12 +132,32 @@ every glyph ([Smashing Magazine](https://www.smashingmagazine.com/2023/08/design
 | Shadow | a soft dark shadow around every number, ring and line: the content's alpha, blurred (`extractAlpha` + `BlurMaskFilter`) | the widget |
 | Dim | Material's gradient scrim over the bottom of the screen, full width | the module (a view under the widget) |
 | Card | a dark rounded card like the notifications (surface container, 88 %) | the module (view background) |
-| **Blur** (default, the user's pick) | frosted glass: SystemUI's own `BackgroundBlurDrawable` (`ViewRootImpl.createBackgroundBlurDrawable`, what the shade uses) blurs the wallpaper behind the widget; falls back to the card when cross-window blur is off | the module |
+| **Frosted glass** (default, the user's pick; was "Blur") | SystemUI's own `BackgroundBlurDrawable` (`ViewRootImpl.createBackgroundBlurDrawable`, what the shade uses) blurs the wallpaper behind the widget *and tints it* (black 35 % dark, the home widgets' background 60 % light), hence the new name; falls back to the card when cross-window blur is off | the module |
 
-Plus *In range in white*: in-range values, lines and ring segments in white instead of green; highs and lows keep
-their colours. Card and blur keep the content 12 dp off their edge.
+Card and frosted glass keep the content 12 dp off their edge. (*In range in white* was dropped in the light/dark
+round below.)
 
 ![The backgrounds on the user's wallpaper](img/17/contrast-options.png)
+
+## Light and dark (2026-10-18)
+
+The user: the black tint is fine in dark mode but looks bad on the light lock screen (light notification cards,
+light wallpaper). The widget now has an **Appearance**: *Automatic* (default, follows the system's dark theme, like
+the lock screen's notifications), *Light* or *Dark*. Light copies the home-screen widgets: their background colour
+(Glance's `widgetBackground`, which is Material You's `system_accent2_50`, near white with the wallpaper's tint) and
+their light palette. Every background follows it: frosted tint black 35 % / accent2_50 60 %, card dark surface /
+accent2_50 at 88 %, dim black / white gradient, shadow dark / white glow. Android's widget guidance: "if your widget
+doesn't adapt to dark theme, it will appear out of place", use the colour tokens for dynamic colour
+([widget style](https://developer.android.com/design/ui/mobile/guides/widgets/style)), and the widget quality tiers
+ask for light and dark palettes (WC-2, [widget quality](https://developer.android.com/docs/quality-guidelines/widget-quality)).
+
+When the dark theme flips (the user's phone runs `night mode: auto`), the module re-tints at once (its host view's
+`onConfigurationChanged`) and Sukrara redraws the widget from a night-mode `ComponentCallbacks`, without waiting for
+the next reading. The "Blur" background was renamed **Frosted glass** (`frosted`): it is blurred *and* tinted, not
+just a blur. No backwards compatibility: an old `blur` value falls back to the default, which is frosted glass.
+
+The slots right of the lock icon now come from the same helper as the notification (`appSlots` → `Slots.arrange`),
+so the last-treatment slot shows there too.
 
 ## Without root
 
@@ -158,9 +179,9 @@ their colours. Card and blur keep the content 12 dp off their edge.
 | Switch *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `features/Features.kt`, `ui/WearerScreens.kt`, sent to SystemUI with the status-bar broadcast (`status/RootStatusBar.kt`) |
 | Treatment dialog over the lock screen (manifest `showWhenLocked`; "Open Sukrara" asks to unlock) | `AndroidManifest.xml`, `ui/QuickTreatmentActivity.kt` |
 | Quick Settings tile "Add treatment" with the current value | `ui/TreatmentTile.kt` |
-| *Background* (none, shadow, dim, card, blur; `lockBg`, default blur) and *In range in white* (`lockWhite`) | `features/Features.kt` (`LockBackground`), `ui/WearerScreens.kt`, `widgets/LockscreenWidget.kt`, `hook/LockscreenWidgetHost.kt` |
+| *Background* (none, shadow, dim, card, frosted glass; `lockBg`, default `frosted`) and *Appearance* (automatic, light, dark; `lockLook`, default `auto`) | `features/Features.kt` (`LockBackground`), `ui/WearerScreens.kt`, `widgets/LockscreenWidget.kt`, `hook/LockscreenWidgetHost.kt` |
 | Exact widget size (default padding added back) and direct updates of the SystemUI-hosted widget id | `hook/LockscreenWidgetHost.kt`, `LockscreenWidget.ids/updateAll`, `RootStatusBar.HelloReceiver` |
-| DebugReceiver `cmd locktest` (square + circle to measure distortion), `--es lockBg`, `--ez lockWhite` | `features/DebugReceiver.kt` |
+| DebugReceiver `cmd locktest` (square + circle to measure distortion), `--es lockBg`, `--es lockLook` | `features/DebugReceiver.kt` |
 
 | Discarded | Why |
 |---|---|
@@ -169,7 +190,7 @@ their colours. Card and blur keep the content 12 dp off their edge.
 | Delivering touches through the normal view tree | Taps on the fingerprint sensor reached the widget (the bug above) |
 | Moving the widget down when the notification shelf hangs beside the lock icon | No room below (shortcuts); making the shelf fit above the icon is cleaner (step 5) |
 | Lock screen wallpaper, Notes-role shortcut | Not interactive / takes over the user's wallpaper or notes app (table above) |
-| A light scrim / light card | lock screen content is light; a light background would need a second (dark) palette for the widget |
+| *In range in white* (`lockWhite`, 2026-10-18) | a dark-only contrast trick (white is invisible on the light look); the appearance option and the frosted tint replace it |
 | Glance `updateAll` for the lock screen widget | it never reaches a SystemUI-hosted id (see above) |
 
 ## Code
@@ -179,7 +200,7 @@ their colours. Card and blur keep the content 12 dp off their edge.
 - `…/hook/SystemUiHook.kt` — captures `LegacySceneInteractorImpl` and `AuthController` when Dagger creates them,
   hooks `WindowRootView.onAttachedToWindow`, `SceneWindowRootView.dispatchTouchEvent` and
   `NotificationStackSizeCalculator.computeMaxKeyguardNotifications`.
-- `…/widgets/LockscreenWidget.kt` — the drawing (dark palette, no background, `LocalAppWidgetOptions` for the gap).
+- `…/widgets/LockscreenWidget.kt` — the drawing (the appearance's palette, `LocalAppWidgetOptions` for the gap).
 
 Safety: as with investigation 05, every hook body is wrapped, the kill switch `sukrara_hook_disabled` disables this
 too, and SystemUI was only restarted by killing it (`hook-safety.sh arm` during the session).
