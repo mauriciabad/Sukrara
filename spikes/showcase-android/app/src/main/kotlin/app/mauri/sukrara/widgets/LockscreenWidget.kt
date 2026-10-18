@@ -32,12 +32,10 @@ import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
-import app.mauri.sukrara.graph.GraphData
+import app.mauri.sukrara.graph.Slots
+import app.mauri.sukrara.graph.appSlots
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
-import app.mauri.sukrara.graph.MetricGauge
-import app.mauri.sukrara.graph.SlotKind
-import app.mauri.sukrara.graph.TirRing
 import app.mauri.sukrara.graph.systemPalette
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -116,8 +114,6 @@ class LockscreenWidgetReceiver : BaseReceiver() {
     }
 }
 
-private val RING_EMPHASIS = floatArrayOf(1f, 0.55f, 0.35f)
-
 @Composable
 private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     val ctx = LocalContext.current
@@ -165,20 +161,16 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
             CardStyle(graph = null, rings = emptyList()), pal, d)
     }
 
-    // The ring slots (time in range, GMI, average, CV: investigations 16 and 18), right of the lock icon, main
-    // rightmost; drawn like GlucoseCard's header.
+    // The slots (time in range, GMI, average, CV, last treatment: investigations 16 and 18), right of the lock icon,
+    // main rightmost, chosen like GlucoseCard's header.
     val ringsBox = RectF(hole.right * d, 0f, w, rowH)
-    val specs = cfg.rings()
-    if (specs.isNotEmpty()) {
-        val gap = 8 * d
-        val size = min(rowH * 0.9f - pad, min(84 * d, (ringsBox.width() - gap * (specs.size - 1)) / specs.size))
+    val gap = 8 * d
+    val size = min(rowH * 0.9f - pad, 84 * d)
+    if (size >= 30 * d) {
+        val fit = ((ringsBox.width() + gap) / (size + gap)).toInt().coerceIn(0, 4)
         var x = ringsBox.right
-        if (size >= 30 * d) for ((i, spec) in specs.withIndex()) {
-            val m = GraphData.metrics(ctx, spec.windowS, cfg.bands, frame.nowSec)
-            if (m.tir.coverage < GlucoseCard.MIN_COVERAGE) continue
-            val e = if (spec.faded) RING_EMPHASIS[i] else 1f
-            if (spec.kind == SlotKind.TIR) TirRing.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, m.tir, spec, pal, e, d)
-            else MetricGauge.draw(cv, x - size / 2, ringsBox.centerY(), size / 2, m, spec, pal, e, d)
+        for (item in appSlots(ctx, frame.history, frame.treatments, frame.nowSec, fit)) {
+            Slots.draw(cv, item, x - size / 2, ringsBox.centerY(), size / 2, frame.nowSec, pal, d)
             x -= size + gap
         }
     }
