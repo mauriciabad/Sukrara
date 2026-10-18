@@ -10,15 +10,21 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.13/Sukrara-0.11.13.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
-**First open on a Mac:** the app isn't notarized yet, so macOS says it *could not verify "Sukrara" is free of
-malware*. Click **Done**, then **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway**
-next to Sukrara and confirm with your password or Touch ID. Only once; Control-click → Open no longer skips this on
-macOS 15+ ([Apple: open an app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
+**Mac** (Apple Silicon, macOS 14+): open the dmg and drag Sukrara onto Applications, or
+`brew install --cask mauriciabad/tap/sukrara`. The app isn't notarized yet, so the first launch says *"Sukrara" Not
+Opened — Apple could not verify "Sukrara" is free of malware…*: click **Done**, then **System Settings → Privacy &
+Security**, scroll to **Security**, click **Open Anyway** next to *"Sukrara" was blocked to protect your Mac* and
+confirm with your password or Touch ID. Only once; Control-click → Open no longer skips this on macOS 15+
+([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)). Sukrara
+lives in the menu bar.
+
+**Android** (16+, arm64): open the APK and allow installs from your browser when asked (**Settings → Allow from this
+source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep it updated.
 
 > **Alpha, built from research spikes.** Each feature started as a proof of concept with a written report (below);
 > The app bundles them for daily use. The real Sukrara will be rebuilt from scratch with what we learned.

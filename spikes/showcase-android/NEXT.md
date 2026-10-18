@@ -82,7 +82,7 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   Enum and option labels on the settings pages resolve in `ui/SettingsLabels.kt` (models keep no text).
 - **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` = no widgets), then `./dmg.sh` →
   `build/Sukrara-<ver>.dmg` (needs `uv tool install dmgbuild`). **Releases attach the dmg** (what the README's
-  Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. The user's daily
+  Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. Publishing a release also updates the Homebrew cask (`mauriciabad/homebrew-tap`, `.github/workflows/homebrew-tap.yml`; needs the `HOMEBREW_TAP_DEPLOY_KEY` secret, docs/20). The user's daily
   copy is **`~/Applications/Sukrara.app`** (login item, team-signed with the user's Apple Development cert, with the
   widget appex). Don't overwrite it with test builds — use another path, and relaunch it afterwards so the user keeps
   glucose in the menubar (a different signature means one more Keychain prompt). Logs: `~/Library/Logs/Sukrara.log`. **After replacing the app, restart its widget extension**: the running `SukraraWidget`
