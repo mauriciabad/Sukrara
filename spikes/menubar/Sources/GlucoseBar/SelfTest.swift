@@ -57,7 +57,8 @@ enum GraphSelfTest {
         check("time weighted", near(t.tight, 0.5, 0.01) && near(t.high, 0.5, 0.01) && near(t.coverage, 1, 0.01))
 
         let g = GlucoseStats.timeInRange([r(0, 100), r(1, 100), r(120, 250), r(121, 250)], from: 0, to: 122 * 60, bands: b)
-        check("gaps", near(g.tight, (60.0 + 15 * 60) / (60 + 15 * 60 + 60 + 60), 0.01) && g.coverage < 0.2)
+        let inTight: Double = 60 + 15 * 60, total: Double = inTight + 60 + 60      // typed: CI's compiler times out
+        check("gaps", near(g.tight, inTight / total, 0.01) && g.coverage < 0.2)
 
         let rs = (0..<600).map { r($0, Int(120 + 80 * sin(Double($0) / 40))) }
         let tir = GlucoseStats.timeInRange(rs, from: 0, to: 600 * 60, bands: b)
