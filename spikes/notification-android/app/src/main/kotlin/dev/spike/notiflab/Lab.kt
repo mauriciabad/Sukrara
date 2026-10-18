@@ -32,8 +32,19 @@ object Lab {
     /** The timeline variant's window (`--ei hours`), to find how many segments the bar keeps. */
     var hours = 3
 
-    fun channel(c: Context) = c.getSystemService(NotificationManager::class.java).createNotificationChannel(
-        NotificationChannel(CHANNEL, "Glucose lab", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+    /**
+     * `--ez visible true`: a DEFAULT-importance channel with no sound and no vibration, for phones that hide silent
+     * notifications on the lock screen (the test on a locked phone); LOW otherwise.
+     */
+    var channelId = CHANNEL
+
+    fun channel(c: Context, visible: Boolean = false) {
+        channelId = if (visible) "lab_visible" else CHANNEL
+        c.getSystemService(NotificationManager::class.java).createNotificationChannel(
+            if (visible) NotificationChannel(channelId, "Glucose lab (lock screen, no sound)", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                setShowBadge(false); setSound(null, null); enableVibration(false); enableLights(false)
+            } else NotificationChannel(CHANNEL, "Glucose lab", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+    }
 
     /** Posts [v] (colorized ones through the service). */
     fun post(c: Context, v: String, sgv: Int, rate: Float) {
@@ -61,7 +72,7 @@ object Lab {
         val dark = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val band = Glucose.band(sgv)
         val open = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val b = Notification.Builder(c, CHANNEL)
+        val b = Notification.Builder(c, channelId)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)

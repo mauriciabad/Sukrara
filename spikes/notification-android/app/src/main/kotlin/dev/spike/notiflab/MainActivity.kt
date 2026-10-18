@@ -15,7 +15,7 @@ import android.widget.TextView
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Lab.channel(this)
+        Lab.channel(this, intent.getBooleanExtra("visible", false))
         val sgv = intent.getIntExtra("sgv", 138)
         val rate = intent.getFloatExtra("rate", 0.7f)
         Lab.hours = intent.getIntExtra("hours", 3)
