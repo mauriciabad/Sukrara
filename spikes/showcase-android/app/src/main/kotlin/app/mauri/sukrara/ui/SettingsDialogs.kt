@@ -88,7 +88,7 @@ fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClo
  * an optional trailing control.
  */
 @Composable
-private fun Radio(text: String, sub: String?, selected: Boolean, enabled: Boolean, trailing: (@Composable () -> Unit)?, onClick: () -> Unit) {
+internal fun Radio(text: String, sub: String?, selected: Boolean, enabled: Boolean, trailing: (@Composable () -> Unit)?, onClick: () -> Unit) {
     // a trailing control (48 dp) replaces the row's 12 dp vertical padding, so rows with and without one match
     Row(Modifier.fillMaxWidth().selectable(selected = selected, enabled = enabled, onClick = onClick, role = Role.RadioButton)
         .padding(horizontal = SettingsDimension.dialogItemPaddingHorizontal,
@@ -117,7 +117,7 @@ fun DialogCheckbox(text: String, checked: Boolean, onChange: (Boolean) -> Unit) 
 
 /** The expressive buttons of SPA's SettingsAlertDialog: outlined dismiss, filled confirm, at the end. */
 @Composable
-private fun DialogButtons(confirm: String, confirmEnabled: Boolean = true, dismiss: String? = null, onDismiss: () -> Unit = {},
+internal fun DialogButtons(confirm: String, confirmEnabled: Boolean = true, dismiss: String? = null, onDismiss: () -> Unit = {},
                           onConfirm: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(SettingsDimension.dialogItemPadding),
         horizontalArrangement = Arrangement.spacedBy(SettingsSpace.extraSmall4, Alignment.End)) {

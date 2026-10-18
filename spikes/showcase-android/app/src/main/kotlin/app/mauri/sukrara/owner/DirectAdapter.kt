@@ -5,7 +5,10 @@ package app.mauri.sukrara.owner
 
 import android.content.Context
 import app.mauri.sukrara.bridge.Bridge
+import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.direct.DirectSource
 import app.mauri.sukrara.libreview.LibreViewPayload
 import app.mauri.sukrara.wearer.Live
@@ -28,7 +31,11 @@ class DirectAdapter(private val ctx: Context) : GlucoseSource {
                     override fun onReading(reading: Bridge.Reading) = sink.onReading(reading.toCore())
                     override fun onHistory(readings: List<Bridge.Reading>) = sink.onHistory(readings.map { it.toCore() })
                     override fun onStatus(state: String, error: String?) = sink.onStatus("direct: $state", error)
-                    override fun onSensor(serial: String, startEpoch: Long) = Live.sensor(serial, startEpoch)
+                    override fun onSensor(info: SensorInfo) {
+                        SensorLife.update(ctx, info)
+                        Live.sensor(info.serial, info.startEpoch)
+                    }
+                    override fun onSensorEnded(serial: String) = SensorLife.markEnded(ctx, serial, Proto.nowS())
                     override fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {
                         Live.sensorGlucose(current, history)
                     }

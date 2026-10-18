@@ -4,6 +4,8 @@
 package app.mauri.sukrara.alerts
 
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.treatments.Treatment
 import org.json.JSONObject
 import java.security.SecureRandom
@@ -58,6 +60,14 @@ class AlertEngine {
     private val episodes = HashMap<String, Episode>()
     var last: Reading? = null
         private set
+    /**
+     * The current sensor (core/SensorLife; set by [Alerts] before each check): no `no_data` while it has ended or is
+     * warming up (no reading is expected then, SPEC §2); a running no-data alert clears.
+     */
+    var sensor: SensorInfo? = null
+
+    /** No reading is expected: the sensor has ended or is warming up. */
+    fun quiet(now: Long): Boolean = sensor?.let { SensorLife.ended(it.endEpoch, now) || SensorLife.warming(it, last?.t, now) } ?: false
 
     fun states(): Map<String, State> = episodes.filterValues { it.on }.mapValues { (_, e) -> State(e.kind, e.muted, e.firedAt ?: 0, e.n) }
 
@@ -128,7 +138,7 @@ class AlertEngine {
             s.cfg(Kind.RISING_FAST).let { it.on && rate >= it.value } -> Kind.RISING_FAST
             else -> null
         }
-        val noData = s.cfg(Kind.NO_DATA).let { c -> r != null && c.on && now - r.t >= c.value * 60 }
+        val noData = s.cfg(Kind.NO_DATA).let { c -> r != null && c.on && now - r.t >= c.value * 60 } && !quiet(now)
         step("level", level, s, d, now, out)
         step("rate", rateKind, s, d, now, out)
         step(Kind.NO_DATA, if (noData) Kind.NO_DATA else null, s, d, now, out)
@@ -226,6 +236,8 @@ class AlertEngine {
         val nd = s.cfg(Kind.NO_DATA)
         if (r != null && nd.on && episodes[Kind.NO_DATA]?.on != true) c += r.t + (nd.value * 60).toLong()
         if (r != null) c += r.t + FRESH_S + 1   // level/rate alerts end when the reading goes stale
+        // a warm-up that brings no reading: no_data is due again once it is over
+        sensor?.let { si -> if (SensorLife.warming(si, r?.t, now)) c += si.warmupEndEpoch + SensorLife.WARMUP_GRACE_S }
         for (e in episodes.values) if (e.on && e.next != Long.MAX_VALUE) c += e.next
         return c.filter { it > now }.minOrNull()
     }

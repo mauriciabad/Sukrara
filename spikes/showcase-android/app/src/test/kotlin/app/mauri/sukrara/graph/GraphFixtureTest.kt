@@ -100,6 +100,61 @@ class GraphFixtureTest {
         println("label fixtures: $n cases passed")
     }
 
+    /** The sensor badge + countdown ring (the files in spikes/graph-fixtures/sensor); the same in the Mac's `-graphselftest`. */
+    /** Clock times in the 12/24-hour setting and the graph's hour labels (graph-fixtures/clock, Mac: -graphselftest). */
+    @Test fun clock() {
+        val files = File(dir(), "clock").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no clock fixtures", files.isNotEmpty())
+        fun norm(s: String) = s.replace('\u00A0', ' ').replace('\u202F', ' ')
+        val fails = ArrayList<String>()
+        var n = 0
+        for (f in files) {
+            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val loc = java.util.Locale.forLanguageTag(c.getString("locale"))
+                val m = c.getInt("minute"); val h24 = c.getBoolean("hour24")
+                val time = norm(Clock.minuteOfDay(m, h24, loc)); val axis = norm(Clock.hourLabel(m / 60, h24, loc))
+                val want = c.getJSONObject("expect")
+                if (time != want.getString("time") || axis != want.getString("axis")) fails += "${f.name}: ${c.getString("name")} (got $time / $axis)"
+                n++
+            }
+        }
+        assertTrue("clock fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+    }
+
+    @Test fun sensor() {
+        val files = File(dir(), "sensor").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no sensor fixtures", files.isNotEmpty())
+        var n = 0
+        val fails = ArrayList<String>()
+        fun near(a: Double?, b: Double?) = if (a == null || b == null) a == b else kotlin.math.abs(a - b) <= 0.001
+        for (f in files) {
+            val root = JSONObject(f.readText())
+            val cases = root.optJSONArray("cases") ?: continue
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val start = now + c.getLong("start")
+                val info = app.mauri.sukrara.core.SensorInfo("", start, now + c.getLong("end"),
+                    if (c.has("warmup")) now + c.getLong("warmup") else start + 3_600)
+                val latest = if (c.isNull("latest")) null else now + c.getLong("latest")
+                val want = c.getJSONObject("expect")
+                val look = SensorBadge.look(info, now, latest, app.mauri.sukrara.core.Words())!!
+                val ring = SensorBadge.ring(look, info, now, c.getInt("countdownHours"))
+                val wantRing = if (want.isNull("ring")) null else want.getDouble("ring")
+                val wantWarm = if (want.isNull("warmup")) null else want.getString("warmup")
+                val pill = if (look.ended) StatusBadge.replaceSensor(app.mauri.sukrara.core.Words()) else null
+                val wantPill = want.optJSONObject("pill")?.let { StatusBadge.Look(it.getString("kind"), it.getString("text"), it.getString("short"), it.getBoolean("tonal")) }
+                val ok = pill == wantPill && look.label == want.getString("label") && look.ended == want.getBoolean("ended") &&
+                    near(look.life.toDouble(), want.getDouble("life")) && look.warmup == wantWarm && near(ring, wantRing)
+                if (!ok) fails += "${f.name}: ${c.getString("name")}\n  want $want\n  got  label=${look.label} ended=${look.ended} life=${look.life} warmup=${look.warmup} ring=$ring"
+                n++
+            }
+        }
+        assertTrue("sensor fixtures failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+        println("sensor fixtures: $n cases passed")
+    }
+
     /** What the graph decides for a label case, in the fixtures' `expect` form. */
     private fun labelDump(c: JSONObject): JSONObject {
         val w = c.getJSONObject("chart").getDouble("w").toFloat()

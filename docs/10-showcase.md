@@ -65,7 +65,7 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `status/` | statusbar-android (05) | `GlucoseNotification`: chip + number icon on the service's **only** notification |
 | `bridge/` | glucobridge (01, 04, 08), nostr (03) | `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
 | `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1; followers and Macs over v2, §5), LibreView uploader, gated by `Features.libreview` |
-| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
+| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Libre 1 / 2 / 2 Plus: detected by the chip and refused without sending anything (Juggluco is the way for those); Libre 2 decoding was investigated and discarded — open crypto, but official mg/dL needs Abbott's guarded library (docs/02 "Libre 2 / 2 Plus"). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
 | `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off). `RecentHistory`: the last 8 h in memory, read from the role's own store (`owner.db` + `treatments.json`, or `follower.db`) — no copy on disk. `SukraraHooks` feeds it from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). Trend arrow, range colours, staleness and age text come from `core/Glucose.kt`, shared with the status bar, system icons and the SystemUI hook; the widgets use the status bar's `sb_t*` arrows. `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
 
@@ -161,6 +161,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
 | `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https link> [--es name <n>]` looks the invite up on the relays, sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service). `profile --es name <one word> [--ez shuffle true]` (both roles) sets your name / a new random picture; the reply shows `owner.profile` + `owner.followerNames`, or `follower.me` + `follower.wearer` |
+| `cmd` | `--es` sensorEnd\|sensorStart\|sensorEndState | | sensor reminders / countdowns (`sensorend/SensorEnd`): `sensorEnd` = a made-up sensor ending in `--ei inMin N` (10), with optional `--ei countdownHours H`, `--ez countdown B`, `--es reminders 'D@MIN,…'` (days before @ minute of day); `sensorStart` = a made-up sensor started `--ei agoMin N` (50) ago, readings ignored until `--ez firstReading true`; reply `sensorEnd` = settings, sensor, memory, `canPostPromoted`. The next real sensor info replaces the made-up one |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -403,8 +404,12 @@ Direct mode now does the whole flow itself, like LibreLink or Juggluco:
 
 **Receiver ID.** A Libre 3 remembers a 32-bit receiver ID from the moment it was started, and a takeover only works
 with that same ID. Sukrara has two candidates:
-- its own random ID, made per install;
+- its own random ID, made per install (a takeover candidate only);
 - the ID that LibreLink-era apps and Juggluco derive from the **LibreView account ID**.
+
+A **new** sensor only ever gets the LibreView-derived ID (2026-10-18 audit, docs/02): it stays bound to it for life,
+and with a random ID no other app could ever take it over. Without a known account ID the Sensor screen asks for the
+LibreView sign-in before it sends anything.
 
 Sukrara learns the account ID with a read-only LibreLinkUp sign-in. It keeps only the derived number, not the
 password. Unlike LibreView's app login, this sign-in doesn't make the phone the account's upload device, so

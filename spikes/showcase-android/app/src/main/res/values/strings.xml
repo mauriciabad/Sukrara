@@ -179,9 +179,9 @@
     <string name="approve_label_matches">Matches</string>
     <!-- Approve dialog: pill when the name differs from the invite label [CHAR LIMIT=20] -->
     <string name="approve_label_differs">Different name</string>
-    <!-- Approve dialog: times; %1$s = when the invite was sent, %2$s = when they asked (HH:mm) [CHAR LIMIT=50] -->
+    <!-- Approve dialog: times; %1$s = when the invite was sent, %2$s = when they asked (a clock time) [CHAR LIMIT=50] -->
     <string name="approve_sent_asked">Sent %1$s · asked %2$s</string>
-    <!-- Approve dialog: time they asked; %1$s = HH:mm [CHAR LIMIT=30] -->
+    <!-- Approve dialog: time they asked; %1$s = a clock time [CHAR LIMIT=30] -->
     <string name="approve_asked">Asked %1$s</string>
     <!-- Approve dialog: warning when other phones tried the same invite; %d = how many [CHAR LIMIT=NONE] -->
     <plurals name="approve_others_tried">
@@ -249,9 +249,9 @@
     <string name="request_notif_others">Another phone also tried this invite. Check before allowing.</string>
     <!-- Access request: a nearby (Bluetooth) request [CHAR LIMIT=NONE] -->
     <string name="request_notif_nearby">A phone nearby · open Sukrara and type the code shown on their screen</string>
-    <!-- Access request: %1$s = the invite's label (e.g. Mom), %2$s = time HH:mm [CHAR LIMIT=NONE] -->
+    <!-- Access request: %1$s = the invite's label (e.g. Mom), %2$s = a clock time [CHAR LIMIT=NONE] -->
     <string name="request_notif_for">Asked with your invite for %1$s · %2$s</string>
-    <!-- Access request: an unlabelled invite; %1$s = time HH:mm when it was sent [CHAR LIMIT=NONE] -->
+    <!-- Access request: an unlabelled invite; %1$s = a clock time when it was sent [CHAR LIMIT=NONE] -->
     <string name="request_notif_from">Asked with your invite from %1$s</string>
 
     <!-- ========== Glucose notification (ongoing) ========== -->
@@ -332,6 +332,18 @@
     <string name="card_no_readings_since">No readings since %1$s</string>
     <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
     <string name="card_no_reading_since">No reading since</string>
+    <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d" [CHAR LIMIT=40] -->
+    <string name="card_sensor_left">Sensor: %1$s left</string>
+    <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
+    <string name="card_sensor_ended">Sensor ended</string>
+    <!-- Value card: action pill when the sensor has ended (like "Eat carbs"); opens the sensor scan [CHAR LIMIT=18] -->
+    <string name="badge_replace_sensor">Replace sensor</string>
+    <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
+    <string name="badge_replace_sensor_short">Sensor</string>
+    <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
+    <string name="card_warming_up">Warming up</string>
+    <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
+    <string name="card_ready_at">Ready at %1$s</string>
     <!-- Trend in words (screen readers, notification): no trend known [CHAR LIMIT=20] -->
     <string name="trend_unknown">trend unknown</string>
     <!-- Trend in words: flat [CHAR LIMIT=20] -->
@@ -698,6 +710,12 @@
     <string name="sensor_ended_title">Sensor %1$s has ended</string>
     <!-- Scan result: the sensor's life is over [CHAR LIMIT=NONE] -->
     <string name="sensor_ended_text">Apply a new sensor and scan it.</string>
+    <!-- Sensor screen: a Libre 1 / 2 / 2 Plus was scanned; nothing was sent to it [CHAR LIMIT=50] -->
+    <string name="sensor_libre2_title">Libre 2 sensors aren\'t supported</string>
+    <!-- Sensor screen: what to do with a Libre 2 instead; Juggluco is an app name [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_text">Sukrara reads the FreeStyle Libre 3 and 3 Plus. Nothing was sent to this sensor. Start it with Juggluco, then pick Juggluco as the glucose source.</string>
+    <!-- Sensor screen: button to the Glucose source settings page [CHAR LIMIT=30] -->
+    <string name="sensor_libre2_source">Glucose source</string>
     <!-- Scan result: not a supported sensor [CHAR LIMIT=30] -->
     <string name="sensor_unsupported">Not supported</string>
     <!-- Scan result: the NFC read failed [CHAR LIMIT=30] -->
@@ -708,6 +726,10 @@
     <string name="sensor_other_app_title">Sensor %1$s belongs to another app</string>
     <!-- Sensor of another app: why to sign in [CHAR LIMIT=NONE] -->
     <string name="sensor_other_app_text">It was started by LibreLink or Juggluco with a LibreView account. Sign in once with that account so Sukrara can take the sensor over. Sukrara only reads your account number: it uploads nothing, doesn\'t keep your password, and the other app\'s LibreView uploads keep working.</string>
+    <!-- Sensor screen: a never-started sensor needs the LibreView account first; %1$s = serial [CHAR LIMIT=50] -->
+    <string name="sensor_new_account_title">Sign in before starting %1$s</string>
+    <!-- Sensor screen: why the account is needed before starting a sensor; LibreLink, Juggluco, LibreView are names [CHAR LIMIT=NONE] -->
+    <string name="sensor_new_account_text">A new sensor stays tied to the account it starts with. Sign in once with your LibreView account so another app (LibreLink, Juggluco) can take it over later. Sukrara only reads your account number: it uploads nothing. Nothing was sent to the sensor yet.</string>
     <!-- Sensor of another app: email field [CHAR LIMIT=30] -->
     <string name="sensor_libreview_email">LibreView email</string>
     <!-- Sensor of another app: after sign-in [CHAR LIMIT=NONE] -->
@@ -778,7 +800,7 @@
     <!-- Report footer; %1$d = percent of the window with sensor data [CHAR LIMIT=NONE] -->
     <string name="report_footer">Goals for type 1 and type 2 diabetes (international consensus, as in LibreView\'s report). Sensor active %1$d %% of the window.</string>
 
-    <!-- Wearer home, entries from followers; %1$s = time HH:mm, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
+    <!-- Wearer home, entries from followers; %1$s = a clock time, %2$s = the entry (e.g. 4u rapid), %3$s = follower's name, %4$s = transport (relay, ble) [CHAR LIMIT=NONE] -->
     <string name="home_follower_entry">%1$s %2$s — %3$s via %4$s</string>
 
 
@@ -1187,6 +1209,100 @@
     <string name="lock_appearance">Appearance</string>
     <!-- Lock screen page footer [CHAR LIMIT=NONE] -->
     <string name="lock_footer">Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked phone can add an entry; turn this off if you don\'t want that.</string>
+    <!-- ========== Settings → Sensor end (reminders + live countdown) ========== -->
+    <!-- Page title and overview row [CHAR LIMIT=30] -->
+    <string name="sensorend_title">Sensor end</string>
+    <!-- Page intro [CHAR LIMIT=NONE] -->
+    <string name="sensorend_intro">Reminders before your sensor ends, and live countdowns in its last hours and while a new one warms up.</string>
+    <!-- Overview row summary; %1$s = sensorend_reminders_count, %2$d = hours [CHAR LIMIT=60] -->
+    <string name="sensorend_summary_countdown">%1$s · Countdown %2$d h</string>
+    <!-- Overview row summary: number of reminders -->
+    <plurals name="sensorend_reminders_count">
+        <item quantity="one">%d reminder</item>
+        <item quantity="other">%d reminders</item>
+    </plurals>
+    <!-- Row: the current sensor [CHAR LIMIT=30] -->
+    <string name="sensorend_current">This sensor</string>
+    <!-- Row summary; %1$s = date and time, %2$s = time left (e.g. 3d) [CHAR LIMIT=60] -->
+    <string name="sensorend_current_ends">Ends %1$s · %2$s left</string>
+    <!-- Row summary; %1$s = date and time [CHAR LIMIT=60] -->
+    <string name="sensorend_current_ended">Ended %1$s</string>
+    <!-- Row summary when no sensor is known [CHAR LIMIT=60] -->
+    <string name="sensorend_current_none">No sensor yet</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="sensorend_reminders">Reminders</string>
+    <!-- Reminder on the day the sensor ends [CHAR LIMIT=30] -->
+    <string name="sensorend_end_day">On the end day</string>
+    <!-- Reminder N days before the end day -->
+    <plurals name="sensorend_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+    <!-- Row with a plus icon [CHAR LIMIT=30] -->
+    <string name="sensorend_add">Add reminder</string>
+    <!-- Row summary when there are no reminders [CHAR LIMIT=60] -->
+    <string name="sensorend_no_reminders">No reminders</string>
+    <!-- Dialog title: new reminder [CHAR LIMIT=30] -->
+    <string name="sensorend_reminder_new">New reminder</string>
+    <!-- Dialog title: editing a reminder [CHAR LIMIT=30] -->
+    <string name="sensorend_reminder_edit">Reminder</string>
+    <!-- Dialog row: the reminder's time of day [CHAR LIMIT=30] -->
+    <string name="sensorend_time">Time</string>
+    <!-- Dialog button [CHAR LIMIT=20] -->
+    <string name="sensorend_remove">Remove</string>
+    <!-- Dialog button [CHAR LIMIT=20] -->
+    <string name="sensorend_save">Save</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="sensorend_countdown_group">Live countdowns</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="sensorend_countdown_switch">End countdown</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="sensorend_countdown_summary">The time left in the sensor\'s last hours</string>
+    <!-- Row and dialog: how long before the end the countdown starts [CHAR LIMIT=30] -->
+    <string name="sensorend_countdown_hours">Countdown starts</string>
+    <!-- Option: N hours before the end -->
+    <plurals name="sensorend_hours_before">
+        <item quantity="one">%d hour before the end</item>
+        <item quantity="other">%d hours before the end</item>
+    </plurals>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="sensorend_warmup_switch">Warm-up countdown</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="sensorend_warmup_summary">A new sensor\'s first hour, until readings start</string>
+    <!-- Unit for the custom hours field [CHAR LIMIT=10] -->
+    <string name="sensorend_hours_unit">h</string>
+    <!-- Page footer [CHAR LIMIT=NONE] -->
+    <string name="sensorend_footer">The countdown start also sets when the graph shows the sensor\'s countdown ring. A reminder that would come after the sensor ends is skipped. While the glucose chip is on, the end countdown stays in the notifications so the status bar keeps your glucose.</string>
+    <!-- Notification channel name [CHAR LIMIT=40] -->
+    <string name="channel_sensor_end">Sensor reminders</string>
+    <!-- Notification channel description [CHAR LIMIT=NONE] -->
+    <string name="channel_sensor_end_description">Before the sensor ends, when it has ended, and when a new one is ready.</string>
+    <!-- Notification channel name [CHAR LIMIT=40] -->
+    <string name="channel_sensor_countdown">Sensor countdowns</string>
+    <!-- Notification channel description [CHAR LIMIT=NONE] -->
+    <string name="channel_sensor_countdown_description">The time left in a new sensor\'s warm-up and in a sensor\'s last hours, without sound.</string>
+    <!-- Reminder title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_end_notif_today">Sensor ends today at %1$s</string>
+    <!-- Reminder title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_end_notif_tomorrow">Sensor ends tomorrow at %1$s</string>
+    <!-- Reminder title; %1$s = weekday or date, %2$s = time [CHAR LIMIT=60] -->
+    <string name="sensor_end_notif_on_day">Sensor ends on %1$s at %2$s</string>
+    <!-- Reminder text [CHAR LIMIT=NONE] -->
+    <string name="sensor_end_notif_reminder_text">Have a new sensor ready.</string>
+    <!-- Countdown title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_countdown_title">Sensor ends at %1$s</string>
+    <!-- Countdown text [CHAR LIMIT=NONE] -->
+    <string name="sensor_countdown_text">Have a new sensor ready to replace it.</string>
+    <!-- Countdown action: dismiss it for this sensor [CHAR LIMIT=20] -->
+    <string name="sensor_countdown_hide">Hide</string>
+    <!-- Warm-up countdown title [CHAR LIMIT=50] -->
+    <string name="sensor_warmup_title">Sensor warming up</string>
+    <!-- Warm-up countdown text; %1$s = time of the first reading [CHAR LIMIT=50] -->
+    <string name="sensor_warmup_text">Readings at %1$s</string>
+    <!-- Notification title: warm-up over [CHAR LIMIT=50] -->
+    <string name="sensor_ready_title">Sensor ready</string>
+    <!-- Notification text [CHAR LIMIT=NONE] -->
+    <string name="sensor_ready_text">Readings have started.</string>
     <!-- Background option [CHAR LIMIT=30] -->
     <string name="lock_bg_none">None</string>
     <!-- Background option description [CHAR LIMIT=60] -->
@@ -1253,6 +1369,26 @@
     <string name="apps_secret_title">API secret</string>
     <!-- Link to the sharing with people page [CHAR LIMIT=60] -->
     <string name="apps_people_summary">Followers, invites, nearby pairing</string>
+    <!-- Sensor end in calendar: the switch (sensor settings) [CHAR LIMIT=40] -->
+    <string name="calendar_title">Sensor end in calendar</string>
+    <!-- Sensor end in calendar: summary while off [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_off">Off · adds when each sensor ends to a calendar</string>
+    <!-- Sensor end in calendar: summary after the calendar permission was denied [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_denied">Off · needs access to your calendar</string>
+    <!-- Sensor end in calendar: summary when the permission can only be granted in the app's system settings [CHAR LIMIT=NONE] -->
+    <string name="calendar_summary_blocked">Off · calendar access is blocked: tap to allow it in app settings</string>
+    <!-- Sensor end in calendar: the row that picks where the events go [CHAR LIMIT=30] -->
+    <string name="calendar_where">Calendar</string>
+    <!-- Sensor end in calendar: Sukrara's own calendar (the default) [CHAR LIMIT=40] -->
+    <string name="calendar_own">Sukrara (this phone only)</string>
+    <!-- Sensor end in calendar: under the own-calendar option [CHAR LIMIT=NONE] -->
+    <string name="calendar_own_sub">Its own calendar, not synced to your other devices</string>
+    <!-- Sensor end in calendar: under a calendar of the user's accounts; %1$s = account (email) [CHAR LIMIT=NONE] -->
+    <string name="calendar_picked_sub">%1$s · syncs to your other devices</string>
+    <!-- Sensor end in calendar: the event's title [CHAR LIMIT=40] -->
+    <string name="calendar_event_title">Sensor ends</string>
+    <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->
+    <string name="calendar_event_description">Libre sensor %1$s, started %2$s. Sukrara keeps this event up to date.</string>
     <!-- Apps page footer [CHAR LIMIT=NONE] -->
     <string name="apps_footer">The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
 

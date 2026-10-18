@@ -29,6 +29,9 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
+ *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…']] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
+ *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] \
+ *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
  *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
@@ -130,6 +133,10 @@ class DebugReceiver : BroadcastReceiver() {
                         .put("o", e.tr.o).put("status", e.status ?: JSONObject.NULL)
                 })))
         }
+        app.mauri.sukrara.core.SensorLife.current.value?.let { si ->
+            out.put("sensor", JSONObject().put("serial", si.serial).put("start", si.startEpoch).put("end", si.endEpoch)
+                .put("label", app.mauri.sukrara.core.SensorLife.label(si.endEpoch, app.mauri.sukrara.core.Proto.nowS())))
+        }
         out.put("widgets", app.mauri.sukrara.widgets.WidgetUpdater.placements(c))
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
@@ -147,6 +154,21 @@ class DebugReceiver : BroadcastReceiver() {
                 c.startForegroundService(Intent(c, OwnerService::class.java))
                 out.put("cmd", "owner ready")
             }
+            // sensor life: a made-up sensor (synthetic serial; --el start/end unix s, end default start + 15 d) or --ez clear true
+            "fakeSensor" -> {
+                val start = i.getLongExtra("start", System.currentTimeMillis() / 1000)
+                val info = if (i.getBooleanExtra("clear", false)) null else app.mauri.sukrara.core.SensorInfo(
+                    i.getStringExtra("serial") ?: "TEST0000001", start, i.getLongExtra("end", start + 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN))
+                app.mauri.sukrara.core.SensorLife.update(c, info)
+                out.put("cmd", "sensor ${info ?: "cleared"}")
+            }
+            // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
+            "calendar" -> {
+                SensorCalendar.init(c)
+                if (i.hasExtra("on") && !i.getBooleanExtra("on", true)) SensorCalendar.disable(c)
+                else if (i.getBooleanExtra("on", false)) { if (SensorCalendar.granted(c)) SensorCalendar.enable(c) else out.put("calendar", "grant READ/WRITE_CALENDAR first (pm grant)") }
+                out.put("calendar", SensorCalendar.dump(c))
+            }
             "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
             "pinWidget" -> {
@@ -163,8 +185,60 @@ class DebugReceiver : BroadcastReceiver() {
                 app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
                 out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
             }
+            // round sensor-life, debug builds only: a synthetic sensor `--el left <s>` before its end (`--el len <s>`,
+            // default 15 d), `--es serial`, or `--ez clear true`; `--ei countdown <h>` sets the countdown window
+            "sensor" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
+                val now = app.mauri.sukrara.core.Proto.nowS()
+                if (i.hasExtra("countdown")) app.mauri.sukrara.core.SensorLife.setCountdownHours(c, i.getIntExtra("countdown", 8))
+                if (i.getBooleanExtra("clear", false)) app.mauri.sukrara.core.SensorLife.update(c, null)
+                else if (i.hasExtra("left")) {
+                    val end = now + i.getLongExtra("left", 0)
+                    val len = i.getLongExtra("len", 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN)
+                    app.mauri.sukrara.core.SensorLife.update(c, app.mauri.sukrara.core.SensorInfo(i.getStringExtra("serial") ?: "DEBUG", end - len, end))
+                }
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "sensor", force = true)
+                out.put("cmd", "sensor ${app.mauri.sukrara.core.SensorLife.current.value} countdown ${app.mauri.sukrara.core.SensorLife.countdown.value} h")
+            }
+            // debug builds only: a direct-source reconnect's burst into the wearer pipeline (Live, not published):
+            // the reading, then `--ei packets <n>` (default 16) history packets of 9 values 50 ms apart
+            "backfill" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
+                val n = i.getIntExtra("packets", 16)
+                val now = app.mauri.sukrara.core.Proto.nowS()
+                val last = app.mauri.sukrara.wearer.Live.status.value.last
+                Thread {
+                    app.mauri.sukrara.wearer.Live.reading(app.mauri.sukrara.core.Reading(now, (last?.sgv ?: 120) + 1, 0.5, "debug"))
+                    repeat(n) { p ->
+                        Thread.sleep(50)
+                        app.mauri.sukrara.wearer.Live.history((0 until 9).map { k ->
+                            app.mauri.sukrara.core.Reading(now - 3600 * 12 + (p * 9 + k) * 300L, 110 + k, null, "debug")
+                        })
+                    }
+                }.start()
+                out.put("cmd", "backfill burst: 1 reading + $n history packets")
+            }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
+            // round sensor-life: a made-up sensor ending in --ei inMin N (default 10); --ei countdownHours H;
+            // --ez countdown B; --es reminders '1@540,0@540' (daysBefore@minuteOfDay); state only: --es cmd sensorEndState
+            "sensorEnd" -> {
+                val se = app.mauri.sukrara.sensorend.SensorEnd
+                if (i.hasExtra("countdownHours")) se.setCountdownHours(c, i.getIntExtra("countdownHours", 8))
+                if (i.hasExtra("countdown") || i.hasExtra("reminders")) se.update(c) { cfg ->
+                    cfg.copy(countdown = i.getBooleanExtra("countdown", cfg.countdown),
+                        reminders = i.getStringExtra("reminders")?.split(',')?.filter { it.isNotBlank() }?.map {
+                            app.mauri.sukrara.sensorend.Reminder(it.substringBefore('@').trim().toInt(), it.substringAfter('@').trim().toInt())
+                        } ?: cfg.reminders)
+                }
+                se.fake(c, i.getIntExtra("inMin", 10))
+                out.put("sensorEnd", se.state(c))
+            }
+            // warm-up countdown: a made-up sensor that started --ei agoMin N ago (default 50)
+            "sensorStart" -> {
+                if (i.getBooleanExtra("firstReading", false)) app.mauri.sukrara.sensorend.SensorEnd.fakeFirstReading(c)
+                else app.mauri.sukrara.sensorend.SensorEnd.fakeStart(c, i.getIntExtra("agoMin", 50))
+                out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
+            }
+            "sensorEndState" -> out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
                 App.owner(c).approve(it.f); out.put("cmd", "approved ${it.name} code ${it.code}")
             } ?: out.put("cmd", "nothing pending")

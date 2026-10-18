@@ -120,6 +120,56 @@ GlucoseBar now treats silence as a disconnect: if a connected bridge sends nothi
 1/minute), it drops the peripheral and rescans. Worth remembering for the real Mac app — "still connected" is not
 evidence that data is flowing.
 
+## Fresh activation audit (Libre 3 / 3 Plus, 2026-10-18)
+
+Before the user's first new-sensor start with Sukrara (until now only a takeover had run on a real sensor), the NFC
+start path was checked against Juggluco (`Common/src/libre3/java/tk/glucodata/libre3/NFC.java`, `cpp/libre3/nfc.cpp`,
+`cpp/libre3/dp_activation.hpp`):
+
+- **Command**: `02 A0 7A` + LE32(now − 1) + LE32(receiver ID) + CRC-16 (poly 0x1021, init 0xFFFF, input reflected,
+  output not) over those 8 bytes, little-endian — identical (`DPGetActivationCommandData`). `Libre3NfcTest` checks the
+  three `static_assert` CRCs and Juggluco's logged payload `8C 42 86 62 8D 6D 41 1F BC 93`. Start vs takeover = patch
+  state 1 (`nfc1[17] == 1`), as Juggluco.
+- **Receiver ID — fixed**: Sukrara fell back to its own random ID when no LibreView account was known; a sensor
+  started that way could never be taken over by another app. Now a new sensor only gets the LibreView-derived ID
+  (Juggluco's default `getlibreAccountIDnumber`; its opt-in "New Libre app" ID from Abbott's newer receiver API is
+  not used), and nothing is sent until it is known.
+- **Answer**: 19 bytes `00 | A5 00 | BD address ×6 (reversed) | PIN ×4 | activation time LE32 | CRC`, time ≤ 0 → now;
+  errors `00 A5 01 <code>` (0xB1 = wrong receiver ID; states 6/8 = ended) — identical (`nfc2`, `nfc2error`).
+- **Interrupted tap**: the command is retried only on transient transceive errors (as Juggluco's `wholenfccmd`); a
+  lost tag aborts. A start that reached the sensor but lost its answer leaves it bound to the LibreView ID, so the
+  next tap (state ≠ 1 → `A8` with the same ID) gets the pairing back, with the sensor's own activation time.
+- **First Bluetooth connection**: like Juggluco (`sendstreaming` + a new `libre3stream` right after the NFC answer),
+  Sukrara connects at once (autoConnect) and runs the fresh pairing; during warm-up the client waits for its end.
+- **Sensor life**: start = the activation time in the answer, warm-up = patch info byte 13 × 5 min, wear = patch
+  info LE16 at +6 → `SensorLife` via `onSensor`.
+
+## Libre 2 / 2 Plus: investigated, discarded (2026-10-18)
+
+Asked when the user's Libre 3 Plus ended and a European Libre 2 Plus was the next sensor. Dropped by the user: an old
+sensor with a falling share, not worth the difficulty below. What Sukrara does instead: an NFC tap on a Libre 1 / 2 /
+2 Plus (UID maker byte 0x07, Texas Instruments; the Libre 3 is 0x7A, Abbott) sends **nothing** to the sensor and says
+*Libre 2 sensors aren't supported* with a button to Settings → Glucose source (Juggluco). Only a 0x7A chip ever gets a
+Libre 3 command (`Libre3Nfc.chip`, `Libre3NfcTest.chipGate`).
+
+- **The crypto is open.** DiaBLE (MIT; also LibreTools, LibreTransmitter) has the reverse-engineered gen-1 (EU)
+  scheme: activation `A1 1B`, streaming enable `A1 1E`, FRAM and BLE decryption, the BLE unlock payload. A Kotlin port
+  matched DiaBLE's own Swift bit for bit on generated vectors (kept on branch `sl-libre2-open-archive`, not merged).
+  EU Libre 2 Plus patch info `C6 09 31 01` / `7F 0E 31 01` = security generation 1; US/Canada "Gen2" is closed.
+- **mg/dL is not.** The Libre 2 sends raw sensor counts. Official values need Abbott's algorithm in LibreLink's
+  `libDataProcessing.so`; the open alternative (DiaBLE / xDripSwift "factory calibration" from the FRAM constants)
+  is an unvalidated approximation — not good enough to dose from.
+- **Using Abbott's library like Juggluco** (it ships a copy: `Juggluco-11.5.0-arm64.apk` → `lib/arm64-v8a/libcalibrat2.so`,
+  from LibreLink builds per `mklibs.sh`): the copy is binary-patched so imports land in Juggluco's hooks (`getTimeofday`,
+  `pthread_Detach`; `share/hooks.cpp` `Fork`, `Pipe`, `FOpen`, `d1sym`, …); it has only `JNI_OnLoad`, run against a fake
+  JavaVM/JNIEnv (`jnisub.cpp`) whose `RegisterNatives` collects the entry points (`libre2.cpp:145-200`); each call needs
+  a fixed 72-byte token (`libre2.cpp:61`); its `pm path` install check gets a faked answer; and its root / debugger /
+  syscall checks run under Juggluco's ptrace "debug clone" (`debugclone.cpp`, 2258 lines) — which matters on this
+  rooted phone. Re-creating that layer is ~5–8k lines of fragile C++, testable only on a device, and an anti-tamper
+  trip tends to give wrong values rather than a crash. Several days with an uncertain outcome.
+- **xDrip+** doesn't decode the Libre 2 either: it hands the data to the closed OOP2 app (`LibreOOPAlgorithm.java:90-183`)
+  or takes glucose broadcasts from a patched LibreLink / Juggluco (`LibreReceiver.java`).
+
 ## Open questions / next PoCs
 
 - [ ] Isolate the 60 s drop: subscription set vs connection interval, one variable at a time.

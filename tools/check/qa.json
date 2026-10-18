@@ -12,6 +12,9 @@
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/status/*", "spikes/showcase-android/app/src/main/res/layout/notif_*"], "qa": ["Q5 Glucose notification"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*", "spikes/menubar/Sources/GlucoseBar/Alert*", "spikes/alerts/*"], "qa": ["Q8 Alerts on a device"]},
     {"paths": ["spikes/showcase-android/app/src/main/res/values*/strings.xml", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Words.kt"], "qa": ["Q9 Translations"]},
-    {"paths": ["spikes/showcase-android/app/build.gradle.kts", "spikes/showcase-android/app/proguard-rules.pro"], "qa": ["Q10 Release build"]}
+    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/sensorend/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SensorEndScreen.kt"], "qa": ["Q11 Sensor reminders and countdowns"]},
+    {"paths": ["spikes/showcase-android/app/build.gradle.kts", "spikes/showcase-android/app/proguard-rules.pro"], "qa": ["Q10 Release build"]},
+    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/direct/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SensorScreen.kt"], "qa": ["Q12 Sensor scan"]},
+    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/SensorCalendar.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SensorCalendarSetting.kt"], "qa": ["Q13 Sensor end in calendar"]}
   ]
 }

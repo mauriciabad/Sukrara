@@ -1,0 +1,301 @@
+{
+ "about": "Sensor life badge, warm-up, countdown ring and the ended card's action pill (round sensor-life), shared by Android (GraphFixtureTest.sensor) and Mac (-graphselftest). Format: ../README.md.",
+ "cases": [
+  {
+   "name": "2 days in: 13d (whole days, floor)",
+   "start": -172800,
+   "end": 1141200,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "13d",
+    "ended": false,
+    "life": 0.8685,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "exactly 24 h left: 1d",
+   "start": -1209600,
+   "end": 86400,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "1d",
+    "ended": false,
+    "life": 0.0667,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "23 h 59 m left: hours",
+   "start": -1209660,
+   "end": 86340,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "23h",
+    "ended": false,
+    "life": 0.0666,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "20 h left, 8 h window: no ring",
+   "start": -1224000,
+   "end": 72000,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "20h",
+    "ended": false,
+    "life": 0.0556,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "8 h left: the ring starts full",
+   "start": -1267200,
+   "end": 28800,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "8h",
+    "ended": false,
+    "life": 0.0222,
+    "warmup": null,
+    "ring": 1.0,
+    "pill": null
+   }
+  },
+  {
+   "name": "5 h left: ring at 5/8",
+   "start": -1278000,
+   "end": 18000,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "5h",
+    "ended": false,
+    "life": 0.0139,
+    "warmup": null,
+    "ring": 0.625,
+    "pill": null
+   }
+  },
+  {
+   "name": "45 min left: minutes",
+   "start": -1293300,
+   "end": 2700,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "45m",
+    "ended": false,
+    "life": 0.0021,
+    "warmup": null,
+    "ring": 0.0938,
+    "pill": null
+   }
+  },
+  {
+   "name": "59 s left: 0m, not ended yet",
+   "start": -1295941,
+   "end": 59,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "0m",
+    "ended": false,
+    "life": 0.0,
+    "warmup": null,
+    "ring": 0.002,
+    "pill": null
+   }
+  },
+  {
+   "name": "ended 10 min ago: 0m, ended, no ring",
+   "start": -1296600,
+   "end": -600,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "0m",
+    "ended": true,
+    "life": 0,
+    "warmup": null,
+    "ring": null,
+    "pill": {
+     "kind": "sensor",
+     "text": "Replace sensor",
+     "short": "Sensor",
+     "tonal": false
+    }
+   }
+  },
+  {
+   "name": "ends now: ended",
+   "start": -1296000,
+   "end": 0,
+   "countdownHours": 8,
+   "latest": -60,
+   "expect": {
+    "label": "0m",
+    "ended": true,
+    "life": 0,
+    "warmup": null,
+    "ring": null,
+    "pill": {
+     "kind": "sensor",
+     "text": "Replace sensor",
+     "short": "Sensor",
+     "tonal": false
+    }
+   }
+  },
+  {
+   "name": "24 h window, 20 h left: ring",
+   "start": -1224000,
+   "end": 72000,
+   "countdownHours": 24,
+   "latest": -60,
+   "expect": {
+    "label": "20h",
+    "ended": false,
+    "life": 0.0556,
+    "warmup": null,
+    "ring": 0.8333,
+    "pill": null
+   }
+  },
+  {
+   "name": "1 h window, 30 min left",
+   "start": -1294200,
+   "end": 1800,
+   "countdownHours": 1,
+   "latest": -60,
+   "expect": {
+    "label": "30m",
+    "ended": false,
+    "life": 0.0014,
+    "warmup": null,
+    "ring": 0.5,
+    "pill": null
+   }
+  },
+  {
+   "name": "warming up 18 min in: 42m, the ring fills to 0.3",
+   "start": -1080,
+   "end": 1294920,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9992,
+    "warmup": "42m",
+    "ring": 0.3,
+    "pill": null
+   }
+  },
+  {
+   "name": "warming up, the old sensor's last reading doesn't end it",
+   "start": -1080,
+   "end": 1294920,
+   "countdownHours": 8,
+   "latest": -7200,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9992,
+    "warmup": "42m",
+    "ring": 0.3,
+    "pill": null
+   }
+  },
+  {
+   "name": "warm-up: 30 s left rounds up to 1m",
+   "start": -3570,
+   "end": 1292430,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9972,
+    "warmup": "1m",
+    "ring": 0.9917,
+    "pill": null
+   }
+  },
+  {
+   "name": "warm-up over, no reading yet (within 15 min): 0m, ring full",
+   "start": -3900,
+   "end": 1292100,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.997,
+    "warmup": "0m",
+    "ring": 1,
+    "pill": null
+   }
+  },
+  {
+   "name": "warm-up over by 15 min without a reading: not warming any more",
+   "start": -4500,
+   "end": 1291500,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9965,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "the first reading ends the warm-up",
+   "start": -1800,
+   "end": 1294200,
+   "countdownHours": 8,
+   "latest": -30,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9986,
+    "warmup": null,
+    "ring": null,
+    "pill": null
+   }
+  },
+  {
+   "name": "a 30-min warm-up (patch info)",
+   "start": -600,
+   "end": 1295400,
+   "countdownHours": 8,
+   "latest": null,
+   "warmup": 1200,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 0.9995,
+    "warmup": "20m",
+    "ring": 0.3333,
+    "pill": null
+   }
+  }
+ ]
+}

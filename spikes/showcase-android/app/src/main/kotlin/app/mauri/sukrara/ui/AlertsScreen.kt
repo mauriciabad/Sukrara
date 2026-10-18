@@ -246,7 +246,7 @@ private fun noteText(ctx: Context, n: AlertNote): String {
         AlertNote.CLEARED -> ctx.getString(if (n.remote) R.string.alerts_note_cleared_remote else R.string.alerts_note_cleared, AlertNotifier.label(ctx, k))
         else -> ctx.getString(R.string.alerts_note_resumed, n.kinds.joinToString { AlertNotifier.label(ctx, it) })
     }
-    val t = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(n.at * 1000))
+    val t = app.mauri.sukrara.graph.Clock.time(n.at)
     return "$t  " + if (n.test) ctx.getString(R.string.alerts_note_test, text) else text
 }
 

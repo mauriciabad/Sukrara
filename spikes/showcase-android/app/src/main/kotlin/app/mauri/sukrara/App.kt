@@ -19,12 +19,18 @@ class App : Application() {
         super.onCreate()
         // the drawing code's words follow the app's language (per-app language, res/values-es)
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(resources) }
+        // every clock time follows Settings → 24-hour time, read live (graph/Clock)
+        app.mauri.sukrara.graph.Clock.hour24Source = { android.text.format.DateFormat.is24HourFormat(this) }
         app.mauri.sukrara.graph.RoundedFont.init(this)   // the card's rounded numbers (Google Sans Flex, ROND 100)
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
         app.mauri.sukrara.features.SystemAccess.init()   // is the LSPosed module running in System UI?
         app.mauri.sukrara.graph.GraphSettings.init(this)
+        app.mauri.sukrara.features.SensorCalendar.init(this)   // sensor end in calendar (owner only; follows SensorLife)
+        app.mauri.sukrara.core.SensorLife.init(this)   // sensor end + countdown window (round sensor-life)
+        // sensor end reminders + live countdowns (wearer); a failure there must never stop the app from starting
+        runCatching { app.mauri.sukrara.sensorend.SensorEnd.init(this) }.onFailure { android.util.Log.e("Sukrara.SensorEnd", "init failed", it) }
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
         app.mauri.sukrara.widgets.SukraraHooks.watchConfiguration(this)   // dark theme or language → widgets, channel names

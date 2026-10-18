@@ -73,6 +73,10 @@ import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.graph.LastPlace
 import app.mauri.sukrara.graph.Slots
+import app.mauri.sukrara.graph.SlotItem
+import app.mauri.sukrara.graph.GraphPalette
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import app.mauri.sukrara.graph.StatusBadge
 import app.mauri.sukrara.treatments.LastTreatment
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,6 +85,8 @@ import androidx.compose.foundation.layout.requiredSize
 import app.mauri.sukrara.graph.ValueFit
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
 
@@ -135,6 +141,10 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val pal = remember(dark) { systemPalette(ctx, dark) }
     val treatments by TreatmentFeed.items.collectAsState()
     val alerts by Alerts.settings.collectAsState()
+    val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
+    val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
+    val sensorLook = app.mauri.sukrara.graph.SensorBadge.look(sensor, now, t)
+    val countdown = app.mauri.sukrara.graph.SensorBadge.ring(sensorLook, sensor, now, countdownH)
     val fresh = Freshness.of(t?.let { now - it })
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
     val status = AlertStatus.of(reading, alerts, treatments, now)
@@ -163,13 +173,44 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         }, Motion.slowEffectsSpec(), label = "range")
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            val number = if (sgv != null && fresh.showValue) "$sgv" else null
+            val warmup = sensorLook?.takeIf { it.warmup != null }
+            val number = if (sgv != null && fresh.showValue && warmup == null && sensorLook?.ended != true) "$sgv" else null
             ValueAndSlots(number, { fit -> Slots.arrange(rings, cfg.lastPlace, last, fallback, fit) },
                 value = { scale ->
-                    if (number != null) {
+                    if (warmup != null) {
+                        // a new sensor warming up: the time left where the number goes, the disc filling beside it
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
+                                Text(warmup.warmup!!, fontSize = (72 * scale).sp, fontWeight = FontWeight.Bold, fontFamily = rounded,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val dh = (26 * scale).dp
+                                Canvas(Modifier.padding(start = (8 * scale).dp).size(dh)) {
+                                    drawIntoCanvas { app.mauri.sukrara.graph.SensorBadge.disc(it.nativeCanvas, 0f, 0f, size.height, warmup, pal) }
+                                }
+                            }
+                            Text(stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
+                                style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else if (sensorLook?.ended == true) {
+                        // an ended sensor: a state (not an error) and the action, the same pill as "Eat carbs"
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // the status bar's checkered flag, so the two read as one thing
+                                androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_stat_sensor_ended), contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp).size(24.dp))
+                                Text(stringResource(R.string.card_sensor_ended), style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            val owner = app.mauri.sukrara.App.role(ctx) == "owner"
+                            Box(if (owner) Modifier.clip(CircleShape).clickable { ctx.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(ctx)) } else Modifier) {
+                                StatusBadgeChip(StatusBadge.replaceSensor())
+                            }
+                        }
+                    } else if (number != null) {
                         // A late reading's time goes under the number, so it never takes the rings' room.
                         Column {
-                            ValueNumber(number, rate, color, fresh.strike, scale)
+                            ValueNumber(number, rate, color, fresh.strike, scale, sensorLook, pal)
                             RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
                             if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,10 +220,12 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                             style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
-                slot = { item ->
+                slot = { item, main ->
                     Canvas(Modifier.fillMaxSize()) {
                         drawIntoCanvas {
                             Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal, density)
+                            if (main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(it.nativeCanvas, size.width / 2, size.height / 2,
+                                size.minDimension / 2, countdown, pal)
                         }
                     }
                 })
@@ -210,7 +253,8 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
 
 /** The big number in the card's rounded face (graph/RoundedFont.kt, like SF Pro Rounded on the Mac) and the trend arrow, at [scale]. */
 @Composable
-fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, scale: Float = 1f) {
+fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, scale: Float = 1f,
+                sensor: app.mauri.sukrara.graph.SensorBadge.Look? = null, pal: GraphPalette? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box {
             val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
@@ -221,6 +265,19 @@ fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, sc
         }
         Spacer(Modifier.width((8 * scale).dp))
         if (!strike) TrendArrow(rate, color, Modifier.size((56 * scale).dp))
+        if (sensor != null && pal != null) SensorLifeBadge(sensor, pal, scale, Modifier.align(Alignment.Top).padding(top = (14 * scale).dp))
+    }
+}
+
+/** The sensor life badge beside the arrow ([app.mauri.sukrara.graph.SensorBadge] draws it, as on the widgets and the Mac). */
+@Composable
+fun SensorLifeBadge(look: app.mauri.sukrara.graph.SensorBadge.Look, pal: GraphPalette, scale: Float, modifier: Modifier = Modifier) {
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val h = (13 * scale).coerceAtLeast(10f)
+    val wDp = app.mauri.sukrara.graph.SensorBadge.width(look, h * density, pal) / density
+    val desc = app.mauri.sukrara.graph.SensorBadge.describe(look, nowSeconds())
+    Canvas(modifier.padding(start = (4 * scale).dp).size(wDp.dp, h.dp).semantics { contentDescription = desc }) {
+        drawIntoCanvas { app.mauri.sukrara.graph.SensorBadge.draw(it.nativeCanvas, 0f, 0f, size.height, look, pal) }
     }
 }
 
@@ -231,7 +288,7 @@ fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, sc
  */
 @Composable
 fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Composable (scale: Float) -> Unit,
-                      slot: @Composable (T) -> Unit) {
+                      slot: @Composable (item: T, main: Boolean) -> Unit) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -247,7 +304,9 @@ fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Compo
         val slots = slotsFor(fit.slots)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { value(fit.scale) }
-            for (item in slots.reversed()) Box(Modifier.padding(start = ValueFit.SLOT_GAP_DP.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item) }
+            // the main ring (the sensor countdown ring covers it): Slots.mainIndex
+            val main = if (slots.all { it is SlotItem }) Slots.mainIndex(slots.map { it as SlotItem }) else 0
+            for ((i, item) in slots.withIndex().reversed()) Box(Modifier.padding(start = ValueFit.SLOT_GAP_DP.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
         }
     }
 }

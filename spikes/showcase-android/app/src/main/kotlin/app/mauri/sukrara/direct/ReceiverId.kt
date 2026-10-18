@@ -19,7 +19,8 @@ import kotlinx.serialization.json.put
  * The 32-bit "receiver ID" a Libre 3 is bound to when it is activated over NFC. Taking over a running sensor (NFC
  * again, from another phone or app) only works with that same ID; activating a new sensor accepts any.
  *
- * - [own]: random, made once per install. Used to start new sensors when no LibreView account is known.
+ * - [own]: random, made once per install; only a takeover candidate. New sensors never get it: a sensor started with it
+ *   could be taken over by no other app.
  * - [libreView]: derived from the LibreView account ID, the way LibreLink-era apps and Juggluco derive it, so a sensor
  *   started by one of them can be taken over (and later handed back). Learned by [fetchLibreView].
  */
@@ -45,8 +46,8 @@ object ReceiverId {
     /** IDs to try for a takeover, most likely first. */
     fun takeoverCandidates(ctx: Context): List<Long> = listOfNotNull(libreView(ctx), own(ctx)).distinct()
 
-    /** The ID a new sensor gets: the LibreView one when known, so LibreLink-compatible apps can take it over later. */
-    fun forActivation(ctx: Context): Long = libreView(ctx) ?: own(ctx)
+    /** The ID a new sensor gets: only the LibreView one, so LibreLink-compatible apps can take it over later; null = sign in first. */
+    fun forActivation(ctx: Context): Long? = libreView(ctx)
 
     /** LibreView account ID (a 36-character GUID) → receiver ID (Juggluco's getlibreaccountidnumber). */
     fun fromAccountId(accountId: String): Long {

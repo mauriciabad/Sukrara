@@ -21,6 +21,7 @@ class Libre3NfcTest {
         assertEquals(4, p.state)
         assertEquals(4, p.productType)
         assertEquals(60, p.warmupMin)
+        assertEquals(20160, p.wearMin)   // C04E: this Libre 3 vector says 14 days (a Libre 3 Plus says 21600)
         assertTrue(!p.activate)
         assertNull(Libre3Nfc.parsePatchInfo(running.copyOf(20)))
     }
@@ -61,5 +62,30 @@ class Libre3NfcTest {
     @Test fun receiverIdFromLibreViewAccount() {
         // Juggluco's getlibreaccountidnumber(), computed independently in Python
         assertEquals(3078366504L, ReceiverId.fromAccountId("01234567-89ab-cdef-0123-456789abcdef"))
+    }
+
+    /** Only an Abbott chip (UID maker byte 0x7A) ever gets a Libre 3 command; a Libre 1/2/2 Plus (TI, 0x07) gets none. */
+    @Test fun chipGate() {
+        fun uid(s: String) = ByteArray(8) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+        assertEquals(Libre3Nfc.Chip.LIBRE3, Libre3Nfc.chip(uid("0102030405067ae0")))
+        // a real Libre 2's UID (DiaBLE App.swift:238, serial 3MH001DG75W)
+        assertEquals(Libre3Nfc.Chip.LIBRE2, Libre3Nfc.chip(uid("2fe7b10000a407e0")))
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(uid("0102030405060ae0")))   // another maker
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(uid("0102030405067a00")))   // not an ISO 15693 UID
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(byteArrayOf(1, 2, 3, 4)))
+        assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(null))
+    }
+
+    /** Juggluco libre3/NFC.java (`secondWithID`): its logged A0 payload `8C 42 86 62 8D 6D 41 1F BC 93`. */
+    @Test fun activationCommand() {
+        // now − 1 = 0x6286428C, receiver ID 0x1F416D8D, CRC 0x93BC little-endian
+        assertArrayEquals(hex("02A07A" + "8C4286628D6D411FBC93"), Libre3Nfc.secondCommand(true, 0x1F416D8DL, now = 0x6286428DL))
+    }
+
+    /** A new sensor only ever gets the LibreView receiver ID; without it nothing is sent. A takeover tries them all. */
+    @Test fun activationNeedsTheAccountId() {
+        assertEquals(listOf(77L), Libre3Nfc.idsToTry(activate = true, candidates = listOf(77L, 5L), forActivation = 77L))
+        assertNull(Libre3Nfc.idsToTry(activate = true, candidates = listOf(5L), forActivation = null))
+        assertEquals(listOf(77L, 5L), Libre3Nfc.idsToTry(activate = false, candidates = listOf(77L, 5L), forActivation = null))
     }
 }

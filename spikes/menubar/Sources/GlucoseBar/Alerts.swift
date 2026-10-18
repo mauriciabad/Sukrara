@@ -101,6 +101,16 @@ final class AlertEngine {
 
     private var episodes: [AlertKind.Group: Episode] = [:]
     private(set) var latest: Reading?
+    /// The current sensor (SensorStore; the live events' ss/se/sw): no `no_data` while it has ended or warms up (no
+    /// reading is expected then, SPEC §2); a running no-data alert clears.
+    var sensor: () -> SensorInfo? = { nil }
+
+    /// No reading is expected: the sensor has ended or is warming up.
+    func quiet(_ t: Date) -> Bool {
+        guard let s = sensor() else { return false }
+        let n = t.timeIntervalSince1970
+        return SensorLife.ended(end: s.end, now: n) || SensorLife.warming(s, latest: latest?.date.timeIntervalSince1970, now: n)
+    }
 
     var active: [AlertKind.Group: State] {
         episodes.filter { $0.value.on }.mapValues { State(kind: $0.kind, muted: $0.muted, firedAt: $0.firedAt, n: $0.n) }
@@ -166,7 +176,7 @@ final class AlertEngine {
             else if s[.risingFast].on, v >= s[.risingFast].threshold { rate = .risingFast }
         }
         let nd = s[.noData]
-        let noData = r.map { nd.on && t.timeIntervalSince($0.date) >= nd.threshold * 60 } ?? false
+        let noData = (r.map { nd.on && t.timeIntervalSince($0.date) >= nd.threshold * 60 } ?? false) && !quiet(t)
         let rapid = rapidInsulin(), cb = carbs()
         let doses: (String) -> [Date] = { $0 == "rapid" ? rapid : cb }
         step(.level, levelAndRate ? Self.level(r, s, t) : nil, s, doses, t)
@@ -264,6 +274,10 @@ final class AlertEngine {
             if nd.on, episodes[.noData]?.on != true { c.append(r.date.addingTimeInterval(nd.threshold * 60)) }
             c.append(r.date.addingTimeInterval(Self.fresh + 1))   // level/rate alerts end when the reading goes stale
         }
+        // a warm-up that brings no reading: no_data is due again once it is over
+        if let s = sensor(), SensorLife.warming(s, latest: latest?.date.timeIntervalSince1970, now: now.timeIntervalSince1970) {
+            c.append(Date(timeIntervalSince1970: s.warmupEnd + SensorLife.warmupGrace))
+        }
         for e in episodes.values where e.on { if let n = e.next { c.append(n) } }
         return c.filter { $0 > now }.min()
     }
@@ -327,6 +341,7 @@ final class AlertEngine {
 
     override init() {
         engine = AlertEngine(settings: settings)
+        engine.sensor = { SensorStore.current }
         super.init()
         center?.delegate = self
         engine.onFire = { [weak self] ev in self?.post(ev, mirrored: false) }
@@ -382,6 +397,9 @@ final class AlertEngine {
 
     /// A treatment was logged, edited or deleted: mutes start (or end) at once.
     func treatmentsChanged() { tick() }
+
+    /// The wearer's sensor changed (ended, a new one warming up): no data may stop or start counting.
+    func sensorChanged() { tick() }
 
     private func tick() {
         engine.levelAndRate = mode == .own

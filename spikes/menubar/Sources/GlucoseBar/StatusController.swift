@@ -60,7 +60,7 @@ extension Bands {
 
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
-    private var tick: Timer?, freshTimer: Timer?
+    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
 
     override init() {
         super.init()
@@ -162,6 +162,7 @@ extension Bands {
         let age = Date().timeIntervalSince(snap.latest.date)
         let fresh = Freshness.of(age: age)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
+        endTimer?.invalidate()
         freshTimer?.invalidate()
         freshTimer = Freshness.nextChange(age: age).map { next in
             Timer.scheduledTimer(withTimeInterval: next - age, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
@@ -176,18 +177,49 @@ extension Bands {
         if let color { attrs[.foregroundColor] = color }
         if fresh.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         // Old (> 20 min): no value at all, just a dash; the panel says since when.
+        button.imagePosition = .imageTrailing
         button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
         button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
-        button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
+        button.toolTip = "Sukrara · reading at \(Clock.time(snap.latest.date))"
         let unitName = unit == .mgdl ? "mg/dL" : "mmol/L"
         button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
+        // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
+        let nowT = Date().timeIntervalSince1970
+        if let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
+            if sl.ended {
+                // as soon as it has ended (not an error): the checkered flag instead of a value; the panel has the pill
+                button.attributedTitle = NSAttributedString(string: "")
+                let img = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: "Sensor ended") ?? NSImage()
+                img.isTemplate = true   // follows the menubar's light / dark appearance
+                button.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize, weight: .medium)) ?? img
+                button.imagePosition = .imageOnly
+                button.toolTip = "Sensor ended — replace sensor"
+                button.setAccessibilityLabel("Sensor ended — replace sensor")
+            } else if !fresh.showValue, let w = sl.warmup {
+                attrs[.foregroundColor] = NSColor.secondaryLabelColor
+                attrs.removeValue(forKey: .strikethroughStyle)
+                button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
+                button.toolTip = "Sukrara · Ready at \(Freshness.timeText(sl.readyAt, now: nowT))"
+                button.setAccessibilityLabel("Sensor warming up, \(w) left")
+                freshTimer?.invalidate()   // no readings come during the warm-up: tick the minutes ourselves
+                freshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
+            } else if sl.end - nowT < 3600 {
+                // the end comes before the next reading may: switch to "Sensor ended" right then
+                endTimer?.invalidate()
+                endTimer = Timer.scheduledTimer(withTimeInterval: max(1, sl.end - nowT + 1), repeats: false) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.render(); self?.panelModel.tick += 1 }
+                }
+            }
+        }
 
         var g = graph.graphStyle()
         g.hour24 = GraphStyle.systemHour24
         var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         panelModel.hasData = true
-        panelModel.style = graph.cardStyle(graph: g)
+        var st = graph.cardStyle(graph: g)
+        st.sensor = SensorStore.current
+        panelModel.style = st
         panelModel.alerts = alertSettings?()
         panelModel.readings = pts
         panelModel.tick += 1
@@ -199,7 +231,7 @@ extension Bands {
 
     /// Every graph setting (UserDefaults); "Reset All Graph Settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours"]
 
     /// Settings changed (Settings › Graph or `defaults write`): redraw and re-publish to the widgets.
     func reloadGraph() {
@@ -228,7 +260,7 @@ extension Bands {
     /// "14:05  2.5u rapid · 12m" (amounts lowercase without a space, the time since the entry last; delivery status
     /// comes from `treatmentStatus`).
     static func describe(_ t: Treatment, now: Date = Date()) -> String {
-        let time = Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened)
+        let time = Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t)))
         let what = TreatmentMarks.amount(k: t.k, a: t.a).map { "\($0) \(t.k)" } ?? "note"
         let note = t.n.isEmpty ? "" : (t.k == "note" ? ": " : " · ") + t.n
         return "\(time)  \(what)\(note) · \(TreatmentMarks.duration(now.timeIntervalSince1970 - TimeInterval(t.t)))"

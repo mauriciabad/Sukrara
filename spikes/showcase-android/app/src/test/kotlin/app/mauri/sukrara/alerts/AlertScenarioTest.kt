@@ -4,6 +4,8 @@
 package app.mauri.sukrara.alerts
 
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.treatments.Treatment
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -134,7 +136,12 @@ object AlertScenarios {
                         if (nextReading == null) nextReading = t
                     }
                     "readings" -> every = w[2].toInt()
-                    "sensor" -> { sensor = w[1] == "on"; if (sensor) nextReading = t }
+                    "sensor" -> when (w[1]) {
+                        // round sensor-life: the sensor ends now (no more readings) / a new one starts now (60 min warm-up)
+                        "ended" -> { sensor = false; e.sensor = SensorInfo("s", t - 15 * 86_400L, t); check() }
+                        "started" -> { sensor = false; e.sensor = SensorLife.fromStart("s2", t, 0); check() }
+                        else -> { sensor = w[1] == "on"; if (sensor) nextReading = t }
+                    }
                     "carbs", "insulin" -> {
                         val k = if (w[0] == "carbs") "carbs" else "rapid"
                         trs += Treatment(id = "${k}_$t", k = k, a = w[1].toDouble(), t = t, u = t * 1000, o = "phone")
@@ -150,8 +157,10 @@ object AlertScenarios {
                     "restart" -> {
                         val saved = JSONObject(e.snapshot().toString())
                         val last = e.last
+                        val si = e.sensor
                         e = AlertEngine()
                         e.seed(last)
+                        e.sensor = si
                         e.restore(saved, s, t).forEach { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += "resume ${it.kind}" }
                     }
                     else -> error("unknown event: $ev")

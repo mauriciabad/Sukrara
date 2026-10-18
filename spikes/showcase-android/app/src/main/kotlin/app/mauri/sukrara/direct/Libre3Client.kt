@@ -70,6 +70,10 @@ internal class Libre3Client(
         private val MINIMAL = listOf(CH_PATCH_CONTROL, CH_GLUCOSE, CH_PATCH_STATUS)
 
         private const val PREF_MINIMAL = "useMinimalSubscriptions"
+        /** Set when a sensor has ended ([PatchState]): [DirectSource] doesn't connect to it again. */
+        fun endedKey(serial: String) = "ended:$serial"
+        /** Source status detail for an ended sensor (shown under the card and on the Sensor page). */
+        const val ENDED_HINT = "Replace sensor: scan the new one in Settings → Sensor"
         private const val PREF_LOW_POWER = "useLowPowerInterval"
         private const val GLUCOSE_TIMEOUT_MS = 120_000L
         /** A drop this soon after authorizing means the session setup was not acceptable to the sensor. */
@@ -91,7 +95,6 @@ internal class Libre3Client(
         /** How far back to backfill on connect (minutes): 24 h, the span of CGM+'s watch graph (investigation 08). */
         private const val BACKFILL_MINUTES = 24 * 60
         /** A Libre 3 gives no glucose for its first hour. */
-        private const val WARMUP_MINUTES = 60
 
         /**
          * App certificate for security level 1, sent during a fresh pairing (public; from Juggluco's KEYSCrypto.java,
@@ -134,6 +137,7 @@ internal class Libre3Client(
     private var outSeq = 1              // outgoing CCM sequence, restarts at 1 each session
     private var backfillRequested = false
     private var subscriptions = emptyList<UUID>()
+    private var endedSeen = false          // the patch status said the sensor has ended (PatchState)
     private val glucoseTimeout = Runnable { onGlucoseTimeout() }
 
     // MARK: lifecycle
@@ -481,12 +485,18 @@ internal class Libre3Client(
         val d = decrypt(KIND_PATCH_STATUS, packet) ?: return
         if (d.size < 12) return
         val currentLifeCount = (d[8].toInt() and 0xFF) or ((d[9].toInt() and 0xFF) shl 8)
-        Log.i(TAG, "patch status: state=${d[7].toInt() and 0xFF} currentLifeCount=$currentLifeCount")
-        if (currentLifeCount in 0 until WARMUP_MINUTES) {
+        val state = d[7].toInt() and 0xFF
+        Log.i(TAG, "patch status: state=$state currentLifeCount=$currentLifeCount")
+        if (PatchState.ended(state, currentLifeCount, pairing.wearMin)) {
+            if (!endedSeen) { endedSeen = true; sink.onSensorEnded(pairing.serial) }
+            if (PatchState.stopNow(state)) return stopForGood("patch state $state")
+            sink.onStatus("sensor ended", ENDED_HINT)   // an expired sensor gets one glucose wait (grace period)
+        }
+        if (currentLifeCount in 0 until pairing.warmupMin) {
             // no glucose yet: wait for the end of the warm-up instead of reconnecting every 2 minutes
-            sink.onStatus("warming up — readings in ${WARMUP_MINUTES - currentLifeCount} min")
+            sink.onStatus("warming up — readings in ${pairing.warmupMin - currentLifeCount} min")
             handler.removeCallbacks(glucoseTimeout)
-            handler.postDelayed(glucoseTimeout, (WARMUP_MINUTES - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS)
+            handler.postDelayed(glucoseTimeout, (pairing.warmupMin - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS)
             return
         }
         if (backfillRequested || currentLifeCount <= 0) return
@@ -520,7 +530,16 @@ internal class Libre3Client(
 
     /** Authorized but no glucose: reconnect, falling back to all notifications if we trimmed them. */
     private fun onGlucoseTimeout() {
+        if (endedSeen) return stopForGood("no glucose after the sensor's end")
         if (prefs.getBoolean(PREF_MINIMAL, false)) prefs.edit().putBoolean(PREF_MINIMAL, false).apply()
         fail("no glucose data after authorizing")
+    }
+
+    /** The sensor has ended: no more reconnects (each one costs battery) until a new sensor is scanned. */
+    private fun stopForGood(why: String) {
+        Log.w(TAG, "sensor ${pairing.serial} ended ($why): not reconnecting")
+        prefs.edit().putBoolean(endedKey(pairing.serial), true).apply()
+        close()
+        sink.onStatus("sensor ended", ENDED_HINT)
     }
 }

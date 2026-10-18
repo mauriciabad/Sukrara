@@ -42,6 +42,14 @@ data class Words(
     val noReadingsYet: String = "No readings yet",
     val noReadingsSince: String = "No readings since %1\$s",
     val noReadingSince: String = "No reading since",
+    // the sensor life badge and the ended card (round sensor-life)
+    val sensorLeft: String = "Sensor: %1\$s left",
+    val sensorEnded: String = "Sensor ended",
+    /** The action pill on an ended sensor (StatusBadge kind "sensor"), full and short like "Eat carbs" / "Carbs". */
+    val replaceSensor: String = "Replace sensor",
+    val replaceSensorShort: String = "Sensor",
+    val warmingUp: String = "Warming up",
+    val readyAt: String = "Ready at %1\$s",
     // trend in words (screen readers, the notification)
     val trendUnknown: String = "trend unknown",
     val trendSteady: String = "steady",
@@ -83,6 +91,9 @@ data class Words(
             tirVeryGood = r.getString(R.string.slot_tir_very_good),
             noReadingsYet = r.getString(R.string.card_no_readings_yet), noReadingsSince = r.getString(R.string.card_no_readings_since),
             noReadingSince = r.getString(R.string.card_no_reading_since),
+            sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
+            replaceSensor = r.getString(R.string.badge_replace_sensor), replaceSensorShort = r.getString(R.string.badge_replace_sensor_short),
+            warmingUp = r.getString(R.string.card_warming_up), readyAt = r.getString(R.string.card_ready_at),
             trendUnknown = r.getString(R.string.trend_unknown), trendSteady = r.getString(R.string.trend_steady),
             trendRising = r.getString(R.string.trend_rising), trendRisingFast = r.getString(R.string.trend_rising_fast),
             trendFalling = r.getString(R.string.trend_falling), trendFallingFast = r.getString(R.string.trend_falling_fast),

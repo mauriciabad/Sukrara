@@ -182,7 +182,7 @@ import SwiftUI
         defer { loading = false }
         source = status.sourceText
         lastReading = status.snapshot.map {
-            $0.latest.date.formatted(date: .abbreviated, time: .shortened) + " · "
+            Clock.dateTime($0.latest.date) + " · "
                 + RelativeDateTimeFormatter().localizedString(for: $0.latest.date, relativeTo: Date())
         } ?? "None yet"
         problem = status.lastError
@@ -256,6 +256,7 @@ struct GeneralView: View {
     var hours: Binding<Int> { bind(\.hours) { self.set("graphHours", $0) } }
     var side: Binding<Bool> { bind(\.side) { self.set("side", $0) } }
     var gridHours: Binding<Int> { bind(\.gridHours) { self.set("gridHours", $0) } }
+    var countdownHours: Binding<Int> { bind(\.countdownHours) { self.set("countdownHours", $0) } }
     var ringCount: Binding<Int> { bind(\.ringCount) { self.set("ringCount", $0) } }
     var ringRange: Binding<TirRange> { bind(\.ringRange) { self.set("ringRange", $0.rawValue) } }
     var lastPlace: Binding<LastPlace> { bind(\.lastPlace) { self.set("lastPlace", $0.rawValue) } }
@@ -333,6 +334,12 @@ struct GraphSettingsView: View {
                 Picker("Vertical lines", selection: model.gridHours) {
                     ForEach(GraphConfig.gridChoices, id: \.self) { h in Text(h == 0 ? "Off" : h == 1 ? "Every hour" : "Every \(h) hours").tag(h) }
                 }
+                // round sensor-life: the ring over the main ring in the sensor's last hours (Android: Settings › Sensor)
+                Stepper(value: model.countdownHours, in: SensorLife.countdownRange) {
+                    // the menubar's "sensor ended" flag, so the two read as one thing
+                    LabeledContent { Text("Last \(c.countdownHours) h") } label: { Label("Sensor countdown", systemImage: "flag.checkered") }
+                }
+                .help("A ring over the main ring counts down the sensor's last hours")
             }
             Section {
                 ForEach(c.lines, id: \.self) { l in

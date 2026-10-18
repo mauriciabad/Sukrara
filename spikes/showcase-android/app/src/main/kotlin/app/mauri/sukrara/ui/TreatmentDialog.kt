@@ -208,6 +208,7 @@ fun KindMark(kind: String, color: Color) {
                 if (kind == "rapid") drawPath(p, color) else drawPath(p, color, style = Stroke(w * 0.16f))
             }
             "carbs" -> drawCircle(color, w / 2, Offset(w / 2, w / 2))
+            "sensor" -> { drawCircle(color, w * 0.42f, Offset(w / 2, w / 2), style = Stroke(w * 0.16f)); drawCircle(color, w * 0.16f, Offset(w / 2, w / 2)) }
             else -> drawPath(Path().apply { moveTo(w / 2, 0f); lineTo(w, w / 2); lineTo(w / 2, w); lineTo(0f, w / 2); close() }, color)
         }
     }
@@ -217,7 +218,7 @@ fun KindMark(kind: String, color: Color) {
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
     if (at == null) return stringResource(R.string.treatment_time_now)
-    val fmt = DateFormat.getTimeFormat(ctx).format(java.util.Date(at * 1000))
+    val fmt = app.mauri.sukrara.graph.Clock.time(at, DateFormat.is24HourFormat(ctx))
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
     return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)

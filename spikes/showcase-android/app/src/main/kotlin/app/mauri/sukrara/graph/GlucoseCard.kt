@@ -13,6 +13,8 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.status.GlucoseNotification
 import app.mauri.sukrara.treatments.LastTreatment
@@ -177,6 +179,8 @@ data class CardStyle(
     val last: LastPlace = LastPlace.OFF,
     val lastElse: RingSpec? = null,
     val badge: Boolean = true,
+    /** The phone's 24-hour setting for the card's clock times (the graph's when it has one). */
+    val hour24: Boolean = graph?.hour24 ?: Clock.hour24,
 )
 
 /**
@@ -197,11 +201,14 @@ object GlucoseCard {
         st: CardStyle, pal: GraphPalette, d: Float,
         metricsOf: (RingSpec, Bands) -> GlucoseMetrics = { r, b -> GlucoseMetrics.of(readings, nowS - r.windowS, nowS, b) },
         alerts: AlertSettings? = Alerts.settings.value,
+        sensor: SensorInfo? = SensorLife.current.value,
+        countdownH: Int = SensorLife.countdown.value,
     ) {
         val latest = readings.maxByOrNull { it.t }
         val status = alerts?.let { AlertStatus.of(latest, it, treatments, nowS) } ?: AlertStatus.None
         val last = if (st.last != LastPlace.OFF && alerts != null) LastTreatment.of(treatments, alerts, status, nowS) else null
         val fr = Freshness.of(latest?.let { nowS - it.t })
+        val sl = SensorBadge.look(sensor, nowS, latest?.t)
         val graph = st.graph?.takeIf { fr.showGraph }
         val bands = (st.graph?.bands ?: Bands()).sane()
         val sideBySide = graph != null && st.value && h < 100 * d && w > 2.6f * h
@@ -215,16 +222,22 @@ object GlucoseCard {
 
         if (st.value) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
-            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf)
+            val countdown = SensorBadge.ring(sl, sensor, nowS, countdownH)
+            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf, countdown)
             val look = if (st.badge) StatusBadge.look(status, nowS) else null
-            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look)
+            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look,
+                sl, st.hour24)
         }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
         when {
             graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts)
             st.graph != null && chart.height() > 24 * d -> {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
-                val msg = latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS)) } ?: Words.current.noReadingsYet
+                val msg = when {
+                    sl?.warmup != null -> Words.current.warmingUp
+                    sl?.ended == true -> Words.current.sensorEnded
+                    else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS, st.hour24)) } ?: Words.current.noReadingsYet
+                }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
             }
         }
@@ -232,7 +245,7 @@ object GlucoseCard {
 
     /** Slots ([Slots.arrange]) right-aligned in [box] (main rightmost); returns the width used. */
     private fun drawRings(cv: Canvas, box: RectF, st: CardStyle, last: LastTreatment.Info?, nowS: Long, bands: Bands,
-                          pal: GraphPalette, d: Float, metricsOf: (RingSpec, Bands) -> GlucoseMetrics): Float {
+                          pal: GraphPalette, d: Float, metricsOf: (RingSpec, Bands) -> GlucoseMetrics, countdown: Double?): Float {
         val extra = st.last != LastPlace.OFF && (last != null || st.lastElse != null)
         if (st.rings.isEmpty() && !extra) return 0f
         val size = min(box.height() * 0.96f, 84 * d)
@@ -248,12 +261,69 @@ object GlucoseCard {
         } else null
         var x = box.right
         var used = 0f
-        for (item in Slots.arrange(rings, st.last, last, fallback, fit)) {
+        val items = Slots.arrange(rings, st.last, last, fallback, fit)
+        val main = Slots.mainIndex(items)
+        for ((i, item) in items.withIndex()) {
             Slots.draw(cv, item, x - size / 2, box.centerY(), size / 2, nowS, pal, d)
+            if (i == main) SensorBadge.drawCountdown(cv, x - size / 2, box.centerY(), size / 2, countdown, pal)
             x -= size + gap
             used += size + gap
         }
         return used
+    }
+
+    /**
+     * The sensor has ended ([SensorBadge.Look.ended]): "Sensor ended" in the secondary colour (a state, not an error) and
+     * under it the action pill "Replace sensor" ([StatusBadge.replaceSensor], the same pill as "Eat carbs": full words,
+     * short words or icon only as room allows). A box too short for the pill's row gets the icon-only pill beside the
+     * words. The Mac does the same (SukraraGraph.swift `drawEnded`).
+     */
+    private fun drawEnded(cv: Canvas, box: RectF, nowS: Long, pal: GraphPalette, d: Float) {
+        val w = Words.current
+        val pill = StatusBadge.replaceSensor(w)
+        val badgeH = (box.height() * 0.24f).coerceIn(14 * d, 24 * d)
+        val row = box.height() - badgeH * 1.25f >= 20 * d
+        val textBox = if (row) RectF(box.left, box.top, box.right, box.bottom - badgeH * 1.25f) else box
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = pal.inkSoft; typeface = Typeface.create(Typeface.DEFAULT, 600, false); textSize = min(textBox.height() * 0.5f, 20 * d)
+        }
+        val iconRoom = if (row) 0f else badgeH * 1.3f
+        // the checkered flag before the words: the status bar's "sensor ended" glyph, so the two read as one thing
+        fun flagW() = p.textSize * 1.25f
+        val tw = p.measureText(w.sensorEnded) + flagW()
+        if (tw > box.width() - iconRoom) p.textSize *= ((box.width() - iconRoom) / tw).coerceAtLeast(0.45f)
+        val base = textBox.centerY() + p.textSize * 0.36f
+        val fs = p.textSize * 1.2f   // sports_score fills ~2/3 of its box
+        SensorBadge.flag(cv, box.left - fs * 0.2f, base - p.textSize * 0.72f - (fs - p.textSize * 0.72f) / 2, fs, pal.inkSoft)
+        cv.drawText(w.sensorEnded, box.left + flagW(), base, p)
+        if (row) StatusBadge.draw(cv, box.left, textBox.bottom + badgeH * 0.25f, badgeH, box.width(), pill, pal.dark)
+        else {
+            val x = box.left + flagW() + p.measureText(w.sensorEnded) + badgeH * 0.3f
+            if (x + badgeH <= box.right) StatusBadge.draw(cv, x, box.centerY() - badgeH / 2, badgeH, badgeH, pill, pal.dark)
+        }
+    }
+
+    /**
+     * A new sensor warming up: the time left until the first reading ("42m") where the number goes, in the secondary
+     * colour, the sensor disc beside it filling up, and "Ready at 19:45" under it.
+     */
+    private fun drawWarmup(cv: Canvas, box: RectF, look: SensorBadge.Look, small: Paint, nowS: Long, pal: GraphPalette, d: Float,
+                           hour24: Boolean) {
+        val line = Words.current.readyAt.format(Freshness.timeText(look.readyAt, nowS, hour24))
+        val numBox = RectF(box.left, box.top, box.right, box.bottom - small.textSize * 1.25f)
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; typeface = RoundedFont.typeface(700); textSize = numBox.height() * 1.18f }
+        val s = look.warmup ?: return
+        val need = num.measureText(s) + num.textSize * 0.6f
+        if (need > box.width()) num.textSize *= box.width() / need
+        val capH = num.textSize * 0.72f
+        val cy = numBox.centerY()
+        val baseY = cy + capH / 2
+        cv.drawText(s, box.left - num.textSize * 0.04f, baseY, num)
+        val dh = capH * 0.5f
+        SensorBadge.disc(cv, box.left + num.measureText(s) + num.textSize * 0.12f, cy - dh / 2, dh, look, pal)
+        val t = Paint(small)
+        if (t.measureText(line) > box.width()) t.textSize *= box.width() / t.measureText(line)
+        cv.drawText(line, box.left, baseY + small.textSize * 1.25f, t)
     }
 
     /**
@@ -262,14 +332,20 @@ object GlucoseCard {
      * beside the arrow, or is left out when there's no room there either.
      */
     private fun drawValue(cv: Canvas, box: RectF, r: Reading?, fr: Freshness, nowS: Long, bands: Bands,
-                          pal: GraphPalette, d: Float, look: StatusBadge.Look? = null) {
+                          pal: GraphPalette, d: Float, look: StatusBadge.Look? = null, sensor: SensorBadge.Look? = null,
+                          hour24: Boolean = Clock.hour24) {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
+        if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d, hour24)
+        // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
+        if (sensor?.ended == true) return drawEnded(cv, box, nowS, pal, d)
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
-            val line1 = if (r == null) Words.current.noReadingsYet else Words.current.noReadingSince
-            val y = box.centerY() - if (r == null) -big.textSize / 3 else big.textSize * 0.15f
+            val w = Words.current
+            val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
+            val line2 = r?.let { Freshness.timeText(it.t, nowS, hour24) }
+            val y = box.centerY() - if (line2 == null) -big.textSize / 3 else big.textSize * 0.15f
             cv.drawText(line1, box.left, y, big)
-            if (r != null) cv.drawText(Freshness.timeText(r.t, nowS), box.left, y + big.textSize * 1.25f, big)
+            if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, big)
             return
         }
         val color = if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
@@ -306,13 +382,19 @@ object GlucoseCard {
                 double = Trend.isDouble(rate))
             cv.restore()
         }
+        // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
+        sensor?.let { sl ->
+            val sh = (capH * 0.24f).coerceIn(9 * d, 14 * d)
+            val sx = x + arrowSize * 1.15f + (if (iconBadge && look != null) min(numBox.height() * 0.5f, 24 * d) + arrowSize * 0.15f else 0f)
+            if (sx + SensorBadge.width(sl, sh, pal) <= box.right) SensorBadge.draw(cv, sx, cy - capH / 2, sh, sl, pal)
+        }
         if (badgeRow && look != null) {
             val top = numBox.bottom + badgeH * 0.25f
             val bw = StatusBadge.draw(cv, box.left, top, badgeH, box.width(), look, pal.dark)
             if (fr.showTime) {
                 val t = Paint(small).apply { textSize = badgeH * 0.56f }
                 val tx = box.left + bw + badgeH * 0.35f
-                val text = Freshness.timeText(r.t, nowS)
+                val text = Freshness.timeText(r.t, nowS, hour24)
                 if (tx + t.measureText(text) <= box.right) cv.drawText(text, tx, top + badgeH / 2 + t.textSize * 0.36f, t)
             }
         } else {
@@ -320,7 +402,7 @@ object GlucoseCard {
                 val ih = min(numBox.height() * 0.5f, 24 * d)
                 StatusBadge.draw(cv, x + arrowSize * 1.15f, cy - ih / 2, ih, ih, look, pal.dark)
             }
-            if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), box.left, baseY + small.textSize * 1.25f, small)
+            if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS, hour24), box.left, baseY + small.textSize * 1.25f, small)
         }
     }
 }

@@ -494,6 +494,9 @@ class FollowerEngine(private val ctx: Context) {
 
     // ============================================================================================ data
 
+    /** created_at of the live event the sensor info came from (older ones don't overwrite it). */
+    private var sensorCreatedAt = 0L
+
     private fun onData(ev: JSONObject, via: String, force: Boolean = false) {
         val s = st ?: return
         val id = ev.optString("id")
@@ -523,6 +526,15 @@ class FollowerEngine(private val ctx: Context) {
             if (body.optString("type") != "alert") return reject("alert: wrong type", author, via)
             log.i("alert ${body.optString("k")} ${body.optString("state")} via ${short(via)}")
             return Alerts.onRemote(ctx, body)
+        }
+        // the owner's sensor (PROTOCOL-v2 "Sensor life"): from the live event signed last; absent `se` = unknown
+        if (kind == Proto.LIVE) {
+            val created = ev.optLong("created_at")
+            if (created >= sensorCreatedAt) { sensorCreatedAt = created; app.mauri.sukrara.core.SensorLife.update(ctx, Proto.sensorOf(body)) }
+            if (!body.has("sgv")) {   // a reading-less sensor event (warm-up): redraw what no reading will
+                app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "sensor", force = true)
+                return publishUi()
+            }
         }
         val rows = mutableListOf<Triple<Long, Int, Double?>>()
         when (kind) {

@@ -40,6 +40,12 @@ Cheap tools:
 - [ ] JVM gallery before/after: marks, mute lines, badge, slots, bands; light and dark; small and large sizes.
 - [ ] Mac `render treatments` before/after shows the same decisions (same labels, same badge text, same slot order).
 - [ ] Units mg/dL and mmol/L both read right (setting in the app).
+- [ ] Sensor life (JVM gallery `sensorLife`, Mac `render treatments` → `mac-sensor-*.png`; emulator: `--es cmd sensor
+  --el left <s>`): badge `13d` / `20h` (no ring with an 8 h window) / `5h` with the countdown ring over the main ring,
+  legible over every band colour, light and dark; warm-up `42m` + filling ring; ended `Sensor ended` + `Replace sensor` pill on every widget size (3×1 and 2×1 too, also while the last value is fresh; pill/tap opens the Sensor screen on the wearer's phone), checkered flag in the status bar (notification icon, root slots, hook) and the Mac menubar + no-data alert
+  quiet. Follower and Mac show the same from the live events. Evidence 2026-10-18:
+  `spikes/showcase-android/evidence/sensor-life-emulator-{13d,20h,5h}.png` (emulator app panel),
+  `sensor-life-gallery-*.png`, `spikes/widgets-macos/evidence/mac-sensor-*.png`.
 
 ## Q3 Android widgets
 
@@ -96,3 +102,36 @@ Cheap tools:
 
 - [ ] `./gradlew :app:assembleRelease` and install on the emulator; open home, widgets, settings (R8 surprises).
 - [ ] The version in `build.gradle.kts` / `bundle.sh` matches what the release notes say.
+
+## Q11 Sensor reminders and countdowns
+
+- [ ] Emulator (wearer): `--es cmd sensorEnd --ei inMin 300` → the end countdown in the shade (bar, timer, Hide);
+      with the glucose chip off (`--ez chip false`) the status bar chip shows the timer. `--es reminders '0@<now+1 min>'`
+      → a reminder a minute later ("Sensor ends today at …"). `--ei inMin 1` → "Sensor ended" a minute later.
+- [ ] `--es cmd sensorStart --ei agoMin 40` → the warm-up countdown (bar filling, chip timer); `--es cmd sensorStart
+      --ez firstReading true` → "Sensor ready".
+- [ ] Swipe the countdown away: it doesn't come back for that sensor (`--es cmd sensorEndState` → `dismissed`).
+- [ ] Settings → Sensor end: add / edit / remove a reminder (dialog: days radio, time picker), countdown hours,
+      both switches; the card's countdown ring follows the hours. Spanish texts.
+- [ ] Follower role: none of these notifications.
+
+## Q12 Sensor scan
+
+- [ ] Unit tests first: `Libre3NfcTest` (commands, answers, receiver ID, `chipGate`), `PatchStateTest`.
+- [ ] Phone, the user does the tap, Settings → Glucose source → Sensor. Libre 3 / 3 Plus: starts or takes over;
+      `adb logcat -s Sukrara.nfc Sukrara.direct` shows the patch info and the pairing. A Libre 1 / 2 / 2 Plus (or any
+      other NfcV tag) shows *Libre 2 sensors aren't supported* / *Not supported*, and logcat shows
+      `Libre 1/2 chip: not supported, nothing sent` with no command lines.
+- [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in before starting …*, nothing sent; after the
+      sign-in the next tap starts it (logcat `patch info … state=1`, then the pairing).
+
+## Q13 Sensor end in calendar
+
+- [ ] Emulator (wearer, debug): `--es cmd fakeSensor` (synthetic TEST serial), then Settings → Sensor end → "Sensor end in calendar" on: the
+      permission dialog; Allow → "On · Sukrara (this phone only)"; Don't allow → stays off with the reason.
+- [ ] `--es cmd calendar` dumps one "Sensor ends" event at the sensor's end; a second `fakeSensor` with a new serial
+      moves the future event to the new sensor (the old future one is removed); restart the app → still one event per sensor.
+- [ ] A calendar app on the device shows the "Sukrara" calendar in the brand colour (if the image has one).
+- [ ] Off → the Sukrara calendar is gone (`content query --uri content://com.android.calendar/calendars`).
+- [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
+      away again when the setting is turned off.

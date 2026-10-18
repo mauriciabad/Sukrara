@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.owner
 
+import app.mauri.sukrara.core.SensorLife
 import android.content.Context
 import android.os.PowerManager
 import app.mauri.sukrara.BuildConfig
@@ -162,6 +163,11 @@ class OwnerEngine(private val ctx: Context) {
                 withContext(serial) { onTick() }
             }
         }
+        // round sensor-life: followers learn the sensor (start, end, warm-up) even before its first reading
+        sensorJob?.cancel()
+        sensorJob = scope.launch {
+            SensorLife.current.collect { si -> if (si != null) withContext(serial) { publishSensor("changed") } }
+        }
         features = scope.launch {
             var old = Features.value
             Features.state.collect { f -> if (f != old) { val o = old; old = f; withContext(serial) { applyFeatures(o, f) } } }
@@ -170,6 +176,19 @@ class OwnerEngine(private val ctx: Context) {
     }
 
     private var features: Job? = null
+    private var sensorJob: Job? = null
+
+    /**
+     * A reading-less live event with the sensor (PROTOCOL-v2 "Sensor life"): when it changes, and every tick while it
+     * warms up (no readings carry it then).
+     */
+    private fun publishSensor(why: String) {
+        val s = st ?: return
+        val si = SensorLife.current.value ?: return
+        publish(Proto.sensorEvent(s.d, s.current.pub, si), Lane.LIVE, key = "sensor")
+        log.i("sensor event ($why): end ${si.endEpoch}, warm-up end ${si.warmupEndEpoch}")
+        app.mauri.sukrara.widgets.SukraraHooks.refresh(ctx, "sensor", force = true)   // no readings tick them meanwhile
+    }
 
     /** Seconds between chunk publishes: 5 min, or the batch interval when live events are off. */
     private fun chunkEvery(): Long = Features.value.nostrIntervalMin.let { if (it > 0) it * 60L else CHUNK_EVERY_S }
@@ -277,6 +296,8 @@ class OwnerEngine(private val ctx: Context) {
                 wake.acquire(90_000)
                 scope.launch(serial) { runCatching { handleHistory(readings) }.onFailure { log.i("backfill failed: $it") } }
             }
+
+            override fun onSensor(info: app.mauri.sukrara.core.SensorInfo) = app.mauri.sukrara.core.SensorLife.update(ctx, info)
 
             override fun onStatus(state: String, error: String?) {
                 _ui.update { it.copy(source = state, sourceError = error) }
@@ -569,6 +590,7 @@ class OwnerEngine(private val ctx: Context) {
     private fun onTick() {
         val s = st ?: return
         flush(force = false)
+        SensorLife.current.value?.let { si -> if (SensorLife.warming(si, readings.lastEntry()?.key, Proto.nowS())) publishSensor("warm-up") }
         if (Proto.nowS() - s.rosterPublishedAt > 7 * Proto.DAY) publishRoster()
         if (Proto.nowS() - s.backupPublishedAt > 7 * Proto.DAY) publishBackup()
         if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
@@ -898,7 +920,7 @@ class OwnerEngine(private val ctx: Context) {
                         else -> n.ifEmpty { ctx.getString(R.string.treatment_note) }
                     } + (if (tr.optString("k") != "note" && n.isNotEmpty()) " · $n" else "")
                     ctx.getString(R.string.home_follower_entry,
-                        java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(tr.optLong("t") * 1000)),
+                        app.mauri.sukrara.graph.Clock.time(tr.optLong("t"), android.text.format.DateFormat.is24HourFormat(ctx)),
                         what, who, via.substringBefore(":"))
                 },
             )

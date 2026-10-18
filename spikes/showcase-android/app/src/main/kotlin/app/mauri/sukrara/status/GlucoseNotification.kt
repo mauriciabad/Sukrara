@@ -68,6 +68,47 @@ object GlucoseNotification {
         c.getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
     }
 
+    /** Delayed (conflated) posts run here, off the main thread. */
+    private val poster by lazy {
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor { Thread(it, "Sukrara.notify").apply { isDaemon = true } }
+    }
+    private val gate = PostGate(1_000, System::currentTimeMillis) { d, run ->
+        poster.schedule({ runCatching(run).onFailure { Log.w("Sukrara.notify", "post: $it") } }, d, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    /**
+     * The only way the roles post [ID] after `startForeground`: skipped when [key] (see [contentKey]) is what was
+     * posted last, at most one post per second, a burst conflated into its latest content ([PostGate]).
+     * [build] runs when the post happens, so a delayed post shows the newest state.
+     */
+    fun post(c: Context, key: Any?, force: Boolean = false, build: () -> Notification, onPosted: () -> Unit = {}) {
+        val app = c.applicationContext
+        gate.submit(key, force) {
+            runCatching { app.getSystemService(NotificationManager::class.java).notify(ID, build()) }
+                .onSuccess { onPosted() }.onFailure { Log.w("Sukrara.notify", "notify: $it") }
+        }
+    }
+
+    /** Re-post the current notification unchanged (SystemUI rebuilds its icon list on a notification change). */
+    fun repost(c: Context) {
+        val nm = c.applicationContext.getSystemService(NotificationManager::class.java)
+        val cur = runCatching { nm.activeNotifications.firstOrNull { it.id == ID }?.notification }.getOrNull() ?: return
+        post(c, Any(), force = true, build = { cur })
+    }
+
+    /**
+     * Everything [build] reads, so equal keys mean the same card: the inputs, the minute (age text, freshness steps,
+     * sensor countdown), the sensor's life, the treatments, graph / alert settings, theme, locale, Live Update grant.
+     */
+    fun contentKey(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): List<Any?> = listOf(
+        r?.t, r?.sgv, r?.rate, chip, icon, detail, System.currentTimeMillis() / 60_000,
+        app.mauri.sukrara.core.SensorLife.current.value,
+        app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode(),
+        GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
+        c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
+        chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
+    )
+
     fun build(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): Notification {
         // a tap (card or Live Update chip) opens the quick treatment dialog over any app; it opens the app itself when
         // this phone can't add entries
@@ -78,12 +119,30 @@ object GlucoseNotification {
             .setContentIntent(open)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setCategory(Notification.CATEGORY_STATUS)
-        if (r == null) {
+        val now = System.currentTimeMillis() / 1000
+        val fresh = r?.let { Freshness.of(now - it.t) }
+        // round sensor-life: an ended or warming-up sensor says so instead of "waiting" / "No reading since"
+        val sensor = app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t)
+        // ended: as soon as it has ended (not an error, and no value to show any more); warming: while no value shows
+        sensor?.takeIf { it.ended }?.let {
+            // "Sensor ended" + the "Replace sensor" action (the card's pill) for the phone that wears it
+            b.setSmallIcon(R.drawable.ic_stat_sensor_ended).setContentTitle(c.getString(R.string.card_sensor_ended))
+            if (detail.isNotEmpty()) b.setContentText(detail)
+            if (app.mauri.sukrara.App.role(c) == "owner") {
+                val scan = app.mauri.sukrara.ui.MainActivity.sensorPendingIntent(c)
+                b.setContentIntent(scan).addAction(Notification.Action.Builder(null, c.getString(R.string.badge_replace_sensor), scan).build())
+            }
+            return b.build()
+        }
+        if (r == null || fresh?.showValue != true) sensor?.takeIf { it.warmup != null }?.let { sl ->
+            return b.setSmallIcon(R.drawable.ic_stat_sukrara)
+                .setContentTitle(c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now)))
+                .setContentText(detail).build()
+        }
+        if (r == null || fresh == null) {
             return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_waiting_for_glucose))
                 .setContentText(detail).build()
         }
-        val now = System.currentTimeMillis() / 1000
-        val fresh = Freshness.of(now - r.t)
         val stale = fresh.strike || !fresh.showValue
         // Investigation 16: no rate and no "time ago"; the reading's time only once it's late (Freshness).
         if (!fresh.showValue) {
@@ -238,9 +297,12 @@ object GlucoseNotification {
             val cv = Canvas(bmp)
             val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = surface }
             var x = bmp.width.toFloat()
-            for (item in items) {
+            val main = Slots.mainIndex(items)
+            val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
+            for ((i, item) in items.withIndex()) {
                 cv.drawCircle(x - size / 2, size / 2, size / 2, fill)
                 Slots.draw(cv, item, x - size / 2, size / 2, size / 2 - 3 * d, now, pal, d)
+                if (i == main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(cv, x - size / 2, size / 2, size / 2 - 3 * d, countdown, pal)
                 x -= size + gap
             }
         }

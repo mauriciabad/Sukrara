@@ -45,9 +45,6 @@ import app.mauri.sukrara.direct.ReceiverId
 import app.mauri.sukrara.direct.SensorPairing
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.wearer.Live
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,7 +53,10 @@ import kotlinx.coroutines.withContext
 private sealed interface Outcome {
     data class Done(val title: String, val text: String) : Outcome
     data class Problem(val title: String, val text: String) : Outcome
-    data class NeedsAccount(val serial: String) : Outcome
+    /** [newSensor]: a never-started sensor waits for the account; else it was started under another account. */
+    data class NeedsAccount(val serial: String, val newSensor: Boolean = false) : Outcome
+    /** A Libre 1 / 2 / 2 Plus was tapped: not supported, point to Juggluco. */
+    data object Libre2 : Outcome
 }
 
 /**
@@ -145,7 +145,18 @@ fun SensorScreen(onBack: () -> Unit) {
                 Text(o.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                 Text(o.text, style = MaterialTheme.typography.bodyMedium)
             } }
-            is Outcome.NeedsAccount -> LibreViewSignIn(o.serial, onCancel = { outcome = null }) { msg ->
+            is Outcome.Libre2 -> Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.sensor_libre2_title), style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.sensor_libre2_text), style = MaterialTheme.typography.bodyMedium)
+                    val nav = LocalNav.current
+                    if (nav != null) OutlinedButton(onClick = { nav.open("source") }) {
+                        Text(stringResource(R.string.sensor_libre2_source))
+                    }
+                }
+            }
+            is Outcome.NeedsAccount -> LibreViewSignIn(o.serial, o.newSensor, onCancel = { outcome = null }) { msg ->
                 outcome = Outcome.Done(ctx.getString(R.string.sensor_signed_in), msg)
             }
             null -> Unit
@@ -180,6 +191,8 @@ private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
             ctx.getString(R.string.sensor_taken_over_text))
     }
     is Libre3Nfc.Result.WrongAccount -> Outcome.NeedsAccount(r.serial)
+    is Libre3Nfc.Result.NeedsAccount -> Outcome.NeedsAccount(r.serial, newSensor = true)
+    is Libre3Nfc.Result.Libre2 -> Outcome.Libre2
     is Libre3Nfc.Result.Ended -> Outcome.Problem(ctx.getString(R.string.sensor_ended_title, r.serial), ctx.getString(R.string.sensor_ended_text))
     is Libre3Nfc.Result.Unsupported -> Outcome.Problem(ctx.getString(R.string.sensor_unsupported), r.why)
     is Libre3Nfc.Result.Failed -> Outcome.Problem(ctx.getString(R.string.sensor_scan_failed), ctx.getString(R.string.sensor_scan_failed_text, r.why))
@@ -190,7 +203,7 @@ private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
  * keeps only the derived number, never the password; nothing is uploaded and the other app's LibreView link stays.
  */
 @Composable
-private fun LibreViewSignIn(serial: String, onCancel: () -> Unit, onDone: (String) -> Unit) {
+private fun LibreViewSignIn(serial: String, newSensor: Boolean, onCancel: () -> Unit, onDone: (String) -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf(ctx.getSharedPreferences("libreview", Context.MODE_PRIVATE).getString("email", "")!!) }
@@ -198,8 +211,10 @@ private fun LibreViewSignIn(serial: String, onCancel: () -> Unit, onDone: (Strin
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     Card(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.sensor_other_app_title, serial), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.sensor_other_app_text), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(if (newSensor) R.string.sensor_new_account_title else R.string.sensor_other_app_title, serial),
+            style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(if (newSensor) R.string.sensor_new_account_text else R.string.sensor_other_app_text),
+            style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(email, { email = it }, label = { Text(stringResource(R.string.sensor_libreview_email)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
         OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.onboarding_password)) }, singleLine = true,
@@ -221,5 +236,4 @@ private fun LibreViewSignIn(serial: String, onCancel: () -> Unit, onDone: (Strin
     } }
 }
 
-private fun date(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMHHmm"),
-    Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = app.mauri.sukrara.graph.Clock.dayTime(t)

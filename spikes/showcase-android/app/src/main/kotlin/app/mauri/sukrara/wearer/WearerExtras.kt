@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.wearer
 
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -29,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
 import org.json.JSONObject
 
 /**
@@ -38,7 +38,6 @@ import org.json.JSONObject
  */
 class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, private val detail: () -> String) : Live.Listener {
     private val tag = "Sukrara.wearer"
-    private val nm = ctx.getSystemService(NotificationManager::class.java)
     /** Garmin (17580, if free) + Nightscout API (17581) over the wearer's readings; same files as before (`garmin-*`). */
     private val local by lazy {
         LocalServers(ctx, "garmin", { Features.value.source == "juggluco" }, { Treat.store.all() }, "Sukrara")
@@ -69,6 +68,8 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
+        // the sensor ended / a new one started: the notification and the status bar follow at once (round sensor-life)
+        jobs += scope.launch { app.mauri.sukrara.core.SensorLife.current.drop(1).collect { render(force = true) } }
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
         jobs += scope.launch {
             while (isActive) {
@@ -148,9 +149,15 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
             return
         }
         val r = Live.status.value.last
-        runCatching { nm.notify(GlucoseNotification.ID, GlucoseNotification.build(ctx, r, f.chip, f.icon, detail())) }
+        val text = detail()
+        // Deduped and ≤ 1/s (a BLE backfill sends a history packet every few ms); built from the newest state.
+        GlucoseNotification.post(ctx, GlucoseNotification.contentKey(ctx, r, f.chip, f.icon, text), force, build = {
+            val fl = Features.value
+            GlucoseNotification.build(ctx, Live.status.value.last, fl.chip, fl.icon, detail())
+        }) {
+            lastPostMs = System.currentTimeMillis()
+            Live.status.update { it.copy(notificationPosts = it.notificationPosts + 1) }
+        }
         runCatching { RootStatusBar.update(ctx, f, r) }   // system icons (root) + SystemUI hook (LSPosed)
-        lastPostMs = System.currentTimeMillis()
-        Live.status.update { it.copy(notificationPosts = it.notificationPosts + 1) }
     }
 }

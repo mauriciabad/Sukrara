@@ -42,6 +42,9 @@ object StatusBadge {
         is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
     }
 
+    /** The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc). */
+    fun replaceSensor(w: Words = Words.current) = Look("sensor", w.replaceSensor, w.replaceSensorShort, false)
+
     /** For screen readers (widget descriptions). */
     fun describe(s: AlertStatus, now: Long): String? = when (s) {
         AlertStatus.None -> null
@@ -149,6 +152,12 @@ object Slots {
             else -> ordered + extra
         }
     }
+
+    /**
+     * Which of [items] (as [arrange] returns them) is the main ring, the one the sensor countdown ring
+     * ([SensorBadge.drawCountdown]) covers: the first ring, else the only slot there is; -1 = none.
+     */
+    fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
     /** Draw [item] as a circle of [radius] around ([cx], [cy]). */
     fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float) =

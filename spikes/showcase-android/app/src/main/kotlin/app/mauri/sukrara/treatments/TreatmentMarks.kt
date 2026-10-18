@@ -96,6 +96,11 @@ object TreatmentMarks {
                 }
             }
             "carbs" -> cv.drawCircle(x, y, r * 0.8f, fill)
+            // the "Replace sensor" pill (graph/StatusBadge): the Libre sensor disc, a ring with a centre dot
+            "sensor" -> {
+                cv.drawCircle(x, y, r * 0.8f, Paint(fill).apply { style = Paint.Style.STROKE; strokeWidth = r * 0.26f })
+                cv.drawCircle(x, y, r * 0.3f, fill)
+            }
             else -> cv.drawPath(Path().apply {
                 moveTo(x, y - r * 0.67f); lineTo(x + r * 0.67f, y); lineTo(x, y + r * 0.67f); lineTo(x - r * 0.67f, y); close()
             }, fill)

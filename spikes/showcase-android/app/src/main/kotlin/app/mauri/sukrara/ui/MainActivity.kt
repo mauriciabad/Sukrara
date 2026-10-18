@@ -51,6 +51,16 @@ import app.mauri.sukrara.owner.OwnerService
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        /** Opens the Sensor screen (scan a new sensor): the "Replace sensor" pill, its notification action, widget taps. */
+        fun sensorIntent(c: android.content.Context): android.content.Intent =
+            android.content.Intent(c, MainActivity::class.java).putExtra("screen", "sensor")
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        fun sensorPendingIntent(c: android.content.Context): android.app.PendingIntent = android.app.PendingIntent.getActivity(c, 7,
+            sensorIntent(c), android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
     private var role by mutableStateOf<String?>(null)
     private var deepLink by mutableStateOf<String?>(null)
     /** A screen a notification asked for (alert notifications open "alerts"). */
@@ -263,6 +273,7 @@ class MainActivity : ComponentActivity() {
                 "alerts" -> SettingsRoute { AlertsScreen(follower = false, back) }
                 "source" -> SettingsRoute { SourceSettings(back) }
                 "sensor" -> SettingsRoute { SensorScreen(back) }
+                "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
                 "graph" -> SettingsRoute { GraphScreen(back) }
                 "statusbar" -> SettingsRoute { StatusBarSettings(back) }

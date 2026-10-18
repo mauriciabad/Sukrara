@@ -134,6 +134,53 @@ class GraphGallery {
         }
     }
 
+    /** Round sensor-life: the badge (13d / 20h / 5h with the countdown ring / ended), the warm-up and the ended card. */
+    @Test fun sensorLife() {
+        val data = Synthetic.days(now, 15)
+        val len = 15 * 86_400L
+        fun sensor(left: Long) = app.mauri.sukrara.core.SensorInfo("S", now + left - len, now + left)
+        val fresh = app.mauri.sukrara.core.SensorLife.fromStart("S2", now - 18 * 60, 0)
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true)
+            val v = listOf(
+                Triple("13 days left", 13 * 86_400L + 5 * 3600, data),
+                Triple("20 h left (8 h window: no ring)", 20 * 3600L, data),
+                Triple("5 h left: the countdown ring", 5 * 3600L, data),
+                Triple("45 min left", 45 * 60L, data),
+            )
+            val tiles = v.map { (label, left, rd) ->
+                Tile("4×2 · $label", "", 300f, 150f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, rd, emptyList(), now, CardStyle(graph = g), pal, d, sensor = sensor(left))
+                }
+            } + listOf(
+                Tile("warming up, 18 min in (old sensor's data)", "", 300f, 150f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 40 * 60 }, emptyList(), now, CardStyle(graph = g), pal, d, sensor = fresh)
+                },
+                Tile("ended 2 h ago, no readings since", "", 300f, 150f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 2 * 3600 }, emptyList(), now, CardStyle(graph = g), pal, d,
+                        sensor = sensor(-2 * 3600L))
+                },
+                Tile("3×1 · 5 h left", "", 230f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null), pal, d, sensor = sensor(5 * 3600L))
+                },
+                Tile("3×1 · ended 10 min ago, last value still fresh", "", 230f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null), pal, d,
+                        sensor = sensor(-600L))
+                },
+                Tile("2×1 · ended 10 min ago", "", 150f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400))),
+                        pal, d, sensor = sensor(-600L))
+                },
+                Tile("4×1 side by side · ended yesterday", "", 300f, 70f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = true)),
+                        pal, d, sensor = sensor(-26 * 3600L))
+                },
+            )
+            sheet("sensor-${if (dark) "dark" else "light"}", tiles, 300f, 150f, cols = 2, pal)
+        }
+    }
+
     /** 2026-10-18 round: the status badge under the value, at the widget sizes and in both themes. */
     @Test fun badge() {
         val base = Synthetic.days(now, 31)

@@ -24,7 +24,11 @@ class DirectSource(private val context: Context) : GlucoseSource {
         if (p.securityVersion != 0) return sink.onStatus("unsupported sensor",
             "security version ${p.securityVersion} (Lingo) is not implemented")
         val prefs = context.getSharedPreferences("direct", Context.MODE_PRIVATE)
-        sink.onSensor(p.serial, p.startEpoch)
+        sink.onSensor(p.info)
+        if (prefs.getBoolean(Libre3Client.endedKey(p.serial), false)) {
+            sink.onSensorEnded(p.serial)
+            return sink.onStatus("sensor ended", Libre3Client.ENDED_HINT)
+        }
         client = Libre3Client(context, p, sink, prefs) { kAuth ->
             // first pairing after a scan: keep it, so later connections resume without NFC
             SensorPairing.load(context)?.takeIf { it.serial == p.serial }?.copy(kAuth = kAuth)?.save(context)

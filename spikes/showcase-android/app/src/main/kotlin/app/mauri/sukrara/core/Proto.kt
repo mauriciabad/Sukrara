@@ -109,10 +109,27 @@ object Proto {
 
     private fun rate2(r: Double?): Any = r?.let { Math.round(it * 100) / 100.0 } ?: JSONObject.NULL
 
-    /** live, kind 21078, signed by D, `["gk", gk_n]`, expires now + 1 h. */
-    fun liveEvent(d: Keys, gPub: String, r: Reading, now: Long = nowS()): Event {
+    /**
+     * live, kind 21078, signed by D, `["gk", gk_n]`, expires now + 1 h. [sensor] = the current sensor's start, end and
+     * warm-up end (`ss`/`se`/`sw`, unix s; left out when unknown) for the followers' sensor life badge.
+     */
+    fun liveEvent(d: Keys, gPub: String, r: Reading, now: Long = nowS(), sensor: SensorInfo? = SensorLife.current.value): Event {
         val body = JSONObject().put("v", 2).put("t", r.t).put("sgv", r.sgv).put("r", rate2(r.rate)).put("dev", r.dev)
+        sensor?.let { sensorFields(body, it) }
         return signed(d, LIVE, enc(d, gPub, body.toString()), listOf(tag("gk", gk(gPub)), expiration(now + 3600)), now)
+    }
+
+    private fun sensorFields(body: JSONObject, si: SensorInfo) = body.put("ss", si.startEpoch).put("se", si.endEpoch).put("sw", si.warmupEndEpoch)
+
+    /** A reading-less live event (no `t`/`sgv`): only the sensor, so followers see a new sensor's warm-up. */
+    fun sensorEvent(d: Keys, gPub: String, si: SensorInfo, now: Long = nowS()): Event {
+        val body = sensorFields(JSONObject().put("v", 2), si)
+        return signed(d, LIVE, enc(d, gPub, body.toString()), listOf(tag("gk", gk(gPub)), expiration(now + 3600)), now)
+    }
+
+    /** The sensor in a live event's body, or null when it has none (`se` missing = the owner knows no sensor). */
+    fun sensorOf(body: JSONObject): SensorInfo? = if (!body.has("se")) null else body.optLong("ss").let { ss ->
+        SensorInfo("", ss, body.getLong("se"), if (body.has("sw")) body.getLong("sw") else ss + 60L * SensorLife.DEFAULT_WARMUP_MIN)
     }
 
     /** alert (spikes/alerts/SPEC.md §4), kind 21079: same envelope as live — signed by D, NIP-44 to G_n, expires now + 1 h. */

@@ -37,4 +37,28 @@ Positions are rounded to 0.5 dp; Android computes in `Float`, the Mac in `Double
 empty `expect`, run `GraphFixtureTest` (`--rerun`: Gradle doesn't see the fixture files as inputs), check the dump in
 the failure message against the rules, paste it, and run the Mac self-test.
 
+## Sensor life (`sensor/*.json`)
+
+The sensor badge and the countdown ring (docs/FEATURES.md, "Sensor life"). Run by `GraphFixtureTest.sensor` (Android)
+and `-graphselftest` (Mac). A case: `name`; `start`, `end` (the sensor's, seconds relative to "now"); `countdownHours`
+(the window); `latest` (the newest reading's time, `null` = none); optional `warmup` (the warm-up's end; default
+start + 60 min). `expect`:
+
+| key | meaning |
+|---|---|
+| `label` | the badge text, English words: ≥ 24 h left → whole days (`13d`), ≥ 1 h → hours (`20h`), else minutes (`45m`, `0m` once ended) |
+| `ended` | `now ≥ end`: badge in the alert colour, "Sensor ended" once readings stop |
+| `life` | the disc's arc: share of the sensor's life left, 1 → 0 (± 0.001) |
+| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`); `null` = not warming |
+| `pill` | ended → the action pill under "Sensor ended", `{kind: "sensor", text, short, tonal}` (StatusBadge.replaceSensor, English words); else `null` |
+| `ring` | the ring over the main ring: warming → the warm-up done (fills 0 → 1); else the countdown, share of the window left; `null` = no ring (more than the window left, or ended) (± 0.001) |
+
+## Clock (`clock/*.json`)
+
+Clock times in the device's 12/24-hour setting rather than the locale's default, and the graph's hour labels
+(docs/FEATURES.md, "Languages"). Run by `GraphFixtureTest.clock` (Android, `graph/Clock.kt`) and `-graphselftest`
+(Mac, `Clock`). A case: `name`; `locale` (BCP 47); `minute` (of the day, UTC); `hour24` (the setting). `expect`:
+`time` (the clock time, e.g. `9:08 PM`) and `axis` (the hour label, `21:00` / `9 PM`). U+00A0 and U+202F compare as
+plain spaces.
+
 Not covered yet: mute-line endpoints, slot order.

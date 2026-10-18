@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.15/Sukrara-0.11.15.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.14/Sukrara-0.11.14.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.15/Sukrara-0.11.15.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -63,9 +63,23 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
   variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days. Any of them can sit beside the number
   in the app and the widgets instead of a ring (for example GMI over 30 days). [18](docs/18-metrics.md) Source: the Libre 3 read directly (default): scan the
-  sensor with NFC to start a new one or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
-  Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
-  (switch on the Sensor screen). [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+  sensor with NFC to start a new one (tied to your LibreView account, so LibreLink or Juggluco can take it over
+  later) or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
+  Juggluco's web server, if Juggluco keeps the sensor (the way to use a Libre 2 / 2 Plus: Sukrara itself refuses those). Scanning a sensor opens Sukrara
+  (switch on the Sensor screen). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
+  and stops trying to connect until you scan the new one. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- Sensor end reminders at the times you choose (default: the day before and on the end day at 09:00, "Sensor ends
+  tomorrow at 14:30"), a live countdown notification in the sensor's last hours (8 by default) and another while a
+  new sensor warms up ("Readings at 19:45", then "Sensor ready"). The countdowns show a timer in the status bar
+  when the glucose chip doesn't need it. Settings → Sensor end.
+- Sensor life on the card (phone, widgets, lock screen, Mac): a small sensor disc next to the trend arrow with the
+  time left (`13d`, `20h`, `45m`), a ring over the main ring that counts down the sensor's last 8 hours (1–24 h,
+  a setting), and during a new sensor's warm-up the minutes until the first reading (`42m`, *Ready at 19:45*) with a
+  ring that fills up. Once the sensor has ended every surface says *Sensor ended* with a *Replace sensor* pill (a checkered flag in the status bar and the Mac menubar) and no-data alerts stop. Followers and
+  the Mac see the same (it travels with the live readings).
+- Sensor end in your calendar (opt-in, like Juggluco's but without a tap): Sukrara makes its own "Sukrara" calendar
+  on the phone (or uses one of your calendars, e.g. Google, to sync it everywhere) and keeps one "Sensor ends" event
+  per sensor up to date; turning it off removes them.
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root
@@ -236,12 +250,12 @@ The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PRO
 
 ## Try it
 
-Downloads: [v0.11.14](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.14) (Android and Mac)
+Downloads: [v0.11.15](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.15) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.14.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.15.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -251,10 +265,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.14.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.15.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.14.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.15.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

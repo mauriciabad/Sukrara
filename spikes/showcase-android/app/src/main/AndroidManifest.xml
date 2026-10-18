@@ -27,6 +27,9 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <!-- follower: scanning the invite QR code -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- sensor end in calendar (opt-in setting): Sukrara's own calendar or one the user picks -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <!-- Libre 3: start or take over a sensor with an NFC tap (ui/SensorScreen, direct/Libre3Nfc) -->
     <uses-permission android:name="android.permission.NFC" />
@@ -208,6 +211,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <!-- sensorend/SensorEnd.kt: reminder / countdown alarm, countdown dismissed, and re-planning after boot,
+             an app update, a clock or time-zone change (exempt implicit broadcasts) -->
+        <receiver
+            android:name=".sensorend.SensorEndReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
         </receiver>
         <!-- Also an LSPosed module (libxposed API 102, scope System UI): see resources/META-INF/xposed/.

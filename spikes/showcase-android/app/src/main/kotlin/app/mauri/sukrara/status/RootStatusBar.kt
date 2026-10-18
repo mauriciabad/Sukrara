@@ -60,7 +60,7 @@ object RootStatusBar {
         val app = ctx.applicationContext
         io.execute {
             runCatching {
-                if (!f.systemIcons) stopDaemon() else if (r != null) showIcons(app, r)
+                if (!f.systemIcons) stopDaemon() else if (sensorEnded()) showEnded(app) else if (r != null) showIcons(app, r)
             }.onFailure { Log.w(TAG, "system icons", it) }
         }
     }
@@ -85,6 +85,7 @@ object RootStatusBar {
             .putExtra("lockWidget", f.lockWidget)
             .putExtra("lockBg", f.lockBg)
             .putExtra("lockLook", f.lockLook)
+            .putExtra("sensorEnd", app.mauri.sukrara.core.SensorLife.current.value?.endEpoch ?: 0L)   // the flag once it has ended
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }
@@ -114,14 +115,20 @@ object RootStatusBar {
     fun repostLater(ctx: Context) {
         val app = ctx.applicationContext
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            runCatching {
-                val nm = app.getSystemService(android.app.NotificationManager::class.java)
-                nm.activeNotifications.firstOrNull { it.id == GlucoseNotification.ID }?.let { nm.notify(it.id, it.notification) }
-            }.onFailure { Log.w(TAG, "re-post", it) }
+            runCatching { GlucoseNotification.repost(app) }.onFailure { Log.w(TAG, "re-post", it) }
         }, 1_500)
     }
 
     // --- 3a: system icons through the root daemon ---------------------------------------------------------
+
+    private fun sensorEnded() = app.mauri.sukrara.core.SensorLife.current.value
+        ?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, System.currentTimeMillis() / 1000) } == true
+
+    /** Round sensor-life: an ended sensor shows the checkered flag in the trend slot and no number (not a stale value). */
+    private fun showEnded(ctx: Context) {
+        if (!send(ctx, "set $SLOT_TREND ${res(ctx, "ic_stat_sensor_ended")} 0 Sensor ended")) return
+        send(ctx, "remove $SLOT_NUMBER")
+    }
 
     private fun showIcons(ctx: Context, r: Reading) {
         // One resource per value: the Compose status bar ignores the icon level (see tools/gen-slot-drawables.swift).

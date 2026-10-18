@@ -150,7 +150,7 @@ object GlucoseGraph {
             if (gx > left + sideW * 0.6f) {
                 if (st.gridHours > 0) cv.drawLine(gx, top, gx, plotBottom, grid)
                 if (labels) {
-                    val s = hourLabel(cal.get(Calendar.HOUR_OF_DAY), st.hour24)
+                    val s = Clock.hourLabel(cal.get(Calendar.HOUR_OF_DAY), st.hour24)
                     val tw = text.measureText(s)
                     val lx = (gx - tw / 2).coerceIn(left, right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
@@ -313,7 +313,4 @@ object GlucoseGraph {
         return Triple(base[0], base[1], base[2])
     }
 
-    fun hourLabel(h: Int, hour24: Boolean): String =
-        if (hour24) "%02d:00".format(Locale.ROOT, h)
-        else "${if (h % 12 == 0) 12 else h % 12} ${java.text.DateFormatSymbols.getInstance().amPmStrings[if (h < 12) 0 else 1]}"
 }
