@@ -13,6 +13,7 @@
   "large_ok": [],
   "secret_ok": [
     "spikes/nostr/identity/vectors.json",
+    "spec/test-vectors/*",
     "tools/check/check.py"
   ],
   "strings_scope": ["spikes/showcase-android/app/src/main/kotlin/*.kt"],

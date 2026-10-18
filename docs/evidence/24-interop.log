@@ -1,0 +1,54 @@
+# Investigation 24 — interop evidence (2026-10-18). Throwaway keys, synthetic glucose. Invite payloads and temp paths redacted.
+
+## 1. Reference vectors checked by rust-nostr 0.45.1 + the repo's v2/identity code
+$ uv run --project spikes/nostr python spec/reference/interop/sukrara_side.py oracle spec/test-vectors/ogs-draft1.json
+PASS: 63/63 checks of the reference vectors against nostr-sdk 0.45 + spikes/nostr v2/identity code
+
+## 2. Events made by the repo's v2 code + rust-nostr, decoded by the independent reference follower
+$ sukrara_side.py fixture fx.json && (cd spec/reference && uv run ogs decode fx.json)
+wrote fx2.json: 8 events + a v3 invite (I d32aaacb11fc…, synthetic data)
+     invite opened: identity d32aaacb11fc… profile {'name': 'Interop wearer', 'avatar': {'v': 1, 'c': 3, 's': 'drop', 'a': 90, 'n': 7}} relays ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom']
+     kind  1059 by f0c82983  accepted:key (epoch 1)
+     kind 30078 by d32aaacb  accepted:roster (epoch 1, 1 device(s), 0 writer(s))
+     kind 30078 by 1c0a5942  accepted:chunk (hour 1792346400: 60 rows, 60 new)
+     kind 30078 by 1c0a5942  accepted:chunk (hour 1792350000: 60 rows, 60 new)
+     kind 21078 by 1c0a5942  accepted:live (188 mg/dL Flat)
+     kind 21078 by 1c0a5942  accepted:live (188 mg/dL Flat)
+     kind 21079 by 1c0a5942  accepted:alert (high fire)
+     kind 30078 by 1c0a5942  accepted:treatment (carbs 25)
+state: active, epochs [1], 122 readings, 1 treatments, 1 alerts, sensor Sensor(ss=1792007962, se=1793303962, sw=1792011562), writers 0
+newest reading: t=1792353540 sgv=188 r=-0.14 → Flat
+
+## 3. Live over public relays: repo v2 owner (sukrara_side.py serve) ↔ reference follower (ogs follow)
+### owner
+owner (spikes/nostr v2 code) up: I 9f41d475bf25…, invite written to link.txt
+  owner got request from 3ec6dda759ec… via wss://relay.primal.net
+  owner: 'OGS reference' asks, match code 1141 → Allow (auto)
+owner done: 1 follower(s) approved; relay stats {"wss://nos.lol": {"ok": 14, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://relay.primal.net": {"ok": 14, "fail": 0, "dropped": 0, "up": true, "paused": false, "err": ""}, "wss://nostr.mom": {"ok": 14, "fail": 0, "dropped": 0,
+### follower
+follower key 3ec6dda759ec40b8… (throwaway, in ref-follower.json)
+invite from Interop wearer, identity 9f41d475bf25e30b…, relays ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom'], expires 23:47
+access request sent (3/3 relays OK). Match code 1141 — the owner allows it.
+  22:48:14 relay.primal.net   kind  1059  accepted:key (epoch 1)
+  22:48:16 nos.lol            kind 21078  accepted:live (189 mg/dL Flat)
+  22:48:16 nostr.mom          kind 30078  accepted:roster (epoch 1, 1 device(s), 0 writer(s))
+  22:48:18 relay.primal.net   kind 30078  accepted:chunk (hour 1792346400: 60 rows, 60 new)
+  22:48:20 relay.primal.net   kind 30078  accepted:chunk (hour 1792350000: 49 rows, 49 new)
+  22:48:22 nostr.mom          kind 30078  accepted:treatment (carbs 25)
+  22:48:24 nostr.mom          kind 21079  accepted:alert (high fire)
+  22:48:44 nostr.mom          kind 21078  accepted:live (189 mg/dL Flat)
+  22:49:14 relay.primal.net   kind 21078  accepted:live (189 mg/dL Flat)
+  22:49:45 nostr.mom          kind 21078  accepted:live (189 mg/dL Flat)
+  22:50:15 relay.primal.net   kind 21078  accepted:live (189 mg/dL Flat)
+done: status active, epochs [1], 114 readings, 1 treatments, 1 alerts, sensor Sensor(ss=1792007278, se=1793303278, sw=1792010878)
+  22:48 189 mg/dL Flat
+  22:48 189 mg/dL Flat
+  22:49 189 mg/dL Flat
+  22:49 189 mg/dL Flat
+  22:50 189 mg/dL Flat
+
+## 4. Reference self-checks
+PASS: 28 events, 27 plaintexts, 3 invite checks, BLE at 3 MTUs, scenario 25 steps
+Ran 13 tests in 1.630s
+
+OK
