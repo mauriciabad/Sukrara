@@ -84,7 +84,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   the Mac see the same (it travels with the live readings).
 - Sensor end in your calendar (opt-in, like Juggluco's but without a tap): Sukrara makes its own "Sukrara" calendar
   on the phone (or uses one of your calendars, e.g. Google, to sync it everywhere) and keeps one "Sensor ends" event
-  per sensor up to date; turning it off removes them.
+  per sensor up to date; turning it off removes them. Google Calendar hides Sukrara's own calendar until you turn on
+  "Sukrara" under its Settings → Manage accounts; the setting reminds you.
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root

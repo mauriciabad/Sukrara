@@ -28,6 +28,10 @@ import kotlinx.coroutines.withContext
  * composable and put the returned rows in a [SettingsGroup]. Turning it on asks for READ/WRITE_CALENDAR (runtime
  * permission, the system dialog); refused → stays off and says why; refused for good (the system no longer asks) →
  * the next tap opens the app's system settings, like AOSP Settings rows that need a permission.
+ *
+ * With Sukrara's own calendar and Google Calendar installed, one more row says where to turn the calendar on there:
+ * Google Calendar hides non-Google accounts until the user switches them on (SensorCalendar header); tapping it opens
+ * Google Calendar (its launch intent: no deep link to that settings page is known).
  */
 @Composable
 fun sensorCalendarRows(): SettingsGroupScope.() -> Unit {
@@ -65,6 +69,9 @@ fun sensorCalendarRows(): SettingsGroupScope.() -> Unit {
     }
     val title = stringResource(R.string.calendar_title)
     val whereTitle = stringResource(R.string.calendar_where)
+    val gcal = remember { ctx.packageManager.getLaunchIntentForPackage(GOOGLE_CALENDAR) }
+    val hintTitle = stringResource(R.string.calendar_gcal_title)
+    val hint = stringResource(R.string.calendar_gcal_hint)
     return {
         switch(title, on, summary = summary) { v ->
             when {
@@ -75,5 +82,10 @@ fun sensorCalendarRows(): SettingsGroupScope.() -> Unit {
             }
         }
         value(whereTitle, where, enabled = on) { choosing = true }
+        if (on && s.target == SensorCalendar.OWN && gcal != null) link(hintTitle, hint, external = true) { ctx.startActivity(gcal) }
     }
 }
+
+/** Google Calendar's package (declared in the manifest's `<queries>`, or the lookup can't see it). */
+private const val GOOGLE_CALENDAR = "com.google.android.calendar"
+

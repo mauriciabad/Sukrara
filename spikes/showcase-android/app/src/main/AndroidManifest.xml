@@ -41,6 +41,11 @@
         android:protectionLevel="signature" />
     <uses-permission android:name="app.mauri.sukrara.poc.permission.STATUS_BAR_GLUCOSE" />
 
+    <!-- Sensor end in calendar: the settings hint shows only when Google Calendar is installed (and opens it) -->
+    <queries>
+        <package android:name="com.google.android.calendar" />
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"

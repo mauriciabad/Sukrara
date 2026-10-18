@@ -11,11 +11,12 @@ class SensorCalendarTest {
     private val start = 1_760_000_000L
     private val end = start + 15 * 86_400L
 
-    @Test fun eventIsAPointAtTheSensorsEnd() {
+    @Test fun eventStartsAtTheSensorsEndAndLasts30Minutes() {
         val e = SensorCalendar.event("TEST0000001", end, "Sensor ends", "desc")
         assertEquals("sensor:TEST0000001", e.key)
         assertEquals(end * 1000, e.startMs)
-        assertEquals(e.startMs, e.endMs)
+        // not a point event: Google Calendar draws start = end as a title-less sliver
+        assertEquals(e.startMs + 30 * 60_000L, e.endMs)
         assertEquals("Sensor ends", e.title)
     }
 
