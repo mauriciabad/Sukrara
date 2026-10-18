@@ -17,3 +17,5 @@ Rules every session follows in this repo. The detailed know-how (phone, Mac, sig
 - **Alert rules are guarded by timeline scenarios** (sequences of events → expected alerts, Android and Mac). Every
   alert-rule change adds or updates a scenario; never change a scenario's expectations without the user's OK.
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
+- **One graph everywhere.** Every change to the glucose graph / value card (marks, badge, slots, units, colours) lands on
+  Android AND Mac (`spikes/widgets-macos/Shared/SukraraGraph.swift`: menubar dropdown + Mac widgets) in the same round.
