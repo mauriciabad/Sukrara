@@ -101,6 +101,8 @@ struct GraphMark: Equatable {
     var k: String
     var a: Double
     var n: String = ""
+    /// Only for the label layout's tie-break and the fixtures (TreatmentMarks.layout).
+    var id: String = ""
 }
 
 enum GlucoseStats {
@@ -463,6 +465,18 @@ enum Ink {
     static func width(_ s: String, _ font: CTFont) -> CGFloat {
         CGFloat(CTLineGetTypographicBounds(line(s, font, GraphPalette.hex(0)), nil, nil, nil))
     }
+    /// The outline of `s` (`width` wide, round joins) in the context's blend mode: a label's halo (drawn with
+    /// `.destinationOut` to erase what is under the label).
+    static func halo(_ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, width: CGFloat) {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .strokeColor: GraphPalette.hex(0),
+                                                    .strokeWidth: width / CTFontGetSize(font) * 100]
+        let l = CTLineCreateWithAttributedString(NSAttributedString(string: s, attributes: attrs))
+        ctx.saveGState()
+        ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        ctx.textPosition = CGPoint(x: x, y: y)
+        CTLineDraw(l, ctx)
+        ctx.restoreGState()
+    }
     /// Draws with the baseline at `y` (y-down context). Strikethrough is drawn by hand (CTLineDraw doesn't).
     static func draw(_ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, _ color: CGColor,
                      align: CGFloat = 0, strike: Bool = false) {
@@ -481,6 +495,30 @@ enum Ink {
             ctx.strokeLineSegments(between: [CGPoint(x: x0, y: sy), CGPoint(x: x0 + w, y: sy)])
         }
     }
+}
+
+/// A fixed text width model (TextModel.kt), so layout decisions never depend on the font (SF Pro here, Roboto on
+/// Android): the graph's side columns and the treatment label layout use it; only the drawing measures real text
+/// (centred in the modelled box). Widths in em, at or a little above the wider of SF Pro and Roboto at bold weight and
+/// small sizes (SF Pro Text Bold at 9 pt: digits up to 0.71 em); `-graphselftest` checks every fixture label fits.
+enum TextModel {
+    static func em(_ c: Character) -> CGFloat {
+        switch c {
+        case "0"..."9": return 0.72
+        case ".", ",", "·", ":": return 0.38
+        case " ": return 0.3
+        case "m": return 0.96
+        case "w": return 0.88
+        case "i", "l", "j": return 0.32
+        case "r", "f", "t": return 0.46
+        case "%": return 1.06
+        case "a"..."z": return 0.68
+        case "A"..."Z": return 0.78
+        default: return 0.75
+        }
+    }
+    /// Width of `s` at text size `size` (same unit as `size`).
+    static func width(_ s: String, _ size: CGFloat) -> CGFloat { size * s.reduce(0) { $0 + em($1) } }
 }
 
 private extension CGColor {
@@ -507,23 +545,29 @@ enum GlucoseGraph {
         let pctBig = Ink.font(13 * d, .bold), pctSmall = Ink.font(8.5 * d, .regular)
 
         let labels = st.axisLabels
-        // The % labels need room: none on small placements (a 1×1 / systemSmall widget), the dots stay.
-        let pctCol = st.side && labels && !tir.empty && area.width >= Self.pctMinWidth * d
-            ? Ink.width("100", pctBig) + Ink.width("%", pctSmall) + 6 * d : 0
-        let left = area.minX + pctCol
-        let right = area.maxX - (labels ? Ink.width("180", text) + 5 * d : 0)
-        let top = area.minY + 3 * d
-        let bottom = area.maxY - (labels ? 10 * d + 4 * d : 0)
+        let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d)
+        let pctCol = left - area.minX
+        func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
+        // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         let shownMarks = st.treatments ? marks.filter { $0.t >= from && $0.t <= now } : []
+        let layout = shownMarks.isEmpty ? nil
+            : TreatmentMarks.layout(shownMarks, x: x, now: now, minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d)
+        let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
+        let textRow = labels || !(layout?.labels.isEmpty ?? true)
+        let top = area.minY + 3 * d
+        let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
         let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
         guard right - left >= 20 * d, plotBottom - top >= 20 * d else { return }
+        // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
+        // wider than the area: a marker at the plot's edge may stick out.
+        ctx.beginTransparencyLayer(in: area.insetBy(dx: -6 * d, dy: 0), auxiliaryInfo: nil)
+        defer { ctx.endTransparencyLayer() }
 
         let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
         // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
         // don't change it: one outside the range isn't drawn.
         let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
         let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
-        func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         func y(_ v: Double) -> CGFloat { plotBottom - CGFloat((min(max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (plotBottom - top) }
         let sideW: CGFloat = st.side && !tir.empty ? min((right - left) * 0.26, 130 * d) : 0
 
@@ -557,8 +601,9 @@ enum GlucoseGraph {
                     let s = hourLabel(cal.component(.hour, from: hour), st.hour24)
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
-                    if lx > lastLabelEnd + 6 * d {
-                        Ink.draw(ctx, s, x: lx, y: area.maxY - 2 * d, text, pal.inkSoft)
+                    // a label squeezed against the right edge would touch its neighbour; a treatment label wins
+                    if lx > lastLabelEnd + 6 * d && !(layout?.blocks(lx - 3 * d, lx + tw + 3 * d) ?? false) {
+                        Ink.draw(ctx, s, x: lx, y: area.maxY - 2 * d - lane1, text, pal.inkSoft)
                         lastLabelEnd = lx + tw
                     }
                 }
@@ -662,10 +707,23 @@ enum GlucoseGraph {
         }
 
         if !shownMarks.isEmpty {
-            TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d, now: now,
-                                muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
+            TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d,
+                                layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
+                                now: now, muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
         }
     }
+
+    /// The plot's left and right edge in `areaLeft`…`areaRight` (GlucoseGraph.kt `plotX`): the % column (`pct`: time
+    /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`), both sized by
+    /// the `TextModel`, so the plot is the same on every platform whatever the font.
+    static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat) -> (CGFloat, CGFloat) {
+        let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d
+            ? TextModel.width("100", 13 * d) + TextModel.width("%", 8.5 * d) + 6 * d : 0
+        return (areaLeft + pctCol, areaRight - (labels ? TextModel.width("180", 10 * d) + 5 * d : 0))
+    }
+
+    /// Treatment label lanes for a chart `h` tall: a second one from `TreatmentMarks.twoLanesH`.
+    static func lanes(_ h: CGFloat, d: CGFloat) -> Int { h >= TreatmentMarks.twoLanesH * d ? 2 : 1 }
 
     /// The distribution's dots: rows `profilePitch` apart, dots of radius `profileR`; its outline is `profileGap` wider.
     private static let profilePitch: CGFloat = 3.6, profileR: CGFloat = 1.35, profileGap: CGFloat = 1.6
@@ -726,8 +784,9 @@ enum GlucoseGraph {
 }
 
 /// Treatments along the bottom lane, as TreatmentMarks.kt: rapid = filled blue drop, long = outlined violet drop,
-/// carbs = amber dot, note = grey diamond; above them the amount and the time since (`4.5u 12m`, once per meal), up to
-/// two rows, and from each rapid / carbs mark a line to the end of its alert mute.
+/// carbs = amber dot, note = grey diamond; from each rapid / carbs mark a line to the end of its alert mute. The labels
+/// (amount and time since, `4.5u 12m`) go under the markers, in the hour labels' row (they give way) and, when needed,
+/// a second row under it, never over the glucose line; close entries share one (`layout`).
 enum TreatmentMarks {
     static func color(_ k: String, dark: Bool) -> CGColor {
         switch k {
@@ -790,10 +849,90 @@ enum TreatmentMarks {
         }
     }
 
-    /// Draw `marks` (live entries) into the plot `left`…`right` × …`bottom`. `now` (the plot's right edge) adds the
-    /// time since each entry to its label; `muteUntil` gives the end of an entry's alert mute (nil = none) for its line.
+    // MARK: label layout: docs/16-graph.md "Treatment labels" (the same rules in TreatmentMarks.kt)
+
+    /// Label text size; least space between two labels in a lane; entries this close in time (s) or on the chart (a
+    /// marker's width) share a label; chart height from which a second lane may be used, and its height; how far a
+    /// marker stays inside its label when the label slides (all dp).
+    static let labelSize: CGFloat = 9, labelGap: CGFloat = 4, mergeS: TimeInterval = 180, mergeDp: CGFloat = 9
+    static let twoLanesH: CGFloat = 90, laneH: CGFloat = 11, inset: CGFloat = 3
+    static let sep = " · "
+
+    /// One label: `members` in label order (kind, then time), `time` = since the newest (nil = left out for room),
+    /// `lane` 0 (the axis row) or 1 (under it), `left` + `w` = its modelled box (TextModel).
+    struct Label {
+        var members: [GraphMark]; var time: String?; var lane: Int; var left: CGFloat; var w: CGFloat
+        var amounts: [String] { members.compactMap { TreatmentMarks.amount($0) } }
+        var text: String { amounts.joined(separator: TreatmentMarks.sep) + (time.map { " \($0)" } ?? "") }
+    }
+
+    /// Where the labels go; `dropped` = the groups left without a label (their markers stay).
+    struct Layout {
+        var labels: [Label]; var dropped: [[GraphMark]]
+        var twoLanes: Bool { labels.contains { $0.lane == 1 } }
+        /// Whether `a`…`b` touches a lane-0 label: an hour label there gives way.
+        func blocks(_ a: CGFloat, _ b: CGFloat) -> Bool { labels.contains { $0.lane == 0 && $0.left < b && a < $0.left + $0.w } }
+    }
+
+    /// The label layout (TreatmentMarks.kt `layout`, same steps): group (≤ `mergeS` after the group's last entry,
+    /// chained, or < `mergeDp` from the group's first marker), label = amounts in kind order joined by " · " + the time since the newest,
+    /// anchored mid-group; newest group first, each in the first of lane 0 / lane 1 with the time, lane 0 / lane 1
+    /// without it that has a free place (`place`), else no label.
+    static func layout(_ marks: [GraphMark], x: (TimeInterval) -> CGFloat, now: TimeInterval?, minX: CGFloat, maxX: CGFloat,
+                       lanes: Int, d: CGFloat) -> Layout {
+        let items = marks.filter { amount($0) != nil && order[$0.k] != nil }
+            .sorted { ($0.t, order[$0.k]!, $0.a, $0.id) < ($1.t, order[$1.k]!, $1.a, $1.id) }
+        var groups: [[GraphMark]] = []
+        for m in items {
+            if let g = groups.last, m.t - g.last!.t <= mergeS || x(m.t) - x(g.first!.t) < mergeDp * d { groups[groups.count - 1].append(m) }
+            else { groups.append([m]) }
+        }
+        let size = labelSize * d, gap = labelGap * d
+        var taken: [[(CGFloat, CGFloat)]] = [[], []]
+        var labels: [Label] = [], dropped: [[GraphMark]] = []
+        for g in groups.sorted(by: { $0.last!.t > $1.last!.t }) {
+            let members = g.sorted { (order[$0.k]!, $0.t, $0.a, $0.id) < (order[$1.k]!, $1.t, $1.a, $1.id) }
+            let amounts = members.compactMap { amount($0) }.joined(separator: sep)
+            let time = now.map { duration($0 - g.last!.t) }
+            let cx = (x(g.first!.t) + x(g.last!.t)) / 2
+            var placed: Label?
+            for (lane, t) in [(0, time), (1, time), (0, nil), (1, nil)] where lane < lanes {
+                let w = TextModel.width(amounts + (t.map { " \($0)" } ?? ""), size)
+                if let left = place(cx, w, taken[lane], minX: minX, maxX: maxX, gap: gap, inset: inset * d) {
+                    taken[lane].append((left - gap / 2, left + w + gap / 2))
+                    placed = Label(members: members, time: t, lane: lane, left: left, w: w)
+                    break
+                }
+            }
+            if let placed { labels.append(placed) } else { dropped.append(members) }
+        }
+        return Layout(labels: labels, dropped: dropped)
+    }
+
+    /// The left edge for a box `w` wide anchored at `cx` in a lane holding `taken`, or nil (TreatmentMarks.kt `place`):
+    /// centred if free, else slid while the anchor stays `inset` inside the box; candidates in order: preferred, the
+    /// slide's two ends, then right of / left of each taken box; the free one nearest the preferred wins (first on a tie).
+    static func place(_ cx: CGFloat, _ w: CGFloat, _ taken: [(CGFloat, CGFloat)], minX: CGFloat, maxX: CGFloat,
+                      gap: CGFloat, inset: CGFloat) -> CGFloat? {
+        if w > maxX - minX { return nil }
+        let pref = min(max(cx - w / 2, minX), max(maxX - w, minX))
+        var lo = max(minX, cx - w + inset), hi = min(maxX - w, cx - inset)
+        if lo > hi { lo = pref; hi = pref }
+        func free(_ l: CGFloat) -> Bool { !taken.contains { l - gap / 2 < $0.1 - 0.01 && $0.0 + 0.01 < l + w + gap / 2 } }
+        let cands = [min(max(pref, lo), hi), lo, hi] + taken.flatMap { [$0.1 + gap / 2, $0.0 - w - gap / 2] }
+        var best: CGFloat?
+        for c in cands where c >= lo && c <= hi && free(c) {
+            if best == nil || abs(c - pref) < abs(best! - pref) { best = c }
+        }
+        return best
+    }
+
+    /// Draw `marks` (live entries) into the plot `left`…`right` × …`bottom`: markers, mute lines (`muteUntil`, nil =
+    /// none; `now` = the plot's right edge), then `layout`'s labels with baselines `base0` / `base1`. Each label's
+    /// outline (3 dp) is first erased (`.destinationOut`) from what is under it, so it reads over anything on any
+    /// background (the caller draws the chart in its own transparency layer).
     static func draw(_ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
-                     bottom: CGFloat, dark: Bool, d: CGFloat, textSize: CGFloat = 9, rows: Int = 2,
+                     bottom: CGFloat, dark: Bool, d: CGFloat, layout: Layout?, base0: CGFloat, base1: CGFloat, sep sepColor: CGColor,
                      now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil) {
         let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter { $0.1 >= left - 1 && $0.1 <= right + 1 }
         guard !items.isEmpty else { return }
@@ -825,38 +964,33 @@ enum TreatmentMarks {
         }
         for (m, px) in back { marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark)) }
 
-        // Labels, stacked up to `rows` rows above the lane; with the time first, then without it, else skipped.
-        let font = Ink.font(textSize * d, .bold), agoFont = Ink.font(textSize * d, .medium)
-        let ascent = CTFontGetAscent(font), descent = CTFontGetDescent(font)
-        let lineH = ascent + descent
-        var placed: [CGRect] = []
-        var timed: [TimeInterval] = []   // entries whose label carries the time: one per meal (entries ≤ 3 min apart)
-        let gap = 2 * d
-        for (m, px) in items.sorted(by: { (order[$0.0.k]!, -$0.0.t) < (order[$1.0.k]!, -$1.0.t) }) {
-            guard let s = amount(m) else { continue }
-            let t = now.flatMap { n in timed.contains { abs($0 - m.t) <= 180 } ? nil : " " + duration(n - m.t) }
-            func place(_ withTime: Bool) -> Bool {
-                guard !withTime || t != nil else { return false }
-                let tail = withTime ? t! : ""
-                let sw = Ink.width(s, font), w = sw + (tail.isEmpty ? 0 : Ink.width(tail, agoFont))
-                let lx = min(max(px - w / 2, left), max(left, right - w))
-                for row in 0..<rows {
-                    let baseline = cy - 5.5 * d - descent - CGFloat(row) * lineH
-                    let r = CGRect(x: lx - gap / 2, y: baseline - ascent, width: w + gap, height: lineH)
-                    if placed.contains(where: { $0.intersects(r) }) { continue }
-                    placed.append(r)
-                    let c = color(m.k, dark: dark)
-                    Ink.draw(ctx, s, x: lx, y: baseline, font, c)
-                    if !tail.isEmpty {
-                        Ink.draw(ctx, tail, x: lx + sw, y: baseline, agoFont, c.copy(alpha: 0xC0 / 255.0)!)
-                        timed.append(m.t)
-                    }
-                    return true
-                }
-                return false
+        guard let layout, !layout.labels.isEmpty else { return }
+        let bold = Ink.font(labelSize * d, .bold), medium = Ink.font(labelSize * d, .medium)
+        // pieces (text, font, colour) and the start of the real text, centred in its modelled box
+        let drawn: [(Label, [(String, CTFont, CGColor)], CGFloat)] = layout.labels.map { l in
+            var pieces: [(String, CTFont, CGColor)] = []
+            for (i, m) in l.members.filter({ amount($0) != nil }).enumerated() {
+                if i > 0 { pieces.append((sep, medium, sepColor.copy(alpha: 0xC0 / 255.0)!)) }
+                pieces.append((amount(m)!, bold, color(m.k, dark: dark)))
             }
-            if !place(true) { _ = place(false) }
+            if let t = l.time, let newest = l.members.max(by: { $0.t < $1.t }) {
+                pieces.append((" " + t, medium, color(newest.k, dark: dark).copy(alpha: 0xC0 / 255.0)!))
+            }
+            let w = pieces.reduce(0) { $0 + Ink.width($1.0, $1.1) }
+            return (l, pieces, l.left + (l.w - w) / 2)
         }
+        func each(_ f: (String, CTFont, CGColor, CGFloat, CGFloat) -> Void) {
+            for (l, pieces, x0) in drawn {
+                var px = x0
+                for (s, font, c) in pieces { f(s, font, c, px, l.lane == 0 ? base0 : base1); px += Ink.width(s, font) }
+            }
+        }
+        ctx.saveGState()
+        ctx.setBlendMode(.destinationOut)
+        ctx.setLineJoin(.round)
+        each { s, font, _, px, base in Ink.halo(ctx, s, x: px, y: base, font, width: 3 * d) }
+        ctx.restoreGState()
+        each { s, font, c, px, base in Ink.draw(ctx, s, x: px, y: base, font, c) }
     }
 }
 

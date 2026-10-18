@@ -19,6 +19,7 @@ class App : Application() {
         super.onCreate()
         // the drawing code's words follow the app's language (per-app language, res/values-es)
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(resources) }
+        app.mauri.sukrara.graph.RoundedFont.init(this)   // the card's rounded numbers (Google Sans Flex, ROND 100)
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)

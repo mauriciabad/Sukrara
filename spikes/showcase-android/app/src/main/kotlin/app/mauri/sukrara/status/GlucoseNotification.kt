@@ -153,8 +153,11 @@ object GlucoseNotification {
     private fun card(c: Context, layout: Int, r: Reading, stale: Boolean, bg: Int, info: String, slots: Bitmap?): RemoteViews {
         val fg = ink(bg)
         return RemoteViews(c.packageName, layout).apply {
-            setTextViewText(R.id.value, if (stale) "${r.sgv}?" else "${r.sgv}")
-            setTextColor(R.id.value, fg)
+            val value = if (stale) "${r.sgv}?" else "${r.sgv}"
+            val sp = if (layout == R.layout.notif_glucose_expanded) 44f else 30f
+            setImageViewBitmap(R.id.value, valueBitmap(value, fg,
+                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, c.resources.displayMetrics)))
+            setContentDescription(R.id.value, value)
             setImageViewBitmap(R.id.arrow, arrowBitmap(r.rate, stale, fg, (34 * c.resources.displayMetrics.density).toInt()))
             setTextViewText(R.id.info, info)
             setTextColor(R.id.info, fg)
@@ -291,6 +294,22 @@ object GlucoseNotification {
         Bitmap.createBitmap(size, size, Bitmap.Config.ALPHA_8).also { drawTrend(Canvas(it), rate, stale, size, Paint(Paint.ANTI_ALIAS_FLAG)) }
 
     /** The same arrow in a colour, for the card's layout. */
+    /**
+     * The value drawn in the card's rounded face ([app.mauri.sukrara.graph.RoundedFont], tabular figures) at [px] text
+     * size, cropped to the digits' height (like a TextView without font padding).
+     */
+    private fun valueBitmap(s: String, color: Int, px: Float): Bitmap {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color; textSize = px; typeface = app.mauri.sukrara.graph.RoundedFont.typeface(700)
+            fontFeatureSettings = app.mauri.sukrara.graph.RoundedFont.TABULAR
+        }
+        val b = android.graphics.Rect().also { p.getTextBounds("0123456789", 0, 10, it) }
+        val pad = (px * 0.06f).toInt() + 1
+        return Bitmap.createBitmap(kotlin.math.ceil(p.measureText(s)).toInt() + 2, b.height() + 2 * pad, Bitmap.Config.ARGB_8888).also {
+            Canvas(it).drawText(s, 0f, (pad - b.top).toFloat(), p)
+        }
+    }
+
     private fun arrowBitmap(rate: Double?, stale: Boolean, color: Int, size: Int): Bitmap =
         Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also {
             drawTrend(Canvas(it), rate, stale, size, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })

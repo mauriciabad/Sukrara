@@ -768,6 +768,19 @@ Details and pictures: [16 → Treatments on the card](16-graph.md#treatments-on-
 | Last-treatment slot, Settings → Graph → *Beside the number* → *Last treatment* / *Without a recent one* | `LastTreatment`, `Slots`, `LastSlot`, `GraphConfig.lastPlace/lastElse` | a new slot kind; long-acting in the slot |
 | Carbs focused in the dialog when low | `TreatmentDialog` | — |
 
+## Treatment labels and rounded numbers (2026-10-18 round)
+
+Details, spec and pictures: [16 → Treatment labels](16-graph.md#treatment-labels-under-the-markers-2026-10-18),
+[16 → Rounded numbers](16-graph.md#rounded-numbers-2026-10-18).
+
+| Added | Where | Discarded (why) |
+|---|---|---|
+| Labels under the markers (axis row + a second row when needed), hour labels give way, never over the line | `TreatmentMarks.layout/place/draw`, `GlucoseGraph.draw`; Mac `SukraraGraph.swift` | labels above the markers inside the plot (they covered the data) |
+| Close entries share a label, slide, row 2, then no time, then no label (newest first) | same | chained pixel merging (a run of snacks became one label) |
+| Width model shared by Android and Mac; label fixtures with a layout dump on both | `graph/TextModel.kt`, `spikes/graph-fixtures/labels/`, `GraphFixtureTest.labels`, `-graphselftest` | measuring each platform's font (different decisions) |
+| Label halo cut out of the chart (any background) | chart drawn in one layer + `DST_OUT` / `.destinationOut` | a background-coloured stroke (wrong on transparent / tinted surfaces) |
+| Rounded big numbers on Android: Google Sans Flex, ROND 100 (OFL), notification value drawn as a picture | `graph/RoundedFont.kt`, `assets/fonts/`, `GlucoseCard`, `RollingNumber`, `GlucoseNotification.valueBitmap` | Nunito / M PLUS Rounded (further from SF Pro Rounded); a downloadable font (background canvas drawing) |
+
 ## Notification and lock screen surfaces (2026-10-18 round)
 
 The user: the notification wastes the area below the app icon and doesn't show the time-in-range slots; the lock

@@ -18,5 +18,23 @@ A case: `name`; optional `settings` (alert settings JSON, spikes/alerts/SPEC.md 
 | `last` | `null` or `{id, until}` (LastTreatment.of; `until` null = its kind mutes nothing) |
 | `amounts` | `{id: "4.5u" \| null}` (TreatmentMarks.amount) |
 
-Not covered yet (needs the renderers to expose their layout): which mark labels fit, mute-line endpoints, slot order.
-Next step: a layout dump from GraphGallery and the Mac `render` CLI, compared against the same files.
+## Treatment label layout (`labels/*.json`)
+
+The layout dump: which treatment labels are drawn, where and with what text (rules: docs/16-graph.md, "Treatment
+labels"). Run by `GraphFixtureTest.labels` (Android) and `-graphselftest` (Mac), which also checks that SF Pro's real
+width of each label fits the width model. A case: `name`; `chart` `{w, h}` (the chart's area, dp); `hours` (window);
+`pct` (time in range has data, so the % column shows where the chart is ≥ 240 dp wide); `treatments` as above
+(`k`: rapid | long | carbs | note; times relative to "now"). `expect`:
+
+| key | meaning |
+|---|---|
+| `plot` | `[left, right]` of the plot, dp from the chart's left (± 0.5) |
+| `lanes` | label rows the chart allows (1, or 2 from 90 dp tall) |
+| `labels` | every label left to right: `ids` (its entries in label order), `text`, `lane` (0 = the axis row, 1 = under it), `x` (its centre, dp, ± 0.5) |
+| `dropped` | the groups left without a label (entry ids), in placing order |
+
+Positions are rounded to 0.5 dp; Android computes in `Float`, the Mac in `Double`. To add a case, write it with an
+empty `expect`, run `GraphFixtureTest` (`--rerun`: Gradle doesn't see the fixture files as inputs), check the dump in
+the failure message against the rules, paste it, and run the Mac self-test.
+
+Not covered yet: mute-line endpoints, slot order.

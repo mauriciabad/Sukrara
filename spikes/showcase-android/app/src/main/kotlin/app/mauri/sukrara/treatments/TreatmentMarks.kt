@@ -4,14 +4,17 @@
 package app.mauri.sukrara.treatments
 
 import app.mauri.sukrara.core.Words
+import app.mauri.sukrara.graph.TextModel
+import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -19,13 +22,15 @@ import kotlin.math.roundToInt
  * `GlucoseGraph`), so they all look the same.
  *
  * A lane along the bottom of the plot (the 40–60 mg/dL strip, almost always empty), one marker per entry at its
- * time, the amount and the time since it above it ("4.5u 12m"): rapid insulin = filled blue drop (triangle pointing
- * down), long-acting = outlined violet drop, carbs = amber dot, note = small grey diamond (its text only where the
- * caller allows it). A faint vertical line ties the marker to the curve. From the marker, a line along the lane runs to
- * where the entry's alert mute ends ([muteUntil]); it stops with a tick when the mute is over and runs off the right
- * edge (a chevron) while it still lasts. Entries that mute nothing (long-acting, notes) get no line. A label that would
- * overlap one already placed goes one row up (then without its time); when every row is taken it is dropped (the
- * marker stays). Insulin labels are placed first, then carbs, then notes.
+ * time: rapid insulin = filled blue drop (triangle pointing down), long-acting = outlined violet drop, carbs = amber
+ * dot, note = small grey diamond. A faint vertical line ties the marker to the curve. From the marker, a line along
+ * the lane runs to where the entry's alert mute ends ([muteUntil]); it stops with a tick when the mute is over and
+ * runs off the right edge (a chevron) while it still lasts. Entries that mute nothing (long-acting, notes) get no line.
+ *
+ * The labels (amount and time since, "4.5u 12m") go under the markers, in the time axis' row (its hour labels give
+ * way) and, when needed and the chart is tall enough, a second row under it; never over the glucose line. Close
+ * entries share a label; see [layout] for the rules (the user, 2026-10-18: "the labels cover the chart data …
+ * they can cover the axis labels, which are less important").
  */
 object TreatmentMarks {
     data class Palette(val rapid: Int, val long: Int, val carbs: Int, val note: Int)
@@ -97,17 +102,122 @@ object TreatmentMarks {
         }
     }
 
+    // ---- label layout: docs/16-graph.md "Treatment labels" (the same rules in SukraraGraph.swift) ------------------
+
+    /** Label text size (dp). */
+    const val LABEL_DP = 9f
+    /** Least space between two labels in a lane (dp). */
+    const val LABEL_GAP_DP = 4f
+    /** Entries this close in time (s) or on the chart (dp, a marker's width) share one label. */
+    const val MERGE_S = 180L
+    const val MERGE_DP = 9f
+    /** Chart height (dp) from which a second lane may be used, and that lane's height. */
+    const val TWO_LANES_DP = 90f
+    const val LANE_DP = 11f
+    /** A label may slide sideways from its centred place as long as its marker stays this far inside it (dp). */
+    const val INSET_DP = 3f
+
     /**
-     * Draw [list] (live entries; deleted ones are skipped) into the plot [left]..[right] × ..[bottom] of [cv].
-     * [x] maps epoch seconds to a pixel column; entries outside the plot are skipped. [density] = px per dp.
-     * [top] bounds the faint time line (NaN = no line). [halo], if given, outlines label text in the background
-     * colour so it stays legible where it crosses the glucose line. [nowS] (the plot's right edge) adds the time since
-     * each entry to its label; [muteUntil] gives the end of an entry's alert mute (null = it mutes nothing) for its line.
+     * One label under the markers: [members] in label order (kind: insulin, long-acting, carbs; then time), [time] =
+     * the time since the newest member (null = left out for room), [lane] 0 (the axis row) or 1 (under it),
+     * [left] + [w] = its modelled box ([TextModel], px).
+     */
+    class Label(val members: List<Treatment>, val time: String?, val lane: Int, val left: Float, val w: Float) {
+        val amounts: List<String> get() = members.mapNotNull { amount(it) }
+        val text: String get() = amounts.joinToString(SEP) + (time?.let { " $it" } ?: "")
+    }
+
+    /** Where the labels go; [dropped] = the groups left without a label (their markers stay). */
+    class Layout(val labels: List<Label>, val dropped: List<List<Treatment>>) {
+        val twoLanes: Boolean get() = labels.any { it.lane == 1 }
+
+        /** Whether [a]..[b] (px) touches a lane-0 label: an hour label there gives way. */
+        fun blocks(a: Float, b: Float) = labels.any { it.lane == 0 && it.left < b && a < it.left + it.w }
+    }
+
+    private const val SEP = " · "
+
+    /**
+     * The label layout, a pure function of the entries, the time → px mapping [x], the room [minX]..[maxX] (the whole
+     * chart width: labels may run under the % column and the values on the right) and [lanes] (1 or 2):
+     *
+     * 1. Entries with an amount (notes: marker only), oldest first, are grouped: one joins the previous group when it is
+     *    at most [MERGE_S] after the group's last entry (a meal, chained) or its marker is less than [MERGE_DP] from the
+     *    group's first marker (markers that overlap; not chained, so a run of snacks doesn't become one label).
+     * 2. A group's label is its amounts in kind order joined by " · " plus the time since its newest entry
+     *    ("4.5u · 45g 1h 35m"); its anchor is the middle of its first and last marker. Widths come from [TextModel].
+     * 3. Groups are placed newest first, each in the first of: lane 0 with the time, lane 1 with the time, lane 0
+     *    without it, lane 1 without it, that has a free place ([place]). A group with none gets no label.
+     */
+    fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float): Layout {
+        val items = list.filter { !it.del && amount(it) != null }
+            .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.a }, { it.id }))
+        val groups = ArrayList<MutableList<Treatment>>()
+        for (tr in items) {
+            val g = groups.lastOrNull()
+            if (g != null && (tr.t - g.last().t <= MERGE_S || x(tr.t) - x(g.first().t) < MERGE_DP * d)) g += tr
+            else groups += mutableListOf(tr)
+        }
+        val size = LABEL_DP * d
+        val gap = LABEL_GAP_DP * d
+        val taken = List(2) { ArrayList<Pair<Float, Float>>() }
+        val labels = ArrayList<Label>()
+        val dropped = ArrayList<List<Treatment>>()
+        for (g in groups.sortedByDescending { it.last().t }) {
+            val members = g.sortedWith(compareBy<Treatment>({ ORDER.getValue(it.k) }, { it.t }, { it.a }, { it.id }))
+            val amounts = members.mapNotNull { amount(it) }.joinToString(SEP)
+            val time = nowS?.let { duration(it - g.last().t) }
+            val cx = (x(g.first().t) + x(g.last().t)) / 2
+            val tries = listOf(0 to time, 1 to time, 0 to null, 1 to null).filter { it.first < lanes }
+            val label = tries.firstNotNullOfOrNull { (lane, t) ->
+                val w = TextModel.width(amounts + (t?.let { " $it" } ?: ""), size)
+                place(cx, w, taken[lane], minX, maxX, gap, INSET_DP * d)?.let { left ->
+                    taken[lane] += left - gap / 2 to left + w + gap / 2
+                    Label(members, t, lane, left, w)
+                }
+            }
+            if (label != null) labels += label else dropped += members
+        }
+        return Layout(labels, dropped)
+    }
+
+    /**
+     * The left edge for a box [w] wide anchored at [cx] in a lane holding [taken] (boxes with their half gaps), or null.
+     * Preferred: centred on the anchor, kept inside [minX]..[maxX]. It may slide while the anchor stays [inset] inside
+     * the box (and the box inside the room; when both can't hold, only the preferred place is tried; a box wider than
+     * the room has no place). A place is free
+     * when the box with [gap] / 2 on each side overlaps no taken box (by more than 0.01). Candidates, in this order:
+     * the preferred place, the two ends of the slide, and for each taken box (in placing order) the place just right of
+     * it and just left of it; the free one nearest the preferred place wins, the first on a tie.
+     */
+    fun place(cx: Float, w: Float, taken: List<Pair<Float, Float>>, minX: Float, maxX: Float, gap: Float, inset: Float): Float? {
+        if (w > maxX - minX) return null
+        val pref = (cx - w / 2).coerceIn(minX, (maxX - w).coerceAtLeast(minX))
+        var lo = max(minX, cx - w + inset)
+        var hi = min(maxX - w, cx - inset)
+        if (lo > hi) { lo = pref; hi = pref }
+        fun free(l: Float) = taken.none { (a0, b0) -> l - gap / 2 < b0 - 0.01f && a0 + 0.01f < l + w + gap / 2 }
+        val cands = listOf(pref.coerceIn(lo, hi), lo, hi) + taken.flatMap { (a0, b0) -> listOf(b0 + gap / 2, a0 - w - gap / 2) }
+        var best: Float? = null
+        for (c in cands) if (c >= lo && c <= hi && free(c) && (best == null || abs(c - pref) < abs(best - pref))) best = c
+        return best
+    }
+
+    /**
+     * Draw [list] (live entries; deleted ones are skipped) into the plot [left]..[right] × ..[bottom] of [cv]: the
+     * markers in the lane just above [bottom], the faint time lines up to [top] (NaN = none), the mute lines
+     * ([muteUntil], null = none; [nowS] = the plot's right edge), then [layout]'s labels with their baselines at [base0]
+     * (lane 0) and [base1] (lane 1). [x] maps epoch seconds to a pixel column; [density] = px per dp; [sep] = the
+     * colour of the " · " between merged amounts.
+     *
+     * Each label gets a halo: its outline, 3 dp wide, is erased (DST_OUT) from what is under it before the text is
+     * drawn, so it reads over anything on any background (the caller draws the chart in its own layer, so the erased
+     * outline shows the surface behind the chart: card, widget, notification colour or wallpaper).
      */
     fun draw(
         cv: Canvas, list: List<Treatment>, x: (Long) -> Float, left: Float, right: Float, bottom: Float,
-        density: Float, dark: Boolean, textDp: Float = 9f, noteChars: Int = 0, rows: Int = 2,
-        top: Float = Float.NaN, halo: Int? = null, nowS: Long? = null, muteUntil: ((Treatment) -> Long?)? = null,
+        density: Float, dark: Boolean, layout: Layout?, base0: Float, base1: Float, sep: Int,
+        top: Float = Float.NaN, nowS: Long? = null, muteUntil: ((Treatment) -> Long?)? = null,
     ) {
         val d = density
         val pal = palette(dark)
@@ -141,49 +251,30 @@ object TreatmentMarks {
             }
         }
         for ((tr, px) in items.sortedByDescending { ORDER.getValue(it.first.k) })
-            marker(cv, tr.k, px, cy, 4.5f * d, color(pal, tr.k), halo)
+            marker(cv, tr.k, px, cy, 4.5f * d, color(pal, tr.k))
 
-        // Labels, stacked up to [rows] rows above the lane; skipped when no row has room.
-        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = textDp * d; typeface = Typeface.DEFAULT_BOLD }
-        val ago = Paint(text).apply { typeface = Typeface.create(Typeface.DEFAULT, 500, false) }
-        val haloPaint = halo?.let {
-            Paint(text).apply { color = it; style = Paint.Style.STROKE; strokeWidth = 3 * d; strokeJoin = Paint.Join.ROUND }
-        }
-        val agoHalo = haloPaint?.let { Paint(it).apply { typeface = ago.typeface } }
-        val fm = text.fontMetrics
-        val lineH = fm.descent - fm.ascent
-        val placed = ArrayList<RectF>()
-        val timed = ArrayList<Long>()   // entries whose label carries the time: one per meal (entries ≤ 3 min apart)
-        val gap = 2 * d
-        val byPriority = items.sortedWith(compareBy<Pair<Treatment, Float>> { ORDER.getValue(it.first.k) }
-            .thenByDescending { it.first.t })
-        for ((tr, px) in byPriority) {
-            val s = label(tr, noteChars) ?: continue
-            val t = nowS?.takeIf { timed.none { abs(it - tr.t) <= 180 } }?.let { " " + duration(it - tr.t) }
-            // with its time first, then (no room) without it
-            fun place(withTime: Boolean): Boolean {
-                val tail = if (withTime) t ?: return false else ""
-                val w = text.measureText(s) + ago.measureText(tail)
-                val lx = (px - w / 2).coerceIn(left, (right - w).coerceAtLeast(left))
-                for (row in 0 until rows) {
-                    val baseline = cy - 5.5f * d - fm.descent - row * lineH
-                    val r = RectF(lx - gap / 2, baseline + fm.ascent, lx + w + gap / 2, baseline + fm.descent)
-                    if (placed.any { RectF.intersects(it, r) }) continue
-                    placed += r
-                    val c = color(pal, tr.k)
-                    haloPaint?.let { cv.drawText(s, lx, baseline, it) }
-                    cv.drawText(s, lx, baseline, text.apply { color = c })
-                    if (tail.isNotEmpty()) {
-                        val tx = lx + text.measureText(s)
-                        agoHalo?.let { cv.drawText(tail, tx, baseline, it) }
-                        cv.drawText(tail, tx, baseline, ago.apply { color = ColorUtils.setAlphaComponent(c, 0xC0) })
-                        timed += tr.t
-                    }
-                    return true
-                }
-                return false
+        if (layout == null || layout.labels.isEmpty()) return
+        val bold = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = LABEL_DP * d; typeface = Typeface.DEFAULT_BOLD }
+        val medium = Paint(bold).apply { typeface = Typeface.create(Typeface.DEFAULT, 500, false) }
+        class Piece(val s: String, val paint: Paint, val color: Int)
+        val drawn = layout.labels.map { l ->
+            val pieces = ArrayList<Piece>()
+            l.members.filter { amount(it) != null }.forEachIndexed { i, tr ->
+                if (i > 0) pieces += Piece(SEP, medium, ColorUtils.setAlphaComponent(sep, 0xC0))
+                pieces += Piece(amount(tr)!!, bold, color(pal, tr.k))
             }
-            if (!place(true)) place(false)
+            l.time?.let { pieces += Piece(" $it", medium, ColorUtils.setAlphaComponent(color(pal, l.members.maxBy { m -> m.t }.k), 0xC0)) }
+            val w = pieces.sumOf { it.paint.measureText(it.s).toDouble() }.toFloat()
+            Triple(l, pieces, l.left + (l.w - w) / 2)   // the real text, centred in its modelled box
         }
+        fun each(f: (Piece, Float, Float) -> Unit) = drawn.forEach { (l, pieces, x0) ->
+            var px = x0
+            for (p in pieces) { f(p, px, if (l.lane == 0) base0 else base1); px += p.paint.measureText(p.s) }
+        }
+        val cut = Paint(bold).apply {
+            style = Paint.Style.STROKE; strokeWidth = 3 * d; strokeJoin = Paint.Join.ROUND; blendMode = BlendMode.DST_OUT
+        }
+        each { p, px, base -> cv.drawText(p.s, px, base, cut.apply { typeface = p.paint.typeface }) }
+        each { p, px, base -> cv.drawText(p.s, px, base, p.paint.apply { color = p.color }) }
     }
 }

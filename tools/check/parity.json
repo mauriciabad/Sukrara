@@ -14,6 +14,7 @@
         "android": [
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Freshness.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseStats.kt",
@@ -41,7 +42,8 @@
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt"
         ],
         "fixtures": ["spikes/graph-fixtures/*"]
       }

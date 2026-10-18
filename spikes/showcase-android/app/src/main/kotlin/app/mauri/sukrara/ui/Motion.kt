@@ -369,7 +369,8 @@ fun <T> AnimatedItems(items: List<T>, key: (T) -> Any, content: @Composable (T) 
  * downwards when it falls; unchanged digits stay still. Positions count from the right so 99 → 100 rolls correctly.
  */
 @Composable
-fun RollingNumber(text: String, color: Color, fontSize: TextUnit, fontWeight: FontWeight) {
+fun RollingNumber(text: String, color: Color, fontSize: TextUnit, fontWeight: FontWeight,
+                  fontFamily: androidx.compose.ui.text.font.FontFamily? = null) {
     val value = text.toIntOrNull()
     // direction of the last change; a plain holder so recompositions without a new value (the "ago" tick) keep it
     val dir = remember { RollDirection(value) }
@@ -384,7 +385,9 @@ fun RollingNumber(text: String, color: Color, fontSize: TextUnit, fontWeight: Fo
         text.forEachIndexed { i, ch ->
             key(text.length - i) {
                 AnimatedContent(ch, transitionSpec = { digitRoll(up, m) }, label = "digit") { c ->
-                    Text(c.toString(), color = color, fontSize = fontSize, fontWeight = fontWeight)
+                    Text(c.toString(), color = color, fontSize = fontSize, fontWeight = fontWeight, fontFamily = fontFamily,
+                        style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum",
+                            fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None))
                 }
             }
         }
