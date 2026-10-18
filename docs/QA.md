@@ -108,3 +108,13 @@ Cheap tools:
 - [ ] Settings → Sensor end: add / edit / remove a reminder (dialog: days radio, time picker), countdown hours,
       both switches; the card's countdown ring follows the hours. Spanish texts.
 - [ ] Follower role: none of these notifications.
+
+## Q12 Sensor scan and direct source
+
+- [ ] Unit tests first: `Libre3NfcTest`, `PatchStateTest`, `Libre2Test` (Libre 2 crypto against DiaBLE's vectors).
+- [ ] Phone, real sensor only, the user does the tap: Settings → Glucose source → Sensor. Libre 3: the tap pairs it or
+      takes it over. Libre 2 / 2 Plus (EU): a new sensor shows *New Libre 2 Plus · serial* and only *Start sensor*
+      plus a second tap starts it; a running one moves to Sukrara at once. `adb logcat -s Sukrara.nfc Sukrara.nfc2
+      Sukrara.libre2 Sukrara.direct` shows the patch info, `FRAM: header=true … footer=true`, `streaming enabled`,
+      then `unlocking`, a packet every minute and the source state (warming up → live).
+- [ ] Libre 2 values against a fingerstick (they come from the open formula, docs/02): note the differences.

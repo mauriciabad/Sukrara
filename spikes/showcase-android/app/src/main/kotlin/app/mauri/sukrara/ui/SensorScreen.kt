@@ -40,6 +40,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.mauri.sukrara.App
+import app.mauri.sukrara.direct.Libre2Nfc
+import app.mauri.sukrara.direct.Libre2Pairing
+import app.mauri.sukrara.direct.Libre2Sensor
 import app.mauri.sukrara.direct.Libre3Nfc
 import app.mauri.sukrara.direct.ReceiverId
 import app.mauri.sukrara.direct.SensorPairing
@@ -57,6 +60,8 @@ private sealed interface Outcome {
     data class Done(val title: String, val text: String) : Outcome
     data class Problem(val title: String, val text: String) : Outcome
     data class NeedsAccount(val serial: String) : Outcome
+    /** A never-started Libre 2: confirm before the next tap starts it. */
+    data class NeedsStart(val serial: String, val name: String) : Outcome
 }
 
 /**
@@ -72,6 +77,8 @@ fun SensorScreen(onBack: () -> Unit) {
     val st by Live.status.collectAsState()
     val nfc = remember { NfcAdapter.getDefaultAdapter(ctx) }
     var pairing by remember { mutableStateOf(runCatching { SensorPairing.load(ctx) }.getOrNull()) }
+    var libre2 by remember { mutableStateOf(runCatching { Libre2Pairing.load(ctx) }.getOrNull()) }
+    var startArmed by remember { mutableStateOf<String?>(null) }   // Libre 2 serial the user chose to start
     var busy by remember { mutableStateOf(false) }
     var outcome by remember { mutableStateOf<Outcome?>(null) }
     var nfcOn by remember { mutableStateOf(nfc?.isEnabled == true) }
@@ -95,11 +102,20 @@ fun SensorScreen(onBack: () -> Unit) {
         val listening = !idx && nfc != null && outcome !is Outcome.NeedsAccount
         if (listening) nfc.enableReaderMode(activity, { tag ->
             activity.runOnUiThread { busy = true; outcome = null }
+            if (Libre2Sensor.isLibre2Tag(tag.id)) {
+                val r = Libre2Nfc.scan(tag, startArmed)
+                activity.runOnUiThread {
+                    busy = false
+                    outcome = handle2(ctx, r)
+                    if (r is Libre2Nfc.Result.Paired) { libre2 = r.pairing; pairing = null; startArmed = null }
+                }
+                return@enableReaderMode
+            }
             val r = Libre3Nfc.scan(tag, ReceiverId.takeoverCandidates(ctx), ReceiverId.forActivation(ctx))
             activity.runOnUiThread {
                 busy = false
                 outcome = handle(ctx, r)
-                if (r is Libre3Nfc.Result.Paired) pairing = r.pairing
+                if (r is Libre3Nfc.Result.Paired) { pairing = r.pairing; libre2 = null }
             }
         }, NfcAdapter.FLAG_READER_NFC_V or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, null)
         onPauseOrDispose { if (listening) nfc.disableReaderMode(activity) }
@@ -110,7 +126,19 @@ fun SensorScreen(onBack: () -> Unit) {
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val p = pairing
-                if (p == null) {
+                val l2 = libre2
+                if (l2 != null) {
+                    Text("${l2.name} · ${l2.serial}", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.sensor_started, date(l2.startEpoch)), style = MaterialTheme.typography.bodyMedium)
+                    Text(if (f.source != "direct") stringResource(R.string.sensor_not_in_use)
+                         else stringResource(R.string.sensor_now, st.source.removePrefix("direct: ") + (st.sourceError?.let { " — $it" } ?: "")),
+                        style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.sensor_libre2_approximate), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error)
+                    if (f.source != "direct") Button(onClick = { Features.update { it.copy(source = "direct") } }) {
+                        Text(stringResource(R.string.sensor_use))
+                    }
+                } else if (p == null) {
                     Text(stringResource(R.string.sensor_none), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.sensor_none_text), style = MaterialTheme.typography.bodyMedium)
                 } else {
@@ -145,6 +173,19 @@ fun SensorScreen(onBack: () -> Unit) {
                 Text(o.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
                 Text(o.text, style = MaterialTheme.typography.bodyMedium)
             } }
+            is Outcome.NeedsStart -> Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.sensor_libre2_new_title, o.name, o.serial), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.sensor_libre2_new_text), style = MaterialTheme.typography.bodyMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            startArmed = o.serial
+                            outcome = Outcome.Done(ctx.getString(R.string.sensor_libre2_start), ctx.getString(R.string.sensor_libre2_hold_again))
+                        }) { Text(stringResource(R.string.sensor_libre2_start)) }
+                        TextButton(onClick = { outcome = null }) { Text(stringResource(R.string.treatment_cancel)) }
+                    }
+                }
+            }
             is Outcome.NeedsAccount -> LibreViewSignIn(o.serial, onCancel = { outcome = null }) { msg ->
                 outcome = Outcome.Done(ctx.getString(R.string.sensor_signed_in), msg)
             }
@@ -158,9 +199,11 @@ fun SensorScreen(onBack: () -> Unit) {
         SettingsGroup {
             if (nfc != null) switch(launchTitle, launchOnScan, icon = app.mauri.sukrara.R.drawable.ic_sym_nfc,
                 summary = launchSummary) { NfcLaunch.set(ctx, it); launchOnScan = it }
-            if (pairing != null) action(forget, icon = app.mauri.sukrara.R.drawable.ic_sym_person_remove) {
+            if (pairing != null || libre2 != null) action(forget, icon = app.mauri.sukrara.R.drawable.ic_sym_person_remove) {
+                Libre2Pairing.delete(ctx)
                 SensorPairing.forget(ctx)
                 pairing = null
+                libre2 = null
                 outcome = null
                 if (f.source == "direct") scope.launch { App.owner(ctx).restartSource() }
             }
@@ -172,6 +215,7 @@ fun SensorScreen(onBack: () -> Unit) {
 private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
     is Libre3Nfc.Result.Paired -> {
         r.pairing.save(ctx)
+        Libre2Pairing.delete(ctx)
         if (Features.value.source != "direct") Features.update { it.copy(source = "direct") }
         else App.owner(ctx).restartSource()
         if (r.activated) Outcome.Done(ctx.getString(R.string.sensor_started_title, r.pairing.serial),
@@ -183,6 +227,25 @@ private fun handle(ctx: Context, r: Libre3Nfc.Result): Outcome = when (r) {
     is Libre3Nfc.Result.Ended -> Outcome.Problem(ctx.getString(R.string.sensor_ended_title, r.serial), ctx.getString(R.string.sensor_ended_text))
     is Libre3Nfc.Result.Unsupported -> Outcome.Problem(ctx.getString(R.string.sensor_unsupported), r.why)
     is Libre3Nfc.Result.Failed -> Outcome.Problem(ctx.getString(R.string.sensor_scan_failed), ctx.getString(R.string.sensor_scan_failed_text, r.why))
+}
+
+/** A Libre 2 tap's result → saved pairing (replaces a Libre 3 one), source switch, and the message to show. */
+private fun handle2(ctx: Context, r: Libre2Nfc.Result): Outcome = when (r) {
+    is Libre2Nfc.Result.Paired -> {
+        r.pairing.save(ctx)
+        if (Features.value.source != "direct") Features.update { it.copy(source = "direct") }
+        else App.owner(ctx).restartSource()
+        if (r.activated) Outcome.Done(ctx.getString(R.string.sensor_started_title, r.pairing.serial),
+            ctx.getString(R.string.sensor_libre2_started_text))
+        else Outcome.Done(ctx.getString(R.string.sensor_taken_over_title, r.pairing.serial),
+            ctx.getString(R.string.sensor_libre2_taken_over_text))
+    }
+    is Libre2Nfc.Result.NeedsStart -> Outcome.NeedsStart(r.serial, r.name)
+    is Libre2Nfc.Result.StartedOnly -> Outcome.Problem(ctx.getString(R.string.sensor_started_title, r.serial),
+        ctx.getString(R.string.sensor_libre2_started_only_text))
+    is Libre2Nfc.Result.Ended -> Outcome.Problem(ctx.getString(R.string.sensor_ended_title, r.serial), ctx.getString(R.string.sensor_ended_text))
+    is Libre2Nfc.Result.Unsupported -> Outcome.Problem(ctx.getString(R.string.sensor_unsupported), r.why)
+    is Libre2Nfc.Result.Failed -> Outcome.Problem(ctx.getString(R.string.sensor_scan_failed), ctx.getString(R.string.sensor_scan_failed_text, r.why))
 }
 
 /**

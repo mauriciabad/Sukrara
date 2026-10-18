@@ -657,7 +657,7 @@
     <!-- Sensor screen: no sensor paired [CHAR LIMIT=40] -->
     <string name="sensor_none">No sensor yet</string>
     <!-- Sensor screen: what to do; FreeStyle Libre is a product name [CHAR LIMIT=NONE] -->
-    <string name="sensor_none_text">Scan your FreeStyle Libre 3 or 3 Plus to start reading it here.</string>
+    <string name="sensor_none_text">Scan your FreeStyle Libre 2 Plus, 3 or 3 Plus to start reading it here.</string>
     <!-- Sensor screen: when the sensor started; %1$s = date and time [CHAR LIMIT=40] -->
     <string name="sensor_started">Started %1$s</string>
     <!-- Sensor screen: another source is selected [CHAR LIMIT=NONE] -->
@@ -716,6 +716,22 @@
     <string name="sensor_sign_in">Sign in</string>
     <!-- Sensor of another app: signing in [CHAR LIMIT=20] -->
     <string name="sensor_signing_in">Signing in…</string>
+    <!-- Sensor screen: a never-started Libre 2 was scanned; %1$s = model (Libre 2 Plus), %2$s = serial [CHAR LIMIT=50] -->
+    <string name="sensor_libre2_new_title">New %1$s · %2$s</string>
+    <!-- Sensor screen: what starting a Libre 2 means, and that its values are approximate [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_new_text">Starting it begins the 60-minute warm-up and can\'t be undone. Sukrara turns Libre 2 data into glucose with an open formula, not Abbott\'s, so values can differ from the official app. Check with a fingerstick before you dose.</string>
+    <!-- Sensor screen: button that allows the next tap to start a new Libre 2 [CHAR LIMIT=25] -->
+    <string name="sensor_libre2_start">Start sensor</string>
+    <!-- Sensor screen: after tapping Start sensor [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_hold_again">Now hold the phone against the sensor again to start it.</string>
+    <!-- Sensor screen: a Libre 2 was started and streams to Sukrara [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_started_text">Sukrara connects over Bluetooth by itself. Readings start after the 60-minute warm-up.</string>
+    <!-- Sensor screen: a running Libre 2 now streams to Sukrara [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_taken_over_text">Bluetooth now goes to Sukrara. The first reading usually arrives within a minute or two.</string>
+    <!-- Sensor screen: a Libre 2 started but Bluetooth wasn't turned on in the same tap [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_started_only_text">It\'s warming up, but Bluetooth didn\'t turn on. Hold the phone against the sensor again.</string>
+    <!-- Sensor screen: under a Libre 2's details [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_approximate">Approximate values (open formula, not Abbott\'s). Check with a fingerstick before you dose.</string>
 
     <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
     <string name="badge_alerts_paused">Alerts paused</string>

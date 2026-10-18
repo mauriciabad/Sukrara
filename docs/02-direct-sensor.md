@@ -120,13 +120,62 @@ GlucoseBar now treats silence as a disconnect: if a connected bridge sends nothi
 1/minute), it drops the peripheral and rescans. Worth remembering for the real Mac app — "still connected" is not
 evidence that data is flowing.
 
+## Libre 2 / 2 Plus (2026-10-18)
+
+The user's Libre 3 Plus ended and the next sensor is a European **FreeStyle Libre 2 Plus** (15 days, 1 h warm-up),
+to be started by Sukrara with neither Juggluco nor Abbott's app installed.
+
+**Juggluco can't be ported here.** For the Libre 2 it calls Abbott's closed `libcalibrate.so` (taken from LibreLink,
+shipped inside Juggluco's APK, `CARRY_LIBS`) for every step: `getActivationPayload`, `getEnableStreamingPayload`,
+`getStreamingUnlockPayload` and `processStream` (decrypt + glucose algorithm) — `Common/src/main/cpp/libre2.cpp:1231-1380`,
+loading at `:830-930`. We can't ship that library. From Juggluco we kept only the NFC framing (`02 A1 07` patch info,
+`02 23 b n` block reads, `uid[6] != 7` → Libre 3: `AlgNfcV.java:80-86, 236-243, 295-320`, `ScanNfcV.java:254`), the
+GATT order (login write → subscribe → 20 + 18 + 8 byte notifications: `Libre2GattCallback.java:240-270, 330-370,
+415-445`) and the generation rule (`SensorGlucoseData.hpp:1125-1140`).
+
+**The port is DiaBLE's open, reverse-engineered gen-1 crypto** (MIT; `third_party/DiaBLE` at e6a909c, same code in
+LibreTools and LibreTransmitter, both MIT), in pure Kotlin (`direct/Libre2Crypto.kt`, file:line in its header):
+activation `A1 1B` + `usefulFunction(uid, 0x1B, 0x1B6A)` (`NFC.swift:39-45, 112-122`; LibreTools
+`Libre2.swift:98-101`), streaming enable `A1 1E` + code + `usefulFunction(uid, 0x1E, info[4..5] ^ code)`
+(`Libre2.swift:190-198`; LibreTransmitter `SensorPairingService.swift:338-362`), FRAM decryption (`:133-171`), the
+12-byte BLE unlock payload (`:238-292`), BLE decryption with its CRC (`:300-332`), packet layout (`:343-394`), serial
+from UID (`Libre.swift:278-298`). Patch info → type/Plus/generation from `Libre.swift:9-81`: EU Libre 2 Plus is
+`C6 09 31 01` or `7F 0E 31 01`, **security generation 1**, so this applies; US/Canada (Gen2, `2C 0A 3A 02`) needs
+Abbott's library and is refused.
+
+**The BLE values are raw, not mg/dL** (on the gen-1 Libre 2 and Libre 2 Plus; only the Libre 3 sends glucose). Sukrara
+applies DiaBLE's open factory-calibration formula (`Glucose.swift:165-453`, from xDripSwift `LibreMeasurement.swift`)
+to the calibration constants i1–i6 in the decrypted FRAM (`Libre.swift:186-194`). It approximates Abbott's
+algorithm and is not validated for the Libre 2 Plus, so the app labels the values approximate and asks for
+fingerstick checks; they are not uploaded to LibreView.
+
+**Safety of the one-shot start.** Nothing is written to the sensor until the patch info is gen 1 and the FRAM
+decrypts with valid header/footer CRCs and a usable calibration; a new sensor then needs *Start sensor* and a second
+tap. A Libre 2 has no receiver binding (unlike the Libre 3's receiver ID): whoever last enables streaming gets the
+BLE link, so Juggluco can still take the sensor over later.
+
+**Vectors.** `Libre2Test` checks the Kotlin against DiaBLE's own Swift: `Libre2.swift` / `Libre.swift` /
+`Glucose.swift` function bodies compiled unchanged with `swiftc` plus a small driver (UID + patch info + serial of a
+real Libre 2 from DiaBLE `App.swift:238`) printing `usefulFunction`, the activate / enable commands, an unlock
+payload, a FRAM decryption, a BLE packet round trip, its parsed raw values and four factory-calibrated glucose
+values (`spikes/showcase-android/tools/libre2-vectors/gen.sh` regenerates them). All match exactly. Real-sensor vectors: pending the user's first scan.
+
+### In Sukrara
+
+- **Added:** NFC routing by chip; Libre 2 / 2 Plus (EU) start with confirmation, takeover, streaming enable; BLE
+  client with unlock, decryption, warm-up, wear length from FRAM, ended detection; approximate mg/dL; en + es texts;
+  `Libre2Test`; QA Q11.
+- **Discarded:** Juggluco's Libre 2 path (Abbott's closed library; can't ship it). Gen2 (US/Canada) sensors (closed
+  crypto). FRAM history backfill on scan (BLE trend + 3 history values cover the last 15 min; a new sensor has none).
+  LibreView upload of Libre 2 values (approximate, and the uploader models a Libre 3 device).
+
 ## Open questions / next PoCs
 
 - [ ] Isolate the 60 s drop: subscription set vs connection interval, one variable at a time.
 - [ ] Real unplugged battery A/B (PoC 1 vs PoC 2 vs Juggluco), screen off, several hours.
 - [ ] Verify the Mac watchdog actually recovers the link (the fix is written, not yet observed firing).
-- [ ] Sensor **activation** from the app (NFC) — currently pairing data is imported from another app, so a brand
-      new sensor still needs one.
+- [x] Sensor **activation** from the app (NFC): Libre 3 since Sukrara 0.10.5, Libre 2 / 2 Plus (EU) above.
+- [ ] Libre 2 Plus: compare the open factory calibration with fingersticks / the official app on the real sensor.
 - [ ] Persist history across app restarts (it is in memory only; a restart re-fetches 3 h from the sensor).
 - [ ] Secure the phone↔Mac link (still unauthenticated) and survive Mac sleep.
 - [ ] Long soak: deep Doze, Bluetooth toggles, out-of-range and back.

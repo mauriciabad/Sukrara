@@ -653,7 +653,7 @@
     <!-- Sensor screen: no sensor paired [CHAR LIMIT=40] -->
     <string name="sensor_none">Aún no hay sensor</string>
     <!-- Sensor screen: what to do; FreeStyle Libre is a product name [CHAR LIMIT=NONE] -->
-    <string name="sensor_none_text">Escanea tu FreeStyle Libre 3 o 3 Plus para empezar a leerlo aquí.</string>
+    <string name="sensor_none_text">Escanea tu FreeStyle Libre 2 Plus, 3 o 3 Plus para empezar a leerlo aquí.</string>
     <!-- Sensor screen: when the sensor started; %1$s = date and time [CHAR LIMIT=40] -->
     <string name="sensor_started">Iniciado el %1$s</string>
     <!-- Sensor screen: another source is selected [CHAR LIMIT=NONE] -->
@@ -712,6 +712,22 @@
     <string name="sensor_sign_in">Iniciar sesión</string>
     <!-- Sensor of another app: signing in [CHAR LIMIT=20] -->
     <string name="sensor_signing_in">Iniciando sesión…</string>
+    <!-- Sensor screen: a never-started Libre 2 was scanned; %1$s = model (Libre 2 Plus), %2$s = serial [CHAR LIMIT=50] -->
+    <string name="sensor_libre2_new_title">Nuevo %1$s · %2$s</string>
+    <!-- Sensor screen: what starting a Libre 2 means, and that its values are approximate [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_new_text">Al iniciarlo empieza el calentamiento de 60 minutos y no se puede deshacer. Sukrara convierte los datos del Libre 2 en glucosa con una fórmula abierta, no con la de Abbott, así que los valores pueden diferir de los de la app oficial. Compruébalos con un pinchazo antes de ponerte insulina.</string>
+    <!-- Sensor screen: button that allows the next tap to start a new Libre 2 [CHAR LIMIT=25] -->
+    <string name="sensor_libre2_start">Iniciar sensor</string>
+    <!-- Sensor screen: after tapping Start sensor [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_hold_again">Ahora vuelve a acercar el teléfono al sensor para iniciarlo.</string>
+    <!-- Sensor screen: a Libre 2 was started and streams to Sukrara [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_started_text">Sukrara se conecta por Bluetooth por sí sola. Las lecturas empiezan tras el calentamiento de 60 minutos.</string>
+    <!-- Sensor screen: a running Libre 2 now streams to Sukrara [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_taken_over_text">El Bluetooth ahora va a Sukrara. La primera lectura suele llegar en un minuto o dos.</string>
+    <!-- Sensor screen: a Libre 2 started but Bluetooth wasn't turned on in the same tap [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_started_only_text">Se está calentando, pero el Bluetooth no se ha activado. Vuelve a acercar el teléfono al sensor.</string>
+    <!-- Sensor screen: under a Libre 2's details [CHAR LIMIT=NONE] -->
+    <string name="sensor_libre2_approximate">Valores aproximados (fórmula abierta, no la de Abbott). Compruébalos con un pinchazo antes de ponerte insulina.</string>
 
     <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
     <string name="badge_alerts_paused">Alertas en pausa</string>
