@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike — GPL-3.0-or-later.
+     Glucose card, collapsed (copied from Sukrara, the baseline variant): value, arrow, the reading's time when late,
+     the slots (rings / report numbers / last treatment) at the end. Android 12+: at most 48 dp tall. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:gravity="center_vertical">
+
+    <TextView android:id="@+id/value"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textSize="30sp" android:fontFamily="sans-serif-condensed" android:textStyle="bold"
+        android:includeFontPadding="false" android:maxLines="1" />
+
+    <ImageView android:id="@+id/arrow"
+        android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp"
+        android:importantForAccessibility="no" />
+
+    <TextView android:id="@+id/info"
+        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="12dp" android:textSize="14sp" android:maxLines="2" android:ellipsize="end" />
+
+    <ImageView android:id="@+id/slots"
+        android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="8dp"
+        android:adjustViewBounds="true" android:scaleType="fitEnd" android:importantForAccessibility="no" />
+</LinearLayout>

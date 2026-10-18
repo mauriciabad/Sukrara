@@ -743,7 +743,7 @@ screen widget's black tint looks bad in light mode, and "Blur" is really blurred
 
 | Discarded | Why |
 |---|---|
-| Drawing under the notification's icon (the user's ask) | Android 12+ puts custom content in the column right of the icon and clips it ([custom notification guide](https://developer.android.com/develop/ui/views/notifications/custom-notification): "the system applies a standard template"); a −52 dp start margin was cut off on the emulator, and Android 17's templates indent the content 72 dp. The card is shorter instead, so less of that column is empty |
+| Drawing under the notification's icon (the user's ask) | Android 12+ puts custom content in the column right of the icon and clips it ([custom notification guide](https://developer.android.com/develop/ui/views/notifications/custom-notification): "the system applies a standard template"); a −52 dp start margin was cut off on the emulator, and Android 17's templates indent the content 72 dp. The card is shorter instead, so less of that column is empty. Correction ([19](19-notification-templates.md)): custom views stay in that column, but Android 17's Live Update layout draws a ProgressStyle bar and action buttons across the whole card |
 | *In range in white* on the lock screen (`lockWhite`) | dark-only; the appearance option replaces it |
 | The trend metric in the Live Update card | the chip's arrow and the title already say it; the room goes to the slots |
 

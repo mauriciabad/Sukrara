@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara mark (copied from spikes/brand), the status-bar icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp" android:height="24dp" android:viewportWidth="49.64" android:viewportHeight="49.64">
+    <group android:translateX="-27.61" android:translateY="-31.36">
+        <path android:pathData="M45.09,45.19Q47.00,44.09 48.91,45.19L57.93,50.40Q59.83,51.50 57.93,52.60L48.91,57.81Q47.00,58.91 45.09,57.81L36.07,52.60Q34.17,51.50 36.07,50.40Z" android:fillColor="#FFFFFFFF" android:fillAlpha="1.0"/>
+        <path android:pathData="M32.36,56.84Q32.36,54.63 34.26,55.73L43.28,60.95Q45.19,62.05 45.19,64.25L45.19,74.66Q45.19,76.86 43.28,75.77L34.26,70.55Q32.36,69.45 32.36,67.25Z" android:fillColor="#FFFFFFFF" android:fillAlpha="1.0"/>
+        <path android:pathData="M48.81,64.25Q48.81,62.05 50.72,60.95L59.74,55.73Q61.64,54.63 61.64,56.84L61.64,67.25Q61.64,69.45 59.74,70.55L50.72,75.77Q48.81,76.86 48.81,74.66Z" android:fillColor="#FFFFFFFF" android:fillAlpha="1.0"/>
+        <path android:pathData="M59.50,42.00A6.50,6.50 0 1,0 72.50,42.00A6.50,6.50 0 1,0 59.50,42.00Z" android:fillColor="#FFFFFFFF" android:fillAlpha="1.0"/>
+    </group>
+</vector>
