@@ -9,7 +9,7 @@ import SwiftUI
 /// Two views switched by a segmented control at the top (the window's title follows it); the report's period sits
 /// with the report (HIG "Settings" › Task-specific options), saved as `reportDays`. The Treatments list replaces the
 /// menu's old 24 h rows: the last 7 days, newest first, each with its delivery state; Delete (context menu or ⌫)
-/// when this Mac may log. Position remembered (frame autosave), closes with ⌘W.
+/// when this Mac may log. Export CSV… under the report saves the report's period (GlucoseCsv.swift). Position remembered (frame autosave), closes with ⌘W.
 @MainActor final class ReportWindow: NSObject {
     static let periods = [1, 7, 14, 30]
     let model = HistoryModel()
@@ -95,6 +95,8 @@ import SwiftUI
     var details: (Treatment) -> [String] = { _ in [] }
     var canLog: () -> Bool = { false }
     var onDelete: ((String) -> Void)?
+    /// Export… under the report: the report's period as a CSV (GlucoseCsv.save).
+    var onExport: ((Int) -> Void)?
     var onTitle: ((String) -> Void)?
 
     func reload() {
@@ -144,6 +146,10 @@ struct HistoryView: View {
             .fixedSize()
             ReportRep(metrics: model.metrics, bands: model.bands, days: model.days)
                 .frame(width: GlucoseReport.width, height: reportHeight)
+            // the period above is the file's period too
+            Button("Export CSV…") { model.onExport?(model.days) }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
         }
         .padding(.top, 14).padding(.bottom, 20)
         .frame(maxWidth: .infinity)

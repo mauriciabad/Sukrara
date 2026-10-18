@@ -1240,6 +1240,30 @@
     <string name="transfer_read_failed">No se ha podido leer el archivo: %1$s</string>
     <string name="transfer_not_settings_file">No es un archivo de ajustes de Sukrara</string>
 
+    <!-- Settings: export data -->
+    <string name="export_title">Exportar datos</string>
+    <string name="settings_export_summary">CSV para Tidepool y hojas de cálculo</string>
+    <string name="export_intro">Tus lecturas y tratamientos en un archivo CSV con el formato de la exportación de LibreView: Tidepool lo importa y las hojas de cálculo lo abren.</string>
+    <string name="export_intro_follower">Las lecturas y tratamientos que ya hay en este móvil, en un archivo CSV con el formato de la exportación de LibreView: Tidepool lo importa y las hojas de cálculo lo abren.</string>
+    <string name="export_period">Periodo</string>
+    <string name="export_period_sensor">Este sensor</string>
+    <string name="export_period_days">Últimos %1$d días</string>
+    <string name="export_contents">En el archivo</string>
+    <string name="export_counting">Contando…</string>
+    <plurals name="export_readings">
+        <item quantity="one">%d lectura</item>
+        <item quantity="other">%d lecturas</item>
+    </plurals>
+    <plurals name="export_treatments">
+        <item quantity="one">%d tratamiento</item>
+        <item quantity="other">%d tratamientos</item>
+    </plurals>
+    <string name="export_save">Guardar archivo</string>
+    <string name="export_share">Compartir</string>
+    <string name="export_share_chooser">Compartir datos de glucosa</string>
+    <string name="export_saved">Archivo guardado</string>
+    <string name="export_footer">Una lectura cada 5 minutos, en mg/dL. El nombre del archivo solo lleva las fechas, y los tratamientos dicen qué dispositivo los anotó (móvil, Mac o seguidor), nunca un nombre.</string>
+
     <!-- Settings: advanced -->
     <string name="advanced_title">Avanzado</string>
     <string name="advanced_relays">Relés</string>

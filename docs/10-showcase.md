@@ -942,6 +942,21 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 
 ![New sensor flow](img/21/flow-new-sensor.png)
 
+## CSV export (docs/22 gap #4)
+
+Readings and treatments of a period as one CSV in LibreView's layout (Tidepool Uploader reads it), on both roles and
+the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/22](22-ecosystem-outputs.md#in-sukrara-csv-export).
+
+| Added | Where |
+|---|---|
+| CSV writer + shared cases (Android + Mac) | `export/GlucoseCsv.kt`, `GlucoseCsvTest`; `menubar/…/GlucoseCsv.swift`, `-exportselftest`; `spikes/export-fixtures` |
+| Settings → Export data (period, count, *Save file* / *Share* pills) | `ui/ExportScreen.kt`, `export/Export.kt`, FileProvider `${applicationId}.export` |
+| Mac Glucose Report › *Export CSV…* (report's period, save panel) | `ReportWindow.swift`, `GlucoseCsv.save` |
+
+| Discarded | Why |
+|---|---|
+| Fetching more history for a follower's export | only what the device already has |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

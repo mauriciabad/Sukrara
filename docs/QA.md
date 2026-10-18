@@ -9,7 +9,7 @@ screenshots so no other apps' notifications show, and keep phone checks read-onl
 
 Automated already (don't repeat by hand): `tools/check/run.sh` (repo rules), Android unit tests
 (`./gradlew :app:testDebugUnitTest`: alert scenarios, graph fixtures, strings parity, stats), Mac self-tests
-(`.build/debug/GlucoseBar -alerts-selftest`, `-graphselftest`). CI runs all of them (`.github/workflows/checks.yml`).
+(`.build/debug/GlucoseBar -alerts-selftest`, `-graphselftest`, `-exportselftest`). CI runs all of them (`.github/workflows/checks.yml`).
 
 Cheap tools:
 
@@ -141,3 +141,18 @@ Cheap tools:
 - [ ] Off → the Sukrara calendar is gone (`content query --uri content://com.android.calendar/calendars`).
 - [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
       away again when the setting is turned off.
+
+## Q14 Data export
+
+- [ ] Emulator (wearer, debug = synthetic glucose): Settings → Export data; the count updates when the period changes;
+      This sensor shows only when a sensor is known (`--es cmd fakeSensor`).
+- [ ] *Save file*: the system picker suggests `sukrara-glucose-<from>-to-<to>.csv`; saving shows "File saved";
+      `adb shell cat` the file (or open it in Files): line 1 `Glucose Data,…`, 5-minute rows, treatments with
+      `Entered By`.
+- [ ] *Share*: the share sheet shows the CSV (a preview line with the file name, no person's name); sending it to an
+      app (Drive, Gmail, Files) attaches the file.
+- [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.
+- [ ] Mac: Glucose Report › Report › *Export CSV…*: the save panel suggests the same name for the report's period; the
+      file opens in Numbers.
+- [ ] Import check (optional): `spikes/export-fixtures/tidepool-check` runs Tidepool Uploader's LibreView driver on a
+      file and prints the records it would upload.
