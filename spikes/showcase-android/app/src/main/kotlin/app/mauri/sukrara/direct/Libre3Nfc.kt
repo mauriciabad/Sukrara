@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.direct
 
+import app.mauri.sukrara.core.SensorLife
+
 import android.nfc.Tag
 import android.nfc.TagLostException
 import android.nfc.tech.NfcV
@@ -33,6 +35,8 @@ object Libre3Nfc {
     /** Patch info: fixed offsets inside the 26-byte block after the 0xA5 marker(s). */
     internal class PatchInfo(raw: ByteArray, at: Int) {
         val productType = raw[at + 12].toInt() and 0xFF
+        /** Wear length in minutes (LE16 at +6, Juggluco's `wearduration`; Libre 3 Plus 21600); 0 = unknown. */
+        val wearMin = (raw[at + 6].toInt() and 0xFF) or ((raw[at + 7].toInt() and 0xFF) shl 8)
         val warmupMin = (raw[at + 13].toInt() and 0xFF) * 5
         val state = raw[at + 14].toInt() and 0xFF
         val serial = String(raw, at + 15, 9, Charsets.US_ASCII).trimEnd('\u0000')
@@ -78,7 +82,7 @@ object Libre3Nfc {
     private fun run(nfc: NfcV, candidates: List<Long>, forActivation: Long): Result {
         val info = command(nfc, byteArrayOf(0x02, 0xA1.toByte(), 0x7A)) ?: return Result.Failed("no answer from the sensor")
         val p = parsePatchInfo(info) ?: return Result.Unsupported("not a Libre 3 (patch info ${info.size} bytes)")
-        Log.i(TAG, "patch info: serial=${p.serial} state=${p.state} product=${p.productType} warmup=${p.warmupMin}min")
+        Log.i(TAG, "patch info: serial=${p.serial} state=${p.state} product=${p.productType} warmup=${p.warmupMin}min wear=${p.wearMin}min")
         if (p.productType == 9) return Result.Unsupported("Lingo sensors aren't supported")
 
         val ids = if (p.activate) listOf(forActivation) else candidates
@@ -120,7 +124,7 @@ object Libre3Nfc {
             ((r[15].toLong() and 0xFF) shl 16) or ((r[16].toLong() and 0xFF) shl 24)
         if (start <= 0) start = now
         return SensorPairing(serial = p.serial, address = address, startEpoch = start, pin = pin, kAuth = null,
-            securityVersion = 0)
+            securityVersion = 0, wearMin = p.wearMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WEAR_MIN)
     }
 
     /** Juggluco's wholenfccmd: retry transient errors; an answer with the error flag (bit 0) is retried too. */

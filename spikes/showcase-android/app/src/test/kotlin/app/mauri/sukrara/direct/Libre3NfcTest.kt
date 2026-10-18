@@ -21,6 +21,7 @@ class Libre3NfcTest {
         assertEquals(4, p.state)
         assertEquals(4, p.productType)
         assertEquals(60, p.warmupMin)
+        assertEquals(20160, p.wearMin)   // C04E: this Libre 3 vector says 14 days (a Libre 3 Plus says 21600)
         assertTrue(!p.activate)
         assertNull(Libre3Nfc.parsePatchInfo(running.copyOf(20)))
     }

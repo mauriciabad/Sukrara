@@ -60,6 +60,19 @@ object SensorLife {
         _current.value = info
     }
 
+    /**
+     * The sensor said it has ended (patch state / life count, `direct/PatchState`): its end moves to [now] if that is
+     * earlier, so every surface shows the ended state ("0m" in the alert colour, "Sensor ended" once readings stop).
+     */
+    fun markEnded(ctx: Context, serial: String, now: Long) {
+        init(ctx)
+        val c = _current.value?.takeIf { it.serial == serial } ?: return
+        if (c.endEpoch > now) update(ctx, c.copy(endEpoch = now))
+    }
+
+    /** Whether the known sensor has ended at [now] (false when nothing is known). */
+    fun hasEnded(now: Long): Boolean = _current.value?.let { ended(it.endEpoch, now) } ?: false
+
     fun countdownHours(ctx: Context): Int { init(ctx); return _countdown.value }
 
     fun setCountdownHours(ctx: Context, hours: Int) {

@@ -35,8 +35,13 @@ interface GlucoseSource {
         /** One-line state for the UI/notification; [error] is shown separately when non-null. */
         fun onStatus(state: String, error: String? = null)
 
-        /** Sensor-level detail for the LibreView upload (direct flavor only): serial + start, then readings by life count. */
-        fun onSensor(serial: String, startEpoch: Long) {}
+        /**
+         * Sensor-level detail (direct source only): serial, start and end (start + wear length; the sensor life badge),
+         * then readings by life count for the LibreView upload.
+         */
+        fun onSensor(serial: String, startEpoch: Long, endEpoch: Long) {}
+        /** The sensor has reached its end (patch state, life count): the source stops connecting to it. */
+        fun onSensorEnded(serial: String) {}
         fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {}
     }
 }

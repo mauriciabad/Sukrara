@@ -94,6 +94,11 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Slot priority when room is short: main ring, recent treatment, second ring, fallback, third ring. Slots and rings keep their designed size everywhere (app panel 68 dp; cards sized from their height); a wide value shrinks instead. The app panel measures the value (at least "388" + arrow), lets it shrink to 75 % (54 sp), then drops the lowest-priority slot (1–3, the main ring always stays); widgets and the Mac card fit as before (≤ 4).
 - Settings `lastPlace` (`OFF` / `NEAR_VALUE` / `END`) and `lastElse` (`TIR:2592000:1`, `""` = nothing): Android in the graph settings JSON, Mac in UserDefaults keys of the same names and spellings, set in Settings → Graph → *Last treatment* (place, fallback kind, period, fainter).
 
+## Sensor life
+
+- The owner knows the current sensor's start and end (`core/SensorLife`, persisted): the direct source gives serial, start and end = start + the wear length from the NFC patch info (LE16 at +6, minutes; Libre 3 Plus 21600 = 15 d; 15 d when unknown or for a pairing saved before this field).
+- Direct source, ended sensor (`direct/PatchState`; seen on the user's Libre 3 Plus: `state=5 currentLifeCount=21635`, then no glucose and a reconnect every 2 min for ever): the BLE patch state ≥ 5 (5 expired, 6 terminated, 7 error, 8 error terminated) or a life count ≥ the wear length marks the sensor ended (its end moves to now if earlier) and the source state reads `sensor ended` / `Replace the sensor, then scan the new one: Settings → Sensor`. States 6–8 stop at once; an expired sensor (5, or past its wear length) keeps the session for one glucose wait (120 s, a possible grace period) and then stops for good. Stopped = no reconnects (`ended:<serial>` in the direct prefs) until a new sensor is scanned; a reading that does arrive keeps it running.
+
 ## Settings
 
 - Settings pages are AOSP SettingsLib SPA (android17-release, vendored as `settingslib-spa`): SettingsTheme, SettingsScaffold, Category, Preference / SwitchPreference / TwoTargetSwitchPreference / MainSwitchPreference / CheckboxPreference, Footer, SettingsBanner, HighlightBox.
