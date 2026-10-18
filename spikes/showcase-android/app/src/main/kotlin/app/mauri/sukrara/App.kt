@@ -26,6 +26,7 @@ class App : Application() {
         app.mauri.sukrara.features.SystemAccess.init()   // is the LSPosed module running in System UI?
         app.mauri.sukrara.graph.GraphSettings.init(this)
         app.mauri.sukrara.core.SensorLife.init(this)   // sensor end + countdown window (round sensor-life)
+        app.mauri.sukrara.sensorend.SensorEnd.init(this)   // sensor end reminders + live countdown (wearer)
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
         app.mauri.sukrara.widgets.SukraraHooks.watchConfiguration(this)   // dark theme or language → widgets, channel names

@@ -1187,6 +1187,104 @@
     <string name="lock_appearance">Appearance</string>
     <!-- Lock screen page footer [CHAR LIMIT=NONE] -->
     <string name="lock_footer">Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked phone can add an entry; turn this off if you don\'t want that.</string>
+    <!-- ========== Settings → Sensor end (reminders + live countdown) ========== -->
+    <!-- Page title and overview row [CHAR LIMIT=30] -->
+    <string name="sensorend_title">Sensor end</string>
+    <!-- Page intro [CHAR LIMIT=NONE] -->
+    <string name="sensorend_intro">Reminders before your sensor ends, and live countdowns in its last hours and while a new one warms up.</string>
+    <!-- Overview row summary; %1$s = sensorend_reminders_count, %2$d = hours [CHAR LIMIT=60] -->
+    <string name="sensorend_summary_countdown">%1$s · Countdown %2$d h</string>
+    <!-- Overview row summary: number of reminders -->
+    <plurals name="sensorend_reminders_count">
+        <item quantity="one">%d reminder</item>
+        <item quantity="other">%d reminders</item>
+    </plurals>
+    <!-- Row: the current sensor [CHAR LIMIT=30] -->
+    <string name="sensorend_current">This sensor</string>
+    <!-- Row summary; %1$s = date and time, %2$s = time left (e.g. 3d) [CHAR LIMIT=60] -->
+    <string name="sensorend_current_ends">Ends %1$s · %2$s left</string>
+    <!-- Row summary; %1$s = date and time [CHAR LIMIT=60] -->
+    <string name="sensorend_current_ended">Ended %1$s</string>
+    <!-- Row summary when no sensor is known [CHAR LIMIT=60] -->
+    <string name="sensorend_current_none">No sensor yet</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="sensorend_reminders">Reminders</string>
+    <!-- Reminder on the day the sensor ends [CHAR LIMIT=30] -->
+    <string name="sensorend_end_day">On the end day</string>
+    <!-- Reminder N days before the end day -->
+    <plurals name="sensorend_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+    <!-- Row with a plus icon [CHAR LIMIT=30] -->
+    <string name="sensorend_add">Add reminder</string>
+    <!-- Row summary when there are no reminders [CHAR LIMIT=60] -->
+    <string name="sensorend_no_reminders">No reminders</string>
+    <!-- Dialog title: new reminder [CHAR LIMIT=30] -->
+    <string name="sensorend_reminder_new">New reminder</string>
+    <!-- Dialog title: editing a reminder [CHAR LIMIT=30] -->
+    <string name="sensorend_reminder_edit">Reminder</string>
+    <!-- Dialog row: the reminder's time of day [CHAR LIMIT=30] -->
+    <string name="sensorend_time">Time</string>
+    <!-- Dialog button [CHAR LIMIT=20] -->
+    <string name="sensorend_remove">Remove</string>
+    <!-- Dialog button [CHAR LIMIT=20] -->
+    <string name="sensorend_save">Save</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="sensorend_countdown_group">Live countdowns</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="sensorend_countdown_switch">End countdown</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="sensorend_countdown_summary">The time left in the sensor\'s last hours</string>
+    <!-- Row and dialog: how long before the end the countdown starts [CHAR LIMIT=30] -->
+    <string name="sensorend_countdown_hours">Countdown starts</string>
+    <!-- Option: N hours before the end -->
+    <plurals name="sensorend_hours_before">
+        <item quantity="one">%d hour before the end</item>
+        <item quantity="other">%d hours before the end</item>
+    </plurals>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="sensorend_warmup_switch">Warm-up countdown</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="sensorend_warmup_summary">A new sensor\'s first hour, until readings start</string>
+    <!-- Unit for the custom hours field [CHAR LIMIT=10] -->
+    <string name="sensorend_hours_unit">h</string>
+    <!-- Page footer [CHAR LIMIT=NONE] -->
+    <string name="sensorend_footer">The countdown start also sets when the graph shows the sensor\'s countdown ring. A reminder that would come after the sensor ends is skipped. While the glucose chip is on, the end countdown stays in the notifications so the status bar keeps your glucose.</string>
+    <!-- Notification channel name [CHAR LIMIT=40] -->
+    <string name="channel_sensor_end">Sensor reminders</string>
+    <!-- Notification channel description [CHAR LIMIT=NONE] -->
+    <string name="channel_sensor_end_description">Before the sensor ends, when it has ended, and when a new one is ready.</string>
+    <!-- Notification channel name [CHAR LIMIT=40] -->
+    <string name="channel_sensor_countdown">Sensor countdowns</string>
+    <!-- Notification channel description [CHAR LIMIT=NONE] -->
+    <string name="channel_sensor_countdown_description">The time left in a new sensor\'s warm-up and in a sensor\'s last hours, without sound.</string>
+    <!-- Reminder title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_end_notif_today">Sensor ends today at %1$s</string>
+    <!-- Reminder title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_end_notif_tomorrow">Sensor ends tomorrow at %1$s</string>
+    <!-- Reminder title; %1$s = weekday or date, %2$s = time [CHAR LIMIT=60] -->
+    <string name="sensor_end_notif_on_day">Sensor ends on %1$s at %2$s</string>
+    <!-- Reminder text [CHAR LIMIT=NONE] -->
+    <string name="sensor_end_notif_reminder_text">Have a new sensor ready.</string>
+    <!-- Countdown title; %1$s = time [CHAR LIMIT=50] -->
+    <string name="sensor_countdown_title">Sensor ends at %1$s</string>
+    <!-- Countdown text [CHAR LIMIT=NONE] -->
+    <string name="sensor_countdown_text">Have a new sensor ready to replace it.</string>
+    <!-- Countdown action: dismiss it for this sensor [CHAR LIMIT=20] -->
+    <string name="sensor_countdown_hide">Hide</string>
+    <!-- Notification title [CHAR LIMIT=50] -->
+    <string name="sensor_ended_notif_title">Sensor ended</string>
+    <!-- Notification text [CHAR LIMIT=NONE] -->
+    <string name="sensor_ended_notif_text">Replace it to keep getting readings.</string>
+    <!-- Warm-up countdown title [CHAR LIMIT=50] -->
+    <string name="sensor_warmup_title">Sensor warming up</string>
+    <!-- Warm-up countdown text; %1$s = time of the first reading [CHAR LIMIT=50] -->
+    <string name="sensor_warmup_text">Readings at %1$s</string>
+    <!-- Notification title: warm-up over [CHAR LIMIT=50] -->
+    <string name="sensor_ready_title">Sensor ready</string>
+    <!-- Notification text [CHAR LIMIT=NONE] -->
+    <string name="sensor_ready_text">Readings have started.</string>
     <!-- Background option [CHAR LIMIT=30] -->
     <string name="lock_bg_none">None</string>
     <!-- Background option description [CHAR LIMIT=60] -->

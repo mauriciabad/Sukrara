@@ -67,6 +67,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   Juggluco's web server, if Juggluco keeps the sensor. Scanning a sensor opens Sukrara
   (switch on the Sensor screen). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
   and stops trying to connect until you scan the new one. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- Sensor end reminders at the times you choose (default: the day before and on the end day at 09:00, "Sensor ends
+  tomorrow at 14:30"), a live countdown notification in the sensor's last hours (8 by default) and another while a
+  new sensor warms up ("Readings at 19:45", then "Sensor ready"). The countdowns show a timer in the status bar
+  when the glucose chip doesn't need it. Settings → Sensor end.
 - Glucose in the status bar: a Live Update chip next to the clock and the number as the notification icon. The
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root

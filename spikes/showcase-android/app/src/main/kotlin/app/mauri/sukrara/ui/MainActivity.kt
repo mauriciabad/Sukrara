@@ -263,6 +263,7 @@ class MainActivity : ComponentActivity() {
                 "alerts" -> SettingsRoute { AlertsScreen(follower = false, back) }
                 "source" -> SettingsRoute { SourceSettings(back) }
                 "sensor" -> SettingsRoute { SensorScreen(back) }
+                "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
                 "graph" -> SettingsRoute { GraphScreen(back) }
                 "statusbar" -> SettingsRoute { StatusBarSettings(back) }

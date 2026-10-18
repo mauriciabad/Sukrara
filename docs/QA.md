@@ -96,3 +96,15 @@ Cheap tools:
 
 - [ ] `./gradlew :app:assembleRelease` and install on the emulator; open home, widgets, settings (R8 surprises).
 - [ ] The version in `build.gradle.kts` / `bundle.sh` matches what the release notes say.
+
+## Q11 Sensor reminders and countdowns
+
+- [ ] Emulator (wearer): `--es cmd sensorEnd --ei inMin 300` → the end countdown in the shade (bar, timer, Hide);
+      with the glucose chip off (`--ez chip false`) the status bar chip shows the timer. `--es reminders '0@<now+1 min>'`
+      → a reminder a minute later ("Sensor ends today at …"). `--ei inMin 1` → "Sensor ended" a minute later.
+- [ ] `--es cmd sensorStart --ei agoMin 40` → the warm-up countdown (bar filling, chip timer); `--es cmd sensorStart
+      --ez firstReading true` → "Sensor ready".
+- [ ] Swipe the countdown away: it doesn't come back for that sensor (`--es cmd sensorEndState` → `dismissed`).
+- [ ] Settings → Sensor end: add / edit / remove a reminder (dialog: days radio, time picker), countdown hours,
+      both switches; the card's countdown ring follows the hours. Spanish texts.
+- [ ] Follower role: none of these notifications.

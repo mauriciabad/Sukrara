@@ -136,6 +136,20 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - A dark-theme flip redraws at once: the module re-tints on its view's configuration change, the app redraws the widgets from a `ComponentCallbacks` night-mode watcher.
 - Slots right of the lock icon use the same choice as the home widgets (`appSlots`: rings, report numbers, last treatment, fallback), main rightmost, as many as fit (≤ 4).
 
+## Sensor reminders and countdowns
+
+Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`); followers get none of these. Settings → **Sensor end**.
+- Reminders: a list of (days before the end day 0–3, time of day), at most 6; default *1 day before at 09:00* and *on the end day at 09:00*. Each fires in the phone's time zone on (end day − days) at its time, only if that is after the sensor's start and before its end (a sensor ending at 07:30 skips "end day 09:00"). Text: *Sensor ends today / tomorrow / on Wednesday at 14:30* (≥ 7 days: the date) · *Have a new sensor ready.* One notification slot: the later reminder replaces the earlier one.
+- Reminders that passed before Sukrara knew them (new sensor, edited list) never fire; one missed while the phone was off fires late if the sensor hasn't ended (of several, only the latest).
+- End countdown (default on): an ongoing ProgressStyle notification from end − *Countdown starts* (`SensorLife.countdownHours`, 1–24 h, default 8, shared with the card's countdown ring) to the end: *Sensor ends at 14:30* · *Have a new sensor ready to replace it.*, the bar = time left in the window (empties), a timer tracker, a chronometer counting down to the end, a *Hide* action. Silent channel, refreshed every 15 min (non-waking).
+- It is promoted (Live Update chip with the timer) only while the glucose chip is off: the status bar shows one chip and the countdown would take it from the glucose value for hours. With the glucose chip on it stays in the shade and lock screen.
+- Warm-up countdown (default on): from a new sensor's start until its first reading (`SensorInfo.warmupEndEpoch`, 60 min), always promoted: *Sensor warming up* · *Readings at 19:45*, the bar fills up (`SensorLife.warmupFraction`), the chip counts down; refreshed every 5 min. Gives up 15 min after the warm-up end without a reading (`SensorLife.WARMUP_GRACE_S`). The first reading replaces it with *Sensor ready* · *Readings have started.* (sound, gone after 10 min), only if the warm-up countdown was shown and within 1 h of that reading.
+- Swiping away or *Hide* keeps a countdown away for that sensor (Live Update guideline: don't repost a dismissed update); the warm-up one then also skips *Sensor ready*.
+- At the end (or when the sensor reports it ended early, end moved to now): *Sensor ended* · *Replace it to keep getting readings.* once, on the reminders channel, at most 12 h after the end; a new sensor clears it.
+- Channels: *Sensor reminders* (default importance, sound) for reminders / ended / ready; *Sensor countdowns* (default importance so it shows on the lock screen, no sound or vibration) for both countdowns. Not the alert channels.
+- Scheduling: one AlarmManager alarm at a time for the next moment that matters, re-planned on every alarm, new sensor or end change, settings change, boot, app update, clock and time-zone change. Reminders, window start, warm-up give-up and end: `setExactAndAllowWhileIdle` (Sukrara already holds `USE_EXACT_ALARM` for alerts; 10-min window if exact alarms are unavailable); progress refreshes: plain non-waking `set`.
+- Settings export / import / reset include the reminders, both switches and the countdown hours.
+
 ## Languages
 
 - English (default) and Spanish (Spain) everywhere, settings pages included (every page, alert page, dialog, search and the alerts page's "lately" list); the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).

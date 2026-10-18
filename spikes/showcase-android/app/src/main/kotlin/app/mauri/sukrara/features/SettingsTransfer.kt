@@ -28,6 +28,8 @@ object SettingsTransfer {
         .put("features", Features.value.toJson())
         .put("alerts", Alerts.settings.value.toJson())
         .put("graph", GraphSettings.state.value.toJson())
+        .put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.config.value.toJson()
+            .put("countdownHours", app.mauri.sukrara.core.SensorLife.countdown.value))
 
     /** Applies a file from [export]; parts it doesn't have keep their current values. Null = done, else why not. */
     fun import(ctx: Context, j: JSONObject): String? {
@@ -35,6 +37,10 @@ object SettingsTransfer {
         j.optJSONObject("features")?.let { o -> Features.update { FeatureState.fromJson(o, it) } }
         j.optJSONObject("alerts")?.let { o -> Alerts.update(ctx) { AlertSettings.fromJson(o) } }
         j.optJSONObject("graph")?.let { o -> GraphSettings.update { GraphConfig.fromJson(o) } }
+        j.optJSONObject("sensorEnd")?.let { o ->
+            app.mauri.sukrara.sensorend.SensorEnd.update(ctx) { app.mauri.sukrara.sensorend.SensorEndConfig.fromJson(o) }
+            if (o.has("countdownHours")) app.mauri.sukrara.core.SensorLife.setCountdownHours(ctx, o.optInt("countdownHours"))
+        }
         return null
     }
 
@@ -46,5 +52,7 @@ object SettingsTransfer {
         Features.update { FeatureState(source = it.source, libreview = it.libreview, libreviewBannerDismissed = it.libreviewBannerDismissed) }
         Alerts.update(ctx) { AlertSettings() }
         GraphSettings.update { GraphConfig() }
+        app.mauri.sukrara.sensorend.SensorEnd.update(ctx) { app.mauri.sukrara.sensorend.SensorEndConfig() }
+        app.mauri.sukrara.core.SensorLife.setCountdownHours(ctx, app.mauri.sukrara.core.SensorLife.DEFAULT_COUNTDOWN_HOURS)
     }
 }
