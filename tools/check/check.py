@@ -17,7 +17,8 @@ Checks
   large       blobs over allow.json large_bytes
   images      new images only under docs/img, spikes/*/evidence, brand, res; full-phone captures flagged
   strings     new hardcoded UI text in Android Kotlin; values/ and values-es/ keys in sync
-  debug       DebugReceiver fakes (sensor, readings, unlocks) only through the gated DebugFakes.run (debug builds)
+  debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
+              gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
@@ -178,8 +179,12 @@ STRING_KEY = re.compile(r'<(string|plurals)\s+name="([^"]+)"([^>]*)>')
 APP_KT = "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/"
 DEBUG_RECEIVER = APP_KT + "features/DebugReceiver.kt"
 DEBUG_FAKES = APP_KT + "features/DebugFakes.kt"
+# ... and the release app never shows a value, an alert, a treatment or a sensor state that isn't real (2026-10-19):
+# test alerts, status-bar previews, the lock screen test pattern, forced New sensor steps, adb treatments.
 FAKE_CALL = re.compile(r"SensorLife\.update\(|SensorEnd\.(fake\w*|unlocked)\(|\bfake(Start|FirstReading)?\(|"
-                       r"Live\.(reading|history)\(|\.onReading\(")
+                       r"Live\.(reading|history)\(|\.onReading\(|RootStatusBar\.update\(|\b[Aa]lerts\.test\(|"
+                       r"LockscreenWidget\.testPattern\s*=|NewSensorFlow\.preview\.value\s*=(?!\s*null\b)|"
+                       r"Treat\.store\.add\(|\.addTreatment\(")
 FAKE_DEF_OK = (DEBUG_FAKES, APP_KT + "sensorend/SensorEnd.kt")
 
 
