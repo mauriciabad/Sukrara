@@ -124,7 +124,8 @@ object Libre3Nfc {
             ((r[15].toLong() and 0xFF) shl 16) or ((r[16].toLong() and 0xFF) shl 24)
         if (start <= 0) start = now
         return SensorPairing(serial = p.serial, address = address, startEpoch = start, pin = pin, kAuth = null,
-            securityVersion = 0, wearMin = p.wearMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WEAR_MIN)
+            securityVersion = 0, wearMin = p.wearMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WEAR_MIN,
+            warmupMin = p.warmupMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WARMUP_MIN)
     }
 
     /** Juggluco's wholenfccmd: retry transient errors; an answer with the error flag (bit 0) is retried too. */

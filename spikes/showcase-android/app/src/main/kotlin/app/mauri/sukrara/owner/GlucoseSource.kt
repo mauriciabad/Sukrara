@@ -4,6 +4,11 @@
 package app.mauri.sukrara.owner
 
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorLife
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.math.cos
 import kotlin.math.sin
@@ -24,6 +29,8 @@ interface GlucoseSource {
         fun onReading(r: Reading)
         fun onHistory(readings: List<Reading>)
         fun onStatus(state: String, error: String? = null)
+        /** The current sensor's start/end, when the source knows it (the sensor life badge, SensorLife). */
+        fun onSensor(info: SensorInfo) {}
     }
 
     fun start(scope: CoroutineScope, sink: Sink)
@@ -56,6 +63,7 @@ class JugglucoSource(private val baseUrl: String, http: OkHttpClient) : GlucoseS
                 sink.onStatus("fetching history")
                 sink.onHistory(history(if (first) 1600 else 180))
                 first = false
+                sensor()?.let(sink::onSensor)
                 live(sink) { backoff = 5_000L }
                 sink.onStatus("live stream ended", "SSE closed by Juggluco")
             } catch (e: Exception) {
@@ -85,6 +93,14 @@ class JugglucoSource(private val baseUrl: String, http: OkHttpClient) : GlucoseS
         }
     }
 
+    /** The sensor's start from Juggluco's `sgv.json?sensor=Y` (the first entry's `sensor_status`), or null. */
+    private fun sensor(): SensorInfo? = runCatching {
+        val req = Request.Builder().url("$baseUrl/sgv.json?count=1&sensor=Y").build()
+        http.newCall(req).also { call = it }.execute().use { resp ->
+            if (!resp.isSuccessful) null else parseSensorStatus(resp.body!!.string(), ZoneId.systemDefault())
+        }
+    }.getOrNull()
+
     private fun live(sink: GlucoseSource.Sink, onData: () -> Unit) {
         val req = Request.Builder().url("$baseUrl/x/live").header("Accept", "text/event-stream").build()
         http.newCall(req).also { call = it }.execute().use { resp ->
@@ -92,6 +108,7 @@ class JugglucoSource(private val baseUrl: String, http: OkHttpClient) : GlucoseS
             sink.onStatus("live (Juggluco SSE)")
             val src = resp.body!!.source()
             var event = ""
+            var sensorId = -1
             while (true) {
                 val line = src.readUtf8Line() ?: return
                 when {
@@ -102,12 +119,28 @@ class JugglucoSource(private val baseUrl: String, http: OkHttpClient) : GlucoseS
                         val rate = if (j.isNull("rateMgDlPerMinute")) null else j.getDouble("rateMgDlPerMinute")
                         onData()
                         sink.onReading(Reading(j.getLong("timestamp"), j.getInt("glucoseMgDl"), rate, "juggluco"))
+                        // a new sensor in Juggluco: read its start again
+                        val id = j.optInt("sensorId", -1)
+                        if (sensorId != -1 && id != sensorId) runCatching { sensor() }.getOrNull()?.let(sink::onSensor)
+                        sensorId = id
                     }
                 }
             }
         }
     }
 }
+
+/**
+ * Juggluco's `sensor_status` (watchserver.cpp `firstdata`): `"dd-mm-yy HH:MM (3d 5h)"`, the sensor's start in the
+ * phone's local time; the serial is the entry's `_id` before `#`. Juggluco doesn't publish the wear length, so the end
+ * is start + [SensorLife.DEFAULT_WEAR_MIN] (Libre 3 Plus, 15 days). Null when absent or unreadable.
+ */
+internal fun parseSensorStatus(json: String, zone: ZoneId): SensorInfo? = runCatching {
+    val e = JSONArray(json).getJSONObject(0)
+    val st = e.optString("sensor_status").takeIf { it.length >= 14 } ?: return null
+    val start = LocalDateTime.parse(st.substring(0, 14), DateTimeFormatter.ofPattern("dd-MM-yy HH:mm")).atZone(zone).toEpochSecond()
+    SensorLife.fromStart(e.optString("_id").substringBefore('#'), start, 0)
+}.getOrNull()
 
 /**
  * DEBUG-ONLY fake sensor so the owner role runs on an emulator: one reading per minute (on the minute) plus 24 h of

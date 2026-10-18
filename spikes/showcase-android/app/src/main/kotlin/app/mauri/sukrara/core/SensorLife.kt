@@ -9,10 +9,14 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * What we know about the current sensor (unix seconds). The owner learns it from the direct source
- * ([app.mauri.sukrara.direct.SensorPairing]); followers and the Mac from the live event's `ss`/`se`
- * (spikes/nostr/PROTOCOL-v2.md). [serial] is empty on followers (it isn't on the wire).
+ * ([app.mauri.sukrara.direct.SensorPairing]) or Juggluco; followers and the Mac from the live event's `ss`/`se`/`sw`
+ * (spikes/nostr/PROTOCOL-v2.md). [serial] is empty on followers (it isn't on the wire). [warmupEndEpoch] = when the
+ * first reading is due (start + the sensor's warm-up, 60 min for Libre 3 / 3 Plus / 2 Plus).
  */
-data class SensorInfo(val serial: String, val startEpoch: Long, val endEpoch: Long) {
+data class SensorInfo(
+    val serial: String, val startEpoch: Long, val endEpoch: Long,
+    val warmupEndEpoch: Long = startEpoch + 60L * SensorLife.DEFAULT_WARMUP_MIN,
+) {
     val lengthS get() = (endEpoch - startEpoch).coerceAtLeast(1)
 }
 
@@ -24,6 +28,10 @@ data class SensorInfo(val serial: String, val startEpoch: Long, val endEpoch: Lo
 object SensorLife {
     /** Libre 3 Plus: 15 days (LibreView's `wearDuration` 21600 min), used when the sensor doesn't say. */
     const val DEFAULT_WEAR_MIN = 21_600
+    /** Libre 3 / 3 Plus / 2 Plus warm-up, used when the sensor doesn't say. */
+    const val DEFAULT_WARMUP_MIN = 60
+    /** The warm-up state lasts until the first reading, at most this long past the warm-up's end. */
+    const val WARMUP_GRACE_S = 15 * 60L
     /** The countdown window (ring on the card, live notification): last N hours, [COUNTDOWN_RANGE], default 8. */
     const val DEFAULT_COUNTDOWN_HOURS = 8
     val COUNTDOWN_RANGE = 1..24
@@ -44,7 +52,9 @@ object SensorLife {
         if (loaded) return
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val end = p.getLong("end", 0)
-        _current.value = if (end > 0) SensorInfo(p.getString("serial", "") ?: "", p.getLong("start", 0), end) else null
+        val start = p.getLong("start", 0)
+        _current.value = if (end > 0) SensorInfo(p.getString("serial", "") ?: "", start, end,
+            p.getLong("warmup", start + 60L * DEFAULT_WARMUP_MIN)) else null
         _countdown.value = p.getInt(KEY_COUNTDOWN, DEFAULT_COUNTDOWN_HOURS).coerceIn(COUNTDOWN_RANGE)
         loaded = true
     }
@@ -54,8 +64,9 @@ object SensorLife {
         init(ctx)
         if (_current.value == info) return
         val e = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        if (info == null) e.remove("serial").remove("start").remove("end")
+        if (info == null) e.remove("serial").remove("start").remove("end").remove("warmup")
         else e.putString("serial", info.serial).putLong("start", info.startEpoch).putLong("end", info.endEpoch)
+            .putLong("warmup", info.warmupEndEpoch)
         e.apply()
         _current.value = info
     }
@@ -82,11 +93,32 @@ object SensorLife {
         _countdown.value = h
     }
 
-    /** From the sensor's start and wear length in minutes (0 or less = [DEFAULT_WEAR_MIN]). */
-    fun fromStart(serial: String, startEpoch: Long, wearMin: Int): SensorInfo =
-        SensorInfo(serial, startEpoch, startEpoch + 60L * (if (wearMin > 0) wearMin else DEFAULT_WEAR_MIN))
+    /** From the sensor's start, wear length and warm-up in minutes (0 or less = [DEFAULT_WEAR_MIN] / [DEFAULT_WARMUP_MIN]). */
+    fun fromStart(serial: String, startEpoch: Long, wearMin: Int, warmupMin: Int = 0): SensorInfo =
+        SensorInfo(serial, startEpoch, startEpoch + 60L * (if (wearMin > 0) wearMin else DEFAULT_WEAR_MIN),
+            startEpoch + 60L * (if (warmupMin > 0) warmupMin else DEFAULT_WARMUP_MIN))
 
     // ------------------------------------------------------------------------------------- pure (shared fixtures)
+
+    /**
+     * Warming up: the sensor has started, no reading has come since its start ([latestT] = the newest reading's time,
+     * null = none) and the warm-up isn't more than [WARMUP_GRACE_S] past its end. The card then shows the time left
+     * instead of a value; the first reading ends it.
+     */
+    fun warming(info: SensorInfo, latestT: Long?, now: Long): Boolean =
+        now >= info.startEpoch && now < info.warmupEndEpoch + WARMUP_GRACE_S && (latestT == null || latestT < info.startEpoch)
+
+    /** The warm-up's time left as the card's figure: whole minutes rounded up ("42m"), "0m" at the end; ≥ 1 h → "1h". */
+    fun warmupLabel(info: SensorInfo, now: Long, w: Words = Words.current): String {
+        val left = (info.warmupEndEpoch - now).coerceAtLeast(0)
+        return if (left >= 3_600) w.durHours.format(left / 3_600) else w.durMinutes.format((left + 59) / 60)
+    }
+
+    /** The warm-up ring over the main ring: fills 0 → 1 from the start to the warm-up's end. */
+    fun warmupFraction(info: SensorInfo, now: Long): Double {
+        val len = (info.warmupEndEpoch - info.startEpoch).coerceAtLeast(1)
+        return ((now - info.startEpoch).toDouble() / len).coerceIn(0.0, 1.0)
+    }
 
     /** Whether the sensor has reached its end. */
     fun ended(endEpoch: Long, now: Long) = now >= endEpoch

@@ -278,6 +278,8 @@ class OwnerEngine(private val ctx: Context) {
                 scope.launch(serial) { runCatching { handleHistory(readings) }.onFailure { log.i("backfill failed: $it") } }
             }
 
+            override fun onSensor(info: app.mauri.sukrara.core.SensorInfo) = app.mauri.sukrara.core.SensorLife.update(ctx, info)
+
             override fun onStatus(state: String, error: String?) {
                 _ui.update { it.copy(source = state, sourceError = error) }
                 Live.sourceStatus(state, error)

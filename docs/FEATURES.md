@@ -96,7 +96,8 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 ## Sensor life
 
-- The owner knows the current sensor's start and end (`core/SensorLife`, persisted): the direct source gives serial, start and end = start + the wear length from the NFC patch info (LE16 at +6, minutes; Libre 3 Plus 21600 = 15 d; 15 d when unknown or for a pairing saved before this field).
+- The owner knows the current sensor's start, end and warm-up end (`core/SensorLife`, persisted): the direct source gives serial, start, end = start + the wear length from the NFC patch info (LE16 at +6, minutes; Libre 3 Plus 21600 = 15 d; 15 d when unknown or for a pairing saved before this field) and warm-up end = start + the patch info's warm-up (byte 13 × 5 min; 60 min default).
+- Juggluco source: the start comes from Juggluco's `sgv.json?count=1&sensor=Y` (`sensor_status` `"dd-mm-yy HH:MM (…)"`, the phone's local time; serial = the entry's `_id` before `#`), read with every history fetch and again when the SSE `sensorId` changes; end = start + 15 d, warm-up 60 min (Juggluco publishes neither length).
 - Direct source, ended sensor (`direct/PatchState`; seen on the user's Libre 3 Plus: `state=5 currentLifeCount=21635`, then no glucose and a reconnect every 2 min for ever): the BLE patch state ≥ 5 (5 expired, 6 terminated, 7 error, 8 error terminated) or a life count ≥ the wear length marks the sensor ended (its end moves to now if earlier) and the source state reads `sensor ended` / `Replace the sensor, then scan the new one: Settings → Sensor`. States 6–8 stop at once; an expired sensor (5, or past its wear length) keeps the session for one glucose wait (120 s, a possible grace period) and then stops for good. Stopped = no reconnects (`ended:<serial>` in the direct prefs) until a new sensor is scanned; a reading that does arrive keeps it running.
 
 ## Settings

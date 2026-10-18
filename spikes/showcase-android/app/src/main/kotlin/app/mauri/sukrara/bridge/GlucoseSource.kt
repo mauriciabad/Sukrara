@@ -36,10 +36,10 @@ interface GlucoseSource {
         fun onStatus(state: String, error: String? = null)
 
         /**
-         * Sensor-level detail (direct source only): serial, start and end (start + wear length; the sensor life badge),
-         * then readings by life count for the LibreView upload.
+         * Sensor-level detail (direct source only): serial, start, end (start + wear length) and warm-up end
+         * (core/SensorLife: the badge, the countdown and warm-up), then readings by life count for the LibreView upload.
          */
-        fun onSensor(serial: String, startEpoch: Long, endEpoch: Long) {}
+        fun onSensor(info: app.mauri.sukrara.core.SensorInfo) {}
         /** The sensor has reached its end (patch state, life count): the source stops connecting to it. */
         fun onSensorEnded(serial: String) {}
         fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {}

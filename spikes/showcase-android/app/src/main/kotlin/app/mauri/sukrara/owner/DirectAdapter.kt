@@ -31,9 +31,9 @@ class DirectAdapter(private val ctx: Context) : GlucoseSource {
                     override fun onReading(reading: Bridge.Reading) = sink.onReading(reading.toCore())
                     override fun onHistory(readings: List<Bridge.Reading>) = sink.onHistory(readings.map { it.toCore() })
                     override fun onStatus(state: String, error: String?) = sink.onStatus("direct: $state", error)
-                    override fun onSensor(serial: String, startEpoch: Long, endEpoch: Long) {
-                        SensorLife.update(ctx, SensorInfo(serial, startEpoch, endEpoch))
-                        Live.sensor(serial, startEpoch)
+                    override fun onSensor(info: SensorInfo) {
+                        SensorLife.update(ctx, info)
+                        Live.sensor(info.serial, info.startEpoch)
                     }
                     override fun onSensorEnded(serial: String) = SensorLife.markEnded(ctx, serial, Proto.nowS())
                     override fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {
