@@ -25,7 +25,7 @@ class DirectAdapter(private val ctx: Context) : GlucoseSource {
 
     override fun start(scope: CoroutineScope, sink: GlucoseSource.Sink) {
         scope.launch(Dispatchers.Main) {
-            // Libre3Client uses a main-thread Handler for its GATT queue.
+            // GattLink uses a main-thread Handler for its timers and reconnects.
             runCatching {
                 DirectSource(ctx).also { inner = it }.start(scope, object : app.mauri.sukrara.bridge.GlucoseSource.Sink {
                     override fun onReading(reading: Bridge.Reading) = sink.onReading(reading.toCore())

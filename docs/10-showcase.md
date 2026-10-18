@@ -65,7 +65,7 @@ with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, m
 | `status/` | statusbar-android (05) | `GlucoseNotification`: chip + number icon on the service's **only** notification |
 | `bridge/` | glucobridge (01, 04, 08), nostr (03) | `XdripServer` (Garmin, plus a second listener), `NightscoutApi` (inv. 03 tier 1, ported from `follower.py`), `LocalServers` (both listeners per role, live switches) |
 | `treatments/`, `libreview/` | glucobridge (04) | treatment store (SPEC §1; followers and Macs over v2, §5), LibreView uploader, gated by `Features.libreview` |
-| `direct/` + `src/main/cpp` | glucobridge `direct` (02) | Libre 3 client + JNI core, plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Libre 1 / 2 / 2 Plus: detected by the chip and refused without sending anything (Juggluco is the way for those); Libre 2 decoding was investigated and discarded — open crypto, but official mg/dL needs Abbott's guarded library (docs/02 "Libre 2 / 2 Plus"). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
+| `direct/` + `src/main/cpp` | glucobridge `direct` (02), sensors-android (23) | `SensorDriver` / `BleLink` / `SensorEvents`, the `Drivers` registry and the `GattLink` transport, with the Libre 3 protocol as `Libre3Driver` over the JNI core (see "Sensor drivers" below), plus the NFC scan (`Libre3Nfc`), the receiver ID (`ReceiverId`) and the first-time Bluetooth pairing (see "Sensor scan" below). Per-family facts (`core/SensorProfile`). Libre 1 / 2 / 2 Plus: detected by the chip and refused without sending anything (Juggluco is the way for those); Libre 2 decoding was investigated and discarded — open crypto, but official mg/dL needs Abbott's guarded library (docs/02 "Libre 2 / 2 Plus"). Built from `third_party/Juggluco` (this checkout's or the main checkout's) when it's present |
 | `features/` | new | `Features` (all switches, prefs + StateFlow) and the adb `DebugReceiver` |
 | `widgets/` | widgets-android (12) | Glance widgets, graph renderer, `WidgetUpdater` (dedupe + skip while the screen is off). `RecentHistory`: the last 8 h in memory, read from the role's own store (`owner.db` + `treatments.json`, or `follower.db`) — no copy on disk. `SukraraHooks` feeds it from `WearerExtras` or `FollowerExtras` (each reading, history, screen on, minute tick). Trend arrow, range colours, staleness and age text come from `core/Glucose.kt`, shared with the status bar, system icons and the SystemUI hook; the widgets use the status bar's `sb_t*` arrows. `StartReceiver` restarts the role's service (wearer or follower) after a boot or an update. R8 keep rule for the Glance classes (see Known issues). Glance 1.2.0 + WorkManager 2.12.0 (pinned, see Known issues) |
 
@@ -942,6 +942,25 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 | A permanent home button | Noise while the sensor works; it shows when it's due |
 
 ![New sensor flow](img/21/flow-new-sensor.png)
+
+## Sensor drivers (investigation 23, step 1)
+
+The first step of [docs/23](23-sensors.md#in-sukrara): the direct source now runs a `SensorDriver` picked from a
+registry by the saved sensor's profile, and the Libre 3 is the first and only driver — a pure refactor, no change in
+what goes over the air, in the timing or in the words the New sensor screen reads.
+
+| Added | Where |
+|---|---|
+| `SensorProfile` (pairing kind, warm-up, lifetime, grace, calibration, needs-scan) + `SensorProfiles.LIBRE_3`; `SensorLife`'s defaults and the New sensor flow's warm-up fallback read it | `core/SensorProfile.kt`, `core/SensorLife.kt`, `ui/NewSensorFlow.kt` |
+| `SensorDriver` / `BleLink` / `SensorEvents` / `Advert` / `DriverPrefs`, the `Drivers` registry, the pairing file's `profile` field | `direct/SensorDriver.kt`, `direct/Drivers.kt`, `direct/SensorPairing.kt` |
+| The Libre 3 client split in two: `Libre3Driver` (handshake, packets, timers, sensor status words) over `GattLink` (connect by address, operation queue, reconnects, connection status words); the JNI core behind a `Libre3Security` interface | `direct/Libre3Driver.kt`, `direct/GattLink.kt`, `direct/Libre3Crypto.kt` |
+| Replay tests: every byte written, every subscribe, timer and status word of a fresh pairing, a resume, glucose, history, patch status, warm-up, an expired and a terminated sensor, the error paths; profile = old constants; registry | `Libre3DriverTest`, `SensorProfileTest`, `DriversTest` |
+
+| Discarded | Why |
+|---|---|
+| The spike's `Reading` / `Session` / `DriverStatus` types | The app's `Bridge.Reading`, `LibreViewPayload.Glucose` and status words already carry the same fields, and the New sensor screen parses the words: the driver reports in those, so nothing above the source changes. |
+| A scanning transport, the brand step, the other drivers | Step 2+ (each needs a sensor to verify); the seams are in place (`profile.needsScan`, `SensorDriver.matches` / `onAdvertisement`, `Pairing` kinds, `BleLink.bond`). |
+| Running the JNI security core in the JVM tests | Untouched by the refactor; a host build of Juggluco's core for the tests would prove nothing about the move. The replay fakes it and pins the calls into it. |
 
 ## Next
 
