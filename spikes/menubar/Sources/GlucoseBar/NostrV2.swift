@@ -399,6 +399,9 @@ struct FollowerV2State: Codable {
     var onTreatmentSent: ((_ id: String, _ u: Int64, _ via: String) -> Void)?
     /// A new epoch key arrived (BLE asks the owner for its backlog again — it is readable now).
     var onNewKey: (() -> Void)?
+    /// Timestamps (unix s) of the readings this Mac has stored since the given time (the ReadingsStore): sizes the
+    /// chunk backfill and finds missing hours (PROTOCOL-v2 "Missing history"). nil = nothing stored (13 h backfill).
+    var storedSince: ((TimeInterval) -> [TimeInterval])?
     /// The wearer's `alert` event (alerts SPEC §4) that passed the live checks and is ≤ 10 min old: decrypted body.
     var onAlert: (([String: Any], _ via: String) -> Void)?
 
@@ -412,6 +415,8 @@ struct FollowerV2State: Codable {
     private var subscribedTreatmentAuthors: [String] = []
     private var sentTreatments: [String: (id: String, u: Int64)] = [:]    // event id → treatment it carries
     private var lastCreatedAt: [String: Int] = [:]                          // d → created_at of our last event
+    private var historyCheck: Task<Void, Never>?
+    private var historyAskedAt = Date.distantPast
     private(set) var accepted = 0, rejected = 0
     private(set) var lastVia = ""
 
@@ -516,9 +521,12 @@ struct FollowerV2State: Codable {
         onPhase?(phase)
     }
 
-    func restart(_ why: String) { pool.restart(why) }
+    func restart(_ why: String) {
+        if !st.devices.isEmpty { subscribedDevices = []; subscribeData() }   // chunk `since` from what we have now
+        pool.restart(why)
+    }
 
-    func stop() { pool.stop() }
+    func stop() { historyCheck?.cancel(); pool.stop() }
 
     func sendRequest() {
         guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "profile": myProfile])
@@ -549,8 +557,49 @@ struct FollowerV2State: Codable {
         guard !st.devices.isEmpty, st.devices != subscribedDevices else { return }
         subscribedDevices = st.devices
         let now = Int(Date().timeIntervalSince1970)
-        pool.subscribe("c", ["kinds": [Int(V2.chunk)], "authors": st.devices, "#c": [V2.chunkC(sid)], "since": now - 13 * 3600])
+        let newest = storedSince?(Double(now - 7 * 86400)).last.map(Int.init)
+        pool.subscribe("c", ["kinds": [Int(V2.chunk)], "authors": st.devices, "#c": [V2.chunkC(sid)],
+                             "since": Self.chunkSince(newestStored: newest, now: now)])
         pool.subscribe("l", ["kinds": [Int(V2.live), Int(V2.alert)], "authors": st.devices, "since": now - 120])
+        scheduleHistoryCheck()
+    }
+
+    /// Chunk backfill window: from an hour before the newest stored reading (a chunk's created_at is its last
+    /// (re)publish, ≥ the readings it carries), at least the last 13 h, at most the chunks' 7-day relay expiry.
+    static func chunkSince(newestStored: Int?, now: Int) -> Int {
+        max(now - 7 * 86400, min(now - 13 * 3600, (newestStored ?? now) - 3600))
+    }
+
+    /// PROTOCOL-v2 "Missing history": hour starts among the last 12 whole hours without a stored reading, or nil
+    /// while the stream isn't live (newest reading > 15 min old: a real gap, nothing to ask for).
+    static func missingHours(stored: [TimeInterval], now: Int) -> [Int]? {
+        guard let newest = stored.max(), Double(now) - newest <= 15 * 60 else { return nil }
+        let cur = now - now % 3600
+        let have = Set(stored.map { Int($0) - Int($0) % 3600 })
+        return (1...12).map { cur - $0 * 3600 }.filter { !have.contains($0) }
+    }
+
+    /// After the chunk backfill settles (90 s), look for missing hours; still missing 90 s later (the owner may be
+    /// pacing chunks out) ⇒ a `history` request to the identity, ≤ 1 per 30 min. Its answer (republished chunks)
+    /// arrives on the open `c` subscription / over BLE.
+    private func scheduleHistoryCheck() {
+        historyCheck?.cancel()
+        historyCheck = Task { [weak self] in
+            for attempt in 0...1 {
+                try? await Task.sleep(for: .seconds(90))
+                guard !Task.isCancelled, let self, self.st.status == "active", let stored = self.storedSince else { return }
+                let now = Int(Date().timeIntervalSince1970)
+                guard let missing = Self.missingHours(stored: stored(Double(now - 13 * 3600)), now: now),
+                      let from = missing.min() else { return }
+                if attempt == 0 { log("v2 history: \(missing.count) of the last 12 h missing → check again in 90 s"); continue }
+                guard Date().timeIntervalSince(self.historyAskedAt) >= 30 * 60,
+                      let g = V2.gift(self.F, self.st.i, kind: V2.toOwner, ["v": 2, "type": "history", "since": from]) else { return }
+                self.historyAskedAt = Date()
+                self.pool.publish(g)
+                self.extraPublish?(g, nil)
+                log("v2 history: \(missing.count) of the last 12 h still missing → asked the wearer to republish from h=\(from)")
+            }
+        }
     }
 
     // MARK: the one entry point for every transport
@@ -698,6 +747,7 @@ struct FollowerV2State: Codable {
             st.save()
             log("v2: key delivery accepted — epoch \(n), \(st.devices.count) device(s)")
             subscribeData()
+            scheduleHistoryCheck()                       // chunks of the new epoch are readable now
             onPhase?(phase)
             onNewKey?()
         case "invite-used", "declined":

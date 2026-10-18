@@ -23,12 +23,13 @@ import AppKit
 //   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1)
 //   · lastPlace OFF|NEAR_VALUE|END (the last-treatment slot; NEAR_VALUE) · lastElse "TIR:2592000:1" (its fallback; "" = none)
 //   · bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/bandExtremelyHigh (54/70/140/180/250/300)
-//   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; all but the ranges are in the menu's "Graph" submenu)
+//   · reportDays 1|7|14|30 (14)   (investigations 16 and 18; Settings › Graph, the report's period in its window)
 //   readingsDir (tests): keep readings.csv somewhere else
 //   -graphselftest  the shared graph math against the Android unit-test cases
-//   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in "Alerts…")
+//   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in Settings › Alerts)
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
-//                      engine;  alertsSnapshot out.png: open "Alerts…" and render it
+//                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot out.png: render
+//                      Settings › Alerts / every Settings pane / the report window
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 /// stdout, and for the bundled app (launched by `open`, no terminal) also ~/Library/Logs/Sukrara.log.
@@ -78,7 +79,6 @@ status.unit = GlucoseUnit(rawValue: defaults.string(forKey: "unit") ?? "") ?? .m
 // Glucose alerts (Alerts.swift, spikes/alerts/SPEC.md): this Mac's rules or the wearer's `alert` events.
 let alerts = MainActor.assumeIsolated { Alerts() }
 MainActor.assumeIsolated {
-    status.addItem(alerts.menuItem)
     alerts.unit = { status.unit }
     alerts.treatments = { treatmentStore.rows }
     alerts.followingV2 = {
@@ -98,6 +98,8 @@ let historySpan: TimeInterval = 3 * 3600
     private var lastSource = ""
 
     func ingest(history new: [Reading], from source: String) {
+        // Backfill (hour chunks, BLE backlog) can be older than the 3 h `history` window: store it before the trim.
+        readingsStore.merge(new)
         new.forEach { merge($0) }
         publish(source)
     }
@@ -357,6 +359,7 @@ let treatmentStore = MainActor.assumeIsolated {
         n.onNewKey = { [weak self] in self?.ble?.hello() }
         n.onReading = { store.ingest($0, from: $1) }
         n.onHistory = { store.ingest(history: $0, from: $1) }
+        n.storedSince = { readingsStore.since($0).map(\.t) }      // chunk backfill window + missing-hours check
         n.onAlert = { alerts.onWearerAlert($0, via: $1) }
         n.onPhase = { [weak self, weak n] p in
             guard let self, let n else { return }
@@ -417,8 +420,6 @@ MainActor.assumeIsolated {
         following.ble = b
     }
     status.onFollow = { following.begin() }
-    status.onFollowQR = { following.beginFromQR() }
-    status.onUnfollow = { following.unfollow() }
     following.launch()
     Migration.keychain { following.resume() }      // GlucoseBar → Sukrara: follow state from the old Keychain item
 }
@@ -515,17 +516,56 @@ MainActor.assumeIsolated {
     func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
     if let k = arg("-alert-test") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { alerts.test(k) } }
     if let f = arg("-alert-feed") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { alerts.feed(f) } }
-    if let path = arg("-alertsSnapshot") {
-        alerts.openWindow()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { alerts.snapshot(to: path) }
-    }
 }
 
-status.onRefresh = { MainActor.assumeIsolated {
-    if lanEnabled { feed.restart("manual refresh") }
-    nostr?.restart("manual refresh")
-    following.node?.restart("manual refresh")
-} }
+// Settings (⌘,) and the Glucose Report window: everything that configures the app lives there, not in the menu.
+let reportWindow = MainActor.assumeIsolated {
+    let r = ReportWindow()
+    r.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
+    r.bands = { status.graph.bands }
+    return r
+}
+let settings = MainActor.assumeIsolated {
+    let general = GeneralModel(status: status)
+    general.onReconnect = {
+        if lanEnabled { feed.restart("manual refresh") }
+        nostr?.restart("manual refresh")
+        following.node?.restart("manual refresh")
+    }
+    let graph = GraphModel()
+    graph.onChange = { status.reloadGraph(); if reportWindow.isVisible { reportWindow.refresh() } }
+    let follow = FollowingModel(status: status)
+    follow.onFollow = { following.begin() }
+    follow.onFollowQR = { following.beginFromQR() }
+    follow.onUnfollow = { following.unfollow() }
+    return SettingsWindow(general: general, graph: graph, alerts: AlertsModel(alerts: alerts), following: follow)
+}
+MainActor.assumeIsolated {
+    status.onSettings = { settings.show() }
+    status.onReport = { reportWindow.show() }
+    status.onUpdate = {
+        settings.generalModel.refresh()
+        if reportWindow.isVisible { reportWindow.refresh() }
+    }
+    status.onFollowChange = { settings.followingModel.refresh() }
+    alerts.onOpenWindow = { settings.show(.alerts) }
+    MainMenu.install()
+    // Evidence aids: render windows to PNGs without screen-recording permission.
+    let args = CommandLine.arguments
+    func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
+    if let path = arg("-alertsSnapshot") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { settings.snapshot(.alerts, to: path) }
+    }
+    if let dir = arg("-settingsSnapshot") {
+        for (i, p) in SettingsWindow.Pane.allCases.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5 + Double(i) * 1.5) { settings.snapshot(p, to: "\(dir)/settings-\(p.rawValue).png") }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { settings.snapshotDetails(.low, to: "\(dir)/settings-alert-details.png") }
+    }
+    if let path = arg("-reportSnapshot") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { reportWindow.snapshot(to: path) }
+    }
+}
 
 // After sleep the SSE/WebSocket sockets are dead but URLSession would only notice after its idle timeout.
 NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in

@@ -12,8 +12,55 @@
 # Protocol v2 (default): menubar → "Follow someone…" (paste https://sukrara.mauri.app/join#…),
 # or open a sukrara:join#… link (URL scheme registered below; the web page's "Open in Sukrara" button uses it).
 # First launch copies GlucoseBar's defaults + follower Keychain item (Migration.swift).
+#
+# Signing modes (all sign every nested binary with the same identity, hardened runtime, after `xattr -cr`):
+#   default         first "Apple Development" identity in the keychain (else Developer ID, else ad hoc): widgets
+#                   load on this Mac, but Gatekeeper on other Macs says "Apple could not verify…" (Open Anyway).
+#   AD_HOC=1        ad hoc, no widgets.
+#   SIGN_ID=…       pick the identity (sha1 or full name).
+#   Release (Developer ID, notarized, stapled), needs the paid Apple Developer Program:
+#     SIGN_ID="Developer ID Application: Name (TEAMID)" NOTARY_PROFILE=sukrara ./bundle.sh && NOTARY_PROFILE=sukrara ./dmg.sh
+#   With NOTARY_PROFILE and no SIGN_ID the first "Developer ID Application" identity is used. bundle.sh notarizes a zip
+#   of the app and staples the app (so the release zip and the copy dragged out of the dmg carry their ticket, also
+#   offline); dmg.sh then notarizes and staples the dmg (Apple: staple the outermost container you ship).
+#   One-time setup:
+#     1. Developer ID Application certificate: Xcode → Settings → Accounts → (team) → Manage Certificates → + →
+#        Developer ID Application (Account Holder role), or developer.apple.com → Certificates → +.
+#     2. App-specific password at account.apple.com → Sign-In and Security → App-Specific Passwords, then
+#        xcrun notarytool store-credentials sukrara --apple-id <apple id> --team-id <TEAMID> --password <app-specific>
+#        (stored in the login keychain; never put the password in a file).
+#   No provisioning profile is needed: the only restricted-looking entitlement is the App Group, and a macOS group
+#   named "<TEAMID>.<name>" is authorised by the Team ID in the signature (developer.apple.com/documentation/xcode/
+#   configuring-app-groups). No get-task-allow is ever added (checked below for Developer ID builds).
 set -e
 cd "$(dirname "$0")"
+die() { echo "bundle.sh: $*" >&2; exit 1; }
+IDS=$(security find-identity -v -p codesigning)
+if [ -n "${NOTARY_PROFILE:-}" ] && [ -z "${SIGN_ID:-}" ]; then
+  SIGN_ID=$(echo "$IDS" | awk -F'"' '/Developer ID Application/{print $2; exit}')
+  [ -n "$SIGN_ID" ] || die "NOTARY_PROFILE is set but the keychain has no \"Developer ID Application\" identity
+  (security find-identity -v -p codesigning). Create one: Xcode → Settings → Accounts → Manage Certificates → + →
+  Developer ID Application (needs the paid Apple Developer Program)."
+fi
+if [ -z "${SIGN_ID:-}" ] && [ "${AD_HOC:-}" != 1 ]; then
+  SIGN_ID=$(echo "$IDS" | awk -F'"' '/Apple Development/{print $2; exit}')
+  [ -n "$SIGN_ID" ] || SIGN_ID=$(echo "$IDS" | awk -F'"' '/Developer ID Application/{print $2; exit}')
+fi
+DEVID=0
+if [ -n "${SIGN_ID:-}" ]; then
+  LINE=$(echo "$IDS" | grep -F "$SIGN_ID" | head -1)
+  [ -n "$LINE" ] || die "SIGN_ID '$SIGN_ID' is not a valid code-signing identity in the keychain:
+$IDS"
+  case "$LINE" in *'"Developer ID Application:'*) DEVID=1 ;; esac
+fi
+if [ -n "${NOTARY_PROFILE:-}" ]; then
+  [ "$DEVID" = 1 ] || die "NOTARY_PROFILE needs a Developer ID Application identity; SIGN_ID is '${SIGN_ID:-ad hoc}'"
+  xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 || die "notarytool keychain profile
+  '$NOTARY_PROFILE' is missing or its credentials don't work. Create it once with:
+  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <apple id> --team-id <TEAMID> --password <app-specific password>"
+elif [ "$DEVID" = 1 ]; then
+  echo "bundle.sh: Developer ID signing without NOTARY_PROFILE: the app will not be notarized" >&2
+fi
 swift build -c release
 APP=build/Sukrara.app
 ICON=../brand/assets/sukrara/macos/AppIcon.icns
@@ -55,20 +102,25 @@ plutil -insert CFBundleVersion -string "$BUILD" "$APP/Contents/Info.plist"
 # Team ID, so they are built only when an Apple-issued identity is in the keychain (Xcode → Settings → Accounts →
 # Manage Certificates → Apple Development; a free personal team works on this Mac, a Developer ID for others).
 # Without one (or with AD_HOC=1) the app is ad hoc signed with no widget, as before.
-#   SIGN_ID=<sha1|name>  pick the identity     WIDGETS=0  sign with it but leave the widget out
-if [ -z "${SIGN_ID:-}" ] && [ "${AD_HOC:-}" != 1 ]; then
-  SIGN_ID=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/{print $2; exit}')
-fi
+#   WIDGETS=0  sign with the identity but leave the widget out
 TEAM_ID=""
 if [ -n "${SIGN_ID:-}" ]; then
   TEAM_ID=$(security find-certificate -c "$SIGN_ID" -p 2>/dev/null \
     | openssl x509 -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/organizationalUnitName/{print $2; exit}')
 fi
+# No extended attributes, resource forks or Finder info inside the bundle: they break `codesign --strict` and the
+# signature check after download.
+xattr -cr "$APP"
+find "$APP" -name .DS_Store -delete
 if [ -z "$TEAM_ID" ]; then
-  codesign --force --sign - "$APP"
+  [ -z "${SIGN_ID:-}" ] || die "no Team ID in the certificate of '$SIGN_ID'"
+  codesign --force --sign - --options runtime "$APP"
+  codesign --verify --deep --strict "$APP"
   echo "built $APP (ad hoc, no widgets)"
   exit 0
 fi
+# Developer ID needs a secure timestamp for notarization; development builds skip the round trip to Apple.
+if [ "$DEVID" = 1 ]; then TS=--timestamp; else TS=--timestamp=none; fi
 GROUP=$TEAM_ID.app.mauri.sukrara.poc            # macOS team-prefixed App Group: no provisioning profile needed
 plutil -replace GlucoseAppGroup -string "$GROUP" "$APP/Contents/Info.plist"
 ENT=build/entitlements; mkdir -p $ENT
@@ -107,8 +159,34 @@ if [ "${WIDGETS:-1}" != 0 ]; then
   <key>com.apple.security.application-groups</key><array><string>$GROUP</string></array>
 </dict></plist>
 EOF
-  codesign --force --sign "$SIGN_ID" --options runtime --entitlements $ENT/widget.plist "$APPEX"
+  xattr -cr "$APPEX"
+  # Inside-out: the extension first, then the app (which seals the extension's signature into its own).
+  codesign --force --sign "$SIGN_ID" --options runtime $TS --entitlements $ENT/widget.plist "$APPEX"
 fi
-codesign --force --sign "$SIGN_ID" --entitlements $ENT/app.plist "$APP"
-codesign --verify --strict "$APP"
-echo "built $APP (signed: $SIGN_ID, team $TEAM_ID, group $GROUP$( [ "${WIDGETS:-1}" != 0 ] && echo ', with widgets'))"
+codesign --force --sign "$SIGN_ID" --options runtime $TS --entitlements $ENT/app.plist "$APP"
+codesign --verify --deep --strict "$APP"
+if [ "$DEVID" = 1 ]; then
+  for C in "$APP" "$APP/Contents/PlugIns/"*.appex; do
+    [ -e "$C" ] || continue
+    if codesign -d --entitlements - "$C" 2>/dev/null | grep -q get-task-allow; then
+      die "$C has com.apple.security.get-task-allow: notarization rejects it"
+    fi
+  done
+fi
+if [ -n "${NOTARY_PROFILE:-}" ]; then
+  # A zip only carries the app to the notary service (a zip can't hold a ticket); the ticket is stapled to the app.
+  ZIP=build/Sukrara-notarize.zip; rm -f "$ZIP"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+  OUT=$(xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait) || true
+  echo "$OUT"
+  rm -f "$ZIP"
+  if ! echo "$OUT" | grep -q 'status: Accepted'; then
+    SUB=$(echo "$OUT" | awk '/^ *id:/{print $2; exit}')
+    [ -n "$SUB" ] && xcrun notarytool log "$SUB" --keychain-profile "$NOTARY_PROFILE" >&2
+    die "notarization of $APP failed (log above)"
+  fi
+  xcrun stapler staple "$APP"
+  xcrun stapler validate "$APP"
+  spctl -a -vv "$APP"
+fi
+echo "built $APP (signed: $SIGN_ID, team $TEAM_ID, group $GROUP$( [ "${WIDGETS:-1}" != 0 ] && echo ', with widgets')$( [ -n "${NOTARY_PROFILE:-}" ] && echo ', notarized + stapled'))"

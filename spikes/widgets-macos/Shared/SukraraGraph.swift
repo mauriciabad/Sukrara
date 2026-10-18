@@ -1033,7 +1033,8 @@ enum StatusBadge {
         else if h <= maxW { words = nil }
         else { return 0 }
         let icon = h * 0.62, f = font(h)
-        let w = words.map { h * 0.4 + icon + h * 0.25 + Ink.width($0, f) + h * 0.45 } ?? h
+        let pad: CGFloat = h * 0.4 + h * 0.25 + h * 0.45          // split up: CI's compiler times out on one expression
+        let w: CGFloat = words.map { (s: String) -> CGFloat in pad + icon + Ink.width(s, f) } ?? h
         if cut { ctx.beginTransparencyLayer(in: CGRect(x: x, y: y, width: w, height: h), auxiliaryInfo: nil) }
         defer { if cut { ctx.endTransparencyLayer() } }
         ctx.saveGState()

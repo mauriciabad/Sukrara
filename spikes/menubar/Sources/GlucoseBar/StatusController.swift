@@ -18,11 +18,16 @@ extension Bands {
 final class StatusController: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
-    private let valueLine = NSMenuItem(), sourceLine = NSMenuItem(), errorLine = NSMenuItem()
+    /// The glance (HIG "The menu bar" › Menu bar extras: a menu, not a popover): the card, one status block, the
+    /// 24 h treatments with "Log Treatment…", then the report, Settings… and Quit. Everything that configures the
+    /// app lives in the Settings window (HIG "Settings": general, infrequently changed options; ⌘,).
     private let chartItem = NSMenuItem()
-    private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 368, height: 200))
-    private let reportItem = NSMenuItem()
-    private let report = ReportView(frame: NSRect(x: 0, y: 0, width: 368, height: 300))   // investigation 18
+    private let chart = CardView(frame: NSRect(x: 0, y: 0, width: 368, height: 212))
+    private let infoItem = NSMenuItem()
+    private let info = InfoView()
+    private let treatmentsHeader = NSMenuItem.sectionHeader(title: "Treatments (24 h)")
+    private let logItem = NSMenuItem(title: "Log Treatment…", action: nil, keyEquivalent: "l")
+    private let followItem = NSMenuItem(title: "Follow Someone…", action: nil, keyEquivalent: "")
 
     var unit: GlucoseUnit = .mgdl
     /// Investigation 16: ranges, window, rings, side (UserDefaults, `menubarHours` over `graphHours`).
@@ -31,21 +36,18 @@ final class StatusController: NSObject, NSMenuDelegate {
     var history: (() -> [GraphReading])?
     /// A window's numbers (rings, gauges, the report) from the readings store.
     var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
-    /// The report's window, days (`reportDays`, 1|7|14|30, default 14).
-    var reportDays: Int {
-        let d = UserDefaults.standard.integer(forKey: "reportDays")
-        return [1, 7, 14, 30].contains(d) ? d : 14
-    }
-    /// The graph settings changed in the "Graph" submenu (the widget feed re-publishes).
+    /// The graph settings changed (Settings › Graph): the widget feed re-publishes.
     var onGraphChange: (() -> Void)?
-    var onRefresh: (() -> Void)?
-
-    // Protocol v2 follower (NostrV2.swift): "Follow someone…" / status line / "Stop following".
+    /// A new reading or source state: the open Settings and Report windows follow.
+    var onUpdate: (() -> Void)?
     var onFollow: (() -> Void)?
-    var onFollowQR: (() -> Void)?
-    var onUnfollow: (() -> Void)?
-    private let followLine = NSMenuItem()
-    private var unfollowItem: NSMenuItem?
+    var onSettings: (() -> Void)?
+    var onReport: (() -> Void)?
+
+    /// The protocol v2 follow state line ("Following Ana · key epoch 2 · 4 relays"), nil when not following.
+    private(set) var followText: String?
+    private(set) var followImage: NSImage?
+    var onFollowChange: (() -> Void)?
 
     // Treatments (spikes/libreview/SPEC.md). Section hidden while `treatments` is nil.
     var treatments: (() -> [Treatment])?
@@ -58,12 +60,12 @@ final class StatusController: NSObject, NSMenuDelegate {
     /// Per-entry delivery status ("BT ✓ · v2 accepted ✓ · LV ⇡") and its long form for the row's submenu.
     var treatmentStatus: ((Treatment) -> String)?
     var treatmentDetails: ((Treatment) -> [String])?
-    private let treatmentsHeader = NSMenuItem()
-    private var treatmentItems: [NSMenuItem] = [], pathItems: [NSMenuItem] = []
-    private var logItem: NSMenuItem?
+    private var treatmentItems: [NSMenuItem] = []
+    /// The menu lists at most this many of the last 24 h's entries (HIG "Menus": be mindful of menu length).
+    static let maxTreatmentRows = 6
 
     private(set) var snapshot: Snapshot?
-    private var lastError: String?
+    private(set) var lastError: String?
     private var tick: Timer?, freshTimer: Timer?
 
     override init() {
@@ -71,40 +73,31 @@ final class StatusController: NSObject, NSMenuDelegate {
         item.button?.imagePosition = .imageTrailing
         item.button?.title = "…"
         item.button?.toolTip = "Sukrara"
-        for line in [valueLine, sourceLine, errorLine] { line.isEnabled = false }
         chartItem.view = chart
-        menu.addItem(valueLine)
+        infoItem.view = info
         menu.addItem(chartItem)
-        reportItem.view = report
-        reportItem.isHidden = true
-        menu.addItem(reportItem)
-        menu.addItem(sourceLine)
-        menu.addItem(errorLine)
-        followLine.isEnabled = false
-        followLine.isHidden = true
-        menu.addItem(followLine)
+        menu.addItem(infoItem)
         menu.addItem(.separator())
-        treatmentsHeader.isEnabled = false
-        let log = menu.addItem(withTitle: "Log treatment…", action: #selector(logTreatment), keyEquivalent: "l")
-        log.target = self
-        logItem = log
         menu.addItem(treatmentsHeader)
+        logItem.target = self
+        logItem.action = #selector(logTreatment)
+        menu.addItem(logItem)
+        followItem.target = self
+        followItem.action = #selector(follow)
+        menu.addItem(followItem)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Follow someone…", action: #selector(follow), keyEquivalent: "f").target = self
-        menu.addItem(withTitle: "Follow from QR image…", action: #selector(followQR), keyEquivalent: "").target = self
-        let stop = NSMenuItem(title: "Stop following", action: #selector(unfollow), keyEquivalent: "")
-        stop.target = self
-        stop.isHidden = true
-        menu.addItem(stop)
-        unfollowItem = stop
+        menu.addItem(withTitle: "Glucose Report…", action: #selector(report), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
-        let graphItem = NSMenuItem(title: "Graph", action: nil, keyEquivalent: "")
-        graphItem.submenu = graphMenu
-        menu.addItem(graphItem)
-        menu.addItem(withTitle: "Refresh now", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.autoenablesItems = false
         menu.delegate = self
         item.menu = menu
+        // Increase Contrast / Reduce Transparency switch the card's palette and platter at once.
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+                                                          object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.chart.needsDisplay = true }
+        }
         render()
     }
 
@@ -112,35 +105,29 @@ final class StatusController: NSObject, NSMenuDelegate {
         snapshot = snap
         lastError = nil
         render()
+        onUpdate?()
     }
 
     func fail(_ message: String) {
         lastError = message
         render()
+        onUpdate?()
     }
 
-    @objc private func refresh() { onRefresh?() }
     @objc private func follow() { onFollow?() }
-    @objc private func followQR() { onFollowQR?() }
-    @objc private func unfollow() { onUnfollow?() }
+    @objc private func settings() { onSettings?() }
+    @objc private func report() { onReport?() }
 
-    /// An extra item ("Alerts…") right after the follow section.
-    func addItem(_ item: NSMenuItem) {
-        guard let stop = unfollowItem, let i = menu.items.firstIndex(of: stop) else { return menu.addItem(item) }
-        menu.insertItem(item, at: i + 1)
-    }
-
-    /// nil hides the line (not following anyone over v2).
+    /// nil = not following anyone over v2.
     func setFollow(_ text: String?, image: NSImage? = nil) {
-        followLine.isHidden = text == nil
-        followLine.title = text ?? ""
-        followLine.image = image
-        unfollowItem?.isHidden = text == nil
+        followText = text
+        followImage = image
+        render()
+        onFollowChange?()
     }
 
     // The card redraws while the menu is open (its graph moves with the clock); closed, only the freshness timer runs.
     func menuWillOpen(_ menu: NSMenu) {
-        guard menu === self.menu else { return }
         render()
         let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.render() }
         RunLoop.main.add(t, forMode: .common)     // .common: menus track in event-tracking mode
@@ -148,23 +135,22 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        guard menu === self.menu else { return }
         tick?.invalidate(); tick = nil
     }
 
+    /// "Bluetooth · Tartaruga" or "No data yet"; the Settings window's General pane shows it too.
+    var sourceText: String { snapshot.map { $0.source } ?? "No data yet" }
+
     private func render() {
         renderTreatments()
+        renderInfo()
         guard let button = item.button else { return }
+        // First run: nothing to show and nobody followed yet, so the way in sits in the menu itself.
+        followItem.isHidden = snapshot != nil || followText != nil
         guard let snap = snapshot else {
             button.attributedTitle = NSAttributedString(string: lastError == nil ? "…" : "⚠︎")
             button.image = nil
-            valueLine.isHidden = false
-            valueLine.title = "No data yet"
             chartItem.isHidden = true
-            reportItem.isHidden = true
-            sourceLine.isHidden = true
-            errorLine.isHidden = lastError == nil
-            errorLine.title = "Error: " + (lastError ?? "")
             return
         }
         let age = Date().timeIntervalSince(snap.latest.date)
@@ -187,9 +173,9 @@ final class StatusController: NSObject, NSMenuDelegate {
         button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
         button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
         button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
+        button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unit == .mgdl ? "mg/dL" : "mmol/L")" : "Glucose: no recent reading")
 
         // The card carries the value, its time when late, the rings and the graph: no separate lines.
-        valueLine.isHidden = true
         chartItem.isHidden = false
         var g = graph.graphStyle()
         g.hour24 = GraphStyle.systemHour24
@@ -200,237 +186,33 @@ final class StatusController: NSObject, NSMenuDelegate {
         chart.readings = pts
         chart.marks = marks()
         chart.metricsOf = metricsOf.map { f in { spec, b in f(spec.window, b) } }
-        if let f = metricsOf {
-            report.bands = graph.bands
-            report.days = reportDays
-            report.metrics = f(TimeInterval(reportDays) * 86400, graph.bands)
-            report.setFrameSize(NSSize(width: 340 + 28, height: report.fittingHeight()))
-            reportItem.isHidden = false
-        } else {
-            reportItem.isHidden = true
-        }
         chart.needsDisplay = true
-        sourceLine.isHidden = false
-        sourceLine.title = "Source: \(snap.source)"
-        errorLine.isHidden = lastError == nil
-        errorLine.title = "Last poll failed: " + (lastError ?? "")
         if let path = UserDefaults.standard.string(forKey: "snapshot") {
             if let button = item.button { dump(button, to: path) }
             dump(chart, to: path.replacingOccurrences(of: ".png", with: "-chart.png"))
         }
     }
 
+    /// Under the card: where the readings come from, the follow state, a failed poll, and why logging is off.
+    private func renderInfo() {
+        var lines: [(String, NSColor)] = []
+        if let snap = snapshot { lines.append(("Source: \(snap.source)", .secondaryLabelColor)) }
+        else { lines.append(("No data yet", .secondaryLabelColor)) }
+        if let f = followText { lines.append((f, f.hasPrefix("⚠︎") ? .systemOrange : .secondaryLabelColor)) }
+        if let e = lastError { lines.append(((snapshot == nil ? "Error: " : "Last poll failed: ") + e, .systemRed)) }
+        if treatments != nil, let p = treatmentPaths?(), !p.canLog { lines.append((TreatmentPaths.notAllowed, .secondaryLabelColor)) }
+        info.set(lines, image: followImage)
+    }
+
     private func marks() -> [GraphMark] {
         (treatments?() ?? []).filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
     }
 
-    // MARK: graph settings (investigation 16)
-
-    private lazy var graphMenu: NSMenu = {
-        let m = NSMenu()
-        m.delegate = self
-        return m
-    }()
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu === graphMenu else { return }
-        menu.removeAllItems()
-        func header(_ t: String) { let i = menu.addItem(withTitle: t, action: nil, keyEquivalent: ""); i.isEnabled = false }
-        func option(_ t: String, _ on: Bool, _ key: String, _ value: Any) {
-            let i = menu.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
-            i.target = self
-            i.state = on ? .on : .off
-            i.indentationLevel = 1
-            i.representedObject = [key, value]
-        }
-        header("Graph window")
-        for h in GraphConfig.windowHours { option("\(h) h", graph.hours == h, "graphHours", h) }
-        header("Beside the value")
-        func slotName(_ r: RingSpec) -> String { r.kind == .tir ? "TIR \(r.period)" : "\(r.kind.short) \(r.period)" }
-        for n in 0...3 { option(n == 0 ? "None" : "\(n): " + graph.slots.prefix(n).map(slotName).joined(separator: " + "), graph.ringCount == n, "ringCount", n) }
-        // Each slot: what it shows, its window, and whether it's drawn fainter than the main one.
-        for (i, slot) in graph.slots.enumerated() {
-            let item = menu.addItem(withTitle: "\(["Main", "Second", "Third"][i]): \(slotName(slot))", action: nil, keyEquivalent: "")
-            item.indentationLevel = 1
-            let sub = NSMenu()
-            func add(_ t: String, _ on: Bool, _ field: String, _ value: Any) {
-                let o = sub.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
-                o.target = self
-                o.state = on ? .on : .off
-                o.representedObject = ["slot", i, field, value]
-            }
-            for k in SlotKind.allCases { add(k.label, slot.kind == k, "kind", k.rawValue) }
-            sub.addItem(.separator())
-            for w in GraphConfig.ringChoices { add(periodLabel(w), slot.window == w, "window", w) }
-            sub.addItem(.separator())
-            add("Fainter (second and third)", slot.faded, "faded", !slot.faded)
-            item.submenu = sub
-        }
-        // The last-treatment slot (2026-10-18): where it sits, and what it shows while there's no recent treatment.
-        let lastItem = menu.addItem(withTitle: "Last treatment: \(graph.lastPlace.label)", action: nil, keyEquivalent: "")
-        lastItem.indentationLevel = 1
-        let lastMenu = NSMenu()
-        func lastOption(_ t: String, _ on: Bool, _ value: [Any]) {
-            let o = lastMenu.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
-            o.target = self
-            o.state = on ? .on : .off
-            o.representedObject = value
-        }
-        for p in LastPlace.allCases { lastOption(p.label, graph.lastPlace == p, ["lastPlace", p.rawValue]) }
-        lastMenu.addItem(.separator())
-        let elseHeader = lastMenu.addItem(withTitle: "Without a recent treatment: " + (graph.lastElse.map(slotName) ?? "nothing"),
-                                          action: nil, keyEquivalent: "")
-        elseHeader.isEnabled = false
-        lastOption("Nothing", graph.lastElse == nil, ["lastElse", ""])
-        let fb = graph.lastElse ?? GraphConfig.defaultLastElse
-        func spec(_ f: (inout RingSpec) -> Void) -> String { var r = fb; f(&r); return GraphConfig.slotsText([r]) }
-        for k in SlotKind.allCases { lastOption(k.label, graph.lastElse?.kind == k, ["lastElse", spec { $0.kind = k }]) }
-        lastMenu.addItem(.separator())
-        for w in GraphConfig.ringChoices { lastOption(periodLabel(w), graph.lastElse?.window == w, ["lastElse", spec { $0.window = w }]) }
-        lastMenu.addItem(.separator())
-        lastOption("Fainter", graph.lastElse?.faded == true, ["lastElse", spec { $0.faded = !fb.faded }])
-        lastItem.submenu = lastMenu
-        for r in TirRange.allCases { option("Ring number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
-        // The ring's segments clockwise from 12 o'clock: move one earlier or later, or go back to the default.
-        let orderItem = menu.addItem(withTitle: "Ring order", action: nil, keyEquivalent: "")
-        orderItem.indentationLevel = 1
-        let orderMenu = NSMenu()
-        for (i, band) in graph.ringOrder.enumerated() {
-            let item = orderMenu.addItem(withTitle: "\(i + 1). \(band.label)", action: nil, keyEquivalent: "")
-            let sub = NSMenu()
-            for (title, delta) in [("Move earlier", -1), ("Move later", 1)] {
-                let o = sub.addItem(withTitle: title, action: #selector(setGraph(_:)), keyEquivalent: "")
-                o.target = self
-                o.representedObject = ["ringMove", i, delta]
-                o.isEnabled = (0..<6).contains(i + delta)
-            }
-            sub.autoenablesItems = false
-            item.submenu = sub
-        }
-        orderMenu.addItem(.separator())
-        let reset = orderMenu.addItem(withTitle: "Reset order", action: #selector(setGraph(_:)), keyEquivalent: "")
-        reset.target = self
-        reset.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
-        reset.representedObject = ["ringOrderReset", 0]
-        reset.isEnabled = graph.ringOrder != DEFAULT_RING_ORDER
-        orderMenu.autoenablesItems = false
-        orderItem.submenu = orderMenu
-        header("Glucose report")
-        for days in [1, 7, 14, 30] { option("\(days)d", reportDays == days, "reportDays", days) }
-        menu.addItem(.separator())
-        option("Time in range beside the graph", graph.side, "side", !graph.side)
-        // The extra dashed lines: each one checked (pick it to remove it), then "Add line…".
-        let linesItem = menu.addItem(withTitle: "Lines: " + (graph.lines.isEmpty ? "none" : graph.lines.map(String.init).joined(separator: ", ")),
-                                     action: nil, keyEquivalent: "")
-        let linesMenu = NSMenu()
-        for l in graph.lines {
-            let o = linesMenu.addItem(withTitle: "\(l) mg/dL", action: #selector(setGraph(_:)), keyEquivalent: "")
-            o.target = self
-            o.state = .on
-            o.toolTip = "Remove this line"
-            o.representedObject = ["lines", GraphConfig.linesText(graph.lines.filter { $0 != l })]
-        }
-        if !graph.lines.isEmpty { linesMenu.addItem(.separator()) }
-        let add = linesMenu.addItem(withTitle: "Add line…", action: #selector(addGraphLine), keyEquivalent: "")
-        add.target = self
-        add.isEnabled = graph.lines.count < GraphConfig.maxLines
-        if graph.lines != GraphConfig.defaultLines {
-            let o = linesMenu.addItem(withTitle: "Reset to 100", action: #selector(setGraph(_:)), keyEquivalent: "")
-            o.target = self
-            o.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
-            o.representedObject = ["resetKeys", ["lines"]]
-        }
-        linesMenu.autoenablesItems = false
-        linesItem.submenu = linesMenu
-        // Vertical lines: off, or every n hours at least (small charts space them further apart).
-        let gridItem = menu.addItem(withTitle: "Vertical lines: " + (graph.gridHours == 0 ? "off" : "every \(graph.gridHours) h"),
-                                    action: nil, keyEquivalent: "")
-        let gridMenu = NSMenu()
-        for h in GraphConfig.gridChoices {
-            let o = gridMenu.addItem(withTitle: h == 0 ? "Off" : "Every \(h) h", action: #selector(setGraph(_:)), keyEquivalent: "")
-            o.target = self
-            o.state = graph.gridHours == h ? .on : .off
-            o.representedObject = ["gridHours", h]
-        }
-        gridItem.submenu = gridMenu
-        let b = graph.bands
-        let note = menu.addItem(withTitle: "Ranges \(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) · \(b.extremelyHigh) (defaults write band…)",
-                                action: nil, keyEquivalent: "")
-        note.isEnabled = false
-        let d = UserDefaults.standard
-        let bandKeys = ["bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh"]
-        let resetRanges = menu.addItem(withTitle: "Reset ranges to 54 · 70 · 140 · 180 · 250 · 300", action: #selector(setGraph(_:)), keyEquivalent: "")
-        resetRanges.target = self
-        resetRanges.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
-        resetRanges.representedObject = ["resetKeys", bandKeys]
-        resetRanges.isHidden = !bandKeys.contains { d.object(forKey: $0) != nil }
-        menu.addItem(.separator())
-        let all = menu.addItem(withTitle: "Reset all graph settings", action: #selector(setGraph(_:)), keyEquivalent: "")
-        all.target = self
-        all.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: nil)
-        all.representedObject = ["resetKeys", Self.graphKeys]
-        all.isEnabled = Self.graphKeys.contains { d.object(forKey: $0) != nil }
-    }
-
-    /// Every graph setting (UserDefaults); "Reset all graph settings" removes them.
+    /// Every graph setting (UserDefaults); "Reset All Graph Settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "reportDays", "lastPlace", "lastElse"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse"]
 
-    @objc private func setGraph(_ sender: NSMenuItem) {
-        guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
-        if key == "ringMove", let i = kv[1] as? Int, let delta = kv[2] as? Int, (0..<6).contains(i + delta) {
-            var o = graph.ringOrder
-            o.swapAt(i, i + delta)
-            UserDefaults.standard.set(ringOrderText(o), forKey: "ringOrder")
-            reloadGraph()
-            return
-        }
-        if key == "resetKeys", let keys = kv[1] as? [String] {
-            keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-            reloadGraph()
-            return
-        }
-        if key == "ringOrderReset" {
-            UserDefaults.standard.removeObject(forKey: "ringOrder")
-            reloadGraph()
-            return
-        }
-        if key == "slot", let i = kv[1] as? Int, let field = kv[2] as? String {
-            var slots = graph.slots
-            switch field {
-            case "kind": slots[i].kind = SlotKind(rawValue: kv[3] as? String ?? "") ?? .tir
-            case "window": slots[i].window = kv[3] as? TimeInterval ?? slots[i].window
-            default: slots[i].faded = kv[3] as? Bool ?? true
-            }
-            UserDefaults.standard.set(GraphConfig.slotsText(slots), forKey: "slots")
-            reloadGraph()
-            return
-        }
-        UserDefaults.standard.set(kv[1], forKey: key)
-        if key == "graphHours" { UserDefaults.standard.removeObject(forKey: "menubarHours") }
-        reloadGraph()
-    }
-
-    /// "Add line…": one more dashed line across the graph, mg/dL.
-    @objc private func addGraphLine() {
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 22))
-        field.placeholderString = "mg/dL"
-        let alert = NSAlert()
-        alert.messageText = "Add a line to the graph"
-        alert.informativeText = "A dashed line across the graph at this level " +
-            "(\(GraphConfig.lineRange.lowerBound)–\(GraphConfig.lineRange.upperBound) mg/dL)."
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Add")
-        alert.addButton(withTitle: "Cancel")
-        alert.window.initialFirstResponder = field
-        NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn,
-              let v = Int(field.stringValue.trimmingCharacters(in: .whitespaces)), GraphConfig.lineRange.contains(v) else { return }
-        UserDefaults.standard.set(GraphConfig.linesText(GraphConfig.parseLines(GraphConfig.linesText(graph.lines + [v]))), forKey: "lines")
-        reloadGraph()
-    }
-
-    /// Settings changed (submenu or `defaults write`): redraw and re-publish to the widgets.
+    /// Settings changed (Settings › Graph or `defaults write`): redraw and re-publish to the widgets.
     func reloadGraph() {
         graph = GraphConfig.load(place: "menubar")
         render()
@@ -452,35 +234,30 @@ final class StatusController: NSObject, NSMenuDelegate {
     private func renderTreatments() {
         treatmentItems.forEach(menu.removeItem)
         treatmentItems = []
-        pathItems.forEach(menu.removeItem)
-        pathItems = []
         let hidden = treatments == nil
-        for i in menu.items where i.action == #selector(logTreatment) { i.isHidden = hidden }
-        treatmentsHeader.isHidden = hidden
-        guard let rows = treatments?() else { return }
-        // Where a new entry goes: v2 (as a roster writer), else nowhere (local when following no one).
+        logItem.isHidden = hidden
+        guard let rows = treatments?() else { treatmentsHeader.isHidden = true; return }
+        // Where a new entry goes: v2 (as a roster writer), else nowhere (local when following no one); the info
+        // block under the card says why the item is dimmed.
         let paths = treatmentPaths?() ?? TreatmentPaths()
-        logItem?.isEnabled = paths.canLog
-        logItem?.title = "Log treatment…"
-        if let logItem {
-            var at = menu.index(of: logItem) + 1
-            for line in (paths.canLog ? [] : [TreatmentPaths.notAllowed]) + paths.lines {
-                let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-                item.isEnabled = false
-                item.indentationLevel = 1
-                menu.insertItem(item, at: at)
-                pathItems.append(item)
-                at += 1
-            }
-        }
+        logItem.isEnabled = paths.canLog
+        logItem.toolTip = paths.canLog ? paths.lines.first : TreatmentPaths.notAllowed
         let since = Int64(Date().timeIntervalSince1970) - 24 * 3600
         let recent = rows.filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
-        treatmentsHeader.title = recent.isEmpty ? "No treatments in the last 24 h" : "Treatments (24 h)"
+        treatmentsHeader.isHidden = recent.isEmpty
         var at = menu.index(of: treatmentsHeader) + 1
-        for t in recent {
+        for t in recent.prefix(Self.maxTreatmentRows) {
             let state = treatmentStatus?(t) ?? ""
-            let row = NSMenuItem(title: Self.describe(t) + (state.isEmpty ? "" : "   " + state), action: nil, keyEquivalent: "")
+            let row = NSMenuItem(title: Self.describe(t), action: nil, keyEquivalent: "")
+            // The delivery state in the secondary label colour, so the entry itself reads first.
+            let title = NSMutableAttributedString(string: Self.describe(t), attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            if !state.isEmpty {
+                title.append(NSAttributedString(string: "   " + state, attributes: [.font: NSFont.menuFont(ofSize: 0),
+                                                                                    .foregroundColor: NSColor.secondaryLabelColor]))
+            }
+            row.attributedTitle = title
             let sub = NSMenu()
+            sub.autoenablesItems = false
             for line in treatmentDetails?(t) ?? [] {
                 let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
                 item.isEnabled = false
@@ -493,7 +270,7 @@ final class StatusController: NSObject, NSMenuDelegate {
                 del.representedObject = t.id
                 sub.addItem(del)
             }
-            row.submenu = sub
+            if !sub.items.isEmpty { row.submenu = sub } else { row.isEnabled = false }
             menu.insertItem(row, at: at)
             treatmentItems.append(row)
             at += 1
@@ -536,7 +313,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         [kind, amount, note, when].forEach(view.addSubview)
 
         let alert = NSAlert()
-        alert.messageText = "Log treatment"
+        alert.messageText = "Log Treatment"
         let paths = treatmentPaths?() ?? TreatmentPaths()
         guard paths.canLog else { return }               // the menu item is disabled then; a shortcut could still land here
         alert.informativeText = paths.lines.isEmpty ? "Kept on this Mac (no phone linked)." : paths.lines.joined(separator: "\n")
@@ -563,6 +340,91 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 }
 
+/// The graph on Mac surfaces that sit on a translucent material (the menubar dropdown, the report window).
+///
+/// The shared palette (SukraraGraph.swift) is tuned for an opaque ground — the Android app and widgets, the Mac
+/// widgets — so here the card gets that ground back as a platter: HIG "Materials" (thicker, more opaque materials give
+/// better contrast for fine features; the graph's range colours can't be vibrant) and "Accessibility" (WCAG AA
+/// contrast; a higher-contrast variant when Increase Contrast is on). Mac-only: Android has no menu material.
+enum MacSurface {
+    static var increaseContrast: Bool { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast }
+    static var reduceTransparency: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
+
+    /// The shared palette; with Increase Contrast the secondary ink and the grid get much stronger (≥ 7:1 and ≥ 3:1
+    /// against the platter instead of ~5:1 and ~1.5:1).
+    static func palette(dark: Bool, increaseContrast hc: Bool = increaseContrast) -> GraphPalette {
+        var p = GraphPalette.of(dark: dark)
+        if hc {
+            p.inkSoft = dark ? GraphPalette.hex(0xD8D8DC) : GraphPalette.hex(0x3C3C40)
+            p.grid = dark ? GraphPalette.hex(0x7C7C82) : GraphPalette.hex(0x8A8A90)
+        }
+        return p
+    }
+
+    /// The platter: the palette's own background (the ground every colour was checked against), 94 % opaque so
+    /// the menu still reads as one surface, fully opaque with Reduce Transparency or Increase Contrast (which also
+    /// gets a hairline border, like the system's own high-contrast outlines).
+    static func drawPlatter(_ ctx: CGContext, _ rect: CGRect, _ pal: GraphPalette, radius: CGFloat = 10,
+                            reduceTransparency rt: Bool = reduceTransparency, increaseContrast hc: Bool = increaseContrast) {
+        let path = CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
+        ctx.addPath(path)
+        ctx.setFillColor(pal.bg.copy(alpha: rt || hc ? 1 : 0.94) ?? pal.bg)
+        ctx.fillPath()
+        if hc {
+            ctx.addPath(CGPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerWidth: radius, cornerHeight: radius, transform: nil))
+            ctx.setStrokeColor(pal.ink.copy(alpha: 0.45) ?? pal.ink)
+            ctx.setLineWidth(1)
+            ctx.strokePath()
+        }
+    }
+}
+
+/// The lines under the card: source, follow state, a failed poll, why logging is off. Real labels in the system's
+/// label colours (vibrant on the menu material, adapted by Increase Contrast), not disabled menu items, whose dimmed
+/// text is meant for unavailable commands (HIG "Menus").
+final class InfoView: NSView {
+    private let stack = NSStackView()
+    private let icon = NSImageView()
+
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: 368, height: 20))
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -14),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+        ])
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func set(_ lines: [(String, NSColor)], image: NSImage?) {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for (i, (text, color)) in lines.enumerated() {
+            let f = NSTextField(wrappingLabelWithString: text)
+            f.font = .menuFont(ofSize: NSFont.smallSystemFontSize + 1)
+            f.textColor = color
+            f.preferredMaxLayoutWidth = 340
+            f.isSelectable = false
+            // The follow line carries the wearer's avatar, like the phone's follower list.
+            if i == 1, let image, !text.hasPrefix("Last poll") {
+                let iv = NSImageView(image: image)
+                iv.setContentHuggingPriority(.required, for: .horizontal)
+                let row = NSStackView(views: [iv, f])
+                row.spacing = 5
+                stack.addArrangedSubview(row)
+            } else {
+                stack.addArrangedSubview(f)
+            }
+        }
+        layoutSubtreeIfNeeded()
+        setFrameSize(NSSize(width: 368, height: stack.fittingSize.height + 8))
+    }
+}
+
 /// The dropdown's glucose card (investigation 16): value, trend arrow, time-in-range rings and the graph with its side
 /// profile, drawn by the shared renderer (SukraraGraph.swift) like the widgets and Sukrara for Android.
 final class CardView: NSView {
@@ -573,21 +435,33 @@ final class CardView: NSView {
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
-    var inset = NSEdgeInsets(top: 6, left: 14, bottom: 4, right: 14)
+    var inset = NSEdgeInsets(top: 10, left: 16, bottom: 8, right: 16)
+    /// Horizontal inset of the platter from the view's edge; nil = no platter (previews of the old look).
+    var platterInset: CGFloat? = 5
+    /// Previews: force the accessibility display options instead of reading the system's.
+    var increaseContrast: Bool?, reduceTransparency: Bool?
 
     override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let hc = increaseContrast ?? MacSurface.increaseContrast
+        var pal = MacSurface.palette(dark: dark, increaseContrast: hc)
+        if platterInset == nil { pal = GraphPalette.of(dark: dark); pal.bg = dark ? GraphPalette.hex(0x2A2A2C) : GraphPalette.hex(0xF0F0F0) }
+        // The platter sits where the menu draws its rounded selection, 5 pt in from the menu's edge.
+        if let p = platterInset {
+            MacSurface.drawPlatter(ctx, bounds.insetBy(dx: p, dy: 0), pal,
+                                   reduceTransparency: reduceTransparency ?? MacSurface.reduceTransparency, increaseContrast: hc)
+        }
         let r = NSRect(x: inset.left, y: inset.top, width: bounds.width - inset.left - inset.right,
                        height: bounds.height - inset.top - inset.bottom)
-        var pal = GraphPalette.of(dark: dark)
-        pal.bg = dark ? GraphPalette.hex(0x2A2A2C) : GraphPalette.hex(0xF0F0F0)   // the menu's material, for the last dot's halo
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
         GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
                          style, pal, metricsOf: metricsOf, alerts: alerts)
         ctx.restoreGState()
     }
+
+    override func viewDidChangeEffectiveAppearance() { needsDisplay = true }
 }

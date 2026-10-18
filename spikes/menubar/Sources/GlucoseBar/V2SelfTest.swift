@@ -108,6 +108,18 @@ enum V2SelfTest {
             check("a later notice doesn't change an ended request", n2.phase == .ended(used: true))
             n2.stop()
         } else { check("second follower node", false) }
+        // PROTOCOL-v2 "Missing history": whole hours of the last 12 without a reading, only while the stream is live
+        let h0 = now - now % 3600
+        let full = (0..<(14 * 60)).map { TimeInterval(now - $0 * 60) }
+        check("no missing hours when every hour has readings", FollowerV2.missingHours(stored: full, now: now) == [])
+        let holed = full.filter { !(h0 - 5 * 3600 ..< h0 - 3 * 3600).contains(Int($0)) }
+        check("two empty hours found",
+              FollowerV2.missingHours(stored: holed, now: now).map { Set($0) } == [h0 - 5 * 3600, h0 - 4 * 3600])
+        check("stale stream (newest > 15 min) → no request", FollowerV2.missingHours(stored: full.map { $0 - 1200 }, now: now) == nil)
+        check("chunk since: ≥ 13 h back", FollowerV2.chunkSince(newestStored: now - 60, now: now) == now - 13 * 3600)
+        check("chunk since: from an hour before the newest stored", FollowerV2.chunkSince(newestStored: now - 86400, now: now) == now - 90000)
+        check("chunk since: capped at the 7-day expiry", FollowerV2.chunkSince(newestStored: now - 30 * 86400, now: now) == now - 7 * 86400)
+        check("chunk since: nothing stored → 13 h", FollowerV2.chunkSince(newestStored: nil, now: now) == now - 13 * 3600)
         print(ok ? "v2 self-test OK" : "v2 self-test FAILED")
         return ok
     }
