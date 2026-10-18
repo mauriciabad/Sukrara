@@ -89,7 +89,8 @@ fun GraphScreen(onBack: () -> Unit) {
     }
     // and one for numbers, which also take a custom value
     var numPick by remember { mutableStateOf<NumPick?>(null) }
-    val hoursRange = NumberRange(WINDOW_HOURS_RANGE.first.toDouble(), WINDOW_HOURS_RANGE.last.toDouble(), "h")
+    val daysUnit = androidx.compose.ui.res.stringResource(R.string.unit_d)
+    val hoursRange = NumberRange(WINDOW_HOURS_RANGE.first.toDouble(), WINDOW_HOURS_RANGE.last.toDouble(), androidx.compose.ui.res.stringResource(R.string.unit_h))
 
     SettingsPage("Graph & time in range", onBack) {
         // the real panel as the page's live preview (AOSP IllustrationPreference: "at the top of the screen")
@@ -156,7 +157,7 @@ fun GraphScreen(onBack: () -> Unit) {
                 }
                 value("$name: period", periodLabel(slot.windowS)) {
                     numPick = NumPick("$name: period", RING_WINDOWS_S.map { it.toInt() }, slot.windowS.toInt(), { periodLabel(it.toLong()) },
-                        NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), "d", scale = 86400.0)) { w ->
+                        NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), daysUnit, scale = 86400.0)) { w ->
                         setSlot { s -> s.copy(windowS = w.toLong()) }
                     }
                 }

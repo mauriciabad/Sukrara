@@ -26,6 +26,10 @@
     <!-- Alerts settings -->
     <!-- Unit: minutes, after a number. [CHAR LIMIT=10] -->
     <string name="unit_min">min</string>
+    <!-- Unit: hours, after a number. [CHAR LIMIT=10] -->
+    <string name="unit_h">h</string>
+    <!-- Unit: days, after a number. [CHAR LIMIT=10] -->
+    <string name="unit_d">days</string>
     <!-- Title of the alerts settings page; matches the row that opens it. [CHAR LIMIT=40] -->
     <string name="alerts_title">Alerts</string>
     <!-- Status card on the alerts page when no alert is active. [CHAR LIMIT=NONE] -->
