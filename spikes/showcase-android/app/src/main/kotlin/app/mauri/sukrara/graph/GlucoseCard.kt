@@ -291,8 +291,8 @@ object GlucoseCard {
         val tw = p.measureText(w.sensorEnded) + flagW()
         if (tw > box.width() - iconRoom) p.textSize *= ((box.width() - iconRoom) / tw).coerceAtLeast(0.45f)
         val base = textBox.centerY() + p.textSize * 0.36f
-        val fs = p.textSize * 0.95f
-        SensorBadge.flag(cv, box.left - fs * 0.12f, base - p.textSize * 0.72f - (fs - p.textSize * 0.72f) / 2, fs, pal.inkSoft)
+        val fs = p.textSize * 1.2f   // sports_score fills ~2/3 of its box
+        SensorBadge.flag(cv, box.left - fs * 0.2f, base - p.textSize * 0.72f - (fs - p.textSize * 0.72f) / 2, fs, pal.inkSoft)
         cv.drawText(w.sensorEnded, box.left + flagW(), base, p)
         if (row) StatusBadge.draw(cv, box.left, textBox.bottom + badgeH * 0.25f, badgeH, box.width(), pill, pal.dark)
         else {

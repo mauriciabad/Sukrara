@@ -37,12 +37,11 @@ object SensorLife {
     val COUNTDOWN_RANGE = 1..24
 
     /**
-     * The "sensor ended" glyph, a checkered flag in a 24×24 box: [FLAG_FILL] filled (pole + dark squares) and
-     * [FLAG_OUTLINE] stroked 1.2 wide. `res/drawable/ic_stat_sensor_ended.xml` (notification icon, root status-bar slot)
-     * has the same shapes; the SystemUI hook draws them in code; the Mac uses SF Symbol `flag.checkered`.
+     * The "sensor ended" glyph: Material Symbols Outlined `sports_score` (Apache 2.0), viewBox 0 -960 960 960. Also
+     * `res/drawable/ic_stat_sensor_ended.xml` (notification icon, root status-bar slot, card, settings); the SystemUI hook
+     * and the canvas card draw this path; the Mac uses SF Symbol `flag.checkered`.
      */
-    const val FLAG_FILL = "M4,3h1.6v18H4z M5.6,4h4.8v4.5H5.6z M15.2,4H20v4.5h-4.8z M10.4,8.5h4.8V13h-4.8z"
-    const val FLAG_OUTLINE = "M6.2,4.6H19.4V12.4H6.2Z"
+    const val FLAG_PATH = "M360-720h80v-80h-80v80Zm160 0v-80h80v80h-80ZM360-400v-80h80v80h-80Zm320-160v-80h80v80h-80Zm0 160v-80h80v80h-80Zm-160 0v-80h80v80h-80Zm160-320v-80h80v80h-80Zm-240 80v-80h80v80h-80ZM200-160v-640h80v80h80v80h-80v80h80v80h-80v320h-80Zm400-320v-80h80v80h-80Zm-160 0v-80h80v80h-80Zm-80-80v-80h80v80h-80Zm160 0v-80h80v80h-80Zm80-80v-80h80v80h-80Z"
 
     private const val PREFS = "sensor_life"
     private const val KEY_COUNTDOWN = "countdown_hours"
