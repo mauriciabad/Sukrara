@@ -22,6 +22,8 @@ object Kind {
     val RATES = listOf(FALLING_FAST, RISING_FAST)
     /** What the high-side mute rules can quiet. Extremely high is never muted, like urgent low. */
     val HIGH_SIDE = setOf(HIGH, VERY_HIGH)
+    /** Alerts below a threshold (strictly `<`); the rest of the levels are `>=`. */
+    val LOW_SIDE = setOf(URGENT_LOW, LOW)
 
     fun label(k: String) = when (k) {
         URGENT_LOW -> "Urgent low"; LOW -> "Low"; HIGH -> "High"; VERY_HIGH -> "Very high"; EXTREMELY_HIGH -> "Extremely high"
