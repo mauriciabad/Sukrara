@@ -120,6 +120,30 @@ GlucoseBar now treats silence as a disconnect: if a connected bridge sends nothi
 1/minute), it drops the peripheral and rescans. Worth remembering for the real Mac app — "still connected" is not
 evidence that data is flowing.
 
+## Fresh activation audit (Libre 3 / 3 Plus, 2026-10-18)
+
+Before the user's first new-sensor start with Sukrara (until now only a takeover had run on a real sensor), the NFC
+start path was checked against Juggluco (`Common/src/libre3/java/tk/glucodata/libre3/NFC.java`, `cpp/libre3/nfc.cpp`,
+`cpp/libre3/dp_activation.hpp`):
+
+- **Command**: `02 A0 7A` + LE32(now − 1) + LE32(receiver ID) + CRC-16 (poly 0x1021, init 0xFFFF, input reflected,
+  output not) over those 8 bytes, little-endian — identical (`DPGetActivationCommandData`). `Libre3NfcTest` checks the
+  three `static_assert` CRCs and Juggluco's logged payload `8C 42 86 62 8D 6D 41 1F BC 93`. Start vs takeover = patch
+  state 1 (`nfc1[17] == 1`), as Juggluco.
+- **Receiver ID — fixed**: Sukrara fell back to its own random ID when no LibreView account was known; a sensor
+  started that way could never be taken over by another app. Now a new sensor only gets the LibreView-derived ID
+  (Juggluco's default `getlibreAccountIDnumber`; its opt-in "New Libre app" ID from Abbott's newer receiver API is
+  not used), and nothing is sent until it is known.
+- **Answer**: 19 bytes `00 | A5 00 | BD address ×6 (reversed) | PIN ×4 | activation time LE32 | CRC`, time ≤ 0 → now;
+  errors `00 A5 01 <code>` (0xB1 = wrong receiver ID; states 6/8 = ended) — identical (`nfc2`, `nfc2error`).
+- **Interrupted tap**: the command is retried only on transient transceive errors (as Juggluco's `wholenfccmd`); a
+  lost tag aborts. A start that reached the sensor but lost its answer leaves it bound to the LibreView ID, so the
+  next tap (state ≠ 1 → `A8` with the same ID) gets the pairing back, with the sensor's own activation time.
+- **First Bluetooth connection**: like Juggluco (`sendstreaming` + a new `libre3stream` right after the NFC answer),
+  Sukrara connects at once (autoConnect) and runs the fresh pairing; during warm-up the client waits for its end.
+- **Sensor life**: start = the activation time in the answer, warm-up = patch info byte 13 × 5 min, wear = patch
+  info LE16 at +6 → `SensorLife` via `onSensor`.
+
 ## Libre 2 / 2 Plus: investigated, discarded (2026-10-18)
 
 Asked when the user's Libre 3 Plus ended and a European Libre 2 Plus was the next sensor. Dropped by the user: an old

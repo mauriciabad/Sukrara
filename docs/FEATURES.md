@@ -110,6 +110,7 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 ## Sensor scan: other sensors
 
 - The Sensor screen's NFC tap checks the chip first (UID maker byte): only 0x7A (Abbott, Libre 3 / 3 Plus) gets Libre 3 commands. 0x07 (Texas Instruments: Libre 1 / 2 / 2 Plus) gets no command at all and shows *Libre 2 sensors aren't supported* — start it with Juggluco, then pick Juggluco as the glucose source — with a *Glucose source* button; any other tag → *Not supported* / "not a FreeStyle Libre 3".
+- Starting a never-started Libre 3 (patch state 1, NFC `A0`) uses only the LibreView account's receiver ID (Juggluco's default), so another app can take the sensor over later; if it isn't known yet, nothing is sent and the screen asks for the LibreView sign-in (*Sign in before starting …*), then a second tap starts it. A takeover (`A8`) still tries the LibreView ID, then Sukrara's own.
 
 ## Settings
 

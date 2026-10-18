@@ -27,6 +27,8 @@ object Libre3Nfc {
         data class Paired(val pairing: SensorPairing, val activated: Boolean, val receiverId: Long) : Result
         /** The sensor is bound to a receiver ID we don't know (started by another app with another account). */
         data class WrongAccount(val serial: String) : Result
+        /** A never-started sensor, but no LibreView receiver ID is known yet: nothing was sent (see [idsToTry]). */
+        data class NeedsAccount(val serial: String) : Result
         data class Ended(val serial: String) : Result
         /** A Libre 1 / 2 / 2 Plus (TI chip): not supported, nothing was sent to it (docs/02, "Libre 2 / 2 Plus"). */
         data object Libre2 : Result
@@ -81,7 +83,7 @@ object Libre3Nfc {
         else -> Chip.OTHER
     }
 
-    fun scan(tag: Tag, candidates: List<Long>, forActivation: Long): Result {
+    fun scan(tag: Tag, candidates: List<Long>, forActivation: Long?): Result {
         when (chip(tag.id)) {
             Chip.LIBRE3 -> Unit
             Chip.LIBRE2 -> return Result.Libre2.also { Log.i(TAG, "Libre 1/2 chip: not supported, nothing sent") }
@@ -101,13 +103,13 @@ object Libre3Nfc {
         }
     }
 
-    private fun run(nfc: NfcV, candidates: List<Long>, forActivation: Long): Result {
+    private fun run(nfc: NfcV, candidates: List<Long>, forActivation: Long?): Result {
         val info = command(nfc, byteArrayOf(0x02, 0xA1.toByte(), 0x7A)) ?: return Result.Failed("no answer from the sensor")
         val p = parsePatchInfo(info) ?: return Result.Unsupported("not a Libre 3 (patch info ${info.size} bytes)")
         Log.i(TAG, "patch info: serial=${p.serial} state=${p.state} product=${p.productType} warmup=${p.warmupMin}min wear=${p.wearMin}min")
         if (p.productType == 9) return Result.Unsupported("Lingo sensors aren't supported")
 
-        val ids = if (p.activate) listOf(forActivation) else candidates
+        val ids = idsToTry(p.activate, candidates, forActivation) ?: return Result.NeedsAccount(p.serial)
         for (id in ids) {
             val now = System.currentTimeMillis() / 1000
             val r = command(nfc, secondCommand(p.activate, id, now))
@@ -127,6 +129,15 @@ object Libre3Nfc {
         }
         return Result.WrongAccount(p.serial)
     }
+
+    /**
+     * The receiver IDs to send. A new sensor is bound for its whole life to the ID it is activated with, and only that
+     * ID can take it over later — so it gets only the LibreView account's (Juggluco's default, `libre3/NFC.java`
+     * `getlibreAccountIDnumber`), never a random one; null (send nothing) while that isn't known. A takeover tries
+     * every candidate: a wrong ID is just refused (0xB1) and changes nothing.
+     */
+    internal fun idsToTry(activate: Boolean, candidates: List<Long>, forActivation: Long?): List<Long>? =
+        if (activate) forActivation?.let { listOf(it) } else candidates
 
     /** Activate (0xA0) or switch receiver (0xA8): now−1 (LE32), receiver ID (LE32), CRC-16 (LE). */
     internal fun secondCommand(activate: Boolean, receiverId: Long, now: Long): ByteArray {

@@ -724,6 +724,10 @@
     <string name="sensor_other_app_title">Sensor %1$s belongs to another app</string>
     <!-- Sensor of another app: why to sign in [CHAR LIMIT=NONE] -->
     <string name="sensor_other_app_text">It was started by LibreLink or Juggluco with a LibreView account. Sign in once with that account so Sukrara can take the sensor over. Sukrara only reads your account number: it uploads nothing, doesn\'t keep your password, and the other app\'s LibreView uploads keep working.</string>
+    <!-- Sensor screen: a never-started sensor needs the LibreView account first; %1$s = serial [CHAR LIMIT=50] -->
+    <string name="sensor_new_account_title">Sign in before starting %1$s</string>
+    <!-- Sensor screen: why the account is needed before starting a sensor; LibreLink, Juggluco, LibreView are names [CHAR LIMIT=NONE] -->
+    <string name="sensor_new_account_text">A new sensor stays tied to the account it starts with. Sign in once with your LibreView account so another app (LibreLink, Juggluco) can take it over later. Sukrara only reads your account number: it uploads nothing. Nothing was sent to the sensor yet.</string>
     <!-- Sensor of another app: email field [CHAR LIMIT=30] -->
     <string name="sensor_libreview_email">LibreView email</string>
     <!-- Sensor of another app: after sign-in [CHAR LIMIT=NONE] -->

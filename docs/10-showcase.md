@@ -404,8 +404,12 @@ Direct mode now does the whole flow itself, like LibreLink or Juggluco:
 
 **Receiver ID.** A Libre 3 remembers a 32-bit receiver ID from the moment it was started, and a takeover only works
 with that same ID. Sukrara has two candidates:
-- its own random ID, made per install;
+- its own random ID, made per install (a takeover candidate only);
 - the ID that LibreLink-era apps and Juggluco derive from the **LibreView account ID**.
+
+A **new** sensor only ever gets the LibreView-derived ID (2026-10-18 audit, docs/02): it stays bound to it for life,
+and with a random ID no other app could ever take it over. Without a known account ID the Sensor screen asks for the
+LibreView sign-in before it sends anything.
 
 Sukrara learns the account ID with a read-only LibreLinkUp sign-in. It keeps only the derived number, not the
 password. Unlike LibreView's app login, this sign-in doesn't make the phone the account's upload device, so
