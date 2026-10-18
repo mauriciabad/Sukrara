@@ -103,7 +103,9 @@ What the widgets do:
   never reloads.
 - **Graph window**: 3 h (small/medium), 6 h (large), 12 h (extra large). The large layouts add % time in range.
 - **Native bits**: `containerBackground(.fill.tertiary, for: .widget)`, `widgetAccentable()` on the
-  value/arrow, a monochrome chart in accented/vibrant mode, and
+  value/arrow, a monochrome chart in accented/vibrant mode (text on filled shapes, like the status badge's words, is
+  knocked out with `.destinationOut` because the tinted modes keep only opacity / luminance; `render treatments`
+  writes `mac-badge-{accented,vibrant}-*.png` and `mac-last-{accented,vibrant}-*.png` to check it), and
   `widgetURL(glucosewidgets://open?from=<kind>)`. The host app registers that URL scheme; tested with `open`, and
   the host logs `opened via URL glucosewidgets://open?from=combined`.
 - **Families**: Value is small and medium. Graph and Combined are small, medium, large and extra large.
