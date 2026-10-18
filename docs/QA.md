@@ -144,3 +144,17 @@ Cheap tools:
 - [ ] Off → the Sukrara calendar is gone (`content query --uri content://com.android.calendar/calendars`).
 - [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
       away again when the setting is turned off.
+
+## Q14 Apps on this phone and Health Connect
+
+- [ ] Emulator (wearer, debug = synthetic glucose) with GlucoDataHandler installed: Settings → Share with apps lists
+      it under *Apps on this phone* with its own icon, switch **off**; `adb logcat -s Sukrara.broadcast` stays silent.
+- [ ] Switch on → each minute `→ de.michelinside.glucodatahandler 3`; GDH (`logcat | grep GDH`) logs
+      `XDripBroadcastReceiver … SourceInfo => Libre3` and `Glucodata received from XDRIP`, and shows the value.
+- [ ] `--es cmd fakeSensor --es serial TEST…`: the next minute sends 4 (SENSOR_ACTIVATE), GDH `setSensorStartTime`.
+- [ ] Source → Juggluco: the app switches are greyed with "Only while Sukrara reads the sensor itself"; nothing sent.
+- [ ] Follower role: the page has neither group.
+- [ ] Health Connect on → Health Connect's own sheet; Don't allow → stays off with "needs access in Health Connect";
+      Allow → `Sukrara.health backfill N`, Health Connect → Blood glucose lists Sukrara entries, one per minute.
+- [ ] Off → On again: the `wrote …` ids repeat the first run's ids; still one entry per minute in Health Connect.
+- [ ] Spanish: the two groups and summaries are translated.

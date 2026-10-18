@@ -1432,7 +1432,7 @@
     <!-- Page and overview row [CHAR LIMIT=30] -->
     <string name="apps_title">Share with apps</string>
     <!-- Apps page intro (wearer) [CHAR LIMIT=NONE] -->
-    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, apps on this phone such as AAPS or GlucoDataHandler, Health Connect, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
     <!-- Apps page intro (follower) [CHAR LIMIT=NONE] -->
     <string name="apps_intro_follower">Your glucose in other apps: Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
     <!-- LibreView row summary [CHAR LIMIT=40] -->
@@ -1459,6 +1459,25 @@
     <string name="apps_show_secret">Show API secret</string>
     <!-- Dialog title [CHAR LIMIT=30] -->
     <string name="apps_secret_title">API secret</string>
+    <!-- Group: installed apps that listen for glucose broadcasts (xDrip+, LibreLink, Juggluco formats) [CHAR LIMIT=40] -->
+    <string name="apps_phone_group">Apps on this phone</string>
+    <!-- Shown when no installed app listens for glucose broadcasts [CHAR LIMIT=NONE] -->
+    <string name="apps_phone_none">No app on this phone listens for glucose broadcasts</string>
+    <!-- Why the app switches are disabled: Juggluco reads the sensor (it broadcasts itself) [CHAR LIMIT=60] -->
+    <string name="apps_phone_needs_direct">Only while Sukrara reads the sensor itself</string>
+    <!-- Overview summary: how many apps on this phone get the glucose [CHAR LIMIT=30] -->
+    <plurals name="apps_phone_summary">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <!-- Switch: write blood glucose to Health Connect [CHAR LIMIT=40] -->
+    <string name="apps_health_connect" translatable="false">Health Connect</string>
+    <!-- Health Connect summary while off [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_summary">Blood glucose for your health apps</string>
+    <!-- Health Connect summary while on [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_on">Writing every reading</string>
+    <!-- Health Connect summary after its permission was denied [CHAR LIMIT=60] -->
+    <string name="apps_health_connect_denied">Off · needs access in Health Connect</string>
     <!-- Link to the sharing with people page [CHAR LIMIT=60] -->
     <string name="apps_people_summary">Followers, invites, nearby pairing</string>
     <!-- Sensor end in calendar: the switch (sensor settings) [CHAR LIMIT=40] -->
@@ -1486,7 +1505,7 @@
     <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->
     <string name="calendar_event_description">Libre sensor %1$s, started %2$s. Sukrara keeps this event up to date.</string>
     <!-- Apps page footer [CHAR LIMIT=NONE] -->
-    <string name="apps_footer">The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
+    <string name="apps_footer">Apps on this phone get your glucose in every format they listen for: xDrip+, LibreLink and Juggluco broadcasts, with the sensor named Libre3. The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
 
     <!-- ========== Settings: LibreView ========== -->
     <!-- LibreView page intro [CHAR LIMIT=NONE] -->

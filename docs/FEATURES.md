@@ -198,6 +198,18 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 - Only the wearer's app writes events; followers never do (no serial on the wire).
 - Research and options weighed (Juggluco's ACTION_INSERT, local vs Google account vs picked calendar vs Google Calendar API): `features/SensorCalendar.kt` header.
 
+## Share with apps on this phone (investigation 22)
+
+- Settings → Share with apps → *Apps on this phone* (wearer only): every installed app that declares a receiver for `com.eveningoutpost.dexdrip.BgEstimate`, `com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING` / `SENSOR_ACTIVATE` or `glucodata.Minute` (manifest `<queries>`, `queryBroadcastReceivers`), by label with its own icon, each with a switch. **All off by default**; no app found → "No app on this phone listens for glucose broadcasts". No switch per format: an allowed app gets every action it declares.
+- One explicit copy per allowed package (`setPackage`, `FLAG_INCLUDE_STOPPED_PACKAGES | FLAG_RECEIVER_FOREGROUND`), on each new live reading, at most one per 55 s and never the same or an older reading twice (Juggluco's throttle). Backfilled history is not broadcast.
+- Only the wearer's phone reading the sensor itself sends them: never a follower (AAPS must not take someone else's readings as a local sensor), and not in Juggluco mode (Juggluco broadcasts itself; the switches are greyed with "Only while Sukrara reads the sensor itself").
+- xDrip+ `BgEstimate`: `BgEstimate` double mg/dL, `Time` long ms, `BgSlopeName` (`DoubleUp`…`DoubleDown` at ±3.5 / ±2 / ±1 mg/dL/min, `""` unknown), `BgSlope` double mg/dL per ms (left out when unknown), `SensorStartedAt` long ms (left out when unknown), `SourceInfo` **`Libre3`** (AAPS → `LIBRE_3`, advanced filtering), `SourceDesc` `Sukrara`. Never a Dexcom label or the Dexcom BYODA intent.
+- LibreLink `GLUCOSE_READING`: `glucose` double, `timestamp` long ms, `bleManager{sensorSerial}`, `sas{currentSensor{sensorStartTime}}`. `SENSOR_ACTIVATE` (`sensor{sensorStartTime}`, `bleManager{sensorSerial}`) once per new sensor serial, before the reading.
+- `glucodata.Minute`: `.SerialNumber`, `.mgdl` int, `.glucose` float (mg/dL), `.Rate` float mg/dL/min, `.Alarm` 0, `.Time` long ms.
+- *Health Connect* switch (wearer only, off by default): turning it on opens Health Connect's own permission sheet (WRITE_BLOOD_GLUCOSE); refused → stays off with "Off · needs access in Health Connect". On → the stored history (≤ 30 days) is written once, then every reading and every backfill. Off → stops writing; records already there stay.
+- Records: `BloodGlucoseRecord`, specimen interstitial fluid, relation to meal and meal type unknown, recording method automatically recorded, device Abbott "FreeStyle Libre 3" (type unknown: Health Connect has no CGM type), mmol/L = mg/dL ÷ 18. `clientRecordId` = `sukrara-glucose-<epoch minute>`, version 1: writing the same minute again updates the record instead of adding one (no duplicates).
+- Overview summary of Share with apps: `LibreView · 2 apps · Health Connect · xDrip+ · Nightscout` (only what is on).
+
 ## Languages
 
 - English (default) and Spanish (Spain) everywhere, settings pages included (every page, alert page, dialog, search and the alerts page's "lately" list); the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
