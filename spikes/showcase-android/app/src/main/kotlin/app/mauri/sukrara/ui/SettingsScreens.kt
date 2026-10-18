@@ -493,10 +493,13 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
 private fun phoneAppsGroups(direct: Boolean) {
     val ctx = LocalContext.current
     val allowed by app.mauri.sukrara.bridge.AppBroadcasts.allowed.collectAsState()
-    val receivers = remember { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.AppBroadcasts.receivers(ctx) }
+    // PackageManager queries off the main thread; null until they answer
+    val receivers by produceState<List<app.mauri.sukrara.bridge.AppBroadcasts.Receiver>?>(null) {
+        value = withContext(Dispatchers.IO) { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.AppBroadcasts.receivers(ctx) }
+    }
     SettingsGroup(stringResource(R.string.apps_phone_group)) {
-        if (receivers.isEmpty()) info(stringResource(R.string.apps_phone_none))
-        for (r in receivers) switch(r.label, direct && r.pkg in allowed, enabled = direct,
+        if (receivers?.isEmpty() == true) info(stringResource(R.string.apps_phone_none))
+        for (r in receivers.orEmpty()) switch(r.label, direct && r.pkg in allowed, enabled = direct,
             summary = if (direct) null else stringResource(R.string.apps_phone_needs_direct), leading = { PackageIcon(r.pkg) }) { v ->
             app.mauri.sukrara.bridge.AppBroadcasts.setAllowed(ctx, r.pkg, v)
         }
