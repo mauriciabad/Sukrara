@@ -240,6 +240,21 @@ On the Mac the same settings are `UserDefaults` (`graphHours`, `ringCount`, `rin
 `bandVeryLow` … `bandVeryHigh`, `side`) or Settings → Graph. The Mac widgets have no per-widget settings
 (App Intents need an Xcode project to register; see docs/16).
 
+## `agp-report/` — the AGP report page (Kotlin JVM + Swift, investigation 26)
+
+Engine (modal-day percentiles, daily profiles, sufficiency) + A4 page as a display list, painted by Java2D (PNG) and
+CoreGraphics (vector PDF). Shared fixtures in `fixtures/` (synthetic), checked by the Kotlin tests, the Swift port and
+an independent pandas/numpy script. No emulator.
+
+```sh
+cd agp-report
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew test && ./gradlew run --args="render build/render"      # tests; PNGs + display lists
+uv run --with numpy,pandas python -I check/independent.py fixtures/*.json
+cd mac && swift build -c release && .build/release/AgpMac selftest ../fixtures
+.build/release/AgpMac paint ../build/render/spring-dst.page.json /tmp/report.pdf /tmp/report.png
+```
+
 ## `ble-scan/` — BLE advertisement scanner (macOS, Swift)
 
 ```sh
