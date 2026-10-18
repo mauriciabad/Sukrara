@@ -223,7 +223,7 @@ private struct TreatmentRow: View {
             // Time of day, then the time since it like Android's lists (`12m`, `3h`), refreshed while shown.
             TimelineView(.periodic(from: .now, by: 30)) { ctx in
                 HStack(spacing: 6) {
-                    Text(Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened))
+                    Text(Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t))))
                         .foregroundStyle(.secondary)
                     Text(TreatmentMarks.duration(ctx.date.timeIntervalSince1970 - TimeInterval(t.t)))
                         .frame(minWidth: 34, alignment: .trailing)

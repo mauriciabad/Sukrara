@@ -98,9 +98,6 @@ import app.mauri.sukrara.ui.NewSensorFlow.Stage
 import app.mauri.sukrara.ui.NewSensorFlow.Step
 import app.mauri.sukrara.ui.NewSensorFlow.Trouble
 import app.mauri.sukrara.wearer.Live
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -546,8 +543,7 @@ private fun body(s: Stage, now: Long): String? = when (s) {
     }
 }
 
-private fun endDate(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEdMMMHHmm"),
-    Locale.getDefault()).format(Date(t * 1000))
+private fun endDate(t: Long) = app.mauri.sukrara.graph.Clock.dayTime(t)
 
 private fun bluetoothOn(ctx: Context) = ctx.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true
 

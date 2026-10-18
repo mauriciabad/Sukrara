@@ -26,8 +26,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.text.DateFormat
-import java.util.Date
 import java.util.TimeZone
 
 /**
@@ -249,7 +247,7 @@ object SensorCalendar {
         }
         if (cur != null) {
             val (serial, start, end) = cur
-            val started = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(start * 1000))
+            val started = app.mauri.sukrara.graph.Clock.dateTime(start, android.text.format.DateFormat.is24HourFormat(ctx))
             val e = event(serial, end, ctx.getString(R.string.calendar_event_title), ctx.getString(R.string.calendar_event_description, serial, started))
             val v = ContentValues().apply {
                 put(Events.CALENDAR_ID, cal); put(Events.TITLE, e.title); put(Events.DESCRIPTION, e.description)

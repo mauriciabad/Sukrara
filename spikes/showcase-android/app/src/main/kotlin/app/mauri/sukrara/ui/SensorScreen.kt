@@ -50,9 +50,6 @@ import app.mauri.sukrara.direct.ReceiverId
 import app.mauri.sukrara.direct.SensorPairing
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.wearer.Live
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,5 +122,4 @@ fun SensorScreen(onBack: () -> Unit) {
     }
 }
 
-private fun date(t: Long) = SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "dMMMHHmm"),
-    Locale.getDefault()).format(Date(t * 1000))
+private fun date(t: Long) = app.mauri.sukrara.graph.Clock.dayTime(t)

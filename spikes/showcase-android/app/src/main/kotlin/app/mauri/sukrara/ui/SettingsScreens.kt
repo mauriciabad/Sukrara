@@ -57,8 +57,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.DateFormat
-import java.util.Date
 
 /*
  * The settings of both roles, per the settings guidelines (SettingsUi.kt): an overview with one row per subscreen
@@ -69,7 +67,7 @@ import java.util.Date
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
-private fun date(t: Long) = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(t * 1000))
+private fun date(t: Long) = app.mauri.sukrara.graph.Clock.dateTime(t)
 
 private fun intervalLabel(ctx: android.content.Context, min: Int) =
     if (min == 0) ctx.getString(R.string.interval_every_reading) else ctx.getString(R.string.interval_every_min, min)
@@ -508,7 +506,7 @@ fun LibreViewSettings(onBack: () -> Unit) {
             switch(stringResource(R.string.libreview_glucose), s.glucose, enabled = on && direct, summary = when {
                 !on -> off
                 !direct -> stringResource(R.string.libreview_glucose_needs_direct)
-                else -> uploader.glucoseFrom?.let { stringResource(R.string.libreview_glucose_from, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it * 1000))) }
+                else -> uploader.glucoseFrom?.let { stringResource(R.string.libreview_glucose_from, app.mauri.sukrara.graph.Clock.dateTime(it)) }
                     ?: if (s.glucose) stringResource(R.string.libreview_glucose_from_now) else stringResource(R.string.settings_off)
             }) { uploader.configure(glucose = it) }
             switch(stringResource(R.string.libreview_entries), s.treatments, enabled = on, summary = if (on) stringResource(R.string.libreview_entries_summary) else off) {

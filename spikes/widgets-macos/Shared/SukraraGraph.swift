@@ -206,13 +206,50 @@ enum Freshness {
     /// The next age at which `of` changes (for a one-shot timer / timeline entry).
     static func nextChange(age: TimeInterval) -> TimeInterval? { [lateS, staleS, oldS, goneS].first { $0 >= age }.map { $0 + 1 } }
 
-    /// "14:05" today, "Tue 14:05" this week, "12 Oct" before. A clock time doesn't tick.
+    /// "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the Mac's 12/24-hour setting (`Clock`).
+    /// A clock time doesn't tick.
     static func timeText(_ t: TimeInterval, now: TimeInterval) -> String {
         let d = Date(timeIntervalSince1970: t), n = Date(timeIntervalSince1970: now)
-        let time = d.formatted(date: .omitted, time: .shortened)
+        let time = Clock.time(d)
         if Calendar.current.isDate(d, inSameDayAs: n) { return time }
         if now - t < 6 * 86400 { return d.formatted(.dateTime.weekday(.abbreviated)) + " " + time }
         return d.formatted(.dateTime.day().month(.abbreviated))
+    }
+}
+
+// MARK: - Clock
+
+/// Every clock time Sukrara shows on the Mac ("21:08" / "9:08 PM"): the menubar tooltip and dropdown, the widgets, the
+/// treatments, the report, the graph's hour labels. They follow System Settings → General → Date & Time → 24-hour
+/// time, not the locale's default (Android: graph/Clock.kt; shared cases in spikes/graph-fixtures/clock).
+enum Clock {
+    /// The Mac's 24-hour setting.
+    static var hour24: Bool { GraphStyle.systemHour24 }
+
+    /// "21:08" / "9:08 PM" in the Mac's setting.
+    static func time(_ d: Date) -> String { time(d, hour24: hour24, locale: .autoupdatingCurrent) }
+
+    /// "21:08" / "9:08 PM" in the given hour cycle and locale.
+    static func time(_ d: Date, hour24: Bool, locale: Locale, zone: TimeZone = .current) -> String {
+        let f = DateFormatter()
+        f.locale = locale; f.timeZone = zone
+        f.setLocalizedDateFormatFromTemplate(hour24 ? "Hmm" : "hmm")
+        return f.string(from: d)
+    }
+
+    /// "12 Oct 2026, 21:08": the locale's medium date and the time.
+    static func dateTime(_ d: Date) -> String { d.formatted(date: .abbreviated, time: .omitted) + ", " + time(d) }
+
+    /// A minute of the day (0–1439) as a clock time (the fixtures).
+    static func minuteOfDay(_ m: Int, hour24: Bool, locale: Locale) -> String {
+        time(Date(timeIntervalSince1970: TimeInterval(m * 60)), hour24: hour24, locale: locale, zone: TimeZone(identifier: "UTC")!)
+    }
+
+    /// The graph's hour label: "21:00" / "9 PM" (the locale's day period).
+    static func hourLabel(_ h: Int, _ hour24: Bool, locale: Locale = .autoupdatingCurrent) -> String {
+        if hour24 { return String(format: "%02d:00", h) }
+        let f = DateFormatter(); f.locale = locale
+        return "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? f.amSymbol! : f.pmSymbol!)"
     }
 }
 
@@ -606,7 +643,7 @@ enum GlucoseGraph {
             if gx > left + sideW * 0.6 {
                 if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
                 if labels {
-                    let s = hourLabel(cal.component(.hour, from: hour), st.hour24)
+                    let s = Clock.hourLabel(cal.component(.hour, from: hour), st.hour24)
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
@@ -784,10 +821,6 @@ enum GlucoseGraph {
             base[i] += 1; left -= 1
         }
         return (base[0], base[1], base[2])
-    }
-
-    static func hourLabel(_ h: Int, _ hour24: Bool) -> String {
-        hour24 ? String(format: "%02d:00", h) : "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? "AM" : "PM")"
     }
 }
 
@@ -1691,11 +1724,11 @@ enum GlucoseCard {
     }
 
     /// A new sensor warming up: the time left ("42m") where the number goes, in the secondary colour, the sensor disc
-    /// beside it filling up, and "Warming up · ready at 19:45" under it (GlucoseCard.drawWarmup on Android).
+    /// beside it filling up, and "Ready at 19:45" under it (GlucoseCard.drawWarmup on Android).
     private static func drawWarmup(_ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ small: CTFont, _ now: TimeInterval,
                                    _ pal: GraphPalette, d: CGFloat) {
         guard let s = look.warmup else { return }
-        let line = "Warming up · ready at \(Freshness.timeText(look.readyAt, now: now))"
+        let line = "Ready at \(Freshness.timeText(look.readyAt, now: now))"
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - CTFontGetSize(small) * 1.25)
         var numSize = numBox.height * 1.18
         let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * 0.6

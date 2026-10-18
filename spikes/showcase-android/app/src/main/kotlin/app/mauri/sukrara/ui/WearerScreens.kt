@@ -54,8 +54,6 @@ import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.wearer.Live
-import java.text.DateFormat
-import java.util.Date
 
 private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 
@@ -121,7 +119,7 @@ fun TreatmentsSection() {
         Row(Modifier.fillMaxWidth().clickable { deleting = tr }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
-            Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)), fontWeight = FontWeight.Medium)
+            Text(app.mauri.sukrara.graph.Clock.time(tr.t), fontWeight = FontWeight.Medium)
             Text(describe(ctx, tr), Modifier.weight(1f), maxLines = 2)
             Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -136,7 +134,7 @@ fun TreatmentsSection() {
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text(stringResource(R.string.treatments_delete_title)) },
-            text = { Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)) + " · " + describe(ctx, tr) +
+            text = { Text(app.mauri.sukrara.graph.Clock.time(tr.t) + " · " + describe(ctx, tr) +
                 if (f.libreview && !tr.needsUpload) "\n\n" + stringResource(R.string.treatments_delete_libreview) else "") },
             confirmButton = { Button(onClick = { store.delete(tr.id); Treat.uploader.kick(); deleting = null }) { Text(stringResource(R.string.treatments_delete)) } },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.treatment_cancel)) } },

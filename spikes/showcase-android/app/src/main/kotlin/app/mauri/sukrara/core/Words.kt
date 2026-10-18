@@ -49,7 +49,7 @@ data class Words(
     val replaceSensor: String = "Replace sensor",
     val replaceSensorShort: String = "Sensor",
     val warmingUp: String = "Warming up",
-    val readyAt: String = "ready at %1\$s",
+    val readyAt: String = "Ready at %1\$s",
     // trend in words (screen readers, the notification)
     val trendUnknown: String = "trend unknown",
     val trendSteady: String = "steady",

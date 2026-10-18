@@ -279,7 +279,6 @@ private fun FollowerEntries(u: FollowerUi) {
     SectionTitle(stringResource(R.string.follower_entries_title))
     val rows = u.treatments.filter { !it.tr.del }
     Reveal(rows.isEmpty()) { Text(stringResource(R.string.follower_entries_empty), style = MaterialTheme.typography.bodySmall) }
-    val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
     val now = nowSeconds(30_000)
     AnimatedItems(rows, { it.tr.id }) { e ->
         val tr = e.tr
@@ -291,7 +290,7 @@ private fun FollowerEntries(u: FollowerUi) {
             else -> stringResource(R.string.treatment_note)
         } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(fmt.format(java.util.Date(tr.t * 1000)), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+            Text(app.mauri.sukrara.graph.Clock.time(tr.t), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
             Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

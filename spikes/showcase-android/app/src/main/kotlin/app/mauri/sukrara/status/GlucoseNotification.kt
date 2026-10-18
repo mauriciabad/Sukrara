@@ -136,7 +136,7 @@ object GlucoseNotification {
         }
         if (r == null || fresh?.showValue != true) sensor?.takeIf { it.warmup != null }?.let { sl ->
             return b.setSmallIcon(R.drawable.ic_stat_sukrara)
-                .setContentTitle(c.getString(R.string.card_warming_up) + " · " + c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now)))
+                .setContentTitle(c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now)))
                 .setContentText(detail).build()
         }
         if (r == null || fresh == null) {
