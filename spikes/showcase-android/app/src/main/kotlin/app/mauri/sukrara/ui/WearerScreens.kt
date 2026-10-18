@@ -124,8 +124,9 @@ fun <T> ChoiceDialog(title: String, options: List<Choice<T>>, selected: T, onClo
 }
 
 /**
- * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first.
- * Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).
+ * The owner's treatments on the home screen, the last 24 h (also entries from followers and Macs), newest first, each
+ * with the time since it at the end of the row ("12m", "3h"; trailing supporting text, like a list item's trailing
+ * content). Tapping one offers to delete it. *Add treatment* is on the glucose card ([GlucosePanel]).
  */
 @Composable
 fun TreatmentsSection() {
@@ -135,7 +136,8 @@ fun TreatmentsSection() {
     val f by Features.state.collectAsState()
     var deleting by remember { mutableStateOf<Treatment?>(null) }
     val items by store.items.collectAsState()
-    val since = System.currentTimeMillis() / 1000 - 24 * 3600
+    val now = nowSeconds(30_000)
+    val since = now - 24 * 3600
     val recent = items.filter { !it.del && it.t >= since }
     val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
@@ -149,6 +151,8 @@ fun TreatmentsSection() {
             KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
             Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(tr.t * 1000)), fontWeight = FontWeight.Medium)
             Text(describe(tr), Modifier.weight(1f), maxLines = 2)
+            Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (f.libreview) androidx.compose.material3.Icon(
                 androidx.compose.ui.res.painterResource(if (tr.needsUpload) app.mauri.sukrara.R.drawable.ic_sym_cloud_upload else app.mauri.sukrara.R.drawable.ic_sym_cloud_done),
                 contentDescription = if (tr.needsUpload) "Not in LibreView yet" else "In LibreView", tint = MaterialTheme.colorScheme.outline,
@@ -168,11 +172,9 @@ fun TreatmentsSection() {
     }
 }
 
-private fun units(a: Double) = if (a % 1.0 == 0.0) "${a.toLong()}" else "%.1f".format(a)
-
 private fun describe(tr: Treatment): String = when (tr.k) {
-    "carbs" -> "${tr.a.toInt()} g carbs"
+    "carbs" -> "${app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)} carbs"
     "note" -> tr.n.ifEmpty { "Note" }
-    "long" -> "${units(tr.a)} U long-acting"
-    else -> "${units(tr.a)} U rapid"
+    "long" -> "${app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)} long-acting"
+    else -> "${app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)} rapid"
 } + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") + (if (tr.o != "phone") " · from ${tr.o}" else "")

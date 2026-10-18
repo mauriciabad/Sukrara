@@ -154,9 +154,9 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
         .copy(side = w.side ?: cfg.side)
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
     return when (kind) {
-        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings)
+        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
         WidgetKind.GRAPH -> CardStyle(graph = graph, rings = emptyList(), value = false)
-        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings)
+        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
     }
 }
 
@@ -177,17 +177,24 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
             else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(frame.history.lastOrNull(), frame.nowSec),
+        contentDescription = describe(frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
         modifier = GlanceModifier.fillMaxSize(),
         contentScale = ContentScale.FillBounds,
     )
 }
 
-private fun describe(r: Reading?, now: Long): String {
+/** The value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
+private fun describe(frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
+    val r = frame.history.lastOrNull()
+    val now = frame.nowSec
     if (r == null) return "Glucose: no readings yet"
     val f = Freshness.of(now - r.t)
-    return if (!f.showValue) "Glucose: no reading since ${Freshness.timeText(r.t, now)}"
-    else "Glucose ${r.sgv} mg/dL, ${Trend.word(r.rate)}${if (f.showTime) ", at ${Freshness.timeText(r.t, now)}" else ""}"
+    if (!f.showValue) return "Glucose: no reading since ${Freshness.timeText(r.t, now)}"
+    val badge = treatments?.let {
+        app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now), now)
+    }
+    return "Glucose ${r.sgv} mg/dL, ${Trend.word(r.rate)}${if (f.showTime) ", at ${Freshness.timeText(r.t, now)}" else ""}" +
+        (badge?.let { ". $it" } ?: "")
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */

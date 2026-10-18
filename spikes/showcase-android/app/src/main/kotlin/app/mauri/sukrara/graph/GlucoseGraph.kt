@@ -10,6 +10,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
+import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertStatus
+import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
@@ -77,9 +80,10 @@ object GlucoseGraph {
     /** Narrowest chart (dp) that still gets the % labels beside it. */
     const val PCT_MIN_WIDTH_DP = 240f
 
+    /** [alerts] = the rules behind the treatments' mute lines (null = no lines). */
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
-        st: GraphStyle, pal: GraphPalette, d: Float,
+        st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings? = Alerts.settings.value,
     ) {
         val from = nowS - st.windowS
         val b = st.bands.sane()
@@ -229,7 +233,8 @@ object GlucoseGraph {
             label(lo, cLo)
         }
 
-        if (marks) TreatmentMarks.draw(cv, treatments.filter { it.t in from..nowS }, ::x, left, right, bottom, d, pal.dark)
+        if (marks) TreatmentMarks.draw(cv, treatments.filter { it.t in from..nowS }, ::x, left, right, bottom, d, pal.dark,
+            nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
     }
 
     /** The distribution's dots: rows [PROFILE_PITCH] apart, dots of radius [PROFILE_R]; its outline is [PROFILE_GAP] wider. */

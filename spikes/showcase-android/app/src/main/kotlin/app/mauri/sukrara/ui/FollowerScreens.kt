@@ -259,24 +259,31 @@ private fun NearbyJoin(me: app.mauri.sukrara.core.Profile, busy: Boolean, a: Fol
     }
 }
 
-/** Treatments received from the wearer (SPEC §5), last 24 h; entries this phone sent show their delivery status. */
+/**
+ * Treatments received from the wearer (SPEC §5), last 24 h, with the time since each ("12m"); entries this phone sent
+ * show their delivery status.
+ */
 @Composable
 private fun FollowerEntries(u: FollowerUi) {
     SectionTitle("Insulin, carbs & notes (24 h)")
     val rows = u.treatments.filter { !it.tr.del }
     Reveal(rows.isEmpty()) { Text("Nothing in the last 24 h", style = MaterialTheme.typography.bodySmall) }
     val fmt = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+    val now = nowSeconds(30_000)
     AnimatedItems(rows, { it.tr.id }) { e ->
         val tr = e.tr
+        val amount = app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)
         val what = when (tr.k) {
-            "rapid" -> "Insulin ${tr.a} U"
-            "long" -> "Long-acting ${tr.a} U"
-            "carbs" -> "Carbs ${tr.a.toInt()} g"
+            "rapid" -> "Insulin $amount"
+            "long" -> "Long-acting $amount"
+            "carbs" -> "Carbs $amount"
             else -> "Note"
         } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(fmt.format(java.util.Date(tr.t * 1000)), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
             Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+            Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             // sending… → sent → accepted: the label cross-fades, its colour follows
             e.status?.let { st ->
                 val (label, color) = when (st) {
