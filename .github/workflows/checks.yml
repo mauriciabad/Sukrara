@@ -1,0 +1,58 @@
+# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
+# The repo's guards (CLAUDE.md → tools/check) plus the cross-platform tests: Android unit tests (alert scenarios,
+# graph fixtures, strings parity) and the Mac self-tests over the same scenario / fixture files.
+name: Checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: tools/check/run.sh over the pushed / PR range
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -n "$BASE" ]; then RANGE="$BASE..$HEAD_SHA"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] && git cat-file -e "$BEFORE" 2>/dev/null; then RANGE="$BEFORE..$HEAD_SHA"
+          else RANGE="origin/main..$HEAD_SHA"; fi
+          echo "range: $RANGE"
+          tools/check/run.sh --range "$RANGE"
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Unit tests (alert scenarios, graph fixtures, strings parity, stats)
+        working-directory: spikes/showcase-android
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
+  mac:
+    # Command Line Tools only: swift build of the menubar package (no signing, no widget appex, no Keychain).
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - name: swift build
+        working-directory: spikes/menubar
+        run: swift build
+      - name: Self-tests (alert scenarios, graph math + fixtures, treatments merge)
+        working-directory: spikes/menubar
+        run: |
+          .build/debug/GlucoseBar -alerts-selftest
+          .build/debug/GlucoseBar -graphselftest
+          .build/debug/GlucoseBar -treatmentsselftest

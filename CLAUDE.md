@@ -3,19 +3,42 @@
 Rules every session follows in this repo. The detailed know-how (phone, Mac, signing, orchestration) is in
 [`spikes/showcase-android/NEXT.md` §5](spikes/showcase-android/NEXT.md).
 
+**Run `tools/check/run.sh` before committing and before merging** (`--help` lists the checks). The git hooks run it
+automatically once `tools/hooks/install.sh` has been run in the clone (worktrees share it): `pre-commit` fails on the
+static rules, `commit-msg` reminds about parity / FEATURES.md on a normal commit and **fails a merge** that brings
+one-sided changes. CI (`.github/workflows/checks.yml`) runs the same checks plus the Android unit tests and the Mac
+self-tests. A check that is wrong for your change is skipped with a commit-message trailer that says why
+(`Parity-skip: <group>: <reason>`, `Features-skip: <reason>`), never with `--no-verify`. The manual checks per
+surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your change touches.
+
 - **Investigations are standalone PoCs** with a report in `docs/NN-*.md`. Bringing their results into the Sukrara
-  showcase app is a separate step.
+  showcase app is a separate step. *(not checked)*
 - **Document what goes in and what stays out.** When results from an investigation are brought into Sukrara, record
   both **what was added to the app** and **what was discarded, with the reason**. Put it in:
   - the investigation's report ("In Sukrara" section)
-  - `docs/10-showcase.md`
+  - `docs/10-showcase.md` *(not checked: needs judgement)*
 - **The README always stays up to date** with what Sukrara (Android and Mac) does. Update it in the same change as the
-  feature.
+  feature. *(check `features`: a NOTE when app code changes without README.md)*
 - **No backwards compatibility.** PoCs are throwaway: replace formats outright and delete superseded code paths.
+  *(not checked)*
 - **Android: Kotlin only** (JNI/C is fine). Use the newest API generation. Put a GPL header on every file.
+  *(checks `java`, `header`: new source files)*
+- **Strings:** every user-visible Android text in `values/strings.xml` and `values-es/strings.xml` (NEXT.md §5).
+  *(check `strings`: new hardcoded `Text("…")` etc., en/es keys; `StringsParityTest`)*
+- **Never commit secrets** (`nsec1…`, `secrets/`, keys, keystores, APKs/dmgs, build dirs) **or the user's health
+  screenshots** (synthetic/emulator data, cropped). *(checks `secrets`, `large`, `images`: images only under
+  `docs/img/` or `spikes/*/evidence/`, full-phone captures flagged)*
+- **Phone / Mac installs contain all merged work:** install only with `tools/install.sh phone|mac` (refuses a dirty
+  tree, a HEAD without origin/main / the integration branches / the last installed commit, or failing checks).
 - **Releases:** a bug fix gets a GitHub release only after the user has confirmed the fix on their device.
+  *(not checked)*
 - **Alert rules are guarded by timeline scenarios** (sequences of events → expected alerts, Android and Mac). Every
   alert-rule change adds or updates a scenario; never change a scenario's expectations without the user's OK.
+  *(parity groups `alerts`, `alert-scenarios`, `alert-spec`; `AlertScenarioTest` + `-alerts-selftest` in CI)*
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
+  *(check `features`)*
 - **One graph everywhere.** Every change to the glucose graph / value card (marks, badge, slots, units, colours) lands on
   Android AND Mac (`spikes/widgets-macos/Shared/SukraraGraph.swift`: menubar dropdown + Mac widgets) in the same round.
+  *(parity group `graph`; shared cases in `spikes/graph-fixtures` run by `GraphFixtureTest` and `-graphselftest`)*
+- **Protocols** (`spikes/nostr/PROTOCOL-*.md`, `spikes/alerts/SPEC.md`): a spec change lands with both
+  implementations. *(parity groups `protocol-v2`, `identity`, `alert-spec`, `treatments`)*

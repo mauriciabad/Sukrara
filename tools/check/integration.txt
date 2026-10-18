@@ -1,0 +1,3 @@
+# Branches whose work must be on the user's devices (tools/install.sh refuses a HEAD that lacks one).
+# One branch per line; the current integration branch goes here while a round is open. Missing branches are skipped.
+n-feedback19
