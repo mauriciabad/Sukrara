@@ -150,7 +150,7 @@ interface SensorDriver {
 ```sh
 cd spikes/sensors-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
-./gradlew :core:test            # 36 tests, all the decoding and crypto below
+./gradlew :core:test            # 35 tests, all the decoding and crypto below
 ./gradlew :core:run             # the harness: replay every bundled trace through its driver
 ./gradlew :core:run --args="g7 core/src/main/resources/traces/g7-session.txt"
 ./gradlew :android:assembleRelease   # the GATT transport compiles against the Android SDK
