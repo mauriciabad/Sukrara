@@ -99,7 +99,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range; the dropdown shows the same graph card as the phone
-  (rings, 12 h chart, distribution), set from its Graph submenu. [01](docs/01-connectivity.md), [16](docs/16-graph.md)
+  (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the *Eat carbs* / *Take insulin*
+  badge and the last-treatment slot), set from its Graph submenu. [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone.
   The menu shows who you follow (name and picture). Keys stay in the macOS Keychain. [07](docs/07-bluetooth-followers.md)
 - The same glucose alerts and sound packs as the phone (menu → **Alerts…**): alert when the wearer's phone does, or

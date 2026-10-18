@@ -87,6 +87,68 @@ enum AlertsSelfTest {
         check("unknown kind rejected", AlertEvent(body: bad) == nil)
 
         print(ok ? "alerts self-test OK" : "alerts self-test FAILED")
+        // 6. The card's status (CardStatusTest.kt): units, durations, AlertStatus, LastTreatment, badge, slot priority,
+        //    the graph settings' lastPlace / lastElse keys.
+        let now: TimeInterval = 1_800_000_000
+        let st = AlertSettings()
+        func tr(_ k: String, _ a: Double, _ minAgo: Int) -> GraphMark { GraphMark(t: now - TimeInterval(minAgo * 60), k: k, a: a) }
+        func rd(_ v: Double) -> GraphReading { GraphReading(t: now - 30, v: v) }
+        check("units 4.5u 18u 30g", [tr("rapid", 4.5, 0), tr("long", 18, 0), tr("carbs", 30, 0)].map(TreatmentMarks.amount) == ["4.5u", "18u", "30g"]
+              && TreatmentMarks.amount(tr("note", 0, 0)) == nil)
+        let durs = [TreatmentMarks.duration(30), TreatmentMarks.duration(12 * 60 + 40), TreatmentMarks.duration(65 * 60),
+                    TreatmentMarks.duration(3 * 3600), TreatmentMarks.duration(7 * 3600 + 50 * 60), TreatmentMarks.duration(50 * 3600),
+                    TreatmentMarks.duration(10, up: true)]
+        check("durations", durs == ["now", "12m", "1h 5m", "3h", "7h", "2d", "1m"], "\(durs)")
+        check("last: a meal at the same minute shows the insulin",
+              LastTreatment.of([tr("carbs", 45, 12), tr("rapid", 4.5, 12)], st, .none, now: now)?.tr.k == "rapid")
+        check("last: long and notes never", LastTreatment.of([tr("long", 18, 5), tr("note", 0, 1)], st, .none, now: now) == nil)
+        check("last: kept 4 h rapid / 3 h carbs", LastTreatment.of([tr("rapid", 6, 241), tr("carbs", 20, 181)], st, .none, now: now) == nil
+              && LastTreatment.of([tr("rapid", 6, 200), tr("carbs", 20, 179)], st, .none, now: now)?.tr.a == 20)
+        var noInsulinMute = st; noInsulinMute.muteAfterInsulin.on = false
+        check("last: ring = share of the mute left",
+              abs((LastTreatment.of([tr("rapid", 4.5, 12)], st, .none, now: now)?.left(now) ?? 0) - 0.8) < 0.001
+              && LastTreatment.of([tr("carbs", 15, 20)], st, .none, now: now)?.left(now) == 0
+              && LastTreatment.of([tr("rapid", 4.5, 12)], noInsulinMute, .none, now: now)?.left(now) == 0)
+        let carbs = tr("carbs", 15, 8)
+        check("last: the muting treatment wins over a newer one",
+              LastTreatment.of([carbs, tr("rapid", 1, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr == carbs)
+        check("badge: Eat carbs / Take insulin / none",
+              StatusBadge.look(AlertStatus.of(rd(60), st, [], now: now), now: now)?.text == "Eat carbs"
+              && StatusBadge.look(AlertStatus.of(rd(220), st, [], now: now), now: now)?.text == "Take insulin"
+              && StatusBadge.look(AlertStatus.of(rd(120), st, [], now: now), now: now) == nil)
+        check("badge: muted 9m left", StatusBadge.look(AlertStatus.of(rd(60), st, [tr("carbs", 15, 6)], now: now), now: now)
+              == StatusBadge.Look(kind: "carbs", text: "9m left", short: "9m", tonal: true))
+        check("badge: extremely high never muted", AlertStatus.of(rd(318), st, [tr("rapid", 4, 10)], now: now) == .needed(.extremelyHigh))
+        check("badge: same level as the engine",
+              AlertStatus.of(rd(69), st, [], now: now) == .needed(.low) && AlertStatus.of(GraphReading(t: now - 16 * 60, v: 40), st, [], now: now) == .none)
+        check("mute line ends: rapid +60, carbs +15, long none",
+              AlertStatus.muteUntil(tr("rapid", 1, 0), st) == now + 3600 && AlertStatus.muteUntil(tr("carbs", 1, 0), st) == now + 900
+              && AlertStatus.muteUntil(tr("long", 1, 0), st) == nil && AlertStatus.muteUntil(tr("rapid", 1, 0), noInsulinMute) == nil)
+        let m = GlucoseMetrics.of([], from: 0, to: 1, bands: Bands())
+        let rings = [(0, RingSpec(window: 86400), m), (1, RingSpec(window: 7 * 86400), m), (2, RingSpec(window: 14 * 86400), m)]
+        let info = LastTreatment.Info(tr: tr("rapid", 4.5, 5), until: now + 55 * 60)
+        let fb = (RingSpec(window: 30 * 86400), m)
+        func names(_ l: [SlotItem]) -> [String] {
+            l.map { if case let .metric(s, _, _) = $0 { "\(Int(s.window) / 86400)d" } else { "last" } }
+        }
+        check("slots: right to left, the treatment pushes the second ring out",
+              names(Slots.arrange(rings, place: .nearValue, last: info, fallback: fb, max: 2)) == ["1d", "last"]
+              && names(Slots.arrange(rings, place: .nearValue, last: info, fallback: fb, max: 3)) == ["1d", "7d", "last"]
+              && names(Slots.arrange(rings, place: .end, last: info, fallback: fb, max: 3)) == ["last", "1d", "7d"])
+        check("slots: the fallback only fills spare room",
+              names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: fb, max: 2)) == ["1d", "7d"]
+              && names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: fb, max: 3)) == ["1d", "7d", "30d"]
+              && names(Slots.arrange(rings, place: .off, last: info, fallback: fb, max: 3)) == ["1d", "7d", "14d"]
+              && !names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: nil, max: 4)).contains("last"))
+        let ud = UserDefaults(suiteName: "sukrara-selftest-\(UUID().uuidString)")!
+        let dflt = GraphConfig.load(ud)
+        ud.set("END", forKey: "lastPlace"); ud.set("GMI:1209600:0", forKey: "lastElse")
+        let set = GraphConfig.load(ud)
+        ud.set("", forKey: "lastElse")
+        check("settings: lastPlace / lastElse (Android spellings)",
+              dflt.lastPlace == .nearValue && dflt.lastElse == GraphConfig.defaultLastElse
+              && set.lastPlace == .end && set.lastElse == RingSpec(window: 14 * 86400, kind: .gmi, faded: false)
+              && GraphConfig.load(ud).lastElse == nil)
         return ok
     }
 }

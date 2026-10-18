@@ -49,6 +49,8 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     // Treatments (spikes/libreview/SPEC.md). Section hidden while `treatments` is nil.
     var treatments: (() -> [Treatment])?
+    /// The alert rules behind the card's badge, mute lines and last-treatment slot (AlertRules.swift).
+    var alertSettings: (() -> AlertSettings)?
     var onLogTreatment: ((Treatment) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
@@ -191,7 +193,8 @@ final class StatusController: NSObject, NSMenuDelegate {
         chartItem.isHidden = false
         var g = graph.graphStyle()
         g.hour24 = GraphStyle.systemHour24
-        chart.style = CardStyle(graph: g, rings: graph.rings, value: true)
+        chart.style = graph.cardStyle(graph: g)
+        chart.alerts = alertSettings?()
         var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         chart.readings = pts
@@ -263,6 +266,30 @@ final class StatusController: NSObject, NSMenuDelegate {
             add("Fainter (second and third)", slot.faded, "faded", !slot.faded)
             item.submenu = sub
         }
+        // The last-treatment slot (2026-10-18): where it sits, and what it shows while there's no recent treatment.
+        let lastItem = menu.addItem(withTitle: "Last treatment: \(graph.lastPlace.label)", action: nil, keyEquivalent: "")
+        lastItem.indentationLevel = 1
+        let lastMenu = NSMenu()
+        func lastOption(_ t: String, _ on: Bool, _ value: [Any]) {
+            let o = lastMenu.addItem(withTitle: t, action: #selector(setGraph(_:)), keyEquivalent: "")
+            o.target = self
+            o.state = on ? .on : .off
+            o.representedObject = value
+        }
+        for p in LastPlace.allCases { lastOption(p.label, graph.lastPlace == p, ["lastPlace", p.rawValue]) }
+        lastMenu.addItem(.separator())
+        let elseHeader = lastMenu.addItem(withTitle: "Without a recent treatment: " + (graph.lastElse.map(slotName) ?? "nothing"),
+                                          action: nil, keyEquivalent: "")
+        elseHeader.isEnabled = false
+        lastOption("Nothing", graph.lastElse == nil, ["lastElse", ""])
+        let fb = graph.lastElse ?? GraphConfig.defaultLastElse
+        func spec(_ f: (inout RingSpec) -> Void) -> String { var r = fb; f(&r); return GraphConfig.slotsText([r]) }
+        for k in SlotKind.allCases { lastOption(k.label, graph.lastElse?.kind == k, ["lastElse", spec { $0.kind = k }]) }
+        lastMenu.addItem(.separator())
+        for w in GraphConfig.ringChoices { lastOption(periodLabel(w), graph.lastElse?.window == w, ["lastElse", spec { $0.window = w }]) }
+        lastMenu.addItem(.separator())
+        lastOption("Fainter", graph.lastElse?.faded == true, ["lastElse", spec { $0.faded = !fb.faded }])
+        lastItem.submenu = lastMenu
         for r in TirRange.allCases { option("Ring number: \(r.label)", graph.ringRange == r, "ringRange", r.rawValue) }
         // The ring's segments clockwise from 12 o'clock: move one earlier or later, or go back to the default.
         let orderItem = menu.addItem(withTitle: "Ring order", action: nil, keyEquivalent: "")
@@ -347,7 +374,7 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     /// Every graph setting (UserDefaults); "Reset all graph settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "reportDays"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "reportDays", "lastPlace", "lastElse"]
 
     @objc private func setGraph(_ sender: NSMenuItem) {
         guard let kv = sender.representedObject as? [Any], let key = kv.first as? String else { return }
@@ -417,6 +444,11 @@ final class StatusController: NSObject, NSMenuDelegate {
         chart.marks = marks()
     }
 
+    /// The alert settings changed: the badge, the mute lines and the slot follow them.
+    func alertsChanged() {
+        chart.alerts = alertSettings?()
+    }
+
     private func renderTreatments() {
         treatmentItems.forEach(menu.removeItem)
         treatmentItems = []
@@ -468,17 +500,13 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
     }
 
-    /// "14:05  2.5 U rapid" (delivery status comes from `treatmentStatus`).
-    static func describe(_ t: Treatment) -> String {
+    /// "14:05  2.5u rapid · 12m" (amounts lowercase without a space, the time since the entry last; delivery status
+    /// comes from `treatmentStatus`).
+    static func describe(_ t: Treatment, now: Date = Date()) -> String {
         let time = Date(timeIntervalSince1970: TimeInterval(t.t)).formatted(date: .omitted, time: .shortened)
-        let what: String
-        switch t.k {
-        case "rapid", "long": what = String(format: "%.1f U %@", t.a, t.k)
-        case "carbs": what = "\(Int(t.a)) g carbs"
-        default: what = "note"
-        }
+        let what = TreatmentMarks.amount(k: t.k, a: t.a).map { "\($0) \(t.k)" } ?? "note"
         let note = t.n.isEmpty ? "" : (t.k == "note" ? ": " : " · ") + t.n
-        return "\(time)  \(what)\(note)"
+        return "\(time)  \(what)\(note) · \(TreatmentMarks.duration(now.timeIntervalSince1970 - TimeInterval(t.t)))"
     }
 
 
@@ -498,7 +526,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         let kind = NSPopUpButton(frame: NSRect(x: 74, y: 84, width: 226, height: 26))
         kind.addItems(withTitles: kinds.map(\.0))
         let amount = NSTextField(frame: NSRect(x: 74, y: 56, width: 80, height: 22))
-        amount.placeholderString = "U or g"
+        amount.placeholderString = "u or g"
         let note = NSTextField(frame: NSRect(x: 74, y: 28, width: 226, height: 22))
         note.placeholderString = "optional"
         let when = NSDatePicker(frame: NSRect(x: 74, y: 0, width: 226, height: 24))
@@ -542,6 +570,7 @@ final class CardView: NSView {
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
     var style = CardStyle()
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
+    var alerts: AlertSettings? { didSet { needsDisplay = true } }
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 6, left: 14, bottom: 4, right: 14)
@@ -558,7 +587,7 @@ final class CardView: NSView {
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
         GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, metricsOf: metricsOf)
+                         style, pal, metricsOf: metricsOf, alerts: alerts)
         ctx.restoreGState()
     }
 }

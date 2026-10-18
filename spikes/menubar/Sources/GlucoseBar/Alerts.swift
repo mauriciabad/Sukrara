@@ -6,195 +6,12 @@ import Security
 import UserNotifications
 
 // Glucose alerts (spikes/alerts/SPEC.md — the contract shared with Sukrara for Android):
-//   AlertSettings  the §3 JSON, one string in UserDefaults `alertSettings` (same keys and defaults as Android)
+//   AlertSettings  the §3 JSON, one string in UserDefaults `alertSettings` (AlertRules.swift, shared with the widgets)
 //   AlertEngine    §1–§2 rules on readings + a 60 s timer, with an injected clock (AlertsSelfTest drives it)
 //   Alerts         the Mac side: notifications + sounds, mirroring the wearer's `alert` events (§4), debug hooks
 // The Mac is a follower: `source` "wearer" (default) mirrors the wearer's phone and checks only `no_data` locally;
 // "own" runs every rule here. Without a v2 follow link (legacy BLE / Juggluco Wi-Fi only) there are no wearer
 // events, so "wearer" falls back to this Mac's rules (and the Alerts window says so).
-
-enum AlertKind: String, CaseIterable {
-    case veryLow = "very_low", low, high, veryHigh = "very_high", extremelyHigh = "extremely_high"
-    case fallingFast = "falling_fast", risingFast = "rising_fast", noData = "no_data"
-
-    /// One notification per group: a new alert of the group replaces the previous one.
-    enum Group: String { case level, rate, noData = "no_data" }
-    var group: Group {
-        switch self {
-        case .veryLow, .low, .high, .veryHigh, .extremelyHigh: .level
-        case .fallingFast, .risingFast: .rate
-        case .noData: .noData
-        }
-    }
-    var title: String {
-        switch self {
-        case .veryLow: "Very low"
-        case .low: "Low"
-        case .high: "High"
-        case .veryHigh: "Very high"
-        case .extremelyHigh: "Extremely high"
-        case .fallingFast: "Falling fast"
-        case .risingFast: "Rising fast"
-        case .noData: "No glucose data"
-        }
-    }
-    /// Alerts below a threshold (strictly `<`: low 70 alerts at 69); the other levels are `>=`.
-    var lowSide: Bool { self == .veryLow || self == .low }
-    /// Level alerts by severity: the first that matches wins.
-    static let levels: [AlertKind] = [.veryLow, .extremelyHigh, .veryHigh, .low, .high]
-    /// Severity within a side (an episode, see AlertEngine): moving to a higher one alerts at once.
-    var severity: Int {
-        switch self { case .veryLow, .veryHigh: 2; case .extremelyHigh: 3; default: 1 }
-    }
-    /// One alert episode per side: lows, highs, falling fast, rising fast, no data.
-    var side: String {
-        switch self { case .veryLow, .low: "low"; case .high, .veryHigh, .extremelyHigh: "high"; default: rawValue }
-    }
-    /// The treatment that answers it ("carbs" / "rapid"), whatever the mute settings; nil for no data.
-    var treatment: String? {
-        switch self {
-        case .veryLow, .low, .fallingFast: "carbs"
-        case .high, .veryHigh, .extremelyHigh, .risingFast: "rapid"
-        case .noData: nil
-        }
-    }
-
-    /// The headline. Lows and highs say when their treatment was already logged in this episode (`treated` = 1, or 2
-    /// for two or more): "Low glucose · eat more" / "· eat more again". Highs never suggest more insulin (stacking
-    /// doses is dangerous): "High glucose · still high after insulin" / "· after more insulin".
-    func message(treated: Int = 0) -> String {
-        let base = switch self {
-        case .veryLow, .low, .high, .veryHigh, .extremelyHigh: "\(title) glucose"
-        default: title
-        }
-        guard treated > 0, group == .level else { return base }
-        if lowSide { return base + (treated == 1 ? " · eat more" : " · eat more again") }
-        return base + (treated == 1 ? " · still high after insulin" : " · still high after more insulin")
-    }
-
-    /// The user's own settings (2026-10-18), same as Android's DEFAULTS.
-    var defaultRule: AlertRule {
-        switch self {
-        case .veryLow: AlertRule(on: true, mgdl: 55, repeatMin: 5, alarm: true)
-        case .low: AlertRule(on: true, mgdl: 70, repeatMin: 5)
-        case .high: AlertRule(on: true, mgdl: 180, repeatMin: 15)
-        case .veryHigh: AlertRule(on: true, mgdl: 250, repeatMin: 10)
-        case .extremelyHigh: AlertRule(on: true, mgdl: 300, repeatMin: 5, alarm: true)
-        case .fallingFast, .risingFast: AlertRule(on: false, rate: 2.0, repeatMin: 30)
-        case .noData: AlertRule(on: true, min: 20, repeatMin: 60)
-        }
-    }
-}
-
-// MARK: settings (SPEC §3)
-
-struct AlertRule: Codable, Equatable {
-    var on: Bool
-    var mgdl: Double? = nil         // level kinds
-    var rate: Double? = nil         // rate kinds, mg/dL/min
-    var min: Double? = nil          // no_data, minutes
-    var repeatMin: Int              // 0 = never repeat
-    /// "Like an alarm" (SPEC §3): on the Mac = Time Sensitive (breaks through Focus), when the build is entitled to it.
-    var alarm: Bool = false
-
-    /// The number the rule compares against (mg/dL, mg/dL/min or minutes) — `th` in the §4 event.
-    var threshold: Double {
-        get { mgdl ?? rate ?? min ?? 0 }
-        set { if mgdl != nil { mgdl = newValue } else if rate != nil { rate = newValue } else { min = newValue } }
-    }
-}
-
-struct AlertMute: Codable, Equatable { var on: Bool; var min: Double }
-
-struct AlertSounds: Codable, Equatable {
-    var pack: String                // arcade | kart | quest | soft | system | none
-    var kinds: [String: String]     // per-kind override, same values
-    var shuffle: Bool
-}
-
-struct AlertSettings: Codable, Equatable {
-    var v = 1
-    var on = true
-    var alerts: [String: AlertRule] = Dictionary(uniqueKeysWithValues: AlertKind.allCases.map { ($0.rawValue, $0.defaultRule) })
-    var muteAfterInsulin = AlertMute(on: true, min: 60)
-    var muteFallingHigh = AlertMute(on: true, min: 20)
-    var muteAfterCarbs = AlertMute(on: true, min: 15)
-    var sounds = AlertSounds(pack: "quest", kinds: [:], shuffle: true)
-    var source = "wearer"           // followers: wearer | own
-
-    static let packs = ["arcade", "kart", "quest", "soft"]
-    static let key = "alertSettings"
-
-    subscript(k: AlertKind) -> AlertRule {
-        get { alerts[k.rawValue] ?? k.defaultRule }
-        set { alerts[k.rawValue] = newValue }
-    }
-
-    init() {}
-
-    /// Lenient: any missing or malformed key keeps its §3 default (a file written by an older or newer app still
-    /// loads), numbers may be ints or doubles.
-    init(from decoder: Decoder) throws {
-        struct PartialRule: Decodable { var on, alarm: Bool?; var mgdl, rate, min, repeatMin: Double? }
-        struct PartialMute: Decodable { var on: Bool?; var min: Double? }
-        struct PartialSounds: Decodable { var pack: String?; var kinds: [String: String]?; var shuffle: Bool? }
-        enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, muteAfterCarbs, sounds, source }
-        let c = try decoder.container(keyedBy: K.self)
-        if let on = try? c.decode(Bool.self, forKey: .on) { self.on = on }
-        if let src = try? c.decode(String.self, forKey: .source), ["wearer", "own"].contains(src) { source = src }
-        let rules = (try? c.decode([String: PartialRule].self, forKey: .alerts)) ?? [:]
-        for k in AlertKind.allCases {
-            guard let p = rules[k.rawValue] else { continue }
-            var r = k.defaultRule
-            if let on = p.on { r.on = on }
-            if let x = p.mgdl, r.mgdl != nil { r.mgdl = x }
-            if let x = p.rate, r.rate != nil { r.rate = x }
-            if let x = p.min, r.min != nil { r.min = x }
-            if let x = p.repeatMin { r.repeatMin = max(0, Int(x)) }
-            if let x = p.alarm { r.alarm = x }
-            self[k] = r
-        }
-        func mute(_ key: K, _ d: AlertMute) -> AlertMute {
-            guard let p = try? c.decode(PartialMute.self, forKey: key) else { return d }
-            return AlertMute(on: p.on ?? d.on, min: p.min ?? d.min)
-        }
-        muteAfterInsulin = mute(.muteAfterInsulin, muteAfterInsulin)
-        muteFallingHigh = mute(.muteFallingHigh, muteFallingHigh)
-        muteAfterCarbs = mute(.muteAfterCarbs, muteAfterCarbs)
-        if let p = try? c.decode(PartialSounds.self, forKey: .sounds) {
-            sounds = AlertSounds(pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
-        }
-    }
-
-    static func load() -> AlertSettings {
-        guard let s = UserDefaults.standard.string(forKey: key),
-              let d = try? JSONDecoder().decode(AlertSettings.self, from: Data(s.utf8)) else { return AlertSettings() }
-        return d
-    }
-
-    var json: String {
-        let e = JSONEncoder()
-        e.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return (try? e.encode(self)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
-    }
-
-    func save() { UserDefaults.standard.set(json, forKey: Self.key) }
-
-    /// Which sound a kind plays: the per-kind override, else the pack.
-    func pack(for k: AlertKind) -> String { sounds.kinds[k.rawValue] ?? sounds.pack }
-
-    /// The treatment whose mute window quiets `k` now, or nil: the rule is off, or `k` is never muted (extremely
-    /// high, no data). Carbs quiet very low, low and falling fast; rapid insulin high, very high and rising fast.
-    func mutedBy(_ k: AlertKind) -> String? {
-        if k == .extremelyHigh { return nil }
-        if k.treatment == "carbs", muteAfterCarbs.on { return "carbs" }
-        if k.treatment == "rapid", muteAfterInsulin.on { return "rapid" }
-        return nil
-    }
-
-    /// How long a treatment ("carbs" / "rapid") quiets the alerts it answers, in seconds.
-    func muteS(_ treatment: String) -> TimeInterval { (treatment == "rapid" ? muteAfterInsulin.min : muteAfterCarbs.min) * 60 }
-}
 
 // MARK: alert event (SPEC §4 body)
 
@@ -256,7 +73,7 @@ final class AlertEngine {
     var onClear: ((AlertEvent) -> Void)?
 
     /// Readings older than this never alert (backfill, a late chunk).
-    static let fresh: TimeInterval = 15 * 60
+    static let fresh = AlertStatus.fresh
     /// An episode lasts until nothing of its side has matched for its repeat interval, but at least this long.
     static let minHoldMin = 5
 
@@ -306,8 +123,7 @@ final class AlertEngine {
 
     /// The level kind `r` is in at `now`, or nil (stale reading, in range, alerts off). Lows `<`, highs `>=`.
     static func level(_ r: Reading?, _ s: AlertSettings, _ now: Date) -> AlertKind? {
-        guard let r, s.on, now.timeIntervalSince(r.date) <= fresh else { return nil }
-        return AlertKind.levels.first { k in s[k].on && (k.lowSide ? r.mgdl < s[k].threshold : r.mgdl >= s[k].threshold) }
+        r.flatMap { AlertStatus.level(mgdl: $0.mgdl, at: $0.date.timeIntervalSince1970, s, now: now.timeIntervalSince1970) }
     }
 
     private func evaluate() {
@@ -555,12 +371,16 @@ final class AlertEngine {
     }
 
     /// Settings edited in the Alerts window: saved at once (macOS settings apply immediately).
+    /// After `update`: the card and the widgets redraw (badge, mute lines, slot).
+    var onSettingsChange: (() -> Void)?
+
     func update(_ s: AlertSettings) {
         guard s != settings else { return }
         let wasOn = settings.on
         settings = s
         s.save()
         engine.settings = s
+        onSettingsChange?()
         if s.on, !wasOn { authorize() }
         if !s.on || mode == .own {
             for g in mirrored.keys { remove(g, "alerts off / own rules") }
