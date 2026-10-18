@@ -14,21 +14,21 @@ import UserNotifications
 // events, so "wearer" falls back to this Mac's rules (and the Alerts window says so).
 
 enum AlertKind: String, CaseIterable {
-    case urgentLow = "urgent_low", low, high, veryHigh = "very_high", extremelyHigh = "extremely_high"
+    case veryLow = "very_low", low, high, veryHigh = "very_high", extremelyHigh = "extremely_high"
     case fallingFast = "falling_fast", risingFast = "rising_fast", noData = "no_data"
 
     /// One notification per group: a new alert of the group replaces the previous one.
     enum Group: String { case level, rate, noData = "no_data" }
     var group: Group {
         switch self {
-        case .urgentLow, .low, .high, .veryHigh, .extremelyHigh: .level
+        case .veryLow, .low, .high, .veryHigh, .extremelyHigh: .level
         case .fallingFast, .risingFast: .rate
         case .noData: .noData
         }
     }
     var title: String {
         switch self {
-        case .urgentLow: "Urgent low"
+        case .veryLow: "Very low"
         case .low: "Low"
         case .high: "High"
         case .veryHigh: "Very high"
@@ -38,19 +38,48 @@ enum AlertKind: String, CaseIterable {
         case .noData: "No glucose data"
         }
     }
-    var lowSide: Bool { self == .urgentLow || self == .low }
-    /// Escalation within a side: low → urgent low, high → very high → extremely high.
-    func moreSevere(than k: AlertKind) -> Bool {
-        (self == .urgentLow && k == .low) || (self == .veryHigh && k == .high) || (self == .extremelyHigh && [.high, .veryHigh].contains(k))
+    /// Alerts below a threshold (strictly `<`: low 70 alerts at 69); the other levels are `>=`.
+    var lowSide: Bool { self == .veryLow || self == .low }
+    /// Level alerts by severity: the first that matches wins.
+    static let levels: [AlertKind] = [.veryLow, .extremelyHigh, .veryHigh, .low, .high]
+    /// Severity within a side (an episode, see AlertEngine): moving to a higher one alerts at once.
+    var severity: Int {
+        switch self { case .veryLow, .veryHigh: 2; case .extremelyHigh: 3; default: 1 }
+    }
+    /// One alert episode per side: lows, highs, falling fast, rising fast, no data.
+    var side: String {
+        switch self { case .veryLow, .low: "low"; case .high, .veryHigh, .extremelyHigh: "high"; default: rawValue }
+    }
+    /// The treatment that answers it ("carbs" / "rapid"), whatever the mute settings; nil for no data.
+    var treatment: String? {
+        switch self {
+        case .veryLow, .low, .fallingFast: "carbs"
+        case .high, .veryHigh, .extremelyHigh, .risingFast: "rapid"
+        case .noData: nil
+        }
     }
 
+    /// The headline. Lows and highs say when their treatment was already logged in this episode (`treated` = 1, or 2
+    /// for two or more): "Low glucose · eat more" / "· eat more again". Highs never suggest more insulin (stacking
+    /// doses is dangerous): "High glucose · still high after insulin" / "· after more insulin".
+    func message(treated: Int = 0) -> String {
+        let base = switch self {
+        case .veryLow, .low, .high, .veryHigh, .extremelyHigh: "\(title) glucose"
+        default: title
+        }
+        guard treated > 0, group == .level else { return base }
+        if lowSide { return base + (treated == 1 ? " · eat more" : " · eat more again") }
+        return base + (treated == 1 ? " · still high after insulin" : " · still high after more insulin")
+    }
+
+    /// The user's own settings (2026-10-18), same as Android's DEFAULTS.
     var defaultRule: AlertRule {
         switch self {
-        case .urgentLow: AlertRule(on: true, mgdl: 55, repeatMin: 5, alarm: true)
-        case .low: AlertRule(on: true, mgdl: 65, repeatMin: 15, alarm: true)
-        case .high: AlertRule(on: true, mgdl: 185, repeatMin: 30)
-        case .veryHigh: AlertRule(on: true, mgdl: 250, repeatMin: 30)
-        case .extremelyHigh: AlertRule(on: true, mgdl: 300, repeatMin: 15)
+        case .veryLow: AlertRule(on: true, mgdl: 55, repeatMin: 5, alarm: true)
+        case .low: AlertRule(on: true, mgdl: 70, repeatMin: 5)
+        case .high: AlertRule(on: true, mgdl: 180, repeatMin: 15)
+        case .veryHigh: AlertRule(on: true, mgdl: 250, repeatMin: 10)
+        case .extremelyHigh: AlertRule(on: true, mgdl: 300, repeatMin: 5, alarm: true)
         case .fallingFast, .risingFast: AlertRule(on: false, rate: 2.0, repeatMin: 30)
         case .noData: AlertRule(on: true, min: 20, repeatMin: 60)
         }
@@ -90,7 +119,7 @@ struct AlertSettings: Codable, Equatable {
     var muteAfterInsulin = AlertMute(on: true, min: 60)
     var muteFallingHigh = AlertMute(on: true, min: 20)
     var muteAfterCarbs = AlertMute(on: true, min: 15)
-    var sounds = AlertSounds(pack: "arcade", kinds: [:], shuffle: true)
+    var sounds = AlertSounds(pack: "quest", kinds: [:], shuffle: true)
     var source = "wearer"           // followers: wearer | own
 
     static let packs = ["arcade", "kart", "quest", "soft"]
@@ -153,6 +182,18 @@ struct AlertSettings: Codable, Equatable {
 
     /// Which sound a kind plays: the per-kind override, else the pack.
     func pack(for k: AlertKind) -> String { sounds.kinds[k.rawValue] ?? sounds.pack }
+
+    /// The treatment whose mute window quiets `k` now, or nil: the rule is off, or `k` is never muted (extremely
+    /// high, no data). Carbs quiet very low, low and falling fast; rapid insulin high, very high and rising fast.
+    func mutedBy(_ k: AlertKind) -> String? {
+        if k == .extremelyHigh { return nil }
+        if k.treatment == "carbs", muteAfterCarbs.on { return "carbs" }
+        if k.treatment == "rapid", muteAfterInsulin.on { return "rapid" }
+        return nil
+    }
+
+    /// How long a treatment ("carbs" / "rapid") quiets the alerts it answers, in seconds.
+    func muteS(_ treatment: String) -> TimeInterval { (treatment == "rapid" ? muteAfterInsulin.min : muteAfterCarbs.min) * 60 }
 }
 
 // MARK: alert event (SPEC §4 body)
@@ -167,6 +208,8 @@ struct AlertEvent: Equatable {
     var r: Double?
     var th: Double
     var n: Int
+    /// Entries of the answering treatment in this episode (0, 1, 2 = two or more): the headline, `AlertKind.message`.
+    var tr = 0
 
     static func newId() -> String { (0..<8).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined() }
 
@@ -177,18 +220,29 @@ struct AlertEvent: Equatable {
               let k = (o["k"] as? String).flatMap(AlertKind.init(rawValue:)),
               let state = o["state"] as? String, ["fire", "clear"].contains(state), let at = num(o["at"]) else { return nil }
         self.init(id: id, k: k, state: state, at: Date(timeIntervalSince1970: at), t: num(o["t"]).map { Date(timeIntervalSince1970: $0) },
-                  sgv: num(o["sgv"]), r: num(o["r"]), th: num(o["th"]) ?? 0, n: (o["n"] as? NSNumber)?.intValue ?? 1)
+                  sgv: num(o["sgv"]), r: num(o["r"]), th: num(o["th"]) ?? 0, n: (o["n"] as? NSNumber)?.intValue ?? 1, tr: (o["tr"] as? NSNumber)?.intValue ?? 0)
     }
 
-    init(id: String, k: AlertKind, state: String, at: Date, t: Date?, sgv: Double?, r: Double?, th: Double, n: Int) {
-        self.id = id; self.k = k; self.state = state; self.at = at; self.t = t; self.sgv = sgv; self.r = r; self.th = th; self.n = n
+    init(id: String, k: AlertKind, state: String, at: Date, t: Date?, sgv: Double?, r: Double?, th: Double, n: Int, tr: Int = 0) {
+        self.id = id; self.k = k; self.state = state; self.at = at; self.t = t; self.sgv = sgv; self.r = r; self.th = th; self.n = n; self.tr = tr
     }
 }
 
 // MARK: engine (SPEC §1–§2)
 
-/// The rules, without any UI: feed it the newest reading (`reading`) and call `tick()` every minute; it reports
-/// firings and clears through `onFire` / `onClear`. Time comes from `now` (tests inject a clock).
+/// The rules, without any UI — a 1:1 port of Android's AlertEngine: feed it the newest reading (`reading`) and call
+/// `tick()` every minute and at `nextCheckAt`; it reports firings and clears through `onFire` / `onClear`. Time comes
+/// from `now` (tests inject a clock).
+///
+/// Three independent groups (level, rate, no data), each with at most one **episode**: a stretch of time on one side
+/// (lows, highs, falling fast, rising fast, no data). An episode starts when a kind of that side matches and ends once
+/// none has matched for the hold time (the kind's repeat interval, at least 5 min). So a reading back in range for a
+/// moment removes the notification but doesn't start a new episode. Within an episode:
+/// - the first match alerts at once; a more severe kind of the side alerts at once (low → very low);
+/// - then it repeats every `repeatMin` (0 = never) counted from the last alert;
+/// - a treatment that answers it (carbs for lows and falling fast, rapid insulin for highs and rising fast) quiets
+///   it for the mute window and restarts the count: when the window ends and it still matches, it alerts at once;
+/// - the falling-high mute only postpones: when it ends, whatever was due alerts.
 final class AlertEngine {
     var settings: AlertSettings
     var now: () -> Date
@@ -201,127 +255,191 @@ final class AlertEngine {
     var onFire: ((AlertEvent) -> Void)?
     var onClear: ((AlertEvent) -> Void)?
 
-    struct Active {
+    /// Readings older than this never alert (backfill, a late chunk).
+    static let fresh: TimeInterval = 15 * 60
+    /// An episode lasts until nothing of its side has matched for its repeat interval, but at least this long.
+    static let minHoldMin = 5
+
+    /// What the UI shows per group: the matching kind, and why it's quiet if it is.
+    struct State { var kind: AlertKind; var muted: String?; var firedAt: Date?; var n: Int }
+
+    private final class Episode {
+        let side: String, start: Date
         var kind: AlertKind
-        var event: AlertEvent?       // the last firing of this episode; nil = never fired (muted, or within repeatMin)
-        var muted: String?           // why it's quiet ("insulin 12 min ago")
+        /// The condition held at the last evaluation, and when it last did.
+        var on = true
+        var lastIn: Date
+        /// The firing whose notification is up (cleared when the condition goes, mutes, or the kind changes).
+        var shown: AlertEvent?
+        var n = 0
+        var firedAt: Date?
+        var firedKind: AlertKind
+        var muted: String?
+        /// When the next alert is due (nil = never), from the last evaluation: the timer.
+        var next: Date?
+        init(_ k: AlertKind, _ t: Date) { side = k.side; start = t; kind = k; lastIn = t; firedKind = k; next = t }
     }
-    private(set) var active: [AlertKind.Group: Active] = [:]
-    private(set) var lastFired: [AlertKind: Date] = [:]
+
+    private var episodes: [AlertKind.Group: Episode] = [:]
     private(set) var latest: Reading?
+
+    var active: [AlertKind.Group: State] {
+        episodes.filter { $0.value.on }.mapValues { State(kind: $0.kind, muted: $0.muted, firedAt: $0.firedAt, n: $0.n) }
+    }
 
     init(settings: AlertSettings, now: @escaping () -> Date = Date.init) {
         self.settings = settings
         self.now = now
     }
 
-    /// The newest reading (any transport), `rate` already the best available (Snapshot.rate).
+    /// The newest reading (any transport), `rate` already the best available (Snapshot.rate). Older ones are ignored.
     func reading(_ r: Reading) {
-        guard latest.map({ r.date >= $0.date }) ?? true else { return }
-        latest = r
-        checkNoData()
+        if latest.map({ r.date > $0.date }) ?? true { latest = r }
         evaluate()
     }
 
-    /// Every 60 s: the no-data timer, plus repeats and mutes that end while the reading stays the same.
-    func tick() {
-        checkNoData()
-        evaluate()
-    }
+    /// Timer: the no-data deadline, repeats and mute windows that end while the reading stays the same.
+    func tick() { evaluate() }
 
-    /// Settings or mode changed: re-check everything now.
-    func refresh() { tick() }
+    /// Settings, treatments or mode changed: re-check everything now.
+    func refresh() { evaluate() }
+
+    /// The level kind `r` is in at `now`, or nil (stale reading, in range, alerts off). Lows `<`, highs `>=`.
+    static func level(_ r: Reading?, _ s: AlertSettings, _ now: Date) -> AlertKind? {
+        guard let r, s.on, now.timeIntervalSince(r.date) <= fresh else { return nil }
+        return AlertKind.levels.first { k in s[k].on && (k.lowSide ? r.mgdl < s[k].threshold : r.mgdl >= s[k].threshold) }
+    }
 
     private func evaluate() {
-        guard settings.on, levelAndRate else { clear(.level); clear(.rate); return }
-        guard let r = latest, now().timeIntervalSince(r.date) <= 15 * 60 else { return }   // backfill never alerts
-        let s = settings
-        func rule(_ k: AlertKind) -> AlertRule? { s[k].on ? s[k] : nil }
-        let level: AlertKind? =
-            rule(.urgentLow).map { r.mgdl <= $0.threshold } == true ? .urgentLow
-            : rule(.low).map { r.mgdl <= $0.threshold } == true ? .low
-            : rule(.extremelyHigh).map { r.mgdl >= $0.threshold } == true ? .extremelyHigh
-            : rule(.veryHigh).map { r.mgdl >= $0.threshold } == true ? .veryHigh
-            : rule(.high).map { r.mgdl >= $0.threshold } == true ? .high : nil
-        update(.level, level, r)
+        let s = settings, t = now()
+        guard s.on else {
+            for g in [AlertKind.Group.level, .rate, .noData] { if let e = episodes[g] { hide(e, t) } }
+            episodes = [:]
+            return
+        }
+        let r = latest
+        let fresh = r.map { t.timeIntervalSince($0.date) <= Self.fresh } ?? false
         var rate: AlertKind?
-        if let v = r.rate {
-            if let f = rule(.fallingFast), v <= -f.threshold { rate = .fallingFast }
-            else if let u = rule(.risingFast), v >= u.threshold { rate = .risingFast }
+        if levelAndRate, fresh, let v = r?.rate {
+            if s[.fallingFast].on, v <= -s[.fallingFast].threshold { rate = .fallingFast }
+            else if s[.risingFast].on, v >= s[.risingFast].threshold { rate = .risingFast }
         }
-        update(.rate, rate, r)
+        let nd = s[.noData]
+        let noData = r.map { nd.on && t.timeIntervalSince($0.date) >= nd.threshold * 60 } ?? false
+        let rapid = rapidInsulin(), cb = carbs()
+        let doses: (String) -> [Date] = { $0 == "rapid" ? rapid : cb }
+        step(.level, levelAndRate ? Self.level(r, s, t) : nil, s, doses, t)
+        step(.rate, rate, s, doses, t)
+        step(.noData, noData ? .noData : nil, s, doses, t)
     }
 
-    private func checkNoData() {
-        guard let r = latest else { return }
-        let rule = settings[.noData]
-        let lost = settings.on && rule.on && now().timeIntervalSince(r.date) >= rule.threshold * 60
-        update(.noData, lost ? .noData : nil, r)
+    private func hold(_ e: Episode, _ s: AlertSettings) -> TimeInterval { TimeInterval(max(s[e.kind].repeatMin, Self.minHoldMin) * 60) }
+
+    private func hide(_ e: Episode, _ t: Date) {
+        if var ev = e.shown {                // a clear repeats the id of the firing it ends
+            ev.state = "clear"
+            ev.at = t
+            onClear?(ev)
+        }
+        e.shown = nil
     }
 
-    /// §2: why an alert is quiet right now, or nil. Urgent low and extremely high are never muted.
-    func muteReason(_ k: AlertKind, _ r: Reading) -> String? {
-        let t = now()
-        func dose(_ m: AlertMute, _ times: [Date], _ what: String) -> String? {
-            guard m.on, let last = times.filter({ $0 <= t && t.timeIntervalSince($0) <= m.min * 60 }).max() else { return nil }
-            return "\(what) \(Int(t.timeIntervalSince(last) / 60)) min ago"
+    private func step(_ g: AlertKind.Group, _ want: AlertKind?, _ s: AlertSettings, _ d: (String) -> [Date], _ t: Date) {
+        guard let want else {
+            guard let e = episodes[g] else { return }
+            hide(e, t)
+            e.on = false
+            e.muted = nil
+            if t.timeIntervalSince(e.lastIn) >= hold(e, s) { episodes[g] = nil }
+            return
         }
-        if [.low, .fallingFast].contains(k) { return dose(settings.muteAfterCarbs, carbs(), "carbs") }
-        guard [.high, .veryHigh, .risingFast].contains(k) else { return nil }
-        if let m = dose(settings.muteAfterInsulin, rapidInsulin(), "insulin") { return m }
-        if k != .risingFast, settings.muteFallingHigh.on, let v = r.rate, v < 0 {
-            let high = settings[.high].threshold, ahead = settings.muteFallingHigh.min
-            if r.mgdl + v * ahead < high {
-                return "falling, under \(Int(high)) in ~\(max(1, Int(((r.mgdl - high) / -v).rounded(.up)))) min"
-            }
+        var found = episodes[g]
+        if let e = found, e.side != want.side || (!e.on && t.timeIntervalSince(e.lastIn) >= hold(e, s)) {
+            hide(e, t)
+            found = nil
         }
-        return nil
-    }
-
-    private func update(_ g: AlertKind.Group, _ kind: AlertKind?, _ r: Reading) {
-        if let cur = active[g], cur.kind != kind { clear(g) }     // left it, or moved to another kind of the group
-        guard let kind else { return }
-        let t = now(), rule = settings[kind], every = TimeInterval(rule.repeatMin * 60)
-        var a = active[g] ?? Active(kind: kind)
-        a.muted = muteReason(kind, r)
-        defer { active[g] = a }
-        guard a.muted == nil else { return }
-        let due: Bool
-        if let ev = a.event {
-            due = every > 0 && t.timeIntervalSince(ev.at) >= every                 // re-alert
-        } else {
-            due = lastFired[kind].map { t.timeIntervalSince($0) >= every } ?? true   // new (or no flapping)
+        let e = found ?? Episode(want, t)
+        episodes[g] = e
+        e.on = true
+        e.lastIn = t
+        e.kind = want
+        if let sh = e.shown, sh.k != want { hide(e, t) }
+        let by = s.mutedBy(want)
+        let cover = by.flatMap { tk in d(tk).filter { $0 <= t && t.timeIntervalSince($0) < s.muteS(tk) }.max() }
+        if let mute = cover.map({ "\(by == "rapid" ? "insulin" : "carbs") \(Int(t.timeIntervalSince($0) / 60)) min ago" })
+            ?? fallingMute(want, s) {
+            hide(e, t)
+            e.muted = mute
+            e.next = cover.map { $0.addingTimeInterval(s.muteS(by!)) }   // the falling mute has no end of its own
+            return
         }
-        guard due else { return }
-        let ev = AlertEvent(id: AlertEvent.newId(), k: kind, state: "fire", at: t, t: r.date, sgv: r.mgdl, r: r.rate,
-                            th: rule.threshold, n: (a.event?.n ?? 0) + 1)
-        a.event = ev
-        lastFired[kind] = t
+        e.muted = nil
+        e.next = due(e, want, s, d, t)
+        guard let next = e.next, t >= next else { return }
+        e.n += 1
+        e.firedAt = t
+        e.firedKind = want
+        let r = latest
+        let ev = AlertEvent(id: AlertEvent.newId(), k: want, state: "fire", at: t, t: r?.date, sgv: r?.mgdl, r: r?.rate,
+                            th: s[want].threshold, n: e.n, tr: treated(e, want, s, d, t))
+        e.shown = ev
+        e.next = due(e, want, s, d, t)
         onFire?(ev)
     }
 
-    private func clear(_ g: AlertKind.Group) {
-        guard let a = active.removeValue(forKey: g) else { return }
-        if var ev = a.event {                // a clear repeats the id of the firing it ends
-            ev.state = "clear"
-            ev.at = now()
-            onClear?(ev)
+    /// When `e` alerts next for `k` (nil = never): see the class comment.
+    private func due(_ e: Episode, _ k: AlertKind, _ s: AlertSettings, _ d: (String) -> [Date], _ t: Date) -> Date? {
+        guard let fired = e.firedAt else { return e.start }
+        if k.side == e.firedKind.side, k.severity > e.firedKind.severity { return t }
+        if let by = s.mutedBy(k), let tc = d(by).filter({ $0 >= fired && $0 <= t }).max() {
+            return max(tc.addingTimeInterval(s.muteS(by)), fired.addingTimeInterval(1))
         }
+        let rep = s[k].repeatMin
+        return rep > 0 ? fired.addingTimeInterval(TimeInterval(rep * 60)) : nil
+    }
+
+    /// Entries of the treatment that answers `k` (level kinds only) logged in the episode, or within the mute length
+    /// before it started (they're why it stayed quiet): 0, 1, or 2 for two or more.
+    private func treated(_ e: Episode, _ k: AlertKind, _ s: AlertSettings, _ d: (String) -> [Date], _ t: Date) -> Int {
+        guard k.group == .level, let tk = k.treatment else { return 0 }
+        let from = e.start.addingTimeInterval(-s.muteS(tk))
+        return min(2, d(tk).filter { $0 >= from && $0 <= t }.count)
+    }
+
+    /// "falling, back in range in ~N min" if the current fall brings it under the high threshold within the window.
+    private func fallingMute(_ k: AlertKind, _ s: AlertSettings) -> String? {
+        guard let r = latest, let v = r.rate, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0 else { return nil }
+        let high = s[.high].threshold
+        guard r.mgdl + v * s.muteFallingHigh.min < high else { return nil }
+        return "falling, back in range in ~\(max(1, Int(((r.mgdl - high) / -v).rounded(.up)))) min"
+    }
+
+    /// When the next timer check is useful (no-data deadline, a repeat, a mute window ending), or nil.
+    func nextCheckAt(_ now: Date) -> Date? {
+        guard settings.on else { return nil }
+        var c: [Date] = []
+        if let r = latest {
+            let nd = settings[.noData]
+            if nd.on, episodes[.noData]?.on != true { c.append(r.date.addingTimeInterval(nd.threshold * 60)) }
+            c.append(r.date.addingTimeInterval(Self.fresh + 1))   // level/rate alerts end when the reading goes stale
+        }
+        for e in episodes.values where e.on { if let n = e.next { c.append(n) } }
+        return c.filter { $0 > now }.min()
     }
 
     /// "High · muted: insulin 12 min ago" / "Low · alerted 3 min ago (2×)" / "No alert".
     var stateLine: String {
         guard settings.on else { return "Alerts are off" }
-        let t = now()
+        let t = now(), act = active
         let parts = [AlertKind.Group.level, .rate, .noData].compactMap { g -> String? in
-            guard let a = active[g] else { return nil }
+            guard let a = act[g] else { return nil }
             if let m = a.muted { return "\(a.kind.title) · muted: \(m)" }
-            if let ev = a.event { return "\(a.kind.title) · alerted \(Self.ago(t.timeIntervalSince(ev.at)))\(ev.n > 1 ? " (\(ev.n)×)" : "")" }
-            return "\(a.kind.title) · alerted \(lastFired[a.kind].map { Self.ago(t.timeIntervalSince($0)) } ?? "earlier"), not repeated yet"
+            guard let f = a.firedAt else { return "\(a.kind.title) · not alerted yet" }
+            return "\(a.kind.title) · alerted \(Self.ago(t.timeIntervalSince(f)))\(a.n > 1 ? " (\(a.n)×)" : "")"
         }
         if !parts.isEmpty { return parts.joined(separator: " · ") }
         guard let r = latest else { return "Waiting for the first reading" }
-        return t.timeIntervalSince(r.date) > 15 * 60 ? "No recent reading" : "No alert"
+        return t.timeIntervalSince(r.date) > Self.fresh ? "No recent reading" : "No alert"
     }
 
     static func ago(_ s: TimeInterval) -> String { s < 90 ? "just now" : "\(Int(s / 60)) min ago" }
@@ -344,6 +462,8 @@ final class AlertEngine {
     private(set) var mirrored: [AlertKind.Group: AlertEvent] = [:]
     private var seenIds: Set<String> = []
     private var timer: Timer?
+    /// One-shot at `engine.nextCheckAt`: a mute window or repeat that ends between readings alerts on time.
+    private var checkTimer: Timer?
     private lazy var window = AlertsWindow(alerts: self)
     private let center: UNUserNotificationCenter? = Bundle.main.bundleIdentifier == nil ? nil : .current()
     private var playing: NSSound?
@@ -375,6 +495,7 @@ final class AlertEngine {
         t.tolerance = 5
         RunLoop.main.add(t, forMode: .common)
         timer = t
+        scheduleCheck()
         log("alerts: \(settings.on ? "on" : "off"), source \(settings.source), time-sensitive \(Self.timeSensitive ? "entitled" : "not entitled (lows go out .active)")")
     }
 
@@ -400,13 +521,28 @@ final class AlertEngine {
     func onLatest(_ r: Reading) {
         engine.levelAndRate = mode == .own
         engine.reading(r)
+        scheduleCheck()
         onChange?()
     }
+
+    /// A treatment was logged, edited or deleted: mutes start (or end) at once.
+    func treatmentsChanged() { tick() }
 
     private func tick() {
         engine.levelAndRate = mode == .own
         engine.tick()
+        scheduleCheck()
         onChange?()
+    }
+
+    private func scheduleCheck() {
+        checkTimer?.invalidate()
+        checkTimer = nil
+        guard let at = engine.nextCheckAt(Date()) else { return }
+        let t = Timer(fire: at, interval: 0, repeats: false) { _ in MainActor.assumeIsolated { self.tick() } }
+        t.tolerance = 1
+        RunLoop.main.add(t, forMode: .common)
+        checkTimer = t
     }
 
     /// The v2 follow state changed (approved, revoked, unfollowed): the mode may flip.
@@ -455,7 +591,7 @@ final class AlertEngine {
         var parts: [String] = []
         if settings.on, mode == .wearer {
             parts = [AlertKind.Group.level, .rate, .noData].compactMap { g in
-                mirrored[g].map { "\($0.k.title) · from the wearer \(AlertEngine.ago(Date().timeIntervalSince($0.at)))" }
+                mirrored[g].map { "\($0.k.message(treated: $0.tr)) · from the wearer \(AlertEngine.ago(Date().timeIntervalSince($0.at)))" }
             }
             if let nd = engine.active[.noData] { parts.append("\(nd.kind.title) · here") }
             return parts.isEmpty ? "No alert (mirroring the wearer)" : parts.joined(separator: " · ")
@@ -463,25 +599,27 @@ final class AlertEngine {
         return engine.stateLine
     }
 
+    /// Same as Android's AlertNotifier: headline = `AlertKind.message`, body "69 mg/dL ↘ · < 70 mg/dL".
     private func text(_ ev: AlertEvent, mirrored: Bool) -> (String, String) {
         let u = unit()
         let units = u == .mgdl ? "mg/dL" : "mmol/L"
-        var title = ev.k.title, body: [String] = []
-        if ev.k == .noData {
-            let since = ev.t.map { Int(Date().timeIntervalSince($0) / 60) }
-            body.append(since.map { "Nothing received for \($0) min" } ?? "Nothing received for \(Int(ev.th)) min")
-        } else {
-            if let sgv = ev.sgv { title += ": \(u.format(sgv)) \(units)" }
-            switch ev.k {
-            case .urgentLow, .low: body.append("≤ \(u.format(ev.th))")
-            case .high, .veryHigh, .extremelyHigh: body.append("≥ \(u.format(ev.th))")
-            default: break
-            }
-            if let r = ev.r { body.append(u.formatRate(r)) }
+        let value = "\(ev.sgv.map { u.format($0) } ?? "?") \(units) \(Self.arrow(ev.r))"
+        func rate(_ x: Double) -> String { u == .mgdl ? String(format: "%.1f", x) : String(format: "%.2f", x / 18.0182) }
+        var body = switch ev.k {
+        case .veryLow, .low: "\(value) · < \(u.format(ev.th)) \(units)"
+        case .high, .veryHigh, .extremelyHigh: "\(value) · ≥ \(u.format(ev.th)) \(units)"
+        case .fallingFast: "\(value) · falling \(rate(-(ev.r ?? 0))) ≥ \(rate(ev.th)) \(units)/min"
+        case .risingFast: "\(value) · rising \(rate(ev.r ?? 0)) ≥ \(rate(ev.th)) \(units)/min"
+        case .noData: "Nothing received for \(Int(ev.th)) min" + (ev.sgv.map { " · last \(u.format($0)) \(units)" } ?? "")
         }
-        if ev.n > 1 { body.append("still (\(ev.n)×)") }
-        if mirrored { body.append("from the wearer's phone") }
-        return (title, body.joined(separator: " · "))
+        if mirrored { body += " · from the wearer's phone" }
+        return (ev.k.message(treated: ev.tr), body)
+    }
+
+    /// Android's Trend.arrow: the text arrow for a rate (mg/dL/min).
+    nonisolated static func arrow(_ r: Double?) -> String {
+        guard let r else { return "·" }
+        return r >= 3 ? "⇈" : r >= 2 ? "↑" : r >= 1 ? "↗" : r > -1 ? "→" : r > -2 ? "↘" : r > -3 ? "↓" : "⇊"
     }
 
     func post(_ ev: AlertEvent, mirrored: Bool, test: Bool = false) {
@@ -592,7 +730,7 @@ final class AlertEngine {
     /// `-alert-test <kind>`: post that alert once, with its sound, then log what Notification Center holds.
     func test(_ kind: String) {
         guard let k = AlertKind(rawValue: kind) else { return log("alert-test: unknown kind \(kind) (\(AlertKind.allCases.map(\.rawValue)))") }
-        let sample: [AlertKind: (Double, Double)] = [.urgentLow: (52, -1.2), .low: (62, -0.6), .high: (201, 0.8),
+        let sample: [AlertKind: (Double, Double)] = [.veryLow: (52, -1.2), .low: (62, -0.6), .high: (201, 0.8),
                                                      .veryHigh: (262, 1.1), .extremelyHigh: (312, 1.4), .fallingFast: (120, -2.6), .risingFast: (150, 2.4), .noData: (110, 0)]
         let (sgv, r) = sample[k]!
         let ev = AlertEvent(id: AlertEvent.newId(), k: k, state: "fire", at: Date(), t: Date().addingTimeInterval(k == .noData ? -25 * 60 : 0),
