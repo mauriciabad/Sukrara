@@ -31,6 +31,7 @@ import org.json.JSONObject
 object Alerts {
     private const val TAG = "Sukrara.Alerts"
     private const val PREFS = "alerts"
+    private const val EPISODES = "episodes"
 
     private val _settings = MutableStateFlow(AlertSettings())
     val settings: StateFlow<AlertSettings> = _settings
@@ -48,6 +49,8 @@ object Alerts {
     /** group → id of the alert whose notification is showing (a clear only removes its own firing). */
     private val posted = HashMap<String, String>()
     private val seenRemote = LinkedHashSet<String>()
+    /** Once per process: the saved episodes are read back on the first attach. */
+    private var resumed = false
 
     @Synchronized fun init(ctx: Context) {
         if (app != null) return
@@ -62,11 +65,28 @@ object Alerts {
                              newest: Reading? = null) {
         init(ctx)
         engine.seed(newest)   // after a restart "no data" still counts from the last stored reading
+        if (!resumed) { resumed = true; resume(ctx, role) }
         this.role = role
         this.doses = doses
         this.publish = publish
         this.who = who
         check(ctx)
+    }
+
+    /**
+     * After a restart (an app update kills the process and removes its notifications): the episodes go on where they
+     * were and the alerts that were showing come back without sound; only a repeat that's due rings (docs/15).
+     */
+    private fun resume(ctx: Context, role: String) {
+        val j = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(EPISODES, null)
+            ?.let { runCatching { JSONObject(it) }.getOrNull() }?.takeIf { it.optString("role") == role } ?: return
+        val shown = runCatching { engine.restore(j.getJSONObject("episodes"), _settings.value, Proto.nowS()) }.getOrElse { return }
+        for (f in shown) {
+            AlertNotifier.post(ctx, f.kind, f.reading?.sgv, f.reading?.rate, f.th, f.at, who, _settings.value.cfg(f.kind).alarm, f.treated,
+                silent = true)
+            posted[Kind.group(f.kind)] = f.id
+        }
+        if (shown.isNotEmpty()) note("resumed ${shown.joinToString { Kind.label(it.kind) }} (no sound)")
     }
 
     @Synchronized fun detach() { role = null; publish = null; cancelTimer() }
@@ -132,6 +152,8 @@ object Alerts {
             }
         }
         state.value = engine.states()
+        role?.let { r -> ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(EPISODES, JSONObject().put("role", r).put("episodes", engine.snapshot()).toString()).apply() }
         schedule(ctx)
     }
 

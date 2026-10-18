@@ -5,6 +5,7 @@ package app.mauri.sukrara.alerts
 
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
+import org.json.JSONObject
 import java.security.SecureRandom
 
 /**
@@ -44,8 +45,7 @@ class AlertEngine {
         var on = true
         var lastIn = start
         /** The firing whose notification is up (cleared when the condition goes, mutes, or the kind changes). */
-        var shownId: String? = null
-        var shownKind = kind
+        var shown: Fire? = null
         var n = 0
         var firedAt: Long? = null
         var firedKind = kind
@@ -64,6 +64,47 @@ class AlertEngine {
     /** The newest stored reading after a restart: no data counts from it. No evaluation (no alert for old news). */
     fun seed(r: Reading?) { if (r != null && last.let { it == null || r.t > it.t }) last = r }
 
+    /**
+     * The episodes, saved after every evaluation so a restart resumes them. An app update kills the process and
+     * removes its notifications; without this the next check took an ongoing alert for a new one and rang again at
+     * once, at the same moment as LSPosed's "Module update complete" notification (system default sound): two
+     * sounds (docs/15, "Two sounds at once").
+     */
+    fun snapshot(): JSONObject = JSONObject().apply {
+        for ((g, e) in episodes) put(g, JSONObject()
+            .put("side", e.side).put("start", e.start).put("kind", e.kind).put("on", e.on).put("lastIn", e.lastIn)
+            .put("n", e.n).put("firedAt", e.firedAt ?: JSONObject.NULL).put("firedKind", e.firedKind)
+            .put("muted", e.muted ?: JSONObject.NULL).put("muteUntil", e.muteUntil).put("next", e.next)
+            .put("shown", e.shown?.let { f -> JSONObject().put("kind", f.kind).put("id", f.id).put("n", f.n)
+                .put("th", f.th).put("at", f.at).put("treated", f.treated)
+                .put("reading", f.reading?.let { r -> JSONObject().put("t", r.t).put("sgv", r.sgv).put("rate", r.rate ?: JSONObject.NULL) } ?: JSONObject.NULL)
+            } ?: JSONObject.NULL))
+    }
+
+    /**
+     * Back to the [snapshot] state (episodes over by [now] are dropped). Returns the firings whose notification was
+     * up: the caller shows them again without sound. The next [evaluate] goes on from there: a repeat that came due
+     * while the app was down alerts, anything else waits for its time.
+     */
+    fun restore(j: JSONObject, s: AlertSettings, now: Long): List<Fire> {
+        episodes.clear()
+        for (g in j.keys()) {
+            val o = j.optJSONObject(g) ?: continue
+            val e = Episode(o.getString("side"), o.getLong("start"), o.getString("kind")).apply {
+                on = o.getBoolean("on"); lastIn = o.getLong("lastIn"); n = o.getInt("n")
+                firedAt = if (o.isNull("firedAt")) null else o.getLong("firedAt"); firedKind = o.getString("firedKind")
+                muted = if (o.isNull("muted")) null else o.getString("muted"); muteUntil = o.getLong("muteUntil"); next = o.getLong("next")
+                shown = o.optJSONObject("shown")?.let { f ->
+                    Fire(f.getString("kind"), f.getString("id"), f.getInt("n"),
+                        f.optJSONObject("reading")?.let { r -> Reading(r.getLong("t"), r.getInt("sgv"), if (r.isNull("rate")) null else r.getDouble("rate")) },
+                        f.getDouble("th"), f.getLong("at"), f.getInt("treated"))
+                }
+            }
+            if (e.kind in Kind.ALL && now - e.lastIn < hold(e, s)) episodes[g] = e
+        }
+        return episodes.values.mapNotNull { it.shown }
+    }
+
     /** A new reading (any age; older than the newest one is ignored), then [evaluate]. */
     fun reading(r: Reading, s: AlertSettings, d: Doses, now: Long): List<Action> {
         if (last.let { it == null || r.t > it.t }) last = r
@@ -74,7 +115,7 @@ class AlertEngine {
     fun evaluate(s: AlertSettings, d: Doses, now: Long): List<Action> {
         val out = mutableListOf<Action>()
         if (!s.on) {
-            episodes.values.forEach { e -> e.shownId?.let { out += Clear(e.shownKind, it, now) } }
+            episodes.values.forEach { e -> e.shown?.let { out += Clear(it.kind, it.id, now) } }
             episodes.clear()
             return out
         }
@@ -97,8 +138,8 @@ class AlertEngine {
     private fun hold(e: Episode, s: AlertSettings) = maxOf(s.cfg(e.kind).repeatMin, MIN_HOLD_MIN) * 60L
 
     private fun hide(e: Episode, now: Long, out: MutableList<Action>) {
-        e.shownId?.let { out += Clear(e.shownKind, it, now) }
-        e.shownId = null
+        e.shown?.let { out += Clear(it.kind, it.id, now) }
+        e.shown = null
     }
 
     private fun step(group: String, want: String?, s: AlertSettings, d: Doses, now: Long, out: MutableList<Action>) {
@@ -119,7 +160,7 @@ class AlertEngine {
         e.on = true
         e.lastIn = now
         e.kind = want
-        if (e.shownId != null && e.shownKind != want) hide(e, now, out)
+        if (e.shown.let { it != null && it.kind != want }) hide(e, now, out)
         val by = s.mutedBy(want)
         val cover = by?.let { d.of(it).filter { t -> t <= now && now - t < s.muteS(it) }.maxOrNull() }
         val mute = cover?.let { "${if (by == "rapid") "insulin" else by} ${(now - it) / 60} min ago" } ?: fallingMute(want, s, now)
@@ -134,14 +175,13 @@ class AlertEngine {
         e.muteUntil = 0
         e.next = due(e, want, s, d, now)
         if (now < e.next) return
-        val id = newId()
         e.n++
         e.firedAt = now
         e.firedKind = want
-        e.shownId = id
-        e.shownKind = want
+        val fire = Fire(want, newId(), e.n, last, threshold(want, s), now, treated(e, want, s, d, now))
+        e.shown = fire
         e.next = due(e, want, s, d, now)
-        out += Fire(want, id, e.n, last, threshold(want, s), now, treated(e, want, s, d, now))
+        out += fire
     }
 
     /** When [e] alerts next for [k]: see the class comment. */

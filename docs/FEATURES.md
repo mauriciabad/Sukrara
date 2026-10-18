@@ -40,6 +40,8 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
   readings; Mac: one-shot timer at the next check plus the 60 s tick.
 - Badge status (`AlertStatus`): None / Needed / Taken use the same thresholds and treatment windows as the engine.
 - Notification channels: two per kind (`alert_n_<kind>`, `alert_a_<kind>`); any other `alert_*` channel is deleted.
+- One sound per alert: each channel rings only its Sukrara sound; the app restores its episodes after a restart (an
+  update kills it) and shows the alerts that were up again without sound; the next sound is the normal repeat.
 - Default sound pack: Quest, a different variant each time, no per-kind packs; followers mirror the wearer by default.
 
 ## Treatments

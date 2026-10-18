@@ -286,6 +286,22 @@ build signed with that entitlement; today's builds show it as a normal notificat
   - After that, high, very high and no data played.
 - Per-app cooldown (only when the user applies cooldown to all apps) can still soften a second alert that comes within
   seconds of another one. Real alerts are minutes apart.
+- **Two sounds at once after an app update (2026-10-18, user report).** Measured on the Pixel (`dumpsys audio`,
+  `notification_alert` events): every Sukrara update made SystemUI start two players within 0.5 s, the system
+  default sound (`USAGE_NOTIFICATION`, LSPosed's "Module update complete" notification, channel
+  `lsposed_module_updated` of package `android`, posted because Sukrara is an LSPosed module) and the alert sound
+  (`USAGE_NOTIFICATION_EVENT`, `alert_n_high`). The update kills the process and removes its notifications; the new
+  process started with an empty engine and took the ongoing high for a new one, so it rang again at once. Not the
+  cause: every alert channel already had its own `content://…alertsound/<kind>` sound, alert notifications set no
+  sound/defaults/group of their own, the app plays nothing itself outside the settings preview, and a normal repeat
+  (12:34) started one player only. Fix: `AlertEngine.snapshot()` is saved after every evaluation and
+  `restore()`d on the first attach of a process; the alerts that were up come back silently (a group member with
+  `GROUP_ALERT_SUMMARY`, what `NotificationCompat.setSilent` does) and the repeats keep their times. After the fix a
+  reinstall started only LSPosed's player and logged "resumed High (no sound)". LSPosed's own sound stays (another
+  app's channel; the user can silence it in Settings → Apps → Android System → Notifications). Guards:
+  `AlertEngineTest.restartResumesWithoutRingingAgain`, `AlertNotifierTest` (every channel has its own sound, no
+  sound/group on the alert, the re-shown alert is silent; Robolectric, runs with `GALLERY_JAVA_HOME`). The Mac has no
+  equivalent: `UNNotificationSound` only, `NSSound` plays only under `swift run` (no notification center).
 - **Mac Time Sensitive** needs `com.apple.developer.usernotifications.time-sensitive`, which only a provisioning
   profile grants. The app checks its own entitlement: lows are `.timeSensitive` when it has it, `.active` otherwise
   (today).
