@@ -50,7 +50,13 @@ data class GraphConfig(
     val lines: List<Int> = DEFAULT_LINES,
     /** Hours between the vertical lines at least ([GRID_HOURS]; small charts space them further apart), 0 = none. */
     val gridHours: Int = 1,
+    /** The last-treatment slot beside the value ([LastPlace]; on by default, next to the number). */
+    val lastPlace: LastPlace = LastPlace.NEAR_VALUE,
+    /** What that slot shows while there's no recent treatment (null = nothing): a 30-day time-in-range ring by default. */
+    val lastElse: RingSpec? = DEFAULT_LAST_ELSE,
 ) {
+    /** [lastElse] with the ring settings applied. */
+    fun lastElseRing() = lastElse?.copy(range = ringRange, order = ringOrder)
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) =
         slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder) }
@@ -63,10 +69,12 @@ data class GraphConfig(
         .put("defaultHours", defaultHours)
         .put("placeHours", JSONObject().apply { placeHours.forEach { (k, v) -> put(k.name, v) } })
         .put("ringCount", ringCount).put("ringRange", ringRange.name).put("ringOrder", ringOrder.joinToString(",") { it.name })
-        .put("slots", slots.joinToString(",") { "${it.kind.name}:${it.windowS}:${if (it.faded) 1 else 0}" })
+        .put("slots", slots.joinToString(",", transform = ::slotText))
         .put("side", side)
         .put("lines", lines.joinToString(","))
         .put("gridHours", gridHours)
+        .put("lastPlace", lastPlace.name)
+        .put("lastElse", lastElse?.let(::slotText) ?: "")
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
@@ -80,18 +88,15 @@ data class GraphConfig(
                     GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS }?.let { k to it } }.toMap()
                 } ?: emptyMap(),
                 ringCount = o.optInt("ringCount", d.ringCount).coerceIn(0, 3),
-                slots = o.optString("slots").split(",").mapNotNull { e ->
-                    val p = e.split(":")
-                    val kind = runCatching { SlotKind.valueOf(p[0]) }.getOrNull() ?: return@mapNotNull null
-                    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf { it in RING_WINDOWS_S } ?: return@mapNotNull null
-                    RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
-                }.takeIf { it.size == 3 } ?: d.slots,
+                slots = o.optString("slots").split(",").mapNotNull(::parseSlot).takeIf { it.size == 3 } ?: d.slots,
                 ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrDefault(d.ringRange),
                 ringOrder = o.optString("ringOrder").split(",").mapNotNull { runCatching { Band.valueOf(it) }.getOrNull() }
                     .takeIf { it.toSet().size == Band.entries.size && it.size == Band.entries.size } ?: d.ringOrder,
                 side = o.optBoolean("side", d.side),
                 lines = if (o.has("lines")) parseLines(o.optString("lines")) else d.lines,
                 gridHours = o.optInt("gridHours", d.gridHours).takeIf { it in GRID_HOURS } ?: d.gridHours,
+                lastPlace = runCatching { LastPlace.valueOf(o.optString("lastPlace")) }.getOrDefault(d.lastPlace),
+                lastElse = if (o.has("lastElse")) parseSlot(o.optString("lastElse")) else d.lastElse,
             )
         }
     }
@@ -121,6 +126,19 @@ data class WidgetGraphConfig(
         )
     }
 }
+
+/** One slot as "KIND:windowS:faded", e.g. "TIR:86400:1". */
+private fun slotText(s: RingSpec) = "${s.kind.name}:${s.windowS}:${if (s.faded) 1 else 0}"
+
+private fun parseSlot(e: String): RingSpec? {
+    val p = e.split(":")
+    val kind = runCatching { SlotKind.valueOf(p[0]) }.getOrNull() ?: return null
+    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf { it in RING_WINDOWS_S } ?: return null
+    return RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
+}
+
+/** The last-treatment slot's default fallback: time in range over 30 days, faded like a second slot. */
+val DEFAULT_LAST_ELSE = RingSpec(30 * 86400L)
 
 /** Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report. */
 val DEFAULT_SLOTS = listOf(RingSpec(86400L), RingSpec(7 * 86400L), RingSpec(14 * 86400L, kind = SlotKind.GMI))

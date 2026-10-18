@@ -8,9 +8,13 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
+import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertStatus
+import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.status.GlucoseNotification
+import app.mauri.sukrara.treatments.LastTreatment
 import app.mauri.sukrara.treatments.Treatment
 import kotlin.math.max
 import kotlin.math.min
@@ -156,11 +160,17 @@ object MetricGauge {
     }
 }
 
-/** What a whole glucose card shows: value header and/or chart, and up to three rings (main first). */
+/**
+ * What a whole glucose card shows: value header and/or chart, up to three rings (main first), the last-treatment slot
+ * ([last], with [lastElse] while there's none) and the status badge under the value ([badge]).
+ */
 data class CardStyle(
     val graph: GraphStyle? = GraphStyle(),
     val rings: List<RingSpec> = listOf(RingSpec(86400), RingSpec(7 * 86400L)),
     val value: Boolean = true,
+    val last: LastPlace = LastPlace.OFF,
+    val lastElse: RingSpec? = null,
+    val badge: Boolean = true,
 )
 
 /**
@@ -169,16 +179,22 @@ data class CardStyle(
  * rings that don't fit are dropped (last first), short wide cards put the value left of the chart.
  */
 object GlucoseCard {
-    private val RING_EMPHASIS = floatArrayOf(1f, 0.55f, 0.35f)
     /** A ring is only drawn when its window has at least this much data. */
     const val MIN_COVERAGE = 0.25
 
+    /**
+     * [alerts] = the alert rules behind the badge, the mute lines on the chart and the last-treatment ring (null = none
+     * of them); every caller gets the app's rules unless it passes its own.
+     */
     fun draw(
         cv: Canvas, w: Float, h: Float, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: CardStyle, pal: GraphPalette, d: Float,
         metricsOf: (RingSpec, Bands) -> GlucoseMetrics = { r, b -> GlucoseMetrics.of(readings, nowS - r.windowS, nowS, b) },
+        alerts: AlertSettings? = Alerts.settings.value,
     ) {
         val latest = readings.maxByOrNull { it.t }
+        val status = alerts?.let { AlertStatus.of(latest, it, treatments, nowS) } ?: AlertStatus.None
+        val last = if (st.last != LastPlace.OFF && alerts != null) LastTreatment.of(treatments, alerts, status, nowS) else null
         val fr = Freshness.of(latest?.let { nowS - it.t })
         val graph = st.graph?.takeIf { fr.showGraph }
         val bands = (st.graph?.bands ?: Bands()).sane()
@@ -193,12 +209,13 @@ object GlucoseCard {
 
         if (st.value) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
-            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st.rings, bands, pal, d, metricsOf)
-            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d)
+            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf)
+            val look = if (st.badge) StatusBadge.look(status, nowS) else null
+            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look)
         }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
         when {
-            graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d)
+            graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts)
             st.graph != null && chart.height() > 24 * d -> {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
                 val msg = latest?.let { "No readings since ${Freshness.timeText(it.t, nowS)}" } ?: "No readings yet"
@@ -207,30 +224,39 @@ object GlucoseCard {
         }
     }
 
-    /** Rings right-aligned in [box] (main rightmost); returns the width used. */
-    private fun drawRings(cv: Canvas, box: RectF, rings: List<RingSpec>, bands: Bands, pal: GraphPalette, d: Float,
-                          metricsOf: (RingSpec, Bands) -> GlucoseMetrics): Float {
-        if (rings.isEmpty()) return 0f
+    /** Slots ([Slots.arrange]) right-aligned in [box] (main rightmost); returns the width used. */
+    private fun drawRings(cv: Canvas, box: RectF, st: CardStyle, last: LastTreatment.Info?, nowS: Long, bands: Bands,
+                          pal: GraphPalette, d: Float, metricsOf: (RingSpec, Bands) -> GlucoseMetrics): Float {
+        val extra = st.last != LastPlace.OFF && (last != null || st.lastElse != null)
+        if (st.rings.isEmpty() && !extra) return 0f
         val size = min(box.height() * 0.96f, 84 * d)
         if (size < 30 * d) return 0f
         val gap = size * 0.14f
-        val fit = ((box.width() * 0.55f + gap) / (size + gap)).toInt().coerceAtMost(min(3, rings.size))
+        val fit = ((box.width() * 0.55f + gap) / (size + gap)).toInt().coerceAtMost(4)
+        if (fit < 1) return 0f
+        val rings = st.rings.take(3).mapIndexedNotNull { i, spec ->
+            metricsOf(spec, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { Triple(i, spec, it) }
+        }
+        val fallback = if (st.last != LastPlace.OFF && last == null) st.lastElse?.let { s ->
+            metricsOf(s, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { s to it }
+        } else null
         var x = box.right
         var used = 0f
-        for ((i, spec) in rings.take(fit).withIndex()) {
-            val m = metricsOf(spec, bands)
-            if (m.tir.coverage < MIN_COVERAGE) continue
-            val e = if (spec.faded) RING_EMPHASIS[i] else 1f
-            if (spec.kind == SlotKind.TIR) TirRing.draw(cv, x - size / 2, box.centerY(), size / 2, m.tir, spec, pal, e, d)
-            else MetricGauge.draw(cv, x - size / 2, box.centerY(), size / 2, m, spec, pal, e, d)
+        for (item in Slots.arrange(rings, st.last, last, fallback, fit)) {
+            Slots.draw(cv, item, x - size / 2, box.centerY(), size / 2, nowS, pal, d)
             x -= size + gap
             used += size + gap
         }
         return used
     }
 
+    /**
+     * The number + arrow, and under it the late reading's time and/or the status badge ([look]). The badge takes a row
+     * under the number when the box is tall enough to keep the number at least 26 dp; otherwise it shrinks to its icon
+     * beside the arrow, or is left out when there's no room there either.
+     */
     private fun drawValue(cv: Canvas, box: RectF, r: Reading?, fr: Freshness, nowS: Long, bands: Bands,
-                          pal: GraphPalette, d: Float) {
+                          pal: GraphPalette, d: Float, look: StatusBadge.Look? = null) {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
@@ -242,7 +268,10 @@ object GlucoseCard {
         }
         val color = if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
-        val timeH = if (fr.showTime) small.textSize * 1.25f else 0f
+        val badgeH = (box.height() * 0.24f).coerceIn(14 * d, 24 * d)
+        val badgeRow = look != null && box.height() - badgeH * 1.25f - (if (fr.showTime) small.textSize * 1.25f else 0f) >= 26 * d
+        // the late time shares the badge's row (after the badge) when there is one
+        val timeH = if (badgeRow) badgeH * 1.25f else if (fr.showTime) small.textSize * 1.25f else 0f
         val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color; typeface = Typeface.create(Typeface.DEFAULT, 700, false)
@@ -254,6 +283,9 @@ object GlucoseCard {
         val arrowFactor = 0.62f
         val need = num.measureText(s) + num.textSize * arrowFactor * 1.1f
         if (need > box.width()) num.textSize *= box.width() / need
+        // no row for the badge: its icon goes beside the arrow if there's room
+        val iconBadge = look != null && !badgeRow &&
+            box.width() - (num.measureText(s) + num.textSize * arrowFactor * 1.2f) >= min(numBox.height() * 0.5f, 24 * d)
         val capH = num.textSize * 0.72f
         val cy = numBox.centerY()
         val baseY = cy + capH / 2
@@ -268,6 +300,21 @@ object GlucoseCard {
                 double = Trend.isDouble(rate))
             cv.restore()
         }
-        if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), box.left, baseY + small.textSize * 1.25f, small)
+        if (badgeRow && look != null) {
+            val top = numBox.bottom + badgeH * 0.25f
+            val bw = StatusBadge.draw(cv, box.left, top, badgeH, box.width(), look, pal.dark)
+            if (fr.showTime) {
+                val t = Paint(small).apply { textSize = badgeH * 0.56f }
+                val tx = box.left + bw + badgeH * 0.35f
+                val text = Freshness.timeText(r.t, nowS)
+                if (tx + t.measureText(text) <= box.right) cv.drawText(text, tx, top + badgeH / 2 + t.textSize * 0.36f, t)
+            }
+        } else {
+            if (iconBadge && look != null) {
+                val ih = min(numBox.height() * 0.5f, 24 * d)
+                StatusBadge.draw(cv, x + arrowSize * 1.15f, cy - ih / 2, ih, ih, look, pal.dark)
+            }
+            if (fr.showTime) cv.drawText(Freshness.timeText(r.t, nowS), box.left, baseY + small.textSize * 1.25f, small)
+        }
     }
 }
