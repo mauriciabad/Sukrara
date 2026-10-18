@@ -122,3 +122,5 @@ Cheap tools:
       `adb logcat -s Sukrara.nfc Sukrara.direct` shows the patch info and the pairing. A Libre 1 / 2 / 2 Plus (or any
       other NfcV tag) shows *Libre 2 sensors aren't supported* / *Not supported*, and logcat shows
       `Libre 1/2 chip: not supported, nothing sent` with no command lines.
+- [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in before starting …*, nothing sent; after the
+      sign-in the next tap starts it (logcat `patch info … state=1`, then the pairing).

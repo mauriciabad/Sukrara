@@ -75,4 +75,17 @@ class Libre3NfcTest {
         assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(byteArrayOf(1, 2, 3, 4)))
         assertEquals(Libre3Nfc.Chip.OTHER, Libre3Nfc.chip(null))
     }
+
+    /** Juggluco libre3/NFC.java (`secondWithID`): its logged A0 payload `8C 42 86 62 8D 6D 41 1F BC 93`. */
+    @Test fun activationCommand() {
+        // now − 1 = 0x6286428C, receiver ID 0x1F416D8D, CRC 0x93BC little-endian
+        assertArrayEquals(hex("02A07A" + "8C4286628D6D411FBC93"), Libre3Nfc.secondCommand(true, 0x1F416D8DL, now = 0x6286428DL))
+    }
+
+    /** A new sensor only ever gets the LibreView receiver ID; without it nothing is sent. A takeover tries them all. */
+    @Test fun activationNeedsTheAccountId() {
+        assertEquals(listOf(77L), Libre3Nfc.idsToTry(activate = true, candidates = listOf(77L, 5L), forActivation = 77L))
+        assertNull(Libre3Nfc.idsToTry(activate = true, candidates = listOf(5L), forActivation = null))
+        assertEquals(listOf(77L, 5L), Libre3Nfc.idsToTry(activate = false, candidates = listOf(77L, 5L), forActivation = null))
+    }
 }
