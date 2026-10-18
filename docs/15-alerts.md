@@ -300,8 +300,11 @@ build signed with that entitlement; today's builds show it as a normal notificat
   reinstall started only LSPosed's player and logged "resumed High (no sound)". LSPosed's own sound stays (another
   app's channel; the user can silence it in Settings → Apps → Android System → Notifications). Guards:
   `AlertEngineTest.restartResumesWithoutRingingAgain`, `AlertNotifierTest` (every channel has its own sound, no
-  sound/group on the alert, the re-shown alert is silent; Robolectric, runs with `GALLERY_JAVA_HOME`). The Mac has no
-  equivalent: `UNNotificationSound` only, `NSSound` plays only under `swift run` (no notification center).
+  sound/group on the alert, the re-shown alert is silent; Robolectric, runs with `GALLERY_JAVA_HOME`). The Mac had the
+  same restart gap (relaunch or update of Sukrara.app rang an ongoing alert again): it now saves the snapshot in
+  UserDefaults `alertEpisodes` after every evaluation and restores it at launch (seeded with the last stored reading),
+  re-posting the alerts that were up with the same identifier and no sound; same tests in `-alerts-selftest`, and the
+  shared timeline event `restart` (SPEC §7, `episodes.txt`) runs on both engines.
 - **Mac Time Sensitive** needs `com.apple.developer.usernotifications.time-sensitive`, which only a provisioning
   profile grants. The app checks its own entitlement: lows are `.timeSensitive` when it has it, `.active` otherwise
   (today).

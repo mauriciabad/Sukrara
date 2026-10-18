@@ -10,6 +10,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.json.JSONObject
 import java.io.File
 
 /**
@@ -106,7 +107,7 @@ object AlertScenarios {
     /** Runs [sc] (driver: SPEC.md §7); returns one line per minute that differs, empty when it all matches. */
     fun run(sc: Scenario): List<String> {
         var s = sc.settings.fold(AlertSettings()) { acc, kv -> set(acc, kv) }
-        val e = AlertEngine()
+        var e = AlertEngine()
         val trs = mutableListOf<Treatment>()
         val got = HashMap<Int, MutableList<String>>()
         var glucose = 0
@@ -146,6 +147,13 @@ object AlertScenarios {
                         check()
                     }
                     "set" -> { s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }; check() }
+                    "restart" -> {
+                        val saved = JSONObject(e.snapshot().toString())
+                        val last = e.last
+                        e = AlertEngine()
+                        e.seed(last)
+                        e.restore(saved, s, t).forEach { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += "resume ${it.kind}" }
+                    }
                     else -> error("unknown event: $ev")
                 }
             }
