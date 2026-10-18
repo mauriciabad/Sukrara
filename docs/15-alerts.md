@@ -321,7 +321,7 @@ build signed with that entitlement; today's builds show it as a normal notificat
 | `menubar/Sources/GlucoseBar/Alerts*.swift` | the Mac engine, window and self-test |
 
 Debug (`DebugReceiver`, adb only): `--es alertTest high` fires one alert (and sends it to followers),
-`--es alertFeed '204,-0.5'` runs a made-up reading through the rules, `--es alertSettings '<json>'`; the reply has
+`--es alertFeed '204,-0.5'` runs a made-up reading through the rules (debug builds only), `--es alertSettings '<json>'`; the reply has
 `alerts` (settings, state, last events). Mac: `-alert-test`, `-alert-feed`, `-alertsSnapshot`.
 
 ## Open

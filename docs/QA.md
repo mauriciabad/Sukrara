@@ -20,7 +20,8 @@ Cheap tools:
   launching a test build renders the dropdown.
 - **Emulator**: `medium_phone` (wearer, debug build = synthetic glucose) and `small_phone` (follower); at most two at
   once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver
-  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules), `--es cmd treat …`, see docs/10.
+  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules; debug builds only, like every command that
+  fakes the sensor or data), `--es cmd treat …`, see docs/10.
 - **Phone** (`62240DLCH0005W`): only after `tools/install.sh phone`; read-only adb, `adb exec-out screencap -p`
   while unlocked.
 

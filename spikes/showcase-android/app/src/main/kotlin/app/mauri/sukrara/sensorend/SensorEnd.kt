@@ -55,8 +55,8 @@ import java.time.ZoneId
  * ("A timer in the chip can be shown when using Chronometer for when time"). The bar is the time left in the window
  * (Live Update design guide: "make sure the fill matches the remaining time"). The guide accepts scheduled activities
  * "only when the activity is imminent" and says "Don't repost Live Updates that the user dismissed. Use
- * setDeleteIntent to detect dismissed updates": a dismissed countdown stays away for this sensor, and it has a
- * Hide action. At the end it becomes a normal "Sensor ended" notification (no alarm sound, channel default).
+ * setDeleteIntent to detect dismissed updates": a swiped-away countdown stays away for this sensor. No action buttons
+ * (no Hide; the way out is a swipe or the settings, see [live]). At the end it becomes a normal "Sensor ended" notification (no alarm sound, channel default).
  *
  * The warm-up of a new sensor (no readings for ~60 min) uses the same Live Update, with the bar filling up to the
  * warm-up's end. A countdown never goes below zero: at the warm-up's end (an exact alarm) it turns into "Almost ready"
@@ -309,11 +309,23 @@ object SensorEnd {
 
     /**
      * A Live Update (promotable): ProgressStyle with one segment and no tracker icon (a plain bar), the timer as small icon, a chronometer
-     * counting down to [until] (the chip's timer), silent updates, a Hide action and the same intent on swipe-away.
+     * counting down to [until] (the chip's timer), silent updates, and **no action buttons** (the user wants no Hide
+     * button on any notification, 0.11.20). The way out without a button:
+     *  - **Swipe it away.** Since Android 14 an ongoing notification is user-dismissible ("Android 14 has changed the
+     *    behavior to allow users to dismiss such notifications", except "When the phone is locked" and on *Clear all*;
+     *    developer.android.com/about/versions/14/behavior-changes-all), and a promoted one can be "temporarily
+     *    dismiss[ed] or demote[d] … to a standard notification" (developer.android.com/develop/ui/views/notifications/
+     *    live-update). The delete intent ("Use setDeleteIntent to detect dismissed updates") marks it dismissed for
+     *    this sensor, so it isn't reposted ("Don't repost Live Updates that the user dismissed").
+     *  - **Turn it off for good**: Settings → Sensor end → *End countdown* / *Warm-up countdown*; or the system's own
+     *    controls: the *Sensor countdowns* channel, and Live Updates per app (the guide's
+     *    `Settings.ACTION_MANAGE_APP_PROMOTED_NOTIFICATIONS`; `canPostPromotedNotifications` follows it).
+     * The guide asks for an "Unpin" action only when the user started following an event; these countdowns follow the
+     * user's own sensor, so none is required.
      */
     private fun live(ctx: Context, title: String, text: String, until: Long?, perMille: Int, dismissAction: String, req: Int,
                      promote: Boolean): Notification {
-        val hide = PendingIntent.getBroadcast(ctx, req, Intent(ctx, SensorEndReceiver::class.java).setAction(dismissAction),
+        val dismissed = PendingIntent.getBroadcast(ctx, req, Intent(ctx, SensorEndReceiver::class.java).setAction(dismissAction),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val style = Notification.ProgressStyle()
             .setProgressSegments(listOf(Notification.ProgressStyle.Segment(1000)))
@@ -332,8 +344,7 @@ object SensorEnd {
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(open(ctx))
-            .setDeleteIntent(hide)
-            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.sensor_countdown_hide), hide).build())
+            .setDeleteIntent(dismissed)
             .apply { if (promote && canPromote(ctx)) runCatching { setRequestPromotedOngoing(true) } }
             .build()
     }
@@ -415,7 +426,7 @@ object SensorEnd {
     }
 }
 
-/** The alarm, the countdown's dismiss / Hide, boot, app update, time and time-zone changes. */
+/** The alarm, a countdown swiped away, boot, app update, time and time-zone changes. */
 class SensorEndReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
         runCatching {
