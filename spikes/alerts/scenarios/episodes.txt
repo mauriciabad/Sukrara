@@ -1,0 +1,40 @@
+# Episodes: one per side; it lasts until nothing of that side has matched for the hold time (the repeat
+# interval, at least 5 min). Format: SPEC.md §7
+
+scenario A brief exit keeps the episode: no new first alert, the repeat goes on
+ 0  glucose 60   => Low glucose
+ 1  glucose 75   => clear low
+ 4  glucose 60                   # back after 3 min out: same episode, the repeat is due at 5
+ 5               => Low glucose
+ 6
+
+scenario A short exit keeps the treatments: the low after it still says eat more
+ 0  glucose 60   => Low glucose
+ 1  carbs 10     => clear low
+ 3  glucose 75
+ 5  glucose 60                   # out for 3 min: same episode, quiet until the carbs' window ends
+16               => Low glucose · eat more
+17
+
+scenario Back in range for the hold time ends the episode: the next low starts plain
+ 0  glucose 60   => Low glucose
+ 1  carbs 10     => clear low
+ 3  glucose 75                   # the carbs worked
+20  glucose 60   => Low glucose  # a new episode: at once, and the old carbs don't count
+21
+
+scenario Settings changed mid-episode
+ 0  glucose 65   => Low glucose
+ 2  set low=60   => clear low    # 65 isn't low any more
+ 4  set low=70                   # low again within the hold time: same episode, due at 5
+ 5               => Low glucose
+ 6  set low.repeat=15
+20               => Low glucose
+21
+
+scenario Switching alerts off clears everything; back on, it alerts again
+ 0  glucose 50       => Very low glucose
+ 2  set alerts=off   => clear very_low
+ 5                                 # nothing while off
+ 8  set alerts=on    => Very low glucose
+ 9

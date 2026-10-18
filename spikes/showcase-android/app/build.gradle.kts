@@ -76,6 +76,9 @@ kotlin {
     jvmToolchain(17)
 }
 
+// The shared alert timelines (spikes/alerts/scenarios) are inputs of AlertScenarioTest: editing one re-runs the tests.
+tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").withPropertyName("alertScenarios") }
+
 // Robolectric's SDK 36 sandbox (the graph/report galleries) needs Java 21+: run unit tests on GALLERY_JAVA_HOME when
 // set, else leave the galleries out so `testDebugUnitTest` passes on the build's JDK 17.
 if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*") }

@@ -117,15 +117,15 @@ object Alerts {
     private fun apply(ctx: Context, actions: List<AlertEngine.Action>) {
         for (a in actions) when (a) {
             is AlertEngine.Fire -> {
-                AlertNotifier.post(ctx, a.kind, a.n, a.reading?.sgv, a.reading?.rate, a.th, a.at, who, _settings.value.cfg(a.kind).alarm)
+                AlertNotifier.post(ctx, a.kind, a.reading?.sgv, a.reading?.rate, a.th, a.at, who, _settings.value.cfg(a.kind).alarm, a.treated)
                 posted[Kind.group(a.kind)] = a.id
-                note("${Kind.label(a.kind)}${if (a.n > 1) " (reminder ${a.n})" else ""} · ${a.reading?.sgv ?: "–"} mg/dL")
-                publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n))
+                note("${Kind.message(a.kind, a.treated)}${if (a.n > 1) " (${a.n})" else ""} · ${a.reading?.sgv ?: "–"} mg/dL")
+                publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n, a.treated))
             }
             is AlertEngine.Clear -> {
                 if (posted[Kind.group(a.kind)] == a.id) { AlertNotifier.cancel(ctx, a.kind); posted.remove(Kind.group(a.kind)) }
                 note("${Kind.label(a.kind)} cleared")
-                publish?.invoke(event(a.kind, "clear", a.id, a.at, engine.last, null, 0))
+                publish?.invoke(event(a.kind, "clear", a.id, a.at, engine.last, null, 0, 0))
             }
         }
         state.value = engine.states()
@@ -133,10 +133,10 @@ object Alerts {
     }
 
     /** spikes/alerts/SPEC.md §4 body. */
-    private fun event(k: String, st: String, id: String, at: Long, r: Reading?, th: Double?, n: Int) = JSONObject()
+    private fun event(k: String, st: String, id: String, at: Long, r: Reading?, th: Double?, n: Int, treated: Int) = JSONObject()
         .put("v", 2).put("type", "alert").put("id", id).put("k", k).put("state", st).put("at", at)
         .put("t", r?.t ?: JSONObject.NULL).put("sgv", r?.sgv ?: JSONObject.NULL).put("r", r?.rate ?: JSONObject.NULL)
-        .put("th", th ?: JSONObject.NULL).put("n", n)
+        .put("th", th ?: JSONObject.NULL).put("n", n).put("tr", treated)
 
     /** A verified, decrypted `alert` event from the followed wearer (any transport; deduped here by its id+state). */
     @Synchronized fun onRemote(ctx: Context, body: JSONObject) {
@@ -152,10 +152,11 @@ object Alerts {
         val group = Kind.group(k)
         when (st) {
             "fire" -> {
-                AlertNotifier.post(ctx, k, body.optInt("n", 1), body.optIntOrNull("sgv"), body.optDoubleOrNull("r"),
-                    body.optDouble("th", 0.0), body.optLong("at"), who, s.cfg(k).alarm)
+                val treated = body.optInt("tr", 0)
+                AlertNotifier.post(ctx, k, body.optIntOrNull("sgv"), body.optDoubleOrNull("r"), body.optDouble("th", 0.0),
+                    body.optLong("at"), who, s.cfg(k).alarm, treated)
                 posted[group] = id
-                note("${Kind.label(k)} (from the wearer) · ${body.optIntOrNull("sgv") ?: "–"} mg/dL")
+                note("${Kind.message(k, treated)} (from the wearer) · ${body.optIntOrNull("sgv") ?: "–"} mg/dL")
             }
             "clear" -> if (posted[group] == id) {
                 AlertNotifier.cancel(ctx, k); posted.remove(group)
@@ -175,12 +176,20 @@ object Alerts {
     private fun intent(ctx: Context) = PendingIntent.getBroadcast(ctx, 15, Intent(ctx, AlertCheckReceiver::class.java),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-    /** One inexact, idle-allowed alarm at the engine's next useful check (no data, re-alert, mute ending). */
+    /**
+     * One exact, idle-allowed alarm at the engine's next useful check (no data, a repeat, a mute window ending), so a
+     * mute that ends between two readings (or with none coming) alerts on time. An inexact alarm may be delivered up
+     * to 75 % of its delay late and later still in Doze (AlarmManager.set: "may be deferred"); with readings every 5 min
+     * that made the alert after a mute wait for the next reading. USE_EXACT_ALARM is granted at install (API 33+);
+     * the inexact alarm stays only for a phone where the user revoked it.
+     */
     private fun schedule(ctx: Context) {
         val at = engine.nextCheckAt(effective(), Proto.nowS()) ?: return cancelTimer()
-        val inMs = ((at - Proto.nowS()) * 1000).coerceAtLeast(5_000)
-        ctx.getSystemService(AlarmManager::class.java)
-            .setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + inMs, intent(ctx))
+        val inMs = ((at - Proto.nowS()) * 1000).coerceAtLeast(1_000)
+        val am = ctx.getSystemService(AlarmManager::class.java)
+        val trigger = SystemClock.elapsedRealtime() + inMs
+        if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, intent(ctx))
+        else am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, intent(ctx))
     }
 
     private fun cancelTimer() { app?.let { it.getSystemService(AlarmManager::class.java).cancel(intent(it)) } }
@@ -191,7 +200,7 @@ object Alerts {
      */
     @Synchronized fun test(ctx: Context, kind: String, share: Boolean) {
         init(ctx)
-        val sgv = when (kind) { Kind.URGENT_LOW -> 50; Kind.LOW -> 62; Kind.VERY_HIGH -> 262; Kind.EXTREMELY_HIGH -> 312; else -> 204 }
+        val sgv = when (kind) { Kind.VERY_LOW -> 50; Kind.LOW -> 62; Kind.VERY_HIGH -> 262; Kind.EXTREMELY_HIGH -> 312; else -> 204 }
         val r = Reading(Proto.nowS(), sgv, when (kind) { Kind.FALLING_FAST -> -2.6; Kind.RISING_FAST -> 2.4; else -> -0.4 })
         val fire = AlertEngine.Fire(kind, AlertEngine.newId(), 1, r, _settings.value.cfg(kind).value, Proto.nowS())
         val pub = publish

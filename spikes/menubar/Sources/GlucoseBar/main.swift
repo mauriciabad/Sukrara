@@ -424,6 +424,7 @@ MainActor.assumeIsolated {
     let treatments = treatmentStore
     treatments.onChange.append { status.treatmentsChanged() }
     treatments.onChange.append { widgetFeed.treatmentsChanged(treatments.rows) }
+    treatments.onChange.append { alerts.treatmentsChanged() }       // mutes start or end at once
     status.treatments = { treatments.rows }
     status.treatmentPaths = { TreatmentPaths.current(node: following.node) }
     status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments) }

@@ -41,11 +41,13 @@ object AlertNotifier {
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
 
-    private fun isLow(kind: String) = kind == Kind.URGENT_LOW || kind == Kind.LOW
+    private fun isLow(kind: String) = kind in Kind.LOW_SIDE
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        Kind.ALL.forEach { nm.deleteNotificationChannel("alert_$it") }   // 0.11.1–0.11.3: one channel per kind
+        val ids = Kind.ALL.flatMap { listOf(channelId(it, false), channelId(it, true)) }.toSet()
+        // channels of kinds and layouts that no longer exist (0.11.1 `alert_<kind>`, the renamed `urgent_low`)
+        nm.notificationChannels.filter { it.id.startsWith("alert_") && it.id !in ids }.forEach { nm.deleteNotificationChannel(it.id) }
         nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP, "Glucose alerts"))
         nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_ALARM, "Glucose alerts at alarm volume"))
         for (k in Kind.ALL) for (alarm in listOf(false, true)) {
@@ -64,8 +66,8 @@ object AlertNotifier {
     }
 
     private val DESCRIPTIONS = mapOf(
-        Kind.URGENT_LOW to "Glucose ≤ urgent low. Never muted.",
-        Kind.LOW to "Glucose ≤ low.",
+        Kind.VERY_LOW to "Glucose < very low.",
+        Kind.LOW to "Glucose < low.",
         Kind.HIGH to "Glucose ≥ high.",
         Kind.VERY_HIGH to "Glucose ≥ very high.",
         Kind.EXTREMELY_HIGH to "Glucose ≥ extremely high. Never muted.",
@@ -81,26 +83,23 @@ object AlertNotifier {
 
     /**
      * [who] = the followed person when this mirrors a wearer's alert or follows someone, null on the wearer's phone.
-     * [sgv]/[rate] null for no data.
+     * [sgv]/[rate] null for no data. [treated]: see [Kind.message].
      */
-    fun post(ctx: Context, kind: String, n: Int, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean) {
+    fun post(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int) {
         val unit = Kind.unit(kind)
         val thText = if (kind in Kind.RATES) "%.1f".format(th) else th.toInt().toString()
-        val title = when (kind) {
-            Kind.NO_DATA -> "No glucose data"
-            else -> "${Kind.label(kind)} · ${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
-        }
+        val value = "${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
         val text = when (kind) {
-            Kind.URGENT_LOW, Kind.LOW -> "≤ $thText $unit"
-            Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "≥ $thText $unit"
-            Kind.FALLING_FAST -> "Falling ${"%.1f".format(-(rate ?: 0.0))} ≥ $thText $unit"
-            Kind.RISING_FAST -> "Rising ${"%.1f".format(rate ?: 0.0)} ≥ $thText $unit"
+            Kind.VERY_LOW, Kind.LOW -> "$value · < $thText $unit"
+            Kind.HIGH, Kind.VERY_HIGH, Kind.EXTREMELY_HIGH -> "$value · ≥ $thText $unit"
+            Kind.FALLING_FAST -> "$value · falling ${"%.1f".format(-(rate ?: 0.0))} ≥ $thText $unit"
+            Kind.RISING_FAST -> "$value · rising ${"%.1f".format(rate ?: 0.0)} ≥ $thText $unit"
             else -> "Nothing received for $thText min" + (sgv?.let { " · last $it mg/dL" } ?: "")
-        } + if (n > 1) " · reminder $n" else ""
+        }
         val b = Notification.Builder(ctx, channelId(kind, alarm))
             .setSmallIcon(R.drawable.ic_stat_sukrara)
             .setColor(if (isLow(kind)) Range.RED else Range.ORANGE)
-            .setContentTitle(title)
+            .setContentTitle(Kind.message(kind, treated))
             .setContentText(text)
             .setContentIntent(open(ctx))
             .setAutoCancel(true)

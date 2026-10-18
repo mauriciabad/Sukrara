@@ -30,20 +30,24 @@ sealed interface AlertStatus {
             return Kind.LEVELS.firstOrNull { k -> s.cfg(k).let { c -> c.on && if (k in Kind.LOW_SIDE) r.sgv < c.value else r.sgv >= c.value } }
         }
 
-        /** When [t]'s mute window ends (epoch s), or null if this kind of treatment mutes nothing. */
+        /** When [t]'s mute window ends (epoch s), or null if this kind of treatment mutes nothing (rule off, deleted). */
         fun muteUntil(t: Treatment, s: AlertSettings): Long? = when {
             t.del -> null
-            t.k == "rapid" && s.muteInsulin -> t.t + s.muteInsulinMin * 60L
-            t.k == "carbs" && s.muteCarbs -> t.t + s.muteCarbsMin * 60L
+            t.k == "rapid" && s.muteInsulin -> t.t + s.muteS("rapid")
+            t.k == "carbs" && s.muteCarbs -> t.t + s.muteS("carbs")
             else -> null
         }
 
+        /**
+         * Same rules as [AlertEngine]: carbs cover very low and low, rapid insulin high and very high, while their mute
+         * window lasts (`t ≤ now < t + min`); extremely high is never covered.
+         */
         fun of(r: Reading?, s: AlertSettings, treatments: List<Treatment>, now: Long): AlertStatus {
             val k = level(r, s, now) ?: return None
-            val want = if (k in Kind.LOW_SIDE) "carbs" else "rapid"
-            val cover = treatments.filter { it.k == want && it.t <= now }.mapNotNull { t -> muteUntil(t, s)?.let { t to it } }
+            val by = s.mutedBy(k) ?: return Needed(k)
+            val cover = treatments.filter { it.k == by && it.t <= now }.mapNotNull { t -> muteUntil(t, s)?.let { t to it } }
                 .filter { it.second > now }.maxByOrNull { it.first.t }
-            return if (cover != null && k != Kind.EXTREMELY_HIGH) Taken(k, cover.first, cover.second) else Needed(k)
+            return if (cover != null) Taken(k, cover.first, cover.second) else Needed(k)
         }
     }
 }
