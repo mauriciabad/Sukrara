@@ -1,0 +1,12 @@
+AndroidAPS aa16db6419 2026-10-16, JDK 21, 2026-10-18
+<testsuite name="app.aaps.plugins.source.SukraraPayloadScratchTest" tests="3" skipped="0" failures="0" errors="0"
+<testcase name="unknownLabelDoesNot()"
+<testcase name="libre3LabelGetsAdvancedFiltering()"
+<testcase name="everyTrendNameParses()"
+<testsuite name="app.aaps.plugins.source.XdripSourcePluginTest" tests="3" skipped="0" failures="0" errors="0"
+<testcase name="detectDexcomSourceTest()"
+<testcase name="advancedFilteringSupported()"
+<testcase name="detectLibreSourceTest()"
+SUKRARA-I22 Sukrara -> UNKNOWN advancedFiltering=false
+SUKRARA-I22 Libre3 -> LIBRE_3 advancedFiltering=true
+SUKRARA-I22 trends ok

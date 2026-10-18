@@ -1,0 +1,25 @@
+# GlucoDataHandler 2.5 (official GitHub release APK, sha256 4dd85e81…97ab) on an Android 16 emulator, 2026-10-18.
+# Synthetic readings from dev.spike.outputs. One broadcast type per run (--es only …). Logcat excerpts.
+
+## xDrip+ BgEstimate
+22:56:50.323 I Outputs : com.eveningoutpost.dexdrip.BgEstimate → de.michelinside.glucodatahandler : {com.eveningoutpost.dexdrip.Extras.BgEstimate=82.0, com.eveningoutpost.dexdrip.Extras.Time=1792353360000, com.eveningoutpost.dexdrip.Extras.BgSlopeName=FortyFiveDown, com.eveningoutpost.dexdrip.Extras.BgSlope=-2.0676400264104206E-5, com.eveningoutpost.dexdrip.Extras.SensorStartedAt=1792094210313, com.eveningoutpost.dexdrip.Extras.SourceInfo=Libre3, com.eveningoutpost.dexdrip.Extras.SourceDesc=Sukrara outputs spike}
+22:56:50.392 I GDH.XDripBroadcastReceiver: onReceive called for com.eveningoutpost.dexdrip.BgEstimate: {
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgSlope => Double: -2.0676400264104206E-5
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.Time => Long: 1792353360000
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SensorStartedAt => Long: 1792094210313
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgSlopeName => String: FortyFiveDown
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.BgEstimate => Double: 82.0
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SourceDesc => String: Sukrara outputs spike
+22:56:50.392 I GDH.XDripBroadcastReceiver:   com.eveningoutpost.dexdrip.Extras.SourceInfo => String: Libre3
+22:56:50.392 I GDH.XDripBroadcastReceiver: }
+22:56:50.417 I GDH.ReceiveData: Glucodata received from XDRIP: Bundle[{glucodata.Minute.Alarm=0, glucodata.Minute.Rate=-1.24, glucodata.Minute.Time=1792353360000, glucodata.Minute.mgdl=82, glucodata.Minute.SerialNumber=Libre3}] - timestamp: Oct 18, 2026 10:56:00 PM
+
+## Patched-LibreLink SENSOR_ACTIVATE + GLUCOSE_READING
+22:57:34.178 I Outputs : com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE → de.michelinside.glucodatahandler : {sensor={sensorStartTime=1792094254159}, bleManager={sensorSerial=SPIKE0000022}}
+22:57:34.211 I Outputs : com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING → de.michelinside.glucodatahandler : {glucose=81.0, timestamp=1792353420000, bleManager={sensorSerial=SPIKE0000022}, sas={currentSensor={sensorStartTime=1792094254159}}}
+22:57:34.246 I GDH.ReceiveData: setSensorStartTime for SPIKE0000022: Oct 15, 2026 10:57:34 PM
+22:57:34.382 I GDH.ReceiveData: Glucodata received from LIBRE_PATCHED: Bundle[{glucodata.Minute.Time=1792353420000, glucodata.Minute.mgdl=81, glucodata.Minute.SerialNumber=SPIKE0000022, gdh.sensor_start_time=1792094254159}] - timestamp: Oct 18, 2026 10:57:00 PM
+
+## Juggluco glucodata.Minute
+22:59:09.283 I Outputs : glucodata.Minute → de.michelinside.glucodatahandler : {glucodata.Minute.SerialNumber=SPIKE0000022, glucodata.Minute.mgdl=79, glucodata.Minute.glucose=79.0, glucodata.Minute.Rate=-1.1004374, glucodata.Minute.Alarm=0, glucodata.Minute.Time=1792353540000}
+22:59:09.835 I GDH.ReceiveData: Glucodata received from JUGGLUCO: Bundle[{glucodata.Minute.Alarm=0, glucodata.Minute.Rate=-1.1004374, glucodata.Minute.Time=1792353540000, glucodata.Minute.mgdl=79, glucodata.Minute.SerialNumber=SPIKE0000022, glucodata.Minute.glucose=79.0}] - timestamp: Oct 18, 2026 10:59:00 PM
