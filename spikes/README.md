@@ -275,6 +275,20 @@ adb shell am start -S -n dev.spike.notiflab/.MainActivity --es v live,bands --ei
 adb logcat -s NotifLab
 ```
 
+## `outputs-android/` — local outputs for other apps (Android, Kotlin, investigation 22)
+
+Sends synthetic readings the way Juggluco does to other apps on the phone: xDrip+ `BgEstimate`, patched-LibreLink
+`GLUCOSE_READING` / `SENSOR_ACTIVATE`, `glucodata.Minute` (one explicit copy per receiving package), and writes blood
+glucose records to Health Connect with the platform API ([22](../docs/22-ecosystem-outputs.md)). Emulator only.
+```sh
+cd outputs-android
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew testDebugUnitTest assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n dev.spike.outputs/.MainActivity --ez send true --es only xdrip   # libre, glucodata; omit for all
+adb shell am start -n dev.spike.outputs/.MainActivity --ez loop true                   # every minute while open
+adb logcat -s Outputs
+```
+
 ## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
 
 Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to

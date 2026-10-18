@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike — GPL-3.0-or-later. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
+
+    <!-- Package visibility: which apps declare a receiver for each broadcast (Juggluco does the same). -->
+    <queries>
+        <intent><action android:name="com.eveningoutpost.dexdrip.BgEstimate" /></intent>
+        <intent><action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" /></intent>
+        <intent><action android:name="com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE" /></intent>
+        <intent><action android:name="glucodata.Minute" /></intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="Outputs spike"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Android 14+: Health Connect only grants health permissions to apps that show their privacy rationale. -->
+        <activity-alias
+            android:name=".PermissionsRationale"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>
