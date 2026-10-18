@@ -306,7 +306,7 @@ class SystemUiHook : XposedModule() {
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
                              val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true,
-                             val hideIcon: Boolean = false)
+                             val hideIcon: Boolean = false, val sensorEnd: Long = 0)
 
     /** Written on the main thread (receiver), read by the Compose/flow hooks on SystemUI's background threads. */
     @Volatile private var state = State()
@@ -336,7 +336,7 @@ class SystemUiHook : XposedModule() {
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
-            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon))
+            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon), i.getLongExtra("sensorEnd", 0))
         if (i.hasExtra("lockWidget")) lockWidget.enabled = i.getBooleanExtra("lockWidget", false)
         i.getStringExtra("lockBg")?.let { lockWidget.background = it }
         i.getStringExtra("lockLook")?.let { lockWidget.look = it }
@@ -353,6 +353,7 @@ class SystemUiHook : XposedModule() {
     private inner class GlucoseView(ctx: Context) : TextView(ctx) {
         var reference: WeakReference<TextView>? = null
         private val arrow = ArrowDrawable()
+        private val flag = FlagDrawable()
         private var lastRefColor = 0
         private var followAlpha = 1f
         private var staleAlpha = 1f
@@ -382,6 +383,19 @@ class SystemUiHook : XposedModule() {
                 visibility = GONE; return@safe
             }
             visibility = VISIBLE
+            // round sensor-life: an ended sensor shows the checkered flag instead of a stale value
+            if (state.sensorEnd > 0 && System.currentTimeMillis() / 1000 >= state.sensorEnd) {
+                val base = reference?.get()?.currentTextColor ?: currentTextColor
+                text = ""
+                paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                staleAlpha = 1f; alpha = followAlpha
+                flag.color = base
+                val s = (textSize * 1.05f).toInt()
+                flag.setBounds(0, 0, s, s)
+                setCompoundDrawables(null, null, flag, null)
+                contentDescription = "Sensor ended"   // i18n-ok: SystemUI process, English like "Glucose …" below
+                return@safe
+            }
             text = when {
                 r.sgv < 40 -> "LO"
                 r.sgv > 400 -> "HI"
@@ -401,6 +415,28 @@ class SystemUiHook : XposedModule() {
             setCompoundDrawables(null, null, arrow, null)
             contentDescription = "Glucose ${r.sgv} ${Trend.arrow(r.rate)}"
         }
+    }
+
+    /** The "sensor ended" checkered flag (core/SensorLife.FLAG_FILL / FLAG_OUTLINE, 24×24), as a Drawable. */
+    private class FlagDrawable : Drawable() {
+        var color = 0
+        private val fill by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_FILL) }
+        private val outline by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_OUTLINE) }
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        override fun draw(cv: Canvas) {
+            cv.save()
+            cv.translate(bounds.left.toFloat(), bounds.top.toFloat())
+            cv.scale(bounds.width() / 24f, bounds.height() / 24f)
+            paint.color = color
+            paint.style = Paint.Style.FILL; cv.drawPath(fill, paint)
+            paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.2f; cv.drawPath(outline, paint)
+            cv.restore()
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(cf: ColorFilter?) {}
+        @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
     /** The Mac's continuous-angle arrow (GlucoseNotification.drawArrow), as a Drawable. */

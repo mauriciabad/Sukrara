@@ -75,7 +75,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Sensor life on the card (phone, widgets, lock screen, Mac): a small sensor disc next to the trend arrow with the
   time left (`13d`, `20h`, `45m`), a ring over the main ring that counts down the sensor's last 8 hours (1–24 h,
   a setting), and during a new sensor's warm-up the minutes until the first reading (`42m · ready at 19:45`) with a
-  ring that fills up. Once the sensor has ended every surface says *Sensor ended at 18:03* (not an error) and no-data alerts stop. Followers and
+  ring that fills up. Once the sensor has ended every surface says *Sensor ended* with a *Replace sensor* pill (a checkered flag in the status bar and the Mac menubar) and no-data alerts stop. Followers and
   the Mac see the same (it travels with the live readings).
 - Sensor end in your calendar (opt-in, like Juggluco's but without a tap): Sukrara makes its own "Sukrara" calendar
   on the phone (or uses one of your calendars, e.g. Google, to sync it everywhere) and keeps one "Sensor ends" event

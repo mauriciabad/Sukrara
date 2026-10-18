@@ -332,16 +332,10 @@
     <string name="card_sensor_left">Sensor: quedan %1$s</string>
     <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
     <string name="card_sensor_ended">Sensor terminado</string>
-    <!-- Value card: second line under "Sensor ended" [CHAR LIMIT=28] -->
-    <string name="card_sensor_replace">Cambia el sensor</string>
-    <!-- Value card: when the sensor ended, today; %1$s = a time like 18:03 [CHAR LIMIT=20] -->
-    <string name="card_sensor_ended_at">a las %1$s</string>
-    <!-- Value card: when the sensor ended, yesterday; %1$s = a time like 18:03 [CHAR LIMIT=28] -->
-    <string name="card_sensor_ended_yesterday_at">ayer a las %1$s</string>
-    <!-- Value card: when the sensor ended, earlier; %1$s = "Sat 18:03" or "12 Oct" [CHAR LIMIT=20] -->
-    <string name="card_sensor_ended_on">el %1$s</string>
-    <!-- Value card: "Sensor ended" (%1$s) followed by when (%2$s), e.g. "Sensor ended at 18:03" [CHAR LIMIT=40] -->
-    <string name="card_sensor_ended_when">%1$s %2$s</string>
+    <!-- Value card: action pill when the sensor has ended (like "Eat carbs"); opens the sensor scan [CHAR LIMIT=18] -->
+    <string name="badge_replace_sensor">Cambiar sensor</string>
+    <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
+    <string name="badge_replace_sensor_short">Sensor</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
     <string name="card_warming_up">Calentando</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
@@ -1060,8 +1054,6 @@
     <string name="sensor_countdown_title">El sensor termina a las %1$s</string>
     <string name="sensor_countdown_text">Ten listo un sensor nuevo para cambiarlo.</string>
     <string name="sensor_countdown_hide">Ocultar</string>
-    <string name="sensor_ended_notif_title">El sensor ha terminado</string>
-    <string name="sensor_ended_notif_text">Cámbialo para seguir recibiendo lecturas.</string>
     <string name="sensor_warmup_title">Sensor calentándose</string>
     <string name="sensor_warmup_text">Lecturas a las %1$s</string>
     <string name="sensor_ready_title">Sensor listo</string>

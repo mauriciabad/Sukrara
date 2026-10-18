@@ -124,9 +124,15 @@ object GlucoseNotification {
         // round sensor-life: an ended or warming-up sensor says so instead of "waiting" / "No reading since"
         val sensor = app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t)
         // ended: as soon as it has ended (not an error, and no value to show any more); warming: while no value shows
-        sensor?.takeIf { it.ended }?.let { sl ->
-            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(app.mauri.sukrara.core.SensorLife.endedText(sl.end, now))
-                .setContentText(listOf(c.getString(R.string.card_sensor_replace), detail).filter { it.isNotEmpty() }.joinToString(" · ")).build()
+        sensor?.takeIf { it.ended }?.let {
+            // "Sensor ended" + the "Replace sensor" action (the card's pill) for the phone that wears it
+            b.setSmallIcon(R.drawable.ic_stat_sensor_ended).setContentTitle(c.getString(R.string.card_sensor_ended))
+            if (detail.isNotEmpty()) b.setContentText(detail)
+            if (app.mauri.sukrara.App.role(c) == "owner") {
+                val scan = app.mauri.sukrara.ui.MainActivity.sensorPendingIntent(c)
+                b.setContentIntent(scan).addAction(Notification.Action.Builder(null, c.getString(R.string.badge_replace_sensor), scan).build())
+            }
+            return b.build()
         }
         if (r == null || fresh?.showValue != true) sensor?.takeIf { it.warmup != null }?.let { sl ->
             return b.setSmallIcon(R.drawable.ic_stat_sukrara)

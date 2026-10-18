@@ -336,7 +336,8 @@ struct GraphSettingsView: View {
                 }
                 // round sensor-life: the ring over the main ring in the sensor's last hours (Android: Settings › Sensor)
                 Stepper(value: model.countdownHours, in: SensorLife.countdownRange) {
-                    LabeledContent("Sensor countdown", value: "Last \(c.countdownHours) h")
+                    // the menubar's "sensor ended" flag, so the two read as one thing
+                    LabeledContent { Text("Last \(c.countdownHours) h") } label: { Label("Sensor countdown", systemImage: "flag.checkered") }
                 }
                 .help("A ring over the main ring counts down the sensor's last hours")
             }

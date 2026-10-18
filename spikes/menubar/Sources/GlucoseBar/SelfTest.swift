@@ -177,14 +177,7 @@ enum GraphFixtures {
         for f in files {
             guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
                   let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  root["cases"] != nil || root["ended"] != nil else { print("FAIL sensor/\(f): unreadable"); failures += 1; continue }
-            for c in root["ended"] as? [[String: Any]] ?? [] {
-                let got = SensorLife.endedDaysAgo(end: now + (num(c["end"]) ?? 0), now: now, zone: TimeZone(identifier: c["zone"] as? String ?? "") ?? .current)
-                if got != (c["expect"] as? [String: Any])?["daysAgo"] as? Int {
-                    print("FAIL sensor/\(f): \(c["name"] as? String ?? "?") (got daysAgo \(got))"); failures += 1
-                }
-                n += 1
-            }
+                  root["cases"] != nil else { print("FAIL sensor/\(f): unreadable"); failures += 1; continue }
             for c in root["cases"] as? [[String: Any]] ?? [] {
                 let start = now + (num(c["start"]) ?? 0)
                 let info = SensorInfo(start: start, end: now + (num(c["end"]) ?? 0), warmupEnd: num(c["warmup"]).map { now + $0 } ?? start + 3600)
@@ -192,7 +185,10 @@ enum GraphFixtures {
                 let want = c["expect"] as? [String: Any] ?? [:]
                 let look = SensorBadge.look(info, now: now, latest: latest)!
                 let ring = SensorBadge.ring(look, info, now: now, hours: (c["countdownHours"] as? Int) ?? 8)
-                let ok = look.label == want["label"] as? String && look.ended == want["ended"] as? Bool
+                let pill = look.ended ? StatusBadge.replaceSensor : nil
+                let wp = want["pill"] as? [String: Any]
+                let pillOK = pill?.kind == wp?["kind"] as? String && pill?.text == wp?["text"] as? String && pill?.short == wp?["short"] as? String
+                let ok = pillOK && look.label == want["label"] as? String && look.ended == want["ended"] as? Bool
                     && near(look.life, num(want["life"])) && look.warmup == want["warmup"] as? String && near(ring, num(want["ring"]))
                 if !ok {
                     print("FAIL sensor/\(f): \(c["name"] as? String ?? "?") (got label=\(look.label) ended=\(look.ended) life=\(look.life) warmup=\(look.warmup ?? "nil") ring=\(ring.map { "\($0)" } ?? "nil"))")

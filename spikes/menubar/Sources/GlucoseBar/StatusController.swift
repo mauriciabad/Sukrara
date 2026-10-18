@@ -177,6 +177,7 @@ extension Bands {
         if let color { attrs[.foregroundColor] = color }
         if fresh.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         // Old (> 20 min): no value at all, just a dash; the panel says since when.
+        button.imagePosition = .imageTrailing
         button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
         button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
         button.toolTip = "Sukrara · reading at \(snap.latest.date.formatted(date: .omitted, time: .shortened))"
@@ -186,14 +187,15 @@ extension Bands {
         let nowT = Date().timeIntervalSince1970
         if let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
             if sl.ended {
-                // as soon as it has ended (not an error): no value any more, the panel says when
-                attrs[.foregroundColor] = NSColor.secondaryLabelColor
-                attrs.removeValue(forKey: .strikethroughStyle)
-                button.attributedTitle = NSAttributedString(string: "Sensor ended", attributes: attrs)
-                button.image = nil
-                let text = SensorLife.endedText(end: sl.end, now: nowT)
-                button.toolTip = "Sukrara · \(text). Replace the sensor."
-                button.setAccessibilityLabel(text)
+                // as soon as it has ended (not an error): the checkered flag instead of a value; the panel has the pill
+                button.attributedTitle = NSAttributedString(string: "")
+                let img = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: "Sensor ended")
+                    ?? Self.drawnFlag()
+                img.isTemplate = true   // follows the menubar's light / dark appearance
+                button.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize, weight: .medium)) ?? img
+                button.imagePosition = .imageOnly
+                button.toolTip = "Sensor ended — replace sensor"
+                button.setAccessibilityLabel("Sensor ended — replace sensor")
             } else if !fresh.showValue, let w = sl.warmup {
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
@@ -222,6 +224,19 @@ extension Bands {
         panelModel.alerts = alertSettings?()
         panelModel.readings = pts
         panelModel.tick += 1
+    }
+
+    /// The checkered flag drawn by hand (Android's ic_stat_sensor_ended shapes) if the SF Symbol is missing.
+    static func drawnFlag() -> NSImage {
+        NSImage(size: NSSize(width: 16, height: 16), flipped: true) { r in
+            let s = r.width / 24
+            NSColor.black.setFill(); NSColor.black.setStroke()
+            for q in [(4.0, 3.0, 1.6, 18.0), (5.6, 4.0, 4.8, 4.5), (15.2, 4.0, 4.8, 4.5), (10.4, 8.5, 4.8, 4.5)] {
+                NSBezierPath(rect: NSRect(x: q.0 * s, y: q.1 * s, width: q.2 * s, height: q.3 * s)).fill()
+            }
+            let o = NSBezierPath(rect: NSRect(x: 6.2 * s, y: 4.6 * s, width: 13.2 * s, height: 7.8 * s)); o.lineWidth = 1.2 * s; o.stroke()
+            return true
+        }
     }
 
     private func marks() -> [GraphMark] {

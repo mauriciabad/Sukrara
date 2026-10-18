@@ -42,6 +42,9 @@ object StatusBadge {
         is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
     }
 
+    /** The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc). */
+    fun replaceSensor(w: Words = Words.current) = Look("sensor", w.replaceSensor, w.replaceSensorShort, false)
+
     /** For screen readers (widget descriptions). */
     fun describe(s: AlertStatus, now: Long): String? = when (s) {
         AlertStatus.None -> null

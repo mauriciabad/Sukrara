@@ -1,5 +1,5 @@
 {
- "about": "Sensor life badge, warm-up and countdown ring (round sensor-life), shared by Android (GraphFixtureTest.sensor) and Mac (-graphselftest). Format: ../README.md.",
+ "about": "Sensor life badge, warm-up, countdown ring and the ended card's action pill (round sensor-life), shared by Android (GraphFixtureTest.sensor) and Mac (-graphselftest). Format: ../README.md.",
  "cases": [
   {
    "name": "2 days in: 13d (whole days, floor)",
@@ -12,7 +12,8 @@
     "ended": false,
     "life": 0.8685,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -26,7 +27,8 @@
     "ended": false,
     "life": 0.0667,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -40,7 +42,8 @@
     "ended": false,
     "life": 0.0666,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -54,7 +57,8 @@
     "ended": false,
     "life": 0.0556,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -68,7 +72,8 @@
     "ended": false,
     "life": 0.0222,
     "warmup": null,
-    "ring": 1.0
+    "ring": 1.0,
+    "pill": null
    }
   },
   {
@@ -82,7 +87,8 @@
     "ended": false,
     "life": 0.0139,
     "warmup": null,
-    "ring": 0.625
+    "ring": 0.625,
+    "pill": null
    }
   },
   {
@@ -96,7 +102,8 @@
     "ended": false,
     "life": 0.0021,
     "warmup": null,
-    "ring": 0.0938
+    "ring": 0.0938,
+    "pill": null
    }
   },
   {
@@ -110,7 +117,8 @@
     "ended": false,
     "life": 0.0,
     "warmup": null,
-    "ring": 0.002
+    "ring": 0.002,
+    "pill": null
    }
   },
   {
@@ -124,7 +132,13 @@
     "ended": true,
     "life": 0,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": {
+     "kind": "sensor",
+     "text": "Replace sensor",
+     "short": "Sensor",
+     "tonal": false
+    }
    }
   },
   {
@@ -138,7 +152,13 @@
     "ended": true,
     "life": 0,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": {
+     "kind": "sensor",
+     "text": "Replace sensor",
+     "short": "Sensor",
+     "tonal": false
+    }
    }
   },
   {
@@ -152,7 +172,8 @@
     "ended": false,
     "life": 0.0556,
     "warmup": null,
-    "ring": 0.8333
+    "ring": 0.8333,
+    "pill": null
    }
   },
   {
@@ -166,7 +187,8 @@
     "ended": false,
     "life": 0.0014,
     "warmup": null,
-    "ring": 0.5
+    "ring": 0.5,
+    "pill": null
    }
   },
   {
@@ -180,7 +202,8 @@
     "ended": false,
     "life": 0.9992,
     "warmup": "42m",
-    "ring": 0.3
+    "ring": 0.3,
+    "pill": null
    }
   },
   {
@@ -194,7 +217,8 @@
     "ended": false,
     "life": 0.9992,
     "warmup": "42m",
-    "ring": 0.3
+    "ring": 0.3,
+    "pill": null
    }
   },
   {
@@ -208,7 +232,8 @@
     "ended": false,
     "life": 0.9972,
     "warmup": "1m",
-    "ring": 0.9917
+    "ring": 0.9917,
+    "pill": null
    }
   },
   {
@@ -222,7 +247,8 @@
     "ended": false,
     "life": 0.997,
     "warmup": "0m",
-    "ring": 1
+    "ring": 1,
+    "pill": null
    }
   },
   {
@@ -236,7 +262,8 @@
     "ended": false,
     "life": 0.9965,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -250,7 +277,8 @@
     "ended": false,
     "life": 0.9986,
     "warmup": null,
-    "ring": null
+    "ring": null,
+    "pill": null
    }
   },
   {
@@ -265,7 +293,8 @@
     "ended": false,
     "life": 0.9995,
     "warmup": "20m",
-    "ring": 0.3333
+    "ring": 0.3333,
+    "pill": null
    }
   }
  ]

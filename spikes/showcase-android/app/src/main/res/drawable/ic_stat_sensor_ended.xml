@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CGM research spikes — GPL-3.0-or-later. A checkered flag: the sensor has ended (status bar, notification icon).
+     Same shapes as core/SensorLife.FLAG_FILL / FLAG_OUTLINE (drawn in code by the SystemUI hook); Mac: SF Symbol flag.checkered. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M4,3h1.6v18H4z M5.6,4h4.8v4.5H5.6z M15.2,4H20v4.5h-4.8z M10.4,8.5h4.8V13h-4.8z"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.2" android:pathData="M6.2,4.6H19.4V12.4H6.2Z"/>
+</vector>

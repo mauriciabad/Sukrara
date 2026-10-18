@@ -73,7 +73,7 @@ internal class Libre3Client(
         /** Set when a sensor has ended ([PatchState]): [DirectSource] doesn't connect to it again. */
         fun endedKey(serial: String) = "ended:$serial"
         /** Source status detail for an ended sensor (shown under the card and on the Sensor page). */
-        const val ENDED_HINT = "Replace the sensor, then scan the new one: Settings → Sensor"
+        const val ENDED_HINT = "Replace sensor: scan the new one in Settings → Sensor"
         private const val PREF_LOW_POWER = "useLowPowerInterval"
         private const val GLUCOSE_TIMEOUT_MS = 120_000L
         /** A drop this soon after authorizing means the session setup was not acceptable to the sensor. */

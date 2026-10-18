@@ -43,16 +43,4 @@ class SensorLifeTest {
         assertEquals(false, SensorLife.warming(s, null, 1_000 + 3_600 + 15 * 60))
         assertEquals(1_000 + 30 * 60L, SensorLife.fromStart("S", 1_000, 0, 30).warmupEndEpoch)
     }
-
-    @Test fun endedText() {
-        val zone = java.time.ZoneId.of("Europe/Madrid")
-        val now = java.time.ZonedDateTime.of(2026, 10, 18, 9, 0, 0, 0, zone).toEpochSecond()
-        fun at(d: Int, h: Int, m: Int) = java.time.ZonedDateTime.of(2026, 10, d, h, m, 0, 0, zone).toEpochSecond()
-        val uk = java.util.Locale.UK
-        fun text(end: Long) = w.sensorEndedWhen.format(w.sensorEnded, SensorLife.endedWhen(end, now, w, uk, zone))
-        assertEquals("Sensor ended at 08:03", text(at(18, 8, 3)))
-        assertEquals("Sensor ended yesterday at 18:03", text(at(17, 18, 3)))
-        assertEquals("Sensor ended Wed 18:03", text(at(14, 18, 3)))
-        assertEquals("Sensor ended 9 Oct", text(at(9, 18, 3)))
-    }
 }

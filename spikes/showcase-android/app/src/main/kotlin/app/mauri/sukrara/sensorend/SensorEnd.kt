@@ -311,10 +311,12 @@ object SensorEnd {
     private fun ended(ctx: Context): Notification =
         Notification.Builder(ctx, CH_REMIND)
             .setSmallIcon(R.drawable.ic_stat_sukrara)
-            .setContentTitle(ctx.getString(R.string.sensor_ended_notif_title))
-            .setContentText(ctx.getString(R.string.sensor_ended_notif_text))
+            // the card's wording (round sensor-life): "Sensor ended" + the "Replace sensor" action (opens the Sensor screen)
+            .setContentTitle(ctx.getString(R.string.card_sensor_ended))
             .setCategory(Notification.CATEGORY_REMINDER)
-            .setContentIntent(open(ctx))
+            .setContentIntent(MainActivity.sensorPendingIntent(ctx))
+            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.badge_replace_sensor),
+                MainActivity.sensorPendingIntent(ctx)).build())
             .setAutoCancel(true)
             .build()
 

@@ -4,12 +4,6 @@
 package app.mauri.sukrara.core
 
 import android.content.Context
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.time.temporal.ChronoUnit
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -41,6 +35,14 @@ object SensorLife {
     /** The countdown window (ring on the card, live notification): last N hours, [COUNTDOWN_RANGE], default 8. */
     const val DEFAULT_COUNTDOWN_HOURS = 8
     val COUNTDOWN_RANGE = 1..24
+
+    /**
+     * The "sensor ended" glyph, a checkered flag in a 24×24 box: [FLAG_FILL] filled (pole + dark squares) and
+     * [FLAG_OUTLINE] stroked 1.2 wide. `res/drawable/ic_stat_sensor_ended.xml` (notification icon, root status-bar slot)
+     * has the same shapes; the SystemUI hook draws them in code; the Mac uses SF Symbol `flag.checkered`.
+     */
+    const val FLAG_FILL = "M4,3h1.6v18H4z M5.6,4h4.8v4.5H5.6z M15.2,4H20v4.5h-4.8z M10.4,8.5h4.8V13h-4.8z"
+    const val FLAG_OUTLINE = "M6.2,4.6H19.4V12.4H6.2Z"
 
     private const val PREFS = "sensor_life"
     private const val KEY_COUNTDOWN = "countdown_hours"
@@ -125,28 +127,6 @@ object SensorLife {
         val len = (info.warmupEndEpoch - info.startEpoch).coerceAtLeast(1)
         return ((now - info.startEpoch).toDouble() / len).coerceIn(0.0, 1.0)
     }
-
-    /**
-     * Calendar days between the sensor's end and [now] in [zone]: 0 = it ended today, 1 = yesterday… (the ended
-     * card's wording, spikes/graph-fixtures/sensor/ended.json).
-     */
-    fun endedDaysAgo(end: Long, now: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
-        ChronoUnit.DAYS.between(Instant.ofEpochSecond(end).atZone(zone).toLocalDate(), Instant.ofEpochSecond(now).atZone(zone).toLocalDate())
-
-    /** When it ended: "at 18:03" (today), "yesterday at 18:03", "Sat 18:03" (this week), "12 Oct" (older). */
-    fun endedWhen(end: Long, now: Long, w: Words = Words.current, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String {
-        val t = Instant.ofEpochSecond(end).atZone(zone)
-        val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(t)
-        return when (val days = endedDaysAgo(end, now, zone)) {
-            0L -> w.endedAt.format(time)
-            1L -> w.endedYesterdayAt.format(time)
-            else -> w.endedOn.format(if (days < 7) DateTimeFormatter.ofPattern("EEE", locale).format(t) + " " + time
-                else DateTimeFormatter.ofPattern("d MMM", locale).format(t))
-        }
-    }
-
-    /** The ended card's first line: "Sensor ended at 18:03" / "Sensor ended yesterday at 18:03" / "Sensor ended Sat 18:03". */
-    fun endedText(end: Long, now: Long, w: Words = Words.current): String = w.sensorEndedWhen.format(w.sensorEnded, endedWhen(end, now, w))
 
     /** Whether the sensor has reached its end. */
     fun ended(endEpoch: Long, now: Long) = now >= endEpoch

@@ -336,16 +336,10 @@
     <string name="card_sensor_left">Sensor: %1$s left</string>
     <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
     <string name="card_sensor_ended">Sensor ended</string>
-    <!-- Value card: second line under "Sensor ended" [CHAR LIMIT=28] -->
-    <string name="card_sensor_replace">Replace the sensor</string>
-    <!-- Value card: when the sensor ended, today; %1$s = a time like 18:03 [CHAR LIMIT=20] -->
-    <string name="card_sensor_ended_at">at %1$s</string>
-    <!-- Value card: when the sensor ended, yesterday; %1$s = a time like 18:03 [CHAR LIMIT=28] -->
-    <string name="card_sensor_ended_yesterday_at">yesterday at %1$s</string>
-    <!-- Value card: when the sensor ended, earlier; %1$s = "Sat 18:03" or "12 Oct" [CHAR LIMIT=20] -->
-    <string name="card_sensor_ended_on">%1$s</string>
-    <!-- Value card: "Sensor ended" (%1$s) followed by when (%2$s), e.g. "Sensor ended at 18:03" [CHAR LIMIT=40] -->
-    <string name="card_sensor_ended_when">%1$s %2$s</string>
+    <!-- Value card: action pill when the sensor has ended (like "Eat carbs"); opens the sensor scan [CHAR LIMIT=18] -->
+    <string name="badge_replace_sensor">Replace sensor</string>
+    <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
+    <string name="badge_replace_sensor_short">Sensor</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
     <string name="card_warming_up">Warming up</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
@@ -1301,10 +1295,6 @@
     <string name="sensor_countdown_text">Have a new sensor ready to replace it.</string>
     <!-- Countdown action: dismiss it for this sensor [CHAR LIMIT=20] -->
     <string name="sensor_countdown_hide">Hide</string>
-    <!-- Notification title [CHAR LIMIT=50] -->
-    <string name="sensor_ended_notif_title">Sensor ended</string>
-    <!-- Notification text [CHAR LIMIT=NONE] -->
-    <string name="sensor_ended_notif_text">Replace it to keep getting readings.</string>
     <!-- Warm-up countdown title [CHAR LIMIT=50] -->
     <string name="sensor_warmup_title">Sensor warming up</string>
     <!-- Warm-up countdown text; %1$s = time of the first reading [CHAR LIMIT=50] -->

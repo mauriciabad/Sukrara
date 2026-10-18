@@ -109,14 +109,6 @@ class GraphFixtureTest {
         fun near(a: Double?, b: Double?) = if (a == null || b == null) a == b else kotlin.math.abs(a - b) <= 0.001
         for (f in files) {
             val root = JSONObject(f.readText())
-            root.optJSONArray("ended")?.let { ended ->
-                for (i in 0 until ended.length()) {
-                    val c = ended.getJSONObject(i)
-                    val got = app.mauri.sukrara.core.SensorLife.endedDaysAgo(now + c.getLong("end"), now, java.time.ZoneId.of(c.getString("zone")))
-                    if (got != c.getJSONObject("expect").getLong("daysAgo")) fails += "${f.name}: ${c.getString("name")}: daysAgo $got"
-                    n++
-                }
-            }
             val cases = root.optJSONArray("cases") ?: continue
             for (i in 0 until cases.length()) {
                 val c = cases.getJSONObject(i)
@@ -129,7 +121,9 @@ class GraphFixtureTest {
                 val ring = SensorBadge.ring(look, info, now, c.getInt("countdownHours"))
                 val wantRing = if (want.isNull("ring")) null else want.getDouble("ring")
                 val wantWarm = if (want.isNull("warmup")) null else want.getString("warmup")
-                val ok = look.label == want.getString("label") && look.ended == want.getBoolean("ended") &&
+                val pill = if (look.ended) StatusBadge.replaceSensor(app.mauri.sukrara.core.Words()) else null
+                val wantPill = want.optJSONObject("pill")?.let { StatusBadge.Look(it.getString("kind"), it.getString("text"), it.getString("short"), it.getBoolean("tonal")) }
+                val ok = pill == wantPill && look.label == want.getString("label") && look.ended == want.getBoolean("ended") &&
                     near(look.life.toDouble(), want.getDouble("life")) && look.warmup == wantWarm && near(ring, wantRing)
                 if (!ok) fails += "${f.name}: ${c.getString("name")}\n  want $want\n  got  label=${look.label} ended=${look.ended} life=${look.life} warmup=${look.warmup} ring=$ring"
                 n++

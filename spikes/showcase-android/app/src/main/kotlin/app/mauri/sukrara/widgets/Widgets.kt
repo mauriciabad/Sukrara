@@ -21,6 +21,7 @@ import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -125,6 +126,10 @@ private fun Live(content: @Composable (WidgetUpdater.Frame) -> Unit) {
 
 private const val PAD_DP = 10
 
+/** This phone wears the sensor and it has ended: taps open the Sensor screen (scan the new one). */
+private fun sensorEndedHere(c: Context): Boolean = app.mauri.sukrara.App.role(c) == "owner" &&
+    app.mauri.sukrara.core.SensorLife.current.value?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, Proto.nowS()) } == true
+
 @Composable
 private fun WidgetFrame(content: @Composable () -> Unit) {
     Box(
@@ -132,7 +137,9 @@ private fun WidgetFrame(content: @Composable () -> Unit) {
             .appWidgetBackground()
             .background(GlanceTheme.colors.widgetBackground)
             .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-            .clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>())
+            // an ended sensor: the tap does what the "Replace sensor" pill says (the wearer's Sensor screen)
+            .clickable(if (sensorEndedHere(LocalContext.current)) actionStartActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(LocalContext.current))
+                else actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>())
             .padding(PAD_DP.dp),
         contentAlignment = Alignment.Center,
     ) { content() }
@@ -189,7 +196,7 @@ private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<ap
     val r = frame.history.lastOrNull()
     val now = frame.nowSec
     app.mauri.sukrara.core.SensorLife.current.value?.takeIf { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, now) }?.let {
-        return app.mauri.sukrara.core.SensorLife.endedText(it.endEpoch, now) + ". " + c.getString(R.string.card_sensor_replace)
+        return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
     }
     if (r == null) return c.getString(R.string.widget_desc_no_readings)
     val f = Freshness.of(now - r.t)
