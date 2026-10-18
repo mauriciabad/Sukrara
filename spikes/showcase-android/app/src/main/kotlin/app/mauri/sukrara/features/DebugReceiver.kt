@@ -29,8 +29,11 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
- *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…'] [--ez unlock B] [--ez evening B] [--es night 'MIN-MIN']] [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
- *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] \
+ *       [--es cmd sensorEnd [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…'] [--ez unlock B] [--ez evening B] [--es night 'MIN-MIN'] [--ei inMin N]] [--es cmd sensorEndState]
+ *           (no extras = the state only, nothing changes; --ei inMin is debug-only)
+ *     debug builds only (DebugFakes: they replace the sensor or make up data; a release build changes nothing and says so):
+ *       [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es alertFeed 'SGV,RATE']
+ *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] [--es cmd sensor …] [--es cmd backfill …] \
  *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
  *       [--es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]]
  *           (opens the New sensor screen; a stage forces that step for screenshots, none = the live flow) \
@@ -40,6 +43,12 @@ import org.json.JSONObject
  */
 class DebugReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
+        resultData = reply(c, i).toString()
+        Log.i("Sukrara.debug", resultData)
+    }
+
+    /** Applies the extras and returns the state (DebugFakesTest calls it directly: a test has no pending broadcast result). */
+    internal fun reply(c: Context, i: Intent): JSONObject {
         Features.init(c)
         val notes = mutableListOf<String>()
         fun b(k: String, cur: Boolean) = if (i.hasExtra(k)) i.getBooleanExtra(k, cur) else cur
@@ -87,10 +96,7 @@ class DebugReceiver : BroadcastReceiver() {
             alerts.update(c) { app.mauri.sukrara.alerts.AlertSettings.fromJson(JSONObject(j)) }
         }
         i.getStringExtra("alertTest")?.let { alerts.test(c, it, share = true) }
-        i.getStringExtra("alertFeed")?.split(",")?.let { p ->
-            alerts.onReading(c, app.mauri.sukrara.core.Reading(System.currentTimeMillis() / 1000, p[0].trim().toInt(),
-                p.getOrNull(1)?.trim()?.toDoubleOrNull()))
-        }
+        if (i.hasExtra("alertFeed")) DebugFakes.run(c, "alertFeed", i, out)   // made-up data: debug builds only
         alerts.init(c)
         out.put("alerts", alerts.toJson())
         // root (su for Sukrara) and the LSPosed module as Settings sees them
@@ -142,13 +148,13 @@ class DebugReceiver : BroadcastReceiver() {
         out.put("widgets", app.mauri.sukrara.widgets.WidgetUpdater.placements(c))
         out.put("role", App.role(c) ?: JSONObject.NULL)
         if (notes.isNotEmpty()) out.put("notes", notes.joinToString("; "))
-        resultData = out.toString()
-        Log.i("Sukrara.debug", resultData)
+        return out
     }
 
     /** Headless setup / pairing for tests on a locked phone. */
     private fun command(c: Context, i: Intent, out: JSONObject) {
-        when (i.getStringExtra("cmd") ?: return) {
+        val cmd = i.getStringExtra("cmd") ?: return
+        when (cmd) {
             "owner" -> {
                 if (App.role(c) == null) App.setRole(c, "owner")
                 val o = App.owner(c)
@@ -156,14 +162,8 @@ class DebugReceiver : BroadcastReceiver() {
                 c.startForegroundService(Intent(c, OwnerService::class.java))
                 out.put("cmd", "owner ready")
             }
-            // sensor life: a made-up sensor (synthetic serial; --el start/end unix s, end default start + 15 d) or --ez clear true
-            "fakeSensor" -> {
-                val start = i.getLongExtra("start", System.currentTimeMillis() / 1000)
-                val info = if (i.getBooleanExtra("clear", false)) null else app.mauri.sukrara.core.SensorInfo(
-                    i.getStringExtra("serial") ?: "TEST0000001", start, i.getLongExtra("end", start + 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN))
-                app.mauri.sukrara.core.SensorLife.update(c, info)
-                out.put("cmd", "sensor ${info ?: "cleared"}")
-            }
+            // made-up sensors and data (DebugFakes): debug builds only, a release build changes nothing and says so
+            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock" -> DebugFakes.run(c, cmd, i, out)
             // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
             "calendar" -> {
                 SensorCalendar.init(c)
@@ -193,43 +193,12 @@ class DebugReceiver : BroadcastReceiver() {
                 app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
                 out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
             }
-            // round sensor-life, debug builds only: a synthetic sensor `--el left <s>` before its end (`--el len <s>`,
-            // default 15 d), `--es serial`, or `--ez clear true`; `--ei countdown <h>` sets the countdown window
-            "sensor" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
-                val now = app.mauri.sukrara.core.Proto.nowS()
-                if (i.hasExtra("countdown")) app.mauri.sukrara.core.SensorLife.setCountdownHours(c, i.getIntExtra("countdown", 8))
-                if (i.getBooleanExtra("clear", false)) app.mauri.sukrara.core.SensorLife.update(c, null)
-                else if (i.hasExtra("left")) {
-                    val end = now + i.getLongExtra("left", 0)
-                    val len = i.getLongExtra("len", 60L * app.mauri.sukrara.core.SensorLife.DEFAULT_WEAR_MIN)
-                    app.mauri.sukrara.core.SensorLife.update(c, app.mauri.sukrara.core.SensorInfo(i.getStringExtra("serial") ?: "DEBUG", end - len, end))
-                }
-                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "sensor", force = true)
-                out.put("cmd", "sensor ${app.mauri.sukrara.core.SensorLife.current.value} countdown ${app.mauri.sukrara.core.SensorLife.countdown.value} h")
-            }
-            // debug builds only: a direct-source reconnect's burst into the wearer pipeline (Live, not published):
-            // the reading, then `--ei packets <n>` (default 16) history packets of 9 values 50 ms apart
-            "backfill" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
-                val n = i.getIntExtra("packets", 16)
-                val now = app.mauri.sukrara.core.Proto.nowS()
-                val last = app.mauri.sukrara.wearer.Live.status.value.last
-                Thread {
-                    app.mauri.sukrara.wearer.Live.reading(app.mauri.sukrara.core.Reading(now, (last?.sgv ?: 120) + 1, 0.5, "debug"))
-                    repeat(n) { p ->
-                        Thread.sleep(50)
-                        app.mauri.sukrara.wearer.Live.history((0 until 9).map { k ->
-                            app.mauri.sukrara.core.Reading(now - 3600 * 12 + (p * 9 + k) * 300L, 110 + k, null, "debug")
-                        })
-                    }
-                }.start()
-                out.put("cmd", "backfill burst: 1 reading + $n history packets")
-            }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
-            // round sensor-life: a made-up sensor ending in --ei inMin N (default 10); --ei countdownHours H;
-            // --ez countdown B; --es reminders '1@540,0@540' (daysBefore@minuteOfDay); --ez unlock B (first-unlock reminders);
-            // --ez evening B; --es night '1380-420' (night window, minutes of the day); state only: --es cmd sensorEndState;
-            // an unlock (as ACTION_USER_PRESENT): --es cmd sensorUnlock
+            // sensor end: without extras only the state (nothing changes). Settings: --ei countdownHours H; --ez countdown B;
+            // --es reminders '1@540,0@540' (daysBefore@minuteOfDay); --ez unlock B (first-unlock reminders); --ez evening B;
+            // --es night '1380-420' (night window, minutes of the day). Debug builds only (DebugFakes): a made-up sensor
+            // ending in --ei inMin N (only when given); an unlock (as ACTION_USER_PRESENT): --es cmd sensorUnlock
             "sensorEnd" -> {
                 val se = app.mauri.sukrara.sensorend.SensorEnd
                 if (i.hasExtra("countdownHours")) se.setCountdownHours(c, i.getIntExtra("countdownHours", 8))
@@ -242,18 +211,8 @@ class DebugReceiver : BroadcastReceiver() {
                         unlock = i.getBooleanExtra("unlock", cfg.unlock), evening = i.getBooleanExtra("evening", cfg.evening),
                         nightStart = night?.get(0) ?: cfg.nightStart, nightEnd = night?.get(1) ?: cfg.nightEnd)
                 }
-                se.fake(c, i.getIntExtra("inMin", 10))
+                if (i.hasExtra("inMin")) DebugFakes.run(c, "sensorEnd", i, out)
                 out.put("sensorEnd", se.state(c))
-            }
-            "sensorUnlock" -> {
-                app.mauri.sukrara.sensorend.SensorEnd.unlocked(c)
-                out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
-            }
-            // warm-up countdown: a made-up sensor that started --ei agoMin N ago (default 50)
-            "sensorStart" -> {
-                if (i.getBooleanExtra("firstReading", false)) app.mauri.sukrara.sensorend.SensorEnd.fakeFirstReading(c)
-                else app.mauri.sukrara.sensorend.SensorEnd.fakeStart(c, i.getIntExtra("agoMin", 50))
-                out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
             }
             "sensorEndState" -> out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {

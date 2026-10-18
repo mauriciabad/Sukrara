@@ -1137,7 +1137,6 @@
     <string name="sensor_end_notif_tonight_text">Cámbialo antes de dormir</string>
     <string name="sensor_countdown_title">El sensor termina a las %1$s</string>
     <string name="sensor_countdown_text">Ten listo un sensor nuevo para cambiarlo.</string>
-    <string name="sensor_countdown_hide">Ocultar</string>
     <string name="sensor_warmup_title">Sensor calentándose</string>
     <string name="sensor_warmup_text">Lecturas a las %1$s</string>
     <string name="sensor_ready_title">Sensor listo</string>

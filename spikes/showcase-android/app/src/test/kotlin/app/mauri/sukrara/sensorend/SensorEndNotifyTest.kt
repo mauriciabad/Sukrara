@@ -44,7 +44,7 @@ class SensorEndNotifyTest {
         owner()
         SensorLife.update(ctx, SensorInfo("T1", now - 14 * 86_400L, now + 4 * 3600L))
         SensorEnd.sync(ctx)
-        assertNotNull(nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_COUNTDOWN })
+        noButtonsButSwipeCounts(nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_COUNTDOWN }!!.notification)
         SensorEnd.state(ctx)   // the debug reply asks canPostPromotedNotifications too
     }
 
@@ -52,7 +52,13 @@ class SensorEndNotifyTest {
         owner()
         SensorLife.update(ctx, SensorLife.fromStart("T2", now - 600, 0))
         SensorEnd.sync(ctx)
-        assertNotNull(nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_WARMUP })
+        noButtonsButSwipeCounts(nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_WARMUP }!!.notification)
+    }
+
+    /** 0.11.20: no Hide (or any) button on the countdowns; a swipe-away still reaches the delete intent. */
+    private fun noButtonsButSwipeCounts(n: Notification) {
+        assertTrue("no action buttons", n.actions.isNullOrEmpty())
+        assertNotNull("swipe-away is detected", n.deleteIntent)
     }
 
     private fun warmupShown() = nm.activeNotifications.firstOrNull { it.id == SensorEnd.ID_WARMUP }?.notification

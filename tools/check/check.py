@@ -17,6 +17,7 @@ Checks
   large       blobs over allow.json large_bytes
   images      new images only under docs/img, spikes/*/evidence, brand, res; full-phone captures flagged
   strings     new hardcoded UI text in Android Kotlin; values/ and values-es/ keys in sync
+  debug       DebugReceiver fakes (sensor, readings, unlocks) only through the gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
@@ -172,6 +173,40 @@ UI_TEXT = re.compile(r'\bText\(\s*"((?:[^"\\]|\\.)*)"'
                      r'|makeText\([^,]+,\s*"((?:[^"\\]|\\.)*)"')
 NOT_WORDS = re.compile(r"\$\{[^}]*\}|\$\w+|mg/dL|mmol/L|Sukrara|Libre 3|dBm|n?c?r?y?p?t?sec1|https?://\S+")
 STRING_KEY = re.compile(r'<(string|plurals)\s+name="([^"]+)"([^>]*)>')
+# Debug commands that replace the sensor or make up data run only in debug builds (2026-10-18: `cmd sensorEnd` on the
+# user's release build faked a sensor over the real one). They live in DebugFakes.kt behind one gated entry point.
+APP_KT = "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/"
+DEBUG_RECEIVER = APP_KT + "features/DebugReceiver.kt"
+DEBUG_FAKES = APP_KT + "features/DebugFakes.kt"
+FAKE_CALL = re.compile(r"SensorLife\.update\(|SensorEnd\.(fake\w*|unlocked)\(|\bfake(Start|FirstReading)?\(|"
+                       r"Live\.(reading|history)\(|\.onReading\(")
+FAKE_DEF_OK = (DEBUG_FAKES, APP_KT + "sensorend/SensorEnd.kt")
+
+
+def check_debug(ch, rep):
+    """debug: no fake/SensorLife.update calls in DebugReceiver.kt; DebugFakes.kt has one public entry, gated first;
+    SensorEnd.fake*() is called from DebugFakes.kt only."""
+    def code(text):
+        return [(n, l) for n, l in enumerate(text.splitlines(), 1) if not l.lstrip().startswith(("//", "*", "/*"))]
+    live = ch.live()
+    if DEBUG_RECEIVER in live:
+        for n, l in code(ch.blob(DEBUG_RECEIVER)):
+            if FAKE_CALL.search(l):
+                rep.add("FAIL", "debug", "%s:%d replaces the sensor or makes up data outside the debug gate. Move it into\n"
+                        "DebugFakes.run (debug builds only; a release build must change nothing)." % (DEBUG_RECEIVER, n))
+    if DEBUG_FAKES in live:
+        lines = code(ch.blob(DEBUG_FAKES))
+        public = [(k, n, l) for k, (n, l) in enumerate(lines) if re.match(r"\s*fun\s", l)]
+        gated = len(public) == 1 and re.match(r"\s*fun\s+run\(", public[0][2]) and \
+            "if (!debug)" in next((l for _, l in lines[public[0][0] + 1:] if l.strip()), "")
+        if not gated:
+            rep.add("FAIL", "debug", "%s: needs exactly one public fun, run(…), whose first line is the\n"
+                    "`if (!debug) { … return }` gate (everything else private)." % DEBUG_FAKES)
+    for p, added in ch.added.items():
+        if p in live and p.startswith(APP_KT) and p.endswith(".kt") and p not in FAKE_DEF_OK:
+            for n, l in added:
+                if re.search(r"SensorEnd\.fake\w*\(", l) and not l.lstrip().startswith("//"):
+                    rep.add("FAIL", "debug", "%s:%d calls SensorEnd.fake*: only DebugFakes.kt may (debug builds only)." % (p, n))
 
 
 def check_static(ch, rep):
@@ -299,6 +334,7 @@ def main(argv):
         check_features(ch, messages, strict, rep)
     if only in (None, "static"):
         check_static(ch, rep)
+        check_debug(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

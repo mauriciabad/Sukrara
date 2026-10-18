@@ -1387,8 +1387,6 @@
     <string name="sensor_countdown_title">Sensor ends at %1$s</string>
     <!-- Countdown text [CHAR LIMIT=NONE] -->
     <string name="sensor_countdown_text">Have a new sensor ready to replace it.</string>
-    <!-- Countdown action: dismiss it for this sensor [CHAR LIMIT=20] -->
-    <string name="sensor_countdown_hide">Hide</string>
     <!-- Warm-up countdown title [CHAR LIMIT=50] -->
     <string name="sensor_warmup_title">Sensor warming up</string>
     <!-- Warm-up countdown text; %1$s = time of the first reading [CHAR LIMIT=50] -->
