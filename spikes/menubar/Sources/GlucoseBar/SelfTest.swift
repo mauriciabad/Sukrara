@@ -83,6 +83,9 @@ enum GraphSelfTest {
         let slots = GraphConfig.parseSlots("TIR:86400:1,CV:2592000:0,GMI:1209600:1")
         check("slots", slots?[1].kind == .cv && slots?[1].window == 2592000 && slots?[1].faded == false
               && GraphConfig.slotsText(GraphConfig.defaultSlots) == "TIR:86400:1,TIR:604800:1,GMI:1209600:1")
+        // Custom periods (Android CustomValuesTest): whole days 1–90 besides the presets.
+        check("custom slot periods", GraphConfig.parseSlot("TIR:432000:1")?.window == 432000 && GraphConfig.parseSlot("GMI:7776000:1") != nil
+              && GraphConfig.parseSlot("TIR:7862400:1") == nil && GraphConfig.parseSlot("TIR:7200:1") == nil)
         // Ring order (the user's): very good, in range, low, very low, high, very high; a bad setting falls back.
         check("ring order default", DEFAULT_RING_ORDER == [.tight, .target, .low, .veryLow, .high, .veryHigh]
               && ringOrderText(DEFAULT_RING_ORDER) == "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH"

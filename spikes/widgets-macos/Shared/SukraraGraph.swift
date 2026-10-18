@@ -396,6 +396,10 @@ struct GraphConfig: Codable, Equatable {
 
     static let windowHours = [3, 6, 12, 24]
     static let ringChoices: [TimeInterval] = [12 * 3600, 86400, 3 * 86400, 7 * 86400, 14 * 86400, 30 * 86400]
+    /// A slot window the settings accept: a preset, or a custom whole number of days 1–90 (Android `validRingWindow`).
+    static func validRingWindow(_ w: TimeInterval) -> Bool {
+        ringChoices.contains(w) || (w.truncatingRemainder(dividingBy: 86400) == 0 && (1...90).contains(Int(w) / 86400))
+    }
     /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
     static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
 
@@ -410,7 +414,7 @@ struct GraphConfig: Codable, Equatable {
     /// One slot, "TIR:2592000:1"; nil when malformed (or "" = none, for `lastElse`).
     static func parseSlot(_ e: String) -> RingSpec? {
         let p = e.split(separator: ":").map(String.init)
-        guard p.count > 1, let kind = SlotKind(rawValue: p[0]), let w = TimeInterval(p[1]), ringChoices.contains(w) else { return nil }
+        guard p.count > 1, let kind = SlotKind(rawValue: p[0]), let w = TimeInterval(p[1]), validRingWindow(w) else { return nil }
         return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
