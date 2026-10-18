@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -156,8 +157,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         }
         GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t, subtitle = u.sourceError?.let { "${u.source} — $it" }, onAdd = { adding = true })
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
-        if (u.source == "direct: no sensor")
-            Button(onClick = { a.open("sensor") }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.home_scan_sensor)) }
+        NewSensorButton(u.source) { a.open("newsensor") }
         GlucoseReport(u.last?.t)
         TreatmentsSection()
         Reveal(u.treatments.isNotEmpty()) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -172,6 +172,30 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
     }
     if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) })
     u.busy?.let { BusyDialog(it) }
+}
+
+/**
+ * Home's way to the New sensor screen, under the glucose card when it's due: filled while there's no sensor or it has
+ * ended (the thing to do now), tonal in the sensor's last day (the end reminder's "have a new sensor ready"). In
+ * between it stays out of the way; Settings → Glucose source → Sensor always has it.
+ */
+@Composable
+private fun NewSensorButton(source: String, onClick: () -> Unit) {
+    val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
+    val now by androidx.compose.runtime.produceState(app.mauri.sukrara.core.Proto.nowS()) {
+        while (true) { kotlinx.coroutines.delay(60_000); value = app.mauri.sukrara.core.Proto.nowS() }
+    }
+    val due = NewSensorDue.of(source, sensor, now)
+    Reveal(due != NewSensorDue.NO) {
+        val label = stringResource(if (due == NewSensorDue.FIRST) R.string.home_pair_sensor else R.string.home_pair_new_sensor)
+        val content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
+            Icon(painterResource(app.mauri.sukrara.R.drawable.ic_sym_nfc), contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(20.dp))
+            Text(label, style = MaterialTheme.typography.titleMedium)
+        }
+        val m = Modifier.fillMaxWidth().height(56.dp)
+        if (due == NewSensorDue.SOON) androidx.compose.material3.FilledTonalButton(onClick, m, content = content)
+        else Button(onClick, m, content = content)
+    }
 }
 
 @Composable

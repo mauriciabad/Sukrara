@@ -118,11 +118,17 @@ Cheap tools:
 ## Q12 Sensor scan
 
 - [ ] Unit tests first: `Libre3NfcTest` (commands, answers, receiver ID, `chipGate`), `PatchStateTest`.
-- [ ] Phone, the user does the tap, Settings → Glucose source → Sensor. Libre 3 / 3 Plus: starts or takes over;
+- [ ] Unit tests: `NewSensorFlowTest` (steps after the tap, home button). Emulator: `--es cmd newSensor --es stage
+      <each stage>` with the screen open (`am start … --es screen newsensor`): light and dark, English and Spanish;
+      home's button filled after `fakeSensor` with an end in the past, tonal with an end < 24 h away, gone otherwise.
+- [ ] Phone, the user does the tap, home → *Pair new sensor* (or Settings → Glucose source → Sensor → *Pair new
+      sensor*): the circle sits on the phone's real NFC spot; the tap vibrates, then *Pairing* ticks its steps and
+      ends in the warm-up countdown (new) or *Sensor ready* (taken over). With Sukrara closed, a tap opens the New
+      sensor screen and uses that tap. Libre 3 / 3 Plus: starts or takes over;
       `adb logcat -s Sukrara.nfc Sukrara.direct` shows the patch info and the pairing. A Libre 1 / 2 / 2 Plus (or any
       other NfcV tag) shows *Libre 2 sensors aren't supported* / *Not supported*, and logcat shows
       `Libre 1/2 chip: not supported, nothing sent` with no command lines.
-- [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in before starting …*, nothing sent; after the
+- [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in to LibreView*, nothing sent; after the
       sign-in the next tap starts it (logcat `patch info … state=1`, then the pairing).
 
 ## Q13 Sensor end in calendar

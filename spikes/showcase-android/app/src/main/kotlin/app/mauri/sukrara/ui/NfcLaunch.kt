@@ -6,6 +6,7 @@ package app.mauri.sukrara.ui
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.nfc.NfcAdapter
 
 /**
  * "Open Sukrara when you scan a sensor": the manifest's `.ui.NfcLaunch` alias (NfcV TECH_DISCOVERED → MainActivity).
@@ -18,6 +19,9 @@ object NfcLaunch {
         PackageManager.COMPONENT_ENABLED_STATE_DISABLED -> false
         else -> true // default = the manifest's enabled="true"
     }
+
+    /** Android 16 lets the user block an app's tag intents (Settings → Apps → Sukrara); then the alias never fires. */
+    fun allowed(nfc: NfcAdapter?): Boolean = nfc == null || runCatching { nfc.isTagIntentAllowed }.getOrDefault(true)
 
     fun set(ctx: Context, on: Boolean) = ctx.packageManager.setComponentEnabledSetting(component(ctx),
         if (on) PackageManager.COMPONENT_ENABLED_STATE_DEFAULT else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,

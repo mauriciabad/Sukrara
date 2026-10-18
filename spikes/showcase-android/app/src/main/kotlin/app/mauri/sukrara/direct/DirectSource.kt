@@ -20,7 +20,7 @@ class DirectSource(private val context: Context) : GlucoseSource {
     override val servesWatches = true
 
     override fun start(scope: CoroutineScope, sink: GlucoseSource.Sink) {
-        val p = pairing ?: return sink.onStatus("no sensor", "Scan your sensor: Settings → Glucose source → Scan sensor")
+        val p = pairing ?: return sink.onStatus("no sensor", "Tap Pair a sensor on the home screen")
         if (p.securityVersion != 0) return sink.onStatus("unsupported sensor",
             "security version ${p.securityVersion} (Lingo) is not implemented")
         val prefs = context.getSharedPreferences("direct", Context.MODE_PRIVATE)
