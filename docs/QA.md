@@ -20,10 +20,12 @@ Cheap tools:
   launching a test build renders the dropdown.
 - **Emulator**: `medium_phone` (wearer, debug build = synthetic glucose) and `small_phone` (follower); at most two at
   once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver
-  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules; debug builds only, like every command that
-  fakes the sensor or data), `--es cmd treat …`, see docs/10.
+  --es alertFeed '204,-0.5'` (a made-up reading through the alert rules), `--es alertTest KIND` (a test alert),
+  `--ei previewSgv N` (a status-bar preview), `--es cmd treat …`, `cmd locktest`, `cmd newSensor --es stage …`, see
+  docs/10. **These fake commands run only on the emulator's debug build**: the release app never shows a glucose
+  value, an alert, a treatment or a sensor state that isn't real (a release build refuses them, `debugOnly` in the reply).
 - **Phone** (`62240DLCH0005W`): only after `tools/install.sh phone`; read-only adb, `adb exec-out screencap -p`
-  while unlocked.
+  while unlocked. No fake commands (they're refused on release); root/LSPosed checks that need a value use the real one.
 
 ## Q1 App home and screens
 
@@ -77,7 +79,9 @@ Cheap tools:
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
       `screencapture -x -R<rect>` with the rect it logs ("panel window … rect x,y,w,h"); never commit them (real data).
 - [ ] Synthetic renders for docs: `GlucoseBar -panelPreview <dir>` (the real panel over test wallpapers), and
-      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `-keychainService <test> -v2NoRelays YES -bleV2 NO`).
+      `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `SUKRARA_DEV=1` in the environment and
+      `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir> -v2NoRelays YES -bleV2 NO`; a dev build refuses
+      to start the full app without `SUKRARA_DEV=1`, LaunchGuard).
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets
@@ -143,7 +147,21 @@ Cheap tools:
 - [ ] Picking a Google calendar (needs a signed-in account): the event appears on another device after sync and goes
       away again when the setting is turned off.
 
-## Q14 Data export
+## Q14 Apps on this phone and Health Connect
+
+- [ ] Emulator (wearer, debug = synthetic glucose) with GlucoDataHandler installed: Settings → Share with apps lists
+      it under *Apps on this phone* with its own icon, switch **off**; `adb logcat -s Sukrara.broadcast` stays silent.
+- [ ] Switch on → each minute `→ de.michelinside.glucodatahandler 3`; GDH (`logcat | grep GDH`) logs
+      `XDripBroadcastReceiver … SourceInfo => Libre3` and `Glucodata received from XDRIP`, and shows the value.
+- [ ] `--es cmd fakeSensor --es serial TEST…`: the next minute sends 4 (SENSOR_ACTIVATE), GDH `setSensorStartTime`.
+- [ ] Source → Juggluco: the app switches are greyed with "Only while Sukrara reads the sensor itself"; nothing sent.
+- [ ] Follower role: the page has neither group.
+- [ ] Health Connect on → Health Connect's own sheet; Don't allow → stays off with "needs access in Health Connect";
+      Allow → `Sukrara.health backfill N`, Health Connect → Blood glucose lists Sukrara entries, one per minute.
+- [ ] Off → On again: the `wrote …` ids repeat the first run's ids; still one entry per minute in Health Connect.
+- [ ] Spanish: the two groups and summaries are translated.
+
+## Q15 Data export
 
 - [ ] Emulator (wearer, debug = synthetic glucose): Settings → Export data; the count updates when the period changes;
       This sensor shows only when a sensor is known (`--es cmd fakeSensor`).

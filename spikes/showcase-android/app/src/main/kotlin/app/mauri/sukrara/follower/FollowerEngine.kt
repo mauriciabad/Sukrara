@@ -20,6 +20,7 @@ import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.core.SecureStore
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentFeed
+import app.mauri.sukrara.treatments.WriterScope
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -117,8 +118,19 @@ class FollowerEngine(private val ctx: Context) {
     val ble by lazy { app.mauri.sukrara.core.BleFollower(ctx, log::i, ::onEvent).also { b ->
         attach(b)
         b.onSent = { onSent(it) }
+        b.check = ::bleOwner
         scope.launch { b.state.collect { v -> _ui.update { it.copy(ble = v) } } }
     } }
+
+    /** The user picked a phone in "Find nearby": its INFO gives the identity we're about to ask (nothing to check yet). */
+    @Volatile private var joiningNearby = false
+
+    /** P12: is the phone that sent this INFO our wearer's? Writes over BLE wait for OURS. */
+    private fun bleOwner(info: JSONObject, nonces: Collection<String>): app.mauri.sukrara.core.Ble.Owner {
+        if (joiningNearby) return app.mauri.sukrara.core.Ble.Owner.OURS
+        val s = st ?: return app.mauri.sukrara.core.Ble.Owner.UNKNOWN
+        return app.mauri.sukrara.core.Ble.owner(info, s.iPub, s.sid, nonces)
+    }
 
     fun scanNearby(onFound: (app.mauri.sukrara.core.NearbyOwner) -> Unit) = ble.scan(onFound)
     fun stopScan() = ble.stopScan()
@@ -128,9 +140,11 @@ class FollowerEngine(private val ctx: Context) {
         ble.stopScan()
         val got = kotlinx.coroutines.CompletableDeferred<JSONObject>()
         ble.onInfo = { if (!got.isCompleted) got.complete(it) }
+        joiningNearby = true
         ble.connect(address)
-        val info = kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return ctx.getString(R.string.follower_error_ble_unreachable)
-        ble.onInfo = null
+        val info = try {
+            kotlinx.coroutines.withTimeoutOrNull(20_000) { got.await() } ?: return ctx.getString(R.string.follower_error_ble_unreachable)
+        } finally { joiningNearby = false; ble.onInfo = null }
         val pair = info.optJSONObject("pair") ?: return ctx.getString(R.string.follower_error_pairing_off)
         val inv = app.mauri.sukrara.core.Invite(info.getString("i"), pair.getString("t"), pair.getLong("x"),
             Proto.strings(info.optJSONArray("relays")), app.mauri.sukrara.core.Profile.of(pair.optJSONObject("profile")))
@@ -602,7 +616,8 @@ class FollowerEngine(private val ctx: Context) {
 
     /**
      * A treatment event (SPEC §5, PROTOCOL-v2 "Treatments"): signed by a roster device (the wearer's merged log) or a
-     * roster writer, known epoch, decrypts, `d` matches the id → §1 merge into follower.db → charts + Nightscout API.
+     * roster writer, known epoch, decrypts, `d` matches the id, the writer created the entry (P4) → §1 merge into
+     * follower.db → charts + Nightscout API.
      */
     private fun onTreatment(ev: JSONObject, via: String) {
         val s = st ?: return
@@ -618,7 +633,13 @@ class FollowerEngine(private val ctx: Context) {
             ?: return reject("treatment: decrypt failed", author, via)
         val tr = Treatment.fromWire(body) ?: return reject("treatment: malformed body", author, via)
         if (Proto.tagValue(ev, "d") != Proto.treatmentD(sid, tr.id)) return reject("treatment: d tag mismatch", author, via)
-        if (!db.mergeTreatment(tr, author, via, fromOwner)) return
+        // P4: a writer may change only the entries it created; the wearer's own entry beats a writer's forged copy
+        val (creator, storedO) = db.treatmentCreator(tr.id)
+        val verdict = WriterScope.follower(author, fromOwner, tr.o, creator, storedO, s.devices)
+        if (verdict == WriterScope.Verdict.REJECT) return reject("treatment: writer changed an entry it didn't create", author, via)
+        if (verdict == WriterScope.Verdict.IGNORE) return   // the wearer's copy of this writer entry is already here
+        if (!db.mergeTreatment(tr, author, via, fromOwner, WriterScope.creatorAfter(verdict, author, creator),
+                force = verdict == WriterScope.Verdict.OVERRIDE)) return
         if (tr.k == "rapid" || tr.k == "carbs") Alerts.check(ctx)   // the insulin and carbs mutes (own rules)
         log.i("treatment ${if (tr.del) "DELETED" else tr.k + " " + tr.a} \"${tr.n}\" id ${tr.id.take(8)} from " +
             "${if (fromOwner) "wearer" else "writer " + author.take(8)} via ${short(via)}")

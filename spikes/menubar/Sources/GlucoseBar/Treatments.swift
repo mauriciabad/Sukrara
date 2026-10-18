@@ -60,6 +60,33 @@ struct Treatment: Codable, Equatable {
     }
 }
 
+/// Which key may change which entry (spec/ogs-nostr.md N§9.2, PROPOSALS P4), the same rule as Android `WriterScope`: a
+/// writer creates entries and changes or deletes only the ones it created; the wearer changes anything. Receivers keep
+/// the *creator* of each id (the key that signed the first version they accepted).
+enum WriterScope {
+    enum Verdict { case accept, ignore, reject, override }
+
+    /// A version signed by `author` (`fromDevice`: a roster device key, the wearer's merged log), `creator` recorded
+    /// for the id (nil = never seen), `storedO` the `o` of the version held. A writer: only a new id or its own; when
+    /// the wearer's copy of a writer entry (`o` follower) came first, the writer's own copy adds nothing (`ignore`, not
+    /// a rejection). The wearer: always merged; its own entry (`o` isn't `follower`) whose creator is a writer was
+    /// forged before the real one arrived, so it replaces that version whatever its `u`.
+    static func follower(author: String, fromDevice: Bool, incO: String, creator: String?, storedO: String?,
+                         devices: [String]) -> Verdict {
+        if !fromDevice {
+            if creator == nil || creator == author { return .accept }
+            if let c = creator, devices.contains(c), storedO == "follower" { return .ignore }
+            return .reject
+        }
+        if incO != "follower", let c = creator, !devices.contains(c) { return .override }
+        return .accept
+    }
+
+    static func creatorAfter(_ v: Verdict, author: String, creator: String?) -> String {
+        v == .override ? author : creator ?? author
+    }
+}
+
 /// How a protocol-v2 entry this Mac wrote is doing (NEXT §1 item 1): `sending` (built, no relay/phone took it yet)
 /// → `sent` (a relay answered OK, or the wearer's phone acknowledged the BLE write) → `accepted` (the wearer's
 /// device key republished the same id with u ≥ ours, i.e. it merged it). "Not accepted yet" is `sent` for a while.
@@ -78,6 +105,7 @@ struct V2Send: Codable, Equatable {
     private struct State: Codable {
         var rows: [Treatment] = []
         var v2: [String: V2Send]? = nil
+        var creators: [String: String]? = nil       // id → key that created it (P4: writers change only their own)
     }
 
     private var state = State()
@@ -93,6 +121,8 @@ struct V2Send: Codable, Equatable {
     }
 
     var rows: [Treatment] { state.rows }
+    /// The key that signed the first accepted version of `id` (this Mac's follower key for entries made here).
+    func creator(_ id: String) -> String? { state.creators?[id] }
     func row(_ id: String) -> Treatment? { state.rows.first { $0.id == id } }
     func v2Status(_ id: String) -> V2Send? { state.v2?[id] }
 
@@ -108,9 +138,10 @@ struct V2Send: Codable, Equatable {
         onChange.forEach { $0() }
     }
 
-    /// A change made here (new, edited or deleted). It travels over v2 (signed as a roster writer), or stays on this
-    /// Mac when it follows no one.
-    func upsertLocal(_ t: Treatment) {
+    /// A change made here (new, edited or deleted). It travels over v2 (signed as a roster writer `creator`, which
+    /// becomes the creator of a new entry), or stays on this Mac when it follows no one.
+    func upsertLocal(_ t: Treatment, creator: String? = nil) {
+        if let creator, state.creators?[t.id] == nil { setCreator(t.id, creator) }
         put(t)
         save()
         onChange.forEach { $0() }
@@ -126,11 +157,12 @@ struct V2Send: Codable, Equatable {
         return t
     }
 
-    /// A v2 treatment event. Returns true if it changed anything.
+    /// A v2 treatment event. `force`: the wearer's own entry replaces a writer's forged version (P4). Returns true if
+    /// it changed anything.
     @discardableResult
-    func receive(_ inc: Treatment) -> Bool {
+    func receive(_ inc: Treatment, force: Bool = false) -> Bool {
         let cur = row(inc.id)
-        let merged = Treatment.merge(cur, inc)
+        let merged = force ? inc : Treatment.merge(cur, inc)
         guard merged != cur else { return false }
         put(merged)
         save()
@@ -138,14 +170,22 @@ struct V2Send: Codable, Equatable {
         return true
     }
 
-    /// A v2 treatment event that passed FollowerV2's checks: §1 merge into the one log, and if the wearer's device key
-    /// echoed an entry this Mac sent with a version ≥ ours, that entry is accepted. Returns true when it just was.
+    /// A v2 treatment event that passed FollowerV2's checks (including WriterScope, which set `creator`): §1 merge
+    /// into the one log, and if the wearer's device key echoed an entry this Mac sent with a version ≥ ours, that entry
+    /// is accepted. Returns true when it just was.
     @discardableResult
-    func receiveV2(_ t: Treatment, fromWearer: Bool, via: String) -> Bool {
-        receive(t)
+    func receiveV2(_ t: Treatment, fromWearer: Bool, via: String, creator: String? = nil, force: Bool = false) -> Bool {
+        if let creator, state.creators?[t.id] != creator { setCreator(t.id, creator); save() }
+        receive(t, force: force)
         guard fromWearer, let s = v2Status(t.id), t.u >= s.u, s.state != .accepted else { return false }
         setV2(t.id, u: s.u, .accepted, via: via)
         return true
+    }
+
+    private func setCreator(_ id: String, _ key: String) {
+        var m = state.creators ?? [:]
+        m[id] = key
+        state.creators = m
     }
 
     private func put(_ t: Treatment) {
@@ -178,6 +218,13 @@ struct TreatmentPaths {
         p.route = node.canWrite ? .v2 : .none
         p.v2 = node.canWrite ? "Goes to the wearer's phone" : "The wearer hasn't allowed this Mac to log treatments"
         return p
+    }
+
+    /// May this Mac change or delete `t`? Following as a writer: only the entries it created (P4: the wearer's phone
+    /// refuses the rest). Following no one: every local entry.
+    @MainActor static func mayChange(_ t: Treatment, store: TreatmentStore, node: FollowerV2?) -> Bool {
+        guard let node else { return true }
+        return store.creator(t.id) == node.followerPub
     }
 
     /// Technical per-entry state for the log and the self-tests: "v2 accepted ✓".

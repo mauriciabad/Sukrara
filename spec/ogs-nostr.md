@@ -95,6 +95,7 @@ hour(t)  = t − (t mod 3600)
 | treatment `d` | `H(NS + ":tr:" + sid + ":" + id)` |
 | treatment `c` (index) | `H(NS + ":treatments:" + sid)` |
 | owner backup `d` | `H(NS + ":backup:" + I.pub)` |
+| Bluetooth `INFO.m` | `H(NS + ":ble:" + sid + ":" + nonce)` (nonce as sent, lowercase hex; ogs-ble B§5) |
 
 Only holders of `sid` can compute or recognise these values. `gk` changes on every rotation. It reveals that a
 rotation happened and nothing else.
@@ -174,8 +175,8 @@ The seal's signer is the authenticated sender. Receivers MUST check that the rum
 signer (NIP-59).
 
 Wraps MUST carry an **absolute** NIP-40 expiration of now + TTL. NIP-59 backdates `created_at` by up to 2 days, so
-an expiration computed from `created_at` would arrive already expired. The Mac reference follower currently sends
-wraps without an expiration **[P5]**.
+an expiration computed from `created_at` would arrive already expired. (Sukrara for Mac sent its wraps without one
+until P5 was integrated.)
 
 | Message | Rumor kind | From → to | TTL | Payload |
 |---|---|---|---|---|
@@ -317,21 +318,26 @@ Applied in this order:
 2. **Expiration:** drop an event whose NIP-40 expiration has passed. **[P10]** Draft 1 apps rely on relays for this.
 3. **Gift wraps** (kind 1059, `p` = `F`): unwrap per NIP-59. Accept only rumor kind 30501 sealed by `I`, with
    `v == 2`. Then:
-   - **key:** reject it if `sid` differs from the one already known **[P6]**. Store `G_n` under `gk(G_n)` and keep
+   - **key:** reject it if `sid` differs from the one already known (both apps since P6). Store `G_n` under `gk(G_n)` and keep
      every epoch. If `epoch` is the newest, adopt its `devices` and its `wss://` relays. The follower becomes active
      unless revoked.
    - **revoked:** stop accepting data. The history already received stays readable.
    - **invite-used / declined:** these apply only while the follower is waiting for approval.
 4. After a `revoked`, ignore all stream events.
 5. **Epoch:** the event MUST carry a `gk` the follower has a key for. For an unknown `gk` on an event signed by `I`
-   or a roster device, send a rekey request, at most once per `gk` per 5 minutes. The event MAY be kept and retried once the key
+   or a roster device, and only then, send a rekey request, at most once per `gk` per 5 minutes. The event MAY be kept and retried once the key
    arrives (relays and the Bluetooth backlog also deliver it again).
 6. **Roster** (kind 30078, `d` = roster d): the author MUST be `I`; decrypt with `(G_n, I)`; `epoch` MUST equal the
    `gk`'s epoch **[P10]**. Replace the current roster only if `(epoch, created_at)` is greater.
 7. **Chunk** (kind 30078, `c` = chunk c): the author MUST be in `roster.devices`. Decrypt. The `d` MUST equal the
-   value derived from the payload's `h` **[P10]**.
+   value derived from the payload's `h`. A kind 30078 from a device whose `c` is neither index is not a chunk.
 8. **Treatment** (kind 30078, `c` = treatment c): the author MUST be in `devices ∪ writers`. Decrypt. `d` MUST
-   equal `H(NS:tr:sid:id)`. Merge per D§6.2.
+   equal `H(NS:tr:sid:id)`. **Writer scope:** remember the *creator* of each `id`, the key that signed the first
+   version accepted (every key in `devices` counts as the wearer). A version signed by a writer is accepted only for
+   a new `id` or one that writer created; if the creator is a device and the version held has `o` = `follower` (the
+   wearer's copy of a writer's entry arrived first), it MAY be ignored silently, otherwise it MUST be rejected. A
+   version signed by a device whose `o` isn't `follower` (the wearer's own entry) replaces a version whose creator
+   is a writer whatever its `(u, o)`, and makes the wearer the creator. Otherwise merge per D§6.2.
 9. **Live / alert** (21078 / 21079): the author MUST be in `roster.devices`. Decrypt, validate per D§3, D§5 and D§7.
 10. Validate every payload as ogs-data.md says, and drop it if `v` is unknown.
 
@@ -345,8 +351,10 @@ Applied in this order:
     is sent privately.
   - **profile:** accept only from an approved, non-revoked `F`.
 - **Writer treatments:** valid signature; author in `writers` and an active follower; known `gk`; decrypts; `d`
-  matches the `id`; `k` is known. **[P4]** A writer MAY change or delete only entries it created. Draft 1 lets a
-  writer tombstone any entry.
+  matches the `id`; `k` is known; and the writer MAY change or delete only entries it created. The owner keeps the
+  first writer that created each `id`; an `id` already in its log with no recorded writer is the wearer's own and
+  MUST NOT be changed by a writer. Accepted entries are stored with `o` = `follower` whatever the writer sent.
+  (Sukrara 0.11.20 and older let a writer tombstone any entry; P4.)
 
 ## N§10 Lifecycle
 
@@ -430,7 +438,7 @@ database holds the long-term history.
 ## N§14 Test vectors
 
 [`test-vectors/ogs-draft1.json`](test-vectors/ogs-draft1.json) holds keys (derived from public strings, throwaway),
-derived tags, the invite, 28 signed events with their plaintexts, 3 invite checks and a **25-step acceptance
+derived tags, the invite, 30 signed events with their plaintexts, 3 invite checks and a **27-step acceptance
 scenario**. The scenario is a sequence of events with the verdict a conforming follower must reach for each, and the
 final state. NIP-44 nonces, NIP-59 timestamps and BIP-340 aux randomness are pinned, so an implementation can
 reproduce the events byte for byte, not only verify them. Check with:

@@ -25,12 +25,15 @@ import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 import org.nostrdevkit.sdk.Event
 
-data class NearbyOwner(val address: String, val name: String, val rssi: Int)
+/** A phone advertising the service nearby. No name: owners don't broadcast one (P12); INFO carries the profile. */
+data class NearbyOwner(val address: String, val rssi: Int)
 
 /**
  * Investigation 07 — follower side of the BLE transport: scan for [Ble.SERVICE], connect, MTU 517, subscribe to
- * [Ble.TX], send `HELLO`, then every `EVENT` goes to the engine's `onEvent(json, "ble:<addr>")` (same acceptance rules
- * as relay events). Reconnects by itself while a target address is set. [publish] writes events to the owner.
+ * [Ble.TX], send `HELLO` (with a fresh nonce), then every `EVENT` goes to the engine's `onEvent(json, "ble:<addr>")`
+ * (same acceptance rules as relay events). Reconnects by itself while a target address is set. [publish] writes events
+ * to the owner — only once its INFO proved it's our wearer's phone ([check], P12): another wearer's phone is left and
+ * avoided for [AVOID_MS], and the scan goes on.
  */
 @SuppressLint("MissingPermission")
 class BleFollower(
@@ -57,6 +60,12 @@ class BleFollower(
     val state: StateFlow<String> = _state
     @Volatile var lastInfo: JSONObject? = null; private set
     var onInfo: ((JSONObject) -> Unit)? = null
+    /** Is the INFO's sender our owner? [nonces] = our recent HELLO nonces. Null = accept any (nobody to protect yet). */
+    var check: ((info: JSONObject, nonces: Collection<String>) -> Ble.Owner)? = null
+    /** INFO proved the connected phone is our owner: writes are allowed. */
+    @Volatile var verified = false; private set
+    private val nonces = ArrayDeque<String>()
+    private val avoid = java.util.concurrent.ConcurrentHashMap<String, Long>()   // address → until (ms): phones that proved to be someone else's
     var eventsIn = 0; private set
     var bytesIn = 0L; private set
 
@@ -69,7 +78,7 @@ class BleFollower(
         val sc = bm.adapter?.bluetoothLeScanner ?: return log("BLE: no scanner")
         val cb = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                onFound(NearbyOwner(result.device.address, result.scanRecord?.deviceName ?: result.device.name ?: "Sukrara owner", result.rssi))
+                onFound(NearbyOwner(result.device.address, result.rssi))
             }
             override fun onScanFailed(errorCode: Int) = log("BLE: scan failed $errorCode")
         }
@@ -91,6 +100,7 @@ class BleFollower(
     private fun connectNow(address: String) {
         target = address
         if (gatt != null) return
+        verified = false
         val dev: BluetoothDevice = bm.adapter?.getRemoteDevice(address) ?: return
         _state.value = "connecting $address"
         gatt = dev.connectGatt(ctx, false, cb, BluetoothDevice.TRANSPORT_LE)
@@ -111,11 +121,19 @@ class BleFollower(
             val t = target ?: return@post
             _state.value = "reconnecting"
             // Android peripherals advertise from rotating private addresses: the stored one may be stale after a
-            // restart, so re-discover by service UUID (first owner found; events are verified anyway) and fall back
-            // to the stored address.
+            // restart, so re-discover by service UUID and fall back to the stored address. The first phone found that
+            // hasn't proved to be someone else's; its INFO is checked before anything is written (P12).
             var found = false
-            scan { o -> if (!found) { found = true; stopScan(); main.post { if (gatt == null) connectNow(o.address) } } }
-            main.postDelayed({ if (!found) { stopScan(); if (gatt == null && target == t) connectNow(t) } }, 8_000)
+            val now = System.currentTimeMillis()
+            avoid.entries.removeIf { it.value < now }
+            scan { o -> if (!found && !avoid.containsKey(o.address)) { found = true; stopScan(); main.post { if (gatt == null) connectNow(o.address) } } }
+            main.postDelayed({
+                if (found) return@postDelayed
+                stopScan()
+                if (gatt != null || target != t) return@postDelayed
+                // the stored address proved to be another wearer's phone: look again later instead of going back to it
+                if (avoid.containsKey(t)) main.postDelayed({ if (gatt == null && target == t) retry() }, 15_000) else connectNow(t)
+            }, 8_000)
         }
     }
 
@@ -145,16 +163,17 @@ class BleFollower(
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
-            _state.value = "connected ${g.device.address}"
+            _state.value = "checking ${g.device.address}"
             reasm = Ble.Reassembler()
-            send(Ble.msg("HELLO", JSONObject().put("v", 2)))
+            hello()
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
             bytesIn += value.size
             val m = reasm.add(value) ?: return
             when (m.optString(0)) {
-                "INFO" -> m.optJSONObject(1)?.let { lastInfo = it; onInfo?.invoke(it) }
+                "INFO" -> m.optJSONObject(1)?.let { onInfoMessage(g, it) }
+                // events are verified by the engine whoever sent them; only our writes wait for the check
                 "EVENT" -> m.optJSONObject(1)?.let { eventsIn++; onEvent(it, "ble:${g.device.address}") }
             }
         }
@@ -166,6 +185,29 @@ class BleFollower(
             }
             sentId?.let { onSent?.invoke(it) }
             pump()
+        }
+    }
+
+    private fun onInfoMessage(g: BluetoothGatt, info: JSONObject) {
+        val verdict = check?.invoke(info, synchronized(nonces) { nonces.toList() }) ?: Ble.Owner.OURS
+        when (verdict) {
+            Ble.Owner.OURS -> {
+                if (!verified) log("BLE: ${g.device.address} is our wearer's phone")
+                verified = true
+                _state.value = "connected ${g.device.address}"
+                lastInfo = info
+                onInfo?.invoke(info)
+                pump()
+            }
+            Ble.Owner.UNKNOWN -> {   // our request is pending and the phone isn't pairing: listen, don't write
+                _state.value = "connected ${g.device.address}"
+                log("BLE: ${g.device.address} can't prove it's our wearer's phone yet — receiving only")
+            }
+            Ble.Owner.OTHER -> {
+                log("BLE: ${g.device.address} is someone else's phone — leaving it for ${AVOID_MS / 60_000} min")
+                avoid[g.device.address] = System.currentTimeMillis() + AVOID_MS
+                main.post { gatt?.disconnect() }   // → onConnectionStateChange → retry() scans for another
+            }
         }
     }
 
@@ -193,13 +235,22 @@ class BleFollower(
         }
     }
 
-    /** Ask the owner for INFO + its cached events again (e.g. after a new key made them readable). */
-    fun hello() { if (rx != null) send(Ble.msg("HELLO", JSONObject().put("v", 2))) }
+    /**
+     * Ask the owner for INFO + its cached events again (e.g. after a new key made them readable). Each HELLO carries a
+     * fresh nonce; the INFO must prove `sid` for one of the last few (a recorded INFO can't be replayed).
+     */
+    fun hello() {
+        if (rx == null) return
+        val n = Ble.newNonce()
+        synchronized(nonces) { nonces.addLast(n); while (nonces.size > 4) nonces.removeFirst() }
+        send(Ble.msg("HELLO", JSONObject().put("v", 2).put("nonce", n)))
+    }
 
     // ============================================================================================ Transport
 
+    /** Only to a phone that proved it's our owner (P12); relays carry the event anyway. */
     override fun publish(ev: Event, lane: Lane, key: String?) {
-        if (rx == null) return
+        if (rx == null || !verified) return
         send(Ble.event(ev.asJson()), ev.id().toHex())
     }
 
@@ -209,4 +260,6 @@ class BleFollower(
     override suspend fun fetch(filters: List<JSONObject>, timeoutMs: Long): List<Pair<JSONObject, String>> = emptyList()
     override fun reconnect() { target?.let { t -> if (gatt == null) connect(t) } }
     override fun close() { stopScan(); disconnect() }
+
+    companion object { const val AVOID_MS = 10 * 60_000L }
 }

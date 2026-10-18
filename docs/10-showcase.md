@@ -152,7 +152,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `hideNotifIcon` | `--ez` | true | while the root status bar shows the value, the module drops Sukrara's notification icon from the status bar (shade, lock screen and AOD unchanged) |
 | `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:mobile\|slot:wifi | after_clock | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — `slot:` works with root alone; with the module they're coloured by range and `slot:wifi` etc. moves them right after that icon |
 | `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
-| `previewSgv`, `previewRate` | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading |
+| `previewSgv`, `previewRate` (debug builds only) | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading. A release build refuses it (see the debug-only row below) |
 | `restartSystemUi` | `--ez` true | | root: kill System UI to (re)load the module. Follow `spikes/statusbar-android/HANDOFF.md` (safety) |
 | `screenOffSkip` | `--ez` | false | don't re-post the notification while the screen is off (catches up on screen on) |
 | `garmin` | `--ez` | true | xDrip/Garmin server on 127.0.0.1:17580 (binds only if the port is free) |
@@ -160,9 +160,9 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `nightscoutLan` | `--ez` | false | the same API on all interfaces; non-loopback callers need the API secret |
 | `connPriority` | `--es` default\|low\|balanced\|high | default | sensor-link priority, **direct mode only**, applied on the next sensor connection |
 | `source` | `--es` juggluco\|direct | juggluco | `direct` also needs `--ez confirmDirect true`. **Takes the sensor from Juggluco** |
-| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `treat --es k rapid|long|carbs|note --ef a <amount> --es n <note>` (both roles), `untreat --es id <id>` (wearer), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https link> [--es name <n>]` looks the invite up on the relays, sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service). `profile --es name <one word> [--ez shuffle true]` (both roles) sets your name / a new random picture; the reply shows `owner.profile` + `owner.followerNames`, or `follower.me` + `follower.wearer` |
+| `cmd` | `--es` owner\|invite\|pair\|approve\|writer\|follow | | headless setup: `owner` = create the wearer identity + start the service, `invite` = new invite link in the reply, `pair` = nearby pairing 10 min, `approve` = allow the first pending request, `writer --es f <hex> --ez on true`, `untreat --es id <id>` (wearer; adding with `treat` is debug-only, row below), `widgetprobe` = measure every graph widget's real size again (logcat `Sukrara.widgets`; the reply's `widgets` lists each widget's reported sizes). **Follower side** (e.g. an emulator following the phone): `follow --es link <https link> [--es name <n>]` looks the invite up on the relays, sets the follower role and sends the request; the reply then has a `follower` object (status, code, epoch, readings, rejects, last). Start the follower service by opening the app once (a broadcast can't start a foreground service). `profile --es name <one word> [--ez shuffle true]` (both roles) sets your name / a new random picture; the reply shows `owner.profile` + `owner.followerNames`, or `follower.me` + `follower.wearer` |
 | `cmd` | `--es` sensorEnd\|sensorEndState | | sensor reminders / countdowns (`sensorend/SensorEnd`). **Without extras it only reads the state; nothing changes.** Settings: `--ei countdownHours H`, `--ez countdown B`, `--es reminders 'D@MIN,…'` (days before @ minute of day), `--ez unlock B` (first-unlock reminders), `--ez evening B`, `--es night 'MIN-MIN'` (night window, e.g. `1380-420`). Debug builds only: `--ei inMin N` = a made-up sensor ending in N min (only when given). Reply `sensorEnd` = settings, sensor, memory, `canPostPromoted` |
-| `cmd` (debug builds only) | `--es` fakeSensor\|sensor\|backfill\|sensorStart\|sensorUnlock; `--es alertFeed` | | **Replace the sensor or make up data, so a release build refuses them** (`features/DebugFakes`; the reply says `debug builds only, nothing changed`; guarded by `DebugFakesTest` and the `tools/check` rule `debug`). `fakeSensor` = a made-up sensor (`--es serial`, `--el start/end`, `--ez clear true`); `sensor` = one `--el left <s>` before its end; `backfill` = a reconnect burst into Live; `sensorStart` = a made-up sensor started `--ei agoMin N` (50) ago, readings ignored until `--ez firstReading true`; `sensorUnlock` = an unlock, as `ACTION_USER_PRESENT`; `alertFeed '204,-0.5'` = a made-up reading through the alert rules. The next real sensor info replaces a made-up one |
+| `cmd` (debug builds only) | `--es` fakeSensor\|sensor\|backfill\|sensorStart\|sensorUnlock\|locktest\|treat, `newSensor --es stage`, `sensorEnd --ei inMin`; extras `--es alertTest`, `--es alertFeed`, `--ei previewSgv` | | **Replace the sensor, or show / write made-up data, so a release build refuses them**: the release app never shows a glucose value, an alert, a treatment or a sensor state that isn't real, because the user acts on what Sukrara shows. Run them on the emulator debug build (`features/DebugFakes`; on release the reply's `debugOnly` says `<cmd>: debug builds only, nothing changed`; guarded by `DebugFakesTest` and the `tools/check` rule `debug`). `alertTest KIND` = one test alert, shared with followers; `locktest [--ez on B]` = the lock screen widget's test pattern; `newSensor --es stage S` = the New sensor screen forced to a step; `treat --es k rapid\|long\|carbs\|note [--ef a] [--es n]` = an entry in the log (wearer) or a writer entry (follower; `untreat --es id` stays on release: it only deletes). `fakeSensor` = a made-up sensor (`--es serial`, `--el start/end`, `--ez clear true`); `sensor` = one `--el left <s>` before its end; `backfill` = a reconnect burst into Live; `sensorStart` = a made-up sensor started `--ei agoMin N` (50) ago, readings ignored until `--ez firstReading true`; `sensorUnlock` = an unlock, as `ACTION_USER_PRESENT`; `alertFeed '204,-0.5'` = a made-up reading through the alert rules. The next real sensor info replaces a made-up one |
 
 Example: `… --ez nostr true --ei nostrInterval 15 --ez chip false --ez screenOffSkip true`. The process is
 `app.mauri.sukrara.poc` (one process). Partial wakelocks are held only for the work itself: 10 s per reading, 90 s
@@ -942,6 +942,55 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 | A permanent home button | Noise while the sensor works; it shows when it's due |
 
 ![New sensor flow](img/21/flow-new-sensor.png)
+
+## Sharing security fixes (investigation 24 integration, 2026-10-19)
+
+The spec audit of investigation 24 found that a writer could delete or change the wearer's entries, that the phone
+broadcast its Bluetooth name and identity key to anyone in range, that the Android follower wrote to the first
+Sukrara phone it found, that Bluetooth had no limits, and four Mac follower gaps. Fixed on Android and Mac together,
+with `spec/` (draft 1), the test vectors and `spec/reference` updated. Details: [docs/24](24-open-standard.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| Writers change only their own entries (owner and followers) | `treatments/WriterScope.kt`, `OwnerEngine.onTreatment`, `FollowerDb` (`creator`, db v3); Mac `WriterScope`, `TreatmentStore.creators`; `WriterScopeTest`, `-v2selftest` |
+| Mac: Delete only on its own entries while following; writers send `o:"follower"` | `ReportWindow.swift`, `TreatmentPaths.mayChange`, `FollowerV2.publishTreatment` |
+| No phone name over Bluetooth; blinded `INFO` (`nonce`, `m`); follower checks the owner before writing | `core/Ble.kt`, `BleOwner.kt`, `BleFollower.kt`; Mac `BLEV2Central.swift`, `main.swift`; `BleTest`, `-bleselftest` |
+| Bluetooth limits: reassembly, rate, centrals, backlog pacing, no expired backlog | `Ble.Reassembler`, `Ble.RateLimit`, `BleOwner`; Mac `BLEV2Central.Reassembler` |
+| Mac: wrap expiration, `sid` fixed, chunk `c`/`d` checks, rekey only for the wearer's keys | `NostrV2.swift` |
+| Python v2 CLI owner/follower removed | `spikes/nostr/v2` |
+
+| Discarded / left | Why |
+|---|---|
+| The phone's name in the nearby list | Broadcast to everyone in range; the list says *Phone nearby* and the wearer's profile shows after *Ask* |
+| Leaving a phone that can't prove itself while a request is pending | It may be the wearer's phone with pairing closed; the follower listens without writing instead |
+| Draft-2 wire changes (P1, P2, P7–P9, P11), the rest of P10, the CGMS bridge (P14) | The user wants to wait for v1; P14 is a separate PoC |
+
+## Apps on this phone and Health Connect (investigation 22)
+
+The wearer's readings reach other apps on the same phone: xDrip+ `BgEstimate` (`SourceInfo=Libre3`), patched-LibreLink
+`GLUCOSE_READING` (+ `SENSOR_ACTIVATE` per new sensor) and `glucodata.Minute`, one explicit copy per app the user
+allowed under Settings → Share with apps → *Apps on this phone* (all off by default), and Health Connect blood glucose
+behind its own permission sheet (off by default). Followers never broadcast. Verified on a fresh emulator with
+GlucoDataHandler 2.5; details, screenshots and the full tables: [docs/22](22-ecosystem-outputs.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| Payloads, trend names, who-gets-what plan (wearer + direct source + allowed + declared), 55 s throttle | `bridge/BroadcastPayloads.kt`, `BroadcastPayloadsTest` |
+| Receiver discovery, per-app allow list, explicit sends | `bridge/AppBroadcasts.kt`, manifest `<queries>` |
+| Health Connect write (history on enable, then each reading; one record per minute, no duplicates) | `bridge/HealthConnect.kt`, manifest permission + rationale alias |
+| Settings groups *Apps on this phone* and *Health Connect*; overview summary | `ui/SettingsScreens.kt` |
+| Hook into the wearer's fan-out | `wearer/WearerExtras.kt` |
+
+| Discarded | Why |
+|---|---|
+| Dexcom BYODA / any Dexcom label | False origin; a true `Libre3` label already gets AAPS's advanced filtering |
+| `NS_EMULATOR` | AAPS labels it Medtronic 600-series |
+| Glimp | Libre 1-era, AAPS-only |
+| Gadgetbridge weather hack | Glucose as fake weather; small audience |
+| Follower broadcasts | A follower's copy must not reach AAPS as a local sensor |
+| Broadcasts in Juggluco mode | Juggluco broadcasts itself |
+
+![Share with apps](img/22/sukrara-share-with-apps.png)
 
 ## CSV export (docs/22 gap #4)
 

@@ -16,6 +16,7 @@
     {"paths": ["spikes/showcase-android/app/build.gradle.kts", "spikes/showcase-android/app/proguard-rules.pro"], "qa": ["Q10 Release build"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/direct/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SensorScreen.kt"], "qa": ["Q12 Sensor scan"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/SensorCalendar.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SensorCalendarSetting.kt"], "qa": ["Q13 Sensor end in calendar"]},
-    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/ExportScreen.kt", "spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift", "spikes/export-fixtures/*"], "qa": ["Q14 Data export"]}
+    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/AppBroadcasts.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/BroadcastPayloads.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/HealthConnect.kt"], "qa": ["Q14 Apps on this phone and Health Connect"]},
+    {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/ExportScreen.kt", "spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift", "spikes/export-fixtures/*"], "qa": ["Q15 Data export"]}
   ]
 }

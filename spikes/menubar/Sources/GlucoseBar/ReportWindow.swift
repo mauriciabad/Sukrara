@@ -94,6 +94,8 @@ import SwiftUI
     var who: () -> String = { "the wearer" }
     var details: (Treatment) -> [String] = { _ in [] }
     var canLog: () -> Bool = { false }
+    /// A writer deletes only the entries it made (P4): the rest stay read-only here.
+    var mayChange: (Treatment) -> Bool = { _ in true }
     var onDelete: ((String) -> Void)?
     /// Export… under the report: the report's period as a CSV (GlucoseCsv.save).
     var onExport: ((Int) -> Void)?
@@ -107,8 +109,10 @@ import SwiftUI
         canDelete = canLog()
     }
 
+    func deletable(_ t: Treatment) -> Bool { canDelete && mayChange(t) }
+
     func delete(_ id: String?) {
-        guard canDelete, let id else { return }
+        guard canDelete, let id, let t = rows.first(where: { $0.id == id }), mayChange(t) else { return }
         onDelete?(id)
         reload()
     }
@@ -178,7 +182,7 @@ struct HistoryView: View {
                                 .tag(t.id)
                                 .help(model.details(t).joined(separator: "\n"))
                                 .contextMenu {
-                                    Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.canDelete)
+                                    Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.deletable(t))
                                 }
                         }
                     }

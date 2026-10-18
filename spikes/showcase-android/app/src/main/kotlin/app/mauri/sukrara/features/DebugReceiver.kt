@@ -21,23 +21,27 @@ import org.json.JSONObject
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
  *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
- *       [--es cmd locktest [--ez on B]]   (lock screen widget: a 100 dp magenta square + circle, to measure distortion) \
- *       [--ez hookColor B] [--ez hideNotifIcon B] [--ei previewSgv N [--ef previewRate R]]   (root status bar only, until the next reading) \
+ *       [--ez hookColor B] [--ez hideNotifIcon B] \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \
  *       [--es source juggluco|direct --ez confirmDirect true] \
- *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
+ *       [--es cmd owner|invite|pair|approve|deny|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
- *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
- *       [--es cmd sensorEnd [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…'] [--ez unlock B] [--ez evening B] [--es night 'MIN-MIN'] [--ei inMin N]] [--es cmd sensorEndState]
- *           (no extras = the state only, nothing changes; --ei inMin is debug-only)
- *     debug builds only (DebugFakes: they replace the sensor or make up data; a release build changes nothing and says so):
- *       [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es alertFeed 'SGV,RATE']
- *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] [--es cmd sensor …] [--es cmd backfill …] \
+ *       [--es cmd untreat --es id ID] [--es cmd profile [--es name N] [--ez shuffle true]]
+ *       [--es cmd sensorEnd [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…'] [--ez unlock B] [--ez evening B] [--es night 'MIN-MIN']] [--es cmd sensorEndState]
+ *           (no extras = the state only, nothing changes)
  *       [--es cmd calendar [--ez on B]]   (sensor end in calendar: state + events as JSON) \
- *       [--es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]]
- *           (opens the New sensor screen; a stage forces that step for screenshots, none = the live flow) \
- *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
+ *       [--es cmd newSensor]   (opens the New sensor screen, the live flow) \
+ *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined] [--es cmd widgetprobe]
+ *       [--es alertSettings JSON]
+ *     debug builds only (DebugFakes: they replace the sensor, or show / write made-up data: a glucose value, an alert, a
+ *     treatment, a sensor state; a release build changes nothing and the reply's `debugOnly` says so):
+ *       [--es cmd sensorEnd --ei inMin N] [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]]
+ *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] [--es cmd sensor …] [--es cmd backfill …]
+ *       [--es alertTest KIND] [--es alertFeed 'SGV,RATE'] [--ei previewSgv N [--ef previewRate R]]   (root status bar, until the next reading)
+ *       [--es cmd locktest [--ez on B]]   (lock screen widget: a 100 dp magenta square + circle, to measure distortion)
+ *       [--es cmd newSensor --es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]
+ *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]]
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
  */
@@ -82,21 +86,19 @@ class DebugReceiver : BroadcastReceiver() {
         if (i.hasExtra("systemIcons")) notes += "systemIcons is derived: --ez hook true --es hookPosition slot: (or slot:wifi …)"
         val out = JSONObject().put("features", f.toJson()).put("runtime", Live.status.value.toJson())
         out.put("systemIcons", app.mauri.sukrara.status.RootStatusBar.state)
-        // Screenshots/tests: show a made-up value in the root status bar only, until the next real reading.
-        if (i.hasExtra("previewSgv")) app.mauri.sukrara.status.RootStatusBar.update(c, f, app.mauri.sukrara.core.Reading(
-            System.currentTimeMillis() / 1000, i.getIntExtra("previewSgv", 100),
-            if (i.hasExtra("previewRate")) i.getFloatExtra("previewRate", 0f).toDouble() else null))
+        // Screenshots: a made-up value in the root status bar until the next real reading. Debug builds only (DebugFakes).
+        if (i.hasExtra("previewSgv")) DebugFakes.run(c, "previewSgv", i, out)
         // Root: reload the LSPosed module (kill, not `am crash`: crashes count towards Android's rescue mode).
         if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi())
         runCatching { command(c, i, out) }.onFailure { notes += "cmd failed: ${it.message}" }
-        // Investigation 15: --es alertSettings '<json>' (SPEC §3) · --es alertTest high (fires once, shared with
-        // followers) · --es alertFeed '204,-0.5' (a made-up reading through the rules, until the next real one)
+        // Investigation 15: --es alertSettings '<json>' (SPEC §3). Debug builds only (DebugFakes): --es alertTest high
+        // (fires once, shared with followers) · --es alertFeed '204,-0.5' (a made-up reading through the rules)
         val alerts = app.mauri.sukrara.alerts.Alerts
         i.getStringExtra("alertSettings")?.let { j ->
             alerts.update(c) { app.mauri.sukrara.alerts.AlertSettings.fromJson(JSONObject(j)) }
         }
-        i.getStringExtra("alertTest")?.let { alerts.test(c, it, share = true) }
-        if (i.hasExtra("alertFeed")) DebugFakes.run(c, "alertFeed", i, out)   // made-up data: debug builds only
+        if (i.hasExtra("alertTest")) DebugFakes.run(c, "alertTest", i, out)
+        if (i.hasExtra("alertFeed")) DebugFakes.run(c, "alertFeed", i, out)
         alerts.init(c)
         out.put("alerts", alerts.toJson())
         // root (su for Sukrara) and the LSPosed module as Settings sees them
@@ -163,7 +165,7 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "owner ready")
             }
             // made-up sensors and data (DebugFakes): debug builds only, a release build changes nothing and says so
-            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock" -> DebugFakes.run(c, cmd, i, out)
+            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock", "locktest", "treat" -> DebugFakes.run(c, cmd, i, out)
             // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
             "calendar" -> {
                 SensorCalendar.init(c)
@@ -171,11 +173,11 @@ class DebugReceiver : BroadcastReceiver() {
                 else if (i.getBooleanExtra("on", false)) { if (SensorCalendar.granted(c)) SensorCalendar.enable(c) else out.put("calendar", "grant READ/WRITE_CALENDAR first (pm grant)") }
                 out.put("calendar", SensorCalendar.dump(c))
             }
-            "newSensor" -> {
-                val stage = i.getStringExtra("stage")?.let { app.mauri.sukrara.ui.NewSensorFlow.previewStage(it, System.currentTimeMillis() / 1000) }
-                app.mauri.sukrara.ui.NewSensorFlow.preview.value = stage
+            // the New sensor screen, live; a forced step (--es stage) shows a made-up state: debug builds only
+            "newSensor" -> if (i.hasExtra("stage")) DebugFakes.run(c, "newSensorStage", i, out) else {
+                app.mauri.sukrara.ui.NewSensorFlow.preview.value = null
                 c.startActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                out.put("cmd", "newSensor ${stage ?: "live"}")
+                out.put("cmd", "newSensor live")
             }
             "invite" -> out.put("invite", App.owner(c).newInvite(i.getStringExtra("label") ?: ""))   // --es label <who it's for>
             // investigation 16: ask the launcher to place a widget (it shows its own "Add to home screen" dialog)
@@ -187,11 +189,6 @@ class DebugReceiver : BroadcastReceiver() {
                 }
                 out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
                     .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
-            }
-            "locktest" -> {
-                app.mauri.sukrara.widgets.LockscreenWidget.testPattern = i.getBooleanExtra("on", true)
-                app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "locktest", force = true)
-                out.put("cmd", "lock screen widget test pattern ${app.mauri.sukrara.widgets.LockscreenWidget.testPattern}")
             }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
@@ -247,17 +244,7 @@ class DebugReceiver : BroadcastReceiver() {
                 }
                 out.put("cmd", "profile set")
             }
-            // treatments: the wearer's own log (Treat.store → followers), or a follower's writer entry
-            "treat" -> {
-                val k = i.getStringExtra("k") ?: "note"
-                val a = i.getFloatExtra("a", 0f).toDouble()
-                val n = i.getStringExtra("n") ?: ""
-                if (App.role(c) == "follower") { App.follower(c).addTreatment(k, a, n); out.put("cmd", "follower entry sent") }
-                else {
-                    app.mauri.sukrara.treatments.Treat.init(c)
-                    out.put("cmd", "added").put("id", app.mauri.sukrara.treatments.Treat.store.add(k, a, app.mauri.sukrara.core.Proto.nowS(), n).id)
-                }
-            }
+            // treatments: adding one (test data) is debug-only (DebugFakes, above); deleting your own by id is allowed
             "untreat" -> {
                 app.mauri.sukrara.treatments.Treat.init(c)
                 out.put("cmd", if (app.mauri.sukrara.treatments.Treat.store.delete(i.getStringExtra("id") ?: "") != null) "deleted" else "no such entry")
