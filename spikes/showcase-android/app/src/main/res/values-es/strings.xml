@@ -417,9 +417,9 @@
     <!-- High alert after rapid insulin was logged twice or more; must never suggest more insulin [CHAR LIMIT=35] -->
     <string name="alert_context_after_more_insulin">sigue alta tras más insulina</string>
     <!-- Falling fast alert text; %1$s = rate (e.g. 2.4), %2$s = threshold with unit (e.g. 2.0 mg/dL/min) [CHAR LIMIT=NONE] -->
-    <string name="alert_text_falling">bajando %1$s ≥ %2$s</string>
+    <string name="alert_text_falling">bajando %1$s</string>
     <!-- Rising fast alert text; %1$s = rate, %2$s = threshold with unit [CHAR LIMIT=NONE] -->
-    <string name="alert_text_rising">subiendo %1$s ≥ %2$s</string>
+    <string name="alert_text_rising">subiendo %1$s</string>
     <!-- No data alert text; %1$s = minutes without a reading [CHAR LIMIT=NONE] -->
     <string name="alert_text_no_data">Nada recibido en %1$s min</string>
     <!-- No data alert text with the last value; %1$s = minutes, %2$d = last glucose in mg/dL [CHAR LIMIT=NONE] -->

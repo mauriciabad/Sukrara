@@ -166,22 +166,21 @@ struct V2Send: Codable, Equatable {
 struct TreatmentPaths {
     enum Route: String { case v2, local, none }
     var route: Route = .local
-    var v2: String?                  // the v2 line (nil = not following anyone)
+    var v2: String?                  // where entries go, in words (nil = not following anyone)
     var canLog: Bool { route != .none }
     var lines: [String] { [v2].compactMap { $0 } }
-    static let notAllowed = "The wearer hasn't allowed this Mac to add entries"
+    static let notAllowed = "The wearer hasn't allowed this Mac to log treatments"
 
     @MainActor static func current(node: FollowerV2?) -> TreatmentPaths {
         var p = TreatmentPaths()
         guard let node else { return p }
         guard case .active = node.phase else { p.route = .none; return p }
         p.route = node.canWrite ? .v2 : .none
-        p.v2 = node.canWrite ? "→ wearer over Sukrara sharing (v2) · allowed"
-                             : "✕ Sukrara sharing (v2): the wearer hasn't allowed this Mac to add entries"
+        p.v2 = node.canWrite ? "Goes to the wearer's phone" : "The wearer hasn't allowed this Mac to log treatments"
         return p
     }
 
-    /// Compact per-entry status for the menu row: "v2 accepted ✓".
+    /// Technical per-entry state for the log and the self-tests: "v2 accepted ✓".
     @MainActor static func status(of t: Treatment, store: TreatmentStore, now: Date = Date()) -> String {
         guard t.o == "mac", let s = store.v2Status(t.id) else { return "" }
         return v2Text(s, now: now)
@@ -195,21 +194,45 @@ struct TreatmentPaths {
         }
     }
 
-    /// The same in words, for the row's submenu.
-    @MainActor static func details(of t: Treatment, store: TreatmentStore) -> [String] {
-        var out: [String] = []
-        out.append(t.o == "mac" ? "Made on this Mac" : "From the wearer (Sukrara sharing, v2)")
-        if t.o == "mac" {
-            if let s = store.v2Status(t.id) {
-                let at = Date(timeIntervalSince1970: s.at).formatted(date: .omitted, time: .shortened)
-                switch s.state {
-                case .sending: out.append("v2: sending (no relay or phone has taken it yet)")
-                case .sent: out.append(v2Text(s) == "v2 sent" ? "v2: sent \(at), waiting for the wearer"
-                                                              : "v2: sent \(at), not accepted by the wearer yet")
-                case .accepted: out.append("v2: accepted by the wearer \(at)")
-                }
-            }
+    /// Where an entry made on this Mac is, in the user's words (Glucose Report › Treatments); nil for entries made
+    /// elsewhere or kept on this Mac.
+    @MainActor static func delivery(of t: Treatment, store: TreatmentStore, now: Date = Date()) -> (Delivery, Date)? {
+        guard t.o == "mac", let s = store.v2Status(t.id) else { return nil }
+        let at = Date(timeIntervalSince1970: s.at)
+        switch s.state {
+        case .sending: return (.sending, at)
+        case .sent: return (now.timeIntervalSince1970 - s.at > 120 ? .late : .sent, at)
+        case .accepted: return (.delivered, at)
         }
+    }
+
+    /// Who made the entry and where it is, for the row's tooltip. `who`: the wearer's name.
+    @MainActor static func details(of t: Treatment, store: TreatmentStore, who: String) -> [String] {
+        var out = [t.o == "mac" ? "Logged on this Mac" : t.o == "follower" ? "Logged by someone who follows \(who)" : "Logged on \(who)'s phone"]
+        if let (d, at) = delivery(of: t, store: store) { out.append(d.text(who: who, at: at)) }
         return out
+    }
+}
+
+/// How an entry made on this Mac reached the wearer's phone, shown like Messages' "Delivered": a symbol in the row
+/// and a sentence in its tooltip. Protocol states (v2 sending / sent / accepted) stay in the log.
+enum Delivery: Equatable {
+    case sending, sent, late, delivered
+    var symbol: String {
+        switch self {
+        case .sending: "clock"
+        case .sent: "paperplane"
+        case .late: "exclamationmark.triangle"
+        case .delivered: "checkmark.circle"
+        }
+    }
+    func text(who: String, at: Date) -> String {
+        let t = at.formatted(date: .omitted, time: .shortened)
+        switch self {
+        case .sending: return "Sending to \(who)'s phone…"
+        case .sent: return "Sent \(t), waiting for \(who)'s phone"
+        case .late: return "Not on \(who)'s phone yet (sent \(t))"
+        case .delivered: return "On \(who)'s phone since \(t)"
+        }
     }
 }

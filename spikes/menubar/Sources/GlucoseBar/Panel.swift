@@ -77,7 +77,7 @@ import SwiftUI
 enum QuickLog {
     struct Entry: Equatable { var k: String; var a: Double; var n: String }
     static let kinds: [(k: String, label: String, symbol: String)] = [
-        ("rapid", "Rapid", "syringe"), ("carbs", "Carbs", "fork.knife"), ("long", "Long", "clock"), ("note", "Note", "text.bubble"),
+        ("rapid", "Rapid", "syringe"), ("carbs", "Carbs", "fork.knife"), ("long", "Long", "syringe.fill"), ("note", "Note", "text.bubble"),
     ]
 
     private static let rx = try! NSRegularExpression(pattern: #"^(\d+(?:[.,]\d+)?)\s*(u|iu|g|gr|l|long|rapid|carbs?)?\b\s*(.*)$"#,

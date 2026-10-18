@@ -886,6 +886,23 @@ Before: [the first round's menu](img/mac-ux/menu-light.png).*
 | Activating the app when the panel opens (accent-coloured selection) | It would take focus from the app the user was in; the panel works like Spotlight (non-activating), so the selected segment draws in the inactive style |
 | Faked Increase Contrast renders | Setting a high-contrast appearance on a view doesn't change the material; the real setting is read from the system (`accessibilityDisplayShouldIncreaseContrast`) |
 
+## Mac wording and treatment times (2026-10-18 evening)
+
+The user: "v2 accepted" makes no sense; treatments miss their relative times; notifications carry too much text.
+
+| Added | Where |
+|---|---|
+| Delivery shown like Messages' *Delivered*: a symbol per entry made on this Mac (sending, sent, not on the phone yet, on the phone) with a sentence in the tooltip ("On Ana's phone since 14:07") | `Delivery`, `TreatmentPaths.delivery` (Treatments.swift), `ReportWindow.swift` |
+| `12m` / `3h` after the time of day in Glucose Report › Treatments, refreshed every 30 s | `TreatmentRow` (TimelineView) |
+| Protocol words out of every Mac text: source `Internet` / `Bluetooth · phone`, `Following Ana`, the pairing window, the alerts source note, the invite error | `NostrV2.label`, `NostrSource`, `main.swift`, `FollowUI`, `AlertsUI` |
+| Notification body = value + arrow (rate for fast changes), Android and Mac | `AlertNotifier.kt`, `Alerts.swift`, SPEC §1 |
+
+![Treatments, light](img/mac-ux/treatments-light.png) ![Treatments, dark](img/mac-ux/treatments-dark.png)
+
+| Discarded | Why |
+|---|---|
+| A diagnostics section (relays, key epoch) in Settings › Following | Not useful to the user; the log has it |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

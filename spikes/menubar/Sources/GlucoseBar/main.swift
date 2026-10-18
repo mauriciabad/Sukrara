@@ -372,7 +372,7 @@ let treatmentStore = MainActor.assumeIsolated {
             let pic = Avatar.image(w.avatar, name: who, size: 18)
             switch p {
             case .waiting(let code): status.setFollow("Following \(who): waiting for approval" + (code.map { " · code \($0)" } ?? ""), image: pic)
-            case .active(let e): status.setFollow("Following \(who) · key epoch \(e) · \(n.relayHosts.count) relays", image: pic)
+            case .active: status.setFollow("Following \(who)", image: pic)
             case .revoked: status.setFollow("⚠︎ \(who) stopped sharing with this Mac", image: pic)
             case .ended(let used): status.setFollow(used ? "⚠︎ Invite already used: ask \(who) for a new one"
                                                           : "\(who) didn't allow this Mac", image: pic)
@@ -443,7 +443,7 @@ MainActor.assumeIsolated {
     }
     status.treatmentPaths = { TreatmentPaths.current(node: following.node) }
     status.treatmentStatus = { TreatmentPaths.status(of: $0, store: treatments) }
-    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments) }
+    status.treatmentDetails = { TreatmentPaths.details(of: $0, store: treatments, who: "the wearer") }
     // One path per entry, the wearer's choice (TreatmentPaths): v2 as a roster writer, else none (the menu item is
     // disabled); local only when following no one.
     @MainActor func paths() -> TreatmentPaths { TreatmentPaths.current(node: following.node) }
@@ -529,8 +529,9 @@ let reportWindow = MainActor.assumeIsolated {
     r.model.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     r.model.bandsOf = { status.graph.bands }
     r.model.treatments = { treatmentStore.rows }
-    r.model.status = { TreatmentPaths.status(of: $0, store: treatmentStore) }
-    r.model.details = { TreatmentPaths.details(of: $0, store: treatmentStore) }
+    r.model.delivery = { TreatmentPaths.delivery(of: $0, store: treatmentStore) }
+    r.model.who = { following.node.map { $0.wearer.name }.flatMap { $0.isEmpty ? nil : $0 } ?? "the wearer" }
+    r.model.details = { [weak r] t in TreatmentPaths.details(of: t, store: treatmentStore, who: r?.model.who() ?? "the wearer") }
     r.model.canLog = { TreatmentPaths.current(node: following.node).canLog }
     r.model.onDelete = { status.onDeleteTreatment?($0) }
     treatmentStore.onChange.append { if r.isVisible { r.refresh() } }
@@ -577,6 +578,12 @@ MainActor.assumeIsolated {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { reportWindow.snapshot(to: dir) }
     }
     // Debug aid: open the glance panel at launch (it can't be clicked open from a script without Accessibility).
+    if args.contains("-openTreatments") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            reportWindow.show(.treatments)
+            log("treatments window \(NSApp.windows.first { $0.title == "Treatments" }?.windowNumber ?? 0)")
+        }
+    }
     if args.contains("-openPanel") { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { status.openPanel() } }
 }
 

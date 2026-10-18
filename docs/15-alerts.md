@@ -64,8 +64,9 @@ LibreView's ranges); highs are at or above it. Very low 55 and very high 250 fol
 - Episodes, treatment-anchored repeats and the headlines: see [the 2026-10-18 round](#episodes-and-treatment-anchored-repeats-2026-10-18).
 - Readings older than 15 minutes never alert (backfill, late chunks).
 
-Notification text: the headline as the title (`Low glucose · eat more`), the value and threshold as the body
-(`69 mg/dL ↘ · < 70 mg/dL`, `200 mg/dL → · ≥ 180 mg/dL`). Until 2026-10-18 the title was `High · 185 mg/dL ↑` with
+Notification text: the headline as the title (`Low glucose · eat more`), the value and arrow as the body (`69 mg/dL ↘`;
+fast changes add the rate, `120 mg/dL ↓ · falling 2.4 mg/dL/min`). Until the evening of 2026-10-18 the body also had the
+threshold (`· ≥ 180 mg/dL`) and, on the Mac, `· from the wearer's phone`: too much text (user). Until 2026-10-18 the title was `High · 185 mg/dL ↑` with
 `≥ 185 mg/dL · reminder 2` below.
 
 **Quiet highs** (both on by default):

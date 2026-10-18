@@ -180,7 +180,7 @@ import NostrSDK
         else { return log("nostr \(r.host): dropped invalid event \(id.prefix(8))") }
         seen[id] = Date()      // only after verifying, so a forged copy can't shadow the real one
         decrypts += 1
-        let label = "Nostr · \(r.host)", body = Data(plain.utf8)
+        let label = "Internet", body = Data(plain.utf8)
         switch ev.kind().asU16() {
         case Self.liveKind:
             guard let l = try? JSONDecoder().decode(Live.self, from: body) else { return }
