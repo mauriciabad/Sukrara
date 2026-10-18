@@ -182,6 +182,23 @@ class DebugReceiver : BroadcastReceiver() {
                 app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "sensor", force = true)
                 out.put("cmd", "sensor ${app.mauri.sukrara.core.SensorLife.current.value} countdown ${app.mauri.sukrara.core.SensorLife.countdown.value} h")
             }
+            // debug builds only: a direct-source reconnect's burst into the wearer pipeline (Live, not published):
+            // the reading, then `--ei packets <n>` (default 16) history packets of 9 values 50 ms apart
+            "backfill" -> if (!app.mauri.sukrara.BuildConfig.DEBUG) out.put("cmd", "debug builds only") else {
+                val n = i.getIntExtra("packets", 16)
+                val now = app.mauri.sukrara.core.Proto.nowS()
+                val last = app.mauri.sukrara.wearer.Live.status.value.last
+                Thread {
+                    app.mauri.sukrara.wearer.Live.reading(app.mauri.sukrara.core.Reading(now, (last?.sgv ?: 120) + 1, 0.5, "debug"))
+                    repeat(n) { p ->
+                        Thread.sleep(50)
+                        app.mauri.sukrara.wearer.Live.history((0 until 9).map { k ->
+                            app.mauri.sukrara.core.Reading(now - 3600 * 12 + (p * 9 + k) * 300L, 110 + k, null, "debug")
+                        })
+                    }
+                }.start()
+                out.put("cmd", "backfill burst: 1 reading + $n history packets")
+            }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             // round sensor-life: a made-up sensor ending in --ei inMin N (default 10); --ei countdownHours H;
