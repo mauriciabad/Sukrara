@@ -27,8 +27,8 @@ import kotlin.math.min
 val DEFAULT_RING_ORDER = listOf(Band.TIGHT, Band.TARGET, Band.LOW, Band.VERY_LOW, Band.HIGH, Band.VERY_HIGH)
 
 /** What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers. */
-enum class SlotKind(val label: String) {
-    TIR("Time in range"), GMI("GMI"), AVERAGE("Average glucose"), CV("Variability (CV)");
+enum class SlotKind {
+    TIR, GMI, AVERAGE, CV;
 
     /** The word under a number slot (none under a ring). */
     val short: String get() = when (this) {

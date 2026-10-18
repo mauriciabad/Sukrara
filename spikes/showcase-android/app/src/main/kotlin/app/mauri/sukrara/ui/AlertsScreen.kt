@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.R
 import app.mauri.sukrara.alerts.AlertHaptics
+import app.mauri.sukrara.alerts.AlertNote
 import app.mauri.sukrara.alerts.AlertNotifier
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSounds
@@ -102,7 +103,7 @@ private fun thresholdText(k: String, v: Double): String = thresholdText0(LocalCo
 private fun repeatText(m: Int) = if (m == 0) stringResource(R.string.alerts_remind_once) else stringResource(R.string.alerts_remind_every, m)
 
 @Composable
-private fun soundName(p: String) = AlertSounds.label(p).substringBefore(" (")
+private fun soundName(p: String) = soundName(LocalContext.current, p)
 
 /** The alert's sound in words: the pack's or its own, or "set in system settings" when the channel's was changed there. */
 @Composable
@@ -140,13 +141,13 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                     if (empty) Text(stringResource(if (s.on) R.string.alerts_now_nothing else R.string.alerts_now_off), style = MaterialTheme.typography.bodyLarge)
                     else Column {
                         now.forEach { st ->
-                            Text(Kind.label(st.kind) + " · " + (st.muted?.let { stringResource(R.string.alerts_now_quiet, it) }
+                            Text(AlertNotifier.label(ctx, st.kind) + " · " + (st.muted?.let { stringResource(R.string.alerts_now_quiet, quietReason(ctx, it)) }
                                 ?: stringResource(if (st.n > 0) R.string.alerts_now_alerted else R.string.alerts_now_alerted_recently)),
                                 style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
-                history.take(4).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                history.take(4).forEach { Text(noteText(ctx, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         } }
         SettingsMainSwitch(stringResource(R.string.alerts_main_switch), s.on) { v -> set { it.copy(on = v) } }
@@ -165,7 +166,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                     " · " + soundSummary(k, s))
             }
             SettingsGroup(title) {
-                for ((k, c, summary) in rows) splitSwitch(Kind.label(k), summary, checked = c.on && !mirrored(follower, s, k),
+                for ((k, c, summary) in rows) splitSwitch(AlertNotifier.label(ctx, k), summary, checked = c.on && !mirrored(follower, s, k),
                     rowEnabled = s.on, switchEnabled = s.on && !mirrored(follower, s, k), to = ALERT_ROUTE + k) { v ->
                     set { it.copy(kinds = it.kinds + (k to it.cfg(k).copy(on = v))) }
                 }
@@ -194,7 +195,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         }
 
         SettingsGroup(stringResource(R.string.alerts_group_sounds)) {
-            value(stringResource(R.string.alerts_sound_pack), AlertSounds.label(s.pack), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { pickPack = true }
+            value(stringResource(R.string.alerts_sound_pack), soundLabel(ctx, s.pack), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { pickPack = true }
             switch(stringResource(R.string.alerts_shuffle), s.shuffle, enabled = s.on,
                 summary = stringResource(R.string.alerts_shuffle_summary, AlertSounds.VARIANTS)) { v -> set { it.copy(shuffle = v) } }
             link(stringResource(R.string.alerts_notification_settings), stringResource(R.string.alerts_notification_settings_summary),
@@ -223,6 +224,32 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         s.source, { pickSource = false }) { v -> set { it.copy(source = v) } }
 }
 
+/**
+ * Why an alert is quiet now, in the app's language. The engine (pure Kotlin, shared timelines) words it in English:
+ * "insulin 12 min ago", "carbs 5 min ago", "falling, back in range in ~8 min"; anything else shows as it is.
+ */
+private fun quietReason(ctx: Context, m: String): String {
+    Regex("^(insulin|carbs) (\\d+) min ago$").find(m)?.let { r ->
+        val min = r.groupValues[2].toInt()
+        return ctx.getString(if (r.groupValues[1] == "insulin") R.string.alerts_quiet_reason_insulin else R.string.alerts_quiet_reason_carbs, min)
+    }
+    Regex("^falling, back in range in ~(\\d+) min$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_falling, r.groupValues[1].toInt()) }
+    return m
+}
+
+/** One line of the "lately" list: "14:05  Low glucose · eat more (2) · 62 mg/dL". */
+private fun noteText(ctx: Context, n: AlertNote): String {
+    val k = n.kinds.firstOrNull() ?: ""
+    val text = when (n.what) {
+        AlertNote.FIRED -> ctx.getString(if (n.remote) R.string.alerts_note_fired_remote else R.string.alerts_note_fired,
+            AlertNotifier.headline(ctx, k, n.treated) + if (n.n > 1) " (${n.n})" else "", n.sgv?.toString() ?: "–")
+        AlertNote.CLEARED -> ctx.getString(if (n.remote) R.string.alerts_note_cleared_remote else R.string.alerts_note_cleared, AlertNotifier.label(ctx, k))
+        else -> ctx.getString(R.string.alerts_note_resumed, n.kinds.joinToString { AlertNotifier.label(ctx, it) })
+    }
+    val t = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(n.at * 1000))
+    return "$t  " + if (n.test) ctx.getString(R.string.alerts_note_test, text) else text
+}
+
 /** A plain string resource with one argument, for labels built outside composition (dialog option lambdas). */
 private fun stringResource0(ctx: Context, id: Int, arg: Any) = ctx.getString(id, arg)
 
@@ -239,7 +266,7 @@ private fun SoundDialog(title: String, kind: String, packDefault: String?, selec
     val play = stringResource(R.string.alerts_play)
     ChoiceDialog(title, options.map { o ->
         val p = o ?: packDefault!!
-        Choice(if (o == null) stringResource(R.string.alerts_sound_pack_default, AlertSounds.label(packDefault!!)) else AlertSounds.label(o), o,
+        Choice(if (o == null) stringResource(R.string.alerts_sound_pack_default, soundLabel(ctx, packDefault!!)) else soundLabel(ctx, o), o,
             trailing = if (p == AlertSounds.NONE) null else ({
                 IconButton(onClick = { TestPlayback.play(ctx, kind, p, alarm) }) { Icon(painterResource(R.drawable.ic_sym_play_arrow), contentDescription = play) }
             }))
@@ -288,8 +315,8 @@ fun AlertKindScreen(k: String, follower: Boolean, onBack: () -> Unit) {
     val unit = Kind.unit(k)
     val volume = stringResource(if (c.alarm) R.string.alerts_volume_alarm else R.string.alerts_volume_notification)
 
-    SettingsPage(Kind.label(k), onBack) {
-        SettingsMainSwitch(stringResource(R.string.alerts_kind_main_switch, Kind.label(k)), c.on && !locked, enabled = ruleOn) { v -> change { it.copy(on = v) } }
+    SettingsPage(AlertNotifier.label(ctx, k), onBack) {
+        SettingsMainSwitch(stringResource(R.string.alerts_kind_main_switch, AlertNotifier.label(ctx, k)), c.on && !locked, enabled = ruleOn) { v -> change { it.copy(on = v) } }
         val on = c.on && s.on
         SettingsGroup(stringResource(R.string.alerts_group_when)) {
             value(stringResource(if (k == Kind.NO_DATA) R.string.alerts_after else if (k in Kind.RATES) R.string.alerts_rate else R.string.alerts_threshold),

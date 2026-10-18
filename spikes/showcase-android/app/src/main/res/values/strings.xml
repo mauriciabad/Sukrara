@@ -5,7 +5,7 @@
   SPDX-License-Identifier: GPL-3.0-or-later
 
   Sukrara's user-visible text (English, the default). Spanish (Spain) is in values-es/strings.xml; every key here
-  must exist there with the same format arguments (StringsParityTest). The settings pages keep their own strings.
+  must exist there with the same format arguments (StringsParityTest).
 -->
 <resources>
     <!-- Brand and units: never translated -->
@@ -961,4 +961,694 @@
     <string name="libreview_banner_text">Upload your glucose and entries to LibreView, the record your doctor sees.</string>
     <!-- Banner button that opens the LibreView settings. [CHAR LIMIT=20] -->
     <string name="libreview_banner_action">Set up</string>
+
+    <!-- ========== Settings: overview of both roles ========== -->
+    <!-- Title of the settings overview and the search results' fallback location [CHAR LIMIT=30] -->
+    <string name="settings_title">Settings</string>
+    <!-- Summary of a feature that is on [CHAR LIMIT=20] -->
+    <string name="settings_on">On</string>
+    <!-- Summary of a feature that is off [CHAR LIMIT=20] -->
+    <string name="settings_off">Off</string>
+    <!-- Summary of a feature that is on, with its main option; %1$s = the option, e.g. Frosted glass [CHAR LIMIT=40] -->
+    <string name="settings_on_with">On · %1$s</string>
+    <!-- Why a row is disabled: the LSPosed module is missing [CHAR LIMIT=60] -->
+    <string name="settings_needs_module">Needs the Sukrara LSPosed module</string>
+    <!-- Overview: summary of the wearer's own profile row [CHAR LIMIT=60] -->
+    <string name="settings_profile_wearer">Wearer · what your followers see</string>
+    <!-- Overview: summary of the follower's profile row; %1$s = the wearer's name [CHAR LIMIT=60] -->
+    <string name="settings_profile_follower">How you appear to %1$s</string>
+    <!-- Overview: summary of the follower's profile row when the wearer has no name [CHAR LIMIT=60] -->
+    <string name="settings_profile_follower_unnamed">How you appear to the wearer</string>
+    <!-- Overview: Alerts row; %1$d = alerts on, %2$d = all alerts, %3$s = sound pack name [CHAR LIMIT=60] -->
+    <string name="settings_alerts_summary">%1$d of %2$d on · %3$s</string>
+    <!-- Overview (follower): Alerts row when the rules mirror the wearer's; %1$s = sound pack name [CHAR LIMIT=60] -->
+    <string name="settings_alerts_summary_wearer">Same as the wearer\'s app · %1$s</string>
+    <!-- Overview: Graph row; %1$d = default graph window in hours, %2$s = the slots, e.g. TIR 1d + GMI 14d [CHAR LIMIT=60] -->
+    <string name="settings_graph_summary">%1$d h · %2$s</string>
+    <!-- Overview: Graph row when nothing is shown beside the number [CHAR LIMIT=30] -->
+    <string name="settings_graph_summary_no_rings">no rings</string>
+    <!-- Overview: Graph row, short name of a time-in-range ring [CHAR LIMIT=6] -->
+    <string name="settings_graph_summary_tir">TIR</string>
+    <!-- Overview: sharing row, readings go over the internet [CHAR LIMIT=20] -->
+    <string name="settings_people_summary_internet">internet</string>
+    <!-- Overview: sharing row, readings go over Bluetooth [CHAR LIMIT=20] -->
+    <string name="settings_people_summary_bluetooth">Bluetooth</string>
+    <!-- Overview: Status bar row, the Live Update chip is on [CHAR LIMIT=20] -->
+    <string name="settings_statusbar_summary_chip">chip</string>
+    <!-- Overview: Status bar row, the number icon is on [CHAR LIMIT=20] -->
+    <string name="settings_statusbar_summary_icon">number icon</string>
+    <!-- Overview: Status bar row, the root value is on [CHAR LIMIT=20] -->
+    <string name="settings_statusbar_summary_value">value</string>
+    <!-- Overview: Backup row; %1$s = Saved … or Not backed up [CHAR LIMIT=60] -->
+    <string name="settings_backup_summary">%1$s · export settings</string>
+    <!-- Overview: Advanced row (wearer) [CHAR LIMIT=60] -->
+    <string name="settings_advanced_summary_wearer">Relays, log, sensor link, experiments</string>
+    <!-- Overview: Advanced row (follower) [CHAR LIMIT=60] -->
+    <string name="settings_advanced_summary_follower">Relays, log, diagnostics</string>
+    <!-- Overview: About row; %1$s = version name [CHAR LIMIT=60] -->
+    <string name="settings_about_summary">Version %1$s · source code · other devices</string>
+
+    <!-- ========== Settings: glucose source ========== -->
+    <!-- Page and overview row: where readings come from [CHAR LIMIT=30] -->
+    <string name="source_title">Glucose source</string>
+    <!-- Glucose source page intro [CHAR LIMIT=NONE] -->
+    <string name="source_intro">Where Sukrara gets your readings from.</string>
+    <!-- Row and dialog title: the chosen source [CHAR LIMIT=30] -->
+    <string name="source_source">Source</string>
+    <!-- Source option: Sukrara reads the Libre 3 itself [CHAR LIMIT=30] -->
+    <string name="source_direct">Libre 3 directly</string>
+    <!-- Source option description [CHAR LIMIT=NONE] -->
+    <string name="source_direct_summary">Sukrara holds the sensor (scan it once with NFC)</string>
+    <!-- Source option: the Juggluco app (brand name) [CHAR LIMIT=30] -->
+    <string name="source_juggluco">Juggluco</string>
+    <!-- Source option description [CHAR LIMIT=NONE] -->
+    <string name="source_juggluco_summary">Reads Juggluco\'s web server; Juggluco keeps the sensor and its alarms</string>
+    <!-- Sensor row; %1$s = sensor serial number [CHAR LIMIT=60] -->
+    <string name="source_sensor_summary">Libre 3 %1$s · scan to start or take over</string>
+    <!-- Sensor row without a sensor [CHAR LIMIT=60] -->
+    <string name="source_sensor_summary_none">Scan to start or take over</string>
+    <!-- Why the sensor rows are disabled [CHAR LIMIT=60] -->
+    <string name="source_sensor_unavailable">Unavailable while Juggluco holds the sensor</string>
+    <!-- Glucose source page footer [CHAR LIMIT=NONE] -->
+    <string name="source_footer">Only one app can hold a Libre 3. With Libre 3 directly, Juggluco\'s own alarms don\'t ring; use Alerts.</string>
+    <!-- Dialog title before switching to the direct source [CHAR LIMIT=40] -->
+    <string name="source_direct_confirm_title">Read the sensor directly?</string>
+    <!-- Dialog text before switching to the direct source [CHAR LIMIT=NONE] -->
+    <string name="source_direct_confirm_text">Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco\'s alarms (low/high) do NOT ring.</string>
+    <!-- Dialog button: open the sensor scan page [CHAR LIMIT=20] -->
+    <string name="source_direct_confirm_scan">Scan sensor</string>
+
+    <!-- ========== Settings: sharing with people ========== -->
+    <!-- Page and overview row: sharing with followers [CHAR LIMIT=30] -->
+    <string name="people_title">Share with people</string>
+    <!-- Sharing with people page intro [CHAR LIMIT=NONE] -->
+    <string name="people_intro">The people you share with see your glucose live, end-to-end encrypted: over the internet or over Bluetooth nearby.</string>
+    <!-- Summary of the Share with someone row [CHAR LIMIT=60] -->
+    <string name="people_share_summary">Send an invite link</string>
+    <!-- Row: pair a follower over Bluetooth [CHAR LIMIT=30] -->
+    <string name="people_pair">Pair nearby</string>
+    <!-- Row while pairing is open [CHAR LIMIT=30] -->
+    <string name="people_pairing">Pairing nearby…</string>
+    <!-- Pair nearby summary [CHAR LIMIT=60] -->
+    <string name="people_pair_summary">For 10 minutes, no internet needed</string>
+    <!-- Why Pair nearby is disabled [CHAR LIMIT=60] -->
+    <string name="people_pair_bluetooth_off">Unavailable while Bluetooth is off</string>
+    <!-- Pairing open; %1$s = date and time it closes [CHAR LIMIT=60] -->
+    <string name="people_pairing_summary">Open until %1$s · tap to extend 10 min</string>
+    <!-- Group of follower rows [CHAR LIMIT=30] -->
+    <string name="people_group_followers">Followers</string>
+    <!-- Shown when nobody follows the wearer [CHAR LIMIT=60] -->
+    <string name="people_nobody">Nobody follows you yet</string>
+    <!-- Follower row; %1$s = date followed since, %2$s = can add entries / sees only [CHAR LIMIT=60] -->
+    <string name="people_follower_summary">Since %1$s · %2$s</string>
+    <!-- Follower permission: may log treatments [CHAR LIMIT=30] -->
+    <string name="people_can_add_entries">can add entries</string>
+    <!-- Follower permission: read only [CHAR LIMIT=30] -->
+    <string name="people_sees_only">sees only</string>
+    <!-- A removed follower; %1$s = date removed [CHAR LIMIT=40] -->
+    <string name="people_removed_at">Removed %1$s</string>
+    <!-- Group: transports for the readings [CHAR LIMIT=40] -->
+    <string name="people_group_travel">How readings travel</string>
+    <!-- Switch: share over Bluetooth with nearby followers [CHAR LIMIT=40] -->
+    <string name="people_bluetooth">Over Bluetooth nearby</string>
+    <!-- Bluetooth summary; %1$d = followers connected now [CHAR LIMIT=40] -->
+    <string name="people_bluetooth_connected">%1$d connected now</string>
+    <!-- Bluetooth summary when it\'s off [CHAR LIMIT=40] -->
+    <string name="people_bluetooth_off">Bluetooth is off</string>
+    <!-- Switch: share over Nostr relays [CHAR LIMIT=40] -->
+    <string name="people_nostr">Over the internet (Nostr relays)</string>
+    <!-- Nostr switch summary [CHAR LIMIT=60] -->
+    <string name="people_nostr_summary">End-to-end encrypted; followers anywhere</string>
+    <!-- Sharing with people page footer [CHAR LIMIT=NONE] -->
+    <string name="people_footer">Removing someone rotates the read key, so they stop receiving new readings at once. Followers you allow to add entries can log insulin, carbs and notes for you.</string>
+    <!-- Dialog title; %1$s = follower name [CHAR LIMIT=40] -->
+    <string name="people_remove_title">Remove %1$s?</string>
+    <!-- Remove follower dialog text [CHAR LIMIT=NONE] -->
+    <string name="people_remove_text">They stop receiving new readings immediately: Sukrara rotates the read key and re-sends it to everybody else.</string>
+    <!-- Button: remove a follower [CHAR LIMIT=20] -->
+    <string name="people_remove">Remove</string>
+    <!-- Follower dialog; %1$s = date [CHAR LIMIT=60] -->
+    <string name="people_following_since">Following since %1$s</string>
+    <!-- Switch / row: the follower may log treatments [CHAR LIMIT=40] -->
+    <string name="people_writer">Can add entries</string>
+    <!-- Can add entries summary [CHAR LIMIT=60] -->
+    <string name="people_writer_summary">Insulin, carbs and notes</string>
+
+    <!-- ========== Settings: root and LSPosed banners ========== -->
+    <!-- Banner title: Sukrara has no root [CHAR LIMIT=40] -->
+    <string name="access_root_title">Root needed</string>
+    <!-- Banner text [CHAR LIMIT=NONE] -->
+    <string name="access_root_text">Grant Sukrara root in KernelSU (or Magisk): Superuser → Sukrara → allow. Then check again.</string>
+    <!-- Banner button: check root again [CHAR LIMIT=20] -->
+    <string name="access_root_action">Check again</string>
+    <!-- Banner title: the LSPosed module isn\'t active [CHAR LIMIT=40] -->
+    <string name="access_module_title">LSPosed module off</string>
+    <!-- Banner text [CHAR LIMIT=NONE] -->
+    <string name="access_module_text">Install LSPosed, enable the Sukrara module and tick System UI in its scope, then restart System UI.</string>
+    <!-- Banner title: System UI missing from the module\'s scope [CHAR LIMIT=40] -->
+    <string name="access_scope_title">System UI not in scope</string>
+    <!-- Banner text; %1$s = the framework, e.g. LSPosed [CHAR LIMIT=NONE] -->
+    <string name="access_scope_text">The Sukrara module is enabled in %1$s but not for System UI.</string>
+    <!-- Banner button: add System UI to the scope [CHAR LIMIT=20] -->
+    <string name="access_scope_action">Add System UI</string>
+    <!-- Banner title and button: restart System UI [CHAR LIMIT=30] -->
+    <string name="access_restart_title">Restart System UI</string>
+    <!-- Banner text [CHAR LIMIT=NONE] -->
+    <string name="access_restart_text">System UI runs without the Sukrara module. Restarting it loads the module (the status bar redraws for a moment).</string>
+    <!-- Banner text after an app update [CHAR LIMIT=NONE] -->
+    <string name="access_restart_text_updated">Sukrara was updated: System UI still runs the previous module. Restart it to load the new one (the status bar redraws for a moment).</string>
+
+    <!-- ========== Settings: status bar ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="statusbar_title">Status bar</string>
+    <!-- Status bar page intro [CHAR LIMIT=NONE] -->
+    <string name="statusbar_intro">Your glucose at a glance in the status bar, without opening anything.</string>
+    <!-- Switch: the Live Update chip [CHAR LIMIT=40] -->
+    <string name="statusbar_chip">Live Update chip</string>
+    <!-- Chip summary [CHAR LIMIT=60] -->
+    <string name="statusbar_chip_summary">The number next to the clock</string>
+    <!-- Link to the system\'s Live Updates permission [CHAR LIMIT=40] -->
+    <string name="statusbar_allow_live_updates">Allow Live Updates for Sukrara</string>
+    <!-- Live Updates link summary [CHAR LIMIT=40] -->
+    <string name="statusbar_allow_live_updates_summary">Needed for the chip</string>
+    <!-- Switch: the glucose number as the notification icon [CHAR LIMIT=40] -->
+    <string name="statusbar_icon">Number as notification icon</string>
+    <!-- Group of root-only status bar settings [CHAR LIMIT=30] -->
+    <string name="statusbar_group_root">With root</string>
+    <!-- Switch: the value drawn in the status bar with root [CHAR LIMIT=40] -->
+    <string name="statusbar_value">Value in the status bar</string>
+    <!-- Value summary while checking for root [CHAR LIMIT=40] -->
+    <string name="statusbar_value_checking">Checking root…</string>
+    <!-- Value summary without root [CHAR LIMIT=60] -->
+    <string name="statusbar_value_no_root">Unavailable: needs root for Sukrara (KernelSU)</string>
+    <!-- Value summary; %1$s = the placement [CHAR LIMIT=60] -->
+    <string name="statusbar_value_needs_module">Not shown: %1$s needs the LSPosed module</string>
+    <!-- Why the root rows are disabled [CHAR LIMIT=60] -->
+    <string name="statusbar_unavailable">Unavailable while the value in the status bar is off</string>
+    <!-- Switch: colour the value by range [CHAR LIMIT=40] -->
+    <string name="statusbar_colour">Colour by range</string>
+    <!-- Row and dialog: where the value goes [CHAR LIMIT=30] -->
+    <string name="statusbar_placement">Placement</string>
+    <!-- Switch: hide Sukrara\'s notification icon [CHAR LIMIT=40] -->
+    <string name="statusbar_hide_icon">Hide Sukrara\'s notification icon</string>
+    <!-- Hide icon summary [CHAR LIMIT=60] -->
+    <string name="statusbar_hide_icon_summary">In the status bar only; the notification stays in the shade</string>
+    <!-- Status bar page footer [CHAR LIMIT=NONE] -->
+    <string name="statusbar_footer">The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed (scope System UI), then a System UI restart.</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_after_clock">After the clock</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_before_clock">Before the clock</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_left_of_icons">Left of the system icons</string>
+    <!-- Placement option; quoted in statusbar_footer [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_with_icons">With the system icons</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_after_vpn">After the VPN icon</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_after_bluetooth">After the Bluetooth icon</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_after_mobile">After the mobile signal</string>
+    <!-- Placement option [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_after_wifi">After the Wi-Fi icon</string>
+
+    <!-- ========== Settings: lock screen ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="lock_title">Lock screen</string>
+    <!-- Lock screen page intro [CHAR LIMIT=NONE] -->
+    <string name="lock_intro">Your glucose and graph around the fingerprint icon. Tap it to add an entry without unlocking.</string>
+    <!-- Main switch of the lock screen page [CHAR LIMIT=40] -->
+    <string name="lock_main_switch">Glucose on the lock screen</string>
+    <!-- Why the lock screen rows are disabled [CHAR LIMIT=60] -->
+    <string name="lock_unavailable">Unavailable while glucose on the lock screen is off</string>
+    <!-- Row and dialog: what is behind the widget [CHAR LIMIT=30] -->
+    <string name="lock_background">Background</string>
+    <!-- Row and dialog: light or dark widget [CHAR LIMIT=30] -->
+    <string name="lock_appearance">Appearance</string>
+    <!-- Lock screen page footer [CHAR LIMIT=NONE] -->
+    <string name="lock_footer">Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked phone can add an entry; turn this off if you don\'t want that.</string>
+    <!-- Background option [CHAR LIMIT=30] -->
+    <string name="lock_bg_none">None</string>
+    <!-- Background option description [CHAR LIMIT=60] -->
+    <string name="lock_bg_none_summary">On the wallpaper, like the clock</string>
+    <!-- Background option [CHAR LIMIT=30] -->
+    <string name="lock_bg_shadow">Shadow</string>
+    <!-- Background option description [CHAR LIMIT=60] -->
+    <string name="lock_bg_shadow_summary">A soft shadow around every number and line</string>
+    <!-- Background option [CHAR LIMIT=30] -->
+    <string name="lock_bg_dim">Dim</string>
+    <!-- Background option description [CHAR LIMIT=60] -->
+    <string name="lock_bg_dim_summary">Shades the bottom of the screen</string>
+    <!-- Background option [CHAR LIMIT=30] -->
+    <string name="lock_bg_card">Card</string>
+    <!-- Background option description [CHAR LIMIT=60] -->
+    <string name="lock_bg_card_summary">A solid card like the notifications</string>
+    <!-- Background option, the default [CHAR LIMIT=30] -->
+    <string name="lock_bg_frosted">Frosted glass</string>
+    <!-- Background option description [CHAR LIMIT=60] -->
+    <string name="lock_bg_frosted_summary">The wallpaper blurred and tinted behind it</string>
+    <!-- Appearance option, the default [CHAR LIMIT=30] -->
+    <string name="lock_look_auto">Automatic</string>
+    <!-- Appearance option description [CHAR LIMIT=60] -->
+    <string name="lock_look_auto_summary">Follows the dark theme</string>
+    <!-- Appearance option [CHAR LIMIT=30] -->
+    <string name="lock_look_light">Light</string>
+    <!-- Appearance option description [CHAR LIMIT=60] -->
+    <string name="lock_look_light_summary">Like the home screen widgets in light mode</string>
+    <!-- Appearance option [CHAR LIMIT=30] -->
+    <string name="lock_look_dark">Dark</string>
+    <!-- Appearance option description [CHAR LIMIT=60] -->
+    <string name="lock_look_dark_summary">Like the home screen widgets in dark mode</string>
+
+    <!-- ========== Settings: sharing with apps ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="apps_title">Share with apps</string>
+    <!-- Apps page intro (wearer) [CHAR LIMIT=NONE] -->
+    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <!-- Apps page intro (follower) [CHAR LIMIT=NONE] -->
+    <string name="apps_intro_follower">Your glucose in other apps: Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <!-- LibreView row summary [CHAR LIMIT=40] -->
+    <string name="apps_libreview_not_set_up">Not set up</string>
+    <!-- LibreView row summary; %1$s = account email [CHAR LIMIT=60] -->
+    <string name="apps_libreview_uploading">Uploading as %1$s</string>
+    <!-- Switch: the xDrip+-compatible local server [CHAR LIMIT=40] -->
+    <string name="apps_xdrip">xDrip+ server</string>
+    <!-- xDrip+ summary; %1$s = server status [CHAR LIMIT=NONE] -->
+    <string name="apps_xdrip_summary">For Garmin watch faces and data fields · %1$s</string>
+    <!-- When a watch last asked; %1$s = now or 5 min ago [CHAR LIMIT=40] -->
+    <string name="apps_xdrip_last_asked">last asked %1$s</string>
+    <!-- Switch: the local Nightscout API [CHAR LIMIT=40] -->
+    <string name="apps_nightscout">Nightscout-compatible API</string>
+    <!-- Nightscout summary while off [CHAR LIMIT=60] -->
+    <string name="apps_nightscout_summary">For Home Assistant, Nightguard, clocks</string>
+    <!-- Switch: serve the API on the Wi-Fi network [CHAR LIMIT=40] -->
+    <string name="apps_nightscout_lan">Also on this Wi-Fi network</string>
+    <!-- Wi-Fi switch summary [CHAR LIMIT=60] -->
+    <string name="apps_nightscout_lan_summary">Other devices need the API secret</string>
+    <!-- Why the Wi-Fi switch is disabled [CHAR LIMIT=60] -->
+    <string name="apps_nightscout_unavailable">Unavailable while the API is off</string>
+    <!-- Action: show the API secret [CHAR LIMIT=40] -->
+    <string name="apps_show_secret">Show API secret</string>
+    <!-- Dialog title [CHAR LIMIT=30] -->
+    <string name="apps_secret_title">API secret</string>
+    <!-- Link to the sharing with people page [CHAR LIMIT=60] -->
+    <string name="apps_people_summary">Followers, invites, nearby pairing</string>
+    <!-- Apps page footer [CHAR LIMIT=NONE] -->
+    <string name="apps_footer">The xDrip+ server listens on 127.0.0.1:17580, like xDrip+ itself, so Garmin faces and data fields made for xDrip+ read it. The Nightscout API is plain HTTP: share it only on networks you trust.</string>
+
+    <!-- ========== Settings: LibreView ========== -->
+    <!-- LibreView page intro [CHAR LIMIT=NONE] -->
+    <string name="libreview_intro">LibreView is the record your doctor sees. Sukrara can upload your glucose and entries to it.</string>
+    <!-- Row: the LibreView account [CHAR LIMIT=30] -->
+    <string name="libreview_account">Account</string>
+    <!-- Account row summary [CHAR LIMIT=40] -->
+    <string name="libreview_not_signed_in">Not signed in</string>
+    <!-- Main switch [CHAR LIMIT=40] -->
+    <string name="libreview_main_switch">Upload to LibreView</string>
+    <!-- Row: the uploader\'s status [CHAR LIMIT=30] -->
+    <string name="libreview_status">Status</string>
+    <!-- Status before signing in [CHAR LIMIT=40] -->
+    <string name="libreview_sign_in_first">Sign in first</string>
+    <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
+    <string name="libreview_unavailable">Unavailable while the upload is off</string>
+    <!-- Switch: upload glucose readings [CHAR LIMIT=40] -->
+    <string name="libreview_glucose">Glucose readings</string>
+    <!-- Why glucose upload is disabled [CHAR LIMIT=60] -->
+    <string name="libreview_glucose_needs_direct">Only while Sukrara reads the sensor itself</string>
+    <!-- Glucose upload summary; %1$s = date and time [CHAR LIMIT=40] -->
+    <string name="libreview_glucose_from">From %1$s</string>
+    <!-- Glucose upload summary [CHAR LIMIT=40] -->
+    <string name="libreview_glucose_from_now">From now on</string>
+    <!-- Switch: upload treatments [CHAR LIMIT=40] -->
+    <string name="libreview_entries">Insulin, carbs &amp; notes</string>
+    <!-- Treatments upload summary [CHAR LIMIT=60] -->
+    <string name="libreview_entries_summary">Yours and your followers\'</string>
+    <!-- Switch: be the account\'s uploading device [CHAR LIMIT=50] -->
+    <string name="libreview_takeover">Use this phone as the account\'s device</string>
+    <!-- Takeover summary while on [CHAR LIMIT=60] -->
+    <string name="libreview_takeover_on">The Libre app or Juggluco stops uploading to this account</string>
+    <!-- Takeover summary while off [CHAR LIMIT=60] -->
+    <string name="libreview_takeover_off">Uploads stop if another app holds the account</string>
+    <!-- LibreView page footer [CHAR LIMIT=NONE] -->
+    <string name="libreview_footer">Uploaded entries can\'t be deleted in LibreView. Glucose goes up from the moment you switch it on.</string>
+
+    <!-- ========== Settings: backup and settings files ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="backup_title">Backup</string>
+    <!-- Backup state; %1$s = date and time [CHAR LIMIT=40] -->
+    <string name="backup_saved_at">Saved %1$s</string>
+    <!-- Backup state [CHAR LIMIT=40] -->
+    <string name="backup_not_backed_up">Not backed up</string>
+    <!-- Backup page intro when saved [CHAR LIMIT=NONE] -->
+    <string name="backup_intro_saved">Your identity is in a password manager. A new phone restores it and your followers continue.</string>
+    <!-- Backup page intro when not saved [CHAR LIMIT=NONE] -->
+    <string name="backup_intro_not_saved">Not backed up: if you lose this phone, every follower must be invited again.</string>
+    <!-- Action [CHAR LIMIT=40] -->
+    <string name="backup_save">Save to password manager</string>
+    <!-- Action [CHAR LIMIT=40] -->
+    <string name="backup_save_again">Save again</string>
+    <!-- Save action summary [CHAR LIMIT=40] -->
+    <string name="backup_recommended">Recommended</string>
+    <!-- Recovery code summary [CHAR LIMIT=60] -->
+    <string name="backup_recovery_summary">An encrypted key to write down or store elsewhere</string>
+    <!-- Row: the encrypted backup on the relays [CHAR LIMIT=30] -->
+    <string name="backup_relays">Backup on relays</string>
+    <!-- Relay backup state; %1$s = date and time [CHAR LIMIT=40] -->
+    <string name="backup_relays_updated">Updated %1$s</string>
+    <!-- Relay backup state [CHAR LIMIT=40] -->
+    <string name="backup_relays_not_yet">Not yet</string>
+    <!-- Backup page footer [CHAR LIMIT=NONE] -->
+    <string name="backup_footer">The backup on relays holds your followers, keys and invites, encrypted to your identity: restoring the identity brings them back. A settings file holds only the options: alerts, graph, status bar, lock screen and sharing switches.</string>
+    <!-- Group of settings file actions [CHAR LIMIT=30] -->
+    <string name="transfer_group">Settings</string>
+    <!-- Action [CHAR LIMIT=30] -->
+    <string name="transfer_export">Export settings</string>
+    <!-- Action summary [CHAR LIMIT=60] -->
+    <string name="transfer_export_summary">Save the options to a file</string>
+    <!-- Action [CHAR LIMIT=30] -->
+    <string name="transfer_import">Import settings</string>
+    <!-- Action summary [CHAR LIMIT=60] -->
+    <string name="transfer_import_summary">Use the options from a file</string>
+    <!-- Action [CHAR LIMIT=30] -->
+    <string name="transfer_reset">Reset settings</string>
+    <!-- Action summary [CHAR LIMIT=60] -->
+    <string name="transfer_reset_summary">Every option back to its default</string>
+    <!-- Dialog title [CHAR LIMIT=40] -->
+    <string name="transfer_reset_title">Reset settings?</string>
+    <!-- Dialog text [CHAR LIMIT=NONE] -->
+    <string name="transfer_reset_text">Alerts, graph, status bar, lock screen and sharing options go back to their defaults. Your identity, followers, sensor, glucose source and LibreView upload stay as they are.</string>
+    <!-- Dialog button [CHAR LIMIT=20] -->
+    <string name="transfer_reset_confirm">Reset</string>
+    <!-- Message after exporting [CHAR LIMIT=60] -->
+    <string name="transfer_exported">Settings exported</string>
+    <!-- Message after importing [CHAR LIMIT=60] -->
+    <string name="transfer_imported">Settings imported</string>
+    <!-- Message after resetting [CHAR LIMIT=60] -->
+    <string name="transfer_reset_done">Settings reset</string>
+    <!-- Error; %1$s = system error message [CHAR LIMIT=NONE] -->
+    <string name="transfer_write_failed">Couldn\'t write the file: %1$s</string>
+    <!-- Error; %1$s = system error message [CHAR LIMIT=NONE] -->
+    <string name="transfer_read_failed">Couldn\'t read the file: %1$s</string>
+    <!-- Error when importing another kind of file [CHAR LIMIT=60] -->
+    <string name="transfer_not_settings_file">Not a Sukrara settings file</string>
+
+    <!-- ========== Settings: advanced ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="advanced_title">Advanced</string>
+    <!-- Group: Nostr relays [CHAR LIMIT=30] -->
+    <string name="advanced_relays">Relays</string>
+    <!-- Shown without relays [CHAR LIMIT=40] -->
+    <string name="advanced_no_relays">No relays yet</string>
+    <!-- Row: how access requests are checked [CHAR LIMIT=30] -->
+    <string name="advanced_requests">Access requests</string>
+    <!-- Access requests summary [CHAR LIMIT=60] -->
+    <string name="advanced_requests_live">Live while the app is open</string>
+    <!-- Access requests summary [CHAR LIMIT=60] -->
+    <string name="advanced_requests_polled">Checked with every upload (~5 min)</string>
+    <!-- Action [CHAR LIMIT=40] -->
+    <string name="advanced_check_requests">Check requests now</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="advanced_diagnostics">Diagnostics</string>
+    <!-- Row and page: the app log [CHAR LIMIT=30] -->
+    <string name="advanced_log">Log</string>
+    <!-- Log row summary [CHAR LIMIT=40] -->
+    <string name="advanced_log_summary">What Sukrara did lately</string>
+    <!-- Empty log [CHAR LIMIT=40] -->
+    <string name="advanced_log_empty">Nothing yet</string>
+    <!-- Row: the wearer\'s identity [CHAR LIMIT=30] -->
+    <string name="advanced_identity">Identity</string>
+    <!-- Identity summary; %1$s = short npub, %2$d = key epoch [CHAR LIMIT=60] -->
+    <string name="advanced_identity_summary">%1$s · key epoch %2$d</string>
+    <!-- Row: what was sent [CHAR LIMIT=30] -->
+    <string name="advanced_sent">Sent</string>
+    <!-- Sent summary; %1$d live events, %2$d chunks, %3$d notification posts, %4$d skipped [CHAR LIMIT=NONE] -->
+    <string name="advanced_sent_summary">%1$d live · %2$d chunks · %3$d notification posts, %4$d skipped</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="advanced_experimental">Experimental</string>
+    <!-- Row and dialog: BLE connection priority [CHAR LIMIT=40] -->
+    <string name="advanced_priority">Sensor link priority</string>
+    <!-- Priority option [CHAR LIMIT=30] -->
+    <string name="advanced_priority_default">Default</string>
+    <!-- Priority option [CHAR LIMIT=30] -->
+    <string name="advanced_priority_low">Low</string>
+    <!-- Priority option [CHAR LIMIT=30] -->
+    <string name="advanced_priority_balanced">Balanced</string>
+    <!-- Priority option [CHAR LIMIT=30] -->
+    <string name="advanced_priority_high">High</string>
+    <!-- Switch [CHAR LIMIT=50] -->
+    <string name="advanced_screen_off">Pause refreshes while the screen is off</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="advanced_screen_off_summary">Saves a post per minute; catches up on screen on</string>
+    <!-- Debug switch [CHAR LIMIT=40] -->
+    <string name="advanced_synthetic">Synthetic source</string>
+    <!-- Debug switch summary [CHAR LIMIT=40] -->
+    <string name="advanced_debug_only">Debug builds only</string>
+    <!-- Row (follower) [CHAR LIMIT=30] -->
+    <string name="advanced_stored">Stored readings</string>
+    <!-- Stored readings summary; %1$d readings, %2$d rejected events [CHAR LIMIT=60] -->
+    <string name="advanced_stored_summary">%1$d on this phone · rejected events %2$d</string>
+    <!-- Row (follower) [CHAR LIMIT=30] -->
+    <string name="advanced_keys">Keys</string>
+    <!-- Keys summary; %1$d = key epoch, %2$s = device ids [CHAR LIMIT=NONE] -->
+    <string name="advanced_keys_summary">Key epochs up to %1$d · trusted devices %2$s</string>
+    <!-- Row: this phone\'s public key [CHAR LIMIT=30] -->
+    <string name="advanced_this_phone">This phone</string>
+    <!-- Debug switch [CHAR LIMIT=NONE] -->
+    <string name="advanced_unfiltered">Subscribe without the relay-side author filter</string>
+
+    <!-- ========== Settings: following (follower) ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="following_title">Following</string>
+    <!-- Can add entries summary [CHAR LIMIT=60] -->
+    <string name="following_can_write">Yes, the wearer allowed it</string>
+    <!-- Can add entries summary [CHAR LIMIT=60] -->
+    <string name="following_cannot_write">No, ask the wearer</string>
+    <!-- Action and dialog button [CHAR LIMIT=30] -->
+    <string name="following_stop">Stop following</string>
+    <!-- Stop following summary [CHAR LIMIT=60] -->
+    <string name="following_stop_summary">Readings already on this phone stay</string>
+    <!-- Dialog title [CHAR LIMIT=40] -->
+    <string name="following_stop_title">Stop following?</string>
+    <!-- Dialog text; %1$s = wearer name [CHAR LIMIT=NONE] -->
+    <string name="following_stop_text">You need a new invite to follow %1$s again.</string>
+    <!-- Dialog text without a wearer name [CHAR LIMIT=NONE] -->
+    <string name="following_stop_text_unnamed">You need a new invite to follow them again.</string>
+
+    <!-- ========== Settings: about ========== -->
+    <!-- Page and overview row [CHAR LIMIT=30] -->
+    <string name="about_title">About Sukrara</string>
+    <!-- Version line; %1$s = version name [CHAR LIMIT=40] -->
+    <string name="about_version">Version %1$s</string>
+    <!-- Action; %1$s = new version [CHAR LIMIT=40] -->
+    <string name="about_update">Update to %1$s</string>
+    <!-- Update summary [CHAR LIMIT=40] -->
+    <string name="about_update_summary">Download the new version</string>
+    <!-- Group: downloads for other platforms [CHAR LIMIT=40] -->
+    <string name="about_other_devices">Sukrara on other devices</string>
+    <!-- While the release loads [CHAR LIMIT=60] -->
+    <string name="about_looking">Looking for the latest release…</string>
+    <!-- Row when offline [CHAR LIMIT=30] -->
+    <string name="about_downloads">Downloads</string>
+    <!-- Downloads summary when offline [CHAR LIMIT=60] -->
+    <string name="about_downloads_offline">Couldn\'t reach GitHub · open the releases page</string>
+    <!-- Platform of a release file [CHAR LIMIT=30] -->
+    <string name="about_garmin">Garmin watch</string>
+    <!-- Marks the release file of this app [CHAR LIMIT=20] -->
+    <string name="about_this_app">this app</string>
+    <!-- Row [CHAR LIMIT=30] -->
+    <string name="about_source">Source code</string>
+    <!-- Row [CHAR LIMIT=30] -->
+    <string name="about_website">Website</string>
+    <!-- About page footer [CHAR LIMIT=NONE] -->
+    <string name="about_footer">An alpha research app, not a medical device. Don\'t make treatment decisions from it alone.</string>
+
+    <!-- ========== Settings: search ========== -->
+    <!-- Search field placeholder, like stock Settings [CHAR LIMIT=30] -->
+    <string name="search_hint">Search settings</string>
+    <!-- Content description: close search [CHAR LIMIT=20] -->
+    <string name="search_back">Back</string>
+    <!-- Content description: clear the query [CHAR LIMIT=20] -->
+    <string name="search_clear">Clear</string>
+    <!-- Group of recent searches [CHAR LIMIT=30] -->
+    <string name="search_recent">Recent searches</string>
+    <!-- Button: forget recent searches [CHAR LIMIT=20] -->
+    <string name="search_clear_history">Clear history</string>
+    <!-- No search results [CHAR LIMIT=30] -->
+    <string name="search_no_results">No results</string>
+
+    <!-- ========== Settings: alert pages (labels, now and lately) ========== -->
+    <!-- Why an alert is quiet; %1$d = minutes since rapid insulin [CHAR LIMIT=40] -->
+    <string name="alerts_quiet_reason_insulin">insulin %1$d min ago</string>
+    <!-- Why an alert is quiet; %1$d = minutes since carbs [CHAR LIMIT=40] -->
+    <string name="alerts_quiet_reason_carbs">carbs %1$d min ago</string>
+    <!-- Why a high alert is quiet; %1$d = minutes until back in range [CHAR LIMIT=40] -->
+    <string name="alerts_quiet_reason_falling">falling, back in range in ~%1$d min</string>
+    <!-- Lately list: an alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_fired">%1$s · %2$s mg/dL</string>
+    <!-- Lately list (follower): the wearer\'s alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_fired_remote">%1$s (from the wearer) · %2$s mg/dL</string>
+    <!-- Lately list: an alert ended; %1$s = alert name [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_cleared">%1$s cleared</string>
+    <!-- Lately list (follower); %1$s = alert name [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_cleared_remote">%1$s cleared (by the wearer)</string>
+    <!-- Lately list: alerts shown again silently after a restart; %1$s = alert names [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_resumed">Resumed %1$s (no sound)</string>
+    <!-- Lately list: a test alert; %1$s = the line [CHAR LIMIT=NONE] -->
+    <string name="alerts_note_test">%1$s (test)</string>
+    <!-- Sound pack with its style [CHAR LIMIT=30] -->
+    <string name="sound_arcade">Arcade (8-bit)</string>
+    <!-- Sound pack name [CHAR LIMIT=20] -->
+    <string name="sound_arcade_name">Arcade</string>
+    <!-- Sound pack with its style [CHAR LIMIT=30] -->
+    <string name="sound_kart">Kart (racing)</string>
+    <!-- Sound pack name [CHAR LIMIT=20] -->
+    <string name="sound_kart_name">Kart</string>
+    <!-- Sound pack with its style [CHAR LIMIT=30] -->
+    <string name="sound_quest">Quest (adventure)</string>
+    <!-- Sound pack name [CHAR LIMIT=20] -->
+    <string name="sound_quest_name">Quest</string>
+    <!-- Sound pack with its style [CHAR LIMIT=30] -->
+    <string name="sound_soft">Soft (calm)</string>
+    <!-- Sound pack name [CHAR LIMIT=20] -->
+    <string name="sound_soft_name">Soft</string>
+    <!-- The phone\'s default notification sound [CHAR LIMIT=30] -->
+    <string name="sound_system">System default</string>
+    <!-- No sound [CHAR LIMIT=20] -->
+    <string name="sound_none">None</string>
+
+    <!-- ========== Settings: graph and time in range ========== -->
+    <!-- Page and overview row [CHAR LIMIT=40] -->
+    <string name="graph_title">Graph &amp; time in range</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="graph_group_ranges">Ranges</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_very_low_below">Very low below</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_low_below">Low below</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_very_good_up_to">Very good up to</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_high_above">High above</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_very_high_above">Very high above</string>
+    <!-- Slider label [CHAR LIMIT=30] -->
+    <string name="graph_extremely_high_from">Extremely high from</string>
+    <!-- Ranges note; %1$d = low limit, %2$d = high limit, %3$d = very good limit (mg/dL) [CHAR LIMIT=NONE] -->
+    <string name="graph_ranges_note">In range is %1$d–%2$d mg/dL; very good (%1$d–%3$d) is the part of it where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView report. Extremely high only changes the colour of the line and the number; the report counts it as very high. The ranges colour the number, the line, the status bar and the time in range everywhere.</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="graph_group_lines">Lines</string>
+    <!-- Slider label [CHAR LIMIT=40] -->
+    <string name="graph_vertical_lines_off">Vertical lines: off</string>
+    <!-- Slider label; %1$d = hours [CHAR LIMIT=40] -->
+    <string name="graph_vertical_lines_every">Vertical lines: every %1$d h</string>
+    <!-- Lines note [CHAR LIMIT=NONE] -->
+    <string name="graph_lines_note">Dashed lines across the graph at the levels you pick, besides the range limits. Vertical lines all the way left turns them off; the times under the graph stay. Small graphs space them further apart.</string>
+    <!-- Text field label [CHAR LIMIT=40] -->
+    <string name="graph_line_add_label">Add a line at (mg/dL)</string>
+    <!-- Button [CHAR LIMIT=20] -->
+    <string name="graph_line_add">Add</string>
+    <!-- Text field error [CHAR LIMIT=40] -->
+    <string name="graph_line_exists">Already on the graph</string>
+    <!-- Content description; %1$d = mg/dL [CHAR LIMIT=40] -->
+    <string name="graph_line_remove">Remove the %1$d line</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="graph_group_window">Graph window</string>
+    <!-- A window in hours; %1$d = hours [CHAR LIMIT=10] -->
+    <string name="graph_hours">%1$d h</string>
+    <!-- Row and dialog: the default window [CHAR LIMIT=30] -->
+    <string name="graph_window_default">Default</string>
+    <!-- A place that uses the default; %1$d = hours [CHAR LIMIT=30] -->
+    <string name="graph_window_default_hours">Default (%1$d h)</string>
+    <!-- Where the graph shows [CHAR LIMIT=30] -->
+    <string name="graph_place_app">App</string>
+    <!-- Where the graph shows [CHAR LIMIT=30] -->
+    <string name="graph_place_notification">Notification</string>
+    <!-- Where the graph shows [CHAR LIMIT=30] -->
+    <string name="graph_place_widgets">Widgets</string>
+    <!-- Window note [CHAR LIMIT=NONE] -->
+    <string name="graph_window_note">Each widget can have its own window: touch and hold it, then tap Reconfigure.</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="graph_group_beside_number">Beside the number</string>
+    <!-- No slots [CHAR LIMIT=20] -->
+    <string name="graph_none">None</string>
+    <!-- Row and dialog: how many slots [CHAR LIMIT=40] -->
+    <string name="graph_slots">Rings and numbers</string>
+    <!-- The first slot [CHAR LIMIT=20] -->
+    <string name="graph_slot_main">Main</string>
+    <!-- The second slot [CHAR LIMIT=20] -->
+    <string name="graph_slot_second">Second</string>
+    <!-- The third slot [CHAR LIMIT=20] -->
+    <string name="graph_slot_third">Third</string>
+    <!-- Dialog title; %1$s = slot name [CHAR LIMIT=40] -->
+    <string name="graph_slot_what">%1$s: what it shows</string>
+    <!-- Row and dialog; %1$s = slot name [CHAR LIMIT=40] -->
+    <string name="graph_slot_period">%1$s: period</string>
+    <!-- Switch; %1$s = slot name [CHAR LIMIT=50] -->
+    <string name="graph_slot_faded">%1$s fainter than the main one</string>
+    <!-- Slot kind [CHAR LIMIT=30] -->
+    <string name="graph_slot_tir">Time in range</string>
+    <!-- Slot kind: glucose management indicator [CHAR LIMIT=30] -->
+    <string name="graph_slot_gmi">GMI</string>
+    <!-- Slot kind [CHAR LIMIT=30] -->
+    <string name="graph_slot_average">Average glucose</string>
+    <!-- Slot kind [CHAR LIMIT=30] -->
+    <string name="graph_slot_cv">Variability (CV)</string>
+    <!-- Row and dialog: where the last-treatment slot goes [CHAR LIMIT=30] -->
+    <string name="graph_last">Last treatment</string>
+    <!-- Last treatment place [CHAR LIMIT=30] -->
+    <string name="graph_last_near">Next to the number</string>
+    <!-- Last treatment place [CHAR LIMIT=30] -->
+    <string name="graph_last_end">At the right end</string>
+    <!-- Row: what the slot shows without a recent treatment [CHAR LIMIT=40] -->
+    <string name="graph_last_else">Without a recent one</string>
+    <!-- Dialog title [CHAR LIMIT=40] -->
+    <string name="graph_last_else_dialog">Without a recent treatment</string>
+    <!-- Row [CHAR LIMIT=40] -->
+    <string name="graph_last_else_period">Without a recent one: period</string>
+    <!-- Dialog title [CHAR LIMIT=50] -->
+    <string name="graph_last_else_period_dialog">Without a recent treatment: period</string>
+    <!-- Option: show nothing [CHAR LIMIT=20] -->
+    <string name="graph_nothing">Nothing</string>
+    <!-- Row and dialog: which range time in range counts [CHAR LIMIT=40] -->
+    <string name="graph_tir_counts">Time in range counts</string>
+    <!-- Time in range option [CHAR LIMIT=20] -->
+    <string name="graph_tir_in_range">In range</string>
+    <!-- Time in range option [CHAR LIMIT=20] -->
+    <string name="graph_tir_very_good">Very good</string>
+    <!-- Option with its span; %1$s = option, %2$d–%3$d = mg/dL [CHAR LIMIT=40] -->
+    <string name="graph_tir_with_span">%1$s (%2$d–%3$d)</string>
+    <!-- Ring order heading [CHAR LIMIT=50] -->
+    <string name="graph_ring_order">Ring order, clockwise from the top</string>
+    <!-- Content description; %1$s = band [CHAR LIMIT=50] -->
+    <string name="graph_ring_move_earlier">Move %1$s earlier</string>
+    <!-- Content description; %1$s = band [CHAR LIMIT=50] -->
+    <string name="graph_ring_move_later">Move %1$s later</string>
+    <!-- Ring band; %1$d = limit [CHAR LIMIT=30] -->
+    <string name="graph_band_very_low">Very low (&lt; %1$d)</string>
+    <!-- Ring band; %1$d–%2$d = mg/dL [CHAR LIMIT=30] -->
+    <string name="graph_band_low">Low (%1$d–%2$d)</string>
+    <!-- Ring band; %1$d–%2$d = mg/dL [CHAR LIMIT=30] -->
+    <string name="graph_band_tight">Very good (%1$d–%2$d)</string>
+    <!-- Ring band; %1$d–%2$d = mg/dL [CHAR LIMIT=30] -->
+    <string name="graph_band_target">In range (%1$d–%2$d)</string>
+    <!-- Ring band; %1$d–%2$d = mg/dL [CHAR LIMIT=30] -->
+    <string name="graph_band_high">High (%1$d–%2$d)</string>
+    <!-- Ring band; %1$d = limit [CHAR LIMIT=30] -->
+    <string name="graph_band_very_high">Very high (&gt; %1$d)</string>
+    <!-- Beside the number note [CHAR LIMIT=NONE] -->
+    <string name="graph_beside_number_note">Each slot is a time-in-range ring or a number from your doctor\'s report: GMI, average glucose or variability (CV), with a green arc when its goal is met. Slots that don\'t fit are hidden, the last one first. A slot needs data for at least a quarter of its window. Last treatment shows your latest rapid insulin (for 4 h) or carbs (for 3 h): the amount, the time since, and a ring for the time left before alerts come back. It takes the second slot\'s place when there\'s room for only two.</string>
+    <!-- Group [CHAR LIMIT=30] -->
+    <string name="graph_group_beside_graph">Beside the graph</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="graph_side">Time in range and distribution</string>
+    <!-- Switch summary [CHAR LIMIT=NONE] -->
+    <string name="graph_side_summary" formatted="false">The % of time below, in and above range, and how much time was spent at each level</string>
+    <!-- Beside the graph note [CHAR LIMIT=NONE] -->
+    <string name="graph_side_note">The distribution covers the same time as the graph; the lines stop short of its dots. Each widget can turn it off on its own.</string>
+    <!-- Action [CHAR LIMIT=40] -->
+    <string name="graph_reset_all">Reset all graph settings</string>
+    <!-- Content description; %1$s = group name [CHAR LIMIT=50] -->
+    <string name="graph_reset_section">Reset %1$s to the defaults</string>
+    <!-- Graph page footer [CHAR LIMIT=NONE] -->
+    <string name="graph_footer">Each widget\'s own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).</string>
 </resources>

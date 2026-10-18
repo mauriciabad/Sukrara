@@ -33,10 +33,6 @@ object AlertSounds {
     const val NONE = "none"
     const val VARIANTS = 3
 
-    fun label(p: String) = when (p) {
-        "arcade" -> "Arcade (8-bit)"; "kart" -> "Kart (racing)"; "quest" -> "Quest (adventure)"; "soft" -> "Soft (calm)"
-        SYSTEM -> "System default"; else -> "None"
-    }
 
     fun uri(ctx: Context, kind: String): Uri = Uri.parse("content://${ctx.packageName}.alertsound/$kind")
 

@@ -31,7 +31,7 @@ object SettingsTransfer {
 
     /** Applies a file from [export]; parts it doesn't have keep their current values. Null = done, else why not. */
     fun import(ctx: Context, j: JSONObject): String? {
-        if (j.optString("kind") != KIND) return "Not a Sukrara settings file"
+        if (j.optString("kind") != KIND) return ctx.getString(app.mauri.sukrara.R.string.transfer_not_settings_file)
         j.optJSONObject("features")?.let { o -> Features.update { FeatureState.fromJson(o, it) } }
         j.optJSONObject("alerts")?.let { o -> Alerts.update(ctx) { AlertSettings.fromJson(o) } }
         j.optJSONObject("graph")?.let { o -> GraphSettings.update { GraphConfig.fromJson(o) } }

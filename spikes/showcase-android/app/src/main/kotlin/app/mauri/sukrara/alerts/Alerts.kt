@@ -38,7 +38,7 @@ object Alerts {
     /** group → state, for the settings screen's "now" line. */
     val state = MutableStateFlow<Map<String, AlertEngine.State>>(emptyMap())
     /** What happened lately, newest first (settings screen + DebugReceiver). */
-    val history = MutableStateFlow<List<String>>(emptyList())
+    val history = MutableStateFlow<List<AlertNote>>(emptyList())
 
     private var app: Context? = null
     private val engine = AlertEngine()
@@ -86,7 +86,7 @@ object Alerts {
                 silent = true)
             posted[Kind.group(f.kind)] = f.id
         }
-        if (shown.isNotEmpty()) note("resumed ${shown.joinToString { Kind.label(it.kind) }} (no sound)")
+        if (shown.isNotEmpty()) note(AlertNote(Proto.nowS(), AlertNote.RESUMED, shown.map { it.kind }))
     }
 
     @Synchronized fun detach() { role = null; publish = null; cancelTimer() }
@@ -142,12 +142,12 @@ object Alerts {
             is AlertEngine.Fire -> {
                 AlertNotifier.post(ctx, a.kind, a.reading?.sgv, a.reading?.rate, a.th, a.at, who, _settings.value.cfg(a.kind).alarm, a.treated)
                 posted[Kind.group(a.kind)] = a.id
-                note("${Kind.message(a.kind, a.treated)}${if (a.n > 1) " (${a.n})" else ""} · ${a.reading?.sgv ?: "–"} mg/dL")
+                note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(a.kind), a.treated, a.n, a.reading?.sgv))
                 publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n, a.treated))
             }
             is AlertEngine.Clear -> {
                 if (posted[Kind.group(a.kind)] == a.id) { AlertNotifier.cancel(ctx, a.kind); posted.remove(Kind.group(a.kind)) }
-                note("${Kind.label(a.kind)} cleared")
+                note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(a.kind)))
                 publish?.invoke(event(a.kind, "clear", a.id, a.at, engine.last, null, 0, 0))
             }
         }
@@ -181,19 +181,18 @@ object Alerts {
                 AlertNotifier.post(ctx, k, body.optIntOrNull("sgv"), body.optDoubleOrNull("r"), body.optDouble("th", 0.0),
                     body.optLong("at"), who, s.cfg(k).alarm, treated)
                 posted[group] = id
-                note("${Kind.message(k, treated)} (from the wearer) · ${body.optIntOrNull("sgv") ?: "–"} mg/dL")
+                note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(k), treated, 1, body.optIntOrNull("sgv"), remote = true))
             }
             "clear" -> if (posted[group] == id) {
                 AlertNotifier.cancel(ctx, k); posted.remove(group)
-                note("${Kind.label(k)} cleared (by the wearer)")
+                note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(k), remote = true))
             }
         }
     }
 
-    private fun note(s: String) {
-        Log.i(TAG, s)
-        val t = java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date())
-        history.value = (listOf("$t  $s") + history.value).take(20)
+    private fun note(n: AlertNote) {
+        Log.i(TAG, n.english())
+        history.value = (listOf(n) + history.value).take(20)
     }
 
     // ------------------------------------------------------------------------------------------------ timer
@@ -231,13 +230,13 @@ object Alerts {
         val pub = publish
         if (!share) publish = null
         try { apply(ctx, listOf(fire)) } finally { publish = pub }
-        note("(test)")
+        history.value.firstOrNull()?.let { t -> history.value = listOf(t.copy(test = true)) + history.value.drop(1) }
     }
 
     fun toJson(): JSONObject = JSONObject().put("role", role ?: JSONObject.NULL).put("settings", _settings.value.toJson())
         .put("state", JSONObject().apply { state.value.forEach { (g, s) -> put(g, JSONObject().put("kind", s.kind)
             .put("muted", s.muted ?: JSONObject.NULL).put("firedAt", s.firedAt).put("n", s.n)) } })
-        .put("history", org.json.JSONArray(history.value))
+        .put("history", org.json.JSONArray(history.value.map { it.english() }))
 }
 
 private fun JSONObject.optIntOrNull(k: String): Int? = if (has(k) && !isNull(k)) optInt(k) else null
@@ -246,4 +245,29 @@ private fun JSONObject.optDoubleOrNull(k: String): Double? = if (has(k) && !isNu
 /** AlarmManager target of [Alerts]' timer. */
 class AlertCheckReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = Alerts.check(context)
+}
+
+/**
+ * One line of the alerts page's "lately" list: what happened ([FIRED], [CLEARED], [RESUMED] after a restart) to which
+ * kinds, with the episode's [treated] count, the repeat [n] and the reading. Worded at the UI edge (AlertsScreen) in
+ * the app's language; [english] is the log's and DebugReceiver's wording (the engine's [Kind.message]).
+ */
+data class AlertNote(val at: Long, val what: String, val kinds: List<String>, val treated: Int = 0, val n: Int = 0, val sgv: Int? = null,
+                     val remote: Boolean = false, val test: Boolean = false) {
+    fun english(): String {
+        val t = java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(at * 1000))
+        val k = kinds.firstOrNull() ?: ""
+        val text = when (what) {
+            FIRED -> "${Kind.message(k, treated)}${if (n > 1) " ($n)" else ""}${if (remote) " (from the wearer)" else ""} · ${sgv ?: "–"} mg/dL"
+            CLEARED -> "${Kind.label(k)} cleared${if (remote) " (by the wearer)" else ""}"
+            else -> "resumed ${kinds.joinToString { Kind.label(it) }} (no sound)"
+        }
+        return "$t  $text${if (test) " (test)" else ""}"
+    }
+
+    companion object {
+        const val FIRED = "fired"
+        const val CLEARED = "cleared"
+        const val RESUMED = "resumed"
+    }
 }

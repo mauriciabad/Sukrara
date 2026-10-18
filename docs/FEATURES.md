@@ -103,9 +103,11 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 ## Languages
 
-- English (default) and Spanish (Spain) for everything except the settings pages; the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
+- English (default) and Spanish (Spain) everywhere, settings pages included (every page, alert page, dialog, search and the alerts page's "lately" list); the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
+- Settings search finds rows in the shown language, accents optional ("insulina rapida" finds "Tras insulina rápida"): the index is built from the pages as they are drawn.
+- Settings words follow Android's own Spanish where a stock setting exists: Ajustes, Activado / Desactivado, Pantalla de bloqueo, Barra de estado, No molestar, Restablecer, Buscar en Ajustes.
 - Text lives in `res/values/strings.xml` and `res/values-es/strings.xml`; a unit test fails when a key or a format argument is missing in a translation.
 - Numbers, dates and times follow the chosen language (decimal comma in Spanish, localized day and month names); units stay as they are (mg/dL, `4.5u`, `30g`).
 - Spanish terms: hidratos (carbs), insulina rápida / lenta, tiempo en rango, seguidores; alert headlines like "Glucosa baja · come más".
 - Changing the language renames the notification channels and redraws the widgets, the notification and the lock screen widget at once.
-- Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification words them.
+- Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification and the settings pages word them. The log and the debug dump stay in English.

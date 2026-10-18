@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 
 /** Where a graph is shown; each place can follow the default window or have its own. */
-enum class GraphPlace(val label: String) { APP("App"), NOTIFICATION("Notification"), WIDGETS("Widgets") }
+enum class GraphPlace { APP, NOTIFICATION, WIDGETS }
 
 /** Choices offered in Settings; a custom window is any whole number of hours in [WINDOW_HOURS_RANGE]. */
 val WINDOW_HOURS = listOf(3, 6, 12, 24)

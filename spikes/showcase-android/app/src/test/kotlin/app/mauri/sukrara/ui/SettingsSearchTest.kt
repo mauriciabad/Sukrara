@@ -38,6 +38,18 @@ class SettingsSearchTest {
     }
 
     @Test fun blankFindsNothing() { assertTrue(search(all, "  ").isEmpty()) }
+
+    /** The index holds the pages' resolved strings, so in Spanish it finds the Spanish rows, accents optional. */
+    @Test fun spanishRowsAreFoundWithoutAccents() {
+        val es = listOf(
+            hit("alerts", "Alta", "≥ 185 mg/dL", "Subidas", listOf("Alertas")),
+            hit("alerts", "Tras insulina rápida", "Las altas y las subidas rápidas esperan 60 min", "Silenciar alertas", listOf("Alertas")),
+            hit("graph", "Glucosa media", null, "Junto al número", listOf("Gráfica y tiempo en rango")),
+        )
+        assertEquals(listOf("Tras insulina rápida"), search(es, "insulina rapida").map { it.row.title })
+        assertEquals(listOf("Glucosa media"), search(es, "grafica numero").map { it.row.title })
+        assertEquals("Alta", search(es, "alta").first().row.title)
+    }
 }
 
 class ReleaseVersionTest {

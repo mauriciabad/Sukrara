@@ -99,8 +99,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
   A short dip back into range doesn't restart the alert. Extremely high is never muted. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
-- In English or Spanish (Spain): follows the phone's language, or pick one for Sukrara alone in Android's app settings.
-  The settings pages are still English only.
+- In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
+  Android's app settings.
 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range; the dropdown shows the same graph card as the phone

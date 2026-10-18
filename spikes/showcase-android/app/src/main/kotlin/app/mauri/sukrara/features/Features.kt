@@ -168,16 +168,16 @@ object Features {
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
 
-    /** Placements offered in Settings (label → value). All need root; all but "System icons" need the LSPosed module. */
+    /** Placements offered in Settings (their words: ui/SettingsLabels.kt). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(
-        "After the clock" to HookPosition.AFTER_CLOCK,
-        "Before the clock" to HookPosition.BEFORE_CLOCK,
-        "Left of the system icons" to "${HookPosition.ICONS_PREFIX}0",
-        "With the system icons" to HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
-        "After the VPN icon" to "${HookPosition.SLOT_PREFIX}vpn",
-        "After the Bluetooth icon" to "${HookPosition.SLOT_PREFIX}bluetooth",
-        "After the mobile signal" to "${HookPosition.SLOT_PREFIX}mobile",
-        "After the Wi-Fi icon" to "${HookPosition.SLOT_PREFIX}wifi",
+        HookPosition.AFTER_CLOCK,
+        HookPosition.BEFORE_CLOCK,
+        "${HookPosition.ICONS_PREFIX}0",
+        HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
+        "${HookPosition.SLOT_PREFIX}vpn",
+        "${HookPosition.SLOT_PREFIX}bluetooth",
+        "${HookPosition.SLOT_PREFIX}mobile",
+        "${HookPosition.SLOT_PREFIX}wifi",
     )
 
     const val NIGHTSCOUT_PORT = 17581
@@ -218,15 +218,6 @@ object LockBackground {
     /** The wallpaper blurred *and* tinted (dark: black 35 %, light: the home widgets' background colour). */
     const val FROSTED = "frosted"
     val ALL = listOf(NONE, SHADOW, DIM, CARD, FROSTED)
-    /** Settings: label, value, description. */
-    val CHOICES = listOf(
-        Triple("None", NONE, "On the wallpaper, like the clock"),
-        Triple("Shadow", SHADOW, "A soft shadow around every number and line"),
-        Triple("Dim", DIM, "Shades the bottom of the screen"),
-        Triple("Card", CARD, "A solid card like the notifications"),
-        Triple("Frosted glass", FROSTED, "The wallpaper blurred and tinted behind it"),
-    )
-    fun label(v: String) = CHOICES.first { it.second == v }.first
     /** Unknown or old values (no backwards compatibility) → the default. */
     fun valid(v: String?) = v?.takeIf { it in ALL } ?: FROSTED
     /** Card and frosted glass have an edge: the widget keeps its content off it. */
@@ -242,12 +233,6 @@ object LockAppearance {
     const val LIGHT = "light"
     const val DARK = "dark"
     val ALL = listOf(AUTO, LIGHT, DARK)
-    val CHOICES = listOf(
-        Triple("Automatic", AUTO, "Follows the dark theme"),
-        Triple("Light", LIGHT, "Like the home screen widgets in light mode"),
-        Triple("Dark", DARK, "Like the home screen widgets in dark mode"),
-    )
-    fun label(v: String) = CHOICES.first { it.second == v }.first
     fun valid(v: String?) = v?.takeIf { it in ALL } ?: AUTO
     /** Whether [look] draws dark, given the system's current night mode. */
     fun dark(look: String, systemNight: Boolean) = when (look) { LIGHT -> false; DARK -> true; else -> systemNight }
