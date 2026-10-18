@@ -29,6 +29,7 @@ import org.json.JSONObject
  *       [--es cmd owner|invite|pair|approve|writer [--es f HEX] [--ez on B]] \
  *       [--es cmd follow --es link URL [--es name NAME]]   (follower role, e.g. an emulator following the phone)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]] [--es cmd untreat --es id ID]
+ *       [--es cmd sensorEnd [--ei inMin N] [--ei countdownHours H] [--ez countdown B] [--es reminders 'D@MIN,…']] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]] [--es cmd sensorEndState]
  *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined]   (inv. 16)
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
@@ -165,6 +166,27 @@ class DebugReceiver : BroadcastReceiver() {
             }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
+            // round sensor-life: a made-up sensor ending in --ei inMin N (default 10); --ei countdownHours H;
+            // --ez countdown B; --es reminders '1@540,0@540' (daysBefore@minuteOfDay); state only: --es cmd sensorEndState
+            "sensorEnd" -> {
+                val se = app.mauri.sukrara.sensorend.SensorEnd
+                if (i.hasExtra("countdownHours")) se.setCountdownHours(c, i.getIntExtra("countdownHours", 8))
+                if (i.hasExtra("countdown") || i.hasExtra("reminders")) se.update(c) { cfg ->
+                    cfg.copy(countdown = i.getBooleanExtra("countdown", cfg.countdown),
+                        reminders = i.getStringExtra("reminders")?.split(',')?.filter { it.isNotBlank() }?.map {
+                            app.mauri.sukrara.sensorend.Reminder(it.substringBefore('@').trim().toInt(), it.substringAfter('@').trim().toInt())
+                        } ?: cfg.reminders)
+                }
+                se.fake(c, i.getIntExtra("inMin", 10))
+                out.put("sensorEnd", se.state(c))
+            }
+            // warm-up countdown: a made-up sensor that started --ei agoMin N ago (default 50)
+            "sensorStart" -> {
+                if (i.getBooleanExtra("firstReading", false)) app.mauri.sukrara.sensorend.SensorEnd.fakeFirstReading(c)
+                else app.mauri.sukrara.sensorend.SensorEnd.fakeStart(c, i.getIntExtra("agoMin", 50))
+                out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
+            }
+            "sensorEndState" -> out.put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.state(c))
             "approve" -> App.owner(c).ui.value.pending.firstOrNull()?.let {
                 App.owner(c).approve(it.f); out.put("cmd", "approved ${it.name} code ${it.code}")
             } ?: out.put("cmd", "nothing pending")

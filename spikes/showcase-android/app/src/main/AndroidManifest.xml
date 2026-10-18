@@ -210,6 +210,18 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- sensorend/SensorEnd.kt: reminder / countdown alarm, countdown dismissed, and re-planning after boot,
+             an app update, a clock or time-zone change (exempt implicit broadcasts) -->
+        <receiver
+            android:name=".sensorend.SensorEndReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
         <!-- Also an LSPosed module (libxposed API 102, scope System UI): see resources/META-INF/xposed/.
              SystemUI with the module loaded asks for the current value when it (re)starts. -->
         <receiver

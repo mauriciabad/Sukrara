@@ -122,6 +122,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
             link(stringResource(R.string.source_title), stringResource(sourceLabel(f.source)) + " · " + st.source,
                 leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }, to = "source")
+            link(stringResource(R.string.sensorend_title), sensorEndSummary(), leading = { CategoryIcon(R.drawable.ic_sym_timer, Category.ORANGE) }, to = "sensorend")
         }
         SettingsGroup {
             val n = u.followers.count { it.revoked == null }
