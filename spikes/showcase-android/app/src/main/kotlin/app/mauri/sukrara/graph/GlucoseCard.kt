@@ -233,7 +233,7 @@ object GlucoseCard {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
                 val msg = when {
                     sl?.warmup != null -> Words.current.warmingUp
-                    sl?.ended == true -> Words.current.sensorEnded
+                    sl?.ended == true -> SensorLife.endedText(sl.end, nowS)
                     else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS)) } ?: Words.current.noReadingsYet
                 }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
@@ -271,6 +271,32 @@ object GlucoseCard {
     }
 
     /**
+     * The sensor has ended ([SensorBadge.Look.ended]): "Sensor ended at 18:03" (very-low colour) and "Replace the
+     * sensor" under it when it fits; a narrow box splits it into "Sensor ended" / "at 18:03" instead; a box with room
+     * for one line only gets the first, shrunk to fit. The Mac does the same (SukraraGraph.swift `drawEnded`).
+     */
+    private fun drawEnded(cv: Canvas, box: RectF, look: SensorBadge.Look, nowS: Long, pal: GraphPalette, d: Float) {
+        val w = Words.current
+        val base = min(box.height() * 0.26f, 20 * d)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = base; typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
+        val full = SensorLife.endedText(look.end, nowS, w)
+        val two = box.height() >= base * 2.4f
+        val fullFit = box.width() / max(p.measureText(full), 1f)
+        val lines = when {
+            !two -> listOf(full)
+            fullFit >= 0.8f -> listOf(full, w.sensorReplace)
+            else -> listOf(w.sensorEnded, SensorLife.endedWhen(look.end, nowS, w))
+        }
+        // the first line(s) that carry the end must fit; "Replace the sensor" only goes where it fits as it is
+        val must = if (lines.size == 2 && lines[1] == w.sensorReplace) lines.take(1) else lines
+        p.textSize = base * min(1f, box.width() / max(must.maxOf { p.measureText(it) }, 1f)).coerceAtLeast(0.45f)
+        val shown = lines.filter { it != w.sensorReplace || p.measureText(it) <= box.width() }
+        val y = box.centerY() - if (shown.size == 1) -p.textSize / 3 else p.textSize * 0.15f
+        cv.drawText(shown[0], box.left, y, Paint(p).apply { color = pal.veryLow })
+        if (shown.size > 1) cv.drawText(shown[1], box.left, y + p.textSize * 1.25f, Paint(p).apply { color = pal.inkSoft })
+    }
+
+    /**
      * A new sensor warming up: the time left until the first reading ("42m") where the number goes, in the secondary
      * colour, the sensor disc beside it filling up, and "Warming up · ready at 19:45" under it.
      */
@@ -302,17 +328,16 @@ object GlucoseCard {
                           pal: GraphPalette, d: Float, look: StatusBadge.Look? = null, sensor: SensorBadge.Look? = null) {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d)
+        // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
+        if (sensor?.ended == true) return drawEnded(cv, box, sensor, nowS, pal, d)
         if (r == null || !fr.showValue) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
             val w = Words.current
-            // an ended sensor says so instead of "No reading since" (it won't come back by waiting)
-            val ended = sensor?.ended == true
-            val line1 = when { ended -> w.sensorEnded; r == null -> w.noReadingsYet; else -> w.noReadingSince }
-            val line2 = when { ended -> w.sensorReplace; r == null -> null; else -> Freshness.timeText(r.t, nowS) }
+            val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
+            val line2 = r?.let { Freshness.timeText(it.t, nowS) }
             val y = box.centerY() - if (line2 == null) -big.textSize / 3 else big.textSize * 0.15f
-            if (ended) big.color = pal.veryLow
             cv.drawText(line1, box.left, y, big)
-            if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, Paint(big).apply { color = pal.inkSoft })
+            if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, big)
             return
         }
         val color = if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)

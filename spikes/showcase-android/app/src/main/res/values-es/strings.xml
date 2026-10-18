@@ -334,6 +334,14 @@
     <string name="card_sensor_ended">Sensor terminado</string>
     <!-- Value card: second line under "Sensor ended" [CHAR LIMIT=28] -->
     <string name="card_sensor_replace">Cambia el sensor</string>
+    <!-- Value card: when the sensor ended, today; %1$s = a time like 18:03 [CHAR LIMIT=20] -->
+    <string name="card_sensor_ended_at">a las %1$s</string>
+    <!-- Value card: when the sensor ended, yesterday; %1$s = a time like 18:03 [CHAR LIMIT=28] -->
+    <string name="card_sensor_ended_yesterday_at">ayer a las %1$s</string>
+    <!-- Value card: when the sensor ended, earlier; %1$s = "Sat 18:03" or "12 Oct" [CHAR LIMIT=20] -->
+    <string name="card_sensor_ended_on">el %1$s</string>
+    <!-- Value card: "Sensor ended" (%1$s) followed by when (%2$s), e.g. "Sensor ended at 18:03" [CHAR LIMIT=40] -->
+    <string name="card_sensor_ended_when">%1$s %2$s</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
     <string name="card_warming_up">Calentando</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->

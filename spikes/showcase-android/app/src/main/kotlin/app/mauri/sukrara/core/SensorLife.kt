@@ -4,6 +4,12 @@
 package app.mauri.sukrara.core
 
 import android.content.Context
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -119,6 +125,28 @@ object SensorLife {
         val len = (info.warmupEndEpoch - info.startEpoch).coerceAtLeast(1)
         return ((now - info.startEpoch).toDouble() / len).coerceIn(0.0, 1.0)
     }
+
+    /**
+     * Calendar days between the sensor's end and [now] in [zone]: 0 = it ended today, 1 = yesterday… (the ended
+     * card's wording, spikes/graph-fixtures/sensor/ended.json).
+     */
+    fun endedDaysAgo(end: Long, now: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        ChronoUnit.DAYS.between(Instant.ofEpochSecond(end).atZone(zone).toLocalDate(), Instant.ofEpochSecond(now).atZone(zone).toLocalDate())
+
+    /** When it ended: "at 18:03" (today), "yesterday at 18:03", "Sat 18:03" (this week), "12 Oct" (older). */
+    fun endedWhen(end: Long, now: Long, w: Words = Words.current, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String {
+        val t = Instant.ofEpochSecond(end).atZone(zone)
+        val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(t)
+        return when (val days = endedDaysAgo(end, now, zone)) {
+            0L -> w.endedAt.format(time)
+            1L -> w.endedYesterdayAt.format(time)
+            else -> w.endedOn.format(if (days < 7) DateTimeFormatter.ofPattern("EEE", locale).format(t) + " " + time
+                else DateTimeFormatter.ofPattern("d MMM", locale).format(t))
+        }
+    }
+
+    /** The ended card's first line: "Sensor ended at 18:03" / "Sensor ended yesterday at 18:03" / "Sensor ended Sat 18:03". */
+    fun endedText(end: Long, now: Long, w: Words = Words.current): String = w.sensorEndedWhen.format(w.sensorEnded, endedWhen(end, now, w))
 
     /** Whether the sensor has reached its end. */
     fun ended(endEpoch: Long, now: Long) = now >= endEpoch

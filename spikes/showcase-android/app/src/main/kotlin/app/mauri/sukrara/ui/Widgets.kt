@@ -172,7 +172,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             val warmup = sensorLook?.takeIf { it.warmup != null }
-            val number = if (sgv != null && fresh.showValue && warmup == null) "$sgv" else null
+            val number = if (sgv != null && fresh.showValue && warmup == null && sensorLook?.ended != true) "$sgv" else null
             ValueAndSlots(number, { fit -> Slots.arrange(rings, cfg.lastPlace, last, fallback, fit) },
                 value = { scale ->
                     if (warmup != null) {
@@ -190,6 +190,14 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                             Text(stringResource(R.string.card_warming_up) + " · " + stringResource(R.string.card_ready_at, Freshness.timeText(warmup.readyAt, now)),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                    } else if (sensorLook?.ended == true) {
+                        // an ended sensor says so as soon as it has ended (not an error; the last value stays in the chart)
+                        Column {
+                            Text(app.mauri.sukrara.core.SensorLife.endedText(sensorLook.end, now), style = MaterialTheme.typography.titleLarge,
+                                color = Color(pal.veryLow))
+                            Text(stringResource(R.string.card_sensor_replace), style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     } else if (number != null) {
                         // A late reading's time goes under the number, so it never takes the rings' room.
                         Column {
@@ -197,13 +205,6 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                             RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
                             if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else if (sensorLook?.ended == true) {
-                        // an ended sensor says so instead of "No reading since" (waiting won't bring readings back)
-                        Column {
-                            Text(stringResource(R.string.card_sensor_ended), style = MaterialTheme.typography.titleLarge, color = Color(pal.veryLow))
-                            Text(stringResource(R.string.card_sensor_replace), style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),

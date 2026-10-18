@@ -287,6 +287,10 @@ enum TreatmentSheets {
                  withSensor(CardStyle(graph: g), SensorInfo(start: now - 18 * 60, end: now - 18 * 60 + 15 * day, warmupEnd: now - 18 * 60 + 3600)),
                  data15.filter { $0.t <= now - 40 * 60 }),
                 ("ended 2 h ago, no readings since", 300, 150, withSensor(CardStyle(graph: g), sensor(-2 * 3600)), data15.filter { $0.t <= now - 2 * 3600 }),
+                ("3×1 · ended 10 min ago, last value still fresh", 230, 60, withSensor(CardStyle(graph: nil), sensor(-600)), data15.filter { $0.t <= now - 600 }),
+                ("2×1 · ended 10 min ago", 150, 60, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)]), sensor(-600)),
+                 data15.filter { $0.t <= now - 600 }),
+                ("4×1 side by side · ended yesterday", 300, 70, withSensor(CardStyle(graph: g), sensor(-26 * 3600)), data15.filter { $0.t <= now - 26 * 3600 }),
             ]
             sheet(out.appendingPathComponent("mac-sensor-\(tag).png"), sv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card($0.4, [], $0.3)) },
                   cellW: 300, cellH: 150, cols: 2, dark: dark)

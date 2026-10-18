@@ -60,7 +60,7 @@ extension Bands {
 
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
-    private var tick: Timer?, freshTimer: Timer?
+    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
 
     override init() {
         super.init()
@@ -162,6 +162,7 @@ extension Bands {
         let age = Date().timeIntervalSince(snap.latest.date)
         let fresh = Freshness.of(age: age)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
+        endTimer?.invalidate()
         freshTimer?.invalidate()
         freshTimer = Freshness.nextChange(age: age).map { next in
             Timer.scheduledTimer(withTimeInterval: next - age, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
@@ -183,8 +184,17 @@ extension Bands {
         button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
         let nowT = Date().timeIntervalSince1970
-        if !fresh.showValue, let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
-            if let w = sl.warmup {
+        if let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
+            if sl.ended {
+                // as soon as it has ended (not an error): no value any more, the panel says when
+                attrs[.foregroundColor] = NSColor.secondaryLabelColor
+                attrs.removeValue(forKey: .strikethroughStyle)
+                button.attributedTitle = NSAttributedString(string: "Sensor ended", attributes: attrs)
+                button.image = nil
+                let text = SensorLife.endedText(end: sl.end, now: nowT)
+                button.toolTip = "Sukrara · \(text). Replace the sensor."
+                button.setAccessibilityLabel(text)
+            } else if !fresh.showValue, let w = sl.warmup {
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
                 button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
@@ -192,9 +202,12 @@ extension Bands {
                 button.setAccessibilityLabel("Sensor warming up, \(w) left")
                 freshTimer?.invalidate()   // no readings come during the warm-up: tick the minutes ourselves
                 freshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
-            } else if sl.ended {
-                button.toolTip = "Sukrara · sensor ended: replace the sensor"
-                button.setAccessibilityLabel("Glucose: sensor ended")
+            } else if sl.end - nowT < 3600 {
+                // the end comes before the next reading may: switch to "Sensor ended" right then
+                endTimer?.invalidate()
+                endTimer = Timer.scheduledTimer(withTimeInterval: max(1, sl.end - nowT + 1), repeats: false) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.render(); self?.panelModel.tick += 1 }
+                }
             }
         }
 

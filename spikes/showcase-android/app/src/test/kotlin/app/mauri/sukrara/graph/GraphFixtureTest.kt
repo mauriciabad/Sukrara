@@ -108,7 +108,16 @@ class GraphFixtureTest {
         val fails = ArrayList<String>()
         fun near(a: Double?, b: Double?) = if (a == null || b == null) a == b else kotlin.math.abs(a - b) <= 0.001
         for (f in files) {
-            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            val root = JSONObject(f.readText())
+            root.optJSONArray("ended")?.let { ended ->
+                for (i in 0 until ended.length()) {
+                    val c = ended.getJSONObject(i)
+                    val got = app.mauri.sukrara.core.SensorLife.endedDaysAgo(now + c.getLong("end"), now, java.time.ZoneId.of(c.getString("zone")))
+                    if (got != c.getJSONObject("expect").getLong("daysAgo")) fails += "${f.name}: ${c.getString("name")}: daysAgo $got"
+                    n++
+                }
+            }
+            val cases = root.optJSONArray("cases") ?: continue
             for (i in 0 until cases.length()) {
                 val c = cases.getJSONObject(i)
                 val start = now + c.getLong("start")

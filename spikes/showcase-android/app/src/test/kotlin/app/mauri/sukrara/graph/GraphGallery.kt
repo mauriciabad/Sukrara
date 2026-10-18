@@ -168,6 +168,14 @@ class GraphGallery {
                     GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null), pal, d,
                         sensor = sensor(-600L))
                 },
+                Tile("2×1 · ended 10 min ago", "", 150f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400))),
+                        pal, d, sensor = sensor(-600L))
+                },
+                Tile("4×1 side by side · ended yesterday", "", 300f, 70f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = true)),
+                        pal, d, sensor = sensor(-26 * 3600L))
+                },
             )
             sheet("sensor-${if (dark) "dark" else "light"}", tiles, 300f, 150f, cols = 2, pal)
         }

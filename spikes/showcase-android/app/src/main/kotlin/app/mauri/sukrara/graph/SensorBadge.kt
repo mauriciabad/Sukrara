@@ -31,19 +31,20 @@ object SensorBadge {
      * figure instead of a value and the disc fills instead of depleting.
      */
     data class Look(val label: String, val life: Float, val ended: Boolean, val warmup: String? = null, val fill: Float = 0f,
-                    val readyAt: Long = 0)
+                    val readyAt: Long = 0, val end: Long = 0)
 
     /** [latestT] = the newest reading's time (null = none): a reading since the sensor's start ends the warm-up. */
     fun look(info: SensorInfo?, now: Long, latestT: Long? = null, w: Words = Words.current): Look? = info?.let {
         val warming = SensorLife.warming(it, latestT, now)
         Look(SensorLife.label(it.endEpoch, now, w), SensorLife.lifeFraction(it, now).toFloat(), SensorLife.ended(it.endEpoch, now),
-            if (warming) SensorLife.warmupLabel(it, now, w) else null, SensorLife.warmupFraction(it, now).toFloat(), it.warmupEndEpoch)
+            if (warming) SensorLife.warmupLabel(it, now, w) else null, SensorLife.warmupFraction(it, now).toFloat(), it.warmupEndEpoch,
+            it.endEpoch)
     }
 
     /** For screen readers: "Sensor: 13d left" / "Sensor ended" / "Warming up, ready at 19:45". */
     fun describe(look: Look, now: Long, w: Words = Words.current): String = when {
         look.warmup != null -> w.warmingUp + ", " + w.readyAt.format(Freshness.timeText(look.readyAt, now))
-        look.ended -> w.sensorEnded
+        look.ended -> SensorLife.endedText(look.end, now, w)
         else -> w.sensorLeft.format(look.label)
     }
 
