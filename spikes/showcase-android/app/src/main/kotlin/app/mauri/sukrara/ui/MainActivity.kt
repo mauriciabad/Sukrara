@@ -282,7 +282,6 @@ class MainActivity : ComponentActivity() {
                 "settings" -> SettingsRoute { WearerSettings(u, back) }
                 "alerts" -> SettingsRoute { AlertsScreen(follower = false, back) }
                 "source" -> SettingsRoute { SourceSettings(back) }
-                "sensor" -> SettingsRoute { SensorScreen(back) }
                 "newsensor" -> NewSensorScreen(back)
                 "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }

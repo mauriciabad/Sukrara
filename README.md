@@ -71,8 +71,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app, sending nothing to the
   sensor), Accu-Chek SmartGuide (the PIN from the cap in Android's pairing dialog), Aidex X / LinX / GlucoRx (the
   serial from the box) and Dexcom G6 / ONE (the transmitter ID). They were built from open-source protocol work and
-  checked against recorded traces, but nobody has tried them on a real sensor: pairing one asks you to confirm
-  (*Pair anyway* waits 5 seconds), and while you use it home shows a banner under the graph asking for feedback as a
+  checked against recorded traces, but nobody has tried them on a real sensor: choosing one asks you to confirm
+  (a red warning whose *Continue anyway* waits 10 seconds), and while you use it home shows a banner under the graph asking for feedback as a
   GitHub issue. The banner goes away for a sensor once enough people confirm it works. Only the Libre 3 is tested.
   Untested sensors never reach other apps on the phone (no broadcasts, so a closed loop like AAPS can't dose from
   them), and every export names the real sensor ("Dexcom G7 / ONE+ (untested)"), never a Libre 3.

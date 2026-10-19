@@ -288,6 +288,17 @@ driver, same bytes, transport by address, never a scan; `Libre3DriverTest` untou
 
 ![Brand step](img/23/brand-step.png) ![Untested confirmation, counting](img/23/confirm-wait.png)
 ![Untested confirmation, enabled](img/23/confirm-enabled.png) ![Banner under the graph](img/23/banner.png)
+![Settings → Glucose source](img/23/settings-after.png)
+
+**0.11.28, after the user tried 0.11.27** ("glucose source settings page doesn't make sense … the confirm dialog
+should be a bit more time, and should be in red … untested should show a lab-flask icon and be in red … it should show
+when you tap Continue in the new sensor step"): the confirmation moved to *Continue* on the brand step, waits 10 s and
+is red; the *Untested* tag is red with the `science` flask; Settings → Glucose source is one page (the current sensor
+with *Pair new sensor*, *Read glucose from* *This phone* / *Juggluco*, the sensor's options) instead of a two-way
+"Libre 3 directly / Juggluco" choice plus a nested *Sensor* page. Before:
+
+![0.11.27 brand step](img/23/brand-step-before.png) ![0.11.27 confirmation](img/23/confirm-before.png)
+![0.11.27 Glucose source](img/23/settings-before-source.png) ![0.11.27 Sensor page](img/23/settings-before-sensor.png)
 
 *Synthetic emulator data.*
 
@@ -300,7 +311,8 @@ driver, same bytes, transport by address, never a scan; `Libre3DriverTest` untou
 | Aidex X / LinX / GlucoRx: serial-derived keys, session key read, AES-CFB commands, a poll a minute, readings from the advertisement | `direct/aidex/` |
 | Scanning transport: short (30 s on, 60 s off), always filtered (service UUID or exact name), `onAdvertisement` first, then `matches` → the address is saved and `GattLink` connects by it from then on | `direct/SensorScanner.kt`, `direct/DirectSource.kt` |
 | `BleLink.read`, a bond-state receiver, `SensorEvents.onSessionStart` (→ `SensorInfo` with the profile's warm-up and lifetime), one `sensor.json` record keyed by `profile`, readings tagged with `profile.id` | `direct/GattLink.kt`, `direct/SensorDriver.kt`, `direct/SensorPairing.kt`, `owner/DirectAdapter.kt` |
-| Brand step (*Which sensor are you starting?*, the Libre 3 first and preselected, NFC already listening), per-family setup, *Untested* tags, the warning dialog with *Pair anyway (5)* disabled for 5 s and *Cancel* as the default | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt` |
+| Brand step (*Which sensor are you starting?*, the Libre 3 first and preselected, NFC already listening), per-family setup, red *Untested* tags with the `science` flask, the red warning dialog on *Continue* with *Continue anyway (10)* disabled for 10 s and *Cancel* as the default (0.11.28; 0.11.27 asked at *Pair* and waited 5 s) | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt` |
+| Settings → Glucose source on one level: current sensor + *Pair new sensor*, *This phone* / *Juggluco*, the sensor's options (0.11.28) | `ui/SourceScreen.kt` |
 | The permanent banner under the graph (wearer only, not red, not dismissible) with *Send feedback* → a pre-filled issue (sensor, Sukrara version, Android version, phone model; nothing personal) | `ui/SensorFeedback.kt`, `.github/ISSUE_TEMPLATE/sensor-feedback.yml` |
 | Tests against the spike's traces (copied to `app/src/test/resources/traces`), the Libre 3 never scans, brand step, countdown, banner, issue URL | `app/src/test/…/direct/**`, `BrandStepTest`, `SensorFeedbackTest`, `DirectSourceTest` |
 | **Outputs name the real sensor** (`core/SensorOutputs`, by each reading's `dev` tag): no local broadcasts for an untested family (Settings says why); Health Connect brand + "<model> (untested)"; Tidepool `cbg` `payload.sensor`; Nightscout upload, the phone's Nightscout and xDrip+ APIs and the CSV's Device `Sukrara · <model> (untested)` (the Libre 3 keeps `Sukrara`: Nightscout dedupes on it; a family change still counts as this uploader); Nightscout sensor events' notes; LibreView only for the Libre 3; the Sensor page names the family | `core/SensorOutputs.kt`, `bridge/`, `tidepool/`, `nightscout/`, `export/`, `libreview/`, `SensorOutputsTest`, `BroadcastPayloadsTest`, `LibreViewUploaderTest` |

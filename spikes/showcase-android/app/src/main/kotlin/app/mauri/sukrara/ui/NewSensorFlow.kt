@@ -28,8 +28,21 @@ object NewSensorFlow {
     /** Picking [profile] on the brand step leads to the NFC scan (the Libre 3) or to its own setup. */
     fun afterChoice(profile: SensorProfile): Stage = if (profile.pairing == Pairing.NfcTap) Stage.Waiting else Stage.Setup(profile.id)
 
-    /** Pairing an untested family asks first ([UntestedConfirm]); the Libre 3 never does. */
+    /** Choosing an untested family asks first ([UntestedConfirm]); the Libre 3 never does. */
     fun needsConfirm(profile: SensorProfile) = !profile.verified
+
+    /**
+     * *Continue* on the brand step (the user, 2026-10-19: the warning belongs here, not at pairing): an untested
+     * family opens the confirmation ([Continue.Confirm]; Cancel stays on the brand step, accept goes to [afterChoice]),
+     * the Libre 3 goes straight on.
+     */
+    fun onContinue(profile: SensorProfile): Continue =
+        if (needsConfirm(profile)) Continue.Confirm(profile) else Continue.Go(afterChoice(profile))
+
+    sealed interface Continue {
+        data class Go(val stage: Stage) : Continue
+        data class Confirm(val profile: SensorProfile) : Continue
+    }
 
     /** The Bluetooth part, from the direct source's status words (direct/GattLink and direct/Libre3Driver `onStatus`). */
     enum class PairStep { CONNECTING, SECURING, STARTING }
@@ -41,13 +54,10 @@ object NewSensorFlow {
 
     sealed interface Stage {
         val step: Step
-        /** Which sensor are you starting? */
-        data object Choose : Stage { override val step = Step.SENSOR }
-        /**
-         * An untested family's setup ([SensorProfile.pairing]): its input and "Pair". [confirm] only in previews: the
-         * untested confirmation open (screenshots).
-         */
-        data class Setup(val profileId: String, val confirm: Boolean = false) : Stage { override val step = Step.SCAN }
+        /** Which sensor are you starting? [confirm]: only in previews, that family selected with its confirmation open. */
+        data class Choose(val confirm: String? = null) : Stage { override val step = Step.SENSOR }
+        /** An untested family's setup ([SensorProfile.pairing]): its input and "Pair". */
+        data class Setup(val profileId: String) : Stage { override val step = Step.SCAN }
         /** Reader mode on, waiting for a tap. */
         data object Waiting : Stage { override val step = Step.SCAN }
         /** A tag is being read. */
@@ -132,8 +142,8 @@ object NewSensorFlow {
         "failed" -> Stage.Problem(Trouble.FAILED, detail = "Tag was lost")
         "bluetooth" -> Stage.Problem(Trouble.BLUETOOTH_OFF, "3MH00TEST")
         "nfcoff" -> Stage.Problem(Trouble.NFC_OFF)
-        "choose" -> Stage.Choose
-        "untested" -> Stage.Setup(SensorProfiles.DEXCOM_G7.id, confirm = true)
+        "choose" -> Stage.Choose()
+        "untested" -> Stage.Choose(confirm = SensorProfiles.DEXCOM_G7.id)
         "pairfailed" -> Stage.Problem(Trouble.PAIR_FAILED, "8GABCD", "wrong transmitter id for this transmitter")
         else -> name.removePrefix("setup-").takeIf { name.startsWith("setup-") && SensorProfiles.byId(it)?.verified == false }
             ?.let { Stage.Setup(it) }
@@ -159,12 +169,12 @@ enum class NewSensorDue {
 }
 
 /**
- * The warning before pairing an untested family (the user's ask, 2026-10-19): "Pair anyway" stays disabled for
+ * The warning when choosing an untested family (the user's ask, 2026-10-19): "Continue anyway" stays disabled for
  * [WAIT_S] seconds with the count in its label, so the text gets read; Cancel is always enabled and is the default.
- * Every opening starts the wait again.
+ * Every opening starts the wait again. 10 s since 0.11.28 (5 s was too short for the user).
  */
 object UntestedConfirm {
-    const val WAIT_S = 5
+    const val WAIT_S = 10
 
     /** Whole seconds until "Pair anyway" is enabled, [elapsedMs] after the dialog opened (rounded up; 0 = enabled). */
     fun secondsLeft(elapsedMs: Long, waitS: Int = WAIT_S): Int =

@@ -677,15 +677,11 @@
     <!-- Sensor screen: no sensor paired [CHAR LIMIT=40] -->
     <string name="sensor_none">No sensor yet</string>
     <!-- Sensor screen: what to do; FreeStyle Libre is a product name [CHAR LIMIT=NONE] -->
-    <string name="sensor_none_text">Scan your FreeStyle Libre 3 or 3 Plus to start reading it here.</string>
+    <string name="sensor_none_text">Pair your sensor to start reading it here.</string>
     <!-- Sensor screen: when the sensor started; %1$s = date and time [CHAR LIMIT=40] -->
     <string name="sensor_started">Started %1$s</string>
-    <!-- Sensor screen: another source is selected [CHAR LIMIT=NONE] -->
-    <string name="sensor_not_in_use">Not in use: the glucose source is Juggluco</string>
     <!-- Sensor screen: the connection state; %1$s = technical status (English) [CHAR LIMIT=NONE] -->
     <string name="sensor_now">Now: %1$s</string>
-    <!-- Sensor screen: switch the source to this sensor [CHAR LIMIT=30] -->
-    <string name="sensor_use">Read this sensor</string>
     <!-- Sensor screen: open the NFC settings [CHAR LIMIT=25] -->
     <string name="sensor_turn_on_nfc">Turn on NFC</string>
     <!-- Sensor screen switch: open the app on a sensor scan [CHAR LIMIT=50] -->
@@ -859,9 +855,9 @@
     <!-- Untested sensor warning dialog: text, %1$s = the sensor (Dexcom G7 / ONE+) [CHAR LIMIT=NONE] -->
     <string name="untested_confirm_text">Sukrara\'s support for %1$s is untested: readings may be wrong or missing.\n\nKeep using the official app or a meter to confirm before any treatment decision. A feedback banner stays on your home screen until this sensor is verified.</string>
     <!-- Untested sensor warning dialog: the accept button while it is still disabled, %1$d = seconds left [CHAR LIMIT=30] -->
-    <string name="untested_confirm_wait">Pair anyway (%1$d)</string>
+    <string name="untested_confirm_wait">Continue anyway (%1$d)</string>
     <!-- Untested sensor warning dialog: the accept button [CHAR LIMIT=30] -->
-    <string name="untested_confirm_accept">Pair anyway</string>
+    <string name="untested_confirm_accept">Continue anyway</string>
     <!-- Untested sensor warning dialog: cancel, the safe default [CHAR LIMIT=20] -->
     <string name="untested_confirm_cancel">Cancel</string>
     <!-- Home: permanent banner under the graph while the sensor's support is untested, %1$s = the sensor [CHAR LIMIT=NONE] -->
@@ -1163,32 +1159,28 @@
     <!-- ========== Settings: glucose source ========== -->
     <!-- Page and overview row: where readings come from [CHAR LIMIT=30] -->
     <string name="source_title">Glucose source</string>
+    <!-- Settings → Glucose source: group with the two ways to get readings [CHAR LIMIT=40] -->
+    <string name="source_group">Read glucose from</string>
+    <!-- Settings → Glucose source: summary of "This phone" while it reads a sensor, %1$s = the sensor (Dexcom G7 / ONE+) [CHAR LIMIT=NONE] -->
+    <string name="source_direct_now">Reads your %1$s</string>
     <!-- Glucose source page intro [CHAR LIMIT=NONE] -->
     <string name="source_intro">Where Sukrara gets your readings from.</string>
-    <!-- Row and dialog title: the chosen source [CHAR LIMIT=30] -->
-    <string name="source_source">Source</string>
     <!-- Source option: Sukrara reads the Libre 3 itself [CHAR LIMIT=30] -->
-    <string name="source_direct">Libre 3 directly</string>
+    <string name="source_direct">This phone</string>
     <!-- Source option description [CHAR LIMIT=NONE] -->
-    <string name="source_direct_summary">Sukrara holds the sensor (scan it once with NFC)</string>
+    <string name="source_direct_summary">Sukrara reads the sensor itself: FreeStyle Libre 3 / 3 Plus, or an untested Dexcom, Accu-Chek or Aidex sensor</string>
     <!-- Source option: the Juggluco app (brand name) [CHAR LIMIT=30] -->
     <string name="source_juggluco">Juggluco</string>
     <!-- Source option description [CHAR LIMIT=NONE] -->
     <string name="source_juggluco_summary">Reads Juggluco\'s web server; Juggluco keeps the sensor and its alarms</string>
-    <!-- Sensor row; %1$s = sensor serial number [CHAR LIMIT=60] -->
-    <string name="source_sensor_summary">Libre 3 %1$s · scan to start or take over</string>
-    <!-- Sensor row without a sensor [CHAR LIMIT=60] -->
-    <string name="source_sensor_summary_none">Scan to start or take over</string>
     <!-- Why the sensor rows are disabled [CHAR LIMIT=60] -->
     <string name="source_sensor_unavailable">Unavailable while Juggluco holds the sensor</string>
     <!-- Glucose source page footer [CHAR LIMIT=NONE] -->
-    <string name="source_footer">Only one app can hold a Libre 3. With Libre 3 directly, Juggluco\'s own alarms don\'t ring; use Alerts.</string>
+    <string name="source_footer">Only one app can read a sensor at a time. While this phone reads it, Juggluco\'s own alarms don\'t ring: use Alerts.</string>
     <!-- Dialog title before switching to the direct source [CHAR LIMIT=40] -->
     <string name="source_direct_confirm_title">Read the sensor directly?</string>
     <!-- Dialog text before switching to the direct source [CHAR LIMIT=NONE] -->
-    <string name="source_direct_confirm_text">Sukrara reads your Libre 3 itself: you scan the sensor once with NFC. Only one app can hold a Libre 3, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco\'s alarms (low/high) do NOT ring.</string>
-    <!-- Dialog button: open the sensor scan page [CHAR LIMIT=20] -->
-    <string name="source_direct_confirm_scan">Scan sensor</string>
+    <string name="source_direct_confirm_text">Sukrara reads your sensor itself: you pair it on the next screen. Only one app can hold a sensor, so stop Juggluco first (Pause app, then Force stop). While Sukrara holds the sensor, Juggluco\'s alarms (low/high) do NOT ring.</string>
 
     <!-- ========== Settings: sharing with people ========== -->
     <!-- Page and overview row: sharing with followers [CHAR LIMIT=30] -->

@@ -294,6 +294,17 @@ fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boo
         primaryOnClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
 }
 
+/**
+ * One option of an inline single choice: SPA RadioPreferences' row (`Radio2`; the whole row selects, as a radio
+ * button). For a choice of two or three that should stay visible on the page instead of behind a dialog.
+ */
+fun SettingsGroupScope.radio(title: String, summary: String?, selected: Boolean, enabled: Boolean = true,
+                             leading: (@Composable () -> Unit)? = null, onSelect: () -> Unit) = row(title, summary, icon = leading) {
+    com.android.settingslib.spa.widget.preference.Radio2(
+        com.android.settingslib.spa.widget.preference.ListPreferenceOption(1, title, summary ?: "", leading),
+        selectedId = if (selected) 1 else 0, enabled = enabled) { onSelect() }
+}
+
 /** SPA CheckboxPreference: the whole row toggles a check box at its end (an option, not a feature switch). */
 fun SettingsGroupScope.checkbox(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
                                 @DrawableRes icon: Int? = null, onChange: (Boolean) -> Unit) {
