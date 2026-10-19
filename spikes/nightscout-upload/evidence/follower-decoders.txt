@@ -1,0 +1,13 @@
+$ followers/run.sh
+Trio 0b29cd5, LoopFollow 4a74b78
+Trio BloodGlucose decoder
+  PASS decoded 180 readings of the last 3 h
+  PASS every reading has sgv and a direction
+    newest: 95 mg/dL DoubleDown at 2026-10-18 11:50:00 PM +0000
+LoopFollow ShareGlucoseData decoder
+  PASS decoded 180 readings
+    newest: 95 mg/dL DoubleDown at 2026-10-18 11:50:00 PM +0000
+LoopFollow SAGE (Sensor Start created_at)
+  PASS SAge.swift's formatter parses '2026-10-15T23:47:39.910Z'
+
+all passed

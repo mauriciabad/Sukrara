@@ -1,0 +1,8 @@
+# Nightscout 15.0.8 web client: what its pills compute from our uploads (GET /api/v2/properties, 2026-10-19T00:08:26Z)
+# an earlier run's headless Chrome tab showed the client-rendered title "165 +5 →"; no screenshot: the socket.io page never goes idle headless
+bgnow    80 mg/dL from Sukrara (5-min bucket of 3 1-min readings)
+delta    -1 | direction Flat →
+sage     {'Sensor Start': ('3d0h', 'Libre 3 SYNTH0001'), 'Sensor Change': ('3d0h', 'Libre 3 SYNTH0001')}
+upbat    64% current
+iob      0.77 U (the 4.5 U rapid bolus; the 14 U long-acting Note adds nothing)
+cob      — (needs a profile; none on this test site)

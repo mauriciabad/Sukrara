@@ -324,6 +324,25 @@ export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 
 Traces and where each byte comes from: `core/src/main/resources/traces/README.md`.
 
+## `nightscout-upload/` — Nightscout uploader (Kotlin JVM library + CLI, investigation 25)
+
+The uploader Sukrara would embed (`core`: queue, backoff, backfill by server diff, dedupe, API v1 + v3, API secret or
+access token; plain JVM + `org.json` + `HttpURLConnection`, all present on Android) and a CLI that drives it with
+synthetic data only ([25](../docs/25-nightscout-upload.md)). Verification runs against a throwaway local Nightscout in
+Docker, never a hosted one.
+
+```sh
+cd nightscout-upload
+export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
+./gradlew :core:test :cli:installDist        # 19 unit tests against an in-memory Nightscout
+verify/all.sh                                # fresh Nightscout 15.0.8 + MongoDB 7 in Docker (127.0.0.1:1337): upload,
+                                             # late readings, outage, v3 + token, deletes, followers, roles → evidence/
+cli/build/install/cli/bin/cli help           # seed / tick / late / follow / treat / sync / check by hand
+followers/run.sh                             # Trio's and LoopFollow's real Swift decoders against the site
+python3 -I verify/ha_check.py http://host.docker.internal:1337 spike-secret-0123   # stock Home Assistant (see header)
+verify/nightscout.sh down                    # remove the containers and all data
+```
+
 ## `widgets-macos/` — WidgetKit widgets for the Mac (investigation 13)
 
 Value / graph / combined widgets (small → extra large), built with the Command Line Tools only. macOS refuses to

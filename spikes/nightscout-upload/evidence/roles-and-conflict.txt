@@ -1,0 +1,11 @@
+1. role guard
+follow: 10 readings of 'alice' (FOLLOWED) at :30 s
+sync V1 ApiSecret: SyncReport(health=IDLE, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (1 ms)
+   alice's readings on the site: 0
+2. another uploader (an xDrip+ posting the same person) shows up
+   xDrip+-style POST → 200
+  · reconcile 168 h: server has 2885, queued 0 missing
+sync V1 ApiSecret: SyncReport(health=CONFLICT, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=another uploader is active: xDrip-LibreReceiver)  (100 ms)
+3. the user confirms (Settings → Upload anyway)
+tick: +1
+sync V1 ApiSecret: SyncReport(health=OK, entries=1, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (67 ms)
