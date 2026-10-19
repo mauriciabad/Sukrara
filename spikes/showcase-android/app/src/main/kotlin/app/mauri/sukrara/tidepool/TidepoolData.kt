@@ -114,6 +114,7 @@ object TidepoolData {
     /** A Tidepool note (message service `POST /message/send/{userId}`) for a note entry; shown on the daily view. */
     fun note(tr: Treatment, userId: String): JsonObject = buildJsonObject {
         putJsonObject("message") {
+            put("guid", java.util.UUID.nameUUIDFromBytes("sukrara-note-${tr.id}".toByteArray()).toString())   // required by message-api
             put("userid", userId); put("groupid", userId)
             put("timestamp", Instant.ofEpochSecond(tr.t).toString())
             put("messagetext", tr.n.ifBlank { "·" })

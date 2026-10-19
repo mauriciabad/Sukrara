@@ -184,7 +184,8 @@ the data set's device → delete, or the end-to-end test below). Never switch it
 - [ ] No device first: `TIDEPOOL_E2E_EMAIL=… TIDEPOOL_E2E_PASSWORD_FILE=<gitignored file> TIDEPOOL_E2E_LEDGER=<gitignored
       file> ./gradlew :app:testDebugUnitTest --tests '*TidepoolLiveTest*'` passes: it uploads a synthetic night across
       a DST change into its own data set, checks dedupe / edit / delete / notes, deletes everything and checks that
-      nothing is left (`[tidepool-e2e] left: data=0 e2e data sets=0 notes=0` in the test's output).
+      nothing is left (`[tidepool-e2e] left: data=0 … e2e data sets=0 notes=0` in the test's output). Each run leaves one
+      empty deleted upload record (Tidepool's tombstone; the API can't remove it), so run it only when needed.
 - [ ] Emulator (wearer, debug = synthetic glucose): Settings → Share with apps → Tidepool: account *Not signed in*,
       main switch greyed. Wrong password → "Tidepool didn't accept this email and password", dialog stays.
 - [ ] Sign in → the account row shows the email; nothing uploads until *Upload to Tidepool* is on. On → `adb logcat -s
