@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.tidepool
 
+import app.mauri.sukrara.core.SensorOutputs
 import android.content.Context
 import android.util.Log
 import app.mauri.sukrara.App
@@ -185,11 +186,14 @@ object Tidepool : CloudUploader {
         }
     }
 
+    /** The wearer's reading's sensor model, from its `dev` tag. */
+    internal fun sensorOf(dev: String): String? = SensorOutputs.profileOf(dev)?.let { SensorOutputs.model(it) }
+
     /** The role's readings and treatments from [from] (the wearer's 31-day store, or what the follower received). */
     private fun load(role: String, from: Long): Pair<List<TidepoolData.Glucose>, List<Treatment>> = when (role) {
         "owner" -> {
             Treat.init(app)
-            App.owner(app).history(from).map { TidepoolData.Glucose(it.t, it.sgv, it.rate) } to Treat.store.all()
+            App.owner(app).history(from).map { TidepoolData.Glucose(it.t, it.sgv, it.rate, sensorOf(it.dev)) } to Treat.store.all()
         }
         "follower" -> {
             val e = App.follower(app)

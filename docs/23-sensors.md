@@ -251,7 +251,8 @@ where the current single-`SensorInfo` model would hurt. Not needed for the first
 
 ## To bring into Sukrara
 
-Nothing from this investigation is in Sukrara yet. The order below is the recommendation, each step shippable alone.
+Steps 1–5 are in Sukrara (see "In Sukrara" below); step 6 (Lingo) is not. The order below was the recommendation,
+each step shippable alone.
 
 | Step | What | Why first / why later |
 |---|---|---|
@@ -278,19 +279,42 @@ Discarded in this step: the spike's own event types (the app's fit 1:1), the sca
 (steps 2+), running the JNI core in the tests (unchanged by the move). The spike stays as it is; the app has its own
 copy of what it needs.
 
-### Added / discarded (steps 2–6, to be filled in when they land)
+**Steps 2–5 (2026-10-19, branch `w-brands`)** — the Dexcom G7 / ONE+ / Stelo observer, the Accu-Chek SmartGuide,
+the Aidex X family and the Dexcom G6 / ONE, all **untested** by the user's decision: *"I want them anyway with
+untested, and when users use one of it they get a permanent banner under the graph in the app that tells them to
+submit feedback as a GitHub issue."* Only the Libre 3 is tested on hardware; the Libre 3's path is unchanged (same
+driver, same bytes, transport by address, never a scan; `Libre3DriverTest` untouched). Also in
+[docs/10](10-showcase.md#other-sensor-brands-untested-investigation-23-steps-25).
+
+![Brand step](img/23/brand-step.png) ![Untested confirmation, counting](img/23/confirm-wait.png)
+![Untested confirmation, enabled](img/23/confirm-enabled.png) ![Banner under the graph](img/23/banner.png)
+
+*Synthetic emulator data.*
 
 | Added | Where |
 |---|---|
-| Dexcom G7 / ONE+ / Stelo observer driver (`0x4E` glucose, backfill, algorithm states) and its decoders | `direct/dexcom/` |
-| Accu-Chek SmartGuide / standard CGM Service driver (SFLOAT, annunciations, RACP history, E2E-CRC) | `direct/cgms/` |
-| Aidex X driver (serial-derived keys, AES-CFB session, advertisement readings) | `direct/aidex/` |
-| Dexcom G6 / ONE driver (transmitter-id challenge, `0x30`/`0x4E`, backfill stream) | `direct/dexcom/` |
-| Per-brand pairing step, scan-based connection, warm-up / lifetime / calibration from the profile | `ui/NewSensorScreen.kt`, `core/SensorLife` |
+| `SensorProfile.verified` (Libre 3 true, every new profile false) — the single switch for the *Untested* tag, the confirmation and the banner; profiles `dexcom-g7`, `dexcom-g7-15`, `accu-chek-smartguide`, `aidex-x`, `dexcom-g6` with their warm-up / lifetime / calibration | `core/SensorProfile.kt` |
+| Dexcom G7 / ONE+ / Stelo observer: only a G7 **bonded to this phone** (the Dexcom app's), waits for the app's `05 01 01`, then reads `0x4E` and passive backfill; **writes nothing** | `direct/dexcom/G7Driver.kt`, `G7Messages.kt`, `Dexcom.kt` |
+| Dexcom G6 / ONE: transmitter-id key, transmitter verified before answering, bond, `0x24` session start, `0x4E`, `0x50` backfill | `direct/dexcom/G6Driver.kt`, `G6Messages.kt` |
+| Accu-Chek SmartGuide (standard CGMS 0x181F): Android's PIN dialog → `onBondChanged`, SOCP with the E2E-CRC, CGM Status read, RACP | `direct/cgms/` |
+| Aidex X / LinX / GlucoRx: serial-derived keys, session key read, AES-CFB commands, a poll a minute, readings from the advertisement | `direct/aidex/` |
+| Scanning transport: short (30 s on, 60 s off), always filtered (service UUID or exact name), `onAdvertisement` first, then `matches` → the address is saved and `GattLink` connects by it from then on | `direct/SensorScanner.kt`, `direct/DirectSource.kt` |
+| `BleLink.read`, a bond-state receiver, `SensorEvents.onSessionStart` (→ `SensorInfo` with the profile's warm-up and lifetime), one `sensor.json` record keyed by `profile`, readings tagged with `profile.id` | `direct/GattLink.kt`, `direct/SensorDriver.kt`, `direct/SensorPairing.kt`, `owner/DirectAdapter.kt` |
+| Brand step (*Which sensor are you starting?*, the Libre 3 first and preselected, NFC already listening), per-family setup, *Untested* tags, the warning dialog with *Pair anyway (5)* disabled for 5 s and *Cancel* as the default | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt` |
+| The permanent banner under the graph (wearer only, not red, not dismissible) with *Send feedback* → a pre-filled issue (sensor, Sukrara version, Android version, phone model; nothing personal) | `ui/SensorFeedback.kt`, `.github/ISSUE_TEMPLATE/sensor-feedback.yml` |
+| Tests against the spike's traces (copied to `app/src/test/resources/traces`), the Libre 3 never scans, brand step, countdown, banner, issue URL | `app/src/test/…/direct/**`, `BrandStepTest`, `SensorFeedbackTest`, `DirectSourceTest` |
+| **Outputs name the real sensor** (`core/SensorOutputs`, by each reading's `dev` tag): no local broadcasts for an untested family (Settings says why); Health Connect brand + "<model> (untested)"; Tidepool `cbg` `payload.sensor`; Nightscout upload, the phone's Nightscout and xDrip+ APIs and the CSV's Device `Sukrara · <model> (untested)` (the Libre 3 keeps `Sukrara`: Nightscout dedupes on it; a family change still counts as this uploader); Nightscout sensor events' notes; LibreView only for the Libre 3; the Sensor page names the family | `core/SensorOutputs.kt`, `bridge/`, `tidepool/`, `nightscout/`, `export/`, `libreview/`, `SensorOutputsTest`, `BroadcastPayloadsTest`, `LibreViewUploaderTest` |
 
 | Discarded | Why |
 |---|---|
 | **Dexcom G7 own pairing** (J-PAKE + app certificate) | The certificate half needs a Dexcom-issued identity; borrowing theirs is impersonation, and the chain Juggluco embeds expired in April 2025. The J-PAKE code stays in the spike so the decision is reviewable. Observer mode covers the sensor. |
+| **Abbott Lingo** (step 6) | Out of scope for this round. |
+| Camera scan of the box code (Aidex X) | The data-matrix layout isn't documented in the sources we read; typing 10 characters is reliable. |
+| The spike's G6 session start from the transmitter clock, and "stopped" as a G7 end | Both would have shown a running sensor as ended (see docs/10). |
+| LibreView for the new families | LibreView takes Libre life-count readings and a Libre sensor start: only `SensorProfile.libreView` (the Libre 3) reaches it; another family clears what was buffered and sends nothing (`LibreViewUploaderTest`). |
+| **Local broadcasts for untested families** | AAPS turns on advanced filtering (SMB always / after carbs) for `SourceInfo=Libre3`: an untested Aidex or SmartGuide must never feed a closed loop. Unverified profiles send no xDrip+, LibreLink or glucodata broadcast at all; Settings → Apps on this phone says *Paused: <family> support is untested* (docs/22 "Untested sensor families"). A verified family also needs its own `broadcastLabel`. |
+| Calibration entry | All ported families are factory calibrated; the optional on-sensor calibration isn't offered. |
+| The banner for followers and on the Mac | It's about the wearer's own sensor. |
 | **CareSens Air** | mg/dL only exists inside the vendor's `libCALCULATION.so`, and the BLE key is lifted from the vendor app. Both rules. |
 | **Sibionics GS1 / GS1Sb** | Raw counts plus a vendor algorithm library; keys recovered from the vendor binary. |
 | **Sibionics GS3** | No vendor algorithm, but vendor keys from the same binary **and** a login to `cgm.sibionics.io` for the account id baked into the auth frame. Parked, not refused: revisit if the account id can come from the user's own session. |
@@ -299,6 +323,9 @@ copy of what it needs.
 | **Eversense, Sinocare iCan, Ottai, Syai, GlucoMen iCan** | No open BLE implementation anywhere: every project reads a broadcast from the vendor's (sometimes patched) app. Nothing to port. |
 | **Dexcom / Medtronic / Abbott follower clouds** | Sukrara's own sharing already does this, without an account. |
 | **Vendor broadcast intents** (`com.dexcom.g7.EXTERNAL_BROADCAST`, Juggluco's, xDrip+'s) | Would be the cheapest G7 support of all, but it makes Sukrara a passenger of another app's settings. Observer mode needs the vendor app too, yet owns the decoding. Worth revisiting only as a fallback. |
+
+**How to remove a banner**: when enough feedback issues confirm a family works, set its profile's `verified = true`
+in `core/SensorProfile.kt` (and update `SensorProfileTest`'s list). The tag, the confirmation and the banner go with it.
 
 ## Next
 

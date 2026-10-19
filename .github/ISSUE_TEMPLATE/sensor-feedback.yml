@@ -1,0 +1,71 @@
+# Opened from Sukrara's "untested sensor" banner on the wearer's home screen (investigation 23, docs/23-sensors.md).
+# The app pre-fills `sensor`, `app-version`, `android` and `phone` through the URL (field ids = query keys); nothing else.
+name: Sensor feedback
+description: Tell us how Sukrara works with a sensor it hasn't been tested with yet.
+title: "Sensor feedback: "
+labels: ["sensor-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Sukrara supports this sensor from open protocol work but nobody has tried it on a real one yet.
+        **Please don't paste glucose values, screenshots of your readings, serial numbers, PINs or anything else
+        about your health or identity.** "Readings match the official app within a few mg/dL" is all we need.
+  - type: input
+    id: sensor
+    attributes:
+      label: Sensor model
+      description: As Sukrara names it (pre-filled), plus the exact model if you know it (e.g. Stelo, ONE+).
+    validations:
+      required: true
+  - type: dropdown
+    id: pairing
+    attributes:
+      label: Did pairing work?
+      options:
+        - "Yes, first time"
+        - "Yes, after retrying"
+        - "No"
+    validations:
+      required: true
+  - type: dropdown
+    id: readings
+    attributes:
+      label: Are the readings plausible compared with the official app or a meter?
+      options:
+        - "Yes, they match closely"
+        - "Mostly, with some differences"
+        - "No, they differ a lot"
+        - "No readings at all"
+    validations:
+      required: true
+  - type: textarea
+    id: lifecycle
+    attributes:
+      label: Warm-up and sensor end
+      description: Did the warm-up countdown and the end date match the sensor? Anything odd when it ended?
+  - type: textarea
+    id: battery
+    attributes:
+      label: Battery
+      description: Did the phone's battery use change noticeably?
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: |
+        `adb logcat -s Sukrara.direct Sukrara.scan Sukrara.g7 Sukrara.g6 Sukrara.smartguide Sukrara.aidex`
+        Remove anything personal first. No glucose values, please.
+      render: text
+  - type: input
+    id: app-version
+    attributes:
+      label: Sukrara version
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model

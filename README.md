@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.26/Sukrara-0.11.26.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.27/Sukrara-0.11.27.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.26/Sukrara-0.11.26.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.27/Sukrara-0.11.27.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -67,11 +67,19 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   sensor with NFC to start a new one (tied to your LibreView account, so LibreLink or Juggluco can take it over
   later) or take one over, and Sukrara pairs with it over Bluetooth by itself. Or
   Juggluco's web server, if Juggluco keeps the sensor (the way to use a Libre 2 / 2 Plus: Sukrara itself refuses those). When the sensor ends (15 days, or earlier if it fails), Sukrara says *Sensor ended*
-  and stops trying to connect until you scan the new one. The Libre 3 sits behind a sensor-driver layer so other brands
-  can follow once they can be tested on a real sensor. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md),
-  [23](docs/23-sensors.md)
+  and stops trying to connect until you scan the new one. [02](docs/02-direct-sensor.md), [10](docs/10-showcase.md)
+- **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app, sending nothing to the
+  sensor), Accu-Chek SmartGuide (the PIN from the cap in Android's pairing dialog), Aidex X / LinX / GlucoRx (the
+  serial from the box) and Dexcom G6 / ONE (the transmitter ID). They were built from open-source protocol work and
+  checked against recorded traces, but nobody has tried them on a real sensor: pairing one asks you to confirm
+  (*Pair anyway* waits 5 seconds), and while you use it home shows a banner under the graph asking for feedback as a
+  GitHub issue. The banner goes away for a sensor once enough people confirm it works. Only the Libre 3 is tested.
+  Untested sensors never reach other apps on the phone (no broadcasts, so a closed loop like AAPS can't dose from
+  them), and every export names the real sensor ("Dexcom G7 / ONE+ (untested)"), never a Libre 3.
+  [23](docs/23-sensors.md#in-sukrara)
 - A guided *New sensor* screen: *Pair new sensor* on home (when there's no sensor, it has ended, or in its last
-  day), the *Replace sensor* pill and the reminders open it. It waits for the tap with a drawing of where this
+  day), the *Replace sensor* pill and the reminders open it. It starts by asking which sensor (the Libre 3 is
+  preselected, and tapping it right away works too). For a Libre 3 it waits for the tap with a drawing of where this
   phone's NFC antenna is, vibrates when the sensor answers, then shows the Bluetooth pairing step by step, the
   warm-up countdown and the first reading. Turning NFC or Bluetooth on, the LibreView sign-in and every problem
   (ended sensor, Libre 2, a failed scan, another app holding the sensor) are handled on the same screen. Tapping a
@@ -299,7 +307,7 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 | 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
 | 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
 | 22 | Sukrara in the diabetes-tech ecosystem | Spike emits the three local broadcasts Juggluco has (xDrip+ `BgEstimate`, patched-LibreLink, `glucodata.Minute`) plus Health Connect: GlucoDataHandler 2.5 accepts all three, AAPS's own test classes give a `Libre3` label advanced filtering, 36 Health Connect records written. Dexcom BYODA from a Libre discarded. Top gap: Nightscout upload. **In Sukrara**: the three broadcasts per allowed app (wearer only) and Health Connect ([in Sukrara](docs/22-ecosystem-outputs.md#in-sukrara)) | [docs/22](docs/22-ecosystem-outputs.md) |
-| 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([spikes/sensors-android](spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **Step 1 in Sukrara**: the `SensorDriver` abstraction and per-brand `SensorProfile`s, with the Libre 3 moved behind them unchanged ([added / discarded](docs/23-sensors.md#in-sukrara)); steps 2–6 (the other brands' drivers) are on hold until there's hardware to verify them ([shopping list](docs/23-sensors.md#hardware-to-buy-if-the-user-wants-these-verified)) | [docs/23](docs/23-sensors.md) |
+| 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([spikes/sensors-android](spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **In Sukrara**: step 1, the `SensorDriver` abstraction and per-brand `SensorProfile`s with the Libre 3 moved behind them unchanged; steps 2–5, the four other families as **untested** (a brand step, a 5-second confirmation and a feedback banner under the graph until each is verified on real sensors) ([added / discarded](docs/23-sensors.md#in-sukrara)); step 6 (Lingo) not yet ([shopping list](docs/23-sensors.md#hardware-to-buy-if-the-user-wants-these-verified)) | [docs/23](docs/23-sensors.md) |
 | 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with an acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes. Published (CC0, work in progress) at [open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream). **In Sukrara: the security fixes** (writers edit only their own entries, Bluetooth privacy and limits, Mac wrap expiry / stream id / chunk checks); the draft-2 wire changes wait for v1 ([added / open](docs/24-open-standard.md#in-sukrara), [proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
 | 24b | Open Glucose Stream draft 3 | A clean-sheet redesign from requirements and a fresh state-of-the-art review: records signed by their authors, a day-key tree so a grant is exactly the agreed days (history start and end enforced by keys), envelope keys blinded per day, rotating inboxes, invites with an offer, contributors without echo, emergency invites, HI/LO and quality flags, sensor sessions, carers' alert acks, no constant Bluetooth UUID. MLS rejected. Python reference with deterministic vectors (42-step scenario) and a live run on 3 public relays (9/9). **In Sukrara: next** (decided 2026-10-19; about 30 agent-days, every follower re-invited) | [docs/24b](docs/24b-open-standard-draft3.md) |
 | 24c | Independent review of OGS draft 3 | A skeptical review (cryptography, Nostr, BLE, health data). Sound core (GGM tree, BIP-340 tweaking, NIP-44/59 reuse), but 2 critical holes, both fixed and tested: a removed carer or a lost phone could keep writing into the old epoch (false insulin, false glucose) and members accepted it; any stranger who connected over Bluetooth got the envelopes. Also fixed: overclaimed unlinkability, `ended`/grant ordering, emergency invites could acknowledge alerts, 96-bit invite fingerprint, merge ties, re-subscription cost, grants carry each epoch's membership. 26 findings: 22 accepted, 3 rejected, 1 deferred; third-party publishers decided out of draft 3. **In Sukrara: nothing** (spec only) | [docs/24c](docs/24c-draft3-review.md) |
@@ -310,12 +318,12 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 
 ## Try it
 
-Downloads: [v0.11.26](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.26) (Android and Mac)
+Downloads: [v0.11.27](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.27) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.26.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.27.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -325,10 +333,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.26.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.27.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.26.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.27.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

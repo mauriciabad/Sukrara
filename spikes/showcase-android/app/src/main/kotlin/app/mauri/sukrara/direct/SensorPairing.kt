@@ -5,19 +5,23 @@ package app.mauri.sukrara.direct
 
 import android.content.Context
 import app.mauri.sukrara.core.SensorLife
+import app.mauri.sukrara.core.SensorProfile
 import app.mauri.sukrara.core.SensorProfiles
 import java.io.File
 import org.json.JSONObject
 
 /**
- * Per-sensor pairing state needed to (re)connect to a Libre 3 without NFC.
+ * The saved sensor (`sensor.json`), one generic record keyed by [profileId]: what the direct source needs to
+ * (re)connect to it. For a Libre 3 it is the NFC tap's address, PIN and start time plus [kAuth].
  *
  * Written by the app itself: the NFC scan ([Libre3Nfc]) gives the address, PIN and start time; the first Bluetooth
  * connection after it runs a fresh pairing and adds [kAuth]. (The older spikes imported this file from Juggluco.)
  * It is a secret: never log [pin] or [kAuth], never copy it off the device.
  *
  * [profileId] names the sensor family ([SensorProfiles]) and so the driver ([Drivers]); a file written before the
- * field exists is the Libre 3's.
+ * field exists is the Libre 3's. The other families ([forBrand], investigation 23 steps 2–5) keep [serial] = what the
+ * user typed (G6 transmitter id, Aidex X serial; empty for the Dexcom G7 observer and the SmartGuide), [address]
+ * empty until a scan found the sensor, [startEpoch] 0 until the sensor said, and no [pin] / [kAuth].
  */
 data class SensorPairing(
     val serial: String,
@@ -44,8 +48,9 @@ data class SensorPairing(
             val o = JSONObject(f.readText())
             val pin = o.getString("pinHex").hex()
             val kAuth = o.optString("kAuthHex", "").takeIf { it.isNotEmpty() }?.hex()
-            require(pin.size == 4) { "pin must be 4 bytes" }
-            require(kAuth == null || kAuth.size == 149) { "kAuth must be 149 bytes" }
+            val libre3 = o.optString("profile", SensorProfiles.LIBRE_3.id) == SensorProfiles.LIBRE_3.id
+            require(!libre3 || pin.size == 4) { "pin must be 4 bytes" }
+            require(!libre3 || kAuth == null || kAuth.size == 149) { "kAuth must be 149 bytes" }
             return SensorPairing(
                 serial = o.getString("serial"),
                 address = o.getString("address").uppercase(),
@@ -58,6 +63,12 @@ data class SensorPairing(
                 profileId = o.optString("profile", SensorProfiles.LIBRE_3.id),
             )
         }
+
+        /** A new sensor of a family that isn't paired by NFC: the brand step's typed [id] (or none) and its profile. */
+        fun forBrand(profile: SensorProfile, id: String) = SensorPairing(
+            serial = id, address = "", startEpoch = 0, pin = ByteArray(0), kAuth = null, securityVersion = 0,
+            wearMin = profile.wearMin, warmupMin = profile.warmupMin, profileId = profile.id,
+        )
 
         fun forget(context: Context) {
             File(context.filesDir, FILE).delete()

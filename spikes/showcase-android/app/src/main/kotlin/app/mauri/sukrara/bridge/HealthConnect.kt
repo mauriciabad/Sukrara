@@ -17,6 +17,7 @@ import android.health.connect.datatypes.units.BloodGlucose
 import android.os.OutcomeReceiver
 import android.util.Log
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.core.SensorOutputs
 import app.mauri.sukrara.owner.OwnerDb
 import java.time.Instant
 import java.time.ZoneId
@@ -82,18 +83,23 @@ object HealthConnect {
     /** The record id Health Connect dedupes on: one per minute of glucose. */
     fun clientId(t: Long) = "sukrara-glucose-${t / 60}"
 
-    private val device by lazy {
+    private val devices = java.util.concurrent.ConcurrentHashMap<String, Device>()
+
+    /**
+     * The reading's sensor (its `dev` tag → profile, `core/SensorOutputs`): Abbott · FreeStyle Libre 3 for the Libre 3,
+     * the brand and "<model> (untested)" for the other families, no manufacturer / model when unknown.
+     */
+    private fun device(dev: String): Device = devices.getOrPut(dev) {
         Device.Builder()
             .setType(Device.DEVICE_TYPE_UNKNOWN)   // Health Connect has no CGM device type
-            .setManufacturer("Abbott")
-            .setModel("FreeStyle Libre 3")
+            .apply { SensorOutputs.healthConnectDevice(dev)?.let { (maker, model) -> setManufacturer(maker); setModel(model) } }
             .build()
     }
 
     private fun record(r: Reading): BloodGlucoseRecord {
         val time = Instant.ofEpochSecond(r.t)
         val meta = Metadata.Builder()
-            .setDevice(device)
+            .setDevice(device(r.dev))
             .setRecordingMethod(Metadata.RECORDING_METHOD_AUTOMATICALLY_RECORDED)
             .setClientRecordId(clientId(r.t))
             .setClientRecordVersion(1)

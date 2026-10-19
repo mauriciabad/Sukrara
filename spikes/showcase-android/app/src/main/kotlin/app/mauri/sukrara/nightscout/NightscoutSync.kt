@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.nightscout
 
+import app.mauri.sukrara.core.SensorOutputs
+import app.mauri.sukrara.core.SensorProfile
 import app.mauri.sukrara.core.Reading
 import java.util.TimeZone
 
@@ -32,14 +34,15 @@ object NightscoutSync {
     }
 
     fun send(client: NsClient, cfg: NsConfig, plan: NightscoutQueue.Plan, state: NightscoutQueue.State, readings: List<Reading>,
-             zone: TimeZone, nowS: Long, save: (NightscoutQueue.State) -> Unit): Result {
+             zone: TimeZone, nowS: Long, save: (NightscoutQueue.State) -> Unit, sensor: SensorProfile? = null): Result {
         var st = state
         var sent = 0; var dropped = 0
         val prevOf = HashMap<Long, Reading>()
         readings.sortedBy { it.t }.zipWithNext { a, b -> prevOf[b.t] = a }
         val entries = if (cfg.api == NsApi.V3) plan.entries.takeLast(NightscoutQueue.V3_MAX_PER_CYCLE) else plan.entries
         for (chunk in entries.chunked(NightscoutQueue.BATCH)) {
-            val docs = chunk.map { NsDocs.entry(it, prevOf[it.t], cfg.device, zone, cfg.api) }
+            // each entry names its own sensor ("Sukrara" for the Libre 3, as always; "Sukrara · <model> (untested)" else)
+            val docs = chunk.map { NsDocs.entry(it, prevOf[it.t], SensorOutputs.uploader(cfg.device, SensorOutputs.profileOf(it.dev)), zone, cfg.api) }
             when (val o = client.postEntries(docs)) {
                 is Outcome.Ok -> { val bad = if (cfg.api == NsApi.V3) client.lastRejected else 0; sent += chunk.size - bad; dropped += bad }
                 is Outcome.Rejected -> dropped += chunk.size
@@ -58,7 +61,7 @@ object NightscoutSync {
         }
         if (plan.settled.isNotEmpty()) st = NightscoutQueue.sentTreatments(st, plan.settled).also(save)
         plan.sensor?.let { s ->
-            when (val o = client.postTreatments(NsDocs.sensorEvents(s, cfg.device, zone))) {
+            when (val o = client.postTreatments(NsDocs.sensorEvents(s, cfg.device, zone, sensor))) {
                 is Outcome.Ok -> sent += 2
                 is Outcome.Rejected -> dropped += 2
                 else -> throw NsFailure(o)
