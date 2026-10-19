@@ -1,5 +1,9 @@
 # Share your glucose without a cloud: the Open Glucose Stream
 
+> **Work in progress.** This specification is still being developed and can change at any time. When Sukrara 1.0
+> is released, its versions will be consolidated: only the latest is kept, earlier drafts are deleted, and the
+> version numbering starts again. Don't rely on "draft 3" as a stable name or number.
+
 Sukrara shares your glucose with the people you choose. We're turning the way it does that into an **open
 standard**, the Open Glucose Stream (OGS), so any app can join in: a watch, a widget, Home Assistant, a clinic's
 viewer, or another CGM app your family already uses.
