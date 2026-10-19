@@ -165,6 +165,40 @@ enum GraphFixtures {
         print("graph fixtures: \(n) cases, \(failures) failed")
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
             + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
+            + mark(dir.appendingPathComponent("mark"))
+    }
+
+    /// The ring's mark and the % column's crown (spikes/graph-fixtures/mark/*.json, the files GraphFixtureTest.mark runs).
+    static func mark(_ dir: URL) -> Int {
+        var failures = 0, n = 0
+        let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
+        if files.isEmpty { print("FAIL mark fixtures: none in \(dir.path)"); return 1 }
+        for f in files {
+            guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cases = root["cases"] as? [[String: Any]] else { print("FAIL mark/\(f): unreadable"); failures += 1; continue }
+            for c in cases {
+                let t = c["tir"] as? [String: Double] ?? [:], e = c["expect"] as? [String: Any] ?? [:]
+                let tir = TimeInRange(veryLow: t["veryLow"] ?? 0, low: t["low"] ?? 0, tight: t["tight"] ?? 0, target: t["target"] ?? 0,
+                                      high: t["high"] ?? 0, veryHigh: t["veryHigh"] ?? 0, coverage: t["coverage"] ?? 0)
+                let range: TirRange = c["range"] as? String == "tight" ? .tight : .inRange
+                let col = GlucoseGraph.pct3(tir.below, tir.inRange, tir.above)
+                let text = ShareText.of(tir.of(range), range == .inRange ? .inRange : nil)
+                let checks: [(String, String, String)] = [
+                    ("mark", TirMark.of(tir, range).rawValue, e["mark"] as? String ?? "?"),
+                    ("text", text, e["text"] as? String ?? "?"),
+                    ("column", "\([col.0, col.1, col.2])", "\(e["column"] as? [Int] ?? [])"),
+                    ("crown", "\(TirMark.column(tir))", "\(e["crown"] as? Bool ?? false)"),
+                    ("flower", Bloom.of(tir, range)?.rawValue ?? "none", e["flower"] as? String ?? "?"),
+                ]
+                for (k, got, want) in checks where got != want {
+                    print("FAIL mark/\(f): \(c["name"] as? String ?? "?"): \(k) \(got) ≠ \(want)"); failures += 1
+                }
+                n += 1
+            }
+        }
+        print("mark fixtures: \(n) cases, \(failures) failed")
+        return failures
     }
 
     /// Time shares against a goal (spikes/graph-fixtures/share/*.json, the files GraphFixtureTest.share runs).

@@ -80,15 +80,18 @@ enum class Goal(val text: String) {
  * A time share as the number of a percentage, without the "%" (the callers' layouts differ): "64", "5.2", "70.2".
  * Whole percent from 10 % up; one decimal under 10 % (the low ranges' goals are 1 % and 4 %); and more decimals (up to
  * two) whenever rounding would put the number on the other side of its goal than the value itself, so 5.2 % against
- * "< 5 %" never reads "5" (met) and 69.7 % against the 70 % coverage never reads "70". A non-zero share too small to
- * show is "<0.1". The same rule and cases as the Mac (`ShareText` in SukraraGraph.swift; spikes/graph-fixtures/share).
+ * "< 5 %" never reads "5" (met) and 69.7 % against the 70 % coverage never reads "70"; likewise a share that isn't all
+ * never reads "100" (the crown's number, [TirMark]): 99.6 % is "99.6". A non-zero share too small to show is "<0.1", one
+ * too close to all ">99.9". The same rule and cases as the Mac (`ShareText` in SukraraGraph.swift; spikes/graph-fixtures/share).
  */
 object ShareText {
     private fun format(x: Double, met: ((Double) -> Boolean)?, locale: java.util.Locale): String {
         fun shown(d: Int): Double { val k = Math.pow(10.0, d + 2.0); return Math.round(x * k) / k }
         var d = if (x < 0.095) 1 else 0
-        while (d < 2 && met != null && met(shown(d)) != met(x)) d++
+        // more decimals while rounding crosses the goal, or turns a share that isn't all into "100" (the crown's number)
+        while (d < 2 && ((met != null && met(shown(d)) != met(x)) || (x < 1.0 && shown(d) >= 1.0))) d++
         if (x > 0 && shown(d) == 0.0) return "<" + "%.1f".format(locale, 0.1)
+        if (x < 1.0 && shown(d) >= 1.0) return ">" + "%.1f".format(locale, 99.9)
         return "%.${d}f".format(locale, shown(d) * 100)
     }
 

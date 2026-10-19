@@ -232,7 +232,7 @@ extension Bands {
 
     /// Every graph setting (UserDefaults); "Reset All Graph Settings" removes them.
     static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours"]
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "columnCrown", "ringMarks", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours"]
 
     /// Settings changed (Settings › Graph or `defaults write`): redraw and re-publish to the widgets.
     func reloadGraph() {

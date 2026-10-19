@@ -87,6 +87,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
 
@@ -225,12 +226,12 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                 slot = { item, main ->
                     Canvas(Modifier.fillMaxSize()) {
                         drawIntoCanvas {
-                            Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal, density)
-                            if (main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(it.nativeCanvas, size.width / 2, size.height / 2,
-                                size.minDimension / 2, countdown, pal)
+                            Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal,
+                                density, countdown.takeIf { main })
                         }
                     }
-                })
+                },
+                under = { items, cx, cy, r -> drawIntoCanvas { Slots.drawUnder(it.nativeCanvas, items, cx, cy, r, pal) } })
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
                 val st = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx))
@@ -290,7 +291,8 @@ fun SensorLifeBadge(look: app.mauri.sukrara.graph.SensorBadge.Look, pal: GraphPa
  */
 @Composable
 fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Composable (scale: Float) -> Unit,
-                      slot: @Composable (item: T, main: Boolean) -> Unit) {
+                      slot: @Composable (item: T, main: Boolean) -> Unit,
+                      under: (androidx.compose.ui.graphics.drawscope.DrawScope.(items: List<T>, cx: List<Float>, cy: Float, r: Float) -> Unit)? = null) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -301,14 +303,32 @@ fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Compo
                 fontWeight = FontWeight.Bold, fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None)).size.width
         } / density.density
         val all = slotsFor(3)
-        val fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
+        var fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
             else ValueFit.of(maxWidth.value, maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), all.size)
-        val slots = slotsFor(fit.slots)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        var slots = slotsFor(fit.slots)
+        // laurels move the slots apart (Slots.extraGap): the value fits in what is left
+        fun extraDp(s: List<T>) = if (s.all { it is SlotItem }) Slots.extraWidth(s.map { it as SlotItem }, ValueFit.SLOT_DP / 2) else 0f
+        if (number != null && extraDp(slots) > 0) {
+            fit = ValueFit.of(maxWidth.value - extraDp(slots), maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), fit.slots)
+            slots = slotsFor(fit.slots)
+        }
+        val items = if (slots.all { it is SlotItem }) slots.map { it as SlotItem } else null
+        // [under] (the rings' laurels) for all slots first, behind the whole row: what is next to them covers them
+        Row(Modifier.drawBehind {
+            if (under != null) {
+                val s = ValueFit.SLOT_DP.dp.toPx(); val g = ValueFit.SLOT_GAP_DP.dp.toPx()
+                val cx = items?.let { Slots.centers(it, size.width, s, g) } ?: slots.indices.map { size.width - s / 2 - it * (s + g) }
+                under(slots, cx, size.height / 2, s / 2)
+            }
+        }, verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { value(fit.scale) }
             // the main ring (the sensor countdown ring covers it): Slots.mainIndex
             val main = if (slots.all { it is SlotItem }) Slots.mainIndex(slots.map { it as SlotItem }) else 0
-            for ((i, item) in slots.withIndex().reversed()) Box(Modifier.padding(start = ValueFit.SLOT_GAP_DP.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
+            for ((i, item) in slots.withIndex().reversed()) {
+                val extra = items?.let { Slots.extraGap(it, i, ValueFit.SLOT_DP / 2) } ?: 0f
+                val edge = if (i == 0) items?.let { Slots.edgeInset(it, ValueFit.SLOT_DP / 2) } ?: 0f else 0f
+                Box(Modifier.padding(start = (ValueFit.SLOT_GAP_DP + extra).dp, end = edge.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
+            }
         }
     }
 }

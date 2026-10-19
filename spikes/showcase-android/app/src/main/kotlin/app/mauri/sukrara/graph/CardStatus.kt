@@ -159,13 +159,87 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
-    /** Draw [item] as a circle of [radius] around ([cx], [cy]). */
-    fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float) =
+    private fun mark(item: SlotItem) =
+        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.mark(item.m.tir, item.spec) else TirMark.NONE
+    private fun laurel(item: SlotItem) = mark(item) != TirMark.NONE
+
+    /**
+     * Extra room between [items]`[i]` and the next one to its left when either wears a laurel ([r] = a slot's radius):
+     * 0.22 r, so the gap is 0.5 r. One laurel's branch then clears the neighbour; two laurels' facing stems (on circles
+     * of 1.25 r) touch in the middle of the gap, where the wreaths meet.
+     */
+    fun extraGap(items: List<SlotItem>, i: Int, r: Float): Float =
+        if (i + 1 < items.size && (laurel(items[i]) || laurel(items[i + 1]))) r * 0.22f else 0f
+
+    /** Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r, so its branch stays mostly on the card. */
+    fun edgeInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && laurel(items[0])) r * 0.3f else 0f
+
+    /** The slots' centres, right to left from [right] (the card's edge), [edgeInset] in, [gap] + [extraGap] apart. */
+    fun centers(items: List<SlotItem>, right: Float, size: Float, gap: Float): List<Float> {
+        val out = ArrayList<Float>(items.size)
+        var x = right - edgeInset(items, size / 2) - size / 2
+        for (i in items.indices) { out += x; x -= size + gap + extraGap(items, i, size / 2) }
+        return out
+    }
+
+    /** All the [extraGap]s of [items] and the [edgeInset] together. */
+    fun extraWidth(items: List<SlotItem>, r: Float) = items.indices.sumOf { extraGap(items, it, r).toDouble() }.toFloat() + edgeInset(items, r)
+
+    /**
+     * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order).
+     * Between two laurelled rings the facing sides meet ([Laurel.Side.MERGED]); every other side is the whole branch,
+     * which the neighbour covers where it still reaches it.
+     */
+    fun drawUnder(cv: Canvas, items: List<SlotItem>, cx: List<Float>, cy: Float, radius: Float, pal: GraphPalette) {
+        val colors = items.map { item ->
+            if (laurel(item)) ColorUtils.setAlphaComponent(pal.tight, (255 * (item as SlotItem.Metric).emphasis).toInt()) else null
+        }
+        val order = items.indices.sortedBy { cx[it] }   // left to right
+        fun side(n: Int?) = if (n != null && colors[n] != null) Laurel.Side.MERGED else Laurel.Side.FULL
+        for ((p, i) in order.withIndex()) {
+            val c = colors[i] ?: continue
+            val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
+            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
+        }
+        // The flowers: a tip flower on each side, except where two flowered laurels meet: one shared piece there, the
+        // flower of the ring that isn't faded, or of the higher number when both are faded or neither is.
+        val blooms = items.map { item -> (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && it.spec.marks }?.let { Bloom.of(it.m.tir, it.spec.range) } }
+        fun alpha(i: Int) = (255 * (items[i] as SlotItem.Metric).emphasis).toInt()
+        for ((p, i) in order.withIndex()) {
+            val b = blooms[i] ?: continue
+            val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
+            if (l == null || blooms[l] == null) Blooms.tip(cv, b, cx[i], cy, radius, true, pal, alpha(i))
+            if (r == null || blooms[r] == null) Blooms.tip(cv, b, cx[i], cy, radius, false, pal, alpha(i))
+            else Blooms.center(cv, sharedBloom(items, blooms, i, r), cx[i], cx[r], cy, radius, pal, alpha(i), alpha(r))
+        }
+    }
+
+    /** Which of two meeting rings' [Bloom]s the shared piece uses: the unfaded ring's, else the higher number's. */
+    private fun sharedBloom(items: List<SlotItem>, blooms: List<Bloom?>, a: Int, b: Int): Bloom {
+        val ma = items[a] as SlotItem.Metric; val mb = items[b] as SlotItem.Metric
+        val first = when {
+            ma.emphasis != mb.emphasis -> if (ma.emphasis > mb.emphasis) a else b
+            else -> if (ma.m.tir.of(ma.spec.range) >= mb.m.tir.of(mb.spec.range)) a else b
+        }
+        return blooms[first]!!
+    }
+
+    /**
+     * Draw [item] as a circle of [radius] around ([cx], [cy]), with the sensor [countdown] ring over it (the main slot's;
+     * a time-in-range ring draws it under its crown).
+     */
+    fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float,
+             countdown: Double? = null) {
+        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) {
+            TirRing.draw(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis, d, countdown)
+            return
+        }
         when (item) {
-            is SlotItem.Metric -> if (item.spec.kind == SlotKind.TIR) TirRing.draw(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis, d)
-                else MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d)
+            is SlotItem.Metric -> MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d)
             is SlotItem.Last -> LastSlot.draw(cv, cx, cy, radius, item.info, nowS, pal, d)
         }
+        SensorBadge.drawCountdown(cv, cx, cy, radius, countdown, pal)
+    }
 }
 
 /**

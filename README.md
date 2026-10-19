@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.28/Sukrara-0.11.28.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.29/Sukrara-0.11.29.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.28/Sukrara-0.11.28.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.29/Sukrara-0.11.29.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -55,7 +55,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 **On your phone** (Android 16+)
 - Current value, continuous trend arrow and one glucose graph everywhere (app, widgets, notification, Mac): a 12 h
   chart with the time spent at each level beside it, the share of time below / in / above range (very low, very
-  good and very high inside), and time-in-range rings for 1, 7 or 14 days. No "time ago": the reading's time
+  good and very high inside), and time-in-range rings for 1, 7 or 14 days. A perfect window earns a green crown (on
+  the ring and over the 100 beside the chart) with a flowered laurel; with the lows' goals met, 90 % earns a laurel and
+  95–99 % a flowered one (lavender, forget-me-not, daisy, cherry, rosette); both can be turned off in the graph settings. No "time ago": the reading's time
   appears only once it's late, then the number is struck through, then hidden. A dashed line at 100 plus lines of
   your own, the very good part of the range in its own colour, and extremely high (≥ 300) in magenta. Ranges,
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.
@@ -318,12 +320,12 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 
 ## Try it
 
-Downloads: [v0.11.28](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.28) (Android and Mac)
+Downloads: [v0.11.29](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.29) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.28.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.29.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -333,10 +335,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.28.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.29.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.28.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.29.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

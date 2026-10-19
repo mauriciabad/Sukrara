@@ -255,6 +255,8 @@ struct GeneralView: View {
 
     var hours: Binding<Int> { bind(\.hours) { self.set("graphHours", $0) } }
     var side: Binding<Bool> { bind(\.side) { self.set("side", $0) } }
+    var columnCrown: Binding<Bool> { bind(\.columnCrown) { self.set("columnCrown", $0) } }
+    var ringMarks: Binding<Bool> { bind(\.ringMarks) { self.set("ringMarks", $0) } }
     var gridHours: Binding<Int> { bind(\.gridHours) { self.set("gridHours", $0) } }
     var countdownHours: Binding<Int> { bind(\.countdownHours) { self.set("countdownHours", $0) } }
     var ringCount: Binding<Int> { bind(\.ringCount) { self.set("ringCount", $0) } }
@@ -331,6 +333,8 @@ struct GraphSettingsView: View {
                     ForEach(GraphConfig.windowHours, id: \.self) { Text("\($0) hours").tag($0) }
                 }
                 Toggle("Time in range beside the graph", isOn: model.side)
+                Toggle("Crown at 100 % beside the graph", isOn: model.columnCrown)
+                Toggle("Rewards on the rings (laurel, flowers, crown)", isOn: model.ringMarks)
                 Picker("Vertical lines", selection: model.gridHours) {
                     ForEach(GraphConfig.gridChoices, id: \.self) { h in Text(h == 0 ? "Off" : h == 1 ? "Every hour" : "Every \(h) hours").tag(h) }
                 }

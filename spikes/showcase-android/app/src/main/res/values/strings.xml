@@ -2041,6 +2041,14 @@
     <!-- Group [CHAR LIMIT=30] -->
     <string name="graph_group_beside_graph">Beside the graph</string>
     <!-- Switch [CHAR LIMIT=40] -->
+    <!-- Switch title in Graph settings: the laurel, flowers and crown the time-in-range rings wear [CHAR LIMIT=40] -->
+    <string name="graph_ring_marks">Rewards on the rings</string>
+    <!-- Its summary [CHAR LIMIT=90] -->
+    <string name="graph_ring_marks_summary" formatted="false">A laurel from 90 % in range, flowers from 95 %, a crown at 100 %</string>
+    <!-- Switch title in Graph settings: the crown over a perfect 100 % beside the chart [CHAR LIMIT=40] -->
+    <string name="graph_column_crown" formatted="false">Crown at 100 %</string>
+    <!-- Its summary [CHAR LIMIT=90] -->
+    <string name="graph_column_crown_summary" formatted="false">Over the 100 % when nothing was out of range</string>
     <string name="graph_side">Time in range and distribution</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
     <string name="graph_side_summary" formatted="false">The % of time below, in and above range, and how much time was spent at each level</string>

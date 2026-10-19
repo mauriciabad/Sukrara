@@ -107,11 +107,15 @@ struct GlucoseWidgetView: View {
                 let now = c.date.timeIntervalSince1970
                 // tinted modes map luminance to opacity: fainter grid and band there
                 let pal = mode.tinted ? GraphPalette.of(dark: scheme == .dark).tinted() : GraphPalette.of(dark: scheme == .dark)
+                // the picture reaches `overflow` into the widget's margins, so a ring's laurel or crown that overflows the
+                // card shows there instead of being cut at the card's edge
+                let overflow: CGFloat = 15
                 if let img = GlucoseCard.image(size: geo.size, scale: 2, readings: s.graphReadings, marks: s.graphMarks,
                                                now: now, withSensor(style(s.config), s.sensor), pal, metricsOf: { r, b in s.metrics(r, b, now: now) },
-                                               alerts: s.alerts) {
+                                               alerts: s.alerts, overflow: overflow) {
                     Image(decorative: img, scale: 2)
                         .resizable()
+                        .frame(width: geo.size.width + 2 * overflow, height: geo.size.height + 2 * overflow)
                         .frame(width: geo.size.width, height: geo.size.height)
                 }
             }

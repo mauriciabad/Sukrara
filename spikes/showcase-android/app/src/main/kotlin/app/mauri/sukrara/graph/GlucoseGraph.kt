@@ -63,6 +63,8 @@ data class GraphStyle(
     val lines: List<Int> = DEFAULT_LINES,
     /** Hours between the vertical lines, at least ([GraphConfig.gridHours]); 0 = none (the time labels stay). */
     val gridHours: Int = 1,
+    /** The crown over a perfect 100 in the % column ([GraphConfig.columnCrown]). */
+    val crown: Boolean = true,
 )
 
 /**
@@ -237,6 +239,14 @@ object GlucoseGraph {
             label(hi, cHi)
             label(inr, cIn)
             label(lo, cLo)
+            // The crown over a perfect 100 (TirMark.column), where it clears the label above.
+            if (st.crown && TirMark.column(tir)) {
+                val numW = pctBig.measureText("100")
+                val cw = numW * 0.62f
+                val bottom = cIn + pctBig.textSize * (0.36f - 0.72f) - 1.5f * d
+                if (bottom - cw * Crown.H >= cHi + pctBig.textSize * 0.36f + 2 * d)
+                    Crown.draw(cv, left - 4 * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
+            }
         }
 
         if (marks) TreatmentMarks.draw(cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
@@ -302,7 +312,10 @@ object GlucoseGraph {
         }
     }
 
-    /** Three shares as whole percentages that add up to 100 (largest remainder). */
+    /**
+     * Three shares as whole percentages that add up to 100 (largest remainder). The middle one (in range) is 100 only
+     * when the others are nothing: that 100 wears the crown ([TirMark.column]).
+     */
     fun pct3(a: Double, b: Double, c: Double): Triple<Int, Int, Int> {
         val raw = doubleArrayOf(a, b, c).map { it * 100 }
         val total = raw.sum()
@@ -310,6 +323,7 @@ object GlucoseGraph {
         val base = raw.map { floor(it).toInt() }.toIntArray()
         var left = total.roundToInt() - base.sum()
         raw.indices.sortedByDescending { raw[it] - base[it] }.forEach { if (left > 0) { base[it]++; left-- } }
+        if (base[1] == 100 && (a > 0 || c > 0)) { base[1]--; base[if (a >= c) 0 else 2]++ }
         return Triple(base[0], base[1], base[2])
     }
 

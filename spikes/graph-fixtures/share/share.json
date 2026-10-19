@@ -24,6 +24,11 @@
   {"name": "coverage 69.7 %: not \"70\" against at least 70 %", "x": 0.697, "goal": "coverage", "locale": "en-US", "expect": "69.7"},
   {"name": "coverage 70.4 %: met, whole", "x": 0.704, "goal": "coverage", "locale": "en-US", "expect": "70"},
   {"name": "es-ES decimal comma", "x": 0.052, "goal": "veryHigh", "locale": "es-ES", "expect": "5,2"},
-  {"name": "es-ES trace", "x": 0.0003, "goal": "veryLow", "locale": "es-ES", "expect": "<0,1"}
+  {"name": "es-ES trace", "x": 0.0003, "goal": "veryLow", "locale": "es-ES", "expect": "<0,1"},
+  {"name": "99.6 % in range: \"100\" is only for all of it (the crown)", "x": 0.996, "goal": "inRange", "locale": "en-US", "expect": "99.6"},
+  {"name": "99.96 % in range: two decimals", "x": 0.9996, "goal": "inRange", "locale": "en-US", "expect": "99.96"},
+  {"name": "99.996 % in range: too close to all to show", "x": 0.99996, "goal": "inRange", "locale": "en-US", "expect": ">99.9"},
+  {"name": "all of it: 100", "x": 1.0, "goal": "inRange", "locale": "en-US", "expect": "100"},
+  {"name": "99.6 % very good (no goal): not 100 either", "x": 0.996, "goal": null, "locale": "es-ES", "expect": "99,6"}
  ]
 }

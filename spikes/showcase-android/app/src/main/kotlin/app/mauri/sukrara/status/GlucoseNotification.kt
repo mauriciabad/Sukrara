@@ -294,17 +294,17 @@ object GlucoseNotification {
         val room = (wDp - valueDp - 6f - 34f - 12f - 8f) * d
         val max = ((room + gap) / (size + gap)).toInt().coerceIn(0, 4)
         val items = appSlots(c, history, treatments, now, max)
-        val slots = if (items.isEmpty()) null else createBitmap((items.size * size + (items.size - 1) * gap).toInt(), size.toInt()).also { bmp ->
+        val slots = if (items.isEmpty()) null else createBitmap((items.size * size + (items.size - 1) * gap + Slots.extraWidth(items, size / 2)).toInt(), size.toInt()).also { bmp ->
             val cv = Canvas(bmp)
             val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = surface }
-            var x = bmp.width.toFloat()
+            val x = bmp.width.toFloat()
             val main = Slots.mainIndex(items)
             val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
+            val cx = Slots.centers(items, x, size, gap)
+            Slots.drawUnder(cv, items, cx, size / 2, size / 2 - 3 * d, pal)
             for ((i, item) in items.withIndex()) {
-                cv.drawCircle(x - size / 2, size / 2, size / 2, fill)
-                Slots.draw(cv, item, x - size / 2, size / 2, size / 2 - 3 * d, now, pal, d)
-                if (i == main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(cv, x - size / 2, size / 2, size / 2 - 3 * d, countdown, pal)
-                x -= size + gap
+                cv.drawCircle(cx[i], size / 2, size / 2, fill)
+                Slots.draw(cv, item, cx[i], size / 2, size / 2 - 3 * d, now, pal, d, countdown.takeIf { i == main })
             }
         }
         Art(graph, slots).also { artCache = it; artKey = key }   // the previous ones may still be parcelled: the GC takes them

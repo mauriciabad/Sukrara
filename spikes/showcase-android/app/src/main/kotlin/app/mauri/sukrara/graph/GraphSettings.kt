@@ -50,6 +50,10 @@ data class GraphConfig(
     val ringOrder: List<Band> = DEFAULT_RING_ORDER,
     /** The time-in-range rectangles + distribution beside the chart (each widget can turn it off on its own). */
     val side: Boolean = true,
+    /** The crown over the 100 % beside the chart ([TirMark.column]). */
+    val columnCrown: Boolean = true,
+    /** The rings' rewards: laurel from 90 %, flowers from 95 %, crown at 100 % ([TirMark]). */
+    val ringMarks: Boolean = true,
     /** Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them). */
     val lines: List<Int> = DEFAULT_LINES,
     /** Hours between the vertical lines at least ([GRID_HOURS]; small charts space them further apart), 0 = none. */
@@ -60,12 +64,13 @@ data class GraphConfig(
     val lastElse: RingSpec? = DEFAULT_LAST_ELSE,
 ) {
     /** [lastElse] with the ring settings applied. */
-    fun lastElseRing() = lastElse?.copy(range = ringRange, order = ringOrder)
+    fun lastElseRing() = lastElse?.copy(range = ringRange, order = ringOrder, marks = ringMarks)
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) =
-        slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder) }
+        slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder, marks = ringMarks) }
     fun graphStyle(hours: Int, hour24: Boolean) =
-        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines, gridHours = gridHours)
+        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines, gridHours = gridHours,
+            crown = columnCrown)
 
     fun toJson(): JSONObject = JSONObject()
         .put("veryLow", bands.veryLow).put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
@@ -75,6 +80,7 @@ data class GraphConfig(
         .put("ringCount", ringCount).put("ringRange", ringRange.name).put("ringOrder", ringOrder.joinToString(",") { it.name })
         .put("slots", slots.joinToString(",", transform = ::slotText))
         .put("side", side)
+        .put("columnCrown", columnCrown).put("ringMarks", ringMarks)
         .put("lines", lines.joinToString(","))
         .put("gridHours", gridHours)
         .put("lastPlace", lastPlace.name)
@@ -97,6 +103,8 @@ data class GraphConfig(
                 ringOrder = o.optString("ringOrder").split(",").mapNotNull { runCatching { Band.valueOf(it) }.getOrNull() }
                     .takeIf { it.toSet().size == Band.entries.size && it.size == Band.entries.size } ?: d.ringOrder,
                 side = o.optBoolean("side", d.side),
+                columnCrown = o.optBoolean("columnCrown", d.columnCrown),
+                ringMarks = o.optBoolean("ringMarks", d.ringMarks),
                 lines = if (o.has("lines")) parseLines(o.optString("lines")) else d.lines,
                 gridHours = o.optInt("gridHours", d.gridHours).takeIf { it in GRID_HOURS } ?: d.gridHours,
                 lastPlace = runCatching { LastPlace.valueOf(o.optString("lastPlace")) }.getOrDefault(d.lastPlace),
