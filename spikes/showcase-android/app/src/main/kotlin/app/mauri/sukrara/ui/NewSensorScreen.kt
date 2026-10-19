@@ -163,7 +163,7 @@ fun NewSensorScreen(onClose: () -> Unit) {
     val now by produceState(Proto.nowS(), tap) { while (true) { value = Proto.nowS(); delay(1_000) } }
 
     val stage: Stage = preview ?: tap?.let { NewSensorFlow.afterTap(it, st.source, st.last?.t, sensor, now, st.sourceError) } ?: when {
-        chosen == null -> Stage.Choose
+        chosen == null -> Stage.Choose()
         chosen?.pairing != Pairing.NfcTap -> NewSensorFlow.afterChoice(chosen!!)
         nfc == null -> Stage.Problem(Trouble.NO_NFC)
         !nfcOn -> Stage.Problem(Trouble.NFC_OFF)
@@ -259,11 +259,13 @@ fun NewSensorScreen(onClose: () -> Unit) {
     }
 
     val setupProfile = (stage as? Stage.Setup)?.let { SensorProfiles.byId(it.profileId) }
-    val previewConfirm = (stage as? Stage.Setup)?.takeIf { it.confirm }?.let { setupProfile }
+    val previewConfirm = (stage as? Stage.Choose)?.confirm?.let { SensorProfiles.byId(it) }
+    // the untested warning, from Continue on the brand step: Cancel stays there, accept goes on to the family's setup
     (confirming ?: previewConfirm)?.let { p ->
         UntestedConfirmDialog(p, onCancel = { confirming = null; if (previewConfirm != null) NewSensorFlow.preview.value = null }) {
             confirming = null
-            pairBrand(p)
+            if (previewConfirm != null) NewSensorFlow.preview.value = null
+            chosen = p; typedId = ""; scanStage = Stage.Waiting
         }
     }
 
@@ -285,7 +287,7 @@ fun NewSensorScreen(onClose: () -> Unit) {
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(32.dp))
-            if (stage is Stage.Choose) ChooseSensor(selected) { selected = it }
+            if (stage is Stage.Choose) ChooseSensor(previewConfirm ?: selected) { selected = it }
             else Swap(heroKey(stage), Modifier.height(260.dp).fillMaxWidth()) { _ ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Hero(stage, nfc, now) }
             }
@@ -350,14 +352,15 @@ fun NewSensorScreen(onClose: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when (stage) {
                 is Stage.Choose -> Primary(stringResource(R.string.newsensor_continue)) {
-                    chosen = selected
-                    typedId = ""
-                    scanStage = Stage.Waiting
+                    when (val c = NewSensorFlow.onContinue(selected)) {
+                        is NewSensorFlow.Continue.Confirm -> confirming = c.profile
+                        is NewSensorFlow.Continue.Go -> { chosen = selected; typedId = ""; scanStage = Stage.Waiting }
+                    }
                 }
                 is Stage.Setup -> {
                     val p = setupProfile ?: SensorProfiles.LIBRE_3
                     val ok = (p.pairing as? Pairing.TypedId)?.let { PairingInput.valid(it, PairingInput.normalize(typedId)) } ?: true
-                    Button(onClick = { if (NewSensorFlow.needsConfirm(p)) confirming = p else pairBrand(p) }, enabled = ok,
+                    Button(onClick = { pairBrand(p) }, enabled = ok,
                         modifier = Modifier.fillMaxWidth().height(56.dp)) {
                         Text(stringResource(R.string.newsensor_pair_button), style = MaterialTheme.typography.titleMedium)
                     }
@@ -696,8 +699,7 @@ private fun LibreViewSignIn(onCancel: () -> Unit, onDone: () -> Unit) {
 
 /**
  * The brand step: every family [NewSensorFlow.choices] lists, as a radio list (Material 3 radio button pattern:
- * the whole row selects, `selectableGroup` for accessibility). Untested families carry an "Untested" tag — tonal,
- * not red: it is a state, not an error.
+ * the whole row selects, `selectableGroup` for accessibility). Untested families carry the red [UntestedTag].
  */
 @Composable
 private fun ChooseSensor(selected: SensorProfile, onSelect: (SensorProfile) -> Unit) {
@@ -715,10 +717,7 @@ private fun ChooseSensor(selected: SensorProfile, onSelect: (SensorProfile) -> U
                         Text(p.name, style = MaterialTheme.typography.bodyLarge)
                         Text(p.brand, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
                     }
-                    if (!p.verified) Surface(shape = CircleShape, color = cs.secondaryContainer) {
-                        Text(stringResource(R.string.newsensor_untested_tag), style = MaterialTheme.typography.labelMedium,
-                            color = cs.onSecondaryContainer, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                    }
+                    if (!p.verified) UntestedTag()
                 }
             }
         }
@@ -726,10 +725,12 @@ private fun ChooseSensor(selected: SensorProfile, onSelect: (SensorProfile) -> U
 }
 
 /**
- * The warning before pairing an untested family: an AlertDialog with the warning icon (developer.android.com/develop/
- * ui/compose/components/dialog: "Confirming user action"). "Pair anyway" is disabled for [UntestedConfirm.WAIT_S]
- * seconds with the count in its label, so the text gets read; Cancel is always enabled, the emphasised (tonal) button
- * and what back / a tap outside do. The wait restarts every time the dialog opens (state lives in the dialog).
+ * The warning when choosing an untested family: an AlertDialog with the warning icon (developer.android.com/develop/
+ * ui/compose/components/dialog: "Confirming user action"), in the error colour roles (icon, title, accept button): the
+ * user asked for red here, the one exception to "red only for errors", because it is a safety warning. "Continue
+ * anyway" is disabled for [UntestedConfirm.WAIT_S] seconds with the count in its label, so the text gets read; Cancel
+ * is always enabled, the emphasised (tonal) button and what back / a tap outside do. The wait restarts every time the
+ * dialog opens (state lives in the dialog).
  */
 @Composable
 internal fun UntestedConfirmDialog(profile: SensorProfile, onCancel: () -> Unit, onPair: () -> Unit) {
@@ -741,14 +742,34 @@ internal fun UntestedConfirmDialog(profile: SensorProfile, onCancel: () -> Unit,
     val left = UntestedConfirm.secondsLeft(elapsed)
     AlertDialog(
         onDismissRequest = onCancel,
+        iconContentColor = MaterialTheme.colorScheme.error,
+        titleContentColor = MaterialTheme.colorScheme.error,
         icon = { Icon(painterResource(R.drawable.ic_sym_warning), contentDescription = null) },
         title = { Text(stringResource(R.string.untested_confirm_title)) },
         text = { Text(stringResource(R.string.untested_confirm_text, profile.name)) },
         confirmButton = {
-            TextButton(onClick = onPair, enabled = left == 0) {
+            TextButton(onClick = onPair, enabled = left == 0,
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
                 Text(if (left > 0) stringResource(R.string.untested_confirm_wait, left) else stringResource(R.string.untested_confirm_accept))
             }
         },
         dismissButton = { FilledTonalButton(onClick = onCancel) { Text(stringResource(R.string.untested_confirm_cancel)) } },
     )
+}
+
+/**
+ * "Untested": a family whose support was never tried on a real sensor (`SensorProfile.verified` false). Red (the error colour on
+ * the error container) with the Material Symbols `science` flask, as the user asked (2026-10-19), everywhere the tag appears:
+ * the brand step and Settings → Glucose source.
+ */
+@Composable
+fun UntestedTag() {
+    val cs = MaterialTheme.colorScheme
+    Surface(shape = CircleShape, color = cs.errorContainer) {
+        Row(Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(painterResource(R.drawable.ic_sym_science), contentDescription = null, tint = cs.error, modifier = Modifier.size(16.dp))
+            Text(stringResource(R.string.newsensor_untested_tag), style = MaterialTheme.typography.labelMedium, color = cs.error)
+        }
+    }
 }

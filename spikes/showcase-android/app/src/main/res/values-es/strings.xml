@@ -673,15 +673,11 @@
     <!-- Sensor screen: no sensor paired [CHAR LIMIT=40] -->
     <string name="sensor_none">Aún no hay sensor</string>
     <!-- Sensor screen: what to do; FreeStyle Libre is a product name [CHAR LIMIT=NONE] -->
-    <string name="sensor_none_text">Escanea tu FreeStyle Libre 3 o 3 Plus para empezar a leerlo aquí.</string>
+    <string name="sensor_none_text">Empareja tu sensor para empezar a leerlo aquí.</string>
     <!-- Sensor screen: when the sensor started; %1$s = date and time [CHAR LIMIT=40] -->
     <string name="sensor_started">Iniciado el %1$s</string>
-    <!-- Sensor screen: another source is selected [CHAR LIMIT=NONE] -->
-    <string name="sensor_not_in_use">Sin usar: la fuente de glucosa es Juggluco</string>
     <!-- Sensor screen: the connection state; %1$s = technical status (English) [CHAR LIMIT=NONE] -->
     <string name="sensor_now">Ahora: %1$s</string>
-    <!-- Sensor screen: switch the source to this sensor [CHAR LIMIT=30] -->
-    <string name="sensor_use">Leer este sensor</string>
     <!-- Sensor screen: open the NFC settings [CHAR LIMIT=25] -->
     <string name="sensor_turn_on_nfc">Activar NFC</string>
     <!-- Sensor screen switch: open the app on a sensor scan [CHAR LIMIT=50] -->
@@ -855,9 +851,9 @@
     <!-- Untested sensor warning dialog: text, %1$s = the sensor (Dexcom G7 / ONE+) [CHAR LIMIT=NONE] -->
     <string name="untested_confirm_text">La compatibilidad de Sukrara con %1$s no está probada: las lecturas pueden ser erróneas o faltar.\n\nSigue usando la app oficial o un glucómetro para confirmar antes de decidir un tratamiento. Un aviso para enviar comentarios se queda en tu pantalla de inicio hasta que este sensor esté verificado.</string>
     <!-- Untested sensor warning dialog: the accept button while it is still disabled, %1$d = seconds left [CHAR LIMIT=30] -->
-    <string name="untested_confirm_wait">Emparejar igualmente (%1$d)</string>
+    <string name="untested_confirm_wait">Continuar igualmente (%1$d)</string>
     <!-- Untested sensor warning dialog: the accept button [CHAR LIMIT=30] -->
-    <string name="untested_confirm_accept">Emparejar igualmente</string>
+    <string name="untested_confirm_accept">Continuar igualmente</string>
     <!-- Untested sensor warning dialog: cancel, the safe default [CHAR LIMIT=20] -->
     <string name="untested_confirm_cancel">Cancelar</string>
     <!-- Home: permanent banner under the graph while the sensor's support is untested, %1$s = the sensor [CHAR LIMIT=NONE] -->
@@ -1044,19 +1040,17 @@
 
     <!-- Settings: glucose source -->
     <string name="source_title">Fuente de glucosa</string>
+    <string name="source_group">Leer la glucosa desde</string>
+    <string name="source_direct_now">Lee tu %1$s</string>
     <string name="source_intro">De dónde obtiene Sukrara tus lecturas.</string>
-    <string name="source_source">Fuente</string>
-    <string name="source_direct">Libre 3 directamente</string>
-    <string name="source_direct_summary">Sukrara se conecta al sensor (escanéalo una vez con NFC)</string>
+    <string name="source_direct">Este teléfono</string>
+    <string name="source_direct_summary">Sukrara lee el sensor por sí misma: FreeStyle Libre 3 / 3 Plus, o un sensor Dexcom, Accu-Chek o Aidex sin probar</string>
     <string name="source_juggluco">Juggluco</string>
     <string name="source_juggluco_summary">Lee el servidor web de Juggluco; Juggluco mantiene el sensor y sus alarmas</string>
-    <string name="source_sensor_summary">Libre 3 %1$s · escanea para iniciarlo o conectarte</string>
-    <string name="source_sensor_summary_none">Escanea para iniciarlo o conectarte</string>
     <string name="source_sensor_unavailable">No disponible mientras Juggluco esté conectado al sensor</string>
-    <string name="source_footer">Solo una app puede conectarse a un Libre 3. Con Libre 3 directamente, las alarmas de Juggluco no suenan; usa Alertas.</string>
+    <string name="source_footer">Solo una app puede leer un sensor a la vez. Mientras lo lee este teléfono, las alarmas de Juggluco no suenan: usa Alertas.</string>
     <string name="source_direct_confirm_title">¿Leer el sensor directamente?</string>
-    <string name="source_direct_confirm_text">Sukrara lee tu Libre 3 por sí misma: escaneas el sensor una vez con NFC. Solo una app puede conectarse a un Libre 3, así que detén Juggluco primero (Pausar app y luego Forzar detención). Mientras Sukrara esté conectada al sensor, las alarmas de Juggluco (baja/alta) NO suenan.</string>
-    <string name="source_direct_confirm_scan">Escanear sensor</string>
+    <string name="source_direct_confirm_text">Sukrara lee tu sensor por sí misma: lo emparejas en la siguiente pantalla. Solo una app puede conectarse a un sensor, así que detén Juggluco primero (Pausar app y luego Forzar detención). Mientras Sukrara esté conectada al sensor, las alarmas de Juggluco (baja/alta) NO suenan.</string>
 
     <!-- Settings: sharing with people -->
     <string name="people_title">Compartir con personas</string>
