@@ -295,7 +295,13 @@ readings just queue (no extra wake-ups). Sukrara's own battery numbers belong to
 
 ## In Sukrara
 
-Not yet. Nothing from this investigation is in the app; the draft below is for the integration step.
+The upload itself isn't in the app yet; the draft below is for the integration step.
+
+**Fixed (branch `w-nsiob`, commit `a40ce5c`)**: the phone's Nightscout *read* API (`bridge/NightscoutApi.kt`) served
+long-acting insulin as a `Note` **with** an `insulin` field, which clients that sum `insulin` (Nightscout's IOB,
+LoopFollow) count as a bolus. It now serves it like the uploader does: a `Note` with the dose only in `notes`.
+`NightscoutApiTest` pins that, `NONE` for no trend and UTC `dateString`. The adapter serves no sensor events, so the
+Sensor Start + Sensor Change rule doesn't apply there. No Mac equivalent: the Mac serves no Nightscout API.
 
 ## To bring into Sukrara
 
@@ -319,8 +325,8 @@ queue, backoff, diff-backfill, roles and conflict ideas here are written so they
 - Hook it into `wearer/WearerExtras` (next to LibreView): `onReading`/`onHistory` → `onReadings`, the TreatmentStore's
   `onChange` → `onTreatmentChanged`, `onSensor` → `onSensorStart`, the battery broadcast → `onBattery`. **Wearer role
   only**; the follower engine doesn't call it (the relay option is a later step, off by default).
-- `bridge/NightscoutApi.kt` (the read adapter) should take its treatment mapping from `NsDocs`. Today it serves
-  long-acting insulin as a `Note` **with** `insulin`, which inflates IOB in any client that sums it.
+- `bridge/NightscoutApi.kt` (the read adapter) should take its treatment mapping from `NsDocs` (its long-acting IOB bug
+  is already fixed on `w-nsiob`, see "In Sukrara").
 - Strings in `values/` + `values-es/`; README *Share with apps*; `docs/FEATURES.md`; `docs/10-showcase.md`.
 
 **Settings** (AOSP-style, Settings → Share with apps → a new group "Nightscout" above the existing local
