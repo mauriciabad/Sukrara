@@ -142,10 +142,12 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
 
     override fun onSensor(serial: String, startEpoch: Long) {
         local.onSensor(serial, startEpoch)
-        Treat.uploader.onSensor(serial, startEpoch)
+        // LibreView takes the Libre 3's sensor and glucose only (SensorProfile.libreView): never another family's
+        Treat.uploader.onSensor(serial, startEpoch, libreView = app.mauri.sukrara.core.SensorOutputs.libreView(app.mauri.sukrara.core.ActiveSensor.profile.value))
     }
 
     override fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {
+        if (!app.mauri.sukrara.core.SensorOutputs.libreView(app.mauri.sukrara.core.ActiveSensor.profile.value)) return
         if (history.isNotEmpty()) Treat.uploader.onHistory(history)
         current?.let { Treat.uploader.onCurrent(it) }
     }

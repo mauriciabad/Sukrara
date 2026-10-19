@@ -79,7 +79,18 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
 
     fun kick() { wake.trySend(Unit) }
 
-    fun onSensor(serial: String, startEpoch: Long) { this.serial = serial; this.startEpoch = startEpoch }
+    /**
+     * The current sensor. [libreView] false (any family but the Libre 3, `SensorProfile.libreView`): no sensor at all
+     * for LibreView — no glucose, no sensor start, no `putSensor` — and what was buffered for the previous one is dropped.
+     */
+    fun onSensor(serial: String, startEpoch: Long, libreView: Boolean) {
+        if (!libreView) {
+            this.serial = null; this.startEpoch = 0
+            synchronized(history) { current = null; history.clear() }
+            return
+        }
+        this.serial = serial; this.startEpoch = startEpoch
+    }
 
     fun onCurrent(g: LibreViewPayload.Glucose) {
         synchronized(history) { current = g }
@@ -166,6 +177,9 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
         }
         return Unit
     }
+
+    /** What the next cycle would upload as sensor glucose (tests: nothing for a family that isn't the Libre 3). */
+    internal fun pendingGlucose(): LibreViewPayload.Sensor? = glucoseBatch(settings.value)
 
     private fun glucoseBatch(s: Settings): LibreViewPayload.Sensor? {
         val serial = serial ?: return null

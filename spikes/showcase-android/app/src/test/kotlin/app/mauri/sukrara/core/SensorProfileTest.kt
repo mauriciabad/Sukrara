@@ -39,9 +39,36 @@ class SensorProfileTest {
         assertEquals(SensorInfo("S", 100, 100 + 14 * 86_400L, 100 + 1_800L), SensorLife.fromStart("S", 100, 20_160, 30))
     }
 
-    @Test fun registryHasOnlyTheLibre3() {
-        assertEquals(listOf(libre3), SensorProfiles.all)
+    /** Investigation 23 steps 2–5: the Libre 3 first and the only verified family; the rest are untested. */
+    @Test fun registryLibre3FirstAndOnlyItVerified() {
+        assertSame(libre3, SensorProfiles.all.first())
         assertSame(libre3, SensorProfiles.byId("libre3"))
-        assertNull(SensorProfiles.byId("dexcom-g7"))
+        assertEquals(listOf("libre3"), SensorProfiles.all.filter { it.verified }.map { it.id })
+        assertEquals(listOf("dexcom-g7", "dexcom-g7-15", "accu-chek-smartguide", "aidex-x", "dexcom-g6"),
+            SensorProfiles.all.filter { !it.verified }.map { it.id })
+        assertEquals(SensorProfiles.all.size, SensorProfiles.all.map { it.id }.toSet().size)
+        // only the Libre 3 is found without scanning (its NFC tap gives the address)
+        assertEquals(listOf(libre3), SensorProfiles.all.filter { !it.needsScan })
+        assertNull(SensorProfiles.byId("lingo"))
+    }
+
+    @Test fun brandWarmupAndLifetime() {
+        assertEquals(30, SensorProfiles.DEXCOM_G7.warmupMin); assertEquals(10 * 1440, SensorProfiles.DEXCOM_G7.wearMin)
+        assertEquals(15 * 1440, SensorProfiles.DEXCOM_G7_15.wearMin)
+        assertEquals(120, SensorProfiles.DEXCOM_G6.warmupMin); assertEquals(10 * 1440, SensorProfiles.DEXCOM_G6.wearMin)
+        assertEquals(60, SensorProfiles.SMARTGUIDE.warmupMin); assertEquals(14 * 1440, SensorProfiles.SMARTGUIDE.wearMin)
+        assertEquals(60, SensorProfiles.AIDEX_X.warmupMin); assertEquals(15 * 1440, SensorProfiles.AIDEX_X.wearMin)
+        assertEquals(Calibration.NONE, SensorProfiles.AIDEX_X.calibration)
+        assertEquals(Calibration.OPTIONAL_ON_SENSOR, SensorProfiles.SMARTGUIDE.calibration)
+    }
+
+    @Test fun typedIds() {
+        val g6 = SensorProfiles.DEXCOM_G6.pairing as Pairing.TypedId
+        val aidex = SensorProfiles.AIDEX_X.pairing as Pairing.TypedId
+        assertEquals("8GABCD", PairingInput.normalize(" 8g-ab cd"))
+        assertEquals(true, PairingInput.valid(g6, "8GABCD"))
+        assertEquals(false, PairingInput.valid(g6, "8GABC"))
+        assertEquals(false, PairingInput.valid(g6, "8gabcd"))   // normalize first
+        assertEquals(true, PairingInput.valid(aidex, PairingInput.normalize("22222a2wc8")))
     }
 }

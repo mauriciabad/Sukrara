@@ -5,6 +5,9 @@ package app.mauri.sukrara.nightscout
 
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.SensorInfo
+import app.mauri.sukrara.core.SensorOutputs
+import app.mauri.sukrara.core.SensorProfile
+import app.mauri.sukrara.core.SensorProfiles
 import app.mauri.sukrara.treatments.Treatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.security.MessageDigest
@@ -64,6 +67,12 @@ object NsDocs {
     fun serverIdentifier(device: String, date: Long, eventType: String? = null): String =
         uuidV5("${device}_$date" + (eventType?.let { "_$it" } ?: ""))
 
+    /**
+     * A site entry is ours when its `device` is [device] or [device] plus a sensor ("Sukrara · Dexcom G7 / ONE+
+     * (untested)", `SensorOutputs.uploader`): a family change must not look like another uploader.
+     */
+    fun ours(dev: String, device: String) = dev == device || dev.startsWith("$device · ")
+
     fun sha1Hex(s: String): String =
         MessageDigest.getInstance("SHA-1").digest(s.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
@@ -121,7 +130,7 @@ object NsDocs {
      * Sensor age: LoopFollow counts only `Sensor Start`, nightguard only `Sensor Change`, Nightscout's SAGE the newest of
      * both. A Libre 3 is inserted and started in one tap: both go up with the same time and their own identifiers.
      */
-    fun sensorEvents(s: SensorInfo, device: String, zone: TimeZone): List<JSONObject> =
+    fun sensorEvents(s: SensorInfo, device: String, zone: TimeZone, profile: SensorProfile? = null): List<JSONObject> =
         listOf("Sensor Change", "Sensor Start").map { type ->
             val ms = s.startEpoch * 1000
             JSONObject()
@@ -130,8 +139,8 @@ object NsDocs {
                 .put("created_at", isoUtc(ms))
                 .put("date", ms)
                 .put("utcOffset", utcOffsetMin(ms, zone))
-                .put("enteredBy", APP).put("app", APP).put("device", device)
-                .put("notes", "Libre 3 ${s.serial}")
+                .put("enteredBy", APP).put("app", APP).put("device", SensorOutputs.uploader(device, profile))
+                .put("notes", (if (profile == null || profile.id == SensorProfiles.LIBRE_3.id) "Libre 3" else SensorOutputs.model(profile)) + " ${s.serial}")
         }
 
     fun deviceStatus(percent: Int, charging: Boolean, ms: Long, device: String, zone: TimeZone): JSONObject = JSONObject()

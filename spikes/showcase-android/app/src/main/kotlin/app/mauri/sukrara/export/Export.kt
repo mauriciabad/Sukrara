@@ -39,7 +39,10 @@ object Export {
     fun load(ctx: Context, period: String): Data {
         val (from, to) = range(period)
         val s = SensorLife.current.value
-        val sensor = s?.let { GlucoseCsv.Sensor(it.serial, it.startEpoch, it.endEpoch) }
+        // the wearer's own sensor family when it isn't a Libre 3 names the rows (followers don't know it)
+        val model = app.mauri.sukrara.core.ActiveSensor.profile.value?.takeIf { it.id != app.mauri.sukrara.core.SensorProfiles.LIBRE_3.id }
+            ?.let { app.mauri.sukrara.core.SensorOutputs.model(it) }
+        val sensor = s?.let { GlucoseCsv.Sensor(it.serial, it.startEpoch, it.endEpoch, model.takeIf { _ -> App.role(ctx) == "owner" }) }
         return when (App.role(ctx)) {
             "owner" -> {
                 Treat.init(ctx)

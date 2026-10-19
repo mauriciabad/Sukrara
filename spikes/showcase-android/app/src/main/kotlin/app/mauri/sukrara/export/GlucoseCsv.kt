@@ -30,7 +30,11 @@ object GlucoseCsv {
     const val MIN_GAP_S = 280L
     private const val MGDL_PER_MMOL = 18.0182
 
-    data class Sensor(val serial: String, val start: Long, val end: Long)
+    /**
+     * [model]: the sensor's model when it isn't a Libre 3 (`core/SensorOutputs.model`, e.g. "Dexcom G7 / ONE+
+     * (untested)"): its rows say "Sukrara · <model>" in Device. Null (the Libre 3, the Mac) keeps "Sukrara".
+     */
+    data class Sensor(val serial: String, val start: Long, val end: Long, val model: String? = null)
     data class Row(val t: Long, val sgv: Int, val rate: Double?)
 
     fun header(mmol: Boolean): List<String> {
@@ -46,8 +50,9 @@ object GlucoseCsv {
     fun write(readings: List<Row>, treatments: List<Treatment>, from: Long, to: Long, zone: ZoneId, generatedAt: Long,
               sensor: Sensor? = null, mmol: Boolean = false): String {
         fun serial(t: Long) = sensor?.takeIf { it.serial.isNotEmpty() && t >= it.start && t < it.end }?.serial ?: ""
+        fun device(t: Long) = sensor?.takeIf { it.model != null && t >= it.start && t < it.end }?.let { "Sukrara · ${it.model}" } ?: "Sukrara"
         fun base(t: Long, type: String) = Array(22) { "" }.also {
-            it[0] = "Sukrara"; it[1] = serial(t); it[2] = local(t, zone); it[3] = type; it[19] = iso(t, zone)
+            it[0] = device(t); it[1] = serial(t); it[2] = local(t, zone); it[3] = type; it[19] = iso(t, zone)
         }
         class Line(val t: Long, val order: Int, val id: String, val f: Array<String>)
         val lines = ArrayList<Line>()

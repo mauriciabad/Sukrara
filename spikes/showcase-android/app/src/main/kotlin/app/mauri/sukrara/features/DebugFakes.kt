@@ -32,7 +32,7 @@ object DebugFakes {
      * shows (2026-10-19): everything that shows or writes made-up data is here.
      */
     val COMMANDS = setOf("fakeSensor", "sensor", "backfill", "sensorEnd", "sensorStart", "sensorUnlock", "alertFeed",
-        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat")
+        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat", "sensorProfile")
 
     fun run(c: Context, cmd: String, i: Intent, out: JSONObject, debug: Boolean = BuildConfig.DEBUG) {
         if (!debug) { out.accumulate("debugOnly", "$cmd: debug builds only, nothing changed"); return }
@@ -56,6 +56,12 @@ object DebugFakes {
                 out.put("cmd", "newSensor $stage")
             }
             "treat" -> treat(c, i, out)
+            // the active sensor's family forced (the untested-sensor banner on home; screenshots), until the source restarts
+            "sensorProfile" -> {
+                val p = app.mauri.sukrara.core.SensorProfiles.byId(i.getStringExtra("profile") ?: "")
+                app.mauri.sukrara.core.ActiveSensor.profile.value = p
+                out.put("cmd", "active sensor profile ${p?.id}")
+            }
             "fakeSensor" -> fakeSensor(c, i, out)
             "sensor" -> sensor(c, i, out)
             "backfill" -> backfill(i, out)

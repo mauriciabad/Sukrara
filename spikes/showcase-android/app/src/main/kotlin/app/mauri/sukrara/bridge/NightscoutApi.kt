@@ -59,7 +59,8 @@ object NightscoutApi {
             val ms = r.epochSec * 1000
             (gt == null || ms > gt) && (gte == null || ms >= gte) && (lt == null || ms < lt) && (lte == null || ms <= lte)
         }.take(count).toList()
-        return arr(rows.map { entry(it, all) })
+        val device = device()
+        return arr(rows.map { entry(it, all, device) })
     }
 
     /** `find[date][$gt]=ms` or `find[dateString][$gte]=ISO` → ms. */
@@ -73,13 +74,17 @@ object NightscoutApi {
         return null
     }
 
-    fun entry(r: Bridge.Reading, all: List<Bridge.Reading>): JSONObject {
+    /** The entries' `device`: "Sukrara", plus the sensor when it isn't a Libre 3 ("Sukrara · Dexcom G7 / ONE+ (untested)"). */
+    fun device(profile: app.mauri.sukrara.core.SensorProfile? = app.mauri.sukrara.core.ActiveSensor.profile.value): String =
+        app.mauri.sukrara.core.SensorOutputs.uploader("Sukrara", profile)
+
+    fun entry(r: Bridge.Reading, all: List<Bridge.Reading>, device: String = "Sukrara"): JSONObject {
         val d = delta(r, all)
         val dir = XdripServer.direction(d)
         val iso = Instant.ofEpochSecond(r.epochSec).toString()
         return JSONObject()
             .put("_id", String.format(Locale.US, "%024x", r.epochSec))
-            .put("device", "Sukrara").put("type", "sgv")
+            .put("device", device).put("type", "sgv")
             .put("date", r.epochSec * 1000).put("dateString", iso).put("sysTime", iso)
             .put("sgv", r.mgdl)
             .put("delta", Math.round((d ?: 0.0) * 1000) / 1000.0)

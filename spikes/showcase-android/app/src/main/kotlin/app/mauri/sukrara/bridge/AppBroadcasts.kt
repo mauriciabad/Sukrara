@@ -11,6 +11,7 @@ import android.util.Log
 import app.mauri.sukrara.App
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.SensorLife
+import app.mauri.sukrara.core.SensorOutputs
 import app.mauri.sukrara.features.Features
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +74,8 @@ object AppBroadcasts {
         if (allowed.isEmpty()) return
         val timeMs = r.t * 1000
         if (!BroadcastPayloads.due(lastSentMs, timeMs)) return
+        // the reading's own family (its dev tag): an untested one has no label and sends nothing
+        val label = SensorOutputs.broadcastLabel(SensorOutputs.profileOf(r.dev)) ?: return
         val sensor = SensorLife.current.value
         val serial = sensor?.serial.orEmpty()
         val p = prefs(ctx)
@@ -80,10 +83,11 @@ object AppBroadcasts {
         val plan = BroadcastPayloads.plan(
             wearer = App.role(ctx) == "owner", direct = Features.value.source == "direct",
             declared = receivers(ctx).associate { it.pkg to it.actions }, allowed = allowed, newSensor = newSensor,
+            sourceInfo = label,
         )
         if (plan.isEmpty()) return
         lastSentMs = timeMs
-        val out = BroadcastPayloads.Out(r.sgv, r.rate, timeMs, serial, (sensor?.startEpoch ?: 0L) * 1000)
+        val out = BroadcastPayloads.Out(r.sgv, r.rate, timeMs, serial, (sensor?.startEpoch ?: 0L) * 1000, label)
         for ((pkg, actions) in plan) for (a in actions) {
             val extras = when (a) {
                 BroadcastPayloads.XDRIP -> BroadcastPayloads.xdrip(out)

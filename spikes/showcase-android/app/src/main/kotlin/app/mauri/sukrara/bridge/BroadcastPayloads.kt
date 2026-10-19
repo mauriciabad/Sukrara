@@ -11,8 +11,11 @@ package app.mauri.sukrara.bridge
  * silent on Android (`getDouble` on a Long extra returns 0), so the types matter as much as the keys.
  */
 object BroadcastPayloads {
-    /** One reading to send: mg/dL, rate mg/dL/min (null = unknown), epoch ms, the sensor serial and start (epoch ms, 0 = unknown). */
-    data class Out(val mgdl: Int, val rate: Double?, val timeMs: Long, val serial: String, val sensorStartMs: Long)
+    /**
+     * One reading to send: mg/dL, rate mg/dL/min (null = unknown), epoch ms, the sensor serial and start (epoch ms, 0 =
+     * unknown), and [sourceInfo] = the family's `SensorProfile.broadcastLabel` (only a verified family has one).
+     */
+    data class Out(val mgdl: Int, val rate: Double?, val timeMs: Long, val serial: String, val sensorStartMs: Long, val sourceInfo: String)
 
     // xDrip+ "BgEstimate": AAPS (xDrip+ source), GlucoDataHandler (→ Wear OS, Android Auto, WatchDrip+, Tasker…).
     const val XDRIP = "com.eveningoutpost.dexdrip.BgEstimate"
@@ -23,13 +26,6 @@ object BroadcastPayloads {
     const val X_SENSOR_STARTED = "com.eveningoutpost.dexdrip.Extras.SensorStartedAt"
     const val X_SOURCE_INFO = "com.eveningoutpost.dexdrip.Extras.SourceInfo"
     const val X_SOURCE_DESC = "com.eveningoutpost.dexdrip.Extras.SourceDesc"
-
-    /**
-     * The sensor label AAPS maps with `SourceSensor.fromString`: "Libre3" → `LIBRE_3`, which AAPS's xDrip+ source counts
-     * as advanced filtering (SMB always / after carbs). It must name the real sensor: Sukrara's direct source reads only
-     * the Libre 3 / 3 Plus. Never a Dexcom label (docs/22 §5).
-     */
-    const val SOURCE_LIBRE3 = "Libre3"
 
     // Patched-LibreLink broadcast: xDrip+ "Libre2 (patched App)" collector, GlucoDataHandler. Not read by AAPS.
     const val LIBRE = "com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING"
@@ -60,7 +56,9 @@ object BroadcastPayloads {
         // xDrip+'s slope is mg/dL per millisecond; GlucoDataHandler multiplies it by 60000 again
         r.rate?.takeIf { !it.isNaN() }?.let { put(X_SLOPE, it / 60_000.0) }
         if (r.sensorStartMs > 0) put(X_SENSOR_STARTED, r.sensorStartMs)
-        put(X_SOURCE_INFO, SOURCE_LIBRE3)
+        // AAPS maps it with SourceSensor.fromString ("Libre3" → advanced filtering: SMB always / after carbs), so it
+        // must be the real sensor's: the profile's broadcastLabel, which only a verified family has (docs/22 §5)
+        put(X_SOURCE_INFO, r.sourceInfo)
         put(X_SOURCE_DESC, "Sukrara")
     }
 
@@ -90,11 +88,13 @@ object BroadcastPayloads {
      * Who gets what for one reading: each allowed package gets every action it declares a receiver for (no switch per
      * format, like Juggluco). [declared] = package → the actions it receives. Nothing at all unless this phone is the
      * **wearer** reading the sensor itself ([wearer], [direct]): a follower's copy must never reach AAPS as if it were a
-     * local sensor, and in Juggluco mode Juggluco broadcasts itself. SENSOR_ACTIVATE only with [newSensor].
+     * local sensor, and in Juggluco mode Juggluco broadcasts itself. SENSOR_ACTIVATE only with [newSensor]. And nothing
+     * for a reading whose family has no broadcast label ([sourceInfo] null: every untested family, `SensorOutputs`): a
+     * closed loop must never consume untested data.
      */
     fun plan(wearer: Boolean, direct: Boolean, declared: Map<String, Set<String>>, allowed: Set<String>,
-             newSensor: Boolean): Map<String, List<String>> {
-        if (!wearer || !direct) return emptyMap()
+             newSensor: Boolean, sourceInfo: String?): Map<String, List<String>> {
+        if (!wearer || !direct || sourceInfo == null) return emptyMap()
         return declared.filterKeys { it in allowed }.mapValues { (_, acts) ->
             ACTIONS.filter { it in acts && (it != LIBRE_ACTIVATE || newSensor) }
         }.filterValues { it.isNotEmpty() }

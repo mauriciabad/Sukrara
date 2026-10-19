@@ -39,7 +39,8 @@ object TidepoolData {
     private val DEVICE_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
     /** A glucose reading (mg/dL, trend in mg/dL/min). */
-    data class Glucose(val t: Long, val sgv: Int, val rate: Double? = null)
+    /** [sensor]: the sensor's model as `core/SensorOutputs.model` names it ("FreeStyle Libre 3", "Dexcom G7 / ONE+ (untested)"); null = unknown. */
+    data class Glucose(val t: Long, val sgv: Int, val rate: Double? = null, val sensor: String? = null)
 
     fun slot(t: Long): Long = Math.floorDiv(t, SLOT_S)
     fun cbgOrigin(slot: Long) = "sukrara-cbg-$slot"
@@ -86,6 +87,8 @@ object TidepoolData {
         r.rate?.takeIf { it.isFinite() && it in -100.0..100.0 }?.let {
             put("trendRate", Math.round(it * 10) / 10.0); put("trendRateUnits", "mg/dL/minute")
         }
+        // which sensor measured it (the data set's device is Sukrara, the uploader): free text in the datum's payload
+        r.sensor?.let { putJsonObject("payload") { put("sensor", it) } }
     }
 
     /** True for the kinds that are data (food / insulin); a note on its own is a Tidepool note instead. */

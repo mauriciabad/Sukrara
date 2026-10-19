@@ -187,7 +187,7 @@ DEBUG_FAKES = APP_KT + "features/DebugFakes.kt"
 FAKE_CALL = re.compile(r"SensorLife\.update\(|SensorEnd\.(fake\w*|unlocked)\(|\bfake(Start|FirstReading)?\(|"
                        r"Live\.(reading|history)\(|\.onReading\(|RootStatusBar\.update\(|\b[Aa]lerts\.test\(|"
                        r"LockscreenWidget\.testPattern\s*=|NewSensorFlow\.preview\.value\s*=(?!\s*null\b)|"
-                       r"Treat\.store\.add\(|\.addTreatment\(")
+                       r"Treat\.store\.add\(|\.addTreatment\(|ActiveSensor\.profile\.value\s*=(?!\s*null\b)")
 FAKE_DEF_OK = (DEBUG_FAKES, APP_KT + "sensorend/SensorEnd.kt")
 
 

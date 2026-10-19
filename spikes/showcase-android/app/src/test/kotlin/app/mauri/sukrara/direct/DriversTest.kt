@@ -15,10 +15,12 @@ class DriversTest {
     private fun pairing(securityVersion: Int = 0) =
         SensorPairing("3MH0001", "18:32:19:B7:1D:11", 1_000, ByteArray(4), null, securityVersion)
 
-    @Test fun oneDriverTheLibre3() {
-        assertEquals(listOf(SensorProfiles.LIBRE_3), Drivers.all.map { it.profile })
+    /** Step 1 had only the Libre 3; steps 2–5 added the untested families, one entry per profile, the Libre 3 first. */
+    @Test fun everyProfileHasItsDriver() {
+        assertEquals(SensorProfiles.all, Drivers.all.map { it.profile })
         assertSame(SensorProfiles.LIBRE_3, Drivers.byId("libre3")!!.profile)
-        assertNull(Drivers.byId("dexcom-g7"))
+        assertSame(SensorProfiles.DEXCOM_G7, Drivers.byId("dexcom-g7")!!.profile)
+        assertNull(Drivers.byId("lingo"))
     }
 
     /** DirectSource's old `securityVersion != 0` check, now the Libre 3 entry's. */

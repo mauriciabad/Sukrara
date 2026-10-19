@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.SensorInfo
 import app.mauri.sukrara.core.SensorLife
+import app.mauri.sukrara.core.SensorProfiles
 import app.mauri.sukrara.direct.DirectSource
 import app.mauri.sukrara.libreview.LibreViewPayload
 import app.mauri.sukrara.wearer.Live
@@ -17,7 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Investigation 02's direct Libre 3 reader behind the owner's [GlucoseSource] seam. Opt-in only (settings, with a
+ * Investigation 02's direct sensor reader (the Libre 3, and since investigation 23 the untested families) behind the owner's [GlucoseSource] seam. Opt-in only (settings, with a
  * warning): while it runs, this app holds the sensor and Juggluco (and its alarms) gets nothing.
  */
 class DirectAdapter(private val ctx: Context) : GlucoseSource {
@@ -49,5 +50,6 @@ class DirectAdapter(private val ctx: Context) : GlucoseSource {
         inner = null
     }
 
-    private fun Bridge.Reading.toCore() = Reading(epochSec, mgdl, rate, "libre3")
+    /** Tagged with the sensor's family (`SensorProfile.id`: "libre3", "dexcom-g7", …), the `dev` of every reading. */
+    private fun Bridge.Reading.toCore() = Reading(epochSec, mgdl, rate, inner?.profileId ?: SensorProfiles.LIBRE_3.id)
 }
