@@ -300,7 +300,7 @@ Visual language as before: actions are pills, red only for errors, no pointless 
   - an IOB slot in the value-card slot system (widgets, lock screen, notification);
   - reservoir and IOB in the Mac menubar dropdown;
   - IOB and pump status for followers.
-  - **Commands stay on the wearer's phone (and maybe their watch). Never from the Mac or a follower.**
+  - **Only the wearer's phone talks to the pump.** Other devices can *ask*, with a signed command (see below).
 - **Bolus (the "Command" step).** The flow:
   1. the amount, with the pump's own calculator suggestion (`BolusCalcDataSnapshotRequest`), so Sukrara adds no
      dosing algorithm;
@@ -314,6 +314,77 @@ Visual language as before: actions are pills, red only for errors, no pointless 
   - AAPS's duplicate check: refuse when a newer bolus exists than the one the screen showed.
 
   The pump beeps on each one, which is fine for manual boluses.
+
+### Signed commands: passkeys for followers, a Keystore key on the phone
+
+*Added after the user proposed passkeys for remote commands, including from their own phone.*
+
+**The pump service executes only signed commands.** The bolus screen, a widget, the watch, the Mac and a follower
+are all just clients that produce a command and a signature. The service is the only thing that talks to the pump,
+and it checks the signature before anything else. A bug, a stray intent or a debug path can then never dose, because
+none of them can produce a signature.
+
+**What gets signed.** A command record carries:
+
+- what to do (bolus 2.5 U);
+- the pump serial;
+- a random id;
+- an expiry: a few minutes, so a command delayed on a relay can't run late;
+- what the signer saw: glucose and its time, IOB, and the newest bolus id.
+
+The pump service refuses the command if any of that no longer matches. In particular it refuses when a bolus has
+happened since the signer looked. That is AAPS's duplicate guard, made part of the signed record, and it stops two
+followers from bolusing for the same meal.
+
+**Followers and the Mac: WebAuthn passkeys.**
+- The challenge is `SHA-256(command record)`, so the assertion approves *this* command. This is the same
+  transaction-binding idea as Secure Payment Confirmation.
+- User verification (biometric) is required for each command, and the verifier checks the `UV` flag.
+- The private key never leaves the follower's secure hardware.
+- Verifying an ES256 assertion is plain code: `rpIdHash`, flags, signature over `authData ‖ SHA-256(clientDataJSON)`.
+  It runs on the wearer's phone, with no server.
+- Compared with the open alternatives:
+  - **Trio's remote control (via LoopFollow)** encrypts commands with AES-GCM under `SHA-256` of a typed shared
+    secret (`third_party/LoopFollow/LoopFollow/Remote/TRC/SecureMessenger.swift:10-27`);
+  - **Loop's** uses a TOTP code (`Remote/LoopAPNS/TOTPService.swift`);
+  - in both, whoever has the secret is the caregiver. A passkey is asymmetric, one per person and device, revocable,
+    and needs a fingerprint or face every time.
+
+**The wearer's own phone: an Android Keystore key, not a passkey.**
+- The key is P-256, created with `setUserAuthenticationRequired(true)` and used through
+  `BiometricPrompt.CryptoObject` ([guide](https://developer.android.com/identity/sign-in/biometric-auth)).
+- That gives the same signed record, but the key is device-bound, not synced to a Google account, and needs no
+  relying-party domain or network.
+- A synced passkey on the phone that holds the pump adds nothing, and lets every device on the Google account sign.
+
+**What has to be true.**
+1. **Enrolment is in person.** A follower's public key is added on the wearer's phone through the existing nearby
+   pairing ([07](07-bluetooth-followers.md)): QR code plus match code. Never only over a relay. The wearer grants
+   **"can bolus"** separately from following, with per-person limits (max per bolus, max per hour), and can revoke it
+   at any time.
+2. **The relying party is `sukrara.mauri.app`.**
+   - Android: `docs/.well-known/assetlinks.json` gains the `delegate_permission/common.get_login_creds` relation.
+   - Mac: `apple-app-site-association` `webcredentials` plus the Associated Domains entitlement. That likely needs
+     the paid Apple Developer account ([20](20-publishing.md)) and won't work with the free certificate (not
+     verified).
+3. **Synced passkeys** (Google Password Manager, iCloud Keychain) mean "this person's account", not "this phone".
+   Their `signCount` is usually 0, so cloning can't be detected. That's acceptable for a caregiver. Ask for
+   device-bound credentials where available.
+4. **The wearer always knows.**
+   - The pump beeps on every phone-sent bolus.
+   - Sukrara shows who sent it, and the result goes back to the sender.
+   - Commands above a threshold wait for a short veto window on the wearer's phone, like controlX2's watch
+     auto-approve timeout (`BolusManager.kt:84-95`).
+   - Every executed command and its signature goes into an audit log.
+
+**The signature only proves who approved and that they were present. It doesn't make the dose right.** The
+real risks of remote dosing stay:
+
+- stale data: a follower's view arrives over Nostr;
+- context the follower can't see: did they already eat, or bolus from the pump button?
+- delivery delays.
+
+The record's "what I saw" fields, the expiry and the limits exist for those.
 
 ### Order of work
 
