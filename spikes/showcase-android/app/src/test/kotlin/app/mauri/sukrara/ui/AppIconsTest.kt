@@ -66,7 +66,7 @@ class AppIconsTest {
         assertTrue("load app/service icons with ServiceIcon / PackageIcon (ui/AppIcons.kt):\n" + hits.joinToString("\n"), hits.isEmpty())
     }
 
-    /** Every row that stands for an outside service or app shows its icon (Tidepool: a symbol, its logo isn't licensed). */
+    /** Every row that stands for an outside service or app shows its icon. */
     @Test fun serviceRowsHaveTheirIcon() {
         val src = File(ui, "SettingsScreens.kt").readLines() + File(ui, "SourceScreen.kt").readLines()
         val rows = mapOf(
@@ -78,7 +78,7 @@ class AppIconsTest {
             "R.string.apps_health_connect)" to "ServiceIcon(Service.HEALTH_CONNECT)",
             "switch(r.label" to "PackageIcon(r.pkg)",
             "switch(a.label" to "PackageIcon(a.pkg)",
-            "link(\"Tidepool\"" to "icon = R.drawable.ic_sym_",
+            "link(\"Tidepool\"" to "ServiceIcon(Service.TIDEPOOL)",
         )
         for ((row, icon) in rows) {
             val at = src.indexOfFirst { row in it }

@@ -38,7 +38,6 @@ import kotlinx.coroutines.withContext
  * real icon is used when present (first one found); [bundled]: Sukrara's copy of the service's own icon, used when
  * the app isn't installed (or the service has no app). Every bundled icon is an `<adaptive-icon>` (or, for an app
  * whose launcher icon is legacy, that legacy bitmap), so it goes through the same loader as an installed app.
- * Where the brand doesn't allow its logo (Tidepool) there is no entry: the row keeps a Material Symbol.
  * Sources and licences: docs/10-showcase.md "Service and app icons".
  */
 enum class Service(val packages: List<String>, @param:DrawableRes val bundled: Int) {
@@ -48,6 +47,7 @@ enum class Service(val packages: List<String>, @param:DrawableRes val bundled: I
     HEALTH_CONNECT(listOf("com.google.android.healthconnect.controller", "com.android.healthconnect.controller"), R.drawable.ic_app_health_connect),
     NIGHTSCOUT(emptyList(), R.drawable.ic_app_nightscout),
     LIBREVIEW(emptyList(), R.drawable.ic_app_libreview),
+    TIDEPOOL(emptyList(), R.drawable.ic_app_tidepool),
 }
 
 /**
