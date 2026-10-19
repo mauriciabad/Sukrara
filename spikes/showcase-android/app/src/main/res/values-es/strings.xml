@@ -1162,8 +1162,8 @@
 
     <!-- Settings: sharing with apps -->
     <string name="apps_title">Compartir con apps</string>
-    <string name="apps_intro_wearer">Tu glucosa en otras apps: LibreView para tu médico, apps de este móvil como AAPS o GlucoDataHandler, Health Connect, relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
-    <string name="apps_intro_follower">Tu glucosa en otras apps: relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
+    <string name="apps_intro_wearer">Tu glucosa en otras apps: LibreView para tu médico, Tidepool, apps de este móvil como AAPS o GlucoDataHandler, Health Connect, relojes Garmin a través del servidor de xDrip+ y cualquier app que lea Nightscout.</string>
+    <string name="apps_intro_follower">Tu glucosa en otras apps: relojes Garmin a través del servidor de xDrip+, cualquier app que lea Nightscout y, si lo eliges, Tidepool.</string>
     <string name="apps_libreview_not_set_up">Sin configurar</string>
     <string name="apps_libreview_uploading">Subiendo como %1$s</string>
     <string name="apps_xdrip">Servidor de xDrip+</string>
@@ -1219,6 +1219,62 @@
     <string name="libreview_takeover_on">La app de Libre o Juggluco deja de subir a esta cuenta</string>
     <string name="libreview_takeover_off">Las subidas se detienen si otra app usa la cuenta</string>
     <string name="libreview_footer">Los registros subidos no se pueden eliminar en LibreView. La glucosa se sube desde el momento en que lo activas.</string>
+
+    <!-- ========== Settings: Tidepool ========== -->
+    <!-- Tidepool page intro (wearer) [CHAR LIMIT=NONE] -->
+    <string name="tidepool_intro_wearer">Tidepool reúne tus datos de diabetes en un solo sitio, para ti y tu clínica. Sukrara puede subir tu glucosa y tu insulina, hidratos y notas a tu cuenta de Tidepool.</string>
+    <!-- Tidepool page intro (follower) [CHAR LIMIT=NONE] -->
+    <string name="tidepool_intro_follower">Tidepool reúne los datos de diabetes en un solo sitio. Si lo eliges, Sukrara puede subir la glucosa y los registros de la persona a la que sigues a una cuenta de Tidepool.</string>
+    <!-- Row: the Tidepool account [CHAR LIMIT=30] -->
+    <string name="tidepool_account">Cuenta</string>
+    <!-- Account row summary [CHAR LIMIT=40] -->
+    <string name="tidepool_not_signed_in">Sin iniciar sesión</string>
+    <!-- Main switch [CHAR LIMIT=40] -->
+    <string name="tidepool_main_switch">Subir a Tidepool</string>
+    <!-- Row: the uploader's status [CHAR LIMIT=30] -->
+    <string name="tidepool_status">Estado</string>
+    <!-- Status before signing in [CHAR LIMIT=40] -->
+    <string name="tidepool_sign_in_first">Inicia sesión primero</string>
+    <!-- Status: the session expired [CHAR LIMIT=60] -->
+    <string name="tidepool_status_sign_in">Tidepool ha cerrado la sesión: vuelve a iniciarla</string>
+    <!-- Status: a follower hasn't chosen to upload [CHAR LIMIT=60] -->
+    <string name="tidepool_status_not_allowed">Esperando tu elección de abajo</string>
+    <!-- Status: nothing uploaded yet [CHAR LIMIT=40] -->
+    <string name="tidepool_status_waiting">Esperando la primera subida</string>
+    <!-- Status; %1$s = date and time of the last upload [CHAR LIMIT=60] -->
+    <string name="tidepool_status_ok">Al día · última subida %1$s</string>
+    <!-- Status; %1$s = Tidepool's error [CHAR LIMIT=NONE] -->
+    <string name="tidepool_status_error">Se reintentará · %1$s</string>
+    <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
+    <string name="tidepool_unavailable">No disponible con la subida desactivada</string>
+    <!-- Switch (follower): upload the followed person [CHAR LIMIT=40] -->
+    <string name="tidepool_follow">Subir a la persona que sigues</string>
+    <!-- Follower switch summary while off [CHAR LIMIT=60] -->
+    <string name="tidepool_follow_off">Desactivado: este móvil no sube nada</string>
+    <!-- Follower switch summary while on [CHAR LIMIT=60] -->
+    <string name="tidepool_follow_on">Sus datos van a la cuenta de arriba</string>
+    <!-- Switch: upload glucose [CHAR LIMIT=40] -->
+    <string name="tidepool_glucose">Lecturas de glucosa</string>
+    <!-- Glucose summary [CHAR LIMIT=60] -->
+    <string name="tidepool_glucose_summary">Una cada 5 minutos, incluidos los últimos 31 días</string>
+    <!-- Switch: upload treatments [CHAR LIMIT=40] -->
+    <string name="tidepool_entries">Insulina, hidratos y notas</string>
+    <!-- Treatments summary [CHAR LIMIT=60] -->
+    <string name="tidepool_entries_summary">También se suben los cambios y los borrados</string>
+    <!-- Tidepool page footer [CHAR LIMIT=NONE] -->
+    <string name="tidepool_footer">Sukrara inicia sesión con el acceso propio de Tidepool y guarda solo la sesión, nunca tu contraseña. Si Tidepool ya recibe tus datos del Libre a través de LibreView, desactiva aquí la glucosa o cada lectura aparecerá dos veces.</string>
+    <!-- Sign-in dialog title [CHAR LIMIT=30] -->
+    <string name="tidepool_dialog_title">Cuenta de Tidepool</string>
+    <!-- Sign-in field [CHAR LIMIT=30] -->
+    <string name="tidepool_email">Correo electrónico</string>
+    <!-- Sign-in button [CHAR LIMIT=20] -->
+    <string name="tidepool_sign_in">Iniciar sesión</string>
+    <!-- Sign-in button while working [CHAR LIMIT=20] -->
+    <string name="tidepool_signing_in">Iniciando sesión…</string>
+    <!-- Sign-out button [CHAR LIMIT=20] -->
+    <string name="tidepool_sign_out">Cerrar sesión</string>
+    <!-- Sign-in error [CHAR LIMIT=NONE] -->
+    <string name="tidepool_error_credentials">Tidepool no ha aceptado este correo y contraseña</string>
 
     <!-- Settings: backup and settings files -->
     <string name="backup_title">Copia de seguridad</string>

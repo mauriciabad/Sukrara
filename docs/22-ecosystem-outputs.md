@@ -198,7 +198,7 @@ M = 1–2 weeks, L = more.
 | 4 | **Readings export** (CSV/JSON) | data ownership, spreadsheets, Tidepool/Nightscout imports; Juggluco: menu Export (`Menus.java:358`); xDrip+: CSV (`utils/DatabaseUtil.java`) | settings export only; readings stay internal | Medium | S | Do (a share sheet with CSV) |
 | 5 | **AGP report** (percentile chart, 14 days) | clinicians; standard AGP layout | metrics card (TIR, GMI, CV) ([18](18-metrics.md)) | Medium | M | Later, after export |
 | 6 | **Wear OS** native app / tiles | Wear OS users | via GDH once #1 lands | Medium | L (own app) | Rely on GDH; revisit if users ask |
-| 7 | **Tidepool** upload | clinics using Tidepool; xDrip+ has an uploader (`xDrip/…/tidepool/TidepoolUploader.java:63-78`); AAPS has one; the Tidepool *uploader* repo is desktop/USB only (`uploader/lib/drivers/abbott`) | none | Medium-low (Libre users' clinics mostly use LibreView, which Sukrara already uploads to) | M | Defer |
+| 7 | **Tidepool** upload | clinics using Tidepool; xDrip+ has an uploader (`xDrip/…/tidepool/TidepoolUploader.java:63-78`); AAPS has one; the Tidepool *uploader* repo is desktop/USB only (`uploader/lib/drivers/abbott`) | none | Medium-low (Libre users' clinics mostly use LibreView, which Sukrara already uploads to) | M | Defer → **done in [docs/27](27-tidepool.md)** |
 | 8 | **Home Assistant** | HA's built-in Nightscout integration | **works** on LAN ([03](03-nostr.md): stock HA 2026.10) | — | — | Done. Gets better with #2 (no LAN needed) |
 | 9 | **Garmin** | watch faces / CGM+ | **works** ([08](08-garmin.md)) | — | — | Done; own watch app is a separate track |
 | 10 | Pebble / Gadgetbridge / Bangle.js | Gadgetbridge users | none | Low | S | Defer (weather-hack format) |

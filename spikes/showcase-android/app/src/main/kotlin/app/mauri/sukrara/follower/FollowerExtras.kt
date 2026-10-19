@@ -76,6 +76,8 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
             }
         }
         SukraraHooks.publishPreviewsOnce(ctx)
+        // uploads the followed person only after the user's own choice on the Tidepool page (docs/27)
+        app.mauri.sukrara.tidepool.Tidepool.start(ctx, scope)
     }
 
     fun stop() {
@@ -84,6 +86,7 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
         engine.onReadings = null
         runCatching { ctx.unregisterReceiver(screen) }
         local.stop()
+        app.mauri.sukrara.tidepool.Tidepool.stop()
     }
 
     /** The follower DB is the source of truth: the local servers get its last 24 h, the widgets re-read it. */

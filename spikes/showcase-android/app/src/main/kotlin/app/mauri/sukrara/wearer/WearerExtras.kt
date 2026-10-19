@@ -76,6 +76,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs += scope.launch { Treat.uploader.status.collect { st -> Live.status.update { it.copy(libreview = st) } } }
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
+        app.mauri.sukrara.tidepool.Tidepool.start(ctx, scope)   // off until the user signs in and switches it on (docs/27)
         // the sensor ended / a new one started: the notification and the status bar follow at once (round sensor-life)
         jobs += scope.launch { app.mauri.sukrara.core.SensorLife.current.drop(1).collect { render(force = true) } }
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
@@ -95,6 +96,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         if (Live.listener === this) Live.listener = null
         runCatching { ctx.unregisterReceiver(screen) }
         local.stop()
+        app.mauri.sukrara.tidepool.Tidepool.stop()
         RootStatusBar.stop(ctx)
     }
 

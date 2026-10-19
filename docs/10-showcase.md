@@ -1007,6 +1007,25 @@ the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/2
 |---|---|
 | Fetching more history for a follower's export | only what the device already has |
 
+## Tidepool upload (docs/27)
+
+Settings → Share with apps → Tidepool (Android, both roles; off by default): Tidepool's own session login, the
+wearer's readings (one per 5-minute slot) and treatments, a queue rebuilt from the phone's stores every cycle, and the
+follower's separate *Upload the person you follow* (default off). Research, design and verification:
+[docs/27](27-tidepool.md).
+
+| Added | Where |
+|---|---|
+| Tidepool page, account dialog, Share with apps row and summary (en + es) | `ui/TidepoolScreen.kt`, `ui/SettingsScreens.kt`, `ui/MainActivity.kt` |
+| Mapping, queue, client, sender, upload loop | `tidepool/` (`TidepoolData`, `TidepoolQueue`, `TidepoolClient`, `TidepoolSync`, `Tidepool`) |
+| Tests: mapping, queue, end-to-end against the real API (by hand) | `TidepoolDataTest`, `TidepoolQueueTest`, `TidepoolLiveTest` |
+
+| Discarded | Why |
+|---|---|
+| OAuth sign-in on Tidepool's page | needs a client id registered with Tidepool; not borrowing another app's |
+| Mac uploader | the phone holds the store and the queue; the Mac would upload the same data twice |
+| `bolus` / `basal`, AAPS-style `wizard` carbs | pump types / a fake bolus; `insulin` and `food` are Tidepool's types for injections and carbs |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).
