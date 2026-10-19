@@ -108,121 +108,51 @@ object Crown {
 }
 
 /**
- * The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. Next to a
- * slot without a laurel a side stays whole (the slots move apart, [Slots.extraGap], and the neighbour covers what still
- * reaches it); between two laurelled rings the facing sides are drawn by [drawJoin] instead ([Side.MERGED]). A faded
- * colour fades the whole laurel at once (a layer), so overlapping leaves don't show darker.
+ * The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom, the stems
+ * on a circle of 1.25 [r]. Next to a slot without a laurel a side stays whole (the slots move apart, [Slots.extraGap],
+ * and the neighbour covers what still reaches it). Between two laurelled rings the slots sit so their facing stems
+ * touch in the middle of the gap, so the two wreaths meet there; those sides ([Side.MERGED]) keep their stem and inner
+ * leaves but leave out the outer leaves that would cross into the other branch. A faded colour fades the whole laurel
+ * at once (a layer), so overlapping leaves don't show darker.
  */
 object Laurel {
     enum class Side { FULL, MERGED }
 
-    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) =
-        faded(cv, color) { c ->
-            if (left == Side.FULL) branch(cv, cx, cy, r, c, true)
-            if (right == Side.FULL) branch(cv, cx, cy, r, c, false)
-        }
-
-    /** Draws [block] opaque, then fades it as one by [color]'s alpha. */
-    private fun faded(cv: Canvas, color: Int, block: (Int) -> Unit) {
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) {
         val a = color ushr 24
         val layer = if (a < 255) cv.saveLayerAlpha(null, a) else -1
-        block(color or (0xFF shl 24))
+        val c = color or (0xFF shl 24)
+        branch(cv, cx, cy, r, c, true, left)
+        branch(cv, cx, cy, r, c, false, right)
         if (layer >= 0) cv.restoreToCount(layer)
     }
 
-    private fun stem(r: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
-    }
-
-    private fun leaf(cv: Canvas, x: Float, y: Float, rot: Float, r: Float, color: Int) {
-        cv.save()
-        cv.translate(x, y)
-        cv.rotate(rot)
-        cv.drawOval(RectF(-r * 0.135f, -r * 0.056f, r * 0.135f, r * 0.056f), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
-        cv.restore()
-    }
-
-    private fun at(cv: Canvas, cx: Float, cy: Float, rad: Float, deg: Float, rot: Float, r: Float, color: Int) {
-        val a = Math.toRadians(deg.toDouble())
-        leaf(cv, cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat(), rot, r, color)
-    }
-
-    /** One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), leaves leaning up it. */
-    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean) {
+    /**
+     * One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
+     * leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its lowest and highest
+     * outer leaves.
+     */
+    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side) {
         val sr = r * 1.25f
-        cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false, stem(r, color))
+        cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
+            })
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        val shape = RectF(-r * 0.135f, -r * 0.056f, r * 0.135f, r * 0.056f)
+        fun at(rad: Float, deg: Float, rot: Float) {
+            val a = Math.toRadians(deg.toDouble())
+            cv.save()
+            cv.translate(cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat())
+            cv.rotate(rot)
+            cv.drawOval(shape, p)
+            cv.restore()
+        }
         val s = if (left) 1 else -1
         for (k in 0 until 6) {
             val a = if (left) 135f + 15f * k else 45f - 15f * k
-            // an outer and an inner leaf per step, the inner ones clear of the ring
-            at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)
-            at(cv, cx, cy, r * 1.17f, a + s * 5, a + s * 90 + s * 32, r, color)
-        }
-    }
-
-    /**
-     * The facing sides of two laurelled rings of radius [r] at [lx] and [rx], as one fork: each side rises from below
-     * its ring as its usual branch, the two join a little below the middle of the gap, share a short stem and split
-     * again into two tips, each curving back along its own ring's laurel to where a branch ends. Every joint is
-     * tangent-smooth. Each half in its own ring's colour and fade.
-     */
-    fun drawJoin(cv: Canvas, lx: Float, rx: Float, cy: Float, r: Float, left: Int, right: Int) {
-        val mx = (lx + rx) / 2; val my = cy + r * 0.15f   // where they join
-        val sy = cy - r * 0.12f                            // where they split again
-        val bright = if ((left ushr 24) >= (right ushr 24)) left else right
-        faded(cv, left) { c -> lower(cv, lx, cy, r, c, false, mx, my); tip(cv, lx, cy, r, c, -1, mx, sy) }
-        faded(cv, right) { c -> lower(cv, rx, cy, r, c, true, mx, my); tip(cv, rx, cy, r, c, 1, mx, sy) }
-        faded(cv, bright) { c -> cv.drawLine(mx, my, mx, sy, stem(r, c)) }
-        val y = (my + sy) / 2
-        faded(cv, left) { c -> leaf(cv, mx - r * 0.075f, y - r * 0.05f, -122f, r, c) }
-        faded(cv, right) { c -> leaf(cv, mx + r * 0.075f, y - r * 0.05f, -58f, r, c) }
-    }
-
-    /**
-     * A tip from the split ([sx], [sy]) back to a ring's laurel circle at -30° / 210° ([q] = -1: the ring left of the gap,
-     * 1: right of it): it leaves going straight up and arrives along the circle, with an outer and an inner leaf per step.
-     */
-    private fun tip(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, q: Int, sx: Float, sy: Float) {
-        val th = Math.toRadians(if (q < 0) -30.0 else 210.0)
-        val sr = r * 1.25f
-        val ex = cx + sr * Math.cos(th).toFloat(); val ey = cy + sr * Math.sin(th).toFloat()
-        val dx = -q * Math.sin(th).toFloat(); val dy = q * Math.cos(th).toFloat()   // along the circle, upwards
-        val k = r * 0.2f
-        val c1x = sx; val c1y = sy - k; val c2x = ex - dx * k; val c2y = ey - dy * k
-        cv.drawPath(android.graphics.Path().apply { moveTo(sx, sy); cubicTo(c1x, c1y, c2x, c2y, ex, ey) }, stem(r, color))
-        for (t in floatArrayOf(0.4f, 0.85f)) {
-            val u = 1 - t
-            val bx = u * u * u * sx + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * ex
-            val by = u * u * u * sy + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * ey
-            val tx = 3 * u * u * (c1x - sx) + 6 * u * t * (c2x - c1x) + 3 * t * t * (ex - c2x)
-            val ty = 3 * u * u * (c1y - sy) + 6 * u * t * (c2y - c1y) + 3 * t * t * (ey - c2y)
-            val len = Math.hypot(tx.toDouble(), ty.toDouble()).toFloat()
-            val nx = q * ty / len; val ny = -q * tx / len   // away from the ring
-            val a = Math.toDegrees(Math.atan2(ty.toDouble(), tx.toDouble())).toFloat()
-            leaf(cv, bx + nx * r * 0.1f, by + ny * r * 0.1f, a - q * 32, r, color)
-            leaf(cv, bx - nx * r * 0.08f, by - ny * r * 0.08f, a + q * 32, r, color)
-        }
-    }
-
-    /** The lower part of a ring's side that joins ([left] = the ring's left side): its branch, curving in to ([mx], [my]). */
-    private fun lower(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, mx: Float, my: Float) {
-        val s = if (left) 1 else -1
-        val sr = r * 1.25f
-        // up the branch (131° → 155°, or 49° → 25°), then in to the joint: a curve that leaves along the branch and
-        // arrives going straight up, so branch, joint and shared stem are one smooth line
-        val end = Math.toRadians(if (left) 155.0 else 25.0)
-        val p0x = cx + sr * Math.cos(end).toFloat(); val p0y = cy + sr * Math.sin(end).toFloat()
-        val tx = s * -Math.sin(end).toFloat(); val ty = s * Math.cos(end).toFloat()   // the branch's direction, upwards
-        val reach = r * 0.16f
-        val path = android.graphics.Path().apply {
-            addArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else 49f, if (left) 24f else -24f)
-            cubicTo(p0x + tx * reach, p0y + ty * reach, mx, my + reach, mx, my)
-        }
-        cv.drawPath(path, stem(r, color))
-        for (k in 0 until 3) {
-            val a = if (left) 135f + 15f * k else 45f - 15f * k
-            if (k < 2) at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)   // the outer ones clear the other side
-            at(cv, cx, cy, r * 1.17f, a + s * 5, a + s * 90 + s * 32, r, color)
+            if (side == Side.FULL || k == 0 || k == 5) at(r * 1.35f, a, a + s * 90 - s * 32)
+            at(r * 1.17f, a + s * 5, a + s * 90 + s * 32)
         }
     }
 }

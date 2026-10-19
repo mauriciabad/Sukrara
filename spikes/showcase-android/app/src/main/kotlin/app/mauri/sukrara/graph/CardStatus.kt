@@ -162,15 +162,12 @@ object Slots {
     private fun laurel(item: SlotItem) = item is SlotItem.Metric && item.spec.kind == SlotKind.TIR && TirRing.laurel(item.m.tir, item.spec)
 
     /**
-     * Extra room between [items]`[i]` and the next one to its left for laurels ([r] = a slot's radius): 0.22 r when one
-     * of the two wears one (its branch then clears the neighbour), 0.47 r when both do (their facing branches merge in
-     * the gap, [Laurel.drawJoin]).
+     * Extra room between [items]`[i]` and the next one to its left when either wears a laurel ([r] = a slot's radius):
+     * 0.22 r, so the gap is 0.5 r. One laurel's branch then clears the neighbour; two laurels' facing stems (on circles
+     * of 1.25 r) touch in the middle of the gap, where the wreaths meet.
      */
-    fun extraGap(items: List<SlotItem>, i: Int, r: Float): Float {
-        if (i + 1 >= items.size) return 0f
-        val n = (if (laurel(items[i])) 1 else 0) + (if (laurel(items[i + 1])) 1 else 0)
-        return when (n) { 0 -> 0f; 1 -> r * 0.22f; else -> r * 0.47f }
-    }
+    fun extraGap(items: List<SlotItem>, i: Int, r: Float): Float =
+        if (i + 1 < items.size && (laurel(items[i]) || laurel(items[i + 1]))) r * 0.22f else 0f
 
     /** Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r, so its branch stays mostly on the card. */
     fun edgeInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && laurel(items[0])) r * 0.3f else 0f
@@ -188,7 +185,7 @@ object Slots {
 
     /**
      * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order).
-     * Between two laurelled rings the facing sides merge ([Laurel.drawJoin]); every other side is the whole branch,
+     * Between two laurelled rings the facing sides meet ([Laurel.Side.MERGED]); every other side is the whole branch,
      * which the neighbour covers where it still reaches it.
      */
     fun drawUnder(cv: Canvas, items: List<SlotItem>, cx: List<Float>, cy: Float, radius: Float, pal: GraphPalette) {
@@ -201,7 +198,6 @@ object Slots {
             val c = colors[i] ?: continue
             val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
             Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
-            if (r != null) colors[r]?.let { Laurel.drawJoin(cv, cx[i], cx[r], cy, radius, c, it) }
         }
     }
 
