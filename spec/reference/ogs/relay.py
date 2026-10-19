@@ -33,6 +33,13 @@ class Pool:
                 break
             await asyncio.sleep(0.1)
 
+    async def ready(self, timeout: float = 8.0):
+        """Wait until every relay is connected (or the timeout)."""
+        for _ in range(int(timeout * 10)):
+            if len(self.conns) >= len(self.urls):
+                return
+            await asyncio.sleep(0.1)
+
     async def close(self):
         for t in self._tasks:
             t.cancel()
