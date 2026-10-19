@@ -222,8 +222,8 @@ the alert wire parts).
 
 ## Publishing
 
-**Nothing has been published, and no PR to nostr-protocol/nips will be made** (the user's decision). Everything below
-is a draft for the user to act on after choosing the licence.
+**Nothing has been published, and no PR to nostr-protocol/nips will be made** (the user's decision). The steps that
+remain are the maintainer's.
 
 Material:
 - [`spec/drafts/site-page.md`](../spec/drafts/site-page.md): the page for sukrara.mauri.app, updated for draft 3;
@@ -231,30 +231,34 @@ Material:
 - [`spec/drafts/outreach.md`](../spec/drafts/outreach.md): texts for other projects, still unsent.
   [`nip-pr.md`](../spec/drafts/nip-pr.md) is marked "not to be sent".
 
-**Licence: CC0 or CC-BY-4.0 for the text and vectors.**
-- **CC0** puts the text in the public domain: anyone, including closed apps and other standards bodies, copies it
-  with no conditions. You lose the right to require credit.
-- **CC-BY-4.0** keeps that freedom but requires attribution. It is slightly more friction for vendors and for
-  inclusion in other specs (IETF and W3C prefer their own terms).
+**Licence: CC0-1.0**, chosen by the user on 2026-10-19, for the text, the test vectors and the reference
+implementation. The trade-off that was weighed:
+- **CC0** lets anyone, including closed apps and other standards bodies, copy it with no conditions, and gives up
+  the right to require credit.
+- **CC-BY-4.0** would require attribution, which is a little more friction for vendors and for inclusion in other
+  specs.
 
-The reference code can stay GPL-3.0-or-later or move to MIT/Apache-2.0. A permissive licence helps closed apps
-reuse the vector checker.
+The reference code is CC0 too in the standalone repository: nothing requires GPL there, because the author owns all
+of it and it imports no GPL code. In this repository the same files keep their GPL header, as the repo rule asks.
 
-Steps:
-1. Choose `<LICENCE>` for the text and vectors, and one for the reference code.
-2. Create **`github.com/mauriciabad/open-glucose-stream`** (public, no issues template needed yet).
-3. Copy the content in:
-   - `spec/draft3/*` → `spec/`;
-   - `spec/draft3/test-vectors/` → `test-vectors/`;
-   - `spec/reference/` → `reference/`, without `interop/`, and with the draft-1 modules kept under `reference/ogs/`
-     as history, or dropped.
-4. Use `spec/drafts/standalone-README.md` as `README.md`. Add `LICENSE` (`<LICENCE>`) and `reference/LICENSE`.
-5. Tag `draft-3`. Run `uv run ogs d3 vectors verify` and the unit tests in CI there.
-6. Publish the site page: copy `spec/drafts/site-page.md` (below its "---") to `docs/ogs.md`, fill in the repository
-   links, and link it from `docs/index.md`. The site workflow builds it.
-7. Optionally, once a second implementation exists, register kinds 31078, 4078 and 4079 in
+What is done (2026-10-19):
+1. **The standalone repository is prepared locally**, not pushed, in
+   `/Users/blue/Projects/cgm-reading-mac-spike/tmp/open-glucose-stream/` (git-ignored here), committed and tagged
+   `draft-3`. It contains:
+   - `spec/` from `spec/draft3`, with links into this repository pinned to a commit;
+   - `test-vectors/`;
+   - `reference/`: the draft-3 package and the shared crypto, CC0 headers, its own crypto tests;
+   - `README.md` from `spec/drafts/standalone-README.md`;
+   - `LICENSE`: the official CC0-1.0 legal code;
+   - a CI workflow that runs the vector check and the tests.
+2. **The website page** is `docs/ogs.md`, linked from `docs/index.md`. It goes live when the branch is merged into
+   main.
+
+Left for the maintainer:
+1. Create `github.com/mauriciabad/open-glucose-stream`, then push the local repository and its tag.
+2. Optionally, once a second implementation exists, register kinds 31078, 4078 and 4079 in
    `nostr-protocol/registry-of-kinds`. That is a registry entry, not a NIP.
-8. Send the outreach texts from a project account (never from stream keys), when the user decides.
+3. Send the outreach texts from a project account (never from stream keys), when the user decides.
 
 ## In Sukrara
 

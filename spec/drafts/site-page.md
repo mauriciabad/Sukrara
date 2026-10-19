@@ -1,15 +1,12 @@
 # Draft: a page on sukrara.mauri.app
 
-**Not published.** To publish it, the maintainer:
-1. picks the licence;
-2. creates the spec repository (docs/24b → Publishing);
-3. replaces `<spec repo>` below with its URL;
-4. copies everything after the line into `docs/ogs.md` (the site build turns `docs/` into sukrara.mauri.app);
-5. links it from `docs/index.md`.
+The source of the website page [`docs/ogs.md`](../../docs/ogs.md) (everything after the line), published with the
+site once the branch is merged. Its links point at the spec repository https://github.com/mauriciabad/open-glucose-stream (CC0-1.0), which goes
+live when the maintainer pushes it; until then they 404.
 
 ---
 
-## Share your glucose without a cloud: the Open Glucose Stream
+# Share your glucose without a cloud: the Open Glucose Stream
 
 Sukrara shares your glucose with the people you choose. We're turning the way it does that into an **open
 standard**, the Open Glucose Stream (OGS), so any app can join in: a watch, a widget, Home Assistant, a clinic's
@@ -26,14 +23,16 @@ viewer, or another CGM app your family already uses.
   keys, so they get nothing new and can't even recognise your stream any more.
 - **Made for carers.** Parents can both manage a child's stream. Carers can acknowledge an alert, so the others know
   someone is on it. An optional emergency card lets a paramedic see your glucose for a day, and you're always told.
-- **Open.** The specification, test vectors and an independent reference implementation are public:
-  [the OGS specification](<spec repo>).
+- **Open.** The specification, test vectors and an independent reference implementation are public, under CC0 (no
+  conditions, closed apps included):
+  [the OGS specification](https://github.com/mauriciabad/open-glucose-stream).
 
 **Where things stand.** The current draft is **draft 3**, a proposal no app speaks yet. Sukrara 0.11 uses the
-earlier draft 1, and moving to draft 3 means inviting your followers again. We'll say so clearly before it happens.
+earlier draft 1, and moving to draft 3 means inviting your followers again. We'll say so clearly before it happens. The
+[background report](24b-open-standard-draft3) explains every design choice.
 
-**For developers.** The [conformance checklist](<spec repo>/blob/main/spec/conformance.md) says what a reader,
-contributor, publisher or administrator app must do. The [test vectors](<spec repo>/tree/main/test-vectors) let you
+**For developers.** The [conformance checklist](https://github.com/mauriciabad/open-glucose-stream/blob/main/spec/conformance.md) says what a reader,
+contributor, publisher or administrator app must do. The [test vectors](https://github.com/mauriciabad/open-glucose-stream/tree/main/test-vectors) let you
 check your app byte for byte without ever touching real health data. The bridges section maps everything to
 Nightscout, HL7 FHIR, Health Connect, HealthKit and Tidepool.
 

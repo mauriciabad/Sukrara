@@ -65,4 +65,7 @@ uv run ogs d3 e2e                   # live: owner + reader + writer on public re
 
 ## Licence
 
-To be chosen before publication. See [docs/24b](../../docs/24b-open-standard-draft3.md#publishing).
+**CC0-1.0** (public domain dedication), chosen by the maintainer on 2026-10-19, for the text, the test vectors and
+the reference implementation, as published in the standalone repository
+[open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream). This folder is the working copy inside
+the Sukrara research repository. See [docs/24b](../../docs/24b-open-standard-draft3.md#publishing).

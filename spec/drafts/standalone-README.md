@@ -73,4 +73,16 @@ OGS moves numbers. Nothing in it is validated for treatment decisions, and a fol
 
 ## Licence
 
-Specification text and test vectors: `<LICENCE>`. Reference implementation: see `reference/LICENSE`.
+Everything in this repository is dedicated to the public domain under **CC0-1.0** ([LICENSE](LICENSE)): anyone may
+copy, implement, modify and redistribute it, in open or closed products, with no conditions and no need to ask.
+
+| Files | Licence |
+|---|---|
+| `spec/` (the specification text) | CC0-1.0 |
+| `test-vectors/` (vectors and reference data) | CC0-1.0 |
+| `reference/` (the Python reference implementation and its tests) | CC0-1.0 (`SPDX-License-Identifier: CC0-1.0` in every source file) |
+| `.github/` (CI) | CC0-1.0 |
+
+The reference code started in the [Sukrara repository](https://github.com/mauriciabad/cgm-reading-mac-spike), where
+the same author publishes it under GPL-3.0-or-later. This copy is CC0, so closed apps can reuse the vector checker.
+CC0 contains no patent licence, and the author holds no patents on any of it.
