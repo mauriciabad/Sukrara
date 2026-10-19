@@ -77,6 +77,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         jobs += Treat.uploader.start(scope)
         app.mauri.sukrara.tidepool.Tidepool.start(ctx, scope)   // off until the user signs in and switches it on (docs/27)
+        app.mauri.sukrara.nightscout.Nightscout.start(ctx, scope)   // off until the user sets up a site (docs/25); wearer only
         // the sensor ended / a new one started: the notification and the status bar follow at once (round sensor-life)
         jobs += scope.launch { app.mauri.sukrara.core.SensorLife.current.drop(1).collect { render(force = true) } }
         // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
@@ -97,6 +98,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         runCatching { ctx.unregisterReceiver(screen) }
         local.stop()
         app.mauri.sukrara.tidepool.Tidepool.stop()
+        app.mauri.sukrara.nightscout.Nightscout.stop()
         RootStatusBar.stop(ctx)
     }
 
@@ -119,6 +121,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         render(force = false)
         SukraraHooks.onReadings(ctx, listOf(r), "reading")
         app.mauri.sukrara.alerts.Alerts.onReading(ctx, r)
+        app.mauri.sukrara.nightscout.Nightscout.kick()   // every reading goes up at once (a no-op while it's off)
         // investigation 22: the allowed apps' broadcasts + Health Connect (both off until the user turns them on). Off the
         // caller's thread: the direct source delivers on the main thread, and these read prefs, query PackageManager
         // and build Health Connect records.
@@ -133,6 +136,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         b.forEach { local.add(it) }
         render(force = false)
         SukraraHooks.onReadings(ctx, list, "history")
+        app.mauri.sukrara.nightscout.Nightscout.kick()
         outputs.execute { runCatching { HealthConnect.onHistory(ctx, list) }.onFailure { Log.w(tag, "health connect: $it") } }
     }
 

@@ -13,13 +13,12 @@ import app.mauri.sukrara.treatments.Treatment
 import java.io.File
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import app.mauri.sukrara.upload.CloudUploader
+import app.mauri.sukrara.upload.UploadLoop
+import app.mauri.sukrara.upload.UploadStatus as Status
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 /**
@@ -31,7 +30,7 @@ import org.json.JSONObject
  * in and never kept. Every [INTERVAL_MS] (or when a treatment / setting changes) one cycle works out what Tidepool
  * doesn't have yet from the role's own stores ([TidepoolQueue]) and sends it; failures back off up to an hour.
  */
-object Tidepool {
+object Tidepool : CloudUploader {
     private const val TAG = "Sukrara.tidepool"
     private const val INTERVAL_MS = 5 * 60_000L
 
@@ -39,20 +38,19 @@ object Tidepool {
     data class Settings(val on: Boolean = false, val email: String = "", val signedIn: Boolean = false,
                         val glucose: Boolean = true, val treatments: Boolean = true, val uploadFollowed: Boolean = false)
 
-    /** What the settings page shows. [kind]: off | sign_in | not_allowed | waiting | ok | error. */
-    data class Status(val kind: String = "off", val lastOkMs: Long = 0, val lastCount: Int = 0, val error: String? = null)
-
     private val _settings = MutableStateFlow(Settings())
     val settings: StateFlow<Settings> = _settings
+    /** What the settings page shows. kind: off | sign_in | not_allowed | waiting | ok | error. */
     private val _status = MutableStateFlow(Status())
-    val status: StateFlow<Status> = _status
+    override val status: StateFlow<Status> = _status
+    override val title = "Tidepool"   // i18n-ok: brand name
+    override val uploading get() = _settings.value.let { it.on && it.signedIn && loaded && TidepoolQueue.allowed(App.role(app), it.uploadFollowed) }
 
     @Volatile private var loaded = false
     private lateinit var app: Context
     private lateinit var secure: SecureStore
     private val client = TidepoolClient(BuildConfig.VERSION_NAME)
-    private val wake = Channel<Unit>(Channel.CONFLATED)
-    private var job: Job? = null
+    private val loop = UploadLoop(TAG, INTERVAL_MS) { cycle() }
 
     fun init(ctx: Context) {
         if (loaded) return
@@ -126,7 +124,7 @@ object Tidepool {
         kick()
     }
 
-    fun kick() { wake.trySend(Unit) }
+    override fun kick() = loop.kick()
 
     // ============================================================================================ upload loop
 
@@ -134,19 +132,13 @@ object Tidepool {
     @Synchronized
     fun start(ctx: Context, scope: CoroutineScope) {
         init(ctx)
-        if (job?.isActive == true) return
-        job = scope.launch(Dispatchers.IO) {
-            while (true) {
-                runCatching { cycle() }.onFailure { Log.w(TAG, "cycle: ${it.javaClass.simpleName} ${it.message}") }
-                withTimeoutOrNull(INTERVAL_MS) { wake.receive() }
-            }
-        }
+        if (!loop.start(scope)) return
         // a new or changed treatment goes up within the cycle, not five minutes later (wearer's log)
         if (App.role(ctx) == "owner") scope.launch { Treat.init(ctx); Treat.store.items.collect { kick() } }
     }
 
     @Synchronized
-    fun stop() { job?.cancel(); job = null }
+    fun stop() = loop.stop()
 
     private fun cycle() {
         val s = _settings.value

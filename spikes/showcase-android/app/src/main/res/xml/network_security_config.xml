@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext only to Juggluco on loopback; everything else (relays) is wss. -->
+<!--
+  Cleartext is refused by default; allowed for Juggluco on loopback, and for a Nightscout site on the home network
+  (docs/25). Android can't list IP ranges here, so the base config permits cleartext and the one client that may use
+  it decides: nightscout/NsConfig.kt's NsSite.parse lets http:// through only for loopback, RFC 1918, link-local,
+  unique-local and .local hosts (NsSiteTest). Every other client in the app builds https:// / wss:// URLs only.
+-->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

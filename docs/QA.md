@@ -198,3 +198,27 @@ the data set's device → delete, or the end-to-end test below). Never switch it
       below" and no upload in the log until it's on.
 - [ ] Sign out → account *Not signed in*, main switch off; the data stays on Tidepool.
 - [ ] Spanish: every row, summary, dialog and status is translated.
+
+## Q17 Nightscout upload
+
+Only a local, throwaway Nightscout with synthetic data (`spikes/nightscout-upload/verify/nightscout.sh up`; `down`
+afterwards). Never a hosted site, never the user's phone.
+
+- [ ] No device first: with the site up, `NS_E2E_URL=http://localhost:1337 NS_E2E_SECRET=… NS_E2E_TOKEN=…
+      NS_E2E_READ_TOKEN=… ./gradlew :app:testDebugUnitTest --tests '*NightscoutLiveTest*'` passes (30 days in, a late
+      gap filled, 0 gaps / 0 duplicates, treatments, both sensor events, battery, v3 edit + move + delete), then
+      `spikes/nightscout-upload` `cli check` (24/24) and `followers/run.sh` pass against the same site.
+- [ ] Emulator (wearer, debug = synthetic glucose; `adb reverse tcp:1337 tcp:1337`): Settings → Share with apps →
+      Nightscout → *Nightscout upload*: *Not set up*, main switch greyed. A follower has no such row.
+- [ ] Site dialog: `http://my.ns.example` → "Use https:// …"; `http://192.168.1.20:1337` → allowed with the
+      "Not encrypted" warning (also under the site row once saved); `http://localhost:1337` + the access token → *Test*
+      shows "Connected · Nightscout 15.0.8"; a wrong token → "The site refused the token or secret". *Save*.
+- [ ] Main switch on → `adb logcat -s Sukrara.nightscout` shows `sent N`; status "Up to date · last upload …"; the site
+      shows the last 30 days, the treatments, SAGE and the phone battery. A new reading is on the site within seconds.
+- [ ] Add carbs, edit the amount, move it, delete it: the site follows (1 → 1 → 0 documents). Long-acting 14u: the
+      site's IOB doesn't change.
+- [ ] Stop the container for a few minutes → "Will retry · …"; start it → the gap fills, no duplicates.
+- [ ] Post an entry from another device (see `verify/roles-and-conflict.sh`) → status "Paused: another app (…) is
+      uploading to this site" with *Upload anyway*; tap it → uploads resume.
+- [ ] Wrong token saved → "The site refused the token or secret: change it", nothing more is sent until it is changed.
+- [ ] `adb logcat` while uploading: no token, secret or JWT in clear. Spanish: every row, dialog and status translated.

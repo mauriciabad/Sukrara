@@ -1,7 +1,21 @@
 {
   "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify.",
-  "header_exts": [".kt", ".swift", ".py", ".sh", ".c", ".h", ".js", ".mjs"],
-  "header_exempt": ["*.gradle.kts", "*/gradlew", "spikes/brand/assets/*", "spikes/showcase-android/settingslib-spa/*"],
+  "header_exts": [
+    ".kt",
+    ".swift",
+    ".py",
+    ".sh",
+    ".c",
+    ".h",
+    ".js",
+    ".mjs"
+  ],
+  "header_exempt": [
+    "*.gradle.kts",
+    "*/gradlew",
+    "spikes/brand/assets/*",
+    "spikes/showcase-android/settingslib-spa/*"
+  ],
   "images_ok": [
     "docs/img/*",
     "spikes/*/evidence/*",
@@ -16,9 +30,67 @@
     "spec/test-vectors/*",
     "tools/check/check.py"
   ],
-  "strings_scope": ["spikes/showcase-android/app/src/main/kotlin/*.kt"],
+  "strings_scope": [
+    "spikes/showcase-android/app/src/main/kotlin/*.kt"
+  ],
   "strings_warn_only": [
     "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/DebugReceiver.kt",
     "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/*"
+  ],
+  "cleartext_ok": [
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
+      "contains": "\"http\" -> if (isLoopback(host))",
+      "reason": "NsSite.parse, the one validated path: http only to loopback or literal home-network hosts (NsSiteTest)"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/OwnerEngine.kt",
+      "contains": "\"http://127.0.0.1:17580\"",
+      "reason": "Juggluco's web server on this phone's loopback"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/LocalServers.kt",
+      "contains": "\"http://$it:${Features.NIGHTSCOUT_PORT}\"",
+      "reason": "display text: the addresses this phone's own Nightscout API serves on (nothing is fetched)"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
+      "contains": "\"http://127.0.0.1:${Features.NIGHTSCOUT_PORT}",
+      "reason": "display text: this phone's own Nightscout API on loopback"
+    }
+  ],
+  "network_ok": [
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/Http.kt",
+      "reason": "Nightscout upload: URLs only from NsConfig, i.e. NsSite.parse"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
+      "reason": "parses the user's address (URI), opens nothing"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/tidepool/TidepoolClient.kt",
+      "reason": "https://api.tidepool.org constant"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/libreview/LibreViewClient.kt",
+      "reason": "https constants; the URLs from Abbott's config must start with https:// (LibreViewClient.https)"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/direct/ReceiverId.kt",
+      "reason": "https://api(-region).libreview.io literal"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
+      "reason": "update check: https://api.github.com literal"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/RelayConnection.kt",
+      "reason": "relay URLs only after RelayPool / Proto keep wss:// ones"
+    },
+    {
+      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/GlucoseSource.kt",
+      "reason": "Juggluco on loopback (OwnerEngine.JUGGLUCO)"
+    }
   ]
 }

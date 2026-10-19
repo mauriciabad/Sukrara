@@ -1232,7 +1232,7 @@
     <!-- Main switch [CHAR LIMIT=40] -->
     <string name="tidepool_main_switch">Subir a Tidepool</string>
     <!-- Row: the uploader's status [CHAR LIMIT=30] -->
-    <string name="tidepool_status">Estado</string>
+    <string name="upload_status_title">Estado</string>
     <!-- Status before signing in [CHAR LIMIT=40] -->
     <string name="tidepool_sign_in_first">Inicia sesión primero</string>
     <!-- Status: the session expired [CHAR LIMIT=60] -->
@@ -1240,13 +1240,13 @@
     <!-- Status: a follower hasn't chosen to upload [CHAR LIMIT=60] -->
     <string name="tidepool_status_not_allowed">Esperando tu elección de abajo</string>
     <!-- Status: nothing uploaded yet [CHAR LIMIT=40] -->
-    <string name="tidepool_status_waiting">Esperando la primera subida</string>
+    <string name="upload_status_waiting">Esperando la primera subida</string>
     <!-- Status; %1$s = date and time of the last upload [CHAR LIMIT=60] -->
-    <string name="tidepool_status_ok">Al día · última subida %1$s</string>
-    <!-- Status; %1$s = Tidepool's error [CHAR LIMIT=NONE] -->
-    <string name="tidepool_status_error">Se reintentará · %1$s</string>
+    <string name="upload_status_ok">Al día · última subida %1$s</string>
+    <!-- Status; %1$s = the service's error [CHAR LIMIT=NONE] -->
+    <string name="upload_status_error">Se reintentará · %1$s</string>
     <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
-    <string name="tidepool_unavailable">No disponible con la subida desactivada</string>
+    <string name="upload_unavailable">No disponible con la subida desactivada</string>
     <!-- Switch (follower): upload the followed person [CHAR LIMIT=40] -->
     <string name="tidepool_follow">Subir a la persona que sigues</string>
     <!-- Follower switch summary while off [CHAR LIMIT=60] -->
@@ -1486,4 +1486,90 @@
     <string name="graph_reset_all">Restablecer todos los ajustes de la gráfica</string>
     <string name="graph_reset_section">Restablecer «%1$s» a los valores predeterminados</string>
     <string name="graph_footer">Los ajustes propios de cada widget se mantienen; restablécelos desde el widget (mantener pulsado → Reconfigurar → Usar ajustes de la app).</string>
+
+    <!-- Nightscout upload (docs/25) -->
+    <!-- Page title and Share with apps row [CHAR LIMIT=40] -->
+    <string name="ns_upload_title">Subida a Nightscout</string>
+    <!-- Page intro [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_intro">Envía tu glucosa, tus registros y los cambios de sensor a tu propio sitio de Nightscout, para que LoopFollow, nightguard, Trio, los informes de Nightscout y Home Assistant los vean desde cualquier lugar.</string>
+    <!-- Row: the Nightscout address [CHAR LIMIT=30] -->
+    <string name="ns_upload_site">Sitio</string>
+    <!-- Warning under the site when it is http:// on the home network [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_insecure">Sin cifrar: cualquiera en esta red puede leer lo que se envía. Usa https:// cuando puedas.</string>
+    <!-- Main switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_main_switch">Subir a mi Nightscout</string>
+    <!-- Status before a site and token are saved [CHAR LIMIT=50] -->
+    <string name="ns_upload_status_setup">Primero configura el sitio</string>
+    <!-- Status: 401/403 [CHAR LIMIT=70] -->
+    <string name="ns_upload_status_sign_in">El sitio rechazó el token o el secreto: cámbialo</string>
+    <!-- Status; %1$s = the other device name [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_status_paused">En pausa: otra app (%1$s) está subiendo a este sitio</string>
+    <!-- Action shown while paused [CHAR LIMIT=30] -->
+    <string name="ns_upload_anyway">Subir igualmente</string>
+    <!-- Summary of Upload anyway [CHAR LIMIT=70] -->
+    <string name="ns_upload_anyway_summary">En el sitio aparecerán las lecturas de las dos apps</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="ns_upload_what">Qué enviar</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_readings">Lecturas de glucosa</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_readings_summary">Todas las lecturas, incluidos los últimos 30 días</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_entries">Insulina, carbohidratos y notas</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_entries_summary">También se suben las ediciones y los borrados</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_sensor">Cambios de sensor</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_sensor_summary">El inicio del sensor, para su antigüedad</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_battery">Batería del móvil</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_battery_summary">Para la batería que muestran Nightscout y LoopFollow</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="ns_upload_advanced">Avanzado</string>
+    <!-- Row: which Nightscout API [CHAR LIMIT=30] -->
+    <string name="ns_upload_api">API</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_upload_api_v1">API v1 (recomendada)</string>
+    <!-- Choice detail [CHAR LIMIT=70] -->
+    <string name="ns_upload_api_v1_sub">Envía las lecturas por lotes; todos los Nightscout la tienen</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_upload_api_v3">API v3</string>
+    <!-- Choice detail [CHAR LIMIT=70] -->
+    <string name="ns_upload_api_v3_sub">Una petición por lectura; necesita un token de acceso</string>
+    <!-- Action: forget the site and token [CHAR LIMIT=40] -->
+    <string name="ns_upload_remove">Quitar este sitio</string>
+    <!-- Page footer [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_footer">Sukrara solo sube, nunca lee nada de vuelta. Mejor un token de acceso con solo los permisos de subida (Nightscout → Admin tools → Subjects) que el secreto de la API, que puede cambiarlo todo en el sitio. Cualquiera de los dos se guarda cifrado en este móvil. Si otra app como Juggluco o xDrip+ sube al mismo sitio, desactiva su subida.</string>
+    <!-- Share with apps row; %1$s = the site host [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_uploading">Subiendo a %1$s</string>
+    <!-- Dialog title [CHAR LIMIT=40] -->
+    <string name="ns_site_dialog_title">Sitio de Nightscout</string>
+    <!-- Field label [CHAR LIMIT=40] -->
+    <string name="ns_site_url">Dirección (https://…)</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_site_kind_token">Token de acceso (recomendado)</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_site_kind_secret">Secreto de la API</string>
+    <!-- Field label [CHAR LIMIT=40] -->
+    <string name="ns_site_credential">Token o secreto</string>
+    <!-- Field hint when one is saved [CHAR LIMIT=60] -->
+    <string name="ns_site_credential_keep">Déjalo vacío para mantener el guardado</string>
+    <!-- Button [CHAR LIMIT=20] -->
+    <string name="ns_site_test">Probar</string>
+    <!-- Button while testing [CHAR LIMIT=20] -->
+    <string name="ns_site_testing">Probando…</string>
+    <!-- Test result; %1$s = server version [CHAR LIMIT=60] -->
+    <string name="ns_site_ok">Conectado · Nightscout %1$s</string>
+    <!-- Field error [CHAR LIMIT=60] -->
+    <string name="ns_site_err_url">No es una dirección web</string>
+    <!-- Field error [CHAR LIMIT=70] -->
+    <string name="ns_site_err_https">Usa https:// (http:// solo en la red de casa)</string>
+    <!-- Test result [CHAR LIMIT=60] -->
+    <string name="ns_site_err_auth">El sitio rechazó el token o el secreto</string>
+    <!-- Test result; %1$s = the reason [CHAR LIMIT=NONE] -->
+    <string name="ns_site_err">No se pudo conectar · %1$s</string>
+    <!-- Button [CHAR LIMIT=20] -->
+    <string name="ns_site_save">Guardar</string>
 </resources>

@@ -11,8 +11,7 @@ import kotlinx.serialization.json.Json
  * What still has to go to Tidepool, worked out from the phone's own stores every cycle (no separate outbox): the
  * readings the role keeps (31 days) and the treatment log are the queue, and [TidepoolQueue.State] remembers what
  * Tidepool already has. So an outage, a reconnect backfill or a sensor history packet that fills a gap is simply
- * "slots not sent yet" on the next cycle. Self-contained on purpose: investigation 25 designs a generic upload queue
- * (Nightscout) and the two can be unified later. Pure Kotlin (JVM tests).
+ * "slots not sent yet" on the next cycle. The same design as Nightscout's (`upload/Uploads.kt`). Pure Kotlin (JVM tests).
  */
 object TidepoolQueue {
     const val WINDOW_S = 31 * 86_400L   // what the wearer's store keeps (OwnerDb)
@@ -37,7 +36,7 @@ object TidepoolQueue {
         val failures: Int = 0,
         val nextAttemptMs: Long = 0,
     ) {
-        fun sentSlots(): java.util.TreeSet<Long> = java.util.TreeSet<Long>().also { s -> for (r in slots) for (x in r[0]..r[1]) s += x }
+        fun sentSlots(): java.util.TreeSet<Long> = app.mauri.sukrara.upload.SentRanges.expand(slots)
 
         override fun equals(other: Any?) = other is State && from == other.from && treatments == other.treatments &&
             notes == other.notes && failures == other.failures && nextAttemptMs == other.nextAttemptMs &&
@@ -50,14 +49,7 @@ object TidepoolQueue {
     fun decode(s: String?): State = s?.let { runCatching { json.decodeFromString(State.serializer(), it) }.getOrNull() } ?: State()
 
     /** Sorted slots → [first, last] ranges (a day of readings is one pair, not 288 numbers). */
-    fun ranges(slots: Collection<Long>): List<LongArray> {
-        val out = ArrayList<LongArray>()
-        for (s in slots.sorted()) {
-            val last = out.lastOrNull()
-            if (last != null && s <= last[1] + 1) last[1] = maxOf(last[1], s) else out += longArrayOf(s, s)
-        }
-        return out
-    }
+    fun ranges(slots: Collection<Long>): List<LongArray> = app.mauri.sukrara.upload.SentRanges.ranges(slots)
 
     /** Who may upload: the wearer always; a follower only once the user picked "upload the person I follow". */
     fun allowed(role: String?, uploadFollowed: Boolean): Boolean = when (role) {
@@ -131,7 +123,7 @@ object TidepoolQueue {
     }
 
     /** Exponential backoff after a failed cycle: 1, 2, 4 … minutes, at most an hour. */
-    fun backoffMs(failures: Int): Long = if (failures <= 0) 0 else minOf(MAX_BACKOFF_MS, MINUTE_MS shl minOf(failures - 1, 6))
+    fun backoffMs(failures: Int): Long = app.mauri.sukrara.upload.UploadBackoff.ms(failures, MINUTE_MS, MAX_BACKOFF_MS)
 
     fun failed(state: State, nowMs: Long): State {
         val f = state.failures + 1

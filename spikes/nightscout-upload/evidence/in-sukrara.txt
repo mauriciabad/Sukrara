@@ -1,0 +1,58 @@
+# Nightscout 15.0.8 filled by the app's NightscoutLiveTest (Sukrara's planner, sender and client; synthetic data)
+[nightscout-e2e] V1 ApiSecret: sent 43187, dropped 0 in 4486 ms
+[nightscout-e2e] V1 ApiSecret: sent 0, dropped 0 in 14 ms
+[nightscout-e2e] V1 ApiSecret: sent 20, dropped 0 in 34 ms
+[nightscout-e2e] site has 43201 entries in 30 days, 0 gaps > 1 min, 0 duplicates
+[nightscout-e2e] newest: sgv 116 Flat Δ1.033 dateString 2026-10-19T07:45:00.000Z utcOffset -240
+[nightscout-e2e] treatments: {Carb Correction=1, Correction Bolus=1, Note=2, Sensor Start=1, Sensor Change=1}
+[nightscout-e2e] V3 AccessToken: sent 0, dropped 0 in 471 ms
+[nightscout-e2e] V3 AccessToken: sent 2, dropped 0 in 53 ms
+[nightscout-e2e] v3: carbs edited + moved (1 document), a note deleted (0 documents, permanent)
+
+
+$ spikes/nightscout-upload cli check --hours 3
+LoopFollow (token= query, v1)
+  PASS entries since 3 h: 180 (1/min)
+  PASS every entry: numeric sgv + numeric date (one bad entry fails the whole fetch)
+  PASS date is epoch ms (LoopFollow divides by 1000)
+  PASS direction in LoopFollow's arrow map
+  PASS no duplicate dates
+  PASS Carb Correction with numeric carbs
+  PASS Correction Bolus with numeric insulin
+  PASS long-acting is a Note without an insulin field (no IOB)
+  PASS Sensor Start present (LoopFollow's SAGE)
+    Sensor Start created_at = 2026-10-16T07:45:00.000Z (server-normalised; see followers/run.sh for LoopFollow's SAge parser)
+  PASS devicestatus uploader.battery numeric
+nightguard (v3 with Bearer JWT, then v1)
+  PASS v3 entries: 180
+  PASS v3: date + sgv numbers
+  PASS v3: direction arrow or NONE
+  PASS v3: identifier on every entry
+  PASS Sensor Change present (nightguard's SAGE)
+  PASS nightguard parses created_at '2026-10-16T07:45:00.000Z'
+Trio (api-secret header, entries/sgv.json with dateString filter)
+  PASS dateString string-range filter returns 180 entries
+  PASS dateString ISO-8601 UTC 'Z' on every entry
+  PASS direction decodes into Trio's enum (anything else empties the batch)
+  PASS noise is an Int
+  PASS carbs found by Trio's carbs query (enteredBy 'Sukrara' is not on its exclusion list)
+Home Assistant (api-secret, status.json + entries/sgv.json)
+  PASS status.json settings.units = mg/dl
+  PASS newest entry has a numeric delta (py-nightscout crashes on null)
+  PASS newest entry is fresh: 116 mg/dL Flat Δ1.033
+
+24 passed, 0 failed
+
+$ spikes/nightscout-upload/followers/run.sh
+Trio 0b29cd5, LoopFollow 4a74b78
+Trio BloodGlucose decoder
+  PASS decoded 180 readings of the last 3 h
+  PASS every reading has sgv and a direction
+    newest: 116 mg/dL Flat at 2026-10-19 7:45:00 AM +0000
+LoopFollow ShareGlucoseData decoder
+  PASS decoded 180 readings
+    newest: 116 mg/dL Flat at 2026-10-19 7:45:00 AM +0000
+LoopFollow SAGE (Sensor Start created_at)
+  PASS SAge.swift's formatter parses '2026-10-16T07:45:00.000Z'
+
+all passed

@@ -141,25 +141,10 @@ object NightscoutApi {
         return arr(rows.map(::treatment))
     }
 
-    fun treatment(t: Treatment): JSONObject {
-        val iso = Instant.ofEpochSecond(t.t).toString()
-        val o = JSONObject()
-            .put("_id", sha1(t.id).take(24))
-            .put("identifier", t.id)
-            .put("created_at", iso).put("date", t.t * 1000).put("mills", t.t * 1000)
-            .put("enteredBy", "Sukrara (${t.o})").put("utcOffset", 0)
-        when (t.k) {
-            "rapid" -> o.put("eventType", "Correction Bolus").put("insulin", t.a)
-            // no `insulin`: Nightscout's IOB (lib/plugins/iob.js:187) and the clients that sum it count every `insulin`
-            // as a rapid bolus; the dose is in `notes` (docs/25 §3.2)
-            "long" -> o.put("eventType", "Note").put("insulinType", "long-acting")
-            "carbs" -> o.put("eventType", "Carb Correction").put("carbs", t.a)
-            else -> o.put("eventType", "Note")
-        }
-        val notes = listOfNotNull(if (t.k == "long") "Long-acting insulin ${app.mauri.sukrara.treatments.TreatmentMarks.amount(t)}" else null, t.n.ifBlank { null })
-        if (notes.isNotEmpty()) o.put("notes", notes.joinToString(" · "))
-        return o
-    }
+    /** The uploader's mapping (docs/25 §3.2: long-acting is a `Note` without `insulin`), plus the v1 read fields. */
+    fun treatment(t: Treatment): JSONObject =
+        app.mauri.sukrara.nightscout.NsDocs.treatment(t, "Sukrara", java.util.TimeZone.getTimeZone("UTC"), enteredBy = "Sukrara (${t.o})")
+            .put("_id", sha1(t.id).take(24)).put("mills", t.t * 1000)
 
     // MARK: auth
 
