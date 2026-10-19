@@ -74,7 +74,15 @@ class TidepoolLiveTest {
             val offsets = byType["cbg"]!!.map { it.jsonObject["timezoneOffset"]!!.jsonPrimitive.int }.toSet()
             assertEquals(setOf(60, 120), offsets)
             val cbg = byType["cbg"]!!.first().jsonObject
-            assertEquals("mg/dL", cbg.s("units"))   // Tidepool stores mmol/L internally; units say what we sent
+            // Tidepool normalizes to mmol/L on the way in (factor 18.01559); the mg/dL value comes back exactly
+            assertEquals("mmol/L", cbg.s("units"))
+            val sent = TidepoolData.perSlot(readings).mapValues { it.value.sgv }   // the earliest reading of each slot
+            for (d in byType["cbg"]!!) {
+                val o = d.jsonObject
+                val t = java.time.Instant.parse(o.s("time")).epochSecond
+                assertEquals(sent[TidepoolData.slot(t)], Math.round(o.s("value").toDouble() * 18.01559).toInt())
+                assertEquals(t, sent.keys.first { it == TidepoolData.slot(t) } * TidepoolData.SLOT_S + (t % TidepoolData.SLOT_S))
+            }
             log("cbg sample: units=${cbg.s("units")} value=${cbg.s("value")} deviceTime=${cbg.s("deviceTime")}")
             assertTrue(client.notes("2021-10-30T00:00:00Z", "2021-11-01T00:00:00Z").any { it.jsonObject["messagetext"]?.jsonPrimitive?.content == "synthetic test note" })
 
@@ -94,22 +102,45 @@ class TidepoolLiveTest {
             assertEquals(1, after["insulin"]?.size)
             assertEquals("50.0", after["food"]!!.single().jsonObject["nutrition"]!!.jsonObject["carbohydrate"]!!.jsonObject.s("net").let { "%.1f".format(it.toDouble()) })
             assertTrue(client.notes("2021-10-30T00:00:00Z", "2021-11-01T00:00:00Z").any { it.jsonObject["messagetext"]?.jsonPrimitive?.content == "synthetic test note, edited" })
+            val before = expiries(client.session!!.token)
+            Thread.sleep(20_000)   // so a sliding refresh window shows as ~20 s, a fixed session maximum as 0
             client.refresh()
-            log("refresh via GET /auth/login: ok")
+            val after2 = expiries(client.session!!.token)
+            log("refresh via GET /auth/login: ok; " + lifetimes(client.session!!.token).joinToString())
+            log("refresh moved exp by: " + before.zip(after2).joinToString { (a, b) -> "${a.first} ${b.second - a.second} s" })
         } finally {
             noteIds.forEach { runCatching { client.removeNote(it) }.onFailure { e -> log("note delete failed: ${e.message}") } }
             client.deleteDataSet(dataSet)
             log("deleted test data set")
         }
         // nothing of ours is left
+        val earlier = ledger.readLines().filter { it.isNotBlank() && !it.startsWith("deleted") && it != dataSet }
+        for (id in earlier) {
+            runCatching { client.deleteDataSet(id) }
+            assertEquals("data left from an earlier run", 0, live(client.data("uploadId=$id")))
+        }
+        log("earlier runs checked: ${earlier.size}")
         val left = client.data("uploadId=$dataSet")
         val sets = client.dataSets().filter { it.jsonObject["deviceId"]?.jsonPrimitive?.content?.startsWith("Sukrara-e2e-test-") == true }
         val notes = client.notes("2021-10-30T00:00:00Z", "2021-11-01T00:00:00Z")
-        log("left: data=${left.size} e2e data sets=${sets.size} notes=${notes.size}")
-        assertEquals(0, left.size); assertEquals(0, sets.size); assertEquals(0, notes.size)
+        log("left: data=${live(left)} (deleted upload records Tidepool keeps: ${left.size - live(left)}) e2e data sets=${sets.size} notes=${notes.size}")
+        assertEquals(0, live(left)); assertEquals(0, sets.size); assertEquals(0, notes.size)
         ledger.appendText("deleted $dataSet\n")
         client.logout()
     }
+
+    /**
+     * Data still there, not counting the upload record itself once deleted: `DELETE /v1/datasets/{id}` removes the data
+     * and keeps the record as a tombstone with `deletedTime` (platform `DeleteDataSet`; no API removes it, same as a
+     * deletion in Tidepool web), which `GET /data` still lists.
+     */
+    private fun live(a: kotlinx.serialization.json.JsonArray) = a.count { it.jsonObject["deletedTime"] == null }
+
+    private fun expiries(token: String): List<Pair<String, Long>> =
+        Regex("[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]+").findAll(token).map { m ->
+            val c = Json.parseToJsonElement(String(Base64.getUrlDecoder().decode(m.value.split('.')[1]))).jsonObject
+            (c["typ"]?.jsonPrimitive?.content ?: "?") to (c["exp"]?.jsonPrimitive?.long ?: 0)
+        }.toList()
 
     /** Lifetimes of the JWTs packed in the session token (typ + seconds until exp), never their contents. */
     private fun lifetimes(token: String): List<String> =

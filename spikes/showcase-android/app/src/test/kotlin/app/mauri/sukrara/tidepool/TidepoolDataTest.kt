@@ -101,6 +101,7 @@ class TidepoolDataTest {
         val m = TidepoolData.note(tr("note", 0.0, 1_800_000_000, "walk"), "user")["message"]!!.jsonObject
         assertEquals("walk", m.s("messagetext")); assertEquals("2027-01-15T08:00:00Z", m.s("timestamp"))
         assertEquals("user", m.s("groupid"))
+        assertEquals(36, m.s("guid").length)   // message-api answers 400 "guid: property is required" without it
     }
 
     @Test fun dataSetIsContinuousAndDedupedByOrigin() {

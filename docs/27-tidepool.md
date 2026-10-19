@@ -26,7 +26,8 @@ another app's identity.
 - **Queue:** no separate outbox; each cycle compares the phone's 31-day store and treatment log with what Tidepool
   already has, so outages and late sensor backfills fill themselves in.
 - **Verified** end to end against the production API with a synthetic night across a DST change, then deleted (see
-  *Verification*).
+  *Verification*): sessions last 12 min and refresh within a sliding 8 h window; Tidepool keeps a deleted upload
+  record as an empty tombstone that the API can't remove.
 
 ## Research
 
@@ -118,9 +119,33 @@ Self-contained (`tidepool/` package): investigation 25 designs a generic upload 
 - End to end against production (`TidepoolLiveTest`, run by hand with the credentials from a gitignored file; skipped
   in CI): see the run below.
 
-**Not run yet (2026-10-19):** the account's password as handed over was refused — `POST /auth/login` → 401 "No user
-matched the given details", and Tidepool's own sign-in page says "Invalid username or password." — so no upload was
-made. Stopped after three attempts to avoid locking the account.
+**Run on 2026-10-19 against `api.tidepool.org`** with the user's account (after a password fix; the first attempts
+were refused), synthetic data only, five runs (four stopped at a check, each fixed below):
+
+| Check | Result |
+|---|---|
+| Login `POST /auth/login` (UA `Sukrara/…`) | 200, session token |
+| Session lifetimes (decoded `exp − iat`, no token kept) | access (Bearer) **720 s** (12 min), refresh **28 800 s** (8 h) |
+| Refresh `GET /auth/login` after 20 s | 200; both expiries moved by +26 s: the 8 h is a sliding idle window, kept alive by the 5-minute cycle. Keycloak's absolute session maximum isn't visible in the token; if it ends the session the status asks to sign in again |
+| Data set create (`continuous`, delete-origin deduplicator) | 200 |
+| 240 one-minute readings over 22:00–02:00 UTC on 30/31 Oct 2021 (clocks went back in Madrid) | 48 `cbg` stored, `timezoneOffset` 120 and 60 both present; each value = the slot's earliest reading |
+| Units | Tidepool stores **mmol/L** (`7.71554` for 139 mg/dL, factor 18.01559); every mg/dL value round-trips exactly |
+| Treatments | 1 `food`, 2 `insulin` stored |
+| Note on its own | Tidepool note created (`/message/send`), visible in `/message/notes` |
+| Same 48 slots re-sent with other values | still 48 `cbg` (origin dedupe) |
+| Carbs edited, rapid deleted, note edited | 1 `food` with the new amount, 1 `insulin` left, the note text changed |
+| Cleanup | notes removed, data sets deleted; `GET /v1/users/{user}/data_sets?client.name=app.mauri.sukrara` → **none**; notes in the window → **none**; `GET /data/{user}` → **no data**, only the five deleted upload records (`deletedTime` set) |
+
+What the run exposed and fixed:
+
+- **message-api requires `guid`** (400 `{"guid":"property is required"}`): notes now carry a stable UUID per entry
+  (`TidepoolData.note`, unit test).
+- Tidepool answers **mmol/L** when read back: the test converts with Tidepool's factor instead of expecting mg/dL.
+
+**Not removable through the API: the deleted upload records.** `DELETE /v1/datasets/{id}` deletes the data and keeps
+the record itself as a tombstone with `deletedTime` (platform `DeleteDataSet`); a second DELETE answers 200 and changes
+nothing, and `GET /data` still lists the five (type `upload`, device `Sukrara-e2e-test-…`, version `0.0.0-e2e`, no
+readings). The same happens when an upload is deleted in Tidepool web. Removing them for good needs Tidepool support.
 
 ## For the user
 
@@ -128,6 +153,8 @@ made. Stopped after three attempts to avoid locking the account.
   Tidepool* on. Your email must be verified on Tidepool first (Tidepool refuses the login until it is).
 - **If Tidepool already gets your Libre data from LibreView** (Tidepool's device connections), switch *Glucose readings*
   off in Sukrara, or every reading shows twice (two devices).
+- **Five empty test upload records** (`Sukrara-e2e-test-…`, deleted, no data) stay on the account as Tidepool's
+  tombstones; only Tidepool support can purge them.
 - **The session can expire** (Tidepool's Keycloak decides; see the token lifetimes above). Then the status says
   "Signed out by Tidepool: sign in again"; nothing is lost, the queue catches up after you sign in.
 - **Next step for a proper integration:** ask Tidepool for an OAuth client id for Sukrara (redirect
