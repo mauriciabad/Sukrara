@@ -1,0 +1,9 @@
+$ cli seed --hours 48 --gap 90..60; sync (API v1, API secret); late; sync
+seed: 2851 readings (gap 90..60 min ago), 3 treatments, sensor start
+  · reconcile 168 h: server has 0, queued 2851 missing
+sync V1 ApiSecret: SyncReport(health=OK, entries=2851, treatments=3, deletes=0, sensorEvents=2, deviceStatus=1, backfilled=2851, dropped=0, pending=0, nextAttemptMs=0, message=)  (615 ms)
+sync V1 ApiSecret: SyncReport(health=IDLE, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (1 ms)
+late: +30
+sync V1 ApiSecret: SyncReport(health=OK, entries=30, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (76 ms)
+2880 entries in 48 h; gaps > 1 min: [] ; duplicates: 0
+stored newest: {'sgv': 99, 'date': 1792367220000, 'dateString': '2026-10-18T23:47:00.000Z', 'utcOffset': -240, 'direction': 'FortyFiveDown', 'delta': -6.65, 'noise': 1, 'device': 'Sukrara', 'identifier': 'a75183ca-64fb-5b03-a92b-8a7be79fb730'}

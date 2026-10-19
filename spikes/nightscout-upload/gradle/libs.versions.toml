@@ -1,0 +1,12 @@
+[versions]
+kotlin = "2.3.20"
+# org.json: Android ships it in the platform; on the JVM it is this artifact (same API)
+orgjson = "20250517"
+junit = "4.13.2"
+
+[libraries]
+orgjson = { module = "org.json:json", version.ref = "orgjson" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

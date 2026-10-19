@@ -1,0 +1,5 @@
+$ python3 -I verify/ha_check.py http://host.docker.internal:1337 <secret>   (2026-10-19T00:07:11Z)
+onboarded HA 2026.10.1
+config flow form: ['url', 'api_key']
+config flow result: create_entry nightscout None
+sensor.blood_sugar = 80 mg/dL  attrs={"device": "Sukrara", "date": "2026-10-19T00:07:00+00:00", "delta": -0.65, "direction": "Flat", "unit_of_measurement": "mg/dL", "device_class": "blood_glucose_concentration", "icon": "mdi:arrow-right"}
