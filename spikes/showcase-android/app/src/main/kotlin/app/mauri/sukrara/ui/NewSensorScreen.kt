@@ -36,7 +36,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -84,9 +92,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
+import app.mauri.sukrara.core.IdKind
+import app.mauri.sukrara.core.Pairing
+import app.mauri.sukrara.core.PairingInput
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.SensorLife
+import app.mauri.sukrara.core.SensorProfile
+import app.mauri.sukrara.core.SensorProfiles
+import app.mauri.sukrara.direct.DriverPrefs
 import app.mauri.sukrara.direct.Libre3Nfc
+import app.mauri.sukrara.direct.SensorPairing
 import app.mauri.sukrara.direct.ReceiverId
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.graph.Freshness
@@ -113,10 +128,11 @@ object NewSensorLaunch {
 private const val TIPS_AFTER_MS = 10_000L
 
 /**
- * New sensor: one screen for the whole start of a Libre 3 / 3 Plus, opened from home ("Pair new sensor"), the
- * "Replace sensor" pill and notification actions, Settings → Sensor, or by tapping a sensor. It waits for the tap in
- * NFC reader mode (only while it's in front), then follows the Bluetooth pairing and the warm-up until the first
- * reading ([NewSensorFlow] holds the steps). Patterns: Material 3 progress indicators (determinate when the wait is
+ * New sensor: one screen for the whole start of a sensor, opened from home ("Pair new sensor"), the
+ * "Replace sensor" pill and notification actions, Settings → Sensor, or by tapping a sensor. It starts with the brand
+ * step (the Libre 3 preselected; NFC reader mode is already on, so tapping a Libre 3 goes straight in), then waits for
+ * the tap in NFC reader mode (only while it's in front) or shows an untested family's setup, then follows the
+ * Bluetooth pairing and the warm-up until the first reading ([NewSensorFlow] holds the steps). Patterns: Material 3 progress indicators (determinate when the wait is
  * known: the warm-up; indeterminate otherwise), Abbott's own "hold the back of the phone near the sensor until it
  * vibrates", and NfcAntennaInfo (API 34) for where this phone's antenna is.
  */
@@ -139,9 +155,16 @@ fun NewSensorScreen(onClose: () -> Unit) {
     var scanAgain by remember { mutableStateOf(false) }
     var showTips by remember { mutableStateOf(false) }
     var hasAccount by remember { mutableStateOf(ReceiverId.libreView(ctx) != null) }
+    // the brand step: null = still choosing; [selected] is the radio choice (the Libre 3 until the user picks another)
+    var chosen by remember { mutableStateOf<SensorProfile?>(null) }
+    var selected by remember { mutableStateOf(NewSensorFlow.DEFAULT_PROFILE) }
+    var typedId by remember { mutableStateOf("") }
+    var confirming by remember { mutableStateOf<SensorProfile?>(null) }
     val now by produceState(Proto.nowS(), tap) { while (true) { value = Proto.nowS(); delay(1_000) } }
 
-    val stage: Stage = preview ?: tap?.let { NewSensorFlow.afterTap(it, st.source, st.last?.t, sensor, now) } ?: when {
+    val stage: Stage = preview ?: tap?.let { NewSensorFlow.afterTap(it, st.source, st.last?.t, sensor, now, st.sourceError) } ?: when {
+        chosen == null -> Stage.Choose
+        chosen?.pairing != Pairing.NfcTap -> NewSensorFlow.afterChoice(chosen!!)
         nfc == null -> Stage.Problem(Trouble.NO_NFC)
         !nfcOn -> Stage.Problem(Trouble.NFC_OFF)
         else -> scanStage
@@ -163,6 +186,7 @@ fun NewSensorScreen(onClose: () -> Unit) {
         scanAgain = false
         when (r) {
             is Libre3Nfc.Result.Paired -> {
+                chosen = SensorProfiles.LIBRE_3
                 r.pairing.save(ctx)
                 if (Features.value.source != "direct") Features.update { it.copy(source = "direct") }
                 else App.owner(ctx).restartSource()
@@ -182,6 +206,7 @@ fun NewSensorScreen(onClose: () -> Unit) {
     }
 
     fun scan(t: Tag) {
+        chosen = SensorProfiles.LIBRE_3   // a tap on the brand step is the Libre 3's answer
         scanStage = Stage.Reading
         scope.launch {
             val r = withContext(Dispatchers.IO) { Libre3Nfc.scan(t, ReceiverId.takeoverCandidates(ctx), ReceiverId.forActivation(ctx)) }
@@ -200,7 +225,7 @@ fun NewSensorScreen(onClose: () -> Unit) {
     // Reader mode only while this screen is in front and waiting: a tap here goes to Sukrara, not to Juggluco or
     // LibreLink. Off during the sign-in and once a sensor answered.
     val listening = !indexing && preview == null && nfc != null && tap == null &&
-        (scanStage is Stage.Waiting || scanStage is Stage.Problem)
+        (chosen == null || chosen?.pairing == Pairing.NfcTap) && (scanStage is Stage.Waiting || scanStage is Stage.Problem)
     LifecycleResumeEffect(nfc, listening) {
         nfcOn = nfc?.isEnabled == true
         btOn = bluetoothOn(ctx)
@@ -218,6 +243,30 @@ fun NewSensorScreen(onClose: () -> Unit) {
 
     DisposableEffect(Unit) { onDispose { NewSensorFlow.preview.value = null } }
 
+    // Back from a family's setup (or the NFC wait) goes to the brand step, not out of the screen.
+    BackHandler(enabled = preview == null && tap == null && chosen != null) { chosen = null; scanStage = Stage.Waiting }
+
+    /** An untested family's "Pair" (after its confirmation): save it as the sensor and start the direct source on it. */
+    fun pairBrand(profile: SensorProfile) {
+        val id = if (profile.pairing is Pairing.TypedId) PairingInput.normalize(typedId) else ""
+        val p = SensorPairing.forBrand(profile, id)
+        ctx.getSharedPreferences("direct", Context.MODE_PRIVATE).edit().remove(DriverPrefs.endedKey(p.serial)).apply()
+        p.save(ctx)
+        SensorLife.update(ctx, null)   // the old sensor's dates are gone; the new one's come when it says
+        if (Features.value.source != "direct") Features.update { it.copy(source = "direct") }
+        else App.owner(ctx).restartSource()
+        tap = NewSensorFlow.Tapped(p.serial, activated = false, at = Proto.nowS(), profile = profile, label = id.ifEmpty { profile.name })
+    }
+
+    val setupProfile = (stage as? Stage.Setup)?.let { SensorProfiles.byId(it.profileId) }
+    val previewConfirm = (stage as? Stage.Setup)?.takeIf { it.confirm }?.let { setupProfile }
+    (confirming ?: previewConfirm)?.let { p ->
+        UntestedConfirmDialog(p, onCancel = { confirming = null; if (previewConfirm != null) NewSensorFlow.preview.value = null }) {
+            confirming = null
+            pairBrand(p)
+        }
+    }
+
     LaunchedEffect(stage is Stage.Waiting) {
         if (stage is Stage.Waiting && !showTips) { delay(TIPS_AFTER_MS); showTips = true }
     }
@@ -231,19 +280,21 @@ fun NewSensorScreen(onClose: () -> Unit) {
             Text(stringResource(R.string.newsensor_title), style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 4.dp).semantics { heading() })
         }
-        StepBar(stage.step, complete = stage is Stage.Ready)
+        StepBar(stage.step, complete = stage is Stage.Ready,
+            setup = (setupProfile ?: tap?.profile ?: chosen ?: selected).pairing != Pairing.NfcTap)
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(32.dp))
-            Swap(heroKey(stage), Modifier.height(260.dp).fillMaxWidth()) { _ ->
+            if (stage is Stage.Choose) ChooseSensor(selected) { selected = it }
+            else Swap(heroKey(stage), Modifier.height(260.dp).fillMaxWidth()) { _ ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Hero(stage, nfc, now) }
             }
             Spacer(Modifier.height(24.dp))
-            Swap(textKey(stage, scanAgain)) { _ ->
+            if (stage !is Stage.Choose) Swap(textKey(stage, scanAgain)) { _ ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(title(stage, scanAgain), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center,
+                    Text(title(stage, scanAgain, setupProfile), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center,
                         modifier = Modifier.semantics { heading() })
-                    body(stage, now)?.let {
+                    body(stage, now, setupProfile)?.let {
                         Text(it, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -253,7 +304,20 @@ fun NewSensorScreen(onClose: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 (stage as? Stage.Pairing)?.let { PairSteps(it.pair) }
                 Reveal((stage as? Stage.Pairing)?.slow == true) {
-                    Note(R.drawable.ic_sym_lightbulb, stringResource(R.string.newsensor_slow_title), stringResource(R.string.newsensor_slow_text))
+                    val vendor = (tap?.profile?.pairing as? Pairing.VendorApp)?.app
+                    Note(R.drawable.ic_sym_lightbulb, stringResource(R.string.newsensor_slow_title), when {
+                        tap?.profile?.pairing == Pairing.NfcTap || tap == null -> stringResource(R.string.newsensor_slow_text)
+                        vendor != null -> stringResource(R.string.newsensor_slow_vendor_text, vendor)
+                        else -> stringResource(R.string.newsensor_slow_brand_text)
+                    })
+                }
+                (setupProfile?.pairing as? Pairing.TypedId)?.let { kind ->
+                    OutlinedTextField(typedId, { typedId = it.take(kind.length + 4) },
+                        label = { Text(stringResource(if (kind.kind == IdKind.TRANSMITTER_ID) R.string.newsensor_transmitter_label else R.string.newsensor_serial_label)) },
+                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii,
+                            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters),
+                        textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace),
+                        modifier = Modifier.fillMaxWidth())
                 }
                 (stage as? Stage.SignIn)?.let { s ->
                     LibreViewSignIn(onCancel = { scanStage = Stage.Waiting }) {
@@ -285,6 +349,20 @@ fun NewSensorScreen(onClose: () -> Unit) {
         // the stage's action at the bottom, where the thumb is (none while waiting: the tap is the action)
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when (stage) {
+                is Stage.Choose -> Primary(stringResource(R.string.newsensor_continue)) {
+                    chosen = selected
+                    typedId = ""
+                    scanStage = Stage.Waiting
+                }
+                is Stage.Setup -> {
+                    val p = setupProfile ?: SensorProfiles.LIBRE_3
+                    val ok = (p.pairing as? Pairing.TypedId)?.let { PairingInput.valid(it, PairingInput.normalize(typedId)) } ?: true
+                    Button(onClick = { if (NewSensorFlow.needsConfirm(p)) confirming = p else pairBrand(p) }, enabled = ok,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                        Text(stringResource(R.string.newsensor_pair_button), style = MaterialTheme.typography.titleMedium)
+                    }
+                    TextButton(onClick = { chosen = null }) { Text(stringResource(R.string.newsensor_choose_other)) }
+                }
                 is Stage.Waiting -> if (!showTips) TextButton(onClick = { showTips = true }) { Text(stringResource(R.string.newsensor_tips_button)) }
                 is Stage.WarmingUp, is Stage.Ready -> Primary(stringResource(R.string.newsensor_done), onClose)
                 is Stage.Problem -> when (stage.trouble) {
@@ -295,7 +373,13 @@ fun NewSensorScreen(onClose: () -> Unit) {
                         Primary(stringResource(R.string.sensor_libre2_source)) { nav?.open("source") }
                         TextButton(onClick = { scanStage = Stage.Waiting }) { Text(stringResource(R.string.newsensor_scan_other)) }
                     }
-                    Trouble.ENDED -> Primary(stringResource(R.string.newsensor_scan_other)) { scanStage = Stage.Waiting }
+                    Trouble.ENDED -> if (tap?.profile?.let { it.pairing != Pairing.NfcTap } == true)
+                        Primary(stringResource(R.string.newsensor_choose_other)) { tap = null; chosen = null }
+                        else Primary(stringResource(R.string.newsensor_scan_other)) { scanStage = Stage.Waiting }
+                    Trouble.PAIR_FAILED -> {
+                        Primary(stringResource(R.string.newsensor_try_again)) { tap = null }
+                        TextButton(onClick = { tap = null; chosen = null }) { Text(stringResource(R.string.newsensor_choose_other)) }
+                    }
                     Trouble.FAILED, Trouble.UNSUPPORTED -> Primary(stringResource(R.string.newsensor_try_again)) { scanStage = Stage.Waiting }
                 }
                 else -> Unit
@@ -310,8 +394,9 @@ private fun Primary(text: String, onClick: () -> Unit) =
 
 /** Scan · Pair · Readings: done and current steps filled, the current one's label in the primary colour. */
 @Composable
-private fun StepBar(current: Step, complete: Boolean) {
-    val labels = listOf(R.string.newsensor_step_scan, R.string.newsensor_step_pair, R.string.newsensor_step_readings)
+private fun StepBar(current: Step, complete: Boolean, setup: Boolean) {
+    val labels = listOf(R.string.newsensor_step_sensor, if (setup) R.string.newsensor_step_setup else R.string.newsensor_step_scan,
+        R.string.newsensor_step_pair, R.string.newsensor_step_readings)
     val desc = stringResource(R.string.newsensor_step_desc, current.ordinal + 1, Step.entries.size, stringResource(labels[current.ordinal]))
     Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp).semantics { contentDescription = desc },
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -379,9 +464,11 @@ private fun Hero(stage: Stage, nfc: NfcAdapter?, now: Long) {
             }
         }
         is Stage.Ready -> ReadyHero()
+        is Stage.Choose -> Unit
+        is Stage.Setup -> Badge(R.drawable.ic_sym_bluetooth_searching, cs.secondaryContainer, cs.onSecondaryContainer)
         is Stage.SignIn -> Badge(R.drawable.ic_sym_account_circle, cs.secondaryContainer, cs.onSecondaryContainer)
         is Stage.Problem -> when (stage.trouble) {
-            Trouble.FAILED -> Badge(R.drawable.ic_sym_error, cs.errorContainer, cs.onErrorContainer)
+            Trouble.FAILED, Trouble.PAIR_FAILED -> Badge(R.drawable.ic_sym_error, cs.errorContainer, cs.onErrorContainer)
             Trouble.ENDED -> Badge(R.drawable.ic_stat_sensor_ended, cs.surfaceContainerHighest, cs.onSurfaceVariant)
             Trouble.NO_NFC, Trouble.NFC_OFF -> Badge(R.drawable.ic_sym_nfc_off, cs.surfaceContainerHighest, cs.onSurfaceVariant)
             Trouble.BLUETOOTH_OFF -> Badge(R.drawable.ic_sym_bluetooth_disabled, cs.surfaceContainerHighest, cs.onSurfaceVariant)
@@ -510,7 +597,13 @@ private fun Note(@DrawableRes icon: Int, title: String, text: String, action: St
 }
 
 @Composable
-private fun title(s: Stage, again: Boolean): String = when (s) {
+private fun title(s: Stage, again: Boolean, setup: SensorProfile?): String = when (s) {
+    is Stage.Choose -> stringResource(R.string.newsensor_choose_title)
+    is Stage.Setup -> when (val k = setup?.pairing) {
+        is Pairing.VendorApp -> stringResource(R.string.newsensor_setup_vendor_title, k.app)
+        is Pairing.TypedId -> stringResource(if (k.kind == IdKind.TRANSMITTER_ID) R.string.newsensor_setup_transmitter_title else R.string.newsensor_setup_serial_title)
+        else -> stringResource(R.string.newsensor_setup_pin_title)
+    }
     is Stage.Waiting -> stringResource(if (again) R.string.newsensor_wait_again_title else R.string.newsensor_wait_title)
     is Stage.Reading -> stringResource(R.string.newsensor_reading_title)
     is Stage.SignIn -> stringResource(R.string.newsensor_signin_title)
@@ -525,11 +618,20 @@ private fun title(s: Stage, again: Boolean): String = when (s) {
         Trouble.UNSUPPORTED -> stringResource(R.string.sensor_unsupported)
         Trouble.FAILED -> stringResource(R.string.newsensor_failed_title)
         Trouble.BLUETOOTH_OFF -> stringResource(R.string.newsensor_bt_off_title)
+        Trouble.PAIR_FAILED -> stringResource(R.string.newsensor_pair_failed_title)
     }
 }
 
 @Composable
-private fun body(s: Stage, now: Long): String? = when (s) {
+private fun body(s: Stage, now: Long, setup: SensorProfile?): String? = when (s) {
+    is Stage.Choose -> null
+    is Stage.Setup -> when (val k = setup?.pairing) {
+        is Pairing.VendorApp -> stringResource(R.string.newsensor_setup_vendor_text, k.app)
+        is Pairing.TypedId -> stringResource(if (k.kind == IdKind.TRANSMITTER_ID) R.string.newsensor_setup_transmitter_text
+            else R.string.newsensor_setup_serial_text, k.length)
+        is Pairing.BlePasskey -> stringResource(R.string.newsensor_setup_pin_text, k.digits)
+        else -> null
+    }
     is Stage.Waiting -> stringResource(R.string.newsensor_wait_text)
     is Stage.Reading -> stringResource(R.string.newsensor_reading_text)
     is Stage.SignIn -> stringResource(if (s.newSensor) R.string.sensor_new_account_text else R.string.sensor_other_app_text)
@@ -546,6 +648,7 @@ private fun body(s: Stage, now: Long): String? = when (s) {
         Trouble.UNSUPPORTED -> s.detail
         Trouble.FAILED -> stringResource(R.string.newsensor_failed_text, s.detail ?: "")
         Trouble.BLUETOOTH_OFF -> stringResource(R.string.newsensor_bt_off_text)
+        Trouble.PAIR_FAILED -> s.detail
     }
 }
 
@@ -589,4 +692,63 @@ private fun LibreViewSignIn(onCancel: () -> Unit, onDone: () -> Unit) {
         }) { Text(stringResource(if (busy) R.string.sensor_signing_in else R.string.sensor_sign_in), style = MaterialTheme.typography.titleMedium) }
         TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(stringResource(R.string.treatment_cancel)) }
     }
+}
+
+/**
+ * The brand step: every family [NewSensorFlow.choices] lists, as a radio list (Material 3 radio button pattern:
+ * the whole row selects, `selectableGroup` for accessibility). Untested families carry an "Untested" tag — tonal,
+ * not red: it is a state, not an error.
+ */
+@Composable
+private fun ChooseSensor(selected: SensorProfile, onSelect: (SensorProfile) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(stringResource(R.string.newsensor_choose_title), style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() })
+        Column(Modifier.fillMaxWidth().selectableGroup()) {
+            NewSensorFlow.choices.forEach { p ->
+                Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                    .selectable(selected = p == selected, role = Role.RadioButton, onClick = { onSelect(p) })
+                    .padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = p == selected, onClick = null)
+                    Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                        Text(p.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(p.brand, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+                    }
+                    if (!p.verified) Surface(shape = CircleShape, color = cs.secondaryContainer) {
+                        Text(stringResource(R.string.newsensor_untested_tag), style = MaterialTheme.typography.labelMedium,
+                            color = cs.onSecondaryContainer, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The warning before pairing an untested family: an AlertDialog with the warning icon (developer.android.com/develop/
+ * ui/compose/components/dialog: "Confirming user action"). "Pair anyway" is disabled for [UntestedConfirm.WAIT_S]
+ * seconds with the count in its label, so the text gets read; Cancel is always enabled, the emphasised (tonal) button
+ * and what back / a tap outside do. The wait restarts every time the dialog opens (state lives in the dialog).
+ */
+@Composable
+internal fun UntestedConfirmDialog(profile: SensorProfile, onCancel: () -> Unit, onPair: () -> Unit) {
+    val opened = remember(profile) { System.currentTimeMillis() }
+    var elapsed by remember(profile) { mutableStateOf(0L) }
+    LaunchedEffect(profile) {
+        while (!UntestedConfirm.enabled(elapsed)) { delay(200); elapsed = System.currentTimeMillis() - opened }
+    }
+    val left = UntestedConfirm.secondsLeft(elapsed)
+    AlertDialog(
+        onDismissRequest = onCancel,
+        icon = { Icon(painterResource(R.drawable.ic_sym_warning), contentDescription = null) },
+        title = { Text(stringResource(R.string.untested_confirm_title)) },
+        text = { Text(stringResource(R.string.untested_confirm_text, profile.name)) },
+        confirmButton = {
+            TextButton(onClick = onPair, enabled = left == 0) {
+                Text(if (left > 0) stringResource(R.string.untested_confirm_wait, left) else stringResource(R.string.untested_confirm_accept))
+            }
+        },
+        dismissButton = { FilledTonalButton(onClick = onCancel) { Text(stringResource(R.string.untested_confirm_cancel)) } },
+    )
 }

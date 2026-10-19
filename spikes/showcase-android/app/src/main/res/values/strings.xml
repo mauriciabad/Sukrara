@@ -814,6 +814,60 @@
     <string name="newsensor_failed_text">%1$s. Hold the phone to the sensor again and keep still until it vibrates.</string>
     <!-- New sensor screen: back to waiting for a tap [CHAR LIMIT=20] -->
     <string name="newsensor_try_again">Try again</string>
+    <!-- New sensor screen: step 1 label, choosing the sensor brand [CHAR LIMIT=12] -->
+    <string name="newsensor_step_sensor">Sensor</string>
+    <!-- New sensor screen: step 2 label for sensors set up without NFC (an id, the vendor app, a PIN) [CHAR LIMIT=12] -->
+    <string name="newsensor_step_setup">Set up</string>
+    <!-- New sensor screen: brand step title [CHAR LIMIT=50] -->
+    <string name="newsensor_choose_title">Which sensor are you starting?</string>
+    <!-- New sensor screen: tag on a sensor brand whose support was never tested on a real sensor [CHAR LIMIT=15] -->
+    <string name="newsensor_untested_tag">Untested</string>
+    <!-- New sensor screen: brand step button [CHAR LIMIT=20] -->
+    <string name="newsensor_continue">Continue</string>
+    <!-- New sensor screen: setup title, %1$s = the vendor app's name (Dexcom) [CHAR LIMIT=50] -->
+    <string name="newsensor_setup_vendor_title">Open the %1$s app</string>
+    <!-- New sensor screen: setup text for reading along with the vendor app, %1$s = its name [CHAR LIMIT=NONE] -->
+    <string name="newsensor_setup_vendor_text">Sukrara reads along with the %1$s app on this phone and sends nothing to the sensor. Start the sensor there and keep the app installed and running.</string>
+    <!-- New sensor screen: setup title, typing the Dexcom transmitter ID [CHAR LIMIT=50] -->
+    <string name="newsensor_setup_transmitter_title">Enter the transmitter ID</string>
+    <!-- New sensor screen: where the transmitter ID is, %1$d = its length [CHAR LIMIT=NONE] -->
+    <string name="newsensor_setup_transmitter_text">The %1$d characters printed on the transmitter and its box.</string>
+    <!-- New sensor screen: transmitter ID field [CHAR LIMIT=30] -->
+    <string name="newsensor_transmitter_label">Transmitter ID</string>
+    <!-- New sensor screen: setup title, typing the sensor's serial number [CHAR LIMIT=50] -->
+    <string name="newsensor_setup_serial_title">Enter the sensor\'s serial number</string>
+    <!-- New sensor screen: where the serial number is, %1$d = its length [CHAR LIMIT=NONE] -->
+    <string name="newsensor_setup_serial_text">The %1$d characters printed on the sensor\'s box.</string>
+    <!-- New sensor screen: serial number field [CHAR LIMIT=30] -->
+    <string name="newsensor_serial_label">Serial number</string>
+    <!-- New sensor screen: setup title before Android's Bluetooth PIN dialog [CHAR LIMIT=50] -->
+    <string name="newsensor_setup_pin_title">Have the PIN ready</string>
+    <!-- New sensor screen: the PIN Android will ask for, %1$d = its number of digits [CHAR LIMIT=NONE] -->
+    <string name="newsensor_setup_pin_text">Android asks for the %1$d-digit PIN printed on the sensor\'s cap. Keep the phone near the sensor.</string>
+    <!-- New sensor screen: start pairing an untested sensor [CHAR LIMIT=20] -->
+    <string name="newsensor_pair_button">Pair</string>
+    <!-- New sensor screen: back to the brand step [CHAR LIMIT=30] -->
+    <string name="newsensor_choose_other">Choose another sensor</string>
+    <!-- New sensor screen: slow pairing hint when reading along with the vendor app, %1$s = its name [CHAR LIMIT=NONE] -->
+    <string name="newsensor_slow_vendor_text">Open the %1$s app and keep it running: Sukrara can read the sensor only while that app has its session.</string>
+    <!-- New sensor screen: slow pairing hint for the other untested sensors [CHAR LIMIT=NONE] -->
+    <string name="newsensor_slow_brand_text">Keep the phone near the sensor. A sensor paired with another phone can\'t pair here.</string>
+    <!-- New sensor screen: an untested sensor's Bluetooth pairing failed [CHAR LIMIT=50] -->
+    <string name="newsensor_pair_failed_title">Couldn\'t pair the sensor</string>
+    <!-- Untested sensor warning dialog: title [CHAR LIMIT=40] -->
+    <string name="untested_confirm_title">Untested sensor</string>
+    <!-- Untested sensor warning dialog: text, %1$s = the sensor (Dexcom G7 / ONE+) [CHAR LIMIT=NONE] -->
+    <string name="untested_confirm_text">Sukrara\'s support for %1$s is untested: readings may be wrong or missing.\n\nKeep using the official app or a meter to confirm before any treatment decision. A feedback banner stays on your home screen until this sensor is verified.</string>
+    <!-- Untested sensor warning dialog: the accept button while it is still disabled, %1$d = seconds left [CHAR LIMIT=30] -->
+    <string name="untested_confirm_wait">Pair anyway (%1$d)</string>
+    <!-- Untested sensor warning dialog: the accept button [CHAR LIMIT=30] -->
+    <string name="untested_confirm_accept">Pair anyway</string>
+    <!-- Untested sensor warning dialog: cancel, the safe default [CHAR LIMIT=20] -->
+    <string name="untested_confirm_cancel">Cancel</string>
+    <!-- Home: permanent banner under the graph while the sensor's support is untested, %1$s = the sensor [CHAR LIMIT=NONE] -->
+    <string name="home_untested_banner_text">%1$s support is untested. Tell us how it works.</string>
+    <!-- Home: untested sensor banner button, opens a pre-filled GitHub issue [CHAR LIMIT=25] -->
+    <string name="home_untested_banner_action">Send feedback</string>
 
     <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
     <string name="badge_alerts_paused">Alerts paused</string>

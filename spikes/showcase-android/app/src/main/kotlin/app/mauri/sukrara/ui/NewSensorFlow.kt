@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import app.mauri.sukrara.core.Pairing
 import app.mauri.sukrara.core.SensorInfo
 import app.mauri.sukrara.core.SensorProfile
 import app.mauri.sukrara.core.SensorProfiles
@@ -10,21 +11,43 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * The New sensor flow's steps (ui/NewSensorScreen.kt), as plain data so the rules are unit-tested
- * (NewSensorFlowTest): scan (NFC) → pair (Bluetooth, from the direct source's status) → readings (warm-up for a new
- * sensor, the first reading for one taken over).
+ * (NewSensorFlowTest): sensor (which family; the Libre 3 preselected) → scan (NFC tap, or the family's setup: a typed
+ * id, the vendor app, the PIN to have ready) → pair (Bluetooth, from the direct source's status) → readings (warm-up
+ * for a new sensor, the first reading for one taken over).
  */
 object NewSensorFlow {
-    /** The three steps shown at the top of the screen. */
-    enum class Step { SCAN, PAIR, READINGS }
+    /** The steps shown at the top of the screen. */
+    enum class Step { SENSOR, SCAN, PAIR, READINGS }
+
+    /** The brand step's choice when the screen opens: the Libre 3, so its flow stays the default (one tap on). */
+    val DEFAULT_PROFILE: SensorProfile = SensorProfiles.LIBRE_3
+
+    /** The families the brand step lists, the Libre 3 first. */
+    val choices: List<SensorProfile> get() = SensorProfiles.all
+
+    /** Picking [profile] on the brand step leads to the NFC scan (the Libre 3) or to its own setup. */
+    fun afterChoice(profile: SensorProfile): Stage = if (profile.pairing == Pairing.NfcTap) Stage.Waiting else Stage.Setup(profile.id)
+
+    /** Pairing an untested family asks first ([UntestedConfirm]); the Libre 3 never does. */
+    fun needsConfirm(profile: SensorProfile) = !profile.verified
 
     /** The Bluetooth part, from the direct source's status words (direct/GattLink and direct/Libre3Driver `onStatus`). */
     enum class PairStep { CONNECTING, SECURING, STARTING }
 
     /** What stops the flow. Only [FAILED] is an error; the others are states of the sensor or the phone. */
-    enum class Trouble { NO_NFC, NFC_OFF, ENDED, LIBRE2, UNSUPPORTED, FAILED, BLUETOOTH_OFF }
+    enum class Trouble { NO_NFC, NFC_OFF, ENDED, LIBRE2, UNSUPPORTED, FAILED, BLUETOOTH_OFF,
+        /** An untested family's Bluetooth pairing failed with a reason (wrong id, refused PIN): back to its setup. */
+        PAIR_FAILED }
 
     sealed interface Stage {
         val step: Step
+        /** Which sensor are you starting? */
+        data object Choose : Stage { override val step = Step.SENSOR }
+        /**
+         * An untested family's setup ([SensorProfile.pairing]): its input and "Pair". [confirm] only in previews: the
+         * untested confirmation open (screenshots).
+         */
+        data class Setup(val profileId: String, val confirm: Boolean = false) : Stage { override val step = Step.SCAN }
         /** Reader mode on, waiting for a tap. */
         data object Waiting : Stage { override val step = Step.SCAN }
         /** A tag is being read. */
@@ -39,12 +62,17 @@ object NewSensorFlow {
         /** The first reading arrived: the flow is done. */
         data class Ready(val serial: String, val endEpoch: Long?) : Stage { override val step = Step.READINGS }
         data class Problem(val trouble: Trouble, val serial: String? = null, val detail: String? = null) : Stage {
-            override val step = if (trouble == Trouble.BLUETOOTH_OFF) Step.PAIR else Step.SCAN
+            override val step = if (trouble == Trouble.BLUETOOTH_OFF || trouble == Trouble.PAIR_FAILED) Step.PAIR else Step.SCAN
         }
     }
 
-    /** A successful tap: the sensor's serial, whether it was started now, when (epoch s), and its family. */
-    data class Tapped(val serial: String, val activated: Boolean, val at: Long, val profile: SensorProfile = SensorProfiles.LIBRE_3)
+    /**
+     * A successful tap (or an untested family's "Pair"): the saved sensor's serial, whether it was started now, when
+     * (epoch s), its family, and what the screen calls it ([label]: the serial, or the family's name when there is
+     * none yet, e.g. a Dexcom G7 read along with the Dexcom app).
+     */
+    data class Tapped(val serial: String, val activated: Boolean, val at: Long, val profile: SensorProfile = SensorProfiles.LIBRE_3,
+                      val label: String = serial)
 
     /** Pairing that takes longer than this (s) shows the "another app holds the sensor" hint. */
     const val SLOW_S = 45L
@@ -56,29 +84,36 @@ object NewSensorFlow {
      * After a successful tap: where the flow is, from the direct source's [source] status ("direct: …"), the newest
      * reading's time and the sensor the source reported ([sensor], null until it did).
      */
-    fun afterTap(tap: Tapped, source: String, lastReadingT: Long?, sensor: SensorInfo?, now: Long): Stage {
+    fun afterTap(tap: Tapped, source: String, lastReadingT: Long?, sensor: SensorInfo?, now: Long, detail: String? = null): Stage {
         val s = source.removePrefix("direct: ")
         val info = sensor?.takeIf { it.serial == tap.serial }
         val bleUp = s == "live" || s.startsWith("warming up")
         // a started sensor has no reading before its warm-up ends; one taken over has its current minute at once
         val first = lastReadingT != null && (if (tap.activated) lastReadingT > tap.at else lastReadingT >= tap.at - FIRST_READING_SLACK_S)
+        val name = tap.label
         return when {
-            s == "sensor ended" -> Stage.Problem(Trouble.ENDED, tap.serial)
-            s == "unsupported sensor" -> Stage.Problem(Trouble.UNSUPPORTED, tap.serial)
-            s == "waiting for Bluetooth" -> Stage.Problem(Trouble.BLUETOOTH_OFF, tap.serial)
-            bleUp && first -> Stage.Ready(tap.serial, info?.endEpoch)
+            s == "sensor ended" -> Stage.Problem(Trouble.ENDED, name)
+            s == "unsupported sensor" -> Stage.Problem(Trouble.UNSUPPORTED, name)
+            s == "waiting for Bluetooth" -> Stage.Problem(Trouble.BLUETOOTH_OFF, name)
+            s == "failed" && tap.profile.pairing != Pairing.NfcTap -> Stage.Problem(Trouble.PAIR_FAILED, name, detail)
+            bleUp && first -> Stage.Ready(name, info?.endEpoch)
             bleUp && (tap.activated || s.startsWith("warming up")) ->
-                Stage.WarmingUp(tap.serial, info?.startEpoch ?: tap.at, info?.warmupEndEpoch ?: (tap.at + tap.profile.warmup.inWholeSeconds))
-            bleUp -> Stage.Pairing(tap.serial, tap.activated, PairStep.STARTING)   // live, the first reading on its way
-            else -> Stage.Pairing(tap.serial, tap.activated, pairStep(s), slow = now - tap.at > SLOW_S)
+                Stage.WarmingUp(name, info?.startEpoch ?: tap.at, info?.warmupEndEpoch ?: (tap.at + tap.profile.warmup.inWholeSeconds))
+            bleUp -> Stage.Pairing(name, tap.activated, PairStep.STARTING)   // live, the first reading on its way
+            else -> Stage.Pairing(name, tap.activated, pairStep(s), slow = now - tap.at > SLOW_S)
         }
     }
 
     fun pairStep(status: String): PairStep = when {
         status == "pairing with the sensor" || status == "authorizing" -> PairStep.SECURING
         status == "authorized, subscribing" -> PairStep.STARTING
-        else -> PairStep.CONNECTING   // connecting, discovering services, waiting for sensor, reconnecting, no sensor yet
+        // the untested families (direct/BrandDriver and its drivers)
+        status in BRAND_SECURING || status.startsWith("pairing") -> PairStep.SECURING
+        status == "reading" -> PairStep.STARTING
+        else -> PairStep.CONNECTING   // scanning, connecting, discovering services, waiting for sensor, reconnecting, no sensor yet
     }
+
+    private val BRAND_SECURING = setOf("authenticating", "exchanging keys", "waiting for the Dexcom app")
 
     /** Debug builds: a stage forced by `DebugReceiver --es cmd newSensor` (screenshots on an emulator without NFC). */
     val preview = MutableStateFlow<Stage?>(null)
@@ -97,7 +132,11 @@ object NewSensorFlow {
         "failed" -> Stage.Problem(Trouble.FAILED, detail = "Tag was lost")
         "bluetooth" -> Stage.Problem(Trouble.BLUETOOTH_OFF, "3MH00TEST")
         "nfcoff" -> Stage.Problem(Trouble.NFC_OFF)
-        else -> null
+        "choose" -> Stage.Choose
+        "untested" -> Stage.Setup(SensorProfiles.DEXCOM_G7.id, confirm = true)
+        "pairfailed" -> Stage.Problem(Trouble.PAIR_FAILED, "8GABCD", "wrong transmitter id for this transmitter")
+        else -> name.removePrefix("setup-").takeIf { name.startsWith("setup-") && SensorProfiles.byId(it)?.verified == false }
+            ?.let { Stage.Setup(it) }
     }
 }
 
@@ -117,4 +156,19 @@ enum class NewSensorDue {
             else -> NO
         }
     }
+}
+
+/**
+ * The warning before pairing an untested family (the user's ask, 2026-10-19): "Pair anyway" stays disabled for
+ * [WAIT_S] seconds with the count in its label, so the text gets read; Cancel is always enabled and is the default.
+ * Every opening starts the wait again.
+ */
+object UntestedConfirm {
+    const val WAIT_S = 5
+
+    /** Whole seconds until "Pair anyway" is enabled, [elapsedMs] after the dialog opened (rounded up; 0 = enabled). */
+    fun secondsLeft(elapsedMs: Long, waitS: Int = WAIT_S): Int =
+        ((waitS * 1000L - elapsedMs.coerceAtLeast(0) + 999) / 1000).toInt().coerceAtLeast(0)
+
+    fun enabled(elapsedMs: Long, waitS: Int = WAIT_S) = secondsLeft(elapsedMs, waitS) == 0
 }
