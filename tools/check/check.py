@@ -17,6 +17,9 @@ Checks
   large       blobs over allow.json large_bytes
   images      new images only under docs/img, spikes/*/evidence, brand, res; full-phone captures flagged
   strings     new hardcoded UI text in Android Kotlin; values/ and values-es/ keys in sync
+  cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
+              http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
+              connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -214,6 +217,36 @@ def check_debug(ch, rep):
                     rep.add("FAIL", "debug", "%s:%d calls SensorEnd.fake*: only DebugFakes.kt may (debug builds only)." % (p, n))
 
 
+CLEARTEXT = re.compile(r"""["'](?:http|ws)(?:["':])""", re.I)
+NETWORK = re.compile(r"openConnection\(|newWebSocket\(|Request\.Builder\(|\.toURL\(")
+
+
+def check_cleartext(ch, rep):
+    """cleartext: whole-tree scan of the Android app's Kotlin (not only the change): a cleartext URL or scheme, or a
+    new place that opens connections, fails unless allow.json lists that exact spot with its reason."""
+    allow = load("allow.json")
+    clear_ok, net_ok = allow["cleartext_ok"], allow["network_ok"]
+    where = ["--cached"] if not ch.rev else []
+    out = git("grep", "-n", "-I", "-E", "-i", *where, "-e", r"(\"|')(http|ws)(\"|'|:)|openConnection\(|newWebSocket\(|Request\.Builder\(|\.toURL\(",
+              *([ch.rev] if ch.rev else []), "--", APP_KT + "*.kt", ok=True)
+    for line in out.splitlines():
+        if ch.rev and line.startswith(ch.rev + ":"):
+            line = line[len(ch.rev) + 1:]
+        path, _, rest = line.partition(":")
+        n, _, text = rest.partition(":")
+        if text.lstrip().startswith(("//", "*", "/*")):
+            continue
+        for m in CLEARTEXT.finditer(text):
+            if not any(e["path"] == path and e["contains"] in text for e in clear_ok):
+                rep.add("FAIL", "cleartext", "%s:%s builds or accepts a cleartext URL (%s…). The app permits cleartext only for\n"
+                        "the validated home-network Nightscout (NsSite.parse) and loopback; use https:// / wss://, or add this\n"
+                        "exact spot to tools/check/allow.json cleartext_ok with the reason." % (path, n, text.strip()[:60]))
+                break
+        if NETWORK.search(text) and not any(e["path"] == path for e in net_ok):
+            rep.add("FAIL", "cleartext", "%s:%s opens a connection in a file not on tools/check/allow.json network_ok. Make sure the\n"
+                    "URL can only be https:// / wss:// (or loopback / NsSite-validated), then list the file with the reason." % (path, n))
+
+
 def check_static(ch, rep):
     allow = load("allow.json")
     live = ch.live()
@@ -340,6 +373,7 @@ def main(argv):
     if only in (None, "static"):
         check_static(ch, rep)
         check_debug(ch, rep)
+        check_cleartext(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

@@ -34,13 +34,16 @@ class LibreViewClient(private val prefs: SharedPreferences) {
         }
 
     private fun base(): String {
-        prefs.getString("newYuUrl", null)?.let { return it }
-        val cfgUrl = Json.parseToJsonElement(get(assets)).jsonObject["Configuration"]!!.jsonPrimitive.content
+        prefs.getString("newYuUrl", null)?.let { return https(it) }
+        val cfgUrl = https(Json.parseToJsonElement(get(assets)).jsonObject["Configuration"]!!.jsonPrimitive.content)
         val cfg = Json.parseToJsonElement(get(cfgUrl)).jsonObject
-        val url = cfg["newYuUrl"]!!.jsonPrimitive.content
+        val url = https(cfg["newYuUrl"]!!.jsonPrimitive.content)
         prefs.edit().putString("newYuUrl", url).putString("newYuApiKey", cfg["newYuApiKey"]!!.jsonPrimitive.content).apply()
         return url
     }
+
+    /** URLs from Abbott's config: https only (the app permits cleartext for the home-network Nightscout, docs/25). */
+    private fun https(url: String): String = url.also { require(it.startsWith("https://")) { "LibreView config URL is not https" } }
 
     /** Logs in; stores the token and the person fields needed for sensor registration. */
     fun auth(email: String, password: String, setDevice: Boolean) {
