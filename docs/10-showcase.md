@@ -1026,6 +1026,34 @@ what goes over the air, in the timing or in the words the New sensor screen read
 | A scanning transport, the brand step, the other drivers | Step 2+ (each needs a sensor to verify); the seams are in place (`profile.needsScan`, `SensorDriver.matches` / `onAdvertisement`, `Pairing` kinds, `BleLink.bond`). |
 | Running the JNI security core in the JVM tests | Untouched by the refactor; a host build of Juggluco's core for the tests would prove nothing about the move. The replay fakes it and pins the calls into it. |
 
+## Other sensor brands, untested (investigation 23, steps 2–5)
+
+The user (2026-10-19): *"I want them anyway with untested, and when users use one of it they get a permanent banner
+under the graph in the app that tells them to submit feedback as a GitHub issue. When we get enough feedback we'll
+remove the banner for that sensor."* The user only has a Libre 3 Plus, so nothing below has touched a real sensor;
+every driver is pinned by open-source traces. Details: [docs/23 "In Sukrara"](23-sensors.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| `SensorProfile.verified` (the Libre 3 true, everything else false: the one switch for the tag, the confirmation and the banner), `name`, profiles for Dexcom G7 / ONE+, G7 15 Day / Stelo, SmartGuide, Aidex X, G6 / ONE; `PairingInput`; `ActiveSensor` | `core/SensorProfile.kt` |
+| Drivers: G7 observer (writes nothing), G6 / ONE, SmartGuide (standard CGMS), Aidex X (+ advertisement readings), on a shared `BrandDriver` (status words, session start, live vs history, end, failure); `Crc` | `direct/BrandDriver.kt`, `direct/dexcom/`, `direct/cgms/`, `direct/aidex/`, `direct/Crc.kt` |
+| Framework: a short filtered scan (`SensorScanner`) that hands the address to `GattLink`, `BleLink.read` / `SensorDriver.onRead`, a bond-state receiver → `onBondChanged`, `SensorDriver.scan` / `onAdvertisement(record)`, `SensorEvents.onSessionStart`, one `sensor.json` record keyed by `profile` (`SensorPairing.forBrand`), `DirectSource.transport` (the Libre 3 always by address), readings tagged with `profile.id` | `direct/SensorScanner.kt`, `direct/GattLink.kt`, `direct/SensorDriver.kt`, `direct/SensorPairing.kt`, `direct/DirectSource.kt`, `owner/DirectAdapter.kt` |
+| Brand step (Libre 3 first and preselected, NFC already listening), per-family setup (vendor app / transmitter id / serial / PIN), *Untested* tags, the untested confirmation with a 5 s forced wait | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt` (`UntestedConfirm`) |
+| The banner under the graph + the pre-filled GitHub issue (form `.github/ISSUE_TEMPLATE/sensor-feedback.yml`) | `ui/SensorFeedback.kt`, `ui/OwnerScreens.kt` |
+| Tests: every driver against the spike's traces (`src/test/resources/traces`), the Libre 3 never scans, brand step, countdown, banner logic, issue URL without personal data | `G7DriverTest`, `G6DriverTest`, `SmartGuideDriverTest`, `AidexXDriverTest`, `CrcTest`, `DirectSourceTest`, `BrandStepTest`, `SensorFeedbackTest` |
+
+| Discarded | Why |
+|---|---|
+| **Dexcom G7 own pairing** (J-PAKE + app certificate), its J-PAKE code | Needs a Dexcom-issued identity (docs/23); observer mode covers the sensor. The J-PAKE stays in the spike only. |
+| **Abbott Lingo** | Out of scope for this round (its own step 6). |
+| Camera scan of the Aidex / SmartGuide box code | The data-matrix layout isn't in any of the open sources we read, so the scanner would be guesswork; the serial is typed (10 characters). The SmartGuide needs nothing typed (its PIN goes into Android's dialog). |
+| A SmartGuide serial filter | Nothing to type: it matches an `AC-…` device with the CGM service, and a stranger's sensor fails at the PIN. |
+| The spike's G6 "session start = transmitter clock" | The transmitter clock runs for months, so every G6 would have looked ended; the app asks for the session start (`0x24`, xDrip+ `TransmitterTimeRxMessage`). |
+| "stopped" as the G7's end | LoopKit's lifecycle opens with it before the session starts; only expired / ended / failed end it. |
+| LibreView glucose upload and the Libre-named broadcasts for the new families | LibreView takes Libre life-count readings; the xDrip+-style broadcasts still name the sensor `Libre3`. Left as they are until a family is verified. |
+| Calibration entry | Every ported family is factory calibrated; an optional finger-stick calibration on the sensor isn't offered. |
+| The banner on followers and the Mac | It is about the wearer's own sensor; followers can't act on it. |
+
 ## Tidepool upload (docs/27)
 
 Settings → Share with apps → Tidepool (Android, both roles; off by default): Tidepool's own session login, the

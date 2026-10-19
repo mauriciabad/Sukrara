@@ -135,6 +135,21 @@ Cheap tools:
       `Libre 1/2 chip: not supported, nothing sent` with no command lines.
 - [ ] A new Libre 3 without a known LibreView receiver ID: *Sign in to LibreView*, nothing sent; after the
       sign-in the next tap starts it (logcat `patch info … state=1`, then the pairing).
+- [ ] **Libre 3 unchanged by the brand step** (investigation 23): the screen opens on *Which sensor are you
+      starting?* with *FreeStyle Libre 3 / 3 Plus* selected; tapping the sensor right there starts the scan (no
+      *Continue* needed); *Continue* → the same NFC flow as before; no *Untested* tag, no confirmation, no banner on
+      home. After the install, `adb logcat -s Sukrara.direct Sukrara.scan` shows the usual Libre 3 connection by
+      address and **no `Sukrara.scan` line at all**; readings keep arriving every minute.
+- [ ] Untested families (emulator only; nobody has the sensors): `--es stage choose|untested|pairfailed|setup-dexcom-g6|
+      setup-aidex-x|setup-accu-chek-smartguide|setup-dexcom-g7`: every brand but the Libre 3 has the *Untested* tag;
+      *Pair* is disabled until a typed id is valid; the confirmation counts *Pair anyway (5)* … *(1)* with the button
+      disabled, then *Pair anyway*; *Cancel*, back and a tap outside close it; reopening restarts the count. Light and
+      dark, English and Spanish. Unit tests: `BrandStepTest`, the driver tests (`G7DriverTest`, `G6DriverTest`,
+      `SmartGuideDriverTest`, `AidexXDriverTest`, `CrcTest`), `DirectSourceTest` (the Libre 3 never scans).
+- [ ] Untested banner: `--es cmd sensorProfile --es profile dexcom-g7` (debug) → home shows *Dexcom G7 / ONE+
+      support is untested. Tell us how it works.* directly under the graph, no close button, not red; *Send feedback*
+      opens github.com/…/issues/new with the sensor-feedback form pre-filled with the sensor, the Sukrara and Android
+      versions and the phone model only (`SensorFeedbackTest`); `--es profile libre3` → gone; a follower never shows it.
 
 ## Q13 Sensor end in calendar
 
