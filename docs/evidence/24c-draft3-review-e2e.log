@@ -1,0 +1,95 @@
+run 2026-10-19 (review 24c), spec/reference: uv run ogs d3 e2e
+   0.0s  owner: identity caaf6671a85b… device 1042107b7887… epoch 003e3a5a0933f097 — relays ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom']
+   2.3s    publish membership                   kind 31078 by 3bd2d63baf…  3/3 relays OK
+   3.3s    publish cgm 07:30                    kind 31078 by c3426b47e4…  3/3 relays OK
+   4.2s    publish cgm 07:45                    kind 31078 by c3426b47e4…  3/3 relays OK
+   5.0s    publish cgm 08:00                    kind 31078 by c3426b47e4…  3/3 relays OK
+   5.9s    publish cgm 08:15                    kind 31078 by c3426b47e4…  3/3 relays OK
+   6.5s  published 49 readings; F1 may read 49 (from yesterday), F2 49 (from today: the offer says back 0)
+   9.2s    publish sensor                       kind 31078 by 51a027c1a9…  3/3 relays OK
+   9.9s  F1: invite link ogs:A8qvZnGoWyR9VIkVgWiMgD1IH_tvKtin1A@nos.lol,relay.primal.net
+  10.2s    publish invite for F1                kind  1059 by 06ee458143…  3/3 relays OK
+  12.3s  F1: invite from 'OGS3 e2e (synthetic)', identity caaf6671a85b…, offer {'scopes': [], 'back': 1}
+  14.0s    publish join from F1                 kind  1059 by 6a9296ebca…  3/3 relays OK
+  14.7s  F1: shows match code 929280
+  14.7s  owner: stream event → accepted:sensor
+  14.7s  owner: stream event → accepted:cgm (4 rows)
+  14.7s  owner: stream event → accepted:cgm (15 rows)
+  14.7s  owner: stream event → accepted:cgm (15 rows)
+  14.7s  owner: stream event → accepted:cgm (15 rows)
+  14.8s  owner: wrap → accepted:join-pending
+  14.8s  owner: wearer types 929280 = the code of the request → Allow
+  15.1s    publish owner reply                  kind  1059 by d477bfc419…  3/3 relays OK
+  15.8s  F1: accepted:grant (epoch 003e3a5a0933f097)
+  16.2s  F1: accepted:sensor
+  16.2s  F1: accepted:cgm (4 rows)
+  16.2s  F1: accepted:cgm (15 rows)
+  16.2s  F1: accepted:cgm (15 rows)
+  16.2s  F1: accepted:cgm (15 rows)
+  16.2s  F1: ignored:older
+  16.3s  F2: invite link ogs:A8qvZnGoWyR9VIkVgfiu1na0oWSDOwhK6Q@nos.lol,relay.primal.net
+  19.3s    publish invite for F2                kind  1059 by 16ed1c3a83…  3/3 relays OK
+  21.7s  F2: invite from 'OGS3 e2e (synthetic)', identity caaf6671a85b…, offer {'scopes': ['write'], 'back': 0}
+  24.6s    publish join from F2                 kind  1059 by 008d251678…  3/3 relays OK
+  25.2s  F2: shows match code 129483
+  25.3s  owner: wrap → accepted:join-pending
+  25.3s  owner: wearer types 129483 = the code of the request → Allow
+  27.2s    publish owner reply                  kind  1059 by 98bfaa4593…  3/3 relays OK
+  28.0s    publish owner reply                  kind 31078 by 3bd2d63baf…  3/3 relays OK
+  28.7s  F1: accepted:membership (seq 2)
+  28.8s  F2: accepted:grant (epoch 003e3a5a0933f097)
+  29.3s  F2: ignored:older
+  29.4s  F2: accepted:sensor
+  29.4s  F2: accepted:cgm (4 rows)
+  29.4s  F2: accepted:cgm (15 rows)
+  29.4s  F2: accepted:cgm (15 rows)
+  29.4s  F2: accepted:cgm (15 rows)
+  29.5s  backfill: F1 49 readings, F2 49 readings
+  29.7s    publish cgm live update              kind 31078 by c3426b47e4…  3/3 relays OK
+  30.3s  owner: stream event → accepted:cgm (5 rows)
+  30.3s  F1: accepted:cgm (5 rows)
+  30.4s  F2: accepted:cgm (5 rows)
+  31.4s    publish carbs by F2                  kind 31078 by 6e0051e79c…  3/3 relays OK
+  32.1s  owner: stream event → accepted:carbs
+  32.1s  F1: accepted:carbs
+  32.1s  F2: accepted:carbs
+  32.6s    publish removal / rotation           kind  1059 by eecdf85ce3…  3/3 relays OK
+  33.4s    publish removal / rotation           kind 31078 by 3bd2d63baf…  3/3 relays OK
+  34.2s    publish removal / rotation           kind 31078 by 629ba9ac56…  3/3 relays OK
+  35.1s    publish removal / rotation           kind  1059 by d636885251…  3/3 relays OK
+  35.7s  owner: epoch 003e3a5a0933f097 → b4af61cd4231cf3f
+  35.8s  owner: stream event → accepted:epoch-end
+  35.8s  F1: accepted:ended (removed)
+  35.9s  F1: ignored:ended
+  35.9s  F1: ignored:ended
+  35.9s  F1: ignored:ended
+  35.9s  F2: accepted:epoch-end
+  35.9s  F2: accepted:grant (epoch b4af61cd4231cf3f)
+  36.3s    publish cgm in the new epoch         kind 31078 by da6a8240f2…  3/3 relays OK
+  37.1s  owner: stream event → accepted:cgm (1 rows)
+  37.1s  F2: ignored:older
+  37.2s  F2: accepted:cgm (1 rows)
+  37.8s    publish removal of the writer        kind  1059 by d16942c60f…  3/3 relays OK
+  38.7s    publish removal of the writer        kind 31078 by 629ba9ac56…  3/3 relays OK
+  39.5s    publish removal of the writer        kind 31078 by 629ba9ac56…  3/3 relays OK
+  40.3s    publish removal of the writer        kind 31078 by 8c40a7a10e…  3/3 relays OK
+  41.1s  owner: stream event → accepted:epoch-end
+  41.1s  F2: accepted:ended (removed)
+  41.1s  F2: ignored:ended
+  41.1s  F2: ignored:ended
+  41.1s  F2: ignored:ended
+  41.1s  F2: ignored:ended
+  41.2s  F2: ignored:ended
+  41.2s  F2: ignored:ended
+  46.3s    publish carbs by removed F2          kind 31078 by baf3ec49d9…  3/3 relays OK
+  47.0s  owner: removed writer's carbs in epoch b4af61cd4231cf3f → ignored:unknown-author
+  47.5s  PASS  F1 joined and backfilled exactly its window
+  47.5s  PASS  F2 joined and backfilled exactly its window (nothing before today)
+  47.5s  PASS  live update reached both
+  47.5s  PASS  writer's carbs accepted by owner and F1
+  47.5s  PASS  rotation: F1 ended, F2 has the new epoch
+  47.5s  PASS  new epoch data reached F2
+  47.5s  PASS  F1 cannot read the new epoch
+  47.5s  PASS  F1 stays removed (replayed joins never re-admit)
+  47.5s  PASS  removed writer F2 can't write into its old epoch
+  47.5s  F2: 51 readings, 1 entries, epochs ['003e3a5a0933f097', 'b4af61cd4231cf3f']; F1: status ended (removed), epochs ['003e3a5a0933f097']; today = day 20745

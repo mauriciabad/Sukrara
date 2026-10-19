@@ -18,9 +18,11 @@ kind 1059    pubkey = one-time key                                            ta
              content = NIP-44 ciphertext                                      created_at = up to 2 days in the past
 ```
 
-No identity key, device key or member key ever appears in clear. Nothing in an envelope is shared with another day's
-envelopes. Relays can still count events, measure sizes and timing, and see the IP addresses of clients
-([ogs3-security.md](ogs3-security.md) S§3).
+No identity key, device key or member key ever appears in clear, and no field of an envelope repeats from one day's
+envelopes to the next. That stops anyone from linking days *by content*. It doesn't stop linking by behaviour: a
+relay sees which authors one connection publishes or subscribes to (a member's REQ lists several days at once), and
+anyone sees a once-a-minute rhythm stop at midnight under one key and continue under another. Relays can also count
+events, measure sizes and timing, and see the IP addresses of clients ([ogs3-security.md](ogs3-security.md) S§3).
 
 ## N§2 Kinds and tags
 
@@ -70,19 +72,24 @@ support AUTH. Members MUST accept envelopes with or without the tag.
 ### N§4.1 Members
 
 ```
-inbox:   {"kinds":[1059], "#p":[<member inbox>], "since": now − 3 days}
+inbox:   {"kinds":[1059], "#p":[<member inbox>], "since": <last connected> − 2 days}
 stream:  {"kinds":[31078], "authors":[ author(P, lane) for every day held in the window,
                                        for every (publisher, lane) in the membership ]}
 ```
 
 - The **window** is the days to watch: RECOMMENDED yesterday, today and tomorrow (for midnight and clock skew) for the
-  live view, and the last N days for entries that can still be edited (RECOMMENDED N = 30). Days outside the member's
-  grant are skipped: their authors can't be computed.
+  live view, and, for lane `r` only, the **edit window** of C§11.4 (RECOMMENDED 7 days) for entries that can still
+  be edited. Days outside the member's grant, before its puncture point or after an ended epoch's last day are
+  skipped: their authors can't be computed.
 - Publishers per epoch: `I` in lane `m`; each device in lanes `g` and `r`; each member with a scope in lane `r`
   (C§5.3). With 2 devices and 2 writers, a 3-day window is 21 authors per epoch.
 - Re-issue the subscription when the membership changes, when a grant arrives, and at UTC midnight.
-- No `since` on the stream filter: addressable events are few (about 100 a day per device), and relays return only
-  the newest version of each.
+- The first subscription has no `since`. A re-subscription or a reconnect uses `since` = the newest `created_at`
+  received from that relay − 60 s: without it every reconnect downloads every stored object again (about 200 live
+  blocks of the last two days plus up to 30 day archives of about 25 KB each, per relay), a real cost on a phone.
+- Relays limit the authors per filter (often a few hundred). Split a long list over several filters of one REQ.
+- The **inbox** filter uses `since` = the last time the member was connected − 2 days (NIP-59 backdates wraps by up
+  to two days), not a fixed "now − 3 days": a member that was offline for a week must still find its grant.
 
 ### N§4.2 Backfill
 

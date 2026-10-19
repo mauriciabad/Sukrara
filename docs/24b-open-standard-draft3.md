@@ -2,7 +2,12 @@
 
 *2026-10-19 · investigation report · follows [24](24-open-standard.md) · spec: [`spec/draft3/`](../spec/draft3) ·
 reference: [`spec/reference/ogs/d3`](../spec/reference/ogs/d3) · evidence:
-[`evidence/24b-draft3-e2e.log`](evidence/24b-draft3-e2e.log)*
+[`evidence/24b-draft3-e2e.log`](evidence/24b-draft3-e2e.log) · reviewed in [24c](24c-draft3-review.md)*
+
+> **Updated after the independent review ([24c](24c-draft3-review.md)).** The review found two critical holes (a
+> removed writer or a lost phone could keep writing into the old epoch; strangers got envelopes over Bluetooth) and
+> several smaller ones. They are fixed in the spec, the vectors and the reference; the figures below are the
+> current ones. 24c lists every change and what was rejected.
 
 ## Goal
 
@@ -19,9 +24,9 @@ stream.
 | Mental model | **Draft 1:** an owner phone broadcasts with one read key per epoch. **Draft 3:** a set of records, each **signed by its author**. Members hold **grants that are ranges of days**, cut from a key tree. Relays see **keys that change every day**. |
 | State of the art | Re-checked against current NIPs and open PRs, Marmot (MLS over Nostr), the HL7 CGM IG 1.0.0, Tidepool, Nightscout API v3, Open mHealth / IEEE 1752, HealthKit, Health Connect, Bluetooth CGMS, the consent models of Dexcom Follow, LibreLinkUp and Nightscout, MLS / Signal / Megolm, and BLE platform limits. What changed the design: [below](#what-the-state-of-the-art-changed). |
 | Reference | `spec/reference/ogs/d3`, Python with standard-library crypto (the draft-1 primitives plus HMAC trees and secp256k1 key tweaking). **MLS was not chosen**, so no heavy library is needed. Parts: owner/administrator, member, BLE identifiers, bridges, vectors, live run. |
-| Test vectors | `spec/draft3/test-vectors/ogs-draft3.json`, byte-for-byte reproducible: <br>• the tree: 2 epochs, 5 covers, day material, blinded authors and a blinded secret, `d` tags, a punctured cover; <br>• the invite in 3 text forms, 3 invite checks; <br>• **40 events**, with the plaintext of every wrap; <br>• 3 administrator checks; <br>• a **38-step acceptance scenario** with its final state; <br>• BLE UUIDs, proof, and frames at 3 MTUs; <br>• bridge examples (Nightscout, FHIR, Health Connect, Tidepool). |
-| Tests | 29 offline tests: the 17 from draft 1 and 12 new ones (cover exactness and minimality on 60 random ranges, bounded grants, puncturing, blinded secret ↔ blinded public key, invite forms, validation, padding, BLE UUIDs, vectors and determinism). All pass. |
-| Live run | `uv run ogs d3 e2e` against **nos.lol, relay.primal.net and nostr.mom**, throwaway keys and synthetic glucose, everything expiring within the hour. The flow: <br>1. an owner invites a reader F1 (one day back) and a writer F2 (today only); <br>2. both join by typed code and backfill **exactly** their windows; <br>3. a live update reaches both; <br>4. F2's carbs are accepted by the owner and by F1; <br>5. the owner removes F1: rotation, F1 ended, F2 granted the new epoch; <br>6. new-epoch data reaches F2, and F1 can't read it. <br>**8/8 checks pass, in about 65 s and 3.5 s of CPU.** |
+| Test vectors | `spec/draft3/test-vectors/ogs-draft3.json`, byte-for-byte reproducible: <br>• the tree: 2 epochs, 5 covers, day material, blinded authors and a blinded secret, `d` tags, a punctured cover; <br>• the invite in 3 text forms, 3 invite checks; <br>• **44 events**, with the plaintext of every wrap; <br>• 3 administrator checks; <br>• a **42-step acceptance scenario** with its final state; <br>• BLE UUIDs, both proofs, and frames at 3 MTUs; <br>• bridge examples (Nightscout, FHIR, Health Connect, Tidepool). |
+| Tests | 36 offline tests: the 17 from draft 1, 12 from this draft (cover exactness and minimality on 60 random ranges, bounded grants, puncturing, blinded secret ↔ blinded public key, invite forms, validation, padding, BLE UUIDs, vectors and determinism) and 7 from the review (removed writer, grant-only cut, `ended` ordering, history cap, read-only emergency invites, merge ties, BLE `AUTH`). All pass. |
+| Live run | `uv run ogs d3 e2e` against **nos.lol, relay.primal.net and nostr.mom**, throwaway keys and synthetic glucose, everything expiring within the hour. The flow: <br>1. an owner invites a reader F1 (one day back) and a writer F2 (today only); <br>2. both join by typed code and backfill **exactly** their windows; <br>3. a live update reaches both; <br>4. F2's carbs are accepted by the owner and by F1; <br>5. the owner removes F1: rotation, F1 ended, F2 granted the new epoch; <br>6. new-epoch data reaches F2, and F1 can't read it; <br>7. (review) the owner removes F2 too, and F2's carbs signed in its old epoch are not recognised. <br>**9/9 checks pass, in about 50 s** ([24c log](evidence/24c-draft3-review-e2e.log)). |
 | Live run found bugs | The first run found real protocol issues, now fixed in the spec and the reference. See [Lessons from the live run](#lessons-from-the-live-run). |
 | Publishing | Nothing was published. The package is ready: the site page, a standalone-repo README, and the steps. [Below](#publishing). No PR to nostr-protocol/nips. |
 
@@ -112,13 +117,13 @@ The full reasoning, with what was considered and why each option was rejected, i
 | Time-limited access | no (needs a rotation, with the owner online) | yes, without any action |
 | Forward secrecy | none | members puncture past days |
 | Post-compromise security | on rotation only | scheduled rotation (30 d), plus on removal |
-| Authors on relays | `D`, `I`, writers: constant, linkable forever | blinded per day and lane: unlinkable across days |
+| Authors on relays | `D`, `I`, writers: constant, linkable forever | blinded per day and lane: no content link across days (traffic patterns still link them, S§2) |
 | Opaque tags | `d`/`c`/`gk` from a never-rotating `sid` | `d` from the day key; nothing constant |
 | Removed follower | can still recognise the stream (knows `sid`, BLE `m`) | can't recognise anything after rotation |
 | Requests addressed to | `I` (a constant `p` tag) | a per-invite and per-epoch inbox |
 | Kinds | `21078`, `21079`, `30078` (NIP-78: relays may refuse to serve), rumors `30500`–`30502` | `31078` only; `4078` and `4079` never published |
 | Live | an ephemeral event per reading plus hour chunks | the current block republished |
-| Invite | `https://sukrara.mauri.app/join#…`, no offer, 4-digit code | `ogs:…` with a version and hints, any host, an offer, a 6-digit code |
+| Invite | `https://sukrara.mauri.app/join#…`, no offer, 4-digit code | `ogs:…` with a version, a 96-bit fingerprint and hints, any host, an offer, a 6-digit code |
 | Consent | approve = everything, forever | approve = the offer: scopes, history days, duration |
 | Writers | visible keys, echo, first-seen creator rules | contributors under blinded keys; entries keyed by creator |
 | Multi-device | one owner device; each follower device a separate join | several publisher devices; `link` for a member's other devices |
@@ -134,7 +139,7 @@ The full reasoning, with what was considered and why each option was rejected, i
 | Time zone | none | `tz` offset, `zone` name |
 | Enumerations, versions | closed; `v` per object | open; caps; kind and labels are the version |
 | Corrections | first copy wins | newest object wins |
-| BLE discovery | one constant service UUID: a public health inference | day UUIDs, 15-minute advertised UUID, pairing UUID only while pairing |
+| BLE discovery | one constant service UUID: a public health inference | day UUIDs, 15-minute advertised UUID, pairing UUID only while pairing; both sides prove the day key before any envelope |
 | Bridges | Nightscout, Tidepool (informative) | Nightscout, FHIR CGM IG, Health Connect, HealthKit, Tidepool, Open mHealth, CGMS; FHIR summary LOINCs |
 
 ## What the state of the art changed

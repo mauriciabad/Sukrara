@@ -214,6 +214,18 @@ async def run(relays: list[str]) -> int:
     await publish(oa.pool, owner.envelope(D, blk, at=int(time.time())), "cgm in the new epoch")
     ok_new = await pump(30, lambda: (SESS, t_new) in f2.readings)
     f1_blind = (SESS, t_new) not in f1.readings
+
+    # remove the writer F2 too; it still holds the epoch it was in and signs carbs there (C§11.2): nobody may accept
+    old2 = owner.current
+    for e in owner.remove(f2.M.pub, int(time.time())):
+        await publish(oa.pool, e, "removal of the writer")
+    await pump(5)
+    forged = {"type": "carbs", "id": str(uuid.uuid4()), "t": int(time.time()), "g": 90, "rev": int(time.time() * 1000)}
+    ev = f2.write(forged)                       # F2's view of old2 is intact: it stopped reading at `ended`
+    await publish(members["F2"][1].pool, ev, "carbs by removed F2")
+    verdict = owner.accept(ev, int(time.time()))
+    log(f"owner: removed writer's carbs in epoch {old2} → {verdict}")
+    ok_revoked = verdict.verdict != "accepted" and not any(k[1] == forged["id"] for k in owner.reader.entries)
     for _, a, _ in members.values():
         await a.pool.close()
     await oa.pool.close()
@@ -222,7 +234,8 @@ async def run(relays: list[str]) -> int:
               "F2 joined and backfilled exactly its window (nothing before today)": ok_f2, "live update reached both": ok_live,
               "writer's carbs accepted by owner and F1": ok_w, "rotation: F1 ended, F2 has the new epoch": ok_rot,
               "new epoch data reached F2": ok_new, "F1 cannot read the new epoch": f1_blind,
-              "F1 stays removed (replayed joins never re-admit)": f1.status == "ended"}
+              "F1 stays removed (replayed joins never re-admit)": f1.status == "ended",
+              "removed writer F2 can't write into its old epoch": ok_revoked}
     for k, v in checks.items():
         log(f"{'PASS' if v else 'FAIL'}  {k}")
     log(f"F2: {len(f2.readings)} readings, {len(f2.entries)} entries, epochs {sorted(f2.views)}; "
