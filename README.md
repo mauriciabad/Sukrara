@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.25/Sukrara-0.11.25.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.26/Sukrara-0.11.26.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.25/Sukrara-0.11.25.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.26/Sukrara-0.11.26.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -299,12 +299,12 @@ not yet in the apps, is in [`spec/draft3/`](spec/draft3) ([24b](docs/24b-open-st
 
 ## Try it
 
-Downloads: [v0.11.25](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.25) (Android and Mac)
+Downloads: [v0.11.26](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.26) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.25.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.26.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -314,10 +314,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.25.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.26.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.25.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.26.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not
