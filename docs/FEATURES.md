@@ -133,6 +133,10 @@ Wearer only (`ui/NewSensorScreen.kt`; rules in `ui/NewSensorFlow.kt`, tests `New
 - Settings → Sensor: the paired sensor (serial, started, ends, what the source is doing), *Pair a sensor* / *Pair new sensor*, *Open Sukrara when you scan a sensor* (on Android 16+ when the user blocked Sukrara's tag intents: *Blocked in Android settings. Tap to allow* → `ACTION_CHANGE_TAG_INTENT_PREFERENCE`), *Forget this sensor*.
 - Debug builds: `DebugReceiver --es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff|choose|untested|pairfailed|setup-<profile id>]` forces a stage while the screen is open (cleared when it closes; `untested` = the G7 setup with the confirmation open).
 
+## Untested sensor banner
+
+Wearer only (`ui/SensorFeedback.kt`, tests `SensorFeedbackTest`). While the direct source runs with a sensor whose profile isn't verified (`core/ActiveSensor`), home shows a permanent card directly under the glucose panel: a flask icon, *<family> support is untested. Tell us how it works.* and the pill *Send feedback*. Not dismissible, not red (surface container). The pill opens a pre-filled GitHub issue (`.github/ISSUE_TEMPLATE/sensor-feedback.yml`, label `sensor-feedback`): title *Sensor feedback: <family>*, fields sensor model, Sukrara version, Android version (`16 (API 36)`), phone model — no glucose values, serials or anything personal. Followers and the Mac never show it (it is about the wearer's own sensor). Setting the family's `SensorProfile.verified` to true removes it. Debug builds: `DebugReceiver --es cmd sensorProfile --es profile <id>` forces the active family (screenshots).
+
 ## Sensor scan: other sensors
 
 - The New sensor screen's NFC tap checks the chip first (UID maker byte): only 0x7A (Abbott, Libre 3 / 3 Plus) gets Libre 3 commands. 0x07 (Texas Instruments: Libre 1 / 2 / 2 Plus) gets no command at all and shows *Libre 2 sensors aren't supported* — start it with Juggluco, then pick Juggluco as the glucose source — with a *Glucose source* button; any other tag → *Not supported* / "not a FreeStyle Libre 3".

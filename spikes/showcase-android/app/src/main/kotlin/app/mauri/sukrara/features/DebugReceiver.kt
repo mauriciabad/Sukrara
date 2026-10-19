@@ -40,7 +40,9 @@ import org.json.JSONObject
  *       [--es cmd fakeSensor [--es serial S] [--el start UNIX] [--el end UNIX] [--ez clear true]] [--es cmd sensor …] [--es cmd backfill …]
  *       [--es alertTest KIND] [--es alertFeed 'SGV,RATE'] [--ei previewSgv N [--ef previewRate R]]   (root status bar, until the next reading)
  *       [--es cmd locktest [--ez on B]]   (lock screen widget: a 100 dp magenta square + circle, to measure distortion)
- *       [--es cmd newSensor --es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff]
+ *       [--es cmd newSensor --es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff|
+ *                                      choose|untested|pairfailed|setup-<profile id>]
+ *       [--es cmd sensorProfile --es profile ID]   (the active sensor's family: the untested-sensor banner; none = clear)
  *       [--es cmd treat --es k rapid|long|carbs|note [--ef a AMOUNT] [--es n NOTE]]
  *
  * docs/10-showcase.md has the table. `libreview true` only arms the uploader; it still needs the setup screen.
@@ -165,7 +167,7 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "owner ready")
             }
             // made-up sensors and data (DebugFakes): debug builds only, a release build changes nothing and says so
-            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock", "locktest", "treat" -> DebugFakes.run(c, cmd, i, out)
+            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock", "locktest", "treat", "sensorProfile" -> DebugFakes.run(c, cmd, i, out)
             // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
             "calendar" -> {
                 SensorCalendar.init(c)
