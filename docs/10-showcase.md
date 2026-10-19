@@ -1007,6 +1007,25 @@ the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/2
 |---|---|
 | Fetching more history for a follower's export | only what the device already has |
 
+## Sensor drivers (investigation 23, step 1)
+
+The first step of [docs/23](23-sensors.md#in-sukrara): the direct source now runs a `SensorDriver` picked from a
+registry by the saved sensor's profile, and the Libre 3 is the first and only driver — a pure refactor, no change in
+what goes over the air, in the timing or in the words the New sensor screen reads.
+
+| Added | Where |
+|---|---|
+| `SensorProfile` (pairing kind, warm-up, lifetime, grace, calibration, needs-scan) + `SensorProfiles.LIBRE_3`; `SensorLife`'s defaults and the New sensor flow's warm-up fallback read it | `core/SensorProfile.kt`, `core/SensorLife.kt`, `ui/NewSensorFlow.kt` |
+| `SensorDriver` / `BleLink` / `SensorEvents` / `Advert` / `DriverPrefs`, the `Drivers` registry, the pairing file's `profile` field | `direct/SensorDriver.kt`, `direct/Drivers.kt`, `direct/SensorPairing.kt` |
+| The Libre 3 client split in two: `Libre3Driver` (handshake, packets, timers, sensor status words) over `GattLink` (connect by address, operation queue, reconnects, connection status words); the JNI core behind a `Libre3Security` interface | `direct/Libre3Driver.kt`, `direct/GattLink.kt`, `direct/Libre3Crypto.kt` |
+| Replay tests: every byte written, every subscribe, timer and status word of a fresh pairing, a resume, glucose, history, patch status, warm-up, an expired and a terminated sensor, the error paths; profile = old constants; registry | `Libre3DriverTest`, `SensorProfileTest`, `DriversTest` |
+
+| Discarded | Why |
+|---|---|
+| The spike's `Reading` / `Session` / `DriverStatus` types | The app's `Bridge.Reading`, `LibreViewPayload.Glucose` and status words already carry the same fields, and the New sensor screen parses the words: the driver reports in those, so nothing above the source changes. |
+| A scanning transport, the brand step, the other drivers | Step 2+ (each needs a sensor to verify); the seams are in place (`profile.needsScan`, `SensorDriver.matches` / `onAdvertisement`, `Pairing` kinds, `BleLink.bond`). |
+| Running the JNI security core in the JVM tests | Untouched by the refactor; a host build of Juggluco's core for the tests would prove nothing about the move. The replay fakes it and pins the calls into it. |
+
 ## Tidepool upload (docs/27)
 
 Settings → Share with apps → Tidepool (Android, both roles; off by default): Tidepool's own session login, the
@@ -1054,25 +1073,6 @@ upload design with Tidepool. Research, design and verification: [docs/25](25-nig
 | `filtered` / `unfiltered` / `rssi` / calibrations | Libre 3 has none |
 | A per-reading outbox (the PoC's timestamp queue) | the phone's store is the queue, as in Tidepool: one design, nothing to keep in sync |
 | Mac uploader | the phone holds the store and uploads; the Mac would upload the same data twice |
-
-## Sensor drivers (investigation 23, step 1)
-
-The first step of [docs/23](23-sensors.md#in-sukrara): the direct source now runs a `SensorDriver` picked from a
-registry by the saved sensor's profile, and the Libre 3 is the first and only driver — a pure refactor, no change in
-what goes over the air, in the timing or in the words the New sensor screen reads.
-
-| Added | Where |
-|---|---|
-| `SensorProfile` (pairing kind, warm-up, lifetime, grace, calibration, needs-scan) + `SensorProfiles.LIBRE_3`; `SensorLife`'s defaults and the New sensor flow's warm-up fallback read it | `core/SensorProfile.kt`, `core/SensorLife.kt`, `ui/NewSensorFlow.kt` |
-| `SensorDriver` / `BleLink` / `SensorEvents` / `Advert` / `DriverPrefs`, the `Drivers` registry, the pairing file's `profile` field | `direct/SensorDriver.kt`, `direct/Drivers.kt`, `direct/SensorPairing.kt` |
-| The Libre 3 client split in two: `Libre3Driver` (handshake, packets, timers, sensor status words) over `GattLink` (connect by address, operation queue, reconnects, connection status words); the JNI core behind a `Libre3Security` interface | `direct/Libre3Driver.kt`, `direct/GattLink.kt`, `direct/Libre3Crypto.kt` |
-| Replay tests: every byte written, every subscribe, timer and status word of a fresh pairing, a resume, glucose, history, patch status, warm-up, an expired and a terminated sensor, the error paths; profile = old constants; registry | `Libre3DriverTest`, `SensorProfileTest`, `DriversTest` |
-
-| Discarded | Why |
-|---|---|
-| The spike's `Reading` / `Session` / `DriverStatus` types | The app's `Bridge.Reading`, `LibreViewPayload.Glucose` and status words already carry the same fields, and the New sensor screen parses the words: the driver reports in those, so nothing above the source changes. |
-| A scanning transport, the brand step, the other drivers | Step 2+ (each needs a sensor to verify); the seams are in place (`profile.needsScan`, `SensorDriver.matches` / `onAdvertisement`, `Pairing` kinds, `BleLink.bond`). |
-| Running the JNI security core in the JVM tests | Untouched by the refactor; a host build of Juggluco's core for the tests would prove nothing about the move. The replay fakes it and pins the calls into it. |
 
 ## Next
 

@@ -1,5 +1,10 @@
 # Open Glucose Stream (OGS)
 
+> [!WARNING]
+> **Work in progress.** This specification is still being developed and can change at any time. When Sukrara 1.0
+> is released, its versions will be consolidated: only the latest is kept, earlier drafts are deleted, and the
+> version numbering starts again. Don't rely on "draft 3" as a stable name or number.
+
 **An open protocol for sharing a live glucose stream, end-to-end encrypted, with the people you choose. It runs over
 public Nostr relays when they're apart and over Bluetooth when they're close. There's no account and no server.**
 
@@ -13,6 +18,11 @@ password that sees everything in plaintext. OGS is a third way:
 - any relay carries it, and Bluetooth carries it with no internet at all;
 - any app can join: as a follower (a viewer, widget, watch or Home Assistant), as a writer (adding insulin and carbs),
   or as the owner app that reads the sensor.
+
+> **Draft 3** ([`draft3/`](draft3), 2026-10-19) is a clean-sheet redesign: grants as ranges of days from a key tree,
+> records signed by their authors, keys blinded per day, a fuller data model, and no constant identifier on relays or
+> over Bluetooth. No app speaks it yet. This page and the documents below are **draft 1**, which Sukrara 0.11 speaks.
+> Report: [docs/24b](../docs/24b-open-standard-draft3.md).
 
 ## Documents
 

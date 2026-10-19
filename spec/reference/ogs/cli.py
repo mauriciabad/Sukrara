@@ -7,6 +7,8 @@
   ogs vectors verify [FILE]             check a vectors file: signatures, NIP-44, derivations, BLE, the scenario
   ogs follow LINK [--minutes N]         join a stream as a third-party follower over public relays (throwaway key)
   ogs decode FIXTURE                    run a fixture file (events + the follower's keys) through the follower
+  ogs d3 vectors generate|verify [FILE] draft 3 test vectors (spec/draft3/test-vectors/ogs-draft3.json)
+  ogs d3 e2e [--relays URL,...]         draft 3 end to end on public relays: owner, two members, a writer, removal
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from .follower import Follower
 from .nostr import Keys
 
 DEFAULT_VECTORS = Path(__file__).resolve().parents[2] / "test-vectors" / "ogs-draft1.json"
+DRAFT3_VECTORS = Path(__file__).resolve().parents[2] / "draft3" / "test-vectors" / "ogs-draft3.json"
 LOOKUP_RELAYS = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social"]
 
 
@@ -145,6 +148,28 @@ async def follow(link: str, minutes: float, state_path: Path) -> int:
     return 0 if fol.status == "active" and fol.readings else 1
 
 
+def cmd_d3(a) -> int:
+    from .d3 import vectors as v3
+    if a.what == "e2e":
+        from .d3.e2e import run
+        return asyncio.run(run([u for u in a.relays.split(",") if u]))
+    path = Path(a.file or DRAFT3_VECTORS)
+    if a.action == "generate":
+        vec = v3.generate()
+        fails = v3.verify_file(vec, fill_final=True)
+        path.write_text(v3.dumps(vec))
+        print(f"wrote {path}")
+    vec = json.loads(path.read_text())
+    fails = v3.verify_file(vec)
+    for f in fails:
+        print("FAIL", f)
+    print(f"{'FAIL' if fails else 'PASS'}: {len(vec['events'])} events, {len(vec['plaintexts'])} wraps opened, "
+          f"{len(vec['tree']['covers'])} covers, {len(vec['invite_checks'])} invite checks, "
+          f"{len(vec['owner_checks'])} owner checks, BLE at {len(vec['ble']['frames_by_att_mtu'])} MTUs, "
+          f"scenario {len(vec['scenario']['steps'])} steps")
+    return 1 if fails else 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="ogs", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -158,7 +183,16 @@ def main(argv=None) -> int:
     f.add_argument("link")
     f.add_argument("--minutes", type=float, default=5)
     f.add_argument("--state", default=str(Path.home() / ".cache" / "ogs-reference" / "follower.json"))
+    d3 = sub.add_parser("d3")
+    d3s = d3.add_subparsers(dest="what", required=True)
+    d3v = d3s.add_parser("vectors")
+    d3v.add_argument("action", choices=["generate", "verify"])
+    d3v.add_argument("file", nargs="?")
+    d3e = d3s.add_parser("e2e")
+    d3e.add_argument("--relays", default="wss://nos.lol,wss://relay.primal.net,wss://nostr.mom")
     a = p.parse_args(argv)
+    if a.cmd == "d3":
+        return cmd_d3(a)
     if a.cmd == "vectors":
         return cmd_vectors(a)
     if a.cmd == "decode":

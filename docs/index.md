@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.23/Sukrara-0.11.23.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.23/Sukrara-0.11.23.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.24/Sukrara-0.11.24.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.24/Sukrara-0.11.24.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -71,7 +71,8 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   ([listen](sounds/)), a different sound each time, and a vibration per alert.
 - **Sharing:** a one-time short link or small QR code that shows who is inviting; you see their name next to who you
   sent it to, then **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
-  you do. Removing someone rotates the key; everyone else carries on.
+  you do. Removing someone rotates the key; everyone else carries on. The way it shares is becoming an open
+  standard anyone can implement: the [Open Glucose Stream](ogs).
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged through the xDrip+ server; stock Home
   Assistant reads it through the Nightscout-compatible API (both off until you switch them on).
