@@ -63,8 +63,7 @@ fun periodLabel(s: Long): String = when {
 /**
  * The mark a time-in-range ring wears (the user, 2026-10-19), by the share the ring shows: a laurel from 90 %, a laurel
  * with a flower on each branch tip from 95 %, and at 100 % (no reading in the window outside the ring's range) the
- * crown with the flowered laurel. The laurels need the lows' goals met (below < 4 %, very low < 1 %: a reward never
- * sits on a day of lows), every mark the report's 70 % of data ([Goal.MIN_COVERAGE]). The 100 in the % column beside
+ * crown with the flowered laurel, by that share alone (the user, 2026-10-19: lows don't take it away), every mark the report's 70 % of data ([Goal.MIN_COVERAGE]). The 100 in the % column beside
  * the chart wears the crown on the same rule ([column]). The Mac decides the same (`TirMark` in SukraraGraph.swift;
  * spikes/graph-fixtures/mark).
  */
@@ -76,7 +75,6 @@ enum class TirMark {
             if (tir.coverage < Goal.MIN_COVERAGE) return NONE
             val x = tir.of(range)
             if (x >= 1.0) return CROWN
-            if (Goal.BELOW.metShare(tir.below) != true || Goal.VERY_LOW.metShare(tir.veryLow) != true) return NONE
             val shown = Math.round(x * 100)
             return when { shown >= 95 -> FLOWERS; shown >= 90 -> LAUREL; else -> NONE }
         }

@@ -1095,8 +1095,8 @@ enum TreatmentMarks {
 
 /// The mark a time-in-range ring wears (TirMark in GlucoseCard.kt; spikes/graph-fixtures/mark), by the share the ring
 /// shows: a laurel from 90 %, a laurel with a flower on each branch tip from 95 %, and at 100 % (no reading in the
-/// window outside the ring's range) the crown with the flowered laurel. The laurels need the lows' goals met (below
-/// < 4 %, very low < 1 %), every mark the report's 70 % of data. The 100 in the % column beside the chart wears the
+/// window outside the ring's range) the crown with the flowered laurel, by that share alone (the user, 2026-10-19:
+/// lows don't take it away), every mark the report's 70 % of data. The 100 in the % column beside the chart wears the
 /// crown on the same rule (`column`).
 enum TirMark: String, Comparable {
     case none, laurel, flowers, crown
@@ -1108,7 +1108,6 @@ enum TirMark: String, Comparable {
         guard tir.coverage >= Goal.minCoverage else { return .none }
         let x = tir.of(range)
         if x >= 1 { return .crown }
-        guard Goal.below.metShare(tir.below) == true, Goal.veryLow.metShare(tir.veryLow) == true else { return .none }
         let shown = (x * 100).rounded()
         return shown >= 95 ? .flowers : shown >= 90 ? .laurel : .none
     }
