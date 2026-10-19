@@ -44,16 +44,18 @@ Both are fixed here with small, conventional changes, and covered by vectors, un
 privacy claims are now stated honestly: days are unlinkable by content, not by traffic pattern.
 
 After these changes the reviewer considers draft 3 a credible basis for a second, independent implementation, which
-is the real test it still lacks. It isn't ready to freeze. Bluetooth has never run over the air, the owner backup
-has no vectors, and device enrolment is undefined.
+is the real test it still lacks. It isn't ready to freeze. Bluetooth has never run over the air, and the owner
+backup has no vectors. (Device enrolment for other apps is now decided out of scope: D16.)
 
 | Severity | Found | Accepted | Rejected | Deferred |
 |---|---|---|---|---|
 | critical | 2 | 2 | 0 | 0 |
 | major | 4 | 4 | 0 | 0 |
-| minor | 16 | 13 | 1 | 2 |
+| minor | 16 | 13 | 2 | 1 |
 | editorial | 4 | 3 | 1 | 0 |
-| **total** | **26** | **22** | **2** | **2** |
+| **total** | **26** | **22** | **3** | **1** |
+
+m14 counts as rejected: it was deferred in the review and then decided against (see [Decisions](#decisions)).
 
 ## What's good
 
@@ -271,7 +273,10 @@ has no vectors, and device enrolment is undefined.
 - *Where:* C§11.6.
 - *What:* a third-party watch can't become a publisher.
 - *Suggestion:* reuse the invite and join, with a grant whose cover is the root node.
-- **Deferred:** it needs a decision on who may hold epoch roots. Recorded under the rationale's open questions.
+- **Decided 2026-10-19: not in draft 3** (was Deferred). Only the wearer's own devices, added by the
+  administrator, hold epoch roots and publish. Third-party apps and devices are members (readers, or contributors
+  with their own key), never publishers, and an administrator MUST NOT make a key learnt through an invite, `join`,
+  `link` or `manage` a publisher (C§11.6, conformance A, rationale D16).
 
 **m15. Nearby join: should the administrator pick the join that matches the typed code?**
 - *Where:* B§7, C§8.6.
@@ -343,15 +348,18 @@ change every day" is still true), so they are unchanged.
 - `uv run ogs d3 e2e` on nos.lol, relay.primal.net and nostr.mom: **9/9 PASS** in about 50 s, including "removed
   writer F2 can't write into its old epoch" (`ignored:unknown-author`).
 
-## Needs the user's decision
+## Decisions
 
-1. **Removed keys' late records** (C1). Rejecting everything a removed key signed in the old epoch is deterministic
-   and safe, but a member that was offline loses that carer's last entries. The alternative is a signed list of the
-   removed key's accepted record ids in `epoch_end`, which is more complex. The reviewer recommends keeping the
-   simple rule.
-2. **Device enrolment for other apps** (m14): whether a third-party device may ever hold epoch roots.
-3. **The invite format** changed (12+12 bytes, same length). No app speaks draft 3, so nothing breaks, but the
-   standalone repository must be rebuilt.
+Decided on 2026-10-19 after the review, and recorded in the spec:
+1. **Removed keys' late records** (C1): **the rule stays.** Once a member holds the old epoch's last membership,
+   it rejects every record of that epoch signed by a removed key, whenever it was signed. The trade-off is that a
+   member that was offline loses the removed carer's last entries. A signed list of accepted record ids in
+   `epoch_end` was considered and rejected for simplicity (C§10.3, S§6, S§12, rationale D15).
+2. **Device enrolment for other apps** (m14): **not in draft 3.** Only the wearer's own devices publish.
+   Third-party apps and devices are members only, and administrators MUST NOT make them publishers (C§11.6,
+   conformance, S§12, rationale D16).
+3. **The invite format** changed (12+12 bytes, same length). No app speaks draft 3, so nothing breaks. The
+   standalone repository has been rebuilt.
 
 ## In Sukrara
 

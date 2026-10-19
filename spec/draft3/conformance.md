@@ -12,7 +12,7 @@ in `spec/reference`.
 |---|---|---|
 | **R — Reader** | a follower app, watch, widget, home automation, clinician viewer | — |
 | **C — Contributor** | a carer app that adds entries or acknowledges alerts | R |
-| **P — Publisher** | a wearer's device that reads the sensor or enters data | — |
+| **P — Publisher** | a wearer's own device, part of the administrator's app, that reads the sensor or enters data (never a third-party app: those are R or C) | — |
 | **A — Administrator** | the app that holds the identity: invites, grants, membership, rotation | P (usually) |
 | **NR / NP — Nearby reader / publisher** | the Bluetooth link | R / P |
 | **X — Bridge** | export to Nightscout, FHIR, Health Connect, HealthKit, Tidepool | R or P |
@@ -37,7 +37,8 @@ Acceptance (run the 42-step `scenario` and reach every verdict and the final sta
 - [ ] Grants only from `I`, with a valid membership for every listed epoch; grants add; grants and `ended` ordered by
       rumor time both ways (C§9.2, C§10.2)
 - [ ] An ended epoch (`epoch_end` or a grant's `end`) is cut at its last day; rights come from the epoch's newest
-      membership, so a removed writer or device is not recognised in the old epoch (C§10.2, C§10.3, C§11.2)
+      membership, so a removed writer or device is not recognised in the old epoch, even for records signed before
+      the removal that arrive later (C§10.2, C§10.3, C§11.2)
 - [ ] The envelope pipeline in the order of C§10.1, including `rewrapped`, `wrong-lane`, `wrong-day`, `d-mismatch`,
       `scope`, and not remembering unknown authors
 - [ ] Merge rules: series corrections, entries by `(by, id)` and `(rev, author)`, creator-only edits, `rev`, `seq`,
@@ -85,6 +86,8 @@ Privacy
       A last membership in the old epoch when a listed key was removed, then `epoch_end` (C§11.2, C§11.5)
 - [ ] Deduplicates wraps; answers rekey, history (≤ 31 days) and leave per C§9.4
 - [ ] Emergency invites, if offered: no scopes at all, short window, notify, rate limit (C§8.7)
+- [ ] MUST NOT list in `devices`, or send epoch roots to, any key learnt through an invite, `join`, `link` or
+      `manage`, or any third-party app or device; those are members only (C§11.6)
 
 ## NR / NP — Nearby
 - [ ] Day GATT UUIDs and 15-minute advertised UUIDs reproduce `ble` (B§3.1); no name or other data in advertisements
