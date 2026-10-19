@@ -28,17 +28,20 @@ Crypto
 
 Joining
 - [ ] Parses the `ogs:` and `https://…#ogs:` forms with hints; rejects other versions; reproduces `invite` (C§8.1)
-- [ ] Opens the invite only with the fingerprint and an unexpired `x`; passes `invite_checks` (C§8.3)
+- [ ] Opens the invite only with the 12-byte fingerprint and an unexpired `x`; passes `invite_checks` (C§8.3)
 - [ ] Shows the inviter and the offer before joining; sends `join` with a fresh `M` and a fresh inbox; shows the
       six-digit match code (C§8.4–8.5)
 - [ ] Answers AUTH only with its inbox key or the invite key (N§5)
 
-Acceptance (run the 38-step `scenario` and reach every verdict and the final state)
-- [ ] Grants only from `I`, with a valid membership; grants add; a grant older than `ended` is ignored (C§9.2, C§10.2)
+Acceptance (run the 42-step `scenario` and reach every verdict and the final state)
+- [ ] Grants only from `I`, with a valid membership for every listed epoch; grants add; grants and `ended` ordered by
+      rumor time both ways (C§9.2, C§10.2)
+- [ ] An ended epoch (`epoch_end` or a grant's `end`) is cut at its last day; rights come from the epoch's newest
+      membership, so a removed writer or device is not recognised in the old epoch (C§10.2, C§10.3, C§11.2)
 - [ ] The envelope pipeline in the order of C§10.1, including `rewrapped`, `wrong-lane`, `wrong-day`, `d-mismatch`,
       `scope`, and not remembering unknown authors
-- [ ] Merge rules: series corrections, entries by `(by, id)` and `(rev, author)`, creator-only edits, `rev`, `seq`
-      (C§10.5)
+- [ ] Merge rules: series corrections, entries by `(by, id)` and `(rev, author)`, creator-only edits, `rev`, `seq`,
+      ties by record `id` (C§10.5)
 - [ ] Alerts notify only when active, ≤ 10 minutes old, and new by `(id, n)` (D§8.2)
 - [ ] `epoch_end` → waits for a grant, then one rekey request at most every 5 minutes (C§10.2)
 - [ ] Expired envelopes dropped on every transport (C§7.3)
@@ -51,7 +54,8 @@ Data
 
 Privacy
 - [ ] Never publishes anything public with a stream key; a fresh `M` per stream (S§10)
-- [ ] SHOULD puncture its covers daily (C§11.4)
+- [ ] SHOULD puncture its covers daily, to the start of its edit window, after any backfill (C§11.4)
+- [ ] Re-subscribes with `since`; inbox `since` from the last connection, not a fixed age (N§4.1)
 
 ## C — Contributor
 - [ ] Offers writing only while the membership lists it with the scope, for days inside its window (C§10.3)
@@ -74,20 +78,21 @@ Privacy
 - [ ] Invites with a fresh inbox, an offer and an absolute expiration; hints in the text (C§8.1–8.3, N§6)
 - [ ] Single claim; replayed joins never re-admit; explicit human decision unless `auto`; a typed code for nearby
       joins (C§8.5–8.6); passes `owner_checks`
-- [ ] Grants with minimal covers: the current epoch from `from` to `to` or its end; older epochs only up to their
-      replacement (C§9.2)
+- [ ] Grants with minimal covers and each epoch's newest membership: the current epoch from `from` to `to` or its
+      end; older epochs only up to their last day, with `end` (C§9.2)
 - [ ] Membership on every change and daily; only contributors listed; `seq` per epoch (C§9.3)
-- [ ] Rotation on removal, on device removal, on shortening a grant, before the epoch ends; SHOULD every 30 days
-      (C§11.2, C§11.5)
-- [ ] Deduplicates wraps; answers rekey, history and leave per C§9.4
-- [ ] Emergency invites, if offered: no `write`/`manage`, short window, notify, rate limit (C§8.7)
+- [ ] Rotation on removal, on device removal, on shortening a grant, before the epoch ends; SHOULD every 30 days.
+      A last membership in the old epoch when a listed key was removed, then `epoch_end` (C§11.2, C§11.5)
+- [ ] Deduplicates wraps; answers rekey, history (≤ 31 days) and leave per C§9.4
+- [ ] Emergency invites, if offered: no scopes at all, short window, notify, rate limit (C§8.7)
 
 ## NR / NP — Nearby
 - [ ] Day GATT UUIDs and 15-minute advertised UUIDs reproduce `ble` (B§3.1); no name or other data in advertisements
 - [ ] Pairing service only while nearby pairing is open (B§3.2)
 - [ ] Framing reproduces `ble.frames_by_att_mtu`; reassembly limits (B§4)
-- [ ] NR: verifies `INFO.proof` before writing anything else (B§6)
-- [ ] NP: backlog by `since`, no expired envelopes, no backup or invite wraps; limits (B§6, B§8)
+- [ ] NR: verifies `INFO.proof`, then answers `AUTH`, before writing anything else (B§6)
+- [ ] NP: sends no envelope and accepts nothing before a valid `AUTH`; backlog by `since`, no expired envelopes, no
+      backup or invite wraps; limits (B§6, B§8)
 - [ ] Nearby joins: typed code (B§7)
 
 ## X — Bridge
@@ -102,10 +107,10 @@ Privacy
 
 | | Sukrara Android | Sukrara Mac | `spec/reference` (Python) |
 |---|---|---|---|
-| R | — (draft 1) | — (draft 1) | ✅ vectors, scenario, live run on 3 public relays |
+| R | — (draft 1) | — (draft 1) | ✅ vectors, scenario, live run on 3 public relays (9 checks, incl. a removed writer) |
 | C | — | — | ✅ live run (carbs accepted by the administrator and the other member) |
 | P | — | — | ✅ builders, vectors, live run |
 | A | — | — | ✅ minimal: invites, joins, grants, membership, rotation, live run; no persistence, no backup |
-| NR / NP | — | — | UUIDs, proof and framing only (no radio) |
+| NR / NP | — | — | UUIDs, both proofs and framing only (no radio) |
 | X | — | — | mappings and vectors |
 | K | — | — | — |

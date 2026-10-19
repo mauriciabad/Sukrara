@@ -118,19 +118,43 @@ class Epoch:
         rel = day - self.start
         return any(n.first <= rel <= n.last for n in self.nodes)
 
+    def clip(self, first: int | None = None, last: int | None = None):
+        """Keep only the seeds of days first..last (absolute day numbers): C§11.4 puncturing (first) and C§11.2
+        the end of an epoch (last). Nodes that straddle a bound are replaced by the sub-nodes inside it."""
+        lo = -1 if first is None else first - self.start
+        hi = SPAN if last is None else last - self.start
+        out: list[Node] = []
+
+        def rec(n: Node):
+            if n.last < lo or n.first > hi:
+                return
+            if lo <= n.first and n.last <= hi:
+                out.append(n)
+                return
+            for bit in (0, 1):
+                rec(Node(n.level + 1, 2 * n.index + bit, child(n.seed, bit)))
+
+        for n in self.nodes:
+            rec(n)
+        self.nodes = out
+
     def first_day(self) -> int | None:
         return min((self.start + n.first for n in self.nodes), default=None)
 
     def last_day(self) -> int | None:
         return max((self.start + n.last for n in self.nodes), default=None)
 
-    def to_json(self) -> dict:
-        return {"id": self.id, "start": self.start, "depth": DEPTH, "cover": [n.to_json() for n in self.nodes]}
+    def to_json(self, end: int | None = None) -> dict:
+        o = {"id": self.id, "start": self.start, "depth": DEPTH, "cover": [n.to_json() for n in self.nodes]}
+        if end is not None:
+            o["end"] = end
+        return o
 
     @staticmethod
     def from_json(o: dict) -> "Epoch":
         if o.get("depth") != DEPTH or not isinstance(o.get("start"), int) or \
-                not (isinstance(o.get("id"), str) and len(o["id"]) == 16):
+                not (isinstance(o.get("id"), str) and len(o["id"]) == 16) or \
+                not (o.get("end") is None or isinstance(o["end"], int)):
             raise ValueError("bad epoch")
         return Epoch(o["id"], o["start"], [Node.from_json(n) for n in o.get("cover", [])])
 

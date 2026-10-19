@@ -16,6 +16,7 @@ from .core import DayKeys, EpochSecret, day_of, lane_of, object_name, record_day
 from .member import CAPS, Member, View, expiry
 
 LOOKBACK = 30       # C§4.1: a new epoch starts 30 days back, so recent history can be (re)published under it
+HISTORY_MAX = 31    # C§9.4: days per history request
 
 
 class Owner:
@@ -29,6 +30,8 @@ class Owner:
         self.epochs: dict[str, EpochSecret] = {}
         self.inboxes: dict[str, Keys] = {}       # epoch id → the administrator's inbox key for that epoch
         self.seq: dict[str, int] = {}
+        self.ends: dict[str, int] = {}           # ended epoch → its last day (C§11.2)
+        self.final: dict[str, dict] = {}         # ended epoch → its last membership body
         self.current = ""
         self._seen: set[str] = set()             # wrap ids already handled (C§9.4: deduplicate by id)
         self._last: dict[tuple, int] = {}        # (epoch, author, name) → last created_at (C§7.1)
@@ -49,19 +52,26 @@ class Owner:
 
     # ---- membership (C§9.3) ---------------------------------------------------------------------------------------
 
-    def membership(self) -> dict:
+    def membership(self, eid: str | None = None) -> dict:
+        eid = eid or self.current
+        if eid in self.final:
+            return self.final[eid]
         members = [{"k": k, "scopes": m["scopes"], "from": m["from"], "to": m["to"]}
                    for k, m in sorted(self.members.items()) if m["status"] == "active" and m["scopes"]]
-        return {"type": "membership", "epoch": self.current, "seq": self.seq[self.current],
+        return {"type": "membership", "epoch": eid, "seq": self.seq[eid],
                 "devices": [{"k": d.pub} for d in self.devices], "members": members,
-                "inbox": self.inboxes[self.current].pub, "relays": self.relays, "profile": self.profile,
+                "inbox": self.inboxes[eid].pub, "relays": self.relays, "profile": self.profile,
                 "caps": CAPS}
 
     def sync_reader(self):
-        self.reader.views = {e: View(s.full(), self.reader.views.get(e, View(s.full())).membership)
-                             for e, s in self.epochs.items()}
+        views = {}
+        for e, s in self.epochs.items():
+            v = View(s.full(), self.membership(e))
+            if e in self.ends:
+                v.set_end(self.ends[e])
+            views[e] = v
+        self.reader.views = views
         self.reader.current = self.current
-        self.reader.views[self.current].membership = self.membership()
         self.reader.status, self.reader._indexed = "active", None
 
     # ---- publishing (C§7) -----------------------------------------------------------------------------------------
@@ -85,7 +95,9 @@ class Owner:
 
     def invite(self, now: int, *, offer: dict, hours: int = 24, secret: bytes | None = None,
                inbox: Keys | None = None, web: str | None = None, hints: list[str] = (), **pins) -> tuple[str, dict]:
-        secret = secret or self.rng(16)
+        if offer.get("auto") and offer.get("scopes"):
+            raise ValueError("C§8.7: an automatically approved invite is read-only")
+        secret = secret or self.rng(ctl.SECRET_BYTES)
         inbox = inbox or self._key()
         x = now + hours * 3600
         token = ctl.b64u(secret)
@@ -147,8 +159,11 @@ class Owner:
             return "rejected:not-active", []
         if t == "history":
             lo, hi = body.get("from"), body.get("to")
-            if not (isinstance(lo, int) and isinstance(hi, int) and m["from"] <= lo <= hi <= day_of(now)):
+            if not (isinstance(lo, int) and isinstance(hi, int) and m["from"] <= lo <= hi <= day_of(now)
+                    and (m["to"] is None or hi <= m["to"])):
                 return "rejected:outside-grant", []
+            if hi - lo + 1 > HISTORY_MAX:
+                return "rejected:too-many-days", []
             return f"accepted:history {lo}..{hi}", []
         if t == "leave":
             return "accepted:leave", self.remove(sender, now, notify=False)
@@ -167,7 +182,7 @@ class Owner:
         until = off.get("days")
         self.members[member] = {"inbox": j["inbox"], "scopes": list(off.get("scopes", [])),
                                 "from": today - int(off.get("back", 1)),
-                                "to": None if until is None else today + int(until) - 1,
+                                "to": None if until is None else today + int(until),   # ≥ days × 24 h
                                 "profile": j["profile"], "status": "active"}
         if self.members[member]["scopes"]:
             self.seq[self.current] += 1
@@ -179,27 +194,42 @@ class Owner:
         return [ctl.wrap(self.I, j["inbox"], {"type": "ended", "reason": "declined"}, now=now)]
 
     def grant(self, member: str, now: int, **pins) -> dict:
-        """C§9.2: covers for every epoch whose days overlap the grant window, the current membership record."""
+        """C§9.2: for every epoch whose days overlap the grant window, its cover and its newest membership record;
+        an older epoch also its last day, and its cover never reaches beyond it."""
         m = self.members[member]
         epochs = []
+        aux = pins.get("aux")
         for eid, ep in self.epochs.items():
             lo = max(m["from"], ep.start)
             hi = ep.start + 1023 if m["to"] is None else m["to"]
-            if eid != self.current:
-                hi = min(hi, day_of(now))
+            end = self.ends.get(eid)
+            if end is not None:
+                hi = min(hi, end)
             if lo <= hi:
-                epochs.append(ep.grant(lo, hi).to_json())
-        mrec = sign_record(self.I, self.membership(), now, pins.get("aux"))
+                o = ep.grant(lo, hi).to_json(end)
+                o["membership"] = sign_record(self.I, self.membership(eid), now, aux)
+                epochs.append(o)
         body = {"type": "grant", "current": self.current, "epochs": epochs,
-                "grant": {"scopes": m["scopes"], "from": m["from"], "to": m["to"]}, "membership": mrec}
+                "grant": {"scopes": m["scopes"], "from": m["from"], "to": m["to"]}}
         return ctl.wrap(self.I, m["inbox"], body, now=now, **pins)
 
     # ---- removal and rotation (C§11) ------------------------------------------------------------------------------
 
-    def rotate(self, now: int, epoch: EpochSecret | None = None, inbox: Keys | None = None, **pins) -> list[dict]:
-        """New epoch: epoch_end in the old one, new membership, a grant to every active member."""
-        old = self.current
-        out = [self.envelope(self.I, {"type": "epoch_end", "at": now}, at=now, epoch=old)]
+    def end_epoch(self, now: int, *, revoke: bool, at: int | None = None, **pins) -> list[dict]:
+        """C§11.2 steps 2–3 in the old epoch: a last membership without the removed keys (when one was listed), then
+        `epoch_end`. The epoch's last day is day(now); its last membership is frozen for later grants."""
+        old, out = self.current, []
+        if revoke:
+            self.seq[old] += 1
+            out.append(self.envelope(self.I, self.membership(old), at=now, epoch=old, **pins.get("membership", {})))
+        out.append(self.envelope(self.I, {"type": "epoch_end", "at": now}, at=now, epoch=old, **pins.get("end", {})))
+        self.final[old], self.ends[old] = self.membership(old), day_of(now)
+        return out
+
+    def rotate(self, now: int, epoch: EpochSecret | None = None, inbox: Keys | None = None, *,
+               revoke: bool = False) -> list[dict]:
+        """New epoch: the old one ends (C§11.2), new membership, a grant to every active member."""
+        out = self.end_epoch(now, revoke=revoke)
         self._start_epoch(epoch or EpochSecret.generate(day_of(now) - LOOKBACK, self.rng), inbox or self._key())
         self.sync_reader()
         out.append(self.publish_membership(now))
@@ -210,7 +240,7 @@ class Owner:
         m = self.members[member]
         m["status"] = "removed"
         out = [ctl.wrap(self.I, m["inbox"], {"type": "ended", "reason": "removed"}, now=now)] if notify else []
-        return out + self.rotate(now, **kw)
+        return out + self.rotate(now, revoke=bool(m["scopes"]), **kw)
 
     # ---- receiving members' records (C§10.4) ----------------------------------------------------------------------
 

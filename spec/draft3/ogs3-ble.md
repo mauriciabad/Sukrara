@@ -119,7 +119,8 @@ Each message is a JSON array, in the Nostr wire style:
 | Message | Direction | Meaning |
 |---|---|---|
 | `["HELLO", {"nonce":"<32 hex>","since":<unix s>}]` | member → publisher | "prove you hold today's key, then send what changed since `since`". `nonce`: 16 fresh random bytes per `HELLO`. |
-| `["INFO", {"nonce":"<echo>","proof":"<32 hex>"}]` | publisher → member | `proof = hex(HMAC(ble_key, "ogs3/ble/info/" + nonce))[0:32 chars]` |
+| `["INFO", {"nonce":"<echo>","proof":"<32 hex>","challenge":"<32 hex>"}]` | publisher → member | `proof = hex(HMAC(ble_key, "ogs3/ble/info/" + nonce))[0:32 chars]`; `challenge`: 16 fresh random bytes |
+| `["AUTH", {"proof":"<32 hex>"}]` | member → publisher | `proof = hex(HMAC(ble_key, "ogs3/ble/auth/" + challenge + "/" + nonce))[0:32 chars]`: the member holds the day key too |
 | `["INFO", {"nonce":"<echo>","invite":"ogs:…"}]` | publisher → member, pairing service only | the invite text, as in a QR code |
 | `["EVENT", <event>]` | both | an envelope (kind 31078) or a gift wrap (kind 1059) |
 
@@ -131,14 +132,21 @@ Receivers MUST ignore message types they don't know.
 member                                                  publisher
   scan(advertised UUIDs of the held day keys) → connect → MTU → discover(day service) → CCCD on tx
   ── HELLO {nonce, since} ─────────────────────────────▶
-  ◀────────────────────────────────── INFO {nonce, proof}
+  ◀──────────────────────── INFO {nonce, proof, challenge}
+  ── AUTH {proof} ─────────────────────────────────────▶
   ◀── EVENT envelopes changed since `since`, then every envelope as it is published
   ── EVENT wraps (rekey, history, …) and the member's own envelopes (entries, acks) ─▶
 ```
 
-- **Proof first.** A member MUST check `proof` against the day key it used to find the publisher, and MUST NOT send
-  anything but `HELLO` before it verifies. A wrong proof means another device: disconnect and avoid it for 10
-  minutes. Any holder of the day key can produce the proof, so it proves membership, not which device. That is
+- **Proof first, both ways.** A member MUST check `INFO.proof` against the day key it used to find the publisher,
+  and MUST NOT send anything but `HELLO` and then `AUTH` before it verifies. A wrong proof means another device:
+  disconnect and avoid it for 10 minutes.
+- The publisher MUST NOT send anything but `INFO`, and MUST NOT accept anything but `AUTH`, on the day service until
+  a valid `AUTH` arrives. A wrong or missing `AUTH` (RECOMMENDED: within 10 seconds) → disconnect, and SHOULD ignore
+  that address for 10 minutes. Without this, anyone who connects to a phone advertising a random UUID and sends
+  `HELLO` would receive its envelopes, learn that this person shares a glucose stream, and get the day's blinded
+  authors to watch on relays: a link between a person in the street and a stream.
+- Either proof shows that the other side holds the day key, so it proves membership, not which device. That is
   enough, because every envelope is checked on its own (C§10).
 - **Backlog.** On `HELLO`, the publisher sends, newest first:
   - the envelopes of the objects it published or updated at or after `since`;
@@ -151,6 +159,8 @@ member                                                  publisher
   invite wrap.
 - **Push.** After the backlog, every envelope the publisher publishes goes to every subscribed member. A member's
   envelope that the publisher accepts (C§10) is forwarded to the other members.
+- **Wraps.** A publisher that isn't the administrator's device can't open a member's wrap (`rekey`, `history`, …).
+  It forwards it unchanged to the membership's relays when it is online.
 - **Both transports.** A member SHOULD keep its relay subscriptions while connected. Copies are deduplicated by event
   `id`.
 
@@ -159,7 +169,9 @@ member                                                  publisher
 1. The wearer opens "invite nearby". The administrator creates an ordinary invite (single use, 10 minutes) and the
    publisher advertises the pairing service (B§3.2).
 2. The joining app lists the phones advertising it (no names). When the user picks one, it connects, sends `HELLO`,
-   and reads `INFO.invite`. The publisher then sends the invite wrap as an `EVENT`, so no internet is needed.
+   and reads `INFO.invite`. The publisher then sends the invite wrap as an `EVENT`, so no internet is needed. The
+   pairing service has no `AUTH` (the joiner holds no day key yet), so it carries only the invite, the join and the
+   answer to it: never a stream envelope.
 3. The joining app opens the invite (C§8.3), shows who is inviting and what is offered, sends its join as an
    `EVENT`, and shows the **match code**.
 4. Every device in range can read the invite. The administrator MUST make the wearer **type** the joiner's six-digit
@@ -174,15 +186,16 @@ A publisher MUST check every write before acknowledging it, and SHOULD:
 - limit each member to 30 messages and 256 KiB a minute;
 - send at most one backlog per member every 5 seconds.
 
-A central that finds the day service holds the day key, so it is a member. A removed member can't find the service
-after the rotation (B§9).
+A central that passes `AUTH` holds the day key, so it is a member. Anyone can find the day service by connecting
+and listing services; only `AUTH` tells members from strangers. A removed member can't pass it after the rotation
+(B§9).
 
 ## B§9 What a nearby observer learns
 
 | Observer | Learns |
 |---|---|
 | a stranger, passive | a connectable device advertising a random-looking UUID that changes every 15 minutes, its address rotating on its own schedule (RPA), and radio activity |
-| a stranger who connects | a GATT service with random-looking UUIDs (changing daily). Without the day key, `INFO` can't be produced or checked. |
+| a stranger who connects | a GATT service with random-looking UUIDs (changing daily), and an `INFO` it can't check. Without the day key it can't pass `AUTH`, so it gets no envelope. Connecting twice in one day, it can tell that it is the same phone (same GATT UUIDs), across address and advertisement changes. |
 | anyone, while nearby pairing is open | that this phone is inviting someone to a glucose stream, and the invite text (so the wearer's profile, after opening the invite) |
 | a removed member | nothing after the rotation: the publisher re-registers and advertises under the new epoch's UUIDs at once |
 | a member | its wearer's phone, when in range |
@@ -195,5 +208,6 @@ Not covered:
 
 ## B§10 Test vectors
 
-`test-vectors/ogs-draft3.json` → `ble`: the day's GATT UUIDs, `advertised(w)` for two windows, a `HELLO` with its
-`INFO` proof, a pairing `INFO`, and one envelope split into frames at ATT MTU 23, 185 and 517.
+`test-vectors/ogs-draft3.json` → `ble`: the day's GATT UUIDs, `advertised(w)` for two windows, a `HELLO`, its
+`INFO` with a challenge, the member's `AUTH`, a pairing `INFO`, and one envelope split into frames at ATT MTU 23,
+185 and 517.

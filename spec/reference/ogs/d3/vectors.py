@@ -17,7 +17,7 @@ from ..nostr import Keys, sign, unwrap, verify
 from . import bridges as BR
 from . import control as ctl
 from . import data as D
-from .ble import WINDOW, adv_uuid, gatt_uuids, hello, info, pairing_info, split, encode, Reassembler
+from .ble import WINDOW, adv_uuid, auth, gatt_uuids, hello, info, pairing_info, split, encode, Reassembler
 from .core import (DayKeys, Epoch, EpochSecret, check_record, cover, day_of, lane_of, object_name, open_envelope,
                    record_day, seal, sign_record)
 from .member import Member, expiry
@@ -81,7 +81,7 @@ def generate() -> dict:
     I, Dv, F, W, X = (k[n] for n in ("identity I", "device D", "member F", "member W", "attacker X"))
     A = o.epochs[o.current]
     B = epoch("B", TODAY)
-    secret = H("invite secret")[:16]
+    secret = H("invite secret")[:ctl.SECRET_BYTES]
     text, ev_invite = o.invite(NOW, offer={"scopes": [], "back": 1}, secret=secret, inbox=k["inbox invite"],
                                hints=["wss://nos.lol"], **pins("invite"))
     inv = ctl.parse_invite(text)
@@ -181,10 +181,17 @@ def generate() -> dict:
     ev["grant-forged"] = ctl.wrap(X, k["inbox F"].pub, {"type": "grant", "current": "00" * 8, "epochs": [],
                                                          "grant": {"scopes": [], "from": TODAY}, "membership": {}},
                                   now=NOW, **pins("grant forged"))
-    ev["epoch-end-A"] = env(I, {"type": "epoch_end", "at": NOW - 200}, NOW - 200, "epoch end A")
 
-    # removal of W: rotation to epoch B (C§11)
+    # removal of W: the last membership of A without W, epoch_end, rotation to epoch B (C§11.2)
     o.members[W.pub]["status"] = "removed"
+    o.seq[A.id] += 1
+    ev["membership-A3"] = env(I, o.membership(), NOW - 205, "membership A3")
+    ev["epoch-end-A"] = env(I, {"type": "epoch_end", "at": NOW - 200}, NOW - 200, "epoch end A")
+    o.final[A.id], o.ends[A.id] = o.membership(A.id), TODAY
+    # what a removed writer and a stale publisher can still sign in the old epoch: both must be unrecognisable
+    ev["insulin-removed-writer"] = env(W, {**ins, "id": "33333333-4444-4555-8666-777777777777", "t": NOW - 198,
+                                           "rev": (NOW - 198) * 1000}, NOW - 198, "insulin removed writer")
+    ev["cgm-A-after-end"] = env(Dv, block((TODAY + 1) * 86400, 3), NOW - 195, "cgm A after end")
     o._start_epoch(B, k["inbox admin B"])
     o.sync_reader()
     ev["grant-F-B"] = o.grant(F.pub, NOW - 190, **{**pins("grant F B"), "rumor_at": NOW - 190})
@@ -192,6 +199,8 @@ def generate() -> dict:
     ev["cgm-B-by-removed-writer"] = env(W, block(NOW - 900, 2), NOW - 140, "cgm B by W", ep=B, lane="r")
     ev["ended-F"] = ctl.wrap(I, k["inbox F"].pub, {"type": "ended", "reason": "removed"}, now=NOW,
                              **pins("ended F"))
+    ev["ended-F-stale"] = ctl.wrap(I, k["inbox F"].pub, {"type": "ended", "reason": "removed"}, now=NOW,
+                                   **{**pins("ended F stale"), "rumor_at": NOW - 195})
     ev["cgm-after-ended"] = env(Dv, block(NOW - 900, 13), NOW - 60, "cgm after ended", ep=B)
 
     scenario = [
@@ -209,8 +218,10 @@ def generate() -> dict:
         ("d-mismatch", "rejected:d-mismatch"), ("wrong-day", "rejected:wrong-day"),
         ("outsider", "ignored:unknown-author"), ("membership-by-device", "rejected:wrong-lane"),
         ("expired", "ignored:expired"), ("grant-forged", "rejected:not-from-identity"),
-        ("epoch-end-A", "accepted:epoch-end"), ("cgm-epoch-B", "ignored:unknown-author"),
-        ("grant-F-B", "accepted:grant"), ("cgm-epoch-B", "accepted:cgm"),
+        ("membership-A3", "accepted:membership"), ("insulin-removed-writer", "ignored:unknown-author"),
+        ("epoch-end-A", "accepted:epoch-end"), ("cgm-A-after-end", "ignored:unknown-author"),
+        ("cgm-epoch-B", "ignored:unknown-author"), ("grant-F-B", "accepted:grant"),
+        ("ended-F-stale", "ignored:ended-before-grant"), ("cgm-epoch-B", "accepted:cgm"),
         ("cgm-B-by-removed-writer", "ignored:unknown-author"), ("ended-F", "accepted:ended"),
         ("cgm-after-ended", "ignored:ended")]
 
@@ -247,10 +258,11 @@ def generate() -> dict:
 
     msg = ["EVENT", ev["cgm"]]
     bn = nonce("ble hello")[:16].hex()
+    bc = nonce("ble challenge")[:16].hex()
     win = NOW // WINDOW
     ble_v = {"day": TODAY, "epoch": "A", "gatt": gatt_uuids(dk_today),
              "adv": {str(w): adv_uuid(dk_today, w) for w in (win - 1, win)},
-             "hello": hello(bn, NOW - 86400), "info": info(dk_today, bn),
+             "hello": hello(bn, NOW - 86400), "info": info(dk_today, bn, bc), "auth": auth(dk_today, bc, bn),
              "pairing_info": pairing_info(bn, text), "message": msg, "msg_id": 7,
              "frames_by_att_mtu": {str(mtu): [fr.hex() for fr in split(7, encode(msg), mtu)] for mtu in (23, 185, 517)}}
 
@@ -385,8 +397,9 @@ def verify_file(vec: dict, *, fill_final: bool = False) -> list[str]:
     b = vec["ble"]
     dk = DayKeys(eps["A"].id, b["day"], eps["A"].full().leaf(b["day"]))
     if gatt_uuids(dk) != b["gatt"] or {w: adv_uuid(dk, int(w)) for w in b["adv"]} != b["adv"] or \
-            info(dk, b["hello"][1]["nonce"]) != b["info"]:
-        fails.append("ble uuids / INFO proof")
+            info(dk, b["hello"][1]["nonce"], b["info"][1]["challenge"]) != b["info"] or \
+            auth(dk, b["info"][1]["challenge"], b["hello"][1]["nonce"]) != b["auth"]:
+        fails.append("ble uuids / INFO and AUTH proofs")
     for mtu, frames in b["frames_by_att_mtu"].items():
         ra = Reassembler()
         out = [ra.push(bytes.fromhex(fr)) for fr in frames]

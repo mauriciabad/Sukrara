@@ -38,7 +38,16 @@ class View:
     """One epoch as this member holds it."""
     epoch: Epoch
     membership: dict | None = None
-    ended: bool = False
+    end: int | None = None          # C§11.2: the last day of an ended epoch; no seeds are kept beyond it
+
+    @property
+    def ended(self) -> bool:
+        return self.end is not None
+
+    def set_end(self, day: int):
+        """C§11.2: an ended epoch is cut at its last day, whichever source (epoch_end or grant) says so first."""
+        self.end = day if self.end is None else min(self.end, day)
+        self.epoch.clip(last=self.end)
 
 
 def expiry(body: dict, created_at: int) -> int:
@@ -62,6 +71,7 @@ class Member:
         self.status = "new"                 # new → joined → active → ended
         self.reason: str | None = None
         self.ended_at = -1                  # rumor time of the last `ended`; older grants are ignored (C§10.2)
+        self.granted_at = -1                # rumor time of the newest grant; older `ended` notices are ignored
         self.views: dict[str, View] = {}
         self.current: str | None = None
         self.grant: dict = {}
@@ -70,12 +80,13 @@ class Member:
         self.token: str | None = None
         self.relays: list[str] = []
         self.profile: dict | None = None
-        self.readings: dict[tuple[str, int], tuple[int, int, float | None, int]] = {}
+        self.readings: dict[tuple[str, int], tuple[int, str, int, float | None, int]] = {}  # (at, id, v, r, fl)
         self.objects: dict[tuple[str, str], int] = {}       # (author, name) → newest created_at (cgm)
         self.entries: dict[tuple[str, str], tuple[dict, str]] = {}
         self.sensors: dict[str, dict] = {}
         self.device_status: dict[str, dict] = {}
         self.alerts: dict[str, dict] = {}
+        self._rid: dict[tuple, str] = {}                    # (store, key) → record id of the version held
         self.notified: set[tuple[str, int]] = set()
         self.acks: dict[tuple[str, str], tuple[dict, int]] = {}
         self.settings: dict | None = None
@@ -246,7 +257,8 @@ class Member:
             self._indexed = None
             return Result("accepted", "membership", f"seq {body['seq']}")
         if t == "epoch_end":
-            view.ended = True
+            view.set_end(day_of(body["at"]))            # C§11.2: no seeds, no authors beyond the last day
+            self._indexed = None
             if eid == self.current and self._end_seen is None:
                 self._end_seen = now
             return Result("accepted", "epoch-end")
@@ -256,18 +268,19 @@ class Member:
                 return Result("ignored", "older")
             self.objects[(author, name)] = at
             n = 0
-            for ts, v, rate, fl in D.rows_of(body):
+            for ts, v, rate, fl in D.rows_of(body):       # C§10.5: newest object wins; ties by record id
                 cur = self.readings.get((body["sess"], ts))
-                if cur is None or cur[0] <= at:
-                    self.readings[(body["sess"], ts)] = (at, v, rate, fl)
+                if cur is None or (cur[0], cur[1]) < (at, rec["id"]):
+                    self.readings[(body["sess"], ts)] = (at, rec["id"], v, rate, fl)
                     n += 1
             return Result("accepted", "cgm", f"{n} rows")
         if t in ("sensor", "settings", "alert", "device"):
             store, key = {"sensor": (self.sensors, body.get("sess")), "alert": (self.alerts, body.get("id")),
                           "device": (self.device_status, author), "settings": (None, None)}[t]
             cur = self.settings if t == "settings" else store.get(key)
-            if cur is not None and cur["rev"] >= body["rev"]:
+            if cur is not None and (cur["rev"], self._rid.get((t, key), "")) >= (body["rev"], rec["id"]):
                 return Result("ignored", "older")
+            self._rid[(t, key)] = rec["id"]
             if t == "settings":
                 self.settings = body
             else:
@@ -281,8 +294,9 @@ class Member:
             return Result("accepted", t)
         if t == "ack":
             cur = self.acks.get((body["alert"], author))
-            if cur is not None and cur[1] >= at:
+            if cur is not None and (cur[1], self._rid.get(("ack", body["alert"], author), "")) >= (at, rec["id"]):
                 return Result("ignored", "older")
+            self._rid[("ack", body["alert"], author)] = rec["id"]
             self.acks[(body["alert"], author)] = (body, at)
             return Result("accepted", "ack")
         if t in ENTRY_TYPES:
@@ -294,9 +308,10 @@ class Member:
             if cur is not None:
                 if cur[0]["type"] != t:
                     return Result("rejected", "type-changed")
-                if (body["rev"], author) <= (cur[0]["rev"], cur[1]):
+                if (body["rev"], author, rec["id"]) <= (cur[0]["rev"], cur[1], self._rid.get(("entry",) + key, "")):
                     return Result("ignored", "older")
             self.entries[key] = (body, author)
+            self._rid[("entry",) + key] = rec["id"]
             return Result("accepted", t, "deleted" if body.get("del") else "")
         self.unknown[(author, object_name(body, author))] = body
         return Result("accepted", "unknown-type", t)
@@ -317,11 +332,16 @@ class Member:
             return Result("rejected", "unwrap", str(e))
         if sender != self.i_pub:
             return Result("rejected", "not-from-identity")
-        if body["type"] == "grant":
+        if body["type"] == "grant":                      # C§10.2: grant and ended are ordered by rumor time
             if at <= self.ended_at:
                 return Result("ignored", "grant-before-ended")
-            return self._on_grant(body, now)
+            r = self._on_grant(body, now)
+            if r.verdict == "accepted":
+                self.granted_at = max(self.granted_at, at)
+            return r
         if body["type"] == "ended":
+            if at < self.granted_at:
+                return Result("ignored", "ended-before-grant")
             self.status, self.reason, self.ended_at = "ended", body.get("reason"), max(self.ended_at, at)
             return Result("accepted", "ended", self.reason or "")
         if body["type"] == "invite-link":
@@ -329,30 +349,40 @@ class Member:
         return Result("ignored", "unknown-type", body["type"])
 
     def _on_grant(self, body: dict, now: int) -> Result:
+        """C§9.2: every epoch carries its cover and its newest membership (signed by I); older epochs their `end`."""
         try:
-            epochs = [Epoch.from_json(e) for e in body["epochs"]]
+            epochs = []
+            for o in body["epochs"]:
+                e = Epoch.from_json(o)
+                mrec = o["membership"]
+                mbody = check_record(mrec)
+                D.validate(mbody)
+                if mrec["pubkey"] != self.i_pub or mbody["type"] != "membership" or mbody["epoch"] != e.id:
+                    raise ValueError("membership")
+                if (o.get("end") is None) != (e.id == body["current"]):
+                    raise ValueError("only older epochs have an end")
+                epochs.append((e, mbody, o.get("end")))
             terms = body["grant"]
             if not isinstance(terms.get("scopes"), list) or not isinstance(terms.get("from"), int):
                 raise ValueError("terms")
-            if body["current"] not in [e.id for e in epochs]:
+            if body["current"] not in [e.id for e, _, _ in epochs]:
                 raise ValueError("current epoch missing")
-            mrec = body["membership"]
-            mbody = check_record(mrec)
-            D.validate(mbody)
-            if mrec["pubkey"] != self.i_pub or mbody["type"] != "membership" or mbody["epoch"] != body["current"]:
-                raise ValueError("membership")
         except (KeyError, TypeError, ValueError) as e:
             return Result("rejected", "bad-grant", str(e))
-        for e in epochs:
+        for e, mbody, end in epochs:
             v = self.views.get(e.id)
             if v is None:
-                self.views[e.id] = View(e)
+                v = self.views[e.id] = View(e)
             else:
                 have = {(n.level, n.index) for n in v.epoch.nodes}
                 v.epoch.nodes += [n for n in e.nodes if (n.level, n.index) not in have]
-        cur = self.views[body["current"]]
-        if cur.membership is None or mbody["seq"] > cur.membership["seq"]:
-            cur.membership = mbody
+            if end is not None:
+                v.set_end(end)
+            elif v.end is not None:
+                v.epoch.clip(last=v.end)
+            if v.membership is None or mbody["seq"] > v.membership["seq"]:
+                v.membership = mbody
+        mbody = self.views[body["current"]].membership
         self.current, self.grant = body["current"], terms
         self.owner_inbox = mbody["inbox"]
         self.relays = mbody.get("relays") or self.relays
@@ -389,23 +419,8 @@ class Member:
     # ---- maintenance (C§11.4) -------------------------------------------------------------------------------------
 
     def puncture(self, keep_from_day: int):
-        """Forward secrecy: replace every cover node by the sub-nodes that cover only days ≥ keep_from_day, so the
-        seeds for older days are gone from this device."""
-        from .core import child
+        """Forward secrecy (C§11.4): replace every cover node by the sub-nodes that cover only days ≥ keep_from_day,
+        so the seeds for older days are gone from this device."""
         for v in self.views.values():
-            rel = keep_from_day - v.epoch.start
-            out: list[Node] = []
-
-            def rec(n: Node):
-                if n.last < rel:
-                    return
-                if n.first >= rel:
-                    out.append(n)
-                    return
-                for bit in (0, 1):
-                    rec(Node(n.level + 1, 2 * n.index + bit, child(n.seed, bit)))
-
-            for n in v.epoch.nodes:
-                rec(n)
-            v.epoch.nodes = out
+            v.epoch.clip(first=keep_from_day)
         self._indexed = None

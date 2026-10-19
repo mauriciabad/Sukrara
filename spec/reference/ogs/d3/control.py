@@ -16,6 +16,8 @@ from ..nostr import Keys, compact, gift_wrap, rumor, unwrap
 from .core import KIND_CONTROL, derive_scalar
 
 INVITE_VERSION = 3
+FP_BYTES = 12           # C§8.1: identity fingerprint, 96 bits: grinding a matching key is out of reach even for
+SECRET_BYTES = 12       #         an invite that stands for months; with the 12-byte secret the text stays 34 chars
 TTL = {"invite": None, "join": 7 * 86400, "grant": 30 * 86400, "ended": 30 * 86400, "rekey": 7 * 86400,
        "history": 86400, "profile": 7 * 86400, "inbox": 7 * 86400, "leave": 30 * 86400, "link": 7 * 86400,
        "manage": 7 * 86400, "invite-link": 7 * 86400}
@@ -33,8 +35,8 @@ def unb64u(s: str) -> bytes:
 
 @dataclass(frozen=True)
 class Invite:
-    fp: str                 # 16 hex chars: the first 8 bytes of the identity key I
-    secret: bytes           # 16 bytes
+    fp: str                 # 24 hex chars: the first 12 bytes of the identity key I
+    secret: bytes           # 12 bytes
     hints: tuple[str, ...]  # relay URLs from the link (may be empty)
 
     @property
@@ -52,10 +54,10 @@ def invite_key(secret: bytes) -> Keys:
 
 
 def invite_payload(i_pub: str, secret: bytes) -> str:
-    """C§8.1: base64url(0x03 ‖ I.pub[0:8] ‖ secret[16]) = 34 characters."""
-    if len(secret) != 16:
-        raise ValueError("secret must be 16 bytes")
-    return b64u(bytes([INVITE_VERSION]) + bytes.fromhex(i_pub)[:8] + secret)
+    """C§8.1: base64url(0x03 ‖ I.pub[0:12] ‖ secret[12]) = 34 characters."""
+    if len(secret) != SECRET_BYTES:
+        raise ValueError(f"secret must be {SECRET_BYTES} bytes")
+    return b64u(bytes([INVITE_VERSION]) + bytes.fromhex(i_pub)[:FP_BYTES] + secret)
 
 
 def invite_text(i_pub: str, secret: bytes, hints: list[str] = (), web: str | None = None) -> str:
@@ -77,7 +79,7 @@ def parse_invite(text: str) -> Invite:
     if len(raw) != 25 or raw[0] != INVITE_VERSION:
         raise ValueError("unsupported invite version")
     hints = tuple("wss://" + h for h in (m.group(2) or "").split(",") if h)
-    return Invite(raw[1:9].hex(), raw[9:], hints)
+    return Invite(raw[1:1 + FP_BYTES].hex(), raw[1 + FP_BYTES:], hints)
 
 
 def match_code(member_pub: str, token: str) -> str:
