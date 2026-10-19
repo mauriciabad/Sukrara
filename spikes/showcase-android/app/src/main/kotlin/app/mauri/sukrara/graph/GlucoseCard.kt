@@ -129,8 +129,8 @@ object Laurel {
 
     /**
      * One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
-     * leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its lowest and highest
-     * outer leaves.
+     * leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
+     * highest outer leaves.
      */
     private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side) {
         val sr = r * 1.25f
@@ -151,7 +151,7 @@ object Laurel {
         val s = if (left) 1 else -1
         for (k in 0 until 6) {
             val a = if (left) 135f + 15f * k else 45f - 15f * k
-            if (side == Side.FULL || k == 0 || k == 5) at(r * 1.35f, a, a + s * 90 - s * 32)
+            if (side == Side.FULL || k <= 1 || k == 5) at(r * 1.35f, a, a + s * 90 - s * 32)
             at(r * 1.17f, a + s * 5, a + s * 90 + s * 32)
         }
     }

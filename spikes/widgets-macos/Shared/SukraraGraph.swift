@@ -1146,8 +1146,8 @@ enum Laurel {
     }
 
     /// One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
-    /// leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its lowest and highest
-    /// outer leaves.
+    /// leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
+    /// highest outer leaves.
     private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side) {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
@@ -1166,7 +1166,7 @@ enum Laurel {
         let s: CGFloat = isLeft ? 1 : -1
         for k in 0..<6 {
             let a = isLeft ? 135 + 15 * CGFloat(k) : 45 - 15 * CGFloat(k)
-            if side == .full || k == 0 || k == 5 { at(r * 1.35, a, a + s * 90 - s * 32) }
+            if side == .full || k <= 1 || k == 5 { at(r * 1.35, a, a + s * 90 - s * 32) }
             at(r * 1.17, a + s * 5, a + s * 90 + s * 32)
         }
         ctx.restoreGState()
