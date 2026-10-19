@@ -28,12 +28,24 @@ internal interface SensorDriver {
     /** Should the transport connect to this device? Libre 3: the address from the NFC tap; Dexcom: by name. */
     fun matches(advert: Advert): Boolean
 
-    /** A reading carried in an advertisement (Aidex X), without a connection. Most families have none. */
-    fun onAdvertisement(advert: Advert, manufacturerData: ByteArray) {}
+    /**
+     * What a scanning transport ([SensorScanner]) filters on: a service UUID or an exact name per entry. Empty for
+     * families that get the address from pairing (the Libre 3: NFC), which never scan.
+     */
+    val scan: List<ScanSpec> get() = emptyList()
+
+    /**
+     * A scan result that passed [scan], before [matches] decides about connecting: [record] is the raw advertising
+     * data. Families that carry readings in it (Aidex X) report them here, without a connection.
+     */
+    fun onAdvertisement(advert: Advert, record: ByteArray) {}
 
     /** Services discovered: [characteristics] = every characteristic the device offers, [status] = GATT discovery status. */
     fun onConnected(link: BleLink, characteristics: Set<UUID>, status: Int)
     fun onNotification(characteristic: UUID, value: ByteArray)
+
+    /** The value of a [BleLink.read] (SmartGuide's CGM Status, Aidex X's session key). The Libre 3 never reads. */
+    fun onRead(characteristic: UUID, value: ByteArray) {}
 
     /** A GATT operation the driver queued could not be issued or failed; [why] is for the log and the status line. */
     fun onLinkFailed(why: String)
@@ -48,8 +60,15 @@ internal interface SensorDriver {
     fun onClosed()
 }
 
-/** What a transport saw in a scan result (families with [SensorProfile.needsScan]) or knows from the pairing. */
-internal data class Advert(val address: String, val name: String? = null, val serviceUuids: List<UUID> = emptyList())
+/**
+ * What a transport saw in a scan result (families with [SensorProfile.needsScan]) or knows from the pairing.
+ * [bonded]: this phone already has a bond with the device (the Dexcom app's G7, a SmartGuide paired before).
+ */
+internal data class Advert(val address: String, val name: String? = null, val serviceUuids: List<UUID> = emptyList(),
+                           val bonded: Boolean = false)
+
+/** One scan filter: a service the device advertises and/or its exact name (Android's `ScanFilter`). */
+internal data class ScanSpec(val service: UUID? = null, val name: String? = null)
 
 /**
  * The transport as a driver sees it. Operations run one at a time in call order (Android allows one outstanding GATT
@@ -59,6 +78,8 @@ internal interface BleLink {
     val isBonded: Boolean
     fun subscribe(characteristic: UUID, indicate: Boolean = false)
     fun write(characteristic: UUID, value: ByteArray, withResponse: Boolean = true)
+    /** Read a characteristic; the value comes back through [SensorDriver.onRead]. Only [GattLink] can. */
+    fun read(characteristic: UUID): Unit = throw UnsupportedOperationException("this link can't read $characteristic")
     /** Android `createBond` (LE). The result comes back through [SensorDriver.onBondChanged]. */
     fun bond()
     /** `BluetoothGatt.CONNECTION_PRIORITY_*`, queued behind the operations issued before it. */
@@ -86,6 +107,12 @@ internal interface SensorEvents {
     fun onSensorGlucose(current: LibreViewPayload.Glucose?, history: List<LibreViewPayload.Glucose>) {}
     /** The sensor has reached its end (patch state, life count): the driver stops connecting to it. */
     fun onSensorEnded(serial: String) {}
+    /**
+     * The sensor said when its session started (epoch s): families whose start isn't known at pairing (everything
+     * but the Libre 3, whose NFC tap gives it). The source turns it into the [app.mauri.sukrara.core.SensorInfo] the
+     * warm-up, the end badge and the reminders read, with the profile's warm-up and lifetime.
+     */
+    fun onSessionStart(startEpoch: Long) {}
     /** A secret to keep for the next connection (Libre 3: the authorization record after a fresh pairing). Opaque. */
     fun onPairingState(state: ByteArray) {}
 }

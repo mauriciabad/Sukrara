@@ -11,7 +11,10 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -25,6 +28,10 @@ import java.util.UUID
  *
  * Status words from here are the connection's ("connecting to …", "discovering services", "waiting for sensor",
  * "waiting for Bluetooth"); the driver's are the sensor's. `NewSensorFlow` reads both.
+ *
+ * Step 2 added what only the other families use, none of it on the Libre 3's path: [read] (SmartGuide, Aidex X) and
+ * a bond-state receiver, registered by the first [bond] (SmartGuide, Dexcom G6), that feeds
+ * [SensorDriver.onBondChanged]. The address of a scanning family comes from [SensorScanner].
  */
 @SuppressLint("MissingPermission")
 internal class GattLink(
@@ -66,6 +73,8 @@ internal class GattLink(
 
     override fun close() {
         closing = true
+        bondReceiver?.let { runCatching { context.unregisterReceiver(it) } }
+        bondReceiver = null
         driver.onClosed()
         clearOps()
         gatt?.close()
@@ -75,8 +84,28 @@ internal class GattLink(
     override val isBonded get() = device?.bondState == BluetoothDevice.BOND_BONDED
 
     override fun bond() {
-        // The bond-state receiver (→ SensorDriver.onBondChanged) comes with the first bonding family (SmartGuide).
-        if (!isBonded) device?.createBond()
+        if (isBonded) return
+        watchBond()
+        device?.createBond()   // a PIN family (SmartGuide) gets Android's own pairing dialog here
+    }
+
+    private var bondReceiver: BroadcastReceiver? = null
+
+    /** Android's bond state for this device → [SensorDriver.onBondChanged] (bonded, or back to none = refused). */
+    private fun watchBond() {
+        if (bondReceiver != null) return
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) {
+                val d = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                if (!d.address.equals(address, ignoreCase = true) || closing) return
+                when (i.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
+                    BluetoothDevice.BOND_BONDED -> driver.onBondChanged(true)
+                    BluetoothDevice.BOND_NONE -> driver.onBondChanged(false)
+                }
+            }
+        }
+        context.registerReceiver(r, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), Context.RECEIVER_NOT_EXPORTED)
+        bondReceiver = r
     }
 
     override fun disconnect() {
@@ -130,6 +159,13 @@ internal class GattLink(
         if (g.writeCharacteristic(ch, value, type) != BluetoothGatt.GATT_SUCCESS) driver.onLinkFailed("writeCharacteristic($characteristic) rejected")
     }
 
+    override fun read(characteristic: UUID) = enqueue {
+        val g = gatt
+        val ch = chars[characteristic]
+        if (g == null || ch == null) return@enqueue driver.onLinkFailed("characteristic $characteristic missing")
+        if (!g.readCharacteristic(ch)) driver.onLinkFailed("readCharacteristic($characteristic) rejected")
+    }
+
     override fun requestConnectionPriority(priority: Int) = enqueue {
         gatt?.requestConnectionPriority(priority)
         opDone()
@@ -168,6 +204,12 @@ internal class GattLink(
         override fun onCharacteristicWrite(g: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) return driver.onLinkFailed("write to ${ch.uuid} failed: $status")
             opDone()
+        }
+
+        override fun onCharacteristicRead(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) return driver.onLinkFailed("read of ${ch.uuid} failed: $status")
+            opDone()
+            driver.onRead(ch.uuid, value)
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) =
