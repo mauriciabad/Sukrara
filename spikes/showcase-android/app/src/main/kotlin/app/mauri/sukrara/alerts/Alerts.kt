@@ -14,6 +14,7 @@ import android.util.Log
 import app.mauri.sukrara.R
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.widgets.SukraraHooks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
@@ -155,6 +156,9 @@ object Alerts {
             }
         }
         state.value = engine.states()
+        // A mute ending between two readings fires from the timer: redraw the widgets now, or their last-treatment
+        // ring still shows the minute left from the last reading while the alert sounds.
+        if (actions.isNotEmpty()) SukraraHooks.refresh(ctx, "alerts", force = true)
         role?.let { r -> ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(EPISODES, JSONObject().put("role", r).put("episodes", engine.snapshot()).toString()).apply() }
         schedule(ctx)
