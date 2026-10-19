@@ -163,10 +163,13 @@ private fun appsSummary(f: FeatureState, wearer: Boolean): String {
     val hc by app.mauri.sukrara.bridge.HealthConnect.on.collectAsState()
     remember { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.HealthConnect.init(ctx); app.mauri.sukrara.tidepool.Tidepool.init(ctx) }
     val tidepool by app.mauri.sukrara.tidepool.Tidepool.settings.collectAsState()
+    remember { app.mauri.sukrara.nightscout.Nightscout.init(ctx) }
+    val nsUpload by app.mauri.sukrara.nightscout.Nightscout.settings.collectAsState()
     val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
     return listOfNotNull(
         "LibreView".takeIf { wearer && f.libreview }, apps, "Health Connect".takeIf { wearer && hc },
         "Tidepool".takeIf { tidepool.on && tidepool.signedIn && (wearer || tidepool.uploadFollowed) },
+        stringResource(R.string.ns_upload_title).takeIf { wearer && nsUpload.on && nsUpload.configured },
         "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
     ).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
 }
@@ -467,6 +470,7 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
                 (if (st.watchPolledAt > 0) " · " + stringResource(R.string.apps_xdrip_last_asked, sinceText(st.watchPolledAt / 1000)) else "")) { v -> set { it.copy(garmin = v) } }
         }
         SettingsGroup("Nightscout") {
+            if (wearer) link(stringResource(R.string.ns_upload_title), nightscoutUploadSummary(), icon = R.drawable.ic_sym_cloud_upload, to = "nightscout_upload")
             switch(stringResource(R.string.apps_nightscout), f.nightscout, icon = R.drawable.ic_nightscout,
                 summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else stringResource(R.string.apps_nightscout_summary)) { v ->
                 set { it.copy(nightscout = v) }

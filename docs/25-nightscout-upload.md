@@ -295,15 +295,47 @@ readings just queue (no extra wake-ups). Sukrara's own battery numbers belong to
 
 ## In Sukrara
 
-The upload itself isn't in the app yet; the draft below is for the integration step.
+**In Sukrara (Android), branch `w-nightscout`.** The decisions taken with the user: HTTPS required, plain http only
+to the phone itself or the home network (with a warning); 30-day backfill; every reading; wearer only; second-uploader
+guard; upload only; API v1 default; access token recommended, API secret accepted, both in `SecureStore`; one upload
+design shared with Tidepool.
 
-**Fixed (branch `w-nsiob`, commit `a40ce5c`)**: the phone's Nightscout *read* API (`bridge/NightscoutApi.kt`) served
-long-acting insulin as a `Note` **with** an `insulin` field, which clients that sum `insulin` (Nightscout's IOB,
-LoopFollow) count as a bolus. It now serves it like the uploader does: a `Note` with the dose only in `notes`.
-`NightscoutApiTest` pins that, `NONE` for no trend and UTC `dateString`. The adapter serves no sensor events, so the
-Sensor Start + Sensor Change rule doesn't apply there. No Mac equivalent: the Mac serves no Nightscout API.
+**One upload design with Tidepool** (`upload/Uploads.kt`). Both uploaders were built in parallel and arrived at the
+same core, so the PoC's per-reading outbox was dropped for Tidepool's model:
+- *No outbox*: the phone's stores (31 days of readings, the treatment log) are the queue; each uploader keeps only what
+  the service has (sent minute / slot ranges via `SentRanges`, the entry versions it got) and plans `store − state`
+  every cycle. Late readings, outages and reconnect backfill need no special path.
+- `CloudUploader` (title, `UploadStatus` flow, `uploading`, `kick()`), one `UploadLoop` each (cycle every 5 min or at
+  once on `kick`), `UploadBackoff` (Tidepool 1 → 60 min; Nightscout 30 s → 15 min with jitter and `Retry-After`).
+- One status line on both pages (`ui/UploadUi.kt`: "Up to date · last upload …", "Waiting for the first upload",
+  "Will retry · …"); each page words its own account states. Share with apps lists both in its summary.
+- What stays per service: the documents, the client and auth (Tidepool's session login, Nightscout's token / secret),
+  the diff with the site (Nightscout only: it can list what it has cheaply; Tidepool keeps its own rules), the role
+  rules (Tidepool: follower opt-in; Nightscout: wearer only). Tidepool's behaviour and tests are unchanged.
+
+**Verification** (`spikes/nightscout-upload/evidence/in-sukrara.txt`): the app's own planner, sender and HTTP client
+(`NightscoutLiveTest`) against a local Nightscout 15.0.8 in Docker, synthetic data, phone zone America/New_York:
+- 30 days (43 187 documents) in one cycle, ~4.5 s, API v1 + API secret; a second cycle sends nothing; a 20-minute gap
+  arriving late is filled → **43 201 entries, 0 gaps > 1 min, 0 duplicates**; stored `dateString` UTC, `utcOffset` −240.
+- Treatments as stored: 1 `Carb Correction`, 1 `Correction Bolus`, 2 `Note` (long-acting without `insulin`), 1
+  `Sensor Start`, 1 `Sensor Change`; devicestatus battery 64.
+- Same site through API v3 with the least-privilege token: nothing re-sent; carbs edited + moved → 1 document with the
+  new amount and time; a note deleted → 0 documents.
+- On that site, the PoC's reader checks pass **24/24** (LoopFollow, nightguard, Trio, Home Assistant) and Trio's and
+  LoopFollow's own Swift decoders decode every reading.
+- 13 unit tests (`NightscoutUploadTest`: 30-day batches, late gap + lost database + outage, lost response, backoff,
+  refused credential, second uploader, edit/move/delete on v1/v3/14.x, sensor events, switches, v3 budget, battery,
+  documents, address rules), `UploadsTest`, `NightscoutApiTest`; Tidepool's tests still pass.
+
+Added / discarded: [docs/10](10-showcase.md#nightscout-upload-docs25).
+
+**Fixed earlier (`w-nsiob`, `a40ce5c`)**: the phone's Nightscout *read* API served long-acting insulin as a `Note` with
+an `insulin` field, which clients that sum `insulin` count as a bolus. It now uses the uploader's mapping
+(`NsDocs.treatment`). No Mac equivalent: the Mac serves no Nightscout API and doesn't upload.
 
 ## To bring into Sukrara
+
+*The draft as written before the integration; what was actually built is under "In Sukrara" above.*
 
 A **Tidepool upload is being built in parallel** (branch `w-tidepool`). Both are "my data to a cloud I chose": the
 queue, backoff, diff-backfill, roles and conflict ideas here are written so they can sit next to it:
@@ -377,14 +409,10 @@ queue, backoff, diff-backfill, roles and conflict ideas here are written so they
 
 ## Open questions
 
-- **LAN/self-hosted over plain HTTP** (a Raspberry Pi at `192.168.x.y`): allow it behind a warning, or require TLS
-  (Tailscale / a reverse proxy)? The PoC and Sukrara's network config allow only the loopback.
-- **Backfill horizon**: 7 days (PoC) or Juggluco's 30? Longer costs one bigger diff on setup only.
-- **Upload cadence**: every reading (1/min, freshest followers) or coalesced to every 5 min to save radio wake-ups?
-  Battery numbers need investigation 11.
-- **Relay for followers** (a parent uploading a child's data): build it, and with which consent from the wearer
-  (a Nostr-signed "allow relay" in the share)?
-- **Shared `CloudUploader` with Tidepool**: one interface and status row, or two separate ones that only look alike?
+Settled with the user for the integration: http on the home network allowed with a warning, 30-day backfill, every
+reading, no follower relay, one upload design shared with Tidepool. Still open:
+- Battery cost of an upload per minute on the phone (investigation 11).
+- A read-only overlay of other apps' treatments on the graph (§3.6), if users ask for it.
 
 ## Run it
 

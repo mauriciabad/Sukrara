@@ -1557,7 +1557,7 @@
     <!-- Main switch [CHAR LIMIT=40] -->
     <string name="tidepool_main_switch">Upload to Tidepool</string>
     <!-- Row: the uploader's status [CHAR LIMIT=30] -->
-    <string name="tidepool_status">Status</string>
+    <string name="upload_status_title">Status</string>
     <!-- Status before signing in [CHAR LIMIT=40] -->
     <string name="tidepool_sign_in_first">Sign in first</string>
     <!-- Status: the session expired [CHAR LIMIT=60] -->
@@ -1565,13 +1565,13 @@
     <!-- Status: a follower hasn't chosen to upload [CHAR LIMIT=60] -->
     <string name="tidepool_status_not_allowed">Waiting for your choice below</string>
     <!-- Status: nothing uploaded yet [CHAR LIMIT=40] -->
-    <string name="tidepool_status_waiting">Waiting for the first upload</string>
+    <string name="upload_status_waiting">Waiting for the first upload</string>
     <!-- Status; %1$s = date and time of the last upload [CHAR LIMIT=60] -->
-    <string name="tidepool_status_ok">Up to date · last upload %1$s</string>
-    <!-- Status; %1$s = Tidepool's error [CHAR LIMIT=NONE] -->
-    <string name="tidepool_status_error">Will retry · %1$s</string>
+    <string name="upload_status_ok">Up to date · last upload %1$s</string>
+    <!-- Status; %1$s = the service's error [CHAR LIMIT=NONE] -->
+    <string name="upload_status_error">Will retry · %1$s</string>
     <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
-    <string name="tidepool_unavailable">Unavailable while the upload is off</string>
+    <string name="upload_unavailable">Unavailable while the upload is off</string>
     <!-- Switch (follower): upload the followed person [CHAR LIMIT=40] -->
     <string name="tidepool_follow">Upload the person you follow</string>
     <!-- Follower switch summary while off [CHAR LIMIT=60] -->
@@ -2000,4 +2000,90 @@
     <string name="graph_reset_section">Reset %1$s to the defaults</string>
     <!-- Graph page footer [CHAR LIMIT=NONE] -->
     <string name="graph_footer">Each widget\'s own settings stay; reset those from the widget (touch and hold → Reconfigure → Use app settings).</string>
+
+    <!-- Nightscout upload (docs/25) -->
+    <!-- Page title and Share with apps row [CHAR LIMIT=40] -->
+    <string name="ns_upload_title">Nightscout upload</string>
+    <!-- Page intro [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_intro">Send your glucose, entries and sensor changes to your own Nightscout site, so LoopFollow, nightguard, Trio, Nightscout reports and Home Assistant see them from anywhere.</string>
+    <!-- Row: the Nightscout address [CHAR LIMIT=30] -->
+    <string name="ns_upload_site">Site</string>
+    <!-- Warning under the site when it is http:// on the home network [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_insecure">Not encrypted: anyone on this network can read what is sent. Use https:// when you can.</string>
+    <!-- Main switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_main_switch">Upload to my Nightscout</string>
+    <!-- Status before a site and token are saved [CHAR LIMIT=50] -->
+    <string name="ns_upload_status_setup">Set up the site first</string>
+    <!-- Status: 401/403 [CHAR LIMIT=70] -->
+    <string name="ns_upload_status_sign_in">The site refused the token or secret: change it</string>
+    <!-- Status; %1$s = the other device name [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_status_paused">Paused: another app (%1$s) is uploading to this site</string>
+    <!-- Action shown while paused [CHAR LIMIT=30] -->
+    <string name="ns_upload_anyway">Upload anyway</string>
+    <!-- Summary of Upload anyway [CHAR LIMIT=70] -->
+    <string name="ns_upload_anyway_summary">Readings from both apps will show up on the site</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="ns_upload_what">What to send</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_readings">Glucose readings</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_readings_summary">Every reading, the last 30 days included</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_entries">Insulin, carbs &amp; notes</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_entries_summary">Edits and deletions are uploaded too</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_sensor">Sensor changes</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_sensor_summary">The sensor start, for the sensor age</string>
+    <!-- Switch [CHAR LIMIT=40] -->
+    <string name="ns_upload_battery">Phone battery</string>
+    <!-- Switch summary [CHAR LIMIT=60] -->
+    <string name="ns_upload_battery_summary">For the battery shown in Nightscout and LoopFollow</string>
+    <!-- Group title [CHAR LIMIT=30] -->
+    <string name="ns_upload_advanced">Advanced</string>
+    <!-- Row: which Nightscout API [CHAR LIMIT=30] -->
+    <string name="ns_upload_api">API</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_upload_api_v1">API v1 (recommended)</string>
+    <!-- Choice detail [CHAR LIMIT=70] -->
+    <string name="ns_upload_api_v1_sub">Sends readings in batches; every Nightscout has it</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_upload_api_v3">API v3</string>
+    <!-- Choice detail [CHAR LIMIT=70] -->
+    <string name="ns_upload_api_v3_sub">One request per reading; needs an access token</string>
+    <!-- Action: forget the site and token [CHAR LIMIT=40] -->
+    <string name="ns_upload_remove">Remove this site</string>
+    <!-- Page footer [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_footer">Sukrara only uploads, it never reads anything back. Prefer an access token with only the upload permissions (Nightscout → Admin tools → Subjects) over the API secret, which can change everything on the site. Either is kept encrypted on this phone. If another app such as Juggluco or xDrip+ uploads to the same site, turn its upload off.</string>
+    <!-- Share with apps row; %1$s = the site host [CHAR LIMIT=NONE] -->
+    <string name="ns_upload_uploading">Uploading to %1$s</string>
+    <!-- Dialog title [CHAR LIMIT=40] -->
+    <string name="ns_site_dialog_title">Nightscout site</string>
+    <!-- Field label [CHAR LIMIT=40] -->
+    <string name="ns_site_url">Address (https://…)</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_site_kind_token">Access token (recommended)</string>
+    <!-- Choice [CHAR LIMIT=40] -->
+    <string name="ns_site_kind_secret">API secret</string>
+    <!-- Field label [CHAR LIMIT=40] -->
+    <string name="ns_site_credential">Token or secret</string>
+    <!-- Field hint when one is saved [CHAR LIMIT=60] -->
+    <string name="ns_site_credential_keep">Leave empty to keep the saved one</string>
+    <!-- Button [CHAR LIMIT=20] -->
+    <string name="ns_site_test">Test</string>
+    <!-- Button while testing [CHAR LIMIT=20] -->
+    <string name="ns_site_testing">Testing…</string>
+    <!-- Test result; %1$s = server version [CHAR LIMIT=60] -->
+    <string name="ns_site_ok">Connected · Nightscout %1$s</string>
+    <!-- Field error [CHAR LIMIT=60] -->
+    <string name="ns_site_err_url">Not a web address</string>
+    <!-- Field error [CHAR LIMIT=70] -->
+    <string name="ns_site_err_https">Use https:// (http:// only on your home network)</string>
+    <!-- Test result [CHAR LIMIT=60] -->
+    <string name="ns_site_err_auth">The site refused the token or secret</string>
+    <!-- Test result; %1$s = the reason [CHAR LIMIT=NONE] -->
+    <string name="ns_site_err">Could not reach it · %1$s</string>
+    <!-- Button [CHAR LIMIT=20] -->
+    <string name="ns_site_save">Save</string>
 </resources>

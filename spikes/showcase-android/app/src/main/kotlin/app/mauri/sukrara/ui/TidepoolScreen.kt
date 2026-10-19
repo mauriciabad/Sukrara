@@ -59,7 +59,7 @@ fun TidepoolSettings(follower: Boolean, onBack: () -> Unit) {
     val st by Tidepool.status.collectAsState()
     var signIn by remember { mutableStateOf(false) }
     val on = s.on && s.signedIn
-    val off = stringResource(R.string.tidepool_unavailable)
+    val off = stringResource(R.string.upload_unavailable)
     SettingsPage("Tidepool", onBack) {
         SettingsIntro(stringResource(if (follower) R.string.tidepool_intro_follower else R.string.tidepool_intro_wearer))
         SettingsGroup {
@@ -68,7 +68,7 @@ fun TidepoolSettings(follower: Boolean, onBack: () -> Unit) {
         }
         SettingsMainSwitch(stringResource(R.string.tidepool_main_switch), on, enabled = s.signedIn) { Tidepool.setOn(ctx, it) }
         SettingsGroup {
-            info(stringResource(R.string.tidepool_status), when {
+            info(stringResource(R.string.upload_status_title), when {
                 !s.signedIn && s.on -> stringResource(R.string.tidepool_status_sign_in)   // Tidepool ended the session
                 !s.signedIn -> stringResource(R.string.tidepool_sign_in_first)
                 !on -> stringResource(R.string.settings_off)
@@ -89,12 +89,10 @@ fun TidepoolSettings(follower: Boolean, onBack: () -> Unit) {
 }
 
 @Composable
-private fun statusText(st: Tidepool.Status): String = when (st.kind) {
+private fun statusText(st: app.mauri.sukrara.upload.UploadStatus): String = when (st.kind) {
     "sign_in" -> stringResource(R.string.tidepool_status_sign_in)
     "not_allowed" -> stringResource(R.string.tidepool_status_not_allowed)
-    "error" -> stringResource(R.string.tidepool_status_error, st.error.orEmpty())
-    else -> if (st.lastOkMs > 0) stringResource(R.string.tidepool_status_ok, app.mauri.sukrara.graph.Clock.dateTime(st.lastOkMs / 1000))
-        else stringResource(R.string.tidepool_status_waiting)
+    else -> uploadStatusText(st)
 }
 
 /** Email + password, used once for Tidepool's login; only the session is kept. Signed in: sign out. */

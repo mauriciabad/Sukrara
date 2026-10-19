@@ -1026,6 +1026,34 @@ follower's separate *Upload the person you follow* (default off). Research, desi
 | Mac uploader | the phone holds the store and the queue; the Mac would upload the same data twice |
 | `bolus` / `basal`, AAPS-style `wizard` carbs | pump types / a fake bolus; `insulin` and `food` are Tidepool's types for injections and carbs |
 
+## Nightscout upload (docs/25)
+
+Settings → Share with apps → Nightscout → *Nightscout upload* (Android, wearer only; off by default): every reading
+with a 30-day backfill, entries, sensor changes and the phone battery to the user's own site, API v1 (v3 optional),
+access token recommended or API secret, upload only, paused when another app uploads to the site. Built on one shared
+upload design with Tidepool. Research, design and verification: [docs/25](25-nightscout-upload.md#in-sukrara).
+
+| Added | Where |
+|---|---|
+| The shared upload design: `CloudUploader`, `UploadStatus`, `UploadLoop`, `UploadBackoff`, `SentRanges`; Tidepool moved onto it with unchanged behaviour (same intervals, backoff, states, texts) | `upload/Uploads.kt`, `ui/UploadUi.kt` (status line), `tidepool/Tidepool.kt`, `tidepool/TidepoolQueue.kt` |
+| Nightscout upload page, site dialog with *Test*, Share with apps row + summary (en + es) | `ui/NightscoutUploadScreen.kt`, `ui/SettingsScreens.kt`, `ui/MainActivity.kt` |
+| Documents, client (v1 + v3, API secret / access token → JWT), address rules, queue, sender, upload loop | `nightscout/` (`NsDocs`, `NsClient`, `Http`, `NsConfig`, `NightscoutQueue`, `NightscoutSync`, `Nightscout`) |
+| Every reading, 30-day backfill, entries with edits / moves / permanent deletes, `Sensor Change` + `Sensor Start`, phone battery | `NightscoutQueue`, `NightscoutSync` |
+| Diff against the site (first run, after failures, every 6 h): lost minutes re-sent; another device's recent entries pause readings until *Upload anyway* | `NightscoutQueue.reconciled`, `NightscoutSync.reconcile` |
+| HTTPS, plain http only to loopback / home-network hosts (literal host), with a warning; cleartext decided in code (`base-config` permits it) | `NsSite.parse`, `res/xml/network_security_config.xml` |
+| Token / secret in a Keystore-encrypted file | `SecureStore(nightscout.bin, sukrara.nightscout)` |
+| The phone's read API serves treatments through the uploader's mapping | `bridge/NightscoutApi.treatment` → `NsDocs.treatment` |
+| Tests: 13 unit tests against an in-memory Nightscout (15.0.8 rules + a 14.x mode), shared-layer tests, an end-to-end test against a local Nightscout (by hand) | `NightscoutUploadTest`, `UploadsTest`, `NightscoutLiveTest` |
+
+| Discarded | Why |
+|---|---|
+| Follower relay (a follower uploading the person it follows) | someone else's data must not become this phone's sensor on a site; for now the upload is wearer only (Tidepool keeps its own opt-in for followers) |
+| Reading treatments back from Nightscout | unsigned, no last-writer-wins, other apps' semantics (SMB, temp basal); upload only |
+| v3 soft deletes | v1 readers (LoopFollow, nightguard, the web pages) still show the entry |
+| `filtered` / `unfiltered` / `rssi` / calibrations | Libre 3 has none |
+| A per-reading outbox (the PoC's timestamp queue) | the phone's store is the queue, as in Tidepool: one design, nothing to keep in sync |
+| Mac uploader | the phone holds the store and uploads; the Mac would upload the same data twice |
+
 ## Sensor drivers (investigation 23, step 1)
 
 The first step of [docs/23](23-sensors.md#in-sukrara): the direct source now runs a `SensorDriver` picked from a

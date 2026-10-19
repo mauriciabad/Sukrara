@@ -292,6 +292,7 @@ class MainActivity : ComponentActivity() {
                 "apps" -> SettingsRoute { AppsSettings(wearer = true, back) }
                 "libreview" -> SettingsRoute { LibreViewSettings(back) }
                 "tidepool" -> SettingsRoute { TidepoolSettings(follower = false, back) }
+                "nightscout_upload" -> SettingsRoute { NightscoutUploadSettings(back) }
                 "backup" -> SettingsRoute { BackupSettings(u, actions, back) }
                 "export" -> SettingsRoute { ExportSettings(follower = false, back) }
                 "advanced" -> SettingsRoute { WearerAdvanced(u, relays, actions, back) }
