@@ -81,7 +81,7 @@ The ring's crown / laurel and the % column's crown (docs/FEATURES.md, "Time-in-r
 
 | key | meaning |
 |---|---|
-| `mark` | `none`, `laurel` (≥ 90 % as shown) or `flowers` (≥ 95 %), both with the lows' goals met, or `crown` (nothing outside the range); all only with ≥ 70 % coverage |
+| `mark` | `none`, `laurel` (≥ 90 % as shown) or `flowers` (≥ 95 %), by the share alone, or `crown` (nothing outside the range); all only with ≥ 70 % coverage |
 | `text` | the ring's number (ShareText: never `100` unless it is all) |
 | `column` | `[below, in range, above]` as the % column shows them (largest remainder; in range is 100 only when it is all) |
 | `crown` | whether the column's 100 wears the crown |
