@@ -231,7 +231,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                         }
                     }
                 },
-                under = { item, cx, cy, r -> drawIntoCanvas { Slots.drawUnder(it.nativeCanvas, item, cx, cy, r, pal) } })
+                under = { items, cx, cy, r -> drawIntoCanvas { Slots.drawUnder(it.nativeCanvas, items, cx, cy, r, pal) } })
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
                 val st = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx))
@@ -292,7 +292,7 @@ fun SensorLifeBadge(look: app.mauri.sukrara.graph.SensorBadge.Look, pal: GraphPa
 @Composable
 fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Composable (scale: Float) -> Unit,
                       slot: @Composable (item: T, main: Boolean) -> Unit,
-                      under: (androidx.compose.ui.graphics.drawscope.DrawScope.(item: T, cx: Float, cy: Float, r: Float) -> Unit)? = null) {
+                      under: (androidx.compose.ui.graphics.drawscope.DrawScope.(items: List<T>, cx: List<Float>, cy: Float, r: Float) -> Unit)? = null) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val rounded = remember { FontFamily(app.mauri.sukrara.graph.RoundedFont.typeface(700)) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -306,11 +306,11 @@ fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Compo
         val fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
             else ValueFit.of(maxWidth.value, maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), all.size)
         val slots = slotsFor(fit.slots)
-        // [under] (a ring's laurel) for every slot first, behind the whole row: what is next to it covers it
+        // [under] (the rings' laurels) for all slots first, behind the whole row: what is next to them covers them
         Row(Modifier.drawBehind {
             if (under != null) {
                 val s = ValueFit.SLOT_DP.dp.toPx(); val g = ValueFit.SLOT_GAP_DP.dp.toPx()
-                slots.forEachIndexed { i, item -> under(item, size.width - s / 2 - i * (s + g), size.height / 2, s / 2) }
+                under(slots, slots.indices.map { size.width - s / 2 - it * (s + g) }, size.height / 2, s / 2)
             }
         }, verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { value(fit.scale) }

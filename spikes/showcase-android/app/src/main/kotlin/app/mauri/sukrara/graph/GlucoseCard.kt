@@ -107,34 +107,65 @@ object Crown {
     fun draw(cv: Canvas, x: Float, bottom: Float, w: Float, color: Int) = cv.drawPath(path(x, bottom, w), paint(color, w))
 }
 
-/** The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. */
+/**
+ * The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. Each side
+ * is shaped by what is next to it ([Slots.drawUnder]): [Side.FULL] where nothing is (the value, the card's edge),
+ * [Side.COMPACT] (one row of smaller leaves that stays in the gap) next to a slot without a laurel, [Side.NONE] next to
+ * another laurelled ring, where one sprig in the gap stands for both ([drawJoin]).
+ */
 object Laurel {
-    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int) {
-        val stem = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
-        }
-        val sr = r * 1.25f
-        val oval = RectF(cx - sr, cy - sr, cx + sr, cy + sr)
-        cv.drawArc(oval, 131f, 83f, false, stem)
-        cv.drawArc(oval, -34f, 83f, false, stem)
-        val leaf = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-        val shape = RectF(-r * 0.135f, -r * 0.056f, r * 0.135f, r * 0.056f)
-        fun at(rad: Float, deg: Float, rot: Float) {
+    enum class Side { FULL, COMPACT, NONE }
+
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) {
+        branch(cv, cx, cy, r, color, left, true)
+        branch(cv, cx, cy, r, color, right, false)
+    }
+
+    private fun stem(r: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
+    }
+
+    private fun leaf(cv: Canvas, x: Float, y: Float, rot: Float, len: Float, color: Int) {
+        cv.save()
+        cv.translate(x, y)
+        cv.rotate(rot)
+        cv.drawOval(RectF(-len / 2, -len * 0.21f, len / 2, len * 0.21f), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        cv.restore()
+    }
+
+    /** One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), leaves leaning up it. */
+    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, side: Side, left: Boolean) {
+        if (side == Side.NONE) return
+        val full = side == Side.FULL
+        val sr = r * if (full) 1.25f else 1.1f
+        cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false, stem(r, color))
+        fun at(rad: Float, deg: Float, rot: Float, len: Float) {
             val a = Math.toRadians(deg.toDouble())
-            cv.save()
-            cv.translate(cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat())
-            cv.rotate(rot)
-            cv.drawOval(shape, leaf)
-            cv.restore()
+            leaf(cv, cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat(), rot, len, color)
         }
-        // each branch climbs a side from below the middle: an outer and an inner leaf per step, both leaning up the
-        // stem, the inner ones clear of the ring
+        val s = if (left) 1 else -1
         for (k in 0 until 6) {
-            val l = 135f + 15f * k
-            val rt = 45f - 15f * k
-            at(r * 1.35f, l, l + 90 - 32); at(r * 1.17f, l + 5, l + 90 + 32)
-            at(r * 1.35f, rt, rt - 90 + 32); at(r * 1.17f, rt - 5, rt - 90 - 32)
+            val a = if (left) 135f + 15f * k else 45f - 15f * k
+            if (full) {
+                // an outer and an inner leaf per step, the inner ones clear of the ring
+                at(r * 1.35f, a, a + s * 90 - s * 32, r * 0.27f); at(r * 1.17f, a + s * 5, a + s * 90 + s * 32, r * 0.27f)
+            } else at(r * 1.17f, a, a + s * 90 - s * 32, r * 0.18f)
         }
+    }
+
+    /**
+     * The sprig between two laurelled rings of radius [r] (centre gap at [x]): a straight stem with leaf pairs leaning
+     * up and out, the left leaves in [left]'s colour, the right ones in [right]'s (a faded ring keeps its fade).
+     */
+    fun drawJoin(cv: Canvas, x: Float, cy: Float, r: Float, left: Int, right: Int) {
+        val stemColor = if ((left ushr 24) >= (right ushr 24)) left else right
+        cv.drawLine(x, cy + r * 0.9f, x, cy - r * 0.6f, stem(r, stemColor))
+        for (k in 0 until 6) {
+            val y = cy + r * 0.78f - k * r * 0.25f
+            leaf(cv, x - r * 0.068f, y - r * 0.05f, -130f, r * 0.2f, left)
+            leaf(cv, x + r * 0.068f, y - r * 0.05f, -50f, r * 0.2f, right)
+        }
+        leaf(cv, x, cy - r * 0.68f, -90f, r * 0.2f, stemColor)
     }
 }
 
@@ -143,7 +174,7 @@ object Laurel {
  * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, high,
  * very high). [emphasis] fades the secondary rings (1 = main). [countdown]: the sensor countdown ring over it
  * ([SensorBadge.drawCountdown]). A [TirMark] leaves the ring its full size and may overflow the slot: the laurel up its
- * sides (from 95 %, also at 100 %; [drawUnder], drawn for every slot before the rings, so what is next to it covers
+ * sides (from 95 %, also at 100 %; [Slots.drawUnder], drawn for every slot before the rings, so what is next to it covers
  * it), and at 100 % the crown in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
  */
 object TirRing {
@@ -196,11 +227,8 @@ object TirRing {
         cv.drawText(spec.period, cx, base + sub.textSize * 1.1f, sub)
     }
 
-    /** The laurel of a ring at ([cx], [cy]) of radius [r], if it has a mark: drawn before any slot, under them all. */
-    fun drawUnder(cv: Canvas, cx: Float, cy: Float, r: Float, tir: TimeInRange, spec: RingSpec, pal: GraphPalette, emphasis: Float) {
-        if (!tir.empty && TirMark.of(tir, spec.range) != TirMark.NONE)
-            Laurel.draw(cv, cx, cy, r, ColorUtils.setAlphaComponent(pal.tight, (255 * emphasis).toInt()))
-    }
+    /** Whether the ring wears a laurel (any [TirMark]: the crown comes with one). */
+    fun laurel(tir: TimeInRange, spec: RingSpec) = !tir.empty && TirMark.of(tir, spec.range) != TirMark.NONE
 
     /** The number in the middle: in range against its > 70 % goal, very good on its own (ShareText's rule). */
     fun text(tir: TimeInRange, spec: RingSpec): String =
@@ -372,7 +400,7 @@ object GlucoseCard {
         var used = 0f
         val items = Slots.arrange(rings, st.last, last, fallback, fit)
         val main = Slots.mainIndex(items)
-        for ((i, item) in items.withIndex()) Slots.drawUnder(cv, item, x - size / 2 - i * (size + gap), box.centerY(), size / 2, pal)
+        Slots.drawUnder(cv, items, items.indices.map { x - size / 2 - it * (size + gap) }, box.centerY(), size / 2, pal)
         for ((i, item) in items.withIndex()) {
             Slots.draw(cv, item, x - size / 2, box.centerY(), size / 2, nowS, pal, d, countdown.takeIf { i == main })
             x -= size + gap

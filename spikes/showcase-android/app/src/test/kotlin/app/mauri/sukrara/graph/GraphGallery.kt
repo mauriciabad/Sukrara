@@ -203,10 +203,33 @@ class GraphGallery {
             sheet("tir-marks-rings-${if (dark) "dark" else "light"}", rings.map { (label, p) ->
                 Tile(label, "") { cv, w, h ->
                     val e = if (p.second.windowS > 86400) 0.55f else 1f
-                    TirRing.drawUnder(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e)
+                    if (TirRing.laurel(p.first, p.second))
+                        Laurel.draw(cv, w / 2, h / 2, h * 0.34f, androidx.core.graphics.ColorUtils.setAlphaComponent(pal.tight, (255 * e).toInt()))
                     TirRing.draw(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e, d)
                 }
             }, 110f, 110f, cols = 6, pal)
+
+            // every neighbour combination: crown (C), laurel (L), nothing (–), listed left to right as on the card
+            val crown = TimeInRange(0.0, 0.0, 0.8, 0.2, 0.0, 0.0, 1.0)
+            val laurel = TimeInRange(0.0, 0.01, 0.75, 0.21, 0.03, 0.0, 1.0)
+            val plain = TimeInRange(0.0, 0.03, 0.6, 0.27, 0.1, 0.0, 1.0)
+            val k = mapOf('C' to crown, 'L' to laurel, '-' to plain)
+            val three = listOf(RingSpec(86400), RingSpec(7 * 86400L), RingSpec(14 * 86400L))
+            fun combo(label: String, marks: String, insulin: Boolean = false) = Tile(label, "", 500f, 84f) { cv, w, h ->
+                // marks: left to right; the main (1 d) ring is the rightmost
+                val windows = listOf(86400L, 7 * 86400L, 14 * 86400L).take(marks.length)
+                val byWindow = windows.zip(marks.reversed().toList()).toMap()
+                val trs = if (insulin) listOf(Treatment(id = "r", t = now - 20 * 60L, k = "rapid", a = 2.0, u = 0, o = "phone")) else emptyList()
+                GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = three.take(marks.length), last = if (insulin) LastPlace.NEAR_VALUE else LastPlace.OFF), pal, d, sensor = null,
+                    metricsOf = { spec, _ -> GlucoseMetrics(k.getValue(byWindow.getValue(spec.windowS)), 120.0, 30.0, 1000) })
+            }
+            sheet("tir-marks-combos-${if (dark) "dark" else "light"}", listOf(
+                combo("7d laurel · 1d crown", "LC"), combo("7d laurel · 1d laurel", "LL"),
+                combo("7d crown · 1d crown", "CC"), combo("7d – · 1d crown", "-C"),
+                combo("7d laurel · 1d –", "L-"), combo("7d – · 1d laurel", "-L"),
+                combo("14d L · 7d L · 1d crown", "LLC"), combo("14d L · 7d – · 1d L", "L-L"),
+                combo("14d – · 7d crown · 1d –", "-C-"), combo("insulin slot · 7d L · 1d crown", "LC", insulin = true),
+            ), 500f, 84f, cols = 2, pal)
         }
     }
 

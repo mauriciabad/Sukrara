@@ -411,4 +411,46 @@ func renderMarks(_ out: URL) {
     }
     renderTinted(GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .accented)
         .padding(16), size: sizes[.systemMedium]!, to: out.appendingPathComponent("mac-marks-tinted.png"))
+
+    // Every neighbour combination (crown C, laurel L, nothing –; left to right, the 1 d ring rightmost), value widget.
+    func tir(_ m: Character) -> TimeInRange {
+        switch m {
+        case "C": TimeInRange(tight: 0.8, target: 0.2, coverage: 1)
+        case "L": TimeInRange(low: 0.01, tight: 0.75, target: 0.21, high: 0.03, coverage: 1)
+        default: TimeInRange(low: 0.03, tight: 0.6, target: 0.27, high: 0.1, coverage: 1)
+        }
+    }
+    let combos: [(String, Bool)] = [("LC", false), ("LL", false), ("CC", false), ("-C", false), ("L-", false), ("-L", false),
+                                    ("LLC", false), ("L-L", false), ("-C-", false), ("LC", true)]
+    func comboSnap(_ marks: String, insulin: Bool) -> GlucoseSnapshot {
+        var c = GraphConfig()
+        c.ringCount = marks.count
+        c.slots[2] = RingSpec(window: 14 * 86400)
+        c.lastPlace = insulin ? .nearValue : .off
+        c.lastElse = nil
+        var s = snap
+        s.graph = c
+        let windows: [TimeInterval] = [86400, 7 * 86400, 14 * 86400]
+        s.slots = zip(windows, marks.reversed()).map { SlotMetrics(window: $0, metrics: GlucoseMetrics(tir: tir($1), mean: 120, sd: 30, readings: 1000)) }
+        if insulin {
+            s.treatments = [WidgetTreatment(t: renderNow.addingTimeInterval(-20 * 60), k: "rapid", a: 2)]
+            s.alerts = AlertSettings()
+        }
+        return s
+    }
+    for dark in [false, true] {
+        let grid = VStack(alignment: .leading, spacing: 0) {
+            ForEach(0..<5, id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<2, id: \.self) { col in
+                        let (m, ins) = combos[row * 2 + col]
+                        Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                            GlucoseWidgetView(kind: .value, family: .systemMedium, c: GlucoseEntryContent(snapshot: comboSnap(m, insulin: ins), date: renderNow), mode: .fullColor)
+                        }
+                    }
+                }
+            }
+        }
+        render(grid, to: out.appendingPathComponent("mac-marks-combos-\(dark ? "dark" : "light").png"), dark: dark)
+    }
 }

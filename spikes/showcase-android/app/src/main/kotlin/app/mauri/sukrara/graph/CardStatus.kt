@@ -159,9 +159,25 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
-    /** What goes under all the slots (a ring's laurel, [TirRing.drawUnder]): call it for every slot before [draw]. */
-    fun drawUnder(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, pal: GraphPalette) {
-        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.drawUnder(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis)
+    /**
+     * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order). A
+     * laurel's side next to another slot is shaped by it: between two laurelled rings one shared sprig
+     * ([Laurel.drawJoin]), next to a slot without one a compact branch that stays in the gap; a free side (the value,
+     * the card's edge) gets the full branch.
+     */
+    fun drawUnder(cv: Canvas, items: List<SlotItem>, cx: List<Float>, cy: Float, radius: Float, pal: GraphPalette) {
+        val colors = items.map { item ->
+            (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && TirRing.laurel(it.m.tir, it.spec) }
+                ?.let { ColorUtils.setAlphaComponent(pal.tight, (255 * it.emphasis).toInt()) }
+        }
+        val order = items.indices.sortedBy { cx[it] }   // left to right
+        fun side(n: Int?) = when { n == null -> Laurel.Side.FULL; colors[n] != null -> Laurel.Side.NONE; else -> Laurel.Side.COMPACT }
+        for ((p, i) in order.withIndex()) {
+            val c = colors[i] ?: continue
+            val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
+            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
+            if (r != null) colors[r]?.let { Laurel.drawJoin(cv, (cx[i] + cx[r]) / 2, cy, radius, c, it) }
+        }
     }
 
     /**

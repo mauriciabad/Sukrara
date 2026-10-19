@@ -1126,39 +1126,72 @@ enum Crown {
     }
 }
 
-/// The laurel (Laurel in GlucoseCard.kt): two branches of leaves up the sides of a ring of outer radius `r`.
+/// The laurel (Laurel in GlucoseCard.kt): two branches of leaves up the sides of a ring of outer radius `r`. Each side
+/// is shaped by what is next to it (`Slots.drawUnder`): `.full` where nothing is, `.compact` (one row of smaller
+/// leaves that stays in the gap) next to a slot without a laurel, `.none` next to another laurelled ring, where one
+/// sprig in the gap stands for both (`drawJoin`).
 enum Laurel {
-    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor) {
+    enum Side { case full, compact, none }
+
+    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full) {
+        branch(ctx, c, r, color, left, isLeft: true)
+        branch(ctx, c, r, color, right, isLeft: false)
+    }
+
+    private static func leaf(_ ctx: CGContext, _ x: CGFloat, _ y: CGFloat, rot: CGFloat, len: CGFloat, _ color: CGColor) {
         ctx.saveGState()
-        ctx.setStrokeColor(color); ctx.setFillColor(color)
-        ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
-        let sr = r * 1.25
-        for (a0, a1) in [(131.0, 214.0), (-34.0, 49.0)] as [(CGFloat, CGFloat)] {
-            ctx.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: false)
-            ctx.strokePath()
-        }
-        func at(_ rad: CGFloat, _ deg: CGFloat, _ rot: CGFloat) {
-            let a = deg * .pi / 180
-            ctx.saveGState()
-            ctx.translateBy(x: c.x + rad * cos(a), y: c.y + rad * sin(a))
-            ctx.rotate(by: rot * .pi / 180)
-            ctx.fillEllipse(in: CGRect(x: -r * 0.135, y: -r * 0.056, width: r * 0.27, height: r * 0.112))
-            ctx.restoreGState()
-        }
-        // each branch climbs a side from below the middle: an outer and an inner leaf per step, both leaning up the
-        // stem, the inner ones clear of the ring
-        for k in 0..<6 {
-            let l = 135 + 15 * CGFloat(k), rt = 45 - 15 * CGFloat(k)
-            at(r * 1.35, l, l + 90 - 32); at(r * 1.17, l + 5, l + 90 + 32)
-            at(r * 1.35, rt, rt - 90 + 32); at(r * 1.17, rt - 5, rt - 90 - 32)
-        }
+        ctx.setFillColor(color)
+        ctx.translateBy(x: x, y: y)
+        ctx.rotate(by: rot * .pi / 180)
+        ctx.fillEllipse(in: CGRect(x: -len / 2, y: -len * 0.21, width: len, height: len * 0.42))
         ctx.restoreGState()
+    }
+
+    /// One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), leaves leaning up it.
+    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, _ side: Side, isLeft: Bool) {
+        if side == .none { return }
+        let full = side == .full
+        let sr = r * (full ? 1.25 : 1.1)
+        ctx.saveGState()
+        ctx.setStrokeColor(color); ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
+        let a0: CGFloat = isLeft ? 131 : -34
+        ctx.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: (a0 + 83) * .pi / 180, clockwise: false)
+        ctx.strokePath()
+        ctx.restoreGState()
+        func at(_ rad: CGFloat, _ deg: CGFloat, _ rot: CGFloat, _ len: CGFloat) {
+            let a = deg * .pi / 180
+            leaf(ctx, c.x + rad * cos(a), c.y + rad * sin(a), rot: rot, len: len, color)
+        }
+        let s: CGFloat = isLeft ? 1 : -1
+        for k in 0..<6 {
+            let a = isLeft ? 135 + 15 * CGFloat(k) : 45 - 15 * CGFloat(k)
+            if full {
+                // an outer and an inner leaf per step, the inner ones clear of the ring
+                at(r * 1.35, a, a + s * 90 - s * 32, r * 0.27); at(r * 1.17, a + s * 5, a + s * 90 + s * 32, r * 0.27)
+            } else { at(r * 1.17, a, a + s * 90 - s * 32, r * 0.18) }
+        }
+    }
+
+    /// The sprig between two laurelled rings of radius `r` (centre of the gap at `x`): a straight stem with leaf pairs
+    /// leaning up and out, the left leaves in `left`'s colour, the right ones in `right`'s (a faded ring keeps its fade).
+    static func drawJoin(_ ctx: CGContext, x: CGFloat, cy: CGFloat, r: CGFloat, left: CGColor, right: CGColor) {
+        let stem = left.alpha >= right.alpha ? left : right
+        ctx.saveGState()
+        ctx.setStrokeColor(stem); ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
+        ctx.move(to: CGPoint(x: x, y: cy + r * 0.9)); ctx.addLine(to: CGPoint(x: x, y: cy - r * 0.6)); ctx.strokePath()
+        ctx.restoreGState()
+        for k in 0..<6 {
+            let y = cy + r * 0.78 - CGFloat(k) * r * 0.25
+            leaf(ctx, x - r * 0.068, y - r * 0.05, rot: -130, len: r * 0.2, left)
+            leaf(ctx, x + r * 0.068, y - r * 0.05, rot: -50, len: r * 0.2, right)
+        }
+        leaf(ctx, x, cy - r * 0.68, rot: -90, len: r * 0.2, stem)
     }
 }
 
 /// The segmented time-in-range ring (TirRing in GlucoseCard.kt), with the sensor `countdown` ring over it. A ring with
 /// a `TirMark` leaves the ring its full size and may overflow the slot: the laurel up its sides (from 95 %, also at
-/// 100 %; `drawUnder`, drawn for every slot before the rings, so what is next to it covers it), and at 100 % the crown
+/// 100 %; `Slots.drawUnder`, drawn for every slot before the rings, so what is next to it covers it), and at 100 % the crown
 /// in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
 enum TirRing {
     static func draw(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
@@ -1220,12 +1253,8 @@ enum TirRing {
 }
 
 extension TirRing {
-    /// The laurel of a ring at `c` of radius `r`, if it has a mark: drawn before any slot, under them all.
-    static func drawUnder(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
-                          _ pal: GraphPalette, emphasis: CGFloat) {
-        guard !tir.empty, TirMark.of(tir, spec.range) != .none else { return }
-        Laurel.draw(ctx, center: c, r: r, (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(emphasis))
-    }
+    /// Whether the ring wears a laurel (any `TirMark`: the crown comes with one).
+    static func laurel(_ tir: TimeInRange, _ spec: RingSpec) -> Bool { !tir.empty && TirMark.of(tir, spec.range) != .none }
 }
 
 /// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
@@ -1425,10 +1454,24 @@ enum Slots {
         return items.isEmpty ? -1 : 0
     }
 
-    /// What goes under all the slots (a ring's laurel, `TirRing.drawUnder`): call it for every slot before `draw`.
-    static func drawUnder(_ ctx: CGContext, _ item: SlotItem, center c: CGPoint, radius: CGFloat, _ pal: GraphPalette) {
-        if case let .metric(spec, m, e) = item, spec.kind == .tir {
-            TirRing.drawUnder(ctx, center: c, radius: radius, tir: m.tir, spec: spec, pal, emphasis: e)
+    /// What goes under all the slots, before any `draw` (Slots.drawUnder in CardStatus.kt): the rings' laurels. `cx` =
+    /// each item's centre (same order). A laurel's side next to another slot is shaped by it: between two laurelled
+    /// rings one shared sprig (`Laurel.drawJoin`), next to a slot without one a compact branch that stays in the gap; a
+    /// free side (the value, the card's edge) gets the full branch.
+    static func drawUnder(_ ctx: CGContext, _ items: [SlotItem], cx: [CGFloat], cy: CGFloat, radius: CGFloat, _ pal: GraphPalette) {
+        let colors: [CGColor?] = items.map { item in
+            if case let .metric(spec, m, e) = item, spec.kind == .tir, TirRing.laurel(m.tir, spec) {
+                return (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(e)
+            }
+            return nil
+        }
+        let order = items.indices.sorted { cx[$0] < cx[$1] }   // left to right
+        func side(_ n: Int?) -> Laurel.Side { guard let n else { return .full }; return colors[n] != nil ? .none : .compact }
+        for (p, i) in order.enumerated() {
+            guard let c = colors[i] else { continue }
+            let l = p > 0 ? order[p - 1] : nil, r = p + 1 < order.count ? order[p + 1] : nil
+            Laurel.draw(ctx, center: CGPoint(x: cx[i], y: cy), r: radius, c, left: side(l), right: side(r))
+            if let r, let rc = colors[r] { Laurel.drawJoin(ctx, x: (cx[i] + cx[r]) / 2, cy: cy, r: radius, left: c, right: rc) }
         }
     }
 
@@ -1777,9 +1820,7 @@ enum GlucoseCard {
         var x = box.maxX, used: CGFloat = 0
         let items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit)
         let main = Slots.mainIndex(items)
-        for (i, item) in items.enumerated() {
-            Slots.drawUnder(ctx, item, center: CGPoint(x: x - size / 2 - CGFloat(i) * (size + gap), y: box.midY), radius: size / 2, pal)
-        }
+        Slots.drawUnder(ctx, items, cx: items.indices.map { x - size / 2 - CGFloat($0) * (size + gap) }, cy: box.midY, radius: size / 2, pal)
         for (i, item) in items.enumerated() {
             Slots.draw(ctx, item, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, now: now, pal, d: d,
                        countdown: i == main ? countdown : nil)
