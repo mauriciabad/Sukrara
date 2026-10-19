@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.23/Sukrara-0.11.23.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.24/Sukrara-0.11.24.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.23/Sukrara-0.11.23.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.24/Sukrara-0.11.24.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -125,6 +125,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   [22](docs/22-ecosystem-outputs.md#in-sukrara-csv-export)
 - Upload glucose and treatments to LibreView (Settings → Share with apps → LibreView). Off until you sign in and switch it on; then
   everything uploads by default. [04](docs/04-libreview.md)
+- Upload glucose (one reading every 5 minutes) and insulin, carbs and notes to Tidepool (Settings → Share with apps →
+  Tidepool, Android). Off until you sign in and switch it on; the first upload includes the last 31 days, edits and
+  deletions follow, and a phone that was offline catches up by itself. Sukrara keeps only Tidepool's session, never your
+  password. A follower uploads the person it follows only if you choose so. [27](docs/27-tidepool.md)
 - Glucose alerts: very low, low, high, very high, extremely high, falling/rising fast and no data, each with its own threshold,
   reminder and sound (lows alert strictly below the threshold). Highs stay quiet for a while after rapid insulin and while
   glucose is already falling back into range; lows (also very low) stay quiet for a while after carbs, and alert at once
@@ -282,15 +286,16 @@ not yet in the apps, is in [`spec/draft3/`](spec/draft3) ([24b](docs/24b-open-st
 | 25 | Nightscout upload | PoC uploader library + CLI ([spikes/nightscout-upload](spikes/nightscout-upload)): queue, backoff, backfill by diffing the server, dedupe, API v1 + v3, API secret or least-privilege access token. Against a local Nightscout 15.0.8: 48 h backfilled in 6 requests, an outage + 20 lost entries healed with 0 gaps / 0 duplicates; LoopFollow / nightguard / Trio / Home Assistant 24/24, Trio's and LoopFollow's own decoders, stock Home Assistant and the Nightscout web client read it. Upload only, wearer only, long-acting insulin kept out of IOB. **Not in Sukrara yet** ([to bring in](docs/25-nightscout-upload.md#to-bring-into-sukrara)) | [docs/25](docs/25-nightscout-upload.md) |
 | 24b | Open Glucose Stream draft 3 | A clean-sheet redesign from requirements and a fresh state-of-the-art review: records signed by their authors, a day-key tree so a grant is exactly the agreed days (history start and end enforced by keys), envelope keys blinded per day, rotating inboxes, invites with an offer, contributors without echo, emergency invites, HI/LO and quality flags, sensor sessions, carers' alert acks, no constant Bluetooth UUID. MLS rejected. Python reference with deterministic vectors (38-step scenario) and a live run on 3 public relays (8/8). **In Sukrara: nothing yet** (draft 1 stays; moving costs about 30 agent-days) | [docs/24b](docs/24b-open-standard-draft3.md) |
 | 26 | The full AGP report: percentile profile, daily profiles, a page for the doctor | The IDC AGP layout and goals (2019/2023 consensus, 2025 tight range); method as Tidepool's IDC-licensed print view (1 h bins, type-7 percentiles, 1-4-1 smoothing) on a 5-minute grid so 1-minute live data can't outweigh history (up to ~20 mg/dL otherwise). Kotlin engine + Swift port + pandas/numpy and d3-array checks agree to 0.0000 mg/dL on 3 synthetic 14-day fixtures (DST both ways, sensor change, gaps, sparse); one display list painted by Java2D and CoreGraphics (vector PDF). **Not in Sukrara yet** ([to bring in](docs/26-agp-report.md#to-bring-into-sukrara)) | [docs/26](docs/26-agp-report.md) |
+| 27 | Tidepool upload | How apps upload to Tidepool: OAuth needs a client id registered with Tidepool (Loop, xDrip+, AAPS have their own), so Sukrara uses Tidepool's own session login (`/auth/login`, no client id, password never stored); platform data model (`cbg` per 5-minute slot, `food`, `insulin` for injections, notes as Tidepool notes), deduplicated by origin id. Verified against production with a synthetic night across a DST change, then deleted. **In Sukrara (Android)** ([added / discarded](docs/27-tidepool.md#in-sukrara)) | [docs/27](docs/27-tidepool.md) |
 
 ## Try it
 
-Downloads: [v0.11.23](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.23) (Android and Mac)
+Downloads: [v0.11.24](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.24) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.23.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.24.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -300,10 +305,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.23.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.24.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.23.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.24.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

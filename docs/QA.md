@@ -175,3 +175,26 @@ Cheap tools:
       file opens in Numbers.
 - [ ] Import check (optional): `spikes/export-fixtures/tidepool-check` runs Tidepool Uploader's LibreView driver on a
       file and prints the records it would upload.
+
+## Q16 Tidepool upload
+
+Use a test Tidepool account (or a real one only with synthetic emulator data you delete afterwards: Tidepool web →
+the data set's device → delete, or the end-to-end test below). Never switch it on on the user's phone for a test.
+
+- [ ] No device first: `TIDEPOOL_E2E_EMAIL=… TIDEPOOL_E2E_PASSWORD_FILE=<gitignored file> TIDEPOOL_E2E_LEDGER=<gitignored
+      file> ./gradlew :app:testDebugUnitTest --tests '*TidepoolLiveTest*'` passes: it uploads a synthetic night across
+      a DST change into its own data set, checks dedupe / edit / delete / notes, deletes everything and checks that
+      nothing is left (`[tidepool-e2e] left: data=0 … e2e data sets=0 notes=0` in the test's output). Each run leaves one
+      empty deleted upload record (Tidepool's tombstone; the API can't remove it), so run it only when needed.
+- [ ] Emulator (wearer, debug = synthetic glucose): Settings → Share with apps → Tidepool: account *Not signed in*,
+      main switch greyed. Wrong password → "Tidepool didn't accept this email and password", dialog stays.
+- [ ] Sign in → the account row shows the email; nothing uploads until *Upload to Tidepool* is on. On → `adb logcat -s
+      Sukrara.tidepool` shows `uploaded N readings …`; status "Up to date · last upload …"; Tidepool web shows the
+      readings (one per 5 minutes) under a *Sukrara* device.
+- [ ] `--es cmd treat …` carbs and rapid insulin, then edit and delete one in the app: Tidepool web follows within a
+      cycle (one food / insulin each, the deleted one gone); a note on its own shows as a Tidepool note.
+- [ ] Airplane mode for 15 min → status "Will retry · …"; back online → the gap is filled (no missing 5-minute slots).
+- [ ] Follower (`small_phone`): the page has *Upload the person you follow*, off; status "Waiting for your choice
+      below" and no upload in the log until it's on.
+- [ ] Sign out → account *Not signed in*, main switch off; the data stays on Tidepool.
+- [ ] Spanish: every row, summary, dialog and status is translated.

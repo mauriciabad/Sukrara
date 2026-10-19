@@ -1026,6 +1026,25 @@ what goes over the air, in the timing or in the words the New sensor screen read
 | A scanning transport, the brand step, the other drivers | Step 2+ (each needs a sensor to verify); the seams are in place (`profile.needsScan`, `SensorDriver.matches` / `onAdvertisement`, `Pairing` kinds, `BleLink.bond`). |
 | Running the JNI security core in the JVM tests | Untouched by the refactor; a host build of Juggluco's core for the tests would prove nothing about the move. The replay fakes it and pins the calls into it. |
 
+## Tidepool upload (docs/27)
+
+Settings → Share with apps → Tidepool (Android, both roles; off by default): Tidepool's own session login, the
+wearer's readings (one per 5-minute slot) and treatments, a queue rebuilt from the phone's stores every cycle, and the
+follower's separate *Upload the person you follow* (default off). Research, design and verification:
+[docs/27](27-tidepool.md).
+
+| Added | Where |
+|---|---|
+| Tidepool page, account dialog, Share with apps row and summary (en + es) | `ui/TidepoolScreen.kt`, `ui/SettingsScreens.kt`, `ui/MainActivity.kt` |
+| Mapping, queue, client, sender, upload loop | `tidepool/` (`TidepoolData`, `TidepoolQueue`, `TidepoolClient`, `TidepoolSync`, `Tidepool`) |
+| Tests: mapping, queue, end-to-end against the real API (by hand) | `TidepoolDataTest`, `TidepoolQueueTest`, `TidepoolLiveTest` |
+
+| Discarded | Why |
+|---|---|
+| OAuth sign-in on Tidepool's page | needs a client id registered with Tidepool; not borrowing another app's |
+| Mac uploader | the phone holds the store and the queue; the Mac would upload the same data twice |
+| `bolus` / `basal`, AAPS-style `wizard` carbs | pump types / a fake bolus; `insulin` and `food` are Tidepool's types for injections and carbs |
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

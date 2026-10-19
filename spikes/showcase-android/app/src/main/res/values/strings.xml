@@ -1434,9 +1434,9 @@
     <!-- Page and overview row [CHAR LIMIT=30] -->
     <string name="apps_title">Share with apps</string>
     <!-- Apps page intro (wearer) [CHAR LIMIT=NONE] -->
-    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, apps on this phone such as AAPS or GlucoDataHandler, Health Connect, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <string name="apps_intro_wearer">Your glucose in other apps: LibreView for your doctor, Tidepool, apps on this phone such as AAPS or GlucoDataHandler, Health Connect, Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
     <!-- Apps page intro (follower) [CHAR LIMIT=NONE] -->
-    <string name="apps_intro_follower">Your glucose in other apps: Garmin watches through the xDrip+ server, and anything that reads Nightscout.</string>
+    <string name="apps_intro_follower">Your glucose in other apps: Garmin watches through the xDrip+ server, anything that reads Nightscout, and Tidepool if you choose to.</string>
     <!-- LibreView row summary [CHAR LIMIT=40] -->
     <string name="apps_libreview_not_set_up">Not set up</string>
     <!-- LibreView row summary; %1$s = account email [CHAR LIMIT=60] -->
@@ -1544,6 +1544,62 @@
     <string name="libreview_takeover_off">Uploads stop if another app holds the account</string>
     <!-- LibreView page footer [CHAR LIMIT=NONE] -->
     <string name="libreview_footer">Uploaded entries can\'t be deleted in LibreView. Glucose goes up from the moment you switch it on.</string>
+
+    <!-- ========== Settings: Tidepool ========== -->
+    <!-- Tidepool page intro (wearer) [CHAR LIMIT=NONE] -->
+    <string name="tidepool_intro_wearer">Tidepool keeps your diabetes data in one place for you and your clinic. Sukrara can upload your glucose and your insulin, carbs and notes to your Tidepool account.</string>
+    <!-- Tidepool page intro (follower) [CHAR LIMIT=NONE] -->
+    <string name="tidepool_intro_follower">Tidepool keeps diabetes data in one place. Sukrara can upload the glucose and entries of the person you follow to a Tidepool account, if you choose to.</string>
+    <!-- Row: the Tidepool account [CHAR LIMIT=30] -->
+    <string name="tidepool_account">Account</string>
+    <!-- Account row summary [CHAR LIMIT=40] -->
+    <string name="tidepool_not_signed_in">Not signed in</string>
+    <!-- Main switch [CHAR LIMIT=40] -->
+    <string name="tidepool_main_switch">Upload to Tidepool</string>
+    <!-- Row: the uploader's status [CHAR LIMIT=30] -->
+    <string name="tidepool_status">Status</string>
+    <!-- Status before signing in [CHAR LIMIT=40] -->
+    <string name="tidepool_sign_in_first">Sign in first</string>
+    <!-- Status: the session expired [CHAR LIMIT=60] -->
+    <string name="tidepool_status_sign_in">Signed out by Tidepool: sign in again</string>
+    <!-- Status: a follower hasn't chosen to upload [CHAR LIMIT=60] -->
+    <string name="tidepool_status_not_allowed">Waiting for your choice below</string>
+    <!-- Status: nothing uploaded yet [CHAR LIMIT=40] -->
+    <string name="tidepool_status_waiting">Waiting for the first upload</string>
+    <!-- Status; %1$s = date and time of the last upload [CHAR LIMIT=60] -->
+    <string name="tidepool_status_ok">Up to date · last upload %1$s</string>
+    <!-- Status; %1$s = Tidepool's error [CHAR LIMIT=NONE] -->
+    <string name="tidepool_status_error">Will retry · %1$s</string>
+    <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
+    <string name="tidepool_unavailable">Unavailable while the upload is off</string>
+    <!-- Switch (follower): upload the followed person [CHAR LIMIT=40] -->
+    <string name="tidepool_follow">Upload the person you follow</string>
+    <!-- Follower switch summary while off [CHAR LIMIT=60] -->
+    <string name="tidepool_follow_off">Off: nothing is uploaded from this phone</string>
+    <!-- Follower switch summary while on [CHAR LIMIT=60] -->
+    <string name="tidepool_follow_on">Their data goes to the account above</string>
+    <!-- Switch: upload glucose [CHAR LIMIT=40] -->
+    <string name="tidepool_glucose">Glucose readings</string>
+    <!-- Glucose summary [CHAR LIMIT=60] -->
+    <string name="tidepool_glucose_summary">One every 5 minutes, the last 31 days included</string>
+    <!-- Switch: upload treatments [CHAR LIMIT=40] -->
+    <string name="tidepool_entries">Insulin, carbs &amp; notes</string>
+    <!-- Treatments summary [CHAR LIMIT=60] -->
+    <string name="tidepool_entries_summary">Edits and deletions are uploaded too</string>
+    <!-- Tidepool page footer [CHAR LIMIT=NONE] -->
+    <string name="tidepool_footer">Sukrara signs in with Tidepool\'s own login and keeps only the session, never your password. If Tidepool already gets your Libre data through LibreView, turn glucose off here, or each reading shows up twice.</string>
+    <!-- Sign-in dialog title [CHAR LIMIT=30] -->
+    <string name="tidepool_dialog_title">Tidepool account</string>
+    <!-- Sign-in field [CHAR LIMIT=30] -->
+    <string name="tidepool_email">Email</string>
+    <!-- Sign-in button [CHAR LIMIT=20] -->
+    <string name="tidepool_sign_in">Sign in</string>
+    <!-- Sign-in button while working [CHAR LIMIT=20] -->
+    <string name="tidepool_signing_in">Signing in…</string>
+    <!-- Sign-out button [CHAR LIMIT=20] -->
+    <string name="tidepool_sign_out">Sign out</string>
+    <!-- Sign-in error [CHAR LIMIT=NONE] -->
+    <string name="tidepool_error_credentials">Tidepool didn\'t accept this email and password</string>
 
     <!-- ========== Settings: backup and settings files ========== -->
     <!-- Page and overview row [CHAR LIMIT=30] -->

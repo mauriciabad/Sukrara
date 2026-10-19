@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.SensorInfo
 import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.wearer.Live
 import app.mauri.sukrara.wearer.WearerStatus
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -35,8 +36,14 @@ class SensorEndNotifyTest {
     private val nm get() = ctx.getSystemService(NotificationManager::class.java)
     private val now get() = System.currentTimeMillis() / 1000
 
-    /** Live is process-wide: no reading left over from another test (it would end a warm-up). */
-    @Before fun noReadings() { Live.status.value = WearerStatus() }
+    /**
+     * Live is process-wide: no reading left over from another test (it would end a warm-up). SensorEnd too: bound to
+     * this test's context, its re-plans held, so only the test's own sync (at the test's time) plans.
+     */
+    @Before fun fresh() {
+        Live.status.value = WearerStatus()
+        SensorEnd.resetForTest(StandardTestDispatcher())
+    }
 
     private fun owner() = ctx.getSharedPreferences("role", Context.MODE_PRIVATE).edit().putString("role", "owner").commit()
 
@@ -72,8 +79,7 @@ class SensorEndNotifyTest {
      */
     @Test fun pastTheWarmupEndNoTimerAndTheFirstReadingEndsIt() {
         owner()
-        // a month ahead: a reading some other test's source still sends (wall-clock time) is before this sensor's start
-        val t0 = now + 30 * 86_400L
+        val t0 = now
         SensorLife.update(ctx, SensorLife.fromStart("T3", t0 - 50 * 60, 0))
         SensorEnd.sync(ctx, t0)
         assertTrue("the countdown has its timer", warmupShown()!!.timer())
