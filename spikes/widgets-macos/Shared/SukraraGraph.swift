@@ -1108,7 +1108,8 @@ enum Crown {
     private static let pts: [(CGFloat, CGFloat)] = [(0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4)]
     static let h: CGFloat = 7.4 / 12
 
-    static func fill(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, _ color: CGColor) {
+    /// `grow` > 0: the outline widened by that much on every side (a cut-out's margin).
+    static func fill(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, _ color: CGColor, grow: CGFloat = 0) {
         let k = w / 12
         ctx.saveGState()
         ctx.beginPath()
@@ -1118,38 +1119,21 @@ enum Crown {
         }
         ctx.closePath()
         ctx.setLineJoin(.round)
-        ctx.setLineWidth(w * 0.8 / 12)
+        ctx.setLineWidth(w * 0.8 / 12 + 2 * grow)
         ctx.setFillColor(color); ctx.setStrokeColor(color)
-        ctx.drawPath(using: .fillStroke)
-        ctx.restoreGState()
-    }
-
-    /// Filled with `fill` inside a `line`-coloured outline `lineW` wide (the ring's crown).
-    static func outlined(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, fill: CGColor, line: CGColor, lineW: CGFloat) {
-        let k = w / 12
-        ctx.saveGState()
-        ctx.beginPath()
-        for (i, p) in pts.enumerated() {
-            let q = CGPoint(x: x + (p.0 - 6) * k, y: bottom + (p.1 - 7.4) * k)
-            if i == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
-        }
-        ctx.closePath()
-        ctx.setLineJoin(.round)
-        ctx.setLineWidth(lineW)
-        ctx.setFillColor(fill); ctx.setStrokeColor(line)
         ctx.drawPath(using: .fillStroke)
         ctx.restoreGState()
     }
 }
 
-/// The laurel (Laurel in GlucoseCard.kt): two branches of leaves around the lower half of a ring of outer radius `r`.
+/// The laurel (Laurel in GlucoseCard.kt): two branches of leaves up the sides of a ring of outer radius `r`.
 enum Laurel {
     static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor) {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
-        ctx.setLineWidth(r * 0.026); ctx.setLineCap(.round)
-        let sr = r * 1.21
-        for (a0, a1) in [(108.0, 162.0), (18.0, 72.0)] as [(CGFloat, CGFloat)] {
+        ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
+        let sr = r * 1.25
+        for (a0, a1) in [(131.0, 214.0), (-34.0, 49.0)] as [(CGFloat, CGFloat)] {
             ctx.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: false)
             ctx.strokePath()
         }
@@ -1158,34 +1142,31 @@ enum Laurel {
             ctx.saveGState()
             ctx.translateBy(x: c.x + rad * cos(a), y: c.y + rad * sin(a))
             ctx.rotate(by: rot * .pi / 180)
-            ctx.fillEllipse(in: CGRect(x: -r * 0.095, y: -r * 0.04, width: r * 0.19, height: r * 0.08))
+            ctx.fillEllipse(in: CGRect(x: -r * 0.135, y: -r * 0.056, width: r * 0.27, height: r * 0.112))
             ctx.restoreGState()
         }
-        // each branch climbs from below the ring: an outer and an inner leaf per step, both leaning up the stem, the
-        // inner ones clear of the ring
-        for k in 0..<5 {
-            let l = 112 + 11 * CGFloat(k), rt = 68 - 11 * CGFloat(k)
-            at(r * 1.28, l, l + 90 - 32); at(r * 1.15, l + 4, l + 90 + 32)
-            at(r * 1.28, rt, rt - 90 + 32); at(r * 1.15, rt - 4, rt - 90 - 32)
+        // each branch climbs a side from below the middle: an outer and an inner leaf per step, both leaning up the
+        // stem, the inner ones clear of the ring
+        for k in 0..<6 {
+            let l = 135 + 15 * CGFloat(k), rt = 45 - 15 * CGFloat(k)
+            at(r * 1.35, l, l + 90 - 32); at(r * 1.17, l + 5, l + 90 + 32)
+            at(r * 1.35, rt, rt - 90 + 32); at(r * 1.17, rt - 5, rt - 90 - 32)
         }
         ctx.restoreGState()
     }
 }
 
 /// The segmented time-in-range ring (TirRing in GlucoseCard.kt), with the sensor `countdown` ring over it. A ring with
-/// a `TirMark` is drawn `marked` of the slot so the mark fits: the laurel around its lower half, clear of it; the crown
-/// (white in a green outline) standing on 12 o'clock, cut into the ring and the countdown.
+/// a `TirMark` leaves the ring its full size and may overflow the slot: the laurel up its sides (from 95 %, also at
+/// 100 %; `drawUnder`, drawn for every slot before the rings, so what is next to it covers it), and at 100 % the crown
+/// in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
 enum TirRing {
-    static let marked: CGFloat = 0.78
-
-    static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, tir: TimeInRange, spec: RingSpec,
+    static func draw(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
                      _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil) {
         let mark = tir.empty ? TirMark.none : TirMark.of(tir, spec.range)
-        let r = mark == .none ? radius : radius * marked
         let sw = r * 0.2
         let rr = r - sw / 2
-        let markColor = (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(emphasis)
-        let crownW = r * 0.62, crownBottom = c.y - r * 0.84, crownLine = r * 0.075
+        let crownW = r * 0.74, crownBottom = c.y - r * 0.56
         if mark == .crown { ctx.beginTransparencyLayer(auxiliaryInfo: nil) }
         ctx.saveGState()
         ctx.setLineWidth(sw)
@@ -1220,14 +1201,11 @@ enum TirRing {
         if mark == .crown {
             ctx.saveGState()
             ctx.setBlendMode(.destinationOut)
-            Crown.outlined(ctx, x: c.x, bottom: crownBottom, w: crownW, fill: CGColor(gray: 0, alpha: 1), line: CGColor(gray: 0, alpha: 1),
-                           lineW: crownLine + 2 * r * 0.06)
+            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, CGColor(gray: 0, alpha: 1), grow: r * 0.06)
             ctx.restoreGState()
             ctx.endTransparencyLayer()
-            Crown.outlined(ctx, x: c.x, bottom: crownBottom, w: crownW, fill: CGColor(gray: 1, alpha: 1).a(emphasis), line: markColor,
-                           lineW: crownLine)
+            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.ink).a(emphasis))
         }
-        if mark == .laurel { Laurel.draw(ctx, center: c, r: r, markColor) }
         let num = Ink.font(r * 0.78, .heavy, rounded: true)
         let sub = Ink.font(r * 0.34, .semibold, rounded: true)
         let v = tir.empty ? "–" : ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil)
@@ -1238,6 +1216,15 @@ enum TirRing {
         Ink.draw(ctx, v, x: c.x, y: base, size == r * 0.78 ? num : Ink.font(size, .heavy, rounded: true), pal.ink.a(emphasis), align: 0.5)
         Ink.draw(ctx, spec.period, x: c.x, y: base + r * 0.34 * 1.1, sub,
                  (spec.range == .tight ? pal.tight : pal.inkSoft).a(emphasis), align: 0.5)
+    }
+}
+
+extension TirRing {
+    /// The laurel of a ring at `c` of radius `r`, if it has a mark: drawn before any slot, under them all.
+    static func drawUnder(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
+                          _ pal: GraphPalette, emphasis: CGFloat) {
+        guard !tir.empty, TirMark.of(tir, spec.range) != .none else { return }
+        Laurel.draw(ctx, center: c, r: r, (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(emphasis))
     }
 }
 
@@ -1436,6 +1423,13 @@ enum Slots {
     static func mainIndex(_ items: [SlotItem]) -> Int {
         if let i = items.firstIndex(where: { if case .metric = $0 { true } else { false } }) { return i }
         return items.isEmpty ? -1 : 0
+    }
+
+    /// What goes under all the slots (a ring's laurel, `TirRing.drawUnder`): call it for every slot before `draw`.
+    static func drawUnder(_ ctx: CGContext, _ item: SlotItem, center c: CGPoint, radius: CGFloat, _ pal: GraphPalette) {
+        if case let .metric(spec, m, e) = item, spec.kind == .tir {
+            TirRing.drawUnder(ctx, center: c, radius: radius, tir: m.tir, spec: spec, pal, emphasis: e)
+        }
     }
 
     /// Draw `item` as a circle of `radius` around `c`, with the sensor `countdown` ring over it (the main slot's; a
@@ -1784,6 +1778,9 @@ enum GlucoseCard {
         let items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit)
         let main = Slots.mainIndex(items)
         for (i, item) in items.enumerated() {
+            Slots.drawUnder(ctx, item, center: CGPoint(x: x - size / 2 - CGFloat(i) * (size + gap), y: box.midY), radius: size / 2, pal)
+        }
+        for (i, item) in items.enumerated() {
             Slots.draw(ctx, item, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, now: now, pal, d: d,
                        countdown: i == main ? countdown : nil)
             x -= size + gap
@@ -1933,15 +1930,19 @@ enum GlucoseCard {
     }
 
     /// The card as a bitmap (widgets, PNG evidence): `scale` px per point, y-down.
+    /// `overflow`: room around the card in the picture (it is `overflow` larger on every side) for what overflows the
+    /// card, such as a ring's laurel or crown; the card itself keeps `size`.
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                       _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil,
-                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil) -> CGImage? {
-        let pw = max(16, Int(size.width * scale)), ph = max(16, Int(size.height * scale))
+                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
+                      overflow: CGFloat = 0) -> CGImage? {
+        let pw = max(16, Int((size.width + 2 * overflow) * scale)), ph = max(16, Int((size.height + 2 * overflow) * scale))
         guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.translateBy(x: 0, y: CGFloat(ph))
         ctx.scaleBy(x: scale, y: -scale)
+        ctx.translateBy(x: overflow, y: overflow)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
         draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf, alerts: alerts)
         return ctx.makeImage()

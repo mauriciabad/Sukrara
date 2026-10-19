@@ -300,6 +300,7 @@ object GlucoseNotification {
             var x = bmp.width.toFloat()
             val main = Slots.mainIndex(items)
             val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
+            for ((i, item) in items.withIndex()) Slots.drawUnder(cv, item, x - size / 2 - i * (size + gap), size / 2, size / 2 - 3 * d, pal)
             for ((i, item) in items.withIndex()) {
                 cv.drawCircle(x - size / 2, size / 2, size / 2, fill)
                 Slots.draw(cv, item, x - size / 2, size / 2, size / 2 - 3 * d, now, pal, d, countdown.takeIf { i == main })

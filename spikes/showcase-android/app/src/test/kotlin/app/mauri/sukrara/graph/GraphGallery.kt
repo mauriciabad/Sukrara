@@ -193,7 +193,7 @@ class GraphGallery {
                 },
             ), 300f, 150f, cols = 2, pal)
             val rings = listOf(
-                "100 % · crown" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
+                "100 % · crown + laurel" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
                 "99.6 · laurel" to (tir(0.004, 0.70, 0.296, 0.0) to RingSpec(86400)),
                 "96 % · laurel" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
                 "94 % · nothing" to (tir(0.02, 0.66, 0.28, 0.04) to RingSpec(86400)),
@@ -202,7 +202,9 @@ class GraphGallery {
             )
             sheet("tir-marks-rings-${if (dark) "dark" else "light"}", rings.map { (label, p) ->
                 Tile(label, "") { cv, w, h ->
-                    TirRing.draw(cv, w / 2, h / 2, h / 2 - 4 * d, p.first, p.second, pal, if (p.second.windowS > 86400) 0.55f else 1f, d)
+                    val e = if (p.second.windowS > 86400) 0.55f else 1f
+                    TirRing.drawUnder(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e)
+                    TirRing.draw(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e, d)
                 }
             }, 110f, 110f, cols = 6, pal)
         }
@@ -419,7 +421,7 @@ class GraphGallery {
             cv.drawRoundRect(RectF(cx, top, cx + (w + 2 * pad) * d, top + (h + 2 * pad) * d), 22 * d, 22 * d, card)
             cv.save()
             cv.translate(cx + pad * d, top + pad * d)
-            cv.clipRect(0f, 0f, w * d, h * d)
+            cv.clipRect(-pad * d, -pad * d, (w + pad) * d, (h + pad) * d)   // the margin, as a widget's (a ring's mark may overflow)
             t.draw(cv, w * d, h * d)
             cv.restore()
         }

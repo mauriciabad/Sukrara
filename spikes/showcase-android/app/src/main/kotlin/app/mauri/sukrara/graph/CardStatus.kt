@@ -159,6 +159,11 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
+    /** What goes under all the slots (a ring's laurel, [TirRing.drawUnder]): call it for every slot before [draw]. */
+    fun drawUnder(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, pal: GraphPalette) {
+        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.drawUnder(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis)
+    }
+
     /**
      * Draw [item] as a circle of [radius] around ([cx], [cy]), with the sensor [countdown] ring over it (the main slot's;
      * a time-in-range ring draws it under its crown).

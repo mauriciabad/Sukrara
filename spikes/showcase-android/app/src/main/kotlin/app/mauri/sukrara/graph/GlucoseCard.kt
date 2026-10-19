@@ -105,29 +105,20 @@ object Crown {
     }
 
     fun draw(cv: Canvas, x: Float, bottom: Float, w: Float, color: Int) = cv.drawPath(path(x, bottom, w), paint(color, w))
-
-    /** Filled with [fill] inside a [line]-coloured outline [lineW] wide (the ring's crown). */
-    fun outlined(cv: Canvas, x: Float, bottom: Float, w: Float, fill: Int, line: Int, lineW: Float) {
-        val p = path(x, bottom, w)
-        cv.drawPath(p, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fill })
-        cv.drawPath(p, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND; color = line; strokeWidth = lineW
-        })
-    }
 }
 
-/** The laurel: two branches of leaves around the lower half of a ring of outer radius [r]. */
+/** The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. */
 object Laurel {
     fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int) {
         val stem = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = r * 0.026f; strokeCap = Paint.Cap.ROUND; this.color = color
+            style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
         }
-        val sr = r * 1.21f
+        val sr = r * 1.25f
         val oval = RectF(cx - sr, cy - sr, cx + sr, cy + sr)
-        cv.drawArc(oval, 108f, 54f, false, stem)
-        cv.drawArc(oval, 18f, 54f, false, stem)
+        cv.drawArc(oval, 131f, 83f, false, stem)
+        cv.drawArc(oval, -34f, 83f, false, stem)
         val leaf = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-        val shape = RectF(-r * 0.095f, -r * 0.04f, r * 0.095f, r * 0.04f)
+        val shape = RectF(-r * 0.135f, -r * 0.056f, r * 0.135f, r * 0.056f)
         fun at(rad: Float, deg: Float, rot: Float) {
             val a = Math.toRadians(deg.toDouble())
             cv.save()
@@ -136,13 +127,13 @@ object Laurel {
             cv.drawOval(shape, leaf)
             cv.restore()
         }
-        // each branch climbs from below the ring: an outer and an inner leaf per step, both leaning up the stem, the
-        // inner ones clear of the ring
-        for (k in 0 until 5) {
-            val l = 112f + 11f * k
-            val rt = 68f - 11f * k
-            at(r * 1.28f, l, l + 90 - 32); at(r * 1.15f, l + 4, l + 90 + 32)
-            at(r * 1.28f, rt, rt - 90 + 32); at(r * 1.15f, rt - 4, rt - 90 - 32)
+        // each branch climbs a side from below the middle: an outer and an inner leaf per step, both leaning up the
+        // stem, the inner ones clear of the ring
+        for (k in 0 until 6) {
+            val l = 135f + 15f * k
+            val rt = 45f - 15f * k
+            at(r * 1.35f, l, l + 90 - 32); at(r * 1.17f, l + 5, l + 90 + 32)
+            at(r * 1.35f, rt, rt - 90 + 32); at(r * 1.17f, rt - 5, rt - 90 - 32)
         }
     }
 }
@@ -151,25 +142,20 @@ object Laurel {
  * The segmented time-in-range ring: the % of [RingSpec.range] in the middle, the window under it, and the perimeter
  * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, high,
  * very high). [emphasis] fades the secondary rings (1 = main). [countdown]: the sensor countdown ring over it
- * ([SensorBadge.drawCountdown]). A ring with a [TirMark] is drawn [MARKED] of the slot so the mark fits in the slot:
- * the laurel around its lower half, clear of it; the crown (white in a green outline) standing on 12 o'clock, cut into
- * the ring and the countdown.
+ * ([SensorBadge.drawCountdown]). A [TirMark] leaves the ring its full size and may overflow the slot: the laurel up its
+ * sides (from 95 %, also at 100 %; [drawUnder], drawn for every slot before the rings, so what is next to it covers
+ * it), and at 100 % the crown in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
  */
 object TirRing {
-    const val MARKED = 0.78f
-
-    fun draw(cv: Canvas, cx: Float, cy: Float, radius: Float, tir: TimeInRange, spec: RingSpec,
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, tir: TimeInRange, spec: RingSpec,
              pal: GraphPalette, emphasis: Float, d: Float, countdown: Double? = null) {
         val mark = if (tir.empty) TirMark.NONE else TirMark.of(tir, spec.range)
-        val r = if (mark == TirMark.NONE) radius else radius * MARKED
         val sw = r * 0.2f
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.BUTT }
         val oval = RectF(cx - r + sw / 2, cy - r + sw / 2, cx + r - sw / 2, cy + r - sw / 2)
         val alpha = (255 * emphasis).toInt()
-        val markColor = ColorUtils.setAlphaComponent(pal.tight, alpha)
-        val crownW = r * 0.62f
-        val crownBottom = cy - r * 0.84f
-        val crownLine = r * 0.075f
+        val crownW = r * 0.74f
+        val crownBottom = cy - r * 0.56f
         val layer = if (mark == TirMark.CROWN) cv.saveLayer(null, null) else -1
         val shares = spec.order.map { it to tir.share(it) }.filter { it.second >= 0.004 }
         if (shares.isEmpty()) {
@@ -188,14 +174,12 @@ object TirRing {
         }
         SensorBadge.drawCountdown(cv, cx, cy, r, countdown, pal)
         if (layer >= 0) {
-            cv.drawPath(Crown.path(cx, crownBottom, crownW), Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL_AND_STROKE; strokeJoin = Paint.Join.ROUND; strokeWidth = crownLine + 2 * r * 0.06f
-                blendMode = BlendMode.DST_OUT
+            cv.drawPath(Crown.path(cx, crownBottom, crownW), Crown.paint(0xFF000000.toInt(), crownW).apply {
+                strokeWidth += 2 * r * 0.06f; blendMode = BlendMode.DST_OUT
             })
             cv.restoreToCount(layer)
-            Crown.outlined(cv, cx, crownBottom, crownW, ColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), alpha), markColor, crownLine)
+            Crown.draw(cv, cx, crownBottom, crownW, ColorUtils.setAlphaComponent(pal.ink, alpha))
         }
-        if (mark == TirMark.LAUREL) Laurel.draw(cv, cx, cy, r, markColor)
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ColorUtils.setAlphaComponent(pal.ink, alpha); textAlign = Paint.Align.CENTER
             typeface = RoundedFont.typeface(800); textSize = r * 0.78f
@@ -210,6 +194,12 @@ object TirRing {
         num.textSize = min(num.textSize, num.textSize * (r - sw) * 1.5f / num.measureText(v).coerceAtLeast(1f)) // "100" too
         cv.drawText(v, cx, base, num)
         cv.drawText(spec.period, cx, base + sub.textSize * 1.1f, sub)
+    }
+
+    /** The laurel of a ring at ([cx], [cy]) of radius [r], if it has a mark: drawn before any slot, under them all. */
+    fun drawUnder(cv: Canvas, cx: Float, cy: Float, r: Float, tir: TimeInRange, spec: RingSpec, pal: GraphPalette, emphasis: Float) {
+        if (!tir.empty && TirMark.of(tir, spec.range) != TirMark.NONE)
+            Laurel.draw(cv, cx, cy, r, ColorUtils.setAlphaComponent(pal.tight, (255 * emphasis).toInt()))
     }
 
     /** The number in the middle: in range against its > 70 % goal, very good on its own (ShareText's rule). */
@@ -382,6 +372,7 @@ object GlucoseCard {
         var used = 0f
         val items = Slots.arrange(rings, st.last, last, fallback, fit)
         val main = Slots.mainIndex(items)
+        for ((i, item) in items.withIndex()) Slots.drawUnder(cv, item, x - size / 2 - i * (size + gap), box.centerY(), size / 2, pal)
         for ((i, item) in items.withIndex()) {
             Slots.draw(cv, item, x - size / 2, box.centerY(), size / 2, nowS, pal, d, countdown.takeIf { i == main })
             x -= size + gap

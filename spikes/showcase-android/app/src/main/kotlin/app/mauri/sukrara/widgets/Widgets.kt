@@ -139,8 +139,7 @@ private fun WidgetFrame(content: @Composable () -> Unit) {
             .cornerRadius(android.R.dimen.system_app_widget_background_radius)
             // an ended sensor: the tap does what the "Replace sensor" pill says (the wearer's Sensor screen)
             .clickable(if (sensorEndedHere(LocalContext.current)) actionStartActivity(app.mauri.sukrara.ui.MainActivity.sensorIntent(LocalContext.current))
-                else actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>())
-            .padding(PAD_DP.dp),
+                else actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>()),
         contentAlignment = Alignment.Center,
     ) { content() }
 }
@@ -172,14 +171,18 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
 fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? = null) {
     val ctx = LocalContext.current
     val size = realSize(appWidgetId)
+    // the picture covers the whole widget and the card is drawn inset by the margin, so what overflows the card (a
+    // ring's laurel or crown) shows in the margin instead of being cut at the card's edge
     val w = size.width.value - 2 * PAD_DP
     val h = size.height.value - 2 * PAD_DP
     val st = cardStyle(ctx, kind, appWidgetId?.let { GraphSettings.widget(ctx, it) } ?: WidgetGraphConfig())
     val d = ctx.resources.displayMetrics.density
     // all sizes of one widget stay well under the RemoteViews bitmap limit
     val scale = min(1f, 1400f / (maxOf(w, h) * d))
-    val bmp = createBitmap((w * d * scale).roundToInt().coerceAtLeast(16), (h * d * scale).roundToInt().coerceAtLeast(16))
-    GlucoseCard.draw(Canvas(bmp), bmp.width.toFloat(), bmp.height.toFloat(), frame.history, frame.treatments, frame.nowSec,
+    val pad = PAD_DP * d * scale
+    val bmp = createBitmap((w * d * scale + 2 * pad).roundToInt().coerceAtLeast(16), (h * d * scale + 2 * pad).roundToInt().coerceAtLeast(16))
+    val cv = Canvas(bmp).apply { translate(pad, pad) }
+    GlucoseCard.draw(cv, bmp.width - 2 * pad, bmp.height - 2 * pad, frame.history, frame.treatments, frame.nowSec,
         st, systemPalette(ctx), d * scale,
         metricsOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseMetrics.of(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) }
             else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
