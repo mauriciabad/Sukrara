@@ -1158,14 +1158,14 @@ enum Laurel {
         ctx.setFillColor(color)
         for i in 0..<5 {
             let a = (-90 + CGFloat(i) * 72) * .pi / 180
-            let q = CGPoint(x: p.x + r * 0.062 * cos(a), y: p.y + r * 0.062 * sin(a))
-            ctx.fillEllipse(in: CGRect(x: q.x - r * 0.05, y: q.y - r * 0.05, width: r * 0.1, height: r * 0.1))
+            let q = CGPoint(x: p.x + r * 0.145 * cos(a), y: p.y + r * 0.145 * sin(a))
+            ctx.fillEllipse(in: CGRect(x: q.x - r * 0.117, y: q.y - r * 0.117, width: r * 0.234, height: r * 0.234))
         }
         let c = color.components ?? [0, 0, 0, 1]
         let mix = c.count >= 3 ? CGColor(srgbRed: c[0] + (1 - c[0]) * 0.7, green: c[1] + (1 - c[1]) * 0.7, blue: c[2] + (1 - c[2]) * 0.7, alpha: 1)
             : CGColor(gray: c[0] + (1 - c[0]) * 0.7, alpha: 1)
         ctx.setFillColor(mix)
-        ctx.fillEllipse(in: CGRect(x: p.x - r * 0.036, y: p.y - r * 0.036, width: r * 0.072, height: r * 0.072))
+        ctx.fillEllipse(in: CGRect(x: p.x - r * 0.084, y: p.y - r * 0.084, width: r * 0.168, height: r * 0.168))
         ctx.restoreGState()
     }
 

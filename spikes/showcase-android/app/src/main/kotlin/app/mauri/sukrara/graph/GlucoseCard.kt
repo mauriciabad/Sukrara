@@ -135,10 +135,10 @@ object Laurel {
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
         for (i in 0 until 5) {
             val a = Math.toRadians(-90.0 + i * 72)
-            cv.drawCircle(x + r * 0.062f * Math.cos(a).toFloat(), y + r * 0.062f * Math.sin(a).toFloat(), r * 0.05f, p)
+            cv.drawCircle(x + r * 0.145f * Math.cos(a).toFloat(), y + r * 0.145f * Math.sin(a).toFloat(), r * 0.117f, p)
         }
         p.color = ColorUtils.blendARGB(color, 0xFFFFFFFF.toInt(), 0.7f)
-        cv.drawCircle(x, y, r * 0.036f, p)
+        cv.drawCircle(x, y, r * 0.084f, p)
     }
 
     /**
