@@ -71,7 +71,8 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   ([listen](sounds/)), a different sound each time, and a vibration per alert.
 - **Sharing:** a one-time short link or small QR code that shows who is inviting; you see their name next to who you
   sent it to, then **Allow**. Names and generated pictures travel only end-to-end encrypted, never public. Followers alert when
-  you do. Removing someone rotates the key; everyone else carries on.
+  you do. Removing someone rotates the key; everyone else carries on. The way it shares is becoming an open
+  standard anyone can implement: the [Open Glucose Stream](ogs).
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged through the xDrip+ server; stock Home
   Assistant reads it through the Nightscout-compatible API (both off until you switch them on).

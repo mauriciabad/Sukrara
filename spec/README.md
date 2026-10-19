@@ -14,6 +14,11 @@ password that sees everything in plaintext. OGS is a third way:
 - any app can join: as a follower (a viewer, widget, watch or Home Assistant), as a writer (adding insulin and carbs),
   or as the owner app that reads the sensor.
 
+> **Draft 3** ([`draft3/`](draft3), 2026-10-19) is a clean-sheet redesign: grants as ranges of days from a key tree,
+> records signed by their authors, keys blinded per day, a fuller data model, and no constant identifier on relays or
+> over Bluetooth. No app speaks it yet. This page and the documents below are **draft 1**, which Sukrara 0.11 speaks.
+> Report: [docs/24b](../docs/24b-open-standard-draft3.md).
+
 ## Documents
 
 | | |

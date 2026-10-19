@@ -182,6 +182,20 @@ bridge). Not covered by P12: a *connected* central can still read the phone's na
   framing only.
 - Licence choice and the spec repository's name.
 
+## Draft 3
+
+On 2026-10-19 the user asked for a draft 3 that isn't biased towards what Sukrara implemented, with the state of
+the art checked again. It is a clean-sheet redesign in [`spec/draft3/`](../spec/draft3):
+- grants as ranges of days from a key tree;
+- records signed by their authors;
+- envelope keys blinded per day;
+- a fuller data model;
+- no constant identifier on relays or over Bluetooth.
+
+The report, with the requirements, decisions, the draft 1 → draft 3 comparison, the cost of moving Sukrara and the
+publishing package, is [24b](24b-open-standard-draft3.md). Draft 1 stays the description of Sukrara 0.11's wire
+format, and the draft-2 proposals P1, P2, P7–P9 and P11 are superseded by draft 3.
+
 ## Files
 
 | Path | What |

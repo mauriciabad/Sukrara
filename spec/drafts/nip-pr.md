@@ -1,5 +1,8 @@
 # Draft: pull request to nostr-protocol/nips
 
+**Not to be sent.** On 2026-10-19 the user decided against a pull request to nostr-protocol/nips; draft 3
+([`../draft3`](../draft3)) goes to a standalone spec repository instead (docs/24b → Publishing). Kept for the record:
+
 **Not sent.** Publishing is the maintainer's call. Send it only after draft 2 (PROPOSALS P1, P2 and P7 in Sukrara),
 so the NIP has no app name in its constants. The file to submit is `ogs-nostr.md`, cut down to NIP size:
 - keep N§1–N§9 and N§12–N§14;

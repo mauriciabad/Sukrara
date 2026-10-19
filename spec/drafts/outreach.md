@@ -1,8 +1,16 @@
 # Draft messages to other projects
 
 **Nothing here has been sent.** Each text is a draft for the maintainer to adapt and post (or not) on the project's
-own public channel: GitHub Discussions or an issue, never private contact details. Send them after draft 2 and the
-public spec page, so the links are stable.
+own public channel: GitHub Discussions or an issue, never private contact details. Send them after the spec
+repository with **draft 3** and the public spec page exist, so the links are stable.
+
+Before sending, adapt them to draft 3:
+- "Sukrara implements it" becomes "a Python reference implements it, and Sukrara (which speaks draft 1) plans to
+  move to it";
+- "a 63-character invite link" becomes "an `ogs:` invite";
+- the scenario has 38 steps;
+- the new selling points are time-limited grants, carers' alert acknowledgements, and no constant identifier on
+  relays or over Bluetooth.
 
 ## xDrip+ (NightscoutFoundation/xDrip; the GluPro / libglupro authors)
 
