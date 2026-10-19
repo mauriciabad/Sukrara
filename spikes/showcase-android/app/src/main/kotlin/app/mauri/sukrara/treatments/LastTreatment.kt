@@ -17,9 +17,14 @@ object LastTreatment {
     /**
      * How long after it was logged an entry stays in the slot (its ring is empty and grey once its mute is over):
      * rapid insulin 4 h (rapid analogues act for about 3–5 h, so the slot answers "is insulin still working?" and
-     * guards against stacking a correction), carbs 3 h (a meal is mostly absorbed in 2–3 h; fast carbs for a low much sooner).
+     * guards against stacking a correction), carbs 3 min per gram between 30 min and 3 h (a 60 g meal is mostly
+     * absorbed in 2–3 h, 15 g of fast carbs for a low in under an hour; the user: a small amount needn't stay for hours).
      */
-    fun keepS(k: String): Long? = when (k) { "rapid" -> 4 * 3600L; "carbs" -> 3 * 3600L; else -> null }
+    fun keepS(tr: Treatment): Long? = when (tr.k) {
+        "rapid" -> 4 * 3600L
+        "carbs" -> (tr.a * 180).toLong().coerceIn(30 * 60L, 3 * 3600L)
+        else -> null
+    }
 
     /** [tr], its mute's end ([until], epoch s; null = its kind mutes nothing in the settings). */
     data class Info(val tr: Treatment, val until: Long?) {
@@ -32,13 +37,16 @@ object LastTreatment {
     }
 
     /**
-     * The entry for the slot at [now], or null (nothing recent: the slot shows its fallback). The treatment that mutes
-     * the current alert wins ([status] Taken); otherwise the newest rapid / carbs entry still inside [keepS]
-     * (a meal logged as insulin + carbs at the same minute shows the insulin).
+     * The entry for the slot at [now], or null (nothing recent: the slot shows its fallback). Rapid insulin whose
+     * mute is still running wins (the user: carbs logged on top of it show only once the insulin mute is over); then
+     * the treatment that mutes the current alert ([status] Taken); otherwise the newest rapid / carbs entry still
+     * inside [keepS] (a meal logged as insulin + carbs at the same minute shows the insulin).
      */
     fun of(treatments: List<Treatment>, s: AlertSettings, status: AlertStatus, now: Long): Info? {
-        val tr = (status as? AlertStatus.Taken)?.treatment
-            ?: treatments.filter { !it.del && it.t <= now && keepS(it.k)?.let { k -> now - it.t < k } == true }
+        val live = treatments.filter { !it.del && it.t <= now }
+        val tr = live.filter { it.k == "rapid" && (AlertStatus.muteUntil(it, s) ?: 0) > now }.maxByOrNull { it.t }
+            ?: (status as? AlertStatus.Taken)?.treatment
+            ?: live.filter { t -> keepS(t)?.let { now - t.t < it } == true }
                 .maxWithOrNull(compareBy<Treatment> { it.t / 60 }.thenBy { if (it.k == "rapid") 1 else 0 })
             ?: return null
         return Info(tr, AlertStatus.muteUntil(tr, s))
