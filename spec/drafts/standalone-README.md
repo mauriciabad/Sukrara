@@ -1,5 +1,10 @@
 # Open Glucose Stream (OGS)
 
+> [!WARNING]
+> **Work in progress.** This specification is still being developed and can change at any time. When Sukrara 1.0
+> is released, its versions will be consolidated: only the latest is kept, earlier drafts are deleted, and the
+> version numbering starts again. Don't rely on "draft 3" as a stable name or number.
+
 **An open protocol for sharing a live glucose stream, end-to-end encrypted, with the people you choose, for as long
 as you choose. It runs over public Nostr relays and over Bluetooth LE. There's no account and no server, and nothing
 public links a stream to a person.**
