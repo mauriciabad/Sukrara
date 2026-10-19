@@ -1172,20 +1172,24 @@ enum Laurel {
         }
     }
 
-    /// The sprig between two laurelled rings of radius `r` (centre of the gap at `x`): a straight stem with leaf pairs
-    /// leaning up and out, the left leaves in `left`'s colour, the right ones in `right`'s (a faded ring keeps its fade).
+    /// The sprig between two laurelled rings of radius `r` (`x` = the middle of the gap): the same full branch as a
+    /// ring's left side, its curve through the middle of the gap, its outer leaves in `left`'s colour and its inner ones
+    /// in `right`'s (a faded ring keeps its fade).
     static func drawJoin(_ ctx: CGContext, x: CGFloat, cy: CGFloat, r: CGFloat, left: CGColor, right: CGColor) {
-        let stem = left.alpha >= right.alpha ? left : right
+        let c = CGPoint(x: x + r * 1.25, y: cy)   // the centre the branch curves around
         ctx.saveGState()
-        ctx.setStrokeColor(stem); ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
-        ctx.move(to: CGPoint(x: x, y: cy + r * 0.9)); ctx.addLine(to: CGPoint(x: x, y: cy - r * 0.6)); ctx.strokePath()
+        ctx.setStrokeColor(left.alpha >= right.alpha ? left : right); ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
+        ctx.addArc(center: c, radius: r * 1.25, startAngle: 131 * .pi / 180, endAngle: 214 * .pi / 180, clockwise: false)
+        ctx.strokePath()
         ctx.restoreGState()
         for k in 0..<6 {
-            let y = cy + r * 0.78 - CGFloat(k) * r * 0.25
-            leaf(ctx, x - r * 0.068, y - r * 0.05, rot: -130, len: r * 0.2, left)
-            leaf(ctx, x + r * 0.068, y - r * 0.05, rot: -50, len: r * 0.2, right)
+            let a = 135 + 15 * CGFloat(k)
+            func at(_ rad: CGFloat, _ deg: CGFloat, _ rot: CGFloat, _ color: CGColor) {
+                let t = deg * .pi / 180
+                leaf(ctx, c.x + rad * cos(t), c.y + rad * sin(t), rot: rot, len: r * 0.27, color)
+            }
+            at(r * 1.35, a, a + 90 - 32, left); at(r * 1.17, a + 5, a + 90 + 32, right)
         }
-        leaf(ctx, x, cy - r * 0.68, rot: -90, len: r * 0.2, stem)
     }
 }
 
@@ -1199,7 +1203,7 @@ enum TirRing {
         let mark = tir.empty ? TirMark.none : TirMark.of(tir, spec.range)
         let sw = r * 0.2
         let rr = r - sw / 2
-        let crownW = r * 0.74, crownBottom = c.y - r * 0.56
+        let crownW = r * 0.74, crownBottom = c.y - r * 0.64
         if mark == .crown { ctx.beginTransparencyLayer(auxiliaryInfo: nil) }
         ctx.saveGState()
         ctx.setLineWidth(sw)

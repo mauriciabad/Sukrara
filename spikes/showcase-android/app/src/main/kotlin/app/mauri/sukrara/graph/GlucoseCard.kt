@@ -154,18 +154,23 @@ object Laurel {
     }
 
     /**
-     * The sprig between two laurelled rings of radius [r] (centre gap at [x]): a straight stem with leaf pairs leaning
-     * up and out, the left leaves in [left]'s colour, the right ones in [right]'s (a faded ring keeps its fade).
+     * The sprig between two laurelled rings of radius [r] ([x] = the middle of the gap): the same full branch as a
+     * ring's left side, its curve through the middle of the gap, its outer leaves in [left]'s colour and its inner ones
+     * in [right]'s (a faded ring keeps its fade).
      */
     fun drawJoin(cv: Canvas, x: Float, cy: Float, r: Float, left: Int, right: Int) {
-        val stemColor = if ((left ushr 24) >= (right ushr 24)) left else right
-        cv.drawLine(x, cy + r * 0.9f, x, cy - r * 0.6f, stem(r, stemColor))
+        val cx = x + r * 1.25f   // the centre the branch curves around
+        val sr = r * 1.25f
+        cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), 131f, 83f, false,
+            stem(r, if ((left ushr 24) >= (right ushr 24)) left else right))
         for (k in 0 until 6) {
-            val y = cy + r * 0.78f - k * r * 0.25f
-            leaf(cv, x - r * 0.068f, y - r * 0.05f, -130f, r * 0.2f, left)
-            leaf(cv, x + r * 0.068f, y - r * 0.05f, -50f, r * 0.2f, right)
+            val a = 135f + 15f * k
+            fun at(rad: Float, deg: Float, rot: Float, color: Int) {
+                val t = Math.toRadians(deg.toDouble())
+                leaf(cv, cx + rad * Math.cos(t).toFloat(), cy + rad * Math.sin(t).toFloat(), rot, r * 0.27f, color)
+            }
+            at(r * 1.35f, a, a + 90 - 32, left); at(r * 1.17f, a + 5, a + 90 + 32, right)
         }
-        leaf(cv, x, cy - r * 0.68f, -90f, r * 0.2f, stemColor)
     }
 }
 
@@ -186,7 +191,7 @@ object TirRing {
         val oval = RectF(cx - r + sw / 2, cy - r + sw / 2, cx + r - sw / 2, cy + r - sw / 2)
         val alpha = (255 * emphasis).toInt()
         val crownW = r * 0.74f
-        val crownBottom = cy - r * 0.56f
+        val crownBottom = cy - r * 0.64f
         val layer = if (mark == TirMark.CROWN) cv.saveLayer(null, null) else -1
         val shares = spec.order.map { it to tir.share(it) }.filter { it.second >= 0.004 }
         if (shares.isEmpty()) {
