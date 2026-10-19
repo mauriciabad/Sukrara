@@ -1233,6 +1233,8 @@
     <string name="apps_secret_title">Secreto de la API</string>
     <string name="apps_phone_group">Apps de este móvil</string>
     <string name="apps_phone_none">Ninguna app de este móvil escucha emisiones de glucosa. Los relojes Garmin leen el servidor de xDrip+ (más abajo).</string>
+    <!-- Apps on this phone: why no app gets broadcasts while an untested sensor family is in use, %1$s = the sensor [CHAR LIMIT=NONE] -->
+    <string name="apps_phone_paused_untested">En pausa: la compatibilidad con %1$s no está probada</string>
     <string name="apps_phone_needs_direct">Solo mientras Sukrara lee el sensor</string>
     <string name="apps_phone_via_server">Lee tu glucosa a través del servidor de xDrip+</string>
     <plurals name="apps_phone_summary">

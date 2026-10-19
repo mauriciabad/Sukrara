@@ -130,7 +130,7 @@ object NightscoutQueue {
         val have = server.keys.map { it / 60_000 }.toHashSet()
         val lo = fromS / 60; val hi = toS / 60
         val kept = state.sentMinutes().filter { it < lo || it > hi || it in have }
-        val others = server.filter { (ms, dev) -> ms / 1000 >= toS - CONFLICT_WINDOW_S && dev != device }.values.toSortedSet()
+        val others = server.filter { (ms, dev) -> ms / 1000 >= toS - CONFLICT_WINDOW_S && !NsDocs.ours(dev, device) }.values.toSortedSet()
         val conflict = others.takeIf { it.isNotEmpty() }?.joinToString()
         return state.copy(minutes = SentRanges.ranges(kept), reconciledMs = nowMs, conflict = conflict,
             conflictAccepted = state.conflictAccepted && conflict != null)

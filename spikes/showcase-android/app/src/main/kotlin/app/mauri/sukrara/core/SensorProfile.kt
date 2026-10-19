@@ -38,6 +38,16 @@ data class SensorProfile(
      * (`ui/SensorFeedback`). This flag is the single switch that removes the banner once enough feedback came in.
      */
     val verified: Boolean,
+    /**
+     * The `SourceInfo` the local glucose broadcasts give (xDrip+ `BgEstimate`; AAPS maps it with
+     * `SourceSensor.fromString`, and "Libre3" turns on its advanced filtering: SMB always / after carbs, docs/22).
+     * Null = this family sends **no** local broadcasts at all. Only ever used while [verified] ([SensorOutputs]).
+     */
+    val broadcastLabel: String? = null,
+    /** What other services call the sensor (Health Connect model, …); null = [name]. */
+    val deviceModel: String? = null,
+    /** LibreView takes this family's glucose and sensor start (life-count readings): the Libre 3 only. */
+    val libreView: Boolean = false,
 ) {
     val warmupMin: Int get() = warmup.inWholeMinutes.toInt()
     val wearMin: Int get() = lifetime.inWholeMinutes.toInt()
@@ -79,6 +89,7 @@ object SensorProfiles {
         models = listOf("FreeStyle Libre 3", "FreeStyle Libre 3 Plus"),
         pairing = Pairing.NfcTap, warmup = 60.minutes, lifetime = 15.days, grace = 12.hours,
         calibration = Calibration.NONE, needsScan = false, verified = true,
+        broadcastLabel = "Libre3", deviceModel = "FreeStyle Libre 3", libreView = true,
     )
 
     /**

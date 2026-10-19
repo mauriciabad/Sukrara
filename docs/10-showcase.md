@@ -1050,7 +1050,8 @@ every driver is pinned by open-source traces. Details: [docs/23 "In Sukrara"](23
 | A SmartGuide serial filter | Nothing to type: it matches an `AC-…` device with the CGM service, and a stranger's sensor fails at the PIN. |
 | The spike's G6 "session start = transmitter clock" | The transmitter clock runs for months, so every G6 would have looked ended; the app asks for the session start (`0x24`, xDrip+ `TransmitterTimeRxMessage`). |
 | "stopped" as the G7's end | LoopKit's lifecycle opens with it before the session starts; only expired / ended / failed end it. |
-| LibreView glucose upload and the Libre-named broadcasts for the new families | LibreView takes Libre life-count readings; the xDrip+-style broadcasts still name the sensor `Libre3`. Left as they are until a family is verified. |
+| LibreView for the new families | Libre life-count readings and a Libre sensor start only: `SensorProfile.libreView` (the Libre 3) gates it (`LibreViewUploaderTest`). |
+| Local broadcasts for the new families | AAPS gives `SourceInfo=Libre3` advanced filtering (SMB): untested data must never feed a closed loop. Unverified profiles send none; Settings → Apps on this phone says *Paused: <family> support is untested*. Every other output names the real sensor (`core/SensorOutputs`, docs/22). |
 | Calibration entry | Every ported family is factory calibrated; an optional finger-stick calibration on the sensor isn't offered. |
 | The banner on followers and the Mac | It is about the wearer's own sensor; followers can't act on it. |
 

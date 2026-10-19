@@ -10,6 +10,8 @@ import app.mauri.sukrara.bridge.BroadcastPayloads.XDRIP
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import app.mauri.sukrara.core.SensorOutputs
+import app.mauri.sukrara.core.SensorProfiles
 import org.junit.Test
 
 /**
@@ -18,7 +20,7 @@ import org.junit.Test
  */
 class BroadcastPayloadsTest {
     private val r = BroadcastPayloads.Out(mgdl = 123, rate = -1.4, timeMs = 1_760_000_000_000L, serial = "3MH0012ABC",
-        sensorStartMs = 1_759_700_000_000L)
+        sensorStartMs = 1_759_700_000_000L, sourceInfo = SensorOutputs.broadcastLabel(SensorProfiles.LIBRE_3)!!)
 
     @Test fun xdripMatchesAapsAndGdh() {
         val x = BroadcastPayloads.xdrip(r)
@@ -83,20 +85,43 @@ class BroadcastPayloadsTest {
     )
 
     @Test fun nothingIsAllowedByDefault() {
-        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(true, true, declared, emptySet(), newSensor = true))
+        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(true, true, declared, emptySet(), newSensor = true, sourceInfo = "Libre3"))
     }
 
     @Test fun onlyAllowedAppsGetOnlyWhatTheyDeclare() {
-        val p = BroadcastPayloads.plan(true, true, declared, setOf("info.nightscout.androidaps", "com.eveningoutpost.dexdrip", "not.installed"), newSensor = false)
+        val p = BroadcastPayloads.plan(true, true, declared, setOf("info.nightscout.androidaps", "com.eveningoutpost.dexdrip", "not.installed"), newSensor = false, sourceInfo = "Libre3")
         assertEquals(mapOf("info.nightscout.androidaps" to listOf(XDRIP), "com.eveningoutpost.dexdrip" to listOf(LIBRE)), p)
-        val all = BroadcastPayloads.plan(true, true, declared, declared.keys, newSensor = true)
+        val all = BroadcastPayloads.plan(true, true, declared, declared.keys, newSensor = true, sourceInfo = "Libre3")
         assertEquals(listOf(XDRIP, LIBRE, LIBRE_ACTIVATE, GLUCODATA), all["de.michelinside.glucodatahandler"])
     }
 
     /** A follower never broadcasts (AAPS must not take someone else's readings as a local sensor); nor Juggluco mode. */
     @Test fun wearerReadingTheSensorOnly() {
-        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(wearer = false, direct = true, declared, declared.keys, true))
-        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(wearer = true, direct = false, declared, declared.keys, true))
+        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(wearer = false, direct = true, declared, declared.keys, true, "Libre3"))
+        assertEquals(emptyMap<String, List<String>>(), BroadcastPayloads.plan(wearer = true, direct = false, declared, declared.keys, true, "Libre3"))
+    }
+
+    /**
+     * Investigation 23: an untested family sends no broadcast at all (AAPS would take "Libre3" from an Aidex or a
+     * SmartGuide as a Libre 3 and turn on advanced filtering); only a verified family with a label does.
+     */
+    @Test fun untestedFamiliesBroadcastNothing() {
+        for (p in SensorProfiles.all) {
+            val label = SensorOutputs.broadcastLabel(p)
+            if (p.verified) assertTrue(p.id, label != null) else assertEquals(p.id, null, label)
+            val plan = BroadcastPayloads.plan(true, true, declared, declared.keys, true, label)
+            assertEquals(p.id, p.verified, plan.isNotEmpty())
+            // Settings → Apps on this phone says why: "Paused: <family> support is untested"
+            assertEquals(p.id, !p.verified, SensorOutputs.broadcastsPausedBy(p) != null)
+        }
+        // a profile that is verified but has no label still sends nothing
+        assertEquals(null, SensorOutputs.broadcastLabel(SensorProfiles.DEXCOM_G7.copy(verified = true)))
+        // the reading's dev tag decides: the direct source tags every reading with its family
+        assertEquals("Libre3", SensorOutputs.broadcastLabel(SensorOutputs.profileOf("libre3")))
+        assertEquals(null, SensorOutputs.broadcastLabel(SensorOutputs.profileOf("aidex-x")))
+        assertEquals(null, SensorOutputs.broadcastLabel(SensorOutputs.profileOf("accu-chek-smartguide")))
+        assertEquals(null, SensorOutputs.broadcastLabel(SensorOutputs.profileOf("")))          // unknown: nothing
+        assertEquals("Libre3", SensorOutputs.broadcastLabel(SensorOutputs.profileOf("synthetic")))   // debug builds' stand-in
     }
 
     @Test fun throttleLikeJuggluco() {

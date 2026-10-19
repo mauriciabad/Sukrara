@@ -150,6 +150,11 @@ Cheap tools:
       support is untested. Tell us how it works.* directly under the graph, no close button, not red; *Send feedback*
       opens github.com/…/issues/new with the sensor-feedback form pre-filled with the sensor, the Sukrara and Android
       versions and the phone model only (`SensorFeedbackTest`); `--es profile libre3` → gone; a follower never shows it.
+- [ ] Untested family, outputs: with `sensorProfile dexcom-g7`, Settings → Share with apps → *Apps on this phone*
+      starts with *Paused: Dexcom G7 / ONE+ support is untested* and `adb logcat -s Sukrara.broadcast` stays silent for
+      readings tagged with an untested family; `libre3` → the line is gone and the allowed apps get readings again.
+      Unit tests: `BroadcastPayloadsTest` (no broadcast without a verified label), `SensorOutputsTest` (Health
+      Connect, Tidepool, Nightscout, phone APIs, CSV), `LibreViewUploaderTest`.
 
 ## Q13 Sensor end in calendar
 

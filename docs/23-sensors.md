@@ -303,6 +303,7 @@ driver, same bytes, transport by address, never a scan; `Libre3DriverTest` untou
 | Brand step (*Which sensor are you starting?*, the Libre 3 first and preselected, NFC already listening), per-family setup, *Untested* tags, the warning dialog with *Pair anyway (5)* disabled for 5 s and *Cancel* as the default | `ui/NewSensorScreen.kt`, `ui/NewSensorFlow.kt` |
 | The permanent banner under the graph (wearer only, not red, not dismissible) with *Send feedback* → a pre-filled issue (sensor, Sukrara version, Android version, phone model; nothing personal) | `ui/SensorFeedback.kt`, `.github/ISSUE_TEMPLATE/sensor-feedback.yml` |
 | Tests against the spike's traces (copied to `app/src/test/resources/traces`), the Libre 3 never scans, brand step, countdown, banner, issue URL | `app/src/test/…/direct/**`, `BrandStepTest`, `SensorFeedbackTest`, `DirectSourceTest` |
+| **Outputs name the real sensor** (`core/SensorOutputs`, by each reading's `dev` tag): no local broadcasts for an untested family (Settings says why); Health Connect brand + "<model> (untested)"; Tidepool `cbg` `payload.sensor`; Nightscout upload, the phone's Nightscout and xDrip+ APIs and the CSV's Device `Sukrara · <model> (untested)` (the Libre 3 keeps `Sukrara`: Nightscout dedupes on it; a family change still counts as this uploader); Nightscout sensor events' notes; LibreView only for the Libre 3; the Sensor page names the family | `core/SensorOutputs.kt`, `bridge/`, `tidepool/`, `nightscout/`, `export/`, `libreview/`, `SensorOutputsTest`, `BroadcastPayloadsTest`, `LibreViewUploaderTest` |
 
 | Discarded | Why |
 |---|---|
@@ -310,7 +311,8 @@ driver, same bytes, transport by address, never a scan; `Libre3DriverTest` untou
 | **Abbott Lingo** (step 6) | Out of scope for this round. |
 | Camera scan of the box code (Aidex X) | The data-matrix layout isn't documented in the sources we read; typing 10 characters is reliable. |
 | The spike's G6 session start from the transmitter clock, and "stopped" as a G7 end | Both would have shown a running sensor as ended (see docs/10). |
-| LibreView glucose upload and correct broadcast names for the new families | LibreView wants Libre life counts; the xDrip+-style broadcasts still say `Libre3`. Revisit when a family is verified. |
+| LibreView for the new families | LibreView takes Libre life-count readings and a Libre sensor start: only `SensorProfile.libreView` (the Libre 3) reaches it; another family clears what was buffered and sends nothing (`LibreViewUploaderTest`). |
+| **Local broadcasts for untested families** | AAPS turns on advanced filtering (SMB always / after carbs) for `SourceInfo=Libre3`: an untested Aidex or SmartGuide must never feed a closed loop. Unverified profiles send no xDrip+, LibreLink or glucodata broadcast at all; Settings → Apps on this phone says *Paused: <family> support is untested* (docs/22 "Untested sensor families"). A verified family also needs its own `broadcastLabel`. |
 | Calibration entry | All ported families are factory calibrated; the optional on-sensor calibration isn't offered. |
 | The banner for followers and on the Mac | It's about the wearer's own sensor. |
 | **CareSens Air** | mg/dL only exists inside the vendor's `libCALCULATION.so`, and the BLE key is lifted from the vendor app. Both rules. |

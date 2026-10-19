@@ -322,6 +322,23 @@ received and dropped (the spike checked each format on its own; the payloads are
 
 The Mac has no equivalent (no Android broadcasts or Health Connect on macOS).
 
+### Untested sensor families (investigation 23, 2026-10-19)
+
+Since Sukrara can read other families as **untested** ([23](23-sensors.md#in-sukrara)), the `SourceInfo` label is
+no longer "always the Libre 3". AAPS turns on advanced filtering (SMB always / after carbs) for `Libre3` (§2), so an
+Aidex or a SmartGuide labelled `Libre3` would unlock aggressive automatic dosing on untested data. The rule is now
+profile-driven (`core/SensorOutputs`, tests `BroadcastPayloadsTest`, `SensorOutputsTest`):
+
+| Rule | Where |
+|---|---|
+| **An unverified family sends no local broadcast at all**: no xDrip+ `BgEstimate`, no LibreLink, no `glucodata.Minute`. Only a `verified` profile with a `broadcastLabel` broadcasts, and `SourceInfo` is that label (the Libre 3: `Libre3`). The reading's own `dev` tag (its family) decides, not a brand list | `SensorProfile.broadcastLabel`, `SensorOutputs.broadcastLabel`, `BroadcastPayloads.plan(…, sourceInfo)`, `AppBroadcasts.onReading` |
+| Settings → Share with apps → *Apps on this phone* says why: *Paused: Dexcom G7 / ONE+ support is untested*; the overview's app count is left out while paused | `ui/SettingsScreens.kt` `phoneAppsGroups` |
+| Health Connect names the reading's sensor: Abbott · FreeStyle Libre 3 (unchanged), else the brand and "<model> (untested)" (e.g. Dexcom · Dexcom G7 / ONE+ (untested)); nothing for an unknown tag | `bridge/HealthConnect.kt`, `SensorOutputs.healthConnectDevice` |
+
+The other outputs follow the same rule: Tidepool (each `cbg`'s `payload.sensor`), the Nightscout upload and the
+phone's Nightscout / xDrip+ APIs (`device` = `Sukrara` for the Libre 3 as before, `Sukrara · <model> (untested)`
+otherwise), the CSV export's Device column, and LibreView only for the Libre 3 (docs/23 "In Sukrara").
+
 ## Run it
 
 ```sh

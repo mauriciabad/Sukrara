@@ -165,7 +165,9 @@ private fun appsSummary(f: FeatureState, wearer: Boolean): String {
     val tidepool by app.mauri.sukrara.tidepool.Tidepool.settings.collectAsState()
     remember { app.mauri.sukrara.nightscout.Nightscout.init(ctx) }
     val nsUpload by app.mauri.sukrara.nightscout.Nightscout.settings.collectAsState()
-    val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
+    val active by app.mauri.sukrara.core.ActiveSensor.profile.collectAsState()
+    val paused = app.mauri.sukrara.core.SensorOutputs.broadcastsPausedBy(active) != null
+    val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" && !paused }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
     return listOfNotNull(
         "LibreView".takeIf { wearer && f.libreview }, apps, "Health Connect".takeIf { wearer && hc },
         "Tidepool".takeIf { tidepool.on && tidepool.signedIn && (wearer || tidepool.uploadFollowed) },
@@ -508,7 +510,11 @@ private fun phoneAppsGroups(direct: Boolean) {
     }
     val f by Features.state.collectAsState()
     val readers by serverReaders()
+    // an untested sensor family sends no broadcasts at all (a closed loop must not take untested data): say why
+    val active by app.mauri.sukrara.core.ActiveSensor.profile.collectAsState()
+    val paused = app.mauri.sukrara.core.SensorOutputs.broadcastsPausedBy(active)
     SettingsGroup(stringResource(R.string.apps_phone_group)) {
+        if (direct && paused != null) info(stringResource(R.string.apps_phone_paused_untested, paused.name))
         if (receivers?.isEmpty() == true && readers.isEmpty()) info(stringResource(R.string.apps_phone_none))
         for (r in receivers.orEmpty()) switch(r.label, direct && r.pkg in allowed, enabled = direct,
             summary = if (direct) null else stringResource(R.string.apps_phone_needs_direct), leading = { PackageIcon(r.pkg) }) { v ->

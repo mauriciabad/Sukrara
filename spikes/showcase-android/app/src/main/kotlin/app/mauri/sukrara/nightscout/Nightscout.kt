@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.nightscout
 
+import app.mauri.sukrara.core.ActiveSensor
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -187,7 +188,7 @@ object Nightscout : CloudUploader {
             val readings = App.owner(app).history(maxOf(state.from, nowS - NightscoutQueue.WINDOW_S) - 15 * 60)
             val plan = NightscoutQueue.plan(readings, Treat.store.all(), SensorLife.current.value, state,
                 NightscoutQueue.Options(s.readings, s.treatments, s.sensor, s.battery), nowS)
-            val r = NightscoutSync.send(c, cfg, plan, state, readings, zone, nowS, save)
+            val r = NightscoutSync.send(c, cfg, plan, state, readings, zone, nowS, save, ActiveSensor.profile.value)
             if (s.battery) battery()?.let { (p, charging) -> NightscoutSync.battery(c, cfg, state, p, charging, nowMs, zone)?.let(save) }
             save(NightscoutQueue.ok(state))
             if (r.sent > 0) {

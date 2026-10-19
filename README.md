@@ -74,6 +74,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   checked against recorded traces, but nobody has tried them on a real sensor: pairing one asks you to confirm
   (*Pair anyway* waits 5 seconds), and while you use it home shows a banner under the graph asking for feedback as a
   GitHub issue. The banner goes away for a sensor once enough people confirm it works. Only the Libre 3 is tested.
+  Untested sensors never reach other apps on the phone (no broadcasts, so a closed loop like AAPS can't dose from
+  them), and every export names the real sensor ("Dexcom G7 / ONE+ (untested)"), never a Libre 3.
   [23](docs/23-sensors.md#in-sukrara)
 - A guided *New sensor* screen: *Pair new sensor* on home (when there's no sensor, it has ended, or in its last
   day), the *Replace sensor* pill and the reminders open it. It starts by asking which sensor (the Libre 3 is

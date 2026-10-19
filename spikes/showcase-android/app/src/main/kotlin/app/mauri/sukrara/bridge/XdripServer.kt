@@ -234,13 +234,15 @@ class XdripServer(private val logFile: File, private val port: Int = PORT, priva
         val brief = q["brief_mode"]?.let { it.isEmpty() || it[0] !in "fFnN0" } ?: false
         val withSensor = q["sensor"]?.let { it.isEmpty() || it[0] !in "fFnN0" } ?: false
         val list = spaced(count, minGap)
+        // the sensor when it isn't a Libre 3 (core/SensorOutputs): "Sukrara · Dexcom G7 / ONE+ (untested)"
+        val device = app.mauri.sukrara.core.SensorOutputs.uploader("Sukrara", app.mauri.sukrara.core.ActiveSensor.profile.value)
         return list.mapIndexed { i, r ->
             val d = delta(r)
             buildString {
                 append('{')
                 if (!brief) {
                     val ds = if (utc) iso(r.epochSec * 1000, utc = true) else iso(r.epochSec * 1000)
-                    append("\"_id\":\"${sensorSerial ?: "Sukrara"}#${r.epochSec / 60}\",\"device\":\"Sukrara\",")
+                    append("\"_id\":\"${sensorSerial ?: "Sukrara"}#${r.epochSec / 60}\",\"device\":\"$device\",")
                     append("\"dateString\":\"$ds\",\"sysTime\":\"$ds\",")
                 }
                 append("\"date\":${r.epochSec}000,\"sgv\":${r.mgdl},")

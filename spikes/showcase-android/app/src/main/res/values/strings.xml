@@ -1521,6 +1521,8 @@
     <string name="apps_phone_group">Apps on this phone</string>
     <!-- Shown when no installed app listens for glucose broadcasts (nor reads the xDrip+ server); points to the server switch [CHAR LIMIT=NONE] -->
     <string name="apps_phone_none">No app on this phone listens for glucose broadcasts. Garmin watches read the xDrip+ server below.</string>
+    <!-- Apps on this phone: why no app gets broadcasts while an untested sensor family is in use, %1$s = the sensor [CHAR LIMIT=NONE] -->
+    <string name="apps_phone_paused_untested">Paused: %1$s support is untested</string>
     <!-- Why the app switches are disabled: Juggluco reads the sensor (it broadcasts itself) [CHAR LIMIT=60] -->
     <string name="apps_phone_needs_direct">Only while Sukrara reads the sensor itself</string>
     <!-- Summary of an installed app (Garmin Connect) that reads the local xDrip+ server; its switch is the server's [CHAR LIMIT=NONE] -->

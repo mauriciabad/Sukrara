@@ -85,8 +85,11 @@ fun SensorScreen(onBack: () -> Unit) {
                     Text(stringResource(R.string.sensor_none), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.sensor_none_text), style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    Text("Libre 3 · ${p.serial}", style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.sensor_started, date(p.startEpoch)), style = MaterialTheme.typography.bodyMedium)
+                    // the family's own name for the other brands (investigation 23); the Libre 3's line as before
+                    val family = app.mauri.sukrara.core.SensorProfiles.byId(p.profileId)
+                    val name = if (family == null || family.id == app.mauri.sukrara.core.SensorProfiles.LIBRE_3.id) "Libre 3" else family.name
+                    Text(listOf(name, p.serial).filter { it.isNotEmpty() }.joinToString(" · "), style = MaterialTheme.typography.titleMedium)
+                    if (p.startEpoch > 0) Text(stringResource(R.string.sensor_started, date(p.startEpoch)), style = MaterialTheme.typography.bodyMedium)
                     life?.takeIf { it.serial == p.serial }?.let {
                         Text(stringResource(R.string.sensor_ends, date(it.endEpoch)), style = MaterialTheme.typography.bodyMedium)
                     }
