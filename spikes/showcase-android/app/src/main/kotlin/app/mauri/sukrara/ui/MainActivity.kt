@@ -291,6 +291,7 @@ class MainActivity : ComponentActivity() {
                 "lockscreen" -> SettingsRoute { LockscreenSettings(back) }
                 "apps" -> SettingsRoute { AppsSettings(wearer = true, back) }
                 "libreview" -> SettingsRoute { LibreViewSettings(back) }
+                "tidepool" -> SettingsRoute { TidepoolSettings(follower = false, back) }
                 "backup" -> SettingsRoute { BackupSettings(u, actions, back) }
                 "export" -> SettingsRoute { ExportSettings(follower = false, back) }
                 "advanced" -> SettingsRoute { WearerAdvanced(u, relays, actions, back) }
@@ -372,6 +373,7 @@ class MainActivity : ComponentActivity() {
                 "graph" -> SettingsRoute { GraphScreen(back) }
                 "following" -> SettingsRoute { FollowingSettings(u, actions, back) }
                 "apps" -> SettingsRoute { AppsSettings(wearer = false, back) }
+                "tidepool" -> SettingsRoute { TidepoolSettings(follower = true, back) }
                 "export" -> SettingsRoute { ExportSettings(follower = true, back) }
                 "advanced" -> SettingsRoute { FollowerAdvanced(u, relays, actions, back) }
                 "log" -> SettingsRoute { LogPage(log, back) }

@@ -161,10 +161,12 @@ private fun appsSummary(f: FeatureState, wearer: Boolean): String {
     val ctx = LocalContext.current
     val allowed by app.mauri.sukrara.bridge.AppBroadcasts.allowed.collectAsState()
     val hc by app.mauri.sukrara.bridge.HealthConnect.on.collectAsState()
-    remember { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.HealthConnect.init(ctx) }
+    remember { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.HealthConnect.init(ctx); app.mauri.sukrara.tidepool.Tidepool.init(ctx) }
+    val tidepool by app.mauri.sukrara.tidepool.Tidepool.settings.collectAsState()
     val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
     return listOfNotNull(
         "LibreView".takeIf { wearer && f.libreview }, apps, "Health Connect".takeIf { wearer && hc },
+        "Tidepool".takeIf { tidepool.on && tidepool.signedIn && (wearer || tidepool.uploadFollowed) },
         "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
     ).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
 }
@@ -253,7 +255,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             switch(stringResource(R.string.people_bluetooth), f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
                 summary = if (u.bleOn) stringResource(R.string.people_bluetooth_connected, u.bleCentrals) else stringResource(R.string.people_bluetooth_off)) { v -> set { it.copy(bleFollowers = v) } }
         }
-        SettingsGroup { link(stringResource(R.string.apps_title), "LibreView, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") }
+        SettingsGroup { link(stringResource(R.string.apps_title), "LibreView, Tidepool, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") }
         SettingsFooter(stringResource(R.string.people_footer))
     }
     if (choosing) NostrIntervalDialog(f) { choosing = false }
@@ -459,6 +461,7 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
             }
             phoneAppsGroups(f.source == "direct")
         }
+        SettingsGroup("Tidepool") { link("Tidepool", tidepoolSummary(), icon = R.drawable.ic_sym_cloud_upload, to = "tidepool") }
         SettingsGroup("xDrip+") {
             switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +
                 (if (st.watchPolledAt > 0) " · " + stringResource(R.string.apps_xdrip_last_asked, sinceText(st.watchPolledAt / 1000)) else "")) { v -> set { it.copy(garmin = v) } }
