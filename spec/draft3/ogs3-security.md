@@ -102,7 +102,11 @@ A member is trusted to read, not to be honest. It can:
 - republish old envelopes (replay): they deduplicate and merge by version, so a replay changes nothing.
 - after its removal, still sign records in the old epoch with the seeds it kept: nobody recognises them, because the
   old epoch's last membership doesn't list it and members cut the epoch at its last day (C§11.2). Its records that
-  a member receives only after the removal are rejected too.
+  a member receives only after the removal are rejected too, even ones it really wrote before it was removed: it
+  could backdate `created_at`, so no time-based rule can tell them apart. The cost is that a member that was offline
+  during the removal never sees the removed carer's last entries, while members that were online keep them. A signed
+  list of the removed key's accepted record ids in `epoch_end` would close that gap; it was rejected as complexity
+  without a safety gain (rationale D15).
 
 It cannot:
 - impersonate the wearer, a device or another member;
@@ -173,5 +177,8 @@ their own apps, and should get legal advice.
 - No PCS for a compromised administrator.
 - No cryptographic hour-level windows. Grants are whole UTC days, so "school hours" is a policy, not a key.
 - Removal needs the administrator online, and a grant per remaining member.
+- A removed participant's last records are lost for members that hadn't received them before the removal (S§6).
+- Only the wearer's own devices can publish device records; another vendor's app or watch can't feed glucose into a
+  stream, only read it or add entries as a contributor (C§11.6).
 - Bluetooth: Android's GAP name and unsynchronised rotation (B§9).
 - An iOS follower in the background depends on a push service (N§9).

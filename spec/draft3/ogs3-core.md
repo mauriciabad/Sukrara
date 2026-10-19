@@ -22,7 +22,7 @@ epochs, handed to a member as the minimal set of key-tree nodes that covers exac
 |---|---|
 | **wearer** | the person whose glucose it is. Usually also the administrator; for a child, a parent may be. |
 | **administrator** | holds the identity key `I` of the stream. Decides who joins, issues grants and membership, rotates epochs. Exactly one device holds `I` at a time. |
-| **publisher device** | a device of the wearer that writes records (reads the sensor, enters treatments, raises alerts). Key `D`. There can be several (phone, watch, second phone, desktop). |
+| **publisher device** | a device of the wearer that writes records (reads the sensor, enters treatments, raises alerts). Key `D`. There can be several (phone, watch, second phone, desktop). Only the wearer's own devices, added by the administrator, can be publishers (C§11.6). |
 | **member** | an approved participant other than the wearer's devices: a family viewer, a carer, a clinician, a watch or widget app. Key `M`. A member with no scope is a **reader**; with a scope (`write`, `ack`, `manage`) it is a **contributor**. |
 | **record** | a NIP-01 event of kind 4078, signed by its author's own key, never published on its own (C§6) |
 | **envelope** | a NIP-01 event of kind 31078 that carries one record, encrypted with a day key and signed by a *blinded* key (C§7) |
@@ -505,7 +505,10 @@ In this order (the reference returns the reason shown in brackets, and the test-
 
 A member's rights apply only to records whose day is inside its `from … to` in the membership. Rights come from
 the newest membership of the envelope's epoch (C§10.1 step 12). A key removed from it loses them for every record in
-that epoch, including records signed before the removal that a member receives only later.
+that epoch: once a member holds the epoch's last membership (C§11.2), from the relays or from its grant, it MUST
+reject every record of that epoch signed by a removed key, whenever the record was signed. A member that was offline
+therefore loses the removed participant's last records that it hadn't received yet. That is accepted on purpose
+(rationale D15).
 
 ### C§10.4 Contributors
 
@@ -597,10 +600,18 @@ the attacker out. Rotating every 30 days bounds that window. The cost is one gra
 
 ### C§11.6 Publisher devices and phone change
 
+- **Who can be a publisher.** Publisher devices are the wearer's own devices running the administrator's app (or
+  an app the wearer installs as part of it, on a device the wearer controls). Only they hold epoch roots, appear in
+  `devices`, and publish device records (`cgm`, `sensor`, `device`, `settings`, `alert`). An administrator MUST NOT
+  add to `devices`, or send epoch roots to, a key it learnt through an invite, a `join`, a `link` or a `manage`
+  request, or any other key of a third-party app or device. Third-party apps and devices (another vendor's watch,
+  a follower app, a home-automation bridge) take part only as **members**: readers, or contributors with `write` or
+  `ack` that sign with their own key in lane `r` (C§10.4). `link` (C§11.8) adds a member's devices as members, never
+  as publishers. Draft 3 defines no protocol for handing epoch roots to another app (rationale D16).
 - **Adding a device:** the administrator generates or receives its key `D` and adds it to `devices`. The device
   needs the full tree (the root): the administrator sends it, over an authenticated channel of its own choosing, the
-  epoch roots. This document doesn't define that channel (an administrator app and its own devices). It increments
-  `seq` and publishes the membership.
+  epoch roots. This document doesn't define that channel: it is internal to the administrator's app and the
+  wearer's own devices. It increments `seq` and publishes the membership.
 - **Removing or replacing a device** (the phone was lost) is a removal: rotate (C§11.2).
 - **Moving the administrator** to a new phone: restore `I` (and, if used, the backup, C§13), create a new `D`,
   rotate. Members continue without doing anything.
@@ -614,7 +625,8 @@ To pause a member, remove it (C§11.2) without an `ended` notice and add it agai
 
 A member's second device (a watch, a tablet) MAY join with its own invite. An active member MAY instead send `link`
 with the new device's key and inbox. The administrator MAY approve it without a human, per the wearer's settings,
-giving the same scopes and window. Each device stays a separate member key, so it can be removed alone.
+giving the same scopes and window. Each device stays a separate member key, so it can be removed alone. A linked
+device is a member, never a publisher device (C§11.6).
 
 ### C§11.9 Delegated management (OPTIONAL)
 

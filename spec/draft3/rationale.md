@@ -216,6 +216,41 @@ The spec goes to a standalone repository under a permissive licence. Per the use
 **no pull request to nostr-protocol/nips**. Kind registration in `registry-of-kinds` can follow once the kinds are
 stable.
 
+### D15. Late records from a removed key are rejected
+
+*Decided 2026-10-19, after review 24c.*
+- **Considered:**
+  - accept a removed key's records that were signed before its removal (by `created_at`);
+  - list the ids of every record the administrator accepted from the removed key, signed, in `epoch_end`, and accept
+    exactly those;
+  - reject every record a removed key signed in that epoch, once the member holds the epoch's last membership.
+- **Chosen:** reject them all (C§10.3, C§11.2).
+- **Why:**
+  - `created_at` is chosen by the signer, so a removed carer or a thief with a lost phone could backdate new records.
+    A time rule protects nothing.
+  - The id list works, but adds a record shape, a size bound and its own edge cases (records the administrator
+    itself never saw) for a rare case.
+  - The rule is deterministic and needs no state beyond the membership.
+- **Cost:** a member that was offline during the removal never sees the removed participant's last records that it
+  hadn't received yet. Members that were online keep them, so replicas can differ on exactly those records. The
+  wearer's devices still have them.
+
+### D16. Only the wearer's own devices publish
+
+*Decided 2026-10-19, after review 24c.*
+- **Considered:** an interoperable way to enrol another vendor's app or watch as a publisher device (an invite and a
+  grant whose cover is the root).
+- **Chosen:** not in draft 3. Only the wearer's own devices, added by the administrator, hold epoch roots and
+  publish device records. Third-party apps and devices are members: readers, or contributors with their own key
+  (C§11.6).
+- **Why:**
+  - A publisher holds every epoch root, can read everything and can write glucose and alerts. That is the most
+    trusted role in the protocol, and it should not be reachable through an invite.
+  - Contributors already cover what a third-party app needs to add (entries, acks, unknown types).
+  - It keeps the device channel internal to one app, so it needs no specification.
+- **Cost:** another vendor's sensor app can't feed glucose into an OGS stream directly. It can bridge into the
+  wearer's own app instead.
+
 ## 3. What the state-of-the-art review changed
 
 | Finding (source) | Effect on draft 3 |
@@ -244,7 +279,4 @@ stable.
 - **Owner backup** test vectors and a takeover test between two implementations (C§13).
 - **Kind registration**, after a second independent implementation.
 - **Cover traffic**: whether a fixed publishing schedule (S§3) should become a SHOULD.
-- **Adding a publisher device** from another vendor (a watch that publishes) has no interoperable channel for the
-  epoch roots yet (C§11.6). A grant whose cover is the root node, sent after an ordinary invite, would do it with
-  nothing new; it needs a decision on who may hold roots.
 - **CGMS bridge** octet order, still to check against a real collector (draft 1 P14).
