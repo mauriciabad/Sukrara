@@ -150,7 +150,9 @@ object NightscoutApi {
             .put("enteredBy", "Sukrara (${t.o})").put("utcOffset", 0)
         when (t.k) {
             "rapid" -> o.put("eventType", "Correction Bolus").put("insulin", t.a)
-            "long" -> o.put("eventType", "Note").put("insulin", t.a).put("insulinType", "long-acting")
+            // no `insulin`: Nightscout's IOB (lib/plugins/iob.js:187) and the clients that sum it count every `insulin`
+            // as a rapid bolus; the dose is in `notes` (docs/25 §3.2)
+            "long" -> o.put("eventType", "Note").put("insulinType", "long-acting")
             "carbs" -> o.put("eventType", "Carb Correction").put("carbs", t.a)
             else -> o.put("eventType", "Note")
         }

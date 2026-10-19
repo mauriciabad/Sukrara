@@ -235,6 +235,7 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 - *Health Connect* switch (wearer only, off by default): turning it on opens Health Connect's own permission sheet (WRITE_BLOOD_GLUCOSE); refused → stays off with "Off · needs access in Health Connect". On → the stored history (≤ 30 days) is written once, then every reading and every backfill. Off → stops writing; records already there stay.
 - Records: `BloodGlucoseRecord`, specimen interstitial fluid, relation to meal and meal type unknown, recording method automatically recorded, device Abbott "FreeStyle Libre 3" (type unknown: Health Connect has no CGM type), mmol/L = mg/dL ÷ 18. `clientRecordId` = `sukrara-glucose-<epoch minute>`, version 1: writing the same minute again updates the record instead of adding one (no duplicates).
 - Overview summary of Share with apps: `LibreView · 2 apps · Health Connect · Tidepool · xDrip+ · Nightscout` (only what is on).
+- The phone's Nightscout API serves long-acting insulin as a `Note` with the dose only in `notes` (`Long-acting insulin 14u`), never an `insulin` field, so Nightscout clients that sum `insulin` (IOB) don't count it as a bolus. Rapid insulin stays a `Correction Bolus` with `insulin`, carbs a `Carb Correction`; entries use `NONE` when there is no trend and UTC `dateString`.
 
 ## Tidepool upload (docs/27)
 
