@@ -60,10 +60,12 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 
 - **Phone:** value, continuous trend arrow and 12 h chart; the doctor's report; status-bar chip and number icon;
   home-screen widgets; with root + LSPosed, the graph on the lock screen; insulin, carbs and notes (also from the lock
-  screen) with optional LibreView upload. Source: Juggluco, or the sensor read directly.
+  screen); a CSV export. Source: Juggluco, or the sensor read directly, with a guided *New sensor* screen and sensor-end
+  reminders.
 - **Settings like Android 16/17:** sections, search, the system's page and back-gesture motion, export / import /
   reset, and it tells you when root or the LSPosed module is missing and how to fix it.
-- **Mac (Sukrara for Mac):** number and trend arrow in the menubar with a sparkline; follows over Bluetooth or Nostr
+- **Mac (Sukrara for Mac):** number and trend arrow in the menubar, a panel with the same card as the phone and the
+  doctor's report (with CSV export); follows over Bluetooth or Nostr
   (paste the same `https://sukrara.mauri.app/join#…` link the phone shares); the same glucose alerts as the phone.
 - **Alerts:** very low, low, high, very high, extremely high, fast changes and no data, each with your own
   threshold and sound. Highs stay quiet after rapid insulin and while already falling back into range, lows after
@@ -76,6 +78,8 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 - **Offline:** nearby pairing and following over Bluetooth, no internet needed.
 - **Watch and smart home:** existing Garmin watch apps work unchanged through the xDrip+ server; stock Home
   Assistant reads it through the Nightscout-compatible API (both off until you switch them on).
+- **Other apps and services** (all off until you switch them on): AAPS, GlucoDataHandler and xDrip+ on the same phone
+  get each reading; Health Connect; uploads to LibreView, Tidepool and your own Nightscout site.
 - **Keys without lock-in:** back up to Proton Pass, Bitwarden or KeePassDX as a normal password; a new phone restores
   everything and followers don't notice.
 
@@ -98,12 +102,12 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 | [03](03-nostr) | Nostr relays as a no-hosting Nightscout | ~1 s live, 12 h backfill in 8 s, stock Home Assistant works |
 | [04](04-libreview) | Treatments and glucose to LibreView | Phone + Mac as one device, no duplicates |
 | [05](05-android-status-bar) | Glucose in the Android status bar | Chip, icon, system icons and an LSPosed hook all work |
-| [06](06-sharing-and-keys) | Sharing and keys without lock-in | QR + code + Allow, revoke, restore; 19/19 end-to-end checks |
+| [06](06-sharing-and-keys) | Sharing and keys without lock-in | QR + Allow, revoke, restore; 19/19 end-to-end checks |
 | [07](07-bluetooth-followers) | Bluetooth followers and nearby pairing | Same encrypted events over BLE, fully offline, Android + Mac |
 | [08](08-garmin) | Glucose on a Garmin watch | Existing watch apps work with our server |
 | [09](09-brand) | Name, icon and style | Sukrara |
 | [10](10-showcase) | Sukrara, the showcase app | Every feature in one app, in daily use |
-| 11 | Battery cost, with and without root | *In progress* |
+| 11 | Battery cost, with and without root | Harness ready; the run waits for the app to settle |
 | [12](12-android-widgets) | Android home-screen widgets | Value, graph, graph + value |
 | [13](13-macos-widgets) | macOS widgets | Running in Sukrara for Mac, live, every minute (Apple certificate needed) |
 | [14](14-nostr-identity) | Nostr identity | Public profiles that don't reveal the glucose stream, 63-char invites, log in with Nostr. In the app since 0.11: short invites and private names + pictures |
@@ -112,8 +116,16 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 | [17](17-lockscreen-widget) | Glucose on the lock screen | The graph around the fingerprint icon (root + LSPosed); log a treatment without unlocking |
 | [18](18-metrics) | The doctor's report in the app | Time in ranges, average, GMI and CV with their goals, on the home screen and in widget slots |
 | [19](19-notification-templates) | Notification templates | Which templates use the space under the icon: only Android 17's Live Update bar and buttons. Not in Sukrara yet |
-| [20](20-publishing) | Publishing on every platform | Research, nothing shipped: notarized Mac app + Homebrew tap, Google Play plus GitHub/IzzyOnDroid for Android, Connect IQ Store for Garmin |
-| [23](23-sensors) | More sensors, more brands | Dexcom G7 / ONE+ (reading along with the official Dexcom app), Dexcom G6 / ONE, Accu-Chek SmartGuide and Aidex X ported as a proof of concept, tested against recorded traces; what every other brand would cost |
+| [20](20-publishing) | Publishing on every platform | Research; the Homebrew tap is live since 0.11.14. Next: notarized Mac app, Google Play plus GitHub/IzzyOnDroid for Android, Connect IQ Store for Garmin |
+| [23](23-sensors) | More sensors, more brands | Dexcom G7 / ONE+ (reading along with the official Dexcom app), Dexcom G6 / ONE, Accu-Chek SmartGuide and Aidex X ported as a proof of concept, tested against recorded traces; what every other brand would cost. In the app: the sensor-driver layer; the other brands wait for hardware |
+| [21](21-new-sensor-flow) | Starting a new sensor | One guided screen from the NFC tap to the first reading |
+| [22](22-ecosystem-outputs) | Sukrara in the diabetes-tech ecosystem | The xDrip+, LibreLink and Juggluco broadcasts, Health Connect and a CSV export Tidepool imports |
+| [24](24-open-standard) | An open standard for CGM sharing | The [Open Glucose Stream](ogs), draft 1, with an independent reference; its security fixes are in the app |
+| [24b](24b-open-standard-draft3) | Open Glucose Stream draft 3 | A clean-sheet redesign; Sukrara moves to it next (followers will need a new invite) |
+| [24c](24c-draft3-review) | Independent review of draft 3 | 26 findings, 2 critical holes fixed and tested |
+| [25](25-nightscout-upload) | Nightscout upload | Upload to your own Nightscout site, healing outages with no gaps or duplicates |
+| [26](26-agp-report) | The full AGP report | Percentile profile and daily profiles, checked against pandas and d3; the in-app report will be its own investigation |
+| [27](27-tidepool) | Tidepool upload | Glucose, insulin, carbs and notes to your Tidepool account |
 
 Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.

@@ -15,28 +15,46 @@ Garmin state label. The Juggluco-port fix (§4 below) ships with this round.
 
 ## 2. Open
 
-- **Match code UX**: done in 0.11.6 (the user's proposal: single-use links, no code; Allow dialog with the invite
-  label; nearby pairing keeps a typed code). See docs/10 "Single-use invites".
-- Investigation 14 is in (0.11.0): short invites, private names + versioned generated pictures. Left out on purpose:
-  public kind 0, Blossom, Nostr login, delete-everywhere (docs/14 "In Sukrara").
-- **Thin history fix not seen end to end**: verify with a fresh follower (two emulators: wearer `medium_phone`
-  debug/synthetic, follower `small_phone`; steps in docs/10 Known issues). Mac follower doesn't send `history`
-  requests yet (only benefits from the approval republish).
+*Pruned 2026-10-19 (0.11.26).*
+
+### Next (decided by the user)
+
+- **Move Sukrara to OGS draft 3** — the user starts within days (decided 2026-10-19). Plan and cost:
+  [docs/24b "Cost of moving Sukrara"](../../docs/24b-open-standard-draft3.md#cost-of-moving-sukrara) (~30 agent-days:
+  Android ~19, Mac ~11.5; every follower must be re-invited; needs secp256k1 tweak-add on both platforms). Reviewed
+  spec: [`spec/draft3`](../../spec/draft3), [docs/24c](../../docs/24c-draft3-review.md). Published at
+  [github.com/mauriciabad/open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream) (CC0, WIP; on
+  Sukrara 1.0: keep only the latest spec, delete old drafts, reset numbering).
+- **In-app AGP report: a new investigation.** No PNG/PDF exports as the experience; reuse
+  [docs/26](../../docs/26-agp-report.md)'s engine and fixtures.
+- **More sensor brands ([docs/23](../../docs/23-sensors.md) steps 2–6): on hold** until the user has hardware (only a
+  Libre 3 Plus; shopping list in docs/23 "Hardware to buy"). Step 1 (`SensorDriver`) shipped in 0.11.23.
+- **Tidepool proper sign-in**: needs an OAuth client id from Tidepool ([docs/27](../../docs/27-tidepool.md)). The
+  logo needs Tidepool's written permission ([docs/10 "Service and app icons"](../../docs/10-showcase.md#service-and-app-icons-2026-10-19)).
+  Five empty test upload records on the user's Tidepool account: only Tidepool support can purge them.
+- **Upstream drafts the user sends themselves**: the Juggluco G7 J-PAKE report
+  ([`spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md`](../sensors-android/upstream/juggluco-g7-jpake-issue.md),
+  private email first) and the OGS outreach texts ([`spec/drafts/outreach.md`](../../spec/drafts/outreach.md)). No NIP PR.
+- **Not yet verified on devices**: export page in the follower role; Bluetooth security fixes over the air between
+  two devices (0.11.22); Home Assistant against the uploaded Nightscout; the Mac *Export CSV* button on screen.
+- **Battery**: re-run investigation 11's harness (`spikes/power/`) with the new uploaders/broadcasts on, and again
+  when a scanning sensor driver lands. The plan (`spikes/power/plans/sukrara.txt`) doesn't toggle `hook` /
+  `hideNotifIcon` yet: add a window for them.
+
+### Still open
+
+- **Thin history fix not seen end to end** with a fresh follower (two emulators: wearer `medium_phone`
+  debug/synthetic, follower `small_phone`; steps in docs/10 Known issues).
 - **Follower-side gaps**: no re-send of un-accepted writer entries when BLE reconnects (relay copies still get
-  picked up); no edit/delete of own entries (Android follower; Mac has delete only); after the wearer is reinstalled
-  while a follower is connected over BLE, the follower keeps a stale "connected" link until its app restarts
-  (pre-existing BLE reconnect gap).
-- **Follower role doesn't feed the root status bar** (system icons / LSPosed value / hide-icon switch). Battery-lab
-  plan (`spikes/power/plans/sukrara.txt`) doesn't toggle `hook` / `hideNotifIcon` yet — add a window so
-  investigation 11 measures their cost.
-- **Mac → phone treatment over v2 on the real devices** not clicked through (needs the Mac menu); the e2e check
-  covered phone → Mac. Steps: `spikes/menubar/FOLLOWER.md` / the Mac agent's report in docs/10.
-- **Real-phone screenshots** for the README (home + chart, widgets, settings, share) — the phone now stays awake on
-  USB, so `adb exec-out screencap` works while it's unlocked (it re-locks after a SystemUI restart).
-- Not built: tier-2 Nightscout upload endpoint, Mac local reading DB, BLE abuse/rate limits, printable recovery sheet.
-- Needs the user: **first real NFC scan + fresh Bluetooth pairing** (branch `n-nfc`, docs/10 "Sensor scan"; the user
-  pauses Juggluco and scans in Sukrara, then scans with Juggluco to hand the sensor back), Proton Pass /
-  Bitwarden save+restore on the real phone, real-camera QR scan. (macOS widgets: done 2026-10-16, hosted by Sukrara for Mac, docs/13.)
+  picked up); after the wearer is reinstalled while a follower is connected over BLE, the follower keeps a stale
+  "connected" link until its app restarts.
+- **Follower role doesn't feed the root status bar** (system icons / LSPosed value / hide-icon switch).
+- **Mac → phone treatment over v2 on the real devices** not clicked through (the e2e check covered phone → Mac).
+  Steps: `spikes/menubar/FOLLOWER.md`.
+- **Real-phone screenshots** for the README (home + chart, widgets, settings, share): synthetic data or cropped, never
+  the user's health data.
+- Not built: printable recovery sheet (docs/06).
+- Needs the user: Proton Pass / Bitwarden save+restore on the real phone, real-camera QR scan.
 - **Two sensors at once** (user, 2026-10-18): Sukrara follows one sensor; pairing replaces it. Juggluco can keep
   several sensors connected, so the user can pair (and warm up) the new one before the old one ends, with no gap.
   Then the "change it before bed" reminder could say "pair the new one now". Where Juggluco does it:
