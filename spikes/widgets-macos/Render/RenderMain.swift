@@ -412,16 +412,17 @@ func renderMarks(_ out: URL) {
     renderTinted(GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .accented)
         .padding(16), size: sizes[.systemMedium]!, to: out.appendingPathComponent("mac-marks-tinted.png"))
 
-    // Every neighbour combination (crown C, laurel L, nothing –; left to right, the 1 d ring rightmost), value widget.
+    // Every neighbour combination (crown C, flowers F, laurel L, nothing –; left to right, the 1 d ring rightmost), value widget.
     func tir(_ m: Character) -> TimeInRange {
         switch m {
         case "C": TimeInRange(tight: 0.8, target: 0.2, coverage: 1)
-        case "L": TimeInRange(low: 0.01, tight: 0.75, target: 0.21, high: 0.03, coverage: 1)
+        case "F": TimeInRange(low: 0.01, tight: 0.75, target: 0.21, high: 0.03, coverage: 1)
+        case "L": TimeInRange(low: 0.02, tight: 0.66, target: 0.26, high: 0.06, coverage: 1)
         default: TimeInRange(low: 0.03, tight: 0.6, target: 0.27, high: 0.1, coverage: 1)
         }
     }
-    let combos: [(String, Bool)] = [("LC", false), ("LL", false), ("CC", false), ("-C", false), ("L-", false), ("-L", false),
-                                    ("LLC", false), ("L-L", false), ("-C-", false), ("LC", true)]
+    let combos: [(String, Bool)] = [("LC", false), ("FF", false), ("CC", false), ("-C", false), ("L-", false), ("-F", false),
+                                    ("LFC", false), ("F-L", false), ("-C-", false), ("FC", true)]
     func comboSnap(_ marks: String, insulin: Bool) -> GlucoseSnapshot {
         var c = GraphConfig()
         c.ringCount = marks.count

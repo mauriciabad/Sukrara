@@ -193,27 +193,29 @@ class GraphGallery {
                 },
             ), 300f, 150f, cols = 2, pal)
             val rings = listOf(
-                "100 % · crown + laurel" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
-                "99.6 · laurel" to (tir(0.004, 0.70, 0.296, 0.0) to RingSpec(86400)),
-                "96 % · laurel" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
-                "94 % · nothing" to (tir(0.02, 0.66, 0.28, 0.04) to RingSpec(86400)),
+                "100 % · crown" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
+                "96 % · flowers" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
+                "92 % · laurel" to (tir(0.02, 0.66, 0.26, 0.06) to RingSpec(86400)),
+                "88 % · nothing" to (tir(0.02, 0.62, 0.26, 0.10) to RingSpec(86400)),
                 "very good · crown" to (tir(0.0, 1.0, 0.0, 0.0) to RingSpec(86400, TirRange.TIGHT)),
                 "7 d faded · crown" to (tir(0.0, 0.8, 0.2, 0.0) to RingSpec(7 * 86400L)),
             )
             sheet("tir-marks-rings-${if (dark) "dark" else "light"}", rings.map { (label, p) ->
                 Tile(label, "") { cv, w, h ->
                     val e = if (p.second.windowS > 86400) 0.55f else 1f
-                    if (TirRing.laurel(p.first, p.second))
-                        Laurel.draw(cv, w / 2, h / 2, h * 0.34f, androidx.core.graphics.ColorUtils.setAlphaComponent(pal.tight, (255 * e).toInt()))
+                    val m = TirRing.mark(p.first, p.second)
+                    if (m != TirMark.NONE) Laurel.draw(cv, w / 2, h / 2, h * 0.34f,
+                        androidx.core.graphics.ColorUtils.setAlphaComponent(pal.tight, (255 * e).toInt()), flowers = m >= TirMark.FLOWERS)
                     TirRing.draw(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e, d)
                 }
             }, 110f, 110f, cols = 6, pal)
 
-            // every neighbour combination: crown (C), laurel (L), nothing (–), listed left to right as on the card
+            // every neighbour combination: crown (C), flowers (F), laurel (L), nothing (–), listed left to right as on the card
             val crown = TimeInRange(0.0, 0.0, 0.8, 0.2, 0.0, 0.0, 1.0)
-            val laurel = TimeInRange(0.0, 0.01, 0.75, 0.21, 0.03, 0.0, 1.0)
+            val flowers = TimeInRange(0.0, 0.01, 0.75, 0.21, 0.03, 0.0, 1.0)
+            val laurel = TimeInRange(0.0, 0.02, 0.66, 0.26, 0.06, 0.0, 1.0)
             val plain = TimeInRange(0.0, 0.03, 0.6, 0.27, 0.1, 0.0, 1.0)
-            val k = mapOf('C' to crown, 'L' to laurel, '-' to plain)
+            val k = mapOf('C' to crown, 'F' to flowers, 'L' to laurel, '-' to plain)
             val three = listOf(RingSpec(86400), RingSpec(7 * 86400L), RingSpec(14 * 86400L))
             fun combo(label: String, marks: String, insulin: Boolean = false) = Tile(label, "", 500f, 84f) { cv, w, h ->
                 // marks: left to right; the main (1 d) ring is the rightmost
@@ -224,11 +226,11 @@ class GraphGallery {
                     metricsOf = { spec, _ -> GlucoseMetrics(k.getValue(byWindow.getValue(spec.windowS)), 120.0, 30.0, 1000) })
             }
             sheet("tir-marks-combos-${if (dark) "dark" else "light"}", listOf(
-                combo("7d laurel · 1d crown", "LC"), combo("7d laurel · 1d laurel", "LL"),
+                combo("7d laurel · 1d crown", "LC"), combo("7d flowers · 1d flowers", "FF"),
                 combo("7d crown · 1d crown", "CC"), combo("7d – · 1d crown", "-C"),
-                combo("7d laurel · 1d –", "L-"), combo("7d – · 1d laurel", "-L"),
-                combo("14d L · 7d L · 1d crown", "LLC"), combo("14d L · 7d – · 1d L", "L-L"),
-                combo("14d – · 7d crown · 1d –", "-C-"), combo("insulin slot · 7d L · 1d crown", "LC", insulin = true),
+                combo("7d laurel · 1d –", "L-"), combo("7d – · 1d flowers", "-F"),
+                combo("14d L · 7d F · 1d crown", "LFC"), combo("14d F · 7d – · 1d L", "F-L"),
+                combo("14d – · 7d crown · 1d –", "-C-"), combo("insulin slot · 7d F · 1d crown", "FC", insulin = true),
             ), 500f, 84f, cols = 2, pal)
         }
     }

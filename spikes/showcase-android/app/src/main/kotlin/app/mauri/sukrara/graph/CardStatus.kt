@@ -159,7 +159,9 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
-    private fun laurel(item: SlotItem) = item is SlotItem.Metric && item.spec.kind == SlotKind.TIR && TirRing.laurel(item.m.tir, item.spec)
+    private fun mark(item: SlotItem) =
+        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.mark(item.m.tir, item.spec) else TirMark.NONE
+    private fun laurel(item: SlotItem) = mark(item) != TirMark.NONE
 
     /**
      * Extra room between [items]`[i]` and the next one to its left when either wears a laurel ([r] = a slot's radius):
@@ -197,7 +199,7 @@ object Slots {
         for ((p, i) in order.withIndex()) {
             val c = colors[i] ?: continue
             val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
-            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
+            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r), flowers = mark(items[i]) >= TirMark.FLOWERS)
         }
     }
 

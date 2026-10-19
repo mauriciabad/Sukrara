@@ -59,25 +59,24 @@ fun periodLabel(s: Long): String = when {
 }
 
 /**
- * The mark a time-in-range ring wears (the user, 2026-10-19): a crown when no reading in the window was outside the
- * ring's range, a laurel from 95 % as the ring shows it with the lows' goals met (below < 4 %, very low < 1 %: a
- * reward never sits on a day of lows); only when the window has the report's 70 % of data
- * ([Goal.MIN_COVERAGE]). The 100 in the % column beside the chart wears the crown on the same rule ([column]).
- * The Mac decides the same (`TirMark` in SukraraGraph.swift; spikes/graph-fixtures/mark).
+ * The mark a time-in-range ring wears (the user, 2026-10-19), by the share the ring shows: a laurel from 90 %, a laurel
+ * with a flower on each branch tip from 95 %, and at 100 % (no reading in the window outside the ring's range) the
+ * crown with the flowered laurel. The laurels need the lows' goals met (below < 4 %, very low < 1 %: a reward never
+ * sits on a day of lows), every mark the report's 70 % of data ([Goal.MIN_COVERAGE]). The 100 in the % column beside
+ * the chart wears the crown on the same rule ([column]). The Mac decides the same (`TirMark` in SukraraGraph.swift;
+ * spikes/graph-fixtures/mark).
  */
 enum class TirMark {
-    NONE, LAUREL, CROWN;
+    NONE, LAUREL, FLOWERS, CROWN;
 
     companion object {
         fun of(tir: TimeInRange, range: TirRange): TirMark {
             if (tir.coverage < Goal.MIN_COVERAGE) return NONE
             val x = tir.of(range)
-            return when {
-                x >= 1.0 -> CROWN
-                Math.round(x * 100) >= 95 && Goal.BELOW.metShare(tir.below) == true &&
-                    Goal.VERY_LOW.metShare(tir.veryLow) == true -> LAUREL
-                else -> NONE
-            }
+            if (x >= 1.0) return CROWN
+            if (Goal.BELOW.metShare(tir.below) != true || Goal.VERY_LOW.metShare(tir.veryLow) != true) return NONE
+            val shown = Math.round(x * 100)
+            return when { shown >= 95 -> FLOWERS; shown >= 90 -> LAUREL; else -> NONE }
         }
 
         fun column(tir: TimeInRange) = of(tir, TirRange.IN_RANGE) == CROWN
@@ -118,21 +117,36 @@ object Crown {
 object Laurel {
     enum class Side { FULL, MERGED }
 
-    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) {
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL,
+             flowers: Boolean = false) {
         val a = color ushr 24
         val layer = if (a < 255) cv.saveLayerAlpha(null, a) else -1
         val c = color or (0xFF shl 24)
-        branch(cv, cx, cy, r, c, true, left)
-        branch(cv, cx, cy, r, c, false, right)
+        branch(cv, cx, cy, r, c, true, left, flowers)
+        branch(cv, cx, cy, r, c, false, right, flowers)
         if (layer >= 0) cv.restoreToCount(layer)
+    }
+
+    /**
+     * A flower at ([x], [y]): five round petals in the laurel's [color] around a pale centre (not yellow: that would read
+     * as the high colour).
+     */
+    private fun flower(cv: Canvas, x: Float, y: Float, r: Float, color: Int) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        for (i in 0 until 5) {
+            val a = Math.toRadians(-90.0 + i * 72)
+            cv.drawCircle(x + r * 0.062f * Math.cos(a).toFloat(), y + r * 0.062f * Math.sin(a).toFloat(), r * 0.05f, p)
+        }
+        p.color = ColorUtils.blendARGB(color, 0xFFFFFFFF.toInt(), 0.7f)
+        cv.drawCircle(x, y, r * 0.036f, p)
     }
 
     /**
      * One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
      * leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
-     * highest outer leaves.
+     * highest outer leaves. [flowers]: a flower at the tip.
      */
-    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side) {
+    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side, flowers: Boolean) {
         val sr = r * 1.25f
         cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -154,6 +168,10 @@ object Laurel {
             if (side == Side.FULL || k <= 1 || k == 5) at(r * 1.35f, a, a + s * 90 - s * 32)
             at(r * 1.17f, a + s * 5, a + s * 90 + s * 32)
         }
+        if (flowers) {
+            val t = Math.toRadians(if (left) 219.0 else -39.0)   // just past the stem's end
+            flower(cv, cx + sr * Math.cos(t).toFloat(), cy + sr * Math.sin(t).toFloat(), r, color)
+        }
     }
 }
 
@@ -162,7 +180,7 @@ object Laurel {
  * split by band, clockwise from 12 o'clock in [RingSpec.order] (default: very good, in range, low, very low, high,
  * very high). [emphasis] fades the secondary rings (1 = main). [countdown]: the sensor countdown ring over it
  * ([SensorBadge.drawCountdown]). A [TirMark] leaves the ring its full size and may overflow the slot: the laurel up its
- * sides (from 95 %, also at 100 %; [Slots.drawUnder], drawn for every slot before the rings, so what is next to it covers
+ * sides (from 90 %, flowered from 95 % and at 100 %; [Slots.drawUnder], drawn for every slot before the rings, so what is next to it covers
  * it), and at 100 % the crown in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
  */
 object TirRing {
@@ -218,8 +236,8 @@ object TirRing {
         cv.drawText(spec.period, cx, base + sub.textSize * 1.1f, sub)
     }
 
-    /** Whether the ring wears a laurel (any [TirMark]: the crown comes with one). */
-    fun laurel(tir: TimeInRange, spec: RingSpec) = !tir.empty && TirMark.of(tir, spec.range) != TirMark.NONE
+    /** The ring's [TirMark] (none without data). */
+    fun mark(tir: TimeInRange, spec: RingSpec) = if (tir.empty) TirMark.NONE else TirMark.of(tir, spec.range)
 
     /** The number in the middle: in range against its > 70 % goal, very good on its own (ShareText's rule). */
     fun text(tir: TimeInRange, spec: RingSpec): String =

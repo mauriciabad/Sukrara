@@ -56,7 +56,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Current value, continuous trend arrow and one glucose graph everywhere (app, widgets, notification, Mac): a 12 h
   chart with the time spent at each level beside it, the share of time below / in / above range (very low, very
   good and very high inside), and time-in-range rings for 1, 7 or 14 days. A perfect window earns a green crown (on
-  the ring and over the 100 beside the chart), 95 % with the lows' goals met a laurel. No "time ago": the reading's time
+  the ring and over the 100 beside the chart) with a flowered laurel; with the lows' goals met, 95 % earns the flowered
+  laurel and 90 % the laurel. No "time ago": the reading's time
   appears only once it's late, then the number is struck through, then hidden. A dashed line at 100 plus lines of
   your own, the very good part of the range in its own colour, and extremely high (≥ 300) in magenta. Ranges,
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.

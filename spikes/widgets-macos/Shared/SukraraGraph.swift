@@ -1085,19 +1085,24 @@ enum TreatmentMarks {
 
 // MARK: - Ring
 
-/// The mark a time-in-range ring wears (TirMark in GlucoseCard.kt; spikes/graph-fixtures/mark): a crown when no
-/// reading in the window was outside the ring's range, a laurel from 95 % as the ring shows it with the lows' goals met
-/// (below < 4 %, very low < 1 %: a reward never sits on a day of lows); only with the report's
-/// 70 % of data. The 100 in the % column beside the chart wears the crown on the same rule (`column`).
-enum TirMark: String {
-    case none, laurel, crown
+/// The mark a time-in-range ring wears (TirMark in GlucoseCard.kt; spikes/graph-fixtures/mark), by the share the ring
+/// shows: a laurel from 90 %, a laurel with a flower on each branch tip from 95 %, and at 100 % (no reading in the
+/// window outside the ring's range) the crown with the flowered laurel. The laurels need the lows' goals met (below
+/// < 4 %, very low < 1 %), every mark the report's 70 % of data. The 100 in the % column beside the chart wears the
+/// crown on the same rule (`column`).
+enum TirMark: String, Comparable {
+    case none, laurel, flowers, crown
+
+    static func < (a: TirMark, b: TirMark) -> Bool { allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)! }
+    static let allCases: [TirMark] = [.none, .laurel, .flowers, .crown]
 
     static func of(_ tir: TimeInRange, _ range: TirRange) -> TirMark {
         guard tir.coverage >= Goal.minCoverage else { return .none }
         let x = tir.of(range)
         if x >= 1 { return .crown }
-        let lowsMet = Goal.below.metShare(tir.below) == true && Goal.veryLow.metShare(tir.veryLow) == true
-        return (x * 100).rounded() >= 95 && lowsMet ? .laurel : .none
+        guard Goal.below.metShare(tir.below) == true, Goal.veryLow.metShare(tir.veryLow) == true else { return .none }
+        let shown = (x * 100).rounded()
+        return shown >= 95 ? .flowers : shown >= 90 ? .laurel : .none
     }
 
     static func column(_ tir: TimeInRange) -> Bool { of(tir, .inRange) == .crown }
@@ -1134,21 +1139,40 @@ enum Crown {
 enum Laurel {
     enum Side { case full, merged }
 
-    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full) {
+    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full,
+                     flowers: Bool = false) {
         ctx.saveGState()
         ctx.setAlpha(color.alpha)
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
         let col = color.copy(alpha: 1) ?? color
-        branch(ctx, c, r, col, isLeft: true, left)
-        branch(ctx, c, r, col, isLeft: false, right)
+        branch(ctx, c, r, col, isLeft: true, left, flowers)
+        branch(ctx, c, r, col, isLeft: false, right, flowers)
         ctx.endTransparencyLayer()
+        ctx.restoreGState()
+    }
+
+    /// A flower at `p`: five round petals in the laurel's `color` around a pale centre (not yellow: that would read as
+    /// the high colour).
+    private static func flower(_ ctx: CGContext, _ p: CGPoint, _ r: CGFloat, _ color: CGColor) {
+        ctx.saveGState()
+        ctx.setFillColor(color)
+        for i in 0..<5 {
+            let a = (-90 + CGFloat(i) * 72) * .pi / 180
+            let q = CGPoint(x: p.x + r * 0.062 * cos(a), y: p.y + r * 0.062 * sin(a))
+            ctx.fillEllipse(in: CGRect(x: q.x - r * 0.05, y: q.y - r * 0.05, width: r * 0.1, height: r * 0.1))
+        }
+        let c = color.components ?? [0, 0, 0, 1]
+        let mix = c.count >= 3 ? CGColor(srgbRed: c[0] + (1 - c[0]) * 0.7, green: c[1] + (1 - c[1]) * 0.7, blue: c[2] + (1 - c[2]) * 0.7, alpha: 1)
+            : CGColor(gray: c[0] + (1 - c[0]) * 0.7, alpha: 1)
+        ctx.setFillColor(mix)
+        ctx.fillEllipse(in: CGRect(x: p.x - r * 0.036, y: p.y - r * 0.036, width: r * 0.072, height: r * 0.072))
         ctx.restoreGState()
     }
 
     /// One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
     /// leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
-    /// highest outer leaves.
-    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side) {
+    /// highest outer leaves. `flowers`: a flower at the tip.
+    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side, _ flowers: Bool) {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
         ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
@@ -1168,6 +1192,10 @@ enum Laurel {
             let a = isLeft ? 135 + 15 * CGFloat(k) : 45 - 15 * CGFloat(k)
             if side == .full || k <= 1 || k == 5 { at(r * 1.35, a, a + s * 90 - s * 32) }
             at(r * 1.17, a + s * 5, a + s * 90 + s * 32)
+        }
+        if flowers {
+            let t: CGFloat = (isLeft ? 219 : -39) * .pi / 180   // just past the stem's end
+            flower(ctx, CGPoint(x: c.x + r * 1.25 * cos(t), y: c.y + r * 1.25 * sin(t)), r, color)
         }
         ctx.restoreGState()
     }
@@ -1243,8 +1271,8 @@ enum TirRing {
 }
 
 extension TirRing {
-    /// Whether the ring wears a laurel (any `TirMark`: the crown comes with one).
-    static func laurel(_ tir: TimeInRange, _ spec: RingSpec) -> Bool { !tir.empty && TirMark.of(tir, spec.range) != .none }
+    /// The ring's `TirMark` (none without data).
+    static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark { tir.empty ? .none : TirMark.of(tir, spec.range) }
 }
 
 /// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
@@ -1444,10 +1472,11 @@ enum Slots {
         return items.isEmpty ? -1 : 0
     }
 
-    private static func laurel(_ item: SlotItem) -> Bool {
-        if case let .metric(spec, m, _) = item, spec.kind == .tir { return TirRing.laurel(m.tir, spec) }
-        return false
+    private static func mark(_ item: SlotItem) -> TirMark {
+        if case let .metric(spec, m, _) = item, spec.kind == .tir { return TirRing.mark(m.tir, spec) }
+        return .none
     }
+    private static func laurel(_ item: SlotItem) -> Bool { mark(item) != .none }
 
     /// Extra room between `items[i]` and the next one to its left when either wears a laurel (`r` = a slot's radius;
     /// Slots.extraGap in CardStatus.kt): 0.22 r, so the gap is 0.5 r and two laurels' facing stems touch in its middle.
@@ -1478,7 +1507,7 @@ enum Slots {
         for (p, i) in order.enumerated() {
             guard let c = colors[i] else { continue }
             let l = p > 0 ? order[p - 1] : nil, r = p + 1 < order.count ? order[p + 1] : nil
-            Laurel.draw(ctx, center: CGPoint(x: cx[i], y: cy), r: radius, c, left: side(l), right: side(r))
+            Laurel.draw(ctx, center: CGPoint(x: cx[i], y: cy), r: radius, c, left: side(l), right: side(r), flowers: mark(items[i]) >= .flowers)
         }
     }
 
