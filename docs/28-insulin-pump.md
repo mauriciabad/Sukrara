@@ -183,6 +183,144 @@ Realistic targets:
 One Mobi-specific catch for an SMB loop: **the pump beeps or vibrates on every bolus sent from a phone.** With SMBs
 every 5 minutes, that is the main barrier the pumpX2 author names. Temp-basal-only looping avoids it.
 
+## 5. What Sukrara would need to support a pump
+
+*Design sketch from a read of the app (`A` = `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara`,
+`M` = `spikes/menubar/Sources/GlucoseBar`) and of how AndroidAPS, Trio and controlX2 do it. Nothing was built.*
+
+**Today Sukrara knows nothing about pumps.** It has one glucose source at a time (`A/owner/OwnerEngine.kt:273`) and
+injection-only treatments: `k` = rapid | long | carbs | note (`A/treatments/Treatments.kt:17`). It calculates no
+IOB; the local xDrip+ server even hardcodes `"iob":"0.00"` (`A/bridge/XdripServer.kt:264`). Tidepool upload
+deliberately avoids `bolus`/`basal` (`A/tidepool/TidepoolData.kt`), and OGS draft 3 lists `basal`/`loop` only as
+planned record kinds (`spec/draft3/ogs3-data.md:359`).
+
+### Three steps, each useful on its own
+
+| Step | Who holds the pump's one phone connection | Sukrara gets | Works for |
+|---|---|---|---|
+| **A · Read from the cloud** | the official app | pump data from Tandem Source (as tconnectsync does) or CareLink (as carelink-bridge does): read-only, minutes late | Mobi, X2, **and 780G** |
+| **B · Read locally** | **Sukrara** (pumpX2) | everything, live, offline: glucose from the pump, IOB, history, reservoir, battery, alarms, Control-IQ state | Mobi, X2 |
+| **C · Command** | Sukrara | bolus; on the Mobi also temp basal, suspend/resume, sleep/exercise modes | Mobi (X2: bolus only) |
+
+The "Read from the pump" step is the one that makes Sukrara a real pump app. A DIY loop is **not** on this list: it
+belongs in AndroidAPS, not in Sukrara. AAPS's Tandem driver would need the same connection slot, so Sukrara would
+then go back to the follower side, or hand off the pumpX2 session the way controlX2 exports it to AAPS.
+
+### The app's internals
+
+1. **A pump driver beside the sensor driver.** Add a `PumpDriver` interface next to `SensorDriver`
+   (`A/direct/SensorDriver.kt:25`). It needs:
+   - a status flow and an incremental history cursor;
+   - commands, in the "Command" step only;
+   - implementations: pumpX2 (MIT, Java; it is a library, so the Kotlin-only rule still holds), a Tandem Source
+     client and a CareLink client.
+2. **A foreground service that owns the connection**, like controlX2's `CommService`:
+   - type `connectedDevice`;
+   - one owner, and nothing else opens BLE to the pump;
+   - pairing through **CompanionDeviceManager**, which gives background start and presence events, with the
+     Android 16 `ObservingDevicePresenceRequest` API
+     ([guide](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing));
+   - one more process for the battery investigation (11) to measure.
+3. **Secrets.** The J-PAKE-derived secret is the credential: keep it Keystore-wrapped. It belongs in the backup,
+   because losing it means re-pairing, and on the Mobi that needs the Qi charger.
+4. **Storage.** Add `OwnerDb` tables beside `readings`:
+   - `bolus`: requested/delivered U, kind normal | automatic | quick, carbs and BG entered, start/end;
+   - `basal`: segments of scheduled | temp | automatic | suspended rate over time;
+   - `pump_event`: cartridge, cannula fill, site change, battery, occlusion, alarms;
+   - `pump_status`: reservoir, battery, pump IOB, mode, last contact.
+
+   Key every row by `(pump serial, history sequence)`, so a re-sync is idempotent, as in AAPS's `InterfaceIDs`.
+5. **Glucose from the pump** becomes a source: `Reading.dev` = `pump:<serial>`. Merge it with the G7 observer
+   readings by timestamp, so a switch between them leaves no gap and no duplicates.
+6. **IOB comes from the pump, not from us.** Show Control-IQ's own IOB, as controlX2 does
+   (`ControlIQIOBRequest`). A second, different number calculated in Sukrara would be worse than none.
+7. **Treatments: one source of truth.**
+   - Pump boluses arrive from history, with origin `pump`, and are read-only in Sukrara.
+   - The manual *rapid* field stays only for pen injections (backup, pump off). The dialog says so when a pump is
+     connected, so the same insulin isn't counted twice.
+   - Carbs entered in the pump's bolus calculator come in as carbs.
+8. **Alerts** (spec + Android + Mac, with new timeline scenarios, under the alert-rule rule).
+   - New kinds:
+     - pump unreachable: no contact for N min, as in AAPS `checkPumpUnreachableAlarm`;
+     - low reservoir and low battery;
+     - occlusion / delivery stopped;
+     - automation off.
+   - The pump already vibrates for its own alarms. The open question is whether the phone repeats them or only
+     mirrors them to followers and the Mac.
+   - `muteAfterInsulin` must decide whether Control-IQ's automatic boluses count. The user approves those
+     expectations.
+9. **Protocols.** OGS / Nostr / BLE need these record kinds, landing with both implementations so the Mac and
+   followers see them:
+   - pump boluses: `insulin.how=pump`, already allowed, plus a subtype;
+   - `basal` segments;
+   - pump status in `device`;
+   - pump events.
+10. **Uploads.**
+    - **Nightscout:**
+      - treatments: `Meal`/`Correction Bolus`, automatic as `type:"automated"`;
+      - `Temp Basal`, `Site Change`, `Insulin Change`, `Pump Battery Change`;
+      - `devicestatus.pump {clock, reservoir, battery, status}` + IOB.
+    - **Tidepool:** switch from injected `insulin` to `bolus` / `basal` / `deviceEvent` / `pumpSettings`.
+    - **LibreView:** boluses as `insulinEntries` only.
+    - **Local xDrip+ server:** report the real IOB, so the Garmin faces from [08](08-garmin.md) show it.
+11. **Testing without a pump.**
+    - A replay harness over pumpX2's own message test vectors, as [23](23-sensors.md) did with sensor traces.
+    - pumpX2 has a pump simulator for development.
+    - DebugReceiver fakes for pump state go through `DebugFakes.run`: debug builds only, never on a release.
+
+### UI/UX
+
+Visual language as before: actions are pills, red only for errors, no pointless detail.
+
+- **Home (`GlucosePanel`, `A/ui/Widgets.kt:136`).**
+  - A **pump strip** under the value card: `IOB 2.4 U · 112 U · 80 % · 2 min`.
+  - The automation state as a pill: *Automatic*, *Sleep*, *Exercise*, *Off*, *Suspended*.
+  - Tapping it opens the pump screen. Cartridge age and site age reuse the sensor-life ring
+    (`A/graph/SensorBadge`).
+- **Graph (Android + Mac + fixtures, under the one-graph rule).**
+  - A **basal lane** under the curve: scheduled as a line, delivered as a fill, suspend as a gap, as in AAPS
+    `GraphData.kt:82-98`.
+  - Bolus marks split into manual and automatic: small marks for automatic, like AAPS's SMB points.
+  - Optional IOB curve.
+- **Pump screen:**
+  - status, model/serial/firmware, last contact;
+  - today's totals (bolus, basal, TDD);
+  - history: boluses, basal changes, alarms;
+  - in the "Command" step, mode controls: sleep/exercise, suspend/resume.
+- **Settings.**
+  - An **Insulin pump** group next to *Glucose source*, with a pairing flow modelled on the new-sensor screen
+    ([21](21-new-sensor-flow.md)):
+    1. "log out of the Tandem app" (frees the slot);
+    2. the CompanionDeviceManager chooser;
+    3. the 6-digit code shown on the pump;
+    4. connected.
+  - *Glucose source* gains **From the pump**.
+  - The cloud step adds Tandem Source / CareLink to *Apps*, next to LibreView.
+- **Everywhere else:**
+  - an IOB slot in the value-card slot system (widgets, lock screen, notification);
+  - reservoir and IOB in the Mac menubar dropdown;
+  - IOB and pump status for followers.
+  - **Commands stay on the wearer's phone (and maybe their watch). Never from the Mac or a follower.**
+- **Bolus (the "Command" step).** The flow:
+  1. the amount, with the pump's own calculator suggestion (`BolusCalcDataSnapshotRequest`), so Sukrara adds no
+     dosing algorithm;
+  2. a confirmation sheet showing amount, IOB and glucose, with an extra warning when glucose is low or falling;
+  3. **BiometricPrompt**, as Trio requires Face ID;
+  4. progress with **Cancel**.
+
+  Guards:
+  - a cap at the pump's max bolus;
+  - a double-tap guard;
+  - AAPS's duplicate check: refuse when a newer bolus exists than the one the screen showed.
+
+  The pump beeps on each one, which is fine for manual boluses.
+
+### Order of work
+
+Do **A** first if the user starts on the official app. It is small, works for any of the three pumps, and fills the
+data model, graph and uploads that B and C reuse. Then **B** as a standalone spike, as the rules require. **C**
+stays a separate decision.
+
 ## Questions for Trueta / Novalab
 
 1. Is the Mobi definitely available to you through ICS now, and is it supplied with the G7? Does Trueta support
