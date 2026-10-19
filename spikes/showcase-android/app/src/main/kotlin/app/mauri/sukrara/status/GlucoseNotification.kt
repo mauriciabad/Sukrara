@@ -301,10 +301,15 @@ object GlucoseNotification {
             val main = Slots.mainIndex(items)
             val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
             val cx = Slots.centers(items, x, size, gap)
-            Slots.drawUnder(cv, items, cx, size / 2, size / 2 - 3 * d, pal)
+            // the strip has no room around it: with a laurel (which reaches 1.5 × a ring's radius, crown and flowers
+            // included) the rings shrink so it fits the strip's height
+            val marked = items.any(Slots::hasLaurel)
+            val ringR = if (marked) size / 2 / 1.5f else size / 2 - 3 * d
+            val discR = if (marked) ringR + 3 * d else size / 2
+            Slots.drawUnder(cv, items, cx, size / 2, ringR, pal)
             for ((i, item) in items.withIndex()) {
-                cv.drawCircle(cx[i], size / 2, size / 2, fill)
-                Slots.draw(cv, item, cx[i], size / 2, size / 2 - 3 * d, now, pal, d, countdown.takeIf { i == main })
+                cv.drawCircle(cx[i], size / 2, discR, fill)
+                Slots.draw(cv, item, cx[i], size / 2, ringR, now, pal, d, countdown.takeIf { i == main })
             }
         }
         Art(graph, slots).also { artCache = it; artKey = key }   // the previous ones may still be parcelled: the GC takes them

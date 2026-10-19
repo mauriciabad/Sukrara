@@ -1175,6 +1175,13 @@ enum Blooms {
     }
     private static func unit(_ r: CGFloat, _ k: CGFloat) -> CGFloat { r * 0.14 * k }
     private static func c(_ pal: GraphPalette, _ v: UInt32) -> CGColor { pal.knockout ? white : hex(v) }
+    /// Tinted widgets keep only the opacity: there the flowers are white with their details cut out (`cut`) or half
+    /// see-through, so they read as flowers rather than one solid shape.
+    private static func half(_ pal: GraphPalette, _ v: UInt32) -> CGColor { pal.knockout ? CGColor(gray: 1, alpha: 0.5) : hex(v) }
+    private static func cut(_ ctx: CGContext, _ pal: GraphPalette, _ block: () -> Void) {
+        guard pal.knockout else { return }
+        ctx.saveGState(); ctx.setBlendMode(.clear); block(); ctx.restoreGState()
+    }
     private static func edge(_ pal: GraphPalette) -> CGColor {
         pal.dark ? (pal.bg.alpha > 0 ? pal.bg : CGColor(gray: 0, alpha: 1)) : hex(0xC9D3CB)
     }
@@ -1192,7 +1199,8 @@ enum Blooms {
     }
     private static func leafPair(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
         for s: CGFloat in [-1, 1] {
-            ellipse(ctx, CGPoint(x: p.x + s * u * 1.55, y: p.y + u * 0.95), u * 1.3, u * 0.5, s * 28, fill: pal.knockout ? white : pal.tight)
+            ellipse(ctx, CGPoint(x: p.x + s * u * 1.55, y: p.y + u * 0.95), u * 1.3, u * 0.5, s * 28,
+                    fill: pal.knockout ? CGColor(gray: 1, alpha: 0.5) : pal.tight)
         }
     }
 
@@ -1233,7 +1241,7 @@ enum Blooms {
                     let q = CGPoint(x: p.x + s * a * u, y: p.y + bb * u)
                     if i == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
                 }
-                ctx.closePath(); ctx.setFillColor(c(pal, v)); ctx.fillPath()
+                ctx.closePath(); ctx.setFillColor(s > 0 ? c(pal, v) : half(pal, v)); ctx.fillPath()
             }
             rosette(ctx, p, u * 1.1, pal)
         case .lavender: spike(ctx, p, u / 0.14, -90, pal)
@@ -1250,14 +1258,17 @@ enum Blooms {
         for i in 0..<5 {
             let bp = at(p.x, p.y, u * (0.9 + CGFloat(i) * 0.68), dir), sz = u * (0.58 - CGFloat(i) * 0.07)
             for side: CGFloat in [-1, 1] {
-                ellipse(ctx, at(bp.x, bp.y, sz * 0.55, dir + side * 90), sz, sz * 0.62, dir + side * 35, fill: c(pal, i % 2 == 1 ? 0xA98BE0 : 0x8E6CD4))
+                ellipse(ctx, at(bp.x, bp.y, sz * 0.55, dir + side * 90), sz, sz * 0.62, dir + side * 35, fill: i % 2 == 1 ? half(pal, 0xA98BE0) : c(pal, 0x8E6CD4))
             }
         }
     }
 
     private static func forgetMeNot(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
         for i in 0..<5 { circle(ctx, at(p.x, p.y, u, -90 + CGFloat(i) * 72), u * 0.8, c(pal, 0x7DB8F2)) }
-        circle(ctx, p, u * 0.55, white)
+        if pal.knockout {
+            // the white ring becomes a hole, the yellow dot stays
+            cut(ctx, pal) { circle(ctx, p, u * 0.55, white) }
+        } else { circle(ctx, p, u * 0.55, white) }
         circle(ctx, p, u * 0.28, c(pal, 0xF2C230))
     }
 
@@ -1265,7 +1276,13 @@ enum Blooms {
         let n = double ? 16 : 10
         for i in 0..<n {
             let a = -90 + CGFloat(i) * 360 / CGFloat(n)
-            ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: white, stroke: edge(pal), lineW: u * 0.12)
+            ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: white, stroke: pal.knockout ? nil : edge(pal), lineW: u * 0.12)
+            if pal.knockout {   // tinted: each petal's edge cut, so the petals stay apart
+                ctx.saveGState(); ctx.setBlendMode(.clear)
+                ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: CGColor(gray: 1, alpha: 0), stroke: white, lineW: u * 0.14)
+                ctx.restoreGState()
+                ellipse(ctx, at(p.x, p.y, u * 1.15, a), u * 0.9, u * (double ? 0.22 : 0.29), a, fill: white)
+            }
         }
         if double {
             for i in 0..<10 {
@@ -1273,8 +1290,11 @@ enum Blooms {
                 ellipse(ctx, at(p.x, p.y, u * 0.78, a), u * 0.62, u * 0.26, a, fill: pal.knockout ? white : hex(0xFFFDF4), stroke: edge(pal), lineW: u * 0.12)
             }
         }
+        // tinted: a gap between the petals and the heart, and the seeds cut out of it
+        cut(ctx, pal) { circle(ctx, p, u * 0.8, white) }
         circle(ctx, p, u * 0.62, c(pal, 0xF2C230))
         if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, c(pal, 0xC9940F)) } }
+        cut(ctx, pal) { if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, white) } } }
     }
 
     private static func blossom(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ rot: CGFloat, _ pal: GraphPalette) {
@@ -1290,14 +1310,30 @@ enum Blooms {
             ctx.closePath(); ctx.setFillColor(c(pal, 0xF7A9C4)); ctx.fillPath()
             ctx.restoreGState()
         }
+        if pal.knockout {
+            // tinted: the heart and the stamens cut out of the white petals
+            cut(ctx, pal) {
+                circle(ctx, p, u * 0.42, white)
+                for i in 0..<5 { circle(ctx, at(p.x, p.y, u * 0.55, -90 + rot + CGFloat(i) * 72), u * 0.12, white) }
+                for i in 0..<5 {   // a thin line between the petals
+                    let a = at(p.x, p.y, u * 2.2, -90 + rot + 36 + CGFloat(i) * 72)
+                    ctx.setLineWidth(u * 0.12); ctx.move(to: p); ctx.addLine(to: a); ctx.strokePath()
+                }
+            }
+            circle(ctx, p, u * 0.2, white)
+            return
+        }
         for i in 0..<5 { circle(ctx, at(p.x, p.y, u * 0.55, -90 + rot + CGFloat(i) * 72), u * 0.1, c(pal, 0xC93F70)) }
         circle(ctx, p, u * 0.42, c(pal, 0xD9487A))
     }
 
     private static func rosette(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
         for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 1.1, -90 + CGFloat(i) * 45), u * 0.62, c(pal, 0xE7B53C)) }
-        for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * 0.42, c(pal, 0xF6D576)) }
-        circle(ctx, p, u * 0.42, c(pal, 0xC98A12))
+        // tinted: the inner row as outlined petals and a ring round the heart
+        cut(ctx, pal) { for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * 0.48, white) } }
+        for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * (pal.knockout ? 0.3 : 0.42), c(pal, 0xF6D576)) }
+        cut(ctx, pal) { circle(ctx, p, u * 0.5, white) }
+        circle(ctx, p, u * (pal.knockout ? 0.3 : 0.42), c(pal, 0xC98A12))
     }
 }
 
