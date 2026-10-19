@@ -68,9 +68,9 @@ class AppIconsTest {
 
     /** Every row that stands for an outside service or app shows its icon (Tidepool: a symbol, its logo isn't licensed). */
     @Test fun serviceRowsHaveTheirIcon() {
-        val src = File(ui, "SettingsScreens.kt").readLines()
+        val src = File(ui, "SettingsScreens.kt").readLines() + File(ui, "SourceScreen.kt").readLines()
         val rows = mapOf(
-            "value(stringResource(R.string.source_source)" to "ServiceIcon(Service.JUGGLUCO)",
+            "radio(stringResource(R.string.source_juggluco)" to "ServiceIcon(Service.JUGGLUCO)",
             "\"LibreView\", when" to "ServiceIcon(Service.LIBREVIEW)",
             "R.string.apps_xdrip)" to "ServiceIcon(Service.XDRIP)",
             "R.string.apps_nightscout)" to "ServiceIcon(Service.NIGHTSCOUT)",

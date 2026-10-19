@@ -126,7 +126,11 @@ Cheap tools:
 - [ ] Unit tests: `NewSensorFlowTest` (steps after the tap, home button). Emulator: `--es cmd newSensor --es stage
       <each stage>` with the screen open (`am start … --es screen newsensor`): light and dark, English and Spanish;
       home's button filled after `fakeSensor` with an end in the past, tonal with an end < 24 h away, gone otherwise.
-- [ ] Phone, the user does the tap, home → *Pair new sensor* (or Settings → Glucose source → Sensor → *Pair new
+- [ ] Settings → Glucose source (one page): header with the sensor (family, red *Untested* tag when unverified, serial,
+      dates, status) and *Pair new sensor*; *Read glucose from*: *This phone* (named family) / *Juggluco* (from
+      Juggluco to *This phone* asks first, then the New sensor screen); *Sensor*: open on scan, *Forget this sensor*.
+      Settings search finds *Pair new sensor*, *This phone*, *Juggluco*, *Forget this sensor*.
+- [ ] Phone, the user does the tap, home → *Pair new sensor* (or Settings → Glucose source → *Pair new
       sensor*): the circle sits on the phone's real NFC spot; the tap vibrates, then *Pairing* ticks its steps and
       ends in the warm-up countdown (new) or *Sensor ready* (taken over). With Sukrara closed, a tap opens the New
       sensor screen and uses that tap. Libre 3 / 3 Plus: starts or takes over;
@@ -142,8 +146,10 @@ Cheap tools:
       address and **no `Sukrara.scan` line at all**; readings keep arriving every minute.
 - [ ] Untested families (emulator only; nobody has the sensors): `--es stage choose|untested|pairfailed|setup-dexcom-g6|
       setup-aidex-x|setup-accu-chek-smartguide|setup-dexcom-g7`: every brand but the Libre 3 has the *Untested* tag;
-      *Pair* is disabled until a typed id is valid; the confirmation counts *Pair anyway (5)* … *(1)* with the button
-      disabled, then *Pair anyway*; *Cancel*, back and a tap outside close it; reopening restarts the count. Light and
+      *Untested* tags are red with the flask; *Continue* with an untested family opens the red confirmation, counting
+      *Continue anyway (10)* … *(1)* with the button disabled, then *Continue anyway* → the family's setup; *Cancel*,
+      back and a tap outside close it and stay on the brand step; reopening restarts the count; the Libre 3 never
+      asks. *Pair* is disabled until a typed id is valid. Light and
       dark, English and Spanish. Unit tests: `BrandStepTest`, the driver tests (`G7DriverTest`, `G6DriverTest`,
       `SmartGuideDriverTest`, `AidexXDriverTest`, `CrcTest`), `DirectSourceTest` (the Libre 3 never scans).
 - [ ] Untested banner: `--es cmd sensorProfile --es profile dexcom-g7` (debug) → home shows *Dexcom G7 / ONE+

@@ -24,7 +24,8 @@ class BrandStepTest {
         assertEquals(SensorProfiles.LIBRE_3, NewSensorFlow.choices.first())
         assertEquals(Stage.Waiting, NewSensorFlow.afterChoice(SensorProfiles.LIBRE_3))
         assertFalse(NewSensorFlow.needsConfirm(SensorProfiles.LIBRE_3))
-        assertEquals(Step.SENSOR, Stage.Choose.step)
+        assertEquals(Step.SENSOR, Stage.Choose().step)
+        assertEquals(NewSensorFlow.Continue.Go(Stage.Waiting), NewSensorFlow.onContinue(SensorProfiles.LIBRE_3))   // no confirmation
         assertEquals(Step.SCAN, Stage.Waiting.step)
     }
 
@@ -33,6 +34,8 @@ class BrandStepTest {
             assertFalse(p.id, p.verified)
             assertTrue(p.id, NewSensorFlow.needsConfirm(p))
             assertEquals(Stage.Setup(p.id), NewSensorFlow.afterChoice(p))
+            // the confirmation comes on Continue (the brand step), not at pairing; accepting it leads to the setup
+            assertEquals(NewSensorFlow.Continue.Confirm(p), NewSensorFlow.onContinue(p))
         }
     }
 
@@ -58,23 +61,25 @@ class BrandStepTest {
         assertEquals(Stage.Pairing("3MH0001", false, PairStep.CONNECTING), NewSensorFlow.afterTap(tap, "direct: failed", null, null, at + 5, "x"))
     }
 
-    /** "Pair anyway (5)" … "(1)", then enabled; rounded up, so it never shows "(0)". */
+    /** "Continue anyway (10)" … "(1)", then enabled; rounded up, so it never shows "(0)". */
     @Test fun countdown() {
-        assertEquals(5, UntestedConfirm.WAIT_S)
-        assertEquals(5, UntestedConfirm.secondsLeft(0))
-        assertEquals(5, UntestedConfirm.secondsLeft(1))
-        assertEquals(4, UntestedConfirm.secondsLeft(1_000))
-        assertEquals(1, UntestedConfirm.secondsLeft(4_999))
-        assertEquals(0, UntestedConfirm.secondsLeft(5_000))
+        assertEquals(10, UntestedConfirm.WAIT_S)
+        assertEquals(10, UntestedConfirm.secondsLeft(0))
+        assertEquals(10, UntestedConfirm.secondsLeft(1))
+        assertEquals(9, UntestedConfirm.secondsLeft(1_000))
+        assertEquals(5, UntestedConfirm.secondsLeft(5_000))   // 0.11.27's whole wait: still disabled
+        assertFalse(UntestedConfirm.enabled(5_000))
+        assertEquals(1, UntestedConfirm.secondsLeft(9_999))
+        assertEquals(0, UntestedConfirm.secondsLeft(10_000))
         assertEquals(0, UntestedConfirm.secondsLeft(60_000))
-        assertFalse(UntestedConfirm.enabled(4_999))
-        assertTrue(UntestedConfirm.enabled(5_000))
-        assertEquals(5, UntestedConfirm.secondsLeft(-100))   // a clock step back doesn't shorten it
+        assertFalse(UntestedConfirm.enabled(9_999))
+        assertTrue(UntestedConfirm.enabled(10_000))
+        assertEquals(10, UntestedConfirm.secondsLeft(-100))   // a clock step back doesn't shorten it
     }
 
     @Test fun previews() {
-        assertEquals(Stage.Choose, NewSensorFlow.previewStage("choose", at))
-        assertEquals(Stage.Setup("dexcom-g7", confirm = true), NewSensorFlow.previewStage("untested", at))
+        assertEquals(Stage.Choose(), NewSensorFlow.previewStage("choose", at))
+        assertEquals(Stage.Choose(confirm = "dexcom-g7"), NewSensorFlow.previewStage("untested", at))
         assertEquals(Stage.Setup("aidex-x"), NewSensorFlow.previewStage("setup-aidex-x", at))
         assertEquals(null, NewSensorFlow.previewStage("setup-libre3", at))
     }

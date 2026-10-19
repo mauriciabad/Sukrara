@@ -119,7 +119,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
         }
         SettingsGroup {
             link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
-            link(stringResource(R.string.source_title), stringResource(sourceLabel(f.source)) + " · " + st.source,
+            link(stringResource(R.string.source_title), sourceSummary(f.source, st.source.removePrefix("direct: ")),
                 leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }, to = "source")
             link(stringResource(R.string.sensorend_title), sensorEndSummary(), leading = { CategoryIcon(R.drawable.ic_stat_sensor_ended, Category.ORANGE) }, to = "sensorend")   // the status bar's "sensor ended" flag
         }
@@ -190,44 +190,6 @@ fun LibreViewBanner(onSetUp: () -> Unit, containerColor: androidx.compose.ui.gra
 }
 
 // ================================================================================================ glucose source
-
-/** Glucose sources (value, label, one-line description). Libre 3 directly is the default. */
-private val SOURCES = listOf(
-    Triple("direct", R.string.source_direct, R.string.source_direct_summary),
-    Triple("juggluco", R.string.source_juggluco, R.string.source_juggluco_summary),
-)
-
-private fun sourceLabel(v: String) = (SOURCES.firstOrNull { it.first == v } ?: SOURCES[0]).second
-
-@Composable
-fun SourceSettings(onBack: () -> Unit) {
-    val f by Features.state.collectAsState()
-    val st by Live.status.collectAsState()
-    var choosing by remember { mutableStateOf(false) }
-    var confirmDirect by remember { mutableStateOf(false) }
-    val direct = f.source == "direct"
-    val nav = LocalNav.current
-    SettingsPage(stringResource(R.string.source_title), onBack) {
-        SettingsIntro(stringResource(R.string.source_intro))
-        SettingsGroup {
-            value(stringResource(R.string.source_source), stringResource(sourceLabel(f.source)) + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
-                icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ ServiceIcon(Service.JUGGLUCO) })) { choosing = true }
-            link(stringResource(R.string.sensor_title), if (direct) st.sensorSerial?.let { stringResource(R.string.source_sensor_summary, it) } ?: stringResource(R.string.source_sensor_summary_none)
-                else stringResource(R.string.source_sensor_unavailable), icon = R.drawable.ic_sym_nfc, enabled = direct, to = "sensor")
-        }
-        SettingsFooter(stringResource(R.string.source_footer))
-    }
-    if (choosing) ChoiceDialog(stringResource(R.string.source_source), SOURCES.map { Choice(stringResource(it.second), it.first, stringResource(it.third)) }, f.source, { choosing = false }) { v ->
-        if (v == "direct" && f.source != "direct") confirmDirect = true else set { it.copy(source = v) }
-    }
-    if (confirmDirect) AlertDialog(
-        onDismissRequest = { confirmDirect = false },
-        title = { Text(stringResource(R.string.source_direct_confirm_title)) },
-        text = { Text(stringResource(R.string.source_direct_confirm_text)) },
-        confirmButton = { Button(onClick = { confirmDirect = false; nav?.open("newsensor") }) { Text(stringResource(R.string.source_direct_confirm_scan)) } },
-        dismissButton = { TextButton(onClick = { confirmDirect = false }) { Text(stringResource(R.string.settings_dialog_cancel)) } },
-    )
-}
 
 // ================================================================================================ sharing
 
