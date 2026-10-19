@@ -69,6 +69,7 @@ fun TidepoolSettings(follower: Boolean, onBack: () -> Unit) {
         SettingsMainSwitch(stringResource(R.string.tidepool_main_switch), on, enabled = s.signedIn) { Tidepool.setOn(ctx, it) }
         SettingsGroup {
             info(stringResource(R.string.tidepool_status), when {
+                !s.signedIn && s.on -> stringResource(R.string.tidepool_status_sign_in)   // Tidepool ended the session
                 !s.signedIn -> stringResource(R.string.tidepool_sign_in_first)
                 !on -> stringResource(R.string.settings_off)
                 else -> statusText(st)

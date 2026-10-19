@@ -166,7 +166,7 @@ private fun appsSummary(f: FeatureState, wearer: Boolean): String {
     val apps = allowed.size.takeIf { wearer && it > 0 && f.source == "direct" }?.let { pluralStringResource(R.plurals.apps_phone_summary, it, it) }
     return listOfNotNull(
         "LibreView".takeIf { wearer && f.libreview }, apps, "Health Connect".takeIf { wearer && hc },
-        "Tidepool".takeIf { tidepool.on && (wearer || tidepool.uploadFollowed) },
+        "Tidepool".takeIf { tidepool.on && tidepool.signedIn && (wearer || tidepool.uploadFollowed) },
         "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
     ).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
 }

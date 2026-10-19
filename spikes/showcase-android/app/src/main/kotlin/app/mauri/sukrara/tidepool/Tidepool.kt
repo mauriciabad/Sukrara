@@ -35,6 +35,7 @@ object Tidepool {
     private const val TAG = "Sukrara.tidepool"
     private const val INTERVAL_MS = 5 * 60_000L
 
+    /** [on] is the user's switch; it uploads only while [signedIn] too (a session Tidepool ended keeps it on). */
     data class Settings(val on: Boolean = false, val email: String = "", val signedIn: Boolean = false,
                         val glucose: Boolean = true, val treatments: Boolean = true, val uploadFollowed: Boolean = false)
 
@@ -62,7 +63,7 @@ object Tidepool {
             val s = runCatching { secure.read() }.getOrNull()
             s?.let { client.restore(TidepoolClient.Session(it.getString("token"), it.getString("userId"))) }
             client.onToken = { saveSession(it) }
-            _settings.value = readSettings(s?.optString("email").orEmpty(), s != null)
+            _settings.value = readSettings(prefs().getString("email", "")!!, s != null)
             _status.value = Status(if (!_settings.value.on) "off" else "waiting", prefs().getLong("lastOkMs", 0), prefs().getInt("lastCount", 0))
             loaded = true
         }
@@ -71,7 +72,7 @@ object Tidepool {
     private fun prefs() = app.getSharedPreferences("tidepool", Context.MODE_PRIVATE)
 
     private fun readSettings(email: String, signedIn: Boolean) = prefs().let { p ->
-        Settings(p.getBoolean("on", false) && signedIn, email, signedIn, p.getBoolean("glucose", true), p.getBoolean("treatments", true),
+        Settings(p.getBoolean("on", false), email, signedIn, p.getBoolean("glucose", true), p.getBoolean("treatments", true),
             p.getBoolean("uploadFollowed", false))
     }
 
@@ -83,23 +84,30 @@ object Tidepool {
     fun signIn(ctx: Context, email: String, password: String) {
         init(ctx)
         val s = client.login(email, password)
-        saveSession(s, email.trim())
-        // a new account starts from scratch: nothing of it has been sent yet
-        prefs().edit().apply { for (k in prefs().all.keys) if (k.startsWith("state.") || k.startsWith("dataSet.")) remove(k) }.apply()
+        saveSession(s)
+        // another account starts from scratch; the same one again keeps what it has (Tidepool notes aren't deduplicated)
+        val account = sha256(s.userId)
+        if (prefs().getString("account", null) != account) prefs().edit().apply {
+            for (k in prefs().all.keys) if (k.startsWith("state.") || k.startsWith("dataSet.")) remove(k)
+        }.apply()
+        prefs().edit().putString("account", account).putString("email", email.trim()).apply()
         _settings.value = readSettings(email.trim(), true)
         kick()
     }
 
-    private fun saveSession(s: TidepoolClient.Session, email: String = _settings.value.email) {
-        secure.write(JSONObject().put("token", s.token).put("userId", s.userId).put("email", email))
+    private fun saveSession(s: TidepoolClient.Session) {
+        secure.write(JSONObject().put("token", s.token).put("userId", s.userId))
     }
 
-    /** Signs out: ends the session and forgets it here. What was uploaded stays on Tidepool. */
+    private fun sha256(x: String) = java.security.MessageDigest.getInstance("SHA-256").digest(x.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    /** Signs out: ends the session and forgets it and the switches here. What was uploaded stays on Tidepool. */
     fun signOut(ctx: Context) {
         init(ctx)
         Thread { runCatching { client.logout() } }.start()
         secure.wipe()
-        prefs().edit().clear().apply()
+        // what this account already has stays known (state, upload record), so signing in again sends no note twice
+        prefs().edit().apply { for (k in listOf("on", "email", "glucose", "treatments", "uploadFollowed", "lastOkMs", "lastCount")) remove(k) }.apply()
         client.restore(null)
         _settings.value = Settings()
         _status.value = Status()
@@ -144,7 +152,7 @@ object Tidepool {
         val s = _settings.value
         val role = App.role(app)
         if (!s.on) { _status.value = _status.value.copy(kind = "off", error = null); return }
-        if (client.session == null) { _status.value = _status.value.copy(kind = "sign_in"); return }
+        if (client.session == null) { _status.value = _status.value.copy(kind = "sign_in", error = null); return }
         if (!TidepoolQueue.allowed(role, s.uploadFollowed)) { _status.value = _status.value.copy(kind = "not_allowed", error = null); return }
         val key = "state.$role"
         val nowMs = System.currentTimeMillis()
