@@ -7,7 +7,6 @@ import android.content.Context
 import app.mauri.sukrara.bridge.Bridge
 import app.mauri.sukrara.bridge.GlucoseSource
 import app.mauri.sukrara.core.ActiveSensor
-import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.core.SensorProfile
 import app.mauri.sukrara.libreview.LibreViewPayload
 import kotlinx.coroutines.CoroutineScope
