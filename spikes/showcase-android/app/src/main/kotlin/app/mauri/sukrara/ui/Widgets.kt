@@ -225,9 +225,8 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                 slot = { item, main ->
                     Canvas(Modifier.fillMaxSize()) {
                         drawIntoCanvas {
-                            Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal, density)
-                            if (main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(it.nativeCanvas, size.width / 2, size.height / 2,
-                                size.minDimension / 2, countdown, pal)
+                            Slots.draw(it.nativeCanvas, item, size.width / 2, size.height / 2, size.minDimension / 2, now, pal,
+                                density, countdown.takeIf { main })
                         }
                     }
                 })

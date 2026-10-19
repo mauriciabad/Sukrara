@@ -74,11 +74,12 @@ enum TirRange: String, Codable, CaseIterable {
 /// `low` / `high` are the LOW / HIGH bands only; `below` / `above` include the very low / very high ones.
 struct TimeInRange: Codable, Equatable {
     var veryLow = 0.0, low = 0.0, tight = 0.0, target = 0.0, high = 0.0, veryHigh = 0.0, coverage = 0.0
-    var inRange: Double { tight + target }
+    /// Exactly 1 when nothing is below or above (the sum of two shares can miss it; 100 % is the crown, `TirMark`).
+    var inRange: Double { below <= 0 && above <= 0 && !empty ? 1 : tight + target }
     var below: Double { veryLow + low }
     var above: Double { high + veryHigh }
     var empty: Bool { coverage <= 0 }
-    func of(_ r: TirRange) -> Double { r == .tight ? tight : inRange }
+    func of(_ r: TirRange) -> Double { r == .inRange ? inRange : below + above + target <= 0 && !empty ? 1 : tight }
     func share(_ b: Band) -> Double {
         switch b {
         case .veryLow: veryLow; case .low: low; case .tight: tight; case .target: target; case .high: high; case .veryHigh: veryHigh
@@ -393,14 +394,16 @@ enum Goal: CaseIterable {
 
 /// A time share as the number of a percentage, without the "%": "64", "5.2", "70.2" (ShareText in GlucoseMetrics.kt,
 /// cases in spikes/graph-fixtures/share). Whole percent from 10 %, one decimal under 10 %, and more decimals (up to two)
-/// whenever rounding would put the number on the other side of its goal than the value; a non-zero share too small to
-/// show is "<0.1". [locale] nil = "." (the Mac's texts are English, like its other numbers).
+/// whenever rounding would put the number on the other side of its goal than the value or show "100" for a share that
+/// isn't all (100 is the crown's number, TirMark); a non-zero share too small to show is "<0.1", one too close to all ">99.9". [locale] nil = "." (the Mac's texts are English, like its other numbers).
 enum ShareText {
     private static func format(_ x: Double, _ met: ((Double) -> Bool)?, _ locale: Locale?) -> String {
         func shown(_ d: Int) -> Double { let k = pow(10.0, Double(d + 2)); return (x * k).rounded() / k }
         var d = x < 0.095 ? 1 : 0
-        while d < 2, let met, met(shown(d)) != met(x) { d += 1 }
+        // more decimals while rounding crosses the goal, or turns a share that isn't all into "100" (the crown's number)
+        while d < 2, (met.map { $0(shown(d)) != $0(x) } ?? false) || (x < 1 && shown(d) >= 1) { d += 1 }
         if x > 0 && shown(d) == 0 { return "<" + String(format: "%.1f", locale: locale, 0.1) }
+        if x < 1 && shown(d) >= 1 { return ">" + String(format: "%.1f", locale: locale, 99.9) }
         return String(format: "%.\(d)f", locale: locale, shown(d) * 100)
     }
     static func of(_ x: Double, _ goal: Goal? = nil, locale: Locale? = nil) -> String {
@@ -779,6 +782,15 @@ enum GlucoseGraph {
                 Ink.draw(ctx, s, x: x0, y: cy + 13 * d * 0.36, pctBig, pal.ink)
                 Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: cy + 13 * d * 0.36, pctSmall, pal.inkSoft)
             }
+            // The crown over a perfect 100 (TirMark.column), where it clears the label above.
+            if TirMark.column(tir) {
+                let numW = Ink.width("100", pctBig), cw = numW * 0.62
+                let bottom = c[1] + 13 * d * (0.36 - 0.72) - 1.5 * d
+                if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
+                    Crown.fill(ctx, x: left - 4 * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
+                               pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
+                }
+            }
         }
 
         if !shownMarks.isEmpty {
@@ -840,7 +852,8 @@ enum GlucoseGraph {
         }
     }
 
-    /// Three shares as whole percentages adding up to 100 (largest remainder).
+    /// Three shares as whole percentages adding up to 100 (largest remainder). The middle one (in range) is 100 only
+    /// when the others are nothing: that 100 wears the crown (`TirMark.column`).
     static func pct3(_ a: Double, _ b: Double, _ c: Double) -> (Int, Int, Int) {
         let raw = [a, b, c].map { $0 * 100 }
         let total = raw.reduce(0, +)
@@ -850,6 +863,7 @@ enum GlucoseGraph {
         for i in raw.indices.sorted(by: { raw[$0] - Double(base[$0]) > raw[$1] - Double(base[$1]) }) where left > 0 {
             base[i] += 1; left -= 1
         }
+        if base[1] == 100 && (a > 0 || c > 0) { base[1] -= 1; base[a >= c ? 0 : 2] += 1 }
         return (base[0], base[1], base[2])
     }
 }
@@ -1071,12 +1085,91 @@ enum TreatmentMarks {
 
 // MARK: - Ring
 
-/// The segmented time-in-range ring (TirRing in GlucoseCard.kt).
+/// The mark a time-in-range ring wears (TirMark in GlucoseCard.kt; spikes/graph-fixtures/mark): a crown when no
+/// reading in the window was outside the ring's range, a laurel from 95 % as the ring shows it with the lows' goals met
+/// (below < 4 %, very low < 1 %: a reward never sits on a day of lows); only with the report's
+/// 70 % of data. The 100 in the % column beside the chart wears the crown on the same rule (`column`).
+enum TirMark: String {
+    case none, laurel, crown
+
+    static func of(_ tir: TimeInRange, _ range: TirRange) -> TirMark {
+        guard tir.coverage >= Goal.minCoverage else { return .none }
+        let x = tir.of(range)
+        if x >= 1 { return .crown }
+        let lowsMet = Goal.below.metShare(tir.below) == true && Goal.veryLow.metShare(tir.veryLow) == true
+        return (x * 100).rounded() >= 95 && lowsMet ? .laurel : .none
+    }
+
+    static func column(_ tir: TimeInRange) -> Bool { of(tir, .inRange) == .crown }
+}
+
+/// The crown (Crown in GlucoseCard.kt): a 12 × 7.4 outline with rounded joins, `w` wide, bottom centre at (`x`, `bottom`).
+enum Crown {
+    private static let pts: [(CGFloat, CGFloat)] = [(0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4)]
+    static let h: CGFloat = 7.4 / 12
+
+    /// `grow` > 0: the outline widened by that much on every side (a cut-out's margin).
+    static func fill(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, _ color: CGColor, grow: CGFloat = 0) {
+        let k = w / 12
+        ctx.saveGState()
+        ctx.beginPath()
+        for (i, p) in pts.enumerated() {
+            let q = CGPoint(x: x + (p.0 - 6) * k, y: bottom + (p.1 - 7.4) * k)
+            if i == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
+        }
+        ctx.closePath()
+        ctx.setLineJoin(.round)
+        ctx.setLineWidth(w * 0.8 / 12 + 2 * grow)
+        ctx.setFillColor(color); ctx.setStrokeColor(color)
+        ctx.drawPath(using: .fillStroke)
+        ctx.restoreGState()
+    }
+}
+
+/// The laurel (Laurel in GlucoseCard.kt): two branches of leaves around the lower half of a ring of outer radius `r`.
+enum Laurel {
+    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor) {
+        ctx.saveGState()
+        ctx.setStrokeColor(color); ctx.setFillColor(color)
+        ctx.setLineWidth(r * 0.026); ctx.setLineCap(.round)
+        let sr = r * 1.12
+        for (a0, a1) in [(100.0, 168.0), (12.0, 80.0)] as [(CGFloat, CGFloat)] {
+            ctx.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: false)
+            ctx.strokePath()
+        }
+        func at(_ rad: CGFloat, _ deg: CGFloat, _ rot: CGFloat) {
+            let a = deg * .pi / 180
+            ctx.saveGState()
+            ctx.translateBy(x: c.x + rad * cos(a), y: c.y + rad * sin(a))
+            ctx.rotate(by: rot * .pi / 180)
+            ctx.fillEllipse(in: CGRect(x: -r * 0.095, y: -r * 0.04, width: r * 0.19, height: r * 0.08))
+            ctx.restoreGState()
+        }
+        // each branch climbs from near 6 o'clock: an outer and an inner leaf per step, both leaning up the stem
+        for k in 0..<6 {
+            let l = 104 + 12.5 * CGFloat(k), rt = 76 - 12.5 * CGFloat(k)
+            at(r * 1.18, l, l + 90 - 32); at(r * 1.06, l + 4, l + 90 + 32)
+            at(r * 1.18, rt, rt - 90 + 32); at(r * 1.06, rt - 4, rt - 90 - 32)
+        }
+        ctx.restoreGState()
+    }
+}
+
+/// The segmented time-in-range ring (TirRing in GlucoseCard.kt), with the sensor `countdown` ring over it. A ring with
+/// a `TirMark` is drawn `marked` of the slot so the mark fits: the laurel around its lower half, the crown standing on
+/// 12 o'clock, cut into the ring and the countdown.
 enum TirRing {
+    static let marked: CGFloat = 0.82
+
     static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, tir: TimeInRange, spec: RingSpec,
-                     _ pal: GraphPalette, emphasis: CGFloat) {
-        let sw = radius * 0.2
-        let rr = radius - sw / 2
+                     _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil) {
+        let mark = tir.empty ? TirMark.none : TirMark.of(tir, spec.range)
+        let r = mark == .none ? radius : radius * marked
+        let sw = r * 0.2
+        let rr = r - sw / 2
+        let markColor = (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(emphasis)
+        let crownW = r * 0.56, crownBottom = c.y - r * 0.84
+        if mark == .crown { ctx.beginTransparencyLayer(auxiliaryInfo: nil) }
         ctx.saveGState()
         ctx.setLineWidth(sw)
         ctx.setLineCap(.butt)
@@ -1106,13 +1199,25 @@ enum TirRing {
             }
         }
         ctx.restoreGState()
-        let num = Ink.font(radius * 0.78, .heavy, rounded: true)
-        let sub = Ink.font(radius * 0.34, .semibold, rounded: true)
+        SensorBadge.drawCountdown(ctx, center: c, radius: r, countdown, pal)
+        if mark == .crown {
+            ctx.saveGState()
+            ctx.setBlendMode(.destinationOut)
+            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, CGColor(gray: 0, alpha: 1), grow: r * 0.06)
+            ctx.restoreGState()
+            ctx.endTransparencyLayer()
+            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, markColor)
+        }
+        if mark == .laurel { Laurel.draw(ctx, center: c, r: r, markColor) }
+        let num = Ink.font(r * 0.78, .heavy, rounded: true)
+        let sub = Ink.font(r * 0.34, .semibold, rounded: true)
         let v = tir.empty ? "–" : ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil)
-        let base = c.y + radius * 0.78 * 0.28
+        let base = c.y + r * 0.78 * 0.28
         // "69.7", "<0.1": the decimals fit inside the ring (TirRing.draw on Android)
-        Ink.draw(ctx, v, x: c.x, y: base, v.count > 3 ? Ink.font(radius * 0.78 * 0.7, .heavy, rounded: true) : num, pal.ink.a(emphasis), align: 0.5)
-        Ink.draw(ctx, spec.period, x: c.x, y: base + radius * 0.34 * 1.1, sub,
+        var size = v.count > 3 ? r * 0.78 * 0.7 : r * 0.78
+        size = min(size, size * (r - sw) * 1.5 / max(Ink.width(v, Ink.font(size, .heavy, rounded: true)), 1)) // "100" too
+        Ink.draw(ctx, v, x: c.x, y: base, size == r * 0.78 ? num : Ink.font(size, .heavy, rounded: true), pal.ink.a(emphasis), align: 0.5)
+        Ink.draw(ctx, spec.period, x: c.x, y: base + r * 0.34 * 1.1, sub,
                  (spec.range == .tight ? pal.tight : pal.inkSoft).a(emphasis), align: 0.5)
     }
 }
@@ -1314,14 +1419,18 @@ enum Slots {
         return items.isEmpty ? -1 : 0
     }
 
-    /// Draw `item` as a circle of `radius` around `c`.
-    static func draw(_ ctx: CGContext, _ item: SlotItem, center c: CGPoint, radius: CGFloat, now: TimeInterval, _ pal: GraphPalette, d: CGFloat) {
+    /// Draw `item` as a circle of `radius` around `c`, with the sensor `countdown` ring over it (the main slot's; a
+    /// time-in-range ring draws it under its crown).
+    static func draw(_ ctx: CGContext, _ item: SlotItem, center c: CGPoint, radius: CGFloat, now: TimeInterval, _ pal: GraphPalette, d: CGFloat,
+                     countdown: Double? = nil) {
         switch item {
-        case let .metric(spec, m, e):
-            if spec.kind == .tir { TirRing.draw(ctx, center: c, radius: radius, tir: m.tir, spec: spec, pal, emphasis: e) }
-            else { MetricGauge.draw(ctx, center: c, radius: radius, m: m, spec: spec, pal, emphasis: e, d: d) }
+        case let .metric(spec, m, e) where spec.kind == .tir:
+            TirRing.draw(ctx, center: c, radius: radius, tir: m.tir, spec: spec, pal, emphasis: e, countdown: countdown)
+            return
+        case let .metric(spec, m, e): MetricGauge.draw(ctx, center: c, radius: radius, m: m, spec: spec, pal, emphasis: e, d: d)
         case let .last(info): LastSlot.draw(ctx, center: c, radius: radius, info: info, now: now, pal)
         }
+        SensorBadge.drawCountdown(ctx, center: c, radius: radius, countdown, pal)
     }
 }
 
@@ -1656,8 +1765,8 @@ enum GlucoseCard {
         let items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit)
         let main = Slots.mainIndex(items)
         for (i, item) in items.enumerated() {
-            Slots.draw(ctx, item, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, now: now, pal, d: d)
-            if i == main { SensorBadge.drawCountdown(ctx, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, countdown, pal) }
+            Slots.draw(ctx, item, center: CGPoint(x: x - size / 2, y: box.midY), radius: size / 2, now: now, pal, d: d,
+                       countdown: i == main ? countdown : nil)
             x -= size + gap
             used += size + gap
         }

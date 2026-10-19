@@ -159,13 +159,22 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
-    /** Draw [item] as a circle of [radius] around ([cx], [cy]). */
-    fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float) =
+    /**
+     * Draw [item] as a circle of [radius] around ([cx], [cy]), with the sensor [countdown] ring over it (the main slot's;
+     * a time-in-range ring draws it under its crown).
+     */
+    fun draw(cv: Canvas, item: SlotItem, cx: Float, cy: Float, radius: Float, nowS: Long, pal: GraphPalette, d: Float,
+             countdown: Double? = null) {
+        if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) {
+            TirRing.draw(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis, d, countdown)
+            return
+        }
         when (item) {
-            is SlotItem.Metric -> if (item.spec.kind == SlotKind.TIR) TirRing.draw(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis, d)
-                else MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d)
+            is SlotItem.Metric -> MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d)
             is SlotItem.Last -> LastSlot.draw(cv, cx, cy, radius, item.info, nowS, pal, d)
         }
+        SensorBadge.drawCountdown(cv, cx, cy, radius, countdown, pal)
+    }
 }
 
 /**

@@ -157,6 +157,57 @@ class GraphGallery {
     }
 
     /** Round sensor-life: the badge (13d / 20h / 5h with the countdown ring / ended), the warm-up and the ended card. */
+    /** The time-in-range marks (the user, 2026-10-19): a crown at 100 %, a laurel from 95 %, on every card size. */
+    @Test fun tirMarks() {
+        // the last 24 h all in range; the six days before with a 1 h high each afternoon (7 d ≈ 96 %, no lows)
+        val data = (0 until 7 * 288).map { i ->
+            val t = now - 60 - (7 * 288 - 1 - i) * 300L
+            val h = ((t / 3600) % 24).toInt()
+            val base = 115 + 32 * sin(i / 23.0) + 9 * sin(i / 5.3)
+            Reading(t, (if (t < now - 86_400 && h == 15) 205.0 else base).roundToInt(), null)
+        }
+        val len = 15 * 86_400L
+        val ending = app.mauri.sukrara.core.SensorInfo("S", now + 5 * 3600 - len, now + 5 * 3600)
+        fun tir(below: Double, tight: Double, target: Double, above: Double) = TimeInRange(0.0, below, tight, target, above, 0.0, 1.0)
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true)
+            sheet("tir-marks-cards-${if (dark) "dark" else "light"}", listOf(
+                Tile("4×2 · 24 h 100 % (crown), 7 d 96 % (laurel)", "") { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                },
+                Tile("4×2 · with the sensor countdown (5 h left)", "") { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = ending)
+                },
+                Tile("3×1 · rings only", "", 230f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null), pal, d, sensor = null)
+                },
+                Tile("2×1 · one ring", "", 150f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400))), pal, d, sensor = null)
+                },
+                Tile("4×1 side by side", "", 300f, 70f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                },
+                Tile("4×3 · in-app size", "", 300f, 200f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                },
+            ), 300f, 150f, cols = 2, pal)
+            val rings = listOf(
+                "100 % · crown" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
+                "99.6 · laurel" to (tir(0.004, 0.70, 0.296, 0.0) to RingSpec(86400)),
+                "96 % · laurel" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
+                "94 % · nothing" to (tir(0.02, 0.66, 0.28, 0.04) to RingSpec(86400)),
+                "very good · crown" to (tir(0.0, 1.0, 0.0, 0.0) to RingSpec(86400, TirRange.TIGHT)),
+                "7 d faded · crown" to (tir(0.0, 0.8, 0.2, 0.0) to RingSpec(7 * 86400L)),
+            )
+            sheet("tir-marks-rings-${if (dark) "dark" else "light"}", rings.map { (label, p) ->
+                Tile(label, "") { cv, w, h ->
+                    TirRing.draw(cv, w / 2, h / 2, h / 2 - 4 * d, p.first, p.second, pal, if (p.second.windowS > 86400) 0.55f else 1f, d)
+                }
+            }, 110f, 110f, cols = 6, pal)
+        }
+    }
+
     @Test fun sensorLife() {
         val data = Synthetic.days(now, 15)
         val len = 15 * 86_400L

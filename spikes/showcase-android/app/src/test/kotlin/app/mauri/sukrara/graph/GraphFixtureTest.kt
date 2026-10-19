@@ -147,6 +147,36 @@ class GraphFixtureTest {
         assertTrue("share fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
     }
 
+    /** The ring's mark and the % column's crown (graph-fixtures/mark, Mac: -graphselftest). */
+    @Test fun mark() {
+        val files = File(dir(), "mark").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
+        assertTrue("no mark fixtures", files.isNotEmpty())
+        val fails = ArrayList<String>()
+        var n = 0
+        for (f in files) {
+            val cases = JSONObject(f.readText()).getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val t = c.getJSONObject("tir")
+                val tir = TimeInRange(t.optDouble("veryLow", 0.0), t.optDouble("low", 0.0), t.optDouble("tight", 0.0),
+                    t.optDouble("target", 0.0), t.optDouble("high", 0.0), t.optDouble("veryHigh", 0.0), t.getDouble("coverage"))
+                val spec = RingSpec(86400, range = if (c.getString("range") == "tight") TirRange.TIGHT else TirRange.IN_RANGE)
+                val e = c.getJSONObject("expect")
+                val col = GlucoseGraph.pct3(tir.below, tir.inRange, tir.above)
+                val want = e.getJSONArray("column")
+                val got = listOf(
+                    "mark" to (TirMark.of(tir, spec.range).name.lowercase() to e.getString("mark")),
+                    "text" to (TirRing.text(tir, spec) to e.getString("text")),
+                    "column" to (col.toList().toString() to List(3) { want.getInt(it) }.toString()),
+                    "crown" to (TirMark.column(tir).toString() to e.getBoolean("crown").toString()),
+                )
+                for ((k, gw) in got) if (gw.first != gw.second) fails += "${f.name}: ${c.getString("name")}: $k ${gw.first} ≠ ${gw.second}"
+                n++
+            }
+        }
+        assertTrue("mark fixtures: $n cases, failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+    }
+
     @Test fun sensor() {
         val files = File(dir(), "sensor").listFiles { f -> f.name.endsWith(".json") }!!.sorted()
         assertTrue("no sensor fixtures", files.isNotEmpty())

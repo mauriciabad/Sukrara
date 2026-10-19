@@ -106,6 +106,10 @@ struct RenderMain {
             TreatmentSheets.run(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "evidence"))
             return
         }
+        if CommandLine.arguments.dropFirst().first == "marks" {   // render marks <out-dir>
+            renderMarks(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "build/marks"))
+            return
+        }
         let out = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "evidence")
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let live = scenario()
@@ -375,4 +379,36 @@ enum TreatmentSheets {
             }
         }
     }
+}
+
+/// The time-in-range marks (the user, 2026-10-19; GraphGallery.tirMarks on Android): the last 24 h all in range (the
+/// crown), the week before with a 1 h high each afternoon (≈ 96 %, the laurel), on every combined family and tinted.
+@MainActor
+func renderMarks(_ out: URL) {
+    try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+    let end = floor(renderNow.timeIntervalSince1970 / 60) * 60 - 30
+    let all = (0..<(7 * 288)).map { i -> GraphReading in
+        let t = end - Double(7 * 288 - 1 - i) * 300
+        let h = Int(t / 3600) % 24
+        let base = 115 + 32 * sin(Double(i) / 23) + 9 * sin(Double(i) / 5.3)
+        return GraphReading(t: t, v: (t < end - 86400 && h == 15 ? 205 : base).rounded())
+    }
+    let cfg = GraphConfig()
+    let day = all.filter { $0.t > end - 86400 }
+    var snap = GlucoseSnapshot(written: renderNow, source: "synthetic",
+                               samples: day.map { GlucoseSample(t: Date(timeIntervalSince1970: $0.t), v: $0.v) }, rate: 0.2, graph: cfg,
+                               slots: cfg.slots.map { SlotMetrics(window: $0.window, metrics: GlucoseMetrics.of(all, from: end - $0.window, to: end, bands: cfg.bands)) })
+    snap.written = renderNow
+    for dark in [false, true] {
+        let row = HStack(alignment: .top, spacing: 0) {
+            ForEach([WidgetFamily.systemSmall, .systemMedium, .systemLarge], id: \.self) { fam in
+                Frame(size: sizes[fam]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: .combined, family: fam, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .fullColor)
+                }
+            }
+        }
+        render(row, to: out.appendingPathComponent("mac-marks-\(dark ? "dark" : "light").png"), dark: dark)
+    }
+    renderTinted(GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .accented)
+        .padding(16), size: sizes[.systemMedium]!, to: out.appendingPathComponent("mac-marks-tinted.png"))
 }

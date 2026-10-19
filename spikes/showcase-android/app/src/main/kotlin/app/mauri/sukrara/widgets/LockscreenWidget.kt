@@ -174,8 +174,7 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
         val main = Slots.mainIndex(items)
         val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(frame.nowSec)
         for ((i, item) in items.withIndex()) {
-            Slots.draw(cv, item, x - size / 2, ringsBox.centerY(), size / 2, frame.nowSec, pal, d)
-            if (i == main) app.mauri.sukrara.graph.SensorBadge.drawCountdown(cv, x - size / 2, ringsBox.centerY(), size / 2, countdown, pal)
+            Slots.draw(cv, item, x - size / 2, ringsBox.centerY(), size / 2, frame.nowSec, pal, d, countdown.takeIf { i == main })
             x -= size + gap
         }
     }

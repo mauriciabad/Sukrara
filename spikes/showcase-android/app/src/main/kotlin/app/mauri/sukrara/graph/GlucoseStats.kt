@@ -53,10 +53,11 @@ data class TimeInRange(
     val veryLow: Double, val low: Double, val tight: Double, val target: Double, val high: Double, val veryHigh: Double,
     val coverage: Double,
 ) {
-    val inRange get() = tight + target
+    /** Exactly 1 when nothing is below or above (the sum of two shares can miss it; 100 % is the crown, [TirMark]). */
+    val inRange get() = if (below <= 0.0 && above <= 0.0 && !empty) 1.0 else tight + target
     val below get() = veryLow + low
     val above get() = high + veryHigh
-    fun of(r: TirRange) = if (r == TirRange.TIGHT) tight else inRange
+    fun of(r: TirRange) = if (r == TirRange.IN_RANGE) inRange else if (below + above + target <= 0.0 && !empty) 1.0 else tight
     fun share(b: Band) = when (b) {
         Band.VERY_LOW -> veryLow; Band.LOW -> low; Band.TIGHT -> tight; Band.TARGET -> target; Band.HIGH -> high
         Band.VERY_HIGH -> veryHigh
