@@ -1186,24 +1186,41 @@ enum Laurel {
     }
 
     /// The facing sides of two laurelled rings of radius `r` at `lx` and `rx`, as one fork (Laurel.drawJoin in
-    /// GlucoseCard.kt): each side rises from below its ring as its usual branch, the two curve in and join a little
-    /// below the middle of the gap, and one stem goes on up to where a branch ends, with leaves on both sides. Each half
-    /// in its own ring's colour and fade.
+    /// GlucoseCard.kt): each side rises from below its ring as its usual branch, the two join a little below the middle
+    /// of the gap, share a short stem and split again into two tips, each curving back along its own ring's laurel to
+    /// where a branch ends. Every joint is tangent-smooth. Each half in its own ring's colour and fade.
     static func drawJoin(_ ctx: CGContext, lx: CGFloat, rx: CGFloat, cy: CGFloat, r: CGFloat, left: CGColor, right: CGColor) {
         let m = CGPoint(x: (lx + rx) / 2, y: cy + r * 0.15)   // where they join
-        let ty = cy - r * 0.62                                // the top, level with a branch's tip
+        let sp = CGPoint(x: m.x, y: cy - r * 0.12)            // where they split again
         let bright = left.alpha >= right.alpha ? left : right
-        faded(ctx, left) { lower(ctx, CGPoint(x: lx, y: cy), r, $0, isLeft: false, m) }
-        faded(ctx, right) { lower(ctx, CGPoint(x: rx, y: cy), r, $0, isLeft: true, m) }
-        faded(ctx, bright) { col in
-            stroke(ctx, r, col) { $0.move(to: m); $0.addLine(to: CGPoint(x: m.x, y: ty)) }
-            leaf(ctx, m.x, ty - r * 0.1, rot: -90, r: r, col)
-        }
-        // up the shared stem: leaves leaning up and out, each side in its ring's colour
-        for f: CGFloat in [0.2, 0.5, 0.8] {
-            let y = m.y + (ty - m.y) * f
-            faded(ctx, left) { leaf(ctx, m.x - r * 0.075, y - r * 0.05, rot: -122, r: r, $0) }
-            faded(ctx, right) { leaf(ctx, m.x + r * 0.075, y - r * 0.05, rot: -58, r: r, $0) }
+        faded(ctx, left) { lower(ctx, CGPoint(x: lx, y: cy), r, $0, isLeft: false, m); tip(ctx, CGPoint(x: lx, y: cy), r, $0, q: -1, sp) }
+        faded(ctx, right) { lower(ctx, CGPoint(x: rx, y: cy), r, $0, isLeft: true, m); tip(ctx, CGPoint(x: rx, y: cy), r, $0, q: 1, sp) }
+        faded(ctx, bright) { col in stroke(ctx, r, col) { $0.move(to: m); $0.addLine(to: sp) } }
+        let y = (m.y + sp.y) / 2
+        faded(ctx, left) { leaf(ctx, m.x - r * 0.075, y - r * 0.05, rot: -122, r: r, $0) }
+        faded(ctx, right) { leaf(ctx, m.x + r * 0.075, y - r * 0.05, rot: -58, r: r, $0) }
+    }
+
+    /// A tip from the split `sp` back to a ring's laurel circle at -30° / 210° (`q` = -1: the ring left of the gap, 1:
+    /// right of it): it leaves going straight up and arrives along the circle, with an outer and an inner leaf per step.
+    private static func tip(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, q: CGFloat, _ sp: CGPoint) {
+        let th: CGFloat = (q < 0 ? -30 : 210) * .pi / 180
+        let e = CGPoint(x: c.x + r * 1.25 * cos(th), y: c.y + r * 1.25 * sin(th))
+        let d = CGPoint(x: -q * sin(th), y: q * cos(th))   // along the circle, upwards
+        let k = r * 0.2
+        let c1 = CGPoint(x: sp.x, y: sp.y - k), c2 = CGPoint(x: e.x - d.x * k, y: e.y - d.y * k)
+        stroke(ctx, r, color) { $0.move(to: sp); $0.addCurve(to: e, control1: c1, control2: c2) }
+        for t: CGFloat in [0.4, 0.85] {
+            let u = 1 - t
+            let b = CGPoint(x: u * u * u * sp.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * e.x,
+                            y: u * u * u * sp.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * e.y)
+            let tx = 3 * u * u * (c1.x - sp.x) + 6 * u * t * (c2.x - c1.x) + 3 * t * t * (e.x - c2.x)
+            let ty = 3 * u * u * (c1.y - sp.y) + 6 * u * t * (c2.y - c1.y) + 3 * t * t * (e.y - c2.y)
+            let len = hypot(tx, ty)
+            let n = CGPoint(x: q * ty / len, y: -q * tx / len)   // away from the ring
+            let a = atan2(ty, tx) * 180 / .pi
+            leaf(ctx, b.x + n.x * r * 0.1, b.y + n.y * r * 0.1, rot: a - q * 32, r: r, color)
+            leaf(ctx, b.x - n.x * r * 0.08, b.y - n.y * r * 0.08, rot: a + q * 32, r: r, color)
         }
     }
 

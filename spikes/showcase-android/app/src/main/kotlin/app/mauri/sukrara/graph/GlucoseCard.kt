@@ -162,21 +162,45 @@ object Laurel {
 
     /**
      * The facing sides of two laurelled rings of radius [r] at [lx] and [rx], as one fork: each side rises from below
-     * its ring as its usual branch, the two curve in and join a little below the middle of the gap, and one stem goes on
-     * up to where a branch ends, with leaves on both sides. Each half in its own ring's colour and fade.
+     * its ring as its usual branch, the two join a little below the middle of the gap, share a short stem and split
+     * again into two tips, each curving back along its own ring's laurel to where a branch ends. Every joint is
+     * tangent-smooth. Each half in its own ring's colour and fade.
      */
     fun drawJoin(cv: Canvas, lx: Float, rx: Float, cy: Float, r: Float, left: Int, right: Int) {
         val mx = (lx + rx) / 2; val my = cy + r * 0.15f   // where they join
-        val ty = cy - r * 0.62f                            // the top, level with a branch's tip
+        val sy = cy - r * 0.12f                            // where they split again
         val bright = if ((left ushr 24) >= (right ushr 24)) left else right
-        faded(cv, left) { c -> lower(cv, lx, cy, r, c, false, mx, my) }
-        faded(cv, right) { c -> lower(cv, rx, cy, r, c, true, mx, my) }
-        faded(cv, bright) { c -> cv.drawLine(mx, my, mx, ty, stem(r, c)); leaf(cv, mx, ty - r * 0.1f, -90f, r, c) }
-        // up the shared stem: leaves leaning up and out, each side in its ring's colour
-        for (f in floatArrayOf(0.2f, 0.5f, 0.8f)) {
-            val y = my + (ty - my) * f
-            faded(cv, left) { c -> leaf(cv, mx - r * 0.075f, y - r * 0.05f, -122f, r, c) }
-            faded(cv, right) { c -> leaf(cv, mx + r * 0.075f, y - r * 0.05f, -58f, r, c) }
+        faded(cv, left) { c -> lower(cv, lx, cy, r, c, false, mx, my); tip(cv, lx, cy, r, c, -1, mx, sy) }
+        faded(cv, right) { c -> lower(cv, rx, cy, r, c, true, mx, my); tip(cv, rx, cy, r, c, 1, mx, sy) }
+        faded(cv, bright) { c -> cv.drawLine(mx, my, mx, sy, stem(r, c)) }
+        val y = (my + sy) / 2
+        faded(cv, left) { c -> leaf(cv, mx - r * 0.075f, y - r * 0.05f, -122f, r, c) }
+        faded(cv, right) { c -> leaf(cv, mx + r * 0.075f, y - r * 0.05f, -58f, r, c) }
+    }
+
+    /**
+     * A tip from the split ([sx], [sy]) back to a ring's laurel circle at -30° / 210° ([q] = -1: the ring left of the gap,
+     * 1: right of it): it leaves going straight up and arrives along the circle, with an outer and an inner leaf per step.
+     */
+    private fun tip(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, q: Int, sx: Float, sy: Float) {
+        val th = Math.toRadians(if (q < 0) -30.0 else 210.0)
+        val sr = r * 1.25f
+        val ex = cx + sr * Math.cos(th).toFloat(); val ey = cy + sr * Math.sin(th).toFloat()
+        val dx = -q * Math.sin(th).toFloat(); val dy = q * Math.cos(th).toFloat()   // along the circle, upwards
+        val k = r * 0.2f
+        val c1x = sx; val c1y = sy - k; val c2x = ex - dx * k; val c2y = ey - dy * k
+        cv.drawPath(android.graphics.Path().apply { moveTo(sx, sy); cubicTo(c1x, c1y, c2x, c2y, ex, ey) }, stem(r, color))
+        for (t in floatArrayOf(0.4f, 0.85f)) {
+            val u = 1 - t
+            val bx = u * u * u * sx + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * ex
+            val by = u * u * u * sy + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * ey
+            val tx = 3 * u * u * (c1x - sx) + 6 * u * t * (c2x - c1x) + 3 * t * t * (ex - c2x)
+            val ty = 3 * u * u * (c1y - sy) + 6 * u * t * (c2y - c1y) + 3 * t * t * (ey - c2y)
+            val len = Math.hypot(tx.toDouble(), ty.toDouble()).toFloat()
+            val nx = q * ty / len; val ny = -q * tx / len   // away from the ring
+            val a = Math.toDegrees(Math.atan2(ty.toDouble(), tx.toDouble())).toFloat()
+            leaf(cv, bx + nx * r * 0.1f, by + ny * r * 0.1f, a - q * 32, r, color)
+            leaf(cv, bx - nx * r * 0.08f, by - ny * r * 0.08f, a + q * 32, r, color)
         }
     }
 
