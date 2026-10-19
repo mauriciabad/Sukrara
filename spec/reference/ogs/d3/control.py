@@ -1,7 +1,7 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""OGS draft 3 control plane (spec/draft3/ogs3-core.md C§8–C§9): invite links, the match code, and control
+"""OGS draft 3 control plane (ogs3-core.md C§8–C§9): invite links, the match code, and control
 messages carried in NIP-59 gift wraps (rumor kind 4079)."""
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""OGS draft 3 over Bluetooth LE (spec/draft3/ogs3-ble.md): derived service UUIDs, the HELLO/INFO handshake.
+"""OGS draft 3 over Bluetooth LE (ogs3-ble.md): derived service UUIDs, the HELLO/INFO handshake.
 The framing is draft 1's, unchanged (ogs.ble.split / Reassembler)."""
 from __future__ import annotations
 

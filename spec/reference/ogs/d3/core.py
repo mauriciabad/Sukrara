@@ -1,7 +1,7 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""OGS draft 3 core (spec/draft3/ogs3-core.md): the day-key tree, day material, blinded authors, records and
+"""OGS draft 3 core (ogs3-core.md): the day-key tree, day material, blinded authors, records and
 envelopes. Everything here is deterministic given its inputs; randomness is passed in (or drawn when omitted)."""
 from __future__ import annotations
 

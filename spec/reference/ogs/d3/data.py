@@ -1,7 +1,7 @@
 # CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""OGS draft 3 data model (spec/draft3/ogs3-data.md): record validation, row flags, trend, units."""
+"""OGS draft 3 data model (ogs3-data.md): record validation, row flags, trend, units."""
 from __future__ import annotations
 
 import re
