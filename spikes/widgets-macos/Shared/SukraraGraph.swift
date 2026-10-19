@@ -1211,13 +1211,16 @@ enum Laurel {
     private static func lower(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ m: CGPoint) {
         let s: CGFloat = isLeft ? 1 : -1
         let sr = r * 1.25
-        func on(_ deg: CGFloat) -> CGPoint { CGPoint(x: c.x + sr * cos(deg * .pi / 180), y: c.y + sr * sin(deg * .pi / 180)) }
-        let ctl = on(isLeft ? 168 : 12)
+        // up the branch (131° → 155°, or 49° → 25°), then in to the joint: a curve that leaves along the branch and
+        // arrives going straight up, so branch, joint and shared stem are one smooth line
+        let (a0, a1): (CGFloat, CGFloat) = isLeft ? (131, 155) : (49, 25)
+        let end = a1 * .pi / 180
+        let p0 = CGPoint(x: c.x + sr * cos(end), y: c.y + sr * sin(end))
+        let t = CGPoint(x: s * -sin(end), y: s * cos(end))   // the branch's direction, upwards
+        let reach = r * 0.16
         stroke(ctx, r, color) {
-            // up the branch (131° → 155°, or 49° → 25°), then in to the joint
-            let (a0, a1): (CGFloat, CGFloat) = isLeft ? (131, 155) : (49, 25)
-            $0.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: !isLeft)
-            $0.addQuadCurve(to: m, control: ctl)
+            $0.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: end, clockwise: !isLeft)
+            $0.addCurve(to: m, control1: CGPoint(x: p0.x + t.x * reach, y: p0.y + t.y * reach), control2: CGPoint(x: m.x, y: m.y + reach))
         }
         for k in 0..<3 {
             let a = isLeft ? 135 + 15 * CGFloat(k) : 45 - 15 * CGFloat(k)

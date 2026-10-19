@@ -184,12 +184,15 @@ object Laurel {
     private fun lower(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, mx: Float, my: Float) {
         val s = if (left) 1 else -1
         val sr = r * 1.25f
-        fun on(deg: Double) = Pair(cx + sr * Math.cos(Math.toRadians(deg)).toFloat(), cy + sr * Math.sin(Math.toRadians(deg)).toFloat())
-        val (ctlX, ctlY) = on(if (left) 168.0 else 12.0)
+        // up the branch (131° → 155°, or 49° → 25°), then in to the joint: a curve that leaves along the branch and
+        // arrives going straight up, so branch, joint and shared stem are one smooth line
+        val end = Math.toRadians(if (left) 155.0 else 25.0)
+        val p0x = cx + sr * Math.cos(end).toFloat(); val p0y = cy + sr * Math.sin(end).toFloat()
+        val tx = s * -Math.sin(end).toFloat(); val ty = s * Math.cos(end).toFloat()   // the branch's direction, upwards
+        val reach = r * 0.16f
         val path = android.graphics.Path().apply {
-            // up the branch (131° → 155°, or 49° → 25°), then in to the joint
             addArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else 49f, if (left) 24f else -24f)
-            quadTo(ctlX, ctlY, mx, my)
+            cubicTo(p0x + tx * reach, p0y + ty * reach, mx, my + reach, mx, my)
         }
         cv.drawPath(path, stem(r, color))
         for (k in 0 until 3) {
