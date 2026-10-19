@@ -1074,6 +1074,36 @@ upload design with Tidepool. Research, design and verification: [docs/25](25-nig
 | A per-reading outbox (the PoC's timestamp queue) | the phone's store is the queue, as in Tidepool: one design, nothing to keep in sync |
 | Mac uploader | the phone holds the store and uploads; the Mac would upload the same data twice |
 
+## Service and app icons (2026-10-19)
+
+The user's report: "use the service logo/app icon instead of generic icons; in AOSP Settings app icons look good, in
+mine the sizes are inconsistent". Cause: `AppIcon` / `PackageIcon` drew every app picture at 24 dp, round-cropped
+(`toBitmap(96)` + `CircleShape`), so adaptive icons lost their mask, legacy icons (xDrip+) were cut, and rows with a
+monochrome symbol (Health Connect, Nightscout) looked like features, not apps.
+
+**Added.** `ui/AppIcons.kt`: a Kotlin port of AOSP's `IconDrawableFactory.getBadgedIcon` + `LauncherIcons`
+(both `@hide`), what SettingsLib's `AppRepository` uses: `loadUnbadgedIcon`, the launcher shadow under an
+`AdaptiveIconDrawable` (device mask), `getUserBadgedIcon` for work profiles; drawn like SPA's `AppIcon` at
+`SettingsDimension.appIconItemSize` (32 dp) in the 40 dp icon slot, unclipped. Bundled icons load through the same
+path (a `PackageItemInfo` with Sukrara's resource, as Settings loads activity icons), so app and service icons can't
+differ in size. `AppIconsTest` guards it (bundled icons are adaptive or 48 dp legacy, drawn at 32 dp, no other
+icon loader in `ui/`, every service row uses its icon). Garmin Connect / Connect IQ are listed under *Apps on this
+phone* with the xDrip+ server's switch (`bridge/ServerReaders.kt`): the user had looked for Garmin there.
+
+| Row | Icon | Basis |
+|---|---|---|
+| Installed apps (Apps on this phone, Garmin Connect) | the app's own icon at runtime | the app's icon, shown as Settings does |
+| Health Connect | the system module's icon (`com.google.android.healthconnect.controller`); fallback `ic_app_health_connect`: the official logo on white | [Health Connect UI guidelines → Assets](https://developer.android.com/health-and-fitness/health-connect/ui/guidelines): official download, "on a white or a very light gray background"; unchanged |
+| Juggluco (Glucose source) | installed app's icon; fallback `ic_app_juggluco` = Juggluco's own adaptive launcher layers | [Juggluco](https://github.com/j-kaltes/Juggluco), GPL-3.0 (same licence as Sukrara); copied unchanged |
+| xDrip+ (server row) | installed app's icon; fallback `ic_app_xdrip` = xDrip+'s legacy `drawable-xxxhdpi/ic_launcher.png` | [xDrip](https://github.com/NightscoutFoundation/xDrip), GPL-3.0; unchanged |
+| Nightscout (API switch + upload row) | `ic_app_nightscout`: the owl, black on white | the mark the project ships in its AGPL-3.0 app ([cgm-remote-monitor](https://github.com/nightscout/cgm-remote-monitor) `static/images/large.png`); vector from the project's own [NS-logo.svg](https://github.com/nightscout/HackDiabetes/tree/main/videos/logo-animation), shapes and colour unchanged |
+| LibreView | `ic_app_libreview`: the favicon's sensor + bars on LibreView blue, traced (the site publishes only a 32 px favicon) | Abbott's site terms allow its marks "to identify the product or services of the company"; used only on the row that names LibreView, colours and shapes as the favicon |
+| Tidepool | `cloud_upload` Material Symbol | [Tidepool's terms](https://developer.tidepool.org/terms-of-use/): its logos "are not licensed … You must not use such marks without the prior written permission of Tidepool" |
+
+**Left out.** The Abbott mark on the "Libre 3 directly" source stays the 24 dp monochrome symbol (a sensor, not an
+app); feature rows (Bluetooth, Nostr, GitHub…) keep 24 dp symbols as in AOSP. The Mac app shows no service icons
+(its settings are plain SwiftUI forms), so nothing changed there. Screenshots: `docs/img/icons/`.
+
 ## Next
 
 - Widget cost on the phone in investigation 11's lab (both roles).

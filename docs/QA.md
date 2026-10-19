@@ -160,6 +160,14 @@ Cheap tools:
       Allow → `Sukrara.health backfill N`, Health Connect → Blood glucose lists Sukrara entries, one per minute.
 - [ ] Off → On again: the `wrote …` ids repeat the first run's ids; still one entry per minute in Health Connect.
 - [ ] Spanish: the two groups and summaries are translated.
+- [ ] Icons: open Settings → Apps → All apps beside Share with apps. GlucoDataHandler (adaptive), xDrip+ (legacy) and
+      Health Connect have the same size, shape and shadow in both; LibreView, Nightscout (switch and upload row) and
+      Juggluco (Glucose source, with Juggluco not installed) show their logos at that size; Tidepool shows the
+      cloud symbol. Same in dark theme.
+- [ ] Garmin Connect (or a stub app with package `com.garmin.android.apps.connectmobile`) installed: it appears under
+      *Apps on this phone* with "Reads your glucose through the xDrip+ server"; its switch turns the xDrip+ server
+      on/off, and the server row says "read by Garmin Connect". Without any receiver or Garmin app the group says
+      "… Garmin watches read the xDrip+ server below."
 
 ## Q15 Data export
 

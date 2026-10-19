@@ -1169,6 +1169,7 @@
     <string name="apps_xdrip">Servidor de xDrip+</string>
     <string name="apps_xdrip_summary">Para esferas y campos de datos de Garmin · %1$s</string>
     <string name="apps_xdrip_last_asked">última consulta: %1$s</string>
+    <string name="apps_xdrip_read_by">lo lee %1$s</string>
     <string name="apps_nightscout">API compatible con Nightscout</string>
     <string name="apps_nightscout_summary">Para Home Assistant, Nightguard y relojes</string>
     <string name="apps_nightscout_lan">También en esta red Wi‑Fi</string>
@@ -1177,8 +1178,9 @@
     <string name="apps_show_secret">Mostrar el secreto de la API</string>
     <string name="apps_secret_title">Secreto de la API</string>
     <string name="apps_phone_group">Apps de este móvil</string>
-    <string name="apps_phone_none">Ninguna app de este móvil escucha emisiones de glucosa</string>
+    <string name="apps_phone_none">Ninguna app de este móvil escucha emisiones de glucosa. Los relojes Garmin leen el servidor de xDrip+ (más abajo).</string>
     <string name="apps_phone_needs_direct">Solo mientras Sukrara lee el sensor</string>
+    <string name="apps_phone_via_server">Lee tu glucosa a través del servidor de xDrip+</string>
     <plurals name="apps_phone_summary">
         <item quantity="one">%d app</item>
         <item quantity="other">%d apps</item>
