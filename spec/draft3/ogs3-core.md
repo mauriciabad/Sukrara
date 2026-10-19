@@ -152,6 +152,14 @@ construction as Tor's v3 onion-service key blinding (a long-term key tweaked by 
 BIP-341 key tweaking. BIP-340 commits the public key in every signature challenge, which is what makes signatures
 under related keys safe.
 
+Implementation notes:
+- `author` is libsecp256k1's `secp256k1_xonly_pubkey_tweak_add`, and the secret is
+  `secp256k1_keypair_xonly_tweak_add` (rust `XOnlyPublicKey::add_tweak` / `Keypair::add_xonly_tweak`; on platforms
+  that only offer `privkey_negate` and `privkey_tweak_add`, negate first when `p·G` has odd y). Those functions refuse
+  a tweak ≥ n instead of reducing it; the difference occurs with probability about 2⁻¹²⁸.
+- Sign with BIP-340's default nonce derivation over the **blinded** secret (fresh auxiliary randomness RECOMMENDED).
+  Never derive nonces from the unblinded key or reuse a nonce across lanes or days.
+
 ## C§6 Records
 
 ### C§6.1 Format
@@ -214,6 +222,9 @@ never overwrite each other's objects.
 
 - An envelope carries exactly one record. Its author is `author(P, lane_of(record.type))` for the record's day,
   where `P` is the record's author, or a publisher device republishing it (C§10.1 step 8).
+- **Which epoch.** A record is published under the current epoch when that epoch's range contains the record's day.
+  Otherwise (a day before the current epoch's start) it goes under the newest epoch whose range contains the day and
+  whose last day (C§11.2) is not before it. Nothing is published under an ended epoch for a day after its last day.
 - `created_at` MUST strictly increase per object (author, `d`): relays refuse an addressable replacement that isn't
   newer. A publisher that writes an object twice in one second bumps `created_at` by one.
 - The tags are `d` and `expiration`, in that order, plus OPTIONAL `["-"]` (NIP-70, N§3.3). Nothing else: no `p`,
@@ -246,13 +257,13 @@ Receivers MUST drop an envelope whose expiration has passed, whatever transport 
 ### C§8.1 Invite text
 
 ```
-payload = base64url_nopad( 0x03 ‖ I.pub[0:8] ‖ s )          s = 16 random bytes → 34 characters
-text    = "ogs:" payload [ "@" host *( "," host ) ]          e.g.  ogs:A64LoP_BDtJ4Fk_0ZjnhVFrHWiGvLe-d_A@nos.lol
+payload = base64url_nopad( 0x03 ‖ I.pub[0:12] ‖ s )         s = 12 random bytes → 34 characters
+text    = "ogs:" payload [ "@" host *( "," host ) ]          e.g.  ogs:A64LoP_BDtJ4alPhMRZP9GY54VRax1ohrw@nos.lol
 web     = "https://" any-host "/" any-path "#" text          the fragment never reaches the web server
-token   = base64url_nopad(s)                                 22 characters
+token   = base64url_nopad(s)                                 16 characters
 ```
 
-- The text holds the identity's 8-byte **fingerprint**, the invite **secret** and OPTIONAL **relay hints**
+- The text holds the identity's 12-byte **fingerprint**, the 12-byte invite **secret** and OPTIONAL **relay hints**
   (hostnames of relays where the invite message is, meaning `wss://host`). Nothing else: the expiry, the offer and
   the wearer's profile are inside the invite message.
 - A receiver MUST accept the `ogs:` form and the `https://…#ogs:` form on any host, and MUST reject a version byte
@@ -278,7 +289,8 @@ expiry (at least now + 60 s):
 - `offer`: what the joiner will get, so the joiner sees it before asking.
   - `scopes`: C§9.3.
   - `back`: whole days of history before the day of approval (0 = from that day).
-  - `days`: the access duration in days from the day of approval, or `null` for open-ended.
+  - `days`: the access duration, or `null` for open-ended. Access ends with the UTC day `approval day + days`, so it
+    always lasts at least `days` × 24 hours, wherever in the UTC day the approval falls.
   - `auto` and `multi`: C§8.7.
 - The joining app accepts the message only if:
   - it opens with the invite key;
@@ -287,7 +299,9 @@ expiry (at least now + 60 s):
   - `x` is in the future.
 
   It then shows who is inviting and what is offered. The fingerprint check stops anyone else who holds the text from
-  pointing the joiner at their own identity: matching 8 bytes of a key costs about 2⁶⁴ work, and invites last hours.
+  pointing the joiner at their own identity (and feeding a carer made-up glucose): matching 12 bytes of a key costs
+  about 2⁹⁶ work. 8 bytes (2⁶⁴) would not be enough here, because `I` lives as long as the stream, so the grinding is
+  a one-time cost per target that every later invite, including months-long standing ones, would share.
 
 ### C§8.4 Join
 
@@ -329,13 +343,18 @@ The joining app shows it. The administrator's app shows the code of the join it 
 An invite with `"multi": true` can be claimed by several joiners. With `"auto": true` it is approved without a
 human. Together they make an **emergency invite**: printed on a medical card or shown on a lock screen, so a
 paramedic or a school can see the glucose when the wearer can't approve anything. Rules:
-- The offer MUST NOT include `write` or `manage`. It SHOULD have `back` ≤ 1 and `days` ≤ 1.
+- An invite with `auto` MUST have no scopes: an anonymous holder of the card must not be able to write entries or
+  acknowledge alerts (an `ack` can make publishers stop repeating an alert that carers rely on). Administrators MUST
+  refuse to create such an invite. It SHOULD have `back` ≤ 1 and `days` ≤ 1.
 - Each automatic approval MUST notify the wearer, and SHOULD notify members with the `manage` scope.
 - The administrator SHOULD rate-limit approvals per standing invite (RECOMMENDED: 3 a day) and MUST let the wearer
-  revoke the invite (forget the token) at any time.
+  revoke the invite (forget the token) at any time. The limit is a trade-off: whoever holds the card can also use it
+  up for the day.
 - The invite message's `expiration` can be long (months). The administrator republishes it before it expires.
+- It works only while the administrator's device is online, because that device approves the join.
 
-Whoever photographs the card can read the stream for a day. That is the trade-off the wearer accepts by enabling it.
+Whoever photographs the card can read the stream for a day or two. That is the trade-off the wearer accepts by
+enabling it.
 
 ## C§9 Control messages
 
@@ -374,18 +393,25 @@ keys are the only stream keys that appear on relays (as `p` tags), and each last
 
 ```json
 {"type":"grant","current":"<epoch id>",
- "epochs":[{"id":"<epoch id>","start":<day>,"depth":10,"cover":[{"l":9,"i":1,"k":"<hex>"},…]},…],
- "grant":{"scopes":["write"],"from":<day>,"to":<day>|null},
- "membership":<the current membership record (C§6.1), signed by I>}
+ "epochs":[{"id":"<epoch id>","start":<day>,"depth":10,"cover":[{"l":9,"i":1,"k":"<hex>"},…],
+            "membership":<that epoch's newest membership record (C§6.1), signed by I>},
+           {"id":"<older epoch id>","start":<day>,"depth":10,"cover":[…],"end":<its last day>,
+            "membership":<its last membership record>},…],
+ "grant":{"scopes":["write"],"from":<day>,"to":<day>|null}}
 ```
 
 - `epochs` lists every epoch whose days overlap the grant window and that holds data the member may read: the current
-  one, covering `from … to`, or to its end when `to` is `null`; and older ones, covering the overlap up to the day of
-  their last use. An older epoch's cover MUST NOT reach beyond the day it was replaced.
-- `membership` lets the member authenticate publishers immediately, before it fetches anything.
-- A member MUST accept a grant only from `I` and only with a valid membership record signed by `I` for the `current`
-  epoch. Grants add: a member keeps every node it has received. A grant whose rumor `created_at` is not later than
-  the last `ended` it received is ignored.
+  one, covering `from … to`, or to its end when `to` is `null`; and older ones, covering the overlap up to their
+  last day (C§11.2), which they carry as `end`. Only older epochs have `end`.
+- Each epoch carries its newest `membership`, so the member can authenticate that epoch's publishers at once, before
+  it fetches anything, and even after the membership envelopes have expired from relays (a clinician's 90-day
+  history).
+- A member MUST accept a grant only from `I`, and only if every listed epoch has a valid membership record signed
+  by `I` for that epoch. Grants add: a member keeps every node it has received, except that it never keeps seeds of
+  an ended epoch beyond its `end` (C§11.2). It keeps the highest `seq` per epoch.
+- `grant` and `ended` are ordered by their rumor `created_at` (C§10.2).
+- A grant must fit NIP-44's 65 535-byte plaintext inside the seal and again inside the wrap (about 45 KB of JSON).
+  An administrator that needs more (many epochs) sends several grants: they add.
 
 ### C§9.3 Membership
 
@@ -415,9 +441,11 @@ epoch:
 For each wrap on one of its inboxes, deduplicated by wrap `id`:
 - **join:** C§8.6.
 - **rekey:** an active member gets a fresh grant; a removed one gets `ended`.
-- **history:** only from an active member, and only for days inside its window and not after today. The
-  administrator republishes those days as `cgm` day archives (D§4.3), plus the entries of those days, under an epoch
-  the member holds. Nothing is sent privately. Rate limit: RECOMMENDED one request per member per 10 minutes.
+- **history:** only from an active member, only for days inside its window and not after today, and at most 31
+  days per request. The administrator republishes those days as `cgm` day archives (D§4.3), plus the entries of
+  those days, under an epoch the member holds (C§7.1). Nothing is sent privately. Rate limit: RECOMMENDED one request
+  per member per 10 minutes. A member can't read a day it has punctured (C§11.4): it requests history before it
+  punctures.
 - **profile, inbox:** update the member's record.
 - **leave:** remove the member (C§11.2) without an `ended` notice.
 - **link:** C§11.8. **manage:** C§11.9.
@@ -456,10 +484,14 @@ In this order (the reference returns the reason shown in brackets, and the test-
 1. Deduplicate by wrap `id`. Drop expired wraps. Only wraps whose `p` is the member's inbox.
 2. Unwrap per NIP-59. The rumor kind is 4079. The seal's signer must be `I`, as learnt from the invite →
    otherwise *reject* [`not-from-identity`].
-3. **grant:** C§9.2. The member becomes active. **ended:** the member stops accepting envelopes, keeps what it has,
-   and remembers the rumor time, so an older grant can't revive it.
-4. **After an `epoch_end`** record of its current epoch (C§11.2), a member waits up to 2 minutes for a grant of a
-   newer epoch. If none arrives, it sends `rekey`. At most one `rekey` per 5 minutes.
+3. **grant:** C§9.2. The member becomes active. **ended:** the member stops accepting envelopes and keeps what it has.
+   The two are ordered by rumor `created_at`, never by arrival, because relays can deliver them in any order and
+   again after a restart: a grant not later than the last `ended` is ignored [`grant-before-ended`], and an `ended`
+   earlier than the last accepted grant is ignored [`ended-before-grant`]. On equal times `ended` wins.
+4. **An `epoch_end`** record, or a grant giving an epoch an `end`, ends that epoch for the member: it cuts its cover
+   at the last day (`day(at)`, or `end`; the earlier if both), and stops computing authors beyond it (C§11.2).
+5. **After an `epoch_end`** of its current epoch, a member waits up to 2 minutes for a grant of a newer epoch. If none
+   arrives, it sends `rekey`. At most one `rekey` per 5 minutes.
 
 ### C§10.3 Who may write what
 
@@ -471,7 +503,9 @@ In this order (the reference returns the reason shown in brackets, and the test-
 | `membership`, `epoch_end` | | | | ✓ |
 | unknown types | ✓ | ✓ | | |
 
-A member's rights apply only to records whose day is inside its `from … to` in the membership.
+A member's rights apply only to records whose day is inside its `from … to` in the membership. Rights come from
+the newest membership of the envelope's epoch (C§10.1 step 12). A key removed from it loses them for every record in
+that epoch, including records signed before the removal that a member receives only later.
 
 ### C§10.4 Contributors
 
@@ -491,16 +525,20 @@ any other envelope. A publisher device MAY republish a member's record, unchange
 - **`sensor`** per `sess`, **`device`** per author, **`settings`** per stream and **`alert`** per `id`: the greater
   `rev` wins.
 - **`ack`** per (alert, author): the newest `created_at` wins.
-- **`membership`** per epoch: the greater `seq` wins.
+- **`membership`** per epoch: the greater `seq` wins. The administrator never publishes two different memberships
+  with the same `seq`.
+- **Ties.** When two versions compare equal on the rules above (two devices publishing `settings` with the same
+  `rev`, two series with the same `created_at`), the record with the greater `id` (lowercase hex) wins.
 
-All replicas converge whatever order envelopes arrive in.
+All replicas converge whatever order envelopes arrive in. (One exception, by design: a member that receives a
+removed key's records only after the removal rejects them, while one that got them earlier keeps them. C§10.3.)
 
 ## C§11 Lifecycle
 
 ### C§11.1 Adding a member
 
 On Allow, the administrator:
-1. records the member: key, inbox, scopes, `from` = approval day − `back`, `to` = approval day + `days` − 1 or none;
+1. records the member: key, inbox, scopes, `from` = approval day − `back`, `to` = approval day + `days` or none;
 2. if the member has a scope, increments `seq` and publishes the membership;
 3. sends a grant (C§9.2).
 
@@ -509,16 +547,24 @@ No rotation is needed: the new member only gets nodes for its window.
 ### C§11.2 Removing a member (rotation)
 
 1. Mark the member removed.
-2. Publish, in the **old** epoch, an `epoch_end` record (`{"type":"epoch_end","at":<now>}`) signed by `I`.
-3. Start a new epoch (C§4.1) with a new administrator inbox.
-4. Publish its membership (`seq` 1), without the removed member.
-5. Send a grant for the new epoch to every remaining member, and SHOULD send `ended` (`reason: "removed"`) to the
-   removed one.
-6. Publish from now on under the new epoch.
+2. If the removed key is listed in the old epoch's membership (a device or a contributor), publish in the **old**
+   epoch a last membership (`seq` + 1) without it.
+3. Publish, in the old epoch, an `epoch_end` record (`{"type":"epoch_end","at":<now>}`) signed by `I`. The epoch's
+   **last day** is `day(at)`.
+4. Start a new epoch (C§4.1) with a new administrator inbox.
+5. Publish its membership (`seq` 1), without the removed member.
+6. Send a grant (C§9.2) to every remaining member: the new epoch, and the old one with `end` and its last membership.
+   SHOULD send `ended` (`reason: "removed"`) to the removed one.
+7. Publish from now on under the new epoch, and never again under the old one for a day after its last day.
 
-The removed member keeps what it could already read: the old epoch up to the end of its cover. Removal is about the
-future. It can't recognise anything published under the new epoch: new blinded authors, new `d` tags, new BLE
-identifiers.
+A member that learns that an epoch ended, from `epoch_end` or from a grant, cuts that epoch's cover at the last day
+(C§10.2). This matters because covers handed out before the rotation reach the epoch's end, up to three years ahead,
+and the removed member, or a lost phone, still holds those seeds and its own signing key. Without the cut and the
+last membership, it could keep publishing entries, or glucose, into the old epoch, and the remaining members would
+accept them. With both, nothing it signs in the old epoch is recognised: its blinded authors are no longer computed.
+
+The removed member keeps what it could already read: the old epoch up to its cover. Removal is about the future. It
+can't recognise anything published under the new epoch: new blinded authors, new `d` tags, new BLE identifiers.
 
 The administrator MUST rotate:
 - when it removes a member or a publisher device;
@@ -536,9 +582,13 @@ rotation is needed.
 ### C§11.4 Forward secrecy for members (puncturing)
 
 A member SHOULD delete key material for days it no longer needs: replace each cover node by the sub-nodes that cover
-only days ≥ the first day it keeps (RECOMMENDED: today − 2), and erase the rest. After that, a compromise of the
-member's device exposes no older envelope still stored on relays. Whether to keep the decrypted history is the app's
-own business (S§5).
+only days ≥ the first day it keeps, and erase the rest. After that, a compromise of the member's device exposes no
+older envelope still stored on relays. Whether to keep the decrypted history is the app's own business (S§5).
+
+The first day it keeps is the start of its **edit window** (RECOMMENDED: today − 7): the days whose entries can still
+be edited and that it watches on relays (N§4.1). Puncturing earlier would make edits and history republications of
+those days unreadable. A member that wants older history (a clinician) backfills or requests it (C§9.4) first, and
+punctures after.
 
 ### C§11.5 Scheduled rotation (post-compromise security)
 
@@ -569,7 +619,8 @@ giving the same scopes and window. Each device stays a separate member key, so i
 ### C§11.9 Delegated management (OPTIONAL)
 
 A member with `manage` MAY send:
-- `manage` `{"op":"remove","k":…}`: the administrator removes that member;
+- `manage` `{"op":"remove","k":…}`: the administrator removes that member (only a member: never a publisher device
+  or `I`);
 - `manage` `{"op":"invite","offer":{…}}`: the administrator creates an invite and answers with `invite-link`.
 
 The administrator MAY ask its own human first. It MUST NOT grant `manage` through such a request. This is how two
@@ -602,8 +653,12 @@ manager, or with C§13) is RECOMMENDED.
 
 An administrator MAY keep its state on relays so a new phone, or another app, can take the stream over from `I`
 alone:
-- author: `derive_scalar(I.sec, "ogs3/backup", "author")`;
-- kind 31078, `d` = `"backup"`;
+- period: `q = floor(day / 30)`;
+- author: `derive_scalar(I.sec, "ogs3/backup", "author/" + q)` (decimal `q`), so the backup's key changes every 30
+  days instead of being one key that publishes for years;
+- kind 31078, `d` = `hex(HMAC(HKDF(I.sec, "ogs3/backup", "d", 32), "ogs3/backup/" + q))[0:32 chars]`, opaque like
+  every other `d` tag (a literal `"backup"` would let anyone list every OGS administrator);
+- a new phone looks for the current and the previous three periods;
 - content: NIP-44 with the conversation key `HKDF(I.sec, "ogs3/backup", "key", 32)`, holding
   `{"type":"backup","epochs":[{"id","start","root"}],"inboxes":{"<epoch id>":"<hex secret>"},"members":[…],
   "invites":[…],"devices":["<D>"],"profile":{…},"relays":[…]}`;
@@ -617,10 +672,11 @@ Another app taking over MUST rotate. Draft 3 has no test vector for the backup y
 - the tree: two epochs, 5 covers, the material of two days, blinded authors and a blinded secret, `d` tags, a
   punctured cover;
 - the invite (three text forms) and 3 invite checks;
-- 40 events with every wrap's plaintext;
+- 44 events with every wrap's plaintext;
 - 3 administrator checks (join, claimed, unknown token);
-- a **38-step acceptance scenario** with the expected verdict per step and the final state;
-- Bluetooth identifiers, `HELLO`/`INFO` and frames at 3 MTUs;
+- a **42-step acceptance scenario** with the expected verdict per step and the final state, including a removed
+  writer and a stale publisher signing in an ended epoch, and an `ended` older than the newest grant;
+- Bluetooth identifiers, `HELLO`/`INFO`/`AUTH` and frames at 3 MTUs;
 - the informative bridge mappings.
 
 Every key, nonce and timestamp is pinned, so an implementation can reproduce the events byte for byte, not only

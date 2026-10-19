@@ -28,7 +28,8 @@ current state of the art ([rationale.md](rationale.md)), and breaks compatibilit
 | [conformance.md](conformance.md) | **Checklist** per class: reader, contributor, publisher, administrator, nearby, bridge, portable |
 | [rationale.md](rationale.md) | **Requirements and decisions**: what was considered, what was chosen and why, and what the state-of-the-art review changed |
 | [migration-from-draft1.md](migration-from-draft1.md) | **What changed** for apps that implemented draft 1 |
-| [test-vectors/ogs-draft3.json](test-vectors/ogs-draft3.json) | **Vectors**: tree, covers, day material, blinded authors, invite, 40 events with plaintexts, a 38-step acceptance scenario, administrator checks, Bluetooth, bridges |
+| [review (docs/24c)](../../docs/24c-draft3-review.md) | **Independent review** of draft 3 and what it changed |
+| [test-vectors/ogs-draft3.json](test-vectors/ogs-draft3.json) | **Vectors**: tree, covers, day material, blinded authors, invite, 44 events with plaintexts, a 42-step acceptance scenario, administrator checks, Bluetooth, bridges |
 
 ## The model in one screen
 
@@ -40,14 +41,14 @@ current state of the art ([rationale.md](rationale.md)), and breaks compatibilit
 
  every record is signed by its author (I, a wearer device D, or a member M)            ← authority
  every envelope (kind 31078) is signed by author(P, lane) = P blinded per day          ← unlinkable, unforgeable
-   relays see:  new pubkey each day · opaque d · expiration · ciphertext · nothing else
+   relays see:  new pubkey each day · opaque d · expiration · ciphertext · (and timing, sizes, IPs: S§3)
 ```
 
 Principles:
 1. **The record is the authority.** Its author signs it, and that signature travels with it on relays, Bluetooth and
    in exports. Where a copy came from earns it no trust.
 2. **No public identity.** Stream keys never publish anything public, and no identifier is in the data. Keys seen
-   on relays change every day.
+   on relays change every day (which hides content links between days, not traffic patterns: S§2).
 3. **Consent has a shape.** An invite says what it offers. A grant is a range of days. Removal rotates the keys.
 4. **Relays are a pipe.** Everything expires within days to weeks. Members keep their own history.
 5. **Reuse before inventing.** NIP-01, 40, 42, 44, 59 (and optionally 70, 77); HMAC and HKDF. The two
@@ -57,9 +58,9 @@ Principles:
 
 ```sh
 cd spec/reference
-uv run ogs d3 vectors verify        # tree, day material, authors, invite, wraps, owner checks, BLE, 38-step scenario
+uv run ogs d3 vectors verify        # tree, day material, authors, invite, wraps, owner checks, BLE, 42-step scenario
 uv run python -m unittest discover tests
-uv run ogs d3 e2e                   # live: owner + reader + writer on public relays, removal and rotation (~75 s)
+uv run ogs d3 e2e                   # live: owner + reader + writer on public relays, two removals and rotations (~50 s)
 ```
 
 ## Status and naming

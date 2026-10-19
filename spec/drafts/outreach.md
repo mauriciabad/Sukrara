@@ -8,7 +8,7 @@ Before sending, adapt them to draft 3:
 - "Sukrara implements it" becomes "a Python reference implements it, and Sukrara (which speaks draft 1) plans to
   move to it";
 - "a 63-character invite link" becomes "an `ogs:` invite";
-- the scenario has 38 steps;
+- the scenario has 42 steps;
 - the new selling points are time-limited grants, carers' alert acknowledgements, and no constant identifier on
   relays or over Bluetooth.
 

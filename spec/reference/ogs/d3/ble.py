@@ -38,11 +38,22 @@ def hello(nonce: str, since: int) -> list:
 
 
 def proof(dk: DayKeys, nonce: str) -> str:
+    """B§5: the publisher's proof that it holds the day key, over the member's nonce."""
     return hmac256(dk.ble_key, f"ogs3/ble/info/{nonce}".encode()).hex()[:32]
 
 
-def info(dk: DayKeys, nonce: str) -> list:
-    return ["INFO", {"nonce": nonce, "proof": proof(dk, nonce)}]
+def info(dk: DayKeys, nonce: str, challenge: str) -> list:
+    return ["INFO", {"nonce": nonce, "proof": proof(dk, nonce), "challenge": challenge}]
+
+
+def auth_proof(dk: DayKeys, challenge: str, nonce: str) -> str:
+    """B§5: the member's proof, over the publisher's challenge and its own nonce. Until it verifies, the publisher
+    sends nothing but INFO and accepts nothing but AUTH (B§6)."""
+    return hmac256(dk.ble_key, f"ogs3/ble/auth/{challenge}/{nonce}".encode()).hex()[:32]
+
+
+def auth(dk: DayKeys, challenge: str, nonce: str) -> list:
+    return ["AUTH", {"proof": auth_proof(dk, challenge, nonce)}]
 
 
 def pairing_info(nonce: str, invite: str) -> list:

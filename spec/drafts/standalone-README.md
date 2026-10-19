@@ -51,7 +51,7 @@ Reused: NIP-01, NIP-40, NIP-42, NIP-44 v2, NIP-59 (optionally NIP-70 and NIP-77)
 | [spec/conformance.md](spec/conformance.md) | checklists per implementation class |
 | [spec/rationale.md](spec/rationale.md) | requirements, decisions, state of the art |
 | [spec/migration-from-draft1.md](spec/migration-from-draft1.md) | changes since draft 1 |
-| [test-vectors/ogs-draft3.json](test-vectors/ogs-draft3.json) | deterministic vectors and a 38-step acceptance scenario |
+| [test-vectors/ogs-draft3.json](test-vectors/ogs-draft3.json) | deterministic vectors and a 42-step acceptance scenario |
 | [reference/](reference) | independent Python implementation (standard-library crypto) |
 
 ## Try the reference

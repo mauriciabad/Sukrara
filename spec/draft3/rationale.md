@@ -92,7 +92,10 @@ Each decision gives what was considered, what was chosen and why, and how it dif
 - **Why:**
   - It keeps addressable replacement and author-based filtering (spam resistance).
   - Members can't overwrite each other.
-  - Days can't be linked.
+  - No field links days, and removed members can't recognise new traffic.
+- **Limit (review 24c):** days are unlinkable by content, not by behaviour. A relay sees a member's subscription span
+  several days, and a once-a-minute rhythm continues across midnight under the next key. The construction still
+  earns its keep for the first two reasons and for removed members; S§2 states the limit.
 - **vs draft 1:** draft 1's opaque `d`/`c` tags came from a `sid` that never rotated, and its authors were in the
   clear.
 
@@ -241,4 +244,7 @@ stable.
 - **Owner backup** test vectors and a takeover test between two implementations (C§13).
 - **Kind registration**, after a second independent implementation.
 - **Cover traffic**: whether a fixed publishing schedule (S§3) should become a SHOULD.
+- **Adding a publisher device** from another vendor (a watch that publishes) has no interoperable channel for the
+  epoch roots yet (C§11.6). A grant whose cover is the root node, sent after an ordinary invite, would do it with
+  nothing new; it needs a decision on who may hold roots.
 - **CGMS bridge** octet order, still to check against a real collector (draft 1 P14).

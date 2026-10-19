@@ -36,11 +36,11 @@ adversaries who watch the wearer's network directly (use Tor).
 | Confidentiality of content | NIP-44 v2 with day keys only grant holders can compute (C§5) | A1, A2, A3 after rotation, A5, A6 |
 | Authenticity, integrity | every record signed by its author; authority chain `I` → membership → devices and contributors (C§10) | everyone; a member can't impersonate the wearer or another member |
 | Unlinkability to a person | stream keys never publish anything public; no profile, serial or account id on the wire (S§10, D§1) | A1, A2, A6 |
-| Unlinkability over time | blinded authors and `d` tags change daily; inbox keys per epoch and per invite; BLE UUIDs every 15 minutes and every day (C§5.3, B§3) | A1, A2, A6 across days; within a day, events link |
+| Unlinkability over time | blinded authors and `d` tags change daily; inbox keys per epoch and per invite; BLE UUIDs every 15 minutes and every day (C§5.3, B§3) | **by content only.** No field links one day's envelopes to the next, for anyone. Behaviour still links them: a relay (A2) sees one connection publish or subscribe to several days' authors, and an onlooker (A1) can follow a once-a-minute rhythm across midnight while few OGS streams exist. Within a day, events link. Against A3 after rotation it holds fully. |
 | Consent | explicit human Allow, a typed code for nearby joins, an offer shown before joining, single-claim invites (C§8) | A5 |
 | History scope | a cover starts at the agreed first day (C§4.4) | A4 can't read before its window |
 | Time-limited access | a cover ends on the agreed day, with no action needed (C§11.3) | A4 after the end |
-| Revocation | rotation: new tree, new authors, new inboxes, new BLE identifiers (C§11.2) | A3 for everything published after it |
+| Revocation | rotation: new tree, new authors, new inboxes, new BLE identifiers; the old epoch ends with a last membership and is cut at its last day (C§11.2) | A3 for everything published after it, and A3/A7 can't write into the old epoch either |
 | Forward secrecy (relay-stored data) | members puncture their covers (C§11.4) | A7 on a member device: relay copies of punctured days stay closed |
 | Post-compromise security | scheduled rotation every ≤ 30 days (C§11.5) | an attacker with leaked seeds but no lasting device access |
 | Contributor scope | entries keyed by creator; only creator or wearer devices edit (C§10.5) | A4 can't change the wearer's entries |
@@ -50,8 +50,8 @@ adversaries who watch the wearer's network directly (use Tor).
 
 | To whom | What |
 |---|---|
-| relays and onlookers | that some participant publishes about once a minute (a CGM-like rhythm), event sizes in 256-byte steps and NIP-44 buckets, the number of publishers per day (distinct authors), when lane-`r` records appear (possibly treatment or alert times; the 15-minute `device` refresh masks them only partly), and when wraps are sent |
-| relays | client IP addresses; which authors each connection subscribes to, so relays can group a member's subscription by day. A relay that sees the wearer's IP publishing and a member's IP subscribing to the same authors learns that those two IPs are linked. |
+| relays and onlookers | that the traffic is OGS (kind 31078 is used by nothing else), so how many streams exist; that some participant publishes about once a minute (a CGM-like rhythm) and, by continuity of that rhythm across UTC midnight, which keys are the same stream on consecutive days; event sizes in 256-byte steps and NIP-44 buckets, the number of publishers per day (distinct authors), when lane-`r` records appear (possibly treatment or alert times; the 15-minute `device` refresh masks them only partly), and when wraps are sent |
+| relays | client IP addresses; which authors each connection publishes and subscribes to. A member's subscription lists several days' authors in one REQ, so it links those days for that relay; the publisher's connection does the same at midnight. A relay that sees the wearer's IP publishing and a member's IP subscribing to the same authors learns that those two IPs are linked. |
 | a member | everything its grant covers; the publishers and contributors (keys, not names) in the membership; the wearer's profile |
 | a removed member | what it could read before; that the stream continues (it sees relay traffic like anyone), but not which events are the stream's |
 | a push server (N§9) | a member's filter for the days it was given |
@@ -70,8 +70,8 @@ Cover traffic beyond that is not specified.
 
 | Lost key | Effect | Recovery |
 |---|---|---|
-| a member's device (`M`, inbox, cover) | the attacker reads what that member could, until removal or the end of the cover; it can write within the member's scopes | remove the member (rotate) |
-| a publisher device (`D`, epoch roots) | the attacker reads the epoch and can publish as that device | remove the device (rotate); the old `D` is no longer in the new membership |
+| a member's device (`M`, inbox, cover) | the attacker reads what that member could, until removal or the end of the cover; it can write within the member's scopes | remove the member (rotate); the last membership of the old epoch drops it and members cut the old epoch at its last day, so it can't write there either (C§11.2) |
+| a publisher device (`D`, epoch roots) | the attacker reads the epoch and can publish as that device | remove the device (rotate); the old `D` is in neither the new membership nor the old epoch's last one |
 | the administrator (`I`) | the attacker controls the stream: it can grant itself, remove others and rotate | none within the protocol; members must be re-invited under a new identity. Keep `I` in hardware-backed storage (Android Keystore, Apple Keychain/Secure Enclave), and its backup offline. |
 | an epoch root alone (a backup leak) | reads that epoch | rotate |
 | an unused invite text | the holder can ask to join; the wearer still decides, the code is checked, and the invite expires | let it expire, or forget the token |
@@ -100,6 +100,9 @@ A member is trusted to read, not to be honest. It can:
   receivers one decryption;
 - with `write`, add false entries attributed to itself: they are signed by it, and the wearer sees who wrote them;
 - republish old envelopes (replay): they deduplicate and merge by version, so a replay changes nothing.
+- after its removal, still sign records in the old epoch with the seeds it kept: nobody recognises them, because the
+  old epoch's last membership doesn't list it and members cut the epoch at its last day (C§11.2). Its records that
+  a member receives only after the removal are rejected too.
 
 It cannot:
 - impersonate the wearer, a device or another member;
@@ -113,7 +116,8 @@ It cannot:
 - Signed `created_at`, `rev` and `seq` order versions. A replayed older version loses the merge (C§10.5).
 - Alerts older than 10 minutes never notify (D§8.2).
 - The rumor time of a gift wrap is chosen by its sender. The administrator uses it only to rate-limit, and members
-  only to order a grant against an `ended`.
+  only to order grants and `ended` notices against each other, both ways (C§10.2), so a relay that replays an old
+  `ended` after a pause and resume can't end a member again.
 - Day assignment uses the publisher's clock. A publisher whose clock is a day off publishes under the wrong day's
   keys. Members of a time-limited grant would then miss those records, which fails safe.
 
@@ -123,6 +127,8 @@ It cannot:
 - Anyone can flood a relay with kind 31078 events. Members filter by author, so only the stream's own blinded keys
   reach them.
 - A member can flood its own lane. The administrator removes it.
+- A member can ask for history; requests are capped at 31 days and rate-limited (C§9.4).
+- Anyone holding an emergency card can use up its daily approvals (C§8.7).
 - Bluetooth limits: B§8.
 
 ## S§9 Safety
@@ -162,7 +168,8 @@ their own apps, and should get legal advice.
 
 ## S§12 Known limitations
 
-- Metadata: S§3. There is no cover traffic and no mixing.
+- Metadata: S§3. There is no cover traffic and no mixing. Unlinkability over time is by content, not by behaviour
+  (S§2).
 - No PCS for a compromised administrator.
 - No cryptographic hour-level windows. Grants are whole UTC days, so "school hours" is a policy, not a key.
 - Removal needs the administrator online, and a grant per remaining member.
