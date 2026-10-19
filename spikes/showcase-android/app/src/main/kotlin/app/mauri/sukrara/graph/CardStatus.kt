@@ -161,7 +161,8 @@ object Slots {
 
     private fun mark(item: SlotItem) =
         if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.mark(item.m.tir, item.spec) else TirMark.NONE
-    private fun laurel(item: SlotItem) = mark(item) != TirMark.NONE
+    /** Whether [item] is a ring that wears a laurel (any [TirMark]). */
+    fun hasLaurel(item: SlotItem) = mark(item) != TirMark.NONE
 
     /**
      * Extra room between [items]`[i]` and the next one to its left when either wears a laurel ([r] = a slot's radius):
@@ -169,10 +170,10 @@ object Slots {
      * of 1.25 r) touch in the middle of the gap, where the wreaths meet.
      */
     fun extraGap(items: List<SlotItem>, i: Int, r: Float): Float =
-        if (i + 1 < items.size && (laurel(items[i]) || laurel(items[i + 1]))) r * 0.22f else 0f
+        if (i + 1 < items.size && (hasLaurel(items[i]) || hasLaurel(items[i + 1]))) r * 0.22f else 0f
 
     /** Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r, so its branch stays mostly on the card. */
-    fun edgeInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && laurel(items[0])) r * 0.3f else 0f
+    fun edgeInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && hasLaurel(items[0])) r * 0.3f else 0f
 
     /** The slots' centres, right to left from [right] (the card's edge), [edgeInset] in, [gap] + [extraGap] apart. */
     fun centers(items: List<SlotItem>, right: Float, size: Float, gap: Float): List<Float> {
@@ -192,7 +193,7 @@ object Slots {
      */
     fun drawUnder(cv: Canvas, items: List<SlotItem>, cx: List<Float>, cy: Float, radius: Float, pal: GraphPalette) {
         val colors = items.map { item ->
-            if (laurel(item)) ColorUtils.setAlphaComponent(pal.tight, (255 * (item as SlotItem.Metric).emphasis).toInt()) else null
+            if (hasLaurel(item)) ColorUtils.setAlphaComponent(pal.tight, (255 * (item as SlotItem.Metric).emphasis).toInt()) else null
         }
         val order = items.indices.sortedBy { cx[it] }   // left to right
         fun side(n: Int?) = if (n != null && colors[n] != null) Laurel.Side.MERGED else Laurel.Side.FULL

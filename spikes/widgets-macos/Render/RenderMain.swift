@@ -418,6 +418,9 @@ func renderMarks(_ out: URL) {
         case "C": TimeInRange(tight: 0.8, target: 0.2, coverage: 1)
         case "F": TimeInRange(low: 0.01, tight: 0.75, target: 0.21, high: 0.03, coverage: 1)
         case "L": TimeInRange(low: 0.02, tight: 0.66, target: 0.26, high: 0.06, coverage: 1)
+        case "V": TimeInRange(low: 0.02, tight: 0.68, target: 0.27, high: 0.03, coverage: 1)
+        case "D": TimeInRange(low: 0.01, tight: 0.70, target: 0.27, high: 0.02, coverage: 1)
+        case "K": TimeInRange(tight: 0.70, target: 0.28, high: 0.02, coverage: 1)
         default: TimeInRange(low: 0.03, tight: 0.6, target: 0.27, high: 0.1, coverage: 1)
         }
     }
@@ -453,5 +456,10 @@ func renderMarks(_ out: URL) {
             }
         }
         render(grid, to: out.appendingPathComponent("mac-marks-combos-\(dark ? "dark" : "light").png"), dark: dark)
+    }
+    // Every flower in the tinted (not focused) rendering: 95 lavender, 97 daisy, 98 cherry, 96, the crown's rosette.
+    for (i, m) in ["V-", "D-", "K-", "FF", "CC"].enumerated() {
+        renderTinted(GlucoseWidgetView(kind: .value, family: .systemMedium, c: GlucoseEntryContent(snapshot: comboSnap(m, insulin: false), date: renderNow), mode: .accented)
+            .padding(16), size: sizes[.systemMedium]!, to: out.appendingPathComponent("mac-marks-tinted-\(i).png"))
     }
 }
