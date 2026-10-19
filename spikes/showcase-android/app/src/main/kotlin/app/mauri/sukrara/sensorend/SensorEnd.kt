@@ -20,10 +20,12 @@ import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.core.SensorLife
 import app.mauri.sukrara.ui.MainActivity
 import app.mauri.sukrara.wearer.Live
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -87,8 +89,26 @@ object SensorEnd {
     private val _config = MutableStateFlow(SensorEndConfig())
     val config: StateFlow<SensorEndConfig> = _config
     private var app: Context? = null
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default +
+    /** Where [init]'s re-plan collectors run: Dispatchers.Default, or what a test hands [resetForTest]. */
+    private var scope = replanScope(Dispatchers.Default)
+
+    private fun replanScope(d: CoroutineDispatcher) = CoroutineScope(SupervisorJob() + d +
         CoroutineExceptionHandler { _, e -> Log.w(TAG, "re-plan failed: $e") })
+
+    /**
+     * Tests only. Robolectric keeps this object for the whole test JVM but gives every test a new Application: without
+     * a reset, [init] would stay bound to the first test's context and its collectors would keep re-planning, at the
+     * wall-clock time, from a background thread, cancelling the notifications a later test just posted (Robolectric's
+     * notification list is static). Drops that context and its collectors; the next [init] starts them on
+     * [dispatcher], which the test controls (a held one: only the test's own [sync] calls re-plan).
+     */
+    @androidx.annotation.VisibleForTesting
+    @Synchronized fun resetForTest(dispatcher: CoroutineDispatcher) {
+        scope.cancel()
+        scope = replanScope(dispatcher)
+        app = null
+        debugNoReadings = false
+    }
 
     @Synchronized fun init(ctx: Context) {
         if (app != null) return

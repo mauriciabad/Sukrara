@@ -33,6 +33,7 @@ class DebugFakesTest {
     private val real = SensorInfo("3MH0REAL", now - 5 * 86_400L, now + 10 * 86_400L)
 
     @Before fun setUp() {
+        app.mauri.sukrara.sensorend.SensorEnd.resetForTest(kotlinx.coroutines.test.StandardTestDispatcher())   // no stale re-plan posts
         ctx.getSharedPreferences("role", Context.MODE_PRIVATE).edit().putString("role", "owner").commit()
         Live.status.value = WearerStatus()
         SensorLife.update(ctx, real)

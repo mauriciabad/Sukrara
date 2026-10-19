@@ -30,6 +30,13 @@ class ReportGallery {
     @get:Rule val compose = createAndroidComposeRule<androidx.activity.ComponentActivity>()
     private val out = File(System.getProperty("gallery.out") ?: "build/gallery").also { it.mkdirs() }
 
+    /** What App.onCreate sets up for drawing (the rounded numbers, the words); Robolectric tests run on a plain Application. */
+    @org.junit.Before fun drawingSetup() {
+        val a = org.robolectric.RuntimeEnvironment.getApplication()
+        RoundedFont.init(a)
+        app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(a.resources) }
+    }
+
     private fun render(dark: Boolean, edges: Boolean = false) {
         val now = java.util.Calendar.getInstance().run { clear(); set(2026, 9, 17, 22, 14); timeInMillis / 1000 }
         // edges: shares next to their goals (very high 5.2 %, in range 70.2 %, very low 0.96 %, 69.7 % coverage), for the

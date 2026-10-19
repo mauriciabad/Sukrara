@@ -35,6 +35,13 @@ class GraphGallery {
     private val out = File(System.getProperty("gallery.out") ?: "build/gallery").also { it.mkdirs() }
     private val d = 2f   // px per dp in the sheets
 
+    /** What App.onCreate sets up for drawing (the rounded numbers, the words); Robolectric tests run on a plain Application. */
+    @org.junit.Before fun drawingSetup() {
+        val a = org.robolectric.RuntimeEnvironment.getApplication()
+        RoundedFont.init(a)
+        app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(a.resources) }
+    }
+
     /** 22:14 local on 2026-10-17: the mock-up's "10 PM" end. */
     private val now = java.util.Calendar.getInstance().run {
         clear(); set(2026, 9, 17, 22, 14); timeInMillis / 1000
