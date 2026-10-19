@@ -621,8 +621,11 @@ enum GlucoseGraph {
     /// Narrowest chart (pt) that still gets the % labels beside it.
     static let pctMinWidth: CGFloat = 240
     /// `alerts` = the rules behind the treatments' mute lines (nil = no lines).
+    /// `sensor` = the life badge to put under the % column when it fits there; returns whether it was drawn.
+    @discardableResult
     static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
-                     _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat = 1, alerts: AlertSettings? = nil) {
+                     _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat = 1, alerts: AlertSettings? = nil,
+                     sensor: SensorBadge.Look? = nil) -> Bool {
         let from = now - st.window
         let b = st.bands.sane()
         let pts = GlucoseStats.window(readings, from: from - 60, to: now)
@@ -631,7 +634,9 @@ enum GlucoseGraph {
         let pctBig = Ink.font(13 * d, .bold), pctSmall = Ink.font(8.5 * d, .regular)
 
         let labels = st.axisLabels
-        let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d)
+        let p = pct3(tir.below, tir.inRange, tir.above)
+        let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d,
+                                  widest: widest([p.0, p.1, p.2]))
         let pctCol = left - area.minX
         func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
@@ -643,7 +648,7 @@ enum GlucoseGraph {
         let top = area.minY + 3 * d
         let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
         let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
-        guard right - left >= 20 * d, plotBottom - top >= 20 * d else { return }
+        guard right - left >= 20 * d, plotBottom - top >= 20 * d else { return false }
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out.
         ctx.beginTransparencyLayer(in: area.insetBy(dx: -6 * d, dy: 0), auxiliaryInfo: nil)
@@ -678,7 +683,16 @@ enum GlucoseGraph {
         ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [2 * d, 3 * d])
-        var lastLabelEnd = -CGFloat.infinity
+        // The sensor life badge in the hour labels' row, left of the plot under the % column and the distribution
+        // (the user, 2026-10-19), where no treatment label is; the card puts it beside the arrow otherwise.
+        let badgeH = 10 * d
+        let badgeW = sensor.map { SensorBadge.width($0, h: badgeH) } ?? 0
+        let hosted = sensor != nil && pctCol > 0 && labels && area.minX + badgeW <= left + sideW * 0.6
+            && !(layout?.blocks(area.minX, area.minX + badgeW + 3 * d) ?? false)
+        if hosted, let sensor {
+            SensorBadge.draw(ctx, x: area.minX, y: area.maxY - 2 * d - lane1 - 3.6 * d - badgeH / 2, h: badgeH, sensor, pal)
+        }
+        var lastLabelEnd = hosted ? area.minX + badgeW : -CGFloat.infinity
         while hour.timeIntervalSince1970 <= now {
             let gx = x(hour.timeIntervalSince1970)
             if gx > left + sideW * 0.6 {
@@ -776,7 +790,6 @@ enum GlucoseGraph {
         // % per major band, centred on its band; a band too short for its label (often low, sometimes high) pushes
         // it outwards so the three never overlap, and it may hang a little past the plot.
         if pctCol > 0 {
-            let p = pct3(tir.below, tir.inRange, tir.above)
             let lh = 13 * d * 0.95
             var c = [(top + y(Double(b.high))) / 2, (y(Double(b.high)) + y(Double(b.low))) / 2, (y(Double(b.low)) + plotBottom) / 2]
             c[0] = min(c[0], c[1] - lh)
@@ -806,16 +819,22 @@ enum GlucoseGraph {
                                 layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
                                 now: now, muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
         }
+        return hosted
     }
 
     /// The plot's left and right edge in `areaLeft`…`areaRight` (GlucoseGraph.kt `plotX`): the % column (`pct`: time
     /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`), both sized by
-    /// the `TextModel`, so the plot is the same on every platform whatever the font.
-    static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat) -> (CGFloat, CGFloat) {
+    /// the `TextModel`, so the plot is the same on every platform whatever the font. The column is as wide as its
+    /// `widest` label (the user: "too much margin to the left" with room kept for a 100).
+    static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat,
+                      widest: String = "100") -> (CGFloat, CGFloat) {
         let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d
-            ? TextModel.width("100", 13 * d) + TextModel.width("%", 8.5 * d) + 6 * d : 0
+            ? TextModel.width(widest, 13 * d) + TextModel.width("%", 8.5 * d) + 6 * d : 0
         return (areaLeft + pctCol, areaRight - (labels ? TextModel.width("180", 10 * d) + 5 * d : 0))
     }
+
+    /// The % label of `v` that is widest in the `TextModel` (GlucoseGraph.kt `widest`).
+    static func widest(_ v: [Int]) -> String { v.map { "\($0)" }.max { TextModel.width($0, 13) < TextModel.width($1, 13) }! }
 
     /// Treatment label lanes for a chart `h` tall: a second one from `TreatmentMarks.twoLanesH`.
     static func lanes(_ h: CGFloat, d: CGFloat) -> Int { h >= TreatmentMarks.twoLanesH * d ? 2 : 1 }
@@ -2039,22 +2058,26 @@ enum GlucoseCard {
         let valueRight = sideBySide ? min(w * 0.32, 120 * d) : w
         let metrics = metricsOf ?? { r, b in GlucoseMetrics.of(readings, from: now - r.window, to: now, bands: b) }
 
+        let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
+            : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
+        // the life badge goes under the graph's % column when it fits there (warm-up and ended stay in the value's place)
+        let badge = st.value && sl?.warmup == nil && sl?.ended != true ? sl : nil
+        var hosted = false
+        if let graph {
+            hosted = GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
+                                       sensor: badge)
+        } else if st.graph != nil && chart.height > 24 * d {
+            let msg = sl?.warmup != nil ? "Warming up" : sl?.ended == true ? "Sensor ended"
+                : latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
+            Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
+        }
         if st.value {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
             let countdown = SensorBadge.ring(sl, st.sensor, now: now, hours: st.countdownHours)
             let ringsW = sideBySide ? 0 : drawRings(ctx, box, st, last, now, bands, pal, d: d, metrics, countdown: countdown)
             let look = st.badge ? StatusBadge.look(status, now: now) : nil
             drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal,
-                      d: d, look: look, sensor: sl)
-        }
-        let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
-            : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
-        if let graph {
-            GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts)
-        } else if st.graph != nil && chart.height > 24 * d {
-            let msg = sl?.warmup != nil ? "Warming up" : sl?.ended == true ? "Sensor ended"
-                : latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
-            Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
+                      d: d, look: look, sensor: hosted ? nil : sl)
         }
     }
 

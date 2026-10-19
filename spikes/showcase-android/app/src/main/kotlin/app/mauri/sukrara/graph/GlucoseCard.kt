@@ -347,17 +347,12 @@ object GlucoseCard {
         }
         val valueRight = if (sideBySide) min(w * 0.32f, 120 * d) else w
 
-        if (st.value) {
-            val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
-            val countdown = SensorBadge.ring(sl, sensor, nowS, countdownH)
-            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf, countdown)
-            val look = if (st.badge) StatusBadge.look(status, nowS) else null
-            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look,
-                sl, st.hour24)
-        }
         val chart = if (sideBySide) RectF(valueRight + 6 * d, 0f, w, h) else RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
+        // the life badge goes under the graph's % column when it fits there (warm-up and ended stay in the value's place)
+        val badge = sl?.takeIf { st.value && it.warmup == null && !it.ended }
+        var hosted = false
         when {
-            graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts)
+            graph != null -> hosted = GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts, badge)
             st.graph != null && chart.height() > 24 * d -> {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
                 val msg = when {
@@ -367,6 +362,14 @@ object GlucoseCard {
                 }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
             }
+        }
+        if (st.value) {
+            val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
+            val countdown = SensorBadge.ring(sl, sensor, nowS, countdownH)
+            val ringsW = if (sideBySide) 0f else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf, countdown)
+            val look = if (st.badge) StatusBadge.look(status, nowS) else null
+            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look,
+                sl.takeIf { !hosted }, st.hour24)
         }
     }
 

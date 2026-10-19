@@ -86,7 +86,8 @@ object GlucoseGraph {
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings? = Alerts.settings.value,
-    ) {
+        sensor: SensorBadge.Look? = null,
+    ): Boolean {
         val from = nowS - st.windowS
         val b = st.bands.sane()
         val pts = GlucoseStats.window(readings, from - 60, nowS)
@@ -98,7 +99,8 @@ object GlucoseGraph {
         val pctSmall = Paint(pctBig).apply { textSize = 8.5f * d; color = pal.inkSoft; typeface = Typeface.DEFAULT }
 
         val labels = st.axisLabels
-        val (left, right) = plotX(area.left, area.right, st.side && !tir.empty, labels, d)
+        val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
+        val (left, right) = plotX(area.left, area.right, st.side && !tir.empty, labels, d, widest(lo, inr, hi))
         val pctCol = left - area.left
         fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
@@ -110,7 +112,7 @@ object GlucoseGraph {
         val top = area.top + 3 * d
         val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
         val plotBottom = if (marks) bottom - 12 * d else bottom
-        if (right - left < 20 * d || plotBottom - top < 20 * d) return
+        if (right - left < 20 * d || plotBottom - top < 20 * d) return false
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out, as it always could.
         val chartLayer = cv.saveLayer(area.left - 6 * d, area.top, area.right + 6 * d, area.bottom, null)
@@ -146,7 +148,14 @@ object GlucoseGraph {
             add(Calendar.HOUR_OF_DAY, 1)
             while (get(Calendar.HOUR_OF_DAY) % step != 0) add(Calendar.HOUR_OF_DAY, 1)
         }
-        var labelEnd = Float.NEGATIVE_INFINITY
+        // The sensor life badge in the hour labels' row, left of the plot under the % column and the distribution
+        // (the user, 2026-10-19), where no treatment label is; the card puts it beside the arrow otherwise.
+        val badgeH = 10 * d
+        val badgeW = sensor?.let { SensorBadge.width(it, badgeH, pal) } ?: 0f
+        val hosted = sensor != null && pctCol > 0 && labels && area.left + badgeW <= left + sideW * 0.6f &&
+            layout?.blocks(area.left, area.left + badgeW + 3 * d) != true
+        if (hosted) SensorBadge.draw(cv, area.left, area.bottom - 2 * d - lane1 - 3.6f * d - badgeH / 2, badgeH, sensor!!, pal)
+        var labelEnd = if (hosted) area.left + badgeW else Float.NEGATIVE_INFINITY
         while (cal.timeInMillis / 1000 <= nowS) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
@@ -223,7 +232,6 @@ object GlucoseGraph {
 
         // % per major band, centred on its band; labels too close for their bands are pushed apart (all three show).
         if (pctCol > 0) {
-            val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
             val gap = pctBig.textSize * 1.05f
             val cIn = (y(b.high.toFloat()) + y(b.low.toFloat())) / 2
             val cHi = min((top + y(b.high.toFloat())) / 2, cIn - gap)
@@ -253,18 +261,23 @@ object GlucoseGraph {
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
             nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
         cv.restoreToCount(chartLayer)
+        return hosted
     }
 
     /**
      * The plot's left and right edge in an area [areaLeft]..[areaRight]: the % column on the left ([pct]: the time in
      * range is shown and has data; only from [PCT_MIN_WIDTH_DP]) and the values on the right ([labels]), both sized by
-     * the [TextModel], so the plot is the same on every platform whatever the font.
+     * the [TextModel], so the plot is the same on every platform whatever the font. The column is as wide as its
+     * [widest] label (the user: "too much margin to the left" with room kept for a 100).
      */
-    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float): Pair<Float, Float> {
+    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float, widest: String = "100"): Pair<Float, Float> {
         val pctCol = if (pct && labels && areaRight - areaLeft >= PCT_MIN_WIDTH_DP * d)
-            TextModel.width("100", 13 * d) + TextModel.width("%", 8.5f * d) + 6 * d else 0f
+            TextModel.width(widest, 13 * d) + TextModel.width("%", 8.5f * d) + 6 * d else 0f
         return areaLeft + pctCol to areaRight - if (labels) TextModel.width("180", 10 * d) + 5 * d else 0f
     }
+
+    /** The % label of [v] that is widest in the [TextModel]. */
+    fun widest(vararg v: Int): String = v.map { "$it" }.maxBy { TextModel.width(it, 13f) }
 
     /** Treatment label lanes for a chart [h] px tall: a second one from [TreatmentMarks.TWO_LANES_DP]. */
     fun lanes(h: Float, d: Float) = if (h >= TreatmentMarks.TWO_LANES_DP * d) 2 else 1
