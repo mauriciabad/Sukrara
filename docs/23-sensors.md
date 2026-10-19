@@ -262,11 +262,26 @@ Nothing from this investigation is in Sukrara yet. The order below is the recomm
 | 5 | **Dexcom G6 / ONE** | Written and tested, but a platform on its way out: only if the market still wants it |
 | 6 | **Abbott Lingo** | Same core as the Libre 3 driver; cheap once step 1 exists, mostly a matter of patch-info gating |
 
-### Added / discarded (draft, to be filled in when it lands)
+### In Sukrara
+
+**Step 1 (2026-10-19, branch `w-sensors`)** — the abstraction and the profiles, the Libre 3 behind them, no behaviour
+change. Details and the discarded list in [docs/10 "Sensor drivers"](10-showcase.md#sensor-drivers-investigation-23-step-1).
 
 | Added | Where |
 |---|---|
-| `SensorDriver` / `BleLink` / `SensorEvents` and `SensorProfile`, with the Libre 3 as the first profile | `direct/` (from `spikes/sensors-android/core`) |
+| `SensorProfile` / `Pairing` / `Calibration` and `SensorProfiles.LIBRE_3`, the single source for the Libre 3's warm-up (60 min), lifetime (15 d), grace, pairing kind and connection kind; `SensorLife`'s defaults and the New sensor flow read it | `core/SensorProfile.kt` |
+| `SensorDriver` / `BleLink` / `SensorEvents` / `Advert`, adapted to the real client: `onConnected` gets the discovered characteristics, `onLinkFailed` / `onDisconnected` / `onClosed` carry the reconnect rules, the link has `requestConnectionPriority`, `close` and timers, events are the app's own `Bridge.Reading` / `LibreViewPayload.Glucose` plus the status words; `Drivers` registry; `profile` in `sensor.json` | `direct/SensorDriver.kt`, `direct/Drivers.kt`, `direct/SensorPairing.kt` |
+| `Libre3Driver` (the protocol) over `GattLink` (the connection), from `Libre3Client`; `Libre3Crypto` behind `Libre3Security` so the driver replays on the JVM | `direct/Libre3Driver.kt`, `direct/GattLink.kt`, `direct/Libre3Crypto.kt` |
+| `Libre3DriverTest` (bytes out, readings in, timers, status words, for every session kind), `SensorProfileTest`, `DriversTest` | `app/src/test/…/direct`, `…/core` |
+
+Discarded in this step: the spike's own event types (the app's fit 1:1), the scanning transport and brand step
+(steps 2+), running the JNI core in the tests (unchanged by the move). The spike stays as it is; the app has its own
+copy of what it needs.
+
+### Added / discarded (steps 2–6, to be filled in when they land)
+
+| Added | Where |
+|---|---|
 | Dexcom G7 / ONE+ / Stelo observer driver (`0x4E` glucose, backfill, algorithm states) and its decoders | `direct/dexcom/` |
 | Accu-Chek SmartGuide / standard CGM Service driver (SFLOAT, annunciations, RACP history, E2E-CRC) | `direct/cgms/` |
 | Aidex X driver (serial-derived keys, AES-CFB session, advertisement readings) | `direct/aidex/` |

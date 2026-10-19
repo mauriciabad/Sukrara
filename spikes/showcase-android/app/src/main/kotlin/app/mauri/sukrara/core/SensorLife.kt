@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
  * What we know about the current sensor (unix seconds). The owner learns it from the direct source
  * ([app.mauri.sukrara.direct.SensorPairing]) or Juggluco; followers and the Mac from the live event's `ss`/`se`/`sw`
  * (spikes/nostr/PROTOCOL-v2.md). [serial] is empty on followers (it isn't on the wire). [warmupEndEpoch] = when the
- * first reading is due (start + the sensor's warm-up, 60 min for Libre 3 / 3 Plus / 2 Plus).
+ * first reading is due (start + the sensor's warm-up; the family's nominal one is in its [SensorProfile]).
  */
 data class SensorInfo(
     val serial: String, val startEpoch: Long, val endEpoch: Long,
@@ -26,10 +26,13 @@ data class SensorInfo(
  * while nothing is known.
  */
 object SensorLife {
-    /** Libre 3 Plus: 15 days (LibreView's `wearDuration` 21600 min), used when the sensor doesn't say. */
-    const val DEFAULT_WEAR_MIN = 21_600
-    /** Libre 3 / 3 Plus / 2 Plus warm-up, used when the sensor doesn't say. */
-    const val DEFAULT_WARMUP_MIN = 60
+    /**
+     * Used when the sensor doesn't say (Juggluco source, followers without `sw`, pairings saved before the fields):
+     * the Libre 3's profile ([SensorProfiles.LIBRE_3]): 15 days (LibreView's `wearDuration` 21600 min) and a 60 min
+     * warm-up. Per-family values live in the profile, not here.
+     */
+    val DEFAULT_WEAR_MIN: Int = SensorProfiles.LIBRE_3.wearMin
+    val DEFAULT_WARMUP_MIN: Int = SensorProfiles.LIBRE_3.warmupMin
     /** The warm-up state lasts until the first reading, at most this long past the warm-up's end. */
     const val WARMUP_GRACE_S = 15 * 60L
     /** The countdown window (ring on the card, live notification): last N hours, [COUNTDOWN_RANGE], default 8. */

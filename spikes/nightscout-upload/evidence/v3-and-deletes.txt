@@ -1,0 +1,20 @@
+entries (24 h) before v3: 1440
+tick: +0
+  · reconcile 168 h: server has 2884, queued 0 missing
+sync V3 AccessToken: SyncReport(health=IDLE, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (93 ms)
+entries (24 h) after v3:  1440
+  sync V3 AccessToken: SyncReport(health=OK, entries=0, treatments=1, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (47 ms)
+  sync V3 AccessToken: SyncReport(health=OK, entries=0, treatments=1, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (61 ms)
+docs with identifier 0bd755c5-e2ac-487a-a7fd-fd200f314aa5 after add+edit+move: 1
+  carbs 35 created_at 2026-10-18T23:30:50.480Z
+plain v3 DELETE → 200
+  after a soft delete, v1 readers (LoopFollow/nightguard/web) still see it: 1 doc(s)
+  sync V3 AccessToken: SyncReport(health=OK, entries=0, treatments=0, deletes=1, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (34 ms)
+  after our delete (permanent): 0 doc(s)
+v1 delete path (API secret):
+  after upload: 1
+  after a move: 1 doc(s), created_at 2026-10-18T23:17:52.333Z
+  sync V1 ApiSecret: SyncReport(health=OK, entries=0, treatments=0, deletes=1, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=0, nextAttemptMs=0, message=)  (44 ms)
+  after delete: 0
+Nightscout log, v3 identifier mismatch warnings (treatments carry our UUID, like AAPS): 4
+least privilege: the uploader token may not read profiles → 401

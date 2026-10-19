@@ -1,0 +1,13 @@
+23:47:41 stop nightscout
+deleted 20 server entries 5 h ago
+tick: +1
+23:48:35 sync V1 ApiSecret: SyncReport(health=BACKING_OFF, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=1, nextAttemptMs=1792367343779, message=POST /api/v1/entries: ConnectException: Connection refused)  (52 ms)
+tick: +1
+23:49:25 sync V1 ApiSecret: SyncReport(health=BACKING_OFF, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=2, nextAttemptMs=1792367425851, message=GET /api/v1/entries/sgv.json?find[date][$gte]=1792280915456&find[date][$lte]=1792367365810&count=2881: ConnectException: Connection refused)  (36 ms)
+tick: +1
+23:50:16 sync V1 ApiSecret: SyncReport(health=BACKING_OFF, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=3, nextAttemptMs=1792367425851, message=)  (0 ms)
+23:50:16 start nightscout
+23:50:18 sync V1 ApiSecret: SyncReport(health=BACKING_OFF, entries=0, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=0, dropped=0, pending=3, nextAttemptMs=1792367425851, message=)  (0 ms)
+23:50:48   · reconcile 24 h: server has 1419, queued 20 missing
+sync V1 ApiSecret: SyncReport(health=OK, entries=23, treatments=0, deletes=0, sensorEvents=0, deviceStatus=0, backfilled=20, dropped=0, pending=0, nextAttemptMs=0, message=)  (141 ms)
+360 entries in the last 6 h; gaps >1 min: [] ; duplicates: 0
