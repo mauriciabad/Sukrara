@@ -5,6 +5,7 @@ package app.mauri.sukrara.direct
 
 import android.content.Context
 import app.mauri.sukrara.core.SensorLife
+import app.mauri.sukrara.core.SensorProfiles
 import java.io.File
 import org.json.JSONObject
 
@@ -14,6 +15,9 @@ import org.json.JSONObject
  * Written by the app itself: the NFC scan ([Libre3Nfc]) gives the address, PIN and start time; the first Bluetooth
  * connection after it runs a fresh pairing and adds [kAuth]. (The older spikes imported this file from Juggluco.)
  * It is a secret: never log [pin] or [kAuth], never copy it off the device.
+ *
+ * [profileId] names the sensor family ([SensorProfiles]) and so the driver ([Drivers]); a file written before the
+ * field exists is the Libre 3's.
  */
 data class SensorPairing(
     val serial: String,
@@ -24,6 +28,7 @@ data class SensorPairing(
     val securityVersion: Int,   // 0 = Libre 3 / 3 Plus; non-zero = Lingo (unsupported here)
     val wearMin: Int = SensorLife.DEFAULT_WEAR_MIN,   // wear length from the patch info (Libre 3 Plus: 21600 = 15 d)
     val warmupMin: Int = SensorLife.DEFAULT_WARMUP_MIN, // warm-up from the patch info (60)
+    val profileId: String = SensorProfiles.LIBRE_3.id,
 ) {
     /** When the sensor stops (unix s): start + wear length. */
     val endEpoch get() = startEpoch + 60L * wearMin
@@ -50,6 +55,7 @@ data class SensorPairing(
                 securityVersion = o.optInt("securityVersion", 0),
                 wearMin = o.optInt("wearMin", 0).takeIf { it > 0 } ?: SensorLife.DEFAULT_WEAR_MIN,
                 warmupMin = o.optInt("warmupMin", 0).takeIf { it > 0 } ?: SensorLife.DEFAULT_WARMUP_MIN,
+                profileId = o.optString("profile", SensorProfiles.LIBRE_3.id),
             )
         }
 
@@ -67,6 +73,7 @@ data class SensorPairing(
         val o = JSONObject()
             .put("serial", serial).put("address", address).put("startEpoch", startEpoch)
             .put("securityVersion", securityVersion).put("wearMin", wearMin).put("warmupMin", warmupMin).put("pinHex", pin.hex())
+            .put("profile", profileId)
         kAuth?.let { o.put("kAuthHex", it.hex()) }
         val tmp = File(context.filesDir, "$FILE.tmp")
         tmp.writeText(o.toString())
@@ -74,5 +81,5 @@ data class SensorPairing(
     }
 
     /** Safe for logs. */
-    override fun toString() = "SensorPairing(serial=$serial, address=$address, start=$startEpoch, paired=${kAuth != null})"
+    override fun toString() = "SensorPairing($profileId serial=$serial, address=$address, start=$startEpoch, paired=${kAuth != null})"
 }
