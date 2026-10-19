@@ -303,20 +303,31 @@ fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Compo
                 fontWeight = FontWeight.Bold, fontSynthesis = androidx.compose.ui.text.font.FontSynthesis.None)).size.width
         } / density.density
         val all = slotsFor(3)
-        val fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
+        var fit = if (number == null) ValueFit.Fit(all.size.coerceAtMost(3), 1f)
             else ValueFit.of(maxWidth.value, maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), all.size)
-        val slots = slotsFor(fit.slots)
+        var slots = slotsFor(fit.slots)
+        // laurels move the slots apart (Slots.extraGap): the value fits in what is left
+        fun extraDp(s: List<T>) = if (s.all { it is SlotItem }) Slots.extraWidth(s.map { it as SlotItem }, ValueFit.SLOT_DP / 2) else 0f
+        if (number != null && extraDp(slots) > 0) {
+            fit = ValueFit.of(maxWidth.value - extraDp(slots), maxOf(widthDp(number), widthDp(ValueFit.REFERENCE)), fit.slots)
+            slots = slotsFor(fit.slots)
+        }
+        val items = if (slots.all { it is SlotItem }) slots.map { it as SlotItem } else null
         // [under] (the rings' laurels) for all slots first, behind the whole row: what is next to them covers them
         Row(Modifier.drawBehind {
             if (under != null) {
                 val s = ValueFit.SLOT_DP.dp.toPx(); val g = ValueFit.SLOT_GAP_DP.dp.toPx()
-                under(slots, slots.indices.map { size.width - s / 2 - it * (s + g) }, size.height / 2, s / 2)
+                val cx = items?.let { Slots.centers(it, size.width, s, g) } ?: slots.indices.map { size.width - s / 2 - it * (s + g) }
+                under(slots, cx, size.height / 2, s / 2)
             }
         }, verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { value(fit.scale) }
             // the main ring (the sensor countdown ring covers it): Slots.mainIndex
             val main = if (slots.all { it is SlotItem }) Slots.mainIndex(slots.map { it as SlotItem }) else 0
-            for ((i, item) in slots.withIndex().reversed()) Box(Modifier.padding(start = ValueFit.SLOT_GAP_DP.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
+            for ((i, item) in slots.withIndex().reversed()) {
+                val extra = items?.let { Slots.extraGap(it, i, ValueFit.SLOT_DP / 2) } ?: 0f
+                Box(Modifier.padding(start = (ValueFit.SLOT_GAP_DP + extra).dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
+            }
         }
     }
 }

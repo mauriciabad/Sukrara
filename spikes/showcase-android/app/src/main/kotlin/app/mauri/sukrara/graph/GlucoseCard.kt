@@ -108,68 +108,98 @@ object Crown {
 }
 
 /**
- * The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. Each side
- * is shaped by what is next to it ([Slots.drawUnder]): [Side.FULL] where nothing is (the value, the card's edge),
- * [Side.COMPACT] (one row of smaller leaves that stays in the gap) next to a slot without a laurel, [Side.NONE] next to
- * another laurelled ring, where one sprig in the gap stands for both ([drawJoin]).
+ * The laurel: two branches of leaves up the sides of a ring of outer radius [r], open at the top and bottom. Next to a
+ * slot without a laurel a side stays whole (the slots move apart, [Slots.extraGap], and the neighbour covers what still
+ * reaches it); between two laurelled rings the facing sides are drawn by [drawJoin] instead ([Side.MERGED]). A faded
+ * colour fades the whole laurel at once (a layer), so overlapping leaves don't show darker.
  */
 object Laurel {
-    enum class Side { FULL, COMPACT, NONE }
+    enum class Side { FULL, MERGED }
 
-    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) {
-        branch(cv, cx, cy, r, color, left, true)
-        branch(cv, cx, cy, r, color, right, false)
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) =
+        faded(cv, color) { c ->
+            if (left == Side.FULL) branch(cv, cx, cy, r, c, true)
+            if (right == Side.FULL) branch(cv, cx, cy, r, c, false)
+        }
+
+    /** Draws [block] opaque, then fades it as one by [color]'s alpha. */
+    private fun faded(cv: Canvas, color: Int, block: (Int) -> Unit) {
+        val a = color ushr 24
+        val layer = if (a < 255) cv.saveLayerAlpha(null, a) else -1
+        block(color or (0xFF shl 24))
+        if (layer >= 0) cv.restoreToCount(layer)
     }
 
     private fun stem(r: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = r * 0.032f; strokeCap = Paint.Cap.ROUND; this.color = color
     }
 
-    private fun leaf(cv: Canvas, x: Float, y: Float, rot: Float, len: Float, color: Int) {
+    private fun leaf(cv: Canvas, x: Float, y: Float, rot: Float, r: Float, color: Int) {
         cv.save()
         cv.translate(x, y)
         cv.rotate(rot)
-        cv.drawOval(RectF(-len / 2, -len * 0.21f, len / 2, len * 0.21f), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        cv.drawOval(RectF(-r * 0.135f, -r * 0.056f, r * 0.135f, r * 0.056f), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
         cv.restore()
     }
 
+    private fun at(cv: Canvas, cx: Float, cy: Float, rad: Float, deg: Float, rot: Float, r: Float, color: Int) {
+        val a = Math.toRadians(deg.toDouble())
+        leaf(cv, cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat(), rot, r, color)
+    }
+
     /** One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), leaves leaning up it. */
-    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, side: Side, left: Boolean) {
-        if (side == Side.NONE) return
-        val full = side == Side.FULL
-        val sr = r * if (full) 1.25f else 1.1f
+    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean) {
+        val sr = r * 1.25f
         cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false, stem(r, color))
-        fun at(rad: Float, deg: Float, rot: Float, len: Float) {
-            val a = Math.toRadians(deg.toDouble())
-            leaf(cv, cx + rad * Math.cos(a).toFloat(), cy + rad * Math.sin(a).toFloat(), rot, len, color)
-        }
         val s = if (left) 1 else -1
         for (k in 0 until 6) {
             val a = if (left) 135f + 15f * k else 45f - 15f * k
-            if (full) {
-                // an outer and an inner leaf per step, the inner ones clear of the ring
-                at(r * 1.35f, a, a + s * 90 - s * 32, r * 0.27f); at(r * 1.17f, a + s * 5, a + s * 90 + s * 32, r * 0.27f)
-            } else at(r * 1.17f, a, a + s * 90 - s * 32, r * 0.18f)
+            // an outer and an inner leaf per step, the inner ones clear of the ring
+            at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)
+            at(cv, cx, cy, r * 1.17f, a + s * 5, a + s * 90 + s * 32, r, color)
         }
     }
 
     /**
-     * The sprig between two laurelled rings of radius [r] ([x] = the middle of the gap): the same full branch as a
-     * ring's left side, its curve through the middle of the gap, its outer leaves in [left]'s colour and its inner ones
-     * in [right]'s (a faded ring keeps its fade).
+     * The facing sides of two laurelled rings of radius [r] at [lx] and [rx]: each starts as its own branch and the two
+     * meet at the top of the gap in one leaf; above the middle only the leaves toward each ring are drawn, so the two
+     * stems can close in. Each side in its own ring's colour and fade.
      */
-    fun drawJoin(cv: Canvas, x: Float, cy: Float, r: Float, left: Int, right: Int) {
-        val cx = x + r * 1.25f   // the centre the branch curves around
+    fun drawJoin(cv: Canvas, lx: Float, rx: Float, cy: Float, r: Float, left: Int, right: Int) {
+        val apexX = (lx + rx) / 2; val apexY = cy - r * 0.66f
+        faded(cv, left) { c -> merged(cv, lx, cy, r, c, false, apexX, apexY) }
+        faded(cv, right) { c -> merged(cv, rx, cy, r, c, true, apexX, apexY) }
+        faded(cv, if ((left ushr 24) >= (right ushr 24)) left else right) { c -> leaf(cv, apexX, apexY - r * 0.1f, -90f, r, c) }
+    }
+
+    /** A ring's side that merges ([left] = the ring's left side): its lower branch, then a curve up to the apex. */
+    private fun merged(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, apexX: Float, apexY: Float) {
+        val s = if (left) 1 else -1
         val sr = r * 1.25f
-        cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), 131f, 83f, false,
-            stem(r, if ((left ushr 24) >= (right ushr 24)) left else right))
-        for (k in 0 until 6) {
-            val a = 135f + 15f * k
-            fun at(rad: Float, deg: Float, rot: Float, color: Int) {
-                val t = Math.toRadians(deg.toDouble())
-                leaf(cv, cx + rad * Math.cos(t).toFloat(), cy + rad * Math.sin(t).toFloat(), rot, r * 0.27f, color)
-            }
-            at(r * 1.35f, a, a + 90 - 32, left); at(r * 1.17f, a + 5, a + 90 + 32, right)
+        val end = if (left) 165.0 else 15.0
+        val p0x = cx + sr * Math.cos(Math.toRadians(end)).toFloat(); val p0y = cy + sr * Math.sin(Math.toRadians(end)).toFloat()
+        val ctlX = p0x; val ctlY = cy - r * 0.25f
+        val path = android.graphics.Path().apply {
+            addArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else 15f, 34f)
+            quadTo(ctlX, ctlY, apexX, apexY)
+        }
+        cv.drawPath(path, stem(r, color))
+        for (k in 0 until 3) {
+            val a = if (left) 135f + 15f * k else 45f - 15f * k
+            if (k < 2) at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)
+            at(cv, cx, cy, r * 1.17f, a + s * 5, a + s * 90 + s * 32, r, color)
+        }
+        // up the curve: the leaves toward the ring only
+        for (t in floatArrayOf(0.35f, 0.7f)) {
+            val u = 1 - t
+            val bx = u * u * p0x + 2 * u * t * ctlX + t * t * apexX
+            val by = u * u * p0y + 2 * u * t * ctlY + t * t * apexY
+            val dx = 2 * u * (ctlX - p0x) + 2 * t * (apexX - ctlX)
+            val dy = 2 * u * (ctlY - p0y) + 2 * t * (apexY - ctlY)
+            val len = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            val nx = s * -dy / len; val ny = s * dx / len   // towards the ring
+            val th = Math.toDegrees(Math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+            leaf(cv, bx + nx * r * 0.08f, by + ny * r * 0.08f, th + s * 32, r, color)
         }
     }
 }
@@ -191,7 +221,7 @@ object TirRing {
         val oval = RectF(cx - r + sw / 2, cy - r + sw / 2, cx + r - sw / 2, cy + r - sw / 2)
         val alpha = (255 * emphasis).toInt()
         val crownW = r * 0.74f
-        val crownBottom = cy - r * 0.64f
+        val crownBottom = cy - r * 0.72f
         val layer = if (mark == TirMark.CROWN) cv.saveLayer(null, null) else -1
         val shares = spec.order.map { it to tir.share(it) }.filter { it.second >= 0.004 }
         if (shares.isEmpty()) {
@@ -214,7 +244,10 @@ object TirRing {
                 strokeWidth += 2 * r * 0.06f; blendMode = BlendMode.DST_OUT
             })
             cv.restoreToCount(layer)
-            Crown.draw(cv, cx, crownBottom, crownW, ColorUtils.setAlphaComponent(pal.ink, alpha))
+            // faded as one layer: fill and outline overlapping at partial alpha would show a darker rim
+            val fade = if (alpha < 255) cv.saveLayerAlpha(null, alpha) else -1
+            Crown.draw(cv, cx, crownBottom, crownW, pal.ink or (0xFF shl 24))
+            if (fade >= 0) cv.restoreToCount(fade)
         }
         val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ColorUtils.setAlphaComponent(pal.ink, alpha); textAlign = Paint.Align.CENTER
@@ -401,16 +434,14 @@ object GlucoseCard {
         val fallback = if (st.last != LastPlace.OFF && last == null) st.lastElse?.let { s ->
             metricsOf(s, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { s to it }
         } else null
-        var x = box.right
+        val x = box.right
         var used = 0f
         val items = Slots.arrange(rings, st.last, last, fallback, fit)
         val main = Slots.mainIndex(items)
-        Slots.drawUnder(cv, items, items.indices.map { x - size / 2 - it * (size + gap) }, box.centerY(), size / 2, pal)
-        for ((i, item) in items.withIndex()) {
-            Slots.draw(cv, item, x - size / 2, box.centerY(), size / 2, nowS, pal, d, countdown.takeIf { i == main })
-            x -= size + gap
-            used += size + gap
-        }
+        val cx = Slots.centers(items, x, size, gap)
+        Slots.drawUnder(cv, items, cx, box.centerY(), size / 2, pal)
+        for ((i, item) in items.withIndex()) Slots.draw(cv, item, cx[i], box.centerY(), size / 2, nowS, pal, d, countdown.takeIf { i == main })
+        if (items.isNotEmpty()) used = x - (cx.last() - size / 2) + gap
         return used
     }
 

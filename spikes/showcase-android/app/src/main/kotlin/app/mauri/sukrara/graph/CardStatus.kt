@@ -159,24 +159,46 @@ object Slots {
      */
     fun mainIndex(items: List<SlotItem>): Int = items.indexOfFirst { it is SlotItem.Metric }.takeIf { it >= 0 } ?: if (items.isEmpty()) -1 else 0
 
+    private fun laurel(item: SlotItem) = item is SlotItem.Metric && item.spec.kind == SlotKind.TIR && TirRing.laurel(item.m.tir, item.spec)
+
     /**
-     * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order). A
-     * laurel's side next to another slot is shaped by it: between two laurelled rings one shared sprig
-     * ([Laurel.drawJoin]), next to a slot without one a compact branch that stays in the gap; a free side (the value,
-     * the card's edge) gets the full branch.
+     * Extra room between [items]`[i]` and the next one to its left for laurels ([r] = a slot's radius): 0.22 r when one
+     * of the two wears one (its branch then clears the neighbour), 0.47 r when both do (their facing branches merge in
+     * the gap, [Laurel.drawJoin]).
+     */
+    fun extraGap(items: List<SlotItem>, i: Int, r: Float): Float {
+        if (i + 1 >= items.size) return 0f
+        val n = (if (laurel(items[i])) 1 else 0) + (if (laurel(items[i + 1])) 1 else 0)
+        return when (n) { 0 -> 0f; 1 -> r * 0.22f; else -> r * 0.47f }
+    }
+
+    /** The slots' centres, right to left from [right] (the first item's right edge), [gap] + [extraGap] apart. */
+    fun centers(items: List<SlotItem>, right: Float, size: Float, gap: Float): List<Float> {
+        val out = ArrayList<Float>(items.size)
+        var x = right - size / 2
+        for (i in items.indices) { out += x; x -= size + gap + extraGap(items, i, size / 2) }
+        return out
+    }
+
+    /** All the [extraGap]s of [items] together. */
+    fun extraWidth(items: List<SlotItem>, r: Float) = items.indices.sumOf { extraGap(items, it, r).toDouble() }.toFloat()
+
+    /**
+     * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order).
+     * Between two laurelled rings the facing sides merge ([Laurel.drawJoin]); every other side is the whole branch,
+     * which the neighbour covers where it still reaches it.
      */
     fun drawUnder(cv: Canvas, items: List<SlotItem>, cx: List<Float>, cy: Float, radius: Float, pal: GraphPalette) {
         val colors = items.map { item ->
-            (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && TirRing.laurel(it.m.tir, it.spec) }
-                ?.let { ColorUtils.setAlphaComponent(pal.tight, (255 * it.emphasis).toInt()) }
+            if (laurel(item)) ColorUtils.setAlphaComponent(pal.tight, (255 * (item as SlotItem.Metric).emphasis).toInt()) else null
         }
         val order = items.indices.sortedBy { cx[it] }   // left to right
-        fun side(n: Int?) = when { n == null -> Laurel.Side.FULL; colors[n] != null -> Laurel.Side.NONE; else -> Laurel.Side.COMPACT }
+        fun side(n: Int?) = if (n != null && colors[n] != null) Laurel.Side.MERGED else Laurel.Side.FULL
         for ((p, i) in order.withIndex()) {
             val c = colors[i] ?: continue
             val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
             Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
-            if (r != null) colors[r]?.let { Laurel.drawJoin(cv, (cx[i] + cx[r]) / 2, cy, radius, c, it) }
+            if (r != null) colors[r]?.let { Laurel.drawJoin(cv, cx[i], cx[r], cy, radius, c, it) }
         }
     }
 
