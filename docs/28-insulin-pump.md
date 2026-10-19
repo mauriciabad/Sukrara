@@ -20,9 +20,10 @@ an update could silently undo the change.
 
 ## Short answer
 
-- **No option keeps the Libre 3 Plus in Spain today.** Both Tandem pumps come with a **Dexcom G7**. The 780G comes
-  with **Guardian 4, Simplera Sync or Instinct**. Instinct is made by Abbott on Libre 3 Plus technology, but it is
-  locked to the pump.
+- **Only the 780G keeps the Libre 3 Plus hardware, and only in its pump-locked form.** Both Tandem pumps come with a
+  **Dexcom G7**. The 780G comes with **Guardian 4, Simplera Sync or Instinct**. Instinct is Abbott's Libre 3 Plus
+  sensor sold under the MiniMed brand, and **Trueta already supplies it**: another 780G patient at Trueta wears one
+  (the user's report, 2026-10-19). It pairs only with the pump, not with Abbott's apps or Sukrara.
 - **Most DIY freedom: Tandem Mobi, by far.** Its Bluetooth protocol is open-sourced (pumpX2, MIT licence, Java on
   Android), and the pairing key comes from the 6-digit code on the pump, so it passes the "no vendor identity" rule.
   On the Mobi that protocol includes bolus, temp basal, suspend/resume and profiles. That is everything a loop needs,
@@ -54,7 +55,7 @@ an update could silently undo the change.
 | | Tandem Mobi | Tandem t:slim X2 | MiniMed 780G |
 |---|---|---|---|
 | In Spain since | 2026-09 (Novalab launch 18/09, [Tandem 28/09](https://www.morningstar.com/news/business-wire/20260928831177/tandem-mobi-automated-insulin-delivery-system-now-available-in-twelve-international-markets)) | years ([Novalab](https://www.novalab.es/bombas-insulina/tandem-tslim-x2)) | years |
-| Sensor in Spain | **Dexcom G7 only**; Abbott "expected in select countries in 2027" | **Dexcom G7** ([since 2024](https://www.anisalud.com/actualidad/notas-de-prensa-anis/10747-una-gran-alianza-dexcom-g7-se-conecta-a-tandem-t-slim-x2)); Libre 3 Plus live in UK/CH/SE/FI/IT since 2026-07, **Spain not listed** ([Medical Economics](https://www.medicaleconomics.com/view/tandem-s-t-slim-x2-insulin-pump-now-compatible-with-abbott-s-freestyle-libre-3-plus-cgm-in-five-countries)) | Guardian 4, Simplera Sync, **Instinct** (Abbott, 15 days, [EU launch 2026-06-23](https://news.minimed.com/2026-06-23-MiniMed-launches-Instinct-sensors-in-Europe-giving-people-with-diabetes-more-sensor-choice-with-the-same-proven-outcomes), Spain among the first, [Canal Diabetes](https://canaldiabetes.com/minimed-sensores-instinct-instinct-go-diabetes/)) |
+| Sensor in Spain | **Dexcom G7 only**; Abbott "expected in select countries in 2027" | **Dexcom G7** ([since 2024](https://www.anisalud.com/actualidad/notas-de-prensa-anis/10747-una-gran-alianza-dexcom-g7-se-conecta-a-tandem-t-slim-x2)); Libre 3 Plus live in UK/CH/SE/FI/IT since 2026-07, **Spain not listed** ([Medical Economics](https://www.medicaleconomics.com/view/tandem-s-t-slim-x2-insulin-pump-now-compatible-with-abbott-s-freestyle-libre-3-plus-cgm-in-five-countries)) | Guardian 4, Simplera Sync, **Instinct** (Abbott, 15 days, [EU launch 2026-06-23](https://news.minimed.com/2026-06-23-MiniMed-launches-Instinct-sensors-in-Europe-giving-people-with-diabetes-more-sensor-choice-with-the-same-proven-outcomes), Spain among the first, [Canal Diabetes](https://canaldiabetes.com/minimed-sensores-instinct-instinct-go-diabetes/)); **supplied at Trueta** (a patient there wears one) |
 | Official phone app | **iPhone only** outside the US; Android "2027" | t:slim mobile app (Spanish availability not verified) | MiniMed Mobile: **no root, no Developer Options**, tested phone list ([Medtronic](https://origin.medtronicdiabetes.com/customer-support/minimed-780g-system-support/troubleshooting-minimed-mobile-app)) |
 
 ## 2. How far each one integrates
@@ -151,7 +152,36 @@ How to run it:
   from yet.
 
 Pick the 780G instead only if the priority is the strongest automatic control with the least interaction, and DIY is
-off the table.
+off the table. Keeping the Abbott sensor (as Instinct) doesn't tip the balance. Instinct is bound to the pump, so
+Sukrara loses its direct reading either way. With the G7, Sukrara can still read the sensor on the phone.
+
+## A DIY loop on the Mobi: what it can reach
+
+Yes, the Mobi is the one pump of the three where a full DIY closed loop is technically possible. pumpX2 has every
+command a loop needs: temp basal, bolus (and so SMBs), suspend and profiles. The AndroidAPS fork already drives it
+this way, with Control-IQ disabled. **100 % time in range is not reachable on any system, DIY or not:**
+
+- **Insulin is slow.** Rapid insulin under the skin starts in about 15 minutes and peaks after about 1 hour. A loop
+  can only react to a rise that has already started, and food raises glucose faster than insulin can lower it.
+- **The sensor lags.** The CGM measures interstitial fluid, about 5–10 minutes behind blood. On top of that the
+  reading has its own error (MARD around 8 %), which is enough to put readings near the edges of the range on the
+  wrong side.
+- **Life has inputs the loop can't see:** an unannounced meal, exercise, stress or illness hormones, a kinked
+  cannula, a site in its third day.
+- **Pushing harder causes lows.** A loop tuned to never pass 180 would overshoot into hypoglycaemia. Every algorithm
+  trades highs against lows.
+
+Realistic targets:
+
+- **Consensus goal:** above 70 % in range, below 4 % under 70.
+- **Commercial loops** (780G, Control-IQ) average about 70–80 %.
+- **Well-tuned open-source loops** (AndroidAPS, Trio, with SMBs and announced meals) typically reach 80–90 %. Some
+  users on low-carb diets go above 95 %.
+- What a DIY loop really buys over Control-IQ is your own targets (for example 100 instead of a fixed 112.5) and
+  more frequent, tunable corrections. That shows most in time in tight range (70–140).
+
+One Mobi-specific catch for an SMB loop: **the pump beeps or vibrates on every bolus sent from a phone.** With SMBs
+every 5 minutes, that is the main barrier the pumpX2 author names. Temp-basal-only looping avoids it.
 
 ## Questions for Trueta / Novalab
 
@@ -159,8 +189,8 @@ off the table.
    patients who run the Mobi from an iPhone they own?
 2. When does Libre 3 Plus come to the t:slim X2 in Spain, and when do Abbott sensors come to the Mobi?
 3. Is a parallel Libre 3 Plus funded or self-paid?
-4. For the 780G: which sensor does ICS supply (Simplera or Instinct), and does the Flex upgrade programme include
-   Spain?
+4. For the 780G: is Instinct the default sensor for new patients (Trueta already supplies it), and does the Flex
+   upgrade programme include Spain?
 5. Pump warranty and replacement term under the ICS contract (typically 4 years): is it a lock-in until then?
 
 ## Not verified
