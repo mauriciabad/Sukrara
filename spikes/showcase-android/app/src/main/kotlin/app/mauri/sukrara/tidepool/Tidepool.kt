@@ -43,7 +43,7 @@ object Tidepool : CloudUploader {
     /** What the settings page shows. kind: off | sign_in | not_allowed | waiting | ok | error. */
     private val _status = MutableStateFlow(Status())
     override val status: StateFlow<Status> = _status
-    override val title = "Tidepool"
+    override val title = "Tidepool"   // i18n-ok: brand name
     override val uploading get() = _settings.value.let { it.on && it.signedIn && loaded && TidepoolQueue.allowed(App.role(app), it.uploadFollowed) }
 
     @Volatile private var loaded = false

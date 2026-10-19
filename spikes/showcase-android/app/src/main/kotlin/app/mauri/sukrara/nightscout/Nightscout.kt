@@ -52,7 +52,7 @@ object Nightscout : CloudUploader {
     /** kind: off | setup | sign_in | paused (error = the other device) | waiting | ok | error. */
     private val _status = MutableStateFlow(UploadStatus())
     override val status: StateFlow<UploadStatus> = _status
-    override val title = "Nightscout"
+    override val title = "Nightscout"   // i18n-ok: brand name
     override val uploading get() = _settings.value.let { it.on && it.configured } && loaded && App.role(app) == "owner"
 
     @Volatile private var loaded = false
