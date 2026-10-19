@@ -185,7 +185,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 
 **Watch and smart home**
 - Garmin: Sukrara speaks the same local web API as Juggluco and xDrip+, so the CGM+ app, datafield and watch faces
-  work unchanged (Settings → Share with apps → xDrip+ server, off by default). [08](docs/08-garmin.md)
+  work unchanged (Settings → Share with apps → xDrip+ server, off by default; Garmin Connect is listed under Apps on
+  this phone with the same switch). [08](docs/08-garmin.md)
 - Nightscout-compatible adapter: stock Home Assistant, xDrip+, Nightguard, LoopFollow and others read it without
   changes (Settings → Share with apps → Nightscout, off by default). [03](docs/03-nostr.md)
 - Apps on the same phone: AAPS, GlucoDataHandler (and through it Wear OS, Android Auto, WatchDrip+, Tasker) and

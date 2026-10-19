@@ -399,14 +399,6 @@ fun SettingsBanner(@DrawableRes icon: Int, title: String, text: String, action: 
     }
 }
 
-/**
- * Another app's own icon in its colours (xDrip+, Juggluco, LibreView), round like the launcher shows it, at the size
- * of the 24 dp icons beside it.
- */
-@Composable
-fun AppIcon(@DrawableRes res: Int, size: Dp = 24.dp) =
-    androidx.compose.foundation.Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size).clip(androidx.compose.foundation.shape.CircleShape))
-
 /** A search result: icon, title, summary and where it is ("Page > Group", in the accent colour). */
 fun SettingsGroupScope.result(title: String, summary: String?, where: String, icon: (@Composable () -> Unit)?, onClick: () -> Unit) = row {
     val accent = MaterialTheme.colorScheme.primary

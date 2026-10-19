@@ -51,6 +51,14 @@
         <intent><action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" /></intent>
         <intent><action android:name="com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE" /></intent>
         <intent><action android:name="glucodata.Minute" /></intent>
+        <!-- apps whose real icon settings rows show (ui/AppIcons Service) and apps that read the xDrip+ server
+             (bridge/ServerReaders) -->
+        <package android:name="tk.glucodata" />
+        <package android:name="com.eveningoutpost.dexdrip" />
+        <package android:name="com.google.android.healthconnect.controller" />
+        <package android:name="com.android.healthconnect.controller" />
+        <package android:name="com.garmin.android.apps.connectmobile" />
+        <package android:name="com.garmin.connectiq" />
     </queries>
 
     <application

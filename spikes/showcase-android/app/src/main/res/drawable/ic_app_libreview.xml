@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LibreView's mark as an app icon: libreview.com's favicon (the only icon the site publishes, 32 px), traced as a
+     vector in its own colours — a sensor above glucose bars on LibreView blue. The favicon's tile becomes the
+     background layer (the device's icon mask shapes it, as for every app icon); the 32-unit favicon fills the 72 dp
+     visible area of the 108 dp adaptive canvas. Abbott's terms allow its marks "to identify the product or services of
+     the company", which is the only place Sukrara shows it (docs/10-showcase.md "Service and app icons"). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background>
+        <color android:color="#138BE8"/>
+    </background>
+    <foreground>
+        <vector android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <group android:scaleX="2.25" android:scaleY="2.25" android:translateX="18" android:translateY="18">
+                <path android:fillColor="#FFFFFF" android:pathData="M16,5.5a6.5,6.5 0,1 1,0 13a6.5,6.5 0,1 1,0 -13z"/>
+                <path android:fillColor="#138BE8" android:pathData="M16,11a1,1 0,1 1,0 2a1,1 0,1 1,0 -2z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M4.9,22.5h1.4v4.0h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M8.3,20.6h1.4v5.9h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M11.8,22.2h1.4v4.3h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M15.2,21.5h1.4v5.0h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M18.7,20.6h1.4v5.9h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M22.1,19.0h1.4v7.5h-1.4z"/>
+                <path android:fillColor="#BFFFFFFF" android:pathData="M25.6,15.0h1.4v11.5h-1.4z"/>
+            </group>
+        </vector>
+    </foreground>
+</adaptive-icon>

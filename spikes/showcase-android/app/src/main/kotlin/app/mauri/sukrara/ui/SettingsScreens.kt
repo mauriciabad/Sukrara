@@ -209,7 +209,7 @@ fun SourceSettings(onBack: () -> Unit) {
         SettingsIntro(stringResource(R.string.source_intro))
         SettingsGroup {
             value(stringResource(R.string.source_source), stringResource(sourceLabel(f.source)) + " · " + st.source + (st.sourceError?.let { " — $it" } ?: ""),
-                icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ AppIcon(R.drawable.ic_brand_juggluco) })) { choosing = true }
+                icon = if (direct) R.drawable.ic_brand_abbott else null, leading = if (direct) null else ({ ServiceIcon(Service.JUGGLUCO) })) { choosing = true }
             link(stringResource(R.string.sensor_title), if (direct) st.sensorSerial?.let { stringResource(R.string.source_sensor_summary, it) } ?: stringResource(R.string.source_sensor_summary_none)
                 else stringResource(R.string.source_sensor_unavailable), icon = R.drawable.ic_sym_nfc, enabled = direct, to = "sensor")
         }
@@ -460,18 +460,20 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
                     lv.email.isEmpty() || !lv.hasPassword -> stringResource(R.string.apps_libreview_not_set_up)
                     f.libreview -> stringResource(R.string.apps_libreview_uploading, lv.email)
                     else -> stringResource(R.string.settings_off) + " · " + lv.email
-                }, leading = { AppIcon(R.drawable.ic_brand_libreview) }, to = "libreview")
+                }, leading = { ServiceIcon(Service.LIBREVIEW) }, to = "libreview")
             }
             phoneAppsGroups(f.source == "direct")
         }
         SettingsGroup("Tidepool") { link("Tidepool", tidepoolSummary(), icon = R.drawable.ic_sym_cloud_upload, to = "tidepool") }
         SettingsGroup("xDrip+") {
-            switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { AppIcon(R.drawable.ic_brand_xdrip) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +
+            val readers by serverReaders()
+            switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { ServiceIcon(Service.XDRIP) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +
+                (if (readers.isNotEmpty()) " · " + stringResource(R.string.apps_xdrip_read_by, readers.joinToString { it.label }) else "") +
                 (if (st.watchPolledAt > 0) " · " + stringResource(R.string.apps_xdrip_last_asked, sinceText(st.watchPolledAt / 1000)) else "")) { v -> set { it.copy(garmin = v) } }
         }
         SettingsGroup("Nightscout") {
-            if (wearer) link(stringResource(R.string.ns_upload_title), nightscoutUploadSummary(), icon = R.drawable.ic_sym_cloud_upload, to = "nightscout_upload")
-            switch(stringResource(R.string.apps_nightscout), f.nightscout, icon = R.drawable.ic_nightscout,
+            if (wearer) link(stringResource(R.string.ns_upload_title), nightscoutUploadSummary(), leading = { ServiceIcon(Service.NIGHTSCOUT) }, to = "nightscout_upload")
+            switch(stringResource(R.string.apps_nightscout), f.nightscout, leading = { ServiceIcon(Service.NIGHTSCOUT) },
                 summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else stringResource(R.string.apps_nightscout_summary)) { v ->
                 set { it.copy(nightscout = v) }
             }
@@ -504,11 +506,17 @@ private fun phoneAppsGroups(direct: Boolean) {
     val receivers by produceState<List<app.mauri.sukrara.bridge.AppBroadcasts.Receiver>?>(null) {
         value = withContext(Dispatchers.IO) { app.mauri.sukrara.bridge.AppBroadcasts.init(ctx); app.mauri.sukrara.bridge.AppBroadcasts.receivers(ctx) }
     }
+    val f by Features.state.collectAsState()
+    val readers by serverReaders()
     SettingsGroup(stringResource(R.string.apps_phone_group)) {
-        if (receivers?.isEmpty() == true) info(stringResource(R.string.apps_phone_none))
+        if (receivers?.isEmpty() == true && readers.isEmpty()) info(stringResource(R.string.apps_phone_none))
         for (r in receivers.orEmpty()) switch(r.label, direct && r.pkg in allowed, enabled = direct,
             summary = if (direct) null else stringResource(R.string.apps_phone_needs_direct), leading = { PackageIcon(r.pkg) }) { v ->
             app.mauri.sukrara.bridge.AppBroadcasts.setAllowed(ctx, r.pkg, v)
+        }
+        // apps that read the xDrip+ server instead of broadcasts (Garmin Connect for the watch): the server's switch
+        for (a in readers) switch(a.label, f.garmin, summary = stringResource(R.string.apps_phone_via_server), leading = { PackageIcon(a.pkg) }) { v ->
+            set { it.copy(garmin = v) }
         }
     }
     val hc = app.mauri.sukrara.bridge.HealthConnect
@@ -522,7 +530,7 @@ private fun phoneAppsGroups(direct: Boolean) {
     }
     SettingsGroup("Health Connect") {
         val on = hcOn && granted
-        switch(stringResource(R.string.apps_health_connect), on, enabled = hc.available(ctx), icon = R.drawable.ic_sym_monitoring, summary = stringResource(when {
+        switch(stringResource(R.string.apps_health_connect), on, enabled = hc.available(ctx), leading = { ServiceIcon(Service.HEALTH_CONNECT) }, summary = stringResource(when {
             on -> R.string.apps_health_connect_on
             denied || (hcOn && !granted) -> R.string.apps_health_connect_denied
             else -> R.string.apps_health_connect_summary
@@ -532,14 +540,11 @@ private fun phoneAppsGroups(direct: Boolean) {
     }
 }
 
-/** An installed app's own launcher icon (round, like [AppIcon]). */
+/** The installed apps that read the xDrip+ server (bridge/ServerReaders), looked up off the main thread. */
 @Composable
-private fun PackageIcon(pkg: String) {
+private fun serverReaders(): androidx.compose.runtime.State<List<app.mauri.sukrara.bridge.ServerReaders.App>> {
     val ctx = LocalContext.current
-    val bmp = remember(pkg) { runCatching { ctx.packageManager.getApplicationIcon(pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull() }
-    if (bmp != null) androidx.compose.foundation.Image(bmp, contentDescription = null,
-        modifier = Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape))
-    else androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_sym_apps), contentDescription = null, modifier = Modifier.size(24.dp))
+    return produceState(emptyList()) { value = withContext(Dispatchers.IO) { app.mauri.sukrara.bridge.ServerReaders.installed(ctx) } }
 }
 
 @Composable
