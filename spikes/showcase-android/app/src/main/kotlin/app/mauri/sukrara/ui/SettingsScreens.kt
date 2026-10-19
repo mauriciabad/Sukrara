@@ -428,7 +428,7 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
             }
             phoneAppsGroups(f.source == "direct")
         }
-        SettingsGroup("Tidepool") { link("Tidepool", tidepoolSummary(), icon = R.drawable.ic_sym_cloud_upload, to = "tidepool") }
+        SettingsGroup("Tidepool") { link("Tidepool", tidepoolSummary(), leading = { ServiceIcon(Service.TIDEPOOL) }, to = "tidepool") }
         SettingsGroup("xDrip+") {
             val readers by serverReaders()
             switch(stringResource(R.string.apps_xdrip), f.garmin, leading = { ServiceIcon(Service.XDRIP) }, summary = stringResource(R.string.apps_xdrip_summary, st.garmin) +

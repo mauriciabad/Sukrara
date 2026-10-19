@@ -112,7 +112,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
   so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
   export / import / reset of the options, and a reminder to set up LibreView. Apps and services show their real icons,
-  drawn like the system Settings app's list (Tidepool keeps a generic symbol: its logo needs Tidepool's permission). Each alert has its own page
+  drawn like the system Settings app's list. Each alert has its own page
   (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
