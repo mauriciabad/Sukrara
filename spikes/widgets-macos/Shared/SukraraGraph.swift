@@ -1108,8 +1108,7 @@ enum Crown {
     private static let pts: [(CGFloat, CGFloat)] = [(0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4)]
     static let h: CGFloat = 7.4 / 12
 
-    /// `grow` > 0: the outline widened by that much on every side (a cut-out's margin).
-    static func fill(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, _ color: CGColor, grow: CGFloat = 0) {
+    static func fill(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, _ color: CGColor) {
         let k = w / 12
         ctx.saveGState()
         ctx.beginPath()
@@ -1119,8 +1118,25 @@ enum Crown {
         }
         ctx.closePath()
         ctx.setLineJoin(.round)
-        ctx.setLineWidth(w * 0.8 / 12 + 2 * grow)
+        ctx.setLineWidth(w * 0.8 / 12)
         ctx.setFillColor(color); ctx.setStrokeColor(color)
+        ctx.drawPath(using: .fillStroke)
+        ctx.restoreGState()
+    }
+
+    /// Filled with `fill` inside a `line`-coloured outline `lineW` wide (the ring's crown).
+    static func outlined(_ ctx: CGContext, x: CGFloat, bottom: CGFloat, w: CGFloat, fill: CGColor, line: CGColor, lineW: CGFloat) {
+        let k = w / 12
+        ctx.saveGState()
+        ctx.beginPath()
+        for (i, p) in pts.enumerated() {
+            let q = CGPoint(x: x + (p.0 - 6) * k, y: bottom + (p.1 - 7.4) * k)
+            if i == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
+        }
+        ctx.closePath()
+        ctx.setLineJoin(.round)
+        ctx.setLineWidth(lineW)
+        ctx.setFillColor(fill); ctx.setStrokeColor(line)
         ctx.drawPath(using: .fillStroke)
         ctx.restoreGState()
     }
@@ -1132,8 +1148,8 @@ enum Laurel {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
         ctx.setLineWidth(r * 0.026); ctx.setLineCap(.round)
-        let sr = r * 1.12
-        for (a0, a1) in [(100.0, 168.0), (12.0, 80.0)] as [(CGFloat, CGFloat)] {
+        let sr = r * 1.21
+        for (a0, a1) in [(108.0, 162.0), (18.0, 72.0)] as [(CGFloat, CGFloat)] {
             ctx.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: false)
             ctx.strokePath()
         }
@@ -1145,21 +1161,22 @@ enum Laurel {
             ctx.fillEllipse(in: CGRect(x: -r * 0.095, y: -r * 0.04, width: r * 0.19, height: r * 0.08))
             ctx.restoreGState()
         }
-        // each branch climbs from near 6 o'clock: an outer and an inner leaf per step, both leaning up the stem
-        for k in 0..<6 {
-            let l = 104 + 12.5 * CGFloat(k), rt = 76 - 12.5 * CGFloat(k)
-            at(r * 1.18, l, l + 90 - 32); at(r * 1.06, l + 4, l + 90 + 32)
-            at(r * 1.18, rt, rt - 90 + 32); at(r * 1.06, rt - 4, rt - 90 - 32)
+        // each branch climbs from below the ring: an outer and an inner leaf per step, both leaning up the stem, the
+        // inner ones clear of the ring
+        for k in 0..<5 {
+            let l = 112 + 11 * CGFloat(k), rt = 68 - 11 * CGFloat(k)
+            at(r * 1.28, l, l + 90 - 32); at(r * 1.15, l + 4, l + 90 + 32)
+            at(r * 1.28, rt, rt - 90 + 32); at(r * 1.15, rt - 4, rt - 90 - 32)
         }
         ctx.restoreGState()
     }
 }
 
 /// The segmented time-in-range ring (TirRing in GlucoseCard.kt), with the sensor `countdown` ring over it. A ring with
-/// a `TirMark` is drawn `marked` of the slot so the mark fits: the laurel around its lower half, the crown standing on
-/// 12 o'clock, cut into the ring and the countdown.
+/// a `TirMark` is drawn `marked` of the slot so the mark fits: the laurel around its lower half, clear of it; the crown
+/// (white in a green outline) standing on 12 o'clock, cut into the ring and the countdown.
 enum TirRing {
-    static let marked: CGFloat = 0.82
+    static let marked: CGFloat = 0.78
 
     static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, tir: TimeInRange, spec: RingSpec,
                      _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil) {
@@ -1168,7 +1185,7 @@ enum TirRing {
         let sw = r * 0.2
         let rr = r - sw / 2
         let markColor = (pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight).a(emphasis)
-        let crownW = r * 0.56, crownBottom = c.y - r * 0.84
+        let crownW = r * 0.62, crownBottom = c.y - r * 0.84, crownLine = r * 0.075
         if mark == .crown { ctx.beginTransparencyLayer(auxiliaryInfo: nil) }
         ctx.saveGState()
         ctx.setLineWidth(sw)
@@ -1203,10 +1220,12 @@ enum TirRing {
         if mark == .crown {
             ctx.saveGState()
             ctx.setBlendMode(.destinationOut)
-            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, CGColor(gray: 0, alpha: 1), grow: r * 0.06)
+            Crown.outlined(ctx, x: c.x, bottom: crownBottom, w: crownW, fill: CGColor(gray: 0, alpha: 1), line: CGColor(gray: 0, alpha: 1),
+                           lineW: crownLine + 2 * r * 0.06)
             ctx.restoreGState()
             ctx.endTransparencyLayer()
-            Crown.fill(ctx, x: c.x, bottom: crownBottom, w: crownW, markColor)
+            Crown.outlined(ctx, x: c.x, bottom: crownBottom, w: crownW, fill: CGColor(gray: 1, alpha: 1).a(emphasis), line: markColor,
+                           lineW: crownLine)
         }
         if mark == .laurel { Laurel.draw(ctx, center: c, r: r, markColor) }
         let num = Ink.font(r * 0.78, .heavy, rounded: true)
