@@ -2037,7 +2037,7 @@
     <!-- Ring band; %1$d = limit [CHAR LIMIT=30] -->
     <string name="graph_band_very_high">Very high (&gt; %1$d)</string>
     <!-- Beside the number note [CHAR LIMIT=NONE] -->
-    <string name="graph_beside_number_note">Each slot is a time-in-range ring or a number from your doctor\'s report: GMI, average glucose or variability (CV), with a green arc when its goal is met. Slots that don\'t fit are hidden, the last one first. A slot needs data for at least a quarter of its window. Last treatment shows your latest rapid insulin (for 4 h) or carbs (for 3 h): the amount, the time since, and a ring for the time left before alerts come back. It takes the second slot\'s place when there\'s room for only two.</string>
+    <string name="graph_beside_number_note">Each slot is a time-in-range ring or a number from your doctor\'s report: GMI, average glucose or variability (CV), with a green arc when its goal is met. Slots that don\'t fit are hidden, the last one first. A slot needs data for at least a quarter of its window. Last treatment shows your latest rapid insulin (for 4 h, ahead of carbs while its alert pause lasts) or carbs (up to 3 h, less for small amounts): the amount, the time since, and a ring for the time left before alerts come back. It takes the second slot\'s place when there\'s room for only two.</string>
     <!-- Group [CHAR LIMIT=30] -->
     <string name="graph_group_beside_graph">Beside the graph</string>
     <!-- Switch [CHAR LIMIT=40] -->

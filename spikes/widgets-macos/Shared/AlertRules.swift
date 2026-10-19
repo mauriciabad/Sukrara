@@ -239,10 +239,10 @@ enum AlertStatus: Equatable {
 
 /// The entry for the last-treatment slot beside the value, and how much of its mute is left.
 enum LastTreatment {
-    /// How long after it was logged an entry stays in the slot: rapid insulin 4 h (still working?), carbs 3 h (a meal
-    /// is mostly absorbed); long-acting and notes never.
-    static func keepS(_ k: String) -> TimeInterval? {
-        switch k { case "rapid": 4 * 3600; case "carbs": 3 * 3600; default: nil }
+    /// How long after it was logged an entry stays in the slot: rapid insulin 4 h (still working?), carbs 3 min per
+    /// gram between 30 min and 3 h (a small amount needn't stay for hours); long-acting and notes never.
+    static func keepS(_ m: GraphMark) -> TimeInterval? {
+        switch m.k { case "rapid": 4 * 3600; case "carbs": min(max(m.a * 180, 30 * 60), 3 * 3600); default: nil }
     }
 
     struct Info: Equatable {
@@ -256,13 +256,17 @@ enum LastTreatment {
         }
     }
 
-    /// The treatment that mutes the current alert (`status` taken), else the newest rapid / carbs entry still inside
-    /// `keepS` (a meal logged at the same minute shows the insulin); nil = nothing recent (the slot shows its fallback).
+    /// Rapid insulin whose mute is still running (carbs on top of it show once it is over), else the treatment that
+    /// mutes the current alert (`status` taken), else the newest rapid / carbs entry still inside `keepS` (a meal logged
+    /// at the same minute shows the insulin); nil = nothing recent (the slot shows its fallback).
     static func of(_ marks: [GraphMark], _ s: AlertSettings, _ status: AlertStatus, now: TimeInterval) -> Info? {
         let tr: GraphMark
-        if case let .taken(_, t, _) = status { tr = t } else {
+        let live = marks.filter { $0.t <= now }
+        if let r = live.filter({ $0.k == "rapid" && (AlertStatus.muteUntil($0, s) ?? 0) > now }).max(by: { $0.t < $1.t }) {
+            tr = r
+        } else if case let .taken(_, t, _) = status { tr = t } else {
             func key(_ m: GraphMark) -> (Int, Int) { (Int((m.t / 60).rounded(.down)), m.k == "rapid" ? 1 : 0) }
-            guard let t = marks.filter({ m in m.t <= now && keepS(m.k).map { now - m.t < $0 } == true })
+            guard let t = live.filter({ m in keepS(m).map { now - m.t < $0 } == true })
                 .max(by: { key($0) < key($1) }) else { return nil }
             tr = t
         }

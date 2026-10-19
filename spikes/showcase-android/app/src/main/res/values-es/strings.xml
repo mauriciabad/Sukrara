@@ -1530,7 +1530,7 @@
     <string name="graph_band_target">En rango (%1$d–%2$d)</string>
     <string name="graph_band_high">Alta (%1$d–%2$d)</string>
     <string name="graph_band_very_high">Muy alta (&gt; %1$d)</string>
-    <string name="graph_beside_number_note">Cada hueco es un anillo de tiempo en rango o un número del informe de tu médico: GMI, glucosa media o variabilidad (CV), con un arco verde cuando se cumple su objetivo. Los huecos que no caben se ocultan, empezando por el último. Un hueco necesita datos de al menos una cuarta parte de su periodo. Último tratamiento muestra tu última insulina rápida (durante 4 h) o tus últimos hidratos (durante 3 h): la cantidad, el tiempo transcurrido y un anillo con el tiempo que falta para que vuelvan las alertas. Ocupa el lugar del segundo hueco cuando solo caben dos.</string>
+    <string name="graph_beside_number_note">Cada hueco es un anillo de tiempo en rango o un número del informe de tu médico: GMI, glucosa media o variabilidad (CV), con un arco verde cuando se cumple su objetivo. Los huecos que no caben se ocultan, empezando por el último. Un hueco necesita datos de al menos una cuarta parte de su periodo. Último tratamiento muestra tu última insulina rápida (durante 4 h, antes que los hidratos mientras dura su pausa de alertas) o tus últimos hidratos (hasta 3 h, menos si son pocos): la cantidad, el tiempo transcurrido y un anillo con el tiempo que falta para que vuelvan las alertas. Ocupa el lugar del segundo hueco cuando solo caben dos.</string>
     <string name="graph_group_beside_graph">Junto a la gráfica</string>
     <!-- Switch title in Graph settings: the laurel, flowers and crown the time-in-range rings wear [CHAR LIMIT=40] -->
     <string name="graph_ring_marks">Premios en los anillos</string>
