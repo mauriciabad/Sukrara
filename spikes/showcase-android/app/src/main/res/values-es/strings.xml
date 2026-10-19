@@ -1482,6 +1482,14 @@
     <string name="graph_band_very_high">Muy alta (&gt; %1$d)</string>
     <string name="graph_beside_number_note">Cada hueco es un anillo de tiempo en rango o un número del informe de tu médico: GMI, glucosa media o variabilidad (CV), con un arco verde cuando se cumple su objetivo. Los huecos que no caben se ocultan, empezando por el último. Un hueco necesita datos de al menos una cuarta parte de su periodo. Último tratamiento muestra tu última insulina rápida (durante 4 h) o tus últimos hidratos (durante 3 h): la cantidad, el tiempo transcurrido y un anillo con el tiempo que falta para que vuelvan las alertas. Ocupa el lugar del segundo hueco cuando solo caben dos.</string>
     <string name="graph_group_beside_graph">Junto a la gráfica</string>
+    <!-- Switch title in Graph settings: the laurel, flowers and crown the time-in-range rings wear [CHAR LIMIT=40] -->
+    <string name="graph_ring_marks">Premios en los anillos</string>
+    <!-- Its summary [CHAR LIMIT=90] -->
+    <string name="graph_ring_marks_summary" formatted="false">Un laurel desde el 90 % en rango, flores desde el 95 % y una corona al 100 %</string>
+    <!-- Switch title in Graph settings: the crown over a perfect 100 % beside the chart [CHAR LIMIT=40] -->
+    <string name="graph_column_crown" formatted="false">Corona al 100 %</string>
+    <!-- Its summary [CHAR LIMIT=90] -->
+    <string name="graph_column_crown_summary" formatted="false">Sobre el 100 % cuando nada estuvo fuera de rango</string>
     <string name="graph_side">Tiempo en rango y distribución</string>
     <string name="graph_side_summary" formatted="false">El % del tiempo por debajo, dentro y por encima del rango, y cuánto tiempo se pasó en cada nivel</string>
     <string name="graph_side_note">La distribución cubre el mismo tiempo que la gráfica; las líneas se detienen antes de sus puntos. Cada widget puede desactivarla por su cuenta.</string>

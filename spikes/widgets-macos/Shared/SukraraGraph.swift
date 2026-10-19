@@ -298,6 +298,8 @@ struct GraphStyle {
     var bands = Bands()
     /// The time in range beside the graph: the distribution dots and the % labels.
     var side = true
+    /// The crown over a perfect 100 in the % column (`GraphConfig.columnCrown`).
+    var crown = true
     var axisLabels = true
     var treatments = true
     var hour24 = GraphStyle.systemHour24
@@ -329,6 +331,8 @@ struct RingSpec: Codable, Equatable {
     var faded = true
     /// A ring's segment order (the app-wide `ringOrder`).
     var order: [Band] = DEFAULT_RING_ORDER
+    /// Whether the ring wears its `TirMark` (`GraphConfig.ringMarks`).
+    var marks = true
     var period: String { periodLabel(window) }
 }
 
@@ -442,6 +446,8 @@ struct GraphConfig: Codable, Equatable {
     var ringRange: TirRange = .inRange
     var ringOrder: [Band] = DEFAULT_RING_ORDER
     var side = true
+    /// The crown over the 100 % beside the chart; the rings' rewards (laurel, flowers, crown).
+    var columnCrown = true, ringMarks = true
     /// Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them).
     var lines = GraphConfig.defaultLines
     /// Hours between the vertical lines at least (`gridChoices`; small charts space them further apart), 0 = none.
@@ -455,7 +461,7 @@ struct GraphConfig: Codable, Equatable {
 
     static let defaultLastElse = RingSpec(window: 30 * 86400)
     /// `lastElse` with the ring settings applied.
-    var lastElseRing: RingSpec? { lastElse.map { var r = $0; r.range = ringRange; r.order = ringOrder; return r } }
+    var lastElseRing: RingSpec? { lastElse.map { var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r } }
     /// The card style of a surface with a value: the rings, the last-treatment slot and its fallback.
     func cardStyle(graph g: GraphStyle?, rings: [RingSpec]? = nil) -> CardStyle {
         CardStyle(graph: g, rings: rings ?? self.rings, value: true, last: lastPlace, lastElse: lastElseRing, countdownHours: countdownHours)
@@ -481,7 +487,7 @@ struct GraphConfig: Codable, Equatable {
     /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
     static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
 
-    var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; r.order = ringOrder; return r } }
+    var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r } }
 
     /// "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind:window s:faded).
     static func slotsText(_ s: [RingSpec]) -> String { s.map { "\($0.kind.rawValue):\(Int($0.window)):\($0.faded ? 1 : 0)" }.joined(separator: ",") }
@@ -496,7 +502,7 @@ struct GraphConfig: Codable, Equatable {
         return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
-        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, lines: lines, gridHours: gridHours)
+        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines, gridHours: gridHours)
     }
 
     /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
@@ -517,6 +523,8 @@ struct GraphConfig: Codable, Equatable {
         c.ringRange = TirRange(rawValue: d.string(forKey: "ringRange") ?? "") ?? .inRange
         c.ringOrder = parseRingOrder(d.string(forKey: "ringOrder") ?? "") ?? DEFAULT_RING_ORDER
         c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
+        c.columnCrown = d.object(forKey: "columnCrown") == nil ? true : d.bool(forKey: "columnCrown")
+        c.ringMarks = d.object(forKey: "ringMarks") == nil ? true : d.bool(forKey: "ringMarks")
         c.lines = d.object(forKey: "lines") == nil ? defaultLines : parseLines(d.string(forKey: "lines") ?? "")
         c.gridHours = int("gridHours").flatMap { gridChoices.contains($0) ? $0 : nil } ?? 1
         c.lastPlace = LastPlace(rawValue: d.string(forKey: "lastPlace") ?? "") ?? .nearValue
@@ -783,7 +791,7 @@ enum GlucoseGraph {
                 Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: cy + 13 * d * 0.36, pctSmall, pal.inkSoft)
             }
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
-            if TirMark.column(tir) {
+            if st.crown, TirMark.column(tir) {
                 let numW = Ink.width("100", pctBig), cw = numW * 0.62
                 let bottom = c[1] + 13 * d * (0.36 - 0.72) - 1.5 * d
                 if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
@@ -1108,6 +1116,191 @@ enum TirMark: String, Comparable {
     static func column(_ tir: TimeInRange) -> Bool { of(tir, .inRange) == .crown }
 }
 
+/// The flower a laurel wears from 95 % (Bloom in Blooms.kt; spikes/graph-fixtures/mark): 95 lavender, 96
+/// forget-me-not, 97 daisy, 98 cherry blossom, 99 golden rosette; the crowned 100 % keeps the rosette; 99.6 counts as 99.
+enum Bloom: String {
+    case lavender, forgetMeNot = "forget_me_not", daisy, cherry, rosette
+
+    static func of(_ tir: TimeInRange, _ range: TirRange) -> Bloom? {
+        let m = TirMark.of(tir, range)
+        guard m >= .flowers else { return nil }
+        if m == .crown { return .rosette }
+        switch min(99, Int((tir.of(range) * 100).rounded())) {
+        case 95: return .lavender
+        case 96: return .forgetMeNot
+        case 97: return .daisy
+        case 98: return .cherry
+        default: return .rosette
+        }
+    }
+}
+
+/// The flower drawings (Blooms in Blooms.kt), in units of a ring's radius r: a tip flower just past a laurel stem's end
+/// (lavender grows from the stem's end, tangent to it) and the piece shared where two flowered laurels meet. Fixed
+/// colours ("reward", not a glucose range); tinted widgets draw them white.
+enum Blooms {
+    private static func hex(_ v: UInt32) -> CGColor { GraphPalette.hex(v) }
+    private static let white = CGColor(gray: 1, alpha: 1)
+
+    static func tip(_ ctx: CGContext, _ b: Bloom, cx: CGFloat, cy: CGFloat, r: CGFloat, isLeft: Bool, _ pal: GraphPalette, alpha: CGFloat) {
+        faded(ctx, alpha) {
+            if b == .lavender {
+                spike(ctx, at(cx, cy, r * 1.25, isLeft ? 214 : -34), r, isLeft ? -56 : -124, pal)
+            } else {
+                flower(ctx, b, at(cx, cy, r * 1.25, isLeft ? 219 : -39), unit(r, 1), pal)
+            }
+        }
+    }
+
+    /// Where two flowered laurels meet (rings at `lx`, `rx`): lavender grows a spike from each meeting branch, in its
+    /// own ring's fade; the others draw one centre piece between the two inner tips.
+    static func center(_ ctx: CGContext, _ b: Bloom, lx: CGFloat, rx: CGFloat, cy: CGFloat, r: CGFloat, _ pal: GraphPalette,
+                       la: CGFloat, ra: CGFloat) {
+        if b == .lavender {
+            tip(ctx, b, cx: lx, cy: cy, r: r, isLeft: false, pal, alpha: la)
+            tip(ctx, b, cx: rx, cy: cy, r: r, isLeft: true, pal, alpha: ra)
+            return
+        }
+        let p1 = at(lx, cy, r * 1.25, -39), p2 = at(rx, cy, r * 1.25, 219)
+        faded(ctx, max(la, ra)) { centerPiece(ctx, b, CGPoint(x: (p1.x + p2.x) / 2, y: p1.y), unit(r, 1.3), pal) }
+    }
+
+    private static func faded(_ ctx: CGContext, _ a: CGFloat, _ block: () -> Void) {
+        ctx.saveGState(); ctx.setAlpha(a); ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        block()
+        ctx.endTransparencyLayer(); ctx.restoreGState()
+    }
+    private static func at(_ x: CGFloat, _ y: CGFloat, _ d: CGFloat, _ deg: CGFloat) -> CGPoint {
+        CGPoint(x: x + d * cos(deg * .pi / 180), y: y + d * sin(deg * .pi / 180))
+    }
+    private static func unit(_ r: CGFloat, _ k: CGFloat) -> CGFloat { r * 0.14 * k }
+    private static func c(_ pal: GraphPalette, _ v: UInt32) -> CGColor { pal.knockout ? white : hex(v) }
+    private static func edge(_ pal: GraphPalette) -> CGColor {
+        pal.dark ? (pal.bg.alpha > 0 ? pal.bg : CGColor(gray: 0, alpha: 1)) : hex(0xC9D3CB)
+    }
+    private static func circle(_ ctx: CGContext, _ p: CGPoint, _ rad: CGFloat, _ color: CGColor) {
+        ctx.setFillColor(color); ctx.fillEllipse(in: CGRect(x: p.x - rad, y: p.y - rad, width: 2 * rad, height: 2 * rad))
+    }
+    private static func ellipse(_ ctx: CGContext, _ p: CGPoint, _ rx: CGFloat, _ ry: CGFloat, _ rot: CGFloat,
+                                fill: CGColor, stroke: CGColor? = nil, lineW: CGFloat = 0) {
+        ctx.saveGState()
+        ctx.translateBy(x: p.x, y: p.y); ctx.rotate(by: rot * .pi / 180)
+        let rect = CGRect(x: -rx, y: -ry, width: 2 * rx, height: 2 * ry)
+        ctx.setFillColor(fill); ctx.fillEllipse(in: rect)
+        if let stroke { ctx.setStrokeColor(stroke); ctx.setLineWidth(lineW); ctx.strokeEllipse(in: rect) }
+        ctx.restoreGState()
+    }
+    private static func leafPair(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
+        for s: CGFloat in [-1, 1] {
+            ellipse(ctx, CGPoint(x: p.x + s * u * 1.55, y: p.y + u * 0.95), u * 1.3, u * 0.5, s * 28, fill: pal.knockout ? white : pal.tight)
+        }
+    }
+
+    private static func flower(_ ctx: CGContext, _ b: Bloom, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
+        switch b {
+        case .forgetMeNot: forgetMeNot(ctx, p, u, pal)
+        case .daisy: daisy(ctx, p, u, double: false, pal)
+        case .cherry: blossom(ctx, p, u, 0, pal)
+        case .rosette: rosette(ctx, p, u, pal)
+        case .lavender: spike(ctx, p, u / 0.14, -90, pal)
+        }
+    }
+
+    private static func centerPiece(_ ctx: CGContext, _ b: Bloom, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
+        switch b {
+        case .forgetMeNot:
+            leafPair(ctx, p, u, pal)
+            for (a, bb) in [(-1.45, 0.55), (1.45, 0.55), (-0.75, -0.7), (0.75, -0.7), (0, 0.25)] as [(CGFloat, CGFloat)] {
+                forgetMeNot(ctx, CGPoint(x: p.x + a * u, y: p.y + bb * u), u * 0.6, pal)
+            }
+        case .daisy:
+            leafPair(ctx, p, u, pal)
+            for (a, bb, s) in [(-1.85, 0.55, 0.5), (1.85, 0.55, 0.5), (-1.2, -1.25, 0.34), (1.2, -1.25, 0.34)] as [(CGFloat, CGFloat, CGFloat)] {
+                daisy(ctx, CGPoint(x: p.x + a * u, y: p.y + bb * u), u * s, double: false, pal)
+            }
+            daisy(ctx, p, u * 0.85, double: true, pal)
+        case .cherry:
+            leafPair(ctx, p, u, pal)
+            blossom(ctx, CGPoint(x: p.x - u * 1.6, y: p.y + u * 0.55), u * 0.58, 20, pal)
+            blossom(ctx, CGPoint(x: p.x + u * 1.6, y: p.y + u * 0.55), u * 0.58, -20, pal)
+            blossom(ctx, CGPoint(x: p.x, y: p.y - u * 0.2), u, 0, pal)
+        case .rosette:
+            // an award rosette with two ribbon tails hanging into the gap
+            for (s, v) in [(CGFloat(1), UInt32(0xC98A12)), (-1, 0xB57A0E)] {
+                let pts: [(CGFloat, CGFloat)] = [(-0.25, 0.3), (-1.35, 2.75), (-0.9, 2.45), (-0.62, 3.0), (0.35, 0.55)]
+                ctx.beginPath()
+                for (i, (a, bb)) in pts.enumerated() {
+                    let q = CGPoint(x: p.x + s * a * u, y: p.y + bb * u)
+                    if i == 0 { ctx.move(to: q) } else { ctx.addLine(to: q) }
+                }
+                ctx.closePath(); ctx.setFillColor(c(pal, v)); ctx.fillPath()
+            }
+            rosette(ctx, p, u * 1.1, pal)
+        case .lavender: spike(ctx, p, u / 0.14, -90, pal)
+        }
+    }
+
+    /// Lavender: a bare stem continuing the branch along `dir`, then five pairs of violet buds.
+    private static func spike(_ ctx: CGContext, _ p: CGPoint, _ r: CGFloat, _ dir: CGFloat, _ pal: GraphPalette) {
+        let u = unit(r, 1), e = at(p.x, p.y, u * 3.6, dir)
+        ctx.saveGState()
+        ctx.setStrokeColor(pal.knockout ? white : pal.tight); ctx.setLineWidth(u * 0.16); ctx.setLineCap(.round)
+        ctx.move(to: p); ctx.addLine(to: e); ctx.strokePath()
+        ctx.restoreGState()
+        for i in 0..<5 {
+            let bp = at(p.x, p.y, u * (0.9 + CGFloat(i) * 0.68), dir), sz = u * (0.58 - CGFloat(i) * 0.07)
+            for side: CGFloat in [-1, 1] {
+                ellipse(ctx, at(bp.x, bp.y, sz * 0.55, dir + side * 90), sz, sz * 0.62, dir + side * 35, fill: c(pal, i % 2 == 1 ? 0xA98BE0 : 0x8E6CD4))
+            }
+        }
+    }
+
+    private static func forgetMeNot(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
+        for i in 0..<5 { circle(ctx, at(p.x, p.y, u, -90 + CGFloat(i) * 72), u * 0.8, c(pal, 0x7DB8F2)) }
+        circle(ctx, p, u * 0.55, white)
+        circle(ctx, p, u * 0.28, c(pal, 0xF2C230))
+    }
+
+    private static func daisy(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, double: Bool, _ pal: GraphPalette) {
+        let n = double ? 16 : 10
+        for i in 0..<n {
+            let a = -90 + CGFloat(i) * 360 / CGFloat(n)
+            ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: white, stroke: edge(pal), lineW: u * 0.12)
+        }
+        if double {
+            for i in 0..<10 {
+                let a = -72 + CGFloat(i) * 36
+                ellipse(ctx, at(p.x, p.y, u * 0.78, a), u * 0.62, u * 0.26, a, fill: pal.knockout ? white : hex(0xFFFDF4), stroke: edge(pal), lineW: u * 0.12)
+            }
+        }
+        circle(ctx, p, u * 0.62, c(pal, 0xF2C230))
+        if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, c(pal, 0xC9940F)) } }
+    }
+
+    private static func blossom(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ rot: CGFloat, _ pal: GraphPalette) {
+        let l = u * 2, w = u * 0.95
+        for i in 0..<5 {
+            ctx.saveGState()
+            ctx.translateBy(x: p.x, y: p.y); ctx.rotate(by: (CGFloat(i) * 72 + rot) * .pi / 180)
+            ctx.beginPath()
+            ctx.move(to: .zero)
+            ctx.addCurve(to: CGPoint(x: w * 0.35, y: -l), control1: CGPoint(x: w, y: -l * 0.25), control2: CGPoint(x: w * 1.05, y: -l * 0.9))
+            ctx.addLine(to: CGPoint(x: 0, y: -l * 0.82)); ctx.addLine(to: CGPoint(x: -w * 0.35, y: -l))
+            ctx.addCurve(to: .zero, control1: CGPoint(x: -w * 1.05, y: -l * 0.9), control2: CGPoint(x: -w, y: -l * 0.25))
+            ctx.closePath(); ctx.setFillColor(c(pal, 0xF7A9C4)); ctx.fillPath()
+            ctx.restoreGState()
+        }
+        for i in 0..<5 { circle(ctx, at(p.x, p.y, u * 0.55, -90 + rot + CGFloat(i) * 72), u * 0.1, c(pal, 0xC93F70)) }
+        circle(ctx, p, u * 0.42, c(pal, 0xD9487A))
+    }
+
+    private static func rosette(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
+        for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 1.1, -90 + CGFloat(i) * 45), u * 0.62, c(pal, 0xE7B53C)) }
+        for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * 0.42, c(pal, 0xF6D576)) }
+        circle(ctx, p, u * 0.42, c(pal, 0xC98A12))
+    }
+}
+
 /// The crown (Crown in GlucoseCard.kt): a 12 × 7.4 outline with rounded joins, `w` wide, bottom centre at (`x`, `bottom`).
 enum Crown {
     private static let pts: [(CGFloat, CGFloat)] = [(0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4)]
@@ -1139,40 +1332,21 @@ enum Crown {
 enum Laurel {
     enum Side { case full, merged }
 
-    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full,
-                     flowers: Bool = false) {
+    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full) {
         ctx.saveGState()
         ctx.setAlpha(color.alpha)
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
         let col = color.copy(alpha: 1) ?? color
-        branch(ctx, c, r, col, isLeft: true, left, flowers)
-        branch(ctx, c, r, col, isLeft: false, right, flowers)
+        branch(ctx, c, r, col, isLeft: true, left)
+        branch(ctx, c, r, col, isLeft: false, right)
         ctx.endTransparencyLayer()
-        ctx.restoreGState()
-    }
-
-    /// A flower at `p`: five round petals in the laurel's `color` around a pale centre (not yellow: that would read as
-    /// the high colour).
-    private static func flower(_ ctx: CGContext, _ p: CGPoint, _ r: CGFloat, _ color: CGColor) {
-        ctx.saveGState()
-        ctx.setFillColor(color)
-        for i in 0..<5 {
-            let a = (-90 + CGFloat(i) * 72) * .pi / 180
-            let q = CGPoint(x: p.x + r * 0.145 * cos(a), y: p.y + r * 0.145 * sin(a))
-            ctx.fillEllipse(in: CGRect(x: q.x - r * 0.117, y: q.y - r * 0.117, width: r * 0.234, height: r * 0.234))
-        }
-        let c = color.components ?? [0, 0, 0, 1]
-        let mix = c.count >= 3 ? CGColor(srgbRed: c[0] + (1 - c[0]) * 0.7, green: c[1] + (1 - c[1]) * 0.7, blue: c[2] + (1 - c[2]) * 0.7, alpha: 1)
-            : CGColor(gray: c[0] + (1 - c[0]) * 0.7, alpha: 1)
-        ctx.setFillColor(mix)
-        ctx.fillEllipse(in: CGRect(x: p.x - r * 0.084, y: p.y - r * 0.084, width: r * 0.168, height: r * 0.168))
         ctx.restoreGState()
     }
 
     /// One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
     /// leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
-    /// highest outer leaves. `flowers`: a flower at the tip.
-    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side, _ flowers: Bool) {
+    /// highest outer leaves. The flowers are `Blooms`'.
+    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side) {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
         ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
@@ -1193,10 +1367,6 @@ enum Laurel {
             if side == .full || k <= 1 || k == 5 { at(r * 1.35, a, a + s * 90 - s * 32) }
             at(r * 1.17, a + s * 5, a + s * 90 + s * 32)
         }
-        if flowers {
-            let t: CGFloat = (isLeft ? 219 : -39) * .pi / 180   // just past the stem's end
-            flower(ctx, CGPoint(x: c.x + r * 1.25 * cos(t), y: c.y + r * 1.25 * sin(t)), r, color)
-        }
         ctx.restoreGState()
     }
 }
@@ -1208,7 +1378,7 @@ enum Laurel {
 enum TirRing {
     static func draw(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
                      _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil) {
-        let mark = tir.empty ? TirMark.none : TirMark.of(tir, spec.range)
+        let mark = mark(tir, spec)
         let sw = r * 0.2
         let rr = r - sw / 2
         let crownW = r * 0.74, crownBottom = c.y - r * 0.72
@@ -1272,7 +1442,7 @@ enum TirRing {
 
 extension TirRing {
     /// The ring's `TirMark` (none without data).
-    static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark { tir.empty ? .none : TirMark.of(tir, spec.range) }
+    static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark { tir.empty || !spec.marks ? .none : TirMark.of(tir, spec.range) }
 }
 
 /// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
@@ -1507,7 +1677,24 @@ enum Slots {
         for (p, i) in order.enumerated() {
             guard let c = colors[i] else { continue }
             let l = p > 0 ? order[p - 1] : nil, r = p + 1 < order.count ? order[p + 1] : nil
-            Laurel.draw(ctx, center: CGPoint(x: cx[i], y: cy), r: radius, c, left: side(l), right: side(r), flowers: mark(items[i]) >= .flowers)
+            Laurel.draw(ctx, center: CGPoint(x: cx[i], y: cy), r: radius, c, left: side(l), right: side(r))
+        }
+        // The flowers: a tip flower on each side, except where two flowered laurels meet: one shared piece there, the
+        // flower of the ring that isn't faded, or of the higher number when both are faded or neither is.
+        let blooms: [Bloom?] = items.map { item in
+            if case let .metric(spec, m, _) = item, spec.kind == .tir, spec.marks { return Bloom.of(m.tir, spec.range) }
+            return nil
+        }
+        func fade(_ i: Int) -> CGFloat { if case let .metric(_, _, e) = items[i] { return e }; return 1 }
+        func share(_ i: Int) -> Double { if case let .metric(spec, m, _) = items[i] { return m.tir.of(spec.range) }; return 0 }
+        for (p, i) in order.enumerated() {
+            guard let b = blooms[i] else { continue }
+            let l = p > 0 ? order[p - 1] : nil, r = p + 1 < order.count ? order[p + 1] : nil
+            if l.flatMap({ blooms[$0] }) == nil { Blooms.tip(ctx, b, cx: cx[i], cy: cy, r: radius, isLeft: true, pal, alpha: fade(i)) }
+            if let r, let rb = blooms[r] {
+                let first = fade(i) != fade(r) ? (fade(i) > fade(r) ? b : rb) : (share(i) >= share(r) ? b : rb)
+                Blooms.center(ctx, first, lx: cx[i], rx: cx[r], cy: cy, r: radius, pal, la: fade(i), ra: fade(r))
+            } else { Blooms.tip(ctx, b, cx: cx[i], cy: cy, r: radius, isLeft: false, pal, alpha: fade(i)) }
         }
     }
 

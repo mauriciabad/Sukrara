@@ -196,12 +196,20 @@ fun GraphScreen(onBack: () -> Unit) {
             val counts = stringResource(R.string.graph_tir_counts)
             value(counts, range(g.ringRange)) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
             card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
+            switch(stringResource(R.string.graph_ring_marks), g.ringMarks,
+                summary = stringResource(R.string.graph_ring_marks_summary)) { v -> set { it.copy(ringMarks = v) } }
         }
         Note(stringResource(R.string.graph_beside_number_note))
 
-        SettingsGroup(stringResource(R.string.graph_group_beside_graph), titleAction = { Reset(stringResource(R.string.graph_group_beside_graph), g.side != D.side) { set { it.copy(side = D.side) } } }) {
+        SettingsGroup(stringResource(R.string.graph_group_beside_graph), titleAction = {
+            Reset(stringResource(R.string.graph_group_beside_graph), g.side != D.side || g.columnCrown != D.columnCrown) {
+                set { it.copy(side = D.side, columnCrown = D.columnCrown) }
+            }
+        }) {
             switch(stringResource(R.string.graph_side), g.side,
                 summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
+            switch(stringResource(R.string.graph_column_crown), g.columnCrown,
+                summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
         }
         Note(stringResource(R.string.graph_side_note))
         if (g != D) SettingsGroup { action(stringResource(R.string.graph_reset_all), icon = R.drawable.ic_sym_restart_alt) { set { D } } }

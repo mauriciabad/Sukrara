@@ -63,6 +63,8 @@ data class GraphStyle(
     val lines: List<Int> = DEFAULT_LINES,
     /** Hours between the vertical lines, at least ([GraphConfig.gridHours]); 0 = none (the time labels stay). */
     val gridHours: Int = 1,
+    /** The crown over a perfect 100 in the % column ([GraphConfig.columnCrown]). */
+    val crown: Boolean = true,
 )
 
 /**
@@ -238,7 +240,7 @@ object GlucoseGraph {
             label(inr, cIn)
             label(lo, cLo)
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
-            if (TirMark.column(tir)) {
+            if (st.crown && TirMark.column(tir)) {
                 val numW = pctBig.measureText("100")
                 val cw = numW * 0.62f
                 val bottom = cIn + pctBig.textSize * (0.36f - 0.72f) - 1.5f * d

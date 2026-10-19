@@ -189,6 +189,7 @@ enum GraphFixtures {
                     ("text", text, e["text"] as? String ?? "?"),
                     ("column", "\([col.0, col.1, col.2])", "\(e["column"] as? [Int] ?? [])"),
                     ("crown", "\(TirMark.column(tir))", "\(e["crown"] as? Bool ?? false)"),
+                    ("flower", Bloom.of(tir, range)?.rawValue ?? "none", e["flower"] as? String ?? "?"),
                 ]
                 for (k, got, want) in checks where got != want {
                     print("FAIL mark/\(f): \(c["name"] as? String ?? "?"): \(k) \(got) ≠ \(want)"); failures += 1

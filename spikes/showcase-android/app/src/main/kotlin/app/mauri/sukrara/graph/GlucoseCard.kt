@@ -49,6 +49,8 @@ data class RingSpec(
     val faded: Boolean = true,
     /** A ring's segments clockwise from 12 o'clock (the user's setting). */
     val order: List<Band> = DEFAULT_RING_ORDER,
+    /** Whether the ring wears its [TirMark] ([GraphConfig.ringMarks]). */
+    val marks: Boolean = true,
 ) {
     val period: String get() = periodLabel(windowS)
 }
@@ -117,36 +119,21 @@ object Crown {
 object Laurel {
     enum class Side { FULL, MERGED }
 
-    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL,
-             flowers: Boolean = false) {
+    fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Side = Side.FULL, right: Side = Side.FULL) {
         val a = color ushr 24
         val layer = if (a < 255) cv.saveLayerAlpha(null, a) else -1
         val c = color or (0xFF shl 24)
-        branch(cv, cx, cy, r, c, true, left, flowers)
-        branch(cv, cx, cy, r, c, false, right, flowers)
+        branch(cv, cx, cy, r, c, true, left)
+        branch(cv, cx, cy, r, c, false, right)
         if (layer >= 0) cv.restoreToCount(layer)
-    }
-
-    /**
-     * A flower at ([x], [y]): five round petals in the laurel's [color] around a pale centre (not yellow: that would read
-     * as the high colour).
-     */
-    private fun flower(cv: Canvas, x: Float, y: Float, r: Float, color: Int) {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-        for (i in 0 until 5) {
-            val a = Math.toRadians(-90.0 + i * 72)
-            cv.drawCircle(x + r * 0.145f * Math.cos(a).toFloat(), y + r * 0.145f * Math.sin(a).toFloat(), r * 0.117f, p)
-        }
-        p.color = ColorUtils.blendARGB(color, 0xFFFFFFFF.toInt(), 0.7f)
-        cv.drawCircle(x, y, r * 0.084f, p)
     }
 
     /**
      * One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
      * leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
-     * highest outer leaves. [flowers]: a flower at the tip.
+     * highest outer leaves. The flowers are [Blooms]'.
      */
-    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side, flowers: Boolean) {
+    private fun branch(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, side: Side) {
         val sr = r * 1.25f
         cv.drawArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else -34f, 83f, false,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -168,10 +155,6 @@ object Laurel {
             if (side == Side.FULL || k <= 1 || k == 5) at(r * 1.35f, a, a + s * 90 - s * 32)
             at(r * 1.17f, a + s * 5, a + s * 90 + s * 32)
         }
-        if (flowers) {
-            val t = Math.toRadians(if (left) 219.0 else -39.0)   // just past the stem's end
-            flower(cv, cx + sr * Math.cos(t).toFloat(), cy + sr * Math.sin(t).toFloat(), r, color)
-        }
     }
 }
 
@@ -186,7 +169,7 @@ object Laurel {
 object TirRing {
     fun draw(cv: Canvas, cx: Float, cy: Float, r: Float, tir: TimeInRange, spec: RingSpec,
              pal: GraphPalette, emphasis: Float, d: Float, countdown: Double? = null) {
-        val mark = if (tir.empty) TirMark.NONE else TirMark.of(tir, spec.range)
+        val mark = mark(tir, spec)
         val sw = r * 0.2f
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.BUTT }
         val oval = RectF(cx - r + sw / 2, cy - r + sw / 2, cx + r - sw / 2, cy + r - sw / 2)
@@ -236,8 +219,8 @@ object TirRing {
         cv.drawText(spec.period, cx, base + sub.textSize * 1.1f, sub)
     }
 
-    /** The ring's [TirMark] (none without data). */
-    fun mark(tir: TimeInRange, spec: RingSpec) = if (tir.empty) TirMark.NONE else TirMark.of(tir, spec.range)
+    /** The ring's [TirMark] (none without data or with the rewards turned off). */
+    fun mark(tir: TimeInRange, spec: RingSpec) = if (tir.empty || !spec.marks) TirMark.NONE else TirMark.of(tir, spec.range)
 
     /** The number in the middle: in range against its > 70 % goal, very good on its own (ShareText's rule). */
     fun text(tir: TimeInRange, spec: RingSpec): String =

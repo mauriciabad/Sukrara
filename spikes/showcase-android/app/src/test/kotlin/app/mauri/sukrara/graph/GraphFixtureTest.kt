@@ -169,6 +169,7 @@ class GraphFixtureTest {
                     "text" to (TirRing.text(tir, spec) to e.getString("text")),
                     "column" to (col.toList().toString() to List(3) { want.getInt(it) }.toString()),
                     "crown" to (TirMark.column(tir).toString() to e.getBoolean("crown").toString()),
+                    "flower" to ((Bloom.of(tir, spec.range)?.name?.lowercase() ?: "none") to e.getString("flower")),
                 )
                 for ((k, gw) in got) if (gw.first != gw.second) fails += "${f.name}: ${c.getString("name")}: $k ${gw.first} ≠ ${gw.second}"
                 n++

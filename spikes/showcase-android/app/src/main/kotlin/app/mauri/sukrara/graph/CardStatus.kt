@@ -199,8 +199,29 @@ object Slots {
         for ((p, i) in order.withIndex()) {
             val c = colors[i] ?: continue
             val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
-            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r), flowers = mark(items[i]) >= TirMark.FLOWERS)
+            Laurel.draw(cv, cx[i], cy, radius, c, side(l), side(r))
         }
+        // The flowers: a tip flower on each side, except where two flowered laurels meet: one shared piece there, the
+        // flower of the ring that isn't faded, or of the higher number when both are faded or neither is.
+        val blooms = items.map { item -> (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && it.spec.marks }?.let { Bloom.of(it.m.tir, it.spec.range) } }
+        fun alpha(i: Int) = (255 * (items[i] as SlotItem.Metric).emphasis).toInt()
+        for ((p, i) in order.withIndex()) {
+            val b = blooms[i] ?: continue
+            val l = order.getOrNull(p - 1); val r = order.getOrNull(p + 1)
+            if (l == null || blooms[l] == null) Blooms.tip(cv, b, cx[i], cy, radius, true, pal, alpha(i))
+            if (r == null || blooms[r] == null) Blooms.tip(cv, b, cx[i], cy, radius, false, pal, alpha(i))
+            else Blooms.center(cv, sharedBloom(items, blooms, i, r), cx[i], cx[r], cy, radius, pal, alpha(i), alpha(r))
+        }
+    }
+
+    /** Which of two meeting rings' [Bloom]s the shared piece uses: the unfaded ring's, else the higher number's. */
+    private fun sharedBloom(items: List<SlotItem>, blooms: List<Bloom?>, a: Int, b: Int): Bloom {
+        val ma = items[a] as SlotItem.Metric; val mb = items[b] as SlotItem.Metric
+        val first = when {
+            ma.emphasis != mb.emphasis -> if (ma.emphasis > mb.emphasis) a else b
+            else -> if (ma.m.tir.of(ma.spec.range) >= mb.m.tir.of(mb.spec.range)) a else b
+        }
+        return blooms[first]!!
     }
 
     /**

@@ -85,3 +85,4 @@ The ring's crown / laurel and the % column's crown (docs/FEATURES.md, "Time-in-r
 | `text` | the ring's number (ShareText: never `100` unless it is all) |
 | `column` | `[below, in range, above]` as the % column shows them (largest remainder; in range is 100 only when it is all) |
 | `crown` | whether the column's 100 wears the crown |
+| `flower` | the laurel's flower (`Bloom`): `none`, `lavender` (95), `forget_me_not` (96), `daisy` (97), `cherry` (98), `rosette` (99 and the crowned 100) |

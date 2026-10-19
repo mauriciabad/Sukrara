@@ -194,7 +194,11 @@ class GraphGallery {
             ), 300f, 150f, cols = 2, pal)
             val rings = listOf(
                 "100 % · crown" to (tir(0.0, 0.74, 0.26, 0.0) to RingSpec(86400)),
-                "96 % · flowers" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
+                "95 % · lavender" to (tir(0.02, 0.68, 0.27, 0.03) to RingSpec(86400)),
+                "96 % · forget-me-not" to (tir(0.01, 0.70, 0.26, 0.03) to RingSpec(86400)),
+                "97 % · daisy" to (tir(0.01, 0.70, 0.27, 0.02) to RingSpec(86400)),
+                "98 % · cherry" to (tir(0.0, 0.70, 0.28, 0.02) to RingSpec(86400)),
+                "99 % · rosette" to (tir(0.0, 0.72, 0.27, 0.01) to RingSpec(86400)),
                 "92 % · laurel" to (tir(0.02, 0.66, 0.26, 0.06) to RingSpec(86400)),
                 "88 % · nothing" to (tir(0.02, 0.62, 0.26, 0.10) to RingSpec(86400)),
                 "very good · crown" to (tir(0.0, 1.0, 0.0, 0.0) to RingSpec(86400, TirRange.TIGHT)),
@@ -203,12 +207,10 @@ class GraphGallery {
             sheet("tir-marks-rings-${if (dark) "dark" else "light"}", rings.map { (label, p) ->
                 Tile(label, "") { cv, w, h ->
                     val e = if (p.second.windowS > 86400) 0.55f else 1f
-                    val m = TirRing.mark(p.first, p.second)
-                    if (m != TirMark.NONE) Laurel.draw(cv, w / 2, h / 2, h * 0.34f,
-                        androidx.core.graphics.ColorUtils.setAlphaComponent(pal.tight, (255 * e).toInt()), flowers = m >= TirMark.FLOWERS)
+                    Slots.drawUnder(cv, listOf(SlotItem.Metric(p.second, GlucoseMetrics(p.first, 120.0, 30.0, 1000), e)), listOf(w / 2), h / 2, h * 0.34f, pal)
                     TirRing.draw(cv, w / 2, h / 2, h * 0.34f, p.first, p.second, pal, e, d)
                 }
-            }, 110f, 110f, cols = 6, pal)
+            }, 110f, 110f, cols = 5, pal)
 
             // every neighbour combination: crown (C), flowers (F), laurel (L), nothing (–), listed left to right as on the card
             val crown = TimeInRange(0.0, 0.0, 0.8, 0.2, 0.0, 0.0, 1.0)
