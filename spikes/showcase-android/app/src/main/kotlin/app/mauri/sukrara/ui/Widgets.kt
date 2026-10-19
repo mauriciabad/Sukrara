@@ -326,7 +326,8 @@ fun <T> ValueAndSlots(number: String?, slotsFor: (Int) -> List<T>, value: @Compo
             val main = if (slots.all { it is SlotItem }) Slots.mainIndex(slots.map { it as SlotItem }) else 0
             for ((i, item) in slots.withIndex().reversed()) {
                 val extra = items?.let { Slots.extraGap(it, i, ValueFit.SLOT_DP / 2) } ?: 0f
-                Box(Modifier.padding(start = (ValueFit.SLOT_GAP_DP + extra).dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
+                val edge = if (i == 0) items?.let { Slots.edgeInset(it, ValueFit.SLOT_DP / 2) } ?: 0f else 0f
+                Box(Modifier.padding(start = (ValueFit.SLOT_GAP_DP + extra).dp, end = edge.dp).requiredSize(ValueFit.SLOT_DP.dp).testTag("slot")) { slot(item, i == main) }
             }
         }
     }

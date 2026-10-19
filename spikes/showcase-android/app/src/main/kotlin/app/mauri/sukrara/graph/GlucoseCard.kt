@@ -161,45 +161,41 @@ object Laurel {
     }
 
     /**
-     * The facing sides of two laurelled rings of radius [r] at [lx] and [rx]: each starts as its own branch and the two
-     * meet at the top of the gap in one leaf; above the middle only the leaves toward each ring are drawn, so the two
-     * stems can close in. Each side in its own ring's colour and fade.
+     * The facing sides of two laurelled rings of radius [r] at [lx] and [rx], as one fork: each side rises from below
+     * its ring as its usual branch, the two curve in and join a little below the middle of the gap, and one stem goes on
+     * up to where a branch ends, with leaves on both sides. Each half in its own ring's colour and fade.
      */
     fun drawJoin(cv: Canvas, lx: Float, rx: Float, cy: Float, r: Float, left: Int, right: Int) {
-        val apexX = (lx + rx) / 2; val apexY = cy - r * 0.66f
-        faded(cv, left) { c -> merged(cv, lx, cy, r, c, false, apexX, apexY) }
-        faded(cv, right) { c -> merged(cv, rx, cy, r, c, true, apexX, apexY) }
-        faded(cv, if ((left ushr 24) >= (right ushr 24)) left else right) { c -> leaf(cv, apexX, apexY - r * 0.1f, -90f, r, c) }
+        val mx = (lx + rx) / 2; val my = cy + r * 0.15f   // where they join
+        val ty = cy - r * 0.62f                            // the top, level with a branch's tip
+        val bright = if ((left ushr 24) >= (right ushr 24)) left else right
+        faded(cv, left) { c -> lower(cv, lx, cy, r, c, false, mx, my) }
+        faded(cv, right) { c -> lower(cv, rx, cy, r, c, true, mx, my) }
+        faded(cv, bright) { c -> cv.drawLine(mx, my, mx, ty, stem(r, c)); leaf(cv, mx, ty - r * 0.1f, -90f, r, c) }
+        // up the shared stem: leaves leaning up and out, each side in its ring's colour
+        for (f in floatArrayOf(0.2f, 0.5f, 0.8f)) {
+            val y = my + (ty - my) * f
+            faded(cv, left) { c -> leaf(cv, mx - r * 0.075f, y - r * 0.05f, -122f, r, c) }
+            faded(cv, right) { c -> leaf(cv, mx + r * 0.075f, y - r * 0.05f, -58f, r, c) }
+        }
     }
 
-    /** A ring's side that merges ([left] = the ring's left side): its lower branch, then a curve up to the apex. */
-    private fun merged(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, apexX: Float, apexY: Float) {
+    /** The lower part of a ring's side that joins ([left] = the ring's left side): its branch, curving in to ([mx], [my]). */
+    private fun lower(cv: Canvas, cx: Float, cy: Float, r: Float, color: Int, left: Boolean, mx: Float, my: Float) {
         val s = if (left) 1 else -1
         val sr = r * 1.25f
-        val end = if (left) 165.0 else 15.0
-        val p0x = cx + sr * Math.cos(Math.toRadians(end)).toFloat(); val p0y = cy + sr * Math.sin(Math.toRadians(end)).toFloat()
-        val ctlX = p0x; val ctlY = cy - r * 0.25f
+        fun on(deg: Double) = Pair(cx + sr * Math.cos(Math.toRadians(deg)).toFloat(), cy + sr * Math.sin(Math.toRadians(deg)).toFloat())
+        val (ctlX, ctlY) = on(if (left) 168.0 else 12.0)
         val path = android.graphics.Path().apply {
-            addArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else 15f, 34f)
-            quadTo(ctlX, ctlY, apexX, apexY)
+            // up the branch (131° → 155°, or 49° → 25°), then in to the joint
+            addArc(RectF(cx - sr, cy - sr, cx + sr, cy + sr), if (left) 131f else 49f, if (left) 24f else -24f)
+            quadTo(ctlX, ctlY, mx, my)
         }
         cv.drawPath(path, stem(r, color))
         for (k in 0 until 3) {
             val a = if (left) 135f + 15f * k else 45f - 15f * k
-            if (k < 2) at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)
+            if (k < 2) at(cv, cx, cy, r * 1.35f, a, a + s * 90 - s * 32, r, color)   // the outer ones clear the other side
             at(cv, cx, cy, r * 1.17f, a + s * 5, a + s * 90 + s * 32, r, color)
-        }
-        // up the curve: the leaves toward the ring only
-        for (t in floatArrayOf(0.35f, 0.7f)) {
-            val u = 1 - t
-            val bx = u * u * p0x + 2 * u * t * ctlX + t * t * apexX
-            val by = u * u * p0y + 2 * u * t * ctlY + t * t * apexY
-            val dx = 2 * u * (ctlX - p0x) + 2 * t * (apexX - ctlX)
-            val dy = 2 * u * (ctlY - p0y) + 2 * t * (apexY - ctlY)
-            val len = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
-            val nx = s * -dy / len; val ny = s * dx / len   // towards the ring
-            val th = Math.toDegrees(Math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
-            leaf(cv, bx + nx * r * 0.08f, by + ny * r * 0.08f, th + s * 32, r, color)
         }
     }
 }

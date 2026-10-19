@@ -1185,41 +1185,44 @@ enum Laurel {
         }
     }
 
-    /// The facing sides of two laurelled rings of radius `r` at `lx` and `rx`: each starts as its own branch and the
-    /// two meet at the top of the gap in one leaf; above the middle only the leaves toward each ring are drawn, so the
-    /// two stems can close in. Each side in its own ring's colour and fade.
+    /// The facing sides of two laurelled rings of radius `r` at `lx` and `rx`, as one fork (Laurel.drawJoin in
+    /// GlucoseCard.kt): each side rises from below its ring as its usual branch, the two curve in and join a little
+    /// below the middle of the gap, and one stem goes on up to where a branch ends, with leaves on both sides. Each half
+    /// in its own ring's colour and fade.
     static func drawJoin(_ ctx: CGContext, lx: CGFloat, rx: CGFloat, cy: CGFloat, r: CGFloat, left: CGColor, right: CGColor) {
-        let apex = CGPoint(x: (lx + rx) / 2, y: cy - r * 0.66)
-        faded(ctx, left) { merged(ctx, CGPoint(x: lx, y: cy), r, $0, isLeft: false, apex) }
-        faded(ctx, right) { merged(ctx, CGPoint(x: rx, y: cy), r, $0, isLeft: true, apex) }
-        faded(ctx, left.alpha >= right.alpha ? left : right) { leaf(ctx, apex.x, apex.y - r * 0.1, rot: -90, r: r, $0) }
+        let m = CGPoint(x: (lx + rx) / 2, y: cy + r * 0.15)   // where they join
+        let ty = cy - r * 0.62                                // the top, level with a branch's tip
+        let bright = left.alpha >= right.alpha ? left : right
+        faded(ctx, left) { lower(ctx, CGPoint(x: lx, y: cy), r, $0, isLeft: false, m) }
+        faded(ctx, right) { lower(ctx, CGPoint(x: rx, y: cy), r, $0, isLeft: true, m) }
+        faded(ctx, bright) { col in
+            stroke(ctx, r, col) { $0.move(to: m); $0.addLine(to: CGPoint(x: m.x, y: ty)) }
+            leaf(ctx, m.x, ty - r * 0.1, rot: -90, r: r, col)
+        }
+        // up the shared stem: leaves leaning up and out, each side in its ring's colour
+        for f: CGFloat in [0.2, 0.5, 0.8] {
+            let y = m.y + (ty - m.y) * f
+            faded(ctx, left) { leaf(ctx, m.x - r * 0.075, y - r * 0.05, rot: -122, r: r, $0) }
+            faded(ctx, right) { leaf(ctx, m.x + r * 0.075, y - r * 0.05, rot: -58, r: r, $0) }
+        }
     }
 
-    /// A ring's side that merges (`isLeft` = the ring's left side): its lower branch, then a curve up to the apex.
-    private static func merged(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ apex: CGPoint) {
+    /// The lower part of a ring's side that joins (`isLeft` = the ring's left side): its branch, curving in to `m`.
+    private static func lower(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ m: CGPoint) {
         let s: CGFloat = isLeft ? 1 : -1
         let sr = r * 1.25
-        let end: CGFloat = (isLeft ? 165 : 15) * .pi / 180
-        let p0 = CGPoint(x: c.x + sr * cos(end), y: c.y + sr * sin(end))
-        let ctl = CGPoint(x: p0.x, y: c.y - r * 0.25)
+        func on(_ deg: CGFloat) -> CGPoint { CGPoint(x: c.x + sr * cos(deg * .pi / 180), y: c.y + sr * sin(deg * .pi / 180)) }
+        let ctl = on(isLeft ? 168 : 12)
         stroke(ctx, r, color) {
-            let a0: CGFloat = (isLeft ? 131 : 49) * .pi / 180
-            $0.addArc(center: c, radius: sr, startAngle: a0, endAngle: end, clockwise: !isLeft)
-            $0.addQuadCurve(to: apex, control: ctl)
+            // up the branch (131° → 155°, or 49° → 25°), then in to the joint
+            let (a0, a1): (CGFloat, CGFloat) = isLeft ? (131, 155) : (49, 25)
+            $0.addArc(center: c, radius: sr, startAngle: a0 * .pi / 180, endAngle: a1 * .pi / 180, clockwise: !isLeft)
+            $0.addQuadCurve(to: m, control: ctl)
         }
         for k in 0..<3 {
             let a = isLeft ? 135 + 15 * CGFloat(k) : 45 - 15 * CGFloat(k)
-            if k < 2 { at(ctx, c, r * 1.35, a, a + s * 90 - s * 32, r, color) }
+            if k < 2 { at(ctx, c, r * 1.35, a, a + s * 90 - s * 32, r, color) }   // the outer ones clear the other side
             at(ctx, c, r * 1.17, a + s * 5, a + s * 90 + s * 32, r, color)
-        }
-        // up the curve: the leaves toward the ring only
-        for t: CGFloat in [0.35, 0.7] {
-            let u = 1 - t
-            let b = CGPoint(x: u * u * p0.x + 2 * u * t * ctl.x + t * t * apex.x, y: u * u * p0.y + 2 * u * t * ctl.y + t * t * apex.y)
-            let dx = 2 * u * (ctl.x - p0.x) + 2 * t * (apex.x - ctl.x), dy = 2 * u * (ctl.y - p0.y) + 2 * t * (apex.y - ctl.y)
-            let len = hypot(dx, dy)
-            let n = CGPoint(x: s * -dy / len, y: s * dx / len)   // towards the ring
-            leaf(ctx, b.x + n.x * r * 0.08, b.y + n.y * r * 0.08, rot: atan2(dy, dx) * 180 / .pi + s * 32, r: r, color)
         }
     }
 }
@@ -1511,9 +1514,12 @@ enum Slots {
         }
     }
 
-    /// The slots' centres, right to left from `right` (the first item's right edge), `gap` + `extraGap` apart.
+    /// Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r (Slots.edgeInset).
+    static func edgeInset(_ items: [SlotItem], r: CGFloat) -> CGFloat { items.first.map { laurel($0) } == true ? r * 0.3 : 0 }
+
+    /// The slots' centres, right to left from `right` (the card's edge), `edgeInset` in, `gap` + `extraGap` apart.
     static func centers(_ items: [SlotItem], right: CGFloat, size: CGFloat, gap: CGFloat) -> [CGFloat] {
-        var out: [CGFloat] = [], x = right - size / 2
+        var out: [CGFloat] = [], x = right - edgeInset(items, r: size / 2) - size / 2
         for i in items.indices { out.append(x); x -= size + gap + extraGap(items, i, r: size / 2) }
         return out
     }

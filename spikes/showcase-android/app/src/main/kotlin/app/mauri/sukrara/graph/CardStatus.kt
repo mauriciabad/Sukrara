@@ -172,16 +172,19 @@ object Slots {
         return when (n) { 0 -> 0f; 1 -> r * 0.22f; else -> r * 0.47f }
     }
 
-    /** The slots' centres, right to left from [right] (the first item's right edge), [gap] + [extraGap] apart. */
+    /** Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r, so its branch stays mostly on the card. */
+    fun edgeInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && laurel(items[0])) r * 0.3f else 0f
+
+    /** The slots' centres, right to left from [right] (the card's edge), [edgeInset] in, [gap] + [extraGap] apart. */
     fun centers(items: List<SlotItem>, right: Float, size: Float, gap: Float): List<Float> {
         val out = ArrayList<Float>(items.size)
-        var x = right - size / 2
+        var x = right - edgeInset(items, size / 2) - size / 2
         for (i in items.indices) { out += x; x -= size + gap + extraGap(items, i, size / 2) }
         return out
     }
 
-    /** All the [extraGap]s of [items] together. */
-    fun extraWidth(items: List<SlotItem>, r: Float) = items.indices.sumOf { extraGap(items, it, r).toDouble() }.toFloat()
+    /** All the [extraGap]s of [items] and the [edgeInset] together. */
+    fun extraWidth(items: List<SlotItem>, r: Float) = items.indices.sumOf { extraGap(items, it, r).toDouble() }.toFloat() + edgeInset(items, r)
 
     /**
      * What goes under all the slots, before any [draw]: the rings' laurels. [cx] = each item's centre (same order).
