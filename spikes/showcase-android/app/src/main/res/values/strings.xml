@@ -901,8 +901,8 @@
     <string name="home_restart_text_updated">The status bar and lock screen still use the previous version</string>
     <!-- Home card text: System UI doesn't run the module [CHAR LIMIT=NONE] -->
     <string name="home_restart_text">Your status bar and lock screen settings are off until then</string>
-    <!-- Home card text without root: restart it by hand [CHAR LIMIT=NONE] -->
-    <string name="home_restart_text_no_root">Restart your phone to load the new status bar and lock screen code</string>
+    <!-- Restart card / banner error (red): su refused or failed; %1$s = the reason from su [CHAR LIMIT=NONE] -->
+    <string name="home_restart_failed">Couldn\'t restart System UI: %1$s</string>
     <!-- Home card pill: restart System UI now (root) [CHAR LIMIT=20] -->
     <string name="home_restart_action">Restart</string>
     <!-- Close button description of the restart card [CHAR LIMIT=20] -->

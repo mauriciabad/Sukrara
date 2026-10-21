@@ -207,9 +207,30 @@ object RootStatusBar {
         state = "off"
     }
 
-    /** Root: restart SystemUI to (re)load the hook. A kill, not `am crash` (crashes count towards rescue mode). */
-    fun restartSystemUi(): String = runCatching {
-        ProcessBuilder("su", "-c", "kill $(pidof com.android.systemui)").redirectErrorStream(true).start()
-            .inputStream.bufferedReader().readText().ifEmpty { "killed" }
-    }.getOrElse { "no root: ${it.message}" }
+    /**
+     * Root: restart SystemUI to (re)load the hook: a kill, not `am crash` (crashes count towards rescue mode); System UI
+     * is persistent, so Android starts it again at once (the status bar blinks ~2 s). No reboot: LSPosed loads a
+     * module when the process starts. The `su` call is also the root request: KernelSU / Magisk ask (or refuse) here,
+     * so it waits up to [SU_WAIT_S]. Returns null when it worked, else why not (shown on the card).
+     */
+    fun restartSystemUi(): String? {
+        val r = runCatching {
+            val p = ProcessBuilder("su", "-c", "kill \$(pidof com.android.systemui)").redirectErrorStream(true).start()
+            val done = p.waitFor(SU_WAIT_S, java.util.concurrent.TimeUnit.SECONDS)
+            if (!done) p.destroy()
+            restartError(if (done) p.exitValue() else null, if (done) p.inputStream.bufferedReader().readText() else "")
+        }.getOrElse { restartError(-1, it.message ?: "su not found") }
+        root.value = r == null || root.value == true && r == TIMED_OUT
+        return r
+    }
+
+    /** What a `su -c kill …` run means: null = System UI was killed; else a short reason ([exit] null = no answer in time). */
+    internal fun restartError(exit: Int?, output: String): String? = when {
+        exit == null -> TIMED_OUT
+        exit == 0 -> null
+        else -> output.lines().map { it.trim() }.lastOrNull { it.isNotEmpty() }?.take(120) ?: "su exit $exit"
+    }
+
+    internal const val TIMED_OUT = "no answer from su"
+    private const val SU_WAIT_S = 30L
 }
