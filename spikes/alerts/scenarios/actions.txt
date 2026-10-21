@@ -19,6 +19,7 @@ settings mute.min=20
 18
 
 scenario Slow down: the repeats come at the slower interval
+settings slow.min=15                          # the default until round 22 (now 30)
  0  glucose 65   => Low glucose
  2  slow low                                  # the notification stays
  5                                            # would have been the repeat
@@ -54,6 +55,7 @@ scenario A muted low still alerts when it turns very low; very low can't be mute
 33
 
 scenario Very low can be slowed down
+settings slow.min=15                          # the default until round 22 (now 30)
  0  glucose 50     => Very low glucose
  1  slow very_low
 15                 => Very low glucose
@@ -82,3 +84,11 @@ scenario Mute on a high; extremely high still alerts
  4  glucose 200  => clear extremely_high      # high again: still muted
 31               => High glucose
 32
+
+scenario Slow down on a high at the default settings: every 30 min
+ 0  glucose 200  => High glucose
+ 1  slow high                                 # offered: 30 is slower than the high's 15
+15                                            # would have been the repeat
+30               => High glucose
+60               => High glucose
+61

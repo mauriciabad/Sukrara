@@ -42,6 +42,14 @@ scenario No data after 20 min without a reading, every 60 min, cleared by the ne
 90  sensor on            => clear no_data
 91
 
+scenario A high with no more readings clears when the reading gets old, then no data (the timer alone)
+ 0  glucose 200                  => High glucose
+ 2  sensor off                                     # last reading at 1
+15                               => High glucose
+16                               => clear high     # the last reading is more than 15 min old
+21                               => No glucose data
+22
+
 scenario No data stays quiet once the sensor has ended; a running no-data alert clears (round sensor-life)
  0  glucose 120
  1  sensor off

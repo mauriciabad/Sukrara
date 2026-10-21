@@ -62,7 +62,7 @@ fun HomeWidgetBanner() {
                 }
                 if (b == WidgetBanner.PIN) {
                     // an action: a pill, like "Eat carbs" (the visual language)
-                    Button(onClick = { activity?.let { WidgetPresence.pin(it) } },
+                    Button(onClick = { (activity as? androidx.activity.ComponentActivity)?.let { WidgetPresence.pin(it) } },
                         modifier = Modifier.align(Alignment.End).padding(end = 8.dp)) {
                         Icon(painterResource(R.drawable.ic_sym_add), contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
                         Text(stringResource(R.string.home_widget_banner_action))

@@ -710,7 +710,7 @@ private fun LibreViewSignIn(onCancel: () -> Unit, onDone: () -> Unit) {
             scope.launch {
                 val r = withContext(Dispatchers.IO) { runCatching { ReceiverId.fetchLibreView(ctx, email, password) } }
                 busy = false
-                r.onSuccess { password = ""; onDone() }.onFailure { error = it.message ?: it.javaClass.simpleName }
+                r.onSuccess { password = ""; onDone() }.onFailure { error = UserErrors.of(ctx, it) }
             }
         }) { Text(stringResource(if (busy) R.string.sensor_signing_in else R.string.sensor_sign_in), style = MaterialTheme.typography.titleMedium) }
         TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(stringResource(R.string.treatment_cancel)) }

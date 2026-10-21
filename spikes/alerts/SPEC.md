@@ -64,6 +64,14 @@ that notification's alert** (its side: lows incl. very low, highs, falling fast,
 | *Mute for…* | same | The same with typed minutes (Android: a direct-reply field; Mac: a text-input action). No number in 1–720 → nothing changes. |
 | *Slow to `slowMin` min* | when it would slow anything (the kind's `repeatMin` is shorter) and the episode isn't slowed yet; every kind, very low and extremely high included | The repeats come every `max(repeatMin, slowMin)` minutes, counted from the last alert. |
 
+After *Mute* or *Mute for…* both buttons leave the same thing (round 22): Android replaces the alert's notification
+with a silent "Low muted until 10:42" without buttons, which goes when the mute ends (or the alert comes back) or the
+episode ends; Android asks an app to update a notification after a direct reply, and a cancelled one stayed in the
+shade as SystemUI's copy with the typed text. macOS removes a notification once any of its actions is used. The
+history (and the log) records "Low muted for 45 min (notification)", never "Low cleared": the episode goes on.
+*Mute for…* offers the other Mute presets as one-tap choices beside typed minutes (Android's RemoteInput has no
+number keyboard).
+
 Together with a treatment mute, the later end wins. On a follower that mirrors the wearer (`source` "wearer") the
 buttons quiet the wearer's alerts **on that device only** (dropped while muted; while slowed, a repeat shows only if
 `slowMin` has passed since the last one shown, a more severe kind always shows); a new episode on the wearer (`n` = 1)
@@ -95,7 +103,7 @@ treatment rules for the badge under the value.
   "muteFallingHigh":  {"on": true, "min": 20},
   "muteAfterCarbs":   {"on": true, "min": 15},
   "sounds": {"pack": "quest", "kinds": {}, "shuffle": true},
-  "notificationActions": {"muteMin": 30, "slowMin": 15},
+  "notificationActions": {"muteMin": 30, "slowMin": 30},
   "source": "wearer"
 }
 ```
@@ -107,7 +115,10 @@ treatment rules for the badge under the value.
   platform's default notification sound, `"none"` = silent. `shuffle`: pick a random variant of the pack each time
   (off = always variant 1).
 - `notificationActions` (per device, also on a follower that mirrors the wearer): the minutes of the notification's
-  *Mute* button (1–720, default 30) and the interval *Slow down* sets (5–120, default 15), §2.
+  *Mute* button (1–720, default 30) and the interval *Slow down* sets (5–120, default 30: slower than every level
+  alert's default repeat, so the button shows on all of them), §2. The settings offer the presets Mute 15 / 30 / 60 /
+  120 and Slow down 15 / 20 / 30 / 45 / 60 / 90 / 120, the latter only the ones slower than every enabled level alert's
+  repeat (an interval the alert already repeats at hides the button).
 - `source` (followers only): `"wearer"` (default) = alert exactly when the wearer's app does (mirror its `alert`
   events, §4); `"own"` = run these rules locally on the followed readings and treatments. Settings are per device and
   never synced.

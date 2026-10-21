@@ -432,6 +432,7 @@
     <string name="alert_action_slow">Espaciar a %1$d min</string>
     <string name="alert_action_mute_for">Silenciar…</string>
     <string name="alert_action_mute_for_label">Minutos</string>
+    <string name="alert_muted_title">%1$s silenciada hasta las %2$s</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">come más</string>
     <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
@@ -983,10 +984,10 @@
     <string name="alerts_quiet_carbs">Tras hidratos</string>
     <string name="alerts_quiet_carbs_summary">Las bajas y las bajadas rápidas esperan %1$d min</string>
     <string name="alerts_group_actions">Desde la notificación</string>
-    <string name="alerts_action_mute">Silenciar</string>
-    <string name="alerts_action_mute_summary">%1$d min · la muy baja y la extremadamente alta siempre avisan</string>
-    <string name="alerts_action_slow">Espaciar</string>
-    <string name="alerts_action_slow_summary">Recordatorios cada %1$d min hasta volver al rango</string>
+    <string name="alerts_action_mute">Silenciar durante</string>
+    <string name="alerts_action_mute_summary">%1$d min · la muy baja y la extremadamente alta nunca se silencian, solo se espacian</string>
+    <string name="alerts_action_slow">Espaciar avisos a</string>
+    <string name="alerts_action_slow_summary">%1$d min · hasta volver al rango</string>
     <string name="alerts_sound_pack">Paquete de sonidos</string>
     <string name="alerts_sound_pack_default">El del paquete (%1$s)</string>
     <string name="alerts_sound_system_settings">sonido elegido en los ajustes del sistema</string>
@@ -1655,4 +1656,20 @@
     <string name="ns_site_err">No se pudo conectar · %1$s</string>
     <!-- Button [CHAR LIMIT=20] -->
     <string name="ns_site_save">Guardar</string>
+    <string name="source_problem_juggluco">No se puede conectar con Juggluco. Ábrelo y comprueba que su servidor web está activado.</string>
+    <string name="source_problem_juggluco_stream">Juggluco ha dejado de enviar lecturas. Reconectando…</string>
+    <string name="source_problem_bluetooth_off">El Bluetooth está desactivado</string>
+    <string name="source_problem_no_sensor">No hay ningún sensor emparejado</string>
+    <string name="source_problem_sensor_ended">El sensor ha terminado. Empareja uno nuevo.</string>
+    <string name="source_problem_unsupported">Este sensor no es compatible</string>
+    <string name="source_problem_reconnecting">Se ha perdido la conexión con el sensor. Reconectando…</string>
+    <string name="source_problem_permission">Sukrara necesita el permiso de Dispositivos cercanos para encontrar el sensor</string>
+    <string name="source_problem_other">No se reciben lecturas del sensor. Reintentando…</string>
+    <string name="error_no_server">No se encuentra el servidor. Comprueba la dirección y la conexión a internet.</string>
+    <string name="error_timeout">El servidor no ha respondido a tiempo. Vuelve a intentarlo.</string>
+    <string name="error_cannot_connect">No se puede conectar con el servidor. Comprueba la conexión a internet.</string>
+    <string name="error_secure_connection">La conexión segura ha fallado</string>
+    <string name="error_unexpected_answer">Los datos no tienen el formato esperado</string>
+    <string name="error_network">No se han podido leer ni enviar los datos. Vuelve a intentarlo.</string>
+    <string name="error_generic">Algo ha fallado. Vuelve a intentarlo.</string>
 </resources>

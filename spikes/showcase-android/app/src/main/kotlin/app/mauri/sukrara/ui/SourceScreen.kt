@@ -79,7 +79,7 @@ fun SourceSettings(onBack: () -> Unit) {
     val nav = LocalNav.current
     val direct = f.source == "direct"
     val family = pairing?.let { SensorProfiles.byId(it.profileId) }
-    val status = st.source.removePrefix("direct: ") + (st.sourceError?.let { " — $it" } ?: "")
+    val status = UserErrors.source(ctx, st.source, st.sourceError) ?: st.source.removePrefix("direct: ")
     val pairTitle = stringResource(if (pairing == null) R.string.sensor_pair else R.string.sensor_pair_new)
 
     SettingsPage(stringResource(R.string.source_title), onBack) {

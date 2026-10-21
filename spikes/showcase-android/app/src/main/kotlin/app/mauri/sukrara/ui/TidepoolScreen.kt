@@ -125,7 +125,7 @@ private fun TidepoolSignIn(s: Tidepool.Settings, onClose: () -> Unit) {
                     val r = withContext(Dispatchers.IO) { runCatching { Tidepool.signIn(ctx, email, password) } }
                     busy = false
                     r.onSuccess { password = ""; onClose() }
-                        .onFailure { error = if (it is TidepoolClient.SignedOut) refused else it.message ?: it.javaClass.simpleName }
+                        .onFailure { error = if (it is TidepoolClient.SignedOut) refused else UserErrors.of(ctx, it) }
                 }
             }) { Text(stringResource(if (busy) R.string.tidepool_signing_in else R.string.tidepool_sign_in)) }
         },

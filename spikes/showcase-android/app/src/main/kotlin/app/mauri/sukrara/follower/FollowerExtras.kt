@@ -71,6 +71,9 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
         jobs += scope.launch {
             engine.ui.map { Triple(it.status, it.last?.t, it.lastVia) }.distinctUntilChanged().collect { render() }
         }
+        // the wearer's treatments arrived / changed: the card's marks and slots at once, not at the next reading
+        jobs += scope.launch { app.mauri.sukrara.treatments.TreatmentFeed.items.drop(1).collect { render() } }
+        jobs += scope.launch { app.mauri.sukrara.alerts.Alerts.paused.drop(1).collect { render() } }
         // The freshness steps without a reading (struck at 5 min, "no readings" at 20 min): FreshnessTicker's alarm
         // (planned by SukraraHooks.reload / onReadings).
         app.mauri.sukrara.status.FreshnessTicker.onStep = { render(force = true) }

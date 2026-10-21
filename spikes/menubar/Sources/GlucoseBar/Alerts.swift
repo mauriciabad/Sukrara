@@ -379,6 +379,8 @@ final class AlertEngine {
     private var timer: Timer?
     /// One-shot at `engine.nextCheckAt`: a mute window or repeat that ends between readings alerts on time.
     private var checkTimer: Timer?
+    /// Set while a notification's Mute runs (its clear is logged as the mute).
+    private var muting = false
     /// Opens Settings on the Alerts pane (main.swift).
     var onOpenWindow: (() -> Void)?
     private let center: UNUserNotificationCenter? = Bundle.main.bundleIdentifier == nil ? nil : .current()
@@ -407,7 +409,8 @@ final class AlertEngine {
         center?.delegate = self
         registerCategories()
         engine.onFire = { [weak self] ev in self?.post(ev, mirrored: false) }
-        engine.onClear = { [weak self] ev in self?.remove(ev.k.group, "\(ev.k.rawValue) cleared") }
+        // a clear while a notification's Mute runs is the mute (the log already says "muted for"), not the episode's end
+        engine.onClear = { [weak self] ev in self?.remove(ev.k.group, self?.muting == true ? "muted from the notification" : "\(ev.k.rawValue) cleared") }
         if settings.on { authorize() }
         let t = Timer(timeInterval: 60, repeats: true) { _ in MainActor.assumeIsolated { self.tick() } }
         t.tolerance = 5
@@ -638,7 +641,7 @@ final class AlertEngine {
             updatePaused()
         } else {
             engine.levelAndRate = mode == .own
-            if slow { engine.slow(k) } else { engine.mute(k, min: m) }
+            if slow { engine.slow(k) } else { muting = true; engine.mute(k, min: m); muting = false }
             saveEpisodes()
             scheduleCheck()
             if slow { repost(k.group) }

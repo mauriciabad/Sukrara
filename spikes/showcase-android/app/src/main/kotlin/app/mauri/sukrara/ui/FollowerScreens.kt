@@ -91,7 +91,7 @@ fun FollowerJoin(prefill: String?, busy: Boolean, error: String?, a: FollowerAct
         lookup = null
         if (!Proto.isInvite(link)) return@LaunchedEffect
         lookup = ctx.getString(R.string.join_looking_up) to false
-        a.resolve(link).fold({ invite = it; lookup = null }, { lookup = ctx.getString(R.string.join_error_invite, it.message) to true })
+        a.resolve(link).fold({ invite = it; lookup = null }, { lookup = ctx.getString(R.string.join_error_invite, UserErrors.of(ctx, it)) to true })
     }
     var scanning by remember { mutableStateOf(false) }
     var imgError by remember { mutableStateOf<String?>(null) }

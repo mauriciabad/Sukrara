@@ -91,10 +91,11 @@ struct AlertsView: View {
             .disabled(model.mirroring || !model.s.on)
             // the alert notification's buttons: local on every device (mirroring, they quiet this Mac's copy only)
             Section {
-                MinutesRow(title: "Mute for", value: minutes(\.muteMin), range: 5...240, step: 5)
-                MinutesRow(title: "Slow down to every", value: minutes(\.slowMin), range: 5...120, step: 5)
+                // pop-up menus of the presets (macOS's duration settings), Android's preset lists; same words (SPEC §3)
+                MinutesPicker(title: "Mute for", value: $model.s.notificationActions.muteMin, presets: AlertActions.mutePresets)
+                MinutesPicker(title: "Slow down to every", value: $model.s.notificationActions.slowMin, presets: model.s.slowChoices)
             } header: { Text("From the notification") } footer: {
-                note("Mute quiets the alert for these minutes (Mute for… takes typed minutes); Slow down repeats it at this interval until it's back in range. Very low and extremely high are never muted, only slowed.")
+                note("Very low and extremely high are never muted, only slowed down. Slow down lasts until back in range.")
             }
             .disabled(!model.s.on)
             Section {
@@ -176,13 +177,6 @@ private struct KindRow: View {
     }
 }
 
-extension AlertsView {
-    /// A notification-action minutes field as the Double MinutesRow edits.
-    fileprivate func minutes(_ k: WritableKeyPath<AlertActions, Int>) -> Binding<Double> {
-        Binding(get: { Double(model.s.notificationActions[keyPath: k]) }, set: { model.s.notificationActions[keyPath: k] = Int($0) })
-    }
-}
-
 /// "Quiet for   [60] ⌃⌄ min".
 private struct MinutesRow: View {
     let title: String
@@ -197,6 +191,20 @@ private struct MinutesRow: View {
                 Stepper(title, value: $value, in: range, step: step).labelsHidden()
                 Text("min").foregroundStyle(.secondary)
             }
+        }
+        .padding(.leading, 16)
+    }
+}
+
+/// A minutes setting as a pop-up menu of presets; a value set elsewhere (another device's settings file) stays listed.
+private struct MinutesPicker: View {
+    let title: String
+    @Binding var value: Int
+    let presets: [Int]
+
+    var body: some View {
+        Picker(title, selection: $value) {
+            ForEach((presets.contains(value) ? presets : (presets + [value]).sorted()), id: \.self) { Text("\($0) min").tag($0) }
         }
         .padding(.leading, 16)
     }

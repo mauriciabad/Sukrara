@@ -78,7 +78,7 @@ object GlucoseNotification {
     private val poster by lazy {
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor { Thread(it, "Sukrara.notify").apply { isDaemon = true } }
     }
-    private val gate = PostGate(1_000, System::currentTimeMillis) { d, run ->
+    private val gate = PostGate(1_000, android.os.SystemClock::elapsedRealtime) { d, run ->
         poster.schedule({ runCatching(run).onFailure { Log.w("Sukrara.notify", "post: $it") } }, d, java.util.concurrent.TimeUnit.MILLISECONDS)
     }
 
@@ -111,6 +111,7 @@ object GlucoseNotification {
         app.mauri.sukrara.core.SensorLife.current.value,
         app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode(),
         GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
+        app.mauri.sukrara.alerts.Alerts.paused.value,   // the status pill ("45m left") after a notification's Mute
         c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
         app.mauri.sukrara.graph.Clock.signature(),
         chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),

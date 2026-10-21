@@ -11,6 +11,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.glance.appwidget.composeForPreview
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -23,11 +26,13 @@ import kotlinx.coroutines.flow.StateFlow
  *   Only the graph widgets count (glucose + graph, and the graph alone); the small value widget and the lock screen
  *   widget (SystemUI hosts it) aren't the main surface.
  * - Added from the app with requestPinAppWidget (developer.android.com/develop/ui/views/appwidgets/discoverability#pin).
- *   No custom preview extra: the launcher's dialog then shows the widget picker's preview, on Android 15+ the generated
- *   one (setWidgetPreview, "used ... for previewing the widget in the widget picker and pin app widget flow"; Glance
- *   providePreview, published by [WidgetUpdater.publishPreviews]), drawn at the widget's real size. A live
- *   EXTRA_APPWIDGET_PREVIEW (Glance requestPinGlanceAppWidget) was tried and dropped: one fixed-size RemoteViews that
- *   Pixel Launcher stretched into the 4×3 frame. It returns false when the launcher can't pin
+ *   The request carries the widget's preview (EXTRA_APPWIDGET_PREVIEW, "An extra that can be passed to
+ *   requestPinAppWidget … to show a preview of the widget being pinned using RemoteViews"): Glance's composeForPreview
+ *   of the same providePreview the picker gets, one layout per preview size ([CombinedWidget.previewSizeMode], a
+ *   size-mapped RemoteViews), so the launcher draws the size it shows. Validation 21: without it Pixel Launcher's pin
+ *   dialog was a blank card with the app icon (the generated picker preview doesn't reach it). An earlier live
+ *   preview (Glance requestPinGlanceAppWidget) was one fixed-size RemoteViews, stretched into the 4×3 frame.
+ *   It returns false when the launcher can't pin
  *   (isRequestPinAppWidgetSupported, or a profile restricted on the home screen); the success callback
  *   ([PinnedReceiver]) fires only when the widget is created, never on a refusal.
  * - Checked again whenever the home screen resumes (the launcher's dialog sits on top of it) and on that callback.
@@ -69,16 +74,30 @@ object WidgetPresence {
         refresh(c)
     }
 
-    /** Asks the launcher to place the big widget. Needs a foreground activity (else IllegalStateException). */
-    fun pin(a: Activity): Boolean {
-        val callback = PendingIntent.getBroadcast(a, 0, Intent(a, PinnedReceiver::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val ok = runCatching {
-            AppWidgetManager.getInstance(a).requestPinAppWidget(ComponentName(a, BIG.first()), null, callback)
-        }.onFailure { Log.w(TAG, "pin: $it") }.getOrDefault(false)
-        if (!ok) _state.value = _state.value.copy(pinFailed = true)
-        return ok
+    /**
+     * Asks the launcher to place the big widget, with its preview. Needs a foreground activity (else
+     * IllegalStateException): the request goes once the preview is composed, on the activity's scope.
+     */
+    fun pin(a: androidx.activity.ComponentActivity) {
+        a.lifecycleScope.launch {
+            val extras = pinPreview(a, BIG.first())
+            val callback = PendingIntent.getBroadcast(a, 0, Intent(a, PinnedReceiver::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val ok = runCatching {
+                AppWidgetManager.getInstance(a).requestPinAppWidget(ComponentName(a, BIG.first()), extras, callback)
+            }.onFailure { Log.w(TAG, "pin: $it") }.getOrDefault(false)
+            if (!ok) _state.value = _state.value.copy(pinFailed = true)
+        }
     }
+
+    /** The pin request's extras: [receiver]'s preview (EXTRA_APPWIDGET_PREVIEW), or null if it can't be composed. */
+    suspend fun pinPreview(c: Context, receiver: Class<*>): android.os.Bundle? = runCatching {
+        val cn = ComponentName(c, receiver)
+        val info = AppWidgetManager.getInstance(c).getInstalledProvidersForPackage(c.packageName, null).first { it.provider == cn }
+        val widget = (receiver.getDeclaredConstructor().newInstance() as androidx.glance.appwidget.GlanceAppWidgetReceiver).glanceAppWidget
+        val views = widget.composeForPreview(c, android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN, info)
+        android.os.Bundle().apply { putParcelable(AppWidgetManager.EXTRA_APPWIDGET_PREVIEW, views) }
+    }.onFailure { Log.w(TAG, "pin preview: $it") }.getOrNull()
 
     /** requestPinAppWidget's success callback: the widget was created. */
     class PinnedReceiver : BroadcastReceiver() {

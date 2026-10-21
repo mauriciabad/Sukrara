@@ -36,6 +36,8 @@ class OwnerService : Service() {
         startForeground(GlucoseNotification.ID, GlucoseNotification.build(this, null, false, false, getString(R.string.notif_starting)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         val engine = App.owner(this)
+        val newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull()
+        app.mauri.sukrara.wearer.Live.seed(newest)   // before the first render: the last reading, not "waiting"
         extras = WearerExtras(this, scope) {
             val u = engine.ui.value
             val f = Features.value
@@ -46,7 +48,7 @@ class OwnerService : Service() {
         // Investigation 15: alerts on the wearer's readings; rapid insulin and carbs from the shared log; fired alerts → followers
         app.mauri.sukrara.alerts.Alerts.attach(this, "wearer",
             doses = { app.mauri.sukrara.alerts.AlertEngine.doses(app.mauri.sukrara.treatments.Treat.store.all()) },
-            publish = { engine.publishAlert(it) }, newest = engine.history(app.mauri.sukrara.core.Proto.nowS() - 86_400).lastOrNull())
+            publish = { engine.publishAlert(it) }, newest = newest)
         app.mauri.sukrara.treatments.Treat.store.onChange += alertsOnTreatment
         engine.start()
     }

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -151,7 +153,10 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
                 }
             }
         }
-        GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t, subtitle = u.sourceError?.let { "${u.source} — $it" }, onAdd = { adding = true })
+        // the newest of the engine's state and the source's (the engine catches up after publishing; the source at once)
+        val liveLast by remember { app.mauri.sukrara.wearer.Live.status.map { it.last }.distinctUntilChanged() }.collectAsState(null)
+        val last = listOfNotNull(u.last, liveLast).maxByOrNull { it.t }
+        GlucosePanel(last?.sgv, last?.rate, last?.t, subtitle = UserErrors.source(ctx, u.source, u.sourceError), onAdd = { adding = true })
         // an untested sensor family (investigation 23): the feedback banner, directly under the graph, for as long as it is used
         UntestedSensorBanner()
         // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)
