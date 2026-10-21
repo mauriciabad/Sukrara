@@ -217,6 +217,8 @@ costs little to maintain; leave out what ties the app to outside services or ser
 | **Blossom** picture hosting, EXIF stripping, photo upload | **Left out** | Servers disagree with the spec (BUD-11 base64), some keep "deleted" files, others are slow or reject free uploads: constant maintenance for a feature the private profile doesn't need. Real photos, if ever wanted, can go up encrypted with the key in the delivery |
 | **"Log in with your Nostr account"** (nsec / words / Amber sealed root) | **Left out** (PoC kept as reference) | Very few people with diabetes or their carers have a Nostr account; backup is already solved with the password manager; pasting a main nsec into a health app is a habit not to teach; the Mac would need NIP-46 too |
 | "Delete account everywhere" (Blossom DELETE, empty kind 0, NIP-62) | **Left out** | Only needed for public profiles |
+| **Editing on the Mac** (2026-10-21) | **Added**: Settings › Following › Edit… edits the Mac follower's name and generated picture (Shuffle, Customize: shape, colour, Turn the colours) and sends the same `profile` message as the Android follower. Rules pinned by a shared fixture, [`profile-v1.json`](../spikes/nostr/identity/profile-v1.json) | The user asked for it; the Mac only showed the name it was given at pairing |
+| Photo / image picking with crop (any platform) | **Left out** (still) | Profiles carry numbers, never an image, and Android has no photo either; a photo would need encrypted image hosting (see Blossom above) |
 | Relay set | **Changed**: relay.nostr.net → relay.snort.social | See below: offchain.pub, which this report suggested, turned out not to work for a wearer |
 
 Found while integrating (fixed in 0.11.0):

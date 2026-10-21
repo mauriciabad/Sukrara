@@ -213,7 +213,13 @@ profile = {"name": "Alex", "avatar": {"v": 1, "c": 0, "s": "cube", "a": 45, "n":
     240, glyph box centred).
   - `n` seed 0 … 2³¹−1 (only `dots` uses it).
 - **Wearer → followers**: the invite wrap and every roster carry `profile`; a change republishes the roster at once.
-- **Follower → wearer**: the access request carries `profile`; a later change is a `profile` rumor.
+- **Follower → wearer**: the access request carries `profile`; a later change (Android *How you appear*, Mac
+  Settings › Following › Edit…) is a `profile` rumor: kind 30500 `{"v":2,"type":"profile","profile":{name, avatar}}`
+  sealed by `F`, wrapped to `I` (7 d), sent to the relays and over Bluetooth. A blank name keeps the previous one;
+  the wearer applies it only from an approved follower.
+- **Editing rules** (name trimmed and cut to 40, v1 numbers normalised: `c` mod 8, unknown shape → `cube`, `a` mod 360
+  down to a multiple of 15, `n` & 0x7fffffff; "Turn the colours" = `a` + 45, `n` + 1) and the update body are pinned by
+  [identity/profile-v1.json](identity/profile-v1.json), run by Android `ProfileFixtureTest` and Mac `-identityselftest`.
 
 ## Flows
 

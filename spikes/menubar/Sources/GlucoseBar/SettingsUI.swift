@@ -469,7 +469,11 @@ struct GraphSettingsView: View {
     @Published private(set) var text: String?
     @Published private(set) var image: NSImage?
     @Published private(set) var treatmentsLine = ""
+    /// How this Mac appears to the wearer (IdentityUI.swift); nil while not following.
+    @Published private(set) var me: (name: String, avatar: [String: Any]?, wearer: String)?
     private let status: StatusController
+    var identity: (() -> (name: String, avatar: [String: Any]?, wearer: String)?)?
+    var onSaveIdentity: ((String, [String: Any]?) -> Void)?
     var onFollow: (() -> Void)?
     var onFollowQR: (() -> Void)?
     var onUnfollow: (() -> Void)?
@@ -480,7 +484,8 @@ struct GraphSettingsView: View {
         text = status.followText
         image = status.followImage
         let p = status.treatmentPaths?() ?? TreatmentPaths()
-        treatmentsLine = p.canLog ? (p.route == .v2 ? "Sent to the wearer" : "Kept on this Mac") : "Not allowed by the wearer"
+        treatmentsLine = p.canLog ? (p.route == .v2 ? "Sent to the wearer" : "Kept on this Mac") : p.reason ?? "Not allowed by the wearer"
+        me = identity?()
     }
 }
 
@@ -497,6 +502,11 @@ struct FollowingView: View {
                         Text(text).fixedSize(horizontal: false, vertical: true)
                     }
                     LabeledContent("Treatments logged here", value: model.treatmentsLine)
+                }
+                if let me = model.me {
+                    Section {
+                        IdentityRow(name: me.name, avatar: me.avatar, wearer: me.wearer) { model.onSaveIdentity?($0, $1) }
+                    }
                 }
                 Section {
                     HStack {
