@@ -221,6 +221,8 @@ enum AlertStatus: Equatable {
     case needed(AlertKind)
     /// Out of range, but `treatment`'s mute window covers it until `until` (epoch s).
     case taken(AlertKind, treatment: GraphMark, until: TimeInterval)
+    /// Muted from the alert notification (*Mute*) until `until` (epoch s): the same faded badge.
+    case paused(AlertKind, until: TimeInterval)
 
     /// Readings older than this never alert (backfill, a late chunk); `AlertEngine.fresh`.
     static let fresh: TimeInterval = 15 * 60
@@ -243,14 +245,18 @@ enum AlertStatus: Equatable {
 
     /// Same rules as the AlertEngine: carbs cover very low and low, rapid insulin high and very high, while their mute
     /// window lasts (`t ≤ now < t + min`); extremely high is never covered. `marks` = live entries (no deleted ones).
-    static func of(_ r: GraphReading?, _ s: AlertSettings, _ marks: [GraphMark], now: TimeInterval) -> AlertStatus {
+    /// Otherwise `paused` (side → until, the alert notification's *Mute*, AlertEngine.snoozes) covers every level kind
+    /// but very low and extremely high.
+    static func of(_ r: GraphReading?, _ s: AlertSettings, _ marks: [GraphMark], now: TimeInterval,
+                   paused: [String: TimeInterval] = [:]) -> AlertStatus {
         guard let r, let k = level(mgdl: r.v, at: r.t, s, now: now) else { return .none }
-        guard let by = s.mutedBy(k) else { return .needed(k) }
-        let cover = marks.filter { $0.k == by && $0.t <= now }
+        let cover = s.mutedBy(k).flatMap { by in marks.filter { $0.k == by && $0.t <= now }
             .compactMap { m in muteUntil(m, s).map { (m, $0) } }
             .filter { $0.1 > now }
-            .max { $0.0.t < $1.0.t }
-        return cover.map { .taken(k, treatment: $0.0, until: $0.1) } ?? .needed(k)
+            .max { $0.0.t < $1.0.t } }
+        if let cover { return .taken(k, treatment: cover.0, until: cover.1) }
+        if let until = paused[k.side], until > now, !k.always { return .paused(k, until: until) }
+        return .needed(k)
     }
 }
 

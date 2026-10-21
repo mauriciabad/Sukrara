@@ -176,6 +176,7 @@ MainActor.assumeIsolated {
     status.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
     widgetFeed.alerts = { alerts.settings }
+    widgetFeed.paused = { alerts.paused }
     // before any transport delivers: ongoing alerts resume silently instead of ringing again (docs/15)
     alerts.resume(newest: readingsStore.readings.last.map { Reading(date: Date(timeIntervalSince1970: $0.t), mgdl: $0.v, rate: $0.rate) })
 }
@@ -471,6 +472,12 @@ MainActor.assumeIsolated {
     treatments.onChange.append { alerts.treatmentsChanged() }       // mutes start or end at once
     status.treatments = { treatments.rows }
     status.alertSettings = { alerts.settings }
+    status.alertPaused = { alerts.paused }
+    // muted from an alert notification (here or on the wearer's phone): the badge on the card and the widgets
+    alerts.onPausedChange = {
+        status.alertsChanged()
+        widgetFeed.treatmentsChanged(treatments.rows)
+    }
     alerts.onSettingsChange = {
         status.alertsChanged()
         widgetFeed.treatmentsChanged(treatments.rows)   // the widgets' badge, mute lines and slot follow the rules

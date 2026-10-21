@@ -114,7 +114,7 @@ struct GlucoseWidgetView: View {
                 let overflow: CGFloat = 15
                 if let img = GlucoseCard.image(size: geo.size, scale: 2, readings: s.graphReadings, marks: s.graphMarks,
                                                now: now, withSensor(style(s.config), s.sensor), pal, metricsOf: { r, b in s.metrics(r, b, now: now) },
-                                               alerts: s.alerts, overflow: overflow) {
+                                               alerts: s.alerts, paused: s.paused ?? [:], overflow: overflow) {
                     Image(decorative: img, scale: 2)
                         .resizable()
                         .frame(width: geo.size.width + 2 * overflow, height: geo.size.height + 2 * overflow)

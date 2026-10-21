@@ -28,6 +28,9 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
   and the repeats count from there.
 - Carbs mute very low, low and falling fast (default 15 min); rapid insulin mutes high, very high and rising fast
   (default 60 min); extremely high and no data are never muted; window = `t ≤ now < t + min`; deleted entries don't count.
+- Notification actions (Android + Mac, SPEC §2; user 2026-10-21): every alert notification has *Mute 30 min*, *Slow to 15 min* and *Mute for…* (typed minutes, 1–720; Android direct reply, Mac text-input action; no number → nothing changes and the notification comes back without sound). They act on the episode of that alert and end with it. Mute quiets like a treatment mute (at once when it ends, repeats from there; with a treatment the later end wins); never on very low or extremely high (no Mute buttons there; a very low inside a muted low alerts at once). Slow down: repeats every `max(repeatMin, slowMin)`, offered only when slower than the kind's interval and not slowed yet (also on very low and extremely high). Settings › Alerts › *From the notification*: Mute minutes (default 30) and Slow down interval (default 15), per device. History lines "Low muted for 30 min" / "Low every 15 min". Scenarios: `spikes/alerts/scenarios/actions.txt`.
+- The wearer's notification actions go to the followers as a `snooze` alert event (`mu` until, `sl` interval): the Mac and follower phones show the mute as the badge (no alert of that episode arrives meanwhile). On a follower mirroring the wearer the buttons quiet the wearer's alerts on that device only (dropped while muted; while slowed, a repeat shows only after `slowMin`; a more severe kind always shows); a new episode on the wearer ends them. A follower's tap doesn't reach the wearer.
+- Badge while muted from the notification (`AlertStatus.Paused`, both platforms, shared fixtures in `spikes/graph-fixtures/status.json`): the same tonal pill with the bell and time left as a treatment mute, in the colour of what answers it (carbs for lows, insulin for highs); a treatment mute shows first; never for very low / extremely high. The last-treatment ring stays the treatment's (a notification mute has no treatment). Mac widgets get a timeline entry at the mute's end.
 - Falling-high mute (default 20 min): no high/very high alert while `sgv + rate × min < high`; it only postpones (a
   repeat that came due fires when it ends).
 - Headlines: "Very low glucose", "Low glucose", "High glucose", "Very high glucose", "Extremely high glucose",
@@ -39,7 +42,7 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 - Notification body (Android + Mac): the value and arrow only (`69 mg/dL ↘`); falling / rising fast add the rate (`120 mg/dL ↓ · falling 2.4 mg/dL/min`); no data: `Nothing received for 20 min · last 120 mg/dL`. No threshold, no source ("from the wearer's phone").
 - Android timer: exact alarm (`USE_EXACT_ALARM`) at the engine's next check, so a mute end alerts on time between
   readings; Mac: one-shot timer at the next check plus the 60 s tick.
-- Badge status (`AlertStatus`): None / Needed / Taken use the same thresholds and treatment windows as the engine.
+- Badge status (`AlertStatus`): None / Needed / Taken / Paused use the same thresholds and treatment windows as the engine.
 - Notification channels: two per kind (`alert_n_<kind>`, `alert_a_<kind>`); any other `alert_*` channel is deleted.
 - One sound per alert: each channel rings only its Sukrara sound; the app restores its episodes after a restart (an
   update kills it) and shows the alerts that were up again without sound; the next sound is the normal repeat

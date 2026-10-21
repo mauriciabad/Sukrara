@@ -21,6 +21,7 @@ import SwiftUI
     @Published var marks: [GraphMark] = []
     @Published var style = CardStyle()
     @Published var alerts: AlertSettings?
+    @Published var paused: [String: TimeInterval] = [:]
     @Published var hasData = false
     /// Bumped to redraw the card (the clock moves even without new data).
     @Published var tick = 0
@@ -299,6 +300,7 @@ private struct CardRep: NSViewRepresentable {
         v.marks = model.marks
         v.style = model.style
         v.alerts = model.alerts
+        v.paused = model.paused
         v.metricsOf = model.metricsOf
         v.now = model.now
         v.needsDisplay = true

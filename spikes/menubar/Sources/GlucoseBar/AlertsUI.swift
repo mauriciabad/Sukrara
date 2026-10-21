@@ -89,6 +89,14 @@ struct AlertsView: View {
                 note(model.mirroring ? lockedNote : "Very low, low and falling fast only.")
             }
             .disabled(model.mirroring || !model.s.on)
+            // the alert notification's buttons: local on every device (mirroring, they quiet this Mac's copy only)
+            Section {
+                MinutesRow(title: "Mute for", value: minutes(\.muteMin), range: 5...240, step: 5)
+                MinutesRow(title: "Slow down to every", value: minutes(\.slowMin), range: 5...120, step: 5)
+            } header: { Text("From the notification") } footer: {
+                note("Mute quiets the alert for these minutes (Mute for… takes typed minutes); Slow down repeats it at this interval until it's back in range. Very low and extremely high are never muted, only slowed.")
+            }
+            .disabled(!model.s.on)
             Section {
                 Picker("Sound pack", selection: $model.s.sounds.pack) {
                     ForEach(AlertSettings.packs, id: \.self) { Text($0.capitalized).tag($0) }
@@ -165,6 +173,13 @@ private struct KindRow: View {
             Toggle(kind.title, isOn: model.rule(kind).on).labelsHidden().toggleStyle(.switch).disabled(locked)
         }
         .accessibilityElement(children: .contain)
+    }
+}
+
+extension AlertsView {
+    /// A notification-action minutes field as the Double MinutesRow edits.
+    fileprivate func minutes(_ k: WritableKeyPath<AlertActions, Int>) -> Binding<Double> {
+        Binding(get: { Double(model.s.notificationActions[keyPath: k]) }, set: { model.s.notificationActions[keyPath: k] = Int($0) })
     }
 }
 
