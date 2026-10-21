@@ -161,7 +161,7 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
               metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, onEnded: (() -> Unit)?,
               footer: @Composable () -> Unit = {}) {
     val ctx = LocalContext.current
-    val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.APP), android.text.format.DateFormat.is24HourFormat(ctx)),
+    val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.APP)),
         rings = cfg.rings(), last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = cfg.sensorTime(GraphPlace.APP))
     // the newest reading is the panel's own (it may be newer than the stored history)
     val readings = if (reading != null && (history.lastOrNull()?.t ?: 0) < reading.t) history + reading else history

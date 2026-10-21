@@ -218,7 +218,7 @@ fun KindMark(kind: String, color: Color) {
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
     if (at == null) return stringResource(R.string.treatment_time_now)
-    val fmt = app.mauri.sukrara.graph.Clock.time(at, DateFormat.is24HourFormat(ctx))
+    val fmt = app.mauri.sukrara.graph.Clock.time(at)
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
     return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)
@@ -230,7 +230,7 @@ private fun timeLabel(at: Long?): String {
 private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit) {
     val ctx = LocalContext.current
     val cal = Calendar.getInstance().apply { at?.let { timeInMillis = it * 1000 } }
-    val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), DateFormat.is24HourFormat(ctx))
+    val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.treatment_time_title)) },

@@ -161,7 +161,7 @@ class FreshnessFixtureTest {
             "none" -> check(out, "says no readings yet", true, cv.texts.any { it.first == w.noReadingsYet })
             "ended" -> check(out, "says sensor ended", true, cv.texts.any { it.first == w.sensorEnded })
         }
-        val time = r?.let { Freshness.timeText(it.t, now, st.hour24) }
+        val time = r?.let { Freshness.timeText(it.t, now) }
         if (c.state == "value") check(out, "the reading's time", c.time, cv.texts.any { it.first == time })
         // the chart: its labels under the value row (without one the value's words fill the card)
         if (c.state != "ended") check(out, "chart", c.graph, cv.below.any { it !in setOf(w.noReadingSince, w.noReadingsYet, time) })

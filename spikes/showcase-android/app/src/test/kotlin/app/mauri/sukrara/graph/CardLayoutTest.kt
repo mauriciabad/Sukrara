@@ -61,7 +61,9 @@ class CardLayoutTest {
 
     /** Everything one surface drew for one scene: its card layouts (one per part) and the faces it asked for. */
     private class Render(val surface: CardSurface, val size: String, val scene: String, val settings: String,
-                         val layouts: List<CardLayout>, val faces: List<GlucoseLook>) {
+                         val layouts: List<CardLayout>, val faces: List<GlucoseLook>,
+                         /** Every clock time its entry path formatted (Clock.observer) and drew (card "time.text"): text → 24-hour. */
+                         val clock: List<Pair<String, Boolean>> = emptyList()) {
         override fun toString() = "${surface.id} $size"
     }
 
@@ -98,6 +100,19 @@ class CardLayoutTest {
             }
             Scene(o.getString("id"), readings, trs, sensor)
         }
+    }
+
+    /** The phone's 24-hour setting each settings variant runs with (the default: 24-hour). */
+    private fun hour24Of(): Map<String, Boolean> {
+        val a = JSONObject(File(dir(), "layout/scenes.json").readText()).getJSONArray("settings")
+        return (0 until a.length()).map { a.getJSONObject(it) }.associate { it.getString("id") to it.optBoolean("hour24", true) }
+    }
+
+    /** Is a drawn clock time 24-hour? null = no hour in it (a date). */
+    private fun cycleOf(text: String): Boolean? = when {
+        Regex("""(?i)\b(am|pm|a\.\s?m\.|p\.\s?m\.)""").containsMatchIn(text) -> false
+        Regex("""\d{1,2}:\d{2}""").containsMatchIn(text) -> true
+        else -> null
     }
 
     private fun settings(): List<Pair<String, (GraphConfig) -> GraphConfig>> {
@@ -262,27 +277,34 @@ class CardLayoutTest {
         compose.setContent { panel?.invoke() }
         GlucoseCard.observer = { synchronized(captured) { captured += it } }
         GlucoseCard.faceObserver = { s, f -> if (s != CardSurface.TEST) synchronized(faces) { faces += s to f } }
+        val clockCalls = ArrayList<Pair<String, Boolean>>()
+        Clock.observer = { t, h24 -> synchronized(clockCalls) { clockCalls += t to h24 } }
+        val hour24 = hour24Of()
         val renders = ArrayList<Render>()
         val base = GraphSettings.value
         try {
             for ((sid, apply) in settings()) {
                 GraphSettings.update { apply(base) }
+                val h24 = hour24.getValue(sid)
+                Clock.hour24Source = { h24 }
                 for (sc in scenes()) {
                     SensorLife.update(ctx, sc.sensor)
                     for (s in CardSurface.entries) {
                         if (s == CardSurface.TEST) continue
                         // glyphs don't read the graph settings: once is enough
-                        if (s.kind == CardSurface.Kind.GLYPH && sid != "default") continue
+                        if (s.kind == CardSurface.Kind.GLYPH && sid != "default" && !sid.startsWith("clock")) continue
                         for ((w, h) in sizes(reg, s)) {
                             synchronized(captured) { captured.clear() }
                             synchronized(faces) { faces.clear() }
+                            synchronized(clockCalls) { clockCalls.clear() }
                             render(s, w, h, sc)
                             val ls = synchronized(captured) { captured.filter { it.surface == s } }
                                 // a composable may draw a part more than once: its last drawing counts
                                 .groupBy { it.part }.map { it.value.last() }
                             // a glyph surface's own decisions (its entry path may also draw a card part: the notification)
                             val fs = if (s.kind == CardSurface.Kind.GLYPH) synchronized(faces) { faces.filter { it.first == s }.map { it.second }.distinct() } else emptyList()
-                            renders += Render(s, "${w.toInt()}x${h.toInt()}", sc.id, sid, ls, fs)
+                            val drawn = ls.flatMap { l -> l.all("time.text").mapNotNull { e -> cycleOf(e.info)?.let { e.info to it } } }
+                            renders += Render(s, "${w.toInt()}x${h.toInt()}", sc.id, sid, ls, fs, synchronized(clockCalls) { clockCalls.toList() } + drawn)
                         }
                     }
                 }
@@ -292,6 +314,8 @@ class CardLayoutTest {
             SensorLife.update(ctx, null)
             GlucoseCard.observer = null
             GlucoseCard.faceObserver = null
+            Clock.observer = null
+            Clock.hour24Source = { true }
         }
 
         val problems = ArrayList<String>()
@@ -313,6 +337,16 @@ class CardLayoutTest {
         }
         for (s in CardSurface.entries.filter { it.kind == CardSurface.Kind.GLYPH })
             if (renders.none { it.surface == s && it.faces.isNotEmpty() }) problems += "${s.id}: its entry path never asked GlucoseCard.face"
+
+        // one clock: every time any surface formats or draws is in the phone's setting of that variant (2026-10-21: the
+        // value widget wrote "08:59" beside the chart cards' "8:59 AM", each reading the setting from its own place)
+        for (r in renders) {
+            val want = hour24.getValue(r.settings)
+            r.clock.firstOrNull { it.second != want }?.let { (t, _) ->
+                problems += "clock: $r (${r.scene}/${r.settings}) shows \"$t\", want ${if (want) "24" else "12"}-hour time (format through Clock with its default setting)"
+            }
+        }
+        for (v in listOf("clock12", "clock24")) if (renders.none { it.settings == v && it.clock.isNotEmpty() }) problems += "clock: no render in $v shows a time"
 
         // the rules: same inputs → same elements, whatever the surface
         val rules = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONArray("rules")

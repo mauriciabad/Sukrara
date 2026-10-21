@@ -290,7 +290,7 @@ object SensorEnd {
     private fun open(ctx: Context) = PendingIntent.getActivity(ctx, 0,
         Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
 
-    private fun time(ctx: Context, t: Long) = Clock.time(t, android.text.format.DateFormat.is24HourFormat(ctx))
+    private fun time(ctx: Context, t: Long) = Clock.time(t)
 
     /** "Sensor ends today at 14:30" / "tomorrow at 14:30" / "on Wednesday at 14:30". */
     fun endsText(ctx: Context, end: Long, now: Long, zone: ZoneId): String {

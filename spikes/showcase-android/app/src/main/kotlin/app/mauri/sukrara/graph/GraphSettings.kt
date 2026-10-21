@@ -72,8 +72,8 @@ data class GraphConfig(
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
     fun rings(count: Int = ringCount, range: TirRange = ringRange) =
         slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder, marks = ringMarks) }
-    fun graphStyle(hours: Int, hour24: Boolean) =
-        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, hour24 = hour24, lines = lines, gridHours = gridHours,
+    fun graphStyle(hours: Int) =
+        GraphStyle(windowS = hours * 3600L, bands = bands, side = side, lines = lines, gridHours = gridHours,
             crown = columnCrown)
 
     fun toJson(): JSONObject = JSONObject()

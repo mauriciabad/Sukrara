@@ -160,7 +160,7 @@ private fun realSize(appWidgetId: Int?): DpSize {
 /** What [kind] shows with this placement's own settings ([WidgetGraphConfig]) over the app-wide ones. */
 fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
     val cfg = GraphSettings.value
-    val graph = cfg.graphStyle(w.hours ?: cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(c))
+    val graph = cfg.graphStyle(w.hours ?: cfg.hours(GraphPlace.WIDGETS))
         .copy(side = w.side ?: cfg.side)
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
     val sensor = w.sensor ?: cfg.sensorTime(GraphPlace.WIDGETS)

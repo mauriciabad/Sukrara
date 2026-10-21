@@ -260,7 +260,8 @@ enum TreatmentSheets {
     static func run(_ out: URL) {
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let day: TimeInterval = 86400
-        var g = GraphStyle(); g.hour24 = true
+        Clock.hour24Override = true
+        let g = GraphStyle()
         func gw(_ h: Int) -> GraphStyle { var x = g; x.window = TimeInterval(h * 3600); return x }
         let base31 = RealisticSynthetic.readings(until: now, days: 31)
         for dark in [true, false] {

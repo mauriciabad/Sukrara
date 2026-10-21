@@ -81,10 +81,10 @@ enum class Freshness(val showValue: Boolean, val showTime: Boolean, val strike: 
          * "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the phone's 12/24-hour setting ([Clock]).
          * A clock time doesn't tick, so nothing redraws for it.
          */
-        fun timeText(t: Long, nowS: Long, hour24: Boolean = Clock.hour24, locale: Locale = Locale.getDefault()): String {
+        fun timeText(t: Long, nowS: Long, locale: Locale = Locale.getDefault()): String {
             val c = Calendar.getInstance().apply { timeInMillis = t * 1000 }
             val n = Calendar.getInstance().apply { timeInMillis = nowS * 1000 }
-            val time = Clock.time(t, hour24, locale)
+            val time = Clock.time(t, locale = locale)
             return when {
                 c.get(Calendar.YEAR) == n.get(Calendar.YEAR) && c.get(Calendar.DAY_OF_YEAR) == n.get(Calendar.DAY_OF_YEAR) -> time
                 nowS - t < 6 * 86400 -> "%ta %s".format(locale, c, time)
