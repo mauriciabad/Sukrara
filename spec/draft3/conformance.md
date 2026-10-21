@@ -72,6 +72,7 @@ Privacy
 - [ ] No serial numbers or other identifiers; random `sess` (D§1, D§5)
 - [ ] `sensor` on change and daily; `device` every 15 minutes while publishing (D§5, D§6)
 - [ ] Alerts with `id`, `prio`, `state`, `n`, `rev` (D§8)
+- [ ] Alerts muted by a shared treatment aren't sent; a device-local notification mute or slow-down never changes what is sent (D§8.2)
 - [ ] Publishes to every relay in the membership, at least 1 s apart per relay (N§3)
 
 ## A — Administrator
