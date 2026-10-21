@@ -214,7 +214,7 @@ private struct TreatmentRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: QuickLog.kinds.first { $0.k == t.k }?.symbol ?? "circle")
+            Image(systemName: TreatmentForm.symbol(t.k))
                 .foregroundStyle(Color(cgColor: TreatmentMarks.color(t.k, dark: scheme == .dark)))
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {

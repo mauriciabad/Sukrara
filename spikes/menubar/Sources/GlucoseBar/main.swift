@@ -67,12 +67,13 @@ if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
-if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && QuickLog.selfTest() ? 0 : 1) }
+if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
-// instance (cmd log = as the menu | remove {id} = as the menu | paths | edit {id,a,n} |
+// instance (cmd log = as the menu | treatment-keys {keys} = typing into Add Treatment |
+// remove {id} = as the menu | paths | edit {id,a,n} |
 // delete {id} | dump), like the phone's DebugReceiver.
 let debugNote = Notification.Name("app.mauri.sukrara.poc.debug")
 if let i = CommandLine.arguments.firstIndex(of: "-debugsend"), i + 1 < CommandLine.arguments.count {
@@ -446,6 +447,7 @@ let treatmentStore = MainActor.assumeIsolated {
 }
 
 let following = MainActor.assumeIsolated { Following() }
+let treatmentDialog = MainActor.assumeIsolated { TreatmentDialog() }
 MainActor.assumeIsolated {
     if bleV2On, let bleLink {
         let b = BLEV2Central(link: bleLink)
@@ -497,6 +499,17 @@ MainActor.assumeIsolated {
         case .none: log("treatment NOT logged: \(TreatmentPaths.notAllowed)")
         }
     }
+    // Add Treatment (TreatmentDialog.swift): every entry of the form takes the same path as one logged alone.
+    treatmentDialog.model.settings = { alerts.settings }
+    treatmentDialog.model.mirroring = { alerts.mode == .wearer }
+    treatmentDialog.model.onSave = { entries in entries.forEach { status.onLogTreatment?($0) } }
+    status.onAddTreatment = { screen in
+        // the latest fresh reading below an enabled low-side threshold: carbs takes the focus (Android's dialog too)
+        let low = readingsStore.readings.last.flatMap {
+            AlertStatus.level(mgdl: $0.v, at: $0.t, alerts.settings, now: Date().timeIntervalSince1970)
+        }?.lowSide ?? false
+        treatmentDialog.show(low: low, on: screen)
+    }
     status.onDeleteTreatment = { id in
         let p = paths()
         switch p.route {
@@ -517,11 +530,13 @@ MainActor.assumeIsolated {
                   let o = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return }
             let id = o["id"] as? String ?? ""
             switch o["cmd"] as? String {
-            case "log":        // exactly what Save in "Log treatment…" does (refused like the menu when not allowed)
+            case "log":        // what Save in Add Treatment does for one entry (refused like the panel when not allowed)
                 let t = Treatment(k: o["k"] as? String ?? "note", a: o["a"] as? Double ?? 0,
                                   t: Int64(Date().timeIntervalSince1970), n: o["n"] as? String ?? "")
                 log("debug log \(t.id)")
                 status.onLogTreatment?(t)
+            case "treatment-keys":   // key presses into an open Add Treatment window (\t Tab, \r Return, \u001b Escape)
+                treatmentDialog.type(o["keys"] as? String ?? "")
             case "remove":     // exactly what Delete in the menu does
                 status.onDeleteTreatment?(id)
             case "paths":
@@ -632,6 +647,16 @@ MainActor.assumeIsolated {
         }
     }
     if args.contains("-openPanel") { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { status.openPanel() } }
+    // Debug aid: open Add Treatment at launch (`-openAddTreatment YES`), logging its window for `screencapture -l`.
+    if args.contains("-openAddTreatment") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            status.onAddTreatment?(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let f = treatmentDialog.frame, top = NSScreen.screens.first?.frame.maxY ?? 0
+                log("add treatment window \(treatmentDialog.windowNumber) rect \(Int(f.minX)),\(Int(top - f.maxY)),\(Int(f.width)),\(Int(f.height))")
+            }
+        }
+    }
 }
 
 // After sleep the SSE/WebSocket sockets are dead but URLSession would only notice after its idle timeout.
