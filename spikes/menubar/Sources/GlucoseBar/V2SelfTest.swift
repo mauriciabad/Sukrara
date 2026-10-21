@@ -146,6 +146,19 @@ enum V2SelfTest {
         check("chunk since: from an hour before the newest stored", FollowerV2.chunkSince(newestStored: now - 86400, now: now) == now - 90000)
         check("chunk since: capped at the 7-day expiry", FollowerV2.chunkSince(newestStored: now - 30 * 86400, now: now) == now - 7 * 86400)
         check("chunk since: nothing stored → 13 h", FollowerV2.chunkSince(newestStored: nil, now: now) == now - 13 * 3600)
+        // Settings › Following › Edit…: a profile update wrapped to I (sealed by F), stored for the next request
+        var sentWraps: [String] = []
+        node.extraPublish = { ev, _ in sentWraps.append(ev) }
+        let pic: [String: Any] = ["v": 1, "c": 3, "s": "rings", "a": 90, "n": 5]
+        node.setProfile(name: "  Ana's Mac  ", avatar: pic)
+        let opened = sentWraps.first.flatMap { try? Event.fromJson(json: $0) }.flatMap { try? UnwrappedGift.fromGiftWrap(signer: I, giftWrap: $0) }
+        let body = opened.flatMap { try? JSONSerialization.jsonObject(with: Data($0.rumor().content().utf8)) as? [String: Any] }
+        check("profile update: one wrap to I, sealed by F, rumor 30500 {v 2, type profile, trimmed name, picture}",
+              sentWraps.count == 1 && opened?.sender().toHex() == F.publicKey().toHex() && opened?.rumor().kind().asU16() == V2.toOwner
+              && V2.json(body ?? [:]) == V2.json(V2.profileUpdate(name: "Ana's Mac", avatar: pic)))
+        check("profile update: kept for this Mac (name, picture)", node.st.name == "Ana's Mac" && V2.json(node.myAvatar ?? [:]) == V2.json(pic))
+        node.setProfile(name: " ", avatar: nil)
+        check("profile update: a blank name keeps the old one, no picture = the initial", node.st.name == "Ana's Mac" && node.myAvatar == nil)
         print(ok ? "v2 self-test OK" : "v2 self-test FAILED")
         return ok
     }

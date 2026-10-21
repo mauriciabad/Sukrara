@@ -740,7 +740,8 @@ final class AlertEngine {
     func post(_ ev: AlertEvent, mirrored: Bool, test: Bool = false, silent: Bool = false) {
         var (title, body) = text(ev, mirrored: mirrored)
         if test { title = "Test · " + title }
-        let sound = silent ? .none : Self.sound(for: ev.k, settings)
+        let sound = silent ? .none : Self.sound(for: ev.k, settings, last: lastVariant[ev.k])
+        if let v = sound.variant { lastVariant[ev.k] = v }
         log("ALERT \(title) — \(body) [\(ev.k.group.rawValue), sound \(sound.label)]")
         guard center != nil else {           // `swift run`: no bundle, no notification center
             play(sound)
@@ -801,17 +802,27 @@ final class AlertEngine {
         var label: String {
             switch self { case .none: "none"; case .system: "system"; case .file(let n, _): n }
         }
+        /// The pack variant (1–3) of a file sound.
+        var variant: Int? {
+            guard case .file(let n, _) = self else { return nil }
+            return Int(n.dropLast(4).split(separator: "_").last ?? "")
+        }
     }
+    nonisolated static let variants = 3
+    /// The variant each kind played last, so shuffle never plays the same one twice in a row.
+    private var lastVariant: [AlertKind: Int] = [:]
 
-    /// `<pack>_<kind>_<n>.caf`: a random variant (1–3) with shuffle, else 1. URL for previews / `swift run`.
-    nonisolated static func sound(for k: AlertKind, _ s: AlertSettings, pack: String? = nil, variant: Int? = nil) -> Sound {
+    /// `<pack>_<kind>_<n>.caf`: with shuffle a random variant (1–3) other than `last` (the one this kind played
+    /// before, like Android's AlertSounds.pick), else 1. URL for previews / `swift run`.
+    nonisolated static func sound(for k: AlertKind, _ s: AlertSettings, pack: String? = nil, variant: Int? = nil, last: Int? = nil) -> Sound {
         let p = pack ?? s.pack(for: k)
         switch p {
         case "none": return .none
         case "system": return .system
         default:
             guard AlertSettings.packs.contains(p) else { return .system }
-            let name = "\(p)_\(k.rawValue)_\(variant ?? (s.sounds.shuffle ? Int.random(in: 1...3) : 1)).caf"
+            let n = variant ?? (s.sounds.shuffle ? (1...variants).filter { $0 != last }.randomElement()! : 1)
+            let name = "\(p)_\(k.rawValue)_\(n).caf"
             return .file(name, soundURL(name))
         }
     }
@@ -836,11 +847,15 @@ final class AlertEngine {
         }
     }
 
-    /// ▶︎ in the Alerts window: a random variant of what this kind would play (pack: a pack/system/none override).
+    /// ▶︎ in the Alerts window: a random variant of what this kind would play (pack: a pack/system/none override),
+    /// not the one the last ▶︎ played, so pressing it again walks through the variants.
+    private var lastPreview: Int?
     func preview(_ k: AlertKind, pack: String? = nil) {
         var s = settings
         s.sounds.shuffle = true
-        play(Self.sound(for: k, s, pack: pack))
+        let snd = Self.sound(for: k, s, pack: pack, last: lastPreview)
+        lastPreview = snd.variant
+        play(snd)
     }
 
     // MARK: debug hooks

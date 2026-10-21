@@ -1,6 +1,7 @@
 // CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
+import AVFoundation
 import Foundation
 
 /// `Sukrara -alerts-selftest`: the AlertEngine over the shared scenario timelines with an injected clock
@@ -106,6 +107,23 @@ enum AlertsSelfTest {
         let missing = AlertSettings.packs.flatMap { p in AlertKind.allCases.flatMap { k in (1...3).map { "\(p)_\(k.rawValue)_\($0).caf" } } }
             .filter { Alerts.soundURL($0) == nil }
         check("all 96 sound files found (bundle or repo)", missing.isEmpty, "missing \(missing.prefix(3))")
+        var last: Int? = nil, repeated = false
+        for _ in 0..<60 {
+            let v = Alerts.sound(for: .high, s, last: last).variant
+            repeated = repeated || v == last
+            last = v
+        }
+        check("shuffle never plays the same variant twice in a row (Android AlertSounds.pick)", !repeated)
+        // UNNotificationSound limits (developer.apple.com/documentation/usernotifications/unnotificationsound):
+        // Linear PCM, IMA4, µLaw or aLaw in aiff / wav / caf, under 30 s, else the system plays the default sound.
+        let badSounds = AlertSettings.packs.flatMap { p in AlertKind.allCases.flatMap { k in (1...3).map { "\(p)_\(k.rawValue)_\($0).caf" } } }
+            .compactMap { n -> String? in
+                guard let u = Alerts.soundURL(n), let f = try? AVAudioFile(forReading: u) else { return "\(n): unreadable" }
+                let id = f.fileFormat.streamDescription.pointee.mFormatID
+                let secs = Double(f.length) / f.fileFormat.sampleRate
+                return [kAudioFormatLinearPCM, kAudioFormatAppleIMA4, kAudioFormatULaw, kAudioFormatALaw].contains(id) && secs < 30 ? nil : "\(n): \(id) \(secs) s"
+            }
+        check("every sound is a notification format (IMA4 / PCM / µLaw / aLaw) under 30 s", badSounds.isEmpty, "\(badSounds.prefix(3))")
 
         // 5. A wearer's §4 body parses; junk doesn't.
         let body: [String: Any] = ["v": 2, "type": "alert", "id": "0123456789abcdef", "k": "high", "state": "fire", "at": 1760650000,
