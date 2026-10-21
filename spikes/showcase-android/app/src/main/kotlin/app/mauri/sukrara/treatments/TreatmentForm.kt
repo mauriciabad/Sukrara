@@ -59,4 +59,16 @@ object TreatmentForm {
         }
         return if (now.timeInMillis - pick.timeInMillis < 60_000) null else pick.timeInMillis / 1000
     }
+
+    /** Longest "minutes ago": under a day, like [pickTime] (a picked time is at most 23:59 back). */
+    const val MAX_AGO_MIN = 1439
+
+    /** What the minutes-ago field keeps of a typed text: ASCII digits, at most 4. */
+    fun filterMinutes(v: String): String = v.filter { it in '0'..'9' }.take(4)
+
+    /** Typed minutes ago → minutes; null = empty or more than [MAX_AGO_MIN] (OK disabled). */
+    fun agoMinutes(s: String): Int? = s.trim().toIntOrNull()?.takeIf { it in 0..MAX_AGO_MIN }
+
+    /** [minutes] before [now] (epoch s), resolved when saving; null = 0 minutes, i.e. now. */
+    fun agoTime(now: Long, minutes: Int): Long? = if (minutes == 0) null else now - minutes * 60L
 }

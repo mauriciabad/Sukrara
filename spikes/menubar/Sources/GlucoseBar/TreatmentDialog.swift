@@ -79,8 +79,24 @@ enum TreatmentForm {
         return now.timeIntervalSince(p) < 60 ? nil : Int64(p.timeIntervalSince1970)
     }
 
-    /// The time chip: "Now", "Today 14:05", "Yesterday 23:10".
-    static func timeLabel(_ at: Int64?, now: Date = Date()) -> String {
+    /// Longest "minutes ago": under a day, like `pick` (a picked time is at most 23:59 back).
+    static let maxAgoMin = 1439
+
+    /// What the minutes-ago field keeps of a typed text: ASCII digits, at most 4.
+    static func filterMinutes(_ s: String) -> String { String(s.filter { $0.isASCII && $0.isNumber }.prefix(4)) }
+
+    /// Typed minutes ago → minutes; nil = empty or more than `maxAgoMin` (OK disabled).
+    static func agoMinutes(_ s: String) -> Int? {
+        guard let m = Int(s.trimmingCharacters(in: .whitespaces)), (0...maxAgoMin).contains(m) else { return nil }
+        return m
+    }
+
+    /// `minutes` before `now` (epoch s), resolved when saving; nil = 0 minutes, i.e. now.
+    static func agoTime(now: Int64, minutes: Int) -> Int64? { minutes == 0 ? nil : now - Int64(minutes) * 60 }
+
+    /// The time chip: "Now", "16 min ago", "Today 14:05", "Yesterday 23:10".
+    static func timeLabel(_ at: Int64?, ago: Int? = nil, now: Date = Date()) -> String {
+        if let ago { return "\(ago) min ago" }
         guard let at else { return "Now" }
         let d = Date(timeIntervalSince1970: TimeInterval(at))
         return (Calendar.current.isDate(d, inSameDayAs: now) ? "Today " : "Yesterday ") + Clock.time(d)
@@ -150,6 +166,19 @@ enum TreatmentForm {
             let want = (c["ago_s"] as? NSNumber)?.int64Value
             if got != want { fail("time \(c["now"]!) pick \(c["pick"]!) → \(String(describing: got)) s ago, want \(String(describing: want))") }
         }
+        let agoNow: Int64 = 1_750_000_000
+        for c in fx["minutes"] as? [[String: Any]] ?? [] {
+            let typed = c["typed"] as? String ?? "?"
+            let m = agoMinutes(typed)
+            if c["invalid"] as? Bool == true { if m != nil { fail("minutes \"\(typed)\" → \(m!), want invalid") }; continue }
+            guard let m else { fail("minutes \"\(typed)\" invalid"); continue }
+            let got = agoTime(now: agoNow, minutes: m).map { agoNow - $0 }
+            if got != (c["ago_s"] as? NSNumber)?.int64Value { fail("minutes \"\(typed)\" → \(String(describing: got)) s ago") }
+        }
+        for c in fx["minute_filters"] as? [[String: String]] ?? [] where filterMinutes(c["in"]!) != c["out"]! {
+            fail("minute filter \"\(c["in"]!)\" → \"\(filterMinutes(c["in"]!))\", want \"\(c["out"]!)\"")
+        }
+        if (fx["minutes"] as? [Any])?.isEmpty != false { fail("no minutes cases") }
         // the quiet line (Android Alerts.quietNote)
         var s = AlertSettings()
         let now: Int64 = 100_000
@@ -176,6 +205,8 @@ enum TreatmentForm {
     @Published var f = TreatmentForm.Fields()
     /// nil = now (resolved when saving); else epoch s.
     @Published var at: Int64?
+    /// Minutes before the moment of saving (the picker's minutes-ago mode), instead of `at`; nil = not relative.
+    @Published var ago: Int?
     /// The latest reading is low: the carbs field takes the focus (eating is what's needed).
     var low = false
     var settings: () -> AlertSettings = { AlertSettings() }
@@ -184,17 +215,20 @@ enum TreatmentForm {
     var onClose: (() -> Void)?
     private var saved = false
 
-    func reset(low: Bool) { f = .init(); at = nil; self.low = low; saved = false }
+    func reset(low: Bool) { f = .init(); at = nil; ago = nil; self.low = low; saved = false }
+
+    /// When the entries happen, for a save or the quiet line at `now` (epoch s).
+    func when(now: Int64) -> Int64 { ago.flatMap { TreatmentForm.agoTime(now: now, minutes: $0) } ?? at ?? now }
 
     var quiet: String? {
         let now = Int64(Date().timeIntervalSince1970)
         func ok(_ k: String) -> Bool { if case .value = f.amount(k) { true } else { false } }
-        return TreatmentForm.quietNote(rapid: ok("rapid"), carbs: ok("carbs"), at: at ?? now, now: now,
+        return TreatmentForm.quietNote(rapid: ok("rapid"), carbs: ok("carbs"), at: when(now: now), now: now,
                                        settings: settings(), mirroring: mirroring())
     }
 
     func save() {
-        guard !saved, f.canSave, let e = f.entries(at: at ?? Int64(Date().timeIntervalSince1970)) else { return NSSound.beep() }
+        guard !saved, f.canSave, let e = f.entries(at: when(now: Int64(Date().timeIntervalSince1970))) else { return NSSound.beep() }
         saved = true
         onSave?(e)
         onClose?()
@@ -214,12 +248,12 @@ struct TreatmentDialogView: View {
                 Text("Add Treatment").font(.title2.weight(.semibold))
                 Spacer()
                 Button { pickTime = true } label: {
-                    Label(TreatmentForm.timeLabel(model.at), systemImage: "clock")
+                    Label(TreatmentForm.timeLabel(model.at, ago: model.ago), systemImage: "clock")
                 }
                 .buttonStyle(.bordered).buttonBorderShape(.capsule)
                 .help("When it happened")
                 .popover(isPresented: $pickTime, arrowEdge: .bottom) {
-                    TimePicker(at: model.at) { model.at = $0; pickTime = false } cancel: { pickTime = false }
+                    TimePicker(at: model.at, ago: model.ago) { model.at = $0; model.ago = $1; pickTime = false } cancel: { pickTime = false }
                 }
             }
             HStack(alignment: .top, spacing: 8) {
@@ -327,33 +361,75 @@ struct KindMark: View {
     }
 }
 
-/// "When?": hour and minute (a time later than now is yesterday), Now, Cancel, OK — Android's time dialog.
-private struct TimePicker: View {
+/// "When?" — Android's time dialog. A segmented control switches between a clock time (a time later than now is
+/// yesterday) and minutes ago: a number field plus 5 / 15 / 30 / 60 buttons that fill it, under a day like the clock
+/// time and resolved when saving. HIG "Segmented controls": use one "to switch between closely related views"; the
+/// presets are small bordered buttons, the one matching the field shown prominent. Now, Cancel, OK as before; Return
+/// is OK (disabled while the minutes are empty or a day or more).
+struct TimePicker: View {
     let at: Int64?
-    let pick: (Int64?) -> Void
+    let ago: Int?
+    /// (time, nil), (nil, minutes ago) or (nil, nil) = now.
+    let pick: (Int64?, Int?) -> Void
     let cancel: () -> Void
     @State private var date = Date()
+    @State var relative = false
+    @State var minutes = ""
+    @FocusState private var minutesFocus: Bool
 
     var body: some View {
+        let m = TreatmentForm.agoMinutes(minutes)
         VStack(alignment: .leading, spacing: 12) {
             Text("When?").font(.headline)
-            DatePicker("Time", selection: $date, displayedComponents: .hourAndMinute)
-                .datePickerStyle(.stepperField)
-                .labelsHidden()
+            Picker("When", selection: $relative) {
+                Text("Time").tag(false)
+                Text("Minutes ago").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            if relative {
+                HStack(spacing: 6) {
+                    TextField("Minutes ago", text: Binding(get: { minutes }, set: { minutes = TreatmentForm.filterMinutes($0) }), prompt: Text(""))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 70)
+                        .focused($minutesFocus)
+                        .accessibilityLabel("Minutes ago")
+                    Text("min").foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    ForEach([5, 15, 30, 60], id: \.self) { q in
+                        if m == q { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.borderedProminent) }
+                        else { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.bordered) }
+                    }
+                }
+                .controlSize(.small)
+            } else {
+                DatePicker("Time", selection: $date, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.stepperField)
+                    .labelsHidden()
+            }
             HStack {
-                Button("Now") { pick(nil) }
+                Button("Now") { pick(nil, nil) }
                 Spacer()
                 Button("Cancel", action: cancel).keyboardShortcut(.cancelAction)
                 Button("OK") {
-                    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                    pick(TreatmentForm.pick(hour: c.hour ?? 0, minute: c.minute ?? 0, now: Date()))
+                    if relative { pick(nil, m.flatMap { $0 > 0 ? $0 : nil }) }
+                    else {
+                        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                        pick(TreatmentForm.pick(hour: c.hour ?? 0, minute: c.minute ?? 0, now: Date()), nil)
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
+                .disabled(relative && m == nil)
             }
         }
         .padding(14)
-        .frame(width: 260)
-        .onAppear { date = at.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? Date() }
+        .frame(width: 280)
+        .onAppear {
+            date = at.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? Date()
+            if let ago { relative = true; minutes = "\(ago)" }
+        }
+        .onChange(of: relative) { _, r in if r { DispatchQueue.main.async { minutesFocus = true } } }
     }
 }
 
@@ -409,5 +485,46 @@ private struct TimePicker: View {
                 w.sendEvent(e)
             }
         }
+    }
+}
+
+/// `-treatmentTimeSnapshot <dir>` (main.swift): see there.
+@MainActor enum TreatmentTimeSnapshot {
+    static func run(dir: String) {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.prohibited)
+        let model = TreatmentDialogModel()
+        model.f.carbs = "30"
+        model.ago = 16
+        let shots: [(String, AnyView)] = [
+            ("when-time", AnyView(TimePicker(at: nil, ago: nil, pick: { _, _ in }, cancel: {}))),
+            ("when-minutes-ago", AnyView(TimePicker(at: nil, ago: 15, pick: { _, _ in }, cancel: {}))),
+            ("add-treatment-16-min-ago", AnyView(TreatmentDialogView(model: model))),
+        ]
+        var windows: [(NSWindow, NSView, String)] = []
+        for (name, view) in shots {
+            for dark in [false, true] {
+                let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
+                host.frame = NSRect(origin: .zero, size: host.fittingSize)
+                let w = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                w.contentView = host
+                w.alphaValue = 0
+                w.orderFrontRegardless()
+                windows.append((w, host, "\(dir)/\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            for (w, host, out) in windows {
+                host.frame = NSRect(origin: .zero, size: host.fittingSize)
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: out))
+                print(FileManager.default.fileExists(atPath: out) ? "wrote \(out)" : "FAILED \(out)")
+                w.orderOut(nil)
+            }
+            exit(0)
+        }
+        app.run()
     }
 }
