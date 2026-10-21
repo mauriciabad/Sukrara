@@ -179,6 +179,9 @@ enum AlertsSelfTest {
         var bad = body; bad["k"] = "meteor"
         check("unknown kind rejected", AlertEvent(body: bad) == nil)
 
+        // 5b. This Mac's notifications in every state of SPEC §2 "States and exits" (a recorder, no notification center).
+        MainActor.assumeIsolated { AlertsNotifySelfTest.run { check($0, $1, $2) } }
+
         print(ok ? "alerts self-test OK" : "alerts self-test FAILED")
         // 6. The card's status (CardStatusTest.kt): units, durations, AlertStatus, LastTreatment, badge, slot priority,
         //    the graph settings' lastPlace / lastElse keys.
@@ -323,7 +326,9 @@ enum AlertScenarios {
         case "insulin.mute": s.muteAfterInsulin = v == "off" ? AlertMute(on: false, min: s.muteAfterInsulin.min) : mute
         case "falling.mute": s.muteFallingHigh = v == "off" ? AlertMute(on: false, min: s.muteFallingHigh.min) : mute
         case "mute.min": s.notificationActions.muteMin = Int(v)!
-        case "slow.min": s.notificationActions.slowMin = Int(v)!
+        case "relax.min": s.notificationActions.relaxMin = Int(v)!
+        case "back.mgdl": s.notificationActions.backMgdl = Int(v)!
+        case "back.min": s.notificationActions.backMin = Int(v)!
         default:
             let parts = k.split(separator: ".", maxSplits: 1).map(String.init)
             guard let kind = AlertKind(rawValue: parts[0]) else { fatalError("unknown setting \(kv)") }
@@ -357,6 +362,7 @@ enum AlertScenarios {
             } else {
                 e.onFire = { record($0.k.message(treated: $0.tr)) }
                 e.onClear = { record("clear \($0.k.rawValue)") }
+                e.onBack = { record("back \($0)") }
             }
             return e
         }
@@ -365,6 +371,21 @@ enum AlertScenarios {
         var pub = engine(published: true)
         /// Both wearer engines (the shared one only in a mirror scenario): readings, treatments, settings, timer.
         func both(_ f: (AlertEngine) -> Void) { f(e); if sc.mirror { f(pub) } }
+        /// The follower's own readings (the same live stream): its Mute / Relax end by the margin.
+        func followerReading(_ r: Reading?) { if sc.mirror { for side in follower.reading(r, s, at: clock) { record("follower back \(side)") } } }
+        /// A scenario's duration ("30", "2h", "1h 30"): Durations.parse, the parser the typed Mute… uses.
+        func minutes(_ w: [String], _ from: Int) -> Int? {
+            guard w.count > from else { return nil }
+            let t = w[from...].joined(separator: " ")
+            guard let m = Durations.parse(t) else { fatalError("not a duration: \(t)") }
+            return m
+        }
+        /// `mute all <duration>|never`: Mute all's end now.
+        func allEnd(_ w: [String], _ from: Int) -> Date {
+            w.count > from && w[from] == "never" ? AlertEngine.never
+                : clock.addingTimeInterval(TimeInterval((minutes(w, from) ?? { fatalError("mute all needs a length") }()) * 60))
+        }
+        func groupKind(_ g: AlertKind.Group) -> AlertKind { pubFires.values.filter { $0.k.group == g }.max { $0.at < $1.at }!.k }
         var glucose = 0.0, rate = 0.0, age = 0, sensor = true, every = 1
         var nextReading: Int?, timer: Int?
         let byTime = Dictionary(sc.lines.map { (t0 + $0.at, $0) }, uniquingKeysWith: { a, _ in a })
@@ -399,24 +420,29 @@ enum AlertScenarios {
                     let k = w[1] == "carbs" ? "carbs" : "rapid"
                     if let i = trs.lastIndex(where: { $0.k == k && !$0.del }) { trs[i].del = true }
                     both { $0.tick() }
-                // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
-                case "mute": e.mute(AlertKind(rawValue: w[1])!, min: w.count > 2 ? Int(w[2])! : s.notificationActions.muteMin)
-                case "slow": e.slow(AlertKind(rawValue: w[1])!)
-                // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop slowing down
-                case "unmute": e.unmute(AlertKind(rawValue: w[1])!)
-                case "unslow": e.unslow(AlertKind(rawValue: w[1])!)
-                // the same actions on the follower's notification (mirror): this device only
+                // the alert notification's actions: Mute… (the setting's minutes, or a typed / picked length), Relax;
+                // Mute all (the menu bar's dropdown): a length or never
+                case "mute":
+                    if w[1] == "all" { e.muteAll(until: allEnd(w, 2)) }
+                    else { e.mute(AlertKind(rawValue: w[1])!, min: minutes(w, 2) ?? s.notificationActions.muteMin) }
+                case "relax": e.relax(AlertKind(rawValue: w[1])!)
+                // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop relaxing, Turn alerts back on
+                case "unmute": if w[1] == "all" { e.unmuteAll() } else { e.unmute(AlertKind(rawValue: w[1])!) }
+                case "unrelax": e.unrelax(AlertKind(rawValue: w[1])!)
+                // the same actions on the follower (mirror): this device only
                 case "follower":
-                    let k = AlertKind(rawValue: w[2])!
+                    func show(_ id: String?) { if let id, let f = pubFires[id] { record("follower \(f.k.message(treated: f.tr))") } }
                     switch w[1] {
+                    case "mute" where w[2] == "all":
+                        for g in follower.muteAll(until: allEnd(w, 3)) { record("follower clear \(groupKind(g).rawValue)") }
                     case "mute":
-                        let m = w.count > 3 ? Int(w[3])! : s.notificationActions.muteMin
-                        if !k.always, follower.mute(k, until: clock.addingTimeInterval(TimeInterval(m * 60))) { record("follower clear \(k.rawValue)") }
-                    case "slow": follower.slow(k, slowMin: s.notificationActions.slowMin)
-                    case "unmute", "unslow":
-                        if let id = w[1] == "unmute" ? follower.unmute(k, at: clock) : follower.unslow(k, at: clock), let f = pubFires[id] {
-                            record("follower \(f.k.message(treated: f.tr))")
-                        }
+                        let k = AlertKind(rawValue: w[2])!
+                        let m = minutes(w, 3) ?? s.notificationActions.muteMin
+                        if follower.mute(k, until: clock.addingTimeInterval(TimeInterval(m * 60))) { record("follower clear \(k.rawValue)") }
+                    case "relax": follower.relax(AlertKind(rawValue: w[2])!, relaxMin: s.notificationActions.relaxMin)
+                    case "unmute" where w[2] == "all": for id in follower.unmuteAll(at: clock) { show(id) }
+                    case "unmute": show(follower.unmute(AlertKind(rawValue: w[2])!, at: clock))
+                    case "unrelax": show(follower.unrelax(AlertKind(rawValue: w[2])!, at: clock))
                     default: fatalError("unknown event: \(ev)")
                     }
                 case "set":
@@ -437,8 +463,9 @@ enum AlertScenarios {
             if sensor, let r = nextReading, r <= t {
                 let rd = Reading(date: clock.addingTimeInterval(TimeInterval(-age * 60)), mgdl: glucose, rate: rate)
                 both { $0.reading(rd) }
+                followerReading(rd)
                 nextReading = t + every * 60
-            } else if let tm = timer, tm <= t { both { $0.tick() } }
+            } else if let tm = timer, tm <= t { both { $0.tick() }; followerReading(e.latest) }
             timer = [e.nextCheckAt(clock), sc.mirror ? pub.nextCheckAt(clock) : nil].compactMap { $0 }.min()
                 .map { Int($0.timeIntervalSince1970.rounded(.up)) }
             guard let next = [byTime.keys.filter { $0 > t }.min(), sensor ? nextReading : nil, timer].compactMap({ $0 }).min() else { break }

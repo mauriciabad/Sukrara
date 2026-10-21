@@ -47,7 +47,7 @@ struct GlucoseWidgetView: View {
                 if let img = MacWidget.image(kind, size: geo.size, cfg: s.config, overrides: overrides, sensor: s.sensor,
                                              readings: s.graphReadings, marks: s.graphMarks, now: now, pal,
                                              metricsOf: { r, b in s.metrics(r, b, now: now) }, alerts: s.alerts,
-                                             paused: s.paused ?? [:], overflow: overflow) {
+                                             paused: s.paused ?? [:], allMuted: s.allMuted ?? 0, overflow: overflow) {
                     Image(decorative: img, scale: 2)
                         .resizable()
                         .frame(width: geo.size.width + 2 * overflow, height: geo.size.height + 2 * overflow)

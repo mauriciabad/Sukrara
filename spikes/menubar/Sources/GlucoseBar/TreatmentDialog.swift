@@ -96,13 +96,13 @@ enum TreatmentForm {
 
     /// The time chip: "Now", "16 min ago", "Today 14:05", "Yesterday 23:10".
     static func timeLabel(_ at: Int64?, ago: Int? = nil, now: Date = Date()) -> String {
-        if let ago { return "\(ago) min ago" }
+        if let ago { return "\(Durations.text(ago)) ago" }
         guard let at else { return "Now" }
         let d = Date(timeIntervalSince1970: TimeInterval(at))
         return (Calendar.current.isDate(d, inSameDayAs: now) ? "Today " : "Yesterday ") + Clock.time(d)
     }
 
-    /// "Highs quiet for 60 min · lows quiet for 15 min" for what the form would log at `at` (Android
+    /// "Highs quiet for 1 h · lows quiet for 15 min" for what the form would log at `at` (Android
     /// `Alerts.quietNote`): rapid insulin quiets highs, carbs quiet lows, for the minutes in Settings › Alerts that are
     /// still left at `now`. nil when alerts are off, while this Mac mirrors the wearer's alerts (the wearer's phone
     /// decides, like an Android follower), or when nothing would be quiet.
@@ -114,9 +114,9 @@ enum TreatmentForm {
             return l > 0 ? l : nil
         }
         switch (left(rapid, s.muteAfterInsulin), left(carbs, s.muteAfterCarbs)) {
-        case let (h?, l?): return "Highs quiet for \(h) min · lows quiet for \(l) min"
-        case let (h?, nil): return "Highs quiet for \(h) min"
-        case let (nil, l?): return "Lows quiet for \(l) min"
+        case let (h?, l?): return "Highs quiet for \(Durations.text(h)) · lows quiet for \(Durations.text(l))"
+        case let (h?, nil): return "Highs quiet for \(Durations.text(h))"
+        case let (nil, l?): return "Lows quiet for \(Durations.text(l))"
         default: return nil
         }
     }
@@ -185,8 +185,8 @@ enum TreatmentForm {
         func quiet(_ r: Bool, _ c: Bool, ago: Int64 = 0, mirroring: Bool = false) -> String? {
             quietNote(rapid: r, carbs: c, at: now - ago * 60, now: now, settings: s, mirroring: mirroring)
         }
-        if quiet(true, true) != "Highs quiet for 60 min · lows quiet for 15 min" { fail("quiet both: \(String(describing: quiet(true, true)))") }
-        if quiet(true, false) != "Highs quiet for 60 min" { fail("quiet highs") }
+        if quiet(true, true) != "Highs quiet for 1 h · lows quiet for 15 min" { fail("quiet both: \(String(describing: quiet(true, true)))") }
+        if quiet(true, false) != "Highs quiet for 1 h" { fail("quiet highs") }
         if quiet(false, true, ago: 10) != "Lows quiet for 5 min" { fail("quiet lows 10 min ago: \(String(describing: quiet(false, true, ago: 10)))") }
         if quiet(false, true, ago: 15) != nil || quiet(false, false) != nil { fail("quiet over / nothing") }
         if quiet(true, true, mirroring: true) != nil { fail("quiet while mirroring") }
@@ -398,8 +398,8 @@ struct TimePicker: View {
                 }
                 HStack(spacing: 6) {
                     ForEach([5, 15, 30, 60], id: \.self) { q in
-                        if m == q { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.borderedProminent) }
-                        else { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.bordered) }
+                        if m == q { Button(Durations.text(q)) { minutes = "\(q)" }.buttonStyle(.borderedProminent) }
+                        else { Button(Durations.text(q)) { minutes = "\(q)" }.buttonStyle(.bordered) }
                     }
                 }
                 .controlSize(.small)

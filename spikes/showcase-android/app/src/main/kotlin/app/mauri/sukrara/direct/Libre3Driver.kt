@@ -381,7 +381,7 @@ internal class Libre3Driver(
         }
         if (currentLifeCount in 0 until pairing.warmupMin) {
             // no glucose yet: wait for the end of the warm-up instead of reconnecting every 2 minutes
-            events.onStatus("warming up — readings in ${pairing.warmupMin - currentLifeCount} min")
+            events.onStatus("warming up — readings in ${app.mauri.sukrara.core.Durations.text(pairing.warmupMin - currentLifeCount)}")
             link?.cancel(glucoseTimeout)
             link?.schedule((pairing.warmupMin - currentLifeCount) * 60_000L + GLUCOSE_TIMEOUT_MS, glucoseTimeout)
             return

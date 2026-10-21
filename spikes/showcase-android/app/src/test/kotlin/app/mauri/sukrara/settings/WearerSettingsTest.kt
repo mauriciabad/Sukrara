@@ -61,7 +61,7 @@ class WearerSettingsTest {
         sensorHidden = setOf(GraphPlace.APP))
     private val followerAlerts = AlertSettings().let { d ->
         d.copy(on = false, kinds = d.kinds + (Kind.NO_DATA to KindCfg(true, 37.0, 17, alarm = true)) +
-            (Kind.LOW to d.cfg(Kind.LOW).copy(value = 80.0, alarm = true)), pack = "kart", shuffle = false, actionMuteMin = 61, slowMin = 45)
+            (Kind.LOW to d.cfg(Kind.LOW).copy(value = 80.0, alarm = true)), pack = "kart", shuffle = false, actionMuteMin = 61, relaxMin = 45)
     }
 
     private fun wearerContent(u: Long) = MirroredSettings.content(MirroredSettings.body(wearerGraph, wearerCountdown, wearerAlerts), u)
@@ -102,7 +102,7 @@ class WearerSettingsTest {
         assertEquals(listOf(false, 90, false, 33, false, 21),
             listOf(a.muteInsulin, a.muteInsulinMin, a.muteFalling, a.muteFallingMin, a.muteCarbs, a.muteCarbsMin))
         // local alert fields stay this phone's
-        assertEquals(listOf(false, "kart", false, 61, 45), listOf(a.on, a.pack, a.shuffle, a.actionMuteMin, a.slowMin))
+        assertEquals(listOf(false, "kart", false, 61, 45), listOf(a.on, a.pack, a.shuffle, a.actionMuteMin, a.relaxMin))
         assertEquals("wearer", a.source)
     }
 
@@ -241,7 +241,7 @@ class WearerSettingsTest {
         val r = app.mauri.sukrara.alerts.Alerts.own.value
         assertEquals(AlertSettings.DEFAULTS.getValue(Kind.LOW).copy(alarm = true), r.cfg(Kind.LOW))
         assertEquals(followerAlerts.cfg(Kind.NO_DATA), r.cfg(Kind.NO_DATA))
-        assertEquals(listOf(false, "kart", 61, 45), listOf(r.on, r.pack, r.actionMuteMin, r.slowMin))
+        assertEquals(listOf(false, "kart", 61, 45), listOf(r.on, r.pack, r.actionMuteMin, r.relaxMin))
 
         // the alert source follows the mode, for own and effective alike
         WearerSettings.setMode(WearerSettings.WEARER)

@@ -366,12 +366,13 @@ object GlucoseCard {
         sensor: SensorInfo? = SensorLife.current.value,
         countdownH: Int = SensorLife.countdown.value,
         paused: Map<String, Long> = Alerts.paused.value,
+        allMuted: Long = Alerts.allMuted.value,
         motion: CardMotion? = null,
         view: ChartView? = null,
     ): CardLayout {
         val rec = CardLayout(surface, part, st, w, h, d)
         val latest = readings.maxByOrNull { it.t }
-        val status = alerts?.let { AlertStatus.of(latest, it, treatments, nowS, paused) } ?: AlertStatus.None
+        val status = alerts?.let { AlertStatus.of(latest, it, treatments, nowS, paused, allMuted) } ?: AlertStatus.None
         val last = if (st.last != LastPlace.OFF && alerts != null) LastTreatment.of(treatments, alerts, status, nowS) else null
         val fr = Freshness.of(latest?.let { nowS - it.t })
         val sl = SensorBadge.look(sensor, nowS, latest?.t)

@@ -136,14 +136,21 @@ enum GraphFixtures {
                 let e = c["expect"] as? [String: Any] ?? [:]
                 // the alert notification's Mute in force: side → seconds from now
                 let paused = (c["paused"] as? [String: Double] ?? [:]).mapValues { now + $0 }
-                let st = AlertStatus.of(r, settings, marks, now: now, paused: paused)
+                // this Mac's Mute all: seconds from now or "never"
+                func end(_ a: Any?) -> TimeInterval? { a as? String == "never" ? AlertStatus.never : (a as? Double).map { now + $0 } }
+                let allMuted = end(c["allMuted"]) ?? 0
+                let st = AlertStatus.of(r, settings, marks, now: now, paused: paused, allMuted: allMuted)
+                let wantUntil = end(e["until"]) ?? .nan
                 let stText: String
                 switch st {
+                case .muted(let until):
+                    stText = "muted"
+                    check("\(name): until", until == wantUntil, until - now)
                 case .none: stText = "none"
                 case .needed(let k): stText = "needed:\(k.rawValue)"
                 case .paused(let k, let until):
                     stText = "paused:\(k.rawValue)"
-                    check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)
+                    check("\(name): until", until == wantUntil, until - now)
                 case .taken(let k, let tr, let until):
                     stText = "taken:\(k.rawValue):\(id(tr) ?? "?")"
                     check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)

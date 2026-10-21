@@ -119,7 +119,7 @@ enum LayoutSelfTest {
             case .widgetValue, .widgetGraph, .widgetCombined:
                 let kind: WidgetKind = s == .widgetValue ? .value : s == .widgetGraph ? .graph : .combined
                 _ = MacWidget.image(kind, size: size, cfg: cfg, overrides: WidgetOverrides(), sensor: sc.sensor, readings: sc.readings,
-                                    marks: sc.marks, now: now, pal, metricsOf: metrics, alerts: AlertSettings(), paused: [:], overflow: 15)
+                                    marks: sc.marks, now: now, pal, metricsOf: metrics, alerts: AlertSettings(), paused: [:], allMuted: 0, overflow: 15)
             case .test: return
             }
         }

@@ -287,7 +287,7 @@ Emulator (`medium_phone` wearer, `small_phone` follower; debug = synthetic gluco
 throwaway data. Schema: `spikes/settings/settings.json`; `tools/check/run.sh` covers the rest.
 
 - [ ] Every number row (Graph: the six ranges, time shown and per place, rings, periods, lines, vertical lines; Alerts:
-      thresholds, remind, quiet times, Mute for, Slow down; Sensor countdown; Nostr / LibreView intervals) opens the
+      thresholds, remind, quiet times, Mute…, Relax, the margin, Mute all custom; Sensor countdown; Nostr / LibreView intervals) opens the
       number dialog: specials + presets, *Custom* with the unit as suffix and "From … to …" under it; `0`, a value
       above the range and (rates) `1.55` are refused with that text in red; a custom value shows as *Custom* + value.
 - [ ] Ring order (Android): touch-down on a handle and drag: the row lifts and the others slide live; scrolling the page
@@ -314,6 +314,9 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
       notification, and with TalkBack / VoiceOver (a button or an accessibility action).
 - [ ] Leaving it updates everything that showed it at once (history, badge, widgets, ring, notification).
 - [ ] Alerts: emulator `--es alertFeed '65,0'` → Mute 30 min → the muted notification's *Unmute* brings *Low glucose*
-      back at once; Mute → the pill opens the sheet → *Change to 15 min*; Slow down → the chip → *Stop slowing down*;
+      back at once; Mute… → the pill opens the sheet → *Change to 15 min*; Relax → the chip → *Stop relaxing*; home
+      *Mute alerts* → 1 h → the muted pill on the card and widgets → *Turn alerts back on*; *Never* stays after a restart;
+      a high muted, then a low: the low alerts; muted low back at ≥ 80 for 10 min → the muted notification goes;
+      durations everywhere read *1 h* / *2 h*;
       log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under
       the card and the pill's menu.

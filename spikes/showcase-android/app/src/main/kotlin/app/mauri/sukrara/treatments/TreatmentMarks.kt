@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.treatments
 
+import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.core.Words
 import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.graph.TextModel
@@ -106,14 +107,7 @@ object TreatmentMarks {
      */
     fun duration(s: Long, up: Boolean = false): String {
         val m = if (up) (s.coerceAtLeast(0) + 59) / 60 else s.coerceAtLeast(0) / 60
-        val w = Words.current
-        return when {
-            m < 1 -> w.durNow
-            m < 60 -> w.durMinutes.format(m)
-            m < 6 * 60 -> if (m % 60 == 0L) w.durHours.format(m / 60) else w.durHoursMinutes.format(m / 60, m % 60)
-            m < 48 * 60 -> w.durHours.format(m / 60)
-            else -> w.durDays.format(m / 1440)
-        }
+        return if (m < 1) Words.current.durNow else Durations.compact(m)
     }
 
     /** Material Symbols "arrow_back" (Apache 2.0, viewBox 0 -960 960 960; also `ic_sym_arrow_back`), mirrored to "arrow_forward" in [marker]. */

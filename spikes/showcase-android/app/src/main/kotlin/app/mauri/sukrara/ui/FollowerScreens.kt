@@ -220,9 +220,9 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
         val l = u.last
         val noData = u.status == "active" && (l == null || now - l.t >= alerts.cfg(app.mauri.sukrara.alerts.Kind.NO_DATA).value * 60)
         // only a roster writer may add entries; follows the newest roster live
-        GlucosePanel(l?.sgv, l?.rate, l?.t, onAdd = if (u.status == "active" && u.canWrite) ({ adding = true }) else null)
+        GlucosePanel(l?.sgv, l?.rate, l?.t, onAdd = if (u.status == "active" && u.canWrite) ({ adding = true }) else null, muteAlerts = true)
         RevealValue(if (noData && l != null) (now - l.t) / 60 else null) {
-            Text(stringResource(R.string.follower_home_no_data, it), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.follower_home_no_data, app.mauri.sukrara.core.Durations.text(it)), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
         }
         Reveal(u.status == "active" && l == null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

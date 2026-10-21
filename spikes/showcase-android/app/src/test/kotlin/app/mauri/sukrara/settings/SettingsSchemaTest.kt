@@ -88,7 +88,7 @@ class SettingsSchemaTest {
         assertEquals(S.MUTE_FALLING.default.toInt(), a.muteFallingMin)
         assertEquals(S.MUTE_CARBS.default.toInt(), a.muteCarbsMin)
         assertEquals(S.ACTION_MUTE.default.toInt(), a.actionMuteMin)
-        assertEquals(S.ACTION_SLOW.default.toInt(), a.slowMin)
+        assertEquals(S.ACTION_RELAX.default.toInt(), a.relaxMin)
         val f = FeatureState()
         assertEquals(S.NOSTR_INTERVAL.default.toInt(), f.nostrIntervalMin)
         assertEquals(S.LIBREVIEW_INTERVAL.default.toInt(), f.libreviewIntervalMin)
@@ -138,7 +138,7 @@ class SettingsSchemaTest {
         conforms("quiet falling", S.MUTE_FALLING) { v -> alerts { it.copy(muteFallingMin = v.roundToInt()) }.muteFallingMin.toDouble() }
         conforms("quiet after carbs", S.MUTE_CARBS) { v -> alerts { it.copy(muteCarbsMin = v.roundToInt()) }.muteCarbsMin.toDouble() }
         conforms("notification mute", S.ACTION_MUTE) { v -> alerts { it.copy(actionMuteMin = v.roundToInt()) }.actionMuteMin.toDouble() }
-        conforms("slow down", S.ACTION_SLOW) { v -> alerts { it.copy(slowMin = v.roundToInt()) }.slowMin.toDouble() }
+        conforms("slow down", S.ACTION_RELAX) { v -> alerts { it.copy(relaxMin = v.roundToInt()) }.relaxMin.toDouble() }
 
         fun features(f: (FeatureState) -> FeatureState) = FeatureState.fromJson(JSONObject(f(FeatureState()).toJson().toString()))
         conforms("nostr interval", S.NOSTR_INTERVAL) { v -> features { it.copy(nostrIntervalMin = v.roundToInt()) }.nostrIntervalMin.toDouble() }
