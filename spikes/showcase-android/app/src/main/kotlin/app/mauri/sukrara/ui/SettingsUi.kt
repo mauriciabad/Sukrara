@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
@@ -128,6 +130,19 @@ fun SettingsHeader(content: @Composable () -> Unit) {
 }
 
 /**
+ * The page's scroll and its viewport in window coordinates, for content that scrolls the page itself while a finger
+ * holds it (the ring order's drag auto-scrolls at the edges). [topInset] / [bottomInset]: the bars over the content.
+ */
+class PageScroll(val state: androidx.compose.foundation.ScrollState) {
+    var viewport: androidx.compose.ui.geometry.Rect = androidx.compose.ui.geometry.Rect.Zero
+    var topInset: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp(0f)
+    var bottomInset: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp(0f)
+}
+
+/** The [PageScroll] of the settings page around this content (null outside one). */
+val LocalPageScroll = androidx.compose.runtime.staticCompositionLocalOf<PageScroll?> { null }
+
+/**
  * One settings page: SPA's SettingsScaffold with the page [title] (it matches the row that opened it) as the
  * collapsing large title, then [content] in a scrolling column, laid out like SPA's RegularScaffold. Rows and groups
  * reach the screen edges the SPA way; any other content gets the 16 dp side margin of the cards.
@@ -137,9 +152,14 @@ fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnS
     LocalSettingsIndex.current?.let { idx -> idx.title = title; Column { content() }; return }
     val nav = LocalNav.current
     val controller = remember(nav, onBack) { SukraraNavController(nav, onBack) }
-    CompositionLocalProvider(LocalNavController provides controller) {
+    val scroll = rememberScrollState()
+    val page = remember(scroll) { PageScroll(scroll) }
+    CompositionLocalProvider(LocalNavController provides controller, LocalPageScroll provides page) {
         SettingsScaffold(title) { padding ->
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = SettingsSpace.small1)) {
+            page.topInset = padding.calculateTopPadding()
+            page.bottomInset = padding.calculateBottomPadding()
+            Column(Modifier.onGloballyPositioned { page.viewport = it.boundsInWindow() }.verticalScroll(scroll)
+                .padding(horizontal = SettingsSpace.small1)) {
                 Spacer(Modifier.height(padding.calculateTopPadding()))
                 content()
                 Spacer(Modifier.height(padding.calculateBottomPadding()))

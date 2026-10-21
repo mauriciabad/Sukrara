@@ -57,7 +57,7 @@ enum SettingsSelfTest {
         return out
     }
 
-    static func run() -> Bool {
+    @MainActor static func run() -> Bool {
         ok = true
         inventory()
         defaults()
@@ -65,8 +65,26 @@ enum SettingsSelfTest {
         effective()
         wire()
         options()
+        reorder()
         print(ok ? "settings self-test OK" : "settings self-test FAILED")
         return ok
+    }
+
+    // MARK: (h) ring order: the move logic of the reorderable list (drop gaps, Move Up / Move Down)
+
+    @MainActor static func reorder() {
+        let o = DEFAULT_RING_ORDER   // TIGHT, TARGET, LOW, VERY_LOW, HIGH, VERY_HIGH
+        check("reorder: first row dropped in the gap after the third", reorderMoved(o, from: [0], to: 3) == [.target, .low, .tight, .veryLow, .high, .veryHigh])
+        check("reorder: last row dropped at the top", reorderMoved(o, from: [5], to: 0) == [.veryHigh, .tight, .target, .low, .veryLow, .high])
+        check("reorder: dropped on its own gap changes nothing", reorderMoved(o, from: [2], to: 2) == o && reorderMoved(o, from: [2], to: 3) == o)
+        check("reorder: out of range is ignored", reorderMoved(o, from: [9], to: 0) == o && reorderMoved(o, from: [0], to: 7) == o)
+        var saved: [Band]?
+        let c = RingOrderTable.Coordinator(RingOrderTable(order: o) { saved = $0 })
+        check("reorder: Move Down", c.move(.tight, by: 1) && saved == [.target, .tight, .low, .veryLow, .high, .veryHigh])
+        check("reorder: Move Up", c.move(.tight, by: -1) && saved == o)
+        saved = nil
+        check("reorder: Move Up on the first row does nothing", !c.move(.tight, by: -1) && saved == nil)
+        check("reorder: Move Down on the last row does nothing", !c.move(.veryHigh, by: 1) && saved == nil)
     }
 
     // MARK: (a) (b) inventory

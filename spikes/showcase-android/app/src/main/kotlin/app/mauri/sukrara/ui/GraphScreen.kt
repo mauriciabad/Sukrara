@@ -348,15 +348,7 @@ private fun Reset(title: String, changed: Boolean, onReset: () -> Unit) {
     }
 }
 
-/**
- * The ring's segments clockwise from 12 o'clock as a reorderable list: drag a row by its handle (the trailing
- * drag_indicator, as in AOSP Settings › Languages, LocaleDragAndDropAdapter; Material: "a list can be reordered by
- * dragging a list item", m3.material.io/foundations/interaction/gestures). Dragging is hard for people with motor
- * impairments, so every row also has the accessibility actions Move up / Move down / Move to top / Move to bottom
- * (Compose semantics customActions: "can be used for more complex touchscreen gestures, like swipe to dismiss or
- * drag and drop", developer.android.com/develop/ui/compose/accessibility/semantics; AOSP Languages offers the same
- * four). The order is saved when the row is dropped.
- */
+/** The ring's segments clockwise from 12 o'clock, reordered by drag and drop ([ReorderList]). */
 @Composable
 private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
     val pal = systemPalette(LocalContext.current, androidx.compose.foundation.isSystemInDarkTheme())
@@ -367,59 +359,7 @@ private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
         Band.TIGHT -> ctx.getString(bandLabel(x), b.low, b.tight); Band.TARGET -> ctx.getString(bandLabel(x), b.tight + 1, b.high)
         Band.HIGH -> ctx.getString(bandLabel(x), b.high + 1, b.veryHigh); Band.VERY_HIGH -> ctx.getString(bandLabel(x), b.veryHigh)
     }
-    var order by remember(g.ringOrder) { mutableStateOf(g.ringOrder) }
-    var dragging by remember { mutableStateOf<Band?>(null) }
-    var offset by remember { mutableFloatStateOf(0f) }
-    val rowPx = with(LocalDensity.current) { 48.dp.toPx() }
-    fun move(from: Int, to: Int) {
-        if (from == to || to !in order.indices) return
-        order = order.toMutableList().also { l -> l.add(to, l.removeAt(from)) }
-        onOrder(order)
-    }
-    val up = stringResource(R.string.graph_ring_move_up)
-    val down = stringResource(R.string.graph_ring_move_down)
-    val top = stringResource(R.string.graph_ring_move_top)
-    val bottom = stringResource(R.string.graph_ring_move_bottom)
-    val handle = stringResource(R.string.graph_ring_drag)
-    Column {
-        order.forEachIndexed { i, band ->
-            val lifted = dragging == band
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(48.dp)
-                .zIndex(if (lifted) 1f else 0f)
-                .graphicsLayer { translationY = if (lifted) offset else 0f; shadowElevation = if (lifted) 6f else 0f }
-                .background(if (lifted) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent,
-                    MaterialTheme.shapes.small)
-                .semantics(mergeDescendants = true) {
-                    customActions = listOfNotNull(
-                        CustomAccessibilityAction(up) { move(i, i - 1); true }.takeIf { i > 0 },
-                        CustomAccessibilityAction(down) { move(i, i + 1); true }.takeIf { i < order.lastIndex },
-                        CustomAccessibilityAction(top) { move(i, 0); true }.takeIf { i > 1 },
-                        CustomAccessibilityAction(bottom) { move(i, order.lastIndex); true }.takeIf { i < order.lastIndex - 1 },
-                    )
-                }) {
-                androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
-                Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
-                Icon(painterResource(R.drawable.ic_sym_drag_indicator), contentDescription = handle,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(48.dp).padding(12.dp).pointerInput(band) {
-                        detectDragGestures(
-                            onDragStart = { dragging = band; offset = 0f },
-                            onDragEnd = { dragging = null; offset = 0f; onOrder(order) },
-                            onDragCancel = { dragging = null; offset = 0f; order = g.ringOrder },
-                        ) { change, d ->
-                            change.consume()
-                            offset += d.y
-                            val cur = order.indexOf(band)
-                            val to = (cur + (offset / rowPx).roundToInt()).coerceIn(0, order.lastIndex)
-                            if (to != cur) {
-                                order = order.toMutableList().also { l -> l.add(to, l.removeAt(cur)) }
-                                offset -= (to - cur) * rowPx
-                            }
-                        }
-                    })
-            }
-        }
-    }
+    ReorderList(g.ringOrder, onOrder) { band -> RingRow(pal.of(band), name(band)) }
 }
 
 /**

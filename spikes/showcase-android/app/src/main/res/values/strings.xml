@@ -2323,7 +2323,7 @@
     <!-- Content description of a row's drag handle. [CHAR LIMIT=40] -->
     <string name="graph_ring_drag">Drag to reorder</string>
     <!-- Note under the ring order. [CHAR LIMIT=NONE] -->
-    <string name="graph_ring_order_note">Drag a row by its handle to change where its segment sits on the rings, clockwise from the top.</string>
+    <string name="graph_ring_order_note">Drag a row by its handle, or touch and hold it, to change where its segment sits on the rings, clockwise from the top.</string>
 
     <!-- Round f29: the ways out of a muted / quiet / slowed alert (SPEC §2 States and exits) -->
     <!-- Muted alert notification: button that ends the mute [CHAR LIMIT=20] -->

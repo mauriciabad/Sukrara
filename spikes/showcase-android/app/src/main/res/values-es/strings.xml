@@ -1750,7 +1750,7 @@
     <string name="graph_ring_move_top">Mover al principio</string>
     <string name="graph_ring_move_bottom">Mover al final</string>
     <string name="graph_ring_drag">Arrastrar para reordenar</string>
-    <string name="graph_ring_order_note">Arrastra una fila por su asa para cambiar dónde va su segmento en los anillos, en el sentido de las agujas del reloj desde arriba.</string>
+    <string name="graph_ring_order_note">Arrastra una fila por su asa, o mantenla pulsada, para cambiar dónde va su segmento en los anillos, en el sentido de las agujas del reloj desde arriba.</string>
 
     <!-- Ronda f29: salir de una alerta silenciada / espaciada -->
     <string name="alert_action_unmute">Reactivar</string>

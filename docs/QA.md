@@ -290,8 +290,11 @@ throwaway data. Schema: `spikes/settings/settings.json`; `tools/check/run.sh` co
       thresholds, remind, quiet times, Mute for, Slow down; Sensor countdown; Nostr / LibreView intervals) opens the
       number dialog: specials + presets, *Custom* with the unit as suffix and "From … to …" under it; `0`, a value
       above the range and (rates) `1.55` are refused with that text in red; a custom value shows as *Custom* + value.
-- [ ] TalkBack on the ring order: each row offers Move up / Move down / Move to top / Move to bottom; dragging a row by
-      its handle moves it and the rings in the preview follow after the drop.
+- [ ] Ring order (Android): touch-down on a handle and drag: the row lifts and the others slide live; scrolling the page
+      by swiping over the rows still scrolls; long press a row then drag also works; dragging to the screen edge scrolls
+      the page; the drop settles with a spring and a haptic tick per slot. TalkBack offers Move up / down / to top / to
+      bottom. Mac: drag a row: the image is the row, a gap opens and the others slide; Escape returns it unchanged;
+      Control-click → Move Up / Move Down. No position numbers on either.
 - [ ] Follower: overview *Settings from* = Wearer; Graph shows only per-place times and sensor time; Alerts rows say
       "Set by the wearer's app" and quiet times are hidden. Change a range on the wearer's emulator: the follower's
       graph follows within a minute. *Custom* → the rows appear; *Copy the wearer's settings* asks first, then copies.
