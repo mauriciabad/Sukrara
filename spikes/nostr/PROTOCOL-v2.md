@@ -27,6 +27,7 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 |---|---|---|---|---|
 | **live** | 21078 | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"t":unix_s,"sgv":mgdl,"r":rate|null,"dev":src,"ss"?,"se"?,"sw"?}` → `G_n`; or reading-less `{"v":2,"ss","se","sw"}` ([sensor life](#sensor-life)) |
 | **hour chunk** | 30078 | `D` | `["d", H("cgm2:h:"+sid+":"+hourStart)]`, `["c", H("cgm2:glucose:"+sid)]`, `["gk", gk_n]`, exp hour+7 d | `{"v":2,"h":hourStart,"dev":src,"r":[[dt,sgv,rate100],…]}` → `G_n` |
+| **settings** | 30078 | `D` | `["d", H("cgm2:settings:"+sid)]`, `["gk", gk_n]`, exp now+30 d | `{"v":2,"type":"settings","u","graph":{…},"alerts":{…}}` → `G_n` ([Settings](#settings--v2-addition-2026-10-21-round-f28)) |
 | **roster** | 30078 | `I` | `["d", H("cgm2:roster:"+sid)]`, `["gk", gk_n]`, exp now+30 d (refreshed weekly) | `{"v":2,"epoch":n,"devices":[hex D…],"writers":[hex W…],"relays":[…],"profile":{…}}` → `G_n` (`profile`: the wearer's, see [Profiles](#profiles)) |
 | **owner backup** | 30078 | `I` | `["d", H("cgm2:backup:"+I.pub_hex)]`, exp now+90 d (refreshed weekly) | `{"v":2,"sid","epochs":[{"n","g":nsec}],"followers":[{"f":hex,"name","avatar","since","revoked"?}],"invites":[{"t","x"}],"relays":[…],"profile":{…}}` → **`I` itself** |
 | **invite** | rumor kind 30502 in gift wrap to `invite_key(secret)` | seal by `I` | wrap exp = invite expiry | `{"v":3,"type":"invite","x":expiry,"r":[relays],"profile":{…}}` ([PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3)) |
@@ -165,6 +166,39 @@ owner's source gives the start only (`sgv.json?sensor=Y`): end = start + 15 days
 - No serial on the wire (the start identifies the sensor). Chunks don't carry it; the BLE companion path relays the
   same live events.
 
+## Settings — v2 addition, 2026-10-21 (round f28)
+
+A follower (Android follower app, Mac) chooses where the settings it can mirror come from (*Settings from*: Default /
+**Wearer** (default) / Custom; schema `follower.settingsFrom`). For *Wearer* the wearer's phone publishes its own
+settings. Which ones: the rows of [`spikes/settings/settings.json`](../settings/settings.json) with `"mirror": true`,
+under their `"wire"` key; everything else (sounds, like an alarm, the notification's Mute / Slow down, no data,
+per-place windows and sensor time, the alerts main switch) is per device and never sent.
+
+| Event | kind | signed by | tags | content (decrypted) |
+|---|---|---|---|---|
+| **settings** | 30078 (parameterized replaceable) | `D` | `["d", H("cgm2:settings:"+sid)]`, `["gk", gk_n]`, exp now+30 d | `{"v":2,"type":"settings","u":unix_s,"graph":{…},"alerts":{…}}` → `G_n`, NIP-44 from `D` |
+
+- `u` = when the wearer last changed one of the mirrored settings (unix s; strictly increasing). `created_at` strictly
+  increases per publish (replaceable events, see Relay rules).
+- `graph`: Android's `GraphConfig` JSON keys and value forms — `veryLow`, `low`, `tight`, `high`, `veryHigh`,
+  `extremelyHigh` (mg/dL ints), `defaultHours` (h), `ringCount` (0–3), `slots` (`"KIND:windowS:faded,…"`, 3 slots,
+  e.g. `"TIR:86400:1,TIR:604800:1,GMI:1209600:1"`), `ringRange` (`IN_RANGE` / `TIGHT`), `ringOrder` (the six bands
+  comma-separated, `TIGHT,TARGET,HIGH,VERY_HIGH,VERY_LOW,LOW`), `ringMarks`, `side`, `columnCrown` (bools), `lines`
+  (`"100,120"`), `gridHours` (h, 0 = off), `lastPlace` (`OFF` / `NEAR_VALUE` / `END`), `lastElse` (one slot, `""` =
+  nothing), plus `countdownHours` (the sensor countdown, h).
+- `alerts`: the [alerts SPEC §3](../alerts/SPEC.md) shape with only `alerts.<kind>.{on, mgdl|rate, repeatMin}` for the 7
+  kinds other than `no_data`, and `muteAfterInsulin`, `muteFallingHigh`, `muteAfterCarbs` (`{on, min}`).
+- Values follow the schema's number formats (`numbers`); a receiver coerces anything out of spec to a valid value
+  and takes a missing key as the default.
+- **Published** by the wearer's phone on a change (debounced 3 s; only when the mirrored content changed), on a new
+  epoch (rotation), at every start and weekly; also over BLE (backlog key `settings`, sent to a central that says
+  HELLO) — so a follower in range without internet gets it too.
+- **Followers**: `REQ {"kinds":[30078], "#d":[H("cgm2:settings:"+sid)], "authors": roster.devices}`. Accept iff the
+  signature is valid, author ∈ `roster.devices`, `gk` is a known epoch, it decrypts, `d` matches, `v == 2` and
+  `type == "settings"`; the **newest `u` wins** (an older or equal one is ignored). A follower that stops following
+  forgets it (the next wearer's `u` may be older). Android `WearerSettings.received`, Mac `WearerSettings.received`.
+- Privacy: followers already see the readings; the settings are encrypted to the group key like every other event.
+
 ## Invite link / QR
 
 Since Sukrara 0.11 the invite is the **v3 short link** of [PROTOCOL-identity](PROTOCOL-identity.md#short-invites-v3):
@@ -273,6 +307,8 @@ all unmerged as of 2026-10.)
 - Unknown `gk`: a rekey request only when the event is signed by `I` or a roster device (≤ 1 per `gk` per 5 min), so a
   stranger can't make followers send them.
 - Key delivery: sealed by `I`, and its `sid` equal to the one already known (if any).
+- Settings: author ∈ `roster.devices`, known `gk`, decrypts, `d == H("cgm2:settings:"+sid)`, `type == "settings"`,
+  newest `u` wins ([Settings](#settings--v2-addition-2026-10-21-round-f28)).
 - Treatments: see [Treatments](#treatments-insulin--carbs--notes--v2-addition-2026-10-16) (writer scope).
 - Never trust a reading because of *where* it came from inside the app — each stored reading records `via`
   (`relay:<host>`), and the follower DB is separate from the owner role's DB.

@@ -29,7 +29,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -83,7 +85,7 @@ data class OwnerUi(
  *
  * All state changes run on one serial dispatcher. The relay pool lives as long as the engine.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class OwnerEngine(private val ctx: Context) {
     val log = EventLog("owner")
     private val store = SecureStore(File(ctx.filesDir, "owner-state.bin"), "cgmshare.owner")
@@ -172,6 +174,12 @@ class OwnerEngine(private val ctx: Context) {
         sensorJob = scope.launch {
             SensorLife.current.collect { si -> if (si != null) withContext(serial) { publishSensor("changed") } }
         }
+        // round f28: the wearer's mirrored settings for followers in "Settings from: Wearer" — at start, then on a change
+        settingsJob?.cancel()
+        settingsJob = scope.launch {
+            app.mauri.sukrara.settings.WearerSettings.ownBodies().debounce(SETTINGS_DEBOUNCE_MS)
+                .collect { withContext(serial) { publishSettings("changed") } }
+        }
         features = scope.launch {
             var old = Features.value
             Features.state.collect { f -> if (f != old) { val o = old; old = f; withContext(serial) { applyFeatures(o, f) } } }
@@ -181,6 +189,28 @@ class OwnerEngine(private val ctx: Context) {
 
     private var features: Job? = null
     private var sensorJob: Job? = null
+    private var settingsJob: Job? = null
+    /** `u` of the settings event published last by this process (0 = none yet: the first change check publishes). */
+    private var settingsU = 0L
+
+    /**
+     * The settings event (PROTOCOL-v2 "Settings"): the wearer's own mirrored settings for its followers. [why] "changed"
+     * publishes only when the content's `u` moved (or nothing went out since the start); "epoch" / "weekly" always;
+     * "ble" only to the BLE backlog cache (a new BLE transport has none).
+     */
+    private fun publishSettings(why: String, relays: Boolean = true) {
+        val s = st ?: return
+        val body = app.mauri.sukrara.settings.WearerSettings.outgoing()
+        val u = body.optLong("u")
+        if (why == "changed" && u == settingsU) return
+        val at = maxOf(Proto.nowS(), s.settingsPublishedAt + 1)
+        publish(Proto.settingsEvent(s.d, s.current.pub, s.sid, body, at), Lane.CONTROL, key = "settings", relays = relays)
+        if (!relays) return   // the relays' copy (and its created_at order) is unchanged
+        settingsU = u
+        s.settingsPublishedAt = at
+        save()
+        log.i("settings published ($why): u $u, epoch ${s.current.n}")
+    }
 
     /**
      * A reading-less live event with the sensor (PROTOCOL-v2 "Sensor life"): when it changes, and every tick while it
@@ -248,6 +278,7 @@ class OwnerEngine(private val ctx: Context) {
         running = false
         tick?.cancel()
         features?.cancel()
+        settingsJob?.cancel()
         source?.stop()
         source = null
         Treat.store.onChange.remove(onTreatmentChange)
@@ -331,6 +362,7 @@ class OwnerEngine(private val ctx: Context) {
         ble = b
         attach(b)
         publishRoster()   // seeds the BLE backlog cache (the roster is otherwise only re-published weekly)
+        publishSettings("ble", relays = false)   // likewise the settings event
         recentTreatments().forEach { publishTreatment(it, relays = false) }   // …and its treatment backlog
         scope.launch { b.connected.collect { n -> _ui.update { it.copy(bleOn = true, bleCentrals = n) } } }
         scope.launch { b.links.collect { l -> _ui.update { it.copy(bleLinks = l) } } }
@@ -611,6 +643,7 @@ class OwnerEngine(private val ctx: Context) {
         if (Proto.nowS() - s.rosterPublishedAt > 7 * Proto.DAY) publishRoster()
         if (Proto.nowS() - s.backupPublishedAt > 7 * Proto.DAY) publishBackup()
         if (Proto.nowS() - s.treatmentsPublishedAt > 7 * Proto.DAY) republishTreatments("weekly")
+        if (Proto.nowS() - s.settingsPublishedAt > 7 * Proto.DAY) publishSettings("weekly")
         if (Proto.nowS() - lastInboxCheck > chunkEvery() - 30) scope.launch { checkInbox("tick") }
         db.prune(Proto.nowS() - 31 * Proto.DAY)   // 30-day slots and report (investigations 16, 18)
     }
@@ -694,6 +727,7 @@ class OwnerEngine(private val ctx: Context) {
         publishBackup()
         republishHistory("epoch ${s.current.n}")
         republishTreatments("epoch ${s.current.n}")
+        publishSettings("epoch")
         log.i("rotated to epoch ${s.current.n} gk ${s.current.gk} ($why); ${s.active().size} follower(s) re-keyed, " +
             "republishing ${lastChunkSentAt.size} recent chunk(s)")
     }
@@ -952,6 +986,8 @@ class OwnerEngine(private val ctx: Context) {
         const val JUGGLUCO = "http://127.0.0.1:17580"
         const val BACKFILL_HOURS = 25L
         const val CHUNK_EVERY_S = 300L
+        /** Settings changes wait this long for the next one (a slider or a run of taps = one event). */
+        const val SETTINGS_DEBOUNCE_MS = 3_000L
         const val LIVE_MAX_AGE_S = 600L
         const val INVITE_TTL_S = 24 * 3600L
         const val HISTORY_MIN_GAP_S = 600L

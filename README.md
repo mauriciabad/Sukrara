@@ -115,7 +115,8 @@ by the app's icon code.</sub>
   [05](docs/05-android-status-bar.md)
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
-  so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
+  so it never goes out of date), the system's page and back-gesture motion, one number input everywhere (presets plus
+  a custom value with its unit and range, the same choices on the Mac), the ring order by drag and drop,
   export / import / reset of the options, and a reminder to share your data with your clinic (LibreView or Tidepool). Apps and services show their real icons,
   drawn like the system Settings app's list; every other row has an icon too, with custom ones for diabetes things
   (the sensor, insulin, carbs, ranges, each alert). Each alert has its own page
@@ -175,17 +176,21 @@ by the app's icon code.</sub>
   *Eat carbs* / *Take insulin* badge and the last-treatment slot; swipe the chart sideways with two fingers to go back
   in time, *Now* to return) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
-  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…* for its period,
-  the same file as the phone's); right-click for Settings and Quit.
+  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
+  and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
-- A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
-  six ranges and Open at Login; it reopens on the last pane.
+- A macOS Settings window (General, Graph, Rings, Alerts, Following) laid out after Apple's guidelines, reopening on the
+  last pane. **Settings from**: the wearer's own settings (default), Sukrara's defaults, or Custom; only Custom shows
+  the ranges, time shown, rings, lines and alert rules as controls (with *Copy the Wearer's Settings…* and *Reset to
+  Defaults…* as a starting point), the other modes show what's in use. Sounds, the no-data alert, the notification's
+  buttons and each place's own time shown (menu bar, widgets) are always the Mac's. Every number is a menu of presets
+  plus *Custom…* that takes any value in range (the range is shown), the same formats as the phone; drag the ring order.
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone
   (Settings → Following, with who you follow, name and picture; **Edit…** changes how the Mac appears to them: name
   and generated picture, like the phone). Keys stay in the macOS Keychain. Hours
   the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
-- The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does, or
-  with the Mac's own settings. Pick the pack, or another sound per alert, from a list with ▶ on each one.
+- The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does
+  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. Pick the pack, or another sound per alert, from a list with ▶ on each one.
   [15](docs/15-alerts.md)
 - When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel
   says why right under it.
@@ -203,8 +208,12 @@ by the app's icon code.</sub>
   only end-to-end encrypted to the people you share with and are never posted publicly. The picture is sent as a few
   versioned numbers, not an image, so every Sukrara draws it the same, also after the drawing style changes.
   [14](docs/14-nostr-identity.md)
-- Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
+- Followers take their settings from the wearer (ranges, graph, rings, alert rules: the wearer's phone sends them,
+  encrypted), from the defaults, or customise them, starting from either (Settings from, phone and Mac). They alert
+  when the wearer's phone alerts (the alert itself is sent, encrypted) or with their own rules.
   [15](docs/15-alerts.md)
+- Followers (phone and Mac) see the graph, ranges and alerts with the wearer's own settings by default (*Settings
+  from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all, and see which followers are connected now and on what (phone or Mac; each device proves who it is) (Settings →
   Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while

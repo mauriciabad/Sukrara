@@ -6,6 +6,10 @@ package app.mauri.sukrara.graph
 import android.content.Context
 import android.content.SharedPreferences
 import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.settings.NumberSpec
+import app.mauri.sukrara.settings.SettingsSpec
+import app.mauri.sukrara.settings.WearerSettings
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
@@ -13,24 +17,27 @@ import org.json.JSONObject
 /** Where a graph is shown; each place can follow the default window or have its own. */
 enum class GraphPlace { APP, NOTIFICATION, WIDGETS }
 
-/** Choices offered in Settings; a custom window is any whole number of hours in [WINDOW_HOURS_RANGE]. */
-val WINDOW_HOURS = listOf(3, 6, 12, 24)
-val WINDOW_HOURS_RANGE = 1..48
+/** Choices offered in Settings (spikes/settings/settings.json via [SettingsSpec]); a custom window is any whole number of hours in [WINDOW_HOURS_RANGE]. */
+val WINDOW_HOURS: List<Int> = SettingsSpec.GRAPH_HOURS.presets.map { it.toInt() }
+val WINDOW_HOURS_RANGE: IntRange = SettingsSpec.GRAPH_HOURS.min.toInt()..SettingsSpec.GRAPH_HOURS.max.toInt()
 /** Hours between the vertical lines; 0 = none. */
-val GRID_HOURS = listOf(0, 1, 2, 3, 4, 6, 12)
-val RING_WINDOWS_S = listOf(12 * 3600L, 86400L, 3 * 86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
+val GRID_HOURS: List<Int> = SettingsSpec.GRID_HOURS.presets.map { it.toInt() }
+val RING_WINDOWS_S: List<Long> = SettingsSpec.RING_WINDOW.presets.map { it.toLong() }
 /** A custom ring period: whole days in this range. */
-val RING_DAYS_RANGE = 1..90
-fun validRingWindow(s: Long) = s in RING_WINDOWS_S || (s % 86400 == 0L && s / 86400 in RING_DAYS_RANGE)
+val RING_DAYS_RANGE: IntRange = SettingsSpec.RING_WINDOW.let { (it.min / it.scale).toInt()..(it.max / it.scale).toInt() }
+fun validRingWindow(s: Long) = SettingsSpec.RING_WINDOW.valid(s.toDouble())
 
 /** The chart's extra lines: 100 mg/dL unless the user changes them; at most [MAX_LINES], each in [LINE_RANGE]. */
-val DEFAULT_LINES = listOf(100)
-const val MAX_LINES = 6
-val LINE_RANGE = 40..400
+val DEFAULT_LINES = listOf(SettingsSpec.LINE.default.toInt())
+val MAX_LINES: Int = SettingsSpec.LINE.maxItems
+val LINE_RANGE: IntRange = SettingsSpec.LINE.min.toInt()..SettingsSpec.LINE.max.toInt()
 
-/** "100,120" → sorted distinct values inside [LINE_RANGE], at most [MAX_LINES]. */
+/** "100,120" → sorted distinct values the line spec accepts, at most [MAX_LINES]. */
 fun parseLines(text: String): List<Int> =
-    text.split(",").mapNotNull { it.trim().toIntOrNull()?.takeIf { v -> v in LINE_RANGE } }.distinct().sorted().take(MAX_LINES)
+    text.split(",").mapNotNull { it.trim().toIntOrNull()?.takeIf { v -> SettingsSpec.LINE.valid(v.toDouble()) } }.distinct().sorted().take(MAX_LINES)
+
+/** [v] as [spec] accepts it (its nearest valid value, or the spec's default). */
+internal fun NumberSpec.int(v: Int): Int = coerce(v.toDouble()).roundToInt()
 
 /**
  * Everything the graph and ring settings decide (investigation 16), for every role. Plain prefs + one StateFlow like
@@ -95,14 +102,15 @@ data class GraphConfig(
         fun fromJson(o: JSONObject): GraphConfig {
             val d = GraphConfig()
             return GraphConfig(
-                bands = Bands(o.optInt("veryLow", d.bands.veryLow), o.optInt("low", d.bands.low), o.optInt("tight", d.bands.tight),
-                    o.optInt("high", d.bands.high), o.optInt("veryHigh", d.bands.veryHigh),
-                    o.optInt("extremelyHigh", d.bands.extremelyHigh)).sane(),
-                defaultHours = o.optInt("defaultHours", d.defaultHours).takeIf { it in WINDOW_HOURS_RANGE } ?: d.defaultHours,
+                bands = Bands(SettingsSpec.BAND_VERY_LOW.int(o.optInt("veryLow", d.bands.veryLow)),
+                    SettingsSpec.BAND_LOW.int(o.optInt("low", d.bands.low)), SettingsSpec.BAND_TIGHT.int(o.optInt("tight", d.bands.tight)),
+                    SettingsSpec.BAND_HIGH.int(o.optInt("high", d.bands.high)), SettingsSpec.BAND_VERY_HIGH.int(o.optInt("veryHigh", d.bands.veryHigh)),
+                    SettingsSpec.BAND_EXTREMELY_HIGH.int(o.optInt("extremelyHigh", d.bands.extremelyHigh))).sane(),
+                defaultHours = SettingsSpec.GRAPH_HOURS.int(o.optInt("defaultHours", d.defaultHours)),
                 placeHours = o.optJSONObject("placeHours")?.let { p ->
-                    GraphPlace.entries.mapNotNull { k -> p.optInt(k.name, 0).takeIf { it in WINDOW_HOURS_RANGE }?.let { k to it } }.toMap()
+                    GraphPlace.entries.mapNotNull { k -> SettingsSpec.PLACE_HOURS.int(p.optInt(k.name, 0)).takeIf { it != 0 }?.let { k to it } }.toMap()
                 } ?: emptyMap(),
-                ringCount = o.optInt("ringCount", d.ringCount).coerceIn(0, 3),
+                ringCount = SettingsSpec.RING_COUNT.int(o.optInt("ringCount", d.ringCount)),
                 slots = o.optString("slots").split(",").mapNotNull(::parseSlot).takeIf { it.size == 3 } ?: d.slots,
                 ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrDefault(d.ringRange),
                 ringOrder = o.optString("ringOrder").split(",").mapNotNull { runCatching { Band.valueOf(it) }.getOrNull() }
@@ -111,7 +119,7 @@ data class GraphConfig(
                 columnCrown = o.optBoolean("columnCrown", d.columnCrown),
                 ringMarks = o.optBoolean("ringMarks", d.ringMarks),
                 lines = if (o.has("lines")) parseLines(o.optString("lines")) else d.lines,
-                gridHours = o.optInt("gridHours", d.gridHours).takeIf { it in GRID_HOURS } ?: d.gridHours,
+                gridHours = SettingsSpec.GRID_HOURS.int(o.optInt("gridHours", d.gridHours)),
                 lastPlace = runCatching { LastPlace.valueOf(o.optString("lastPlace")) }.getOrDefault(d.lastPlace),
                 lastElse = if (o.has("lastElse")) parseSlot(o.optString("lastElse")) else d.lastElse,
                 sensorHidden = o.optString("sensorHidden").split(",").mapNotNull { n -> GraphPlace.entries.firstOrNull { it.name == n } }.toSet(),
@@ -139,8 +147,8 @@ data class WidgetGraphConfig(
 
     companion object {
         fun fromJson(o: JSONObject) = WidgetGraphConfig(
-            hours = o.optInt("hours", 0).takeIf { it in WINDOW_HOURS_RANGE },
-            rings = if (o.has("rings")) o.optInt("rings").coerceIn(0, 3) else null,
+            hours = o.optInt("hours", 0).takeIf { SettingsSpec.GRAPH_HOURS.valid(it.toDouble()) },
+            rings = if (o.has("rings")) SettingsSpec.RING_COUNT.int(o.optInt("rings")) else null,
             ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrNull(),
             side = if (o.has("side")) o.optBoolean("side") else null,
             sensor = if (o.has("sensor")) o.optBoolean("sensor") else null,
@@ -154,7 +162,7 @@ private fun slotText(s: RingSpec) = "${s.kind.name}:${s.windowS}:${if (s.faded) 
 private fun parseSlot(e: String): RingSpec? {
     val p = e.split(":")
     val kind = runCatching { SlotKind.valueOf(p[0]) }.getOrNull() ?: return null
-    val w = p.getOrNull(1)?.toLongOrNull()?.takeIf(::validRingWindow) ?: return null
+    val w = p.getOrNull(1)?.toLongOrNull()?.let { SettingsSpec.RING_WINDOW.coerce(it.toDouble()).toLong() } ?: return null
     return RingSpec(w, kind = kind, faded = p.getOrNull(2) != "0")
 }
 
@@ -164,9 +172,19 @@ val DEFAULT_LAST_ELSE = RingSpec(30 * 86400L)
 /** Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report. */
 val DEFAULT_SLOTS = listOf(RingSpec(86400L), RingSpec(7 * 86400L), RingSpec(14 * 86400L, kind = SlotKind.GMI))
 
+/**
+ * The graph settings. [own] = this device's stored settings ("custom" on a follower), what [update] edits; [state] /
+ * [value] = the **effective** ones every surface draws with: the wearer's role = [own]; a follower = [own] with the
+ * mirrored fields (spikes/settings/settings.json `"mirror": true`) taken from where [WearerSettings.mode] says
+ * ([WearerSettings.effectiveGraph]). Recomputed when [own], the mode or the wearer's settings change.
+ */
 object GraphSettings {
     private var prefs: SharedPreferences? = null
+    private val _own = MutableStateFlow(GraphConfig())
+    /** This device's stored settings (a follower's "custom"); [update] edits them. */
+    val own: StateFlow<GraphConfig> = _own
     private val _state = MutableStateFlow(GraphConfig())
+    /** The effective settings (see the class comment). */
     val state: StateFlow<GraphConfig> = _state
     val value: GraphConfig get() = _state.value
 
@@ -174,17 +192,28 @@ object GraphSettings {
         if (prefs != null) return
         val p = c.applicationContext.getSharedPreferences("graph", Context.MODE_PRIVATE)
         prefs = p
-        _state.value = p.getString("config", null)?.let { runCatching { GraphConfig.fromJson(JSONObject(it)) }.getOrNull() } ?: GraphConfig()
-        Range.bands = value.bands
+        _own.value = p.getString("config", null)?.let { runCatching { GraphConfig.fromJson(JSONObject(it)) }.getOrNull() } ?: GraphConfig()
+        recompute()
     }
 
+    /** Edits [own] (this device's settings) and returns the new [own]; [state] follows. */
     @Synchronized fun update(f: (GraphConfig) -> GraphConfig): GraphConfig {
-        val s = GraphConfig.fromJson(f(_state.value).toJson())   // the same validation as loading
+        val s = GraphConfig.fromJson(f(_own.value).toJson())   // the same validation as loading
         prefs?.edit()?.putString("config", s.toJson().toString())?.apply()
-        _state.value = s
-        Range.bands = s.bands
+        _own.value = s
+        recompute()
         return s
     }
+
+    /** [state] from [own] and [WearerSettings] (called by both on a change). */
+    @Synchronized fun recompute() {
+        val e = WearerSettings.effectiveGraph(_own.value)
+        _state.value = e
+        Range.bands = e.bands
+    }
+
+    /** For tests: forget everything. */
+    @Synchronized fun resetForTest() { prefs = null; _own.value = GraphConfig(); _state.value = GraphConfig(); Range.bands = Bands() }
 
     private fun widgetPrefs(c: Context) = c.applicationContext.getSharedPreferences("graph-widgets", Context.MODE_PRIVATE)
 

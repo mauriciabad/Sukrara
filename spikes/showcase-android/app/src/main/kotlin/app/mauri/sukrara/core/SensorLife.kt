@@ -35,9 +35,11 @@ object SensorLife {
     val DEFAULT_WARMUP_MIN: Int = SensorProfiles.LIBRE_3.warmupMin
     /** The warm-up state lasts until the first reading, at most this long past the warm-up's end. */
     const val WARMUP_GRACE_S = 15 * 60L
-    /** The countdown window (ring on the card, live notification): last N hours, [COUNTDOWN_RANGE], default 8. */
-    const val DEFAULT_COUNTDOWN_HOURS = 8
-    val COUNTDOWN_RANGE = 1..24
+    /** The countdown window (ring on the card, live notification): last N hours, [COUNTDOWN_RANGE], default 8 (SettingsSpec). */
+    val DEFAULT_COUNTDOWN_HOURS: Int = app.mauri.sukrara.settings.SettingsSpec.COUNTDOWN_HOURS.default.toInt()
+    val COUNTDOWN_RANGE: IntRange = app.mauri.sukrara.settings.SettingsSpec.COUNTDOWN_HOURS.let { it.min.toInt()..it.max.toInt() }
+    /** [h] as the countdown spec accepts it. */
+    fun validCountdown(h: Int): Int = app.mauri.sukrara.settings.SettingsSpec.COUNTDOWN_HOURS.coerce(h.toDouble()).toInt()
 
     /**
      * The "sensor ended" glyph: Material Symbols Outlined `sports_score` (Apache 2.0), viewBox 0 -960 960 960. Also
@@ -51,9 +53,18 @@ object SensorLife {
 
     private val _current = MutableStateFlow<SensorInfo?>(null)
     val current: StateFlow<SensorInfo?> = _current
+    private val _ownCountdown = MutableStateFlow(DEFAULT_COUNTDOWN_HOURS)
+    /** This device's stored countdown hours (a follower's "custom"); [setCountdownHours] edits it. */
+    val ownCountdown: StateFlow<Int> = _ownCountdown
     private val _countdown = MutableStateFlow(DEFAULT_COUNTDOWN_HOURS)
-    /** [countdownHours] as a flow, so surfaces redraw when the setting changes. */
+    /**
+     * The effective [countdownHours] as a flow, so surfaces redraw when the setting changes: the wearer's role = its
+     * own; a follower's from its Settings from ([app.mauri.sukrara.settings.WearerSettings.effectiveCountdown]).
+     */
     val countdown: StateFlow<Int> = _countdown
+
+    /** [countdown] from [ownCountdown] and the follower's Settings from (called on a change of either). */
+    fun recompute() { _countdown.value = app.mauri.sukrara.settings.WearerSettings.effectiveCountdown(_ownCountdown.value) }
 
     @Volatile private var loaded = false
 
@@ -65,7 +76,8 @@ object SensorLife {
         val start = p.getLong("start", 0)
         _current.value = if (end > 0) SensorInfo(p.getString("serial", "") ?: "", start, end,
             p.getLong("warmup", start + 60L * DEFAULT_WARMUP_MIN)) else null
-        _countdown.value = p.getInt(KEY_COUNTDOWN, DEFAULT_COUNTDOWN_HOURS).coerceIn(COUNTDOWN_RANGE)
+        _ownCountdown.value = validCountdown(p.getInt(KEY_COUNTDOWN, DEFAULT_COUNTDOWN_HOURS))
+        recompute()
         loaded = true
     }
 
@@ -98,9 +110,10 @@ object SensorLife {
 
     fun setCountdownHours(ctx: Context, hours: Int) {
         init(ctx)
-        val h = hours.coerceIn(COUNTDOWN_RANGE)
+        val h = validCountdown(hours)
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_COUNTDOWN, h).apply()
-        _countdown.value = h
+        _ownCountdown.value = h
+        recompute()
     }
 
     /** From the sensor's start, wear length and warm-up in minutes (0 or less = [DEFAULT_WEAR_MIN] / [DEFAULT_WARMUP_MIN]). */

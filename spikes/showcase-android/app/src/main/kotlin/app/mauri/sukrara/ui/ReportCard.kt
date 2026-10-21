@@ -53,7 +53,7 @@ import app.mauri.sukrara.graph.systemPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val REPORT_WINDOWS = listOf(86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
+internal val REPORT_WINDOWS = listOf(86400L, 7 * 86400L, 14 * 86400L, 30 * 86400L)
 
 /**
  * The doctor's report on the home screen (investigation 18), in the layout of LibreView's AGP page: time in the five

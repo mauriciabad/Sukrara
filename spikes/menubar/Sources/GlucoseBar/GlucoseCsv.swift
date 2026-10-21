@@ -108,25 +108,95 @@ enum GlucoseCsv {
             + "\(off < 0 ? "-" : "+")\(pad(abs(off) / 3600)):\(pad(abs(off) % 3600 / 60))"
     }
 
-    /// Glucose Report › Export…: the report's period as a CSV, through the save panel (HIG "File management").
-    @MainActor static func save(days: Int, readings: [GraphReading], treatments: [Treatment]) {
-        let to = Int64(Date().timeIntervalSince1970) + 1
-        let from = to - Int64(days) * 86400
+    /// The export periods, in the order of the shared schema's `exportPeriod` option list (Android's Export data):
+    /// this sensor (only when its start is known), the last 7 / 14 / 30 days, all time.
+    enum Period: String, CaseIterable {
+        case sensor, d7 = "7", d14 = "14", d30 = "30", all
+        var title: String {
+            switch self { case .sensor: "This sensor"; case .d7: "Last 7 days"; case .d14: "Last 14 days"; case .d30: "Last 30 days"; case .all: "All time" }
+        }
+        /// [from, to) in epoch s at `now`, or nil (no sensor known). All time starts at the oldest reading or treatment held.
+        func range(now: Int64, sensor: SensorInfo?, oldest: Int64?) -> (from: Int64, to: Int64)? {
+            let to = now + 1
+            switch self {
+            case .sensor:
+                guard let s = sensor, s.start > 0 else { return nil }
+                return (Int64(s.start), min(to, Int64(s.end) + 1))
+            case .d7, .d14, .d30: return (to - Int64(rawValue)! * 86400, to)
+            case .all: return (min(oldest ?? to - 86400, to - 1), to)
+            }
+        }
+        /// The periods offered now (This sensor only with a known sensor).
+        static func offered(sensor: SensorInfo?) -> [Period] { allCases.filter { $0 != .sensor || (sensor?.start ?? 0) > 0 } }
+    }
+
+    /// Glucose Report › Export CSV…: a save panel with a *Period* pop-up as its accessory view (HIG File management:
+    /// "Consider extending the functionality of the Save dialog … you can add a custom accessory view containing useful
+    /// settings or options to the Save dialog"); the file name follows the period. Starts on the report's period when it
+    /// is one of them, else 14 days.
+    @MainActor static func save(reportDays: Int, readings: [GraphReading], treatments: [Treatment], sensor: SensorInfo?) {
+        let now = Int64(Date().timeIntervalSince1970)
         let zone = TimeZone.current
+        let oldest = (readings.map { Int64($0.t) } + treatments.filter { !$0.del }.map(\.t)).min()
+        let periods = Period.offered(sensor: sensor)
+        var period = Period(rawValue: String(reportDays)) ?? .d14
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = fileName(from: from, to: to, zone: zone)
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        func name() -> String {
+            let r = period.range(now: now, sensor: sensor, oldest: oldest) ?? (now - 14 * 86400, now + 1)
+            return fileName(from: r.from, to: r.to, zone: zone)
+        }
+        panel.nameFieldStringValue = name()
+        let pop = NSPopUpButton(frame: .zero, pullsDown: false)
+        pop.addItems(withTitles: periods.map(\.title))
+        pop.selectItem(at: periods.firstIndex(of: period) ?? 0)
+        let target = PopTarget { i in
+            period = periods[i]
+            panel.nameFieldStringValue = name()
+        }
+        pop.target = target
+        pop.action = #selector(PopTarget.changed(_:))
+        let label = NSTextField(labelWithString: "Period:")
+        let row = NSStackView(views: [label, pop])
+        row.edgeInsets = NSEdgeInsets(top: 10, left: 20, bottom: 10, right: 20)
+        panel.accessoryView = row
+        let ok = panel.runModal() == .OK
+        withExtendedLifetime(target) {}
+        guard ok, let url = panel.url, let r = period.range(now: now, sensor: sensor, oldest: oldest) else { return }
         let csv = write(readings: readings.map { Row(t: Int64($0.t), sgv: $0.sgv, rate: $0.rate) }, treatments: treatments,
-                        from: from, to: to, zone: zone, generatedAt: Int64(Date().timeIntervalSince1970))
+                        from: r.from, to: r.to, zone: zone, generatedAt: now)
         do {
             try csv.write(to: url, atomically: true, encoding: .utf8)
-            log("export: \(url.lastPathComponent) (\(days) d)")
+            log("export: \(url.lastPathComponent) (\(period.title))")
         } catch {
             let a = NSAlert(error: error)
             a.runModal()
         }
+    }
+
+    private final class PopTarget: NSObject {
+        let onChange: (Int) -> Void
+        init(_ f: @escaping (Int) -> Void) { onChange = f }
+        @objc func changed(_ sender: NSPopUpButton) { onChange(sender.indexOfSelectedItem) }
+    }
+
+    /// The periods' ranges (`-exportselftest`, with the fixtures).
+    static func periodSelfTest() -> Bool {
+        let now: Int64 = 1_760_000_000
+        let s = SensorInfo(start: 1_759_000_000, end: 1_760_200_000, warmupEnd: 1_759_003_600)
+        var ok = true
+        func check(_ n: String, _ c: Bool) { if !c { print("FAIL export period: \(n)") }; ok = ok && c }
+        check("order = schema exportPeriod", Period.allCases.map(\.rawValue) == ["sensor", "7", "14", "30", "all"])
+        check("this sensor: from its start", Period.sensor.range(now: now, sensor: s, oldest: nil)! == (1_759_000_000, now + 1))
+        check("this sensor: only when known", Period.sensor.range(now: now, sensor: nil, oldest: nil) == nil
+              && Period.offered(sensor: nil) == [.d7, .d14, .d30, .all] && Period.offered(sensor: s).count == 5)
+        check("an ended sensor stops at its end", Period.sensor.range(now: now, sensor: SensorInfo(start: 1_758_000_000, end: 1_759_000_000, warmupEnd: 0),
+                                                                     oldest: nil)! == (1_758_000_000, 1_759_000_001))
+        check("14 days", Period.d14.range(now: now, sensor: nil, oldest: nil)! == (now + 1 - 14 * 86400, now + 1))
+        check("all time: from the oldest entry", Period.all.range(now: now, sensor: nil, oldest: 1_757_000_000)! == (1_757_000_000, now + 1))
+        if ok { print("export periods OK") }
+        return ok
     }
 
     /// The shared cases (spikes/export-fixtures/*.json, the files Android's GlucoseCsvTest runs). Run from the repo.

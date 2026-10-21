@@ -1009,16 +1009,6 @@
     <string name="alerts_now_alerted_recently">alerted recently</string>
     <!-- Main switch of the alerts page. [CHAR LIMIT=40] -->
     <string name="alerts_main_switch">Glucose alerts</string>
-    <!-- Follower: where the alert rules come from. [CHAR LIMIT=40] -->
-    <string name="alerts_rules">Alert rules</string>
-    <!-- Follower alert rules option: mirror the wearer's alerts. [CHAR LIMIT=60] -->
-    <string name="alerts_rules_wearer">Same as the wearer\'s app</string>
-    <!-- Follower alert rules option: run the rules on this phone. [CHAR LIMIT=60] -->
-    <string name="alerts_rules_own">This phone\'s own settings</string>
-    <!-- Explains the mirror option. [CHAR LIMIT=NONE] -->
-    <string name="alerts_rules_wearer_summary">Same alerts and quiet rules as the wearer\'s phone</string>
-    <!-- Explains the own-rules option. [CHAR LIMIT=NONE] -->
-    <string name="alerts_rules_own_summary">This phone\'s own rules</string>
     <!-- Summary of a rule a follower can't change because it mirrors the wearer. [CHAR LIMIT=NONE] -->
     <string name="alerts_set_by_wearer">Set by the wearer\'s app</string>
     <!-- Category of low glucose alerts. [CHAR LIMIT=40] -->
@@ -1465,8 +1455,6 @@
     <string name="sensorend_warmup_switch">Warm-up countdown</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
     <string name="sensorend_warmup_summary">A new sensor\'s first hour</string>
-    <!-- Unit for the custom hours field [CHAR LIMIT=10] -->
-    <string name="sensorend_hours_unit">h</string>
     <!-- Switch in the Reminders group: morning reminders (and the evening one) come at the first unlock [CHAR LIMIT=40] -->
     <string name="sensorend_unlock_switch">Remind at first unlock</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
@@ -2020,16 +2008,8 @@
     <string name="graph_ranges_note">In range is %1$d–%2$d mg/dL; very good (%1$d–%3$d) is the part of it where people without diabetes spend most of the day. Very low and very high are the levels of the LibreView report. Extremely high only changes the colour of the line and the number; the report counts it as very high. The ranges colour the number, the line, the status bar and the time in range everywhere.</string>
     <!-- Group [CHAR LIMIT=30] -->
     <string name="graph_group_lines">Lines</string>
-    <!-- Slider label [CHAR LIMIT=40] -->
-    <string name="graph_vertical_lines_off">Vertical lines: off</string>
-    <!-- Slider label; %1$d = hours [CHAR LIMIT=40] -->
-    <string name="graph_vertical_lines_every">Vertical lines: every %1$d h</string>
     <!-- Lines note [CHAR LIMIT=NONE] -->
-    <string name="graph_lines_note">Dashed lines across the graph at the levels you pick, besides the range limits. Vertical lines all the way left turns them off; the times under the graph stay. Small graphs space them further apart.</string>
-    <!-- Text field label [CHAR LIMIT=40] -->
-    <string name="graph_line_add_label">Add a line at (mg/dL)</string>
-    <!-- Button [CHAR LIMIT=20] -->
-    <string name="graph_line_add">Add</string>
+    <string name="graph_lines_note">Dashed lines across the graph at the levels you pick, besides the range limits. Small graphs space the vertical lines further apart; the times under the graph stay when they\'re off.</string>
     <!-- Text field error [CHAR LIMIT=40] -->
     <string name="graph_line_exists">Already on the graph</string>
     <!-- Content description; %1$d = mg/dL [CHAR LIMIT=40] -->
@@ -2102,10 +2082,6 @@
     <string name="graph_tir_with_span">%1$s (%2$d–%3$d)</string>
     <!-- Ring order heading [CHAR LIMIT=50] -->
     <string name="graph_ring_order">Ring order, clockwise from the top</string>
-    <!-- Content description; %1$s = band [CHAR LIMIT=50] -->
-    <string name="graph_ring_move_earlier">Move %1$s earlier</string>
-    <!-- Content description; %1$s = band [CHAR LIMIT=50] -->
-    <string name="graph_ring_move_later">Move %1$s later</string>
     <!-- Ring band; %1$d = limit [CHAR LIMIT=30] -->
     <string name="graph_band_very_low">Very low (&lt; %1$d)</string>
     <!-- Ring band; %1$d–%2$d = mg/dL [CHAR LIMIT=30] -->
@@ -2264,4 +2240,65 @@
     <string name="error_network">Couldn\'t read or send the data. Try again.</string>
     <!-- A failure without a better description. [CHAR LIMIT=NONE] -->
     <string name="error_generic">Something went wrong. Try again.</string>
+    <!-- ===== Settings from (followers, round f28): where the settings a follower mirrors come from ===== -->
+    <!-- Row / dialog title. [CHAR LIMIT=40] -->
+    <string name="settings_from_title">Settings from</string>
+    <!-- Choice: the wearer's own settings (default). [CHAR LIMIT=30] -->
+    <string name="settings_from_wearer">Wearer</string>
+    <!-- Summary of the Wearer choice. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_wearer_summary">The ranges, graph, rings and alert rules the wearer set on their phone</string>
+    <!-- Choice: Sukrara's defaults. [CHAR LIMIT=30] -->
+    <string name="settings_from_default">Default</string>
+    <!-- Summary of the Default choice. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_default_summary">Sukrara\'s default ranges, graph, rings and alert rules</string>
+    <!-- Choice: this phone's own settings. [CHAR LIMIT=30] -->
+    <string name="settings_from_custom">Custom</string>
+    <!-- Summary of the Custom choice. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_custom_summary">Your own, changed on this phone</string>
+    <!-- Info while the wearer's settings haven't arrived. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_waiting">Waiting for the wearer\'s settings; the defaults are used until they arrive</string>
+    <!-- Info: when the wearer's settings arrived. %1$s = date and time. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_updated">The wearer\'s settings, received %1$s</string>
+    <!-- Note under the group while not Custom. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_hidden">Ranges, lines, the graph\'s time, rings and the alert rules follow Settings from. Choose Custom to change them here; per-place times, sensor time, sounds and the notification\'s buttons are always this phone\'s.</string>
+    <!-- Action in Custom: copy the wearer's settings. [CHAR LIMIT=50] -->
+    <string name="settings_from_copy">Copy the wearer\'s settings</string>
+    <!-- Its summary. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_copy_summary">Start from what the wearer uses</string>
+    <!-- Action in Custom: reset to the defaults. [CHAR LIMIT=50] -->
+    <string name="settings_from_reset">Reset to defaults</string>
+    <!-- Its summary. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_reset_summary">Start from Sukrara\'s defaults</string>
+    <!-- Confirmation title before copying. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_copy_title">Replace your settings with the wearer\'s?</string>
+    <!-- Confirmation title before resetting. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_reset_title">Replace your settings with the defaults?</string>
+    <!-- Confirmation text. [CHAR LIMIT=NONE] -->
+    <string name="settings_from_confirm_text">Your custom ranges, lines, graph time, rings and alert rules are replaced. Sounds, per-place times and sensor time stay as they are.</string>
+    <!-- Confirm button. [CHAR LIMIT=20] -->
+    <string name="settings_from_replace">Replace</string>
+    <!-- Summary of a rule a follower can't change because it uses the defaults. [CHAR LIMIT=NONE] -->
+    <string name="alerts_set_by_default">Sukrara\'s default</string>
+    <!-- Graph: action that opens the number input to add a line. [CHAR LIMIT=40] -->
+    <string name="graph_line_add_title">Add a line</string>
+    <!-- Its summary. %1$d = most lines. [CHAR LIMIT=NONE] -->
+    <string name="graph_line_add_summary">Up to %1$d lines</string>
+    <!-- Graph: row title of the vertical lines. [CHAR LIMIT=40] -->
+    <string name="graph_vertical_lines">Vertical lines</string>
+    <!-- Its value. %1$d = hours. [CHAR LIMIT=30] -->
+    <string name="graph_vertical_every">Every %1$d h</string>
+    <!-- Graph: the last-treatment fallback drawn fainter. [CHAR LIMIT=NONE] -->
+    <string name="graph_last_else_faded">Without a recent one: fainter</string>
+    <!-- Ring order: accessibility actions and the drag handle. [CHAR LIMIT=30] -->
+    <string name="graph_ring_move_up">Move up</string>
+    <!-- [CHAR LIMIT=30] -->
+    <string name="graph_ring_move_down">Move down</string>
+    <!-- [CHAR LIMIT=30] -->
+    <string name="graph_ring_move_top">Move to top</string>
+    <!-- [CHAR LIMIT=30] -->
+    <string name="graph_ring_move_bottom">Move to bottom</string>
+    <!-- Content description of a row's drag handle. [CHAR LIMIT=40] -->
+    <string name="graph_ring_drag">Drag to reorder</string>
+    <!-- Note under the ring order. [CHAR LIMIT=NONE] -->
+    <string name="graph_ring_order_note">Drag a row by its handle to change where its segment sits on the rings, clockwise from the top.</string>
 </resources>

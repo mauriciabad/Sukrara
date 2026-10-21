@@ -3,73 +3,73 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import app.mauri.sukrara.R
 import app.mauri.sukrara.graph.Band
 import app.mauri.sukrara.graph.Bands
-import app.mauri.sukrara.graph.systemPalette
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.ui.res.painterResource
-import app.mauri.sukrara.R
-import app.mauri.sukrara.graph.GraphConfig
-import app.mauri.sukrara.graph.GRID_HOURS
-import app.mauri.sukrara.graph.LINE_RANGE
-import app.mauri.sukrara.graph.MAX_LINES
-import app.mauri.sukrara.graph.parseLines
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.InputChip
-import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.res.stringResource
-import app.mauri.sukrara.graph.GraphPlace
-import app.mauri.sukrara.graph.LastPlace
 import app.mauri.sukrara.graph.DEFAULT_LAST_ELSE
+import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
-import app.mauri.sukrara.graph.RING_WINDOWS_S
+import app.mauri.sukrara.graph.LastPlace
 import app.mauri.sukrara.graph.RingSpec
 import app.mauri.sukrara.graph.SlotKind
 import app.mauri.sukrara.graph.TirRange
-import app.mauri.sukrara.graph.WINDOW_HOURS
-import app.mauri.sukrara.graph.WINDOW_HOURS_RANGE
-import app.mauri.sukrara.graph.RING_DAYS_RANGE
+import app.mauri.sukrara.graph.parseLines
 import app.mauri.sukrara.graph.periodLabel
+import app.mauri.sukrara.graph.systemPalette
+import app.mauri.sukrara.settings.NumberSpec
+import app.mauri.sukrara.settings.SettingsSpec
+import app.mauri.sukrara.settings.WearerSettings
 import app.mauri.sukrara.widgets.SukraraHooks
-import androidx.compose.runtime.produceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /**
  * Investigation 16: the major ranges, the graph window (one default, optionally one per place), the time-in-range
  * rings and the side profile. A live preview (the real panel) sits on top. Each home-screen widget can override
- * window, rings and profile on its own (long-press → Reconfigure).
+ * window, rings and profile on its own (long-press → Reconfigure). Every number is the one number input
+ * ([NumberDialog]) with its schema spec (spikes/settings/settings.json). A follower sees the settings it mirrors from
+ * the wearer only in Custom (Settings from, [SettingsFromGroup]); per-place windows and sensor time are always its own.
  */
 /** Where a graph shows: the app, its notification, the launcher widgets. */
 private fun placeIcon(p: GraphPlace) = when (p) {
@@ -79,9 +79,11 @@ private fun placeIcon(p: GraphPlace) = when (p) {
 }
 
 @Composable
-fun GraphScreen(onBack: () -> Unit) {
+fun GraphScreen(follower: Boolean, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val g by GraphSettings.state.collectAsState()
+    val from by WearerSettings.mode.collectAsState()
+    val custom = !follower || from == WearerSettings.CUSTOM
     fun set(f: (GraphConfig) -> GraphConfig) {
         GraphSettings.update(f)
         SukraraHooks.refresh(ctx, "graph settings", force = true)
@@ -97,53 +99,67 @@ fun GraphScreen(onBack: () -> Unit) {
         @Suppress("UNCHECKED_CAST")
         pick = Pick(title, options.map { Choice(label(it), it as Any?) }, selected) { onPick(it as T) }
     }
-    // and one for numbers, which also take a custom value
+    // and the one number input for every number
     var numPick by remember { mutableStateOf<NumPick?>(null) }
-    val daysUnit = androidx.compose.ui.res.stringResource(R.string.unit_d)
-    val hoursRange = NumberRange(WINDOW_HOURS_RANGE.first.toDouble(), WINDOW_HOURS_RANGE.last.toDouble(), androidx.compose.ui.res.stringResource(R.string.unit_h))
+    fun number(title: String, spec: NumberSpec, selected: Number, label: (Int) -> String, reject: (Int) -> String? = { null }, onPick: (Int) -> Unit) {
+        numPick = NumPick(title, spec, selected.toDouble(), { label(it.roundToLong().toInt()) }, { reject(it.roundToLong().toInt()) }) { onPick(it.roundToLong().toInt()) }
+    }
+    val mgdl = stringResource(R.string.unit_mgdl)
+    val S = SettingsSpec
 
     SettingsPage(stringResource(R.string.graph_title), onBack) {
         // the real panel as the page's live preview (AOSP IllustrationPreference: "at the top of the screen")
         SettingsHeader { GlucosePanel(last?.sgv, last?.rate, last?.t) }
+        if (follower) SettingsFromGroup()
 
-        SettingsGroup(stringResource(R.string.graph_group_ranges), titleAction = { Reset(stringResource(R.string.graph_group_ranges), g.bands != D.bands) { set { it.copy(bands = D.bands) } } }) {
-            card { BandSlider(stringResource(R.string.graph_very_low_below), g.bands.veryLow, 40f..65f) { v -> set { it.copy(bands = it.bands.copy(veryLow = v)) } } }
-            card { BandSlider(stringResource(R.string.graph_low_below), g.bands.low, 50f..100f) { v -> set { it.copy(bands = it.bands.copy(low = v)) } } }
-            card { BandSlider(stringResource(R.string.graph_very_good_up_to), g.bands.tight, 100f..180f) { v -> set { it.copy(bands = it.bands.copy(tight = v)) } } }
-            card { BandSlider(stringResource(R.string.graph_high_above), g.bands.high, 140f..250f) { v -> set { it.copy(bands = it.bands.copy(high = v)) } } }
-            card { BandSlider(stringResource(R.string.graph_very_high_above), g.bands.veryHigh, 200f..350f) { v -> set { it.copy(bands = it.bands.copy(veryHigh = v)) } } }
-            card { BandSlider(stringResource(R.string.graph_extremely_high_from), g.bands.extremelyHigh, 260f..400f) { v -> set { it.copy(bands = it.bands.copy(extremelyHigh = v)) } } }
-        }
-        Note(stringResource(R.string.graph_ranges_note, g.bands.low, g.bands.high, g.bands.tight))
-
-        SettingsGroup(stringResource(R.string.graph_group_lines), titleAction = {
-            Reset(stringResource(R.string.graph_group_lines), g.lines != D.lines || g.gridHours != D.gridHours) { set { it.copy(lines = D.lines, gridHours = D.gridHours) } }
-        }) {
-            card { GraphLines(g.lines) { l -> set { it.copy(lines = l) } } }
-            card {
-                val gi = GRID_HOURS.indexOf(g.gridHours).coerceAtLeast(0)
-                Text(if (g.gridHours == 0) stringResource(R.string.graph_vertical_lines_off) else stringResource(R.string.graph_vertical_lines_every, g.gridHours), style = MaterialTheme.typography.bodyLarge)
-                Slider(gi.toFloat(), { v -> GRID_HOURS[v.roundToInt()].let { h -> if (h != g.gridHours) set { it.copy(gridHours = h) } } },
-                    valueRange = 0f..GRID_HOURS.lastIndex.toFloat(), steps = GRID_HOURS.size - 2)
+        if (custom) {
+            SettingsGroup(stringResource(R.string.graph_group_ranges), titleAction = { Reset(stringResource(R.string.graph_group_ranges), g.bands != D.bands) { set { it.copy(bands = D.bands) } } }) {
+                @Composable
+                fun band(title: String, spec: NumberSpec, v: Int, icon: Int, put: (Bands, Int) -> Bands) =
+                    value(title, "$v $mgdl", icon = icon) { number(title, spec, v, { "$it $mgdl" }) { x -> set { it.copy(bands = put(it.bands, x)) } } }
+                band(stringResource(R.string.graph_very_low_below), S.BAND_VERY_LOW, g.bands.veryLow, R.drawable.ic_dia_very_low) { b, v -> b.copy(veryLow = v) }
+                band(stringResource(R.string.graph_low_below), S.BAND_LOW, g.bands.low, R.drawable.ic_dia_low) { b, v -> b.copy(low = v) }
+                band(stringResource(R.string.graph_very_good_up_to), S.BAND_TIGHT, g.bands.tight, R.drawable.ic_dia_range) { b, v -> b.copy(tight = v) }
+                band(stringResource(R.string.graph_high_above), S.BAND_HIGH, g.bands.high, R.drawable.ic_dia_high) { b, v -> b.copy(high = v) }
+                band(stringResource(R.string.graph_very_high_above), S.BAND_VERY_HIGH, g.bands.veryHigh, R.drawable.ic_dia_very_high) { b, v -> b.copy(veryHigh = v) }
+                band(stringResource(R.string.graph_extremely_high_from), S.BAND_EXTREMELY_HIGH, g.bands.extremelyHigh, R.drawable.ic_dia_extremely_high) { b, v -> b.copy(extremelyHigh = v) }
             }
+            Note(stringResource(R.string.graph_ranges_note, g.bands.low, g.bands.high, g.bands.tight))
+
+            SettingsGroup(stringResource(R.string.graph_group_lines), titleAction = {
+                Reset(stringResource(R.string.graph_group_lines), g.lines != D.lines || g.gridHours != D.gridHours) { set { it.copy(lines = D.lines, gridHours = D.gridHours) } }
+            }) {
+                if (g.lines.isNotEmpty()) card { GraphLines(g.lines) { l -> set { it.copy(lines = l) } } }
+                val addLine = stringResource(R.string.graph_line_add_title)
+                val exists = stringResource(R.string.graph_line_exists)
+                action(addLine, stringResource(R.string.graph_line_add_summary, S.LINE.maxItems), icon = R.drawable.ic_sym_add,
+                    enabled = g.lines.size < S.LINE.maxItems) {
+                    number(addLine, S.LINE, S.LINE.default, { "$it $mgdl" }, reject = { if (it in g.lines) exists else null }) { v ->
+                        set { it.copy(lines = parseLines((it.lines + v).joinToString(","))) }
+                    }
+                }
+                val grid: (Int) -> String = { if (it == 0) ctx.getString(R.string.settings_off) else ctx.getString(R.string.graph_vertical_every, it) }
+                val vertical = stringResource(R.string.graph_vertical_lines)
+                value(vertical, grid(g.gridHours), icon = R.drawable.ic_sym_schedule) { number(vertical, S.GRID_HOURS, g.gridHours, grid) { h -> set { it.copy(gridHours = h) } } }
+            }
+            Note(stringResource(R.string.graph_lines_note))
         }
-        Note(stringResource(R.string.graph_lines_note))
 
         SettingsGroup(stringResource(R.string.graph_group_window), titleAction = {
-            Reset(stringResource(R.string.graph_group_window), g.defaultHours != D.defaultHours || g.placeHours.isNotEmpty()) {
-                set { it.copy(defaultHours = D.defaultHours, placeHours = D.placeHours) }
+            Reset(stringResource(R.string.graph_group_window), (custom && g.defaultHours != D.defaultHours) || g.placeHours.isNotEmpty()) {
+                set { it.copy(defaultHours = if (custom) D.defaultHours else it.defaultHours, placeHours = D.placeHours) }
             }
         }) {
             val hours: (Int) -> String = { ctx.getString(R.string.graph_hours, it) }
             val default = stringResource(R.string.graph_window_default)
-            value(default, hours(g.defaultHours), icon = R.drawable.ic_sym_timelapse) {
-                numPick = NumPick(default, WINDOW_HOURS, g.defaultHours, hours, hoursRange) { h -> set { it.copy(defaultHours = h) } }
+            if (custom) value(default, hours(g.defaultHours), icon = R.drawable.ic_sym_timelapse) {
+                number(default, S.GRAPH_HOURS, g.defaultHours, hours) { h -> set { it.copy(defaultHours = h) } }
             }
             for (p in GraphPlace.entries) {
                 val label: (Int) -> String = { if (it == 0) ctx.getString(R.string.graph_window_default_hours, g.defaultHours) else hours(it) }
                 val place = stringResource(graphPlaceLabel(p))
                 value(place, label(g.placeHours[p] ?: 0), icon = placeIcon(p)) {
-                    numPick = NumPick(place, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label, hoursRange) { h ->
+                    number(place, S.PLACE_HOURS, g.placeHours[p] ?: 0, label) { h ->
                         set { it.copy(placeHours = if (h == 0) it.placeHours - p else it.placeHours + (p to h)) }
                     }
                 }
@@ -151,74 +167,83 @@ fun GraphScreen(onBack: () -> Unit) {
         }
         Note(stringResource(R.string.graph_window_note))
 
-        SettingsGroup(stringResource(R.string.graph_group_beside_number), titleAction = {
-            Reset(stringResource(R.string.graph_group_beside_number), g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder ||
-                    g.lastPlace != D.lastPlace || g.lastElse != D.lastElse) {
-                set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder,
-                    lastPlace = D.lastPlace, lastElse = D.lastElse) }
-            }
-        }) {
-            val none = stringResource(R.string.graph_none)
-            val count: (Int) -> String = { if (it == 0) none else "$it" }
-            val rings = stringResource(R.string.graph_slots)
-            value(rings, count(g.ringCount), icon = R.drawable.ic_sym_donut_large) { choose(rings, listOf(0, 1, 2, 3), g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
-            for (i in 0 until g.ringCount) {
-                val slot = g.slots[i]
-                fun setSlot(f: (RingSpec) -> RingSpec) = set { it.copy(slots = it.slots.toMutableList().also { l -> l[i] = f(l[i]) }) }
-                val name = stringResource(listOf(R.string.graph_slot_main, R.string.graph_slot_second, R.string.graph_slot_third)[i])
-                val kindLabel: (SlotKind) -> String = { ctx.getString(slotKindLabel(it)) }
-                value(name, kindLabel(slot.kind) + " · " + periodLabel(slot.windowS), icon = R.drawable.ic_sym_donut_small) {
-                    choose(ctx.getString(R.string.graph_slot_what, name), SlotKind.entries, slot.kind, kindLabel) { k -> setSlot { s -> s.copy(kind = k) } }
+        if (custom) {
+            SettingsGroup(stringResource(R.string.graph_group_beside_number), titleAction = {
+                Reset(stringResource(R.string.graph_group_beside_number), g.ringCount != D.ringCount || g.slots != D.slots || g.ringRange != D.ringRange || g.ringOrder != D.ringOrder ||
+                        g.lastPlace != D.lastPlace || g.lastElse != D.lastElse) {
+                    set { it.copy(ringCount = D.ringCount, slots = D.slots, ringRange = D.ringRange, ringOrder = D.ringOrder,
+                        lastPlace = D.lastPlace, lastElse = D.lastElse) }
                 }
-                val period = stringResource(R.string.graph_slot_period, name)
-                value(period, periodLabel(slot.windowS), icon = R.drawable.ic_sym_date_range) {
-                    numPick = NumPick(period, RING_WINDOWS_S.map { it.toInt() }, slot.windowS.toInt(), { periodLabel(it.toLong()) },
-                        NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), daysUnit, scale = 86400.0)) { w ->
-                        setSlot { s -> s.copy(windowS = w.toLong()) }
+            }) {
+                val none = stringResource(R.string.graph_none)
+                val count: (Int) -> String = { if (it == 0) none else "$it" }
+                val rings = stringResource(R.string.graph_slots)
+                value(rings, count(g.ringCount), icon = R.drawable.ic_sym_donut_large) { number(rings, S.RING_COUNT, g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
+                val period: (Int) -> String = { periodLabel(it.toLong()) }
+                for (i in 0 until g.ringCount) {
+                    val slot = g.slots[i]
+                    fun setSlot(f: (RingSpec) -> RingSpec) = set { it.copy(slots = it.slots.toMutableList().also { l -> l[i] = f(l[i]) }) }
+                    val name = stringResource(listOf(R.string.graph_slot_main, R.string.graph_slot_second, R.string.graph_slot_third)[i])
+                    val kindLabel: (SlotKind) -> String = { ctx.getString(slotKindLabel(it)) }
+                    value(name, kindLabel(slot.kind) + " · " + periodLabel(slot.windowS), icon = R.drawable.ic_sym_donut_small) {
+                        choose(ctx.getString(R.string.graph_slot_what, name), SlotKind.entries, slot.kind, kindLabel) { k -> setSlot { s -> s.copy(kind = k) } }
+                    }
+                    val periodTitle = stringResource(R.string.graph_slot_period, name)
+                    value(periodTitle, periodLabel(slot.windowS), icon = R.drawable.ic_sym_date_range) {
+                        number(periodTitle, S.RING_WINDOW, slot.windowS, period) { w -> setSlot { s -> s.copy(windowS = w.toLong()) } }
+                    }
+                    if (i > 0) switch(stringResource(R.string.graph_slot_faded, name), slot.faded, icon = R.drawable.ic_sym_opacity) { v -> setSlot { s -> s.copy(faded = v) } }
+                }
+                val lastTitle = stringResource(R.string.graph_last)
+                value(lastTitle, stringResource(lastPlaceLabel(g.lastPlace)), icon = R.drawable.ic_sym_last_page) {
+                    choose(lastTitle, LastPlace.entries, g.lastPlace, { ctx.getString(lastPlaceLabel(it)) }) { p -> set { it.copy(lastPlace = p) } }
+                }
+                if (g.lastPlace != LastPlace.OFF) {
+                    val other = g.lastElse
+                    val noKind: SlotKind? = null
+                    val nothing = stringResource(R.string.graph_nothing)
+                    val what: (SlotKind?) -> String = { it?.let { k -> ctx.getString(slotKindLabel(k)) } ?: nothing }
+                    value(stringResource(R.string.graph_last_else), other?.let { what(it.kind) + " · " + periodLabel(it.windowS) } ?: nothing, icon = R.drawable.ic_sym_more_horiz) {
+                        choose(ctx.getString(R.string.graph_last_else_dialog), listOf(noKind) + SlotKind.entries, other?.kind, what) { k ->
+                            set { it.copy(lastElse = k?.let { kind -> (it.lastElse ?: DEFAULT_LAST_ELSE).copy(kind = kind) }) }
+                        }
+                    }
+                    if (other != null) {
+                        value(stringResource(R.string.graph_last_else_period), periodLabel(other.windowS), icon = R.drawable.ic_sym_date_range) {
+                            number(ctx.getString(R.string.graph_last_else_period_dialog), S.RING_WINDOW, other.windowS, period) { w ->
+                                set { it.copy(lastElse = it.lastElse?.copy(windowS = w.toLong())) }
+                            }
+                        }
+                        switch(stringResource(R.string.graph_last_else_faded), other.faded, icon = R.drawable.ic_sym_opacity) { v -> set { it.copy(lastElse = it.lastElse?.copy(faded = v)) } }
                     }
                 }
-                if (i > 0) switch(stringResource(R.string.graph_slot_faded, name), slot.faded, icon = R.drawable.ic_sym_opacity) { v -> setSlot { s -> s.copy(faded = v) } }
+                val range: (TirRange) -> String = { ctx.getString(R.string.graph_tir_with_span, ctx.getString(tirRangeLabel(it)), g.bands.low, if (it == TirRange.TIGHT) g.bands.tight else g.bands.high) }
+                val counts = stringResource(R.string.graph_tir_counts)
+                value(counts, range(g.ringRange), icon = R.drawable.ic_dia_range) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
+                switch(stringResource(R.string.graph_ring_marks), g.ringMarks, icon = R.drawable.ic_sym_workspace_premium,
+                    summary = stringResource(R.string.graph_ring_marks_summary)) { v -> set { it.copy(ringMarks = v) } }
             }
-            val last = stringResource(R.string.graph_last)
-            value(last, stringResource(lastPlaceLabel(g.lastPlace)), icon = R.drawable.ic_sym_last_page) {
-                choose(last, LastPlace.entries, g.lastPlace, { ctx.getString(lastPlaceLabel(it)) }) { p -> set { it.copy(lastPlace = p) } }
-            }
-            if (g.lastPlace != LastPlace.OFF) {
-                val other = g.lastElse
-                val noKind: SlotKind? = null
-                val nothing = stringResource(R.string.graph_nothing)
-                val what: (SlotKind?) -> String = { it?.let { k -> ctx.getString(slotKindLabel(k)) } ?: nothing }
-                value(stringResource(R.string.graph_last_else), other?.let { what(it.kind) + " · " + periodLabel(it.windowS) } ?: nothing, icon = R.drawable.ic_sym_more_horiz) {
-                    choose(ctx.getString(R.string.graph_last_else_dialog), listOf(noKind) + SlotKind.entries, other?.kind, what) { k ->
-                        set { it.copy(lastElse = k?.let { kind -> (it.lastElse ?: DEFAULT_LAST_ELSE).copy(kind = kind) }) }
-                    }
-                }
-                if (other != null) value(stringResource(R.string.graph_last_else_period), periodLabel(other.windowS), icon = R.drawable.ic_sym_date_range) {
-                    choose(ctx.getString(R.string.graph_last_else_period_dialog), RING_WINDOWS_S, other.windowS, ::periodLabel) { w ->
-                        set { it.copy(lastElse = it.lastElse?.copy(windowS = w)) }
-                    }
-                }
-            }
-            val range: (TirRange) -> String = { ctx.getString(R.string.graph_tir_with_span, ctx.getString(tirRangeLabel(it)), g.bands.low, if (it == TirRange.TIGHT) g.bands.tight else g.bands.high) }
-            val counts = stringResource(R.string.graph_tir_counts)
-            value(counts, range(g.ringRange), icon = R.drawable.ic_dia_range) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
-            card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
-            switch(stringResource(R.string.graph_ring_marks), g.ringMarks, icon = R.drawable.ic_sym_workspace_premium,
-                summary = stringResource(R.string.graph_ring_marks_summary)) { v -> set { it.copy(ringMarks = v) } }
-        }
-        Note(stringResource(R.string.graph_beside_number_note))
+            Note(stringResource(R.string.graph_beside_number_note))
 
-        SettingsGroup(stringResource(R.string.graph_group_beside_graph), titleAction = {
-            Reset(stringResource(R.string.graph_group_beside_graph), g.side != D.side || g.columnCrown != D.columnCrown) {
-                set { it.copy(side = D.side, columnCrown = D.columnCrown) }
+            SettingsGroup(stringResource(R.string.graph_ring_order), titleAction = {
+                Reset(stringResource(R.string.graph_ring_order), g.ringOrder != D.ringOrder) { set { it.copy(ringOrder = D.ringOrder) } }
+            }) {
+                card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
             }
-        }) {
-            switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_view_sidebar,
-                summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
-            switch(stringResource(R.string.graph_column_crown), g.columnCrown, icon = R.drawable.ic_sym_crown,
-                summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
+            Note(stringResource(R.string.graph_ring_order_note))
+
+            SettingsGroup(stringResource(R.string.graph_group_beside_graph), titleAction = {
+                Reset(stringResource(R.string.graph_group_beside_graph), g.side != D.side || g.columnCrown != D.columnCrown) {
+                    set { it.copy(side = D.side, columnCrown = D.columnCrown) }
+                }
+            }) {
+                switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_view_sidebar,
+                    summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
+                switch(stringResource(R.string.graph_column_crown), g.columnCrown, icon = R.drawable.ic_sym_crown,
+                    summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
+            }
+            Note(stringResource(R.string.graph_side_note))
         }
-        Note(stringResource(R.string.graph_side_note))
 
         SettingsGroup(stringResource(R.string.graph_group_sensor), titleAction = {
             Reset(stringResource(R.string.graph_group_sensor), g.sensorHidden != D.sensorHidden) { set { it.copy(sensorHidden = D.sensorHidden) } }
@@ -228,16 +253,16 @@ fun GraphScreen(onBack: () -> Unit) {
             }
         }
         Note(stringResource(R.string.graph_sensor_note))
-        if (g != D) SettingsGroup { action(stringResource(R.string.graph_reset_all), icon = R.drawable.ic_sym_restart_alt) { set { D } } }
+        if (custom && g != D) SettingsGroup { action(stringResource(R.string.graph_reset_all), icon = R.drawable.ic_sym_restart_alt) { set { D } } }
         SettingsFooter(stringResource(R.string.graph_footer))
     }
     pick?.let { p -> ChoiceDialog(p.title, p.options, p.selected, onClose = { pick = null }, onChoose = p.onPick) }
-    numPick?.let { p -> IntChoiceDialog(p.title, p.presets, p.selected, p.label, p.range, onClose = { numPick = null }, onChoose = p.onPick) }
+    numPick?.let { p -> NumberDialog(p.title, p.spec, p.selected, p.label, onClose = { numPick = null }, reject = p.reject, onChoose = p.onPick) }
 }
 
-/** An open "pick a number" dialog: presets and a custom value in [range]. */
-private class NumPick(val title: String, val presets: List<Int>, val selected: Int, val label: (Int) -> String, val range: NumberRange,
-                      val onPick: (Int) -> Unit)
+/** An open number dialog: the setting's spec, its value and how a value reads. */
+private class NumPick(val title: String, val spec: NumberSpec, val selected: Double, val label: (Double) -> String,
+                      val reject: (Double) -> String?, val onPick: (Double) -> Unit)
 
 /** An open "pick one of" dialog. */
 private class Pick(val title: String, val options: List<Choice<Any?>>, val selected: Any?, val onPick: (Any?) -> Unit)
@@ -253,7 +278,15 @@ private fun Reset(title: String, changed: Boolean, onReset: () -> Unit) {
     }
 }
 
-/** The ring's segments clockwise from 12 o'clock, each movable earlier / later. */
+/**
+ * The ring's segments clockwise from 12 o'clock as a reorderable list: drag a row by its handle (the trailing
+ * drag_indicator, as in AOSP Settings › Languages, LocaleDragAndDropAdapter; Material: "a list can be reordered by
+ * dragging a list item", m3.material.io/foundations/interaction/gestures). Dragging is hard for people with motor
+ * impairments, so every row also has the accessibility actions Move up / Move down / Move to top / Move to bottom
+ * (Compose semantics customActions: "can be used for more complex touchscreen gestures, like swipe to dismiss or
+ * drag and drop", developer.android.com/develop/ui/compose/accessibility/semantics; AOSP Languages offers the same
+ * four). The order is saved when the row is dropped.
+ */
 @Composable
 private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
     val pal = systemPalette(LocalContext.current, androidx.compose.foundation.isSystemInDarkTheme())
@@ -264,59 +297,74 @@ private fun RingOrder(g: GraphConfig, onOrder: (List<Band>) -> Unit) {
         Band.TIGHT -> ctx.getString(bandLabel(x), b.low, b.tight); Band.TARGET -> ctx.getString(bandLabel(x), b.tight + 1, b.high)
         Band.HIGH -> ctx.getString(bandLabel(x), b.high + 1, b.veryHigh); Band.VERY_HIGH -> ctx.getString(bandLabel(x), b.veryHigh)
     }
-    Text(stringResource(R.string.graph_ring_order), style = MaterialTheme.typography.bodyLarge)
-    val o = g.ringOrder
-    o.forEachIndexed { i, band ->
-        fun move(to: Int) = onOrder(o.toMutableList().also { l -> l.add(to, l.removeAt(i)) })
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
-            Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
-            IconButton(onClick = { move(i - 1) }, enabled = i > 0) {
-                Icon(painterResource(R.drawable.ic_sym_arrow_upward), contentDescription = stringResource(R.string.graph_ring_move_earlier, name(band)))
-            }
-            IconButton(onClick = { move(i + 1) }, enabled = i < o.lastIndex) {
-                Icon(painterResource(R.drawable.ic_sym_arrow_downward), contentDescription = stringResource(R.string.graph_ring_move_later, name(band)))
+    var order by remember(g.ringOrder) { mutableStateOf(g.ringOrder) }
+    var dragging by remember { mutableStateOf<Band?>(null) }
+    var offset by remember { mutableFloatStateOf(0f) }
+    val rowPx = with(LocalDensity.current) { 48.dp.toPx() }
+    fun move(from: Int, to: Int) {
+        if (from == to || to !in order.indices) return
+        order = order.toMutableList().also { l -> l.add(to, l.removeAt(from)) }
+        onOrder(order)
+    }
+    val up = stringResource(R.string.graph_ring_move_up)
+    val down = stringResource(R.string.graph_ring_move_down)
+    val top = stringResource(R.string.graph_ring_move_top)
+    val bottom = stringResource(R.string.graph_ring_move_bottom)
+    val handle = stringResource(R.string.graph_ring_drag)
+    Column {
+        order.forEachIndexed { i, band ->
+            val lifted = dragging == band
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(48.dp)
+                .zIndex(if (lifted) 1f else 0f)
+                .graphicsLayer { translationY = if (lifted) offset else 0f; shadowElevation = if (lifted) 6f else 0f }
+                .background(if (lifted) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent,
+                    MaterialTheme.shapes.small)
+                .semantics(mergeDescendants = true) {
+                    customActions = listOfNotNull(
+                        CustomAccessibilityAction(up) { move(i, i - 1); true }.takeIf { i > 0 },
+                        CustomAccessibilityAction(down) { move(i, i + 1); true }.takeIf { i < order.lastIndex },
+                        CustomAccessibilityAction(top) { move(i, 0); true }.takeIf { i > 1 },
+                        CustomAccessibilityAction(bottom) { move(i, order.lastIndex); true }.takeIf { i < order.lastIndex - 1 },
+                    )
+                }) {
+                androidx.compose.foundation.Canvas(Modifier.padding(end = 10.dp).size(14.dp)) { drawCircle(androidx.compose.ui.graphics.Color(pal.of(band))) }
+                Text("${i + 1}. ${name(band)}", Modifier.weight(1f))
+                Icon(painterResource(R.drawable.ic_sym_drag_indicator), contentDescription = handle,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(48.dp).padding(12.dp).pointerInput(band) {
+                        detectDragGestures(
+                            onDragStart = { dragging = band; offset = 0f },
+                            onDragEnd = { dragging = null; offset = 0f; onOrder(order) },
+                            onDragCancel = { dragging = null; offset = 0f; order = g.ringOrder },
+                        ) { change, d ->
+                            change.consume()
+                            offset += d.y
+                            val cur = order.indexOf(band)
+                            val to = (cur + (offset / rowPx).roundToInt()).coerceIn(0, order.lastIndex)
+                            if (to != cur) {
+                                order = order.toMutableList().also { l -> l.add(to, l.removeAt(cur)) }
+                                offset -= (to - cur) * rowPx
+                            }
+                        }
+                    })
             }
         }
     }
 }
 
 /**
- * The extra lines as input chips (tap one to remove it) and a field to add another. Input chips are the Material
- * pattern for user-entered items with an X for removal (developer.android.com/develop/ui/compose/components/chip).
+ * The extra lines as input chips (tap one to remove it); "Add a line" opens the number input. Input chips are the
+ * Material pattern for user-entered items with an X for removal (developer.android.com/develop/ui/compose/components/chip).
  */
 @Composable
 private fun GraphLines(lines: List<Int>, onLines: (List<Int>) -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
-    val v = text.toIntOrNull()
-    val ok = v != null && v in LINE_RANGE && v !in lines && lines.size < MAX_LINES
-    fun add() { if (ok) { onLines(parseLines((lines + v!!).joinToString(","))); text = "" } }
-    if (lines.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for (l in lines) InputChip(selected = false, onClick = { onLines(lines - l) }, label = { Text("$l mg/dL") },
+    val mgdl = stringResource(R.string.unit_mgdl)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (l in lines) InputChip(selected = false, onClick = { onLines(lines - l) }, label = { Text("$l $mgdl") },
             trailingIcon = {
                 Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.graph_line_remove, l),
                     Modifier.size(InputChipDefaults.AvatarSize))
             })
-    }
-    if (lines.size < MAX_LINES) Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(text, { t -> text = t.filter(Char::isDigit).take(3) }, Modifier.weight(1f),
-            label = { Text(stringResource(R.string.graph_line_add_label)) }, singleLine = true,
-            isError = text.isNotEmpty() && !ok,
-            supportingText = if (text.isNotEmpty() && !ok) {
-                { Text(if (v in lines) stringResource(R.string.graph_line_exists) else "${LINE_RANGE.first}–${LINE_RANGE.last} mg/dL") }
-            } else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { add() }))
-        TextButton(onClick = ::add, enabled = ok, modifier = Modifier.padding(start = 8.dp)) { Text(stringResource(R.string.graph_line_add)) }
-    }
-}
-
-@Composable
-private fun BandSlider(label: String, value: Int, range: ClosedFloatingPointRange<Float>, onChange: (Int) -> Unit) {
-    Column {
-        Text("$label: $value mg/dL", style = MaterialTheme.typography.bodyLarge)
-        Slider(value.toFloat(), { onChange((it / 5).roundToInt() * 5) }, valueRange = range,
-            steps = ((range.endInclusive - range.start) / 5).toInt() - 1)
     }
 }
 

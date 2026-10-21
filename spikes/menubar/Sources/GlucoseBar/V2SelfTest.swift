@@ -114,6 +114,30 @@ enum V2SelfTest {
         check("alert older than 10 min ignored", alerts == ["high:fire"])
         node.onEvent(alert(D, "low", type: "live"), via: "test")
         check("kind 21079 whose type isn't \"alert\" rejected", alerts == ["high:fire"])
+        // The wearer's settings (PROTOCOL-v2 "Settings", round f28): kind 30078, d = H("cgm2:settings:"+sid), newest u wins.
+        let sd = UserDefaults(suiteName: "app.mauri.sukrara.selftest.wearer")!   // never the app's own defaults
+        sd.removeObject(forKey: WearerSettings.storeKey)
+        defer { sd.removePersistentDomain(forName: "app.mauri.sukrara.selftest.wearer") }
+        node.settingsDefaults = sd
+        func settings(_ by: Keys, u: Int, g: Keys = G, type: String = "settings") -> String {
+            event(by, kind: V2.chunk, encTo: g, ["v": 2, "type": type, "u": u, "graph": ["low": 65, "countdownHours": 6],
+                                                 "alerts": ["alerts": ["low": ["on": true, "mgdl": 72, "repeatMin": 10]]]],
+                  tags: [["d", V2.settingsD(sid)], ["gk", V2.gk(g.publicKey().toHex())], ["expiration", "\(now + 30 * 86400)"]])
+        }
+        func heldU() -> Int? { (WearerSettings.content(sd)?["u"] as? NSNumber)?.intValue }
+        node.onEvent(settings(D, u: 100), via: "relay:test")
+        check("settings from a roster device accepted (WearerSettings.received)", heldU() == 100
+              && ((WearerSettings.content(sd)?["graph"] as? [String: Any])?["low"] as? Int) == 65)
+        node.onEvent(settings(X, u: 200), via: "test")
+        check("settings from a non-roster key rejected", heldU() == 100)
+        node.onEvent(settings(D, u: 300, g: Keys.generate()), via: "test")
+        check("settings under an unknown gk not accepted", heldU() == 100)
+        node.onEvent(settings(D, u: 50), via: "test")
+        check("settings with an older u ignored", heldU() == 100)
+        node.onEvent(settings(D, u: 400, type: "live"), via: "test")
+        check("30078 on the settings d whose type isn't \"settings\" rejected", heldU() == 100)
+        node.onEvent(settings(D, u: 101), via: "ble:test")
+        check("newer settings (over BLE) replace them", heldU() == 101)
         node.onEvent(V2.gift(X, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"], ttl: 7 * 86400)!, via: "test")
         check("forged revoked notice ignored", node.phase == .active(epoch: 1))
         node.onEvent(V2.gift(I, F.publicKey().toHex(), kind: V2.toFollower, ["v": 2, "type": "revoked"], ttl: 7 * 86400)!, via: "test")

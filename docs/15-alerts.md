@@ -165,8 +165,9 @@ Followers accept it with the live-reading checks (roster device, known epoch, de
   **No data stays local**: it's about this phone's link to the wearer, which the wearer can't report.
 - **This phone's own settings**: the same rules run on the follower's readings and the treatments it received.
 
-Sukrara for Mac does the same. It can only mirror while it follows over Sukrara sharing (v2). Otherwise its own rules
-run, and the window says so.
+Sukrara for Mac does the same, chosen by General › *Settings from* (round f28: *Wearer* mirrors, *Default* and
+*Custom* run the rules on the Mac with the defaults or its own values). It can only mirror while it follows over Sukrara
+sharing (v2). Otherwise the rules run on the Mac, and the window says so.
 
 **Measured** (2026-10-17 01:31–01:33, two emulators running the debug build, relays only):
 

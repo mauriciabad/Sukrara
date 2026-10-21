@@ -266,10 +266,13 @@ extension Bands {
         (treatments?() ?? []).filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
     }
 
-    /// Every graph setting (UserDefaults); "Reset All Graph Settings" removes them.
-    static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
+    /// Every graph setting (UserDefaults); the mirrored ones are `WearerSettings.graphWire`'s keys, the rest
+    /// (per-place window and sensor time) are always this Mac's.
+    nonisolated static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
                             "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "columnCrown", "ringMarks", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours",
                             "menubarSensorTime", "widgetSensorTime"]
+    /// Every UserDefaults key a setting lives in (the schema's `defaults` store; `-settingsselftest` checks both ways).
+    nonisolated static let settingsKeys = graphKeys + [WearerSettings.modeKey, "reportDays"]
 
     /// Settings changed (Settings › Graph or `defaults write`): redraw and re-publish to the widgets.
     func reloadGraph() {

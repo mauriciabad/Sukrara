@@ -77,16 +77,17 @@ alert; highs muted after rapid insulin and when the trend brings it back under t
 carbs; when a treatment's window ends it alerts at once. Checked by the shared timelines (`-alerts-selftest`).
 
 - **Menu → Settings…** (⌘,) → **Alerts** (HIG macOS settings: preference toolbar, no minimize/zoom, changes apply at
-  once): master switch, state line ("High · muted: insulin 12 min ago"), alert source, one row per kind (name, summary,
+  once): master switch, state line ("High · muted: insulin 12 min ago"), one row per kind (name, summary,
   switch, **Details…** sheet with threshold / repeat / sound + ▶︎ / Like an alarm), quiet highs and lows, sound pack +
   "Different sound each time".
 - **Settings**: one JSON string, `defaults read app.mauri.sukrara.poc alertSettings` (SPEC §3 keys and defaults; any
   missing key keeps its default). The old `alarms` bool is gone.
-- **Alert source**: *Same as the wearer* (default) mirrors the wearer's kind **21079** `alert` events (relays: the
+- **Alert source** (round f28: derived from General › *Settings from*, no picker of its own): *Wearer* (default) mirrors the wearer's kind **21079** `alert` events (relays: the
   `l` subscription is now kinds `[21078, 21079]`; Bluetooth: the same `FollowerV2.onEvent`), with the live acceptance
   checks, deduped by event id, ignored when `at` is > 10 min old; `fire` posts the kind with this Mac's sound, `clear`
   removes it. `no_data` still runs here. Without an approved v2 follow (legacy BLE / Juggluco Wi-Fi only) there is
-  nothing to mirror, so this Mac's rules run and the window says so. *This Mac's settings* runs every rule locally.
+  nothing to mirror, so this Mac's rules run and the window says so. *Default* and *Custom* run every rule locally (with
+  the defaults or this Mac's own thresholds, repeats and quiet times; WearerSettings.swift).
 - **Notifications**: one identifier per group (`level`, `rate`, `no_data`), so a new alert replaces the old; posts and
   removals are coalesced per run-loop turn (usernoted cancelled both adds when two same-id requests arrived ms apart).
   Sounds: the 84 `spikes/alerts/sounds/out/*.caf` are copied by `bundle.sh` into `Contents/Resources` —

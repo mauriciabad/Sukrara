@@ -594,13 +594,13 @@ struct GraphConfig: Codable, Equatable {
     var columnCrown = true, ringMarks = true
     /// Extra horizontal lines on the chart, mg/dL (100 by default; the user adds and removes them).
     var lines = GraphConfig.defaultLines
-    /// Hours between the vertical lines at least (`gridChoices`; small charts space them further apart), 0 = none.
+    /// Hours between the vertical lines at least (`SettingsSpec.gridHours`; small charts space them further apart), 0 = none.
     var gridHours = 1
     /// The last-treatment slot beside the value (on by default, next to the number).
     var lastPlace: LastPlace = .nearValue
     /// What that slot shows while there's no recent treatment (nil = nothing): a 30-day time-in-range ring by default.
     var lastElse: RingSpec? = GraphConfig.defaultLastElse
-    /// The sensor countdown ring's window, hours (`SensorLife.countdownRange`; Android: the Sensor settings).
+    /// The sensor countdown ring's window, hours (`SettingsSpec.countdownHours`; Android: the Sensor settings).
     var countdownHours = SensorLife.defaultCountdownHours
     /// The sensor's time left on this place's cards (`<place>SensorTime`: menubarSensorTime, widgetSensorTime).
     var sensorTime = true
@@ -614,23 +614,15 @@ struct GraphConfig: Codable, Equatable {
                   sensorTime: sensorTime, bands: bands)
     }
 
-    static let gridChoices = [0, 1, 2, 3, 4, 6, 12]
     static let defaultLines = [100]
-    static let maxLines = 6
-    static let lineRange = 40...400
-    /// "100,120" → sorted distinct values inside `lineRange`, at most `maxLines`.
+    /// "100,120" → sorted distinct values the line format accepts (`SettingsSpec.line`), at most its `maxItems`.
     static func parseLines(_ text: String) -> [Int] {
-        Array(Set(text.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }.filter(lineRange.contains))
-            .sorted().prefix(maxLines))
+        let spec = SettingsSpec.line
+        return Array(Set(text.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }.filter(spec.valid).map { Int($0) })
+            .sorted().prefix(spec.maxItems))
     }
     static func linesText(_ l: [Int]) -> String { l.map(String.init).joined(separator: ",") }
 
-    static let windowHours = [3, 6, 12, 24]
-    static let ringChoices: [TimeInterval] = [12 * 3600, 86400, 3 * 86400, 7 * 86400, 14 * 86400, 30 * 86400]
-    /// A slot window the settings accept: a preset, or a custom whole number of days 1–90 (Android `validRingWindow`).
-    static func validRingWindow(_ w: TimeInterval) -> Bool {
-        ringChoices.contains(w) || (w.truncatingRemainder(dividingBy: 86400) == 0 && (1...90).contains(Int(w) / 86400))
-    }
     /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
     static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
 
@@ -642,43 +634,71 @@ struct GraphConfig: Codable, Equatable {
         let s = text.split(separator: ",").compactMap { parseSlot(String($0)) }
         return s.count == 3 ? s : nil
     }
-    /// One slot, "TIR:2592000:1"; nil when malformed (or "" = none, for `lastElse`).
+    /// One slot, "TIR:2592000:1"; nil when malformed (or "" = none, for `lastElse`). The period is coerced to the
+    /// schema's `ringWindow` (a preset, or whole days 1–90).
     static func parseSlot(_ e: String) -> RingSpec? {
         let p = e.split(separator: ":").map(String.init)
-        guard p.count > 1, let kind = SlotKind(rawValue: p[0]), let w = TimeInterval(p[1]), validRingWindow(w) else { return nil }
-        return RingSpec(window: w, kind: kind, faded: p.count < 3 || p[2] != "0")
+        guard p.count > 1, let kind = SlotKind(rawValue: p[0]), let w = TimeInterval(p[1]) else { return nil }
+        return RingSpec(window: SettingsSpec.ringWindow.coerce(w), kind: kind, faded: p.count < 3 || p[2] != "0")
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
         GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines, gridHours: gridHours)
     }
 
-    /// Keys: graphHours (or a place's own `<place>Hours`), ringCount, slots (see `slotsText`), ringRange
-    /// IN_RANGE|TIGHT, ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/
-    /// bandVeryHigh/bandExtremelyHigh, side (time in range beside the graph), lines "100,120" (extra dashed lines,
-    /// mg/dL), gridHours 0|1|2|3|4|6|12 (vertical lines, 0 = off), lastPlace OFF|NEAR_VALUE|END (the last-treatment
-    /// slot), lastElse "TIR:2592000:1" or "" (its fallback; same spellings as Android's GraphConfig JSON).
-    static func load(_ d: UserDefaults = .standard, place: String? = nil) -> GraphConfig {
+    /// The mirrored settings as this Mac stores them in UserDefaults (keys of `WearerSettings.graphWire`): what
+    /// "Copy the Wearer's Settings" writes.
+    func mirroredDefaults() -> [String: Any] {
+        ["bandVeryLow": bands.veryLow, "bandLow": bands.low, "bandTight": bands.tight, "bandHigh": bands.high, "bandVeryHigh": bands.veryHigh,
+         "bandExtremelyHigh": bands.extremelyHigh, "graphHours": hours, "ringCount": ringCount, "slots": GraphConfig.slotsText(slots),
+         "ringRange": ringRange.rawValue, "ringOrder": ringOrderText(ringOrder), "ringMarks": ringMarks, "side": side,
+         "columnCrown": columnCrown, "lines": GraphConfig.linesText(lines), "gridHours": gridHours, "lastPlace": lastPlace.rawValue,
+         "lastElse": lastElse.map { GraphConfig.slotsText([$0]) } ?? "", "countdownHours": countdownHours]
+    }
+
+    /// The graph settings that apply, for `place` ("menubar" / "widget") or the default. The mirrored ones (schema
+    /// `mirror`: ranges, time shown, rings, lines, last treatment, countdown) come from Settings from
+    /// (`WearerSettings.source`: this Mac's keys, the defaults, or the wearer's settings event); the place's own window
+    /// (`<place>Hours`, 0 = same as default) and sensor time (`<place>SensorTime`) are always this Mac's. Every number
+    /// goes through its schema format (`SettingsSpec`, `NumberSpec.coerce`), so any value the settings accept loads back.
+    /// Keys: graphHours, menubarHours / widgetHours, ringCount, slots (see `slotsText`), ringRange IN_RANGE|TIGHT,
+    /// ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/
+    /// bandExtremelyHigh, side, columnCrown, ringMarks, lines "100,120", gridHours (0 = off), lastPlace
+    /// OFF|NEAR_VALUE|END, lastElse "TIR:2592000:1" or "" (same spellings as Android's GraphConfig JSON), countdownHours.
+    static func load(_ d: UserDefaults = .standard, place: String? = nil, source: WearerSettings.Source? = nil) -> GraphConfig {
+        let src = source ?? WearerSettings.source(d)
         var c = GraphConfig()
-        func int(_ k: String) -> Int? { d.object(forKey: k) != nil ? d.integer(forKey: k) : nil }
-        c.bands = Bands(veryLow: int("bandVeryLow") ?? 54, low: int("bandLow") ?? 70, tight: int("bandTight") ?? 140,
-                        high: int("bandHigh") ?? 180, veryHigh: int("bandVeryHigh") ?? 250,
-                        extremelyHigh: int("bandExtremelyHigh") ?? 300).sane()
-        let h = place.flatMap { int("\($0)Hours") } ?? int("graphHours") ?? 12
-        c.hours = windowHours.contains(h) ? h : 12
-        c.ringCount = max(0, min(3, int("ringCount") ?? 2))
-        if let s = parseSlots(d.string(forKey: "slots") ?? "") { c.slots = s }
-        c.ringRange = TirRange(rawValue: d.string(forKey: "ringRange") ?? "") ?? .inRange
-        c.ringOrder = parseRingOrder(d.string(forKey: "ringOrder") ?? "") ?? DEFAULT_RING_ORDER
-        c.side = d.object(forKey: "side") == nil ? true : d.bool(forKey: "side")
-        c.columnCrown = d.object(forKey: "columnCrown") == nil ? true : d.bool(forKey: "columnCrown")
-        c.ringMarks = d.object(forKey: "ringMarks") == nil ? true : d.bool(forKey: "ringMarks")
-        c.lines = d.object(forKey: "lines") == nil ? defaultLines : parseLines(d.string(forKey: "lines") ?? "")
-        c.gridHours = int("gridHours").flatMap { gridChoices.contains($0) ? $0 : nil } ?? 1
-        c.lastPlace = LastPlace(rawValue: d.string(forKey: "lastPlace") ?? "") ?? .nearValue
-        if let e = d.string(forKey: "lastElse") { c.lastElse = parseSlot(e) }
+        func any(_ k: String) -> Any? { WearerSettings.graphValue(k, src, d) }
+        func num(_ v: Any?) -> Double? {
+            if let s = v as? String { return Double(s.trimmingCharacters(in: .whitespaces)) }
+            return (v as? NSNumber)?.doubleValue
+        }
+        func int(_ k: String, _ spec: NumberSpec) -> Int? { num(any(k)).map { Int(spec.coerce($0)) } }
+        func bool(_ k: String) -> Bool? {
+            if let s = any(k) as? String { return ["yes", "true", "1"].contains(s.lowercased()) }
+            return (any(k) as? NSNumber)?.boolValue
+        }
+        func string(_ k: String) -> String? { any(k) as? String }
+        let S = SettingsSpec.self
+        c.bands = Bands(veryLow: int("bandVeryLow", S.bandVeryLow) ?? c.bands.veryLow, low: int("bandLow", S.bandLow) ?? c.bands.low,
+                        tight: int("bandTight", S.bandTight) ?? c.bands.tight, high: int("bandHigh", S.bandHigh) ?? c.bands.high,
+                        veryHigh: int("bandVeryHigh", S.bandVeryHigh) ?? c.bands.veryHigh,
+                        extremelyHigh: int("bandExtremelyHigh", S.bandExtremelyHigh) ?? c.bands.extremelyHigh).sane()
+        c.hours = int("graphHours", S.graphHours) ?? Int(S.graphHours.default)
+        // the place's own window: this Mac's, never mirrored; 0 = same as the default
+        if let p = place, let h = num(d.object(forKey: "\(p)Hours")).map(S.placeHours.coerce), h > 0 { c.hours = Int(h) }
+        c.ringCount = int("ringCount", S.ringCount) ?? Int(S.ringCount.default)
+        if let s = string("slots").flatMap(parseSlots) { c.slots = s }
+        c.ringRange = TirRange(rawValue: string("ringRange") ?? "") ?? .inRange
+        c.ringOrder = parseRingOrder(string("ringOrder") ?? "") ?? DEFAULT_RING_ORDER
+        c.side = bool("side") ?? true
+        c.columnCrown = bool("columnCrown") ?? true
+        c.ringMarks = bool("ringMarks") ?? true
+        c.lines = string("lines").map(parseLines) ?? defaultLines
+        c.gridHours = int("gridHours", S.gridHours) ?? Int(S.gridHours.default)
+        c.lastPlace = LastPlace(rawValue: string("lastPlace") ?? "") ?? .nearValue
+        if let e = string("lastElse") { c.lastElse = parseSlot(e) }
         c.sensorTime = place.flatMap { d.object(forKey: "\($0)SensorTime") as? Bool } ?? true
-        c.countdownHours = int("countdownHours").map { min(max($0, SensorLife.countdownRange.lowerBound), SensorLife.countdownRange.upperBound) }
-            ?? SensorLife.defaultCountdownHours
+        c.countdownHours = int("countdownHours", S.countdownHours) ?? Int(S.countdownHours.default)
         return c
     }
 }

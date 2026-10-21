@@ -14,6 +14,7 @@ import android.util.Log
 import app.mauri.sukrara.R
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
+import app.mauri.sukrara.settings.WearerSettings
 import app.mauri.sukrara.widgets.SukraraHooks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,9 +28,10 @@ import org.json.JSONObject
  *   [shared] never does, and its firings and clearings go to the followers as `alert` events ([attach] `publish`,
  *   relays + BLE). So a mute on this phone never quiets the Mac or a follower (user, 2026-10-21: "if someone wants
  *   to mute, it shouldn't mute the other"); treatment mutes are shared data and quiet both.
- * - **Follower**, source "wearer" (default): the wearer's `alert` events are mirrored ([onRemote], [AlertMirror]); only
- *   no data runs here (it's about this phone's link). Source "own": the rules run here on the followed readings and
- *   the treatments the follower received. Either way its notification actions act on this phone only.
+ * - **Follower**, Settings from *Wearer* (source "wearer", the default): the wearer's `alert` events are mirrored
+ *   ([onRemote], [AlertMirror]); only no data runs here (it's about this phone's link). *Default* / *Custom* (source
+ *   "own"): the rules run here on the followed readings and the treatments the follower received, with the schema's
+ *   defaults or this phone's own values. Either way its notification actions act on this phone only.
  *
  * Callers on any thread; everything is serialised on this object.
  */
@@ -38,7 +40,15 @@ object Alerts {
     private const val PREFS = "alerts"
     private const val EPISODES = "episodes"
 
+    private val _own = MutableStateFlow(AlertSettings())
+    /** This device's stored alert settings (a follower's "custom"); [update] edits them. */
+    val own: StateFlow<AlertSettings> = _own
     private val _settings = MutableStateFlow(AlertSettings())
+    /**
+     * The effective settings the rules and screens use: the wearer's role = [own]; a follower = [own] with the mirrored
+     * fields (each kind's on / threshold / repeat but no data's, the three quiet rules) from its Settings from, and
+     * `source` derived from it ([WearerSettings.effectiveAlerts]).
+     */
     val settings: StateFlow<AlertSettings> = _settings
     /** group → state, for the settings screen's "now" line. */
     val state = MutableStateFlow<Map<String, AlertEngine.State>>(emptyMap())
@@ -77,7 +87,8 @@ object Alerts {
         if (app != null) return
         app = ctx.applicationContext
         val json = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("json", null)
-        _settings.value = json?.let { runCatching { AlertSettings.fromJson(JSONObject(it)) }.getOrNull() } ?: AlertSettings()
+        _own.value = json?.let { runCatching { AlertSettings.fromJson(JSONObject(it)) }.getOrNull() } ?: AlertSettings()
+        _settings.value = WearerSettings.effectiveAlerts(_own.value)
         AlertNotifier.channels(ctx)
     }
 
@@ -115,12 +126,20 @@ object Alerts {
 
     @Synchronized fun detach() { role = null; publish = null; cancelTimer() }
 
+    /** Edits [own] (this device's settings; the function gets [own]); [settings] follows. */
     @Synchronized fun update(ctx: Context, f: (AlertSettings) -> AlertSettings) {
         init(ctx)
-        val s = f(_settings.value)
-        _settings.value = s
+        val s = f(_own.value)
+        _own.value = s
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("json", s.toJson().toString()).apply()
+        _settings.value = WearerSettings.effectiveAlerts(s)
         check(ctx)
+    }
+
+    /** [settings] again from [own] and the follower's Settings from (WearerSettings calls it on a change). */
+    @Synchronized fun recompute() {
+        _settings.value = WearerSettings.effectiveAlerts(_own.value)
+        app?.let { check(it) }
     }
 
     /**

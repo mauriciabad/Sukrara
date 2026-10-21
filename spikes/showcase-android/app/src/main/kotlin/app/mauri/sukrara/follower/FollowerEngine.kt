@@ -274,6 +274,7 @@ class FollowerEngine(private val ctx: Context) {
         store.wipe()
         db.wipe()   // clear in place: deleting the file under an open helper would keep the old rows alive
         TreatmentFeed.update(emptyList())
+        app.mauri.sukrara.settings.WearerSettings.forgetWearer()   // the next wearer's settings may carry an older `u`
         cancelWatchdog()
         app.mauri.sukrara.widgets.SukraraHooks.reload(ctx, "left")   // widgets must not keep showing the old wearer's values
         log.i("left: follower state wiped, follower.db now has ${db.count()} readings")
@@ -329,8 +330,12 @@ class FollowerEngine(private val ctx: Context) {
         p.subscribe("live", { listOf(authorsOrAll(JSONObject()
             .put("kinds", JSONArray().put(Proto.LIVE).put(Proto.ALERT))
             .put("since", Proto.nowS() - 120), st?.devices ?: emptyList())) }, ::onEvent)
+        // round f28: the wearer's settings (PROTOCOL-v2 "Settings"), one replaceable event
+        p.subscribe("settings", { listOf(authorsOrAll(JSONObject()
+            .put("kinds", JSONArray().put(Proto.CHUNK))
+            .put("#d", JSONArray().put(Proto.settingsD(sid))), st?.devices ?: emptyList())) }, ::onEvent)
         subscribeTreatments()
-        log.i("subscribed: roster + chunks (#c) + live + treatments, authors ${s.devices.map { it.take(12) }}${if (s.testUnfiltered) " [TEST: no authors filter]" else ""}")
+        log.i("subscribed: roster + chunks (#c) + live + settings + treatments, authors ${s.devices.map { it.take(12) }}${if (s.testUnfiltered) " [TEST: no authors filter]" else ""}")
     }
 
     /** SPEC §5: treatments signed by the wearer's device key(s) or a roster writer, last 30 days. */
@@ -346,7 +351,7 @@ class FollowerEngine(private val ctx: Context) {
 
     private fun unsubscribeData() {
         pool?.unsubscribe("treatments")
-        pool?.unsubscribe("roster"); pool?.unsubscribe("chunks"); pool?.unsubscribe("live")
+        pool?.unsubscribe("roster"); pool?.unsubscribe("chunks"); pool?.unsubscribe("live"); pool?.unsubscribe("settings")
         subscribedDevices = emptyList()
     }
 
@@ -540,6 +545,12 @@ class FollowerEngine(private val ctx: Context) {
         val body = runCatching { Proto.dec(epoch.g, author, ev.getString("content")) }.getOrNull()
             ?: return reject("decrypt failed", author, via)
         if (body.optInt("v") != 2) return reject("not v2", author, via)
+        if (kind == Proto.CHUNK && Proto.tagValue(ev, "d") == s.sid?.let { Proto.settingsD(it) }) {
+            if (body.optString("type") != "settings") return reject("settings: wrong type", author, via)
+            val kept = app.mauri.sukrara.settings.WearerSettings.received(body)
+            log.i("wearer settings u ${body.optLong("u")} via ${short(via)}${if (kept) "" else " (not newer, ignored)"}")
+            return
+        }
         if (kind == Proto.ALERT) {
             if (body.optString("type") != "alert") return reject("alert: wrong type", author, via)
             log.i("alert ${body.optString("k")} ${body.optString("state")} via ${short(via)}")

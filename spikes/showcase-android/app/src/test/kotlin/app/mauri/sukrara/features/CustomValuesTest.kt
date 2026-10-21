@@ -7,10 +7,8 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPlace
-import app.mauri.sukrara.ui.NumberRange
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Custom values typed in a number dialog survive the settings file (export → import), not only the presets. */
@@ -35,15 +33,5 @@ class CustomValuesTest {
         assertEquals(5, back.defaultHours)
         assertEquals(36, back.placeHours[GraphPlace.WIDGETS])
         assertEquals(10 * 86400L, back.slots[0].windowS)
-    }
-
-    @Test fun numberFieldParsesInRangeAndScales() {
-        val days = NumberRange(1.0, 90.0, "d", scale = 86400.0)
-        assertEquals(10 * 86400.0, days.parse("10")!!, 0.0)
-        assertNull(days.parse("91"))
-        assertEquals("10", days.field(10 * 86400.0))
-        val rate = NumberRange(0.5, 10.0, "mg/dL/min", decimals = 1)
-        assertEquals(1.5, rate.parse("1,5")!!, 1e-9)
-        assertNull(rate.parse("abc"))
     }
 }

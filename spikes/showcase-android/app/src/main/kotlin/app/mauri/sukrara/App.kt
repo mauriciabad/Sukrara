@@ -23,6 +23,8 @@ class App : Application() {
         app.mauri.sukrara.graph.Clock.hour24Source = { android.text.format.DateFormat.is24HourFormat(this) }
         app.mauri.sukrara.graph.RoundedFont.init(this)   // the card's rounded numbers (Google Sans Flex, ROND 100)
         Notifications.channels(this)
+        // a follower's Settings from (Default / Wearer / Custom) and the wearer's settings: the stores below read it
+        app.mauri.sukrara.settings.WearerSettings.init(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
         app.mauri.sukrara.features.SystemAccess.init(this)   // is the LSPosed module running in System UI?
@@ -46,6 +48,7 @@ class App : Application() {
 
         fun setRole(ctx: Context, role: String?) {
             ctx.getSharedPreferences("role", Context.MODE_PRIVATE).edit().putString("role", role).apply()
+            app.mauri.sukrara.settings.WearerSettings.setFollower(role == "follower")   // effective settings per role
             app.mauri.sukrara.widgets.RecentHistory.reload()   // the widgets read the new role's store
             app.mauri.sukrara.graph.GraphData.reload()
         }
