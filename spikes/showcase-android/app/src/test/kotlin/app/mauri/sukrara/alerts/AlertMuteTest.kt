@@ -31,10 +31,13 @@ class AlertMuteTest {
     private val ctx = RuntimeEnvironment.getApplication()
     private val nm = ctx.getSystemService(NotificationManager::class.java)
 
+    private val sent = mutableListOf<org.json.JSONObject>()
+
     private fun lowAlert() {
         Alerts.init(ctx)
-        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = null)
+        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = { sent += it })
         Alerts.update(ctx) { AlertSettings(on = false) }   // the singleton's episodes from another test end
+        sent.clear()
         Alerts.update(ctx) { AlertSettings() }
         Alerts.history.value = emptyList()
         Alerts.onReading(ctx, Reading(Proto.nowS(), 65, 0.0, "test"))
@@ -59,6 +62,18 @@ class AlertMuteTest {
         assertEquals(3, alert().actions.size)   // Mute 30, Slow to 30 (low repeats every 5), Mute for…
         Alerts.action(ctx, Kind.LOW, slow = false)
         assertMuted(30)
+    }
+
+    /** User, 2026-10-21: a mute on the wearer's phone mutes only that phone (scenarios: devices.txt). */
+    @Test fun wearerMuteAndSlowStayOnThisPhone() {
+        lowAlert()
+        assertEquals(listOf("low/fire"), sent.map { "${it.getString("k")}/${it.getString("state")}" })
+        Alerts.action(ctx, Kind.LOW, slow = true)
+        Alerts.action(ctx, Kind.LOW, slow = false)
+        assertMuted(30)
+        assertEquals("the followers' alert goes on: no clear, no other event", 1, sent.size)
+        Alerts.onReading(ctx, Reading(Proto.nowS() + 1, 64, 0.0, "test"))
+        assertEquals(1, sent.size)   // not due yet on the shared rules either (5 min repeat)
     }
 
     @Test fun typedMuteForLeavesTheSame() {

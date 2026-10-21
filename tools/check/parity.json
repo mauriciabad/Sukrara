@@ -61,6 +61,8 @@
       "sides": {
         "android": [
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertMirror.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/Alerts.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertSettings.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
         ],

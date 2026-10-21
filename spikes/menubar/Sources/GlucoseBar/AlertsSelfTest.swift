@@ -192,7 +192,7 @@ enum AlertsSelfTest {
 /// minute by minute, in order.
 enum AlertScenarios {
     struct Line { var minute: Int, at: Int, events: [String], expect: [String] }
-    struct Scenario { var file: String, title: String, settings: [String], lines: [Line], end: Int }
+    struct Scenario { var file: String, title: String, settings: [String], lines: [Line], end: Int, mirror = false }
 
     static let t0 = 1_760_000_040     // a whole minute
 
@@ -221,11 +221,11 @@ enum AlertScenarios {
     static func parse(_ file: String, _ text: String) -> [Scenario] {
         func trim(_ s: some StringProtocol) -> String { s.trimmingCharacters(in: .whitespaces) }
         var out: [Scenario] = []
-        var title: String?, settings: [String] = [], lines: [Line] = [], end: Int?
+        var title: String?, settings: [String] = [], lines: [Line] = [], end: Int?, mirror = false
         func flush() {
             guard let t = title else { return }
-            out.append(Scenario(file: file, title: t, settings: settings, lines: lines, end: end ?? lines.map(\.minute).max() ?? 0))
-            title = nil; settings = []; lines = []; end = nil
+            out.append(Scenario(file: file, title: t, settings: settings, lines: lines, end: end ?? lines.map(\.minute).max() ?? 0, mirror: mirror))
+            title = nil; settings = []; lines = []; end = nil; mirror = false
         }
         for raw in text.components(separatedBy: "\n") {
             let l = trim(raw.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
@@ -233,6 +233,7 @@ enum AlertScenarios {
             if l.hasPrefix("scenario ") { flush(); title = trim(l.dropFirst(9)) }
             else if l.hasPrefix("settings ") { settings = trim(l.dropFirst(9)).split(whereSeparator: \.isWhitespace).map(String.init) }
             else if l.hasPrefix("end ") { end = Int(trim(l.dropFirst(4))) }
+            else if l == "mirror" { mirror = true }
             else {
                 let (left, right) = l.range(of: "=>").map { (trim(l[..<$0.lowerBound]), String(l[$0.upperBound...])) } ?? (l, "")
                 let time = String(left.prefix { $0 != " " })
@@ -269,7 +270,9 @@ enum AlertScenarios {
         }
     }
 
-    /// Runs `sc` (driver: SPEC.md §7); returns one line per minute that differs, empty when it all matches.
+    /// Runs `sc` (driver: SPEC.md §7); returns one line per minute that differs, empty when it all matches. A `mirror`
+    /// scenario also runs this Mac mirroring the wearer: `AlertMirror` over the events of a second engine that gets
+    /// everything but the wearer's notification actions (what the wearer publishes, SPEC §2).
     static func run(_ sc: Scenario) -> [String] {
         var s = AlertSettings()
         for kv in sc.settings { set(&s, kv) }
@@ -278,16 +281,26 @@ enum AlertScenarios {
         var got: [Int: [String]] = [:]
         var sensorInfo: SensorInfo?
         func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
-        func engine() -> AlertEngine {
+        var follower = AlertMirror()
+        func engine(published: Bool = false) -> AlertEngine {
             let e = AlertEngine(settings: s, now: { clock })
             e.sensor = { sensorInfo }
             e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
             e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
-            e.onFire = { record($0.k.message(treated: $0.tr)) }
-            e.onClear = { record("clear \($0.k.rawValue)") }
+            if published {
+                e.onFire = { if follower.fire($0.k, id: $0.id, n: $0.n, at: $0.at) { record("follower \($0.k.message(treated: $0.tr))") } }
+                e.onClear = { if follower.clear($0.k, id: $0.id) { record("follower clear \($0.k.rawValue)") } }
+            } else {
+                e.onFire = { record($0.k.message(treated: $0.tr)) }
+                e.onClear = { record("clear \($0.k.rawValue)") }
+            }
             return e
         }
         var e = engine()
+        // mirror: the wearer's shared engine (no notification actions: what it publishes), feeding `follower`
+        var pub = engine(published: true)
+        /// Both wearer engines (the shared one only in a mirror scenario): readings, treatments, settings, timer.
+        func both(_ f: (AlertEngine) -> Void) { f(e); if sc.mirror { f(pub) } }
         var glucose = 0.0, rate = 0.0, age = 0, sensor = true, every = 1
         var nextReading: Int?, timer: Int?
         let byTime = Dictionary(sc.lines.map { (t0 + $0.at, $0) }, uniquingKeysWith: { a, _ in a })
@@ -309,45 +322,62 @@ enum AlertScenarios {
                     let at = TimeInterval(t)
                     switch w[1] {
                     // round sensor-life: the sensor ends now (no more readings) / a new one starts now (60 min warm-up)
-                    case "ended": sensor = false; sensorInfo = SensorInfo(start: at - 15 * 86400, end: at, warmupEnd: at - 15 * 86400 + 3600); e.tick()
-                    case "started": sensor = false; sensorInfo = SensorInfo(start: at, end: at + 15 * 86400, warmupEnd: at + 3600); e.tick()
+                    case "ended": sensor = false; sensorInfo = SensorInfo(start: at - 15 * 86400, end: at, warmupEnd: at - 15 * 86400 + 3600); both { $0.tick() }
+                    case "started": sensor = false; sensorInfo = SensorInfo(start: at, end: at + 15 * 86400, warmupEnd: at + 3600); both { $0.tick() }
                     default:
                         sensor = w[1] == "on"
                         if sensor { nextReading = t }
                     }
                 case "carbs", "insulin":
                     trs.append((w[0] == "carbs" ? "carbs" : "rapid", clock, false))
-                    e.tick()
+                    both { $0.tick() }
                 case "delete":
                     let k = w[1] == "carbs" ? "carbs" : "rapid"
                     if let i = trs.lastIndex(where: { $0.k == k && !$0.del }) { trs[i].del = true }
-                    e.tick()
+                    both { $0.tick() }
                 // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
                 case "mute": e.mute(AlertKind(rawValue: w[1])!, min: w.count > 2 ? Int(w[2])! : s.notificationActions.muteMin)
                 case "slow": e.slow(AlertKind(rawValue: w[1])!)
+                // the same actions on the follower's notification (mirror): this device only
+                case "follower":
+                    let k = AlertKind(rawValue: w[2])!
+                    switch w[1] {
+                    case "mute":
+                        let m = w.count > 3 ? Int(w[3])! : s.notificationActions.muteMin
+                        if !k.always, follower.mute(k, until: clock.addingTimeInterval(TimeInterval(m * 60))) { record("follower clear \(k.rawValue)") }
+                    case "slow": follower.slow(k, slowMin: s.notificationActions.slowMin)
+                    default: fatalError("unknown event: \(ev)")
+                    }
                 case "set":
                     for kv in w.dropFirst() { set(&s, kv) }
-                    e.settings = s
-                    e.tick()
+                    both { $0.settings = s; $0.tick() }
                 case "restart":
                     let saved = e.snapshot(), last = e.latest
                     e = engine()
                     e.seed(last)
                     for f in e.restore(saved, at: clock) { record("resume \(f.k.rawValue)") }
+                    let pubSaved = pub.snapshot(), pubLast = pub.latest
+                    pub = engine(published: true)   // the followers' alerts stay as they are
+                    pub.seed(pubLast)
+                    pub.restore(pubSaved, at: clock)
                 default: fatalError("unknown event: \(ev)")
                 }
             }
             if sensor, let r = nextReading, r <= t {
-                e.reading(Reading(date: clock.addingTimeInterval(TimeInterval(-age * 60)), mgdl: glucose, rate: rate))
+                let rd = Reading(date: clock.addingTimeInterval(TimeInterval(-age * 60)), mgdl: glucose, rate: rate)
+                both { $0.reading(rd) }
                 nextReading = t + every * 60
-            } else if let tm = timer, tm <= t { e.tick() }
-            timer = e.nextCheckAt(clock).map { Int($0.timeIntervalSince1970.rounded(.up)) }
+            } else if let tm = timer, tm <= t { both { $0.tick() } }
+            timer = [e.nextCheckAt(clock), sc.mirror ? pub.nextCheckAt(clock) : nil].compactMap { $0 }.min()
+                .map { Int($0.timeIntervalSince1970.rounded(.up)) }
             guard let next = [byTime.keys.filter { $0 > t }.min(), sensor ? nextReading : nil, timer].compactMap({ $0 }).min() else { break }
             t = next
         }
+        // the wearer's and the follower's actions are compared apart (their order within a minute is free)
+        func split(_ l: [String]) -> [String] { l.filter { !$0.hasPrefix("follower ") } + l.filter { $0.hasPrefix("follower ") } }
         let expected = Dictionary(sc.lines.map { ($0.minute, $0.expect) }, uniquingKeysWith: { a, _ in a })
         return (0...sc.end).compactMap { m in
-            let want = expected[m] ?? [], have = got[m] ?? []
+            let want = split(expected[m] ?? []), have = split(got[m] ?? [])
             func show(_ l: [String]) -> String { l.isEmpty ? "[nothing]" : "[\(l.joined(separator: ", "))]" }
             return want == have ? nil : "minute \(m): expected \(show(want)), got \(show(have))"
         }

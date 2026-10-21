@@ -17,7 +17,8 @@ import java.io.File
 
 /**
  * The shared alert timelines (spikes/alerts/scenarios/\*.txt, format and driver in spikes/alerts/SPEC.md §7) run on
- * the real [AlertEngine]: every minute's fired headlines and clears must match exactly, in order.
+ * the real [AlertEngine]: every minute's fired headlines and clears must match exactly, in order. A `mirror` scenario
+ * also runs a follower mirroring the wearer ([AlertMirror] over the events of the wearer's shared engine, as Alerts).
  */
 @RunWith(Parameterized::class)
 class AlertScenarioTest(private val name: String, private val sc: AlertScenarios.Scenario) {
@@ -35,7 +36,8 @@ class AlertScenarioTest(private val name: String, private val sc: AlertScenarios
 
 object AlertScenarios {
     data class Line(val minute: Int, val at: Int, val events: List<String>, val expect: List<String>, val src: String)
-    data class Scenario(val file: String, val title: String, val settings: List<String>, val lines: List<Line>, val end: Int)
+    data class Scenario(val file: String, val title: String, val settings: List<String>, val lines: List<Line>, val end: Int,
+                        val mirror: Boolean = false)
 
     private const val T0 = 1_760_000_040L   // a whole minute
 
@@ -51,10 +53,11 @@ object AlertScenarios {
         var settings = emptyList<String>()
         var lines = mutableListOf<Line>()
         var end: Int? = null
+        var mirror = false
         fun flush() {
             val t = title ?: return
-            out += Scenario(file, t, settings, lines, end ?: lines.maxOf { it.minute })
-            title = null; settings = emptyList(); lines = mutableListOf(); end = null
+            out += Scenario(file, t, settings, lines, end ?: lines.maxOf { it.minute }, mirror)
+            title = null; settings = emptyList(); lines = mutableListOf(); end = null; mirror = false
         }
         for (raw in text.lines()) {
             val l = raw.substringBefore('#').trim()
@@ -63,6 +66,7 @@ object AlertScenarios {
                 l.startsWith("scenario ") -> { flush(); title = l.removePrefix("scenario ").trim() }
                 l.startsWith("settings ") -> settings = l.removePrefix("settings ").trim().split(Regex("\\s+"))
                 l.startsWith("end ") -> end = l.removePrefix("end ").trim().toInt()
+                l == "mirror" -> mirror = true
                 else -> {
                     val (left, right) = if ("=>" in l) l.substringBefore("=>") to l.substringAfter("=>") else l to ""
                     val time = left.trim().substringBefore(' ')
@@ -112,6 +116,9 @@ object AlertScenarios {
     fun run(sc: Scenario): List<String> {
         var s = sc.settings.fold(AlertSettings()) { acc, kv -> set(acc, kv) }
         var e = AlertEngine()
+        // mirror: the wearer's shared engine (no notification actions: what it publishes) and the follower mirroring it
+        var pub = AlertEngine()
+        val follower = AlertMirror()
         val trs = mutableListOf<Treatment>()
         val got = HashMap<Int, MutableList<String>>()
         var glucose = 0
@@ -124,9 +131,15 @@ object AlertScenarios {
         val byTime = sc.lines.associateBy { T0 + it.at }
         val stop = T0 + (sc.end + 1) * 60L
         var t = T0
-        fun record(acts: List<AlertEngine.Action>) =
-            acts.forEach { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += describe(it) }
-        fun check() = record(e.evaluate(s, AlertEngine.doses(trs), t))
+        fun note(what: String) { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += what }
+        fun record(acts: List<AlertEngine.Action>) = acts.forEach { note(describe(it)) }
+        fun published(acts: List<AlertEngine.Action>) { if (sc.mirror) for (a in acts) when (a) {
+            is AlertEngine.Fire -> if (follower.fire(a.kind, a.id, a.n, a.at)) note("follower ${describe(a)}")
+            is AlertEngine.Clear -> if (follower.clear(a.kind, a.id)) note("follower ${describe(a)}")
+        } }
+        /** Both wearer engines (the shared one only in a mirror scenario): readings, treatments, settings, timer. */
+        fun both(f: (AlertEngine) -> List<AlertEngine.Action>) { record(f(e)); if (sc.mirror) published(f(pub)) }
+        fun check() = both { it.evaluate(s, AlertEngine.doses(trs), t) }
         while (t < stop) {
             byTime[t]?.events?.forEach { ev ->
                 val w = ev.split(Regex("\\s+"))
@@ -140,8 +153,8 @@ object AlertScenarios {
                     "readings" -> every = w[2].toInt()
                     "sensor" -> when (w[1]) {
                         // round sensor-life: the sensor ends now (no more readings) / a new one starts now (60 min warm-up)
-                        "ended" -> { sensor = false; e.sensor = SensorInfo("s", t - 15 * 86_400L, t); check() }
-                        "started" -> { sensor = false; e.sensor = SensorLife.fromStart("s2", t, 0); check() }
+                        "ended" -> { sensor = false; e.sensor = SensorInfo("s", t - 15 * 86_400L, t); pub.sensor = e.sensor; check() }
+                        "started" -> { sensor = false; e.sensor = SensorLife.fromStart("s2", t, 0); pub.sensor = e.sensor; check() }
                         else -> { sensor = w[1] == "on"; if (sensor) nextReading = t }
                     }
                     "carbs", "insulin" -> {
@@ -158,31 +171,45 @@ object AlertScenarios {
                     // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
                     "mute" -> record(e.mute(w[1], w.getOrNull(2)?.toInt() ?: s.actionMuteMin, s, AlertEngine.doses(trs), t))
                     "slow" -> record(e.slow(w[1], s, AlertEngine.doses(trs), t))
+                    // the same actions on the follower's notification (mirror): this device only
+                    "follower" -> when (w[1]) {
+                        "mute" -> if (w[2] !in Kind.ALWAYS &&
+                            follower.mute(w[2], t + (w.getOrNull(3)?.toInt() ?: s.actionMuteMin) * 60L)) note("follower clear ${w[2]}")
+                        "slow" -> follower.slow(w[2], s.slowMin)
+                        else -> error("unknown event: $ev")
+                    }
                     "set" -> { s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }; check() }
                     "restart" -> {
-                        val saved = JSONObject(e.snapshot().toString())
-                        val last = e.last
-                        val si = e.sensor
-                        e = AlertEngine()
-                        e.seed(last)
-                        e.sensor = si
-                        e.restore(saved, s, t).forEach { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += "resume ${it.kind}" }
+                        fun again(old: AlertEngine): Pair<AlertEngine, List<AlertEngine.Fire>> {
+                            val saved = JSONObject(old.snapshot().toString())
+                            val n = AlertEngine()
+                            n.seed(old.last)
+                            n.sensor = old.sensor
+                            return n to n.restore(saved, s, t)
+                        }
+                        val (ne, shown) = again(e)
+                        e = ne
+                        shown.forEach { note("resume ${it.kind}") }
+                        pub = again(pub).first   // the followers' alerts stay as they are
                     }
                     else -> error("unknown event: $ev")
                 }
             }
             val reading = nextReading
             if (sensor && reading != null && reading <= t) {
-                record(e.reading(Reading(t - age * 60L, glucose, rate), s, AlertEngine.doses(trs), t))
+                val rd = Reading(t - age * 60L, glucose, rate)
+                both { it.reading(rd, s, AlertEngine.doses(trs), t) }
                 nextReading = t + every * 60L
             } else if (timer != null && timer <= t) check()
-            timer = e.nextCheckAt(s, t)
+            timer = listOfNotNull(e.nextCheckAt(s, t), pub.nextCheckAt(s, t).takeIf { sc.mirror }).minOrNull()
             t = listOfNotNull(byTime.keys.filter { it > t }.minOrNull(), nextReading?.takeIf { sensor }, timer).minOrNull() ?: break
         }
+        // the wearer's and the follower's actions are compared apart (their order within a minute is free)
+        fun split(l: List<String>) = l.partition { !it.startsWith("follower ") }.let { (w, f) -> w + f }
         val expected = sc.lines.associate { it.minute to it.expect }
         return (0..sc.end).mapNotNull { m ->
-            val want = expected[m] ?: emptyList()
-            val have = got[m] ?: emptyList()
+            val want = split(expected[m] ?: emptyList())
+            val have = split(got[m] ?: emptyList())
             if (want == have) null else "minute $m: expected ${want.ifEmpty { listOf("nothing") }}, got ${have.ifEmpty { listOf("nothing") }}"
         }
     }

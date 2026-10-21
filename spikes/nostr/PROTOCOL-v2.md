@@ -130,13 +130,14 @@ settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../
 
 | Event | kind | signed by | tags | content (decrypted) |
 |---|---|---|---|---|
-| **alert** | 21079 (ephemeral) | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"type":"alert","id","k","state":"fire"\|"clear"\|"snooze","at","t","sgv","r","th","n","tr"[,"mu","sl"]}` → `G_n` |
+| **alert** | 21079 (ephemeral) | `D` | `["gk", gk_n]`, exp now+1 h | `{"v":2,"type":"alert","id","k","state":"fire"\|"clear","at","t","sgv","r","th","n","tr"}` → `G_n` |
 
 - `k` ∈ `very_low|low|high|very_high|extremely_high|falling_fast|rising_fast|no_data`; `id` is random per firing and a `clear`
   repeats it; `n` counts the episode's alerts; `tr` = treatments the headline acknowledges (0, 1, 2 = two or more:
-  "Low glucose · eat more again"). `snooze` (2026-10-21): the wearer used an alert notification's Mute / Slow down on
-  that episode; `mu` = muted until (unix s, 0 = not), `sl` = slowed repeat interval (min, 0 = not); followers show the
-  mute as the badge (SPEC §2). A muted alert (after rapid insulin or carbs, falling back into range) is never sent.
+  "Low glucose · eat more again"). A treatment-muted alert (after rapid insulin or carbs, falling back into range) is
+  never sent. The wearer's alert notification actions (Mute / Slow down) are per device and never sent: the events are
+  what the rules decide without them, so followers keep alerting while the wearer has muted its phone (SPEC §2,
+  2026-10-21).
 - Sent at once on relays (LIVE lane, also when the upload interval batches readings) and over BLE (backlog key
   `alert`, next to `live`).
 - Followers subscribe with `kinds: [21078, 21079]` in the live REQ, apply the live acceptance rules, dedupe by event
