@@ -332,6 +332,12 @@ enum Clock {
         time(Date(timeIntervalSince1970: TimeInterval(m * 60)), hour24: hour24, locale: locale, zone: TimeZone(identifier: "UTC")!)
     }
 
+    /// The graph's day label (a zoomed-out chart): "17 Oct" (Clock.kt `dayLabel`).
+    static func dayLabel(_ d: Date, locale: Locale = .autoupdatingCurrent) -> String {
+        let f = DateFormatter(); f.locale = locale; f.dateFormat = "d MMM"
+        return f.string(from: d)
+    }
+
     /// The graph's hour label: "21:00" / "9 PM" (the locale's day period).
     static func hourLabel(_ h: Int, _ hour24: Bool = Clock.hour24, locale: Locale = .autoupdatingCurrent) -> String {
         let f = DateFormatter(); f.locale = locale
@@ -389,6 +395,10 @@ struct ChartView: Equatable {
     var now: CGFloat = 0
     /// The plot's bottom, pt above the chart's bottom, while the surface eases it (nil = the layout's, "chart.plot.natural").
     var plotInset: CGFloat? = nil
+    /// The window's length while the surface is zoomed (`minSpan`…`maxSpan`; nil = the place's "time shown", `GraphStyle.window`).
+    var span: TimeInterval? = nil
+    /// The narrowest and widest window a pinch zooms to (GlucoseGraph.kt `ChartView.MIN_SPAN_S` / `MAX_SPAN_S`).
+    static let minSpan: TimeInterval = 2 * 3600, maxSpan: TimeInterval = 31 * 86400
 }
 
 struct GraphStyle {
@@ -893,10 +903,12 @@ enum GlucoseGraph {
 
         // Hour grid + labels: the user's step, or a longer one where labels would come closer than ~44 dp.
         let pxPerHour = (right - left) / CGFloat(st.window / 3600)
-        let step = [1, 2, 3, 4, 6, 12, 24].filter { $0 >= st.gridHours }.first { CGFloat($0) * pxPerHour >= 44 * d } ?? 24
+        // From a day up (a zoomed-out chart) the lines fall on midnights (every day, 2 or 3 days, a week: Mondays) and the labels
+        // are dates; the steps are fixed to the calendar, not to the window, so they don't shift while the chart scrolls.
+        let step = Self.gridStep(pxPerHour, gridHours: st.gridHours, d: d)
         let cal = Calendar.current
         var hour = cal.dateInterval(of: .hour, for: Date(timeIntervalSince1970: from))!.start.addingTimeInterval(3600)
-        while cal.component(.hour, from: hour) % step != 0 { hour.addTimeInterval(3600) }
+        while !Self.onStep(hour, step, cal) { hour.addTimeInterval(3600) }
         ctx.saveGState()
         ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
@@ -915,7 +927,7 @@ enum GlucoseGraph {
             if gx > left + sideW * 0.6 {
                 if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
                 if labels {
-                    let s = Clock.hourLabel(cal.component(.hour, from: hour))
+                    let s = step >= 24 ? Clock.dayLabel(hour) : Clock.hourLabel(cal.component(.hour, from: hour))
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
@@ -927,7 +939,9 @@ enum GlucoseGraph {
                     }
                 }
             }
-            hour.addTimeInterval(TimeInterval(step * 3600))
+            if step >= 24 {
+                repeat { hour = cal.date(byAdding: .day, value: 1, to: hour)! } while !Self.onStep(hour, step, cal)
+            } else { hour.addTimeInterval(TimeInterval(step * 3600)) }
         }
         ctx.restoreGState()
         if labels && rec.first("chart.hours") == nil { rec.add("chart.hours", nil, "(no room)") }
@@ -961,12 +975,38 @@ enum GlucoseGraph {
         let shownLines = st.lines.filter { Double($0) > yMin && Double($0) < yMax }
         if !shownLines.isEmpty { rec.add("chart.lines", nil, shownLines.map(String.init).joined(separator: ",")) }
 
-        // The line: a dot per reading.
+        // The line: a dot per reading. Zoomed far out (more than `densePerDp` readings per pt: days of 1-minute readings)
+        // each 1 pt column draws one stroke from its lowest to its highest reading instead, split where it crosses a
+        // band, in the band's colour (GlucoseGraph.kt).
         let spacing = pts.count > 1 ? (right - left) / CGFloat(max(1, pts.count)) : 99
         let r = min(max(spacing * 0.55, 1.3 * d), 2.2 * d)
         ctx.setLineCap(.round)
+        let dense = CGFloat(pts.count) > Self.densePerDp * (right - left) / d
+        if dense {
+            rec.add("chart.line", nil, "columns")
+            ctx.setLineWidth(1.2 * d)   // the columns just touch: an envelope, not bars
+            let edges = [b.veryLow, b.low, b.tight, b.high, b.veryHigh, b.extremelyHigh]
+            var k = pts.firstIndex { $0.t >= from } ?? 0
+            while k < pts.count {
+                let col = floor((x(pts[k].t) - left) / d)
+                var lo = pts[k].sgv, hi = lo, j = k + 1
+                while j < pts.count, floor((x(pts[j].t) - left) / d) == col, pts[j].t - pts[j - 1].t <= GlucoseStats.maxGap {
+                    lo = min(lo, pts[j].sgv); hi = max(hi, pts[j].sgv); j += 1
+                }
+                let cx = left + (col + 0.5) * d
+                var a = lo
+                for e in edges where e > a && e <= hi {
+                    ctx.setStrokeColor(pal.at(b, Double(a)))
+                    ctx.strokeLineSegments(between: [CGPoint(x: cx, y: y(Double(a))), CGPoint(x: cx, y: y(Double(e)))])
+                    a = e
+                }
+                ctx.setStrokeColor(pal.at(b, Double(a)))
+                ctx.strokeLineSegments(between: [CGPoint(x: cx, y: y(Double(a))), CGPoint(x: cx, y: y(Double(hi)))])
+                k = j
+            }
+        }
         ctx.setLineWidth(1.6 * d)
-        for (i, p) in pts.enumerated() where p.t >= from {
+        for (i, p) in pts.enumerated() where p.t >= from && (!dense || i == pts.count - 1) {
             let px = x(p.t), py = y(Double(p.sgv))
             let c = pal.at(b, Double(p.sgv))
             if spacing > 5 * d, i > 0, p.t - pts[i - 1].t <= GlucoseStats.maxGap {
@@ -1071,6 +1111,29 @@ enum GlucoseGraph {
             ctx.restoreGState()
             rec.add("chart.now", CGRect(x: px, y: py, width: pw, height: ph), look.text)
         }
+    }
+
+    /// Readings per pt of plot from which the line is drawn as columns (GlucoseGraph.kt `DENSE_PER_DP`).
+    static let densePerDp: CGFloat = 6
+
+    /// The step (hours) between the vertical lines and their labels: the user's step at least, else the first whose
+    /// labels are ≥ 44 pt apart: 1, 2, 3, 4, 6, 12 h, then 1, 2, 3 days, a week (GlucoseGraph.kt `gridStep`).
+    static func gridStep(_ pxPerHour: CGFloat, gridHours: Int, d: CGFloat) -> Int {
+        [1, 2, 3, 4, 6, 12, 24, 48, 72, 168].filter { $0 >= gridHours }.first { CGFloat($0) * pxPerHour >= 44 * d } ?? 168
+    }
+
+    /// Is `t` (on the hour) a line of `step`? Hours: the hour divides by it; days: a midnight whose day number divides by
+    /// the step in days, a Monday (a week).
+    static func onStep(_ t: Date, _ step: Int, _ cal: Calendar) -> Bool {
+        let h = cal.component(.hour, from: t)
+        if step < 24 { return h % step == 0 }
+        guard h == 0 else { return false }
+        if step == 168 { return cal.component(.weekday, from: t) == 2 }
+        if step > 24 {
+            let local = t.timeIntervalSince1970 + TimeInterval(cal.timeZone.secondsFromGMT(for: t))
+            return Int(floor(local / 86400)) % (step / 24) == 0
+        }
+        return true
     }
 
     /// The Now pill's height and its distance from the plot's top-right corner (pt; GlucoseGraph.kt `NOW_PILL_DP`, `NOW_INSET_DP`).
@@ -2419,7 +2482,9 @@ enum GlucoseCard {
         let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
         let fr = Freshness.of(age: latest.map { now - $0.t })
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
-        let graph = fr.showGraph ? st.graph : nil
+        // a zoomed chart: the same style with the window's length the surface zoomed to
+        var graph = fr.showGraph ? st.graph : nil
+        if let s = view?.span { graph?.window = s }
         let bands = st.bands.sane()
         let metrics = metricsOf ?? { r, b in GlucoseMetrics.of(readings, from: now - r.window, to: now, bands: b) }
         let spot = sensorSpot(st, sl, fr)

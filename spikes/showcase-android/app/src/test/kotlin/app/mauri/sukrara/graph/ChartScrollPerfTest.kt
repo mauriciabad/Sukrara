@@ -73,6 +73,21 @@ class ChartScrollPerfTest {
         }
         println("  of which data: %.2f ms, %d KB per frame".format(java.util.Locale.US, (System.nanoTime() - c0) / 600 / 1e6,
             (bean.getThreadAllocatedBytes(tid) - s0) / 600 / 1024))
+        // the widest zoom (the whole 31 days) over the same history: every reading in the window, drawn as columns
+        val wide = LongArray(400)
+        for (k in wide.indices) {
+            val end = now - k * 7L
+            val g = st.graph!!.copy(windowS = ChartView.MAX_SPAN_S)
+            val y = GlucoseCard.yRange(readings, end, g)
+            val t0 = System.nanoTime()
+            GlucoseCard.draw(cv, w, h, readings, emptyList(), now, st, pal, d, CardSurface.TEST, CardPart.GRAPH,
+                alerts = alerts, sensor = null, paused = emptyMap(), view = ChartView(end, y, 1f, spanS = ChartView.MAX_SPAN_S))
+            wide[k] = System.nanoTime() - t0
+        }
+        wide.sort()
+        val wideMed = wide[wide.size / 2] / 1e6
+        println("zoomed out (31 d) frame: median %.2f ms, p95 %.2f ms".format(java.util.Locale.US, wideMed, wide[wide.size * 95 / 100] / 1e6))
+        assertTrue("a 31-day frame takes %.1f ms (median)".format(java.util.Locale.US, wideMed), wideMed < 16)
         bmp.recycle()
         assertTrue("a scrolled frame takes %.1f ms (median): far above a 16 ms frame".format(java.util.Locale.US, med), med < 16)
     }

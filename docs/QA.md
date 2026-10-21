@@ -47,6 +47,9 @@ Cheap tools:
       on *Now*; step the frames: the % column, distribution, y range (eased, no jump), hour labels and treatment marks
       follow the window; the plot doesn't jump when a treatment scrolls in or out; the pill fades in and out. Mac: the
       same with two-finger swipes (momentum after lifting) and a mouse wheel; `-panelPreview` writes `*-scrolled.png`.
+- [ ] Zoom (app panel pinch, Mac pinch / ⌘-scroll): the moment under the fingers / cursor stays put; 2 h to the whole
+      history; the line steps and labels change (hours → dates); the line turns into columns far out without a jump;
+      *Now* returns to now and the place's time shown. JVM gallery `zoom`, Mac `-panelPreview` `*-zoom-*.png`.
 - [ ] Sensor life (JVM gallery `sensorLife`, Mac `render treatments` → `mac-sensor-*.png`; emulator: `--es cmd sensor
   --el left <s>`): badge `13d` / `20h` (no ring with an 8 h window) / `5h` with the countdown ring over the main ring,
   legible over every band colour, light and dark; warm-up `42m` + filling ring; ended `Sensor ended` + `Replace sensor` pill on every widget size (3×1 and 2×1 too, also while the last value is fresh; pill/tap opens the Sensor screen on the wearer's phone), checkered flag in the status bar (notification icon, root slots, hook) and the Mac menubar + no-data alert

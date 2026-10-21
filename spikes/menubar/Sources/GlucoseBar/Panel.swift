@@ -29,6 +29,8 @@ import SwiftUI
     var now: Date?
     /// Previews: the chart scrolled this far back from `now` (s).
     var previewScrollBack: TimeInterval?
+    /// Previews: the chart zoomed to this window length (s).
+    var previewSpan: TimeInterval?
 
     // Add Treatment
     @Published var canLog = true
@@ -160,7 +162,8 @@ private struct CardRep: NSViewRepresentable {
         v.paused = model.paused
         v.metricsOf = model.metricsOf
         v.now = model.now
-        if let back = model.previewScrollBack, let now = model.now { v.scrollEnd = now.timeIntervalSince1970 - back }
+        if let back = model.previewScrollBack, let now = model.now { v.scrollEnd = back > 0 ? now.timeIntervalSince1970 - back : nil }
+        if let span = model.previewSpan { v.scrollSpan = span }
         v.needsDisplay = true
     }
 }

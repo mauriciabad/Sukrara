@@ -137,7 +137,7 @@ times (`Freshness.nextChangeAt`), which `FreshnessFixtureTest.night` replays wit
   (`cut`, dp); both renderers' constants must equal them and every drawn distribution's erased box
   (`chart.distribution.cut`) is its dots' box (`chart.distribution.dots`) plus `cut` on the right and the top.
 - `layout/scenes.json` `scroll`: scrolled charts (the app panel, the Mac dropdown), each case a scene and how far back
-  (`back`, s) the window ends, rendered through the scrollable surfaces' entry paths (`PanelCard` with a `ChartScroll`,
+  (`back`, s) the window ends and, zoomed, how long it is (`span`, s), rendered through the scrollable surfaces' entry paths (`PanelCard` with a `ChartScroll`,
   `CardView.scrollEnd`): the chart must equal the chart of the visible data alone (every reading and treatment outside
   the window removed, now = the window's end), its y range (`chart.y`) the visible readings', the Now pill
   (`chart.now`) only when scrolled, and `expect` (font-independent: `chart.pct`, `chart.y`, `chart.window`,

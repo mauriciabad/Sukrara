@@ -319,13 +319,15 @@ enum LayoutSelfTest {
             let all = (scroll["scenes"] as? [[String: Any]] ?? []).map(scene) + scenes
             let size = sizes(.menubarCard).first ?? CGSize(width: 340, height: 196)
             let cfg = GraphConfig(), b = cfg.bands.sane(), span = cfg.graphStyle().window
-            func card(_ rs: [GraphReading], _ marks: [GraphMark], at: TimeInterval, end: TimeInterval?) -> CardLayout? {
+            func card(_ rs: [GraphReading], _ marks: [GraphMark], at: TimeInterval, end: TimeInterval?, span zs: TimeInterval? = nil,
+                      cfg: GraphConfig = cfg) -> CardLayout? {
                 captured = []
                 let v = CardView(frame: NSRect(origin: .zero, size: size))
                 v.readings = rs; v.marks = marks; v.style = StatusController.dropdownStyle(cfg, sensor: nil)
                 v.metricsOf = { r, bb in GlucoseMetrics.of(rs, from: at - r.window, to: at, bands: bb) }
                 v.alerts = AlertSettings(); v.now = Date(timeIntervalSince1970: at)
                 v.scrollEnd = end
+                v.scrollSpan = zs
                 guard let ctx = CGContext(data: nil, width: Int(size.width * 2), height: Int(size.height * 2), bitsPerComponent: 8, bytesPerRow: 0,
                                           space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
                 ctx.translateBy(x: 0, y: size.height * 2); ctx.scaleBy(x: 2, y: -2)
@@ -333,11 +335,16 @@ enum LayoutSelfTest {
             }
             for c in scroll["cases"] as? [[String: Any]] ?? [] {
                 guard let sc = all.first(where: { $0.id == c["scene"] as? String }) else { fail("scroll: no scene \(c["scene"] ?? "?")"); continue }
-                let back = num(c["back"]), end = now - back, from = end - span
-                let name = "\(sc.id) back \(Int(back))s"
+                // a zoomed case: the window's length; its chart must equal a place set to that "time shown"
+                let zs: TimeInterval? = num(c["span"]) > 0 ? num(c["span"]) : nil
+                let w = zs ?? span
+                let back = num(c["back"]), end = now - back, from = end - w
+                let name = "\(sc.id) back \(Int(back))s" + (zs.map { " span \(Int($0))s" } ?? "")
+                var aloneCfg = cfg
+                aloneCfg.hours = Int(w / 3600)
                 let visible = sc.readings.filter { $0.t >= from - 60 && $0.t <= end }
-                guard let scrolled = card(sc.readings, sc.marks, at: now, end: back > 0 ? end : nil),
-                      let alone = card(visible, sc.marks.filter { $0.t >= from && $0.t <= end }, at: end, end: nil) else { fail("scroll: \(name) not drawn"); continue }
+                guard let scrolled = card(sc.readings, sc.marks, at: now, end: back > 0 ? end : nil, span: zs),
+                      let alone = card(visible, sc.marks.filter { $0.t >= from && $0.t <= end }, at: end, end: nil, cfg: aloneCfg) else { fail("scroll: \(name) not drawn"); continue }
                 func info(_ l: CardLayout, _ n: String) -> String { l.all(n).map(\.info).joined(separator: ",") }
                 func box(_ l: CardLayout, _ n: String) -> String {
                     l.first(n)?.box.map { "\(CardLayout.dp($0.minX, l.d)),\(CardLayout.dp($0.minY, l.d)),\(CardLayout.dp($0.maxX, l.d)),\(CardLayout.dp($0.maxY, l.d))" } ?? "-"
@@ -354,18 +361,19 @@ enum LayoutSelfTest {
                 if info(scrolled, "chart.y") != want { fail("scroll \(name): y range \(info(scrolled, "chart.y")), want \(want)") }
                 let window = back > 0 ? "\(Int((from - now) / 60))m..\(Int((end - now) / 60))m" : ""
                 if info(scrolled, "chart.window") != window { fail("scroll \(name): window \"\(info(scrolled, "chart.window"))\", want \"\(window)\"") }
-                if (scrolled.first("chart.now") != nil) != (back > 0) { fail("scroll \(name): the Now pill \(back > 0 ? "is missing" : "shows at now")") }
+                let away = back > 0 || zs != nil
+                if (scrolled.first("chart.now") != nil) != away { fail("scroll \(name): the Now pill \(away ? "is missing" : "shows at now")") }
                 for (k, v) in c["expect"] as? [String: String] ?? [:] {
                     let got = scrolled.all(k).map { $0.info.replacingOccurrences(of: "\\s*\\[[^]]*]", with: "", options: .regularExpression) }.joined(separator: ",")
                     if got != v { fail("scroll \(name): \(k) \"\(got)\", expect.json-style answer \"\(v)\" (Android agrees)") }
                 }
             }
             print("scroll cases: \((scroll["cases"] as? [Any])?.count ?? 0) checked")
-            // the cost of one scrolled frame of the dropdown's card over 15 days of 1-minute readings (the store's whole
+            // the cost of one scrolled frame of the dropdown's card over 31 days of 1-minute readings (the store's whole
             // history), as a fling draws it: printed, and a failure only far above a frame's budget
-            let long = (0..<(15 * 1440)).map { i -> GraphReading in
+            let long = (0..<(31 * 1440)).map { i -> GraphReading in
                 let x = Double(i)
-                let t: Double = now - Double(15 * 1440 - i) * 60
+                let t: Double = now - Double(31 * 1440 - i) * 60
                 let mg: Double = 130 + 70 * sin(x / 180) + 25 * sin(x / 37)
                 return GraphReading(t: t, v: mg, rate: 0)
             }
@@ -388,10 +396,33 @@ enum LayoutSelfTest {
             let med = times.isEmpty ? 0 : times[times.count / 2], p95 = times.isEmpty ? 0 : times[times.count * 95 / 100]
             print("scrolled dropdown frame over \(long.count) readings: median \(String(format: "%.2f", med)) ms, p95 \(String(format: "%.2f", p95)) ms")
             #if DEBUG
-            let budget = 40.0   // an unoptimised build (release: ~2.7 ms on an M-series Mac, 2026-10-21)
+            let budget = 80.0   // an unoptimised build over 31 days, on a busy machine (release: ~2.5 ms on an M-series Mac, 2026-10-21)
             #else
             let budget = 16.0
             #endif
+            // the widest zoom (the whole 31 days): every reading in the window, drawn as columns
+            var wide: [Double] = []
+            if let ctx = CGContext(data: nil, width: Int(size.width * 2), height: Int(size.height * 2), bitsPerComponent: 8, bytesPerRow: 0,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                ctx.translateBy(x: 0, y: size.height * 2); ctx.scaleBy(x: 2, y: -2)
+                v.scrollSpan = ChartView.maxSpan
+                for k in 0..<60 {
+                    v.scrollEnd = k % 2 == 0 ? nil : now - 60
+                    let t0 = CACurrentMediaTime()
+                    v.paint(ctx, size: size, pal)
+                    if k >= 20 { wide.append((CACurrentMediaTime() - t0) * 1000) }
+                }
+                v.scrollSpan = nil
+            }
+            wide.sort()
+            let wideMed = wide.isEmpty ? 0 : wide[wide.count / 2]
+            print("zoomed out (31 d) dropdown frame: median \(String(format: "%.2f", wideMed)) ms")
+            #if DEBUG
+            let wideBudget = 200.0   // an unoptimised build walks 44 640 readings in slow Swift (release: ~5 ms, 2026-10-21)
+            #else
+            let wideBudget = 16.0
+            #endif
+            if wideMed > wideBudget { fail("zoom: a 31-day frame takes \(String(format: "%.1f", wideMed)) ms (median)") }
             if med > budget { fail("scroll: a scrolled frame takes \(String(format: "%.1f", med)) ms (median), far above a frame (\(Int(budget)) ms)") }
         } else { fail("scenes.json has no \"scroll\"") }
 
