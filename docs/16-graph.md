@@ -142,7 +142,7 @@ Alert thresholds are separate (investigation 15) and unchanged.
 
 | | | |
 |---|---|---|
-| ![app](img/settings/home.png) | ![settings](img/settings/graph.png) | ![config](img/16/android-config.png) |
+| ![app](img/home/home.png) | ![settings](img/settings/graph.png) | ![config](img/16/android-config.png) |
 | App home (0.11.13, synthetic source on the emulator) | Settings → Graph & time in range: live preview, the ranges as sliders | A widget's own settings (touch & hold → Reconfigure), preview at that widget's size |
 
 The emulator ran under very heavy host load (load average 30–46 from parallel sessions); its "isn't responding"

@@ -31,13 +31,26 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 > **Not a medical device:** don't make treatment decisions from it.
 
 <p>
-  <img src="img/settings/home.png" alt="Home: the glucose card with time-in-range rings, the 12 h graph and Add treatment" width="180">
-  <img src="img/settings/settings.png" alt="Settings: search, the LibreView reminder and sections with coloured icons" width="180">
-  <img src="img/settings/search.png" alt="Settings search: results with where each setting lives" width="180">
-  <img src="img/settings/alerts.png" alt="Alerts: very low to extremely high, each with its own threshold, reminder and sound" width="180">
+  <img src="img/widgets/widgets-light.png" alt="Home-screen widgets, light: the glucose number with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart and the sensor's 12 days left, and a smaller value widget" width="270">
+  <img src="img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
+  <img src="img/home/home.png" alt="Home: the share-with-your-clinic banner, a backup reminder and the glucose card whose slot shows 4u of insulin and 40g of carbs" width="206">
 </p>
 <p>
+  <img src="img/mac/menubar.png" alt="Sukrara for Mac: the number and trend arrow in the menubar" height="44">
+  <img src="img/mac/dropdown.png" alt="Sukrara for Mac: the menubar dropdown with the same card as the phone, Add Treatment, Treatments, Glucose Report and Settings" width="300">
+  <img src="img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid and long insulin, carbs and a note at once" width="330">
+</p>
+<p>
+  <img src="img/notification/alert-actions.png" alt="A low alert under the glucose notification, with one-tap mute choices and Mute 30 min, Slow to 30 min and Mute for…" width="300">
+  <img src="img/notification/alert-muted.png" alt="After Mute 30 min: the alert says Low muted until 8:27 PM and the glucose notification shows a bell with 30m left" width="300">
+</p>
+<p>
+  <img src="img/settings/settings.png" alt="Settings: search, the share-with-your-clinic banner and sections with coloured icons" width="180">
+  <img src="img/settings/search.png" alt="Settings search: results with where each setting lives" width="180">
+  <img src="img/settings/alerts.png" alt="Alerts: very low to extremely high, each with its own threshold, reminder and sound" width="180">
   <img src="img/settings/sharing.png" alt="Share with people: invite link, nearby pairing and followers with their pictures" width="180">
+</p>
+<p>
   <img src="img/settings/apps.png" alt="Share with apps: LibreView, the xDrip+ server for Garmin watches, Nightscout, Nostr" width="180">
   <img src="img/18/report-light.png" alt="The doctor's report: time in ranges, average glucose, GMI and variability with their goals" width="180">
   <img src="../spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog with the follower's name, picture and the invite's label" width="180">
@@ -49,12 +62,10 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   <img src="img/statusbar-all.png" alt="Glucose in the Android status bar" width="540">
 </p>
 <p>
-  <img src="img/16/sizes-dark.png" alt="Home-screen widgets in every size" width="540">
+  <img src="img/freshness/steps.png" alt="Renderer sheet of the freshness steps on the card: fresh; 3 min late with the reading's time; 12 min struck through and grey with a hollow ring; 75 min a no-readings icon over the chart; 5 h no chart" width="540">
 </p>
-<p>
-  <img src="img/16/mac-menubar-dropdown-dark.png" alt="Sukrara for Mac: the menubar dropdown with the same card and report" width="300">
-  <img src="img/16/mac-widget-medium-dark.png" alt="macOS widget" width="300">
-</p>
+<p><sub>Screenshots: Android emulator and a Mac test copy with synthetic data (the alert's low threshold was raised for
+the picture); the freshness sheet is drawn by the app's card renderer.</sub></p>
 
 ## Features
 
