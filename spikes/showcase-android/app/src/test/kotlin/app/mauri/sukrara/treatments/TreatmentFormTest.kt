@@ -42,6 +42,21 @@ class TreatmentFormTest {
         for (i in 0 until fs.length()) fs.getJSONObject(i).let { assertEquals(it.getString("in"), it.getString("out"), TreatmentForm.filterAmount(it.getString("in"))) }
     }
 
+    @Test fun minutesAgo() {
+        val ms = fx.getJSONArray("minutes")
+        val now = 1_750_000_000L
+        for (i in 0 until ms.length()) {
+            val c = ms.getJSONObject(i)
+            val typed = c.getString("typed")
+            val m = TreatmentForm.agoMinutes(typed)
+            if (c.optBoolean("invalid")) { assertNull(typed, m); continue }
+            val got = TreatmentForm.agoTime(now, m!!)
+            if (c.isNull("ago_s")) assertNull(typed, got) else assertEquals(typed, c.getLong("ago_s"), now - got!!)
+        }
+        val fs = fx.getJSONArray("minute_filters")
+        for (i in 0 until fs.length()) fs.getJSONObject(i).let { assertEquals(it.getString("in"), it.getString("out"), TreatmentForm.filterMinutes(it.getString("in"))) }
+    }
+
     @Test fun timePicker() {
         val ts: JSONArray = fx.getJSONArray("times")
         for (i in 0 until ts.length()) {

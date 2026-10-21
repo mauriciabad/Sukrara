@@ -1,5 +1,5 @@
 {
- "about": "The Add treatment dialog's form → the SPEC §1 entries it saves (Android TreatmentForm.kt + TreatmentFormTest, Mac TreatmentForm in TreatmentDialog.swift + -treatmentsselftest). forms: the four fields as typed (after the input filter) → entries in save order [k, a, n]; [] = nothing to save; null = an invalid amount (Save disabled, the limits line shows). filters: what the amount fields keep of a typed text. times: the time picker on a fixed day (2026-06-15, local zone) at now → the picked time; ago_s = now − entry time in seconds, null = now (within the current minute); a time later than now is yesterday.",
+ "about": "The Add treatment dialog's form → the SPEC §1 entries it saves (Android TreatmentForm.kt + TreatmentFormTest, Mac TreatmentForm in TreatmentDialog.swift + -treatmentsselftest). forms: the four fields as typed (after the input filter) → entries in save order [k, a, n]; [] = nothing to save; null = an invalid amount (Save disabled, the limits line shows). filters: what the amount fields keep of a typed text. times: the time picker on a fixed day (2026-06-15, local zone) at now → the picked time; ago_s = now − entry time in seconds, null = now (within the current minute); a time later than now is yesterday. minutes: the picker's minutes-ago mode, the field as typed (after the minute filter) → ago_s = how long before the moment of saving the entries are, null = now; invalid = OK disabled (empty, or a day or more: the same under-a-day limit as the time picker). minute_filters: what the minutes field keeps.",
  "limits": {"units": 100, "grams": 500, "noteBytes": 100},
  "forms": [
   {"name": "all four at once", "rapid": "4.5", "long": "12", "carbs": "30", "note": "  Pizza ", "entries": [["rapid", 4.5, ""], ["long", 12, ""], ["carbs", 30, ""], ["note", 0, "Pizza"]]},
@@ -25,6 +25,22 @@
   {"in": "1,5 g", "out": "1,5"},
   {"in": "123456", "out": "12345"},
   {"in": "-3", "out": "3"}
+ ],
+ "minutes": [
+  {"typed": "16", "ago_s": 960},
+  {"typed": "1", "ago_s": 60},
+  {"typed": "0", "ago_s": null},
+  {"typed": "0016", "ago_s": 960},
+  {"typed": "60", "ago_s": 3600},
+  {"typed": "1439", "ago_s": 86340},
+  {"typed": "1440", "invalid": true},
+  {"typed": "", "invalid": true}
+ ],
+ "minute_filters": [
+  {"in": "16 min", "out": "16"},
+  {"in": "-5", "out": "5"},
+  {"in": "1.5", "out": "15"},
+  {"in": "12345", "out": "1234"}
  ],
  "times": [
   {"now": "14:30:20", "pick": "14:30", "ago_s": null},

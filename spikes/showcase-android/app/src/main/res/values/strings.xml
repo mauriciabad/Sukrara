@@ -616,6 +616,14 @@
     <string name="treatment_time_yesterday">Yesterday %1$s</string>
     <!-- Treatment time picker title [CHAR LIMIT=20] -->
     <string name="treatment_time_title">When?</string>
+    <!-- Treatment dialog time chip for a relative time, resolved when saving; %1$d = minutes [CHAR LIMIT=20] -->
+    <string name="treatment_time_ago">%1$d min ago</string>
+    <!-- Treatment time picker: segmented button for picking a clock time [CHAR LIMIT=15] -->
+    <string name="treatment_time_mode_time">Time</string>
+    <!-- Treatment time picker: segmented button for typing how many minutes ago [CHAR LIMIT=15] -->
+    <string name="treatment_time_mode_ago">Minutes ago</string>
+    <!-- Treatment time picker: one-tap minutes-ago chip; %1$d = minutes (a quarter of the dialog) [CHAR LIMIT=7] -->
+    <string name="treatment_time_ago_chip">%1$d min</string>
     <!-- Treatment dialog: rapid insulin pauses high alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
     <string name="treatment_quiet_highs">Highs quiet for %1$d min</string>
     <!-- Treatment dialog: carbs pause low alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
