@@ -2107,9 +2107,7 @@
     <string name="graph_column_crown" formatted="false">Crown at 100 %</string>
     <!-- Its summary [CHAR LIMIT=90] -->
     <string name="graph_column_crown_summary" formatted="false">When nothing was out of range</string>
-    <string name="graph_side">Time in range and distribution</string>
-    <!-- Switch summary [CHAR LIMIT=NONE] -->
-    <string name="graph_side_summary" formatted="false">Time below, in and above range</string>
+    <string name="graph_side">Time in range distribution</string>
     <!-- Beside the graph note [CHAR LIMIT=NONE] -->
     <string name="graph_side_note">The distribution covers the same time as the graph; the lines stop short of its dots. Each widget can turn it off on its own.</string>
     <!-- Graph settings: the row and page title for what each treatment kind shows on the chart [CHAR LIMIT=40] -->

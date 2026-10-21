@@ -1598,8 +1598,7 @@
     <string name="graph_column_crown" formatted="false">Corona al 100 %</string>
     <!-- Its summary [CHAR LIMIT=90] -->
     <string name="graph_column_crown_summary" formatted="false">Cuando nada estuvo fuera de rango</string>
-    <string name="graph_side">Tiempo en rango y distribución</string>
-    <string name="graph_side_summary" formatted="false">Tiempo por debajo, dentro y por encima del rango</string>
+    <string name="graph_side">Distribución del tiempo en rango</string>
     <string name="graph_side_note">La distribución cubre el mismo tiempo que la gráfica; las líneas se detienen antes de sus puntos. Cada widget puede desactivarla por su cuenta.</string>
     <string name="graph_marks_title">Tratamientos en la gráfica</string>
     <string name="graph_marks_summary_point">%1$s: solo el punto</string>

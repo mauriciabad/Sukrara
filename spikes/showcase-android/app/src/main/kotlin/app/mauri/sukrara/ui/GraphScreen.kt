@@ -238,8 +238,7 @@ fun GraphScreen(follower: Boolean, onBack: () -> Unit) {
                     set { it.copy(side = D.side, columnCrown = D.columnCrown) }
                 }
             }) {
-                switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_view_sidebar,
-                    summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
+                switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_bar_chart) { v -> set { it.copy(side = v) } }
                 switch(stringResource(R.string.graph_column_crown), g.columnCrown, icon = R.drawable.ic_sym_crown,
                     summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
             }
