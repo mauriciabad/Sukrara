@@ -112,7 +112,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
     SettingsPage(stringResource(R.string.settings_title), onBack) {
         SettingsSearchBar()
         val nav = LocalNav.current
-        LibreViewBanner(onSetUp = { nav?.open("libreview") })
+        SettingsHeader { ClinicUploadBanner { nav?.open(it) } }
         SettingsGroup {
             link(u.profile?.name?.ifBlank { null } ?: stringResource(R.string.home_add_your_name), stringResource(R.string.settings_profile_wearer),
                 leading = { AvatarImage(u.profile?.avatar, u.profile?.name ?: "", 40.dp) }, to = "profile")
@@ -174,19 +174,6 @@ private fun appsSummary(f: FeatureState, wearer: Boolean): String {
         stringResource(R.string.ns_upload_title).takeIf { wearer && nsUpload.on && nsUpload.configured },
         "xDrip+".takeIf { f.garmin }, "Nightscout".takeIf { f.nightscout },
     ).joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }
-}
-
-/** Uploading to LibreView matters (it's the doctor's record): ask until it's set up or the user says not now. */
-@Composable
-fun LibreViewBanner(onSetUp: () -> Unit, containerColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
-    val f by Features.state.collectAsState()
-    val lv by Treat.uploader.settings.collectAsState()
-    val ready = f.libreview && lv.email.isNotEmpty() && lv.hasPassword
-    Reveal(!ready && !f.libreviewBannerDismissed) {
-        SettingsBanner(R.drawable.ic_sym_cloud_upload, stringResource(R.string.libreview_banner_title),
-            stringResource(R.string.libreview_banner_text), stringResource(R.string.libreview_banner_action), onSetUp,
-            onDismiss = { set { it.copy(libreviewBannerDismissed = true) } }, containerColor = containerColor)
-    }
 }
 
 // ================================================================================================ glucose source

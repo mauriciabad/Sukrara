@@ -25,7 +25,7 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
 <p align="center">
-  <img src="docs/img/settings/home.png" alt="Sukrara home screen on Android: the glucose card with rings, graph and Add treatment, under reminders to set up LibreView and back up" width="200">
+  <img src="docs/img/settings/home.png" alt="Sukrara home screen on Android: the glucose card with rings, graph and Add treatment, under reminders to share with your clinic and back up" width="200">
   <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="200">
   <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="200">
   <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the LibreView reminder and sections with coloured icons" width="200">
@@ -114,7 +114,7 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
   so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
-  export / import / reset of the options, and a reminder to set up LibreView. Apps and services show their real icons,
+  export / import / reset of the options, and a reminder to share your data with your clinic (LibreView or Tidepool). Apps and services show their real icons,
   drawn like the system Settings app's list. Each alert has its own page
   (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
   [10](docs/10-showcase.md)
