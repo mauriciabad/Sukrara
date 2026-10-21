@@ -101,9 +101,6 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.scrollableArea
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.customActions
@@ -341,9 +338,9 @@ class ChartScroll(endS: Long? = null, spanS: Long? = null) {
  * the window's own (no jumps). Away from now the renderer's "Now" pill shows; a tap on it scrolls back.
  *
  * Pinch zoom on the time axis (the user, 2026-10-21): two fingers zoom the x axis only, anchored at their centroid so
- * the moment under the fingers stays put, and move it with their centroid (like Maps / Photos), the Compose multi-touch
- * guidance's `calculateZoom` / `calculateCentroid` / `calculatePan`
- * (developer.android.com/develop/ui/compose/touch-input/pointer-input/multi-touch). Those events are consumed, so the
+ * the moment under the fingers stays put, and move it with their centroid (like Maps / Photos): the Compose multi-touch
+ * guidance's centroid / spread / pan (developer.android.com/develop/ui/compose/touch-input/pointer-input/multi-touch),
+ * computed over the fingers down in both events so a finger landing or lifting never jumps. Those events are consumed, so the
  * scroll's drag and fling don't also run; one finger is the scroll's. The zoom is the panel's own: it starts at the
  * place's "time shown" every time home is shown, and the Now pill also returns to it.
  */
@@ -366,6 +363,7 @@ private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.s
         (scroll.by(delta * spp, firstState.value + span, latestNow.value) / spp).toFloat()
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val fling = androidx.compose.foundation.gestures.ScrollableDefaults.flingBehavior()
     val away by remember(scroll) { androidx.compose.runtime.derivedStateOf { scroll.away } }
     val pill = animateFloatAsState(if (away) 1f else 0f, Motion.defaultEffectsSpec(), label = "now pill")
     // The y range: the window's own, animated (critically damped at the spatial spring's stiffness: a scale that
@@ -409,25 +407,53 @@ private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.s
     }
     Canvas(Modifier.fillMaxWidth().height(PANEL_CHART_DP.dp).testTag("panel-chart")
         .scrollableArea(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
-        // two fingers: zoom the time axis at their centroid and move it with them (one finger is the scroll's)
+        // Two fingers: zoom the time axis at their centroid and move it with them (one finger is the scroll's). Only the
+        // fingers down in both the previous and this event count, so a finger landing or lifting never makes the centroid
+        // or the spread jump; once fewer than two remain the window's length is frozen. After a pinch the remaining finger
+        // pans the chart 1:1 (the scroll's own drag was cancelled when the pinch took the events) and, lifted, flings it
+        // with the scroll's fling (it pans, never zooms) (the user, 2026-10-21: "release only one finger, it suddenly
+        // changes the scale").
         .pointerInput(scroll) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false)
+                var pinched = false
+                val velocity = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                var lastUp: androidx.compose.ui.input.pointer.PointerInputChange? = null
                 do {
                     val ev = awaitPointerEvent()
-                    if (ev.changes.count { it.pressed } >= 2) {
-                        val span = scroll.span(default)
-                        val spp = span / laid.plotW.coerceAtLeast(1f).toDouble()
-                        val c = ev.calculateCentroid(useCurrent = true)
-                        val pan = ev.calculatePan()
-                        if (pan.x != 0f) scroll.by(-pan.x * spp, firstState.value + span, latestNow.value)
-                        val z = ev.calculateZoom()
-                        if (z != 1f && c != Offset.Unspecified)
-                            scroll.zoom(z.toDouble(), ((c.x - laid.plotLeft) / laid.plotW.coerceAtLeast(1f)).toDouble(), default,
+                    val held = ev.changes.filter { it.pressed && it.previousPressed }
+                    val span = scroll.span(default)
+                    val spp = span / laid.plotW.coerceAtLeast(1f).toDouble()
+                    if (held.size >= 2) {
+                        pinched = true
+                        // centroid and spread (mean distance to it) of the same fingers, now and in the previous event
+                        val c = held.fold(Offset.Zero) { acc, h -> acc + h.position } / held.size.toFloat()
+                        val p = held.fold(Offset.Zero) { acc, h -> acc + h.previousPosition } / held.size.toFloat()
+                        val sizeNow = held.sumOf { (it.position - c).getDistance().toDouble() }
+                        val sizeBefore = held.sumOf { (it.previousPosition - p).getDistance().toDouble() }
+                        val panX = c.x - p.x
+                        if (panX != 0f) scroll.by(-panX * spp, firstState.value + span, latestNow.value)
+                        if (sizeBefore > 0 && sizeNow > 0 && sizeNow != sizeBefore)
+                            scroll.zoom(sizeNow / sizeBefore, ((c.x - laid.plotLeft) / laid.plotW.coerceAtLeast(1f)).toDouble(), default,
                                 firstState.value, latestNow.value)
+                        velocity.resetTracking()
+                    } else if (pinched && held.size == 1) {
+                        // the finger left after a pinch: a plain scroll from where the chart is
+                        val f = held[0]
+                        val dx = f.position.x - f.previousPosition.x
+                        if (dx != 0f) scroll.by(-dx * spp, firstState.value + span, latestNow.value)
+                        velocity.addPosition(f.uptimeMillis, f.position)
+                    }
+                    if (pinched) {
                         ev.changes.forEach { it.consume() }
+                        ev.changes.firstOrNull { !it.pressed && it.previousPressed }?.let { lastUp = it }
                     }
                 } while (ev.changes.any { it.pressed })
+                // all fingers up after a pinch: the scroll's own fling from the last finger's speed (a pan only)
+                if (pinched && lastUp != null) {
+                    val vx = velocity.calculateVelocity().x
+                    if (vx != 0f) scope.launch { state.scroll { with(fling) { performFling(-vx) } } }
+                }
             }
         }
         .pointerInput(scroll) {

@@ -45,6 +45,7 @@
    {"scene": "swing", "back": 0, "expect": {"chart": "12h", "chart.pct": "0/96/4", "chart.y": "48-258", "chart.window": "", "chart.markers": "1"}},
    {"scene": "swing", "back": 86400, "expect": {"chart": "12h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-1440m", "chart.markers": "1"}},
    {"scene": "live", "back": 0, "span": 10800, "expect": {"chart": "3h", "chart.pct": "0/83/17", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
+   {"scene": "live", "back": 0, "span": 172800, "expect": {"chart": "48h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
    {"scene": "swing", "back": 43200, "span": 86400, "expect": {"chart": "24h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-720m", "chart.markers": "1"}}
   ]
  }

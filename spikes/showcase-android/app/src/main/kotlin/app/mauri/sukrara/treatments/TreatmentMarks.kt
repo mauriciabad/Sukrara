@@ -45,6 +45,8 @@ class MarkShow private constructor(private val on: Map<String, Set<String>>) {
     fun any(k: String) = on[k]?.isNotEmpty() == true
     /** A label part (amount or time) of [k] shows. */
     fun label(k: String) = has(k, AMOUNT) || has(k, TIME)
+    /** The same without any label (a chart too long for them: GlucoseGraph.LABELS_MAX_S). */
+    fun withoutLabels(): MarkShow = KINDS.fold(this) { m, k -> m.with(k, AMOUNT, false).with(k, TIME, false) }
     fun with(k: String, part: String, v: Boolean) = of(on + (k to (on[k].orEmpty().let { if (v) it + part else it - part })))
     /** "rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point" (the stored and wire form). */
     val text: String get() = KINDS.joinToString(",") { k -> "$k:" + parts(k).filter { has(k, it) }.joinToString("+") }

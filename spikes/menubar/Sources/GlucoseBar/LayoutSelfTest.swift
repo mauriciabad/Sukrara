@@ -362,6 +362,14 @@ enum LayoutSelfTest {
                 if info(scrolled, "chart.y") != want { fail("scroll \(name): y range \(info(scrolled, "chart.y")), want \(want)") }
                 let window = back > 0 ? "\(Int((from - now) / 60))m..\(Int((end - now) / 60))m" : ""
                 if info(scrolled, "chart.window") != window { fail("scroll \(name): window \"\(info(scrolled, "chart.window"))\", want \"\(window)\"") }
+                // treatment labels only up to rules.json "treatmentLabels" maxHours
+                let maxLabel = num((json("layout/rules.json")?["treatmentLabels"] as? [String: Any])?["maxHours"]) * 3600
+                if GlucoseGraph.labelsMaxS != maxLabel { fail("labels: GlucoseGraph.labelsMaxS \(GlucoseGraph.labelsMaxS), rules.json \(maxLabel)") }
+                let labelled = !scrolled.all("chart.label").isEmpty
+                if w > maxLabel && labelled { fail("scroll \(name): a \(Int(w / 3600)) h window draws treatment labels") }
+                if w <= maxLabel && !labelled && sc.marks.contains(where: { $0.k != "note" && $0.t >= from && $0.t <= end && cfg.marks.label($0.k) }) {
+                    fail("scroll \(name): a \(Int(w / 3600)) h window with treatments draws no labels")
+                }
                 let away = back > 0 || zs != nil
                 if (scrolled.first("chart.now") != nil) != away { fail("scroll \(name): the Now pill \(away ? "is missing" : "shows at now")") }
                 for (k, v) in c["expect"] as? [String: String] ?? [:] {

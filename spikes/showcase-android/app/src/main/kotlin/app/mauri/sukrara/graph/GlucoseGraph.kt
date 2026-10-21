@@ -132,7 +132,9 @@ object GlucoseGraph {
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         // Only the parts the settings show ([GraphStyle.marks]): an entry with nothing shown is left out, and the
         // marker lane is there only when a point or a mute line is drawn in it.
-        val show = st.marks
+        // A window longer than [LABELS_MAX_S] (zoomed far out, a long widget) shows no treatment labels: they would be
+        // meaningless crowds (the user, 2026-10-21); points and mute lines follow the settings as always.
+        val show = if (st.windowS > LABELS_MAX_S) st.marks.withoutLabels() else st.marks
         val muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } }
         val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end && show.any(it.k) &&
             (show.has(it.k, MarkShow.POINT) || show.label(it.k) && TreatmentMarks.amount(it) != null ||
@@ -185,12 +187,15 @@ object GlucoseGraph {
         val pctCol = left - area.left
         fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
         val layout = g.layout
-        val lane1 = g.lane1
         val top = g.top
-        val bottom = g.bottom
-        // A scrolling surface eases the plot's bottom (the treatment lane comes and goes with the marks in the window)
-        // instead of letting the plot jump: [ChartView.plotInset] is the distance from the area's bottom it draws at.
+        // A scrolling surface eases the plot's bottom (the treatment lane and the second label row come and go with the
+        // marks in the window and the zoom) instead of letting the plot jump: [ChartView.plotInset] is the distance from
+        // the area's bottom it draws at; the marker lane and the label rows follow it.
         val plotBottom = view?.plotInset?.let { (area.bottom - it).coerceIn(top + 20 * d, area.bottom) } ?: g.plotBottom
+        val eased = view?.plotInset != null
+        val lane1 = if (!eased) g.lane1 else
+            (area.bottom - (if (g.textRow) 14 * d else 0f) - (if (lane) 12 * d else 0f) - plotBottom).coerceIn(0f, TreatmentMarks.LANE_DP * d)
+        val bottom = if (!eased) g.bottom else if (lane) plotBottom + 12 * d else plotBottom
         val values = if (plotBottom == g.plotBottom) g.values else axisValues(top, plotBottom)
         rec.add("chart", area, "${st.windowS / 3600}h", exact = true)
         if (end < nowS) rec.add("chart.window", info = "${(from - nowS) / 60}m..${(end - nowS) / 60}m", exact = true)
@@ -415,6 +420,9 @@ object GlucoseGraph {
         }
         cv.restoreToCount(chartLayer)
     }
+
+    /** The longest window (s) whose treatment marks get labels (layout/rules.json "treatmentLabels"; Mac `labelsMaxS`). */
+    const val LABELS_MAX_S = 24 * 3600L
 
     /** Readings per dp of plot from which the line is drawn as columns (Mac `densePerDp`). */
     const val DENSE_PER_DP = 6f
