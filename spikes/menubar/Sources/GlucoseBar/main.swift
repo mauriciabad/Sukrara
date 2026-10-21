@@ -190,10 +190,7 @@ let readingsStore = MainActor.assumeIsolated {
 }
 let widgetFeed = MainActor.assumeIsolated { WidgetFeed(readings: readingsStore) }     // desktop widgets (WidgetFeed.swift)
 MainActor.assumeIsolated {
-    status.history = {
-        let w = TimeInterval(status.graph.hours * 3600) + 120
-        return readingsStore.since((readingsStore.readings.last?.t ?? 0) - w)
-    }
+    status.history = { StatusController.cardReadings(readingsStore, graph: status.graph) }
     status.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
     widgetFeed.alerts = { alerts.settings }

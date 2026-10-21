@@ -178,6 +178,7 @@ enum GraphFixtures {
             + freshness(dir.appendingPathComponent("freshness/freshness.json"))
             + mark(dir.appendingPathComponent("mark")) + place(dir.appendingPathComponent("place/place.json"))
             + MainActor.assumeIsolated { LayoutSelfTest.run(dir) }
+            + MainActor.assumeIsolated { ScrollSelfTest.run() }
     }
 
     /// The freshness steps (spikes/graph-fixtures/freshness/freshness.json, the file Android's FreshnessFixtureTest

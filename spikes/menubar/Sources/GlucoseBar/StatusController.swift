@@ -247,6 +247,11 @@ extension Bands {
         panelModel.tick += 1
     }
 
+    /// The readings the dropdown's card draws from (`history`; also the scroll self-test's): the store's whole history,
+    /// so the chart can scroll back through it (only the shown window's readings left nothing to scroll to: "it only
+    /// scrolls 1px or so", 2026-10-21). The renderer cuts the window by binary search, so this costs no frame time.
+    static func cardReadings(_ store: ReadingsStore, graph: GraphConfig) -> [GraphReading] { store.readings }
+
     /// The dropdown card's style (the menubar place's settings), also the layout self-test's.
     static func dropdownStyle(_ graph: GraphConfig, sensor: SensorInfo?) -> CardStyle {
         var st = graph.cardStyle(graph: graph.graphStyle())
@@ -375,8 +380,9 @@ final class CardView: NSView {
     /// What the last drawing laid out: the plot (points per second) and the Now pill (clicks).
     private var plot: CGRect?
     private var nowBox: CGRect?
-    /// The axis a trackpad gesture started on: a mostly vertical one isn't ours.
-    private var horizontalGesture = true
+    /// The axis of the current trackpad gesture, decided by its first movement (nil = not yet): a mostly vertical one
+    /// isn't ours. The began event itself often carries no or a little vertical motion, so it doesn't decide.
+    private var horizontalGesture: Bool?
 
     private var nowT: TimeInterval { (now ?? Date()).timeIntervalSince1970 }
     private var span: TimeInterval { style.graph?.window ?? 12 * 3600 }
@@ -391,11 +397,14 @@ final class CardView: NSView {
 
     override func scrollWheel(with e: NSEvent) {
         guard style.graph != nil, let plot, plot.width > 0 else { return super.scrollWheel(with: e) }
-        if e.phase == .began { horizontalGesture = abs(e.scrollingDeltaX) >= abs(e.scrollingDeltaY) }
+        if e.phase == .began || e.phase == .mayBegin { horizontalGesture = nil }
+        if horizontalGesture == nil, e.phase != .began, e.scrollingDeltaX != 0 || e.scrollingDeltaY != 0 {
+            horizontalGesture = abs(e.scrollingDeltaX) >= abs(e.scrollingDeltaY)
+        }
         let px: CGFloat
         if e.hasPreciseScrollingDeltas {
             // a trackpad (or Magic Mouse): only a horizontal gesture, its fling included
-            guard horizontalGesture, e.scrollingDeltaX != 0 else { return super.scrollWheel(with: e) }
+            guard horizontalGesture == true, e.scrollingDeltaX != 0 else { return super.scrollWheel(with: e) }
             px = e.scrollingDeltaX
         } else {
             // a wheel: lines; a vertical wheel scrolls the chart like a horizontal-only NSScrollView does
