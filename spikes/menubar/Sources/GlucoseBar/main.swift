@@ -494,6 +494,9 @@ MainActor.assumeIsolated {
     status.treatments = { treatments.rows }
     status.alertSettings = { alerts.settings }
     status.alertPaused = { alerts.paused }
+    // the ways out of a quiet alert (the panel's rows, the pill's menu): this Mac only
+    status.alertActive = { alerts.active }
+    status.onQuiet = { op in alerts.perform(op) }
     // muted from an alert notification (here or on the wearer's phone): the badge on the card and the widgets
     alerts.onPausedChange = {
         status.alertsChanged()

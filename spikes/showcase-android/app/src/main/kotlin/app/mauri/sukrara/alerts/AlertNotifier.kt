@@ -127,9 +127,10 @@ object AlertNotifier {
      * "Add action buttons": "up to three action buttons that let the user respond quickly, such as to snooze a
      * reminder"), each a broadcast to [AlertActionReceiver] so nothing opens: *Mute [muteMin] min* and *Mute for…*
      * (a direct reply, "Add a direct reply action": text entered in the notification, delivered without opening an
-     * activity) when [mute] (never very low or extremely high), *Slow to [slowMin] min* when non-null.
+     * activity) when [mute] (never very low or extremely high), *Slow to [slowMin] min* when non-null, *Stop slowing
+     * down* in its place when [unslow] (the episode is slowed: the way back, SPEC §2 "States and exits").
      */
-    data class Actions(val mute: Boolean, val muteMin: Int, val slowMin: Int?)
+    data class Actions(val mute: Boolean, val muteMin: Int, val slowMin: Int?, val unslow: Boolean = false)
 
     private fun action(ctx: Context, kind: String, what: String, code: Int, mutable: Boolean = false, min: Int = 0) =
         PendingIntent.getBroadcast(ctx, 200 + notificationId(kind) * 4 + code,
@@ -141,20 +142,27 @@ object AlertNotifier {
             action(ctx, kind, AlertActionReceiver.MUTE, 0, min = a.muteMin)).build())
         a.slowMin?.let { m -> addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_slow, m),
             action(ctx, kind, AlertActionReceiver.SLOW, 1)).build()) }
-        // the reply's PendingIntent must be mutable: the system adds the typed text to it
-        if (a.mute) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_mute_for),
-            action(ctx, kind, AlertActionReceiver.MUTE_FOR, 2, mutable = true))
+        if (a.unslow) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_unslow),
+            action(ctx, kind, AlertActionReceiver.UNSLOW, 1)).build())
+        if (a.mute) muteFor(ctx, kind, ctx.getString(R.string.alert_action_mute_for), muteChoices(a.muteMin))
+        return this
+    }
+
+    /**
+     * *Mute for…* (or *Change…* on the muted notification): a direct reply with the minutes, the other durations as
+     * one-tap choices. The reply's PendingIntent must be mutable: the system adds the typed text to it.
+     */
+    private fun Notification.Builder.muteFor(ctx: Context, kind: String, title: String, choices: List<Int>) =
+        addAction(Notification.Action.Builder(null, title, action(ctx, kind, AlertActionReceiver.MUTE_FOR, 2, mutable = true))
             .addRemoteInput(RemoteInput.Builder(AlertActionReceiver.TYPED).setLabel(ctx.getString(R.string.alert_action_mute_for_label))
                 // RemoteInput can't ask for a number pad (no input type in RemoteInput.Builder, API 37 SDK: only setChoices,
                 // setAllowFreeFormInput, setAllowDataType, setEditChoicesBeforeSending, setLabel). So the common durations
                 // come as choices, which SystemUI shows as one-tap reply chips (sent at once), and typed minutes still work.
-                .setChoices(muteChoices(a.muteMin).map { ctx.getString(R.string.alerts_minutes, it) }.toTypedArray())
+                .setChoices(choices.map { ctx.getString(R.string.alerts_minutes, it) }.toTypedArray())
                 .setAllowFreeFormInput(true)
                 .setEditChoicesBeforeSending(RemoteInput.EDIT_CHOICES_BEFORE_SENDING_DISABLED)
                 .build())
             .build())
-        return this
-    }
 
     /** *Mute for…*'s one-tap durations: the Mute presets other than the button's own minutes. */
     fun muteChoices(buttonMin: Int): List<Int> = AlertSettings.MUTE_PRESETS.filter { it != buttonMin }
@@ -201,6 +209,12 @@ object AlertNotifier {
      * the text, you must update the notification … to hide the direct reply UI and confirm to the user that their reply
      * is received and processed"); cancelling instead left SystemUI's copy with the typed minutes and the Mute buttons
      * in the shade (validation 21), while the plain Mute's notification went away.
+     *
+     * Its two buttons are the ways out (round f29; user, 2026-10-21: "There's no way to unmute!"): *Unmute* (alerts at
+     * once if still out of range) and *Change…* (new minutes from now, the same direct reply as *Mute for…*). The
+     * Material snackbar / Android notification guidance pairs an action that silences something with an immediate
+     * undo (m3.material.io/components/snackbar/guidelines: "Snackbars can offer a single action … such as Undo";
+     * developer.android.com/develop/ui/views/notifications: actions "let the user respond quickly").
      */
     fun postMuted(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean,
                   until: Long, now: Long) {
@@ -210,6 +224,9 @@ object AlertNotifier {
                 app.mauri.sukrara.graph.Freshness.timeText(until, now)))
             .setOnlyAlertOnce(true)
             .setTimeoutAfter(((until - now) * 1000).coerceAtLeast(1_000))
+            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_unmute),
+                action(ctx, kind, AlertActionReceiver.UNMUTE, 3)).build())
+            .muteFor(ctx, kind, ctx.getString(R.string.alert_action_change), AlertSettings.MUTE_PRESETS)
             .build()
         runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), n) }
     }

@@ -12,6 +12,8 @@ import SwiftUI
     @Published var s: AlertSettings { didSet { if s != oldValue { alerts.update(s); eff = alerts.settings; refreshState() } } }
     @Published private(set) var eff: AlertSettings
     @Published private(set) var state = ""
+    /// Active now: the quiet alerts on this Mac with their ways out (round f29).
+    @Published private(set) var quiet: [Alerts.Active] = []
     @Published private(set) var following = false
 
     init(alerts: Alerts) {
@@ -24,8 +26,11 @@ import SwiftUI
 
     func reload() { s = alerts.own; eff = alerts.settings; refreshState() }
 
+    func perform(_ op: QuietOp) { alerts.perform(op); refreshState() }
+
     func refreshState() {
         state = alerts.stateLine
+        quiet = alerts.active
         following = alerts.followingV2()
     }
 
@@ -79,6 +84,26 @@ struct AlertsView: View {
 
     var body: some View {
         Form {
+            if !model.quiet.isEmpty {
+                // Active now (round f29): every muted / quiet / slowed alert on this Mac with its ways out, reachable
+                // without the notification
+                Section("Active now") {
+                    ForEach(model.quiet, id: \.kind) { q in
+                        LabeledContent(q.title) {
+                            HStack {
+                                if let l = q.lift { Button(l) { model.perform(.unmute(q.kind)) } }
+                                if q.slowMin > 0 { Button("Stop Slowing Down") { model.perform(.unslow(q.kind)) } }
+                                if q.canMute {
+                                    Menu(q.quiet == .notification ? "Change To" : "Mute For") {
+                                        ForEach(quietMinutes, id: \.self) { m in Button("\(m) min") { model.perform(.mute(q.kind, m)) } }
+                                    }
+                                    .fixedSize()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Section {
                 Toggle("Glucose alerts", isOn: $model.s.on)
                 LabeledContent("Now") { Text(model.state).multilineTextAlignment(.trailing) }

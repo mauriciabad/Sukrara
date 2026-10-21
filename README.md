@@ -167,7 +167,10 @@ by the app's icon code.</sub>
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
   A short dip back into range doesn't restart the alert. Extremely high is never muted. From the notification: mute
   the alert for 30 min (or 15 min to 2 h, or minutes you type) or slow its reminders to every 30 min, both until it's back in range
-  (very low and extremely high can only be slowed); a mute only quiets the device you tap it on, so the Mac and followers keep alerting. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  (very low and extremely high can only be slowed); a mute only quiets the device you tap it on, so the Mac and followers keep alerting.
+  Every quiet alert has a way back: *Unmute* or *Change…* on the muted notification, a tap on the "30m left" pill
+  (or the Mac panel's rows), and Settings › Alerts › *Active now* (Unmute, change the time, stop slowing down, or
+  *Alert me anyway* after carbs or insulin, on that device only). Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
   Android's app settings.
