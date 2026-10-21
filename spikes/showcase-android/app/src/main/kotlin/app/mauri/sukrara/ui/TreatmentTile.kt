@@ -27,22 +27,30 @@ class TreatmentTileService : TileService() {
         val r = WidgetUpdater.current(this).history.lastOrNull()
         tile.state = if (QuickEntry.canAdd(this)) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
         val now = System.currentTimeMillis() / 1000
-        val ended = app.mauri.sukrara.core.SensorLife.current.value?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, now) } == true
-        tile.subtitle = subtitle(Freshness.look(r?.sgv, r?.t, r?.rate, now, ended), r?.rate) { state ->
-            if (state == GlucoseLook.State.ENDED) getString(R.string.card_sensor_ended)
-            else getString(R.string.notif_no_reading_since, Freshness.timeText(r!!.t, now))
+        val look = look(r, now)
+        tile.subtitle = subtitle(look, r?.rate) { state ->
+            when (state) {
+                GlucoseLook.State.ENDED -> getString(R.string.card_sensor_ended)
+                GlucoseLook.State.WARMING_UP -> getString(R.string.card_warming_up)
+                else -> getString(R.string.notif_no_reading_since, Freshness.timeText(r!!.t, now))
+            }
         }
         tile.updateTile()
     }
 
     companion object {
+        /** The tile's value decision for [r] (its one, also the tests'): the card's, with the sensor's state. */
+        fun look(r: app.mauri.sukrara.core.Reading?, now: Long) = app.mauri.sukrara.graph.GlucoseCard.face(r, now,
+            app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t),
+            app.mauri.sukrara.graph.CardSurface.QUICK_TILE)
+
         /**
-         * The tile's plain-text line for a [look] ([Freshness.look]): `123 ↗`, struck from 5 min (`1̶2̶3̶ ○`, a tile
+         * The tile's plain-text line for a [look] ([GlucoseCard.face]): `123 ↗`, struck from 5 min (`1̶2̶3̶ ○`, a tile
          * can't draw a line), "No reading since 00:32" from 20 min and "Sensor ended" ([words]), nothing without a reading.
          */
         fun subtitle(look: GlucoseLook, rate: Double?, words: (GlucoseLook.State) -> String): String? = when (look.state) {
             GlucoseLook.State.VALUE -> "${look.plain} ${if (look.trend == TrendMark.ARROW) Trend.arrow(rate) else TrendMark.RING}"
-            GlucoseLook.State.NO_READINGS, GlucoseLook.State.ENDED -> words(look.state)
+            GlucoseLook.State.NO_READINGS, GlucoseLook.State.ENDED, GlucoseLook.State.WARMING_UP -> words(look.state)
             GlucoseLook.State.NONE -> null
         }
     }

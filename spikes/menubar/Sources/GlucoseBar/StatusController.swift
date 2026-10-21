@@ -165,9 +165,9 @@ extension Bands {
         let nowT = Date().timeIntervalSince1970
         let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970)
         let rate = snap.rate
-        // the freshness steps (the user, 2026-10-21): the one look every surface shares (Freshness.look)
-        let look = Freshness.look(sgv: Int(snap.latest.mgdl.rounded()), t: snap.latest.date.timeIntervalSince1970, rate: rate,
-                                  now: nowT, ended: sl?.ended == true, format: { self.unit.format(Double($0)) })
+        // what shows is the card's own decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
+        // then the freshness steps
+        let look = Self.titleFace(snap.latest, rate: rate, now: nowT, sensor: SensorStore.current, format: { self.unit.format(Double($0)) })
         let title = MenubarTitle.of(look)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
         endTimer?.invalidate()
@@ -206,7 +206,7 @@ extension Bands {
                 // as soon as it has ended (not an error): the checkered flag instead of a value (above); the panel has the pill
                 button.toolTip = "Sensor ended — replace sensor"
                 button.setAccessibilityLabel("Sensor ended — replace sensor")
-            } else if look.state != .value, let w = sl.warmup {
+            } else if look.state == .warmingUp, let w = look.warmup {
                 button.image = nil
                 button.imagePosition = .imageTrailing
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
@@ -226,18 +226,31 @@ extension Bands {
             }
         }
 
-        var g = graph.graphStyle()
-        g.hour24 = GraphStyle.systemHour24
         var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         panelModel.hasData = true
-        var st = graph.cardStyle(graph: g)
-        st.sensor = SensorStore.current
-        panelModel.style = st
+        panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
         panelModel.readings = pts
         panelModel.tick += 1
+    }
+
+    /// The dropdown card's style (the menubar place's settings), also the layout self-test's.
+    static func dropdownStyle(_ graph: GraphConfig, sensor: SensorInfo?) -> CardStyle {
+        var g = graph.graphStyle()
+        g.hour24 = GraphStyle.systemHour24
+        var st = graph.cardStyle(graph: g)
+        st.sensor = sensor
+        return st
+    }
+
+    /// The status item's value decision (its one, also the self-tests'): the card's face for `latest` (GlucoseCard.face),
+    /// written in the user's unit (`format`).
+    static func titleFace(_ latest: Reading, rate: Double?, now: TimeInterval, sensor: SensorInfo?,
+                          format: @escaping (Int) -> String = { "\($0)" }) -> GlucoseLook {
+        let r = GraphReading(t: latest.date.timeIntervalSince1970, v: latest.mgdl, rate: rate)
+        return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle, format: format)
     }
 
     private func marks() -> [GraphMark] {
@@ -316,7 +329,7 @@ enum MacSurface {
 final class CardView: NSView {
     var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
-    var style = CardStyle()
+    var style = CardStyle(sensorTime: true)
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
@@ -336,9 +349,15 @@ final class CardView: NSView {
                        height: bounds.height - inset.top - inset.bottom)
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
-        GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, metricsOf: metricsOf, alerts: alerts, paused: paused)
+        paint(ctx, size: r.size, pal)
         ctx.restoreGState()
+    }
+
+    /// The dropdown's card (its one drawing entry, also the layout self-test's): the whole card at `size`.
+    @discardableResult
+    func paint(_ ctx: CGContext, size: CGSize, _ pal: GraphPalette) -> CardLayout {
+        GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
+                         style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused)
     }
 
     override func viewDidChangeEffectiveAppearance() { needsDisplay = true }
@@ -365,6 +384,8 @@ struct MenubarTitle: Equatable {
         case .noReadings: return MenubarTitle(text: "", strike: false, grey: false, image: .noReadings, label: "Glucose: no recent reading")
         case .ended: return MenubarTitle(text: "", strike: false, grey: false, image: .flag, label: "Sensor ended — replace sensor")
         case .none: return MenubarTitle(text: "–", strike: false, grey: false, image: .none, label: "Sukrara: no glucose data")
+        // a new sensor warming up: its time left where the number goes (render writes it in the secondary colour)
+        case .warmingUp: return MenubarTitle(text: look.warmup ?? "", strike: false, grey: true, image: .none, label: "Sensor warming up")
         }
     }
 }

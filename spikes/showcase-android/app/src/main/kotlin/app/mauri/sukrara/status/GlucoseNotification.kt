@@ -29,14 +29,16 @@ import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.QuickTreatmentActivity
+import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
+import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
-import app.mauri.sukrara.graph.Slots
 import app.mauri.sukrara.graph.appSlots
 import app.mauri.sukrara.graph.systemPalette
 import androidx.core.graphics.createBitmap
@@ -53,7 +55,7 @@ import kotlin.math.min
  *    MetricStyle hides the large icon → the card is MetricStyle (big value coloured by range, trend, live age), no graph.
  *  - chip off (or Live Updates revoked / unavailable) → a colorized foreground-service card with our own layout:
  *    big value, arrow, the slots beside the value (the home widgets' time-in-range rings / report numbers / last
- *    treatment, [GraphConfig.slots]) and the graph; the small icon is the number itself ([iconBitmap], `icon`).
+ *    treatment, [GraphConfig.slots]) and the graph; the small icon is the number itself ([ValueGlyphs.icon], `icon`).
  *    Android 12+ puts custom content right of the icon column and clips it there (a −52 dp margin was cut off on
  *    the emulator), so the card can't draw under the icon: it fills its column instead (slots on the value's row, the
  *    graph at the column's full width, the follower line in the header).
@@ -111,7 +113,8 @@ object GlucoseNotification {
         chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
     )
 
-    fun build(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String): Notification {
+    fun build(c: Context, r: Reading?, chip: Boolean, icon: Boolean, detail: String,
+              now: Long = System.currentTimeMillis() / 1000): Notification {
         // a tap (card or Live Update chip) opens the quick treatment dialog over any app; it opens the app itself when
         // this phone can't add entries
         val open = PendingIntent.getActivity(c, 0, Intent(c, QuickTreatmentActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
@@ -121,14 +124,13 @@ object GlucoseNotification {
             .setContentIntent(open)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .setCategory(Notification.CATEGORY_STATUS)
-        val now = System.currentTimeMillis() / 1000
         // round sensor-life: an ended or warming-up sensor says so instead of "waiting" / "No reading since"
         val sensor = app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t)
-        // the freshness steps (the user, 2026-10-21): the one look every surface shares
-        val look = Freshness.look(r?.sgv, r?.t, r?.rate, now, ended = sensor?.ended == true)
+        // what shows where the value goes: the card's own decision (freshness steps, warm-up, ended), as on every surface
+        val look = GlucoseCard.face(r, now, sensor, CardSurface.NOTIFICATION_TEXT)
         val fresh = look.fresh
         // ended: as soon as it has ended (not an error, and no value to show any more); warming: while no value shows
-        sensor?.takeIf { it.ended }?.let {
+        sensor?.takeIf { look.state == GlucoseLook.State.ENDED }?.let {
             // "Sensor ended" + the "Replace sensor" action (the card's pill) for the phone that wears it
             b.setSmallIcon(R.drawable.ic_stat_sensor_ended).setContentTitle(c.getString(R.string.card_sensor_ended))
             if (detail.isNotEmpty()) b.setContentText(detail)
@@ -138,7 +140,7 @@ object GlucoseNotification {
             }
             return b.build()
         }
-        if (look.state != GlucoseLook.State.VALUE) sensor?.takeIf { it.warmup != null }?.let { sl ->
+        sensor?.takeIf { look.state == GlucoseLook.State.WARMING_UP }?.let { sl ->
             return b.setSmallIcon(R.drawable.ic_stat_sukrara)
                 .setContentTitle(if (sl.waiting(now)) c.getString(R.string.card_almost_ready)
                     else c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now)))
@@ -167,7 +169,7 @@ object GlucoseNotification {
                 b.setRequestPromotedOngoing(true).setShortCriticalText(look.plain)
             }.isSuccess
         if (live) {
-            b.setSmallIcon(Icon.createWithBitmap(arrowIcon(if (look.trend == TrendMark.ARROW) r.rate else null)))
+            b.setSmallIcon(Icon.createWithBitmap(ValueGlyphs.trendIcon(if (look.trend == TrendMark.ARROW) r.rate else null)))
             if (Build.VERSION.SDK_INT >= 37) {
                 // The expanded promoted card uses the title as its header line (no app name), so it's not the value.
                 b.setContentTitle(Trend.word(r.rate).replaceFirstChar { it.uppercase() } + " · " + detail)
@@ -183,7 +185,7 @@ object GlucoseNotification {
                             appSlots(c, RecentHistory.readings(c), app.mauri.sukrara.treatments.TreatmentFeed.items.value, now,
                                 if (fresh.showTime) 1 else 2)
                         }.getOrDefault(emptyList())
-                        for (item in items) metric(item, now)?.let { (v, label) ->
+                        for (item in items) app.mauri.sukrara.graph.Slots.text(item, now)?.let { (v, label) ->
                             addMetric(Notification.Metric(Notification.Metric.FixedText(v), label))
                         }
                         if (fresh.showTime) addMetric(Notification.Metric(Notification.Metric.FixedText(
@@ -198,7 +200,7 @@ object GlucoseNotification {
             // struck through (5–20 min): grey instead of the range colour
             val bg = if (stale) STALE_BG else Range.color(r.sgv) ?: 0xFF1BB5C9.toInt()
             val art = art(c, r)
-            b.setSmallIcon(if (icon) Icon.createWithBitmap(iconBitmap(look, r.rate)) else Icon.createWithResource(c, smallIcon(look)))
+            b.setSmallIcon(if (icon) Icon.createWithBitmap(ValueGlyphs.icon(look, r.rate)) else Icon.createWithResource(c, smallIcon(look)))
                 .setColorized(true).setColor(bg)
                 .setShowWhen(false)   // the age is in the card; the header keeps only the icon and app name (system-drawn)
                 // expanded: the follower line goes in the header beside "Sukrara" instead of a row of its own
@@ -222,10 +224,11 @@ object GlucoseNotification {
         return RemoteViews(c.packageName, layout).apply {
             val value = look.text!!
             val sp = if (layout == R.layout.notif_glucose_expanded) 44f else 30f
-            setImageViewBitmap(R.id.value, valueBitmap(value, fg,
+            setImageViewBitmap(R.id.value, ValueGlyphs.number(value, fg,
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, c.resources.displayMetrics), look.strike))
             setContentDescription(R.id.value, if (look.strike) c.getString(R.string.notif_value_old, value) else value)
-            setImageViewBitmap(R.id.arrow, arrowBitmap(if (look.trend == TrendMark.ARROW) r.rate else null, fg, (34 * c.resources.displayMetrics.density).toInt()))
+            setImageViewBitmap(R.id.arrow, ValueGlyphs.trendIcon(if (look.trend == TrendMark.ARROW) r.rate else null,
+                (34 * c.resources.displayMetrics.density).toInt(), fg))
             setTextViewText(R.id.info, info)
             setTextColor(R.id.info, fg)
             if (slots != null) setImageViewBitmap(R.id.slots, slots)
@@ -236,7 +239,7 @@ object GlucoseNotification {
     // ============================================================================================ art (chip off)
 
     /** The custom card's pictures: the graph panel and the slot discs (null = no slots to show). */
-    private class Art(val graph: Bitmap?, val slots: Bitmap?)
+    internal class Art(val graph: Bitmap?, val slots: Bitmap?)
 
     private var artCache: Art? = null
     private var artKey = ""
@@ -259,9 +262,7 @@ object GlucoseNotification {
         if (old != null && (key == artKey || !c.getSystemService(PowerManager::class.java).isInteractive)) return@runCatching old
         val dm = c.resources.displayMetrics
         val gc = if (dm.density <= 2f) c else c.createConfigurationContext(Configuration(c.resources.configuration).apply { densityDpi = 320 })
-        val d = gc.resources.displayMetrics.density
         val dark = night == Configuration.UI_MODE_NIGHT_YES
-        val pal = systemPalette(gc, dark)
         val surface = c.getColor(if (dark) android.R.color.system_surface_container_high_dark
             else android.R.color.system_surface_container_high_light)
         val history = RecentHistory.readings(c).let { h0 ->
@@ -270,17 +271,37 @@ object GlucoseNotification {
         // The content column: the shade's 16 dp sides, the icon column (72 dp in Android 17's notification templates,
         // 52 dp before) and the 16 dp end margin.
         val wDp = min(dm.widthPixels, dm.heightPixels) / dm.density - 32f - (if (Build.VERSION.SDK_INT >= 37) 72f else 52f) - 16f
+        paintArt(gc, dark, surface, history, treatments, now, wDp, r, textMetrics = dm)
+            .also { artCache = it; artKey = key }   // the previous ones may still be parcelled: the GC takes them
+    }.onFailure { Log.w("Sukrara.notif", "art: $it") }.getOrNull()
+
+    /**
+     * The custom card's two card parts (the notification's one drawing entry, also the tests'): the graph
+     * ([CardPart.GRAPH], window = the notification's setting) on a rounded [surface], and the slots ([CardPart.SLOTS]) as
+     * discs of the same surface, so both read on any range colour; one whole-card style for both. [wDp] = the content
+     * column's width; the slots get what is left beside the value (at least as wide as "388"), the arrow (6 + 34 dp),
+     * the info's 12 dp margin and the slots' 8 dp one; [textMetrics] = the phone's metrics the value is measured in
+     * (as before: its 44 sp in the phone's pixels, over the art's density). [metricsOf] null = the slots from the stored
+     * history.
+     */
+    internal fun paintArt(gc: Context, dark: Boolean, surface: Int, history: List<Reading>,
+                          treatments: List<app.mauri.sukrara.treatments.Treatment>, now: Long, wDp: Float, r: Reading,
+                          textMetrics: android.util.DisplayMetrics = gc.resources.displayMetrics,
+                          metricsOf: ((app.mauri.sukrara.graph.RingSpec, app.mauri.sukrara.graph.Bands) -> app.mauri.sukrara.graph.GlucoseMetrics)? = null): Art {
+        val d = gc.resources.displayMetrics.density
+        val pal = systemPalette(gc, dark)
         val cfg = GraphSettings.value
+        val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(gc)),
+            rings = cfg.rings(), value = false, last = cfg.lastPlace, lastElse = cfg.lastElseRing(),
+            sensorTime = cfg.sensorTime(GraphPlace.NOTIFICATION), slotDisc = surface)
+        val metrics = metricsOf ?: { s, b -> app.mauri.sukrara.graph.GraphData.metrics(gc, s.windowS, b, now) }
         val graph = run {
             val w = (wDp * d).toInt()
             val h = (GRAPH_H_DP * d).toInt()
             val pad = (6 * d).toInt()
             val plot = createBitmap(w - 2 * pad, h - 2 * pad)
-            GlucoseCard.draw(Canvas(plot), plot.width.toFloat(), plot.height.toFloat(), history,
-                app.mauri.sukrara.treatments.TreatmentFeed.between(now - cfg.hours(GraphPlace.NOTIFICATION) * 3600L, now), now,
-                CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(c)),
-                    rings = emptyList(), value = false, sensorTime = cfg.sensorTime(GraphPlace.NOTIFICATION)),
-                pal, d)
+            GlucoseCard.draw(Canvas(plot), plot.width.toFloat(), plot.height.toFloat(), history, treatments, now, card, pal, d,
+                CardSurface.NOTIFICATION, CardPart.GRAPH, metricsOf = metrics)
             createBitmap(w, h).also { out ->
                 Canvas(out).apply {
                     drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), 12 * d, 12 * d, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = surface })
@@ -289,49 +310,20 @@ object GlucoseNotification {
                 plot.recycle()
             }
         }
-        // Slots: at most what fits beside the value (measured, at least as wide as "388"), the arrow (6 + 34 dp), the
-        // info's 12 dp margin and the slots' 8 dp one, so the row never has to squeeze a disc; 3 + the last treatment.
-        val size = SLOT_DP * d
-        val gap = 6 * d
-        val vp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = app.mauri.sukrara.graph.RoundedFont.typeface(700)
-            textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, dm)
+        // the value as the card's row shows it (44 sp in the phone's own metrics), in the art's dp
+        val vp = ValueGlyphs.numberPaint(0, android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, textMetrics))
+        val valueDp = (maxOf(vp.measureText(Freshness.valueText(r.sgv)), vp.measureText(ValueGlyphs.REFERENCE)) + 2) / d
+        val room = ((wDp - valueDp - 6f - 34f - 12f - 8f) * d).toInt()
+        val slots = if (room < SLOT_DP * d) null else createBitmap(room, (SLOT_DP * d).toInt()).let { strip ->
+            val lay = GlucoseCard.draw(Canvas(strip), strip.width.toFloat(), strip.height.toFloat(), history, treatments, now, card, pal, d,
+                CardSurface.NOTIFICATION, CardPart.SLOTS, metricsOf = metrics)
+            // the strip as wide as its slots (the row's text takes the rest)
+            val used = lay.first("slots")?.box
+            if (used == null) { strip.recycle(); null }
+            else Bitmap.createBitmap(strip, used.left.toInt().coerceIn(0, strip.width - 1), 0,
+                (strip.width - used.left.toInt()).coerceIn(1, strip.width), strip.height).also { if (it !== strip) strip.recycle() }
         }
-        val valueDp = (maxOf(vp.measureText(Freshness.valueText(r.sgv)), vp.measureText(app.mauri.sukrara.graph.ValueFit.REFERENCE)) + 2) / d
-        val room = (wDp - valueDp - 6f - 34f - 12f - 8f) * d
-        val max = ((room + gap) / (size + gap)).toInt().coerceIn(0, 4)
-        val items = appSlots(c, history, treatments, now, max)
-        val slots = if (items.isEmpty()) null else createBitmap((items.size * size + (items.size - 1) * gap + Slots.extraWidth(items, size / 2)).toInt(), size.toInt()).also { bmp ->
-            val cv = Canvas(bmp)
-            val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = surface }
-            val x = bmp.width.toFloat()
-            val main = Slots.mainIndex(items)
-            val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(now)
-            val cx = Slots.centers(items, x, size, gap)
-            // the strip has no room around it: with a laurel (which reaches 1.5 × a ring's radius, crown and flowers
-            // included) the rings shrink so it fits the strip's height
-            val marked = items.any(Slots::hasLaurel)
-            val ringR = if (marked) size / 2 / 1.5f else size / 2 - 3 * d
-            val discR = if (marked) ringR + 3 * d else size / 2
-            Slots.drawUnder(cv, items, cx, size / 2, ringR, pal)
-            for ((i, item) in items.withIndex()) {
-                cv.drawCircle(cx[i], size / 2, discR, fill)
-                Slots.draw(cv, item, cx[i], size / 2, ringR, now, pal, d, countdown.takeIf { i == main })
-            }
-        }
-        Art(graph, slots).also { artCache = it; artKey = key }   // the previous ones may still be parcelled: the GC takes them
-    }.onFailure { Log.w("Sukrara.notif", "art: $it") }.getOrNull()
-
-    /** A slot as a Live Update metric: value and a short label ("86%" · "in range 1d", "4.5u" · "12m ago"). */
-    private fun metric(item: app.mauri.sukrara.graph.SlotItem, now: Long): Pair<String, String>? = when (item) {
-        is app.mauri.sukrara.graph.SlotItem.Metric -> if (item.m.empty) null else when (item.spec.kind) {
-            app.mauri.sukrara.graph.SlotKind.TIR -> "${app.mauri.sukrara.graph.TirRing.text(item.m.tir, item.spec)}%" to
-                "${Words.current.let { if (item.spec.range == app.mauri.sukrara.graph.TirRange.TIGHT) it.tirVeryGood else it.tirInRange }} ${item.spec.period}"
-            else -> app.mauri.sukrara.graph.MetricGauge.text(item.spec.kind, item.m).let { (v, u) -> "$v$u" } to
-                "${item.spec.kind.short} ${item.spec.period}"
-        }
-        is app.mauri.sukrara.graph.SlotItem.Last -> (app.mauri.sukrara.treatments.TreatmentMarks.label(item.info.tr, 8) ?: item.info.tr.k) to
-            Words.current.ago.format(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - item.info.tr.t))
+        return Art(graph, slots)
     }
 
     private fun semantic(mgdl: Int) = when {
@@ -344,8 +336,8 @@ object GlucoseNotification {
     private const val STALE_BG = 0xFF8E9099.toInt()
 
     /**
-     * The notification's (and the Live Update chip's) look for a [look] ([Freshness.look]): its small icon resource
-     * when it isn't the number ([iconBitmap]) or the arrow ([arrowIcon]): the "no readings" icon (sensors_off) from 20
+     * The notification's (and the Live Update chip's) look for a [look] ([GlucoseCard.face]): its small icon resource
+     * when it isn't the number ([ValueGlyphs.icon]) or the arrow ([ValueGlyphs.trendIcon]): the "no readings" icon (sensors_off) from 20
      * min, the flag once the sensor has ended, else Sukrara's.
      */
     fun smallIcon(look: GlucoseLook): Int = when (look.state) {
@@ -360,90 +352,5 @@ object GlucoseNotification {
         val s = android.text.SpannableString("${look.text} mg/dL $mark")
         if (look.strike) s.setSpan(android.text.style.StrikethroughSpan(), 0, look.text!!.length, 0)
         return s
-    }
-
-    /** Alpha-mask small icon: the number fills the width, the trend arrow (or the "no trend" ring) underneath; struck from 5 min, at half strength. */
-    fun iconBitmap(look: GlucoseLook, rate: Double?, size: Int = 96): Bitmap {
-        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ALPHA_8)
-        val cv = Canvas(bmp)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-            textAlign = Paint.Align.CENTER
-        }
-        val text = look.text ?: return bmp
-        // struck: everything at half strength as one layer (the bar over the digits doesn't add up)
-        if (look.strike) cv.saveLayerAlpha(null, 128)
-        val numberH = size * 0.62f
-        p.textSize = numberH / 0.72f
-        p.textSize *= min(1f, size / p.measureText(text))
-        cv.drawText(text, size / 2f, numberH, p)
-        if (look.strike) cv.drawRect(0f, numberH * 0.45f, size.toFloat(), numberH * 0.45f + size * 0.07f, p)
-        val arrowBox = size - numberH - size * 0.04f
-        cv.save()
-        cv.translate(size / 2f, size - arrowBox / 2)
-        if (look.trend == TrendMark.ARROW && rate != null) {
-            cv.rotate(Trend.angleDeg(rate))
-            drawArrow(cv, arrowBox * 1.15f, p, double = Trend.isDouble(rate))
-        } else {
-            cv.drawCircle(0f, 0f, TrendMark.ringRadius(arrowBox), Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowBox) })
-        }
-        cv.restore()
-        if (look.strike) cv.restore()
-        return bmp
-    }
-
-    /**
-     * The Live Update chip's icon (and the card's header icon): only the trend arrow, at the Mac's continuous angle,
-     * so the chip shows one number (its text). The "no trend" ring when there's no trend or the value is struck.
-     */
-    fun arrowIcon(rate: Double?, size: Int = 96): Bitmap =
-        Bitmap.createBitmap(size, size, Bitmap.Config.ALPHA_8).also { drawTrend(Canvas(it), rate, size, Paint(Paint.ANTI_ALIAS_FLAG)) }
-
-    /** The same arrow in a colour, for the card's layout. */
-    /**
-     * The value drawn in the card's rounded face ([app.mauri.sukrara.graph.RoundedFont], proportional figures like SF Pro Rounded) at [px] text
-     * size, cropped to the digits' height (like a TextView without font padding).
-     */
-    private fun valueBitmap(s: String, color: Int, px: Float, strike: Boolean = false): Bitmap {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color; textSize = px; typeface = app.mauri.sukrara.graph.RoundedFont.typeface(700)
-            isStrikeThruText = strike
-        }
-        val b = android.graphics.Rect().also { p.getTextBounds("0123456789", 0, 10, it) }
-        val pad = (px * 0.06f).toInt() + 1
-        return Bitmap.createBitmap(kotlin.math.ceil(p.measureText(s)).toInt() + 2, b.height() + 2 * pad, Bitmap.Config.ARGB_8888).also {
-            Canvas(it).drawText(s, 0f, (pad - b.top).toFloat(), p)
-        }
-    }
-
-    private fun arrowBitmap(rate: Double?, color: Int, size: Int): Bitmap =
-        Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also {
-            drawTrend(Canvas(it), rate, size, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
-        }
-
-    /** The arrow for [rate], or the "no trend" ring ([TrendMark.NONE]) when it's null. */
-    private fun drawTrend(cv: Canvas, rate: Double?, size: Int, p: Paint) {
-        if (rate == null) {
-            cv.drawCircle(size / 2f, size / 2f, TrendMark.ringRadius(size.toFloat()),
-                Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(size.toFloat()) })
-            return
-        }
-        cv.save()
-        cv.translate(size / 2f, size / 2f)
-        cv.rotate(Trend.angleDeg(rate))
-        drawArrow(cv, size * 1.02f, p, double = Trend.isDouble(rate))
-        cv.restore()
-    }
-
-    /** Also used by the SystemUI hook (hook/SystemUiHook.kt) for its arrow. */
-    fun drawArrow(cv: Canvas, scale: Float, p: Paint, double: Boolean) {
-        fun head(tip: Float) = Path().apply {
-            moveTo(tip * scale, 0f); lineTo((tip - .40f) * scale, .30f * scale)
-            lineTo((tip - .30f) * scale, 0f); lineTo((tip - .40f) * scale, -.30f * scale); close()
-        }
-        val fill = Paint(p).apply { style = Paint.Style.FILL }
-        cv.drawRect(-.42f * scale, -.07f * scale, .25f * scale, .07f * scale, fill)
-        cv.drawPath(head(.46f), fill)
-        if (double) cv.drawPath(head(.12f), fill)
     }
 }

@@ -91,7 +91,7 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   without origin/main, the branches in `tools/check/integration.txt` or the commit installed last time, and failing
   `tools/check/run.sh`; it builds the release, updates in place (`install -r`), reads `versionName` back and records
   the commit in `<git common dir>/sukrara-installed-phone|mac`. Keep `integration.txt` on the round's branch.
-- **Guards**: `tools/check/run.sh` (rules from CLAUDE.md as checks), hooks via `tools/hooks/install.sh`, CI
+- **Guards**: `tools/check/run.sh` (rules from CLAUDE.md as checks; `--layout` runs the cross-surface tests), hooks via `tools/hooks/install.sh` (`core.hooksPath` must be the relative `tools/hooks`: an absolute path into a checkout without `tools/` silently disables them), CI
   `.github/workflows/checks.yml`, manual surface checks in `docs/QA.md`.
 - **Android**: Kotlin only — never Java source; newest APIs; GPL header on every file; sign debug + release with
   `~/.android/debug.keystore`. JDK 17: `export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home`.

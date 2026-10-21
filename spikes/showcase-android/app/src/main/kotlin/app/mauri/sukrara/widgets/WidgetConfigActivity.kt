@@ -46,23 +46,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.createBitmap
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.lifecycleScope
-import app.mauri.sukrara.graph.GlucoseCard
-import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.TirRange
 import app.mauri.sukrara.graph.WINDOW_HOURS
 import app.mauri.sukrara.graph.WidgetGraphConfig
-import app.mauri.sukrara.graph.systemPalette
 import app.mauri.sukrara.ui.Chips
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.produceState
-import kotlin.math.min
 
 /**
  * One widget placement's own settings (investigation 16), so the same widget can be added twice and look different.
@@ -159,24 +154,15 @@ class WidgetConfigActivity : ComponentActivity() {
 @androidx.compose.runtime.Composable
 private fun Preview(kind: WidgetKind, w: WidgetGraphConfig, size: SizeF) {
     val ctx = LocalContext.current
-    val d = ctx.resources.displayMetrics.density
-    val bw = size.width - 20; val bh = size.height - 20
-    // Off the main thread: the history and the multi-day rings come from the database.
+    // Off the main thread: the history and the multi-day rings come from the database. The widget's own picture
+    // (renderWidget), margin included, so the preview is the widget.
     val bmp by produceState<android.graphics.Bitmap?>(null, w) {
-        value = withContext(Dispatchers.Default) {
-            val frame = WidgetUpdater.current(ctx)
-            val scale = min(1f, 1400f / (maxOf(bw, bh) * d))
-            createBitmap((bw * d * scale).toInt().coerceAtLeast(16), (bh * d * scale).toInt().coerceAtLeast(16)).also {
-                GlucoseCard.draw(android.graphics.Canvas(it), it.width.toFloat(), it.height.toFloat(), frame.history,
-                    frame.treatments, frame.nowSec, cardStyle(ctx, kind, w), systemPalette(ctx), d * scale,
-                    metricsOf = { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
-            }
-        }
+        value = withContext(Dispatchers.Default) { renderWidget(ctx, kind, size.width, size.height, WidgetUpdater.current(ctx), w) }
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)
-            .size(bw.dp, bh.dp)) {
-            bmp?.let { Image(it.asImageBitmap(), contentDescription = stringResource(R.string.widget_config_preview), Modifier.size(bw.dp, bh.dp)) }
+        Box(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer)
+            .size(size.width.dp, size.height.dp)) {
+            bmp?.let { Image(it.asImageBitmap(), contentDescription = stringResource(R.string.widget_config_preview), Modifier.size(size.width.dp, size.height.dp)) }
         }
     }
 }

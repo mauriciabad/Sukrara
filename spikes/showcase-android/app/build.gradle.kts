@@ -69,6 +69,8 @@ android {
             all {
                 it.systemProperty("gallery.out", System.getProperty("gallery.out") ?: layout.buildDirectory.dir("gallery").get().asFile.path)
                 System.getProperty("gallery.real")?.let { f -> it.systemProperty("gallery.real", f) }
+                // CardLayoutTest: rewrite spikes/graph-fixtures/layout/expect.json (the cross-platform answers)
+                System.getProperty("layout.write")?.let { f -> it.systemProperty("layout.write", f) }
             }
         }
     }
@@ -86,10 +88,12 @@ kotlin {
 
 // The shared alert timelines (spikes/alerts/scenarios) are inputs of AlertScenarioTest: editing one re-runs the tests.
 tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").withPropertyName("alertScenarios") }
+// The shared graph fixtures and the surface registry likewise (GraphFixtureTest, CardLayoutTest).
+tasks.withType<Test>().configureEach { inputs.dir("../../graph-fixtures").withPropertyName("graphFixtures") }
 
-// Robolectric's SDK 36 sandbox (the graph/report galleries, FreshnessFixtureTest, AlertNotifierTest, ScreenHostTest, ValueRowTest, TidepoolScreenTest) needs Java 21+: run unit tests on
+// Robolectric's SDK 36 sandbox (the graph/report galleries, CardLayoutTest, FreshnessFixtureTest, AlertNotifierTest, ScreenHostTest, TidepoolScreenTest) needs Java 21+: run unit tests on
 // GALLERY_JAVA_HOME when set, else leave those out so `testDebugUnitTest` passes on the build's JDK 17.
-if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/ValueRowTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*") }
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/CardLayoutTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",

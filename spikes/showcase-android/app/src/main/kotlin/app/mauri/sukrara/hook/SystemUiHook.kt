@@ -27,9 +27,10 @@ import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.HookPosition
-import app.mauri.sukrara.status.GlucoseNotification
+import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.core.Range
-import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.status.RootStatusBar
@@ -177,7 +178,7 @@ class SystemUiHook : XposedModule() {
         val r = st.reading ?: return null
         if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
         val now = System.currentTimeMillis() / 1000
-        val look = Freshness.look(r.sgv, r.t, r.rate, now, ended = st.sensorEnd in 1..now)
+        val look = chipFace(r, now, st.sensor())
         // struck (its drawable is already half strength), no readings, ended: SystemUI's own tint
         if (look.state != GlucoseLook.State.VALUE || look.strike) return null
         return Range.color(r.sgv)
@@ -311,7 +312,11 @@ class SystemUiHook : XposedModule() {
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
                              val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true,
-                             val hideIcon: Boolean = false, val sensorEnd: Long = 0)
+                             val hideIcon: Boolean = false, val sensorEnd: Long = 0, val sensorStart: Long = 0,
+                             val sensorWarmup: Long = 0) {
+        /** The sensor as the app sent it (null = none known). */
+        fun sensor() = if (sensorEnd > 0) app.mauri.sukrara.core.SensorInfo("", sensorStart, sensorEnd, sensorWarmup) else null
+    }
 
     /** Written on the main thread (receiver), read by the Compose/flow hooks on SystemUI's background threads. */
     @Volatile private var state = State()
@@ -341,7 +346,8 @@ class SystemUiHook : XposedModule() {
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
-            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon), i.getLongExtra("sensorEnd", 0))
+            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon), i.getLongExtra("sensorEnd", 0),
+            i.getLongExtra("sensorStart", 0), i.getLongExtra("sensorWarmup", 0))
         if (i.hasExtra("lockWidget")) lockWidget.enabled = i.getBooleanExtra("lockWidget", false)
         i.getStringExtra("lockBg")?.let { lockWidget.background = it }
         i.getStringExtra("lockLook")?.let { lockWidget.look = it }
@@ -390,7 +396,9 @@ class SystemUiHook : XposedModule() {
             visibility = VISIBLE
             val base = reference?.get()?.currentTextColor ?: currentTextColor
             val now = System.currentTimeMillis() / 1000
-            val v = HookText.of(Freshness.look(r.sgv, r.t, r.rate, now, ended = state.sensorEnd in 1..now), state.color, Range.color(r.sgv), base)
+            // what shows is the card's decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
+            // then the freshness steps
+            val v = HookText.of(chipFace(r, now, state.sensor()), state.color, Range.color(r.sgv), base)
             text = v.text
             paintFlags = if (v.strike) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
             setTextColor(v.color)
@@ -402,9 +410,10 @@ class SystemUiHook : XposedModule() {
                 // without a reading the "no readings" icon (sensors_off) instead of the old value
                 HookText.Mark.FLAG -> flag.also { it.color = v.color }
                 HookText.Mark.NO_READINGS -> noReadings.also { it.color = v.color }
+                HookText.Mark.NONE -> null
             }
             val s = (textSize * if (v.mark == HookText.Mark.ARROW || v.mark == HookText.Mark.RING) 0.95f else 1.05f).toInt()
-            drawable.setBounds(0, 0, s, s)
+            drawable?.setBounds(0, 0, s, s)
             setCompoundDrawables(null, null, drawable, null)
             contentDescription = v.desc
         }
@@ -434,7 +443,7 @@ class SystemUiHook : XposedModule() {
         @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
-    /** The Mac's continuous-angle arrow (GlucoseNotification.drawArrow), as a Drawable. */
+    /** The card's arrow ([ValueGlyphs.arrow], the Mac's continuous angle), as a Drawable. */
     private class ArrowDrawable : Drawable() {
         var rate: Double? = null
         var color = 0
@@ -452,7 +461,7 @@ class SystemUiHook : XposedModule() {
                 cv.drawCircle(0f, 0f, TrendMark.ringRadius(b.width().toFloat()), p)
             } else {
                 cv.rotate(Trend.angleDeg(rate))
-                GlucoseNotification.drawArrow(cv, b.width().toFloat(), paint, Trend.isDouble(rate))
+                ValueGlyphs.arrow(cv, b.width().toFloat(), paint, Trend.isDouble(rate))
             }
             cv.restore()
         }
@@ -489,3 +498,10 @@ class SystemUiHook : XposedModule() {
         val OUR_SLOTS = setOf(RootStatusBar.SLOT_NUMBER, RootStatusBar.SLOT_TREND)
     }
 }
+
+/**
+ * What the root status bar shows for [r] (its chip's text and mark, and whether the icons get the range colour): the
+ * card's own decision, [GlucoseCard.face], with the sensor the app sent. The hook's one value decision, also the tests'.
+ */
+internal fun chipFace(r: Reading, nowS: Long, sensor: app.mauri.sukrara.core.SensorInfo?) =
+    GlucoseCard.face(r, nowS, app.mauri.sukrara.graph.SensorBadge.look(sensor, nowS, r.t), CardSurface.STATUS_HOOK)

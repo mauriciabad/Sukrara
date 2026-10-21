@@ -175,12 +175,13 @@ enum GraphFixtures {
             + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
             + freshness(dir.appendingPathComponent("freshness/freshness.json"))
             + mark(dir.appendingPathComponent("mark")) + place(dir.appendingPathComponent("place/place.json"))
+            + MainActor.assumeIsolated { LayoutSelfTest.run(dir) }
     }
 
     /// The freshness steps (spikes/graph-fixtures/freshness/freshness.json, the file Android's FreshnessFixtureTest
-    /// runs): `Freshness.look` at every step boundary, the redraw times, and every Mac surface in the file's registry
-    /// through its own code (the card drawn with `DrawTrace` on, the menubar title). A listed surface without an
-    /// adapter here fails.
+    /// runs): `Freshness.look` at every step boundary, the redraw times, the card (its layout report) and every Mac
+    /// glyph surface of the one registry (surfaces/surfaces.json) through its own code (the menubar title). A
+    /// registered glyph surface without an adapter here fails; the card surfaces are rendered by LayoutSelfTest.
     static func freshness(_ file: URL) -> Int {
         let now: TimeInterval = 1_800_000_000
         guard let data = FileManager.default.contents(atPath: file.path),
@@ -198,9 +199,12 @@ enum GraphFixtures {
         } else { fail("steps missing") }
         // one adapter per Mac surface in the registry
         typealias Adapter = ([String: Any], [String: Any]) -> [String]
-        let adapters: [String: Adapter] = ["card": freshnessCard, "menubar-title": freshnessTitle]
-        let ids = Set(((root["surfaces"] as? [String: Any])?["mac"] as? [String: Any] ?? [:]).keys)
-        if ids != Set(adapters.keys) { fail("registry \(ids.sorted()) vs adapters \(adapters.keys.sorted())") }
+        let adapters: [String: Adapter] = ["menubar-title": freshnessTitle]
+        let reg = FileManager.default.contents(atPath: file.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("surfaces/surfaces.json").path).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let ids = Set(((reg?["mac"] as? [String: Any])?["surfaces"] as? [[String: Any]] ?? [])
+            .filter { $0["kind"] as? String == "glyph" }.compactMap { $0["id"] as? String })
+        if ids != Set(adapters.keys) { fail("registry glyph surfaces \(ids.sorted()) vs adapters \(adapters.keys.sorted())") }
         for c in cases {
             let name = c["name"] as? String ?? "?"
             let e = c["expect"] as? [String: Any] ?? [:]
@@ -209,14 +213,15 @@ enum GraphFixtures {
             let got = "\(l.state.rawValue) \(l.text ?? "nil") \(l.strike) \(l.trend?.rawValue ?? "nil") \(l.fresh.showTime) \(l.fresh.showGraph)"
             let want = "\(e["state"] as? String ?? "?") \(e["text"] as? String ?? "nil") \(e["strike"] as? Bool ?? false) \(e["trend"] as? String ?? "nil") \(e["time"] as? Bool ?? false) \(e["graph"] as? Bool ?? false)"
             if got != want { fail("\(name): look \(got), want \(want)") }
+            for m in freshnessCard(c, e) { fail("card · \(name): \(m)") }
             for (id, a) in adapters { for m in a(c, e) { fail("\(id) · \(name): \(m)") } }
             n += 1
         }
-        print("freshness fixtures: \(n) cases × \(adapters.count) surfaces, \(failures) failed")
+        print("freshness fixtures: \(n) cases × the card + \(adapters.count) glyph surfaces, \(failures) failed")
         return failures
     }
 
-    /// The card (menubar dropdown, widgets): drawn into a bitmap with `DrawTrace` on.
+    /// The card (menubar dropdown, widgets): drawn into a bitmap; what it laid out is its `CardLayout`.
     static func freshnessCard(_ c: [String: Any], _ e: [String: Any]) -> [String] {
         let now: TimeInterval = 1_800_000_000
         var out: [String] = []
@@ -233,29 +238,24 @@ enum GraphFixtures {
         guard let ctx = CGContext(data: nil, width: w * 2, height: h * 2, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return ["no context"] }
         ctx.translateBy(x: 0, y: CGFloat(h * 2)); ctx.scaleBy(x: 2, y: -2)
-        var drawn: [(kind: String, text: String, strike: Bool, y: CGFloat)] = []
-        DrawTrace.on = { drawn.append(($0, $1, $2, $3)) }
-        GlucoseCard.draw(ctx, size: CGSize(width: w, height: h), readings: readings, marks: [], now: now, st, GraphPalette.of(dark: true))
-        DrawTrace.on = nil
-        let texts = drawn.filter { $0.kind == "text" }
-        let time = readings.last.map { Freshness.timeText($0.t, now: now) }
+        let lay = GlucoseCard.draw(ctx, size: CGSize(width: w, height: h), readings: readings, marks: [], now: now, st,
+                                   GraphPalette.of(dark: true), surface: .test, part: .all)
         switch state {
         case "value":
-            let v = texts.filter { $0.text == text }.map(\.strike)
-            if v != [strike] { out.append("value drawn (strike) \(v), want [\(strike)]") }
-            let ring = drawn.contains { $0.kind == "ring" }
+            let v = lay.all("value.number").map(\.info)
+            if v != [(text ?? "") + (strike ? " struck" : "")] { out.append("value drawn (strike) \(v)") }
+            let ring = lay.first("value.trend")?.info == "ring"
             if ring != (e["trend"] as? String == "none") { out.append("no-trend ring \(ring)") }
-            if texts.contains(where: { $0.text == time }) != (e["time"] as? Bool ?? false) { out.append("the reading's time") }
+            if (lay.first("value.time") != nil) != (e["time"] as? Bool ?? false) { out.append("the reading's time") }
         case "no_readings":
-            if !texts.contains(where: { $0.text == "No reading since" }) { out.append("says no reading since") }
-            if !drawn.contains(where: { $0.kind == "symbol" && $0.text == GlucoseLook.noReadingsSymbol }) { out.append("no-readings symbol") }
-        case "none": if !texts.contains(where: { $0.text == "No readings yet" }) { out.append("says no readings yet") }
-        case "ended": if !texts.contains(where: { $0.text == "Sensor ended" }) { out.append("says sensor ended") }
+            if lay.first("value.none")?.info != "NO_READINGS" { out.append("says no reading since (with the symbol)") }
+        case "none": if lay.first("value.none")?.info != "NONE" { out.append("says no readings yet") }
+        case "ended": if lay.first("value.ended") == nil { out.append("says sensor ended") }
         default: out.append("unknown state \(state)")
         }
-        // the chart: its labels under the value row (y > 75 pt); without one the value's words fill the card
+        // the chart (its own box under the value row)
         if state != "ended" {
-            let chart = texts.contains { $0.y > 75 && ![ "No reading since", "No readings yet", time ?? "" ].contains($0.text) }
+            let chart = lay.first("chart") != nil
             if chart != (e["graph"] as? Bool ?? false) { out.append("chart \(chart)") }
         }
         return out

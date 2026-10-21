@@ -20,20 +20,22 @@ Checks
   cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
-  graph-surface  one graph everywhere, structurally (the user, 2026-10-21: a badge moved on one surface only). Whole
-              tree, Android + Mac: only GlucoseCard draws the chart (GlucoseGraph.draw) and the sensor badge
-              (SensorBadge.draw) - so where the badge goes is decided once, by GlucoseCard.sensorSpot, for every
-              surface; a surface that draws a card in parts passes the same whole-card style with part = / part:
-              to every GlucoseCard.draw call; every CardStyle a surface builds says sensorTime (its place's setting);
-              the app panel's Compose badge (SensorLifeBadge) only in a file that asks GlucoseCard.sensorSpot.
-              The shared fixtures (spikes/graph-fixtures/place) keep Android and Mac deciding the same.
-  freshness-surface  the freshness steps everywhere (the user, 2026-10-21: the status bar kept a 20-min-old value as if
-              current). Every glucose surface is listed in spikes/graph-fixtures/freshness/freshness.json (the
-              registry both platforms' fixture tests run, one adapter per surface); a listed file must call
-              Freshness.look and must not format a glucose value itself (string templates with sgv / mgdl, LO/HI
-              literals) or use an old threshold (STALE_AFTER, staleAfter, isStale); Freshness.of is only for
-              Freshness.kt / SukraraGraph.swift (and tests), so a new surface can't judge age on its own. A line
-              that must stay is marked '// freshness-ok: <why>'.
+  card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
+              surface only; the status bar kept a 20-min-old value as if current; "things like this cannot happen
+              again"). Whole tree, Android + Mac, from THE registry spikes/graph-fixtures/surfaces/surfaces.json:
+              a file that calls the card renderer (GlucoseCard.draw / image / face) must be a registered file of the
+              surface it names; the CardSurface enums list exactly the registry; a glyph surface takes its value from
+              GlucoseCard.face; every surface is rendered by the cross-surface tests (CardLayoutTest.kt /
+              LayoutSelfTest.swift, glyphs also FreshnessFixtureTest.kt / SelfTest.swift).
+  card-api    outside the renderer's files ('owners'), the renderer's namespaces (every top-level Kotlin object /
+              Swift enum in them that paints, i.e. has a function taking a Canvas / CGContext, found automatically
+              so a new painter is covered the moment it exists; plus the registry's 'api' keys, e.g. Freshness)
+              may only be used through the members 'api' lists: a surface never lays out or draws a card element
+              itself, nor judges a reading's age (Freshness.of / look) or uses an old staleness threshold.
+  card-text   no file (outside the renderer and the tests) writes a glucose value itself (string templates /
+              drawText / Text with sgv or mgdl, LO / HI literals): it shows the look's text (GlucoseCard.face), so a
+              new surface that skips the renderer fails too. Data and event text (CSV, logs, an alert's reading) is
+              listed in the registry's value_text_ok with the reason; a single line is marked '// card-ok: <why>'.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -261,96 +263,182 @@ def check_cleartext(ch, rep):
                     "URL can only be https:// / wss:// (or loopback / NsSite-validated), then list the file with the reason." % (path, n))
 
 
-GRAPH_KT = APP_KT + "graph/"
-MAC_GRAPH = "spikes/widgets-macos/Shared/SukraraGraph.swift"
-SURFACE_GLOBS = [APP_KT + "*.kt", "spikes/menubar/Sources/GlucoseBar/*.swift", "spikes/widgets-macos/Shared/*.swift",
-                 "spikes/widgets-macos/Widget/*.swift"]
-# the graph renderers themselves (and the Mac self-test, which builds fixture cards)
-GRAPH_OWNERS = {GRAPH_KT + "GlucoseCard.kt", GRAPH_KT + "GlucoseGraph.kt", GRAPH_KT + "SensorBadge.kt", MAC_GRAPH,
-                "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift", "spikes/menubar/Sources/GlucoseBar/SelfTest.swift"}
+SURFACES = "spikes/graph-fixtures/surfaces/surfaces.json"
+# old staleness thresholds (the freshness steps are Freshness.look's)
+LEGACY_STALE = re.compile(r"\bSTALE_AFTER\w*|\bstaleAfter\b|\bisStale\b")
+# a glucose value turned into text: Kotlin "${r.sgv}" / "$sgv" / sgv.toString(), Swift "\(x.mgdl)" / format(x.mgdl), LO/HI
+# literals, and a value drawn as text (drawText / Text with an sgv)
+VALUE_FORMAT = re.compile(r'"[^"\n]*\$\{?[\w.?!]*\bsgv\b[^"\n]*"|\bsgv\.toString\(\)|"[^"\n]*\\\([^)]*\b(?:sgv|mgdl)\b[^)]*\)[^"\n]*"'
+                          r'|\bunit\.format\([^)]*\bmgdl\b|"(?:LO|HI)"|(?:drawText|\bText)\s*\(.*\bsgv\b')
+# renderer calls a surface makes (Kotlin and Swift)
+RENDER_CALL = re.compile(r"\bGlucoseCard\.(draw|image|face)\s*\(")
 
 
-def check_graph_surface(ch, rep):
-    """graph-surface: see the module doc. Whole tree (at the change's revision), so an old surface can't hide."""
-    where = ["--cached"] if not ch.rev else []
-    out = git("ls-files", *where, "--", *SURFACE_GLOBS, ok=True) if not ch.rev else \
-        git("ls-tree", "-r", "--name-only", ch.rev, "--", "spikes/showcase-android/app/src/main", "spikes/menubar/Sources",
-            "spikes/widgets-macos/Shared", "spikes/widgets-macos/Widget", ok=True)
-    files = [p for p in out.splitlines() if match(p, SURFACE_GLOBS)]
-    for p in files:
-        if p in GRAPH_OWNERS:
+def tree_files(ch):
+    """Every tracked file at the change's revision (the index for --staged)."""
+    out = git("ls-files", "--cached", ok=True) if not ch.rev else git("ls-tree", "-r", "--name-only", ch.rev, ok=True)
+    return out.splitlines()
+
+
+def code_lines(text):
+    """(line number, text) without comment lines and with trailing // comments cut (good enough for both languages)."""
+    out = []
+    for n, l in enumerate(text.splitlines(), 1):
+        st = l.lstrip()
+        if st.startswith(("//", "*", "/*", "///")):
             continue
-        text = ch.blob(p)
-        code = [(n, l) for n, l in enumerate(text.splitlines(), 1) if not l.lstrip().startswith(("//", "*", "/*", "///"))]
-        kt = p.endswith(".kt")
-        for n, l in code:
-            if "GlucoseGraph.draw(" in l:
-                rep.add("FAIL", "graph-surface", "%s:%d draws the chart itself. Draw it with GlucoseCard.draw (part = GRAPH /\n"
-                        "part: .graph for a chart in a box of its own): only GlucoseCard decides where the sensor badge goes." % (p, n))
-            if "SensorBadge.draw(" in l and not (kt and "SensorBadge.draw(it.nativeCanvas" in l and p.endswith("ui/Widgets.kt")):
-                rep.add("FAIL", "graph-surface", "%s:%d draws the sensor badge itself. GlucoseCard places it (sensorSpot)." % (p, n))
-            m = re.search(r"\bCardStyle\((?!\))", l)
-            if m:
-                call = " ".join(x for _, x in code[[k for k, (nn, _) in enumerate(code) if nn == n][0]:][:3])
-                if "sensorTime" not in call:
-                    rep.add("FAIL", "graph-surface", "%s:%d builds a CardStyle without sensorTime: pass the place's setting\n"
-                            "(GraphConfig.sensorTime(place) / cfg.sensorTime) so every surface honours it." % (p, n))
-        if any("SensorLifeBadge(" in l for _, l in code) and "GlucoseCard.sensorSpot(" not in text:
-            rep.add("FAIL", "graph-surface", "%s draws SensorLifeBadge without asking GlucoseCard.sensorSpot where it goes." % p)
-        draws = [(n, l) for n, l in code if "GlucoseCard.draw(" in l]
-        if len(draws) > 1:
-            for n, _ in draws:
-                call = " ".join(x for _, x in code[[k for k, (nn, _) in enumerate(code) if nn == n][0]:][:4])
-                if not re.search(r"part\s*[=:]", call):
-                    rep.add("FAIL", "graph-surface", "%s:%d: this file draws a card in parts; every GlucoseCard.draw here must pass\n"
-                            "the same whole-card style with part = / part: so the card's decisions are made once." % (p, n))
+        out.append((n, re.sub(r"\s//\s.*$", "", l)))
+    return out
 
 
-FRESH_REGISTRY = "spikes/graph-fixtures/freshness/freshness.json"
-FRESH_OWNERS = {GRAPH_KT + "Freshness.kt", MAC_GRAPH, "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift"}
-FRESH_LEGACY = re.compile(r"\bSTALE_AFTER\w*|\bstaleAfter\b|\bisStale\b")
-# a glucose value turned into text: Kotlin "${r.sgv}" / "$sgv" / sgv.toString(), Swift "\(x.mgdl)" / format(x.mgdl), LO/HI literals
-FRESH_FORMAT = re.compile(r'"[^"\n]*\$\{?[\w.?!]*\bsgv\b[^"\n]*"|\bsgv\.toString\(\)|"[^"\n]*\\\([^)]*\b(?:sgv|mgdl)\b[^)]*\)[^"\n]*"'
-                          r'|\bunit\.format\([^)]*\bmgdl\b|"(?:LO|HI)"')
+def call_text(code, k, start=0, limit=8):
+    """The text of the call starting on code line index k at column start, up to its closing parenthesis (at most limit
+    lines)."""
+    joined, depth, started = "", 0, False
+    for i, (_, l) in enumerate(code[k:k + limit]):
+        if i == 0:
+            l = l[start:]
+        for ch_ in l:
+            joined += ch_
+            if ch_ == "(":
+                depth += 1; started = True
+            elif ch_ == ")":
+                depth -= 1
+                if started and depth == 0:
+                    return joined
+        joined += " "
+    return joined
 
 
-def check_freshness_surface(ch, rep):
-    """freshness-surface: see the module doc. Whole tree (at the change's revision)."""
-    text = ch.blob(FRESH_REGISTRY) if ch.rev else (open(os.path.join(ROOT, FRESH_REGISTRY)).read()
-                                                     if os.path.exists(os.path.join(ROOT, FRESH_REGISTRY)) else "")
-    if not text:
-        rep.add("FAIL", "freshness-surface", "%s is missing: it lists every glucose surface the freshness fixtures run." % FRESH_REGISTRY)
+def governed(owner_texts, swift):
+    """The renderer's namespaces, found automatically: every top-level Kotlin `object X` / Swift `enum X` in the
+    owners that paints (has a function taking a Canvas / CGContext). New painters are governed the moment they exist."""
+    names = set()
+    head = re.compile(r"enum (\w+)\b[^{]*\{" if swift else r"(?:internal |private )?object (\w+)")
+    painter = re.compile((r"static func \w+\((?:[^()]|\([^()]*\))*CGContext" if swift else
+                          r"fun (?:<[^>]*> )?\w+\((?:[^()]|\([^()]*\))*\bCanvas\b"), re.S)
+    for text in owner_texts:
+        lines = text.splitlines()
+        for k, l in enumerate(lines):
+            m = head.match(l)
+            if not m:
+                continue
+            body = []
+            for b in lines[k + 1:]:
+                if b.startswith("}"):
+                    break
+                body.append(b)
+            if painter.search("\n".join(body)):
+                names.add(m.group(1))
+    return names
+
+
+def check_card(ch, rep):
+    """card-surface + card-api + card-text: see the module doc. Whole tree at the change's revision."""
+    try:
+        reg = json.loads(ch.blob(SURFACES) or "{}")
+    except ValueError:
+        rep.add("FAIL", "card-surface", "%s is not valid JSON." % SURFACES)
         return
-    reg = json.loads(text).get("surfaces", {})
-    listed = {p: "%s/%s" % (plat, sid) for plat, ids in reg.items() for sid, paths in ids.items() for p in paths}
-    where = ["--cached"] if not ch.rev else []
-    out = git("ls-files", *where, "--", *SURFACE_GLOBS, ok=True) if not ch.rev else \
-        git("ls-tree", "-r", "--name-only", ch.rev, "--", "spikes/showcase-android/app/src/main", "spikes/menubar/Sources",
-            "spikes/widgets-macos/Shared", "spikes/widgets-macos/Widget", ok=True)
-    files = set(p for p in out.splitlines() if match(p, SURFACE_GLOBS))
-    for p, sid in sorted(listed.items()):
-        if p not in files:
-            rep.add("FAIL", "freshness-surface", "%s (surface %s in %s) doesn't exist: fix the registry." % (p, sid, FRESH_REGISTRY))
-    for p in sorted(files):
-        if p in FRESH_OWNERS or p.endswith("SelfTest.swift"):
+    files = set(tree_files(ch))
+    for plat, swift in (("android", False), ("mac", True)):
+        cfg = reg.get(plat)
+        if not cfg:
+            rep.add("FAIL", "card-surface", "%s: no '%s' registry." % (SURFACES, plat))
             continue
-        body = ch.blob(p)
-        code = [(n, l) for n, l in enumerate(body.splitlines(), 1)
-                if not l.lstrip().startswith(("//", "*", "/*", "///")) and "freshness-ok" not in l]
-        for n, l in code:
-            if "Freshness.of(" in l:
-                rep.add("FAIL", "freshness-surface", "%s:%d judges the reading's age itself (Freshness.of). Take the look from\n"
-                        "Freshness.look (one decision for every surface) and list the surface in %s." % (p, n, FRESH_REGISTRY))
-            if FRESH_LEGACY.search(l):
-                rep.add("FAIL", "freshness-surface", "%s:%d uses an old staleness threshold. The steps are Freshness.look's." % (p, n))
-        if p not in listed:
-            continue
-        if "Freshness.look(" not in body and "GlucoseLook" not in body:
-            rep.add("FAIL", "freshness-surface", "%s (surface %s) neither calls Freshness.look nor takes a GlucoseLook: its value can't follow the steps." % (p, listed[p]))
-        for n, l in code:
-            if FRESH_FORMAT.search(l):
-                rep.add("FAIL", "freshness-surface", "%s:%d (surface %s) formats a glucose value itself. Show GlucoseLook.text / .plain\n"
-                        "(Freshness.look) so it is struck at 5 min and gone at 20 min, or mark the line '// freshness-ok: <why>'." % (p, n, listed[p]))
+        owners = set(cfg["owners"])
+        tests = cfg["tests"]
+        surfaces = cfg["surfaces"]
+        ids = [s["id"] for s in surfaces]
+        # the platform's enum lists exactly the registry (+ the tests' own surface)
+        enum_text = ch.blob(cfg["enum"])
+        if swift:
+            body = re.search(r"enum CardSurface\b[^{]*\{(.*?)\n\}", enum_text, re.S)
+            consts = dict(re.findall(r"case (\w+) = \"([\w-]+)\"", body.group(1))) if body else {}
+        else:
+            body = re.search(r"enum class CardSurface\b.*?\{(.*?);", enum_text, re.S)
+            consts = dict(re.findall(r"(\w+)\(\"([\w-]+)\"", body.group(1))) if body else {}
+        by_id = {v: k for k, v in consts.items()}
+        if sorted(set(consts.values()) - {"test"}) != sorted(ids):
+            rep.add("FAIL", "card-surface", "%s: CardSurface (%s) and %s %s (%s) list different surfaces. Every place that\n"
+                    "shows the card or its value is registered in both." % (cfg["enum"], ", ".join(sorted(consts.values())), SURFACES,
+                                                                         plat, ", ".join(sorted(ids))))
+        const = (lambda c: "." + c) if swift else (lambda c: "CardSurface." + c)
+        file_of = {}
+        for s in surfaces:
+            for f in s["files"]:
+                if f not in files:
+                    rep.add("FAIL", "card-surface", "%s (surface %s) doesn't exist: fix %s." % (f, s["id"], SURFACES))
+                file_of.setdefault(f, []).append(s)
+        sources = sorted(p for p in files if match(p, cfg["sources"]) and p not in owners and not match(p, tests))
+        texts = {p: ch.blob(p) for p in sources}
+        api = cfg["api"]
+        value_ok = {e["path"] for e in cfg.get("value_text_ok", [])}
+        for e in cfg.get("value_text_ok", []):
+            if e["path"] not in files:
+                rep.add("FAIL", "card-text", "%s value_text_ok: %s doesn't exist." % (SURFACES, e["path"]))
+        names = governed([ch.blob(o) for o in owners], swift) | set(api)
+        ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
+        for p, text in texts.items():
+            code = [(n, l) for n, l in code_lines(text)]
+            raw = text.splitlines()
+            mine = file_of.get(p, [])
+            mine_consts = {by_id.get(s["id"]) for s in mine}
+            for k, (n, l) in enumerate(code):
+                m = RENDER_CALL.search(l)
+                if m:
+                    if not mine:
+                        rep.add("FAIL", "card-surface", "%s:%d calls the card renderer (GlucoseCard.%s) but isn't a registered surface. Every\n"
+                                "place that shows the card or its value is in %s (and the CardSurface enum), with its sizes,\n"
+                                "and is rendered by the cross-surface tests." % (p, n, m.group(1), SURFACES))
+                    else:
+                        call = call_text(code, k, m.start())
+                        named = re.findall(r"CardSurface\.(\w+)" if not swift else r"surface:\s*\.(\w+)", call)
+                        if not named and not re.search(r"\.surface\(\)|surface:\s*\w+|\bsurface\b", call):
+                            rep.add("FAIL", "card-surface", "%s:%d asks the card renderer without naming its surface." % (p, n))
+                        for c in named:
+                            if c not in mine_consts:
+                                rep.add("FAIL", "card-surface", "%s:%d asks the renderer as %s, which isn't registered for this file in %s." % (
+                                    p, n, const(c), SURFACES))
+            if ref:
+                for n, l in code:
+                    for m in ref.finditer(l):
+                        obj, member = m.group(1), m.group(2)
+                        if member not in api.get(obj, []):
+                            rep.add("FAIL", "card-api", "%s:%d uses %s.%s, an internal of the card renderer. Surfaces only choose the size, their\n"
+                                    "place's settings and the CardPart, and take the value from GlucoseCard.face; the card's layout,\n"
+                                    "drawing and freshness stay in the renderer (%s 'api' lists what a surface may call; adding to\n"
+                                    "it needs the same thinking as a new surface)." % (p, n, obj, member, SURFACES))
+            for n, l in code:
+                if LEGACY_STALE.search(l) and "card-ok" not in raw[n - 1]:
+                    rep.add("FAIL", "card-api", "%s:%d uses an old staleness threshold. The freshness steps are GlucoseCard.face's." % (p, n))
+            # no file formats a glucose value itself (a new surface that skips the renderer included), except data and
+            # event text listed in the registry's value_text_ok
+            if p not in value_ok:
+                for n, l in code:
+                    if VALUE_FORMAT.search(l) and "card-ok" not in raw[n - 1]:
+                        rep.add("FAIL", "card-text", "%s:%d (%s) writes a glucose value itself. Show the look's text (GlucoseCard.face)\n"
+                                "so it follows the card (LO / HI, struck at 5 min, gone at 20 min); a file that writes values as\n"
+                                "data or event text goes on %s value_text_ok with the reason, a single line is marked\n"
+                                "'// card-ok: <why>'." % (p, n, ("surface " + ", ".join(s["id"] for s in mine)) if mine else "not a registered surface", SURFACES))
+            if not swift and "CardSurface.TEST" in text:
+                rep.add("FAIL", "card-surface", "%s: CardSurface.TEST is for tests only." % p)
+        # each surface names itself in its files; a glyph surface asks GlucoseCard.face
+        for s in surfaces:
+            c = by_id.get(s["id"])
+            joined = "\n".join(ch.blob(f) for f in s["files"])
+            if c and not re.search(re.escape(const(c)) + r"\b", joined):
+                rep.add("FAIL", "card-surface", "surface '%s' (%s) never names %s in its files %s: move the entry to the files that\n"
+                        "draw it, or remove the surface from %s and the enum." % (s["id"], plat, const(c), ", ".join(s["files"]), SURFACES))
+            if s["kind"] == "glyph" and "GlucoseCard.face(" not in joined:
+                rep.add("FAIL", "card-surface", "glyph surface '%s' (%s) must take the value / trend / freshness from GlucoseCard.face." % (s["id"], plat))
+        # every surface is rendered by a cross-surface test
+        harness = "\n".join(ch.blob(p) for p in sorted(files) if match(p, tests))
+        for s in surfaces:
+            c = by_id.get(s["id"])
+            if c and const(c) not in harness and ('"%s"' % s["id"]) not in harness:
+                rep.add("FAIL", "card-surface", "surface '%s' (%s) isn't rendered by the %s cross-surface tests: add its real entry\n"
+                        "path to the test's runner." % (s["id"], plat, plat))
 
 
 def check_static(ch, rep):
@@ -480,8 +568,7 @@ def main(argv):
         check_static(ch, rep)
         check_debug(ch, rep)
         check_cleartext(ch, rep)
-        check_graph_surface(ch, rep)
-        check_freshness_surface(ch, rep)
+        check_card(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

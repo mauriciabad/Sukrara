@@ -201,7 +201,7 @@ enum TreatmentSheets {
     static func tr(_ k: String, _ a: Double, _ minAgo: Int) -> GraphMark { GraphMark(t: now - TimeInterval(minAgo * 60), k: k, a: a) }
 
     static func card(_ data: [GraphReading], _ marks: [GraphMark], _ st: CardStyle) -> (CGContext, CGSize, GraphPalette) -> Void {
-        { ctx, size, pal in GlucoseCard.draw(ctx, size: size, readings: data, marks: marks, now: now, st, pal, alerts: AlertSettings()) }
+        { ctx, size, pal in GlucoseCard.draw(ctx, size: size, readings: data, marks: marks, now: now, st, pal, surface: .test, part: .all, alerts: AlertSettings()) }
     }
 
     /// A tile drawn on its own transparent bitmap, then turned into what a tinted desktop shows: `.accented` keeps only
@@ -270,12 +270,12 @@ enum TreatmentSheets {
             let trs = [tr("rapid", 6, 8 * 60 + 10), tr("carbs", 60, 8 * 60), tr("long", 18, 6 * 60), tr("rapid", 4.5, 95),
                        tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20), tr("note", 0, 150)]
             let mv: [(String, CGFloat, CGFloat, CardStyle)] = [
-                ("4×2 combined, 12 h", 300, 150, CardStyle(graph: g)),
-                ("4×2 combined, 3 h", 300, 150, CardStyle(graph: gw(3))),
-                ("4×1 combined (side by side), 6 h", 300, 70, CardStyle(graph: gw(6))),
-                ("notification (no value, 12 h)", 340, 110, CardStyle(graph: g, value: false)),
-                ("5×3 combined, 24 h", 380, 230, CardStyle(graph: gw(24))),
-                ("app, 12 h", 360, 210, CardStyle(graph: g, value: false)),
+                ("4×2 combined, 12 h", 300, 150, CardStyle(graph: g, sensorTime: true)),
+                ("4×2 combined, 3 h", 300, 150, CardStyle(graph: gw(3), sensorTime: true)),
+                ("4×1 combined (side by side), 6 h", 300, 70, CardStyle(graph: gw(6), sensorTime: true)),
+                ("notification (no value, 12 h)", 340, 110, CardStyle(graph: g, value: false, sensorTime: true)),
+                ("5×3 combined, 24 h", 380, 230, CardStyle(graph: gw(24), sensorTime: true)),
+                ("app, 12 h", 360, 210, CardStyle(graph: g, value: false, sensorTime: true)),
             ]
             sheet(out.appendingPathComponent("mac-marks-\(tag).png"), mv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
                   cellW: 380, cellH: 230, cols: 2, dark: dark)
@@ -283,34 +283,34 @@ enum TreatmentSheets {
             func sensor(_ left: TimeInterval) -> SensorInfo { SensorInfo(start: now + left - 15 * day, end: now + left, warmupEnd: now + left - 15 * day + 3600) }
             func withSensor(_ st: CardStyle, _ s: SensorInfo) -> CardStyle { var x = st; x.sensor = s; return x }
             let sv: [(String, CGFloat, CGFloat, CardStyle, [GraphReading])] = [
-                ("4×2 · 13 days left", 300, 150, withSensor(CardStyle(graph: g), sensor(13 * day + 5 * 3600)), data15),
-                ("4×2 · 20 h left (8 h window: no ring)", 300, 150, withSensor(CardStyle(graph: g), sensor(20 * 3600)), data15),
-                ("4×2 · 5 h left: the countdown ring", 300, 150, withSensor(CardStyle(graph: g), sensor(5 * 3600)), data15),
-                ("4×2 · 45 min left", 300, 150, withSensor(CardStyle(graph: g), sensor(45 * 60)), data15),
+                ("4×2 · 13 days left", 300, 150, withSensor(CardStyle(graph: g, sensorTime: true), sensor(13 * day + 5 * 3600)), data15),
+                ("4×2 · 20 h left (8 h window: no ring)", 300, 150, withSensor(CardStyle(graph: g, sensorTime: true), sensor(20 * 3600)), data15),
+                ("4×2 · 5 h left: the countdown ring", 300, 150, withSensor(CardStyle(graph: g, sensorTime: true), sensor(5 * 3600)), data15),
+                ("4×2 · 45 min left", 300, 150, withSensor(CardStyle(graph: g, sensorTime: true), sensor(45 * 60)), data15),
                 ("warming up, 18 min in (old sensor's data)", 300, 150,
-                 withSensor(CardStyle(graph: g), SensorInfo(start: now - 18 * 60, end: now - 18 * 60 + 15 * day, warmupEnd: now - 18 * 60 + 3600)),
+                 withSensor(CardStyle(graph: g, sensorTime: true), SensorInfo(start: now - 18 * 60, end: now - 18 * 60 + 15 * day, warmupEnd: now - 18 * 60 + 3600)),
                  data15.filter { $0.t <= now - 40 * 60 }),
-                ("ended 2 h ago, no readings since", 300, 150, withSensor(CardStyle(graph: g), sensor(-2 * 3600)), data15.filter { $0.t <= now - 2 * 3600 }),
-                ("3×1 · ended 10 min ago, last value still fresh", 230, 60, withSensor(CardStyle(graph: nil), sensor(-600)), data15.filter { $0.t <= now - 600 }),
-                ("2×1 · ended 10 min ago", 150, 60, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)]), sensor(-600)),
+                ("ended 2 h ago, no readings since", 300, 150, withSensor(CardStyle(graph: g, sensorTime: true), sensor(-2 * 3600)), data15.filter { $0.t <= now - 2 * 3600 }),
+                ("3×1 · ended 10 min ago, last value still fresh", 230, 60, withSensor(CardStyle(graph: nil, sensorTime: true), sensor(-600)), data15.filter { $0.t <= now - 600 }),
+                ("2×1 · ended 10 min ago", 150, 60, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)], sensorTime: true), sensor(-600)),
                  data15.filter { $0.t <= now - 600 }),
-                ("4×1 side by side · ended yesterday", 300, 70, withSensor(CardStyle(graph: g), sensor(-26 * 3600)), data15.filter { $0.t <= now - 26 * 3600 }),
+                ("4×1 side by side · ended yesterday", 300, 70, withSensor(CardStyle(graph: g, sensorTime: true), sensor(-26 * 3600)), data15.filter { $0.t <= now - 26 * 3600 }),
             ]
             sheet(out.appendingPathComponent("mac-sensor-\(tag).png"), sv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card($0.4, [], $0.3)) },
                   cellW: 300, cellH: 150, cols: 2, dark: dark)
             // the user, 2026-10-21: the sensor's time left on every Mac surface at once (GraphGallery.kt `surfaces`)
             let s13 = sensor(13 * day + 5 * 3600)
             let surf: [(String, CGFloat, CGFloat, CardStyle)] = [
-                ("menu bar dropdown", 340, 290, withSensor(CardStyle(graph: g), s13)),
-                ("widget large, combined", 330, 330, withSensor(CardStyle(graph: g), s13)),
-                ("widget medium, combined", 330, 140, withSensor(CardStyle(graph: g), s13)),
-                ("widget medium, graph", 330, 140, withSensor(CardStyle(graph: g, rings: [], value: false), s13)),
-                ("widget small, graph (no % column)", 140, 140, withSensor(CardStyle(graph: g, rings: [], value: false), s13)),
-                ("widget small, combined", 140, 140, withSensor(CardStyle(graph: g), s13)),
-                ("widget medium, value", 330, 140, withSensor(CardStyle(graph: nil), s13)),
-                ("widget small, value", 140, 140, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)]), s13)),
+                ("menu bar dropdown", 340, 290, withSensor(CardStyle(graph: g, sensorTime: true), s13)),
+                ("widget large, combined", 330, 330, withSensor(CardStyle(graph: g, sensorTime: true), s13)),
+                ("widget medium, combined", 330, 140, withSensor(CardStyle(graph: g, sensorTime: true), s13)),
+                ("widget medium, graph", 330, 140, withSensor(CardStyle(graph: g, rings: [], value: false, sensorTime: true), s13)),
+                ("widget small, graph (no % column)", 140, 140, withSensor(CardStyle(graph: g, rings: [], value: false, sensorTime: true), s13)),
+                ("widget small, combined", 140, 140, withSensor(CardStyle(graph: g, sensorTime: true), s13)),
+                ("widget medium, value", 330, 140, withSensor(CardStyle(graph: nil, sensorTime: true), s13)),
+                ("widget small, value", 140, 140, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)], sensorTime: true), s13)),
                 ("setting off (Settings › Graph › Sensor time left)", 330, 140,
-                 { var x = withSensor(CardStyle(graph: g), s13); x.sensorTime = false; return x }()),
+                 { var x = withSensor(CardStyle(graph: g, sensorTime: true), s13); x.sensorTime = false; return x }()),
             ]
             sheet(out.appendingPathComponent("mac-surfaces-\(tag).png"), surf.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
                   cellW: 340, cellH: 330, cols: 2, dark: dark)
@@ -318,7 +318,7 @@ enum TreatmentSheets {
             let pair = [tr("rapid", 8, 20), tr("carbs", 5, 5)]
             let meal = [tr("rapid", 4.5, 12), tr("carbs", 45, 12)]
             let d150 = endAt(base31, 150)
-            func lastCard(_ rings: [RingSpec]) -> CardStyle { CardStyle(graph: nil, rings: rings, last: .nearValue, lastElse: RingSpec(window: 30 * day)) }
+            func lastCard(_ rings: [RingSpec]) -> CardStyle { CardStyle(graph: nil, rings: rings, last: .nearValue, lastElse: RingSpec(window: 30 * day), sensorTime: true) }
             let lp: [(String, CGFloat, CGFloat, CardStyle, [GraphMark])] = [
                 ("3×1 · 8u 20 min ago, then 5g 5 min ago", 230, 60, lastCard([RingSpec(window: day)]), pair),
                 ("3×1 · meal: 4.5u + 45g 12 min ago", 230, 60, lastCard([RingSpec(window: day)]), meal),
@@ -331,16 +331,16 @@ enum TreatmentSheets {
             let fullDay = [tr("carbs", 10, 1364), tr("rapid", 5, 859), tr("carbs", 40, 854), tr("rapid", 7, 509), tr("carbs", 70, 504),
                            tr("carbs", 15, 304), tr("carbs", 10, 284), tr("rapid", 8, 104), tr("carbs", 80, 99), tr("rapid", 1.5, 24), tr("long", 18, 9)]
             let cv: [(String, CGFloat, CGFloat, CardStyle, [GraphMark])] = [
-                ("4×2, 12 h: two 5g snacks 11 h ago", 300, 150, CardStyle(graph: g),
+                ("4×2, 12 h: two 5g snacks 11 h ago", 300, 150, CardStyle(graph: g, sensorTime: true),
                  [tr("carbs", 5, 680), tr("carbs", 5, 665), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
-                ("4×2, 3 h: meal, snack, correction", 300, 150, CardStyle(graph: gw(3)),
+                ("4×2, 3 h: meal, snack, correction", 300, 150, CardStyle(graph: gw(3), sensorTime: true),
                  [tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
-                ("notification, 12 h: insulin + carbs just now", 340, 110, CardStyle(graph: g, value: false),
+                ("notification, 12 h: insulin + carbs just now", 340, 110, CardStyle(graph: g, value: false, sensorTime: true),
                  [tr("rapid", 6, 490), tr("carbs", 60, 480), tr("carbs", 30, 5), tr("rapid", 3, 2)]),
-                ("2×2 graph widget, 12 h", 150, 150, CardStyle(graph: g, rings: [], value: false),
+                ("2×2 graph widget, 12 h", 150, 150, CardStyle(graph: g, rings: [], value: false, sensorTime: true),
                  [tr("rapid", 6, 490), tr("carbs", 60, 480), tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20)]),
-                ("5×3, 24 h: a full day", 380, 230, CardStyle(graph: gw(24)), fullDay),
-                ("app, 12 h: corrections close together", 360, 210, CardStyle(graph: g, value: false),
+                ("5×3, 24 h: a full day", 380, 230, CardStyle(graph: gw(24), sensorTime: true), fullDay),
+                ("app, 12 h: corrections close together", 360, 210, CardStyle(graph: g, value: false, sensorTime: true),
                  [tr("rapid", 1, 190), tr("rapid", 1.5, 170), tr("carbs", 10, 160), tr("rapid", 4.5, 95), tr("carbs", 45, 95),
                   tr("carbs", 15, 40), tr("rapid", 2, 20)]),
             ]
@@ -356,10 +356,10 @@ enum TreatmentSheets {
                 ("extremely high (318) after insulin: never muted", endAt(base31, 318), [tr("rapid", 4, 10)]),
             ]
             let sizes: [(String, CGFloat, CGFloat, CardStyle)] = [
-                ("4×2 combined", 300, 150, CardStyle(graph: gw(6))),
-                ("3×1 value + 2 rings", 230, 60, CardStyle(graph: nil)),
-                ("2×1 value + 1 ring", 150, 60, CardStyle(graph: nil, rings: [RingSpec(window: day)])),
-                ("4×1 side by side", 300, 70, CardStyle(graph: gw(6))),
+                ("4×2 combined", 300, 150, CardStyle(graph: gw(6), sensorTime: true)),
+                ("3×1 value + 2 rings", 230, 60, CardStyle(graph: nil, sensorTime: true)),
+                ("2×1 value + 1 ring", 150, 60, CardStyle(graph: nil, rings: [RingSpec(window: day)], sensorTime: true)),
+                ("4×1 side by side", 300, 70, CardStyle(graph: gw(6), sensorTime: true)),
             ]
             for (si, sz) in sizes.enumerated() {
                 sheet(out.appendingPathComponent("mac-badge-\(si + 1)-\(tag).png"),
@@ -369,7 +369,7 @@ enum TreatmentSheets {
             // Tinted desktop (accented / vibrant): the badge in every state and size, and the last-treatment slot.
             for mode in [RenderMode.accented, .vibrant] {
                 let m = mode == .accented ? "accented" : "vibrant"
-                let compact = ("value only, short: icon badge", CGFloat(130), CGFloat(40), CardStyle(graph: nil, rings: []))
+                let compact = ("value only, short: icon badge", CGFloat(130), CGFloat(40), CardStyle(graph: nil, rings: [], sensorTime: true))
                 sheet(out.appendingPathComponent("mac-badge-\(m)-\(tag).png"), (sizes + [compact]).flatMap { sz in
                     states.dropFirst().map { Tile(title: "\(sz.0) · \($0.0)", w: sz.1, h: sz.2, draw: card($0.1, $0.2, sz.3)) }
                 }, cellW: 300, cellH: 150, cols: 5, dark: dark, mode: mode)
@@ -379,7 +379,7 @@ enum TreatmentSheets {
             let rings = [RingSpec(window: day), RingSpec(window: 7 * day)]
             let fallback = RingSpec(window: 30 * day)
             func lst(_ graph: GraphStyle?, _ place: LastPlace = .nearValue, _ fb: RingSpec? = fallback) -> CardStyle {
-                CardStyle(graph: graph, rings: rings, last: place, lastElse: fb)
+                CardStyle(graph: graph, rings: rings, last: place, lastElse: fb, sensorTime: true)
             }
             let trsLast = [tr("long", 18, 5 * 60), tr("rapid", 4.5, 95), tr("carbs", 45, 95), tr("carbs", 15, 40), tr("rapid", 2, 20), tr("note", 0, 150)]
             let ls: [(String, [GraphMark])] = [

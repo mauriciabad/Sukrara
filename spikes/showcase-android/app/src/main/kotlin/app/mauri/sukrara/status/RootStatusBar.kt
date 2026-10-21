@@ -89,6 +89,9 @@ object RootStatusBar {
             .putExtra("lockBg", f.lockBg)
             .putExtra("lockLook", f.lockLook)
             .putExtra("sensorEnd", app.mauri.sukrara.core.SensorLife.current.value?.endEpoch ?: 0L)   // the flag once it has ended
+            // the warm-up's time left, as the card shows it (GlucoseCard.face in the hook)
+            .putExtra("sensorStart", app.mauri.sukrara.core.SensorLife.current.value?.startEpoch ?: 0L)
+            .putExtra("sensorWarmup", app.mauri.sukrara.core.SensorLife.current.value?.warmupEndEpoch ?: 0L)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }
@@ -124,15 +127,16 @@ object RootStatusBar {
 
     // --- 3a: system icons through the root daemon ---------------------------------------------------------
 
-    /** The status bar's look for [r] at [nowS]: [Freshness.look] with the sensor's end (the flag). */
-    fun look(r: Reading?, nowS: Long): GlucoseLook = Freshness.look(r?.sgv, r?.t, r?.rate, nowS,
-        ended = app.mauri.sukrara.core.SensorLife.current.value?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, nowS) } == true)
+    /** The status bar's look for [r] at [nowS]: the card's decision ([GlucoseCard.face]) with the sensor's state. */
+    fun look(r: Reading?, nowS: Long): GlucoseLook = app.mauri.sukrara.graph.GlucoseCard.face(r, nowS,
+        app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, nowS, r?.t),
+        app.mauri.sukrara.graph.CardSurface.STATUS_ICONS)
 
     /** What the two slots show: drawable names (null = remove the slot) and what TalkBack says. */
     data class IconPlan(val trend: String?, val number: String?, val desc: String)
 
     /**
-     * The system icons for a [look] ([Freshness.look], the user 2026-10-21): the number and the trend while fresh or
+     * The system icons for a [look] ([GlucoseCard.face], the user 2026-10-21): the number and the trend while fresh or
      * late; from 5 min the number struck through at half strength (`sb_s…`, so it reads grey in SystemUI's tint) beside
      * the "no trend" ring (`sb_t_none_s`); from 20 min only the "no readings" icon (sensors_off) in the trend slot; an
      * ended sensor the checkered flag (round sensor-life). SystemUI draws them itself (tinted, no colour).
@@ -142,9 +146,11 @@ object RootStatusBar {
         GlucoseLook.State.NO_READINGS -> IconPlan("ic_stat_no_readings", null,
             "No glucose readings since ${r?.let { Freshness.timeText(it.t, System.currentTimeMillis() / 1000) } ?: "?"}")   // i18n-ok: SystemUI icon description, English like "Glucose …"
         GlucoseLook.State.NONE -> IconPlan(null, null, "")
+        // a warm-up has no number to show in the number icons (one drawable per value): no slots until the first reading
+        GlucoseLook.State.WARMING_UP -> IconPlan(null, null, "Sensor warming up")   // i18n-ok: SystemUI icon description
         GlucoseLook.State.VALUE -> {
             // One resource per value: the Compose status bar ignores the icon level (see tools/gen-slot-drawables.swift).
-            val v = when (look.text) { "LO" -> "lo"; "HI" -> "hi"; else -> "n${look.text}" }   // freshness-ok: the look's text → its drawable name
+            val v = when (look.text) { "LO" -> "lo"; "HI" -> "hi"; else -> "n${look.text}" }   // card-ok: the look's text → its drawable name
             val number = if (look.strike) "sb_s${v.removePrefix("n")}" else "sb_$v"
             val trend = when {
                 look.trend == TrendMark.ARROW && r?.rate != null -> Trend.drawableName(r.rate)

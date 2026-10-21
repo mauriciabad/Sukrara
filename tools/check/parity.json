@@ -14,6 +14,8 @@
         "android": [
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/SensorBadge.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Freshness.kt",
@@ -26,6 +28,7 @@
         ],
         "mac": [
           "spikes/widgets-macos/Shared/SukraraGraph.swift",
+          "spikes/widgets-macos/Shared/CardSurfaces.swift",
           "spikes/widgets-macos/Shared/AlertRules.swift",
           "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift",
           "spikes/menubar/Sources/GlucoseBar/AlertRules.swift"
@@ -34,7 +37,7 @@
     },
     {
       "name": "graph-fixtures",
-      "why": "Graph decisions (badge, slot, labels) are pinned by shared fixtures run on both platforms",
+      "why": "Graph decisions (badge, slot, labels, what every surface lays out) are pinned by shared fixtures run on both platforms",
       "level": "warn",
       "trigger": ["code"],
       "sides": {
@@ -43,7 +46,10 @@
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
           "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt"
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
+          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt"
         ],
         "fixtures": ["spikes/graph-fixtures/*"]
       }

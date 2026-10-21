@@ -33,10 +33,11 @@ import java.io.File
 
 /**
  * The freshness steps (spikes/graph-fixtures/freshness/freshness.json, the file the Mac's `-graphselftest` runs too):
- * the shared [Freshness.look] at every step boundary, and every Android surface in the file's registry rendered through
- * its own code at each case (the card on a recording canvas, the notification, the status-bar icons and hook text, the
- * Quick Settings tile, the widgets' descriptions). A surface listed there without an adapter here fails, so a new
- * surface can't skip the steps. [night] replays 2026-10-20's outage with a fake clock: the alarms land on the steps and
+ * the shared [Freshness.look] at every step boundary, the card ([card], on a recording canvas) and every glyph surface
+ * of the one surface registry (spikes/graph-fixtures/surfaces/surfaces.json, kind "glyph": the notification's text and
+ * icons, the status-bar icons and hook text, the Quick Settings tile, the widgets' descriptions) rendered through its
+ * own code at each case. A glyph surface registered there without an adapter here fails, so a new surface can't skip
+ * the steps; the card surfaces are rendered by [CardLayoutTest] (its scenes cover the steps). [night] replays 2026-10-20's outage with a fake clock: the alarms land on the steps and
  * every surface changes at them without a new reading.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -97,22 +98,25 @@ class FreshnessFixtureTest {
 
     /** One adapter per surface id in the fixture's registry: what that surface draws / says for a case, checked against it. */
     private val adapters: Map<String, (Case) -> List<String>> = mapOf(
-        "card" to ::card,
-        "app-panel" to ::panel,
         "widget-description" to { c -> description(c, withTime = true) },
         "lock-widget-description" to { c -> description(c, withTime = false) },
-        "notification" to ::notification,
+        "notification-text" to ::notification,
         "status-icons" to ::statusIcons,
         "status-hook" to ::statusHook,
         "quick-tile" to ::tile,
     )
 
     @Test fun surfaces() {
-        val registry = root().getJSONObject("surfaces").getJSONObject("android")
-        val ids = registry.keys().asSequence().toSet()
-        assertEquals("every Android surface in freshness.json has an adapter here (and no adapter without a surface)", ids, adapters.keys)
+        val registry = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+            .map { File(it, "spikes/graph-fixtures/surfaces/surfaces.json") }.first { it.isFile }
+            .let { JSONObject(it.readText()).getJSONObject("android").getJSONArray("surfaces") }
+        val ids = (0 until registry.length()).map { registry.getJSONObject(it) }.filter { it.getString("kind") == "glyph" }.map { it.getString("id") }.toSet()
+        assertEquals("every Android glyph surface in surfaces.json has an adapter here (and no adapter without a surface)", ids, adapters.keys)
         val failures = mutableListOf<String>()
-        for (c in cases()) for ((id, adapter) in adapters) adapter(c).forEach { failures += "$id · ${c.name}: $it" }
+        for (c in cases()) {
+            card(c).forEach { failures += "card · ${c.name}: $it" }
+            for ((id, adapter) in adapters) adapter(c).forEach { failures += "$id · ${c.name}: $it" }
+        }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 
@@ -143,7 +147,7 @@ class FreshnessFixtureTest {
         val cv = Recorder(Bitmap.createBitmap(720, 400, Bitmap.Config.ARGB_8888))
         val st = CardStyle(graph = GraphStyle(), rings = emptyList(), sensorTime = false)
         GlucoseCard.draw(cv, 720f, 400f, history, emptyList(), now, st,
-            GraphPalette.DARK, 2f, alerts = null, sensor = sensor(c), countdownH = 8, paused = emptyMap())
+            GraphPalette.DARK, 2f, CardSurface.TEST, CardPart.ALL, alerts = null, sensor = sensor(c), countdownH = 8, paused = emptyMap())
         val w = app.mauri.sukrara.core.Words.current
         when (c.state) {
             "value" -> {
@@ -161,17 +165,6 @@ class FreshnessFixtureTest {
         if (c.state == "value") check(out, "the reading's time", c.time, cv.texts.any { it.first == time })
         // the chart: its labels under the value row (without one the value's words fill the card)
         if (c.state != "ended") check(out, "chart", c.graph, cv.below.any { it !in setOf(w.noReadingSince, w.noReadingsYet, time) })
-        return out
-    }
-
-    /** The app's home panel decides through the same look (its Compose value and the card's chart part). */
-    private fun panel(c: Case): List<String> {
-        // GlucosePanel: number = look.text while VALUE, the arrow only for TrendMark.ARROW, chart while fresh.showGraph.
-        // Its drawing is Compose; its decisions are this look (tools/check freshness-surface keeps it so) and its chart
-        // is the card's GRAPH part, covered by [card].
-        val l = look(c)
-        val out = mutableListOf<String>()
-        check(out, "number", c.text.takeIf { c.state == "value" }, if (l.state == GlucoseLook.State.VALUE) l.text else null)
         return out
     }
 
@@ -207,7 +200,7 @@ class FreshnessFixtureTest {
             check(out, "title no-trend ring", c.trend == "none", t.endsWith(TrendMark.RING))
             check(out, "chip text", if (c.strike) c.text!!.map { "${it}\u0336" }.joinToString("") else c.text, l.plain)
             // the number icon (setting "icon"): half strength when struck
-            val bmp = GlucoseNotification.iconBitmap(l, c.rate)
+            val bmp = ValueGlyphs.icon(l, c.rate)
             val maxA = (0 until bmp.height step 4).maxOf { y -> (0 until bmp.width step 4).maxOf { x -> bmp.getPixel(x, y) ushr 24 } }
             check(out, "number icon half strength", c.strike, maxA in 1..140)
         }

@@ -3,17 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.hook
 
-import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.TrendMark
 
 /**
- * What the SystemUI hook's text ([SystemUiHook], LSPosed) shows, decided from [Freshness.look] (kept out of the module
+ * What the SystemUI hook's text ([SystemUiHook], LSPosed) shows for the card's decision ([chipFace], [GlucoseCard.face]; kept out of the module
  * class so the JVM tests can run it without the Xposed API).
  */
 object HookText {
     /** The mark after the value: the arrow, the "no trend" ring, the sensor-ended flag, the "no readings" icon. */
-    enum class Mark { ARROW, RING, FLAG, NO_READINGS }
+    enum class Mark { ARROW, RING, FLAG, NO_READINGS, NONE }
 
     /** The value ([text], struck through, at [alpha]) and the [mark] after it, in [color]; [desc] for TalkBack. */
     data class Render(val text: String, val strike: Boolean, val alpha: Float, val color: Int, val mark: Mark, val desc: String)
@@ -24,6 +24,8 @@ object HookText {
      * readings" icon; the flag once the sensor has ended. English (SystemUI process).
      */
     fun of(look: GlucoseLook, colorOn: Boolean, rangeColor: Int?, base: Int): Render = when (look.state) {
+        // a new sensor warming up: its time left where the number goes (the card and the Mac's menubar say the same)
+        GlucoseLook.State.WARMING_UP -> Render(look.warmup ?: "", false, 1f, base, Mark.NONE, "Sensor warming up, ${look.warmup}")   // i18n-ok: SystemUI process
         GlucoseLook.State.ENDED -> Render("", false, 1f, base, Mark.FLAG, "Sensor ended")   // i18n-ok: SystemUI process
         GlucoseLook.State.NO_READINGS, GlucoseLook.State.NONE -> Render("", false, 1f, base, Mark.NO_READINGS, "No glucose readings")   // i18n-ok: SystemUI process
         GlucoseLook.State.VALUE -> Render(look.text!!, look.strike, if (look.strike) 0.5f else 1f,

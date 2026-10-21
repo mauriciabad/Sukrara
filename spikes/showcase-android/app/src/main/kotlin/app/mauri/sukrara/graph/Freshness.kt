@@ -54,16 +54,19 @@ enum class Freshness(val showValue: Boolean, val showTime: Boolean, val strike: 
          * decision behind the cards (app panel, widgets, lock screen, notification art), the glucose notification and
          * its small icon, the Live Update chip, the root status-bar icons and the SystemUI hook. The Mac's
          * `Freshness.look` is the same rule; both run spikes/graph-fixtures/freshness.
-         * [ended] = the sensor has ended (its own state, before any value).
+         * [ended] = the sensor has ended, [warmup] = a new sensor's warm-up time left ("42m", [SensorBadge.Look.warmup]):
+         * their own states, before any value. Surfaces don't call this: they ask [GlucoseCard.face], which passes the
+         * sensor's state and tells the cross-surface test what each surface decided (tools/check `card-api`).
          */
-        fun look(sgv: Int?, t: Long?, rate: Double?, nowS: Long, ended: Boolean = false): GlucoseLook {
+        fun look(sgv: Int?, t: Long?, rate: Double?, nowS: Long, ended: Boolean = false, warmup: String? = null): GlucoseLook {
             val fr = of(t?.let { nowS - it })
             return when {
+                warmup != null -> GlucoseLook(GlucoseLook.State.WARMING_UP, fr, null, false, null, warmup)
                 ended -> GlucoseLook(GlucoseLook.State.ENDED, fr, null, false, null)
                 sgv == null || t == null -> GlucoseLook(GlucoseLook.State.NONE, fr, null, false, null)
                 !fr.showValue -> GlucoseLook(GlucoseLook.State.NO_READINGS, fr, null, false, null)
                 else -> GlucoseLook(GlucoseLook.State.VALUE, fr, valueText(sgv), fr.strike,
-                    if (rate != null && !fr.strike) TrendMark.ARROW else TrendMark.NONE)
+                    if (rate != null && !fr.strike) TrendMark.ARROW else TrendMark.NONE, rate = rate)
             }
         }
 
@@ -107,11 +110,12 @@ enum class TrendMark { ARROW, NONE;
 }
 
 /**
- * [Freshness.look]'s answer: the [state]; for a value its [text] (number or LO / HI), whether it's [strike]n through
+ * [Freshness.look]'s answer ([GlucoseCard.face] for a surface): the [state]; for a value its [text] (number or LO / HI), whether it's [strike]n through
  * and grey (stale, 5–20 min) and its [trend] (null without a value); [fresh] for the time and the chart
  * ([Freshness.showTime], [Freshness.showGraph]).
  */
-data class GlucoseLook(val state: State, val fresh: Freshness, val text: String?, val strike: Boolean, val trend: TrendMark?) {
+data class GlucoseLook(val state: State, val fresh: Freshness, val text: String?, val strike: Boolean, val trend: TrendMark?,
+                       val warmup: String? = null, val rate: Double? = null) {
     enum class State {
         /** A value to show (fresh, late or struck through). */
         VALUE,
@@ -121,7 +125,12 @@ data class GlucoseLook(val state: State, val fresh: Freshness, val text: String?
         NONE,
         /** The sensor has ended: the checkered flag. */
         ENDED,
+        /** A new sensor warming up: its time left ([warmup]) where the number goes. */
+        WARMING_UP,
     }
+
+    /** A value shows (fresh, late or struck through). */
+    val shown get() = state == State.VALUE
 
     /** Grey instead of the range colour: the struck-through value. */
     val grey get() = strike

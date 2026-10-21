@@ -44,11 +44,13 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   *(parity groups `alerts`, `alert-scenarios`, `alert-spec`; `AlertScenarioTest` + `-alerts-selftest` in CI)*
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
   *(check `features`)*
-- **One graph everywhere.** Every change to the glucose graph / value card (marks, badge, slots, units, colours) lands on
-  Android AND Mac (`spikes/widgets-macos/Shared/SukraraGraph.swift`: menubar dropdown + Mac widgets) in the same round.
-  Surfaces never lay the card out themselves: only `GlucoseCard` draws the chart and the sensor badge, a card drawn in
-  boxes passes one whole-card style with `part`, every style carries its place's settings.
-  *(parity group `graph`; shared cases in `spikes/graph-fixtures` run by `GraphFixtureTest` and `-graphselftest`;
-  check `graph-surface`)*
+- **One graph everywhere.** The card (value, arrow, badges, slots, chart and every element in them) is laid out and
+  drawn only by the renderer: Android `GlucoseCard` (graph/), Mac `GlucoseCard` (`spikes/widgets-macos/Shared/SukraraGraph.swift`).
+  Every place that shows the card or its value is registered in `spikes/graph-fixtures/surfaces/surfaces.json` (and the
+  `CardSurface` enums); a card surface only chooses its size, its place's settings and the `CardPart`, a text / icon
+  place takes its value from `GlucoseCard.face`. A change to the card lands on Android AND Mac in the same round; a new
+  surface is registered and rendered by the cross-surface tests. *(checks `card-surface`, `card-api`, `card-text`;
+  `CardLayoutTest`, `FreshnessFixtureTest`, `GraphFixtureTest` and `-graphselftest` over `spikes/graph-fixtures`, incl.
+  `layout/rules.json` + `expect.json`; `tools/check/run.sh --layout` runs them locally; parity group `graph`)*
 - **Protocols** (`spikes/nostr/PROTOCOL-*.md`, `spikes/alerts/SPEC.md`): a spec change lands with both
   implementations. *(parity groups `protocol-v2`, `identity`, `alert-spec`, `treatments`)*

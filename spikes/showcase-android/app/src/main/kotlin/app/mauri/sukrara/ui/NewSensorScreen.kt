@@ -72,6 +72,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -490,9 +492,27 @@ private fun ReadyHero() {
     val pal = remember(dark) { systemPalette(ctx, dark) }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Badge(R.drawable.ic_sym_check_circle, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, 80.dp)
-        last?.let { ValueNumber("${it.sgv}", it.rate, Color(pal.at(cfg.bands, it.sgv)), strike = false, scale = 0.8f) }
+        last?.let { r ->
+            // the card's own value (GlucoseCard, CardPart.VALUE): number, arrow and colour as every surface shows them
+            androidx.compose.foundation.Canvas(Modifier.size(FIRST_READING_W_DP.dp, FIRST_READING_H_DP.dp)) {
+                drawIntoCanvas { drawFirstReading(it.nativeCanvas, size.width, size.height, r, app.mauri.sukrara.core.Proto.nowS(), pal, density) }
+            }
+        }
     }
 }
+
+const val FIRST_READING_W_DP = 220f
+const val FIRST_READING_H_DP = 72f
+
+/**
+ * The first reading as the card shows a value ([CardPart.VALUE] of a value-only card: no slots, status or sensor
+ * badge, this screen says those), [w] × [h] px. The screen's one drawing entry, also the tests'.
+ */
+internal fun drawFirstReading(cv: android.graphics.Canvas, w: Float, h: Float, r: app.mauri.sukrara.core.Reading, now: Long,
+                              pal: app.mauri.sukrara.graph.GraphPalette, d: Float) =
+    app.mauri.sukrara.graph.GlucoseCard.draw(cv, w, h, listOf(r), emptyList(), now,
+        app.mauri.sukrara.graph.CardStyle(graph = null, rings = emptyList(), badge = false, sensorTime = false), pal, d,
+        app.mauri.sukrara.graph.CardSurface.FIRST_READING, app.mauri.sukrara.graph.CardPart.VALUE, alerts = null)
 
 /** An icon in a filled circle: the illustration of the stages that have no drawing of their own. */
 @Composable

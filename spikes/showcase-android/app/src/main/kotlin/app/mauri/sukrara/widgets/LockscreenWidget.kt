@@ -25,17 +25,15 @@ import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
-import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.features.LockAppearance
 import app.mauri.sukrara.features.LockBackground
 import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
-import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
-import app.mauri.sukrara.graph.Slots
-import app.mauri.sukrara.graph.appSlots
+import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.graph.systemPalette
@@ -137,16 +135,21 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale, LockAppearance.dark(f.lockLook, ctx))
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(ctx, frame),
+        contentDescription = lockDescription(ctx, frame),
         modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>()),
         contentScale = ContentScale.FillBounds,
     )
 }
 
 /** Where the lock icon is, dp from the widget's top-left: [left]…[right] wide, from the top down to [bottom]. */
-private data class Hole(val left: Float, val right: Float, val bottom: Float)
+internal data class Hole(val left: Float, val right: Float, val bottom: Float)
 
-private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float, f: FeatureState) {
+/**
+ * The lock-screen widget's picture (its one entry, also the tests'): one card in three boxes around the lock icon.
+ * [metricsOf] null = the slots from the stored history.
+ */
+internal fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hole, d: Float, f: FeatureState,
+                  metricsOf: ((app.mauri.sukrara.graph.RingSpec, app.mauri.sukrara.graph.Bands) -> app.mauri.sukrara.graph.GlucoseMetrics)? = null) {
     val cfg = GraphSettings.value
     // The home widgets' palette in the chosen appearance. Transparent: the end dot's halo is drawn in the background colour.
     val pal = systemPalette(ctx, dark = LockAppearance.dark(f.lockLook, ctx)).copy(bg = 0)
@@ -156,41 +159,26 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     val h = cv.height.toFloat() - pad
     val rowH = hole.bottom * d
 
-    // One card in two boxes: the value left of the lock icon, the chart below. Both parts are drawn with the same
-    // whole-card style, so GlucoseCard decides where the sensor badge goes once for both (CardPart).
+    // One card in three boxes: the value left of the lock icon, the slots right of it, the chart below. Every part is
+    // drawn with the same whole-card style, so GlucoseCard decides the card once for all of them (CardPart).
     val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
-    val card = CardStyle(graph = graph, rings = emptyList(), sensorTime = cfg.sensorTime(GraphPlace.WIDGETS))
+    val card = CardStyle(graph = graph, rings = cfg.rings(), last = cfg.lastPlace, lastElse = cfg.lastElseRing(),
+        sensorTime = cfg.sensorTime(GraphPlace.WIDGETS))
+    val metrics = metricsOf ?: { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) }
+    fun part(box: RectF, part: CardPart) = cv.withBox(box) {
+        GlucoseCard.draw(cv, box.width(), box.height(), frame.history, frame.treatments, frame.nowSec, card, pal, d,
+            CardSurface.LOCKSCREEN, part, metricsOf = metrics)
+    }
 
     // Value + arrow, left of the lock icon (a little shorter than the row so the number isn't taller than the icon).
-    val valueBox = RectF(pad, rowH * 0.1f, hole.left * d, rowH * 0.9f)
-    cv.withBox(valueBox) {
-        GlucoseCard.draw(cv, valueBox.width(), valueBox.height(), frame.history, frame.treatments, frame.nowSec,
-            card, pal, d, part = CardPart.VALUE)
-    }
-
+    part(RectF(pad, rowH * 0.1f, hole.left * d, rowH * 0.9f), CardPart.VALUE)
     // The slots (time in range, GMI, average, CV, last treatment: investigations 16 and 18), right of the lock icon,
-    // main rightmost, chosen like GlucoseCard's header.
-    val ringsBox = RectF(hole.right * d, 0f, w, rowH)
-    val gap = 8 * d
-    val size = min(rowH * 0.9f - pad, 84 * d)
-    if (size >= 30 * d) {
-        val fit = ((ringsBox.width() + gap) / (size + gap)).toInt().coerceIn(0, 4)
-        val x = ringsBox.right
-        val items = appSlots(ctx, frame.history, frame.treatments, frame.nowSec, fit)
-        val main = Slots.mainIndex(items)
-        val countdown = app.mauri.sukrara.graph.SensorBadge.countdownNow(frame.nowSec)
-        val cx = Slots.centers(items, x, size, gap)
-        Slots.drawUnder(cv, items, cx, ringsBox.centerY(), size / 2, pal)
-        for ((i, item) in items.withIndex())
-            Slots.draw(cv, item, cx[i], ringsBox.centerY(), size / 2, frame.nowSec, pal, d, countdown.takeIf { i == main })
-    }
-
+    // main rightmost, a little shorter than the row.
+    val slotsH = rowH * 0.9f - pad
+    part(RectF(hole.right * d, (rowH - slotsH) / 2, w, (rowH + slotsH) / 2), CardPart.SLOTS)
     // The chart below.
     val chart = RectF(pad, rowH + 8 * d, w, h)
-    if (chart.height() > 24 * d) cv.withBox(chart) {
-        GlucoseCard.draw(cv, chart.width(), chart.height(), frame.history, frame.treatments, frame.nowSec,
-            card, pal, d, part = CardPart.GRAPH)
-    }
+    if (chart.height() > 24 * d) part(chart, CardPart.GRAPH)
     if (LockscreenWidget.testPattern) testPattern(cv, d)
 }
 
@@ -227,8 +215,10 @@ private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {
     try { block() } finally { restore() }
 }
 
-private fun describe(c: android.content.Context, frame: WidgetUpdater.Frame): String {
+/** What the lock screen widget says to a screen reader (its one value decision, also the tests'). */
+internal fun lockDescription(c: android.content.Context, frame: WidgetUpdater.Frame): String {
     val r = frame.history.lastOrNull()
-    val value = valueWords(c, Freshness.look(r?.sgv, r?.t, r?.rate, frame.nowSec), r, frame.nowSec, withTime = false)
-    return c.getString(R.string.lock_widget_desc, value)
+    val look = GlucoseCard.face(r, frame.nowSec, app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, frame.nowSec, r?.t),
+        CardSurface.LOCK_DESCRIPTION)
+    return c.getString(R.string.lock_widget_desc, valueWords(c, look, r, frame.nowSec, withTime = false))
 }
