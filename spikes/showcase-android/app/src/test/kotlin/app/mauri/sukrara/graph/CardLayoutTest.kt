@@ -131,6 +131,12 @@ class CardLayoutTest {
                 if (o.has("lines")) x = x.copy(lines = o.getJSONArray("lines").let { l -> (0 until l.length()).map(l::getInt) })
                 if (o.has("gridHours")) x = x.copy(gridHours = o.getInt("gridHours"))
                 if (o.has("high")) x = x.copy(bands = x.bands.copy(high = o.getInt("high")))
+                when (val m = o.opt("marks")) {
+                    null -> {}
+                    "all" -> x = x.copy(marks = app.mauri.sukrara.treatments.MarkShow.ALL)
+                    is JSONObject -> x = x.copy(marks = app.mauri.sukrara.treatments.MarkShow.parse(m.keys().asSequence().joinToString(",") { k ->
+                        val a = m.getJSONArray(k); "$k:" + (0 until a.length()).joinToString("+") { a.getString(it) } }))
+                }
                 x
             }
         }

@@ -14,6 +14,8 @@
   {"name": "slots", "elements": ["slot"], "by": ["scene", "settings", "rings"], "mode": "subset", "shared": true},
   {"name": "chart", "elements": ["chart.distribution", "chart.lines", "chart.markers", "chart.hours"],
    "by": ["scene", "settings", "graph", "side", "hours"], "shared": true},
+  {"name": "marks", "elements": ["chart.marks"], "by": ["scene", "settings", "graph", "hours"], "shared": true,
+   "about": "What each treatment shows (Settings › Graph › Treatments on the graph: point, mute line, amount label, time label per kind), entry by entry: the same on every surface and both platforms; whether a label fits is the 'labels' rule's."},
   {"name": "sensor-box", "elements": ["chart.sensor"], "by": ["scene", "settings", "chart", "lane2"], "box": true},
   {"name": "labels", "elements": ["chart.label"], "by": ["scene", "settings", "chart", "hours", "sensorShown"], "box": true},
   {"name": "values", "elements": ["chart.values"], "by": ["scene", "settings", "chart"]},

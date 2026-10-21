@@ -450,6 +450,14 @@ enum GraphFixtures {
     /// The treatment label layout (spikes/graph-fixtures/labels/*.json, the files GraphFixtureTest.labels runs): the
     /// plot's edges, the lanes, which labels are drawn (entries, text, lane, centre in dp from the chart's left) or
     /// dropped. dp values match within 0.5 (Float on Android, Double here; both rounded to 0.5).
+    /// A fixture's `marks`: absent = the defaults, "all" = every part, or `{kind: [parts]}` (missing kinds = their default).
+    static func marksOf(_ m: Any?) -> MarkShow {
+        if m == nil { return .defaults }
+        if (m as? String) == "all" { return .all }
+        guard let o = m as? [String: [String]] else { print("FAIL marks: \(String(describing: m))"); return .defaults }
+        return MarkShow.parse(o.map { "\($0.key):" + $0.value.joined(separator: "+") }.joined(separator: ","))
+    }
+
     static func labels(_ dir: URL) -> Int {
         let now: TimeInterval = 1_800_000_000
         var failures = 0, n = 0
@@ -476,13 +484,14 @@ enum GraphFixtures {
                 let lanes = GlucoseGraph.lanes(h, d: 1)
                 let lay = TreatmentMarks.layout(marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now,
                                                 minX: 0, maxX: w, lanes: lanes, d: 1,
-                                                reserve: (c["sensor"] as? String).map { (0, GlucoseGraph.sensorWidth($0, d: 1) + 3) })
+                                                reserve: (c["sensor"] as? String).map { (0, GlucoseGraph.sensorWidth($0, d: 1) + 3) },
+                                                show: marksOf(c["marks"]))
                 let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
                 // the width model holds the real text (SF Pro, the wider font) of every label
                 let bold = Ink.font(TreatmentMarks.labelSize, .bold), medium = Ink.font(TreatmentMarks.labelSize, .medium)
                 for l in got {
-                    let real = l.amounts.reduce(0) { $0 + Ink.width($1, bold) } + CGFloat(l.amounts.count - 1) * Ink.width(TreatmentMarks.sep, medium)
-                        + (l.time.map { Ink.width(" " + $0, medium) } ?? 0)
+                    let real = l.amounts.reduce(0) { $0 + Ink.width($1, bold) } + CGFloat(max(0, l.amounts.count - 1)) * Ink.width(TreatmentMarks.sep, medium)
+                        + (l.time.map { Ink.width((l.amounts.isEmpty ? "" : " ") + $0, medium) } ?? 0)
                     if real > l.w + 0.01 { print("FAIL \(name): \"\(l.text)\" is \(real) wide, modelled \(l.w)"); failures += 1 }
                 }
                 let e = c["expect"] as? [String: Any] ?? [:]

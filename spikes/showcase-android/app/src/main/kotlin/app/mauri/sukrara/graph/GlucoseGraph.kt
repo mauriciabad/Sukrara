@@ -15,6 +15,7 @@ import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.MarkShow
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
 import java.util.Locale
@@ -64,6 +65,8 @@ data class GraphStyle(
     val gridHours: Int = 1,
     /** The crown over a perfect 100 in the % column ([GraphConfig.columnCrown]). */
     val crown: Boolean = true,
+    /** Which parts of each treatment kind show: point, mute line, amount, time ([GraphConfig.marks]). */
+    val marks: MarkShow = MarkShow.DEFAULT,
 )
 
 /**
@@ -119,8 +122,15 @@ object GlucoseGraph {
         fun pctW(v: Int) = pctBig.measureText("$v") + pctSmall.measureText("%")
         val pctLabelW = maxOf(pctW(lo), pctW(inr), pctW(hi))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
-        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end } else emptyList()
+        // Only the parts the settings show ([GraphStyle.marks]): an entry with nothing shown is left out, and the
+        // marker lane is there only when a point or a mute line is drawn in it.
+        val show = st.marks
+        val muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } }
+        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end && show.any(it.k) &&
+            (show.has(it.k, MarkShow.POINT) || show.label(it.k) && TreatmentMarks.amount(it) != null ||
+                show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null) } else emptyList()
         val marks = shown.isNotEmpty()
+        val lane = shown.any { show.has(it.k, MarkShow.POINT) || show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null }
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
         // The y range of the window ([yRange]); a scrolling surface animates it towards that and passes the current one.
@@ -148,12 +158,12 @@ object GlucoseGraph {
             val left = lr.first
             val right = lr.second
             val layout = if (marks) TreatmentMarks.layout(shown, { t -> left + (t - from).toFloat() / st.windowS * (right - left) }, nowS,
-                area.left, area.right, lanes(area.height(), d), d, badgeRoom) else null
+                area.left, area.right, lanes(area.height(), d), d, badgeRoom, show) else null
             val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
             val textRow = labels || layout?.labels?.isNotEmpty() == true
             val top = area.top + 3 * d
             val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
-            val plotBottom = if (marks) bottom - 12 * d else bottom
+            val plotBottom = if (lane) bottom - 12 * d else bottom
             val values = axisValues(top, plotBottom)
         }
         var g = Geo(valuesW(candidates))
@@ -339,7 +349,12 @@ object GlucoseGraph {
         }
 
         if (marks) {
-            rec.add("chart.markers", info = "${shown.count { it.k in setOf("rapid", "long", "carbs", "note") }}", exact = true)
+            rec.add("chart.markers", info = "${shown.count { it.k in setOf("rapid", "long", "carbs", "note") && show.has(it.k, MarkShow.POINT) }}", exact = true)
+            // what each entry shows (layout/rules.json "marks": the same on every surface)
+            rec.add("chart.marks", info = shown.sortedBy { it.id }.joinToString(" ") { tr ->
+                tr.id + ":" + MarkShow.parts(tr.k).filter { p -> show.has(tr.k, p) && (p != MarkShow.LINE || muteUntil?.invoke(tr) != null) &&
+                    (p != MarkShow.AMOUNT && p != MarkShow.TIME || TreatmentMarks.amount(tr) != null) }.joinToString("+")
+            }, exact = true)
             layout?.labels?.forEach { l ->
                 rec.add("chart.label", RectF(l.left, if (l.lane == 0) area.bottom - 14 * d - lane1 else area.bottom - 14 * d, l.left + l.w,
                     if (l.lane == 0) area.bottom - lane1 else area.bottom), "${l.text} lane${l.lane}", exact = true)
@@ -347,7 +362,7 @@ object GlucoseGraph {
         }
         if (marks) TreatmentMarks.draw(cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
-            nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
+            nowS = nowS, muteUntil = muteUntil, show = show)
         // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
         // with [ChartView.now]; the surface makes its box (chart.now) tappable.
         if (view != null && view.now > 0f) {

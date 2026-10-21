@@ -2112,6 +2112,31 @@
     <string name="graph_side_summary" formatted="false">Time below, in and above range</string>
     <!-- Beside the graph note [CHAR LIMIT=NONE] -->
     <string name="graph_side_note">The distribution covers the same time as the graph; the lines stop short of its dots. Each widget can turn it off on its own.</string>
+    <!-- Graph settings: the row and page title for what each treatment kind shows on the chart [CHAR LIMIT=40] -->
+    <string name="graph_marks_title">Treatments on the graph</string>
+    <!-- That row's summary: kinds that show only their point; %1$s = kinds like "Carbs" [CHAR LIMIT=NONE] -->
+    <string name="graph_marks_summary_point">%1$s: point only</string>
+    <!-- That row's summary when every kind shows everything it has [CHAR LIMIT=NONE] -->
+    <string name="graph_marks_summary_all">Point, mute line, amount and time</string>
+    <!-- That row's summary when the user changed several kinds [CHAR LIMIT=NONE] -->
+    <string name="graph_marks_summary_custom">Custom for each kind</string>
+    <!-- Treatments on the graph: group per kind [CHAR LIMIT=30] -->
+    <string name="graph_marks_kind_rapid">Rapid insulin</string>
+    <string name="graph_marks_kind_long">Long-acting insulin</string>
+    <string name="graph_marks_kind_carbs">Carbs</string>
+    <string name="graph_marks_kind_note">Notes</string>
+    <!-- Switch: the marker at the treatment's time [CHAR LIMIT=40] -->
+    <string name="graph_marks_point">Point</string>
+    <!-- Switch: the line from the marker to where its alert pause ends [CHAR LIMIT=40] -->
+    <string name="graph_marks_line">Mute line</string>
+    <!-- Its summary [CHAR LIMIT=90] -->
+    <string name="graph_marks_line_summary">Until its alerts come back</string>
+    <!-- Switch: the amount under the marker, like 4.5u or 30g [CHAR LIMIT=40] -->
+    <string name="graph_marks_amount">Amount label</string>
+    <!-- Switch: the time since it, like 1h 5m, under the marker [CHAR LIMIT=40] -->
+    <string name="graph_marks_time">Time label</string>
+    <!-- Note under the page [CHAR LIMIT=NONE] -->
+    <string name="graph_marks_note">Close treatments share one label, like 4u · 40g 1h 4m. Hidden amounts leave it, and the time shows once, since the newest treatment that shows its time. Every graph uses these: the app, the notification, the widgets and the lock screen.</string>
     <!-- Group in Graph settings: where the sensor's time left shows, one switch per place [CHAR LIMIT=30] -->
     <string name="graph_group_sensor">Sensor time left</string>
     <!-- Note under that group [CHAR LIMIT=NONE] -->
