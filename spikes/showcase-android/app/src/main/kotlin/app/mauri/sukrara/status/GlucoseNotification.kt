@@ -111,6 +111,7 @@ object GlucoseNotification {
         app.mauri.sukrara.core.SensorLife.current.value,
         app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode(),
         GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
+        app.mauri.sukrara.alerts.Alerts.paused.value,   // the status pill ("45m left") after a notification's Mute
         c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
         chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
     )

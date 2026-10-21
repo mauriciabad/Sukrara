@@ -77,6 +77,8 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs += scope.launch { Treat.store.items.collect { TreatmentFeed.update(it) } }   // the charts' treatments
         // a treatment logged / deleted: the card's marks and slots at once, not at the next reading
         jobs += scope.launch { TreatmentFeed.items.drop(1).collect { render(force = false) } }
+        // muted / unmuted from an alert notification: the card's status pill at once (it showed the old one until a reading)
+        jobs += scope.launch { app.mauri.sukrara.alerts.Alerts.paused.drop(1).collect { render(force = false) } }
         jobs += Treat.uploader.start(scope)
         app.mauri.sukrara.tidepool.Tidepool.start(ctx, scope)   // off until the user signs in and switches it on (docs/27)
         app.mauri.sukrara.nightscout.Nightscout.start(ctx, scope)   // off until the user sets up a site (docs/25); wearer only
