@@ -264,3 +264,20 @@ afterwards). Never a hosted site, never the user's phone.
       uploading to this site" with *Upload anyway*; tap it → uploads resume.
 - [ ] Wrong token saved → "The site refused the token or secret: change it", nothing more is sent until it is changed.
 - [ ] `adb logcat` while uploading: no token, secret or JWT in clear. Spanish: every row, dialog and status translated.
+
+## Q18 Settings: numbers, Settings from, ring order
+
+Emulator (`medium_phone` wearer, `small_phone` follower; debug = synthetic glucose) and a Mac test build with
+throwaway data. Schema: `spikes/settings/settings.json`; `tools/check/run.sh` covers the rest.
+
+- [ ] Every number row (Graph: the six ranges, time shown and per place, rings, periods, lines, vertical lines; Alerts:
+      thresholds, remind, quiet times, Mute for, Slow down; Sensor countdown; Nostr / LibreView intervals) opens the
+      number dialog: specials + presets, *Custom* with the unit as suffix and "From … to …" under it; `0`, a value
+      above the range and (rates) `1.55` are refused with that text in red; a custom value shows as *Custom* + value.
+- [ ] TalkBack on the ring order: each row offers Move up / Move down / Move to top / Move to bottom; dragging a row by
+      its handle moves it and the rings in the preview follow after the drop.
+- [ ] Follower: overview *Settings from* = Wearer; Graph shows only per-place times and sensor time; Alerts rows say
+      "Set by the wearer's app" and quiet times are hidden. Change a range on the wearer's emulator: the follower's
+      graph follows within a minute. *Custom* → the rows appear; *Copy the wearer's settings* asks first, then copies.
+- [ ] Mac: the same choices per number (pop-up + *Custom…* field and stepper), Settings from in General, drag to
+      reorder the rings. Spanish on Android: every new row and dialog translated.

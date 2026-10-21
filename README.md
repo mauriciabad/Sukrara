@@ -114,7 +114,8 @@ by the app's icon code.</sub>
   [05](docs/05-android-status-bar.md)
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
-  so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
+  so it never goes out of date), the system's page and back-gesture motion, one number input everywhere (presets plus
+  a custom value with its unit and range, the same choices on the Mac), the ring order by drag and drop,
   export / import / reset of the options, and a reminder to share your data with your clinic (LibreView or Tidepool). Apps and services show their real icons,
   drawn like the system Settings app's list; every other row has an icon too, with custom ones for diabetes things
   (the sensor, insulin, carbs, ranges, each alert). Each alert has its own page
@@ -201,7 +202,9 @@ by the app's icon code.</sub>
   only end-to-end encrypted to the people you share with and are never posted publicly. The picture is sent as a few
   versioned numbers, not an image, so every Sukrara draws it the same, also after the drawing style changes.
   [14](docs/14-nostr-identity.md)
-- Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
+- Followers take their settings from the wearer (ranges, graph, rings, alert rules: the wearer's phone sends them,
+  encrypted), from the defaults, or customise them, starting from either (Settings from, phone and Mac). They alert
+  when the wearer's phone alerts (the alert itself is sent, encrypted) or with their own rules.
   [15](docs/15-alerts.md)
 - Followers (phone and Mac) see the graph, ranges and alerts with the wearer's own settings by default (*Settings
   from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.

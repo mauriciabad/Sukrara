@@ -52,5 +52,10 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   surface is registered and rendered by the cross-surface tests. *(checks `card-surface`, `card-api`, `card-text`;
   `CardLayoutTest`, `FreshnessFixtureTest`, `GraphFixtureTest` and `-graphselftest` over `spikes/graph-fixtures`, incl.
   `layout/rules.json` + `expect.json`; `tools/check/run.sh --layout` runs them locally; parity group `graph`)*
+- **Settings never diverge across platforms.** Every setting of both apps is in THE schema
+  `spikes/settings/settings.json` (store + key per platform, or the one platform with `only` + reason; its number
+  format; whether followers mirror it from the wearer). Number settings use the one number input (Android
+  `NumberDialog`, Mac `NumberSettingRow`) with the generated `SettingsSpec` (`python3 tools/settings/gen.py` after a
+  schema change). *(check `settings`; `SettingsSchemaTest` + `-settingsselftest` in CI)*
 - **Protocols** (`spikes/nostr/PROTOCOL-*.md`, `spikes/alerts/SPEC.md`): a spec change lands with both
   implementations. *(parity groups `protocol-v2`, `identity`, `alert-spec`, `treatments`)*
