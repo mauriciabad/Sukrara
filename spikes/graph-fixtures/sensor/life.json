@@ -207,6 +207,51 @@
    }
   },
   {
+   "name": "warm-up: 59 min 15 s left is 1h (one rounding: never 60m beside a 1h; widgets and app panel differed, 2026-10-21)",
+   "start": -45,
+   "end": 1295955,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 1.0,
+    "warmup": "1h",
+    "ring": 0.0125,
+    "pill": null
+   }
+  },
+  {
+   "name": "warm-up: 59 min 0 s left is 59m",
+   "start": -60,
+   "end": 1295940,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "14d",
+    "ended": false,
+    "life": 1.0,
+    "warmup": "59m",
+    "ring": 0.0167,
+    "pill": null
+   }
+  },
+  {
+   "name": "warm-up: just started, 60 min left is 1h",
+   "start": 0,
+   "end": 1296000,
+   "countdownHours": 8,
+   "latest": null,
+   "expect": {
+    "label": "15d",
+    "ended": false,
+    "life": 1.0,
+    "warmup": "1h",
+    "ring": 0.0,
+    "pill": null
+   }
+  },
+  {
    "name": "warming up, the old sensor's last reading doesn't end it",
    "start": -1080,
    "end": 1294920,

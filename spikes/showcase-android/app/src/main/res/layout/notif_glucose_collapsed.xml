@@ -1,24 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike — GPL-3.0-or-later.
-     Glucose card, collapsed (status/GlucoseNotification.kt, chip off): value, arrow, the reading's time when late,
-     the slots (rings / report numbers / last treatment) at the end. Android 12+: at most 48 dp tall. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:orientation="horizontal" android:gravity="center_vertical">
-
-    <!-- the value as a picture: the card's rounded face (graph/RoundedFont.kt), which RemoteViews text can't use -->
-    <ImageView android:id="@+id/value"
-        android:layout_width="wrap_content" android:layout_height="wrap_content" />
-
-    <ImageView android:id="@+id/arrow"
-        android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp"
-        android:importantForAccessibility="no" />
-
-    <TextView android:id="@+id/info"
-        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-        android:layout_marginStart="12dp" android:textSize="14sp" android:maxLines="2" android:ellipsize="end" />
-
-    <ImageView android:id="@+id/slots"
-        android:layout_width="wrap_content" android:layout_height="42dp" android:layout_marginStart="8dp"
-        android:adjustViewBounds="true" android:scaleType="fitEnd" android:importantForAccessibility="no" />
-</LinearLayout>
+     Glucose card, collapsed (status/GlucoseNotification.kt, chip off): the card's header row as the renderer draws it
+     on every card (value, trend, the late reading's time, the status pill, the slots). Android 12+: at most 48 dp tall. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/header"
+    android:layout_width="match_parent" android:layout_height="48dp"
+    android:adjustViewBounds="true" android:scaleType="fitStart" />

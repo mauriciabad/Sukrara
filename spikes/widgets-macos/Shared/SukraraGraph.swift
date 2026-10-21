@@ -492,6 +492,9 @@ struct CardStyle {
     /// The sensor's time left on this card (`GraphConfig.sensorTime`); warm-up and ended show regardless. No default:
     /// every place passes its own setting.
     var sensorTime: Bool
+    /// The ranges the value's colour and the slots count in: the user's (`GraphConfig.cardStyle` sets them), also on a
+    /// card without a chart (the value widget used the built-in 180 after the high bound moved, 2026-10-21).
+    var bands = Bands()
 }
 
 /// Which part of a card one `GlucoseCard.draw` call paints (CardPart in GlucoseCard.kt): a surface that puts parts of
@@ -537,7 +540,7 @@ final class CardLayout {
 
 
 /// Where the sensor's time left goes on a card (`GlucoseCard.sensorSpot`; SensorSpot in GlucoseCard.kt).
-enum SensorSpot: String { case graph, value, none }
+enum SensorSpot: String { case graph, none }
 
 /// Everything the graph settings decide (UserDefaults on the Mac; the widget gets it in its snapshot).
 struct GraphConfig: Codable, Equatable {
@@ -569,7 +572,7 @@ struct GraphConfig: Codable, Equatable {
     /// The card style of a surface with a value: the rings, the last-treatment slot and its fallback.
     func cardStyle(graph g: GraphStyle?, rings: [RingSpec]? = nil) -> CardStyle {
         CardStyle(graph: g, rings: rings ?? self.rings, value: true, last: lastPlace, lastElse: lastElseRing, countdownHours: countdownHours,
-                  sensorTime: sensorTime)
+                  sensorTime: sensorTime, bands: bands)
     }
 
     static let gridChoices = [0, 1, 2, 3, 4, 6, 12]
@@ -1885,6 +1888,9 @@ enum Slots {
         i + 1 < items.count && (laurel(items[i]) || laurel(items[i + 1])) ? r * 0.22 : 0
     }
 
+    /// Room kept left of the leftmost item (the last one) when it wears a laurel (Slots.leftInset on Android): its branch
+    /// reaches about half a radius past the ring, so the value's words beside it don't run into the leaves.
+    static func leftInset(_ items: [SlotItem], r: CGFloat) -> CGFloat { items.last.map { laurel($0) } == true ? r * 0.3 : 0 }
     /// Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r (Slots.edgeInset).
     static func edgeInset(_ items: [SlotItem], r: CGFloat) -> CGFloat { items.first.map { laurel($0) } == true ? r * 0.3 : 0 }
 
@@ -2151,12 +2157,13 @@ enum SensorLife {
         now >= s.start && now < s.warmupEnd + warmupGrace && (latest.map { $0 < s.start } ?? true)
     }
 
-    /// The warm-up's time left as the card's figure: whole minutes rounded up ("42m"); ≥ 1 h → "1h". From the
-    /// warm-up's end until the first reading "Almost ready": a countdown never shows "0m" or less.
+    /// The warm-up's time left as the card's figure: whole minutes rounded up ("42m"), from 60 of them hours ("1h": one
+    /// rounding, so 59:15 left is "1h" everywhere, never "60m"). From the warm-up's end until the first reading
+    /// "Almost ready": a countdown never shows "0m" or less.
     static func warmupLabel(_ s: SensorInfo, now: TimeInterval) -> String {
         if waitingFirstReading(s, now: now) { return "Almost ready" }
-        let left = Int((s.warmupEnd - now).rounded(.down))
-        return left >= 3600 ? "\(left / 3600)h" : "\((left + 59) / 60)m"
+        let min = (Int((s.warmupEnd - now).rounded(.down)) + 59) / 60
+        return min >= 60 ? "\(min / 60)h" : "\(min)m"
     }
 
     /// While warming up: the warm-up's time is over and the first reading hasn't come yet.
@@ -2307,7 +2314,7 @@ enum GlucoseCard {
         let fr = Freshness.of(age: latest.map { now - $0.t })
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
         let graph = fr.showGraph ? st.graph : nil
-        let bands = (st.graph?.bands ?? Bands()).sane()
+        let bands = st.bands.sane()
         let metrics = metricsOf ?? { r, b in GlucoseMetrics.of(readings, from: now - r.window, to: now, bands: b) }
         let spot = sensorSpot(st, sl, fr)
         let countdown = SensorBadge.ring(sl, st.sensor, now: now, hours: st.countdownHours)
@@ -2318,32 +2325,33 @@ enum GlucoseCard {
         }
         // one part in a box of its own: that box is the part's whole area
         let sideBySide = part == .all && graph != nil && st.value && h < 100 * d && w > 2.6 * h
+        // A chart card with no chart (no reading for 3 h, none yet): the value's face takes the chart's place; a card tall
+        // enough for a chart keeps the slots in the header's row and puts the face where the chart was (GlucoseCard.kt).
+        let noChart = st.graph != nil && graph == nil && part == .all
+        let rowH = min(max(h * 0.34, 30 * d), 80 * d)
+        let stacked = noChart && st.value && h - rowH - 6 * d >= 48 * d
         let headerH: CGFloat = (part == .value || part == .header) ? h : (part == .graph || !st.value) ? 0
-            : (graph == nil || sideBySide) ? h : min(max(h * 0.34, 30 * d), 80 * d)
+            : stacked ? rowH : (graph == nil || sideBySide) ? h : rowH
         let valueRight = sideBySide ? min(w * 0.32, 120 * d) : w
 
         let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
             : part == .graph ? CGRect(x: 0, y: 0, width: w, height: h)
             : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
-        if part == .all || part == .graph {
-            if let graph {
-                GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
-                                  sensor: spot == .graph ? sl : nil, rec: rec)
-            } else if st.graph != nil && chart.height > 24 * d {
-                let f = face(latest, now: now, sensor: sl, surface: surface)
-                let msg = f.state == .warmingUp ? "Warming up" : f.state == .ended ? "Sensor ended"
-                    : latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
-                Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
-                rec.add("chart.message", chart, f.state.rawValue)
-            }
+        if part == .all || part == .graph, let graph {
+            GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
+                              sensor: spot == .graph ? sl : nil, rec: rec)
+        }
+        // a graph-only card without its chart: the value's face alone
+        if noChart && !st.value {
+            drawValue(ctx, chart, latest, fr, now, bands, pal, d: d, look: nil, sensor: sl, rec: rec)
         }
         if st.value && part != .graph {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
             let ringsW = sideBySide || part == .value ? 0
                 : drawRings(ctx, box, st, last, now, bands, pal, d: d, metrics, countdown: countdown, rec: rec, dedicated: false)
             let look = st.badge ? StatusBadge.look(status, now: now) : nil
-            drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal,
-                      d: d, look: look, sensor: sl, lifeBadge: spot == .value, rec: rec)
+            drawValue(ctx, stacked ? chart : CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now,
+                      bands, pal, d: d, look: look, sensor: sl, rec: rec)
         }
         return rec
     }
@@ -2361,12 +2369,13 @@ enum GlucoseCard {
     /// Where the sensor's time left goes on a card `st` (the WHOLE card, also when its parts are drawn in separate boxes):
     /// the one decision every surface uses (GlucoseCard.kt `sensorSpot`, both checked by spikes/graph-fixtures/place).
     /// In the chart's hour-label row whenever the card shows a chart with hour labels (with or without the % column);
-    /// beside the arrow on a card without one; nowhere when the place's setting hides it, nothing is known, or the
-    /// sensor warms up / has ended (the value's place shows those states).
+    /// nowhere else: a card without a labelled chart shows just the number and its trend (the user, 2026-10-21: beside the
+    /// arrow it turned "120 ○" into "120°"), nor when the place's setting hides it, nothing is known, or the sensor warms
+    /// up / has ended (the value's place shows those states).
     static func sensorSpot(_ st: CardStyle, _ look: SensorBadge.Look?, _ fr: Freshness) -> SensorSpot {
         guard let look, st.sensorTime, look.warmup == nil, !look.ended else { return .none }
         if let g = st.graph, fr.showGraph, g.axisLabels { return .graph }
-        return st.value && fr.showValue ? .value : .none
+        return .none
     }
 
     /// Slots (`Slots.arrange`) right-aligned in `box` (main rightmost); returns the width used. Beside the value
@@ -2408,7 +2417,8 @@ enum GlucoseCard {
         }
         rec.add("slots", CGRect(x: cx.last! - size / 2, y: box.minY, width: x - (cx.last! - size / 2), height: box.height), "\(items.count)")
         rec.add("slots.box", box)
-        return cx.last.map { x - ($0 - size / 2) + gap } ?? 0
+        // a laurel on the leftmost slot reaches past its ring: what is left of the slots keeps clear of it too
+        return cx.last.map { x - ($0 - size / 2) + gap + Slots.leftInset(items, r: size / 2) } ?? 0
     }
 
     /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a
@@ -2416,7 +2426,7 @@ enum GlucoseCard {
     /// icon beside the arrow, or is left out when there's no room there either.
     private static func drawValue(_ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
                                   _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,
-                                  sensor: SensorBadge.Look?, lifeBadge: Bool, rec: CardLayout) {
+                                  sensor: SensorBadge.Look?, rec: CardLayout) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
         let face = face(r, now: now, sensor: sensor, surface: rec.surface)
         if face.state == .warmingUp, let sensor { return drawWarmup(ctx, box, sensor, small, now, pal, d: d, rec: rec) }
@@ -2440,6 +2450,8 @@ enum GlucoseCard {
             return
         }
         let color = fr.strike ? pal.inkSoft : pal.at(bands, Double(r.sgv))
+        // which colour, by name, for the cross-surface test (layout rules "value-color")
+        rec.add("value.color", nil, fr.strike ? "grey" : r.sgv >= bands.extremelyHigh ? "EXTREMELY_HIGH" : bands.of(Double(r.sgv)).name)
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""
         let smallH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
@@ -2450,13 +2462,7 @@ enum GlucoseCard {
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - timeH)
         var numSize = numBox.height * 1.18
         let arrowFactor: CGFloat = 0.62
-        // the sensor badge beside the arrow (SensorSpot.value) is part of the row: the number shrinks to make room for it
-        // (the badge starts at the arrow's end: number + 0.08 + 1.15 × the arrow, 0.62 of the size)
-        func need() -> CGFloat {
-            let numW = Ink.width(s, Ink.font(numSize, .bold, rounded: true))
-            guard lifeBadge, let sensor else { return numW + numSize * arrowFactor * 1.1 }
-            return numW + numSize * 0.82 + SensorBadge.width(sensor, h: min(max(numSize * 0.72 * 0.24, 9 * d), 14 * d))
-        }
+        func need() -> CGFloat { Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * arrowFactor * 1.1 }
         for _ in 0..<3 { let n = need(); if n > box.width { numSize *= box.width / n * 0.995 } }
         let num = Ink.font(numSize, .bold, rounded: true)
         // no row for the badge: its icon goes beside the arrow if there's room
@@ -2482,16 +2488,6 @@ enum GlucoseCard {
             let rr = TrendMark.ringRadius(arrowSize)
             ctx.strokeEllipse(in: CGRect(x: x + arrowSize / 2 - rr, y: numBox.midY - rr, width: 2 * rr, height: 2 * rr))
             rec.add("value.trend", CGRect(x: x, y: numBox.midY - arrowSize / 2, width: arrowSize, height: arrowSize), "ring")
-        }
-        // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
-        if let sensor, lifeBadge {
-            let sh = min(max(capH * 0.24, 9 * d), 14 * d)
-            let sx = x + arrowSize * 1.15 + (iconBadge ? iconH + arrowSize * 0.15 : 0)
-            let sw = SensorBadge.width(sensor, h: sh)
-            if sx + sw <= box.maxX {
-                SensorBadge.draw(ctx, x: sx, y: numBox.midY - capH / 2, h: sh, sensor, pal)
-                rec.add("value.sensor", CGRect(x: sx, y: numBox.midY - capH / 2, width: sw, height: sh), sensor.label)
-            } else { rec.add("value.sensor", nil, "\(sensor.label) (no room)") }
         }
         if badgeRow, let look {
             let top = numBox.maxY + badgeH * 0.25

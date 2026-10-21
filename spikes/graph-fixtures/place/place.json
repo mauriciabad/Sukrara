@@ -79,7 +79,7 @@
    }
   },
   {
-   "name": "value only (value widget): beside the arrow",
+   "name": "value only (value widget): no badge, just the number (the user, 2026-10-21)",
    "card": {
     "graph": false,
     "value": true
@@ -87,11 +87,11 @@
    "sensor": "live",
    "age": 60,
    "expect": {
-    "spot": "value"
+    "spot": "none"
    }
   },
   {
-   "name": "chart without hour labels: beside the arrow",
+   "name": "chart without hour labels: no badge, just the number",
    "card": {
     "graph": true,
     "value": true,
@@ -100,7 +100,7 @@
    "sensor": "live",
    "age": 60,
    "expect": {
-    "spot": "value"
+    "spot": "none"
    }
   },
   {

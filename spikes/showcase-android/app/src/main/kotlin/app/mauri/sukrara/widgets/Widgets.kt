@@ -165,7 +165,8 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
     val sensor = w.sensor ?: cfg.sensorTime(GraphPlace.WIDGETS)
     return when (kind) {
-        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = sensor)
+        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = sensor,
+            bands = cfg.bands)
         WidgetKind.GRAPH -> CardStyle(graph = graph, rings = emptyList(), value = false, sensorTime = sensor)
         WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = sensor)
     }

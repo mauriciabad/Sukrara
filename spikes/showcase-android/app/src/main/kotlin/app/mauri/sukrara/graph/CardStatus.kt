@@ -224,6 +224,12 @@ object Slots {
         return out
     }
 
+    /**
+     * Room kept left of the leftmost item (the last one) when it wears a laurel: its branch reaches about half a radius
+     * past the ring, so the value's words beside it don't run into the leaves (the Mac's "No reading since" did).
+     */
+    fun leftInset(items: List<SlotItem>, r: Float) = if (items.isNotEmpty() && hasLaurel(items.last())) r * 0.3f else 0f
+
     /** All the [extraGap]s of [items] and the [edgeInset] together. */
     fun extraWidth(items: List<SlotItem>, r: Float) = items.indices.sumOf { extraGap(items, it, r).toDouble() }.toFloat() + edgeInset(items, r)
 

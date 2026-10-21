@@ -27,6 +27,9 @@ let iconH = 15.0
 let digitH = 12.4         // cap height of the digits: measured on the phone to match the clock (27 px)
 let gap = 0.15            // extra tracking between glyphs
 let outer = 1.0           // padding left of the number and right of the arrow: the pair reads as one unit
+let inner = 1.5           // padding left of the trend (arrow / ring): the gap between the number and its trend. SystemUI
+                          // lays the two slot icons out with no gap between them, so without it they touched ("118→",
+                          // 2026-10-21); SlotDrawablesTest checks it
 let minMgdl = 40, maxMgdl = 400
 let staleAlpha = "0.5"    // the struck-through value: half strength, so SystemUI's tint reads grey
 
@@ -120,13 +123,13 @@ if args.count == 3 {
     print("123 is \(fmt(advance("1") + advance("2") + advance("3")))dp wide")
 
     // Trend: same unit arrow as the Mac (TrendArrow.swift). Each angle's drawable is only as wide as the arrow (plus
-    // [outer] on the right), so it sits close to the number instead of in a padded square.
+    // [inner] on the left and [outer] on the right), so it sits close to the number instead of in a padded square.
     func arrow(_ deg: Double, _ polys: [(Double, Double)]...) -> String {
         let r = deg * .pi / 180
         let pts = polys.map { $0.map { (x, y) in ((x * cos(r) - y * sin(r)) * k, (x * sin(r) + y * cos(r)) * k) } }   // y down
         let minX = pts.flatMap { $0 }.map(\.0).min()!, maxX = pts.flatMap { $0 }.map(\.0).max()!
         let paths = pts.map { p in "M" + p.map { "\(fmt($0.0 - minX)),\(fmt(cy + $0.1))" }.joined(separator: "L") + "Z" }
-        return vector(width: maxX - minX + outer, paths: paths)
+        return vector(width: inner + maxX - minX + outer, paths: [], shift: inner, raw: paths)
     }
     let shaftPts = [(-0.42, -0.085), (0.25, -0.085), (0.25, 0.085), (-0.42, 0.085)]
     func headPts(_ tip: Double) -> [(Double, Double)] { [(tip, 0), (tip - 0.40, -0.30), (tip - 0.30, 0), (tip - 0.40, 0.30)] }
@@ -141,7 +144,7 @@ if args.count == 3 {
 // "No trend": a hollow ring the size of the arrows' box (graph/Freshness.kt TrendMark: radius 0.24, stroke 0.11 of it).
 let rr = 0.24 * k, sw = 0.11 * k
 func ring(_ alpha: String?) -> String {
-    let w = 2 * rr + sw + outer, cx = rr + sw / 2
+    let w = inner + 2 * rr + sw + outer, cx = inner + rr + sw / 2
     let d = "M\(fmt(cx - rr)),\(fmt(cy))A\(fmt(rr)),\(fmt(rr)) 0 1,0 \(fmt(cx + rr)),\(fmt(cy))A\(fmt(rr)),\(fmt(rr)) 0 1,0 \(fmt(cx - rr)),\(fmt(cy))Z"
     return vector(width: w, paths: [], extra: [
         "    <path android:strokeColor=\"#FFFFFFFF\"\(alpha.map { " android:strokeAlpha=\"\($0)\"" } ?? "") android:strokeWidth=\"\(fmt(sw))\" android:pathData=\"\(d)\"/>"])

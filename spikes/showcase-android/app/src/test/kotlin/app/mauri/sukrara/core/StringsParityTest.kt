@@ -79,7 +79,7 @@ class StringsParityTest {
             "period_days" to w.periodDays, "period_hours" to w.periodHours,
             "slot_average_short" to w.slotAverage, "slot_gmi_short" to w.slotGmi, "slot_cv_short" to w.slotCv,
             "slot_tir_in_range" to w.tirInRange, "slot_tir_very_good" to w.tirVeryGood,
-            "card_no_readings_yet" to w.noReadingsYet, "card_no_readings_since" to w.noReadingsSince,
+            "card_no_readings_yet" to w.noReadingsYet,
             "card_no_reading_since" to w.noReadingSince,
             "trend_unknown" to w.trendUnknown, "trend_steady" to w.trendSteady, "trend_rising" to w.trendRising,
             "trend_rising_fast" to w.trendRisingFast, "trend_falling" to w.trendFalling, "trend_falling_fast" to w.trendFallingFast,
