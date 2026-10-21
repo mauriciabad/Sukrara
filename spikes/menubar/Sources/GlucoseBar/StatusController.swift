@@ -167,7 +167,7 @@ extension Bands {
         let rate = snap.rate
         // what shows is the card's own decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
         // then the freshness steps
-        let look = Self.titleFace(snap.latest, rate: rate, now: nowT, sensor: SensorStore.current, format: { self.unit.format(Double($0)) })
+        let look = Self.titleFace(snap, now: nowT, sensor: SensorStore.current, format: { self.unit.format(Double($0)) })
         let title = MenubarTitle.of(look)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
         endTimer?.invalidate()
@@ -245,11 +245,11 @@ extension Bands {
         return st
     }
 
-    /// The status item's value decision (its one, also the self-tests'): the card's face for `latest` (GlucoseCard.face),
+    /// The status item's value decision (its one, also the self-tests'): the card's face for the snapshot's newest reading with its rate (`Snapshot.rate`, the source's own) (GlucoseCard.face),
     /// written in the user's unit (`format`).
-    static func titleFace(_ latest: Reading, rate: Double?, now: TimeInterval, sensor: SensorInfo?,
+    static func titleFace(_ snap: Snapshot, now: TimeInterval, sensor: SensorInfo?,
                           format: @escaping (Int) -> String = { "\($0)" }) -> GlucoseLook {
-        let r = GraphReading(t: latest.date.timeIntervalSince1970, v: latest.mgdl, rate: rate)
+        let r = GraphReading(t: snap.latest.date.timeIntervalSince1970, v: snap.latest.mgdl, rate: snap.rate)
         return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle, format: format)
     }
 

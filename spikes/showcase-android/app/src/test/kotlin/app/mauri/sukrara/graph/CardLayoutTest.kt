@@ -84,7 +84,7 @@ class CardLayoutTest {
                     out += Reading(t, (lo + (hi - lo) * tri / half).toInt(), null)
                     t += 300
                 }
-                out += Reading(last, o.getInt("last"), o.getDouble("rate"))
+                out += Reading(last, o.getInt("last"), if (o.isNull("rate")) null else o.getDouble("rate"))
                 out
             }
             val trs = o.optJSONArray("treatments")?.let { t ->
@@ -111,6 +111,7 @@ class CardLayoutTest {
                 if (o.has("lastPlace")) x = x.copy(lastPlace = LastPlace.valueOf(o.getString("lastPlace")))
                 if (o.has("lines")) x = x.copy(lines = o.getJSONArray("lines").let { l -> (0 until l.length()).map(l::getInt) })
                 if (o.has("gridHours")) x = x.copy(gridHours = o.getInt("gridHours"))
+                if (o.has("high")) x = x.copy(bands = x.bands.copy(high = o.getInt("high")))
                 x
             }
         }
@@ -126,7 +127,7 @@ class CardLayoutTest {
     // ---- the surfaces' real entry paths ------------------------------------------------------------------------
 
     private val captured = ArrayList<CardLayout>()
-    private val faces = ArrayList<GlucoseLook>()
+    private val faces = ArrayList<Pair<CardSurface, GlucoseLook>>()
     private var panel by mutableStateOf<(@androidx.compose.runtime.Composable () -> Unit)?>(null)
 
     private fun metricsOf(sc: Scene): (RingSpec, Bands) -> GlucoseMetrics = { r, b -> GlucoseMetrics.of(sc.readings, now - r.windowS, now, b) }
@@ -168,7 +169,8 @@ class CardLayoutTest {
                 // build() draws the card's parts only while a value shows (chip off); the same condition here
                 val look = SensorBadge.look(sc.sensor, now, latest?.t)
                 if (latest != null && GlucoseCard.face(latest, now, look, CardSurface.TEST).shown)
-                    app.mauri.sukrara.status.GlucoseNotification.paintArt(ctx, false, 0xFFEEEEEE.toInt(), sc.readings, sc.treatments, now, w, latest, metricsOf = metricsOf(sc))
+                    app.mauri.sukrara.status.GlucoseNotification.paintArt(ctx, false, 0xFFEEEEEE.toInt(), 0xFFEEEEEE.toInt(), sc.readings,
+                        sc.treatments, now, w, android.graphics.Color.BLACK, metricsOf = metricsOf(sc))
             }
             CardSurface.NOTIFICATION_TEXT ->
                 app.mauri.sukrara.status.GlucoseNotification.build(ctx, latest, chip = false, icon = true, detail = "", now = now)
@@ -202,8 +204,10 @@ class CardLayoutTest {
         fun wh(w: Float, h: Float, d: Float) = "${Math.round(w / d)}x${Math.round(h / d)}"
         return mapOf(
             "scene" to r.scene, "settings" to r.settings,
-            // a card that shows the value, or a glyph surface (it shows nothing else)
-            "face" to (if (st == null) "${r.faces.isNotEmpty()}" else "${st.value}"),
+            // a card that shows the value's place: one with the value, or a chart card without its chart (the face takes
+            // the chart's place); or a glyph surface (it shows nothing else)
+            "face" to (if (st == null) "${r.faces.isNotEmpty()}"
+                else "${st.value || (st.graph != null && chart == null && r.layouts.any { it.part == CardPart.ALL })}"),
             "value" to (if (st == null) "glyph" else "${st.value}"),
             "graph" to "${st?.graph != null}",
             "labels" to "${st?.graph?.axisLabels ?: "-"}", "side" to "${st?.graph?.side ?: "-"}",
@@ -257,7 +261,7 @@ class CardLayoutTest {
 
         compose.setContent { panel?.invoke() }
         GlucoseCard.observer = { synchronized(captured) { captured += it } }
-        GlucoseCard.faceObserver = { s, f -> if (s != CardSurface.TEST) synchronized(faces) { faces += f } }
+        GlucoseCard.faceObserver = { s, f -> if (s != CardSurface.TEST) synchronized(faces) { faces += s to f } }
         val renders = ArrayList<Render>()
         val base = GraphSettings.value
         try {
@@ -276,7 +280,8 @@ class CardLayoutTest {
                             val ls = synchronized(captured) { captured.filter { it.surface == s } }
                                 // a composable may draw a part more than once: its last drawing counts
                                 .groupBy { it.part }.map { it.value.last() }
-                            val fs = if (s.kind == CardSurface.Kind.GLYPH) synchronized(faces) { faces.toList().distinct() } else emptyList()
+                            // a glyph surface's own decisions (its entry path may also draw a card part: the notification)
+                            val fs = if (s.kind == CardSurface.Kind.GLYPH) synchronized(faces) { faces.filter { it.first == s }.map { it.second }.distinct() } else emptyList()
                             renders += Render(s, "${w.toInt()}x${h.toInt()}", sc.id, sid, ls, fs)
                         }
                     }
@@ -296,6 +301,15 @@ class CardLayoutTest {
             val want = e.getJSONArray("parts").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
             val drawn = renders.filter { it.surface == s }.flatMap { r -> r.layouts.map { it.part.name.lowercase() } }.toSet()
             if (drawn != want) problems += "${s.id}: draws the parts $drawn, registered $want"
+        }
+        // a card surface draws its value (number, trend, time, status pill) through the renderer too, or the registry
+        // says why it can't ("no_value"): the notification once drew its own value row and missed the status pill
+        for (i in 0 until reg.getJSONArray("surfaces").length()) {
+            val e = reg.getJSONArray("surfaces").getJSONObject(i)
+            if (e.getString("kind") != "card" || e.has("no_value")) continue
+            val parts = e.getJSONArray("parts").let { a -> (0 until a.length()).map(a::getString) }
+            if (parts.none { it in setOf("all", "header", "value") })
+                problems += "${e.getString("id")}: draws ${parts} but not its value (all / header / value): another surface's value row would drift from the card's; or set \"no_value\" with the reason"
         }
         for (s in CardSurface.entries.filter { it.kind == CardSurface.Kind.GLYPH })
             if (renders.none { it.surface == s && it.faces.isNotEmpty() }) problems += "${s.id}: its entry path never asked GlucoseCard.face"
@@ -365,6 +379,23 @@ class CardLayoutTest {
         for (k in expect.keys()) if (k !in answers) diffs += "gone: $k → ${expect.getString(k)}"
         if (diffs.isNotEmpty()) fail("layout/expect.json is out of date (${diffs.size}); if the change is intended, run with -Dlayout.write=true, " +
             "review the diff and make the Mac follow (-graphselftest):\n  " + diffs.take(30).joinToString("\n  "))
+    }
+
+    /**
+     * The colorized notification's header (value, pill, slots on discs) sits on the card's colour, which doesn't follow
+     * the theme, so it is the same picture in light and dark (2026-10-21: dark slot discs looked heavy on the card).
+     */
+    @Test fun notificationHeaderIgnoresTheTheme() {
+        val ctx = RuntimeEnvironment.getApplication()
+        RoundedFont.init(ctx)
+        app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(ctx.resources) }
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        val sc = scenes().first { it.id == "live" }
+        fun art(dark: Boolean) = app.mauri.sukrara.status.GlucoseNotification.paintArt(ctx, dark, if (dark) 0xFF222222.toInt() else 0xFFEEEEEE.toInt(),
+            0xFFEEEEEE.toInt(), sc.readings, sc.treatments, now, 291f, android.graphics.Color.BLACK, metricsOf = metricsOf(sc))
+        val light = art(false); val dark = art(true)
+        assertTrue("the expanded header differs between light and dark", light.header!!.sameAs(dark.header))
+        assertTrue("the collapsed header differs between light and dark", light.collapsed!!.sameAs(dark.collapsed))
     }
 
     private fun isSubsequence(a: List<String>, b: List<String>): Boolean {

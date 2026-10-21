@@ -71,8 +71,7 @@ final class JugglucoSource {
         return try JSONDecoder().decode([Entry].self, from: data).map {
             Reading(date: Date(timeIntervalSince1970: $0.date / 1000), mgdl: $0.sgv,
                     // direction "" means Juggluco had no rate (NaN) and wrote delta 0.
-                    rate: ($0.direction ?? "").isEmpty ? nil : $0.delta.map { $0 / 5 },
-                    direction: $0.direction)
+                    rate: ($0.direction ?? "").isEmpty ? nil : $0.delta.map { $0 / 5 })
         }.sorted { $0.date < $1.date }
     }
 
@@ -82,7 +81,6 @@ final class JugglucoSource {
         let timestamp: Double     // epoch s
         let glucoseMgDl: Double
         let rateMgDlPerMinute: Double?
-        let direction: String?
     }
 
     /// Yields each new reading as Juggluco receives it from the sensor. Ends/throws when the connection drops.
@@ -100,8 +98,7 @@ final class JugglucoSource {
                             let json = Data(line.dropFirst(5).utf8)
                             if let e = try? JSONDecoder().decode(LiveEvent.self, from: json) {
                                 continuation.yield(Reading(date: Date(timeIntervalSince1970: e.timestamp),
-                                                           mgdl: e.glucoseMgDl, rate: e.rateMgDlPerMinute,
-                                                           direction: e.direction))
+                                                           mgdl: e.glucoseMgDl, rate: e.rateMgDlPerMinute))
                             }
                             event = "message"
                         }

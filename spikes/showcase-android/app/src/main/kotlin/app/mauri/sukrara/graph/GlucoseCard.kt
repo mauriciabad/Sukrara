@@ -311,8 +311,18 @@ data class CardStyle(
     val hour24: Boolean = graph?.hour24 ?: Clock.hour24,
     /** The sensor's time left ([SensorBadge]) on this card ([GraphConfig.sensorTime]); warm-up and ended show regardless. */
     val sensorTime: Boolean,
-    /** Slots drawn as discs of this colour ([CardPart.SLOTS] on a coloured surface: the notification); null = none. */
+    /** Slots drawn as discs of this colour (on a coloured surface: the notification); null = none. */
     val slotDisc: Int? = null,
+    /**
+     * The value (number, trend, late time) in this colour instead of its range colour: on a surface whose own colour
+     * already says the range (the colorized notification, black or white for contrast); null = the range colour.
+     */
+    val valueInk: Int? = null,
+    /**
+     * The ranges the value's colour and the slots count in: the user's, also on a card without a chart (the value widget
+     * used the built-in 180 and stayed orange after the high bound moved to 200, 2026-10-21).
+     */
+    val bands: Bands = graph?.bands ?: GraphSettings.value.bands,
 )
 
 /**
@@ -328,8 +338,6 @@ enum class CardPart { ALL, HEADER, VALUE, SLOTS, GRAPH }
 enum class SensorSpot {
     /** In the chart's hour-label row, at its left edge, under the % column and the distribution (hour labels start after it). */
     GRAPH,
-    /** Right of the trend arrow, top-aligned with the number's caps (a card without a labelled chart). */
-    VALUE,
     NONE,
 }
 
@@ -369,7 +377,7 @@ object GlucoseCard {
         val fr = Freshness.of(latest?.let { nowS - it.t })
         val sl = SensorBadge.look(sensor, nowS, latest?.t)
         val graph = st.graph?.takeIf { fr.showGraph }
-        val bands = (st.graph?.bands ?: Bands()).sane()
+        val bands = st.bands.sane()
         val spot = sensorSpot(st, sl, fr)
         val countdown = SensorBadge.ring(sl, sensor, nowS, countdownH)
         if (part == CardPart.SLOTS) {
@@ -378,12 +386,20 @@ object GlucoseCard {
         }
         // one part in a box of its own: that box is the part's whole area
         val sideBySide = part == CardPart.ALL && graph != null && st.value && h < 100 * d && w > 2.6f * h
+        // A chart card with no chart (no reading for 3 h, none yet): the value's face (the "no readings" icon and words,
+        // the warm-up, "Sensor ended") takes the chart's place, the same face as on every other surface; a card tall
+        // enough for a chart keeps the slots in the header's row and puts the face where the chart was, so it isn't one
+        // small row in an empty card (2026-10-21).
+        val noChart = st.graph != null && graph == null && part == CardPart.ALL
+        val rowH = (h * 0.34f).coerceIn(30 * d, 80 * d)
+        val stacked = noChart && st.value && h - rowH - 6 * d >= 48 * d
         val headerH = when {
             part == CardPart.VALUE || part == CardPart.HEADER -> h
             part == CardPart.GRAPH || !st.value -> 0f
+            stacked -> rowH
             graph == null -> h
             sideBySide -> h
-            else -> (h * 0.34f).coerceIn(30 * d, 80 * d)
+            else -> rowH
         }
         val valueRight = if (sideBySide) min(w * 0.32f, 120 * d) else w
 
@@ -392,28 +408,19 @@ object GlucoseCard {
             part == CardPart.GRAPH -> RectF(0f, 0f, w, h)
             else -> RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
         }
-        if (part == CardPart.ALL || part == CardPart.GRAPH) when {
-            graph != null -> GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts,
+        if ((part == CardPart.ALL || part == CardPart.GRAPH) && graph != null)
+            GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts,
                 sensor = sl.takeIf { spot == SensorSpot.GRAPH }, rec = rec)
-            st.graph != null && chart.height() > 24 * d -> {
-                val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
-                val face = face(latest, nowS, sl, surface)
-                val msg = when (face.state) {
-                    GlucoseLook.State.WARMING_UP -> Words.current.warmingUp
-                    GlucoseLook.State.ENDED -> Words.current.sensorEnded
-                    else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS, st.hour24)) } ?: Words.current.noReadingsYet
-                }
-                cv.drawText(msg, chart.centerX(), chart.centerY(), p)
-                rec.add("chart.message", chart, face.state.name, exact = true)
-            }
-        }
+        // a graph-only card without its chart: the value's face alone (no rings, no badge: a graph card has neither)
+        if (noChart && !st.value)
+            drawValue(cv, chart, latest, fr, nowS, bands, pal, d, null, sl, st.hour24, rec, motion)
         if (st.value && part != CardPart.GRAPH) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
             val ringsW = if (sideBySide || part == CardPart.VALUE) 0f
                 else drawRings(cv, box, st, last, nowS, bands, pal, d, metricsOf, countdown, rec, dedicated = false)
             val look = if (st.badge) StatusBadge.look(status, nowS) else null
-            drawValue(cv, RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands, pal, d, look,
-                sl, spot == SensorSpot.VALUE, st.hour24, rec, motion)
+            drawValue(cv, if (stacked) chart else RectF(box.left, box.top, box.right - ringsW, box.bottom), latest, fr, nowS, bands,
+                pal, d, look, sl, st.hour24, rec, motion, st.valueInk)
         }
         return rec.also { observer?.invoke(it) }
     }
@@ -432,14 +439,14 @@ object GlucoseCard {
      * the one decision every surface uses (widgets of every kind and size, the app's panel, the lock screen, the
      * notification; the Mac's `GlucoseCard.sensorSpot` is the same rule, both checked by spikes/graph-fixtures/place).
      * In the chart's hour-label row whenever the card shows a chart with hour labels (the user, 2026-10-19/21: "left of
-     * the x axis, under the distribution"), with or without the % column; beside the arrow on a card without one; nowhere
-     * when the place's setting hides it ([CardStyle.sensorTime]), nothing is known, or the sensor warms up / has ended
-     * (the value's place shows those states instead).
+     * the x axis, under the distribution"), with or without the % column; nowhere else: a card without a labelled chart
+     * shows just the number and its trend (the user, 2026-10-21: "It should not be there at all if we just show the
+     * number": beside the arrow it turned "120 ○" into "120°"), nor when the place's setting hides it
+     * ([CardStyle.sensorTime]), nothing is known, or the sensor warms up / has ended (the value's place shows those).
      */
     fun sensorSpot(st: CardStyle, look: SensorBadge.Look?, fr: Freshness): SensorSpot = when {
         look == null || !st.sensorTime || look.warmup != null || look.ended -> SensorSpot.NONE
         st.graph != null && fr.showGraph && st.graph.axisLabels -> SensorSpot.GRAPH
-        st.value && fr.showValue -> SensorSpot.VALUE
         else -> SensorSpot.NONE
     }
 
@@ -453,9 +460,9 @@ object GlucoseCard {
                           rec: CardLayout, dedicated: Boolean): Float {
         val extra = st.last != LastPlace.OFF && (last != null || st.lastElse != null)
         if (st.rings.isEmpty() && !extra) return 0f
-        val size = if (dedicated && st.slotDisc != null) min(box.height(), 84 * d) else min(box.height() * 0.96f, 84 * d)
+        val size = if (st.slotDisc != null) min(box.height(), 84 * d) else min(box.height() * 0.96f, 84 * d)
         if (size < 30 * d) return 0f
-        val gap = if (dedicated && st.slotDisc != null) 6 * d else size * 0.14f
+        val gap = if (st.slotDisc != null) 6 * d else size * 0.14f
         val fit = ((box.width() * (if (dedicated) 1f else 0.55f) + gap) / (size + gap)).toInt().coerceAtMost(4)
         if (fit < 1) return 0f
         val rings = st.rings.take(3).mapIndexedNotNull { i, spec ->
@@ -473,7 +480,7 @@ object GlucoseCard {
         val main = Slots.mainIndex(items)
         val cx = Slots.centers(items, x, size, gap)
         val cy = box.centerY()
-        val disc = st.slotDisc.takeIf { dedicated }
+        val disc = st.slotDisc
         val marked = items.any(Slots::hasLaurel)
         val ringR = if (disc == null) size / 2 else if (marked) size / 2 / 1.5f else size / 2 - 3 * d
         Slots.drawUnder(cv, items, cx, cy, ringR, pal)
@@ -484,7 +491,8 @@ object GlucoseCard {
         }
         rec.add("slots", RectF(cx.last() - size / 2, box.top, box.right, box.bottom), "${items.size}", exact = true)
         rec.add("slots.box", box, exact = true)
-        return x - (cx.last() - size / 2) + gap
+        // a laurel on the leftmost slot reaches past its ring: what is left of the slots keeps clear of it too
+        return x - (cx.last() - size / 2) + gap + Slots.leftInset(items, ringR)
     }
 
     /**
@@ -567,9 +575,9 @@ object GlucoseCard {
      * beside the arrow, or is left out when there's no room there either.
      */
     private fun drawValue(cv: Canvas, box: RectF, r: Reading?, fr: Freshness, nowS: Long, bands: Bands,
-                          pal: GraphPalette, d: Float, look: StatusBadge.Look?, sensor: SensorBadge.Look?, lifeBadge: Boolean,
-                          hour24: Boolean, rec: CardLayout, motion: CardMotion?) {
-        val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
+                          pal: GraphPalette, d: Float, look: StatusBadge.Look?, sensor: SensorBadge.Look?,
+                          hour24: Boolean, rec: CardLayout, motion: CardMotion?, ink: Int? = null) {
+        val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ink ?: pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         val face = face(r, nowS, sensor, rec.surface)
         when (face.state) {
             GlucoseLook.State.WARMING_UP -> return drawWarmup(cv, box, sensor!!, small, nowS, pal, d, hour24, rec)
@@ -598,7 +606,11 @@ object GlucoseCard {
             GlucoseLook.State.VALUE -> {}
         }
         r!!
-        val color = motion?.color ?: if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
+        val color = ink ?: motion?.color ?: if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
+        // which colour, by name, for the cross-surface test (the same ranges on every card: layout rules "value-color")
+        rec.add("value.color", info = when {
+            fr.strike -> "grey"; r.sgv >= bands.extremelyHigh -> "EXTREMELY_HIGH"; else -> bands.of(r.sgv).name
+        }, exact = true)
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         val badgeH = (box.height() * 0.24f).coerceIn(14 * d, 24 * d)
         val badgeRow = look != null && box.height() - badgeH * 1.25f - (if (fr.showTime) small.textSize * 1.25f else 0f) >= 26 * d
@@ -613,12 +625,7 @@ object GlucoseCard {
         val s = face.text!!
         // Fit the width as well: number + arrow must stay left of the rings.
         val arrowFactor = 0.62f
-        // the sensor badge beside the arrow (SensorSpot.VALUE) is part of the row: the number shrinks to make room for it
-        val life = sensor?.takeIf { lifeBadge }
-        // (the badge starts at the arrow's end: number + 0.08 + 1.15 × the arrow, 0.62 of the size)
-        fun need() = num.measureText(s) + (life?.let {
-            num.textSize * 0.82f + SensorBadge.width(it, (num.textSize * 0.72f * 0.24f).coerceIn(9 * d, 14 * d), pal)
-        } ?: (num.textSize * arrowFactor * 1.1f))
+        fun need() = num.measureText(s) + num.textSize * arrowFactor * 1.1f
         repeat(3) { need().let { n -> if (n > box.width()) num.textSize *= box.width() / n * 0.995f } }
         // no row for the badge: its icon goes beside the arrow if there's room
         val iconBadge = look != null && !badgeRow &&
@@ -646,16 +653,6 @@ object GlucoseCard {
                 this.color = color; style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowSize)
             })
             rec.add("value.trend", RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2), "ring")
-        }
-        // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
-        sensor?.takeIf { lifeBadge }?.let { sl ->
-            val sh = (capH * 0.24f).coerceIn(9 * d, 14 * d)
-            val sx = x + arrowSize * 1.15f + (if (iconBadge && look != null) min(numBox.height() * 0.5f, 24 * d) + arrowSize * 0.15f else 0f)
-            val sw = SensorBadge.width(sl, sh, pal)
-            if (sx + sw <= box.right) {
-                SensorBadge.draw(cv, sx, cy - capH / 2, sh, sl, pal)
-                rec.add("value.sensor", RectF(sx, cy - capH / 2, sx + sw, cy - capH / 2 + sh), sl.label)
-            } else rec.add("value.sensor", info = "${sl.label} (no room)")
         }
         if (badgeRow && look != null) {
             val top = numBox.bottom + badgeH * 0.25f
