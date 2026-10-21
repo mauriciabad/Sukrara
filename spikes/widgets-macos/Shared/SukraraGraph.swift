@@ -741,8 +741,10 @@ enum GlucoseGraph {
 
         let labels = st.axisLabels
         let p = pct3(tir.below, tir.inRange, tir.above)
+        // the % labels as drawn (real font): the column is the widest of them plus `pctGap` on each side
+        func pctW(_ v: Int) -> CGFloat { Ink.width("\(v)", pctBig) + Ink.width("%", pctSmall) }
         let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d,
-                                  widest: widest([p.0, p.1, p.2]))
+                                  pctW: max(pctW(p.0), pctW(p.1), pctW(p.2)))
         let pctCol = left - area.minX
         func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
@@ -919,18 +921,20 @@ enum GlucoseGraph {
             c[2] = min(c[2], area.maxY - lh * 0.4)
             for (v, cy) in zip([p.2, p.1, p.0], c) {
                 let s = "\(v)"
-                let w = Ink.width(s, pctBig) + Ink.width("%", pctSmall)
-                let x0 = left - 4 * d - w
-                Ink.draw(ctx, s, x: x0, y: cy + 13 * d * 0.36, pctBig, pal.ink)
-                Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: cy + 13 * d * 0.36, pctSmall, pal.inkSoft)
+                let w = pctW(v)
+                let x0 = left - Self.pctGap * d - w, base = cy + 13 * d * 0.36
+                Ink.draw(ctx, s, x: x0, y: base, pctBig, pal.ink)
+                Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: base, pctSmall, pal.inkSoft)
+                // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
+                rec.add("chart.pct.label", CGRect(x: x0, y: base - 13 * d * 0.72, width: w, height: 13 * d * 0.72), s)
             }
-            rec.add("chart.pct", CGRect(x: area.minX, y: top, width: pctCol, height: plotBottom - top), "\(p.0)/\(p.1)/\(p.2) w" + CardLayout.dp(pctCol, d))
+            rec.add("chart.pct", CGRect(x: area.minX, y: top, width: pctCol, height: plotBottom - top), "\(p.0)/\(p.1)/\(p.2) [w" + CardLayout.dp(pctCol, d) + "]")
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
             if st.crown, TirMark.column(tir) {
                 let numW = Ink.width("100", pctBig), cw = numW * 0.62
                 let bottom = c[1] + 13 * d * (0.36 - 0.72) - 1.5 * d
                 if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
-                    Crown.fill(ctx, x: left - 4 * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
+                    Crown.fill(ctx, x: left - Self.pctGap * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
                                pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
                     rec.add("chart.pct.crown")
                 } else { rec.add("chart.pct.crown", nil, "(no room)") }
@@ -958,18 +962,19 @@ enum GlucoseGraph {
     static func sensorWidth(_ label: String, d: CGFloat) -> CGFloat { sensorDp * d * 1.3 + TextModel.width(label, sensorDp * d * 0.95) }
 
     /// The plot's left and right edge in `areaLeft`…`areaRight` (GlucoseGraph.kt `plotX`): the % column (`pct`: time
-    /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`), both sized by
-    /// the `TextModel`, so the plot is the same on every platform whatever the font. The column is as wide as its
-    /// `widest` label (the user: "too much margin to the left" with room kept for a 100).
+    /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`, sized by the
+    /// `TextModel`). The % column is `pctW` (the widest % label actually drawn, measured with the fonts that draw it)
+    /// plus `pctGap` on each side, whatever the surface, size or font (the user, 2026-10-21: "it should depend on the
+    /// longest text width"; the TextModel's worst-case widths left extra margin on its left).
     static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat,
-                      widest: String = "100") -> (CGFloat, CGFloat) {
-        let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d
-            ? TextModel.width(widest, 13 * d) + TextModel.width("%", 8.5 * d) + 6 * d : 0
+                      pctW: CGFloat) -> (CGFloat, CGFloat) {
+        let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d ? pctW + 2 * pctGap * d : 0
         return (areaLeft + pctCol, areaRight - (labels ? TextModel.width("180", 10 * d) + 5 * d : 0))
     }
 
-    /// The % label of `v` that is widest in the `TextModel` (GlucoseGraph.kt `widest`).
-    static func widest(_ v: [Int]) -> String { v.map { "\($0)" }.max { TextModel.width($0, 13) < TextModel.width($1, 13) }! }
+    /// The % column's margin (pt) on each side of its widest label: one constant (layout/rules.json "gaps";
+    /// GlucoseGraph.kt `PCT_GAP_DP`).
+    static let pctGap: CGFloat = 3
 
     /// Treatment label lanes for a chart `h` tall: a second one from `TreatmentMarks.twoLanesH`.
     static func lanes(_ h: CGFloat, d: CGFloat) -> Int { h >= TreatmentMarks.twoLanesH * d ? 2 : 1 }

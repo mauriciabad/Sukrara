@@ -15,5 +15,9 @@
   {"name": "labels", "elements": ["chart.label"], "by": ["scene", "settings", "chart", "hours", "sensorShown"], "box": true},
   {"name": "values", "elements": ["chart.values"], "by": ["scene", "settings", "chart"]},
   {"name": "slot-count", "elements": ["slots"], "by": ["scene", "settings", "rings", "part", "box"]}
+ ],
+ "gaps": [
+  {"column": "chart.pct", "labels": "chart.pct.label", "gap": 3,
+   "about": "The % column is its widest drawn label plus this many dp on each side (the user, 2026-10-21: 'it should depend on the longest text width'): column left → widest label's left = gap, every label's right → column right = gap (± 0.05 dp), on every surface, size and platform."}
  ]
 }

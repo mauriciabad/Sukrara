@@ -104,7 +104,9 @@ object GlucoseGraph {
 
         val labels = st.axisLabels
         val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
-        val (left, right) = plotX(area.left, area.right, st.side && !tir.empty, labels, d, widest(lo, inr, hi))
+        // the % labels as drawn (real font): the column is the widest of them plus PCT_GAP_DP on each side
+        fun pctW(v: Int) = pctBig.measureText("$v") + pctSmall.measureText("%")
+        val (left, right) = plotX(area.left, area.right, st.side && !tir.empty, labels, d, maxOf(pctW(lo), pctW(inr), pctW(hi)))
         val pctCol = left - area.left
         fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
@@ -259,23 +261,25 @@ object GlucoseGraph {
             val cLo = max((y(b.low.toFloat()) + plotBottom) / 2, cIn + gap)
             fun label(v: Int, cy: Float) {
                 val s = "$v"
-                val w = pctBig.measureText(s) + pctSmall.measureText("%")
-                val x0 = left - 4 * d - w
+                val w = pctW(v)
+                val x0 = left - PCT_GAP_DP * d - w
                 val base = cy + pctBig.textSize * 0.36f
                 cv.drawText(s, x0, base, pctBig)
                 cv.drawText("%", x0 + pctBig.measureText(s), base, pctSmall)
+                // the drawn label's box (CardLayoutTest checks the column's gaps against it: layout/rules.json "gaps")
+                rec.add("chart.pct.label", RectF(x0, base - pctBig.textSize * 0.72f, x0 + w, base), s, exact = true)
             }
             label(hi, cHi)
             label(inr, cIn)
             label(lo, cLo)
-            rec.add("chart.pct", RectF(area.left, top, left, plotBottom), "$lo/$inr/$hi w" + CardLayout.dp(pctCol, d), exact = true)
+            rec.add("chart.pct", RectF(area.left, top, left, plotBottom), "$lo/$inr/$hi [w" + CardLayout.dp(pctCol, d) + "]", exact = true)
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
             if (st.crown && TirMark.column(tir)) {
                 val numW = pctBig.measureText("100")
                 val cw = numW * 0.62f
                 val bottom = cIn + pctBig.textSize * (0.36f - 0.72f) - 1.5f * d
                 if (bottom - cw * Crown.H >= cHi + pctBig.textSize * 0.36f + 2 * d) {
-                    Crown.draw(cv, left - 4 * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
+                    Crown.draw(cv, left - PCT_GAP_DP * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
                     rec.add("chart.pct.crown")
                 } else rec.add("chart.pct.crown", info = "(no room)")
             }
@@ -297,12 +301,12 @@ object GlucoseGraph {
     /**
      * The plot's left and right edge in an area [areaLeft]..[areaRight]: the % column on the left ([pct]: the time in
      * range is shown and has data; only from [PCT_MIN_WIDTH_DP]) and the values on the right ([labels]), both sized by
-     * the [TextModel], so the plot is the same on every platform whatever the font. The column is as wide as its
-     * [widest] label (the user: "too much margin to the left" with room kept for a 100).
+     * the [TextModel]. The % column is [pctW] (the widest % label actually drawn, measured with the paints that draw it)
+     * plus [PCT_GAP_DP] on each side, whatever the surface, size or font (the user, 2026-10-21: "it should depend on
+     * the longest text width"; the TextModel's worst-case widths left up to ~10 dp of extra margin on its left).
      */
-    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float, widest: String = "100"): Pair<Float, Float> {
-        val pctCol = if (pct && labels && areaRight - areaLeft >= PCT_MIN_WIDTH_DP * d)
-            TextModel.width(widest, 13 * d) + TextModel.width("%", 8.5f * d) + 6 * d else 0f
+    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float, pctW: Float): Pair<Float, Float> {
+        val pctCol = if (pct && labels && areaRight - areaLeft >= PCT_MIN_WIDTH_DP * d) pctW + 2 * PCT_GAP_DP * d else 0f
         return areaLeft + pctCol to areaRight - if (labels) TextModel.width("180", 10 * d) + 5 * d else 0f
     }
 
@@ -319,8 +323,8 @@ object GlucoseGraph {
     /** The badge's width in the [TextModel] (the room kept free of treatment labels; the same on every platform). */
     fun sensorWidth(label: String, d: Float): Float = SENSOR_DP * d * 1.3f + TextModel.width(label, SENSOR_DP * d * 0.95f)
 
-    /** The % label of [v] that is widest in the [TextModel]. */
-    fun widest(vararg v: Int): String = v.map { "$it" }.maxBy { TextModel.width(it, 13f) }
+    /** The % column's margin (dp) on each side of its widest label: one constant (layout/rules.json "gaps"; Mac `pctGap`). */
+    const val PCT_GAP_DP = 3f
 
     /** Treatment label lanes for a chart [h] px tall: a second one from [TreatmentMarks.TWO_LANES_DP]. */
     fun lanes(h: Float, d: Float) = if (h >= TreatmentMarks.TWO_LANES_DP * d) 2 else 1
