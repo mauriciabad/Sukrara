@@ -35,6 +35,7 @@ import SwiftUI
     var onAddTreatment: (() -> Void)?
     var onFollow: (() -> Void)?
     var onReport: (() -> Void)?
+    var onTreatments: (() -> Void)?
     var onSettings: (() -> Void)?
 }
 
@@ -54,6 +55,7 @@ struct PanelView: View {
                         .keyboardShortcut(.defaultAction)
                         .help(model.canLog ? "" : TreatmentPaths.notAllowed)
                 }
+                PanelRow(title: "Treatments…", action: { model.onTreatments?() })
                 PanelRow(title: "Glucose Report…", action: { model.onReport?() })
                 PanelRow(title: "Settings…", shortcut: "⌘,", action: { model.onSettings?() })
             }

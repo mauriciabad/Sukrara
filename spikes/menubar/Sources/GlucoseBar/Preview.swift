@@ -51,7 +51,7 @@ enum Preview {
 /// wallpaper drawn inside it (`.withinWindow`; the live panel blends with the desktop, `.behindWindow`), captured
 /// with `screencapture -l` → `<dir>/panel-<appearance>-<wallpaper>.png`. Needs Screen Recording for the capture.
 enum PanelPreview {
-    @MainActor private static var reports: [ReportWindow] = []
+    @MainActor private static var reports: [TreatmentsWindow] = []
     @MainActor static func run(dir: String) {
         var dc = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         dc.hour = 22; dc.minute = 14
@@ -100,20 +100,19 @@ enum PanelPreview {
             w.orderFrontRegardless()
             windows.append(w)
         }
-        // The Glucose Report window's Treatments, from the same entries (three made on this Mac, one per delivery
+        // The Treatments window, from the same entries (three made on this Mac, one per delivery
         // state) and the real clock, so the relative times read `12m`, `1h`…
         var names: [String] = shots.map { "panel-\($0.name)" }
         let realNow = Int64(Date().timeIntervalSince1970)
         let entries = rows.map { var t = $0; t.t = realNow - (now - $0.t); return t }
         let mine = Dictionary(uniqueKeysWithValues: [(entries[3].id, Delivery.delivered), (entries[4].id, .late), (entries[5].id, .sending)])
         for (i, dark) in [false, true].enumerated() {
-            let r = ReportWindow()
-            r.model.metricsOf = { window, b in GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - window, to: end.timeIntervalSince1970, bands: b) }
+            let r = TreatmentsWindow()
             r.model.treatments = { entries }
             r.model.delivery = { t in mine[t.id].map { ($0, Date(timeIntervalSince1970: TimeInterval(t.t + 20))) } }
             r.model.who = { "Ana" }
             r.model.canLog = { true }
-            r.show(.treatments)
+            r.show()
             if let w = NSApp.windows.last(where: { $0.title == "Treatments" && !windows.contains($0) }) {
                 w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 w.setFrameOrigin(NSPoint(x: 600 + CGFloat(i) * 40, y: 120))

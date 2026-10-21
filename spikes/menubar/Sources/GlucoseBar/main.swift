@@ -67,7 +67,7 @@ if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
-if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() ? 0 : 1) }
+if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() ? 0 : 1) }
@@ -583,11 +583,17 @@ MainActor.assumeIsolated {
     if let f = arg("-alert-feed") { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { alerts.feed(f) } }
 }
 
-// Settings (⌘,) and the Glucose Report window: everything that configures the app lives there, not in the menu.
+// Settings (⌘,), the Glucose Report and Treatments windows: everything that configures the app lives there, not in the menu.
 let reportWindow = MainActor.assumeIsolated {
     let r = ReportWindow()
     r.model.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     r.model.bandsOf = { status.graph.bands }
+    r.model.onExport = { days in GlucoseCsv.save(days: days, readings: readingsStore.readings, treatments: treatmentStore.rows) }
+    return r
+}
+// Treatments… (TreatmentsWindow.swift): the treatment history, its own window.
+let treatmentsWindow = MainActor.assumeIsolated {
+    let r = TreatmentsWindow()
     r.model.treatments = { treatmentStore.rows }
     r.model.delivery = { TreatmentPaths.delivery(of: $0, store: treatmentStore) }
     r.model.who = { following.node.map { $0.wearer.name }.flatMap { $0.isEmpty ? nil : $0 } ?? "the wearer" }
@@ -595,7 +601,6 @@ let reportWindow = MainActor.assumeIsolated {
     r.model.canLog = { TreatmentPaths.current(node: following.node).canLog }
     r.model.mayChange = { TreatmentPaths.mayChange($0, store: treatmentStore, node: following.node) }
     r.model.onDelete = { status.onDeleteTreatment?($0) }
-    r.model.onExport = { days in GlucoseCsv.save(days: days, readings: readingsStore.readings, treatments: treatmentStore.rows) }
     treatmentStore.onChange.append { if r.isVisible { r.refresh() } }
     return r
 }
@@ -617,6 +622,7 @@ let settings = MainActor.assumeIsolated {
 MainActor.assumeIsolated {
     status.onSettings = { settings.show() }
     status.onReport = { reportWindow.show() }
+    status.onTreatments = { treatmentsWindow.show() }
     status.onUpdate = {
         settings.generalModel.refresh()
         if reportWindow.isVisible { reportWindow.refresh() }
@@ -642,8 +648,8 @@ MainActor.assumeIsolated {
     // Debug aid: open the glance panel at launch (it can't be clicked open from a script without Accessibility).
     if args.contains("-openTreatments") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            reportWindow.show(.treatments)
-            log("treatments window \(NSApp.windows.first { $0.title == "Treatments" }?.windowNumber ?? 0)")
+            treatmentsWindow.show()
+            log("treatments window \(treatmentsWindow.windowNumber)")
         }
     }
     if args.contains("-openPanel") { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { status.openPanel() } }
