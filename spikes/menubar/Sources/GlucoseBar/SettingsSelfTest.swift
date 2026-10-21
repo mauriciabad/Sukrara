@@ -156,7 +156,9 @@ enum SettingsSelfTest {
         check("(c) quiet falling \(a.muteFallingHigh.min) = schema", a.muteFallingHigh.min == S.muteFalling.default)
         check("(c) quiet after carbs \(a.muteAfterCarbs.min) = schema", a.muteAfterCarbs.min == S.muteCarbs.default)
         check("(c) Mute for \(a.notificationActions.muteMin) = schema", Double(a.notificationActions.muteMin) == S.actionMute.default)
-        check("(c) Slow down \(a.notificationActions.slowMin) = schema", Double(a.notificationActions.slowMin) == S.actionSlow.default)
+        check("(c) Relax \(a.notificationActions.relaxMin) = schema", Double(a.notificationActions.relaxMin) == S.actionRelax.default)
+        check("(c) back by \(a.notificationActions.backMgdl) mg/dL = schema", Double(a.notificationActions.backMgdl) == S.backMgdl.default)
+        check("(c) back for \(a.notificationActions.backMin) min = schema", Double(a.notificationActions.backMin) == S.backMin.default)
     }
 
     // MARK: (d) conformance
@@ -215,11 +217,17 @@ enum SettingsSelfTest {
                              read: { alerts($0)[keyPath: kp].min }))
         }
         out.append(Bound(name: "notificationActions.muteMin", spec: S.actionMute,
-                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": v, "slowMin": 30]]) },
+                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": v, "relaxMin": 30]]) },
                          read: { Double(alerts($0).notificationActions.muteMin) }))
-        out.append(Bound(name: "notificationActions.slowMin", spec: S.actionSlow,
-                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": 30, "slowMin": v]]) },
-                         read: { Double(alerts($0).notificationActions.slowMin) }))
+        out.append(Bound(name: "notificationActions.relaxMin", spec: S.actionRelax,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": 30, "relaxMin": v]]) },
+                         read: { Double(alerts($0).notificationActions.relaxMin) }))
+        out.append(Bound(name: "notificationActions.backMgdl", spec: S.backMgdl,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["backMgdl": v]]) },
+                         read: { Double(alerts($0).notificationActions.backMgdl) }))
+        out.append(Bound(name: "notificationActions.backMin", spec: S.backMin,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["backMin": v]]) },
+                         read: { Double(alerts($0).notificationActions.backMin) }))
         return out
     }
 
@@ -287,7 +295,7 @@ enum SettingsSelfTest {
         func own(_ d: UserDefaults) {
             d.set(6, forKey: "graphHours"); d.set(75, forKey: "bandLow"); d.set(3, forKey: "menubarHours"); d.set(false, forKey: "menubarSensorTime")
             setAlerts(d, ["alerts": ["high": ["mgdl": 200, "alarm": true], "no_data": ["min": 45]], "sounds": ["pack": "kart"],
-                          "notificationActions": ["muteMin": 60, "slowMin": 45]])
+                          "notificationActions": ["muteMin": 60, "relaxMin": 45]])
         }
         for (mode, content) in [("default", true), ("wearer", true), ("wearer", false), ("custom", true)] {
             let d = suite()
@@ -307,7 +315,7 @@ enum SettingsSelfTest {
             check("\(tag): local sensor time per place stays off", !m.sensorTime)
             check("\(tag): local like an alarm, sound pack, no data, notification actions stay this Mac's",
                   a[.high].alarm && a.sounds.pack == "kart" && a[.noData].threshold == 45 && a.notificationActions.muteMin == 60
-                  && a.notificationActions.slowMin == 45)
+                  && a.notificationActions.relaxMin == 45)
             check("\(tag): alert source \(a.source)", a.source == (mode == "wearer" ? "wearer" : "own"))
             drop(d)
         }

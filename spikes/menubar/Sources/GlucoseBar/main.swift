@@ -204,6 +204,7 @@ MainActor.assumeIsolated {
     status.onGraphChange = { widgetFeed.treatmentsChanged(treatmentStore.rows) }
     widgetFeed.alerts = { alerts.settings }
     widgetFeed.paused = { alerts.paused }
+    widgetFeed.allMuted = { alerts.allMuted }
     // before any transport delivers: ongoing alerts resume silently instead of ringing again (docs/15)
     alerts.resume(newest: readingsStore.readings.last.map { Reading(date: Date(timeIntervalSince1970: $0.t), mgdl: $0.v, rate: $0.rate) })
 }
@@ -507,6 +508,7 @@ MainActor.assumeIsolated {
     status.treatments = { treatments.rows }
     status.alertSettings = { alerts.settings }
     status.alertPaused = { alerts.paused }
+    status.alertAllMuted = { alerts.allMuted }
     // the ways out of a quiet alert (the panel's rows, the pill's menu): this Mac only
     status.alertActive = { alerts.active }
     status.onQuiet = { op in alerts.perform(op) }

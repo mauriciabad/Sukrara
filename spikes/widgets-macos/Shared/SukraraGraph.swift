@@ -1997,9 +1997,13 @@ enum StatusBadge {
         case .taken(_, let tr, let until):
             let d = TreatmentMarks.duration(until - now, up: true)
             return Look(kind: tr.k, text: "\(d) left", short: d, tonal: true)
-        case .paused(let k, let until):     // muted from the notification: the colour of what answers it
+        case .paused(let k, let until):     // muted on this device: the colour of what answers it
+            if until >= AlertStatus.never { return Look(kind: k.lowSide ? "carbs" : "rapid", text: "Muted", short: "Muted", tonal: true) }
             let d = TreatmentMarks.duration(until - now, up: true)
             return Look(kind: k.lowSide ? "carbs" : "rapid", text: "\(d) left", short: d, tonal: true)
+        case .muted(let until):             // Mute all in range: neutral, the "notifications off" bell
+            if until >= AlertStatus.never { return Look(kind: "muted", text: "Alerts muted", short: "Muted", tonal: true) }
+            return Look(kind: "muted", text: "Muted · \(TreatmentMarks.duration(until - now, up: true))", short: "Muted", tonal: true)
         }
     }
 
@@ -2008,8 +2012,11 @@ enum StatusBadge {
         switch s {
         case .none: nil
         case .needed: look(s, now: now)?.text
+        case .paused(let k, let until) where until >= AlertStatus.never: "\(k.title): alerts muted until turned back on"
         case .taken(let k, _, let until), .paused(let k, let until):
-            "\(k.title): alerts paused, \(TreatmentMarks.duration(until - now, up: true)) left"
+            "\(k.title): alerts paused, \(Durations.text(seconds: until - now)) left"
+        case .muted(let until) where until >= AlertStatus.never: "All alerts muted until turned back on"
+        case .muted(let until): "All alerts muted, \(Durations.text(seconds: until - now)) left"
         }
     }
 
@@ -2018,11 +2025,16 @@ enum StatusBadge {
         "T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 " +
         "0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"
     private static let bellPath: CGPath = SVGPath.parse(bellPaused)
+    /// Material Symbols "notifications_off" (Apache 2.0; Android ic_sym_notifications_off): the Mute all pill.
+    static let bellOff = "M160-200v-80h80v-280q0-33 8.5-65t25.5-61l60 60q-7 16-10.5 32.5T320-560v280h248L56-792l56-56 736 736-56 56-146-144H160Zm560-154" +
+        "-80-80v-126q0-66-47-113t-113-47q-26 0-50 8t-44 24l-58-58q20-16 43-28t49-18v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 " +
+        "130 84.5T720-560v206Zm-276-50Zm36 324q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80Zm33-481Z"
+    private static let bellOffPath: CGPath = SVGPath.parse(bellOff)
 
-    /// The bell, `size` square, top-left at (`x`, `y`).
-    static func bell(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) {
+    /// The bell, `size` square, top-left at (`x`, `y`); `off` = the "notifications off" one (Mute all).
+    static func bell(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor, off: Bool = false) {
         var t = CGAffineTransform(translationX: x, y: y).scaledBy(x: size / 960, y: size / 960).translatedBy(x: 0, y: 960)
-        guard let p = bellPath.copy(using: &t) else { return }
+        guard let p = (off ? bellOffPath : bellPath).copy(using: &t) else { return }
         ctx.saveGState(); ctx.addPath(p); ctx.setFillColor(color); ctx.fillPath(); ctx.restoreGState()
     }
 
@@ -2066,7 +2078,7 @@ enum StatusBadge {
         defer { ctx.restoreGState() }
         if cut { ctx.setBlendMode(.destinationOut) }
         let ix = words == nil ? x + (h - icon) / 2 : x + h * 0.4
-        if look.tonal { bell(ctx, x: ix, y: y + (h - icon) / 2, size: icon, color: fg) }
+        if look.tonal { bell(ctx, x: ix, y: y + (h - icon) / 2, size: icon, color: fg, off: look.kind == "muted") }
         else { TreatmentMarks.marker(ctx, look.kind, x: ix + icon / 2, y: y + h / 2, r: icon * 0.42, color: fg) }
         if let words {
             Ink.draw(ctx, words, x: ix + icon + h * 0.25, y: y + h / 2 + (CTFontGetAscent(f) - CTFontGetDescent(f)) / 2, f, fg)
@@ -2547,12 +2559,12 @@ enum GlucoseCard {
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1, surface: CardSurface, part: CardPart,
                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
-                     paused: [String: TimeInterval] = [:], view: ChartView? = nil) -> CardLayout {
+                     paused: [String: TimeInterval] = [:], allMuted: TimeInterval = 0, view: ChartView? = nil) -> CardLayout {
         let w = size.width, h = size.height
         let rec = CardLayout(surface, part, st, w: w, h: h, d: d)
         defer { observer?(rec) }
         let latest = readings.max { $0.t < $1.t }
-        let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now, paused: paused) } ?? .none
+        let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now, paused: paused, allMuted: allMuted) } ?? .none
         let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
         let fr = Freshness.of(age: latest.map { now - $0.t })
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
@@ -2843,7 +2855,7 @@ enum GlucoseCard {
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                       _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil, surface: CardSurface,
                       metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
-                      paused: [String: TimeInterval] = [:], overflow: CGFloat = 0) -> CGImage? {
+                      paused: [String: TimeInterval] = [:], allMuted: TimeInterval = 0, overflow: CGFloat = 0) -> CGImage? {
         let pw = max(16, Int((size.width + 2 * overflow) * scale)), ph = max(16, Int((size.height + 2 * overflow) * scale))
         guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -2853,7 +2865,7 @@ enum GlucoseCard {
         ctx.translateBy(x: overflow, y: overflow)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
         draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, surface: surface, part: .all, metricsOf: metricsOf,
-             alerts: alerts, paused: paused)
+             alerts: alerts, paused: paused, allMuted: allMuted)
         return ctx.makeImage()
     }
 }

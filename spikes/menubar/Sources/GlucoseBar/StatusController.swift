@@ -53,6 +53,8 @@ extension Bands {
     var alertSettings: (() -> AlertSettings)?
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
+    /// This Mac's Mute all until (unix s; 0 = off, AlertStatus.never = no end): the card's muted pill, the menu bar's bell.
+    var alertAllMuted: (() -> TimeInterval)?
     /// The quiet alerts (Alerts.active) and their ways out, for the panel.
     var alertActive: (() -> [Alerts.Active])?
     var onQuiet: ((QuietOp) -> Void)? { didSet { panelModel.onQuiet = onQuiet } }
@@ -214,6 +216,22 @@ extension Bands {
         button.toolTip = title.image == .noReadings ? "Sukrara · no reading since \(Clock.time(snap.latest.date))"
             : "Sukrara · reading at \(Clock.time(snap.latest.date))"
         button.setAccessibilityLabel(title.image == .noReadings ? "Glucose: no reading since \(Clock.time(snap.latest.date))" : title.label)
+        // Mute all (round f30): the "notifications off" bell before the value, while it lasts, and in the tooltip
+        if let line = Self.mutedLine(alertAllMuted?() ?? 0, now: nowT) {
+            let bell = NSTextAttachment()
+            let img = NSImage(systemSymbolName: "bell.slash", accessibilityDescription: line)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize - 1, weight: .medium))
+            img?.isTemplate = true
+            bell.image = img
+            let t = NSMutableAttributedString(attachment: bell)
+            t.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: 0, length: t.length))
+            t.append(NSAttributedString(string: "\u{2009}", attributes: attrs))
+            t.append(button.attributedTitle)
+            button.attributedTitle = t
+            if button.imagePosition == .imageOnly { button.imagePosition = .imageTrailing }
+            button.toolTip = (button.toolTip ?? "Sukrara") + " · " + line
+            button.setAccessibilityLabel(button.accessibilityLabel().map { "\($0), \(line)" } ?? line)
+        }
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
         if let sl {
             if sl.ended {
@@ -246,6 +264,7 @@ extension Bands {
         panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.allMuted = alertAllMuted?() ?? 0
         panelModel.quiet = alertActive?() ?? []
         panelModel.readings = pts
         panelModel.tick += 1
@@ -269,6 +288,12 @@ extension Bands {
                           format: @escaping (Int) -> String = { "\($0)" }) -> GlucoseLook {
         let r = GraphReading(t: snap.latest.date.timeIntervalSince1970, v: snap.latest.mgdl, rate: snap.rate)
         return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle, format: format)
+    }
+
+    /// "Alerts muted until 14:30" / "Alerts muted" (Never) while Mute all `until` (unix s) lasts, else nil.
+    static func mutedLine(_ until: TimeInterval, now: TimeInterval) -> String? {
+        guard until > now else { return nil }
+        return until >= AlertStatus.never ? "Alerts muted" : "Alerts muted until \(Clock.time(Date(timeIntervalSince1970: until)))"
     }
 
     private func marks() -> [GraphMark] {
@@ -301,8 +326,10 @@ extension Bands {
 
     /// The alert settings changed: the badge, the mute lines and the slot follow them.
     func alertsChanged() {
+        render()   // the menu bar's Mute all bell
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.allMuted = alertAllMuted?() ?? 0
         panelModel.quiet = alertActive?() ?? []
         panel.relayout()
     }
@@ -360,6 +387,7 @@ final class CardView: NSView {
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
+    var allMuted: TimeInterval = 0 { didSet { needsDisplay = true } }
     /// A click on the status pill ("45m left"): its box (view coordinates) and this view.
     var onStatus: ((CGRect, NSView) -> Void)?
     private var statusBox: CGRect?
@@ -563,7 +591,7 @@ final class CardView: NSView {
     func paint(_ ctx: CGContext, size: CGSize, _ pal: GraphPalette) -> CardLayout {
         let rec = GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
                          style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused,
-                         view: chartView)
+                         allMuted: allMuted, view: chartView)
         plot = rec.first("chart.plot")?.box
         nowBox = rec.first("chart.now")?.box
         statusBox = rec.first("value.status")?.box
