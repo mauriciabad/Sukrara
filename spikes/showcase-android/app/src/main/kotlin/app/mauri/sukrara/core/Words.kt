@@ -22,6 +22,13 @@ data class Words(
     val insulinShort: String = "Insulin",
     val timeLeft: String = "%1\$s left",
     val alertsPaused: String = "%1\$s: alerts paused, %2\$s left",
+    /** A side's mute without an end ([app.mauri.sukrara.alerts.AlertEngine.NEVER], Mute all), for screen readers. */
+    val alertsPausedNever: String = "%1\$s: alerts muted",
+    /** Mute all (StatusBadge kind "muted", round f30): "Muted · 1h 20m", "Alerts muted" without an end, short "Muted". */
+    val muted: String = "Muted",
+    val mutedFor: String = "Muted · %1\$s",
+    val alertsMuted: String = "Alerts muted",
+    val alertsMutedDescription: String = "All alerts muted, %1\$s left",
     // short durations
     val durNow: String = "now",
     val durMinutes: String = "%1\$dm",
@@ -90,6 +97,9 @@ data class Words(
             eatCarbs = r.getString(R.string.badge_eat_carbs), carbsShort = r.getString(R.string.badge_carbs_short),
             takeInsulin = r.getString(R.string.badge_take_insulin), insulinShort = r.getString(R.string.badge_insulin_short),
             timeLeft = r.getString(R.string.badge_time_left), alertsPaused = r.getString(R.string.badge_alerts_paused_description),
+            alertsPausedNever = r.getString(R.string.badge_alerts_paused_never_description),
+            muted = r.getString(R.string.badge_muted_short), mutedFor = r.getString(R.string.badge_muted_for),
+            alertsMuted = r.getString(R.string.badge_alerts_muted), alertsMutedDescription = r.getString(R.string.badge_alerts_muted_description),
             durNow = r.getString(R.string.duration_now), durMinutes = r.getString(R.string.duration_minutes),
             durHours = r.getString(R.string.duration_hours), durHoursMinutes = r.getString(R.string.duration_hours_minutes),
             durDays = r.getString(R.string.duration_days),

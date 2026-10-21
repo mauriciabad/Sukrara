@@ -157,7 +157,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         // the newest of the engine's state and the source's (the engine catches up after publishing; the source at once)
         val liveLast by remember { app.mauri.sukrara.wearer.Live.status.map { it.last }.distinctUntilChanged() }.collectAsState(null)
         val last = listOfNotNull(u.last, liveLast).maxByOrNull { it.t }
-        GlucosePanel(last?.sgv, last?.rate, last?.t, subtitle = UserErrors.source(ctx, u.source, u.sourceError), onAdd = { adding = true })
+        GlucosePanel(last?.sgv, last?.rate, last?.t, subtitle = UserErrors.source(ctx, u.source, u.sourceError), onAdd = { adding = true }, muteAlerts = true)
         // an untested sensor family (investigation 23): the feedback banner, directly under the graph, for as long as it is used
         UntestedSensorBanner()
         // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)

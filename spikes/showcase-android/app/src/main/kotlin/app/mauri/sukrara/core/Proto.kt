@@ -89,7 +89,9 @@ object Proto {
     fun npub(hexPub: String): String = PublicKey.parse(hexPub).toBech32()
     fun shortNpub(hexPub: String): String = npub(hexPub).let { it.take(10) + "…" + it.takeLast(4) }
     fun hourOf(t: Long) = t - Math.floorMod(t, 3600L)
-    fun nowS() = System.currentTimeMillis() / 1000
+    /** The wall clock (epoch s). Tests move it to let a mute end or glucose stay back in range (AlertStatesTest). */
+    @Volatile internal var clock: () -> Long = { System.currentTimeMillis() / 1000 }
+    fun nowS() = clock()
 
     fun enc(sender: Keys, recipientHex: String, json: String): String =
         nip44Encrypt(sender.secretKey(), PublicKey.parse(recipientHex), json, Nip44Version.V2)

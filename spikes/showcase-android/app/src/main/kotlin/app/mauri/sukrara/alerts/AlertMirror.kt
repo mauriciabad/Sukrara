@@ -134,6 +134,16 @@ class AlertMirror {
         }
     }
 
+    /**
+     * *Mute all*'s time is over at [now] (the app's timer): it ends, and like [unmuteAll] the wearer's newest firings
+     * still up show at once. Returns their ids; nothing while it lasts or when it was off.
+     */
+    fun expire(now: Long): List<String> {
+        if (allUntil == 0L || allUntil > now) return emptyList()
+        allUntil = now + 1
+        return unmuteAll(now)
+    }
+
     private fun put(side: String, sn: AlertEngine.Snooze) { if (sn.until == 0L && sn.relaxMin == 0) snooze.remove(side) else snooze[side] = sn }
 
     private fun again(g: String, now: Long): String? {

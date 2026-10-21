@@ -72,7 +72,7 @@ private fun set(f: (FeatureState) -> FeatureState) { Features.update(f) }
 private fun date(t: Long) = app.mauri.sukrara.graph.Clock.dateTime(t)
 
 private fun intervalLabel(ctx: android.content.Context, min: Int) =
-    if (min == 0) ctx.getString(R.string.interval_every_reading) else ctx.getString(R.string.interval_every_min, min)
+    if (min == 0) ctx.getString(R.string.interval_every_reading) else ctx.getString(R.string.interval_every_min, app.mauri.sukrara.core.Durations.text(min))
 
 /** "On" / "Off" as the stock Settings summaries say it. */
 @Composable
