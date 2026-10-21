@@ -181,5 +181,18 @@ class SettingsSchemaTest {
         val sounds = app.mauri.sukrara.alerts.AlertSounds
         assertEquals(o["soundPack"], sounds.PACKS + sounds.SYSTEM + sounds.NONE)
         assertEquals(o["settingsFrom"], WearerSettings.MODES)
+        // Treatments on the graph: the kinds, the parts each has and its default (carbs: the point only)
+        val M = app.mauri.sukrara.treatments.MarkShow
+        assertEquals(o["markKind"], M.KINDS)
+        assertEquals(o["markPart"], M.PARTS)
+        for (k in M.KINDS) {
+            assertEquals("markParts.$k", o["markParts.$k"], M.parts(k))
+            assertEquals("markDefault.$k", o["markDefault.$k"], M.PARTS.filter { M.DEFAULT.has(k, it) })
+        }
+        assertEquals(listOf("point"), M.PARTS.filter { GraphConfig().marks.has("carbs", it) })
+        // every combination survives the settings file; a part a kind doesn't have never sticks
+        val mixed = M.DEFAULT.with("rapid", "point", false).with("carbs", "time", true).with("long", "line", true).with("note", "point", false)
+        assertEquals("rapid:line+amount+time,long:point+amount+time,carbs:point+time,note:", mixed.text)
+        assertEquals(mixed, GraphConfig.fromJson(JSONObject(GraphConfig(marks = mixed).toJson().toString())).marks)
     }
 }

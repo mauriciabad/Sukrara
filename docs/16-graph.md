@@ -349,6 +349,14 @@ each other at the left edge); for every graph, Android and Mac.
 | ![close, Android](img/16/marks-close-dark.png) | ![close, Mac](img/16/mac-marks-close-dark.png) |
 | Android (`GraphGallery.marksClose`) | Mac (`render treatments`, `mac-marks-close`): the same labels in the same places |
 
+**Which parts show (2026-10-21).** The user: "I don't care about the carbs amount and time label (and also
+line) … for each treatment I can decide to show or hide the point, the mute line, the amount label and the time
+label". `MarkShow` (both platforms; schema `graph.marks`, mirrored) holds per kind which of point / mute line /
+amount / time show (carbs by default: the point only). The steps below run on what shows: in step 2 only entries with
+their amount or time label shown take part; in step 3 a label holds the amounts that show and the time since the
+newest member whose time shows (none when no member's time shows); a label of times only has no "without the time"
+fallback. The marker lane exists only when a point or a mute line is drawn.
+
 ### Spec (Android `TreatmentMarks.layout` / `place`, Mac `TreatmentMarks.layout` / `place`)
 
 Units are dp, times seconds; the chart's area is `minX`…`maxX`, the plot `left`…`right` inside it.

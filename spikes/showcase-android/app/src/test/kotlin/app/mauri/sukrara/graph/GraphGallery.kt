@@ -94,6 +94,30 @@ class GraphGallery {
         }
     }
 
+    /** Treatments on the graph (GraphStyle.marks): before (every part), the defaults (carbs: the point only), mixed. */
+    @Test fun treatmentParts() {
+        val data = Synthetic.days(now, 15)
+        fun tr(id: String, k: String, a: Double, ago: Long, n: String = "") = Treatment(id = id, k = k, a = a, t = now - ago, u = 0, o = "phone", n = n)
+        val trs = listOf(tr("r1", "rapid", 4.0, 3840), tr("c1", "carbs", 40.0, 3780), tr("c2", "carbs", 15.0, 1500),
+            tr("l1", "long", 18.0, 600), tr("n1", "note", 0.0, 4 * 3600L, "walk"))
+        val M = app.mauri.sukrara.treatments.MarkShow
+        val v = listOf(
+            "before: every part of every kind" to M.ALL,
+            "after: the defaults (carbs: point only)" to M.DEFAULT,
+            "carbs: point + amount (the meal's time is the insulin's)" to M.DEFAULT.with("carbs", "amount", true),
+            "rapid: labels only, no point or line; notes hidden" to M.DEFAULT.with("rapid", "point", false).with("rapid", "line", false).with("note", "point", false),
+        )
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            sheet("marks-${if (dark) "dark" else "light"}", v.map { (label, m) ->
+                Tile(label, "") { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = GraphStyle(windowS = 6 * 3600L, marks = m), sensorTime = true), pal, d,
+                        alerts = AlertSettings(), surface = CardSurface.TEST, part = CardPart.ALL)
+                }
+            }, 340f, 170f, cols = 2, pal)
+        }
+    }
+
     @Test fun freshness() {
         val data = Synthetic.days(now, 15)
         val pal = GraphPalette.DARK

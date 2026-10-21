@@ -31,7 +31,7 @@
   {"id": "lines", "lines": [100, 120], "gridHours": 0},
   {"id": "high200", "high": 200},
   {"id": "clock12", "hour24": false, "about": "the phone's 12-hour time: every clock time on every surface (card, hour labels, notification, tile, screen-reader words, Mac) is 12-hour"},
-  {"id": "clock24", "hour24": true}
+  {"id": "clock24", "hour24": true}, {"id": "marks-all", "marks": "all", "about": "every part of every treatment kind (the look before Treatments on the graph)"}, {"id": "marks-mixed", "marks": {"rapid": ["amount", "time"], "carbs": ["point", "line", "amount"], "note": []}, "about": "rapid: labels without its point or mute line; carbs: amount without time (the meal label takes the time from nobody: none); notes hidden"}
  ],
  "scroll": {
   "about": "Scrolled charts (the app panel and the Mac dropdown, the only surfaces that scroll): each case renders 'scene' with the window's end 'back' s before now and, when zoomed, 'span' s long (else the place's 12 h) through the scrollable surfaces' real entry paths (PanelCard with a ChartScroll; the dropdown's CardView with scrollEnd). Checked on both platforms: the chart is the chart of the visible data alone (the same entry path with every reading and treatment outside the window removed, now = the window's end and the place's time shown = the window's length: % column, y range, distribution dots, hour labels, treatment markers), its y range is the visible readings' (yMin = min(low - 22, veryLow - 6, lowest - 6), yMax = max(high + 40, veryHigh + 8, highest + 8)), the Now pill shows only when scrolled or zoomed, and 'expect' (font-independent: chart (its window), chart.pct, chart.y, chart.window, chart.markers). Scenes: this list first, then the main one.",
