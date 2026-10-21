@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.settings.NumberSpec
+import app.mauri.sukrara.settings.SettingsSpec
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 /** The 8 alert kinds of spikes/alerts/SPEC.md §1. */
 object Kind {
@@ -100,7 +103,10 @@ data class AlertSettings(
     val actionMuteMin: Int = 30,
     /** 30: slower than every level alert's default repeat (5–15 min), so *Slow down* shows on all of them. */
     val slowMin: Int = 30,
-    /** Followers: "wearer" = mirror the wearer's alerts, "own" = these rules. */
+    /**
+     * Followers: "wearer" = mirror the wearer's alerts, "own" = these rules. Derived from the follower's Settings from
+     * ([app.mauri.sukrara.settings.WearerSettings.alertSource]: "wearer" in Wearer mode, else "own"), never chosen.
+     */
     val source: String = "wearer",
 ) {
     fun cfg(k: String): KindCfg = kinds[k] ?: DEFAULTS.getValue(k)
@@ -149,12 +155,21 @@ data class AlertSettings(
     }
 
     companion object {
-        /** Minutes a notification's Mute (preset or typed) and Slow down accept. */
-        val MUTE_RANGE = 1..720
-        val SLOW_RANGE = 5..120
+        /** Minutes a notification's Mute (preset or typed) and Slow down accept (SettingsSpec, spikes/settings/settings.json). */
+        val MUTE_RANGE: IntRange = SettingsSpec.ACTION_MUTE.let { it.min.toInt()..it.max.toInt() }
+        val SLOW_RANGE: IntRange = SettingsSpec.ACTION_SLOW.let { it.min.toInt()..it.max.toInt() }
         /** The settings' presets (minutes): Mute and Slow down, the same lists on Android and Mac. */
-        val MUTE_PRESETS = listOf(15, 30, 60, 120)
-        val SLOW_PRESETS = listOf(15, 20, 30, 45, 60, 90, 120)
+        val MUTE_PRESETS: List<Int> = SettingsSpec.ACTION_MUTE.presets.map { it.toInt() }
+        val SLOW_PRESETS: List<Int> = SettingsSpec.ACTION_SLOW.presets.map { it.toInt() }
+
+        /** The number format of [k]'s threshold ([KindCfg.value]). */
+        fun thresholdSpec(k: String): NumberSpec = when (k) {
+            Kind.VERY_LOW -> SettingsSpec.THRESHOLD_VERY_LOW; Kind.LOW -> SettingsSpec.THRESHOLD_LOW
+            Kind.HIGH -> SettingsSpec.THRESHOLD_HIGH; Kind.VERY_HIGH -> SettingsSpec.THRESHOLD_VERY_HIGH
+            Kind.EXTREMELY_HIGH -> SettingsSpec.THRESHOLD_EXTREMELY_HIGH; Kind.NO_DATA -> SettingsSpec.THRESHOLD_NO_DATA
+            else -> SettingsSpec.THRESHOLD_RATE
+        }
+        private fun NumberSpec.int(v: Int): Int = coerce(v.toDouble()).roundToInt()
 
         /** The user's own settings (2026-10-18). */
         val DEFAULTS = mapOf(
@@ -175,8 +190,8 @@ data class AlertSettings(
                 val def = DEFAULTS.getValue(k)
                 val o = a.optJSONObject(k) ?: return@associateWith def
                 val key = when (k) { in Kind.RATES -> "rate"; Kind.NO_DATA -> "min"; else -> "mgdl" }
-                KindCfg(o.optBoolean("on", def.on), o.optDouble(key, def.value), o.optInt("repeatMin", def.repeatMin),
-                    o.optBoolean("alarm", def.alarm))
+                KindCfg(o.optBoolean("on", def.on), thresholdSpec(k).coerce(o.optDouble(key, def.value)),
+                    SettingsSpec.ALERT_REPEAT.int(o.optInt("repeatMin", def.repeatMin)), o.optBoolean("alarm", def.alarm))
             }
             val mi = j.optJSONObject("muteAfterInsulin")
             val mf = j.optJSONObject("muteFallingHigh")
@@ -188,16 +203,16 @@ data class AlertSettings(
                 on = j.optBoolean("on", d.on),
                 kinds = kinds,
                 muteInsulin = mi?.optBoolean("on", d.muteInsulin) ?: d.muteInsulin,
-                muteInsulinMin = mi?.optInt("min", d.muteInsulinMin) ?: d.muteInsulinMin,
+                muteInsulinMin = SettingsSpec.MUTE_INSULIN.int(mi?.optInt("min", d.muteInsulinMin) ?: d.muteInsulinMin),
                 muteFalling = mf?.optBoolean("on", d.muteFalling) ?: d.muteFalling,
-                muteFallingMin = mf?.optInt("min", d.muteFallingMin) ?: d.muteFallingMin,
+                muteFallingMin = SettingsSpec.MUTE_FALLING.int(mf?.optInt("min", d.muteFallingMin) ?: d.muteFallingMin),
                 muteCarbs = mc?.optBoolean("on", d.muteCarbs) ?: d.muteCarbs,
-                muteCarbsMin = mc?.optInt("min", d.muteCarbsMin) ?: d.muteCarbsMin,
+                muteCarbsMin = SettingsSpec.MUTE_CARBS.int(mc?.optInt("min", d.muteCarbsMin) ?: d.muteCarbsMin),
                 pack = s?.optString("pack", d.pack) ?: d.pack,
                 packFor = pf?.keys()?.asSequence()?.filter { it in Kind.ALL }?.associateWith { pf.getString(it) } ?: emptyMap(),
                 shuffle = s?.optBoolean("shuffle", d.shuffle) ?: d.shuffle,
-                actionMuteMin = (na?.optInt("muteMin", d.actionMuteMin) ?: d.actionMuteMin).coerceIn(MUTE_RANGE),
-                slowMin = (na?.optInt("slowMin", d.slowMin) ?: d.slowMin).coerceIn(SLOW_RANGE),
+                actionMuteMin = SettingsSpec.ACTION_MUTE.int(na?.optInt("muteMin", d.actionMuteMin) ?: d.actionMuteMin),
+                slowMin = SettingsSpec.ACTION_SLOW.int(na?.optInt("slowMin", d.slowMin) ?: d.slowMin),
                 source = j.optString("source", d.source).takeIf { it == "own" || it == "wearer" } ?: d.source,
             )
         }
