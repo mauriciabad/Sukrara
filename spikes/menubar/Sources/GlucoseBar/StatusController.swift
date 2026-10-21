@@ -218,16 +218,7 @@ extension Bands {
         button.setAccessibilityLabel(title.image == .noReadings ? "Glucose: no reading since \(Clock.time(snap.latest.date))" : title.label)
         // Mute all (round f30): the "notifications off" bell before the value, while it lasts, and in the tooltip
         if let line = Self.mutedLine(alertAllMuted?() ?? 0, now: nowT) {
-            let bell = NSTextAttachment()
-            let img = NSImage(systemSymbolName: "bell.slash", accessibilityDescription: line)?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize - 1, weight: .medium))
-            img?.isTemplate = true
-            bell.image = img
-            let t = NSMutableAttributedString(attachment: bell)
-            t.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: 0, length: t.length))
-            t.append(NSAttributedString(string: "\u{2009}", attributes: attrs))
-            t.append(button.attributedTitle)
-            button.attributedTitle = t
+            button.attributedTitle = Self.withMutedBell(button.attributedTitle, line: line, attrs)
             if button.imagePosition == .imageOnly { button.imagePosition = .imageTrailing }
             button.toolTip = (button.toolTip ?? "Sukrara") + " · " + line
             button.setAccessibilityLabel(button.accessibilityLabel().map { "\($0), \(line)" } ?? line)
@@ -288,6 +279,20 @@ extension Bands {
                           format: @escaping (Int) -> String = { "\($0)" }) -> GlucoseLook {
         let r = GraphReading(t: snap.latest.date.timeIntervalSince1970, v: snap.latest.mgdl, rate: snap.rate)
         return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle, format: format)
+    }
+
+    /// The menu bar title with the "notifications off" bell before it (Mute all; also `-menubarSnapshot`).
+    static func withMutedBell(_ title: NSAttributedString, line: String, _ attrs: [NSAttributedString.Key: Any]) -> NSAttributedString {
+        let bell = NSTextAttachment()
+        let img = NSImage(systemSymbolName: "bell.slash", accessibilityDescription: line)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize - 1, weight: .medium))
+        img?.isTemplate = true
+        bell.image = img
+        let t = NSMutableAttributedString(attachment: bell)
+        t.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: 0, length: t.length))
+        t.append(NSAttributedString(string: "\u{2009}", attributes: attrs))
+        t.append(title)
+        return t
     }
 
     /// "Alerts muted until 14:30" / "Alerts muted" (Never) while Mute all `until` (unix s) lasts, else nil.
@@ -626,5 +631,47 @@ struct MenubarTitle: Equatable {
         // a new sensor warming up: its time left where the number goes (render writes it in the secondary colour)
         case .warmingUp: return MenubarTitle(text: look.warmup ?? "", strike: false, grey: true, image: .none, label: "Sensor warming up")
         }
+    }
+}
+
+/// `-menubarSnapshot <png>` (evidence, round f30): the status item's title as `render` builds it (the card's face for
+/// a synthetic reading, the arrow, Mute all's bell): plain, Mute all until a time, Mute all with Never, on a light and a
+/// dark menu bar. Offline like every `-…Snapshot` run (LaunchGuard): nothing starts.
+@MainActor enum MenubarSnapshot {
+    static func render(to path: String) {
+        let now = Date().timeIntervalSince1970
+        let r = GraphReading(t: now - 30, v: 161, rate: 0.6)
+        let title = MenubarTitle.of(GlucoseCard.face(r, now: now, sensor: nil, surface: .menubarTitle))
+        let rows: [(String, TimeInterval)] = [("not muted", 0), ("Mute all 1 h 20 min", now + 80 * 60), ("Mute all Never", AlertStatus.never)]
+        let cell = NSSize(width: 190, height: 24), scale: CGFloat = 3
+        let size = NSSize(width: cell.width * 2, height: cell.height * CGFloat(rows.count))
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        rep.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        for (col, dark) in [false, true].enumerated() {
+            NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+                (dark ? NSColor(white: 0.12, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+                NSRect(x: CGFloat(col) * cell.width, y: 0, width: cell.width, height: size.height).fill()
+                for (i, row) in rows.enumerated() {
+                    let y = size.height - CGFloat(i + 1) * cell.height
+                    let color = Bands().color(for: r.v) ?? .labelColor
+                    let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+                                                                .foregroundColor: color]
+                    var t = NSAttributedString(string: title.text, attributes: attrs)
+                    if let line = StatusController.mutedLine(row.1, now: now) { t = StatusController.withMutedBell(t, line: line, attrs) }
+                    let x = CGFloat(col) * cell.width + 10
+                    t.draw(at: NSPoint(x: x, y: y + 4))
+                    TrendArrow.image(rate: r.rate, size: 15, color: color).draw(in: NSRect(x: x + t.size().width + 2, y: y + 4.5, width: 15, height: 15))
+                    NSAttributedString(string: row.0, attributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor])
+                        .draw(at: NSPoint(x: x + 72, y: y + 7))
+                }
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
+        print("wrote", path)
     }
 }

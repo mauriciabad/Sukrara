@@ -65,6 +65,11 @@ if let path = defaults.string(forKey: "preview") {
     Preview.render(to: path)
     exit(0)
 }
+// Evidence aid: `-menubarSnapshot <png>` renders the status item's title (Mute all's bell) from a synthetic reading.
+if let path = defaults.string(forKey: "menubarSnapshot") {
+    MainActor.assumeIsolated { MenubarSnapshot.render(to: path) }
+    exit(0)
+}
 if let dir = defaults.string(forKey: "panelPreview") {
     MainActor.assumeIsolated { PanelPreview.run(dir: dir) }
     exit(0)

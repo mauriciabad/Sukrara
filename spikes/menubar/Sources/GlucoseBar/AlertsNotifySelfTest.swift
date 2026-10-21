@@ -75,6 +75,16 @@ import UserNotifications
                   rec.categories.allSatisfy { $0.actions.count <= 2 && $0.actions.allSatisfy { !$0.title.contains("min") && !$0.title.hasPrefix("Slow") } }, "")
         }
 
+        // The dropdown's Mute alerts lengths (the schema's muteAll presets, 0 = Never) and its Custom… input.
+        do {
+            let menu = AlertActions.muteAllPresets.filter { $0 > 0 }.map(muteAllLabel) + ["Never (until I turn them back on)", "Custom…"]
+            print("      Mute alerts menu: " + menu.joined(separator: " · "))
+            check("mute all: the menu offers 30 min · 1 h · 2 h · 4 h · 8 h · Never · Custom…",
+                  menu == ["30 min", "1 h", "2 h", "4 h", "8 h", "Never (until I turn them back on)", "Custom…"] && AlertActions.muteAllPresets.contains(0),
+                  menu.joined(separator: " · "))
+            check("mute all: a custom length takes 5 min – 24 h", AlertActions.muteAllRange == 5...1440, "\(AlertActions.muteAllRange)")
+        }
+
         // Normal (alerting): every level kind gets Mute… + Relax, very low and extremely high the same.
         for (mgdl, kind) in [(60.0, "Low glucose"), (50, "Very low glucose"), (200, "High glucose"), (262, "Very high glucose"), (320, "Extremely high glucose")] {
             clock = t0
@@ -205,6 +215,8 @@ import UserNotifications
             feed(a, 60)
             a.perform(.muteAll(60))
             check("mute all: the alert up goes", rec.level == nil, title(rec.level))
+            check("mute all: the quiet episode isn't listed as a falling mute (no Alert Me Anyway; Android 3d8c8e9b)",
+                  a.active.isEmpty && a.engine.quiets().isEmpty, "\(a.active)")
             check("mute all: \"Alerts muted until \(at(60))\" and the pill's end", a.allMutedLine == "Alerts muted until \(at(60))"
                   && a.allMuted == clock.timeIntervalSince1970 + 3600, a.allMutedLine ?? "nil")
             walk(a, 50, minutes: 2)
