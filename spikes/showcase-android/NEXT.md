@@ -110,7 +110,11 @@ ever happens again: Juggluco → Settings → Web server → untick/tick *Active
   binary now refuses that (`LaunchGuard`, `-argsselftest`, CI): an unknown `-…selftest`, a bare unknown `-flag` or a
   stray word exits 2, and a dev build (`swift build` output, or an app inside the repo like `build/Sukrara.app`)
   starts the full app only with `SUKRARA_DEV=1` (exit 3 otherwise). With `SUKRARA_DEV=1`, also pass
-  `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir>` to keep the real data out.
+  `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir>` to keep the real data out. **Snapshot and dev runs are offline** (2026-10-21: a
+  `-settingsSnapshot` dev run joined the user's phone over Bluetooth): `LaunchGuard.services` starts no Bluetooth,
+  relays, LAN feed or alert engine for any `-…Snapshot` / `-preview` / `-panelPreview` / `-openPanel` /
+  `-openTreatments` run or any dev build (`SUKRARA_DEV=1` included); main.swift starts transports only through it and
+  `-argsselftest` fails otherwise. Test networking with the self-tests (`-v2selftest`, `-v2relaytest`), never a dev run.
 - **Mac**: `spikes/menubar`, `./bundle.sh` → `build/Sukrara.app` (`AD_HOC=1` = no widgets), then `./dmg.sh` →
   `build/Sukrara-<ver>.dmg` (needs `uv tool install dmgbuild`). **Releases attach the dmg** (what the README's
   Download button and the site link to) plus `Sukrara-mac-<ver>.zip`; bump both links in README.md and docs/index.md. Publishing a release also updates the Homebrew cask (`mauriciabad/homebrew-tap`, `.github/workflows/homebrew-tap.yml`; needs the `HOMEBREW_TAP_DEPLOY_KEY` secret, docs/20). The user's daily

@@ -108,6 +108,15 @@ if let why = LaunchGuard.devRefusal(bundlePath: Bundle.main.bundlePath, isBundle
     FileHandle.standardError.write(Data("Sukrara: \(why)\n".utf8))
     exit(3)
 }
+// What this run may start (LaunchGuard.services): evidence renders and dev builds run offline — no Bluetooth, relays,
+// LAN feed or alert engine — so a test copy never reaches the user's phone or rings. Every transport below starts only
+// through `services` (`-argsselftest` checks the plan and that this file starts nothing outside it).
+let services = LaunchGuard.services(args: Array(CommandLine.arguments.dropFirst()),
+                                    devBuild: LaunchGuard.devBuild(bundlePath: Bundle.main.bundlePath, isBundle: Bundle.main.bundleIdentifier != nil),
+                                    wantLan: defaults.object(forKey: "lan") == nil || defaults.bool(forKey: "lan"),
+                                    wantBle: defaults.object(forKey: "bleV2") == nil || defaults.bool(forKey: "bleV2"),
+                                    wantNostr: true)
+if services.offline { log("offline run (evidence render or dev build): no Bluetooth, relays, LAN feed or alerts") }
 Migration.run()
 
 let app = NSApplication.shared
@@ -121,7 +130,7 @@ let status = MainActor.assumeIsolated {
     return s
 }
 // Glucose alerts (Alerts.swift, spikes/alerts/SPEC.md): this Mac's rules or the wearer's `alert` events.
-let alerts = MainActor.assumeIsolated { Alerts() }
+let alerts = MainActor.assumeIsolated { Alerts(offline: !services.alerts) }
 MainActor.assumeIsolated {
     alerts.unit = { status.unit }
     alerts.treatments = { treatmentStore.rows }
@@ -209,6 +218,7 @@ NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotif
     private var source: JugglucoSource?
 
     func restart(_ why: String) {
+        guard services.lan else { return log("offline run: no LAN feed (\(why))") }
         log("lan feed restart: \(why)")
         task?.cancel()
         task = Task { await run() }
@@ -249,20 +259,20 @@ NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotif
 }
 
 let feed = MainActor.assumeIsolated { Feed() }
-let lanEnabled = defaults.object(forKey: "lan") == nil || defaults.bool(forKey: "lan")
+let lanEnabled = services.lan
 if lanEnabled {
     MainActor.assumeIsolated { feed.restart("launch") }
 }
 
 // Bluetooth: protocol v2 over one CoreBluetooth central (BLELink.swift). Created only when enabled:
 // CBCentralManager starts scanning as soon as Bluetooth reports powered on.
-let bleV2On = defaults.object(forKey: "bleV2") == nil || defaults.bool(forKey: "bleV2")
+let bleV2On = services.ble
 let bleLink = bleV2On ? BLELink() : nil
 bleLink?.onState = { log($0) }
 
 let nostrLink = defaults.string(forKey: "nostr")
     ?? defaults.string(forKey: "nostr-file").flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
-let nostr = MainActor.assumeIsolated { nostrLink.flatMap(NostrSource.init(link:)) }
+let nostr = MainActor.assumeIsolated { services.nostr ? nostrLink.flatMap(NostrSource.init(link:)) : nil }
 if let nostr {
     MainActor.assumeIsolated {
         nostr.onReading = { store.ingest($0, from: $1) }
@@ -284,6 +294,7 @@ let treatmentStore = MainActor.assumeIsolated {
     private var showWindow = false
 
     func launch() {
+        guard services.follow else { return log("offline run: not following") }
         if let st = FollowerV2State.load(), let n = FollowerV2(state: st) {
             attach(n)
             n.start()
@@ -298,7 +309,7 @@ let treatmentStore = MainActor.assumeIsolated {
 
     /// The follow state appeared after launch (Migration.keychain): start following it.
     func resume() {
-        guard node == nil, let st = FollowerV2State.load(), let n = FollowerV2(state: st) else { return }
+        guard services.follow, node == nil, let st = FollowerV2State.load(), let n = FollowerV2(state: st) else { return }
         log("v2: resuming the migrated follow state")
         attach(n)
         n.start()
@@ -369,6 +380,7 @@ let treatmentStore = MainActor.assumeIsolated {
 
     /// A pasted / opened / test link: look the invite up on the relays first (who is inviting), then ask.
     func follow(_ link: String, name: String) {
+        guard services.follow else { return log("offline run: following is off") }
         Task { @MainActor in
             switch await V2.resolveInvite(link) {
             case .failure(let why):
@@ -380,6 +392,7 @@ let treatmentStore = MainActor.assumeIsolated {
     }
 
     func join(_ inv: V2.Invite, name: String, nearby: Bool = false) {
+        guard services.follow else { return log("offline run: following is off") }
         switch FollowerV2.join(inv, name: name, nearby: nearby) {
         case .failure(let why):
             log("v2 join failed: \(why.text)")
