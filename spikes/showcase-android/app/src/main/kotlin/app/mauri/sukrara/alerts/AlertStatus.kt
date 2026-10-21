@@ -43,8 +43,9 @@ sealed interface AlertStatus {
 
         /**
          * Same rules as [AlertEngine]: carbs cover very low and low, rapid insulin high and very high, while their mute
-         * window lasts (`t ≤ now < t + min`); extremely high is never covered. Otherwise [paused] (side → until, the
-         * alert notification's *Mute*, [AlertEngine.snoozes]) covers every level kind but very low and extremely high.
+         * window lasts (`t ≤ now < t + min`); extremely high is never covered. Otherwise [paused] (side → until, this
+         * device's *Mute* of the side or *Mute all*, [AlertEngine.NEVER] = no end) covers every level kind, very low and
+         * extremely high included (round f30).
          */
         fun of(r: Reading?, s: AlertSettings, treatments: List<Treatment>, now: Long, paused: Map<String, Long> = emptyMap()): AlertStatus {
             val k = level(r, s, now) ?: return None
@@ -52,7 +53,7 @@ sealed interface AlertStatus {
             val cover = by?.let { b -> treatments.filter { it.k == b && it.t <= now }.mapNotNull { t -> muteUntil(t, s)?.let { t to it } }
                 .filter { it.second > now }.maxByOrNull { it.first.t } }
             if (cover != null) return Taken(k, cover.first, cover.second)
-            val until = paused[Kind.side(k)]?.takeIf { it > now && k !in Kind.ALWAYS }
+            val until = paused[Kind.side(k)]?.takeIf { it > now }
             return if (until != null) Paused(k, until) else Needed(k)
         }
     }

@@ -27,11 +27,6 @@ object Kind {
     val HIGH_SIDE = setOf(HIGH, VERY_HIGH)
     /** Alerts below a threshold (strictly `<`: low 70 alerts at 69); the rest of the levels are `>=`. */
     val LOW_SIDE = setOf(VERY_LOW, LOW)
-    /**
-     * Never muted from a notification's Mute action (the safety net on each side); Slow down still works on them, and
-     * a very low inside a muted low episode alerts at once.
-     */
-    val ALWAYS = setOf(VERY_LOW, EXTREMELY_HIGH)
 
     /** Severity within a side (an episode, see [AlertEngine]): moving to a higher one alerts at once. */
     fun severity(k: String) = when (k) { VERY_LOW, VERY_HIGH -> 2; EXTREMELY_HIGH -> 3; else -> 1 }
@@ -41,6 +36,9 @@ object Kind {
      * by rapid insulin (see [treatment]).
      */
     fun side(k: String) = when (k) { in LOW_SIDE -> "low"; HIGH, VERY_HIGH, EXTREMELY_HIGH -> "high"; else -> k }
+
+    /** The side's main kind (a Mute / Relax shown without an episode): "low" → low, "high" → high, else the side. */
+    fun main(side: String) = when (side) { "low" -> LOW; "high" -> HIGH; else -> side }
 
     /** The treatment that answers [k] ("carbs" / "rapid"), whatever the mute settings, or null (no data). */
     fun treatment(k: String) = when (k) {
@@ -99,10 +97,13 @@ data class AlertSettings(
     val pack: String = "quest",
     val packFor: Map<String, String> = emptyMap(),
     val shuffle: Boolean = true,
-    /** The alert notification's actions (SPEC §2): *Mute <n> min* and the interval *Slow down* repeats at. */
+    /** The alert notification's actions (SPEC §2): the first length *Mute…* offers, and the interval *Relax* repeats at. */
     val actionMuteMin: Int = 30,
-    /** 30: slower than every level alert's default repeat (5–15 min), so *Slow down* shows on all of them. */
-    val slowMin: Int = 30,
+    /** 30: slower than every level alert's default repeat (5–15 min), so *Relax* shows on all of them. */
+    val relaxMin: Int = 30,
+    /** Mute and Relax end once the side is back in range by this many mg/dL ([backMin] minutes in a row), SPEC §2. */
+    val backMgdl: Int = 10,
+    val backMin: Int = 10,
     /**
      * Followers: "wearer" = mirror the wearer's alerts, "own" = these rules. Derived from the follower's Settings from
      * ([app.mauri.sukrara.settings.WearerSettings.alertSource]: "wearer" in Wearer mode, else "own"), never chosen.
@@ -112,14 +113,17 @@ data class AlertSettings(
     fun cfg(k: String): KindCfg = kinds[k] ?: DEFAULTS.getValue(k)
 
     /**
-     * The *Slow down* intervals the settings offer: only ones slower than every level alert's repeat (the alerts that
+     * The *Relax* intervals the settings offer: only ones slower than every level alert's repeat (the alerts that
      * repeat often enough to want it), so the button shows on all of them. An interval the alert already repeats at
      * hides the button (SPEC §2): 10 min, offered before, hid it on every default alert but very low.
      */
-    fun slowChoices(): List<Int> = SLOW_PRESETS.filter { it > slowFloor() }.ifEmpty { listOf(SLOW_RANGE.last) }
+    fun relaxChoices(): List<Int> = RELAX_PRESETS.filter { it > relaxFloor() }.ifEmpty { listOf(RELAX_RANGE.last) }
 
-    /** The longest repeat of the enabled level alerts: a *Slow down* interval must be longer (custom minutes too). */
-    fun slowFloor(): Int = Kind.LEVELS.map { cfg(it) }.filter { it.on && it.repeatMin > 0 }.maxOfOrNull { it.repeatMin } ?: 0
+    /** The *Mute…* lengths a notification offers: [actionMuteMin] first, then the other presets. */
+    fun muteChoices(): List<Int> = (listOf(actionMuteMin) + MUTE_PRESETS).distinct()
+
+    /** The longest repeat of the enabled level alerts: a *Relax* interval must be longer (custom minutes too). */
+    fun relaxFloor(): Int = Kind.LEVELS.map { cfg(it) }.filter { it.on && it.repeatMin > 0 }.maxOfOrNull { it.repeatMin } ?: 0
     fun soundOf(k: String): String = packFor[k] ?: pack
 
     /**
@@ -150,17 +154,21 @@ data class AlertSettings(
             .put("muteFallingHigh", JSONObject().put("on", muteFalling).put("min", muteFallingMin))
             .put("muteAfterCarbs", JSONObject().put("on", muteCarbs).put("min", muteCarbsMin))
             .put("sounds", JSONObject().put("pack", pack).put("kinds", kindsJ).put("shuffle", shuffle))
-            .put("notificationActions", JSONObject().put("muteMin", actionMuteMin).put("slowMin", slowMin))
+            .put("notificationActions", JSONObject().put("muteMin", actionMuteMin).put("relaxMin", relaxMin)
+                .put("backMgdl", backMgdl).put("backMin", backMin))
             .put("source", source)
     }
 
     companion object {
-        /** Minutes a notification's Mute (preset or typed) and Slow down accept (SettingsSpec, spikes/settings/settings.json). */
+        /** Minutes a notification's Mute (preset or typed) and Relax accept (SettingsSpec, spikes/settings/settings.json). */
         val MUTE_RANGE: IntRange = SettingsSpec.ACTION_MUTE.let { it.min.toInt()..it.max.toInt() }
-        val SLOW_RANGE: IntRange = SettingsSpec.ACTION_SLOW.let { it.min.toInt()..it.max.toInt() }
-        /** The settings' presets (minutes): Mute and Slow down, the same lists on Android and Mac. */
+        val RELAX_RANGE: IntRange = SettingsSpec.ACTION_RELAX.let { it.min.toInt()..it.max.toInt() }
+        /** The settings' presets (minutes): Mute and Relax, the same lists on Android and Mac. */
         val MUTE_PRESETS: List<Int> = SettingsSpec.ACTION_MUTE.presets.map { it.toInt() }
-        val SLOW_PRESETS: List<Int> = SettingsSpec.ACTION_SLOW.presets.map { it.toInt() }
+        val RELAX_PRESETS: List<Int> = SettingsSpec.ACTION_RELAX.presets.map { it.toInt() }
+        /** *Mute all*: minutes a custom length accepts, and the presets (0 = Never, until turned back on). */
+        val MUTE_ALL_RANGE: IntRange = SettingsSpec.MUTE_ALL.let { it.min.toInt()..it.max.toInt() }
+        val MUTE_ALL_PRESETS: List<Int> = SettingsSpec.MUTE_ALL.presets.map { it.toInt() }
 
         /** The number format of [k]'s threshold ([KindCfg.value]). */
         fun thresholdSpec(k: String): NumberSpec = when (k) {
@@ -212,7 +220,9 @@ data class AlertSettings(
                 packFor = pf?.keys()?.asSequence()?.filter { it in Kind.ALL }?.associateWith { pf.getString(it) } ?: emptyMap(),
                 shuffle = s?.optBoolean("shuffle", d.shuffle) ?: d.shuffle,
                 actionMuteMin = SettingsSpec.ACTION_MUTE.int(na?.optInt("muteMin", d.actionMuteMin) ?: d.actionMuteMin),
-                slowMin = SettingsSpec.ACTION_SLOW.int(na?.optInt("slowMin", d.slowMin) ?: d.slowMin),
+                relaxMin = SettingsSpec.ACTION_RELAX.int(na?.optInt("relaxMin", d.relaxMin) ?: d.relaxMin),
+                backMgdl = SettingsSpec.BACK_MGDL.int(na?.optInt("backMgdl", d.backMgdl) ?: d.backMgdl),
+                backMin = SettingsSpec.BACK_MIN.int(na?.optInt("backMin", d.backMin) ?: d.backMin),
                 source = j.optString("source", d.source).takeIf { it == "own" || it == "wearer" } ?: d.source,
             )
         }

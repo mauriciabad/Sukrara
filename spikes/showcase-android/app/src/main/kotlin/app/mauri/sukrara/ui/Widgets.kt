@@ -173,7 +173,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         // what the pill doesn't show (it shows a level alert's mute): slowed reminders, a quiet fast-change alert
         val pillKind = (AlertStatus.of(reading, alerts, treatments, now, paused) as? AlertStatus.Paused)?.kind
             ?: (AlertStatus.of(reading, alerts, treatments, now, paused) as? AlertStatus.Taken)?.kind
-        val chips = active.filter { a -> a.slowMin > 0 || pillKind == null || Kind.group(a.kind) != Kind.group(pillKind) }
+        val chips = active.filter { a -> a.relaxMin > 0 || pillKind == null || Kind.group(a.kind) != Kind.group(pillKind) }
         if (chips.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             for (a in chips) androidx.compose.material3.AssistChip(onClick = { sheet = a.kind }, label = { Text(quietTitle(ctx, a, now)) },

@@ -52,13 +52,13 @@ fun quietTitle(ctx: Context, a: Alerts.Active, now: Long): String {
         AlertEngine.QUIET_CARBS -> ctx.getString(R.string.quiet_title_carbs, name, time())
         AlertEngine.QUIET_INSULIN -> ctx.getString(R.string.quiet_title_insulin, name, time())
         AlertEngine.QUIET_FALLING -> ctx.getString(R.string.quiet_title_falling, name)
-        else -> ctx.getString(R.string.quiet_title_slowed, name, a.slowMin)
+        else -> ctx.getString(R.string.quiet_title_slowed, name, a.relaxMin)
     }
 }
 
 /** The second line when it's also slowed ("Low reminders every 30 min"), or null. */
 private fun slowedLine(ctx: Context, a: Alerts.Active): String? =
-    if (a.quiet != null && a.slowMin > 0) ctx.getString(R.string.quiet_title_slowed, AlertNotifier.label(ctx, a.kind), a.slowMin) else null
+    if (a.quiet != null && a.relaxMin > 0) ctx.getString(R.string.quiet_title_slowed, AlertNotifier.label(ctx, a.kind), a.relaxMin) else null
 
 /** The main way out of [a]: Unmute (a notification mute) or Alert me anyway (a treatment / falling mute here). */
 private fun lift(a: Alerts.Active): Int? = when {
@@ -72,7 +72,7 @@ fun quietA11yActions(ctx: Context, list: List<Alerts.Active>): List<CustomAccess
     val name = AlertNotifier.label(ctx, a.kind)
     listOfNotNull(
         lift(a)?.let { r -> CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(r))) { Alerts.unmute(ctx, a.kind); true } },
-        if (a.slowMin > 0) CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(R.string.quiet_stop_slowing))) {
+        if (a.relaxMin > 0) CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(R.string.quiet_stop_slowing))) {
             Alerts.unslow(ctx, a.kind); true } else null,
     )
 }
@@ -91,9 +91,9 @@ fun QuietRow(a: Alerts.Active, now: Long) {
         slowedLine(ctx, a)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             lift(a)?.let { r -> FilledTonalButton(onClick = { Alerts.unmute(ctx, a.kind) }) { Text(stringResource(r)) } }
-            if (a.slowMin > 0) FilledTonalButton(onClick = { Alerts.unslow(ctx, a.kind) }) { Text(stringResource(R.string.quiet_stop_slowing)) }
-            else if (a.canSlow) OutlinedButton(onClick = { Alerts.action(ctx, a.kind, slow = true) }) {
-                Text(stringResource(R.string.alert_action_slow, s.slowMin)) }
+            if (a.relaxMin > 0) FilledTonalButton(onClick = { Alerts.unslow(ctx, a.kind) }) { Text(stringResource(R.string.quiet_stop_slowing)) }
+            else if (a.canRelax) OutlinedButton(onClick = { Alerts.action(ctx, a.kind, slow = true) }) {
+                Text(stringResource(R.string.alert_action_slow, s.relaxMin)) }
         }
         if (a.canMute) {
             Text(stringResource(if (a.quiet == AlertEngine.QUIET_NOTIFICATION) R.string.quiet_change else R.string.quiet_mute_for),

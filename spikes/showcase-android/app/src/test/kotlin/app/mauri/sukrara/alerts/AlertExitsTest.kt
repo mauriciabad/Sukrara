@@ -98,7 +98,7 @@ class AlertExitsTest {
         start()
         Alerts.action(ctx, Kind.LOW, slow = true)
         assertEquals(listOf("Mute 30 min", "Stop slowing", "Mute for…"), buttons())
-        assertEquals(30, Alerts.active.value.single().slowMin)
+        assertEquals(30, Alerts.active.value.single().relaxMin)
         receive(AlertActionReceiver.UNSLOW)
         assertEquals(listOf("Mute 30 min", "Slow to 30 min", "Mute for…"), buttons())
         assertTrue(Alerts.active.value.isEmpty())

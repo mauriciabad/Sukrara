@@ -228,7 +228,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         SettingsGroup(stringResource(R.string.alerts_group_actions)) {
             value(stringResource(R.string.alerts_action_mute), stringResource(R.string.alerts_action_mute_summary, s.actionMuteMin),
                 enabled = s.on, icon = R.drawable.ic_sym_notifications_off) { minutes = "action" }
-            value(stringResource(R.string.alerts_action_slow), stringResource(R.string.alerts_action_slow_summary, s.slowMin),
+            value(stringResource(R.string.alerts_action_slow), stringResource(R.string.alerts_action_slow_summary, s.relaxMin),
                 enabled = s.on, icon = R.drawable.ic_sym_snooze) { minutes = "slow" }
         }
 
@@ -256,10 +256,10 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         "action" -> IntNumberDialog(stringResource(R.string.alerts_action_mute), S.ACTION_MUTE, s.actionMuteMin, minLabel,
             { minutes = null }) { m -> set { it.copy(actionMuteMin = m) } }
         // only intervals slower than every level alert's repeat: the button shows on all of them (SPEC §3)
-        "slow" -> IntNumberDialog(stringResource(R.string.alerts_action_slow), S.ACTION_SLOW, s.slowMin,
+        "slow" -> IntNumberDialog(stringResource(R.string.alerts_action_slow), S.ACTION_RELAX, s.relaxMin,
             { stringResource0(ctx, R.string.alerts_remind_every, it) }, { minutes = null },
-            presets = s.slowChoices(), customMin = (s.slowFloor() + 1).coerceIn(S.ACTION_SLOW.min.toInt(), S.ACTION_SLOW.max.toInt())) { m ->
-            set { it.copy(slowMin = m) } }
+            presets = s.relaxChoices(), customMin = (s.relaxFloor() + 1).coerceIn(S.ACTION_RELAX.min.toInt(), S.ACTION_RELAX.max.toInt())) { m ->
+            set { it.copy(relaxMin = m) } }
     }
     if (pickPack) SoundDialog(stringResource(R.string.alerts_sound_pack), Kind.HIGH, null, s.pack, s.cfg(Kind.HIGH).alarm,
         onClose = { pickPack = false }) { p -> set { it.copy(pack = p ?: it.pack) } }

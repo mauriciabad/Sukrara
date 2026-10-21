@@ -1,7 +1,7 @@
 # Notification actions are per device (SPEC.md §2; user, 2026-10-21: "Mac notifications should work on their own …
 # if someone wants to mute, it shouldn't mute the other"). `mirror` runs a follower (a phone or the Mac) that mirrors
 # the wearer's `alert` events; `follower …` lines are its notification actions and what it shows. The wearer publishes
-# what its rules decide without its own Mute / Slow down. Format: SPEC.md §7.
+# what its rules decide without its own Mute / Relax. Format: SPEC.md §7.
 
 scenario The wearer's Mute quiets the wearer only: the follower still alerts on schedule
 mirror
@@ -17,11 +17,11 @@ mirror
 37               => Low glucose               # the wearer's mute ends
 38
 
-scenario The wearer's Slow down slows the wearer only
+scenario The wearer's Relax slows the wearer only
 mirror
-settings slow.min=15
+settings relax.min=15
  0  glucose 65   => Low glucose; follower Low glucose
- 2  slow low
+ 2  relax low
  5               => follower Low glucose
 10               => follower Low glucose
 15               => Low glucose; follower Low glucose
@@ -40,11 +40,11 @@ mirror
 35                      => Low glucose; follower Low glucose   # the wearer's first alert after the mute
 36
 
-scenario The follower's Slow down slows the follower only
+scenario The follower's Relax slows the follower only
 mirror
-settings slow.min=15
+settings relax.min=15
  0  glucose 65          => Low glucose; follower Low glucose
- 1  follower slow low
+ 1  follower relax low
  5                      => Low glucose
 10                      => Low glucose
 15                      => Low glucose; follower Low glucose
@@ -64,18 +64,22 @@ mirror
 26                        => Low glucose
 27
 
-scenario A follower's muted low still shows very low
+scenario A follower's mute covers very low and ends by the margin, not with the wearer's episode
 mirror
- 0  glucose 65          => Low glucose; follower Low glucose
- 2  follower mute low   => follower clear low
- 4  glucose 50          => clear low; Very low glucose; follower Very low glucose
- 5
+ 0  glucose 65            => Low glucose; follower Low glucose
+ 2  follower mute low 2h  => follower clear low
+ 4  glucose 50            => clear low; Very low glucose     # dropped here: the mute covers very low (user, 2026-10-21)
+ 9                        => Very low glucose
+12  glucose 85            => clear very_low                  # 15 above the low threshold: back by the margin …
+22                        => follower back low               # … for 10 min: the follower's mute ends
+30  glucose 65            => Low glucose; follower Low glucose
+31
 
 scenario The wearer's clear removes the follower's alert after a repeat it skipped
 mirror
-settings slow.min=15
+settings relax.min=15
  0  glucose 65          => Low glucose; follower Low glucose
- 1  follower slow low
+ 1  follower relax low
  5                      => Low glucose     # the follower skips this repeat: its first alert stays up
  7  glucose 90          => clear low; follower clear low
  8

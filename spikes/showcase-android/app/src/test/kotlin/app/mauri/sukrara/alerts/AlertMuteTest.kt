@@ -96,10 +96,10 @@ class AlertMuteTest {
 
     @Test fun defaultsOfferSlowDownOnEveryLevelAlertAndOnlyUsefulIntervals() {
         val s = AlertSettings()
-        for (k in Kind.LEVELS) assertTrue(k, s.cfg(k).repeatMin in 1 until s.slowMin)
-        assertTrue(s.slowMin in s.slowChoices())
-        assertTrue(s.slowChoices().all { it > s.slowFloor() })
-        assertEquals(listOf(30, 45, 60, 90, 120), s.copy(kinds = s.kinds + (Kind.HIGH to s.cfg(Kind.HIGH).copy(repeatMin = 20))).slowChoices())
-        assertNotNull(s.slowChoices().firstOrNull())
+        for (k in Kind.LEVELS) assertTrue(k, s.cfg(k).repeatMin in 1 until s.relaxMin)
+        assertTrue(s.relaxMin in s.relaxChoices())
+        assertTrue(s.relaxChoices().all { it > s.relaxFloor() })
+        assertEquals(listOf(30, 45, 60, 90, 120), s.copy(kinds = s.kinds + (Kind.HIGH to s.cfg(Kind.HIGH).copy(repeatMin = 20))).relaxChoices())
+        assertNotNull(s.relaxChoices().firstOrNull())
     }
 }

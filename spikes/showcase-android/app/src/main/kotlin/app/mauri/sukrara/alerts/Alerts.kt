@@ -69,8 +69,8 @@ object Alerts {
      * [mirrored]: the wearer's alert mirrored here (only this phone's own Mute / Slow down show; the wearer's phone
      * decides the treatment mutes). [canMute] / [canSlow]: a (new) Mute / Slow down applies.
      */
-    data class Active(val kind: String, val quiet: String?, val until: Long, val slowMin: Int, val canMute: Boolean,
-                      val canSlow: Boolean, val mirrored: Boolean)
+    data class Active(val kind: String, val quiet: String?, val until: Long, val relaxMin: Int, val canMute: Boolean,
+                      val canRelax: Boolean, val mirrored: Boolean)
 
     /** What happened lately, newest first (settings screen + DebugReceiver). */
     val history = MutableStateFlow<List<AlertNote>>(emptyList())
@@ -215,6 +215,7 @@ object Alerts {
         for (a in actions) when (a) {
             is AlertEngine.Fire -> p(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n, a.treated))
             is AlertEngine.Clear -> p(event(a.kind, "clear", a.id, a.at, shared.last, null, 0, 0))
+            is AlertEngine.Back -> Unit   // the shared rules have no notification actions
         }
     }
 
@@ -237,6 +238,7 @@ object Alerts {
                 // muted: the history already says "Low muted for 45 min"; the episode goes on
                 if (until == null) note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(a.kind)))
             }
+            is AlertEngine.Back -> note(AlertNote(Proto.nowS(), AlertNote.BACK, listOf(Kind.main(a.kind))))
         }
         state.value = engine.states()
         // the episode a "muted until" notification stands for is over: nothing is muted any more
@@ -256,10 +258,10 @@ object Alerts {
     private fun show(ctx: Context, x: Shown, silent: Boolean = false) {
         val s = _settings.value
         shown[Kind.group(x.kind)] = x
-        val slowed = if (mirrors(x.kind)) mirror.slowed(x.kind) else engine.slowed(x.kind)
+        val slowed = if (mirrors(x.kind)) mirror.relaxed(x.kind) else engine.relaxed(x.kind)
         val rep = s.cfg(x.kind).repeatMin
-        val acts = AlertNotifier.Actions(mute = x.kind !in Kind.ALWAYS, muteMin = s.actionMuteMin,
-            slowMin = s.slowMin.takeIf { !slowed && (mirrors(x.kind) || rep in 1 until s.slowMin) }, unslow = slowed)
+        val acts = AlertNotifier.Actions(mute = true, muteMin = s.actionMuteMin,
+            slowMin = s.relaxMin.takeIf { !slowed && (mirrors(x.kind) || rep in 1 until s.relaxMin) }, unslow = slowed)
         AlertNotifier.post(ctx, x.kind, x.sgv, x.rate, x.th, x.at, who, s.cfg(x.kind).alarm, x.treated, silent, acts)
     }
 
@@ -286,15 +288,15 @@ object Alerts {
         val now = Proto.nowS()
         val s = _settings.value
         val own = if (role == null) emptyList() else engine.quiets(effective(), doses(), now).map {
-            Active(it.kind, it.quiet, it.until, it.slowMin, it.canMute, it.canSlow, mirrored = false)
+            Active(it.kind, it.quiet, it.until, it.relaxMin, true, it.canRelax, mirrored = false)
         }
         val mirrored = if (role != "follower" || s.source != "wearer") emptyList() else
             listOf(Kind.LOW, Kind.HIGH, Kind.FALLING_FAST, Kind.RISING_FAST).mapNotNull { side ->
                 val sn = mirror.snooze(side) ?: return@mapNotNull null
                 val k = remote[Kind.group(side)]?.second?.kind?.takeIf { Kind.side(it) == side } ?: side
                 val until = sn.until.takeIf { it > now } ?: 0
-                if (until == 0L && sn.slowMin == 0) null
-                else Active(k, if (until > 0) AlertEngine.QUIET_NOTIFICATION else null, until, sn.slowMin, k !in Kind.ALWAYS, sn.slowMin == 0, mirrored = true)
+                if (until == 0L && sn.relaxMin == 0) null
+                else Active(k, if (until > 0) AlertEngine.QUIET_NOTIFICATION else null, until, sn.relaxMin, true, sn.relaxMin == 0, mirrored = true)
             }
         return own.filter { o -> mirrored.none { Kind.group(it.kind) == Kind.group(o.kind) } } + mirrored
     }
@@ -312,12 +314,11 @@ object Alerts {
         val s = _settings.value
         val now = Proto.nowS()
         val m = (min ?: s.actionMuteMin).coerceIn(AlertSettings.MUTE_RANGE)
-        if (!slow && kind in Kind.ALWAYS) return repost(ctx, kind)
         // a Mute on a muted episode changes its end (Change…): its "muted until" notification follows
         val wasMuted = !slow && pausedNow().containsKey(Kind.side(kind))
-        note(AlertNote(now, if (slow) AlertNote.SLOWED else AlertNote.MUTED, listOf(kind), n = if (slow) s.slowMin else m))
+        note(AlertNote(now, if (slow) AlertNote.SLOWED else AlertNote.MUTED, listOf(kind), n = if (slow) s.relaxMin else m))
         if (mirrors(kind)) {
-            if (slow) { mirror.slow(kind, s.slowMin); repost(ctx, kind) }
+            if (slow) { mirror.relax(kind, s.relaxMin); repost(ctx, kind) }
             else if (mirror.mute(kind, now + m * 60L) || wasMuted) showMuted(ctx, kind, now + m * 60L)
             changed(ctx)
             return
@@ -325,7 +326,7 @@ object Alerts {
         if (role == null) return
         engine.sensor = SensorLife.current.value
         val d = doses()
-        if (slow) apply(ctx, engine.slow(kind, effective(), d, now))
+        if (slow) apply(ctx, engine.relax(kind, effective(), d, now))
         else { muting = now + m * 60L; try { apply(ctx, engine.mute(kind, m, effective(), d, now)) } finally { muting = null } }
         if (slow) repost(ctx, kind) else if (wasMuted && Kind.group(kind) in mutedShown) showMuted(ctx, kind, now + m * 60L)
         changed(ctx)
@@ -359,14 +360,14 @@ object Alerts {
         val now = Proto.nowS()
         note(AlertNote(now, AlertNote.UNSLOWED, listOf(kind), n = _settings.value.cfg(kind).repeatMin))
         if (mirrors(kind)) {
-            val id = mirror.unslow(kind, now)
+            val id = mirror.unrelax(kind, now)
             val x = remote[Kind.group(kind)]?.takeIf { it.first == id }?.second
             if (x != null) show(ctx, x) else repost(ctx, kind)
             return changed(ctx)
         }
         if (role == null) return
         engine.sensor = SensorLife.current.value
-        apply(ctx, engine.unslow(kind, effective(), doses(), now))
+        apply(ctx, engine.unrelax(kind, effective(), doses(), now))
         repost(ctx, kind)
         changed(ctx)
     }
@@ -509,5 +510,7 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         const val SLOWED = "slowed"
         const val UNMUTED = "unmuted"
         const val UNSLOWED = "unslowed"
+        /** The side's Mute / Relax ended: back in range by the margin. */
+        const val BACK = "back"
     }
 }
