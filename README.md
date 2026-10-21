@@ -174,17 +174,21 @@ by the app's icon code.</sub>
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
   *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
-  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…* for its period,
-  the same file as the phone's); right-click for Settings and Quit.
+  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
+  and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
-- A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
-  six ranges and Open at Login; it reopens on the last pane.
+- A macOS Settings window (General, Graph, Rings, Alerts, Following) laid out after Apple's guidelines, reopening on the
+  last pane. **Settings from**: the wearer's own settings (default), Sukrara's defaults, or Custom; only Custom shows
+  the ranges, time shown, rings, lines and alert rules as controls (with *Copy the Wearer's Settings…* and *Reset to
+  Defaults…* as a starting point), the other modes show what's in use. Sounds, the no-data alert, the notification's
+  buttons and each place's own time shown (menu bar, widgets) are always the Mac's. Every number is a menu of presets
+  plus *Custom…* that takes any value in range (the range is shown), the same formats as the phone; drag the ring order.
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone
   (Settings → Following, with who you follow, name and picture; **Edit…** changes how the Mac appears to them: name
   and generated picture, like the phone). Keys stay in the macOS Keychain. Hours
   the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
-- The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does, or
-  with the Mac's own settings. Pick the pack, or another sound per alert, from a list with ▶ on each one.
+- The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does
+  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. Pick the pack, or another sound per alert, from a list with ▶ on each one.
   [15](docs/15-alerts.md)
 - When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel
   says why right under it.

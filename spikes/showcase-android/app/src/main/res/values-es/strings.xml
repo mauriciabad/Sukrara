@@ -890,8 +890,8 @@
     <string name="home_restart_text_updated">La barra de estado y la pantalla de bloqueo aún usan la versión anterior</string>
     <!-- Home card text: System UI doesn't run the module [CHAR LIMIT=NONE] -->
     <string name="home_restart_text">Tus ajustes de barra de estado y pantalla de bloqueo no funcionan hasta entonces</string>
-    <!-- Home card text without root: restart it by hand [CHAR LIMIT=NONE] -->
-    <string name="home_restart_text_no_root">Reinicia el teléfono para cargar el nuevo código de la barra de estado y la pantalla de bloqueo</string>
+    <!-- Restart card / banner error (red): su refused or failed; %1$s = the reason from su [CHAR LIMIT=NONE] -->
+    <string name="home_restart_failed">No se ha podido reiniciar la IU del sistema: %1$s</string>
     <!-- Home card pill: restart System UI now (root) [CHAR LIMIT=20] -->
     <string name="home_restart_action">Reiniciar</string>
     <!-- Close button description of the restart card [CHAR LIMIT=20] -->

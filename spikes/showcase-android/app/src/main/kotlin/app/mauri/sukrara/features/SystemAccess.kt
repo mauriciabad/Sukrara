@@ -130,14 +130,17 @@ object SystemAccess {
     /**
      * Restarts System UI (root) and follows it back up: it takes a few seconds to start and to load the module again,
      * and asking once too early saw no target yet (a false "restart needed"). Asks every second for up to 20 s.
+     * Returns null when System UI was restarted, else why not (su refused, no answer).
      */
-    suspend fun restartSystemUi() {
+    suspend fun restartSystemUi(): String? {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.mauri.sukrara.status.RootStatusBar.restartSystemUi() }
+            ?.let { return it }
         repeat(20) {
             kotlinx.coroutines.delay(1_000)
             refresh()
-            if (_status.value.module == Module.ACTIVE) return
+            if (_status.value.module == Module.ACTIVE) return null
         }
+        return null
     }
 
     /** LSPosed shows its own prompt to add System UI to the module's scope. */

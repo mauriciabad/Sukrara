@@ -193,6 +193,7 @@ enum AlertsSelfTest {
               && names(Slots.arrange(rings, place: .off, last: info, fallback: fb, max: 3)) == ["1d", "7d", "14d"]
               && !names(Slots.arrange(rings, place: .nearValue, last: nil, fallback: nil, max: 4)).contains("last"))
         let ud = UserDefaults(suiteName: "sukrara-selftest-\(UUID().uuidString)")!
+        ud.set("custom", forKey: WearerSettings.modeKey)        // this Mac's stored values apply (Settings from: Custom)
         let dflt = GraphConfig.load(ud)
         ud.set("END", forKey: "lastPlace"); ud.set("GMI:1209600:0", forKey: "lastElse")
         let set = GraphConfig.load(ud)

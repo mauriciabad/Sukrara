@@ -16,11 +16,14 @@ import AppKit
 //   followLink / followLinkFile / followName   tests: join an invite at launch without the dialog
 //   pairNearby  tests: answer a phone's "Pair nearby" offer with this name, without the dialog
 //   keychainService  tests: use a throwaway Keychain item;  v2NoRelays YES: BLE only;  pairSnapshot out.png
-//   graphHours  graph window 3|6|12|24 (default 12); menubarHours / widgetHours override it per place
+//   Every number setting takes the shared schema's format (spikes/settings/settings.json → SettingsSpec.swift: presets
+//   plus custom values in range on step); the mirrored ones apply only with settingsFrom custom (WearerSettings.swift:
+//   settingsFrom wearer|default|custom, wearerSettings = the wearer's latest settings event).
+//   graphHours  graph window 1–48 h (default 12); menubarHours / widgetHours override it per place (0 = same as default)
 //   ringCount 0–3 (2) · slots "TIR:86400:1,TIR:604800:1,GMI:1209600:1" (kind TIR|GMI|AVERAGE|CV : window s : faded)
 //   · ringRange IN_RANGE|TIGHT · ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH" (the ring clockwise)
 //   · side (time in range beside the graph, YES) · lines "100,120" (extra dashed lines, mg/dL; "" = none)
-//   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1)
+//   · gridHours 0|1|2|3|4|6|12 (vertical lines at least this far apart, 0 = off; 1) · ringCount 0–3; slot periods 12 h or 1–90 d
 //   · lastPlace OFF|NEAR_VALUE|END (the last-treatment slot; NEAR_VALUE) · lastElse "TIR:2592000:1" (its fallback; "" = none)
 //   · countdownHours 1–24 (8: the sensor countdown ring in the sensor's last hours) · sensorStart/sensorEnd/sensorWarmupEnd
 //     (unix s, the wearer's sensor from the live events; SensorStore)
@@ -31,9 +34,10 @@ import AppKit
 //   -exportselftest  the CSV export against spikes/export-fixtures (Android's GlucoseCsvTest runs the same files)
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in Settings › Alerts)
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
-//                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot <dir>: render
-//                      Settings › Alerts / every Settings pane / the report window
+//                      engine;  -alertsSnapshot out.png / -reportSnapshot <dir>: render Settings › Alerts / the report window
 //   -argsselftest   the launch guard (LaunchGuard.swift): unknown flags and dev builds never start the full app
+//   -settingsselftest  the Mac's settings against spikes/settings/settings.json (inventory, defaults, number formats,
+//                      Settings from); -settingsSnapshot <dir>: every Settings pane in four synthetic states
 //   -identityselftest  profile editing against spikes/nostr/identity/profile-v1.json (Android ProfileFixtureTest);
 //                      -identitySnapshot <dir>: the identity editor, sound picker and dimmed Add Treatment as PNGs
 let defaults = UserDefaults.standard
@@ -78,6 +82,7 @@ if let dir = defaults.string(forKey: "identitySnapshot") {
     exit(0)
 }
 if CommandLine.arguments.contains("-identityselftest") { exit(IdentitySelfTest.run() ? 0 : 1) }
+if CommandLine.arguments.contains("-settingsselftest") { exit(SettingsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
@@ -85,7 +90,7 @@ if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
-if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() ? 0 : 1) }
+if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() && GlucoseCsv.periodSelfTest() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | treatment-keys {keys} = typing into Add Treatment |
 // remove {id} = as the menu | paths | edit {id,a,n} |
@@ -444,7 +449,7 @@ let treatmentStore = MainActor.assumeIsolated {
     func unfollow() {
         stop()
         FollowerV2State.clear()
-        WearerSettings.forget()   // the next wearer's settings event may carry an older `u`
+        WearerSettings.forget()         // their settings go with them; the next wearer's event may carry an older `u`
         status.setFollow(nil)
         alerts.followChanged()
         log("v2: stopped following (keys deleted from the Keychain)")
@@ -604,7 +609,9 @@ let reportWindow = MainActor.assumeIsolated {
     let r = ReportWindow()
     r.model.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     r.model.bandsOf = { status.graph.bands }
-    r.model.onExport = { days in GlucoseCsv.save(days: days, readings: readingsStore.readings, treatments: treatmentStore.rows) }
+    r.model.onExport = { days in
+        GlucoseCsv.save(reportDays: days, readings: readingsStore.readings, treatments: treatmentStore.rows, sensor: SensorStore.current)
+    }
     return r
 }
 // Treatments… (TreatmentsWindow.swift): the treatment history, its own window.
@@ -638,7 +645,19 @@ let settings = MainActor.assumeIsolated {
         following.node?.setProfile(name: name, avatar: avatar)
         follow?.refresh()
     }
-    return SettingsWindow(general: general, graph: graph, alerts: AlertsModel(alerts: alerts), following: follow)
+    let from = SettingsFromModel()
+    from.wearerName = { following.node.map { $0.wearer.name } }
+    return SettingsWindow(general: general, graph: graph, alerts: AlertsModel(alerts: alerts), following: follow, from: from)
+}
+// Settings from (WearerSettings.swift): the mode changed or the wearer sent their settings. Everything that reads the
+// mirrored settings follows: the alert rules, the card, the widgets, the open Settings window.
+NotificationCenter.default.addObserver(forName: WearerSettings.changed, object: nil, queue: .main) { _ in
+    MainActor.assumeIsolated {
+        alerts.reloadSettings()
+        status.reloadGraph()
+        settings.reload()
+        if reportWindow.isVisible { reportWindow.refresh() }
+    }
 }
 MainActor.assumeIsolated {
     status.onSettings = { settings.show() }
@@ -648,20 +667,17 @@ MainActor.assumeIsolated {
         settings.generalModel.refresh()
         if reportWindow.isVisible { reportWindow.refresh() }
     }
-    status.onFollowChange = { settings.followingModel.refresh() }
+    status.onFollowChange = { settings.followingModel.refresh(); settings.from.refresh() }
     alerts.onOpenWindow = { settings.show(.alerts) }
     MainMenu.install(settings: { settings.show() })
     // Evidence aids: render windows to PNGs (the report needs Screen Recording for screencapture -l).
     let args = CommandLine.arguments
     func arg(_ k: String) -> String? { args.firstIndex(of: k).flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } }
     if let path = arg("-alertsSnapshot") {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { settings.snapshot(.alerts, to: path) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { Task { await settings.snapshot(.alerts, to: path) } }
     }
     if let dir = arg("-settingsSnapshot") {
-        for (i, p) in SettingsWindow.Pane.allCases.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5 + Double(i) * 1.5) { settings.snapshot(p, to: "\(dir)/settings-\(p.rawValue).png") }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { settings.snapshotDetails(.low, to: "\(dir)/settings-alert-details.png") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { SettingsSnapshot.run(settings, dir: dir) }
     }
     if let dir = arg("-reportSnapshot") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { reportWindow.snapshot(to: dir) }

@@ -5,47 +5,76 @@ import AppKit
 import SwiftUI
 
 /// The Alerts pane of the Settings window (SettingsUI.swift): the rules, the quiet times and the sounds.
+/// `s` is what this Mac stores (and edits); `eff` what applies (Settings from: the mirrored rules may be the wearer's
+/// or the defaults).
 @MainActor final class AlertsModel: ObservableObject {
     private let alerts: Alerts
-    @Published var s: AlertSettings { didSet { if s != oldValue { alerts.update(s); refreshState() } } }
+    @Published var s: AlertSettings { didSet { if s != oldValue { alerts.update(s); eff = alerts.settings; refreshState() } } }
+    @Published private(set) var eff: AlertSettings
     @Published private(set) var state = ""
     @Published private(set) var following = false
 
     init(alerts: Alerts) {
         self.alerts = alerts
-        s = alerts.settings
+        s = alerts.own
+        eff = alerts.settings
         refreshState()
         alerts.onChange = { [weak self] in self?.refreshState() }
     }
 
-    func reload() { s = alerts.settings; refreshState() }
+    func reload() { s = alerts.own; eff = alerts.settings; refreshState() }
 
     func refreshState() {
         state = alerts.stateLine
         following = alerts.followingV2()
     }
 
-    /// The wearer decides when (its own rules); this Mac only picks sounds and checks its own link (no_data).
-    var mirroring: Bool { s.source == "wearer" && following }
+    /// The wearer decides when (their own rules); this Mac only picks sounds and checks its own link (no_data).
+    var mirroring: Bool { eff.source == "wearer" && following }
 
     func preview(_ k: AlertKind, pack: String? = nil) { alerts.preview(k, pack: pack) }
+    /// A real notification with its sound, titled "Test ·" (Android: Send a test alert).
+    func test(_ k: AlertKind) { alerts.test(k.rawValue) }
 
     func rule(_ k: AlertKind) -> Binding<AlertRule> {
         Binding(get: { self.s[k] }, set: { self.s[k] = $0 })
+    }
+    func threshold(_ k: AlertKind) -> Binding<Double> {
+        Binding(get: { self.s[k].threshold }, set: { self.s[k].threshold = $0 })
+    }
+    func repeatMin(_ k: AlertKind) -> Binding<Double> {
+        Binding(get: { Double(self.s[k].repeatMin) }, set: { self.s[k].repeatMin = Int($0) })
+    }
+    var muteMin: Binding<Double> {
+        Binding(get: { Double(self.s.notificationActions.muteMin) }, set: { self.s.notificationActions.muteMin = Int($0) })
+    }
+    var slowMin: Binding<Double> {
+        Binding(get: { Double(self.s.notificationActions.slowMin) }, set: { self.s.notificationActions.slowMin = Int($0) })
     }
 
     func sound(_ k: AlertKind) -> Binding<String> {
         Binding(get: { self.s.sounds.kinds[k.rawValue] ?? "" },
                 set: { self.s.sounds.kinds[k.rawValue] = $0.isEmpty ? nil : $0 })
     }
+
+    /// The quiet rules in use, for Default / Wearer (MirroredSection).
+    var quietSummary: [(String, String)] {
+        func q(_ m: AlertMute) -> String { m.on ? "\(Int(m.min)) min" : "Off" }
+        return [("Quiet highs after rapid insulin", q(eff.muteAfterInsulin)),
+                ("Quiet highs falling back into range", q(eff.muteFallingHigh)),
+                ("Quiet lows after carbs", q(eff.muteAfterCarbs))]
+    }
 }
 
 /// Laid out like macOS System Settings (e.g. Notifications, Wi-Fi): one row per alert with its name, a one-line
-/// summary and a switch; a "Details…" button opens a sheet with the threshold, the repeat, the sound and "Like an
-/// alarm". The main pane stays short and scannable (HIG "Settings": minimize what people have to read; "Sheets":
-/// a focused task that returns to the parent).
+/// summary and (in Custom) a switch; a "Details…" button opens a sheet with the threshold, the repeat, the sound and
+/// "Like an alarm". The main pane stays short and scannable (HIG "Settings": "Minimize the number of settings you
+/// offer"; "Sheets": a focused task that returns to the parent). In Default / Wearer the rules (on, threshold, repeat,
+/// quiet times) aren't editable here: a read-only summary says what applies; sounds, like an alarm, no data and the
+/// notification's buttons stay this Mac's in every mode.
 struct AlertsView: View {
     @ObservedObject var model: AlertsModel
+    @ObservedObject var from: SettingsFromModel
     @State private var editing: AlertKind?
 
     var body: some View {
@@ -53,49 +82,50 @@ struct AlertsView: View {
             Section {
                 Toggle("Glucose alerts", isOn: $model.s.on)
                 LabeledContent("Now") { Text(model.state).multilineTextAlignment(.trailing) }
+            } footer: {
+                if model.eff.source == "wearer" { note(model.following ? lockedNote : "Not following anyone over Sukrara's sharing, so the rules run on this Mac.") }
             }
-            Section {
-                Picker("Alert source", selection: $model.s.source) {
-                    Text("Same as the wearer").tag("wearer")
-                    Text("This Mac's settings").tag("own")
-                }
-            } footer: { note(sourceNote) }
-            .disabled(!model.s.on)
+            if !from.custom {
+                MirroredSection(from: from, rows: model.quietSummary).disabled(!model.s.on)
+            }
             group("Lows", [.veryLow, .low])
             group("Highs", [.high, .veryHigh, .extremelyHigh])
             group("Fast changes", [.fallingFast, .risingFast])
             Section {
-                KindRow(model: model, kind: .noData, locked: false) { editing = .noData }
+                KindRow(model: model, kind: .noData, custom: true) { editing = .noData }
             } header: { Text("Signal") } footer: {
-                if model.mirroring { note("Checked on this Mac too: the wearer's phone can't tell when this Mac stops hearing from it.") }
+                note("Always this Mac's: the wearer's phone can't tell when this Mac stops hearing from it.")
             }
             .disabled(!model.s.on)
-            Section {
-                Toggle("After rapid insulin", isOn: $model.s.muteAfterInsulin.on)
-                MinutesRow(title: "Quiet for", value: $model.s.muteAfterInsulin.min, range: 30...180, step: 15)
-                    .disabled(!model.s.muteAfterInsulin.on)
-                Toggle("When falling back into range", isOn: $model.s.muteFallingHigh.on)
-                MinutesRow(title: "Back under \(Int(model.s[.high].threshold)) mg/dL within", value: $model.s.muteFallingHigh.min, range: 5...60, step: 5)
-                    .disabled(!model.s.muteFallingHigh.on)
-            } header: { Text("Quiet highs") } footer: {
-                note(model.mirroring ? lockedNote : "High, very high and rising fast only. Extremely high always alerts.")
+            if from.custom {
+                Section {
+                    Toggle("After rapid insulin", isOn: $model.s.muteAfterInsulin.on)
+                    NumberSettingRow(title: "Quiet for", spec: SettingsSpec.muteInsulin, value: $model.s.muteAfterInsulin.min)
+                        .padding(.leading, 16).disabled(!model.s.muteAfterInsulin.on)
+                    Toggle("When falling back into range", isOn: $model.s.muteFallingHigh.on)
+                    NumberSettingRow(title: "Back under \(Int(model.s[.high].threshold)) mg/dL within", spec: SettingsSpec.muteFalling,
+                                     value: $model.s.muteFallingHigh.min)
+                        .padding(.leading, 16).disabled(!model.s.muteFallingHigh.on)
+                } header: { Text("Quiet highs") } footer: {
+                    note("High, very high and rising fast only. Extremely high always alerts.")
+                }
+                .disabled(!model.s.on)
+                Section {
+                    Toggle("After carbs", isOn: $model.s.muteAfterCarbs.on)
+                    NumberSettingRow(title: "Quiet for", spec: SettingsSpec.muteCarbs, value: $model.s.muteAfterCarbs.min)
+                        .padding(.leading, 16).disabled(!model.s.muteAfterCarbs.on)
+                } header: { Text("Quiet lows") } footer: {
+                    note("Very low, low and falling fast only.")
+                }
+                .disabled(!model.s.on)
             }
-            .disabled(model.mirroring || !model.s.on)
-            Section {
-                Toggle("After carbs", isOn: $model.s.muteAfterCarbs.on)
-                MinutesRow(title: "Quiet for", value: $model.s.muteAfterCarbs.min, range: 5...45, step: 5)
-                    .disabled(!model.s.muteAfterCarbs.on)
-            } header: { Text("Quiet lows") } footer: {
-                note(model.mirroring ? lockedNote : "Very low, low and falling fast only.")
-            }
-            .disabled(model.mirroring || !model.s.on)
             // the alert notification's buttons: local on every device (mirroring, they quiet this Mac's copy only)
             Section {
-                // pop-up menus of the presets (macOS's duration settings), Android's preset lists; same words (SPEC §3)
-                MinutesPicker(title: "Mute for", value: $model.s.notificationActions.muteMin, presets: AlertActions.mutePresets)
-                MinutesPicker(title: "Slow down to every", value: $model.s.notificationActions.slowMin, presets: model.s.slowChoices)
+                NumberSettingRow(title: "Mute for", spec: SettingsSpec.actionMute, value: model.muteMin)
+                NumberSettingRow(title: "Slow down to every", spec: SettingsSpec.actionSlow, value: model.slowMin,
+                                 presets: model.eff.slowChoices.map(Double.init), customMin: Double(model.eff.slowFloor + 1))
             } header: { Text("From the notification") } footer: {
-                note("Very low and extremely high are never muted, only slowed down. Slow down lasts until back in range.")
+                note("Very low and extremely high are never muted, only slowed down. Slow down lasts until back in range and is slower than every alert's repeat.")
             }
             .disabled(!model.s.on)
             Section {
@@ -103,42 +133,40 @@ struct AlertsView: View {
                 SoundPickerButton(title: "Sound pack", kind: .high, selection: $model.s.sounds.pack, packDefault: nil,
                                   onPlay: { model.preview(.high, pack: $0) })
                 Toggle("Different sound each time", isOn: $model.s.sounds.shuffle)
+                if let id = Bundle.main.bundleIdentifier,
+                   let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                    HStack { Spacer(); Button("Notification Settings…") { NSWorkspace.shared.open(url) } }
+                }
             } header: { Text("Sounds") } footer: {
-                note("An alert can use another pack in its details.")
+                note("An alert can use another pack in its details. Banners, Focus and the lock screen: Notification Settings.")
             }
             .disabled(!model.s.on)
         }
         .formStyle(.grouped)
         .sheet(item: $editing) { k in
-            KindDetails(model: model, kind: k, locked: model.mirroring && k != .noData) { editing = nil }
+            KindDetails(model: model, from: from, kind: k, custom: from.custom || k == .noData) { editing = nil }
         }
     }
 
     private func group(_ title: String, _ kinds: [AlertKind]) -> some View {
         Section(title) {
             ForEach(kinds, id: \.self) { k in
-                KindRow(model: model, kind: k, locked: model.mirroring) { editing = k }
+                KindRow(model: model, kind: k, custom: from.custom) { editing = k }
             }
         }
         .disabled(!model.s.on)
     }
 
-    private var lockedNote: String { "The wearer's phone decides when to alert; this Mac only picks the sounds." }
-
-    private var sourceNote: String {
-        if model.s.source == "own" { return "Alerts come from the rules below, run on this Mac with the readings it receives." }
-        if !model.following { return "Not following anyone, so this Mac's settings are used." }
-        return "Alerts when the wearer's phone does, with this Mac's sounds. " + lockedNote
-    }
+    private var lockedNote: String { "Alerts when the wearer's phone does; this Mac picks the sounds and checks its own signal." }
 
     private func note(_ s: String) -> some View { Text(s).font(.callout).foregroundStyle(.secondary) }
 }
 
 extension AlertKind: Identifiable { public var id: String { rawValue } }
 
-/// "Below 55 mg/dL · repeats every 5 min · Quest · like an alarm".
+/// "Below 55 mg/dL · repeats every 5 min · Quest · like an alarm" (what applies: `eff`).
 @MainActor private func summary(_ model: AlertsModel, _ kind: AlertKind) -> String {
-    let r = model.s[kind]
+    let r = model.eff[kind]
     let t = r.threshold
     let when: String = switch kind.group {
     case .level: (kind.lowSide ? "Below " : "From ") + "\(Int(t)) mg/dL"
@@ -146,16 +174,16 @@ extension AlertKind: Identifiable { public var id: String { rawValue } }
     case .noData: "After \(Int(t)) min without data"
     }
     let rep = r.repeatMin == 0 ? "once" : "repeats every \(r.repeatMin) min"
-    let pack = model.s.pack(for: kind)
-    return [when, rep, pack == "none" ? "silent" : pack.capitalized, r.alarm ? "like an alarm" : nil]
+    let pack = model.eff.pack(for: kind)
+    return [r.on ? nil : "Off", when, rep, pack == "none" ? "silent" : pack.capitalized, r.alarm ? "like an alarm" : nil]
         .compactMap { $0 }.joined(separator: " · ")
 }
 
-/// One alert: name, summary, Details…, switch.
+/// One alert: name, summary, Details…, and its switch where this Mac decides (Custom, or no data).
 private struct KindRow: View {
     @ObservedObject var model: AlertsModel
     let kind: AlertKind
-    let locked: Bool
+    let custom: Bool
     let details: () -> Void
 
     var body: some View {
@@ -168,90 +196,54 @@ private struct KindRow: View {
             Button("Details…", action: details)
                 .controlSize(.small)
                 .accessibilityLabel("\(kind.title) alert details")
-            Toggle(kind.title, isOn: model.rule(kind).on).labelsHidden().toggleStyle(.switch).disabled(locked)
+            if custom { Toggle(kind.title, isOn: model.rule(kind).on).labelsHidden().toggleStyle(.switch) }
         }
         .accessibilityElement(children: .contain)
-    }
-}
-
-/// "Quiet for   [60] ⌃⌄ min".
-private struct MinutesRow: View {
-    let title: String
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let step: Double
-
-    var body: some View {
-        LabeledContent(title) {
-            HStack(spacing: 4) {
-                Text("\(Int(value))").monospacedDigit()
-                Stepper(title, value: $value, in: range, step: step).labelsHidden()
-                Text("min").foregroundStyle(.secondary)
-            }
-        }
-        .padding(.leading, 16)
-    }
-}
-
-/// A minutes setting as a pop-up menu of presets; a value set elsewhere (another device's settings file) stays listed.
-private struct MinutesPicker: View {
-    let title: String
-    @Binding var value: Int
-    let presets: [Int]
-
-    var body: some View {
-        Picker(title, selection: $value) {
-            ForEach((presets.contains(value) ? presets : (presets + [value]).sorted()), id: \.self) { Text("\($0) min").tag($0) }
-        }
-        .padding(.leading, 16)
     }
 }
 
 /// The sheet behind "Details…".
 private struct KindDetails: View {
     @ObservedObject var model: AlertsModel
+    @ObservedObject var from: SettingsFromModel
     let kind: AlertKind
-    let locked: Bool
+    /// This Mac decides when it alerts (Custom, or no data); otherwise only the sound and like an alarm.
+    let custom: Bool
     let done: () -> Void
 
     var body: some View {
         let rule = model.rule(kind)
         VStack(spacing: 0) {
             Form {
-                Section {
-                    Toggle("\(kind.title) alert", isOn: rule.on).disabled(locked)
-                } footer: {
-                    if locked { note("Set by the wearer's phone.") }
-                }
-                Section("Alert when") {
-                    LabeledContent(thresholdLabel) {
-                        HStack(spacing: 4) {
-                            TextField(thresholdLabel, value: rule.threshold, format: .number.precision(.fractionLength(kind.group == .rate ? 1 : 0)))
-                                .labelsHidden().textFieldStyle(.roundedBorder).frame(width: 56).multilineTextAlignment(.trailing)
-                            Stepper(thresholdLabel, value: rule.threshold, in: range, step: step).labelsHidden()
-                            Text(unitLabel).foregroundStyle(.secondary)
-                        }
+                if custom {
+                    Section {
+                        Toggle("\(kind.title) alert", isOn: rule.on)
                     }
-                    LabeledContent("Repeat every") {
-                        HStack(spacing: 4) {
-                            TextField("Repeat every", value: rule.repeatMin, format: .number)
-                                .labelsHidden().textFieldStyle(.roundedBorder).frame(width: 56).multilineTextAlignment(.trailing)
-                            Stepper("Repeat every", value: rule.repeatMin, in: 0...240, step: 5).labelsHidden()
-                            Text("min").foregroundStyle(.secondary)
-                        }
+                    Section("Alert when") {
+                        NumberSettingRow(title: thresholdLabel, spec: kind.thresholdSpec, value: model.threshold(kind))
+                        NumberSettingRow(title: "Repeat", spec: SettingsSpec.alertRepeat, value: model.repeatMin(kind),
+                                         label: { $0 == 0 ? NumberFormat.word("once") : "Every \(Int($0)) min" })
+                    }
+                    .disabled(!rule.wrappedValue.on)
+                } else {
+                    Section {
+                        LabeledContent("\(kind.title) alert", value: summary(model, kind))
+                    } footer: {
+                        note("When it alerts: \(from.modeName). To change it on this Mac, choose Custom in General.")
                     }
                 }
-                .disabled(locked || !rule.wrappedValue.on)
                 Section {
                     SoundPickerButton(title: "Sound", kind: kind, selection: model.sound(kind), packDefault: model.s.sounds.pack,
                                       onPlay: { model.preview(kind, pack: $0) })
                     // the phone's "Alarm volume"; macOS has no alarm volume, its nearest is Time Sensitive
                     Toggle("Like an alarm", isOn: rule.alarm)
+                    HStack { Spacer(); Button("Send Test Alert") { model.test(kind) } }
                 } header: { Text("Sound") } footer: {
-                    note(Alerts.timeSensitive ? "Time Sensitive: shows and plays even during a Focus."
-                         : "Shows and plays during a Focus only in a build signed with the Time Sensitive permission; this one sends a normal notification.")
+                    note((Alerts.timeSensitive ? "Time Sensitive: shows and plays even during a Focus."
+                          : "Shows and plays during a Focus only in a build signed with the Time Sensitive permission; this one sends a normal notification.")
+                         + " The test alert is a real notification titled \"Test\"; the wearer doesn't get it.")
                 }
-                .disabled(!rule.wrappedValue.on)
+                .disabled(!model.eff[kind].on && custom)
             }
             .formStyle(.grouped)
             HStack {
@@ -260,31 +252,16 @@ private struct KindDetails: View {
             }
             .padding([.horizontal, .bottom], 20)
         }
-        .frame(width: 460, height: 430)
+        .frame(width: 480, height: custom ? 540 : 420)
     }
 
     private func note(_ s: String) -> some View { Text(s).font(.callout).foregroundStyle(.secondary) }
     private var thresholdLabel: String {
-        switch kind.group { case .level: kind.lowSide ? "Below" : "At or above"; case .rate: "Faster than"; case .noData: "After" }
+        switch kind.group { case .level: kind.lowSide ? "Below" : "At or above"; case .rate: "Faster than"; case .noData: "After no data for" }
     }
-    private var unitLabel: String {
-        switch kind.group { case .level: "mg/dL"; case .rate: "mg/dL/min"; case .noData: "min without data" }
-    }
-    private var range: ClosedRange<Double> {
-        switch kind {
-        case .veryLow: 40...80
-        case .low: 50...100
-        case .high: 120...300
-        case .veryHigh: 150...400
-        case .extremelyHigh: 200...450
-        case .fallingFast, .risingFast: 0.5...5
-        case .noData: 5...120
-        }
-    }
-    private var step: Double { kind.group == .rate ? 0.5 : 5 }
 }
 
 /// Evidence aid (`-settingsSnapshot`): the Details sheet for one kind, outside its sheet.
-@MainActor func alertDetailsPreview(_ model: AlertsModel, _ kind: AlertKind) -> some View {
-    KindDetails(model: model, kind: kind, locked: false) {}
+@MainActor func alertDetailsPreview(_ model: AlertsModel, _ from: SettingsFromModel, _ kind: AlertKind) -> some View {
+    KindDetails(model: model, from: from, kind: kind, custom: from.custom || kind == .noData) {}
 }

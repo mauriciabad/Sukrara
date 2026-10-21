@@ -32,14 +32,15 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.mauri.sukrara.R
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.features.SystemAccess
-import app.mauri.sukrara.status.RootStatusBar
 import kotlinx.coroutines.launch
 
 /**
  * "Restart System UI" on the home screen ([SystemAccess.homeBanner]): only while a status bar or lock screen feature
- * that runs in System UI is on and System UI doesn't run this build's code. A card like the other home banners
- * ([HomeWidgetBanner], [ClinicUploadBanner]): icon, title, close, one line, the action as a pill (it needs root; without
- * root the line says what to do instead). Settings → Status bar / Lock screen show the same state as a banner.
+ * that runs in System UI (root + LSPosed) is on and System UI doesn't run this build's code. A card like the other home
+ * banners ([HomeWidgetBanner], [ClinicUploadBanner]): icon, title, close, one line, the action as a pill. The action
+ * is always the root restart of System UI (no reboot: LSPosed loads the module when System UI starts); the whole card
+ * does it too. The `su` call is the root request when root isn't granted yet; if it fails, the reason shows on the card
+ * in the error colour. Settings → Status bar / Lock screen show the same state as a banner.
  */
 @Composable
 fun SystemUiRestartBanner() {
@@ -47,11 +48,18 @@ fun SystemUiRestartBanner() {
     val s by SystemAccess.status.collectAsState()
     val f by Features.state.collectAsState()
     val dismissed by SystemAccess.dismissed.collectAsState()
-    val root by RootStatusBar.root.collectAsState()
     var restarting by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val restart: () -> Unit = {
+        if (!restarting) {
+            restarting = true
+            error = null
+            scope.launch { error = SystemAccess.restartSystemUi(); restarting = false }
+        }
+    }
     Reveal(SystemAccess.homeBanner(s, f, dismissed)) {
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Card(onClick = restart, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
             Column(Modifier.padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = null,
@@ -62,16 +70,15 @@ fun SystemUiRestartBanner() {
                             tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     }
                 }
-                Text(stringResource(when {
-                    root != true -> R.string.home_restart_text_no_root
-                    s.module == SystemAccess.Module.UPDATE -> R.string.home_restart_text_updated
-                    else -> R.string.home_restart_text
-                }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(stringResource(if (s.module == SystemAccess.Module.UPDATE) R.string.home_restart_text_updated else R.string.home_restart_text),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 36.dp, end = 8.dp))
-                if (root == true) Button(onClick = {
-                    restarting = true
-                    scope.launch { SystemAccess.restartSystemUi(); restarting = false }
-                }, enabled = !restarting, modifier = Modifier.align(Alignment.End).padding(end = 8.dp)) {
+                // a failed su is an error: the one place this card uses red
+                error?.let {
+                    Text(stringResource(R.string.home_restart_failed, it), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = 36.dp, end = 8.dp))
+                }
+                Button(onClick = restart, enabled = !restarting, modifier = Modifier.align(Alignment.End).padding(end = 8.dp)) {
                     Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
                     Text(stringResource(R.string.home_restart_action))
                 }

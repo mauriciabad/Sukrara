@@ -312,10 +312,13 @@ private fun SystemAccessBanner(root: Boolean, module: Boolean) {
             stringResource(R.string.access_scope_text, access.framework ?: "LSPosed") + (problem?.let { " ($it)" } ?: ""),
             stringResource(R.string.access_scope_action), { app.mauri.sukrara.features.SystemAccess.requestSystemUi { problem = it } })
         module && access.needsRestart -> SettingsBanner(icon, stringResource(R.string.access_restart_title),
-            stringResource(if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE) R.string.access_restart_text_updated else R.string.access_restart_text),
-            if (rootOk == true && !restarting) stringResource(R.string.access_restart_title) else null, {
+            stringResource(if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE) R.string.access_restart_text_updated else R.string.access_restart_text) +
+                (problem?.let { " " + stringResource(R.string.home_restart_failed, it) } ?: ""),
+            // always the root restart: the su call itself asks for root when it isn't granted yet
+            if (!restarting) stringResource(R.string.access_restart_title) else null, {
                 restarting = true
-                scope.launch { app.mauri.sukrara.features.SystemAccess.restartSystemUi(); restarting = false }
+                problem = null
+                scope.launch { problem = app.mauri.sukrara.features.SystemAccess.restartSystemUi(); restarting = false }
             })
     }
 }
