@@ -107,7 +107,7 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 ## Graph and value card
 
 <p>
-  <img src="img/widgets/widgets-light.png" alt="Home-screen widgets, light: Glucose + graph (value, arrow, 7d and 1d rings, 12 h chart with the % column and the sensor badge) and the value widget" width="270">
+  <img src="img/widgets/widgets-light.png" alt="Home-screen widgets, light: Glucose + graph (value, arrow, 7d and 1d rings, 12 h chart of a day with meals, the % column and the sensor's days left) and the value widget" width="270">
   <img src="img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
 </p>
 

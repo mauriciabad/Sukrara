@@ -31,7 +31,7 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 > **Not a medical device:** don't make treatment decisions from it.
 
 <p>
-  <img src="img/widgets/widgets-light.png" alt="Home-screen widgets, light: the glucose number with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart and the sensor's 12 days left, and a smaller value widget" width="270">
+  <img src="img/widgets/widgets-light.png" alt="Home-screen widgets, light: the glucose number with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart of a day with meals and the sensor's 11 days left, and a smaller value widget" width="270">
   <img src="img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
   <img src="img/home/home.png" alt="Home: the share-with-your-clinic banner, a backup reminder and the glucose card whose slot shows 4u of insulin and 40g of carbs" width="206">
 </p>
@@ -48,24 +48,25 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   <img src="img/settings/settings.png" alt="Settings: search, the share-with-your-clinic banner and sections with coloured icons" width="180">
   <img src="img/settings/search.png" alt="Settings search: results with where each setting lives" width="180">
   <img src="img/settings/alerts.png" alt="Alerts: very low to extremely high, each with its own threshold, reminder and sound" width="180">
-  <img src="img/settings/sharing.png" alt="Share with people: invite link, nearby pairing and followers with their pictures" width="180">
+  <img src="img/settings/sharing.png" alt="Share with people: send an invite link, pair nearby over Bluetooth, and the followers" width="180">
 </p>
 <p>
-  <img src="img/settings/apps.png" alt="Share with apps: LibreView, the xDrip+ server for Garmin watches, Nightscout, Nostr" width="180">
+  <img src="img/settings/apps.png" alt="Share with apps: LibreView, apps on this phone (AAPS, GlucoDataHandler, xDrip+), Health Connect and Tidepool" width="180">
   <img src="img/18/report-light.png" alt="The doctor's report: time in ranges, average glucose, GMI and variability with their goals" width="180">
-  <img src="../spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog with the follower's name, picture and the invite's label" width="180">
 </p>
 <p>
-  <img src="img/17/lockscreen-widget.png" alt="Glucose and graph on the lock screen, around the fingerprint icon" width="540">
+  <img src="img/lockscreen/lockscreen.png" alt="Renderer sheet of the lock-screen widget (drawn by the app's widget code on the JVM; wallpaper, frosted card and fingerprint icon added for the picture): the value and trend arrow left of the fingerprint icon, the 1-day time-in-range ring with its laurel on the right, the chart with the % column and the last insulin and carbs below" width="540">
 </p>
 <p>
-  <img src="img/statusbar-all.png" alt="Glucose in the Android status bar" width="540">
+  <img src="img/statusbar/icon-states.png" alt="Renderer sheet of the number icon in the status bar without root (drawn by the app's icon code): fresh, the number with its trend arrow; 5 to 20 min old, struck through and grey with a ring instead of the arrow; from 20 min, the no-readings icon" width="540">
 </p>
 <p>
   <img src="img/freshness/steps.png" alt="Renderer sheet of the freshness steps on the card: fresh; 3 min late with the reading's time; 12 min struck through and grey with a hollow ring; 75 min a no-readings icon over the chart; 5 h no chart" width="540">
 </p>
-<p><sub>Screenshots: Android emulator and a Mac test copy with synthetic data (the alert's low threshold was raised for
-the picture); the freshness sheet is drawn by the app's card renderer.</sub></p>
+<p><sub>Screenshots: Android emulator (fed a synthetic day with meals) and a Mac test copy with synthetic data (the
+alert's low threshold was raised for the picture). Renderer sheets, drawn by the app's own code on the JVM: the lock
+screen (it needs root + LSPosed; wallpaper and fingerprint icon added), the status-bar icon states and the freshness
+steps.</sub></p>
 
 ## Features
 

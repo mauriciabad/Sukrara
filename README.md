@@ -25,9 +25,9 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
 <p align="center">
-  <img src="docs/img/widgets/widgets-light.png" alt="Android home-screen widgets, light: the glucose number 100 with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart with the time spent at each level and the sensor's 12 days left under it, and a smaller value widget" width="270">
+  <img src="docs/img/widgets/widgets-light.png" alt="Android home-screen widgets, light: the glucose number 175 falling slowly after dinner, time-in-range rings for 7 days and 1 day, a 12 h chart of a day with meals (a short low before lunch, highs after lunch and dinner) with the time spent at each level and the sensor's 11 days left under it, and a smaller value widget" width="270">
   <img src="docs/img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
-  <img src="docs/img/home/home.png" alt="Sukrara home screen on Android: the share-with-your-clinic banner with LibreView and Tidepool, a backup reminder, and the glucose card whose slot shows 4u of insulin and 40g of carbs logged a minute ago" width="206">
+  <img src="docs/img/home/home.png" alt="Sukrara home screen on Android: the share-with-your-clinic banner with LibreView and Tidepool, a backup reminder, and the glucose card whose slot shows 4u of insulin and 40g of carbs just logged" width="206">
 </p>
 <p align="center">
   <img src="docs/img/mac/menubar.png" alt="Mac menubar item: 143 and a falling trend arrow" height="44">
@@ -38,17 +38,17 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 </p>
 <p align="center">
   <img src="docs/img/notification/alert-actions.png" alt="Glucose notification above a low alert with one-tap choices 15, 60 and 120 min and the actions Mute 30 min, Slow to 30 min and Mute for…" width="300">
-  <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="180">
-  <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="180">
+  <img src="docs/img/settings/sharing.png" alt="Share with people: send an invite link, pair nearby over Bluetooth, and the followers" width="180">
   <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the share-with-your-clinic banner and sections with coloured icons" width="180">
 </p>
 <p align="center">
-  <img src="docs/img/statusbar-all.png" alt="Android status bar with the glucose number in several places" width="540">
+  <img src="docs/img/statusbar/icon-states.png" alt="Renderer sheet of the number icon in the status bar without root (drawn by the app's icon code): fresh, the number with its trend arrow; 5 to 20 min old, struck through and grey with a ring instead of the arrow; from 20 min, the no-readings icon" width="540">
 </p>
 
-<sub>Android screenshots are from the emulator with a synthetic source (a sine wave), Mac ones from a test copy fed with synthetic data. The trend arrow turns continuously with the rate
+<sub>Android screenshots are from the emulator fed a synthetic day with meals, Mac ones from a test copy fed with synthetic data. The trend arrow turns continuously with the rate
 of change (flat at 0, vertical at ±3 mg/dL/min, double beyond) instead of Libre's 5 fixed arrows. Colours follow
-your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's report).</sub>
+your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's report). The status-bar sheet is drawn
+by the app's icon code.</sub>
 
 ## Features
 
