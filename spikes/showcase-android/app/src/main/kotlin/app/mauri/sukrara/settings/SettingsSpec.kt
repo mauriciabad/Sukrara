@@ -79,6 +79,9 @@ object SettingsSpec {
 
     val NUMBERS: Map<String, NumberSpec> = mapOf("bandVeryLow" to BAND_VERY_LOW, "bandLow" to BAND_LOW, "bandTight" to BAND_TIGHT, "bandHigh" to BAND_HIGH, "bandVeryHigh" to BAND_VERY_HIGH, "bandExtremelyHigh" to BAND_EXTREMELY_HIGH, "graphHours" to GRAPH_HOURS, "placeHours" to PLACE_HOURS, "ringCount" to RING_COUNT, "ringWindow" to RING_WINDOW, "line" to LINE, "gridHours" to GRID_HOURS, "countdownHours" to COUNTDOWN_HOURS, "thresholdVeryLow" to THRESHOLD_VERY_LOW, "thresholdLow" to THRESHOLD_LOW, "thresholdHigh" to THRESHOLD_HIGH, "thresholdVeryHigh" to THRESHOLD_VERY_HIGH, "thresholdExtremelyHigh" to THRESHOLD_EXTREMELY_HIGH, "thresholdRate" to THRESHOLD_RATE, "thresholdNoData" to THRESHOLD_NO_DATA, "alertRepeat" to ALERT_REPEAT, "muteInsulin" to MUTE_INSULIN, "muteFalling" to MUTE_FALLING, "muteCarbs" to MUTE_CARBS, "actionMute" to ACTION_MUTE, "actionSlow" to ACTION_SLOW, "nostrInterval" to NOSTR_INTERVAL, "libreviewInterval" to LIBREVIEW_INTERVAL)
 
+    /** Option lists both platforms offer, in order (schema "options"). */
+    val OPTIONS: Map<String, List<String>> = mapOf("exportPeriod" to listOf("sensor", "7", "14", "30", "all"), "reportPeriod" to listOf("1", "7", "14", "30"), "slotKind" to listOf("TIR", "GMI", "AVERAGE", "CV"), "tirRange" to listOf("IN_RANGE", "TIGHT"), "lastPlace" to listOf("OFF", "NEAR_VALUE", "END"), "soundPack" to listOf("arcade", "kart", "quest", "soft", "system", "none"), "settingsFrom" to listOf("wearer", "default", "custom"))
+
     val SETTINGS: List<SettingInfo> = listOf(
         SettingInfo("graph.band.veryLow", "number", "bandVeryLow", true, "graph.veryLow", "graph:veryLow", "defaults:bandVeryLow", null, null),
         SettingInfo("graph.band.low", "number", "bandLow", true, "graph.low", "graph:low", "defaults:bandLow", null, null),
