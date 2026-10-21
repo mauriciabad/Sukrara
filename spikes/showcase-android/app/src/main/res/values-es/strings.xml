@@ -976,11 +976,6 @@
     <string name="alerts_now_alerted">ha avisado</string>
     <string name="alerts_now_alerted_recently">ha avisado hace poco</string>
     <string name="alerts_main_switch">Alertas de glucosa</string>
-    <string name="alerts_rules">Reglas de las alertas</string>
-    <string name="alerts_rules_wearer">Igual que la app de quien lleva el sensor</string>
-    <string name="alerts_rules_own">Ajustes propios de este teléfono</string>
-    <string name="alerts_rules_wearer_summary">Las mismas alertas y reglas de silencio que el teléfono del portador</string>
-    <string name="alerts_rules_own_summary">Las reglas propias de este teléfono</string>
     <string name="alerts_set_by_wearer">Lo decide la app de quien lleva el sensor</string>
     <string name="alerts_group_lows">Bajadas</string>
     <string name="alerts_group_highs">Subidas</string>
@@ -1224,7 +1219,6 @@
     </plurals>
     <string name="sensorend_warmup_switch">Cuenta atrás del calentamiento</string>
     <string name="sensorend_warmup_summary">La primera hora de un sensor nuevo</string>
-    <string name="sensorend_hours_unit">h</string>
     <string name="sensorend_unlock_switch">Avisar al desbloquear</string>
     <string name="sensorend_unlock_summary">Recordatorios de mañana y noche, si desbloqueas antes</string>
     <string name="sensorend_night_group">Noche</string>
@@ -1545,11 +1539,7 @@
     <string name="graph_extremely_high_from">Extremadamente alta desde</string>
     <string name="graph_ranges_note">En rango es %1$d–%2$d mg/dL; muy bien (%1$d–%3$d) es la parte en la que las personas sin diabetes pasan la mayor parte del día. Muy baja y muy alta son los niveles del informe de LibreView. Extremadamente alta solo cambia el color de la línea y del número; el informe la cuenta como muy alta. Los rangos dan color al número, a la línea, a la barra de estado y al tiempo en rango en todas partes.</string>
     <string name="graph_group_lines">Líneas</string>
-    <string name="graph_vertical_lines_off">Líneas verticales: desactivadas</string>
-    <string name="graph_vertical_lines_every">Líneas verticales: cada %1$d h</string>
-    <string name="graph_lines_note">Líneas discontinuas en la gráfica en los niveles que elijas, además de los límites de los rangos. Las líneas verticales del todo a la izquierda las desactiva; las horas bajo la gráfica se quedan. En las gráficas pequeñas se separan más.</string>
-    <string name="graph_line_add_label">Añadir una línea en (mg/dL)</string>
-    <string name="graph_line_add">Añadir</string>
+    <string name="graph_lines_note">Líneas discontinuas en la gráfica en los niveles que elijas, además de los límites de los rangos. En las gráficas pequeñas las líneas verticales se separan más; sin ellas, las horas bajo la gráfica se quedan.</string>
     <string name="graph_line_exists">Ya está en la gráfica</string>
     <string name="graph_line_remove">Quitar la línea de %1$d</string>
     <string name="graph_group_window">Periodo de la gráfica</string>
@@ -1586,8 +1576,6 @@
     <string name="graph_tir_very_good">Muy bien</string>
     <string name="graph_tir_with_span">%1$s (%2$d–%3$d)</string>
     <string name="graph_ring_order">Orden del anillo, en el sentido de las agujas del reloj desde arriba</string>
-    <string name="graph_ring_move_earlier">Mover %1$s antes</string>
-    <string name="graph_ring_move_later">Mover %1$s después</string>
     <string name="graph_band_very_low">Muy baja (&lt; %1$d)</string>
     <string name="graph_band_low">Baja (%1$d–%2$d)</string>
     <string name="graph_band_tight">Muy bien (%1$d–%2$d)</string>
@@ -1714,4 +1702,34 @@
     <string name="error_unexpected_answer">Los datos no tienen el formato esperado</string>
     <string name="error_network">No se han podido leer ni enviar los datos. Vuelve a intentarlo.</string>
     <string name="error_generic">Algo ha fallado. Vuelve a intentarlo.</string>
+    <string name="settings_from_title">Ajustes de</string>
+    <string name="settings_from_wearer">Quien lleva el sensor</string>
+    <string name="settings_from_wearer_summary">Los rangos, la gráfica, los anillos y las reglas de alertas que puso en su teléfono</string>
+    <string name="settings_from_default">Predeterminados</string>
+    <string name="settings_from_default_summary">Los rangos, la gráfica, los anillos y las reglas de alertas predeterminados de Sukrara</string>
+    <string name="settings_from_custom">Personalizados</string>
+    <string name="settings_from_custom_summary">Los tuyos, cambiados en este teléfono</string>
+    <string name="settings_from_waiting">Esperando sus ajustes; hasta que lleguen se usan los predeterminados</string>
+    <string name="settings_from_updated">Sus ajustes, recibidos el %1$s</string>
+    <string name="settings_from_hidden">Los rangos, las líneas, el tiempo de la gráfica, los anillos y las reglas de alertas siguen a «Ajustes de». Elige Personalizados para cambiarlos aquí; el tiempo por lugar, el tiempo del sensor, los sonidos y los botones de la notificación siempre son de este teléfono.</string>
+    <string name="settings_from_copy">Copiar sus ajustes</string>
+    <string name="settings_from_copy_summary">Empezar desde lo que usa quien lleva el sensor</string>
+    <string name="settings_from_reset">Restablecer los predeterminados</string>
+    <string name="settings_from_reset_summary">Empezar desde los predeterminados de Sukrara</string>
+    <string name="settings_from_copy_title">¿Sustituir tus ajustes por los suyos?</string>
+    <string name="settings_from_reset_title">¿Sustituir tus ajustes por los predeterminados?</string>
+    <string name="settings_from_confirm_text">Se sustituyen tus rangos, líneas, tiempo de la gráfica, anillos y reglas de alertas. Los sonidos, el tiempo por lugar y el tiempo del sensor no cambian.</string>
+    <string name="settings_from_replace">Sustituir</string>
+    <string name="alerts_set_by_default">Predeterminado de Sukrara</string>
+    <string name="graph_line_add_title">Añadir una línea</string>
+    <string name="graph_line_add_summary">Hasta %1$d líneas</string>
+    <string name="graph_vertical_lines">Líneas verticales</string>
+    <string name="graph_vertical_every">Cada %1$d h</string>
+    <string name="graph_last_else_faded">Sin uno reciente: más tenue</string>
+    <string name="graph_ring_move_up">Subir</string>
+    <string name="graph_ring_move_down">Bajar</string>
+    <string name="graph_ring_move_top">Mover al principio</string>
+    <string name="graph_ring_move_bottom">Mover al final</string>
+    <string name="graph_ring_drag">Arrastrar para reordenar</string>
+    <string name="graph_ring_order_note">Arrastra una fila por su asa para cambiar dónde va su segmento en los anillos, en el sentido de las agujas del reloj desde arriba.</string>
 </resources>

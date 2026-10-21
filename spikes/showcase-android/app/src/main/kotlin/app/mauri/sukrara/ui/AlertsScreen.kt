@@ -39,6 +39,9 @@ import app.mauri.sukrara.alerts.AlertSounds
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.alerts.KindCfg
+import app.mauri.sukrara.settings.NumberSpec
+import app.mauri.sukrara.settings.SettingsSpec
+import app.mauri.sukrara.settings.WearerSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -49,8 +52,8 @@ import kotlinx.coroutines.flow.StateFlow
  *    settings, show them on a separate screen" (settings guidelines), like Settings → Notifications → an app → a
  *    category, which is a page with its own main switch, not a dialog.
  *  - One alert ([AlertKindScreen]): main switch, when it alerts (threshold, reminders), how it sounds (sound,
- *    volume), and testing it. Followers who mirror the wearer's alerts see the wearer's rules read-only.
- * Number choices offer presets and a custom value (SettingsDialogs.kt). Every ▶ plays the alert's vibration with its
+ *    volume), and testing it. Followers see the rules they don't customise (Settings from) read-only.
+ * Numbers use the one number input (NumberDialog, SettingsDialogs.kt) with the schema's spec: presets and a custom value. Every ▶ plays the alert's vibration with its
  * sound unless "Vibrate" is unticked.
  */
 
@@ -115,8 +118,15 @@ private fun soundSummary(k: String, s: AlertSettings): String {
     return if (custom) stringResource(R.string.alerts_sound_system_settings) else soundName(s.soundOf(k))
 }
 
-/** The rule can't be changed here: a follower mirroring the wearer's alerts (no data is checked on each phone). */
-private fun mirrored(follower: Boolean, s: AlertSettings, k: String) = follower && s.source == "wearer" && k != Kind.NO_DATA
+/**
+ * The rule can't be changed here: a follower whose Settings from isn't Custom (the wearer's or the default rules; no
+ * data is checked on each phone and always this phone's).
+ */
+private fun mirrored(follower: Boolean, from: String, k: String) = follower && from != WearerSettings.CUSTOM && k != Kind.NO_DATA
+
+/** Who sets a rule this follower can't change. */
+@Composable
+private fun setBy(from: String) = stringResource(if (from == WearerSettings.DEFAULT) R.string.alerts_set_by_default else R.string.alerts_set_by_wearer)
 
 /**
  * Each alert's icon: the level alerts are the reading (a dot) below or above one, two or three threshold lines (custom,
@@ -141,11 +151,11 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     val state by Alerts.state.collectAsState()
     val history by Alerts.history.collectAsState()
     var pickPack by remember { mutableStateOf(false) }
-    var pickSource by remember { mutableStateOf(false) }
+    val from by WearerSettings.mode.collectAsState()
     var minutes by remember { mutableStateOf<String?>(null) }   // which quiet rule's minutes dialog is open
     DisposableEffect(Unit) { onDispose { TestPlayback.stop(ctx) } }
     fun set(f: (AlertSettings) -> AlertSettings) = Alerts.update(ctx, f)
-    val mirror = follower && s.source == "wearer"
+    val mirror = follower && from != WearerSettings.CUSTOM
 
     SettingsPage(stringResource(R.string.alerts_title), onBack) {
         // what the rules see now, like a live preview at the top of the page
@@ -166,23 +176,20 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             }
         } }
         SettingsMainSwitch(stringResource(R.string.alerts_main_switch), s.on) { v -> set { it.copy(on = v) } }
-        if (follower) SettingsGroup {
-            value(stringResource(R.string.alerts_rules), stringResource(if (s.source == "wearer") R.string.alerts_rules_wearer else R.string.alerts_rules_own),
-                enabled = s.on, icon = R.drawable.ic_sym_rule) { pickSource = true }
-        }
+        if (follower) SettingsFromGroup()
 
         // each alert: the switch turns it on or off, the row opens its page
-        val wearers = stringResource(R.string.alerts_set_by_wearer)
+        val wearers = setBy(from)
         @Composable
         fun kinds(title: String, ks: List<String>) {
             val rows = ks.map { k ->
                 val c = s.cfg(k)
-                Triple(k, c, (if (mirrored(follower, s, k)) wearers else thresholdText(k, c.value) + " · " + repeatText(c.repeatMin)) +
+                Triple(k, c, (if (mirrored(follower, from, k)) wearers else thresholdText(k, c.value) + " · " + repeatText(c.repeatMin)) +
                     " · " + soundSummary(k, s))
             }
             SettingsGroup(title) {
-                for ((k, c, summary) in rows) splitSwitch(AlertNotifier.label(ctx, k), summary, checked = c.on && !mirrored(follower, s, k),
-                    rowEnabled = s.on, switchEnabled = s.on && !mirrored(follower, s, k), icon = kindIcon(k), to = ALERT_ROUTE + k) { v ->
+                for ((k, c, summary) in rows) splitSwitch(AlertNotifier.label(ctx, k), summary, checked = c.on && !mirrored(follower, from, k),
+                    rowEnabled = s.on, switchEnabled = s.on && !mirrored(follower, from, k), icon = kindIcon(k), to = ALERT_ROUTE + k) { v ->
                     set { it.copy(kinds = it.kinds + (k to it.cfg(k).copy(on = v))) }
                 }
             }
@@ -192,18 +199,17 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         kinds(stringResource(R.string.alerts_group_rates), Kind.RATES)
         kinds(stringResource(R.string.alerts_group_signal), listOf(Kind.NO_DATA))
 
-        val rules = s.on && !mirror
-        SettingsGroup(stringResource(R.string.alerts_group_quiet)) {
-            splitSwitch(stringResource(R.string.alerts_quiet_insulin), if (mirror) wearers else stringResource(R.string.alerts_quiet_insulin_summary, s.muteInsulinMin),
+        val rules = s.on
+        if (!mirror) SettingsGroup(stringResource(R.string.alerts_group_quiet)) {
+            splitSwitch(stringResource(R.string.alerts_quiet_insulin), stringResource(R.string.alerts_quiet_insulin_summary, s.muteInsulinMin),
                 checked = s.muteInsulin, rowEnabled = rules && s.muteInsulin, switchEnabled = rules, icon = R.drawable.ic_dia_insulin_rapid, onClick = { minutes = "insulin" }) { v ->
                 set { it.copy(muteInsulin = v) }
             }
-            splitSwitch(stringResource(R.string.alerts_quiet_falling), if (mirror) wearers
-                else stringResource(R.string.alerts_quiet_falling_summary, s.cfg(Kind.HIGH).value.toInt(), s.muteFallingMin),
+            splitSwitch(stringResource(R.string.alerts_quiet_falling), stringResource(R.string.alerts_quiet_falling_summary, s.cfg(Kind.HIGH).value.toInt(), s.muteFallingMin),
                 checked = s.muteFalling, rowEnabled = rules && s.muteFalling, switchEnabled = rules, icon = R.drawable.ic_sym_trending_down, onClick = { minutes = "falling" }) { v ->
                 set { it.copy(muteFalling = v) }
             }
-            splitSwitch(stringResource(R.string.alerts_quiet_carbs), if (mirror) wearers else stringResource(R.string.alerts_quiet_carbs_summary, s.muteCarbsMin),
+            splitSwitch(stringResource(R.string.alerts_quiet_carbs), stringResource(R.string.alerts_quiet_carbs_summary, s.muteCarbsMin),
                 checked = s.muteCarbs, rowEnabled = rules && s.muteCarbs, switchEnabled = rules, icon = R.drawable.ic_dia_carbs, onClick = { minutes = "carbs" }) { v ->
                 set { it.copy(muteCarbs = v) }
             }
@@ -229,31 +235,25 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         SettingsFooter(stringResource(R.string.alerts_footer))
     }
 
-    val min = stringResource(R.string.unit_min)
     val minLabel: (Int) -> String = { stringResource0(ctx, R.string.alerts_minutes, it) }
+    val S = SettingsSpec
     when (minutes) {
-        "insulin" -> IntChoiceDialog(stringResource(R.string.alerts_quiet_insulin), listOf(30, 45, 60, 90, 120, 180), s.muteInsulinMin, minLabel,
-            NumberRange(10.0, 360.0, min), { minutes = null }) { m -> set { it.copy(muteInsulinMin = m) } }
-        "falling" -> IntChoiceDialog(stringResource(R.string.alerts_quiet_falling), listOf(10, 15, 20, 30, 45, 60), s.muteFallingMin,
-            { stringResource0(ctx, R.string.alerts_within_minutes, it) }, NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteFallingMin = m) } }
-        "carbs" -> IntChoiceDialog(stringResource(R.string.alerts_quiet_carbs), listOf(10, 15, 20, 30, 45), s.muteCarbsMin, minLabel,
-            NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteCarbsMin = m) } }
-        "action" -> IntChoiceDialog(stringResource(R.string.alerts_action_mute), AlertSettings.MUTE_PRESETS, s.actionMuteMin, minLabel,
-            NumberRange(AlertSettings.MUTE_RANGE.first.toDouble(), AlertSettings.MUTE_RANGE.last.toDouble(), min), { minutes = null }) { m ->
-            set { it.copy(actionMuteMin = m) } }
+        "insulin" -> IntNumberDialog(stringResource(R.string.alerts_quiet_insulin), S.MUTE_INSULIN, s.muteInsulinMin, minLabel,
+            { minutes = null }) { m -> set { it.copy(muteInsulinMin = m) } }
+        "falling" -> IntNumberDialog(stringResource(R.string.alerts_quiet_falling), S.MUTE_FALLING, s.muteFallingMin,
+            { stringResource0(ctx, R.string.alerts_within_minutes, it) }, { minutes = null }) { m -> set { it.copy(muteFallingMin = m) } }
+        "carbs" -> IntNumberDialog(stringResource(R.string.alerts_quiet_carbs), S.MUTE_CARBS, s.muteCarbsMin, minLabel,
+            { minutes = null }) { m -> set { it.copy(muteCarbsMin = m) } }
+        "action" -> IntNumberDialog(stringResource(R.string.alerts_action_mute), S.ACTION_MUTE, s.actionMuteMin, minLabel,
+            { minutes = null }) { m -> set { it.copy(actionMuteMin = m) } }
         // only intervals slower than every level alert's repeat: the button shows on all of them (SPEC §3)
-        "slow" -> IntChoiceDialog(stringResource(R.string.alerts_action_slow), s.slowChoices(), s.slowMin,
-            { stringResource0(ctx, R.string.alerts_remind_every, it) },
-            NumberRange(maxOf(AlertSettings.SLOW_RANGE.first, s.slowFloor() + 1).coerceAtMost(AlertSettings.SLOW_RANGE.last).toDouble(), AlertSettings.SLOW_RANGE.last.toDouble(), min),
-            { minutes = null }) { m ->
+        "slow" -> IntNumberDialog(stringResource(R.string.alerts_action_slow), S.ACTION_SLOW, s.slowMin,
+            { stringResource0(ctx, R.string.alerts_remind_every, it) }, { minutes = null },
+            presets = s.slowChoices(), customMin = (s.slowFloor() + 1).coerceIn(S.ACTION_SLOW.min.toInt(), S.ACTION_SLOW.max.toInt())) { m ->
             set { it.copy(slowMin = m) } }
     }
     if (pickPack) SoundDialog(stringResource(R.string.alerts_sound_pack), Kind.HIGH, null, s.pack, s.cfg(Kind.HIGH).alarm,
         onClose = { pickPack = false }) { p -> set { it.copy(pack = p ?: it.pack) } }
-    if (pickSource) ChoiceDialog(stringResource(R.string.alerts_rules), listOf(
-            Choice(stringResource(R.string.alerts_rules_wearer), "wearer", stringResource(R.string.alerts_rules_wearer_summary)),
-            Choice(stringResource(R.string.alerts_rules_own), "own", stringResource(R.string.alerts_rules_own_summary))),
-        s.source, { pickSource = false }) { v -> set { it.copy(source = v) } }
 }
 
 /**
@@ -309,22 +309,15 @@ private fun SoundDialog(title: String, kind: String, packDefault: String?, selec
         bottom = { DialogCheckbox(stringResource(R.string.alerts_vibrate), vibrate) { TestPlayback.setVibrate(ctx, it) } }) { onPick(it) }
 }
 
-/** Five common thresholds around the kind's default (which is always one of them). */
-private fun thresholdPresets(k: String): List<Double> {
-    val d = AlertSettings.DEFAULTS.getValue(k).value
-    val common = when (k) {
-        in Kind.LOW_SIDE -> listOf(50.0, 54.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0)
-        in Kind.RATES -> listOf(1.0, 1.5, 2.0, 2.5, 3.0)
-        Kind.NO_DATA -> listOf(10.0, 15.0, 20.0, 30.0, 60.0)
-        else -> listOf(160.0, 170.0, 180.0, 185.0, 200.0, 220.0, 250.0, 270.0, 300.0, 350.0)
-    }
-    return (common + d).distinct().sortedBy { kotlin.math.abs(it - d) }.take(5).sorted()
-}
-
-private fun thresholdRange(k: String, unit: String) = when (k) {
-    in Kind.RATES -> NumberRange(0.5, 10.0, unit, decimals = 1)
-    Kind.NO_DATA -> NumberRange(5.0, 240.0, unit)
-    else -> NumberRange(40.0, 400.0, unit)
+/** The schema's number format of [k]'s threshold (spikes/settings/settings.json). */
+internal fun thresholdSpec(k: String): NumberSpec = when (k) {
+    Kind.VERY_LOW -> SettingsSpec.THRESHOLD_VERY_LOW
+    Kind.LOW -> SettingsSpec.THRESHOLD_LOW
+    Kind.HIGH -> SettingsSpec.THRESHOLD_HIGH
+    Kind.VERY_HIGH -> SettingsSpec.THRESHOLD_VERY_HIGH
+    Kind.EXTREMELY_HIGH -> SettingsSpec.THRESHOLD_EXTREMELY_HIGH
+    in Kind.RATES -> SettingsSpec.THRESHOLD_RATE
+    else -> SettingsSpec.THRESHOLD_NO_DATA
 }
 
 /**
@@ -343,11 +336,11 @@ fun AlertKindScreen(k: String, follower: Boolean, onBack: () -> Unit) {
     var dialog by remember { mutableStateOf<String?>(null) }
     DisposableEffect(Unit) { onDispose { TestPlayback.stop(ctx) } }
     fun change(f: (KindCfg) -> KindCfg) = Alerts.update(ctx) { it.copy(kinds = it.kinds + (k to f(it.cfg(k)))) }
-    val locked = mirrored(follower, s, k)
+    val from by WearerSettings.mode.collectAsState()
+    val locked = mirrored(follower, from, k)
     val ruleOn = s.on && !locked
-    val wearers = stringResource(R.string.alerts_set_by_wearer)
+    val wearers = setBy(from)
     val off = stringResource(if (!s.on) R.string.alerts_unavailable_all_off else R.string.alerts_unavailable_off)
-    val unit = Kind.unit(k)
     val volume = stringResource(if (c.alarm) R.string.alerts_volume_alarm else R.string.alerts_volume_notification)
 
     SettingsPage(AlertNotifier.label(ctx, k), onBack) {
@@ -383,11 +376,11 @@ fun AlertKindScreen(k: String, follower: Boolean, onBack: () -> Unit) {
     }
 
     when (dialog) {
-        "threshold" -> NumberChoiceDialog(stringResource(if (k == Kind.NO_DATA) R.string.alerts_after else if (k in Kind.RATES) R.string.alerts_rate else R.string.alerts_threshold),
-            thresholdPresets(k), c.value, { v -> thresholdText0(ctx, k, v) }, thresholdRange(k, unit), { dialog = null }) { v -> change { it.copy(value = v) } }
-        "repeat" -> IntChoiceDialog(stringResource(R.string.alerts_remind), listOf(0, 5, 10, 15, 30, 60, 120), c.repeatMin,
+        "threshold" -> NumberDialog(stringResource(if (k == Kind.NO_DATA) R.string.alerts_after else if (k in Kind.RATES) R.string.alerts_rate else R.string.alerts_threshold),
+            thresholdSpec(k), c.value, { v -> thresholdText0(ctx, k, v) }, { dialog = null }) { v -> change { it.copy(value = v) } }
+        "repeat" -> IntNumberDialog(stringResource(R.string.alerts_remind), SettingsSpec.ALERT_REPEAT, c.repeatMin,
             { m -> if (m == 0) ctx.getString(R.string.alerts_remind_once) else ctx.getString(R.string.alerts_remind_every, m) },
-            NumberRange(1.0, 240.0, stringResource(R.string.unit_min)), { dialog = null }) { m -> change { it.copy(repeatMin = m) } }
+            { dialog = null }) { m -> change { it.copy(repeatMin = m) } }
         "sound" -> SoundDialog(stringResource(R.string.alerts_sound), k, s.pack, s.packFor[k], c.alarm, onClose = { dialog = null }) { snd ->
             Alerts.update(ctx) { it.copy(packFor = if (snd == null) it.packFor - k else it.packFor + (k to snd)) }
         }

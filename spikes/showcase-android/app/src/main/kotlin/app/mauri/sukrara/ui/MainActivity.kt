@@ -285,7 +285,7 @@ class MainActivity : ComponentActivity() {
                 "newsensor" -> NewSensorScreen(back)
                 "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
-                "graph" -> SettingsRoute { GraphScreen(back) }
+                "graph" -> SettingsRoute { GraphScreen(follower = false, back) }
                 "statusbar" -> SettingsRoute { StatusBarSettings(back) }
                 "lockscreen" -> SettingsRoute { LockscreenSettings(back) }
                 "apps" -> SettingsRoute { AppsSettings(wearer = true, back) }
@@ -370,7 +370,7 @@ class MainActivity : ComponentActivity() {
             when (sc) {
                 "settings" -> SettingsRoute { FollowerSettings(u, back) }
                 "alerts" -> SettingsRoute { AlertsScreen(follower = true, back) }
-                "graph" -> SettingsRoute { GraphScreen(back) }
+                "graph" -> SettingsRoute { GraphScreen(follower = true, back) }
                 "following" -> SettingsRoute { FollowingSettings(u, actions, back) }
                 "apps" -> SettingsRoute { AppsSettings(wearer = false, back) }
                 "tidepool" -> SettingsRoute { TidepoolSettings(follower = true, back) }

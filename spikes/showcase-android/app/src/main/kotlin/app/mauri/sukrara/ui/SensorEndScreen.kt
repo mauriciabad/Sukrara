@@ -133,9 +133,8 @@ fun SensorEndSettings(onBack: () -> Unit) {
             change { cfg -> cfg.copy(reminders = if (i < 0) cfg.reminders + r else cfg.reminders.mapIndexed { j, o -> if (j == i) r else o }) }
         }
     }
-    if (choosingHours) IntChoiceDialog(stringResource(R.string.sensorend_countdown_hours), listOf(2, 4, 8, 12, 24), hours,
+    if (choosingHours) IntNumberDialog(stringResource(R.string.sensorend_countdown_hours), app.mauri.sukrara.settings.SettingsSpec.COUNTDOWN_HOURS, hours,
         { ctx.resources.getQuantityString(R.plurals.sensorend_hours_before, it, it) },
-        NumberRange(SensorLife.COUNTDOWN_RANGE.first.toDouble(), SensorLife.COUNTDOWN_RANGE.last.toDouble(), stringResource(R.string.sensorend_hours_unit)),
         onClose = { choosingHours = false }) { SensorEnd.setCountdownHours(ctx, it) }
     pickingNight?.let { bed ->
         TimeDialog(stringResource(if (bed) R.string.sensorend_bedtime else R.string.sensorend_wakeup),

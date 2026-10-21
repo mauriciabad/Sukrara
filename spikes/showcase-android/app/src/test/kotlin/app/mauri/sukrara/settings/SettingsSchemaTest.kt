@@ -170,4 +170,16 @@ class SettingsSchemaTest {
         assertEquals(null, rate.parse("abc"))
         assertEquals("once", SettingsSpec.ALERT_REPEAT.specialOf(0.0))
     }
+
+    @Test fun optionListsAreTheSchemas() {
+        val o = SettingsSpec.OPTIONS
+        assertEquals(o["exportPeriod"], listOf("sensor") + app.mauri.sukrara.export.Export.DAYS.map { "$it" } + app.mauri.sukrara.export.Export.ALL)
+        assertEquals(o["reportPeriod"], app.mauri.sukrara.ui.REPORT_WINDOWS.map { "${it / 86400}" })
+        assertEquals(o["slotKind"], app.mauri.sukrara.graph.SlotKind.entries.map { it.name })
+        assertEquals(o["tirRange"], app.mauri.sukrara.graph.TirRange.entries.map { it.name })
+        assertEquals(o["lastPlace"], app.mauri.sukrara.graph.LastPlace.entries.map { it.name })
+        val sounds = app.mauri.sukrara.alerts.AlertSounds
+        assertEquals(o["soundPack"], sounds.PACKS + sounds.SYSTEM + sounds.NONE)
+        assertEquals(o["settingsFrom"], WearerSettings.MODES)
+    }
 }

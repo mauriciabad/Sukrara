@@ -50,6 +50,7 @@ import app.mauri.sukrara.follower.FollowerUi
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.owner.Follower
 import app.mauri.sukrara.owner.OwnerUi
+import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.treatments.Treat
 import app.mauri.sukrara.wearer.Live
 import kotlinx.coroutines.Dispatchers
@@ -253,8 +254,8 @@ private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit
 @Composable
 private fun NostrIntervalDialog(f: FeatureState, onClose: () -> Unit) {
     val ctx = LocalContext.current
-    IntChoiceDialog(stringResource(R.string.sharing_upload_interval), listOf(0, 5, 15, 30), f.nostrIntervalMin, { intervalLabel(ctx, it) },
-        NumberRange(1.0, 120.0, stringResource(R.string.unit_min)), onClose) { v -> set { it.copy(nostrIntervalMin = v) } }
+    IntNumberDialog(stringResource(R.string.sharing_upload_interval), SettingsSpec.NOSTR_INTERVAL, f.nostrIntervalMin, { intervalLabel(ctx, it) },
+        onClose) { v -> set { it.copy(nostrIntervalMin = v) } }
 }
 
 /** One follower: whether they may add entries, and removing them. */
@@ -572,8 +573,8 @@ fun LibreViewSettings(onBack: () -> Unit) {
         }
         SettingsFooter(stringResource(R.string.libreview_footer))
     }
-    if (choosing) IntChoiceDialog(stringResource(R.string.libreview_upload_every), listOf(5, 15, 60), f.libreviewIntervalMin, { intervalLabel(ctx, it) },
-        NumberRange(1.0, 240.0, stringResource(R.string.unit_min)), { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
+    if (choosing) IntNumberDialog(stringResource(R.string.libreview_upload_every), SettingsSpec.LIBREVIEW_INTERVAL, f.libreviewIntervalMin,
+        { intervalLabel(ctx, it) }, { choosing = false }) { v -> set { it.copy(libreviewIntervalMin = v) } }
     if (signIn) LibreViewSignIn(s, onClose = { signIn = false })
 }
 
@@ -703,6 +704,7 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
             link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = true), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
             link(stringResource(R.string.following_title), (u.wearer?.name ?: "Sukrara") + " · " + u.status, leading = { CategoryIcon(R.drawable.ic_sym_person, Category.BLUE) }, to = "following")
         }
+        SettingsFromGroup(actions = false)
         SettingsGroup {
             link(stringResource(R.string.graph_title), gs, leading = { CategoryIcon(R.drawable.ic_sym_monitoring, Category.PURPLE) }, to = "graph")
             link(stringResource(R.string.apps_title), appsSummary(f, wearer = false), leading = { CategoryIcon(R.drawable.ic_sym_apps, Category.ORANGE) }, to = "apps")
