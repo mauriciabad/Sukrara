@@ -29,7 +29,7 @@ variants, plus each alert's vibration pattern drawn to scale).
 | Sound packs through the native channel | emulator: SystemUI's `RingtonePlayer` plays `content://app.mauri.sukrara.poc.alertsound/<kind>`; our provider logs every open | `sound high → arcade_high_2 for com.android.systemui`, `sound very_high → arcade_very_high_1`, `sound no_data → arcade_no_data_1`, `sound urgent_low → arcade_urgent_low_3` |
 | Channel keeps our sound and vibration | `dumpsys notification` | `mSound=content://…alertsound/urgent_low`, `mVibrationEffect=Composed{…QUICK_FALL…}` (not reset to the default sound) |
 | Insulin mute, live | emulator wearer: reading 214 → high fires; `cmd treat k=rapid`; next reading | `High · 214 mg/dL` → `High cleared`, state `muted: "insulin 0 min ago"` |
-| Mac: notifications with pack sounds | test notifications from the bundled app | usernoted: `Playing notification sound { nam: arcade_urgent_low_1.caf } for app.mauri.sukrara.poc` |
+| Mac: notifications with pack sounds | test notifications from the bundled app | usernoted: `Playing notification sound { nam: arcade_urgent_low_1.caf } for app.mauri.sukrara.poc` — **not proof**: the same line appears when the default sound plays instead (2026-10-21); check systemsoundserverd for a non-built-in action and NotificationCenter's `Playing sound … for …` |
 | Mac: accepts the wearer's `alert` events | `-v2selftest` | accepted once over relay + BLE; non-roster author rejected; `at` > 10 min ignored; wrong `type` rejected |
 | Wearer → follower mirroring, end to end | two emulators over public relays (no Bluetooth in the emulator) | fire mirrored in ≈ 2 s, clear in < 1 s, "own settings" ignores the wearer: see [Mirroring](#mirroring-wearer--follower) |
 | Real sensor | release build on the user's phone (direct Libre 3 source) | first real alert at 00:48:46: `High · 185 mg/dL`, SystemUI played `arcade_high_3` from the provider (so R8's resource shrinking keeps the sounds) |
@@ -213,7 +213,14 @@ Conditions found in AOSP:
 **The packs** ([`gen.py`](../spikes/alerts/sounds/gen.py)): everything is synthesised with numpy (polyBLEP pulse/saw,
 stepped triangle, additive brass, FM bells, Karplus-Strong harp, marimba, noise drums, echo/reverb). The melodies are
 original, and loudness is normalised per kind. 84 files: OGG Vorbis for Android (1.5 MB in `res/raw`), IMA4 CAF for
-the Mac (in the app bundle, where `UNNotificationSound(named:)` looks; files must be < 30 s), AAC for the web page.
+the Mac (in the app bundle; files must be < 30 s), AAC for the web page. **Mac fix (2026-10-21):** naming the bundled
+file played Apple's default sound on the user's Mac: Notification Center logged `Playing notification sound { nam:
+quest_high_2.caf }`, then systemsoundserverd played built-in action 22 (the default AIFF, ~1 s) and never logged
+`Playing sound … for …`, which a working bundled sound (WhatsApp's) does. The app's bundle is found through the system's
+records, and many copies with this bundle id were registered (worktree builds, a dmg, deleted test copies). Now each
+notification first copies its sound to `~/Library/Sounds/Sukrara <pack> <kind> <n>.caf` (the documented "app
+container's Library/Sounds" of a non-sandboxed app, found by name) and names that copy (`NotificationSounds.swift`;
+`-alerts-selftest` fails if any kind's notification names anything else).
 
 | Pack | Character |
 |---|---|

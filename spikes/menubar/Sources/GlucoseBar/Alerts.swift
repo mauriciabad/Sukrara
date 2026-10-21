@@ -473,6 +473,7 @@ final class AlertEngine {
         engine = AlertEngine(settings: settings)
         engine.sensor = { SensorStore.current }
         super.init()
+        if center != nil { NotificationSounds.prune() }
         center?.delegate = self
         registerCategories()
         engine.onFire = { [weak self] ev in self?.post(ev, mirrored: false) }
@@ -764,26 +765,25 @@ final class AlertEngine {
             play(sound)
             return
         }
+        if !test { shownEvents[ev.k.group] = (ev, mirrored) }
+        let c = Self.content(title: title, body: body, k: ev.k, category: category(ev.k, mirrored: mirrored),
+                             alarm: settings[ev.k].alarm, sound: sound)
+        send(ev.k.group, UNNotificationRequest(identifier: ev.k.group.rawValue, content: c, trigger: nil))
+    }
+
+    /// The notification for an alert, the same for a mirrored alert and one from this Mac's own rules. The sound is
+    /// a copy in ~/Library/Sounds (NotificationSounds: the bundle copy wasn't found by Notification Center).
+    nonisolated static func content(title: String, body: String, k: AlertKind, category: String, alarm: Bool, sound: Sound)
+        -> UNMutableNotificationContent {
         let c = UNMutableNotificationContent()
         c.title = title
         c.body = body
         c.threadIdentifier = "sukrara-alerts"
-        c.userInfo = ["k": ev.k.rawValue]
-        c.categoryIdentifier = category(ev.k, mirrored: mirrored)
-        if !test { shownEvents[ev.k.group] = (ev, mirrored) }
-        c.interruptionLevel = settings[ev.k].alarm && Self.timeSensitive ? .timeSensitive : .active
-        switch sound {
-        case .none: c.sound = nil
-        case .system: c.sound = .default
-        case .file(let name, _):
-            if Bundle.main.url(forResource: name, withExtension: nil) != nil {
-                c.sound = UNNotificationSound(named: UNNotificationSoundName(name))
-            } else {
-                log("alerts: \(name) not in the app bundle — default sound")
-                c.sound = .default
-            }
-        }
-        send(ev.k.group, UNNotificationRequest(identifier: ev.k.group.rawValue, content: c, trigger: nil))
+        c.userInfo = ["k": k.rawValue]
+        c.categoryIdentifier = category
+        c.interruptionLevel = alarm && timeSensitive ? .timeSensitive : .active
+        c.sound = NotificationSounds.content(sound)
+        return c
     }
 
     private func remove(_ g: AlertKind.Group, _ why: String) {
