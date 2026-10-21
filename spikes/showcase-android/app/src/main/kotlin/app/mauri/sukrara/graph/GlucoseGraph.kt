@@ -67,6 +67,15 @@ data class GraphStyle(
 )
 
 /**
+ * A chart scrolled through time (the app panel, the Mac dropdown; the other surfaces can't scroll): the window ends at
+ * [endS] (epoch s, at most now) instead of now; [y] = the y range to draw while the surface animates it towards the
+ * window's own ([GlucoseCard.yRange]; null = the window's own); [now] = the "Now" pill's visibility 0..1 (0 = none);
+ * [plotInset] = the plot's bottom as px above the chart's bottom while the surface eases it (the treatment lane comes and
+ * goes with the marks in the window; null = where the layout puts it, "chart.plot.natural").
+ */
+data class ChartView(val endS: Long, val y: Pair<Float, Float>? = null, val now: Float = 0f, val plotInset: Float? = null)
+
+/**
  * The glucose chart of investigation 16, drawn on a plain [Canvas] so the app (Compose's native canvas), the widgets
  * and the notification (bitmaps) all show the same picture.
  *
@@ -89,12 +98,15 @@ object GlucoseGraph {
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings?,
-        sensor: SensorBadge.Look?, rec: CardLayout,
+        sensor: SensorBadge.Look?, rec: CardLayout, view: ChartView? = null, latestT: Long? = null,
     ) {
-        val from = nowS - st.windowS
+        // The window drawn: the [view]'s (a scrolled chart) or the last [GraphStyle.windowS] up to now. Everything the
+        // chart shows (line, distribution, %, y range, treatments, hour labels) is about this window only.
+        val end = view?.endS?.coerceAtMost(nowS) ?: nowS
+        val from = end - st.windowS
         val b = st.bands.sane()
-        val pts = GlucoseStats.window(readings, from - 60, nowS)
-        val tir = GlucoseStats.timeInRange(readings, from, nowS, b)
+        val pts = GlucoseStats.window(readings, from - 60, end)
+        val tir = GlucoseStats.timeInRange(pts, from, end, b)
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 10 * d }
         val pctBig = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = pal.ink; textSize = 13 * d; typeface = Typeface.create(Typeface.DEFAULT, 700, false)
@@ -107,16 +119,13 @@ object GlucoseGraph {
         fun pctW(v: Int) = pctBig.measureText("$v") + pctSmall.measureText("%")
         val pctLabelW = maxOf(pctW(lo), pctW(inr), pctW(hi))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
-        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..nowS } else emptyList()
+        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end } else emptyList()
         val marks = shown.isNotEmpty()
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
-        val dMin = pts.minOfOrNull { it.sgv } ?: b.low
-        val dMax = pts.maxOfOrNull { it.sgv } ?: b.high
-        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
-        // don't change it: one outside the range isn't drawn.
-        val yMin = minOf(b.low - 22, b.veryLow - 6, dMin - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat())
-        val yMax = maxOf(b.high + 40, b.veryHigh + 8, dMax + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
+        // The y range of the window ([yRange]); a scrolling surface animates it towards that and passes the current one.
+        val (yMin, yMax) = view?.y ?: yRange(pts, from, b)
+        rec.add("chart.y", info = "${yRange(pts, from, b).let { "${it.first.roundToInt()}-${it.second.roundToInt()}" }}", exact = true)
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written (in the plot from [top] to [plotBottom]).
         val candidates = if (!labels) emptyList() else
@@ -161,14 +170,20 @@ object GlucoseGraph {
         val lane1 = g.lane1
         val top = g.top
         val bottom = g.bottom
-        val plotBottom = g.plotBottom
+        // A scrolling surface eases the plot's bottom (the treatment lane comes and goes with the marks in the window)
+        // instead of letting the plot jump: [ChartView.plotInset] is the distance from the area's bottom it draws at.
+        val plotBottom = view?.plotInset?.let { (area.bottom - it).coerceIn(top + 20 * d, area.bottom) } ?: g.plotBottom
+        val values = if (plotBottom == g.plotBottom) g.values else axisValues(top, plotBottom)
         rec.add("chart", area, "${st.windowS / 3600}h", exact = true)
+        if (end < nowS) rec.add("chart.window", info = "${(from - nowS) / 60}m..${(end - nowS) / 60}m", exact = true)
         if (right - left < 20 * d || plotBottom - top < 20 * d) {
             rec.add("chart.tooSmall", area, exact = true)
             sensor?.let { rec.add("chart.sensor", info = "${it.label} (no room)", exact = true) }
             return
         }
         rec.add("chart.plot", RectF(left, top, right, plotBottom), exact = true)
+        // where the plot ends without easing (what a scrolling surface eases [ChartView.plotInset] towards)
+        rec.add("chart.plot.natural", RectF(left, top, right, g.plotBottom), exact = true)
         if (lane1 > 0) rec.add("chart.lane2", exact = true)
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out, as it always could.
@@ -208,7 +223,7 @@ object GlucoseGraph {
             rec.add("chart.sensor", RectF(area.left, sy, area.left + sensorWidth(sensor.label, d), sy + SENSOR_DP * d), sensor.label, exact = true)
             labelEnd = badgeRoom.second
         }
-        while (cal.timeInMillis / 1000 <= nowS) {
+        while (cal.timeInMillis / 1000 <= end) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
                 if (st.gridHours > 0) cv.drawLine(gx, top, gx, plotBottom, grid)
@@ -230,15 +245,15 @@ object GlucoseGraph {
         if (labels && rec.first("chart.hours") == null) rec.add("chart.hours", info = "(no room)")
         // The values on the right (axisValues), left-aligned SIDE_GAP_DP after the plot; the widest ends SIDE_GAP_DP
         // before the area's edge.
-        for ((v, ly) in g.values) {
+        for ((v, ly) in values) {
             val s = "$v"
             val base = ly + text.textSize / 3
             cv.drawText(s, right + SIDE_GAP_DP * d, base, text)
             // the drawn label's box (CardLayoutTest checks the column's gaps against it: layout/rules.json "gaps")
             rec.add("chart.values.label", RectF(right + SIDE_GAP_DP * d, base - text.textSize * 0.72f, right + SIDE_GAP_DP * d + text.measureText(s), base), s, exact = true)
         }
-        if (g.values.isNotEmpty()) rec.add("chart.values", RectF(right, top, area.right, plotBottom),
-            g.values.joinToString(",") { "${it.first}" } + " [w" + CardLayout.dp(area.right - right, d) + "]", exact = true)
+        if (values.isNotEmpty()) rec.add("chart.values", RectF(right, top, area.right, plotBottom),
+            values.joinToString(",") { "${it.first}" } + " [w" + CardLayout.dp(area.right - right, d) + "]", exact = true)
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         val layer = cv.saveLayer(area, null)
@@ -264,19 +279,24 @@ object GlucoseGraph {
                 cv.drawLine(x(pts[i - 1].t), y(pts[i - 1].sgv.toFloat()), px, py, seg)
             }
             dot.color = c
-            if (i == pts.lastIndex) {
+            if (i == pts.lastIndex && (latestT == null || p.t >= latestT)) {
                 dot.color = pal.bg; cv.drawCircle(px, py, r + 2.6f * d, dot)
                 dot.color = c; cv.drawCircle(px, py, r + 1.4f * d, dot)
             } else cv.drawCircle(px, py, r, dot)
         }
 
         // The distribution: its outline erased from the lines, then its dots.
-        val rows = if (sideW > 0) profileRows(GlucoseStats.profile(readings, from, nowS, b, tir), b, pal, left, sideW,
+        val rows = if (sideW > 0) profileRows(GlucoseStats.profile(pts, from, end, b, tir), b, pal, left, sideW,
             top, plotBottom, yMin, yMax, d) else emptyList()
         if (rows.isNotEmpty()) {
             val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.DST_OUT }
-            val h = PROFILE_R * d + PROFILE_GAP * d
-            for (row in rows) cv.drawRoundRect(area.left, row.cy - h, row.endX + PROFILE_GAP * d, row.cy + h, h, h, cut)
+            val h = PROFILE_R * d + PROFILE_CUT * d
+            for (row in rows) cv.drawRoundRect(area.left, row.cy - h, row.endX + PROFILE_CUT * d, row.cy + h, h, h, cut)
+            // the outline as erased and the dots it surrounds (CardLayoutTest checks the margin: layout/rules.json "distribution")
+            rec.add("chart.distribution.cut", RectF(area.left, rows.minOf { it.cy } - h, rows.maxOf { it.endX } + PROFILE_CUT * d,
+                rows.maxOf { it.cy } + h), exact = true)
+            rec.add("chart.distribution.dots", RectF(left, rows.minOf { it.cy } - PROFILE_R * d, rows.maxOf { it.endX },
+                rows.maxOf { it.cy } + PROFILE_R * d), exact = true)
         }
         cv.restoreToCount(layer)
         if (rows.isNotEmpty()) rec.add("chart.distribution", RectF(left, top, left + sideW, plotBottom), exact = true)
@@ -328,7 +348,38 @@ object GlucoseGraph {
         if (marks) TreatmentMarks.draw(cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
             nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
+        // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
+        // with [ChartView.now]; the surface makes its box (chart.now) tappable.
+        if (view != null && view.now > 0f) {
+            val ph = NOW_PILL_DP * d
+            val look = StatusBadge.backToNow()
+            val pw = StatusBadge.width(look, ph, pal.dark)
+            val px = right - pw - NOW_INSET_DP * d
+            val py = top + NOW_INSET_DP * d
+            val a = cv.saveLayerAlpha(px, py, px + pw, py + ph, (view.now.coerceIn(0f, 1f) * 255).roundToInt())
+            StatusBadge.draw(cv, px, py, ph, pw, look, pal.dark)
+            cv.restoreToCount(a)
+            rec.add("chart.now", RectF(px, py, px + pw, py + ph), look.text, exact = true)
+        }
         cv.restoreToCount(chartLayer)
+    }
+
+    /** The Now pill's height and its distance from the plot's top-right corner (dp; Mac `nowPill`, `nowInset`). */
+    const val NOW_PILL_DP = 22f
+    const val NOW_INSET_DP = 4f
+
+    /**
+     * The y range (mg/dL) of a window from [from] with the readings [pts] in it: it always reaches the very low / very
+     * high limits, so their lines always show, and every reading with a margin. The user's own lines don't change it:
+     * one outside the range isn't drawn. Mac `GlucoseGraph.yRange`.
+     */
+    fun yRange(pts: List<Reading>, from: Long, b: Bands): Pair<Float, Float> {
+        var lo = Int.MAX_VALUE
+        var hi = Int.MIN_VALUE
+        for (p in pts) if (p.t >= from - 60) { if (p.sgv < lo) lo = p.sgv; if (p.sgv > hi) hi = p.sgv }
+        if (lo == Int.MAX_VALUE) { lo = b.low; hi = b.high }
+        return minOf(b.low - 22, b.veryLow - 6, lo - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat()) to
+            maxOf(b.high + 40, b.veryHigh + 8, hi + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
     }
 
     /**
@@ -362,10 +413,14 @@ object GlucoseGraph {
     /** Treatment label lanes for a chart [h] px tall: a second one from [TreatmentMarks.TWO_LANES_DP]. */
     fun lanes(h: Float, d: Float) = if (h >= TreatmentMarks.TWO_LANES_DP * d) 2 else 1
 
-    /** The distribution's dots: rows [PROFILE_PITCH] apart, dots of radius [PROFILE_R]; its outline is [PROFILE_GAP] wider. */
-    private const val PROFILE_PITCH = 3.6f
-    private const val PROFILE_R = 1.35f
-    private const val PROFILE_GAP = 1.6f
+    /**
+     * The distribution's dots: rows [PROFILE_PITCH] apart, dots of radius [PROFILE_R]; the outline erased around them is
+     * [PROFILE_CUT] wider (the user, 2026-10-21: "more outline so it masks out more of the content behind"; was 1.6).
+     * The same numbers as layout/rules.json "distribution" (CardLayoutTest, Mac -graphselftest).
+     */
+    const val PROFILE_PITCH = 3.6f
+    const val PROFILE_R = 1.35f
+    const val PROFILE_CUT = 3f
 
     /** One row of the distribution: [n] dots centred on [cy], the last one ending at [endX]. */
     private class ProfileRow(val cy: Float, val n: Int, val color: Int, val endX: Float)

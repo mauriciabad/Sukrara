@@ -13,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
 import app.mauri.sukrara.alerts.AlertSettings
@@ -69,9 +73,9 @@ class CardLayoutTest {
 
     private val now by lazy { JSONObject(File(dir(), "layout/scenes.json").readText()).getLong("now") }
 
-    private fun scenes(): List<Scene> {
-        val root = JSONObject(File(dir(), "layout/scenes.json").readText())
-        val a = root.getJSONArray("scenes")
+    private fun scenes(): List<Scene> = scenes(JSONObject(File(dir(), "layout/scenes.json").readText()).getJSONArray("scenes"))
+
+    private fun scenes(a: org.json.JSONArray): List<Scene> {
         return (0 until a.length()).map { a.getJSONObject(it) }.map { o ->
             val days = o.optInt("days", 0)
             val readings = if (days == 0) emptyList() else {
@@ -395,6 +399,23 @@ class CardLayoutTest {
             if (seen == 0) problems += "${g.getString("column")}: no render shows it (gaps rule untested)"
         }
 
+        // the distribution's erased outline: the dots plus one constant margin (rules.json "distribution"), everywhere
+        val dist = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONObject("distribution")
+        fun off(v: Float, k: String) = kotlin.math.abs(v - dist.getDouble(k)) > 1e-4
+        if (off(GlucoseGraph.PROFILE_PITCH, "pitch") || off(GlucoseGraph.PROFILE_R, "dot") || off(GlucoseGraph.PROFILE_CUT, "cut"))
+            problems += "distribution: GlucoseGraph ${GlucoseGraph.PROFILE_PITCH}/${GlucoseGraph.PROFILE_R}/${GlucoseGraph.PROFILE_CUT}, rules.json $dist"
+        var cuts = 0
+        for (r in renders) for (l in r.layouts) {
+            val cut = l.first("chart.distribution.cut")?.box ?: continue
+            val dots = l.first("chart.distribution.dots")?.box ?: continue
+            cuts++
+            val right = (cut.right - dots.right) / l.d
+            val top = (dots.top - cut.top) / l.d
+            if (kotlin.math.abs(right - dist.getDouble("cut")) > 0.05 || kotlin.math.abs(top - dist.getDouble("cut")) > 0.05)
+                problems += "distribution cut on $r (${r.scene}/${r.settings}): margin right %.2f top %.2f dp, want %s".format(Locale.US, right, top, dist.get("cut"))
+        }
+        if (cuts == 0) problems += "distribution: no render erases its outline (rule untested)"
+
         if (problems.isNotEmpty()) fail("${problems.size} surface rule failures (spikes/graph-fixtures/layout/rules.json):\n  " +
             problems.take(40).joinToString("\n  "))
 
@@ -413,6 +434,98 @@ class CardLayoutTest {
         for (k in expect.keys()) if (k !in answers) diffs += "gone: $k → ${expect.getString(k)}"
         if (diffs.isNotEmpty()) fail("layout/expect.json is out of date (${diffs.size}); if the change is intended, run with -Dlayout.write=true, " +
             "review the diff and make the Mac follow (-graphselftest):\n  " + diffs.take(30).joinToString("\n  "))
+    }
+
+    /**
+     * A scrolled chart (the app panel; scenes.json "scroll") shows only what's in its window: the same as the chart of
+     * the visible data alone (every reading and treatment outside the window removed, now = the window's end), its y
+     * range is the visible readings', the Now pill shows only when scrolled, and the font-independent "expect" (which
+     * the Mac's -graphselftest checks too).
+     */
+    @Test fun scrolledWindowShowsOnlyItsData() {
+        val ctx = RuntimeEnvironment.getApplication()
+        RoundedFont.init(ctx)
+        app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(ctx.resources) }
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+        Locale.setDefault(Locale.US)
+        Clock.hour24Source = { true }
+        val root = JSONObject(File(dir(), "layout/scenes.json").readText())
+        val scroll = root.getJSONObject("scroll")
+        val all = scenes(scroll.getJSONArray("scenes")) + scenes()
+        val reg = JSONObject(File(dir(), "surfaces/surfaces.json").readText()).getJSONObject("android")
+        val w = sizes(reg, CardSurface.APP_PANEL).first().first
+        val windowS = GraphSettings.value.hours(GraphPlace.APP) * 3600L
+        val b = GraphSettings.value.bands.sane()
+        compose.setContent { panel?.invoke() }
+        GlucoseCard.observer = { synchronized(captured) { captured += it } }
+        fun graph(rs: List<Reading>, trs: List<Treatment>, at: Long, sc: app.mauri.sukrara.ui.ChartScroll): CardLayout {
+            synchronized(captured) { captured.clear() }
+            val pal = systemPalette(ctx, false)
+            panel = {
+                Box(Modifier.width(w.dp)) {
+                    app.mauri.sukrara.ui.PanelCard(rs.lastOrNull(), rs.dropLast(1), trs, at, GraphSettings.value, pal,
+                        AlertSettings(), emptyMap(), null, SensorLife.countdown.value,
+                        { r, bb -> GlucoseMetrics.of(rs, at - r.windowS, at, bb) }, onEnded = null, scroll = sc)
+                }
+            }
+            compose.waitForIdle()
+            compose.onRoot().captureToImage()
+            return synchronized(captured) { captured.last { it.surface == CardSurface.APP_PANEL && it.part == CardPart.GRAPH } }
+        }
+        val problems = ArrayList<String>()
+        val dumps = ArrayList<String>()
+        try {
+            val cases = scroll.getJSONArray("cases")
+            for (i in 0 until cases.length()) {
+                val c = cases.getJSONObject(i)
+                val sc = all.first { it.id == c.getString("scene") }
+                val back = c.getLong("back")
+                val end = now - back
+                val from = end - windowS
+                val name = "${sc.id} back ${back}s"
+                val scrolled = graph(sc.readings, sc.treatments, now, app.mauri.sukrara.ui.ChartScroll(if (back > 0) end else null))
+                val visible = sc.readings.filter { it.t in (from - 60)..end }
+                val alone = graph(visible, sc.treatments.filter { it.t in from..end }, end, app.mauri.sukrara.ui.ChartScroll())
+                fun info(l: CardLayout, n: String) = l.all(n).joinToString(",") { it.info }
+                fun box(l: CardLayout, n: String) = l.first(n)?.box?.let {
+                    "${CardLayout.dp(it.left, l.d)},${CardLayout.dp(it.top, l.d)},${CardLayout.dp(it.right, l.d)},${CardLayout.dp(it.bottom, l.d)}"
+                } ?: "-"
+                val markers = scrolled.first("chart.markers") != null
+                for (n in listOf("chart.pct", "chart.y", "chart.values", "chart.markers", "chart.lines") + if (markers) emptyList() else listOf("time.text"))
+                    if (info(scrolled, n) != info(alone, n)) problems += "$name: $n \"${info(scrolled, n)}\", the visible data alone \"${info(alone, n)}\""
+                for (n in listOf("chart.distribution", "chart.distribution.dots", "chart.distribution.cut", "chart.plot"))
+                    if (box(scrolled, n) != box(alone, n)) problems += "$name: $n at ${box(scrolled, n)}, the visible data alone ${box(alone, n)}"
+                // the y range is the visible readings'
+                val lo = visible.minOf { it.sgv }; val hi = visible.maxOf { it.sgv }
+                val want = "${maxOf(GlucoseStats.MIN_MG, minOf(b.low - 22, b.veryLow - 6, lo - 6))}-${minOf(GlucoseStats.MAX_MG, maxOf(b.high + 40, b.veryHigh + 8, hi + 8))}"
+                if (info(scrolled, "chart.y") != want) problems += "$name: y range ${info(scrolled, "chart.y")}, want $want (visible $lo..$hi)"
+                val window = if (back > 0) "${(from - now) / 60}m..${(end - now) / 60}m" else ""
+                if (info(scrolled, "chart.window") != window) problems += "$name: window \"${info(scrolled, "chart.window")}\", want \"$window\""
+                if ((scrolled.first("chart.now") != null) != (back > 0)) problems += "$name: the Now pill ${if (back > 0) "is missing" else "shows at now"}"
+                // the shared, font-independent answer (the Mac checks the same)
+                val got = JSONObject().apply { for (n in listOf("chart.pct", "chart.y", "chart.window", "chart.markers")) put(n,
+                    scrolled.all(n).joinToString(",") { e -> e.info.replace(Regex("\\s*\\[[^]]*]"), "") }) }
+                val expect = c.getJSONObject("expect")
+                if (expect.toString() != got.toString()) { problems += "$name: expect ${expect}, got $got"; dumps += "$name: $got" }
+            }
+            // the Now pill: a tap on it scrolls back to now (the pill goes, the window ends now); a drag scrolls back in time
+            val sc = all.first { it.id == "live" }
+            val pos = app.mauri.sukrara.ui.ChartScroll(now - 21600)
+            val l = graph(sc.readings, sc.treatments, now, pos)
+            val pill = l.first("chart.now")?.box
+            if (pill == null) problems += "tap: no Now pill to tap" else {
+                compose.onNodeWithTag("panel-chart").performTouchInput { click(androidx.compose.ui.geometry.Offset(pill.centerX(), pill.centerY())) }
+                compose.waitForIdle()
+                if (pos.endS != null) problems += "tap: a tap on the Now pill left the chart at ${pos.endS?.minus(now)} s"
+            }
+            compose.onNodeWithTag("panel-chart").performTouchInput { swipeRight(startX = centerX - 200f, endX = centerX + 200f) }
+            compose.waitForIdle()
+            if ((pos.endS ?: now) >= now) problems += "drag: a drag to the right didn't scroll into the past"
+        } finally {
+            GlucoseCard.observer = null
+        }
+        if (problems.isNotEmpty()) fail("${problems.size} scroll failures (spikes/graph-fixtures/layout/scenes.json \"scroll\"):\n  " +
+            problems.joinToString("\n  ") + "\n  expects:\n  " + dumps.joinToString("\n  "))
     }
 
     /**

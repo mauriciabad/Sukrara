@@ -27,6 +27,8 @@ import SwiftUI
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     /// Previews: draw as if this were now.
     var now: Date?
+    /// Previews: the chart scrolled this far back from `now` (s).
+    var previewScrollBack: TimeInterval?
 
     // Add Treatment
     @Published var canLog = true
@@ -145,6 +147,7 @@ private struct CardRep: NSViewRepresentable {
         v.paused = model.paused
         v.metricsOf = model.metricsOf
         v.now = model.now
+        if let back = model.previewScrollBack, let now = model.now { v.scrollEnd = now.timeIntervalSince1970 - back }
         v.needsDisplay = true
     }
 }

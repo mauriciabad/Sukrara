@@ -17,7 +17,7 @@
   "sources": ["spikes/showcase-android/app/src/main/kotlin/**.kt"],
   "tests": ["spikes/showcase-android/app/src/test/kotlin/**.kt"],
   "api": {
-   "GlucoseCard": ["draw", "face", "observer"],
+   "GlucoseCard": ["draw", "face", "observer", "yRange"],
    "ValueGlyphs": ["arrow", "number", "trendIcon", "icon", "numberPaint", "REFERENCE"],
    "SensorBadge": ["look", "describe", "Look"],
    "StatusBadge": ["look", "describe", "Look"],
@@ -69,7 +69,7 @@
    "spikes/menubar/Sources/GlucoseBar/Preview.swift"
   ],
   "api": {
-   "GlucoseCard": ["draw", "image", "face", "observer"],
+   "GlucoseCard": ["draw", "image", "face", "observer", "yRange"],
    "SensorBadge": ["look", "describe", "Look", "flag"],
    "StatusBadge": ["look", "describe", "Look"],
    "Slots": [],

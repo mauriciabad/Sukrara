@@ -348,6 +348,121 @@ final class CardView: NSView {
 
     override var isFlipped: Bool { true }
 
+    // MARK: scrolling through time (the user, 2026-10-21)
+    //
+    // Two-finger horizontal swipes on a trackpad (with the system's own momentum: AppKit keeps sending the scroll
+    // events of the fling, `momentumPhase`, exactly what NSScrollView follows) and a mouse wheel (or shift-wheel) move
+    // the chart's window through the history, clamped to the first reading. The renderer draws the window it's given
+    // (`ChartView`): line, distribution and %, y range, hour labels and treatments are all about what's visible; the y
+    // range eases towards the window's own; away from now the renderer's "Now" pill shows and a click on it scrolls back.
+
+    /// The window's end while scrolled (s; nil = live, following now).
+    var scrollEnd: TimeInterval? { didSet { if scrollEnd != oldValue { tick() } } }
+    private var shownY: ClosedRange<Double>?
+    /// The plot's bottom (pt above the chart's bottom): the layout's (`insetTarget`), eased like the y range so the
+    /// treatment lane that comes and goes with the marks in the window doesn't make the plot jump.
+    private var shownInset: CGFloat?
+    private var insetTarget: CGFloat? { didSet { if insetTarget != oldValue, scrollEnd != nil { tick() } } }
+    private var pillAlpha: CGFloat = 0
+    private var backTarget = false
+    private var link: CADisplayLink?
+    private var lastTick: CFTimeInterval = 0
+    /// What the last drawing laid out: the plot (points per second) and the Now pill (clicks).
+    private var plot: CGRect?
+    private var nowBox: CGRect?
+    /// The axis a trackpad gesture started on: a mostly vertical one isn't ours.
+    private var horizontalGesture = true
+
+    private var nowT: TimeInterval { (now ?? Date()).timeIntervalSince1970 }
+    private var span: TimeInterval { style.graph?.window ?? 12 * 3600 }
+
+    /// Move the window's end by `dt` s, within the history; at now it follows now again.
+    func scroll(by dt: TimeInterval) {
+        let n = nowT
+        let minEnd = min(n, (readings.first?.t ?? n) + span)
+        let next = min(max((scrollEnd ?? n) + dt, minEnd), n)
+        scrollEnd = next >= n ? nil : next
+    }
+
+    override func scrollWheel(with e: NSEvent) {
+        guard style.graph != nil, let plot, plot.width > 0 else { return super.scrollWheel(with: e) }
+        if e.phase == .began { horizontalGesture = abs(e.scrollingDeltaX) >= abs(e.scrollingDeltaY) }
+        let px: CGFloat
+        if e.hasPreciseScrollingDeltas {
+            // a trackpad (or Magic Mouse): only a horizontal gesture, its fling included
+            guard horizontalGesture, e.scrollingDeltaX != 0 else { return super.scrollWheel(with: e) }
+            px = e.scrollingDeltaX
+        } else {
+            // a wheel: lines; a vertical wheel scrolls the chart like a horizontal-only NSScrollView does
+            px = (e.scrollingDeltaX != 0 ? e.scrollingDeltaX : e.scrollingDeltaY) * 10
+        }
+        backTarget = false
+        // content follows the fingers (natural scrolling) or the wheel's direction: positive = towards the past
+        scroll(by: -TimeInterval(px) * span / TimeInterval(plot.width))
+    }
+
+    override func mouseDown(with e: NSEvent) {
+        let p = convert(e.locationInWindow, from: nil)
+        let q = CGPoint(x: p.x - inset.left, y: p.y - inset.top)
+        if scrollEnd != nil, let nowBox, nowBox.insetBy(dx: -4, dy: -4).contains(q) { backTarget = true; tick(); return }
+        super.mouseDown(with: e)
+    }
+
+    /// Start the display link while something eases (y range, pill, the way back to now).
+    private func tick() {
+        needsDisplay = true
+        // offscreen (the self-tests, previews): no frames to ease over, the end state at once
+        guard self.window != nil else { pillAlpha = scrollEnd == nil ? 0 : 1; shownY = nil; shownInset = nil; return }
+        guard link == nil else { return }
+        let l = displayLink(target: self, selector: #selector(step(_:)))
+        l.add(to: .main, forMode: .common)
+        link = l
+        lastTick = CACurrentMediaTime()
+    }
+
+    @objc private func step(_ l: CADisplayLink) {
+        let t = CACurrentMediaTime(), dt = min(max(t - lastTick, 0), 0.05)
+        lastTick = t
+        // critically damped easing, ~0.12 s time constant (no bounce: a scale that bounced would read as data moving)
+        let k = 1 - exp(-dt / 0.12)
+        var busy = false
+        if backTarget, let e = scrollEnd {
+            let n = nowT, step = max((n - e) * (1 - exp(-dt / 0.08)), 30)
+            scrollEnd = e + step >= n - 1 ? nil : e + step
+            if scrollEnd == nil { backTarget = false } else { busy = true }
+        }
+        let target = targetY()
+        if let y = shownY {
+            let lo = y.lowerBound + (target.lowerBound - y.lowerBound) * k, hi = y.upperBound + (target.upperBound - y.upperBound) * k
+            if abs(lo - target.lowerBound) < 0.05 && abs(hi - target.upperBound) < 0.05 { shownY = target } else { shownY = lo...hi; busy = true }
+        } else { shownY = target }
+        if let target = insetTarget {
+            if let s = shownInset, abs(s - target) > 0.1 { shownInset = s + (target - s) * CGFloat(k); busy = true } else { shownInset = target }
+        }
+        let want: CGFloat = scrollEnd == nil ? 0 : 1
+        pillAlpha += (want - pillAlpha) * CGFloat(1 - exp(-dt / 0.06))
+        if abs(pillAlpha - want) < 0.01 { pillAlpha = want } else { busy = true }
+        needsDisplay = true
+        if !busy { link?.invalidate(); link = nil }
+    }
+
+    private func targetY() -> ClosedRange<Double> {
+        guard let g = style.graph else { return 0...1 }
+        return GlucoseCard.yRange(readings, end: scrollEnd ?? nowT, g)
+    }
+
+    /// The view the renderer gets: none while live and at rest (the same picture as every other surface).
+    private var chartView: ChartView? {
+        if scrollEnd == nil && (link == nil || pillAlpha == 0 && shownY == targetY() && shownInset == insetTarget) { return nil }
+        return ChartView(end: scrollEnd ?? nowT, y: shownY, now: pillAlpha, plotInset: shownInset)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // the dropdown opens at now again (a glance shows the latest reading)
+        if window == nil { link?.invalidate(); link = nil; scrollEnd = nil; pillAlpha = 0; shownY = nil; shownInset = nil; backTarget = false }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let dark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -365,8 +480,13 @@ final class CardView: NSView {
     /// The dropdown's card (its one drawing entry, also the layout self-test's): the whole card at `size`.
     @discardableResult
     func paint(_ ctx: CGContext, size: CGSize, _ pal: GraphPalette) -> CardLayout {
-        GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused)
+        let rec = GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
+                         style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused,
+                         view: chartView)
+        plot = rec.first("chart.plot")?.box
+        nowBox = rec.first("chart.now")?.box
+        if let area = rec.first("chart")?.box, let natural = rec.first("chart.plot.natural")?.box { insetTarget = area.maxY - natural.maxY }
+        return rec
     }
 
     override func viewDidChangeEffectiveAppearance() { needsDisplay = true }

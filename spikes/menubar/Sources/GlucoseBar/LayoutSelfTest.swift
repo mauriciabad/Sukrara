@@ -42,7 +42,7 @@ enum LayoutSelfTest {
         func num(_ a: Any?) -> Double { (a as? NSNumber)?.doubleValue ?? 0 }
 
         // scenes: the same integer maths as CardLayoutTest
-        let scenes: [Scene] = (scenesRoot["scenes"] as? [[String: Any]] ?? []).map { o in
+        func scene(_ o: [String: Any]) -> Scene {
             var rs: [GraphReading] = []
             let days = Int(num(o["days"]))
             if days > 0 {
@@ -65,6 +65,7 @@ enum LayoutSelfTest {
             }
             return Scene(id: o["id"] as? String ?? "?", readings: rs, marks: marks, sensor: sensor)
         }
+        let scenes: [Scene] = (scenesRoot["scenes"] as? [[String: Any]] ?? []).map(scene)
         var hour24Of: [String: Bool] = [:]
         let settings: [(String, GraphConfig)] = (scenesRoot["settings"] as? [[String: Any]] ?? []).map { o in
             var c = GraphConfig()
@@ -290,6 +291,110 @@ enum LayoutSelfTest {
             } }
             if seen == 0 { fail("\(colName): no render shows it (gaps rule untested)") }
         }
+        // the distribution's erased outline: the dots plus one constant margin (rules.json "distribution"), everywhere
+        if let dist = json("layout/rules.json")?["distribution"] as? [String: Any] {
+            let cut = num(dist["cut"])
+            if abs(Double(GlucoseGraph.profilePitch) - num(dist["pitch"])) > 1e-4 || abs(Double(GlucoseGraph.profileR) - num(dist["dot"])) > 1e-4
+                || abs(Double(GlucoseGraph.profileCut) - cut) > 1e-4 {
+                fail("distribution: GlucoseGraph \(GlucoseGraph.profilePitch)/\(GlucoseGraph.profileR)/\(GlucoseGraph.profileCut), rules.json \(dist)")
+            }
+            var cuts = 0, shown = 0
+            for r in renders { for l in r.layouts {
+                guard let c = l.first("chart.distribution.cut")?.box, let d = l.first("chart.distribution.dots")?.box else { continue }
+                cuts += 1
+                let right = Double((c.maxX - d.maxX) / l.d), top = Double((d.minY - c.minY) / l.d)
+                if (abs(right - cut) > 0.05 || abs(top - cut) > 0.05) && shown < 10 {
+                    shown += 1
+                    fail("distribution cut on \(r) (\(r.scene)/\(r.settings)): margin right \(String(format: "%.2f", right)) top \(String(format: "%.2f", top)) pt, want \(cut)")
+                }
+            } }
+            if cuts == 0 { fail("distribution: no render erases its outline (rule untested)") }
+            print("distribution outline checked on \(cuts) renders")
+        } else { fail("rules.json has no \"distribution\"") }
+
+        // A scrolled chart (the dropdown; scenes.json "scroll", CardLayoutTest.scrolledWindowShowsOnlyItsData's twin)
+        // shows only what's in its window: the chart of the visible data alone, the visible readings' y range, the Now
+        // pill only when scrolled, and the shared font-independent "expect".
+        if let scroll = scenesRoot["scroll"] as? [String: Any] {
+            let all = (scroll["scenes"] as? [[String: Any]] ?? []).map(scene) + scenes
+            let size = sizes(.menubarCard).first ?? CGSize(width: 340, height: 196)
+            let cfg = GraphConfig(), b = cfg.bands.sane(), span = cfg.graphStyle().window
+            func card(_ rs: [GraphReading], _ marks: [GraphMark], at: TimeInterval, end: TimeInterval?) -> CardLayout? {
+                captured = []
+                let v = CardView(frame: NSRect(origin: .zero, size: size))
+                v.readings = rs; v.marks = marks; v.style = StatusController.dropdownStyle(cfg, sensor: nil)
+                v.metricsOf = { r, bb in GlucoseMetrics.of(rs, from: at - r.window, to: at, bands: bb) }
+                v.alerts = AlertSettings(); v.now = Date(timeIntervalSince1970: at)
+                v.scrollEnd = end
+                guard let ctx = CGContext(data: nil, width: Int(size.width * 2), height: Int(size.height * 2), bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+                ctx.translateBy(x: 0, y: size.height * 2); ctx.scaleBy(x: 2, y: -2)
+                return v.paint(ctx, size: size, pal)
+            }
+            for c in scroll["cases"] as? [[String: Any]] ?? [] {
+                guard let sc = all.first(where: { $0.id == c["scene"] as? String }) else { fail("scroll: no scene \(c["scene"] ?? "?")"); continue }
+                let back = num(c["back"]), end = now - back, from = end - span
+                let name = "\(sc.id) back \(Int(back))s"
+                let visible = sc.readings.filter { $0.t >= from - 60 && $0.t <= end }
+                guard let scrolled = card(sc.readings, sc.marks, at: now, end: back > 0 ? end : nil),
+                      let alone = card(visible, sc.marks.filter { $0.t >= from && $0.t <= end }, at: end, end: nil) else { fail("scroll: \(name) not drawn"); continue }
+                func info(_ l: CardLayout, _ n: String) -> String { l.all(n).map(\.info).joined(separator: ",") }
+                func box(_ l: CardLayout, _ n: String) -> String {
+                    l.first(n)?.box.map { "\(CardLayout.dp($0.minX, l.d)),\(CardLayout.dp($0.minY, l.d)),\(CardLayout.dp($0.maxX, l.d)),\(CardLayout.dp($0.maxY, l.d))" } ?? "-"
+                }
+                let markers = scrolled.first("chart.markers") != nil
+                for n in ["chart.pct", "chart.y", "chart.values", "chart.markers", "chart.lines"] + (markers ? [] : ["time.text"]) where info(scrolled, n) != info(alone, n) {
+                    fail("scroll \(name): \(n) \"\(info(scrolled, n))\", the visible data alone \"\(info(alone, n))\"")
+                }
+                for n in ["chart.distribution", "chart.distribution.dots", "chart.distribution.cut", "chart.plot"] where box(scrolled, n) != box(alone, n) {
+                    fail("scroll \(name): \(n) at \(box(scrolled, n)), the visible data alone \(box(alone, n))")
+                }
+                let lo = Int(visible.map(\.v).min() ?? 0), hi = Int(visible.map(\.v).max() ?? 0)
+                let want = "\(max(GlucoseStats.minMg, min(b.low - 22, b.veryLow - 6, lo - 6)))-\(min(GlucoseStats.maxMg, max(b.high + 40, b.veryHigh + 8, hi + 8)))"
+                if info(scrolled, "chart.y") != want { fail("scroll \(name): y range \(info(scrolled, "chart.y")), want \(want)") }
+                let window = back > 0 ? "\(Int((from - now) / 60))m..\(Int((end - now) / 60))m" : ""
+                if info(scrolled, "chart.window") != window { fail("scroll \(name): window \"\(info(scrolled, "chart.window"))\", want \"\(window)\"") }
+                if (scrolled.first("chart.now") != nil) != (back > 0) { fail("scroll \(name): the Now pill \(back > 0 ? "is missing" : "shows at now")") }
+                for (k, v) in c["expect"] as? [String: String] ?? [:] {
+                    let got = scrolled.all(k).map { $0.info.replacingOccurrences(of: "\\s*\\[[^]]*]", with: "", options: .regularExpression) }.joined(separator: ",")
+                    if got != v { fail("scroll \(name): \(k) \"\(got)\", expect.json-style answer \"\(v)\" (Android agrees)") }
+                }
+            }
+            print("scroll cases: \((scroll["cases"] as? [Any])?.count ?? 0) checked")
+            // the cost of one scrolled frame of the dropdown's card over 15 days of 1-minute readings (the store's whole
+            // history), as a fling draws it: printed, and a failure only far above a frame's budget
+            let long = (0..<(15 * 1440)).map { i -> GraphReading in
+                let x = Double(i)
+                let t: Double = now - Double(15 * 1440 - i) * 60
+                let mg: Double = 130 + 70 * sin(x / 180) + 25 * sin(x / 37)
+                return GraphReading(t: t, v: mg, rate: 0)
+            }
+            var times: [Double] = []
+            let v = CardView(frame: NSRect(origin: .zero, size: size))
+            v.readings = long; v.style = StatusController.dropdownStyle(cfg, sensor: nil); v.alerts = AlertSettings()
+            v.now = Date(timeIntervalSince1970: now)
+            v.metricsOf = { _, _ in GlucoseMetrics.of([], from: 0, to: 1, bands: b) }
+            if let ctx = CGContext(data: nil, width: Int(size.width * 2), height: Int(size.height * 2), bitsPerComponent: 8, bytesPerRow: 0,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                ctx.translateBy(x: 0, y: size.height * 2); ctx.scaleBy(x: 2, y: -2)
+                for k in 0..<400 {
+                    v.scrollEnd = now - 3600 - Double(k) * 97
+                    let t0 = CACurrentMediaTime()
+                    v.paint(ctx, size: size, pal)
+                    if k >= 100 { times.append((CACurrentMediaTime() - t0) * 1000) }
+                }
+            }
+            times.sort()
+            let med = times.isEmpty ? 0 : times[times.count / 2], p95 = times.isEmpty ? 0 : times[times.count * 95 / 100]
+            print("scrolled dropdown frame over \(long.count) readings: median \(String(format: "%.2f", med)) ms, p95 \(String(format: "%.2f", p95)) ms")
+            #if DEBUG
+            let budget = 40.0   // an unoptimised build (release: ~2.7 ms on an M-series Mac, 2026-10-21)
+            #else
+            let budget = 16.0
+            #endif
+            if med > budget { fail("scroll: a scrolled frame takes \(String(format: "%.1f", med)) ms (median), far above a frame (\(Int(budget)) ms)") }
+        } else { fail("scenes.json has no \"scroll\"") }
+
         // a change of the 24-hour setting or the time zone redraws (StatusController observes Clock.changeNotifications)
         let center = NotificationCenter(); var fired = 0
         let tokens = Clock.observeChanges(center) { fired += 1 }

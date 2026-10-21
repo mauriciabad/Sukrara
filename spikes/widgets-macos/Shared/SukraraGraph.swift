@@ -110,10 +110,20 @@ enum GlucoseStats {
     static let maxGap: TimeInterval = 15 * 60
     static let minMg = 20, maxMg = 450
 
-    /// Readings in [from, to + 30 s), sorted, deduplicated (±30 s, the later one wins).
+    /// Readings in [from, to + 30 s), sorted, deduplicated (±30 s, the later one wins). A sorted history (the store's
+    /// order) is cut by binary search, so a scrolled chart over weeks of readings only touches its window each frame.
     static func window(_ all: [GraphReading], from: TimeInterval, to: TimeInterval) -> [GraphReading] {
         var out: [GraphReading] = []
-        for r in all.filter({ $0.t >= from && $0.t < to + 30 }).sorted(by: { $0.t < $1.t }) {
+        let sorted = zip(all, all.dropFirst()).allSatisfy { $0.t <= $1.t }
+        func lowerBound(_ t: TimeInterval) -> Int {
+            var lo = 0, hi = all.count
+            while lo < hi { let m = (lo + hi) / 2; if all[m].t < t { lo = m + 1 } else { hi = m } }
+            return lo
+        }
+        let src: [GraphReading] = sorted ? Array(all[lowerBound(from)..<lowerBound(to + 30)])
+            : all.filter({ $0.t >= from && $0.t < to + 30 }).sorted(by: { $0.t < $1.t })
+        out.reserveCapacity(src.count)
+        for r in src {
             if let last = out.last, r.t - last.t < 30 { out[out.count - 1] = r } else { out.append(r) }
         }
         return out
@@ -151,11 +161,10 @@ enum GlucoseStats {
         var d = smooth(occupation(rs), s: 4)
         let s = d.reduce(0, +)
         if s > 0 { d = d.map { $0 / s } }
-        for band in Band.allCases {
-            let ks = (0..<n).filter { b.of(Double(minMg + $0)) == band }
-            let area = ks.reduce(0) { $0 + d[$1] }
-            if area > 0 { for k in ks { d[k] *= tir.share(band) / area } }
-        }
+        // each band's area, then each level scaled to its band's share (no per-band lists: a scrolled chart does this every frame)
+        var area = [Double](repeating: 0, count: Band.allCases.count)
+        for i in 0..<n { area[b.of(Double(minMg + i)).rawValue] += d[i] }
+        for i in 0..<n { let band = b.of(Double(minMg + i)); if area[band.rawValue] > 0 { d[i] *= tir.share(band) / area[band.rawValue] } }
         return d
     }
 
@@ -369,6 +378,17 @@ struct GraphPalette {
                                            veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
                                            high: hex(0xD97706), veryHigh: hex(0xC2410C), extremelyHigh: hex(0xA3238F))
     static func of(dark: Bool) -> GraphPalette { dark ? darkPalette : lightPalette }
+}
+
+/// A chart scrolled through time (the dropdown; Android's app panel; the other surfaces can't scroll): the window ends
+/// at `end` (at most now) instead of now; `y` = the y range to draw while the surface animates it towards the window's
+/// own (`GlucoseCard.yRange`; nil = the window's own); `now` = the "Now" pill's visibility 0…1 (0 = none). GlucoseGraph.kt `ChartView`.
+struct ChartView: Equatable {
+    var end: TimeInterval
+    var y: ClosedRange<Double>? = nil
+    var now: CGFloat = 0
+    /// The plot's bottom, pt above the chart's bottom, while the surface eases it (nil = the layout's, "chart.plot.natural").
+    var plotInset: CGFloat? = nil
 }
 
 struct GraphStyle {
@@ -753,11 +773,14 @@ enum GlucoseGraph {
     /// (tools/check `graph-surface`).
     static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat, alerts: AlertSettings?,
-                     sensor: SensorBadge.Look?, rec: CardLayout) {
-        let from = now - st.window
+                     sensor: SensorBadge.Look?, rec: CardLayout, view: ChartView? = nil, latestT: TimeInterval? = nil) {
+        // The window drawn: the view's (a scrolled chart) or the last `st.window` up to now. Everything the chart shows
+        // (line, distribution, %, y range, treatments, hour labels) is about this window only.
+        let end = min(view?.end ?? now, now)
+        let from = end - st.window
         let b = st.bands.sane()
-        let pts = GlucoseStats.window(readings, from: from - 60, to: now)
-        let tir = GlucoseStats.timeInRange(readings, from: from, to: now, bands: b)
+        let pts = GlucoseStats.window(readings, from: from - 60, to: end)
+        let tir = GlucoseStats.timeInRange(pts, from: from, to: end, bands: b)
         let text = Ink.font(10 * d, .regular)
         let pctBig = Ink.font(13 * d, .bold), pctSmall = Ink.font(8.5 * d, .regular)
 
@@ -767,14 +790,13 @@ enum GlucoseGraph {
         func pctW(_ v: Int) -> CGFloat { Ink.width("\(v)", pctBig) + Ink.width("%", pctSmall) }
         let pctLabelW = max(pctW(p.0), pctW(p.1), pctW(p.2))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
-        let shownMarks = st.treatments ? marks.filter { $0.t >= from && $0.t <= now } : []
+        let shownMarks = st.treatments ? marks.filter { $0.t >= from && $0.t <= end } : []
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         let badgeRoom: (CGFloat, CGFloat)? = labels ? sensor.map { (area.minX, area.minX + sensorWidth($0.label, d: d) + 3 * d) } : nil
-        let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
-        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
-        // don't change it: one outside the range isn't drawn.
-        let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
-        let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
+        // The y range of the window (`yRange`); a scrolling surface animates it towards that and passes the current one.
+        let own = yRange(pts, bands: b)
+        let yMin = view?.y?.lowerBound ?? own.lowerBound, yMax = view?.y?.upperBound ?? own.upperBound
+        rec.add("chart.y", nil, "\(Int(own.lowerBound.rounded()))-\(Int(own.upperBound.rounded()))")
         let split = b.tight < b.high
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written (in the plot from `top` to `plotBottom`).
@@ -813,16 +835,23 @@ enum GlucoseGraph {
             if w == g.valW { break }
             g = geo(w)
         }
-        let left = g.left, right = g.right, layout = g.layout, lane1 = g.lane1, top = g.top, bottom = g.bottom, plotBottom = g.plotBottom
+        let left = g.left, right = g.right, layout = g.layout, lane1 = g.lane1, top = g.top, bottom = g.bottom
+        // A scrolling surface eases the plot's bottom (the treatment lane comes and goes with the marks in the window)
+        // instead of letting the plot jump: `view.plotInset` is the distance from the area's bottom it draws at.
+        let plotBottom = view?.plotInset.map { min(max(area.maxY - $0, top + 20 * d), area.maxY) } ?? g.plotBottom
+        let values = plotBottom == g.plotBottom ? g.values : axisValues(top, plotBottom)
         let pctCol = left - area.minX
         func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         rec.add("chart", area, "\(Int(st.window / 3600))h")
+        if end < now { rec.add("chart.window", nil, "\(Int((from - now) / 60))m..\(Int((end - now) / 60))m") }
         guard right - left >= 20 * d, plotBottom - top >= 20 * d else {
             rec.add("chart.tooSmall", area)
             if let sensor { rec.add("chart.sensor", nil, "\(sensor.label) (no room)") }
             return
         }
         rec.add("chart.plot", CGRect(x: left, y: top, width: right - left, height: plotBottom - top))
+        // where the plot ends without easing (what a scrolling surface eases `view.plotInset` towards)
+        rec.add("chart.plot.natural", CGRect(x: left, y: top, width: right - left, height: g.plotBottom - top))
         if lane1 > 0 { rec.add("chart.lane2") }
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out.
@@ -861,7 +890,7 @@ enum GlucoseGraph {
             rec.add("chart.sensor", CGRect(x: area.minX, y: sy, width: sensorWidth(sensor.label, d: d), height: sensorDp * d), sensor.label)
             lastLabelEnd = badgeRoom.1
         }
-        while hour.timeIntervalSince1970 <= now {
+        while hour.timeIntervalSince1970 <= end {
             let gx = x(hour.timeIntervalSince1970)
             if gx > left + sideW * 0.6 {
                 if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
@@ -884,15 +913,15 @@ enum GlucoseGraph {
         if labels && rec.first("chart.hours") == nil { rec.add("chart.hours", nil, "(no room)") }
         // The values on the right (axisValues), left-aligned `sideGap` after the plot; the widest ends `sideGap` before
         // the area's edge.
-        for (v, ly) in g.values {
+        for (v, ly) in values {
             let s = "\(v)", base = ly + 10 * d / 3, w = Ink.width(s, text)
             Ink.draw(ctx, s, x: right + Self.sideGap * d, y: base, text, pal.inkSoft)
             // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
             rec.add("chart.values.label", CGRect(x: right + Self.sideGap * d, y: base - 10 * d * 0.72, width: w, height: 10 * d * 0.72), s)
         }
-        if !g.values.isEmpty {
+        if !values.isEmpty {
             rec.add("chart.values", CGRect(x: right, y: top, width: area.maxX - right, height: plotBottom - top),
-                    g.values.map { String($0.0) }.joined(separator: ",") + " [w" + CardLayout.dp(area.maxX - right, d) + "]")
+                    values.map { String($0.0) }.joined(separator: ",") + " [w" + CardLayout.dp(area.maxX - right, d) + "]")
         }
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
@@ -924,7 +953,7 @@ enum GlucoseGraph {
                 ctx.setStrokeColor(c.a(0.75))
                 ctx.strokeLineSegments(between: [CGPoint(x: x(pts[i - 1].t), y: y(Double(pts[i - 1].sgv))), CGPoint(x: px, y: py)])
             }
-            if i == pts.count - 1 {
+            if i == pts.count - 1 && p.t >= (latestT ?? -.infinity) {
                 // the gap around the latest dot: background-coloured, or (tinted) cut out of the lines and band below
                 ctx.saveGState()
                 if pal.knockout { ctx.setBlendMode(.destinationOut) }
@@ -940,18 +969,22 @@ enum GlucoseGraph {
 
         // The distribution: its outline erased from the lines (the widgets are transparent, so no background-colour
         // stroke), then its dots.
-        let rows = sideW > 0 ? profileRows(GlucoseStats.timeAtLevel(readings, from: from, to: now, bands: b, tir: tir), b, pal,
+        let rows = sideW > 0 ? profileRows(GlucoseStats.timeAtLevel(pts, from: from, to: end, bands: b, tir: tir), b, pal,
                                            left: left, sideW: sideW, top: top, bottom: plotBottom, yMin: yMin, yMax: yMax, d: d) : []
         if !rows.isEmpty {
             ctx.saveGState()
             ctx.setBlendMode(.destinationOut)
-            let h = (Self.profileR + Self.profileGap) * d
+            let h = (Self.profileR + Self.profileCut) * d
             for row in rows {
-                ctx.addPath(CGPath(roundedRect: CGRect(x: area.minX, y: row.cy - h, width: row.endX + Self.profileGap * d - area.minX, height: 2 * h),
+                ctx.addPath(CGPath(roundedRect: CGRect(x: area.minX, y: row.cy - h, width: row.endX + Self.profileCut * d - area.minX, height: 2 * h),
                                    cornerWidth: h, cornerHeight: h, transform: nil))
             }
             ctx.fillPath()
             ctx.restoreGState()
+            // the outline as erased and the dots it surrounds (LayoutSelfTest checks the margin: layout/rules.json "distribution")
+            let top0 = rows.map(\.cy).min()!, bottom0 = rows.map(\.cy).max()!, endX = rows.map(\.endX).max()!
+            rec.add("chart.distribution.cut", CGRect(x: area.minX, y: top0 - h, width: endX + Self.profileCut * d - area.minX, height: bottom0 - top0 + 2 * h))
+            rec.add("chart.distribution.dots", CGRect(x: left, y: top0 - Self.profileR * d, width: endX - left, height: bottom0 - top0 + 2 * Self.profileR * d))
         }
         ctx.endTransparencyLayer()
         if !rows.isEmpty { rec.add("chart.distribution", CGRect(x: left, y: top, width: sideW, height: plotBottom - top)) }
@@ -1004,6 +1037,32 @@ enum GlucoseGraph {
                                 layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
                                 now: now, muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
         }
+        // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
+        // with `view.now`; the surface makes its box (chart.now) clickable.
+        if let view, view.now > 0 {
+            let ph = Self.nowPill * d, look = StatusBadge.backToNow
+            let pw = StatusBadge.width(look, h: ph)
+            let px = right - pw - Self.nowInset * d, py = top + Self.nowInset * d
+            ctx.saveGState()
+            ctx.setAlpha(min(max(view.now, 0), 1))
+            ctx.beginTransparencyLayer(in: CGRect(x: px, y: py, width: pw, height: ph), auxiliaryInfo: nil)
+            StatusBadge.draw(ctx, x: px, y: py, h: ph, maxW: pw, look, dark: pal.dark, knockout: pal.knockout)
+            ctx.endTransparencyLayer()
+            ctx.restoreGState()
+            rec.add("chart.now", CGRect(x: px, y: py, width: pw, height: ph), look.text)
+        }
+    }
+
+    /// The Now pill's height and its distance from the plot's top-right corner (pt; GlucoseGraph.kt `NOW_PILL_DP`, `NOW_INSET_DP`).
+    static let nowPill: CGFloat = 22, nowInset: CGFloat = 4
+
+    /// The y range (mg/dL) of a window with the readings `pts` in it: it always reaches the very low / very high limits,
+    /// so their lines always show, and every reading with a margin. The user's own lines don't change it: one outside
+    /// the range isn't drawn. GlucoseGraph.kt `yRange`.
+    static func yRange(_ pts: [GraphReading], bands b: Bands) -> ClosedRange<Double> {
+        let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
+        return max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
+            ... min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
     }
 
     /// Height of the sensor badge in the hour-label row (GlucoseGraph.kt `SENSOR_DP`).
@@ -1032,8 +1091,10 @@ enum GlucoseGraph {
     /// Treatment label lanes for a chart `h` tall: a second one from `TreatmentMarks.twoLanesH`.
     static func lanes(_ h: CGFloat, d: CGFloat) -> Int { h >= TreatmentMarks.twoLanesH * d ? 2 : 1 }
 
-    /// The distribution's dots: rows `profilePitch` apart, dots of radius `profileR`; its outline is `profileGap` wider.
-    private static let profilePitch: CGFloat = 3.6, profileR: CGFloat = 1.35, profileGap: CGFloat = 1.6
+    /// The distribution's dots: rows `profilePitch` apart, dots of radius `profileR`; the outline erased around them is
+    /// `profileCut` wider (the user, 2026-10-21: "more outline so it masks out more of the content behind"; was 1.6).
+    /// The same numbers as layout/rules.json "distribution" (LayoutSelfTest, Android CardLayoutTest).
+    static let profilePitch: CGFloat = 3.6, profileR: CGFloat = 1.35, profileCut: CGFloat = 3
 
     /// One row of the distribution: `n` dots centred on `cy`, the last one ending at `endX`.
     private struct ProfileRow { var cy: CGFloat; var n: Int; var color: CGColor; var endX: CGFloat }
@@ -1150,6 +1211,9 @@ enum TreatmentMarks {
             ctx.setStrokeColor(c); ctx.setLineWidth(r * 0.26)
             ctx.strokeEllipse(in: CGRect(x: x - r * 0.8, y: y - r * 0.8, width: r * 1.6, height: r * 1.6))
             ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: x - r * 0.3, y: y - r * 0.3, width: r * 0.6, height: r * 0.6))
+        case "now":   // the "Now" pill over a scrolled chart (StatusBadge.backToNow): SF Symbol arrow.right (Android: Material arrow_forward)
+            let size = r * 2.2
+            _ = SensorBadge.symbol(ctx, "arrow.right", x: x - size / 2, y: y - size / 2, size: size, color: c)
         default:
             let p = CGMutablePath(), q = r * 0.67
             p.move(to: CGPoint(x: x, y: y - q)); p.addLine(to: CGPoint(x: x + q, y: y))
@@ -1761,6 +1825,8 @@ enum StatusBadge {
 
     /// The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc).
     static let replaceSensor = Look(kind: "sensor", text: "Replace sensor", short: "Sensor", tonal: false)
+    /// The pill over a scrolled chart (GlucoseGraph, `ChartView.now`): the same pill, kind "now" (neutral colour, arrow).
+    static let backToNow = Look(kind: "now", text: "Now", short: "Now", tonal: false)
 
     static func look(_ s: AlertStatus, now: TimeInterval) -> Look? {
         switch s {
@@ -2324,7 +2390,7 @@ enum GlucoseCard {
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1, surface: CardSurface, part: CardPart,
                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
-                     paused: [String: TimeInterval] = [:]) -> CardLayout {
+                     paused: [String: TimeInterval] = [:], view: ChartView? = nil) -> CardLayout {
         let w = size.width, h = size.height
         let rec = CardLayout(surface, part, st, w: w, h: h, d: d)
         defer { observer?(rec) }
@@ -2359,7 +2425,7 @@ enum GlucoseCard {
             : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
         if part == .all || part == .graph, let graph {
             GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
-                              sensor: spot == .graph ? sl : nil, rec: rec)
+                              sensor: spot == .graph ? sl : nil, rec: rec, view: view, latestT: latest?.t)
         }
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
@@ -2374,6 +2440,12 @@ enum GlucoseCard {
                       bands, pal, d: d, look: look, sensor: sl, rec: rec)
         }
         return rec
+    }
+
+    /// The y range (mg/dL) the chart of `st` draws for the window ending at `end` (`GlucoseGraph.yRange`): a scrolling
+    /// surface animates `ChartView.y` towards it, so the scale never jumps (GlucoseCard.kt `yRange`).
+    static func yRange(_ readings: [GraphReading], end: TimeInterval, _ st: GraphStyle) -> ClosedRange<Double> {
+        GlucoseGraph.yRange(GlucoseStats.window(readings, from: end - st.window - 60, to: end), bands: st.bands.sane())
     }
 
     /// The value's decision for the newest reading `latest` (GlucoseCard.face on Android): a warming-up or ended

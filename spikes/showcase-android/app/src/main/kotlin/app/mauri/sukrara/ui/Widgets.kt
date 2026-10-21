@@ -92,6 +92,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.Surface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.scrollableArea
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.customActions
 
 /** Seconds since epoch, refreshed every [everyMs] while composed. */
 @Composable
@@ -128,16 +137,27 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
     val hours = cfg.hours(GraphPlace.APP)
+    val scroll = remember { ChartScroll() }
     // History for the chart: from the role's store, again for every new reading / setting / 5 min.
-    val history by produceState(emptyList<Reading>(), t, hours, now / 300) {
+    val recent by produceState(emptyList<Reading>(), t, hours, now / 300) {
         value = withContext(Dispatchers.IO) { GraphData.readings(ctx, Proto.nowS() - hours * 3600L - 60) }
+    }
+    // Everything older, once the chart is first scrolled (the store's whole history: 31 days on the wearer's phone).
+    var older by remember { androidx.compose.runtime.mutableStateOf(emptyList<Reading>()) }
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { scroll.endS != null }.first { it }
+        older = withContext(Dispatchers.IO) { GraphData.readings(ctx, 0) }
+    }
+    val history = remember(older, recent) {
+        val start = recent.firstOrNull()?.t ?: Long.MAX_VALUE
+        if (older.isEmpty()) recent else older.filter { it.t < start } + recent
     }
     // The slots' numbers, off the main thread (multi-day windows come from the database); the card reads them.
     val windows = (cfg.rings() + listOfNotNull(cfg.lastElseRing())).map { it.windowS }.distinct()
     val metrics by produceState(emptyMap<Long, GlucoseMetrics>(), t, cfg, now / 300) {
         value = withContext(Dispatchers.IO) { windows.associateWith { GraphData.metrics(ctx, it, cfg.bands) } }
     }
-    PanelCard(reading, history, treatments, now, cfg, pal, alerts, paused, sensor, countdownH,
+    PanelCard(reading, history, treatments, now, cfg, pal, alerts, paused, sensor, countdownH, scroll = scroll,
         metricsOf = { s, _ -> metrics[s.windowS] ?: GlucoseMetrics.of(emptyList(), 0, 0, cfg.bands) },
         onEnded = if (app.mauri.sukrara.App.role(ctx) == "owner") ({ ctx.startActivity(MainActivity.sensorIntent(ctx)) }) else null) {
         subtitle?.let { Text(it, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -161,6 +181,7 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
               cfg: app.mauri.sukrara.graph.GraphConfig, pal: GraphPalette, alerts: app.mauri.sukrara.alerts.AlertSettings,
               paused: Map<String, Long>, sensor: app.mauri.sukrara.core.SensorInfo?, countdownH: Int,
               metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, onEnded: (() -> Unit)?,
+              scroll: ChartScroll = remember { ChartScroll() },
               footer: @Composable () -> Unit = {}) {
     val ctx = LocalContext.current
     val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.APP)),
@@ -207,17 +228,122 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
             }
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
-                Canvas(Modifier.fillMaxWidth().height(PANEL_CHART_DP.dp)) {
-                    drawIntoCanvas {
-                        GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
-                            CardSurface.APP_PANEL, CardPart.GRAPH, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
-                            countdownH = countdownH, paused = paused)
-                    }
-                }
+                ScrollingChart(readings, treatments, now, card, pal, alerts, paused, sensor, countdownH, metricsOf, scroll)
             }
             footer()
         }
     }
+}
+
+/**
+ * Where the panel's chart is scrolled to: the end of its window ([endS], epoch s; null = live, following now). Hoisted
+ * so the panel keeps it across recompositions and the tests can open the panel scrolled.
+ */
+@androidx.compose.runtime.Stable
+class ChartScroll(endS: Long? = null) {
+    var endS by androidx.compose.runtime.mutableStateOf(endS)
+        private set
+    /** The exact end while dragging (sub-second steps add up). */
+    private var exact: Double? = endS?.toDouble()
+
+    /** Move the end by [dt] s, kept within [minEnd]..[now] (at [now] the chart follows now again); returns the seconds moved. */
+    fun by(dt: Double, minEnd: Long, now: Long): Double {
+        val cur = exact ?: now.toDouble()
+        val next = (cur + dt).coerceIn(minOf(minEnd, now).toDouble(), now.toDouble())
+        exact = if (next >= now) null else next
+        endS = exact?.toLong()
+        return next - cur
+    }
+}
+
+/**
+ * The panel's chart, scrollable through the stored history (the user, 2026-10-21): a horizontal drag or fling with the
+ * platform's own scroll physics and overscroll ([scrollableArea], which the Compose guidance names for custom scroll
+ * containers: developer.android.com/develop/ui/compose/touch-input/pointer-input/scroll; the default fling decay and
+ * the system's stretch overscroll). The renderer draws the window it's given ([ChartView]), so the line, the
+ * distribution and %, the hour labels and the treatments are all about what's visible; the y range animates towards
+ * the window's own (no jumps). Away from now the renderer's "Now" pill shows; a tap on it scrolls back.
+ */
+@Composable
+private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.sukrara.treatments.Treatment>, now: Long,
+                           card: CardStyle, pal: GraphPalette, alerts: app.mauri.sukrara.alerts.AlertSettings,
+                           paused: Map<String, Long>, sensor: app.mauri.sukrara.core.SensorInfo?, countdownH: Int,
+                           metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, scroll: ChartScroll) {
+    val graph = card.graph ?: return
+    val windowS = graph.windowS
+    val latestNow = androidx.compose.runtime.rememberUpdatedState(now)
+    // the earliest window end: the first stored reading at the left edge
+    val minEnd = (readings.firstOrNull()?.t ?: now) + windowS
+    val minEndState = androidx.compose.runtime.rememberUpdatedState(minEnd)
+    // what the last drawing laid out: the plot's width (px per second of drag) and the Now pill's box (taps)
+    val laid = remember { ChartGeometry() }
+    val state = androidx.compose.foundation.gestures.rememberScrollableState { delta ->
+        // scrollableArea's delta: positive = forward (towards now), in px of the plot
+        val spp = windowS / laid.plotW.coerceAtLeast(1f).toDouble()
+        (scroll.by(delta * spp, minEndState.value, latestNow.value) / spp).toFloat()
+    }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val away by remember(scroll) { androidx.compose.runtime.derivedStateOf { scroll.endS != null } }
+    val pill = animateFloatAsState(if (away) 1f else 0f, Motion.defaultEffectsSpec(), label = "now pill")
+    // The y range: the window's own, animated (critically damped at the spatial spring's stiffness: a scale that
+    // bounced would read as the data moving).
+    val y = remember { Animatable(GlucoseCard.yRange(readings, scroll.endS ?: now, graph).let { Offset(it.first, it.second) }, Offset.VectorConverter) }
+    val readingsState = androidx.compose.runtime.rememberUpdatedState(readings)
+    LaunchedEffect(graph, scroll) {
+        androidx.compose.runtime.snapshotFlow {
+            GlucoseCard.yRange(readingsState.value, scroll.endS ?: latestNow.value, graph).let { Offset(it.first, it.second) }
+        }.collectLatest { y.animateTo(it, androidx.compose.animation.core.spring(1f, 380f)) }
+    }
+    // The plot's bottom (px above the chart's bottom): the layout's, eased the same way, so the treatment lane that
+    // comes and goes with the marks in the window doesn't make the plot jump.
+    val inset = remember { Animatable(Float.NaN) }
+    LaunchedEffect(scroll) {
+        androidx.compose.runtime.snapshotFlow { laid.insetTarget }.collectLatest { t ->
+            if (t.isNaN()) return@collectLatest
+            if (inset.value.isNaN() || scroll.endS == null && !inset.isRunning) inset.snapTo(t)
+            else inset.animateTo(t, androidx.compose.animation.core.spring(1f, 380f))
+        }
+    }
+    val backToNow = stringResource(R.string.chart_back_to_now)
+    // back to now: the whole way in px of the plot, with the spatial spring (stops exactly at now: the end is clamped)
+    fun back() {
+        val end = scroll.endS ?: return
+        val spp = windowS / laid.plotW.coerceAtLeast(1f).toDouble()
+        scope.launch { state.animateScrollBy(((latestNow.value - end) / spp).toFloat() + 1f, Motion.defaultSpatialSpec()) }
+    }
+    Canvas(Modifier.fillMaxWidth().height(PANEL_CHART_DP.dp).testTag("panel-chart")
+        .scrollableArea(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
+        .pointerInput(Unit) {
+            detectTapGestures { p ->
+                if (scroll.endS != null && laid.now?.contains(p.x, p.y) == true) back()
+            }
+        }
+        .semantics {
+            if (scroll.endS != null) customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction(backToNow) {
+                back(); true
+            })
+        }) {
+        val end = scroll.endS
+        val view = if (end == null && pill.value == 0f && !y.isRunning && !inset.isRunning) null
+            else app.mauri.sukrara.graph.ChartView(end ?: now, y.value.x to y.value.y, pill.value, inset.value.takeIf { !it.isNaN() })
+        drawIntoCanvas {
+            val rec = GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
+                CardSurface.APP_PANEL, CardPart.GRAPH, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
+                countdownH = countdownH, paused = paused, view = view)
+            rec.first("chart.plot")?.box?.let { b -> laid.plotW = b.width() }
+            laid.now = rec.first("chart.now")?.box
+            val area = rec.first("chart")?.box
+            rec.first("chart.plot.natural")?.box?.let { b -> if (area != null) laid.insetTarget = area.bottom - b.bottom }
+        }
+    }
+}
+
+/** What the panel's chart last laid out (plain fields: written while drawing, read by the gestures). */
+private class ChartGeometry {
+    var plotW = 0f
+    var now: RectF? = null
+    /** Where the layout ends the plot (px above the chart's bottom): a state, so the easing follows it. */
+    var insetTarget by androidx.compose.runtime.mutableFloatStateOf(Float.NaN)
 }
 
 @Composable

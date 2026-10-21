@@ -338,6 +338,8 @@
     <string name="badge_replace_sensor">Cambiar sensor</string>
     <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
     <string name="badge_replace_sensor_short">Sensor</string>
+    <!-- Chart: the pill over a chart scrolled into the past; a tap scrolls back to the latest reading [CHAR LIMIT=10] -->
+    <string name="chart_back_to_now">Ahora</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
     <string name="card_warming_up">Calentando</string>
     <!-- Value card: when the first reading is due; %1$s = a time like 19:45 [CHAR LIMIT=24] -->
