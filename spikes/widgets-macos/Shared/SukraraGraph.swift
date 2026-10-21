@@ -1597,6 +1597,9 @@ enum StatusBadge {
         case .taken(_, let tr, let until):
             let d = TreatmentMarks.duration(until - now, up: true)
             return Look(kind: tr.k, text: "\(d) left", short: d, tonal: true)
+        case .paused(let k, let until):     // muted from the notification: the colour of what answers it
+            let d = TreatmentMarks.duration(until - now, up: true)
+            return Look(kind: k.lowSide ? "carbs" : "rapid", text: "\(d) left", short: d, tonal: true)
         }
     }
 
@@ -1605,7 +1608,8 @@ enum StatusBadge {
         switch s {
         case .none: nil
         case .needed: look(s, now: now)?.text
-        case .taken(let k, _, let until): "\(k.title): alerts paused, \(TreatmentMarks.duration(until - now, up: true)) left"
+        case .taken(let k, _, let until), .paused(let k, let until):
+            "\(k.title): alerts paused, \(TreatmentMarks.duration(until - now, up: true)) left"
         }
     }
 
@@ -2107,10 +2111,11 @@ enum GlucoseCard {
     /// `alerts` = the alert rules behind the badge, the mute lines and the last-treatment slot (nil = none of them).
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1,
-                     metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil, part: CardPart = .all) {
+                     metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
+                     paused: [String: TimeInterval] = [:], part: CardPart = .all) {
         let w = size.width, h = size.height
         let latest = readings.max { $0.t < $1.t }
-        let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now) } ?? .none
+        let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now, paused: paused) } ?? .none
         let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
         let fr = Freshness.of(age: latest.map { now - $0.t })
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
@@ -2339,7 +2344,7 @@ enum GlucoseCard {
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                       _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil,
                       metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
-                      overflow: CGFloat = 0) -> CGImage? {
+                      paused: [String: TimeInterval] = [:], overflow: CGFloat = 0) -> CGImage? {
         let pw = max(16, Int((size.width + 2 * overflow) * scale)), ph = max(16, Int((size.height + 2 * overflow) * scale))
         guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -2348,7 +2353,7 @@ enum GlucoseCard {
         ctx.scaleBy(x: scale, y: -scale)
         ctx.translateBy(x: overflow, y: overflow)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
-        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf, alerts: alerts)
+        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf, alerts: alerts, paused: paused)
         return ctx.makeImage()
     }
 }

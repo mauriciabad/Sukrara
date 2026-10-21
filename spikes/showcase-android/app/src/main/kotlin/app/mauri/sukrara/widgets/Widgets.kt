@@ -206,7 +206,8 @@ private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<ap
     val f = Freshness.of(now - r.t)
     if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
     val badge = treatments?.let {
-        app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now), now)
+        app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
+            app.mauri.sukrara.alerts.Alerts.paused.value), now)
     }
     val value = if (f.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
         else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))

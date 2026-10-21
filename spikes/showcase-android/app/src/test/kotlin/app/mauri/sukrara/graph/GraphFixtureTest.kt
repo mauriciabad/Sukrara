@@ -30,6 +30,7 @@ class GraphFixtureTest {
         AlertStatus.None -> "none"
         is AlertStatus.Needed -> "needed:${s.kind}"
         is AlertStatus.Taken -> "taken:${s.kind}:${s.treatment.id}"
+        is AlertStatus.Paused -> "paused:${s.kind}"
     }
 
     @Test fun fixtures() {
@@ -50,9 +51,12 @@ class GraphFixtureTest {
                     }
                 }
                 val e = c.getJSONObject("expect")
-                val st = AlertStatus.of(r, settings, trs, now)
+                // the alert notification's Mute in force: side → seconds from now
+                val paused = c.optJSONObject("paused")?.let { p -> p.keys().asSequence().associateWith { now + p.getLong(it) } } ?: emptyMap()
+                val st = AlertStatus.of(r, settings, trs, now, paused)
                 assertEquals("$name: status", e.getString("status"), status(st))
                 if (st is AlertStatus.Taken) assertEquals("$name: until", now + e.getLong("until"), st.until)
+                if (st is AlertStatus.Paused) assertEquals("$name: until", now + e.getLong("until"), st.until)
                 val look = StatusBadge.look(st, now)
                 val badge = e.optJSONObject("badge")
                 if (badge == null) assertEquals("$name: badge", null, look)

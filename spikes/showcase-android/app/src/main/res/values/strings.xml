@@ -434,6 +434,14 @@
     <string name="alert_headline_no_data">No glucose data</string>
     <!-- Alert headline with what was already logged; %1$s = headline (e.g. Low glucose), %2$s = alert_context_* [CHAR LIMIT=60] -->
     <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <!-- Notification button: mute this alert for N minutes. [CHAR LIMIT=20] -->
+    <string name="alert_action_mute">Mute %1$d min</string>
+    <!-- Notification button: repeat this alert only every N minutes. [CHAR LIMIT=20] -->
+    <string name="alert_action_slow">Slow to %1$d min</string>
+    <!-- Notification button: mute this alert for minutes the user types. [CHAR LIMIT=20] -->
+    <string name="alert_action_mute_for">Mute for…</string>
+    <!-- Hint in the reply field of Mute for…: how many minutes. [CHAR LIMIT=20] -->
+    <string name="alert_action_mute_for_label">Minutes</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">eat more</string>
     <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
@@ -1033,6 +1041,16 @@
     <string name="alerts_quiet_carbs">After carbs</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
     <string name="alerts_quiet_carbs_summary">Lows and falling fast wait %1$d min</string>
+    <!-- Settings group: what the alert notification's buttons do. [CHAR LIMIT=40] -->
+    <string name="alerts_group_actions">From the notification</string>
+    <!-- Setting: how long the notification's Mute button silences the alert. [CHAR LIMIT=40] -->
+    <string name="alerts_action_mute">Mute</string>
+    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
+    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high always alert</string>
+    <!-- Setting: the slower reminder interval the notification's Slow down button sets. [CHAR LIMIT=40] -->
+    <string name="alerts_action_slow">Slow down</string>
+    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
+    <string name="alerts_action_slow_summary">Reminders every %1$d min until back in range</string>
     <!-- The set of sounds the alerts use. [CHAR LIMIT=40] -->
     <string name="alerts_sound_pack">Sound pack</string>
     <!-- Sound option: the sound pack's sound. %1$s = pack name. [CHAR LIMIT=60] -->
@@ -1897,6 +1915,8 @@
     <string name="alerts_quiet_reason_carbs">carbs %1$d min ago</string>
     <!-- Why a high alert is quiet; %1$d = minutes until back in range [CHAR LIMIT=40] -->
     <string name="alerts_quiet_reason_falling">falling, back in range in ~%1$d min</string>
+    <!-- Why an alert is quiet: the notification's Mute. %1$d = minutes left. [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_reason_notification">muted from the notification, %1$d min left</string>
     <!-- Lately list: an alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
     <string name="alerts_note_fired">%1$s · %2$s mg/dL</string>
     <!-- Lately list (follower): the wearer\'s alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
@@ -1905,6 +1925,10 @@
     <string name="alerts_note_cleared">%1$s cleared</string>
     <!-- Lately list (follower); %1$s = alert name [CHAR LIMIT=NONE] -->
     <string name="alerts_note_cleared_remote">%1$s cleared (by the wearer)</string>
+    <!-- Recent alert history: muted from the notification. %1$s = alert name, %2$d = minutes. [CHAR LIMIT=60] -->
+    <string name="alerts_note_muted">%1$s muted for %2$d min</string>
+    <!-- Recent alert history: slowed down from the notification. %1$s = alert name, %2$d = minutes. [CHAR LIMIT=60] -->
+    <string name="alerts_note_slowed">%1$s every %2$d min</string>
     <!-- Lately list: alerts shown again silently after a restart; %1$s = alert names [CHAR LIMIT=NONE] -->
     <string name="alerts_note_resumed">Resumed %1$s (no sound)</string>
     <!-- Lately list: a test alert; %1$s = the line [CHAR LIMIT=NONE] -->

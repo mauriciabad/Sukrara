@@ -25,6 +25,7 @@ import kotlin.math.min
  *   (high side).
  * - Taken: the same pill, tonal (the colour at low alpha, text in the colour), with the "notifications paused" bell and
  *   the time left of the mute ("45m left"): alerts wait while the treatment works.
+ * - Paused (muted from the alert notification): the same tonal pill and time left.
  *
  * One look on every surface: the widgets and the lock screen draw it here, the app's panel with Compose
  * (`ui/Widgets.kt`, the same colours and words from [look]).
@@ -40,6 +41,9 @@ object StatusBadge {
                 if (s.kind in Kind.LOW_SIDE) Look("carbs", w.eatCarbs, w.carbsShort, false) else Look("rapid", w.takeInsulin, w.insulinShort, false)
             }
         is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
+        // muted from the notification: the colour of what answers it (carbs for lows, insulin for highs)
+        is AlertStatus.Paused -> TreatmentMarks.duration(s.until - now, up = true)
+            .let { Look(if (s.kind in Kind.LOW_SIDE) "carbs" else "rapid", Words.current.timeLeft.format(it), it, true) }
     }
 
     /** The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc). */
@@ -50,6 +54,7 @@ object StatusBadge {
         AlertStatus.None -> null
         is AlertStatus.Needed -> look(s, now)?.text
         is AlertStatus.Taken -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
+        is AlertStatus.Paused -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
     }
 
     /** Material Symbols "notifications_paused" (Apache 2.0), viewBox 0 -960 960 960; also `ic_sym_notifications_paused`. */
@@ -333,7 +338,8 @@ fun appSlots(c: android.content.Context, readings: List<app.mauri.sukrara.core.R
     val bands = cfg.bands.sane()
     val alerts = app.mauri.sukrara.alerts.Alerts.settings.value
     val last = if (cfg.lastPlace == LastPlace.OFF) null
-        else LastTreatment.of(treatments, alerts, AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, nowS), nowS)
+        else LastTreatment.of(treatments, alerts, AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, nowS,
+            app.mauri.sukrara.alerts.Alerts.paused.value), nowS)
     fun metrics(s: RingSpec) = GraphData.metrics(c, s.windowS, bands, nowS).takeIf { it.tir.coverage >= GlucoseCard.MIN_COVERAGE }
     val rings = cfg.rings().take(3).mapIndexedNotNull { i, s -> metrics(s)?.let { Triple(i, s, it) } }
     val fallback = if (cfg.lastPlace != LastPlace.OFF && last == null) cfg.lastElseRing()?.let { s -> metrics(s)?.let { s to it } } else null

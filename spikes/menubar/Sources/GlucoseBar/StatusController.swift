@@ -50,6 +50,8 @@ extension Bands {
     var treatments: (() -> [Treatment])?
     /// The alert rules behind the card's badge, mute lines and last-treatment slot (AlertRules.swift).
     var alertSettings: (() -> AlertSettings)?
+    /// Muted from an alert notification (side → until): the badge under the value.
+    var alertPaused: (() -> [String: TimeInterval])?
     var onLogTreatment: ((Treatment) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
@@ -222,6 +224,7 @@ extension Bands {
         st.sensor = SensorStore.current
         panelModel.style = st
         panelModel.alerts = alertSettings?()
+        panelModel.paused = alertPaused?() ?? [:]
         panelModel.readings = pts
         panelModel.tick += 1
     }
@@ -252,6 +255,7 @@ extension Bands {
     /// The alert settings changed: the badge, the mute lines and the slot follow them.
     func alertsChanged() {
         panelModel.alerts = alertSettings?()
+        panelModel.paused = alertPaused?() ?? [:]
     }
 
     private func renderTreatments() {
@@ -304,6 +308,7 @@ final class CardView: NSView {
     var style = CardStyle()
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
+    var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
@@ -321,7 +326,7 @@ final class CardView: NSView {
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
         GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, metricsOf: metricsOf, alerts: alerts)
+                         style, pal, metricsOf: metricsOf, alerts: alerts, paused: paused)
         ctx.restoreGState()
     }
 

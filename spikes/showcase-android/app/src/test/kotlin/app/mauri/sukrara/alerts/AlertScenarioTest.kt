@@ -86,6 +86,8 @@ object AlertScenarios {
             "alerts" -> s.copy(on = v == "on")
             "carbs.mute" -> if (v == "off") s.copy(muteCarbs = false) else s.copy(muteCarbs = true, muteCarbsMin = min())
             "insulin.mute" -> if (v == "off") s.copy(muteInsulin = false) else s.copy(muteInsulin = true, muteInsulinMin = min())
+            "mute.min" -> s.copy(actionMuteMin = min())
+            "slow.min" -> s.copy(slowMin = min())
             "falling.mute" -> if (v == "off") s.copy(muteFalling = false) else s.copy(muteFalling = true, muteFallingMin = min())
             else -> {
                 val kind = k.substringBefore('.')
@@ -153,6 +155,9 @@ object AlertScenarios {
                         trs[i] = trs[i].copy(del = true)
                         check()
                     }
+                    // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
+                    "mute" -> record(e.mute(w[1], w.getOrNull(2)?.toInt() ?: s.actionMuteMin, s, AlertEngine.doses(trs), t))
+                    "slow" -> record(e.slow(w[1], s, AlertEngine.doses(trs), t))
                     "set" -> { s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }; check() }
                     "restart" -> {
                         val saved = JSONObject(e.snapshot().toString())

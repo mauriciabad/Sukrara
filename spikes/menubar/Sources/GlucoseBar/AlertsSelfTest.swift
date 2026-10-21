@@ -84,7 +84,7 @@ enum AlertsSelfTest {
                                                                          && $0.source == "wearer" && $0.sounds.pack == "quest" && $0[.low] == AlertKind.low.defaultRule } ?? false)
         let out = (try? JSONSerialization.jsonObject(with: Data(AlertSettings().json.utf8))) as? [String: Any] ?? [:]
         let keys = Set(out.keys), ruleKeys = Set(((out["alerts"] as? [String: Any])?["no_data"] as? [String: Any] ?? [:]).keys)
-        check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds", "source"]
+        check("written JSON has the §3 keys", keys == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds", "notificationActions", "source"]
               && ruleKeys == ["on", "min", "repeatMin", "alarm"], "\(keys) \(ruleKeys)")
         check("very low and extremely high default to alarm, the rest to notification", AlertSettings()[.veryLow].alarm
               && AlertSettings()[.extremelyHigh].alarm && !AlertSettings()[.low].alarm && !AlertSettings()[.high].alarm && !AlertSettings()[.noData].alarm)
@@ -258,6 +258,8 @@ enum AlertScenarios {
         case "carbs.mute": s.muteAfterCarbs = v == "off" ? AlertMute(on: false, min: s.muteAfterCarbs.min) : mute
         case "insulin.mute": s.muteAfterInsulin = v == "off" ? AlertMute(on: false, min: s.muteAfterInsulin.min) : mute
         case "falling.mute": s.muteFallingHigh = v == "off" ? AlertMute(on: false, min: s.muteFallingHigh.min) : mute
+        case "mute.min": s.notificationActions.muteMin = Int(v)!
+        case "slow.min": s.notificationActions.slowMin = Int(v)!
         default:
             let parts = k.split(separator: ".", maxSplits: 1).map(String.init)
             guard let kind = AlertKind(rawValue: parts[0]) else { fatalError("unknown setting \(kv)") }
@@ -320,6 +322,9 @@ enum AlertScenarios {
                     let k = w[1] == "carbs" ? "carbs" : "rapid"
                     if let i = trs.lastIndex(where: { $0.k == k && !$0.del }) { trs[i].del = true }
                     e.tick()
+                // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
+                case "mute": e.mute(AlertKind(rawValue: w[1])!, min: w.count > 2 ? Int(w[2])! : s.notificationActions.muteMin)
+                case "slow": e.slow(AlertKind(rawValue: w[1])!)
                 case "set":
                     for kv in w.dropFirst() { set(&s, kv) }
                     e.settings = s

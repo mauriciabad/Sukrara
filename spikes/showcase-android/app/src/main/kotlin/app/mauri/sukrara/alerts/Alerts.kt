@@ -39,6 +39,11 @@ object Alerts {
     val settings: StateFlow<AlertSettings> = _settings
     /** group → state, for the settings screen's "now" line. */
     val state = MutableStateFlow<Map<String, AlertEngine.State>>(emptyMap())
+    /**
+     * Side ("low", "high", …) → until (epoch s): muted from the alert notification (*Mute*), here or on the wearer's
+     * phone. The badge under the value shows it (AlertStatus.Paused).
+     */
+    val paused = MutableStateFlow<Map<String, Long>>(emptyMap())
     /** What happened lately, newest first (settings screen + DebugReceiver). */
     val history = MutableStateFlow<List<AlertNote>>(emptyList())
 
@@ -51,6 +56,16 @@ object Alerts {
     /** group → id of the alert whose notification is showing (a clear only removes its own firing). */
     private val posted = HashMap<String, String>()
     private val seenRemote = LinkedHashSet<String>()
+    /** group → what its notification shows, to post it again (without sound) after *Slow down* or a bad typed time. */
+    private val shown = HashMap<String, Shown>()
+    private data class Shown(val kind: String, val sgv: Int?, val rate: Double?, val th: Double, val at: Long, val treated: Int)
+    /**
+     * Mirroring the wearer: the notification actions in force per side, from the wearer's `snooze` events and from
+     * this phone's own taps (they quiet the wearer's alerts here only); a new episode on the wearer (n = 1) ends them.
+     */
+    private val mirrorSnooze = HashMap<String, AlertEngine.Snooze>()
+    /** Mirroring: group → when and which kind this phone last showed (Slow down spaces the wearer's repeats). */
+    private val lastMirrored = HashMap<String, Pair<Long, String>>()
     /** Once per process: the saved episodes are read back on the first attach. */
     private var resumed = false
 
@@ -84,11 +99,11 @@ object Alerts {
             ?.let { runCatching { JSONObject(it) }.getOrNull() }?.takeIf { it.optString("role") == role } ?: return
         val shown = runCatching { engine.restore(j.getJSONObject("episodes"), _settings.value, Proto.nowS()) }.getOrElse { return }
         for (f in shown) {
-            AlertNotifier.post(ctx, f.kind, f.reading?.sgv, f.reading?.rate, f.th, f.at, who, _settings.value.cfg(f.kind).alarm, f.treated,
-                silent = true)
+            show(ctx, Shown(f.kind, f.reading?.sgv, f.reading?.rate, f.th, f.at, f.treated), silent = true)
             posted[Kind.group(f.kind)] = f.id
         }
         if (shown.isNotEmpty()) note(AlertNote(Proto.nowS(), AlertNote.RESUMED, shown.map { it.kind }))
+        paused.value = enginePaused()
     }
 
     @Synchronized fun detach() { role = null; publish = null; cancelTimer() }
@@ -144,7 +159,7 @@ object Alerts {
     private fun apply(ctx: Context, actions: List<AlertEngine.Action>) {
         for (a in actions) when (a) {
             is AlertEngine.Fire -> {
-                AlertNotifier.post(ctx, a.kind, a.reading?.sgv, a.reading?.rate, a.th, a.at, who, _settings.value.cfg(a.kind).alarm, a.treated)
+                show(ctx, Shown(a.kind, a.reading?.sgv, a.reading?.rate, a.th, a.at, a.treated))
                 posted[Kind.group(a.kind)] = a.id
                 note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(a.kind), a.treated, a.n, a.reading?.sgv))
                 publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n, a.treated))
@@ -156,12 +171,72 @@ object Alerts {
             }
         }
         state.value = engine.states()
+        paused.value = enginePaused() + mirrorPaused()
         // A mute ending between two readings fires from the timer: redraw the widgets now, or their last-treatment
         // ring still shows the minute left from the last reading while the alert sounds.
         if (actions.isNotEmpty()) SukraraHooks.refresh(ctx, "alerts", force = true)
         role?.let { r -> ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(EPISODES, JSONObject().put("role", r).put("episodes", engine.snapshot()).toString()).apply() }
         schedule(ctx)
+    }
+
+    /** Posts [x] with the notification actions that apply to it now, and remembers it for [repost]. */
+    private fun show(ctx: Context, x: Shown, silent: Boolean = false) {
+        val s = _settings.value
+        shown[Kind.group(x.kind)] = x
+        val slowed = if (mirrors(x.kind)) (mirrorSnooze[Kind.side(x.kind)]?.slowMin ?: 0) > 0 else engine.slowed(x.kind)
+        val rep = s.cfg(x.kind).repeatMin
+        val acts = AlertNotifier.Actions(mute = x.kind !in Kind.ALWAYS, muteMin = s.actionMuteMin,
+            slowMin = s.slowMin.takeIf { !slowed && (mirrors(x.kind) || rep in 1 until s.slowMin) })
+        AlertNotifier.post(ctx, x.kind, x.sgv, x.rate, x.th, x.at, who, s.cfg(x.kind).alarm, x.treated, silent, acts)
+    }
+
+    /** The notification of [kind]'s group again, without sound (its actions updated; a typed reply's spinner gone). */
+    @Synchronized fun repost(ctx: Context, kind: String) {
+        init(ctx)
+        val x = shown[Kind.group(kind)] ?: return
+        if (posted.containsKey(Kind.group(kind))) show(ctx, x, silent = true)
+    }
+
+    /** The wearer's alerts are mirrored here, so a notification action on [kind] acts on this phone only. */
+    private fun mirrors(kind: String) = role == "follower" && _settings.value.source == "wearer" && kind != Kind.NO_DATA
+
+    private fun enginePaused() = engine.snoozes(Proto.nowS()).filterValues { it.until > 0 }.mapValues { it.value.until }
+    private fun mirrorPaused(): Map<String, Long> {
+        val now = Proto.nowS()
+        return mirrorSnooze.filterValues { it.until > now }.mapValues { it.value.until }
+    }
+
+    /**
+     * An alert notification's action (AlertActionReceiver): *Mute* for [min] minutes (null = the setting) or *Slow
+     * down* ([slow]) on [kind]'s episode. On the wearer it's sent to the followers (`snooze`, SPEC §4); a follower that
+     * mirrors the wearer applies it to the wearer's alerts on this phone only.
+     */
+    @Synchronized fun action(ctx: Context, kind: String, slow: Boolean, min: Int? = null) {
+        init(ctx)
+        val s = _settings.value
+        val now = Proto.nowS()
+        val m = (min ?: s.actionMuteMin).coerceIn(AlertSettings.MUTE_RANGE)
+        if (!slow && kind in Kind.ALWAYS) return repost(ctx, kind)
+        note(AlertNote(now, if (slow) AlertNote.SLOWED else AlertNote.MUTED, listOf(kind), n = if (slow) s.slowMin else m))
+        if (mirrors(kind)) {
+            val side = Kind.side(kind)
+            val cur = mirrorSnooze[side] ?: AlertEngine.Snooze(0, 0)
+            mirrorSnooze[side] = if (slow) cur.copy(slowMin = s.slowMin) else cur.copy(until = now + m * 60L)
+            if (slow) repost(ctx, kind) else posted.remove(Kind.group(kind))?.let { AlertNotifier.cancel(ctx, kind) }
+            paused.value = enginePaused() + mirrorPaused()
+            SukraraHooks.refresh(ctx, "alerts", force = true)
+            return
+        }
+        if (role == null) return
+        engine.sensor = SensorLife.current.value
+        val d = doses()
+        apply(ctx, if (slow) engine.slow(kind, effective(), d, now) else engine.mute(kind, m, effective(), d, now))
+        if (slow) repost(ctx, kind)
+        engine.snoozes(now)[Kind.side(kind)]?.let { sn ->
+            publish?.invoke(event(kind, "snooze", posted[Kind.group(kind)] ?: AlertEngine.newId(), now, engine.last, null, 0, 0)
+                .put("mu", sn.until).put("sl", sn.slowMin))
+        }
     }
 
     /** spikes/alerts/SPEC.md §4 body. */
@@ -177,24 +252,39 @@ object Alerts {
         val k = body.optString("k").takeIf { it in Kind.ALL } ?: return
         val id = body.optString("id")
         val st = body.optString("state")
-        if (!seenRemote.add("$id/$st/${body.optInt("n")}")) return
+        if (!seenRemote.add("$id/$st/${body.optInt("n")}/${body.optLong("mu")}/${body.optInt("sl")}")) return
         while (seenRemote.size > 200) seenRemote.remove(seenRemote.first())
         if (Proto.nowS() - body.optLong("at") > 10 * 60) return
         // no data on the wearer's side and on this phone share one notification
         val group = Kind.group(k)
+        val side = Kind.side(k)
+        val at = body.optLong("at")
         when (st) {
             "fire" -> {
-                val treated = body.optInt("tr", 0)
-                AlertNotifier.post(ctx, k, body.optIntOrNull("sgv"), body.optDoubleOrNull("r"), body.optDouble("th", 0.0),
-                    body.optLong("at"), who, s.cfg(k).alarm, treated)
-                posted[group] = id
-                note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(k), treated, 1, body.optIntOrNull("sgv"), remote = true))
+                if (body.optInt("n", 1) <= 1) mirrorSnooze.remove(side)   // a new episode on the wearer
+                val sn = mirrorSnooze[side]
+                val muted = sn != null && sn.until > at && k !in Kind.ALWAYS
+                // Slow down: the wearer's repeats show only every slowMin here (a more severe kind always shows)
+                val slowed = sn != null && sn.slowMin > 0 && lastMirrored[group]?.let { (t, lk) ->
+                    Kind.side(lk) == side && Kind.severity(k) <= Kind.severity(lk) && at - t < sn.slowMin * 60L } == true
+                if (!muted && !slowed) {
+                    val treated = body.optInt("tr", 0)
+                    show(ctx, Shown(k, body.optIntOrNull("sgv"), body.optDoubleOrNull("r"), body.optDouble("th", 0.0), at, treated))
+                    posted[group] = id
+                    lastMirrored[group] = at to k
+                    note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(k), treated, 1, body.optIntOrNull("sgv"), remote = true))
+                }
             }
+            // the wearer's notification actions: its mute shows as the badge here; the alerts it quiets never arrive
+            "snooze" -> mirrorSnooze[side] = AlertEngine.Snooze(body.optLong("mu"), body.optInt("sl"))
             "clear" -> if (posted[group] == id) {
                 AlertNotifier.cancel(ctx, k); posted.remove(group)
                 note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(k), remote = true))
             }
         }
+        paused.value = enginePaused() + mirrorPaused()
+        // The wearer's low at its carbs' mute end arrives between two readings: redraw the widgets (ring, badge) now.
+        SukraraHooks.refresh(ctx, "alerts", force = true)
     }
 
     private fun note(n: AlertNote) {
@@ -267,6 +357,8 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         val text = when (what) {
             FIRED -> "${Kind.message(k, treated)}${if (n > 1) " ($n)" else ""}${if (remote) " (from the wearer)" else ""} · ${sgv ?: "–"} mg/dL"
             CLEARED -> "${Kind.label(k)} cleared${if (remote) " (by the wearer)" else ""}"
+            MUTED -> "${Kind.label(k)} muted for $n min (notification)"
+            SLOWED -> "${Kind.label(k)} slowed to every $n min (notification)"
             else -> "resumed ${kinds.joinToString { Kind.label(it) }} (no sound)"
         }
         return "$t  $text${if (test) " (test)" else ""}"
@@ -276,5 +368,7 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         const val FIRED = "fired"
         const val CLEARED = "cleared"
         const val RESUMED = "resumed"
+        const val MUTED = "muted"
+        const val SLOWED = "slowed"
     }
 }

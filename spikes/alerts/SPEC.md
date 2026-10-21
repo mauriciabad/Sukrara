@@ -53,6 +53,23 @@ carbs (2026-10-18: you ate, give it time; extremely high stays the safety net on
 | `muteAfterCarbs` | on, 15 min | `very_low`, `low`, `falling_fast` | A `carbs` treatment with `now − min < t ≤ now` (not deleted) mutes them. |
 | `muteFallingHigh` | on, 20 min | `high`, `very_high` | `rate < 0` and `sgv + rate × min < high.mgdl` (it will be back below the high threshold within `min` minutes at the current rate). Re-evaluated on every reading. It only postpones: when it ends, an alert that came due meanwhile fires at once; it doesn't restart the count. |
 
+**Notification actions** (user, 2026-10-21: "allow user to mute for some time … from the notification actions … also
+offers to slow down the interval"). Every alert notification has up to three buttons; they act on **the episode of
+that notification's alert** (its side: lows incl. very low, highs, falling fast, rising fast, no data) and end with it
+(a new episode starts without them):
+
+| Button | Shown on | Effect |
+|---|---|---|
+| *Mute `muteMin` min* | every kind but `very_low` and `extremely_high` | Quiet like a treatment mute: the alert clears, and when the mute ends and it still matches it alerts **at once**; the repeats count from there. A more severe kind inside the episode (low → very low, high → extremely high) still alerts at once: the mute never covers `very_low` or `extremely_high`. |
+| *Mute for…* | same | The same with typed minutes (Android: a direct-reply field; Mac: a text-input action). No number in 1–720 → nothing changes. |
+| *Slow to `slowMin` min* | when it would slow anything (the kind's `repeatMin` is shorter) and the episode isn't slowed yet; every kind, very low and extremely high included | The repeats come every `max(repeatMin, slowMin)` minutes, counted from the last alert. |
+
+Together with a treatment mute, the later end wins. On a follower that mirrors the wearer (`source` "wearer") the
+buttons quiet the wearer's alerts **on that device only** (dropped while muted; while slowed, a repeat shows only if
+`slowMin` has passed since the last one shown, a more severe kind always shows); a new episode on the wearer (`n` = 1)
+ends them. On the wearer they also go to the followers (§4 `snooze`), so the wearer's mute quiets the Mac and shows
+there as the badge.
+
 A muted alert is not "fired": no notification, no event to followers. A treatment mute ends at exactly `t + min`,
 and the timer wakes then (Android: an exact alarm; Mac: a one-shot timer), so it alerts on time even between
 readings. The UI shows why it's quiet ("High, muted: insulin 12 min ago"); `AlertStatus` (Android) applies the same
@@ -78,6 +95,7 @@ treatment rules for the badge under the value.
   "muteFallingHigh":  {"on": true, "min": 20},
   "muteAfterCarbs":   {"on": true, "min": 15},
   "sounds": {"pack": "quest", "kinds": {}, "shuffle": true},
+  "notificationActions": {"muteMin": 30, "slowMin": 15},
   "source": "wearer"
 }
 ```
@@ -88,6 +106,8 @@ treatment rules for the badge under the value.
 - `sounds.pack`: the pack every kind uses; `sounds.kinds[k]` overrides one kind (mix and match); `"system"` = the
   platform's default notification sound, `"none"` = silent. `shuffle`: pick a random variant of the pack each time
   (off = always variant 1).
+- `notificationActions` (per device, also on a follower that mirrors the wearer): the minutes of the notification's
+  *Mute* button (1–720, default 30) and the interval *Slow down* sets (5–120, default 15), §2.
 - `source` (followers only): `"wearer"` (default) = alert exactly when the wearer's app does (mirror its `alert`
   events, §4); `"own"` = run these rules locally on the followed readings and treatments. Settings are per device and
   never synced.
@@ -108,7 +128,8 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
 |---|---|
 | `id` | random per firing; a `clear` repeats the `id` of the firing it ends |
 | `k` | alert kind (§1) |
-| `state` | `fire` (a notification was posted, including re-alerts) or `clear` (condition left: remove it) |
+| `state` | `fire` (a notification was posted, including re-alerts), `clear` (condition left: remove it) or `snooze` (the wearer used a notification action on this episode, §2; `id` = the firing it was on) |
+| `mu`, `sl` | `snooze` only: muted until (unix s, 0 = not muted) and the slowed interval (min, 0 = not slowed) |
 | `at` | when the wearer fired/cleared (unix s) |
 | `t`, `sgv`, `r` | the reading that triggered it (`no_data`: the last reading, may be null) |
 | `th` | the threshold that matched (mg/dL, mg/dL/min, or minutes for `no_data`) |
@@ -120,7 +141,8 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
   minutes still gets the newest one).
 - Followers accept it with the **same checks as live** (author ∈ `roster.devices`, known `gk`, decrypts, `v == 2`),
   dedupe by event id (it can arrive over BLE and several relays), and **ignore `at` older than 10 min**.
-- In `"wearer"` mode the follower posts the same kind with its **own** sound choice; `clear` removes it.
+- In `"wearer"` mode the follower posts the same kind with its **own** sound choice; `clear` removes it; `snooze`
+  shows the wearer's mute as the badge (no alert of that episode arrives while it lasts).
   In `"own"` mode `alert` events are ignored.
 - Followers subscribe with `{"kinds":[21078,21079], "authors": roster.devices, "since": now − 120}`.
 
@@ -168,9 +190,10 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
   `sensor ended` (the sensor reaches its end now; readings stop), `sensor started` (a new sensor starts now, 60 min
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
+  `mute <kind> [<min>]` (the notification's Mute, or Mute for… with typed minutes), `slow <kind>` (Slow down),
   `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
 - Settings keys: `alerts=on|off`, `<kind>=on|off|<threshold>`, `<kind>.repeat=<min>`,
-  `carbs.mute|insulin.mute|falling.mute=off|<min>`.
+  `carbs.mute|insulin.mute|falling.mute=off|<min>`, `mute.min=<min>`, `slow.min=<min>`.
 - Expectations: the fired headline (§1), `clear <kind>`, or `resume <kind>` (a `restart` shows that alert again
   without sound), in the order they happen; `nothing` (or none) = no
   action. **Strict**: every minute without a line must have no action, and every action must be listed.

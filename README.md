@@ -156,7 +156,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   reminder and sound (lows alert strictly below the threshold). Highs stay quiet for a while after rapid insulin and while
   glucose is already falling back into range; lows (also very low) stay quiet for a while after carbs, and alert at once
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
-  A short dip back into range doesn't restart the alert. Extremely high is never muted. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  A short dip back into range doesn't restart the alert. Extremely high is never muted. From the notification: mute
+  the alert for 30 min (or minutes you type) or slow its reminders to every 15 min, both until it's back in range
+  (very low and extremely high can only be slowed); a mute on the phone also quiets the Mac. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
   Android's app settings.

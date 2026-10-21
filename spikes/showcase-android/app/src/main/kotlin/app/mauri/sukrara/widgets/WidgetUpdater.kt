@@ -77,7 +77,8 @@ object WidgetUpdater {
         // settings (graph and alerts: the badge, the mute lines and the last-treatment ring follow the alert rules). A fresh card shows no age, so nothing ticks in between.
         val fresh = latest?.let { app.mauri.sukrara.graph.Freshness.of(now - it.t) }
         val key = "${latest?.t}|$fresh|${now / 300}|$night|${java.util.Locale.getDefault()}|${history.size}|${treatments.hashCode()}|" +
-            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}"
+            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|" +
+            "${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}"
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock

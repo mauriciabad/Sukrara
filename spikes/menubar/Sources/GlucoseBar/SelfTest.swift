@@ -132,11 +132,16 @@ enum GraphFixtures {
                 }
                 func id(_ m: GraphMark) -> String? { marks.firstIndex(of: m).flatMap { ids[$0] } }
                 let e = c["expect"] as? [String: Any] ?? [:]
-                let st = AlertStatus.of(r, settings, marks, now: now)
+                // the alert notification's Mute in force: side → seconds from now
+                let paused = (c["paused"] as? [String: Double] ?? [:]).mapValues { now + $0 }
+                let st = AlertStatus.of(r, settings, marks, now: now, paused: paused)
                 let stText: String
                 switch st {
                 case .none: stText = "none"
                 case .needed(let k): stText = "needed:\(k.rawValue)"
+                case .paused(let k, let until):
+                    stText = "paused:\(k.rawValue)"
+                    check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)
                 case .taken(let k, let tr, let until):
                     stText = "taken:\(k.rawValue):\(id(tr) ?? "?")"
                     check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)

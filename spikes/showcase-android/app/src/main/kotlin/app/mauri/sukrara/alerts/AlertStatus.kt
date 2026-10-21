@@ -23,6 +23,9 @@ sealed interface AlertStatus {
     /** Out of range, but a treatment's mute window covers it: faded badge until [until] (epoch s). */
     data class Taken(val kind: String, val treatment: Treatment, val until: Long) : AlertStatus
 
+    /** Out of range, muted from the alert notification (*Mute*) until [until] (epoch s): the same faded badge. */
+    data class Paused(val kind: String, val until: Long) : AlertStatus
+
     companion object {
         /** The level kind [r] is in at [now], or null (stale reading, in range, alerts off). */
         fun level(r: Reading?, s: AlertSettings, now: Long): String? {
@@ -40,14 +43,17 @@ sealed interface AlertStatus {
 
         /**
          * Same rules as [AlertEngine]: carbs cover very low and low, rapid insulin high and very high, while their mute
-         * window lasts (`t ≤ now < t + min`); extremely high is never covered.
+         * window lasts (`t ≤ now < t + min`); extremely high is never covered. Otherwise [paused] (side → until, the
+         * alert notification's *Mute*, [AlertEngine.snoozes]) covers every level kind but very low and extremely high.
          */
-        fun of(r: Reading?, s: AlertSettings, treatments: List<Treatment>, now: Long): AlertStatus {
+        fun of(r: Reading?, s: AlertSettings, treatments: List<Treatment>, now: Long, paused: Map<String, Long> = emptyMap()): AlertStatus {
             val k = level(r, s, now) ?: return None
-            val by = s.mutedBy(k) ?: return Needed(k)
-            val cover = treatments.filter { it.k == by && it.t <= now }.mapNotNull { t -> muteUntil(t, s)?.let { t to it } }
-                .filter { it.second > now }.maxByOrNull { it.first.t }
-            return if (cover != null) Taken(k, cover.first, cover.second) else Needed(k)
+            val by = s.mutedBy(k)
+            val cover = by?.let { b -> treatments.filter { it.k == b && it.t <= now }.mapNotNull { t -> muteUntil(t, s)?.let { t to it } }
+                .filter { it.second > now }.maxByOrNull { it.first.t } }
+            if (cover != null) return Taken(k, cover.first, cover.second)
+            val until = paused[Kind.side(k)]?.takeIf { it > now && k !in Kind.ALWAYS }
+            return if (until != null) Paused(k, until) else Needed(k)
         }
     }
 }

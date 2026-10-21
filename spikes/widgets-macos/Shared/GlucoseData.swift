@@ -36,6 +36,7 @@ struct GlucoseSnapshot: Codable {
     var graph: GraphConfig? = nil   // investigation 16: ranges, window (the widgets' own), rings, profile
     var slots: [SlotMetrics]? = nil // the numbers of each of graph.slots' windows (and graph.lastElse's)
     var alerts: AlertSettings? = nil // the host's alert rules: badge, mute lines, last-treatment slot
+    var paused: [String: TimeInterval]? = nil // muted from an alert notification: side → until (unix s), the badge
     var sensor: SensorInfo? = nil    // the wearer's sensor (PROTOCOL-v2 "Sensor life"): badge, warm-up, countdown ring
 
     var config: GraphConfig { graph ?? GraphConfig() }

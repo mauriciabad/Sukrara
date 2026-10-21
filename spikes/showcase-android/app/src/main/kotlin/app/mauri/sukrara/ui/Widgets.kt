@@ -144,13 +144,14 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val pal = remember(dark) { systemPalette(ctx, dark) }
     val treatments by TreatmentFeed.items.collectAsState()
     val alerts by Alerts.settings.collectAsState()
+    val paused by Alerts.paused.collectAsState()
     val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val sensorLook = app.mauri.sukrara.graph.SensorBadge.look(sensor, now, t)
     val countdown = app.mauri.sukrara.graph.SensorBadge.ring(sensorLook, sensor, now, countdownH)
     val fresh = Freshness.of(t?.let { now - it })
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
-    val status = AlertStatus.of(reading, alerts, treatments, now)
+    val status = AlertStatus.of(reading, alerts, treatments, now, paused)
     val last = if (cfg.lastPlace != LastPlace.OFF) LastTreatment.of(treatments, alerts, status, now) else null
     val hours = cfg.hours(GraphPlace.APP)
     // The panel is one card drawn in two parts (the value in Compose, the chart on a canvas): both follow this whole-card

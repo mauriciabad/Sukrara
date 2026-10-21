@@ -194,6 +194,14 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             }
         }
 
+        // the alert notification's buttons: local on every device (a follower mirroring the wearer mutes its own copy)
+        SettingsGroup(stringResource(R.string.alerts_group_actions)) {
+            value(stringResource(R.string.alerts_action_mute), stringResource(R.string.alerts_action_mute_summary, s.actionMuteMin),
+                enabled = s.on) { minutes = "action" }
+            value(stringResource(R.string.alerts_action_slow), stringResource(R.string.alerts_action_slow_summary, s.slowMin),
+                enabled = s.on) { minutes = "slow" }
+        }
+
         SettingsGroup(stringResource(R.string.alerts_group_sounds)) {
             value(stringResource(R.string.alerts_sound_pack), soundLabel(ctx, s.pack), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { pickPack = true }
             switch(stringResource(R.string.alerts_shuffle), s.shuffle, enabled = s.on,
@@ -215,6 +223,13 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             { stringResource0(ctx, R.string.alerts_within_minutes, it) }, NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteFallingMin = m) } }
         "carbs" -> IntChoiceDialog(stringResource(R.string.alerts_quiet_carbs), listOf(10, 15, 20, 30, 45), s.muteCarbsMin, minLabel,
             NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteCarbsMin = m) } }
+        "action" -> IntChoiceDialog(stringResource(R.string.alerts_action_mute), listOf(15, 30, 60, 120), s.actionMuteMin, minLabel,
+            NumberRange(AlertSettings.MUTE_RANGE.first.toDouble(), AlertSettings.MUTE_RANGE.last.toDouble(), min), { minutes = null }) { m ->
+            set { it.copy(actionMuteMin = m) } }
+        "slow" -> IntChoiceDialog(stringResource(R.string.alerts_action_slow), listOf(10, 15, 20, 30, 60), s.slowMin,
+            { stringResource0(ctx, R.string.alerts_remind_every, it) },
+            NumberRange(AlertSettings.SLOW_RANGE.first.toDouble(), AlertSettings.SLOW_RANGE.last.toDouble(), min), { minutes = null }) { m ->
+            set { it.copy(slowMin = m) } }
     }
     if (pickPack) SoundDialog(stringResource(R.string.alerts_sound_pack), Kind.HIGH, null, s.pack, s.cfg(Kind.HIGH).alarm,
         onClose = { pickPack = false }) { p -> set { it.copy(pack = p ?: it.pack) } }
@@ -233,6 +248,7 @@ private fun quietReason(ctx: Context, m: String): String {
         val min = r.groupValues[2].toInt()
         return ctx.getString(if (r.groupValues[1] == "insulin") R.string.alerts_quiet_reason_insulin else R.string.alerts_quiet_reason_carbs, min)
     }
+    Regex("^muted from the notification, (\\d+) min left$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_notification, r.groupValues[1].toInt()) }
     Regex("^falling, back in range in ~(\\d+) min$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_falling, r.groupValues[1].toInt()) }
     return m
 }
@@ -244,6 +260,8 @@ private fun noteText(ctx: Context, n: AlertNote): String {
         AlertNote.FIRED -> ctx.getString(if (n.remote) R.string.alerts_note_fired_remote else R.string.alerts_note_fired,
             AlertNotifier.headline(ctx, k, n.treated) + if (n.n > 1) " (${n.n})" else "", n.sgv?.toString() ?: "–")
         AlertNote.CLEARED -> ctx.getString(if (n.remote) R.string.alerts_note_cleared_remote else R.string.alerts_note_cleared, AlertNotifier.label(ctx, k))
+        AlertNote.MUTED -> ctx.getString(R.string.alerts_note_muted, AlertNotifier.label(ctx, k), n.n)
+        AlertNote.SLOWED -> ctx.getString(R.string.alerts_note_slowed, AlertNotifier.label(ctx, k), n.n)
         else -> ctx.getString(R.string.alerts_note_resumed, n.kinds.joinToString { AlertNotifier.label(ctx, it) })
     }
     val t = app.mauri.sukrara.graph.Clock.time(n.at)

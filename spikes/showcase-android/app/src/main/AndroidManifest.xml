@@ -166,6 +166,10 @@
         <receiver
             android:name=".alerts.AlertCheckReceiver"
             android:exported="false" />
+        <!-- Mute / Slow down / Mute for… on an alert notification (PendingIntents only) -->
+        <receiver
+            android:name=".alerts.AlertActionReceiver"
+            android:exported="false" />
         <!-- Allow / Deny on the access-request notification (PendingIntents only) -->
         <receiver
             android:name=".owner.RequestActionReceiver"
