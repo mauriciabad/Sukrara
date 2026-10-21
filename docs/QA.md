@@ -55,6 +55,10 @@ Cheap tools:
 - [ ] Emulator: add value, graph and combined widgets (2x1, 4x2, larger); light and dark wallpapers.
 - [ ] They update on a new reading (synthetic source) within a minute and after `adb shell am force-stop` + reopen.
 - [ ] Release build (R8) once per round: widgets still render (proguard rules).
+- [ ] Add-the-widget banner (emulator, Pixel Launcher): with no graph widget, home shows the card under the glucose
+  panel; *Add widget* opens the launcher's dialog with the preview; *Add to home screen* places it and the card is gone
+  on return; remove the widget → the card is back; close → gone after a force-stop too (`--es cmd widgetBanner --ez
+  reset true` brings it back). Spanish wording fits.
 
 ## Q4 Lock screen widget
 

@@ -154,6 +154,8 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         GlucosePanel(u.last?.sgv, u.last?.rate, u.last?.t, subtitle = u.sourceError?.let { "${u.source} — $it" }, onAdd = { adding = true })
         // an untested sensor family (investigation 23): the feedback banner, directly under the graph, for as long as it is used
         UntestedSensorBanner()
+        // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)
+        HomeWidgetBanner()
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         NewSensorButton(u.source) { a.open("newsensor") }
         GlucoseReport(u.last?.t)

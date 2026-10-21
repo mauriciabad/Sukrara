@@ -861,6 +861,15 @@
     <!-- Home: untested sensor banner button, opens a pre-filled GitHub issue [CHAR LIMIT=25] -->
     <string name="home_untested_banner_action">Enviar comentarios</string>
 
+    <!-- Home: banner while no graph widget is on the launcher's home screen [CHAR LIMIT=60] -->
+    <string name="home_widget_banner_title">Pon tu glucosa en la pantalla de inicio</string>
+    <!-- Home: widget banner pill, asks the launcher to place the big widget [CHAR LIMIT=25] -->
+    <string name="home_widget_banner_action">Añadir widget</string>
+    <!-- Home: widget banner when the launcher can't place widgets from apps [CHAR LIMIT=100] -->
+    <string name="home_widget_banner_manual">Mantén pulsada la pantalla de inicio y toca Widgets › Sukrara</string>
+    <!-- Home: widget banner close button (accessibility) [CHAR LIMIT=30] -->
+    <string name="home_widget_banner_dismiss">Cerrar</string>
+
     <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
     <string name="badge_alerts_paused">Alertas en pausa</string>
     <!-- Join: the camera permission was refused [CHAR LIMIT=NONE] -->

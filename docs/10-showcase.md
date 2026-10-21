@@ -360,6 +360,13 @@ stored only under the first. The launcher fits neither, so it applies the smalle
 |---|---|---|
 | ![before](../spikes/showcase-android/evidence/n9-phone-test-square-before.png) | ![after](../spikes/showcase-android/evidence/n9-phone-test-square-after.png) | ![graph](../spikes/showcase-android/evidence/n9-phone-combined-4x2-round.png) |
 
+### Widgets: offer the big widget on home (2026-10-21)
+
+Added: a dismissible home card with an *Add widget* pill while no graph widget is placed (`requestPinAppWidget`,
+re-checked on resume and on the pin callback). Discarded: a live preview in the pin dialog (stretched by Pixel
+Launcher; the generated picker preview is used) and a Mac equivalent (the menubar is the Mac's main surface).
+Details: [12](12-android-widgets.md#in-sukrara-the-add-the-widget-banner-2026-10-21).
+
 ### Widgets: one model, no second store (v0.10.4)
 
 The docs/12 review kept all three widgets: the user has a *Glucose + graph* widget pinned and also uses a graph-only
