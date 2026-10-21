@@ -53,6 +53,8 @@ extension Bands {
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
     var onLogTreatment: ((Treatment) -> Void)?
+    /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
+    var onAddTreatment: ((NSScreen?) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
@@ -78,8 +80,10 @@ extension Bands {
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        panelModel.onLog = { [weak self] t in self?.onLogTreatment?(t) }
-        panelModel.onUndo = { [weak self] id in self?.onDeleteTreatment?(id) }
+        panelModel.onAddTreatment = { [weak self] in
+            self?.panel.close()
+            self?.onAddTreatment?(self?.item.button?.window?.screen)
+        }
         panelModel.onFollow = { [weak self] in self?.panel.close(); self?.onFollow?() }
         panelModel.onReport = { [weak self] in self?.panel.close(); self?.onReport?() }
         panelModel.onSettings = { [weak self] in self?.panel.close(); self?.onSettings?() }

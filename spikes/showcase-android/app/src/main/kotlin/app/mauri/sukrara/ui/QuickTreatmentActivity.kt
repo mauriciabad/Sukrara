@@ -26,6 +26,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.platform.LocalContext
 import app.mauri.sukrara.App
 import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.treatments.NewEntry
 import app.mauri.sukrara.treatments.Treat
 
 /**

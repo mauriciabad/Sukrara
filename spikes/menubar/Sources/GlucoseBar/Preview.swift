@@ -65,7 +65,7 @@ enum PanelPreview {
             Treatment(k: "long", a: 12, t: at(110)), Treatment(k: "note", a: 0, t: at(75), n: "walk"),
             Treatment(k: "rapid", a: 1.5, t: at(40)), Treatment(k: "carbs", a: 15, t: at(22)),
         ]
-        func model(entry: String, logged: Bool) -> PanelModel {
+        func model() -> PanelModel {
             let m = PanelModel()
             m.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
             m.marks = rows.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
@@ -75,19 +75,15 @@ enum PanelPreview {
             m.now = end.addingTimeInterval(30)
             m.hasData = true
             m.following = true
-            m.kind = "rapid"
-            m.entry = entry
-            if logged { m.logged = ("15g carbs", "x") }
             return m
         }
-        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, entry: String, logged: Bool)
+        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool)
         let shots: [Shot] = [
-            ("light-bright", .aqua, true, "4.5u", false), ("light-dark", .aqua, false, "", true),
-            ("dark-bright", .darkAqua, true, "", true), ("dark-dark", .darkAqua, false, "30g pasta", false),
+            ("light-bright", .aqua, true), ("light-dark", .aqua, false), ("dark-bright", .darkAqua, true), ("dark-dark", .darkAqua, false),
         ]
         var windows: [NSWindow] = []
         for (i, shot) in shots.enumerated() {
-            let m = model(entry: shot.entry, logged: shot.logged)
+            let m = model()
             let panel = GlancePanel.content(m, blending: .withinWindow)
             panel.appearance = NSAppearance(named: shot.appearance)
             panel.layoutSubtreeIfNeeded()
