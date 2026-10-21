@@ -153,8 +153,11 @@ object TreatmentMarks {
      *    ("4.5u · 45g 1h 35m"); its anchor is the middle of its first and last marker. Widths come from [TextModel].
      * 3. Groups are placed newest first, each in the first of: lane 0 with the time, lane 1 with the time, lane 0
      *    without it, lane 1 without it, that has a free place ([place]). A group with none gets no label.
+     *
+     * [reserve] = a box of lane 0 that is already taken (the sensor badge at the row's start, [app.mauri.sukrara.graph.GlucoseGraph.sensorTop]).
      */
-    fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float): Layout {
+    fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float,
+               reserve: Pair<Float, Float>? = null): Layout {
         val items = list.filter { !it.del && amount(it) != null }
             .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.a }, { it.id }))
         val groups = ArrayList<MutableList<Treatment>>()
@@ -166,6 +169,7 @@ object TreatmentMarks {
         val size = LABEL_DP * d
         val gap = LABEL_GAP_DP * d
         val taken = List(2) { ArrayList<Pair<Float, Float>>() }
+        reserve?.let { taken[0] += it }
         val labels = ArrayList<Label>()
         val dropped = ArrayList<List<Treatment>>()
         for (g in groups.sortedByDescending { it.last().t }) {

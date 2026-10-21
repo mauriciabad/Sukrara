@@ -74,6 +74,7 @@ struct WidgetOverrides: Equatable {
     var rings: Int? = nil
     var ringRange: TirRange? = nil
     var side: Bool? = nil
+    var sensor: Bool? = nil
 }
 
 /// Every widget draws the same card as Sukrara on Android and the menubar dropdown (SukraraGraph.swift), as one
@@ -92,9 +93,10 @@ struct GlucoseWidgetView: View {
         var rc = cfg
         rc.ringCount = overrides.rings ?? cfg.ringCount
         rc.ringRange = overrides.ringRange ?? cfg.ringRange
+        rc.sensorTime = overrides.sensor ?? cfg.sensorTime
         switch kind {
         case .value: return rc.cardStyle(graph: nil)
-        case .graph: return CardStyle(graph: g, rings: [], value: false)
+        case .graph: return CardStyle(graph: g, rings: [], value: false, sensorTime: rc.sensorTime)
         case .combined: return rc.cardStyle(graph: g)
         }
     }

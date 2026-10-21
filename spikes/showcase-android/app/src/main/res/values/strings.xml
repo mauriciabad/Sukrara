@@ -392,6 +392,10 @@
     <string name="widget_config_side">Time in range beside the graph</string>
     <!-- Widget configuration switch summary [CHAR LIMIT=60] -->
     <string name="widget_config_side_summary" formatted="false">The distribution and % on the left</string>
+    <!-- Widget settings switch: the sensor's time left on this widget [CHAR LIMIT=40] -->
+    <string name="widget_config_sensor">Sensor time left</string>
+    <!-- Its summary [CHAR LIMIT=80] -->
+    <string name="widget_config_sensor_summary" formatted="false">How long the sensor has left, at the start of the time row</string>
     <!-- Widget configuration: reset to the app's settings [CHAR LIMIT=25] -->
     <string name="widget_config_use_app_settings">Use app settings</string>
     <!-- Widget configuration: save button [CHAR LIMIT=15] -->
@@ -2063,6 +2067,10 @@
     <string name="graph_side_summary" formatted="false">The % of time below, in and above range, and how much time was spent at each level</string>
     <!-- Beside the graph note [CHAR LIMIT=NONE] -->
     <string name="graph_side_note">The distribution covers the same time as the graph; the lines stop short of its dots. Each widget can turn it off on its own.</string>
+    <!-- Group in Graph settings: where the sensor's time left shows, one switch per place [CHAR LIMIT=30] -->
+    <string name="graph_group_sensor">Sensor time left</string>
+    <!-- Note under that group [CHAR LIMIT=NONE] -->
+    <string name="graph_sensor_note" formatted="false">The sensor\'s time left goes at the start of the time row, under the % of time in range (beside the arrow where a card has no graph). The warm-up and \"Sensor ended\" show either way. Each widget can turn it off on its own.</string>
     <!-- Action [CHAR LIMIT=40] -->
     <string name="graph_reset_all">Reset all graph settings</string>
     <!-- Content description; %1$s = group name [CHAR LIMIT=50] -->

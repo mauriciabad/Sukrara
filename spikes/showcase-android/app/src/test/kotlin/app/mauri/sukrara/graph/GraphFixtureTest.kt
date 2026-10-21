@@ -64,6 +64,9 @@ class GraphFixtureTest {
                 else {
                     assertEquals("$name: last id", el.getString("id"), last?.tr?.id)
                     assertEquals("$name: last until", if (el.isNull("until")) null else now + el.getLong("until"), last?.until)
+                    val w = el.optJSONObject("with")
+                    assertEquals("$name: last with", w?.getString("id"), last?.carbs?.tr?.id)
+                    if (w != null) assertEquals("$name: last with until", now + w.getLong("until"), last?.carbs?.until)
                 }
                 e.optJSONObject("amounts")?.let { am ->
                     for (id in am.keys()) assertEquals("$name: amount $id", if (am.isNull(id)) null else am.getString(id),
@@ -210,6 +213,50 @@ class GraphFixtureTest {
         println("sensor fixtures: $n cases passed")
     }
 
+    /**
+     * Where the sensor's time left goes (graph-fixtures/place, Mac: -graphselftest): [GlucoseCard.sensorSpot] for whole
+     * cards of every shape, the badge's box in the chart and the room it keeps from treatment labels. Every surface
+     * goes through these (tools/check `graph-surface`), so a surface can't place the badge on its own.
+     */
+    @Test fun place() {
+        val root = JSONObject(File(dir(), "place/place.json").readText())
+        val fails = ArrayList<String>()
+        val rooms = root.getJSONArray("rooms")
+        for (i in 0 until rooms.length()) {
+            val r = rooms.getJSONObject(i)
+            val got = Math.round(GlucoseGraph.sensorWidth(r.getString("label"), 1f) * 10) / 10.0
+            if (r.isNull("room") || kotlin.math.abs(r.getDouble("room") - got) > 0.05) fails += "room ${r.getString("label")}: got $got"
+        }
+        val cases = root.getJSONArray("cases")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val card = c.getJSONObject("card")
+            val st = CardStyle(graph = if (card.getBoolean("graph")) GraphStyle(axisLabels = card.optBoolean("axisLabels", true)) else null,
+                value = card.getBoolean("value"), sensorTime = card.optBoolean("sensorTime", true))
+            val latest = now - c.getLong("age")
+            val info = when (c.getString("sensor")) {
+                "live" -> app.mauri.sukrara.core.SensorInfo("S", now - 2 * 86400, now + 13 * 86400)
+                "warmup" -> app.mauri.sukrara.core.SensorInfo("S", now - 600, now + 15 * 86400 - 600)
+                "ended" -> app.mauri.sukrara.core.SensorInfo("S", now - 15 * 86400 - 3600, now - 3600)
+                else -> null
+            }
+            val look = SensorBadge.look(info, now, if (c.getString("sensor") == "warmup") null else latest, app.mauri.sukrara.core.Words())
+            val spot = GlucoseCard.sensorSpot(st, look, Freshness.of(now - latest)).name.lowercase()
+            val want = c.getJSONObject("expect")
+            var ok = spot == want.getString("spot")
+            var box = ""
+            c.optJSONObject("chart")?.let { ch ->
+                val top = GlucoseGraph.sensorTop(ch.getDouble("h").toFloat(), 0f, 1f)
+                box = "[0, $top, ${GlucoseGraph.SENSOR_DP}]"
+                val wb = want.optJSONArray("box")
+                ok = ok && wb != null && wb.getDouble(0) == 0.0 && kotlin.math.abs(top - wb.getDouble(1)) < 0.05 &&
+                    kotlin.math.abs(GlucoseGraph.SENSOR_DP - wb.getDouble(2)) < 0.05
+            }
+            if (!ok) fails += "${c.getString("name")}: got $spot $box"
+        }
+        assertTrue("place fixtures failed:\n" + fails.joinToString("\n"), fails.isEmpty())
+    }
+
     /** What the graph decides for a label case, in the fixtures' `expect` form. */
     private fun labelDump(c: JSONObject): JSONObject {
         val w = c.getJSONObject("chart").getDouble("w").toFloat()
@@ -223,7 +270,8 @@ class GraphFixtureTest {
         }
         val from = now - windowS
         val lay = TreatmentMarks.layout(trs.filter { it.t in from..now }, { t -> left + (t - from).toFloat() / windowS * (right - left) },
-            now, 0f, w, GlucoseGraph.lanes(h, 1f), 1f)
+            now, 0f, w, GlucoseGraph.lanes(h, 1f), 1f,
+            c.optString("sensor").takeIf { it.isNotEmpty() }?.let { 0f to GlucoseGraph.sensorWidth(it, 1f) + 3f })
         fun r(v: Float) = Math.round(v * 2) / 2.0
         return JSONObject()
             .put("plot", org.json.JSONArray(listOf(r(left), r(right))))

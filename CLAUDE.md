@@ -46,6 +46,9 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   *(check `features`)*
 - **One graph everywhere.** Every change to the glucose graph / value card (marks, badge, slots, units, colours) lands on
   Android AND Mac (`spikes/widgets-macos/Shared/SukraraGraph.swift`: menubar dropdown + Mac widgets) in the same round.
-  *(parity group `graph`; shared cases in `spikes/graph-fixtures` run by `GraphFixtureTest` and `-graphselftest`)*
+  Surfaces never lay the card out themselves: only `GlucoseCard` draws the chart and the sensor badge, a card drawn in
+  boxes passes one whole-card style with `part`, every style carries its place's settings.
+  *(parity group `graph`; shared cases in `spikes/graph-fixtures` run by `GraphFixtureTest` and `-graphselftest`;
+  check `graph-surface`)*
 - **Protocols** (`spikes/nostr/PROTOCOL-*.md`, `spikes/alerts/SPEC.md`): a spec change lands with both
   implementations. *(parity groups `protocol-v2`, `identity`, `alert-spec`, `treatments`)*

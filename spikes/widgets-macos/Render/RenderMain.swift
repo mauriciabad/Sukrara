@@ -298,6 +298,35 @@ enum TreatmentSheets {
             ]
             sheet(out.appendingPathComponent("mac-sensor-\(tag).png"), sv.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card($0.4, [], $0.3)) },
                   cellW: 300, cellH: 150, cols: 2, dark: dark)
+            // the user, 2026-10-21: the sensor's time left on every Mac surface at once (GraphGallery.kt `surfaces`)
+            let s13 = sensor(13 * day + 5 * 3600)
+            let surf: [(String, CGFloat, CGFloat, CardStyle)] = [
+                ("menu bar dropdown", 340, 290, withSensor(CardStyle(graph: g), s13)),
+                ("widget large, combined", 330, 330, withSensor(CardStyle(graph: g), s13)),
+                ("widget medium, combined", 330, 140, withSensor(CardStyle(graph: g), s13)),
+                ("widget medium, graph", 330, 140, withSensor(CardStyle(graph: g, rings: [], value: false), s13)),
+                ("widget small, graph (no % column)", 140, 140, withSensor(CardStyle(graph: g, rings: [], value: false), s13)),
+                ("widget small, combined", 140, 140, withSensor(CardStyle(graph: g), s13)),
+                ("widget medium, value", 330, 140, withSensor(CardStyle(graph: nil), s13)),
+                ("widget small, value", 140, 140, withSensor(CardStyle(graph: nil, rings: [RingSpec(window: 86400)]), s13)),
+                ("setting off (Settings › Graph › Sensor time left)", 330, 140,
+                 { var x = withSensor(CardStyle(graph: g), s13); x.sensorTime = false; return x }()),
+            ]
+            sheet(out.appendingPathComponent("mac-surfaces-\(tag).png"), surf.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(data15, trs, $0.3)) },
+                  cellW: 340, cellH: 330, cols: 2, dark: dark)
+            // last-treatment slot: insulin with carbs logged while it works (concentric), and its small-slot fallback
+            let pair = [tr("rapid", 8, 20), tr("carbs", 5, 5)]
+            let meal = [tr("rapid", 4.5, 12), tr("carbs", 45, 12)]
+            let d150 = endAt(base31, 150)
+            func lastCard(_ rings: [RingSpec]) -> CardStyle { CardStyle(graph: nil, rings: rings, last: .nearValue, lastElse: RingSpec(window: 30 * day)) }
+            let lp: [(String, CGFloat, CGFloat, CardStyle, [GraphMark])] = [
+                ("3×1 · 8u 20 min ago, then 5g 5 min ago", 230, 60, lastCard([RingSpec(window: day)]), pair),
+                ("3×1 · meal: 4.5u + 45g 12 min ago", 230, 60, lastCard([RingSpec(window: day)]), meal),
+                ("widget medium · 8u + 5g", 330, 100, lastCard([RingSpec(window: day), RingSpec(window: 7 * day)]), pair),
+                ("small slot (r < 20): insulin alone", 150, 36, lastCard([]), pair),
+            ]
+            sheet(out.appendingPathComponent("mac-last-pair-\(tag).png"), lp.map { Tile(title: $0.0, w: $0.1, h: $0.2, draw: card(d150, $0.4, $0.3)) },
+                  cellW: 330, cellH: 100, cols: 2, dark: dark)
             // treatments close together (GraphGallery.kt `marksClose`)
             let fullDay = [tr("carbs", 10, 1364), tr("rapid", 5, 859), tr("carbs", 40, 854), tr("rapid", 7, 509), tr("carbs", 70, 504),
                            tr("carbs", 15, 304), tr("carbs", 10, 284), tr("rapid", 8, 104), tr("carbs", 80, 99), tr("rapid", 1.5, 24), tr("long", 18, 9)]

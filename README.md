@@ -93,8 +93,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   Also a live countdown notification in the sensor's last hours (8 by default) and another while a
   new sensor warms up ("Readings at 19:45", "Almost ready" once its time is up, then "Sensor ready"). The countdowns
   show a timer in the status bar when the glucose chip doesn't need it, and never run below zero. Settings → Sensor end.
-- Sensor life on the card (phone, widgets, lock screen, Mac): a small sensor disc next to the trend arrow with the
-  time left (`13d`, `20h`, `45m`), a ring over the main ring that counts down the sensor's last 8 hours (1–24 h,
+- Sensor life on the card (phone, widgets, lock screen, notification, Mac): a small sensor disc with the time left
+  (`13d`, `20h`, `45m`) at the start of the graph's time row, under the % of time in range (beside the arrow on cards
+  without a graph; each place and widget can hide it), a ring over the main ring that counts down the sensor's last 8 hours (1–24 h,
   a setting), and during a new sensor's warm-up the minutes until the first reading (`42m`, *Ready at 19:45*; then
   *Almost ready* until it comes) with a ring that fills up. Once the sensor has ended every surface says *Sensor ended* with a *Replace sensor* pill (a checkered flag in the status bar and the Mac menubar) and no-data alerts stop. Followers and
   the Mac see the same (it travels with the live readings).
@@ -128,7 +129,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   Android and Mac. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
-  since and a ring for the quiet time left; without a recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
+  since and a ring for the quiet time left (carbs eaten while insulin works: two rings, `8u` over `5g`); without a
+  recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
   like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)

@@ -272,7 +272,7 @@ object GlucoseNotification {
             GlucoseCard.draw(Canvas(plot), plot.width.toFloat(), plot.height.toFloat(), history,
                 app.mauri.sukrara.treatments.TreatmentFeed.between(now - cfg.hours(GraphPlace.NOTIFICATION) * 3600L, now), now,
                 CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(c)),
-                    rings = emptyList(), value = false),
+                    rings = emptyList(), value = false, sensorTime = cfg.sensorTime(GraphPlace.NOTIFICATION)),
                 pal, d)
             createBitmap(w, h).also { out ->
                 Canvas(out).apply {

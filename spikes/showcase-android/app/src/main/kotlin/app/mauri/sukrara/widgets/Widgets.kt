@@ -160,10 +160,11 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
     val graph = cfg.graphStyle(w.hours ?: cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(c))
         .copy(side = w.side ?: cfg.side)
     val rings = cfg.rings(w.rings ?: cfg.ringCount, w.ringRange ?: cfg.ringRange)
+    val sensor = w.sensor ?: cfg.sensorTime(GraphPlace.WIDGETS)
     return when (kind) {
-        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
-        WidgetKind.GRAPH -> CardStyle(graph = graph, rings = emptyList(), value = false)
-        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing())
+        WidgetKind.VALUE -> CardStyle(graph = null, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = sensor)
+        WidgetKind.GRAPH -> CardStyle(graph = graph, rings = emptyList(), value = false, sensorTime = sensor)
+        WidgetKind.COMBINED -> CardStyle(graph = graph, rings = rings, last = cfg.lastPlace, lastElse = cfg.lastElseRing(), sensorTime = sensor)
     }
 }
 

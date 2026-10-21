@@ -20,6 +20,13 @@ Checks
   cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
+  graph-surface  one graph everywhere, structurally (the user, 2026-10-21: a badge moved on one surface only). Whole
+              tree, Android + Mac: only GlucoseCard draws the chart (GlucoseGraph.draw) and the sensor badge
+              (SensorBadge.draw) - so where the badge goes is decided once, by GlucoseCard.sensorSpot, for every
+              surface; a surface that draws a card in parts passes the same whole-card style with part = / part:
+              to every GlucoseCard.draw call; every CardStyle a surface builds says sensorTime (its place's setting);
+              the app panel's Compose badge (SensorLifeBadge) only in a file that asks GlucoseCard.sensorSpot.
+              The shared fixtures (spikes/graph-fixtures/place) keep Android and Mac deciding the same.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -247,6 +254,51 @@ def check_cleartext(ch, rep):
                     "URL can only be https:// / wss:// (or loopback / NsSite-validated), then list the file with the reason." % (path, n))
 
 
+GRAPH_KT = APP_KT + "graph/"
+MAC_GRAPH = "spikes/widgets-macos/Shared/SukraraGraph.swift"
+SURFACE_GLOBS = [APP_KT + "*.kt", "spikes/menubar/Sources/GlucoseBar/*.swift", "spikes/widgets-macos/Shared/*.swift",
+                 "spikes/widgets-macos/Widget/*.swift"]
+# the graph renderers themselves (and the Mac self-test, which builds fixture cards)
+GRAPH_OWNERS = {GRAPH_KT + "GlucoseCard.kt", GRAPH_KT + "GlucoseGraph.kt", GRAPH_KT + "SensorBadge.kt", MAC_GRAPH,
+                "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift", "spikes/menubar/Sources/GlucoseBar/SelfTest.swift"}
+
+
+def check_graph_surface(ch, rep):
+    """graph-surface: see the module doc. Whole tree (at the change's revision), so an old surface can't hide."""
+    where = ["--cached"] if not ch.rev else []
+    out = git("ls-files", *where, "--", *SURFACE_GLOBS, ok=True) if not ch.rev else \
+        git("ls-tree", "-r", "--name-only", ch.rev, "--", "spikes/showcase-android/app/src/main", "spikes/menubar/Sources",
+            "spikes/widgets-macos/Shared", "spikes/widgets-macos/Widget", ok=True)
+    files = [p for p in out.splitlines() if match(p, SURFACE_GLOBS)]
+    for p in files:
+        if p in GRAPH_OWNERS:
+            continue
+        text = ch.blob(p)
+        code = [(n, l) for n, l in enumerate(text.splitlines(), 1) if not l.lstrip().startswith(("//", "*", "/*", "///"))]
+        kt = p.endswith(".kt")
+        for n, l in code:
+            if "GlucoseGraph.draw(" in l:
+                rep.add("FAIL", "graph-surface", "%s:%d draws the chart itself. Draw it with GlucoseCard.draw (part = GRAPH /\n"
+                        "part: .graph for a chart in a box of its own): only GlucoseCard decides where the sensor badge goes." % (p, n))
+            if "SensorBadge.draw(" in l and not (kt and "SensorBadge.draw(it.nativeCanvas" in l and p.endswith("ui/Widgets.kt")):
+                rep.add("FAIL", "graph-surface", "%s:%d draws the sensor badge itself. GlucoseCard places it (sensorSpot)." % (p, n))
+            m = re.search(r"\bCardStyle\((?!\))", l)
+            if m:
+                call = " ".join(x for _, x in code[[k for k, (nn, _) in enumerate(code) if nn == n][0]:][:3])
+                if "sensorTime" not in call:
+                    rep.add("FAIL", "graph-surface", "%s:%d builds a CardStyle without sensorTime: pass the place's setting\n"
+                            "(GraphConfig.sensorTime(place) / cfg.sensorTime) so every surface honours it." % (p, n))
+        if any("SensorLifeBadge(" in l for _, l in code) and "GlucoseCard.sensorSpot(" not in text:
+            rep.add("FAIL", "graph-surface", "%s draws SensorLifeBadge without asking GlucoseCard.sensorSpot where it goes." % p)
+        draws = [(n, l) for n, l in code if "GlucoseCard.draw(" in l]
+        if len(draws) > 1:
+            for n, _ in draws:
+                call = " ".join(x for _, x in code[[k for k, (nn, _) in enumerate(code) if nn == n][0]:][:4])
+                if not re.search(r"part\s*[=:]", call):
+                    rep.add("FAIL", "graph-surface", "%s:%d: this file draws a card in parts; every GlucoseCard.draw here must pass\n"
+                            "the same whole-card style with part = / part: so the card's decisions are made once." % (p, n))
+
+
 def check_static(ch, rep):
     allow = load("allow.json")
     live = ch.live()
@@ -374,6 +426,7 @@ def main(argv):
         check_static(ch, rep)
         check_debug(ch, rep)
         check_cleartext(ch, rep)
+        check_graph_surface(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)
