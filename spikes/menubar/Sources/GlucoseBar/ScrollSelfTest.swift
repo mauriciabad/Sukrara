@@ -69,7 +69,8 @@ import AppKit
         let span = cfg.graphStyle().window
         let perPt = span / Double(plot.width)   // seconds per point of the plot
         func moved() -> Double { now - (v.scrollEnd ?? now) }
-        func send(_ e: NSEvent?) { if let e { v.scrollWheel(with: e) } else { fail("could not build an NSEvent") } }
+        var send2: ((NSEvent) -> Void)? = nil   // the zoom checks swipe on their own card
+        func send(_ e: NSEvent?) { if let e { if let send2 { send2(e) } else { v.scrollWheel(with: e) } } else { fail("could not build an NSEvent") } }
         func expect(_ what: String, _ pt: Double) {
             let want = pt * perPt
             if abs(moved() - want) > max(1, abs(want) * 0.01) {
@@ -125,6 +126,18 @@ import AppKit
         if abs(spanZ() - wantSpan) > wantSpan * 0.01 { fail("zoom in: the window is \(Int(spanZ())) s, want \(Int(wantSpan)) s (5 pinch steps of 10 %)") }
         if abs((endZ() - spanZ() / 2) - under) > 120 { fail("zoom in: the moment under the cursor moved \(Int((endZ() - spanZ() / 2) - under)) s") }
         if paintZ().first("chart.now") == nil { fail("zoom in: no Now pill on a zoomed chart") }
+        // the pinch's end (magnification 0) and a two-finger swipe after it keep the length; the swipe pans 1:1
+        let lenAfter = spanZ(), endAfter = endZ()
+        if let e = magnify(0, x: midX) { z.magnify(with: e) }
+        if spanZ() != lenAfter || endZ() != endAfter { fail("zoom end: the pinch's end moved the window (\(Int(spanZ() - lenAfter)) s longer, \(Int(endZ() - endAfter)) s)") }
+        send2 = { z.scrollWheel(with: $0) }
+        send(event(dx: 0, dy: 0, continuous: true, phase: 1))
+        for _ in 0..<5 { send(event(dx: 6, dy: 0, continuous: true, phase: 2)) }
+        send(event(dx: 0, dy: 0, continuous: true, phase: 4))
+        send2 = nil
+        let zPerPt = spanZ() / Double(zp.width)
+        if spanZ() != lenAfter { fail("zoom then swipe: the length changed by \(Int(spanZ() - lenAfter)) s") }
+        if abs((endAfter - endZ()) - 30 * zPerPt) > zPerPt { fail("zoom then swipe: moved \(String(format: "%.1f", (endAfter - endZ()) / zPerPt)) pt, want 30") }
         // all the way in and out: 2 h, then the whole history (the store holds 15 days; the limit is 31)
         for _ in 0..<40 { if let e = magnify(0.5, x: midX) { z.magnify(with: e); _ = paintZ() } }
         if abs(spanZ() - ChartView.minSpan) > 1 { fail("zoom in limit: \(Int(spanZ())) s, want \(Int(ChartView.minSpan)) s") }

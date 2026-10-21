@@ -574,6 +574,46 @@ class CardLayoutTest {
                     if (zs.away) problems += "pinch: the Now pill left the chart at ${zs.endS?.minus(now)} s, ${zs.spanS} s long"
                 }
             }
+            // A slow pinch, then one finger lifted, then the other (the user, 2026-10-21: "release only one finger, it
+            // suddenly changes the scale"): the window's length never changes after the pinch, and the window moves only
+            // as the remaining finger does (a plain scroll, 1:1), never more than 1 dp otherwise.
+            val ps = app.mauri.sukrara.ui.ChartScroll(now - 6 * 3600L)
+            val pl = graph(sc.readings, sc.treatments, now, ps).first("chart.plot")?.box
+            if (pl == null) problems += "lift: no plot" else {
+                val d = ctx.resources.displayMetrics.density
+                val cx = pl.centerX(); val cy = pl.centerY()
+                fun spp() = ps.span(windowS).toDouble() / pl.width()
+                val node = compose.onNodeWithTag("panel-chart")
+                node.performTouchInput {
+                    down(0, androidx.compose.ui.geometry.Offset(cx - 60, cy)); advanceEventTime(50)
+                    down(1, androidx.compose.ui.geometry.Offset(cx + 60, cy)); advanceEventTime(50)
+                    for (k in 1..10) {   // slowly apart: 120 → 220 px
+                        updatePointerTo(0, androidx.compose.ui.geometry.Offset(cx - 60 - 5f * k, cy))
+                        updatePointerTo(1, androidx.compose.ui.geometry.Offset(cx + 60 + 5f * k, cy))
+                        move(); advanceEventTime(60)
+                    }
+                }
+                compose.waitForIdle()
+                val span0 = ps.span(windowS); val end0 = ps.endS ?: now
+                if (kotlin.math.abs(span0 - windowS * 120.0 / 220) > windowS * 0.02) problems += "lift: the pinch zoomed to $span0 s, want ${windowS * 120 / 220} s"
+                fun check(step: String, wantPx: Float) {
+                    val dSpan = ps.span(windowS) - span0
+                    val movedPx = ((end0 - (ps.endS ?: now)) / spp()).toFloat()
+                    if (dSpan != 0L) problems += "lift, $step: the window's length changed by $dSpan s"
+                    if (kotlin.math.abs(movedPx - wantPx) > d) problems += "lift, $step: the window moved %.1f px, want %.1f (± 1 dp)".format(Locale.US, movedPx, wantPx)
+                }
+                node.performTouchInput { up(1); advanceEventTime(200) }
+                compose.waitForIdle()
+                check("one finger lifted", 0f)
+                node.performTouchInput {   // the remaining finger moves 60 px to the right, slowly: the chart follows 1:1
+                    for (k in 1..6) { moveBy(0, androidx.compose.ui.geometry.Offset(10f, 0f)); advanceEventTime(120) }
+                }
+                compose.waitForIdle()
+                check("the other finger moved 60 px", 60f)
+                node.performTouchInput { advanceEventTime(300); up(0) }
+                compose.waitForIdle()
+                if (ps.span(windowS) != span0) problems += "lift, both fingers lifted: the window's length changed by ${ps.span(windowS) - span0} s"
+            }
         } finally {
             GlucoseCard.observer = null
         }
