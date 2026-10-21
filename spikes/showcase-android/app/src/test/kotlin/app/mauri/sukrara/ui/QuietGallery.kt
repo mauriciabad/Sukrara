@@ -54,21 +54,21 @@ class QuietGallery {
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(ctx.resources) }
         GraphSettings.init(ctx)
         WearerSettings.init(ctx)
+        Alerts.resetForTests()
         Alerts.init(ctx)
-        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = {})
-        Alerts.update(ctx) { AlertSettings(on = false) }
         Alerts.update(ctx) { AlertSettings() }
+        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = {})
         Alerts.history.value = emptyList()
     }
 
-    @After fun tearDown() { Alerts.detach() }
+    @After fun tearDown() { Alerts.detach(); Alerts.resetForTests() }
 
     private fun low(sgv: Int = 62) = Reading(t++, sgv, -0.4, "test").also { Alerts.onReading(ctx, it) }
     private fun save(name: String, b: Bitmap) = File(out, "$name.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
 
     @Test fun homeCardMutedWithTalkBackActions() {
         val r = low()
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { GlucosePanel(r.sgv, r.rate, r.t) } }
         compose.waitForIdle()
         save("android-home-muted", compose.onRoot().captureToImage().asAndroidBitmap())
@@ -80,27 +80,27 @@ class QuietGallery {
         assertTrue(Alerts.active.value.isEmpty())
     }
 
-    @Test fun homeCardSlowedChip() {
+    @Test fun homeCardRelaxedChip() {
         val r = low()
-        Alerts.action(ctx, Kind.LOW, slow = true)
+        Alerts.relax(ctx, Kind.LOW)
         compose.setContent { SettingsTheme { GlucosePanel(r.sgv, r.rate, r.t) } }
         compose.waitForIdle()
-        save("android-home-slowed", compose.onRoot().captureToImage().asAndroidBitmap())
-        compose.onNode(androidx.compose.ui.test.hasText("Low reminders every 30 min")).assertExists()
+        save("android-home-relaxed", compose.onRoot().captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low relaxed: reminders every 30 min")).assertExists()
     }
 
     @Test fun sheetFromThePill() {
         low()
-        Alerts.action(ctx, Kind.LOW, slow = true)
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.relax(ctx, Kind.LOW)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
         compose.waitForIdle()
-        save("android-sheet-muted-slowed", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        save("android-sheet-muted-relaxed", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
     }
 
     @Test fun alertsPageActiveNow() {
         low()
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { AlertsScreen(follower = false) {} } }
         compose.waitForIdle()
         save("android-alerts-active-now", compose.onRoot().captureToImage().asAndroidBitmap())

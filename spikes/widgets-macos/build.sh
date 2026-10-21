@@ -31,7 +31,7 @@ if [[ "${1:-}" == probe ]]; then
   mkdir -p $OUT
   PID_=${PROBE_ID:-dev.spike.GlucoseWidgets.probe}
   cp Probe/Info.plist $OUT/probe-Info.plist && plutil -replace CFBundleIdentifier -string $PID_ $OUT/probe-Info.plist
-  $SWIFTC -module-name Probe Shared/GlucoseData.swift Shared/SukraraGraph.swift Shared/AlertRules.swift Shared/SettingsSpec.swift Shared/WearerSettings.swift Shared/Loader.swift Probe/main.swift -o $OUT/probe \
+  $SWIFTC -module-name Probe Shared/GlucoseData.swift Shared/SukraraGraph.swift Shared/Durations.swift Shared/AlertRules.swift Shared/SettingsSpec.swift Shared/WearerSettings.swift Shared/Loader.swift Probe/main.swift -o $OUT/probe \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $OUT/probe-Info.plist
   codesign --force --sign - -i $PID_ --entitlements ${WIDGET_ENT:-Widget/Widget.entitlements} $OUT/probe
   $OUT/probe
@@ -50,7 +50,7 @@ $SWIFTC -parse-as-library -application-extension -module-name GlucoseWidget \
 cp Widget/Info.plist $APPEX/Contents/Info.plist
 
 # Host app.
-$SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Shared/SukraraGraph.swift Shared/AlertRules.swift Shared/SettingsSpec.swift Shared/WearerSettings.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets
+$SWIFTC -module-name GlucoseWidgets Shared/GlucoseData.swift Shared/SukraraGraph.swift Shared/Durations.swift Shared/AlertRules.swift Shared/SettingsSpec.swift Shared/WearerSettings.swift Host/main.swift -o $APP/Contents/MacOS/GlucoseWidgets
 cp Host/Info.plist $APP/Contents/Info.plist
 
 # Signing, inside-out. Default: the first "Apple Development" identity in the keychain (Xcode → Settings →

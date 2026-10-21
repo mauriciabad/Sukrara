@@ -228,7 +228,7 @@ fun KindMark(kind: String, color: Color) {
 
 @Composable
 private fun timeLabel(at: Long?, ago: Int?): String {
-    if (ago != null) return stringResource(R.string.treatment_time_ago, ago)
+    if (ago != null) return stringResource(R.string.treatment_time_ago, app.mauri.sukrara.core.Durations.text(ago))
     if (at == null) return stringResource(R.string.treatment_time_now)
     val fmt = app.mauri.sukrara.graph.Clock.time(at)
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
@@ -278,7 +278,7 @@ private fun TimeDialog(at: Long?, ago: Int?, onDismiss: () -> Unit, onPick: (Lon
                         keyboardActions = KeyboardActions(onDone = { m?.let { onPick(null, it.takeIf { it > 0 }) } }),
                     )
                     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                        for (q in listOf(5, 15, 30, 60)) FilterChip(m == q, { minutes = "$q" }, { Text(stringResource(R.string.treatment_time_ago_chip, q), maxLines = 1) })
+                        for (q in listOf(5, 15, 30, 60)) FilterChip(m == q, { minutes = "$q" }, { Text(app.mauri.sukrara.core.Durations.text(q), maxLines = 1) })
                     }
                     LaunchedEffect(Unit) { field.requestFocus() }
                 }

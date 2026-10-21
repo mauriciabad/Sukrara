@@ -4,6 +4,7 @@
 package app.mauri.sukrara.graph
 
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertEngine
 import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.LastTreatment
@@ -32,7 +33,11 @@ class GraphFixtureTest {
         is AlertStatus.Needed -> "needed:${s.kind}"
         is AlertStatus.Taken -> "taken:${s.kind}:${s.treatment.id}"
         is AlertStatus.Paused -> "paused:${s.kind}"
+        is AlertStatus.Muted -> "muted"
     }
+
+    /** A fixture's end: seconds from now, or "never" (AlertEngine.NEVER). */
+    private fun end(o: JSONObject, key: String): Long = if (o.optString(key) == "never") AlertEngine.NEVER else now + o.getLong(key)
 
     @Test fun fixtures() {
         val files = dir().listFiles { f -> f.name.endsWith(".json") }!!.sorted()
@@ -54,10 +59,13 @@ class GraphFixtureTest {
                 val e = c.getJSONObject("expect")
                 // the alert notification's Mute in force: side → seconds from now
                 val paused = c.optJSONObject("paused")?.let { p -> p.keys().asSequence().associateWith { now + p.getLong(it) } } ?: emptyMap()
-                val st = AlertStatus.of(r, settings, trs, now, paused)
+                // this device's Mute all: seconds from now or "never"
+                val allMuted = if (c.has("allMuted")) end(c, "allMuted") else 0L
+                val st = AlertStatus.of(r, settings, trs, now, paused, allMuted)
                 assertEquals("$name: status", e.getString("status"), status(st))
                 if (st is AlertStatus.Taken) assertEquals("$name: until", now + e.getLong("until"), st.until)
-                if (st is AlertStatus.Paused) assertEquals("$name: until", now + e.getLong("until"), st.until)
+                if (st is AlertStatus.Paused) assertEquals("$name: until", end(e, "until"), st.until)
+                if (st is AlertStatus.Muted) assertEquals("$name: until", end(e, "until"), st.until)
                 val look = StatusBadge.look(st, now)
                 val badge = e.optJSONObject("badge")
                 if (badge == null) assertEquals("$name: badge", null, look)

@@ -127,7 +127,7 @@ const val PANEL_CHART_DP = 210f
  * is paint only ([CardMotion]): the number rolls, the arrow turns, the colour fades (Motion.kt's specs).
  */
 @Composable
-fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: (() -> Unit)? = null) {
+fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: (() -> Unit)? = null, muteAlerts: Boolean = false) {
     val ctx = LocalContext.current
     val now = nowSeconds()
     val cfg by GraphSettings.state.collectAsState()
@@ -136,6 +136,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val treatments by TreatmentFeed.items.collectAsState()
     val alerts by Alerts.settings.collectAsState()
     val paused by Alerts.paused.collectAsState()
+    val allMuted by Alerts.allMuted.collectAsState()
     val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
@@ -163,14 +164,16 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     // the ways out of a quiet alert (round f29): the pill's sheet, chips for what the pill doesn't show, TalkBack actions
     val active by Alerts.active.collectAsState()
     var sheet by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    PanelCard(reading, history, treatments, now, cfg, pal, alerts, paused, sensor, countdownH, scroll = scroll,
+    // Mute all (round f30): the home's control, its lengths dialog, the card's TalkBack actions
+    var muteAll by remember { androidx.compose.runtime.mutableStateOf(false) }
+    PanelCard(reading, history, treatments, now, cfg, pal, alerts, paused, sensor, countdownH, scroll = scroll, allMuted = allMuted,
         metricsOf = { s, _ -> metrics[s.windowS] ?: GlucoseMetrics.of(emptyList(), 0, 0, cfg.bands) },
         onEnded = if (app.mauri.sukrara.App.role(ctx) == "owner") ({ ctx.startActivity(MainActivity.sensorIntent(ctx)) }) else null,
-        onStatus = { sheet = it }, a11y = quietA11yActions(ctx, active)) {
+        onStatus = { sheet = it }, a11y = quietA11yActions(ctx, active) + muteAllA11yActions(ctx, allMuted) { muteAll = true }) {
         // what the pill doesn't show (it shows a level alert's mute): slowed reminders, a quiet fast-change alert
-        val pillKind = (AlertStatus.of(reading, alerts, treatments, now, paused) as? AlertStatus.Paused)?.kind
-            ?: (AlertStatus.of(reading, alerts, treatments, now, paused) as? AlertStatus.Taken)?.kind
-        val chips = active.filter { a -> a.slowMin > 0 || pillKind == null || Kind.group(a.kind) != Kind.group(pillKind) }
+        val pillKind = (AlertStatus.of(reading, alerts, treatments, now, paused, allMuted) as? AlertStatus.Paused)?.kind
+            ?: (AlertStatus.of(reading, alerts, treatments, now, paused, allMuted) as? AlertStatus.Taken)?.kind
+        val chips = active.filter { a -> a.relaxMin > 0 || pillKind == null || Kind.group(a.kind) != Kind.group(pillKind) }
         if (chips.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             for (a in chips) androidx.compose.material3.AssistChip(onClick = { sheet = a.kind }, label = { Text(quietTitle(ctx, a, now)) },
@@ -181,6 +184,8 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         sheet?.let { k -> AlertQuietSheet(k, onDismiss = { sheet = null },
             onSettings = { ctx.startActivity(android.content.Intent(ctx, MainActivity::class.java)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("screen", "alerts")) }) }
+        if (muteAlerts && alerts.on) MuteAllControl(onChange = { muteAll = true }, modifier = Modifier.padding(top = 12.dp))
+        if (muteAll) MuteAllDialog(onClose = { muteAll = false })
         subtitle?.let { Text(it, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         onAdd?.let {
             androidx.compose.material3.FilledTonalButton(onClick = it, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
@@ -204,6 +209,7 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
               metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, onEnded: (() -> Unit)?,
               scroll: ChartScroll = remember { ChartScroll() },
               onStatus: ((String) -> Unit)? = null, a11y: List<androidx.compose.ui.semantics.CustomAccessibilityAction> = emptyList(),
+              allMuted: Long = 0,
               footer: @Composable () -> Unit = {}) {
     val ctx = LocalContext.current
     val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.APP)),
@@ -239,7 +245,7 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
     val motion = CardMotion(from, roll.value, up, angle, color.toArgb())
     val desc = app.mauri.sukrara.widgets.describeCard(ctx, reading, now, treatments)
     // a muted level alert's pill ("45m left", AlertStatus Taken / Paused) opens its ways out ([onStatus], AlertSheet.kt)
-    val quietKind = when (val st = AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, now, paused)) {
+    val quietKind = when (val st = AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, now, paused, allMuted)) {
         is AlertStatus.Taken -> st.kind
         is AlertStatus.Paused -> st.kind
         else -> null
@@ -258,7 +264,7 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
                 drawIntoCanvas {
                     val rec = GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
                         CardSurface.APP_PANEL, CardPart.HEADER, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
-                        countdownH = countdownH, paused = paused, motion = motion)
+                        countdownH = countdownH, paused = paused, allMuted = allMuted, motion = motion)
                     pill[0] = rec.first("value.status")?.box
                 }
             }

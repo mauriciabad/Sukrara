@@ -50,6 +50,13 @@ Checks
               it shows, how to change and leave it, on every platform), unless allow.json 'states_pending' lists the
               section with the reason. A new section fails without one; a listed section that has one fails too
               (take it off the list). Whole file at the change's revision.
+  durations   every user-visible duration goes through THE formatter (the user, 2026-10-21: "Showing 60 min and 120
+              min is long, 1 h and 2 h is better. This applies everywhere in the UI; the mistake is repeated in many
+              places"): Android core/Durations.kt, Mac Shared/Durations.swift, cases in spikes/durations/durations.json.
+              Fails on a minute count written by hand: a string template / format with a number followed by min / m
+              (Kotlin, Swift), a minutes placeholder in strings.xml outside the duration_* keys, the Words duration
+              formats used outside Durations. Logs and data are exempt (log calls, tests, a line marked
+              '// duration-ok: <why>', allow.json 'durations_ok' files with the reason). Whole tree.
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
@@ -491,6 +498,56 @@ def check_clock(ch, rep):
                         % (p, n, bad.group(0)))
 
 
+DURATIONS_KT = APP_KT + "core/Durations.kt"
+DURATIONS_SWIFT = "spikes/widgets-macos/Shared/Durations.swift"
+# every surface uses the formatter since round f30
+DURATIONS_LEVEL = "FAIL"
+WORDS_KT = APP_KT + "core/Words.kt"  # the formats' home (the Words fields Durations reads)
+# a number (template, interpolation or format directive) followed by a minute unit inside a string literal
+KT_MINUTES = re.compile(r"(\$\{[^}\"]*\}\s?|\$[A-Za-z_]\w*\s|%(\d\$)?d\s?)(min|mins|minutes|m)\b")
+SWIFT_MINUTES = re.compile(r"(\\\([^\"]*?\)|%(\d\$)?d)\s?(min|mins|minutes|m)\b")
+XML_MINUTES = re.compile(r"%(\d\$)?d\s?(min|mins|minutes|minutos|m)\b")
+WORDS_DUR = re.compile(r"\bdur(Minutes|Hours|HoursMinutes|Days|TextMinutes|TextHours|TextHoursMinutes)\b")
+LOG_CALL = re.compile(r"\b(log|Log\.[a-z]|log\.[a-z]|logger|print|NSLog|EventLog\.[a-z]+|Logger\.[a-z]+)\s*\(|\bStrings\.log\b|\brec\.add\(")
+
+
+def check_durations(ch, rep):
+    """durations: see the module doc. Whole tree at the change's revision."""
+    ok_files = load("allow.json").get("durations_ok", {})
+    for p in tree_files(ch):
+        swift = p.endswith(".swift") and p.startswith(("spikes/menubar/Sources/", "spikes/widgets-macos/Shared/",
+                                                       "spikes/widgets-macos/Widget/"))
+        kt = p.endswith(".kt") and p.startswith(APP_KT)
+        xml = p.startswith("spikes/showcase-android/app/src/main/res/values") and p.endswith("/strings.xml")
+        if not (swift or kt or xml) or p in (DURATIONS_KT, DURATIONS_SWIFT, WORDS_KT) or p in ok_files or "SelfTest" in p:
+            continue
+        text = ch.blob(p) or ""
+        if xml:
+            for n, l in enumerate(text.splitlines(), 1):
+                # the name is optional (an <item>), but when it's there the group must get it: a lazy optional group
+                # matched nothing and let the duration_* formats themselves be flagged
+                m = re.search(r'<(string|item)\b(?:[^>]*?\bname="([^"]+)")?[^>]*>(.*)', l)
+                if not m or (m.group(2) or "").startswith("duration_"):
+                    continue
+                if XML_MINUTES.search(m.group(3)):
+                    rep.add(DURATIONS_LEVEL, "durations", "%s:%d writes minutes by hand (%s). Take the duration as %%1$s and pass\n"
+                            "Durations.text(min) (\"1 h 30 min\"), or Durations.compact on the card." % (p, n, m.group(3).strip()[:60]))
+            continue
+        for n, l in code_lines(text):
+            if "duration-ok:" in l or LOG_CALL.search(l):
+                continue
+            if kt and WORDS_DUR.search(l):
+                rep.add(DURATIONS_LEVEL, "durations", "%s:%d formats a duration with the Words formats itself: use Durations.text /\n"
+                        "compact / whole (core/Durations.kt)." % (p, n))
+                continue
+            for lit in re.findall(r'"(?:[^"\\]|\\.)*"', l):
+                if (KT_MINUTES if kt else SWIFT_MINUTES).search(lit):
+                    rep.add(DURATIONS_LEVEL, "durations", "%s:%d writes minutes by hand (%s): use %s, which writes 60 min as \"1 h\"."
+                            % (p, n, lit[:60], "Durations.text / compact (core/Durations.kt)" if kt
+                               else "Durations.text / compact (Shared/Durations.swift)"))
+                    break
+
+
 SETTINGS_SCHEMA = "spikes/settings/settings.json"
 SETTINGS_KT = APP_KT + "settings/SettingsSpec.kt"
 SETTINGS_SWIFT = "spikes/widgets-macos/Shared/SettingsSpec.swift"
@@ -779,6 +836,7 @@ def main(argv):
         check_clock(ch, rep)
         check_settings(ch, rep)
         check_states(ch, rep)
+        check_durations(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

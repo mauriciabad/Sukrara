@@ -27,7 +27,7 @@ import Foundation
         let wearerJSON = String(decoding: try! JSONSerialization.data(withJSONObject: content), as: UTF8.self)
         let customAlerts = String(decoding: try! JSONSerialization.data(withJSONObject: [
             "alerts": ["high": ["on": true, "mgdl": 183, "repeatMin": 7], "low": ["on": true, "mgdl": 72, "repeatMin": 5]],
-            "muteAfterInsulin": ["on": true, "min": 75], "notificationActions": ["muteMin": 45, "slowMin": 50],
+            "muteAfterInsulin": ["on": true, "min": 75], "notificationActions": ["muteMin": 45, "relaxMin": 50],
         ] as [String: Any]), as: UTF8.self)
         let custom: [String: Any] = [
             WearerSettings.modeKey: "custom", "graphHours": 7, "widgetHours": 36, "countdownHours": 10, "bandLow": 68, "bandHigh": 175,

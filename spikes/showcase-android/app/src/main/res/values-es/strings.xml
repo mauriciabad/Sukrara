@@ -300,6 +300,11 @@
     <string name="badge_time_left">quedan %1$s</string>
     <!-- Screen reader text of the paused badge; %1$s = alert name (e.g. Low), %2$s = short duration [CHAR LIMIT=NONE] -->
     <string name="badge_alerts_paused_description">%1$s: alertas en pausa, quedan %2$s</string>
+    <string name="badge_muted_short">Silencio</string>
+    <string name="badge_muted_for">Silencio · %1$s</string>
+    <string name="badge_alerts_muted">Alertas silenciadas</string>
+    <string name="badge_alerts_muted_description">Todas las alertas silenciadas, quedan %1$s</string>
+    <string name="badge_alerts_paused_never_description">%1$s: alertas silenciadas</string>
     <!-- Short duration under a minute [CHAR LIMIT=6] -->
     <string name="duration_now">ahora</string>
     <!-- Short duration in minutes, as compact as possible; %1$d = minutes [CHAR LIMIT=7] -->
@@ -310,6 +315,12 @@
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
     <!-- Short duration in days; %1$d = days [CHAR LIMIT=6] -->
     <string name="duration_days">%1$d d</string>
+    <!-- A duration in words and settings, minutes only (under an hour); %1$d = minutes [CHAR LIMIT=8] -->
+    <string name="duration_text_minutes">%1$d min</string>
+    <!-- A duration in words and settings, whole hours; %1$d = hours [CHAR LIMIT=6] -->
+    <string name="duration_text_hours">%1$d h</string>
+    <!-- A duration in words and settings, hours and minutes; %1$d = hours, %2$d = minutes [CHAR LIMIT=14] -->
+    <string name="duration_text_hours_minutes">%1$d h %2$d min</string>
     <!-- How long ago; %1$s = a short duration like 12m [CHAR LIMIT=14] -->
     <string name="duration_ago">hace %1$s</string>
     <!-- Window of a slot (time-in-range ring, average) in days, e.g. 14d; %1$d = days [CHAR LIMIT=5] -->
@@ -430,10 +441,11 @@
     <string name="alert_headline_no_data">Sin datos de glucosa</string>
     <!-- Alert headline with what was already logged; %1$s = headline (e.g. Low glucose), %2$s = alert_context_* [CHAR LIMIT=60] -->
     <string name="alert_headline_with_context">%1$s · %2$s</string>
-    <string name="alert_action_mute">Silenciar %1$d min</string>
-    <string name="alert_action_slow">Espaciar a %1$d min</string>
-    <string name="alert_action_mute_for">Silenciar…</string>
-    <string name="alert_action_mute_for_label">Minutos</string>
+    <string name="alert_action_mute">Silenciar…</string>
+    <string name="alert_action_mute_for_label">Silenciar durante</string>
+    <string name="alert_action_relax">Relajar</string>
+    <string name="alert_action_unrelax">Dejar de relajar</string>
+    <string name="alert_relaxed_subtext">Avisos cada %1$s</string>
     <string name="alert_muted_title">%1$s silenciada hasta las %2$s</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">come más</string>
@@ -554,7 +566,7 @@
     <!-- Follower home: banner text after the wearer stopped sharing [CHAR LIMIT=NONE] -->
     <string name="follower_home_revoked_text">Ya no se comparte con este teléfono. No llegarán lecturas nuevas; las anteriores se quedan en el teléfono.</string>
     <!-- Follower home: no reading for a while; %1$d = minutes [CHAR LIMIT=30] -->
-    <string name="follower_home_no_data">Sin datos desde hace %1$d min</string>
+    <string name="follower_home_no_data">Sin datos desde hace %1$s</string>
     <!-- Follower home: just approved, the history is loading [CHAR LIMIT=40] -->
     <string name="follower_home_fetching">Permitido: cargando el historial…</string>
     <!-- Follower home: this follower may not log treatments [CHAR LIMIT=NONE] -->
@@ -608,19 +620,18 @@
     <!-- Treatment time picker title [CHAR LIMIT=20] -->
     <string name="treatment_time_title">¿Cuándo?</string>
     <!-- Treatment dialog time chip for a relative time, resolved when saving; %1$d = minutes [CHAR LIMIT=20] -->
-    <string name="treatment_time_ago">Hace %1$d min</string>
+    <string name="treatment_time_ago">Hace %1$s</string>
     <!-- Treatment time picker: segmented button for picking a clock time [CHAR LIMIT=15] -->
     <string name="treatment_time_mode_time">Hora</string>
     <!-- Treatment time picker: segmented button for typing how many minutes ago [CHAR LIMIT=15] -->
     <string name="treatment_time_mode_ago">Minutos atrás</string>
     <!-- Treatment time picker: one-tap minutes-ago chip; %1$d = minutes (a quarter of the dialog) [CHAR LIMIT=7] -->
-    <string name="treatment_time_ago_chip">%1$d min</string>
     <!-- Treatment dialog: rapid insulin pauses high alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_highs">Altas silenciadas %1$d min</string>
+    <string name="treatment_quiet_highs">Altas silenciadas %1$s</string>
     <!-- Treatment dialog: carbs pause low alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_lows">Bajas silenciadas %1$d min</string>
+    <string name="treatment_quiet_lows">Bajas silenciadas %1$s</string>
     <!-- Treatment dialog: both; %1$d = minutes for highs, %2$d = minutes for lows [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_both">Altas silenciadas %1$d min · bajas silenciadas %2$d min</string>
+    <string name="treatment_quiet_both">Altas silenciadas %1$s · bajas silenciadas %2$s</string>
 
     <!-- ========== Profile editor (picture) ========== -->
     <!-- Profile picture: draw a new random picture [CHAR LIMIT=15] -->
@@ -989,22 +1000,23 @@
     <string name="alerts_threshold_above">≥ %1$d mg/dL</string>
     <string name="alerts_threshold_falling">más rápido que −%1$s mg/dL/min</string>
     <string name="alerts_threshold_rising">más rápido que +%1$s mg/dL/min</string>
-    <string name="alerts_threshold_no_data">tras %1$d min</string>
+    <string name="alerts_threshold_no_data">tras %1$s</string>
     <string name="alerts_remind_once">Una vez</string>
-    <string name="alerts_remind_every">Cada %1$d min</string>
-    <string name="alerts_minutes">%1$d min</string>
-    <string name="alerts_within_minutes">En %1$d min</string>
+    <string name="alerts_remind_every">Cada %1$s</string>
+    <string name="alerts_within_minutes">En %1$s</string>
     <string name="alerts_quiet_insulin">Tras insulina rápida</string>
-    <string name="alerts_quiet_insulin_summary">Altas y subidas rápidas esperan %1$d min</string>
+    <string name="alerts_quiet_insulin_summary">Altas y subidas rápidas esperan %1$s</string>
     <string name="alerts_quiet_falling">Al volver al rango</string>
-    <string name="alerts_quiet_falling_summary">Si va a bajar de %1$d en %2$d min</string>
+    <string name="alerts_quiet_falling_summary">Si va a bajar de %1$d en %2$s</string>
     <string name="alerts_quiet_carbs">Tras hidratos</string>
-    <string name="alerts_quiet_carbs_summary">Las bajas y las bajadas rápidas esperan %1$d min</string>
+    <string name="alerts_quiet_carbs_summary">Las bajas y las bajadas rápidas esperan %1$s</string>
     <string name="alerts_group_actions">Desde la notificación</string>
-    <string name="alerts_action_mute">Silenciar durante</string>
-    <string name="alerts_action_mute_summary">%1$d min · muy baja y extremadamente alta solo se espacian</string>
-    <string name="alerts_action_slow">Espaciar avisos a</string>
-    <string name="alerts_action_slow_summary">%1$d min · hasta volver al rango</string>
+    <string name="alerts_action_mute">Silenciar…: primera duración ofrecida</string>
+    <string name="alerts_action_relax">Relajar: avisos cada</string>
+    <string name="alerts_action_relax_summary">%1$s · hasta volver al rango</string>
+    <string name="alerts_back_mgdl">Silenciar y Relajar terminan al volver al rango por</string>
+    <string name="alerts_back_mgdl_value">%1$d mg/dL</string>
+    <string name="alerts_back_min">… durante al menos</string>
     <string name="alerts_sound_pack">Paquete de sonidos</string>
     <string name="alerts_sound_pack_default">El del paquete (%1$s)</string>
     <string name="alerts_sound_system_settings">sonido elegido en los ajustes del sistema</string>
@@ -1012,7 +1024,7 @@
     <string name="alerts_shuffle_summary">%1$d sonidos por alerta, al azar</string>
     <string name="alerts_notification_settings">Ajustes de notificaciones</string>
     <string name="alerts_notification_settings_summary">Sonido, vibración, No molestar</string>
-    <string name="alerts_footer">Cada alerta es su propia categoría de notificación: un sonido elegido en los ajustes del sistema sustituye al de Sukrara. Cada alerta suena con el volumen de alarma o el de notificaciones (las bajas, con el de alarma, salvo que lo cambies). Los ajustes se quedan en este teléfono. La muy baja y la extremadamente alta nunca se silencian desde una notificación, solo se espacian, y las reglas de silencio nunca retienen la extremadamente alta.</string>
+    <string name="alerts_footer">Cada alerta es su propia categoría de notificación: un sonido elegido en los ajustes del sistema sustituye al de Sukrara. Cada alerta suena con el volumen de alarma o el de notificaciones (las bajas, con el de alarma, salvo que lo cambies). Los ajustes se quedan en este teléfono. Las reglas de silencio nunca retienen la extremadamente alta.</string>
     <string name="alerts_kind_main_switch">Usar la alerta «%1$s»</string>
     <string name="alerts_unavailable_off">No disponible con esta alerta desactivada</string>
     <string name="alerts_unavailable_all_off">No disponible con las alertas desactivadas</string>
@@ -1042,7 +1054,7 @@
     <string name="alerts_kind_footer">El sonido y la vibración de esta alerta son los de su categoría de notificación: un sonido elegido allí sustituye al de Sukrara.</string>
     <string name="alerts_kind_footer_follower">El umbral y los recordatorios vienen de la app de quien lleva el sensor. El sonido y el volumen son de este teléfono.</string>
     <string name="interval_every_reading">Cada lectura</string>
-    <string name="interval_every_min">Cada %1$d min</string>
+    <string name="interval_every_min">Cada %1$s</string>
     <string name="sharing_upload_interval">Intervalo de subida</string>
     <string name="sharing_upload_interval_off">No disponible sin compartir por internet</string>
     <string name="libreview_upload_every">Subir cada</string>
@@ -1511,16 +1523,23 @@
     <string name="search_no_results">No hay resultados</string>
 
     <!-- Settings: alert pages (labels, now and lately) -->
-    <string name="alerts_quiet_reason_insulin">insulina hace %1$d min</string>
-    <string name="alerts_quiet_reason_carbs">hidratos hace %1$d min</string>
-    <string name="alerts_quiet_reason_falling">bajando, en rango en ~%1$d min</string>
-    <string name="alerts_quiet_reason_notification">silenciada desde la notificación, quedan %1$d min</string>
+    <string name="alerts_quiet_reason_insulin">insulina hace %1$s</string>
+    <string name="alerts_quiet_reason_carbs">hidratos hace %1$s</string>
+    <string name="alerts_quiet_reason_falling">bajando, en rango en ~%1$s</string>
+    <string name="alerts_quiet_reason_notification">silenciada desde la notificación, quedan %1$s</string>
+    <string name="alerts_quiet_reason_all">todas las alertas silenciadas, quedan %1$s</string>
+    <string name="alerts_quiet_reason_all_never">todas las alertas silenciadas</string>
     <string name="alerts_note_fired">%1$s · %2$s mg/dL</string>
     <string name="alerts_note_fired_remote">%1$s (de quien lleva el sensor) · %2$s mg/dL</string>
     <string name="alerts_note_cleared">%1$s: resuelta</string>
     <string name="alerts_note_cleared_remote">%1$s: resuelta (por quien lleva el sensor)</string>
-    <string name="alerts_note_muted">%1$s silenciada %2$d min</string>
-    <string name="alerts_note_slowed">%1$s cada %2$d min</string>
+    <string name="alerts_note_muted">%1$s silenciada %2$s</string>
+    <string name="alerts_note_muted_notification">%1$s silenciada %2$s (notificación)</string>
+    <string name="alerts_note_relaxed">%1$s relajada: cada %2$s</string>
+    <string name="alerts_note_back">%1$s de vuelta en rango: fin del silencio y de relajar</string>
+    <string name="alerts_note_all_muted">Todas las alertas silenciadas %1$s</string>
+    <string name="alerts_note_all_muted_never">Todas las alertas silenciadas hasta volver a activarlas</string>
+    <string name="alerts_note_all_back">Alertas activadas de nuevo</string>
     <string name="alerts_note_resumed">Reanudada: %1$s (sin sonido)</string>
     <string name="alerts_note_test">%1$s (prueba)</string>
     <string name="sound_arcade">Arcade (8 bits)</string>
@@ -1755,21 +1774,30 @@
     <!-- Ronda f29: salir de una alerta silenciada / espaciada -->
     <string name="alert_action_unmute">Reactivar</string>
     <string name="alert_action_change">Cambiar…</string>
-    <string name="alert_action_unslow">Dejar de espaciar</string>
     <string name="alerts_note_unmuted">%1$s reactivada</string>
-    <string name="alerts_note_unslowed">%1$s: de nuevo cada %2$d min</string>
+    <string name="alerts_note_unrelaxed">%1$s: de nuevo cada %2$s</string>
     <string name="quiet_title_muted">%1$s silenciada hasta las %2$s</string>
     <string name="quiet_title_carbs">%1$s en silencio tras los hidratos hasta las %2$s</string>
     <string name="quiet_title_insulin">%1$s en silencio tras la insulina hasta las %2$s</string>
     <string name="quiet_title_falling">%1$s en silencio: bajando hacia el rango</string>
-    <string name="quiet_title_slowed">%1$s: avisos cada %2$d min</string>
+    <string name="quiet_title_relaxed">%1$s relajada: avisos cada %2$s</string>
     <string name="quiet_title_mirrored_treatment">%1$s en silencio tras un tratamiento. El teléfono de quien lleva el sensor decide cuándo vuelve a avisar.</string>
     <string name="quiet_unmute">Reactivar</string>
     <string name="quiet_alert_anyway">Avisarme igualmente</string>
-    <string name="quiet_stop_slowing">Dejar de espaciar</string>
+    <string name="quiet_stop_relaxing">Dejar de relajar</string>
     <string name="quiet_change">Cambiar a</string>
     <string name="quiet_mute_for">Silenciar</string>
     <string name="quiet_settings">Ajustes de alertas</string>
     <string name="alerts_active_now">Activas ahora</string>
     <string name="quiet_a11y_action">%1$s: %2$s</string>
+    <string name="mute_all_button">Silenciar alertas</string>
+    <string name="mute_all_title">Silenciar alertas durante</string>
+    <string name="mute_all_never">Nunca</string>
+    <string name="mute_all_never_summary">Hasta que las vuelva a activar</string>
+    <string name="mute_all_until">Alertas silenciadas hasta las %1$s</string>
+    <string name="mute_all_on">Alertas silenciadas</string>
+    <string name="mute_all_turn_on">Volver a activar las alertas</string>
+    <string name="mute_all_change">Cambiar</string>
+    <string name="mute_all_a11y_on">Alertas: volver a activar</string>
+    <string name="mute_all_a11y_change">Alertas: cambiar el silencio</string>
 </resources>

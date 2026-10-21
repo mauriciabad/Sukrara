@@ -21,6 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -32,6 +33,7 @@ import app.mauri.sukrara.alerts.AlertNotifier
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.core.Durations
 
 /*
  * The ways out of a quiet alert (round f29; user, 2026-10-21: "There's no way to unmute! On any platform"), shown
@@ -52,13 +54,13 @@ fun quietTitle(ctx: Context, a: Alerts.Active, now: Long): String {
         AlertEngine.QUIET_CARBS -> ctx.getString(R.string.quiet_title_carbs, name, time())
         AlertEngine.QUIET_INSULIN -> ctx.getString(R.string.quiet_title_insulin, name, time())
         AlertEngine.QUIET_FALLING -> ctx.getString(R.string.quiet_title_falling, name)
-        else -> ctx.getString(R.string.quiet_title_slowed, name, a.slowMin)
+        else -> ctx.getString(R.string.quiet_title_relaxed, name, Durations.text(a.relaxMin))
     }
 }
 
-/** The second line when it's also slowed ("Low reminders every 30 min"), or null. */
-private fun slowedLine(ctx: Context, a: Alerts.Active): String? =
-    if (a.quiet != null && a.slowMin > 0) ctx.getString(R.string.quiet_title_slowed, AlertNotifier.label(ctx, a.kind), a.slowMin) else null
+/** The second line when it's also relaxed ("Low relaxed: reminders every 30 min"), or null. */
+private fun relaxedLine(ctx: Context, a: Alerts.Active): String? =
+    if (a.quiet != null && a.relaxMin > 0) ctx.getString(R.string.quiet_title_relaxed, AlertNotifier.label(ctx, a.kind), Durations.text(a.relaxMin)) else null
 
 /** The main way out of [a]: Unmute (a notification mute) or Alert me anyway (a treatment / falling mute here). */
 private fun lift(a: Alerts.Active): Int? = when {
@@ -72,36 +74,32 @@ fun quietA11yActions(ctx: Context, list: List<Alerts.Active>): List<CustomAccess
     val name = AlertNotifier.label(ctx, a.kind)
     listOfNotNull(
         lift(a)?.let { r -> CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(r))) { Alerts.unmute(ctx, a.kind); true } },
-        if (a.slowMin > 0) CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(R.string.quiet_stop_slowing))) {
-            Alerts.unslow(ctx, a.kind); true } else null,
+        if (a.relaxMin > 0) CustomAccessibilityAction(ctx.getString(R.string.quiet_a11y_action, name, ctx.getString(R.string.quiet_stop_relaxing))) {
+            Alerts.unrelax(ctx, a.kind); true } else null,
     )
 }
 
 /**
- * One quiet alert with its ways out: the title, Unmute / Alert me anyway, the mute lengths (Change to … while muted,
- * Mute for … otherwise; a Mute never applies to very low / extremely high) and Stop slowing down / Slow down.
+ * One quiet alert with its ways out: the title, Unmute / Alert me anyway, Stop relaxing / Relax, and the mute lengths
+ * (Change to … while muted, Mute for … otherwise; every kind, very low and extremely high included, round f30).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuietRow(a: Alerts.Active, now: Long) {
     val ctx = LocalContext.current
-    val s by Alerts.settings.collectAsState()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(quietTitle(ctx, a, now), style = MaterialTheme.typography.bodyLarge)
-        slowedLine(ctx, a)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        relaxedLine(ctx, a)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             lift(a)?.let { r -> FilledTonalButton(onClick = { Alerts.unmute(ctx, a.kind) }) { Text(stringResource(r)) } }
-            if (a.slowMin > 0) FilledTonalButton(onClick = { Alerts.unslow(ctx, a.kind) }) { Text(stringResource(R.string.quiet_stop_slowing)) }
-            else if (a.canSlow) OutlinedButton(onClick = { Alerts.action(ctx, a.kind, slow = true) }) {
-                Text(stringResource(R.string.alert_action_slow, s.slowMin)) }
+            if (a.relaxMin > 0) FilledTonalButton(onClick = { Alerts.unrelax(ctx, a.kind) }) { Text(stringResource(R.string.quiet_stop_relaxing)) }
+            else if (a.canRelax) OutlinedButton(onClick = { Alerts.relax(ctx, a.kind) }) { Text(stringResource(R.string.alert_action_relax)) }
         }
         if (a.canMute) {
             Text(stringResource(if (a.quiet == AlertEngine.QUIET_NOTIFICATION) R.string.quiet_change else R.string.quiet_mute_for),
                 style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (m in AlertSettings.MUTE_PRESETS) OutlinedButton(onClick = { Alerts.action(ctx, a.kind, slow = false, min = m) }) {
-                    Text(stringResource(R.string.alerts_minutes, m))
-                }
+                for (m in AlertSettings.MUTE_PRESETS) OutlinedButton(onClick = { Alerts.mute(ctx, a.kind, m) }) { Text(Durations.text(m)) }
             }
         }
     }
@@ -118,15 +116,20 @@ fun AlertQuietSheet(kind: String, onDismiss: () -> Unit, onSettings: (() -> Unit
     val ctx = LocalContext.current
     val list by Alerts.active.collectAsState()
     val now = nowSeconds()
+    val all by Alerts.allMuted.collectAsState()
+    var change by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val mine = list.filter { Kind.side(it.kind) == Kind.side(kind) }
     // opened with nothing to lift here: a mirrored treatment mute (the text below); otherwise the sheet closes once
-    // its last state is left (Unmute, Stop slowing down, the mute's end)
-    val mirroredTreatment = androidx.compose.runtime.remember { mine.isEmpty() }
-    androidx.compose.runtime.LaunchedEffect(mine.isEmpty()) { if (mine.isEmpty() && !mirroredTreatment) onDismiss() }
+    // its last state is left (Unmute, Stop relaxing, Turn alerts back on, the mute's end, back in range)
+    val empty = mine.isEmpty() && all == 0L
+    val mirroredTreatment = androidx.compose.runtime.remember { empty }
+    androidx.compose.runtime.LaunchedEffect(empty) { if (empty && !mirroredTreatment) onDismiss() }
+    if (change) MuteAllDialog(onClose = { change = false })
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            if (mirroredTreatment && mine.isEmpty()) Text(ctx.getString(R.string.quiet_title_mirrored_treatment, AlertNotifier.label(ctx, kind)),
+            if (all != 0L) MuteAllState(all, onChange = { change = true })
+            if (mirroredTreatment && empty) Text(ctx.getString(R.string.quiet_title_mirrored_treatment, AlertNotifier.label(ctx, kind)),
                 style = MaterialTheme.typography.bodyLarge)
             mine.forEach { QuietRow(it, now) }
             onSettings?.let { TextButton(onClick = { onDismiss(); it() }) { Text(stringResource(R.string.quiet_settings)) } }

@@ -59,6 +59,7 @@ struct Provider: TimelineProvider {
             if let s, let a = s.alerts {
                 // (the alert notification's mutes too: the badge turns back to what to do)
                 let ends = s.graphMarks.compactMap { AlertStatus.muteUntil($0, a) } + (s.paused ?? [:]).values
+                    + [s.allMuted ?? 0].filter { $0 < AlertStatus.never }
                 for end in Set(ends).sorted() where end > now.timeIntervalSince1970 {
                     let at = Date(timeIntervalSince1970: end)
                     entries.append(GlucoseEntry(date: at, content: GlucoseEntryContent(snapshot: s, date: at), via: via, overrides: overrides))

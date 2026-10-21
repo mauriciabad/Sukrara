@@ -12,6 +12,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.PathParser
+import app.mauri.sukrara.alerts.AlertEngine
 import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.treatments.LastTreatment
@@ -25,7 +26,10 @@ import kotlin.math.min
  *   (high side).
  * - Taken: the same pill, tonal (the colour at low alpha, text in the colour), with the "notifications paused" bell and
  *   the time left of the mute ("45m left"): alerts wait while the treatment works.
- * - Paused (muted from the alert notification): the same tonal pill and time left.
+ * - Paused (this device's Mute of the side, or Mute all, while out of range): the same tonal pill and time left;
+ *   "Muted" when it has no end ([app.mauri.sukrara.alerts.AlertEngine.NEVER]).
+ * - Muted (Mute all, in range or without a current reading; round f30): a tonal pill in the neutral colour (kind
+ *   "muted", like "sensor" / "now") with the "notifications off" bell: "Muted · 1h 20m", "Alerts muted" without an end.
  *
  * One look on every surface: the widgets and the lock screen draw it here, the app's panel with Compose
  * (`ui/Widgets.kt`, the same colours and words from [look]).
@@ -42,9 +46,19 @@ object StatusBadge {
             }
         is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
         // muted from the notification: the colour of what answers it (carbs for lows, insulin for highs)
-        is AlertStatus.Paused -> TreatmentMarks.duration(s.until - now, up = true)
-            .let { Look(if (s.kind in Kind.LOW_SIDE) "carbs" else "rapid", Words.current.timeLeft.format(it), it, true) }
+        is AlertStatus.Paused -> Words.current.let { w ->
+            val kind = if (s.kind in Kind.LOW_SIDE) "carbs" else "rapid"
+            if (s.until == AlertEngine.NEVER) Look(kind, w.muted, w.muted, true)
+            else TreatmentMarks.duration(s.until - now, up = true).let { Look(kind, w.timeLeft.format(it), it, true) }
+        }
+        is AlertStatus.Muted -> Words.current.let { w ->
+            if (s.until == AlertEngine.NEVER) Look(MUTED, w.alertsMuted, w.muted, true)
+            else Look(MUTED, w.mutedFor.format(TreatmentMarks.duration(s.until - now, up = true)), w.muted, true)
+        }
     }
+
+    /** [Look.kind] of the Mute all pill (neutral colour, the "notifications off" bell). */
+    const val MUTED = "muted"
 
     /** The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc). */
     fun replaceSensor(w: Words = Words.current) = Look("sensor", w.replaceSensor, w.replaceSensorShort, false)
@@ -57,7 +71,13 @@ object StatusBadge {
         AlertStatus.None -> null
         is AlertStatus.Needed -> look(s, now)?.text
         is AlertStatus.Taken -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
-        is AlertStatus.Paused -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
+        is AlertStatus.Paused -> Words.current.let { w ->
+            if (s.until == AlertEngine.NEVER) w.alertsPausedNever.format(w.kind(s.kind))
+            else w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true))
+        }
+        is AlertStatus.Muted -> Words.current.let { w ->
+            if (s.until == AlertEngine.NEVER) w.alertsMuted else w.alertsMutedDescription.format(TreatmentMarks.duration(s.until - now, up = true))
+        }
     }
 
     /** Material Symbols "notifications_paused" (Apache 2.0), viewBox 0 -960 960 960; also `ic_sym_notifications_paused`. */
@@ -65,10 +85,15 @@ object StatusBadge {
         "T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 " +
         "0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"
     private val bellPath: Path by lazy { PathParser.createPathFromPathData(BELL_PAUSED) }
+    /** Material Symbols "notifications_off" (Apache 2.0), viewBox 0 -960 960 960; also `ic_sym_notifications_off`. */
+    private const val BELL_OFF = "M160-200v-80h80v-280q0-33 8.5-65t25.5-61l60 60q-7 16-10.5 32.5T320-560v280h248L56-792l56-56 736 736-56 " +
+        "56-146-144H160Zm560-154-80-80v-126q0-66-47-113t-113-47q-26 0-50 8t-44 24l-58-58q20-16 43-28t49-18v-28q0-25 17.5-42.5T480-880q25 " +
+        "0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v206Zm-276-50Zm36 324q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80Zm33-481Z"
+    private val bellOffPath: Path by lazy { PathParser.createPathFromPathData(BELL_OFF) }
 
-    /** The bell, [size] px square, top-left at ([x], [y]). */
-    fun bell(cv: Canvas, x: Float, y: Float, size: Float, color: Int) {
-        val p = Path(bellPath)
+    /** The bell, [size] px square, top-left at ([x], [y]); [off] = "notifications off" (Mute all) instead of "paused". */
+    fun bell(cv: Canvas, x: Float, y: Float, size: Float, color: Int, off: Boolean = false) {
+        val p = Path(if (off) bellOffPath else bellPath)
         p.transform(Matrix().apply { setTranslate(0f, 960f); postScale(size / 960f, size / 960f); postTranslate(x, y) })
         cv.drawPath(p, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
     }
@@ -103,7 +128,7 @@ object StatusBadge {
         val w = if (words == null) h else h * 0.4f + icon + h * 0.25f + text.measureText(words) + h * 0.45f
         cv.drawRoundRect(RectF(x, y, x + w, y + h), h / 2, h / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bg })
         val ix = if (words == null) x + (h - icon) / 2 else x + h * 0.4f
-        if (look.tonal) bell(cv, ix, y + (h - icon) / 2, icon, fg)
+        if (look.tonal) bell(cv, ix, y + (h - icon) / 2, icon, fg, off = look.kind == MUTED)
         else TreatmentMarks.marker(cv, look.kind, ix + icon / 2, y + h / 2, icon * 0.42f, fg)
         if (words != null) {
             val fm = text.fontMetrics
@@ -384,7 +409,7 @@ fun appSlots(c: android.content.Context, readings: List<app.mauri.sukrara.core.R
     val alerts = app.mauri.sukrara.alerts.Alerts.settings.value
     val last = if (cfg.lastPlace == LastPlace.OFF) null
         else LastTreatment.of(treatments, alerts, AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, nowS,
-            app.mauri.sukrara.alerts.Alerts.paused.value), nowS)
+            app.mauri.sukrara.alerts.Alerts.paused.value, app.mauri.sukrara.alerts.Alerts.allMuted.value), nowS)
     fun metrics(s: RingSpec) = GraphData.metrics(c, s.windowS, bands, nowS).takeIf { it.tir.coverage >= GlucoseCard.MIN_COVERAGE }
     val rings = cfg.rings().take(3).mapIndexedNotNull { i, s -> metrics(s)?.let { Triple(i, s, it) } }
     val fallback = if (cfg.lastPlace != LastPlace.OFF && last == null) cfg.lastElseRing()?.let { s -> metrics(s)?.let { s to it } } else null

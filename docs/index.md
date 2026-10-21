@@ -10,8 +10,8 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.38/Sukrara-0.11.38.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.38/Sukrara-0.11.38.dmg)**
+**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.39/Sukrara-0.11.39.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.39/Sukrara-0.11.39.dmg)**
 · [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
 · [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
 
@@ -41,8 +41,8 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   <img src="img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid and long insulin, carbs and a note at once" width="330">
 </p>
 <p>
-  <img src="img/notification/alert-actions.png" alt="A low alert under the glucose notification, with one-tap mute choices and Mute 30 min, Slow to 30 min and Mute for…" width="300">
-  <img src="img/notification/alert-muted.png" alt="After Mute 30 min: the alert says Low muted until 8:27 PM and the glucose notification shows a bell with 30m left" width="300">
+  <img src="img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Relax" width="300">
+  <img src="img/notification/alert-muted.png" alt="After Mute…: the alert says Low muted until 3:24 AM, with Unmute and Change…" width="300">
 </p>
 <p>
   <img src="img/settings/settings.png" alt="Settings: search, the share-with-your-clinic banner and sections with coloured icons" width="180">

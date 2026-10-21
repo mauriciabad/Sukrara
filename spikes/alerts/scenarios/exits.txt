@@ -1,5 +1,5 @@
 # The ways out of a quiet alert (SPEC.md §2 "States and exits"; user, 2026-10-21: "There's no way to unmute! On any
-# platform"): Unmute / Alert me anyway, Change (a new Mute on a muted episode), Stop slowing down. They act on this
+# platform"): Unmute / Alert me anyway, Change (a new Mute on a muted episode), Stop relaxing. They act on this
 # device only, like the notification's buttons. Format: SPEC.md §7.
 
 scenario Unmute while still low: it alerts at once
@@ -35,12 +35,12 @@ scenario Change a running mute: shorter, then longer
 85                => Low glucose
 86
 
-scenario Stop slowing down: back to the kind's interval, an overdue repeat at once
-settings slow.min=15
+scenario Stop relaxing: back to the kind's interval, an overdue repeat at once
+settings relax.min=15
  0  glucose 65   => Low glucose
- 2  slow low
- 5                                            # slowed: no repeat
- 8  unslow low   => Low glucose               # the 5-min repeat was due at 5: at once
+ 2  relax low
+ 5                                            # relaxed: no repeat
+ 8  unrelax low   => Low glucose               # the 5-min repeat was due at 5: at once
 13               => Low glucose
 14
 
@@ -78,13 +78,13 @@ mirror
 10                        => Low glucose; follower Low glucose
 11
 
-scenario The follower's Stop slowing down shows the skipped repeat at once
+scenario The follower's Stop relaxing shows the skipped repeat at once
 mirror
-settings slow.min=15
+settings relax.min=15
  0  glucose 65            => Low glucose; follower Low glucose
- 1  follower slow low
+ 1  follower relax low
  5                        => Low glucose      # skipped on the follower
- 7  follower unslow low   => follower Low glucose
+ 7  follower unrelax low   => follower Low glucose
 10                        => Low glucose; follower Low glucose
 11
 

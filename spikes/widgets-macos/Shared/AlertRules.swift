@@ -36,9 +36,6 @@ enum AlertKind: String, CaseIterable {
     }
     /// Alerts below a threshold (strictly `<`: low 70 alerts at 69); the other levels are `>=`.
     var lowSide: Bool { self == .veryLow || self == .low }
-    /// Never muted from a notification's Mute action (the safety net on each side); Slow down still works on them, and
-    /// a very low inside a muted low episode alerts at once.
-    var always: Bool { self == .veryLow || self == .extremelyHigh }
     /// Level alerts by severity: the first that matches wins.
     static let levels: [AlertKind] = [.veryLow, .extremelyHigh, .veryHigh, .low, .high]
     /// Severity within a side (an episode, see AlertEngine): moving to a higher one alerts at once.
@@ -49,6 +46,12 @@ enum AlertKind: String, CaseIterable {
     var side: String {
         switch self { case .veryLow, .low: "low"; case .high, .veryHigh, .extremelyHigh: "high"; default: rawValue }
     }
+    /// The side's main kind (a Mute / Relax shown without an episode): "low" → low, "high" → high, else the side.
+    static func main(_ side: String) -> AlertKind {
+        switch side { case "low": .low; case "high": .high; default: AlertKind(rawValue: side) ?? .noData }
+    }
+    /// Every side a Mute / Relax / Mute all acts on.
+    static let sides = ["low", "high", "falling_fast", "rising_fast", "no_data"]
     /// The treatment that answers it ("carbs" / "rapid"), whatever the mute settings; nil for no data.
     var treatment: String? {
         switch self {
@@ -118,13 +121,19 @@ struct AlertRule: Codable, Equatable {
 
 struct AlertMute: Codable, Equatable { var on: Bool; var min: Double }
 
-/// The alert notification's actions (SPEC §2): *Mute <muteMin> min* and the interval *Slow down* repeats at. Their
-/// formats (range, presets) are the schema's `actionMute` / `actionSlow` (spikes/settings/settings.json).
+/// The alert notification's actions (SPEC §2): the first length *Mute…* offers, the interval *Relax* repeats at, and
+/// the margin that ends Mute and Relax (back by `backMgdl` inside the threshold for `backMin` minutes). Their formats
+/// (range, presets) are the schema's `actionMute` / `actionRelax` / `backMgdl` / `backMin` (spikes/settings/settings.json).
 struct AlertActions: Codable, Equatable {
     var muteMin: Int
-    var slowMin: Int
+    var relaxMin: Int
+    var backMgdl: Int
+    var backMin: Int
     /// Minutes a Mute (preset or typed) accepts.
     static var muteRange: ClosedRange<Int> { Int(SettingsSpec.actionMute.min)...Int(SettingsSpec.actionMute.max) }
+    /// *Mute all*: minutes a custom length accepts, and the presets (0 = Never, until turned back on).
+    static var muteAllRange: ClosedRange<Int> { Int(SettingsSpec.muteAll.min)...Int(SettingsSpec.muteAll.max) }
+    static var muteAllPresets: [Int] { SettingsSpec.muteAll.presets.map { Int($0) } }
 }
 
 struct AlertSounds: Codable, Equatable {
@@ -141,8 +150,8 @@ struct AlertSettings: Codable, Equatable {
     var muteFallingHigh = AlertMute(on: true, min: 20)
     var muteAfterCarbs = AlertMute(on: true, min: 15)
     var sounds = AlertSounds(pack: "quest", kinds: [:], shuffle: true)
-    /// slowMin 30: slower than every level alert's default repeat (5–15 min), so Slow down shows on all of them.
-    var notificationActions = AlertActions(muteMin: 30, slowMin: 30)
+    /// relaxMin 30: slower than every level alert's default repeat (5–15 min), so Relax shows on all of them.
+    var notificationActions = AlertActions(muteMin: 30, relaxMin: 30, backMgdl: 10, backMin: 10)
     /// Derived (`AlertSettings.load`): "wearer" = mirror the wearer's alert events (Settings from: Wearer), "own" = run these rules.
     var source = "wearer"
 
@@ -154,13 +163,19 @@ struct AlertSettings: Codable, Equatable {
         set { alerts[k.rawValue] = newValue }
     }
 
-    /// The slowest enabled level alert's repeat (minutes; 0 = none): Slow down must be slower than it.
-    var slowFloor: Int { AlertKind.levels.map { self[$0] }.filter { $0.on && $0.repeatMin > 0 }.map(\.repeatMin).max() ?? 0 }
-    /// The Slow down presets the settings offer: only ones slower than every enabled level alert's repeat, so the
-    /// button shows on all of them (Android's AlertSettings.slowChoices); a custom value starts at `slowFloor + 1`.
-    var slowChoices: [Int] {
-        let c = SettingsSpec.actionSlow.presets.map { Int($0) }.filter { $0 > slowFloor }
-        return c.isEmpty ? [Int(SettingsSpec.actionSlow.max)] : c
+    /// The slowest enabled level alert's repeat (minutes; 0 = none): Relax must be slower than it.
+    var relaxFloor: Int { AlertKind.levels.map { self[$0] }.filter { $0.on && $0.repeatMin > 0 }.map(\.repeatMin).max() ?? 0 }
+    /// The Relax presets the settings offer: only ones slower than every enabled level alert's repeat, so the
+    /// button shows on all of them (Android's AlertSettings.relaxChoices); a custom value starts at `relaxFloor + 1`.
+    var relaxChoices: [Int] {
+        let c = SettingsSpec.actionRelax.presets.map { Int($0) }.filter { $0 > relaxFloor }
+        return c.isEmpty ? [Int(SettingsSpec.actionRelax.max)] : c
+    }
+    /// The *Mute…* lengths a notification offers: `muteMin` first, then the other presets (Android's muteChoices).
+    var muteChoices: [Int] {
+        var out = [notificationActions.muteMin]
+        for p in SettingsSpec.actionMute.presets.map({ Int($0) }) where !out.contains(p) { out.append(p) }
+        return out
     }
 
     init() {}
@@ -173,7 +188,7 @@ struct AlertSettings: Codable, Equatable {
         struct PartialRule: Decodable { var on, alarm: Bool?; var mgdl, rate, min, repeatMin: Double? }
         struct PartialMute: Decodable { var on: Bool?; var min: Double? }
         struct PartialSounds: Decodable { var pack: String?; var kinds: [String: String]?; var shuffle: Bool? }
-        struct PartialActions: Decodable { var muteMin, slowMin: Double? }
+        struct PartialActions: Decodable { var muteMin, relaxMin, backMgdl, backMin: Double? }
         enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, muteAfterCarbs, sounds, notificationActions, source }
         let c = try decoder.container(keyedBy: K.self)
         if let on = try? c.decode(Bool.self, forKey: .on) { self.on = on }
@@ -203,7 +218,9 @@ struct AlertSettings: Codable, Equatable {
         if let p = try? c.decode(PartialActions.self, forKey: .notificationActions) {
             let d = notificationActions
             notificationActions = AlertActions(muteMin: p.muteMin.map { Int(SettingsSpec.actionMute.coerce($0)) } ?? d.muteMin,
-                                               slowMin: p.slowMin.map { Int(SettingsSpec.actionSlow.coerce($0)) } ?? d.slowMin)
+                                               relaxMin: p.relaxMin.map { Int(SettingsSpec.actionRelax.coerce($0)) } ?? d.relaxMin,
+                                               backMgdl: p.backMgdl.map { Int(SettingsSpec.backMgdl.coerce($0)) } ?? d.backMgdl,
+                                               backMin: p.backMin.map { Int(SettingsSpec.backMin.coerce($0)) } ?? d.backMin)
         }
     }
 
@@ -248,8 +265,14 @@ enum AlertStatus: Equatable {
     case needed(AlertKind)
     /// Out of range, but `treatment`'s mute window covers it until `until` (epoch s).
     case taken(AlertKind, treatment: GraphMark, until: TimeInterval)
-    /// Muted from the alert notification (*Mute*) until `until` (epoch s): the same faded badge.
+    /// Out of range, muted on this device (the side's *Mute*, or *Mute all*) until `until` (epoch s; `never` = until
+    /// turned back on): the same faded badge.
     case paused(AlertKind, until: TimeInterval)
+    /// In range (or no current reading) while *Mute all* is on, until `until` (`never` = until turned back on).
+    case muted(until: TimeInterval)
+
+    /// *Mute all* without an end (Android's AlertEngine.NEVER): far in the future, finite so it encodes in JSON.
+    static let never: TimeInterval = Date.distantFuture.timeIntervalSince1970
 
     /// Readings older than this never alert (backfill, a late chunk); `AlertEngine.fresh`.
     static let fresh: TimeInterval = 15 * 60
@@ -272,17 +295,19 @@ enum AlertStatus: Equatable {
 
     /// Same rules as the AlertEngine: carbs cover very low and low, rapid insulin high and very high, while their mute
     /// window lasts (`t ≤ now < t + min`); extremely high is never covered. `marks` = live entries (no deleted ones).
-    /// Otherwise `paused` (side → until, the alert notification's *Mute*, AlertEngine.snoozes) covers every level kind
-    /// but very low and extremely high.
+    /// Otherwise `paused` (side → until, this device's *Mute* of the side) or `allMuted` (*Mute all*'s end, 0 = off,
+    /// `never` = no end) covers every level kind, very low and extremely high included (round f30): a side's pause is
+    /// the later of the two. In range or without a current reading while Mute all is on: `muted`.
     static func of(_ r: GraphReading?, _ s: AlertSettings, _ marks: [GraphMark], now: TimeInterval,
-                   paused: [String: TimeInterval] = [:]) -> AlertStatus {
-        guard let r, let k = level(mgdl: r.v, at: r.t, s, now: now) else { return .none }
+                   paused: [String: TimeInterval] = [:], allMuted: TimeInterval = 0) -> AlertStatus {
+        guard let r, let k = level(mgdl: r.v, at: r.t, s, now: now) else { return s.on && allMuted > now ? .muted(until: allMuted) : .none }
         let cover = s.mutedBy(k).flatMap { by in marks.filter { $0.k == by && $0.t <= now }
             .compactMap { m in muteUntil(m, s).map { (m, $0) } }
             .filter { $0.1 > now }
             .max { $0.0.t < $1.0.t } }
         if let cover { return .taken(k, treatment: cover.0, until: cover.1) }
-        if let until = paused[k.side], until > now, !k.always { return .paused(k, until: until) }
+        let until = max(paused[k.side] ?? 0, allMuted)
+        if until > now { return .paused(k, until: until) }
         return .needed(k)
     }
 }

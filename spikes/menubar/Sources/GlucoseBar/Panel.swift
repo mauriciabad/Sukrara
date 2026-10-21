@@ -21,6 +21,8 @@ import SwiftUI
     @Published var style = CardStyle(sensorTime: true)
     @Published var alerts: AlertSettings?
     @Published var paused: [String: TimeInterval] = [:]
+    /// This Mac's Mute all until (unix s; 0 = off, AlertStatus.never = until turned back on).
+    @Published var allMuted: TimeInterval = 0
     @Published var hasData = false
     /// Bumped to redraw the card (the clock moves even without new data).
     @Published var tick = 0
@@ -50,30 +52,44 @@ import SwiftUI
 }
 
 /// A way out of a quiet alert (or into one, from the same list): the panel's rows, the pill's menu, Settings › Alerts.
-enum QuietOp { case unmute(AlertKind), unslow(AlertKind), mute(AlertKind, Int), slow(AlertKind) }
+/// `muteAll` minutes, 0 = Never (until turned back on).
+enum QuietOp { case unmute(AlertKind), unrelax(AlertKind), mute(AlertKind, Int), relax(AlertKind), muteAll(Int), unmuteAll }
 
 /// The mute lengths offered (the schema's Mute presets).
 let quietMinutes: [Int] = SettingsSpec.actionMute.presets.map { Int($0) }
 
-/// `q`'s ways out as a menu (the card pill's click, AppKit): Unmute / Alert Me Anyway, Stop Slowing Down, Change to /
-/// Mute for … (HIG "Menus": a menu offers the commands for the item it opens on).
-@MainActor func quietMenu(_ list: [Alerts.Active], slowMin: Int, _ act: @escaping (QuietOp) -> Void) -> NSMenu {
+/// A Mute all length in words: "30 min", "1 h", "Never" (0).
+func muteAllLabel(_ m: Int) -> String { m == 0 ? "Never" : Durations.text(m) }
+
+/// `q`'s ways out as a menu (the card pill's click, AppKit): Unmute / Alert Me Anyway, Stop Relaxing / Relax, Change
+/// To / Mute For … and, while Mute all is on, Turn Alerts Back On (HIG "Menus": a menu offers the commands for the item
+/// it opens on).
+@MainActor func quietMenu(_ list: [Alerts.Active], allMuted: String?, _ act: @escaping (QuietOp) -> Void) -> NSMenu {
     let menu = NSMenu()
+    if let allMuted {
+        let head = NSMenuItem(title: allMuted, action: nil, keyEquivalent: "")
+        head.isEnabled = false
+        menu.addItem(head)
+        menu.addItem(ClosureMenuItem("Turn Alerts Back On") { act(.unmuteAll) })
+    }
     for (i, q) in list.enumerated() {
-        if i > 0 { menu.addItem(.separator()) }
+        if i > 0 || allMuted != nil { menu.addItem(.separator()) }
         let head = NSMenuItem(title: q.title, action: nil, keyEquivalent: "")
         head.isEnabled = false
         menu.addItem(head)
-        if let l = q.lift { menu.addItem(ClosureMenuItem(l) { act(.unmute(q.kind)) }) }
-        if q.slowMin > 0 { menu.addItem(ClosureMenuItem("Stop Slowing Down") { act(.unslow(q.kind)) }) }
-        else if q.canSlow { menu.addItem(ClosureMenuItem("Slow to \(slowMin) min") { act(.slow(q.kind)) }) }
-        if q.canMute {
-            let sub = NSMenu()
-            for m in quietMinutes { sub.addItem(ClosureMenuItem("\(m) min") { act(.mute(q.kind, m)) }) }
-            let item = NSMenuItem(title: q.quiet == .notification ? "Change To" : "Mute For", action: nil, keyEquivalent: "")
-            item.submenu = sub
-            menu.addItem(item)
+        if q.quiet != nil, q.relaxMin > 0 {
+            let line = NSMenuItem(title: q.relaxedLine, action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            menu.addItem(line)
         }
+        if let l = q.lift { menu.addItem(ClosureMenuItem(l) { act(.unmute(q.kind)) }) }
+        if q.relaxMin > 0 { menu.addItem(ClosureMenuItem("Stop Relaxing") { act(.unrelax(q.kind)) }) }
+        else if q.canRelax { menu.addItem(ClosureMenuItem("Relax") { act(.relax(q.kind)) }) }
+        let sub = NSMenu()
+        for m in quietMinutes { sub.addItem(ClosureMenuItem(Durations.text(m)) { act(.mute(q.kind, m)) }) }
+        let item = NSMenuItem(title: q.quiet == .notification ? "Change To" : "Mute For", action: nil, keyEquivalent: "")
+        item.submenu = sub
+        menu.addItem(item)
     }
     return menu
 }
@@ -98,10 +114,15 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             card
-            // the ways out of a quiet alert (round f29): one block per muted / quiet / slowed alert, its buttons as
+            // the ways out of a quiet alert (round f29): one block per muted / quiet / relaxed alert, its buttons as
             // menu-like rows (VoiceOver reaches each one; nothing needs the notification)
-            ForEach(model.quiet, id: \.kind) { q in QuietBlock(q: q, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) } }
+            ForEach(model.quiet, id: \.kind) { q in QuietBlock(q: q) { model.onQuiet?($0) } }
             Divider().padding(.horizontal, 4)
+            // Mute all (round f30): this Mac's alerts off for a while or until turned back on, always reachable here
+            if model.alerts?.on ?? true {
+                MuteAllBlock(allMuted: model.allMuted, now: model.now) { model.onQuiet?($0) }
+                Divider().padding(.horizontal, 4)
+            }
             VStack(spacing: 0) {
                 // A menu item like the rows under it; Return chooses it (shown as ↩, the menu's key-equivalent glyph).
                 if model.hasData || model.following {
@@ -158,29 +179,97 @@ private struct ModuleBackground: View {
     }
 }
 
-/// One quiet alert in the panel: its line, then Unmute / Alert Me Anyway, Stop Slowing Down and a Change To / Mute For
+/// One quiet alert in the panel: its line, then Unmute / Alert Me Anyway, Stop Relaxing and a Change To / Mute For
 /// menu of the mute lengths.
 private struct QuietBlock: View {
     let q: Alerts.Active
-    let slowMin: Int
     let act: (QuietOp) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Label(q.title, systemImage: q.quiet == nil ? "bell.badge.waveform" : "bell.slash")
                 .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            if q.quiet != nil, q.relaxMin > 0 {
+                Label(q.relaxedLine, systemImage: "bell.badge.waveform")
+                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            }
             if let l = q.lift { PanelRow(title: l, action: { act(.unmute(q.kind)) }) }
-            if q.slowMin > 0 { PanelRow(title: "Stop Slowing Down", action: { act(.unslow(q.kind)) }) }
-            if q.canMute {
-                Menu {
-                    ForEach(quietMinutes, id: \.self) { m in Button("\(m) min") { act(.mute(q.kind, m)) } }
-                } label: {
-                    Text(q.quiet == .notification ? "Change To" : "Mute For").frame(maxWidth: .infinity, alignment: .leading)
+            if q.relaxMin > 0 { PanelRow(title: "Stop Relaxing", action: { act(.unrelax(q.kind)) }) }
+            Menu {
+                ForEach(quietMinutes, id: \.self) { m in Button(Durations.text(m)) { act(.mute(q.kind, m)) } }
+            } label: {
+                Text(q.quiet == .notification ? "Change To" : "Mute For").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.visible)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .accessibilityLabel(q.quiet == .notification ? "\(q.kind.title): change the mute" : "Mute \(q.kind.title)")
+        }
+    }
+}
+
+/// *Mute alerts* (round f30): off → a menu of the lengths (30 min · 1 h · 2 h · 4 h · 8 h · Never · Custom…); on →
+/// "Alerts muted until 14:30" / "Alerts muted", *Turn Alerts Back On* and *Change*. Custom… opens a field for a typed
+/// length (Durations.parse, the schema's muteAll range).
+struct MuteAllBlock: View {
+    let allMuted: TimeInterval
+    var now: Date? = nil
+    let act: (QuietOp) -> Void
+    /// Evidence aid (`-panelPreview`): the custom field open.
+    var startCustom = false
+    @State private var custom = false
+    @State private var text = ""
+    @State private var invalid = false
+
+    private var line: String? { StatusController.mutedLine(allMuted, now: (now ?? Date()).timeIntervalSince1970) }
+    private var range: ClosedRange<Int> { AlertActions.muteAllRange }
+    private var note: String { "Enter \(Durations.text(range.lowerBound))–\(Durations.text(range.upperBound)), e.g. 1 h 30 min" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let line {
+                Label(line, systemImage: "bell.slash")
+                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+                    .accessibilityAddTraits(.isHeader)
+                PanelRow(title: "Turn Alerts Back On", action: { act(.unmuteAll) })
+                lengths("Change")
+            } else {
+                lengths("Mute Alerts")
+            }
+            if custom || startCustom {
+                HStack(spacing: 6) {
+                    TextField("Mute alerts for", text: $text, prompt: Text("2 h 30 min"))
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(commit)
+                        .accessibilityHint(note)
+                    Button("Mute", action: commit).disabled(text.isEmpty)
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.visible)
-                .padding(.horizontal, 8).padding(.vertical, 4)
+                .padding(.horizontal, 8).padding(.top, 2)
+                Text(note).font(.caption).foregroundStyle(invalid ? Color.red : Color.secondary)
+                    .padding(.horizontal, 8).padding(.top, 2)
             }
         }
+    }
+
+    private func lengths(_ title: String) -> some View {
+        Menu {
+            ForEach(AlertActions.muteAllPresets.filter { $0 > 0 }, id: \.self) { m in Button(muteAllLabel(m)) { act(.muteAll(m)) } }
+            Button("Never (until I turn them back on)") { act(.muteAll(0)) }
+            Divider()
+            Button("Custom…") { custom = true }
+        } label: {
+            Text(title).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.visible)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .accessibilityLabel(title == "Change" ? "Change how long alerts stay muted" : "Mute alerts")
+    }
+
+    private func commit() {
+        guard let m = Durations.parse(text), range.contains(m) else { invalid = true; return }
+        invalid = false
+        custom = false
+        text = ""
+        act(.muteAll(m))
     }
 }
 
@@ -234,10 +323,12 @@ private struct CardRep: NSViewRepresentable {
         v.style = model.style
         v.alerts = model.alerts
         v.paused = model.paused
+        v.allMuted = model.allMuted
         // a click on the "45m left" pill opens its ways out as a menu (the same as the rows under the card)
         v.onStatus = { [weak model] box, view in
-            guard let model, !model.quiet.isEmpty else { return }
-            let menu = quietMenu(model.quiet, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) }
+            let line = StatusController.mutedLine(model?.allMuted ?? 0, now: Date().timeIntervalSince1970)
+            guard let model, !model.quiet.isEmpty || line != nil else { return }
+            let menu = quietMenu(model.quiet, allMuted: line) { model.onQuiet?($0) }
             menu.popUp(positioning: nil, at: NSPoint(x: box.minX, y: box.maxY + 4), in: view)
         }
         v.metricsOf = model.metricsOf
