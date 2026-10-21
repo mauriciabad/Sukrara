@@ -141,7 +141,7 @@ settings: [`spikes/alerts/SPEC.md`](../alerts/SPEC.md); report: [docs/15](../../
 - `k` ∈ `very_low|low|high|very_high|extremely_high|falling_fast|rising_fast|no_data`; `id` is random per firing and a `clear`
   repeats it; `n` counts the episode's alerts; `tr` = treatments the headline acknowledges (0, 1, 2 = two or more:
   "Low glucose · eat more again"). A treatment-muted alert (after rapid insulin or carbs, falling back into range) is
-  never sent. The wearer's alert notification actions (Mute / Slow down) are per device and never sent: the events are
+  never sent. The wearer's alert notification actions (Mute / Relax, and Mute all) are per device and never sent: the events are
   what the rules decide without them, so followers keep alerting while the wearer has muted its phone (SPEC §2,
   2026-10-21).
 - Sent at once on relays (LIVE lane, also when the upload interval batches readings) and over BLE (backlog key
@@ -171,7 +171,7 @@ owner's source gives the start only (`sgv.json?sensor=Y`): end = start + 15 days
 A follower (Android follower app, Mac) chooses where the settings it can mirror come from (*Settings from*: Default /
 **Wearer** (default) / Custom; schema `follower.settingsFrom`). For *Wearer* the wearer's phone publishes its own
 settings. Which ones: the rows of [`spikes/settings/settings.json`](../settings/settings.json) with `"mirror": true`,
-under their `"wire"` key; everything else (sounds, like an alarm, the notification's Mute / Slow down, no data,
+under their `"wire"` key; everything else (sounds, like an alarm, the notification's Mute / Relax, Mute all, no data,
 per-place windows and sensor time, the alerts main switch) is per device and never sent.
 
 | Event | kind | signed by | tags | content (decrypted) |
