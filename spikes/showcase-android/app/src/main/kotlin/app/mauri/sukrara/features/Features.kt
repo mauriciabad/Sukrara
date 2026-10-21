@@ -70,8 +70,8 @@ data class FeatureState(
     val libreviewIntervalMin: Int = 5,
     /** Direct mode only: sensor link priority "default" | "low" | "balanced" | "high". */
     val connPriority: String = "default",
-    /** The "Set up LibreView" banner (home + settings) was dismissed. */
-    val libreviewBannerDismissed: Boolean = false,
+    /** The "share with your clinic" banner (LibreView or Tidepool, home + settings) was dismissed. */
+    val uploadBannerDismissed: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
@@ -82,7 +82,7 @@ data class FeatureState(
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
-        .put("connPriority", connPriority).put("libreviewBanner", libreviewBannerDismissed)
+        .put("connPriority", connPriority).put("uploadBanner", uploadBannerDismissed)
 
     companion object {
         /** [toJson] back, any missing or malformed key keeps [d]'s value (settings import). */
@@ -97,7 +97,7 @@ data class FeatureState(
             nightscout = j.optBoolean("nightscout", d.nightscout), nightscoutLan = j.optBoolean("nightscoutLan", d.nightscoutLan),
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = j.optInt("libreviewInterval", d.libreviewIntervalMin),
             connPriority = j.optString("connPriority", d.connPriority),
-            libreviewBannerDismissed = j.optBoolean("libreviewBanner", d.libreviewBannerDismissed),
+            uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
         )
     }
 }
@@ -134,7 +134,7 @@ object Features {
             libreview = p.getBoolean("libreview", d.libreview),
             libreviewIntervalMin = p.getInt("libreviewInterval", d.libreviewIntervalMin),
             connPriority = p.getString("connPriority", d.connPriority)!!,
-            libreviewBannerDismissed = p.getBoolean("libreviewBanner", d.libreviewBannerDismissed),
+            uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
 
@@ -160,7 +160,7 @@ object Features {
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
-            putBoolean("libreviewBanner", s.libreviewBannerDismissed)
+            putBoolean("uploadBanner", s.uploadBannerDismissed)
         }?.apply()
         _state.value = s
         return s
