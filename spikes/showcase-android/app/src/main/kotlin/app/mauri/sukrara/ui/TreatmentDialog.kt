@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -29,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldLabelPosition
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -47,9 +52,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -84,9 +91,12 @@ import java.util.Calendar
  */
 @Composable
 fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false) {
-    var rapid by rememberSaveable { mutableStateOf("") }
-    var long by rememberSaveable { mutableStateOf("") }
-    var carbs by rememberSaveable { mutableStateOf("") }
+    val rapidState = rememberTextFieldState()
+    val longState = rememberTextFieldState()
+    val carbsState = rememberTextFieldState()
+    val rapid = rapidState.text.toString()
+    val long = longState.text.toString()
+    val carbs = carbsState.text.toString()
     var note by rememberSaveable { mutableStateOf("") }
     /** null = now (resolved when saving); else epoch s. */
     var at by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -119,7 +129,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.padding(horizontal = 16.dp).widthIn(min = 280.dp, max = 560.dp).fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = 16.dp).widthIn(min = 280.dp, max = 560.dp).fillMaxWidth().testTag("treatment_card"),
         ) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,13 +137,13 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField(stringResource(R.string.treatment_rapid), "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
-                    AmountField(stringResource(R.string.treatment_long), "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
-                    AmountField(stringResource(R.string.treatment_carbs), "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
+                    AmountField(stringResource(R.string.treatment_rapid), "u", rapidState, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first).testTag("treatment_rapid"))
+                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).testTag("treatment_long"))
+                    AmountField(stringResource(R.string.treatment_carbs), "g", carbsState, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus).testTag("treatment_carbs"))
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
-                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth(),
+                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth().testTag("treatment_note"),
                     label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.treatment_note)) } },
                     placeholder = { Text(stringResource(R.string.treatment_note_placeholder)) },
                     maxLines = 3,
@@ -164,17 +174,29 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
 }
 
 @Composable
-private fun AmountField(label: String, unit: String, value: String, parsed: Double?, color: Color, kind: String,
-                        modifier: Modifier, onChange: (String) -> Unit) {
+private fun AmountField(label: String, unit: String, state: TextFieldState, parsed: Double?, color: Color, kind: String,
+                        modifier: Modifier) {
     OutlinedTextField(
-        value, { v -> onChange(TreatmentForm.filterAmount(v)) }, modifier,
-        label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label) } },
+        state, modifier,
+        inputTransformation = AmountInput,
+        // The label always sits small on the outline (never inside the empty field) and keeps to one line: a third of the
+        // dialog is too narrow for it at body size, so it wrapped there and the field was taller unfocused than
+        // focused; every focus change resized the field and the dialog (user, 2026-10-21). The unit shows throughout.
+        labelPosition = TextFieldLabelPosition.Attached(alwaysMinimize = true),
+        label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         suffix = { Text(unit) },
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         isError = parsed?.isNaN() == true,
         textStyle = MaterialTheme.typography.titleLarge,
         keyboardOptions = KeyboardOptions(keyboardType = if (unit == "g") KeyboardType.Number else KeyboardType.Decimal, imeAction = ImeAction.Next),
     )
+}
+
+/** Keeps what [TreatmentForm.filterAmount] keeps of an edit. */
+private val AmountInput = InputTransformation {
+    val typed = toString()
+    val kept = TreatmentForm.filterAmount(typed)
+    if (kept != typed) replace(0, length, kept)
 }
 
 /** The same marker the charts draw for this kind (TreatmentMarks): rapid ▼ filled, long ▽ outlined, carbs ●, note ◆. */
