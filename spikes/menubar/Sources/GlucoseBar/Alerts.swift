@@ -587,7 +587,7 @@ final class AlertEngine {
 
     /// Android's Trend.arrow: the text arrow for a rate (mg/dL/min).
     nonisolated static func arrow(_ r: Double?) -> String {
-        guard let r else { return "·" }
+        guard let r else { return TrendMark.ring }   // no trend: the hollow ring (Android Trend.arrow)
         return r >= 3 ? "⇈" : r >= 2 ? "↑" : r >= 1 ? "↗" : r > -1 ? "→" : r > -2 ? "↘" : r > -3 ? "↓" : "⇊"
     }
 

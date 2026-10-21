@@ -27,6 +27,13 @@ Checks
               to every GlucoseCard.draw call; every CardStyle a surface builds says sensorTime (its place's setting);
               the app panel's Compose badge (SensorLifeBadge) only in a file that asks GlucoseCard.sensorSpot.
               The shared fixtures (spikes/graph-fixtures/place) keep Android and Mac deciding the same.
+  freshness-surface  the freshness steps everywhere (the user, 2026-10-21: the status bar kept a 20-min-old value as if
+              current). Every glucose surface is listed in spikes/graph-fixtures/freshness/freshness.json (the
+              registry both platforms' fixture tests run, one adapter per surface); a listed file must call
+              Freshness.look and must not format a glucose value itself (string templates with sgv / mgdl, LO/HI
+              literals) or use an old threshold (STALE_AFTER, staleAfter, isStale); Freshness.of is only for
+              Freshness.kt / SukraraGraph.swift (and tests), so a new surface can't judge age on its own. A line
+              that must stay is marked '// freshness-ok: <why>'.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -299,6 +306,53 @@ def check_graph_surface(ch, rep):
                             "the same whole-card style with part = / part: so the card's decisions are made once." % (p, n))
 
 
+FRESH_REGISTRY = "spikes/graph-fixtures/freshness/freshness.json"
+FRESH_OWNERS = {GRAPH_KT + "Freshness.kt", MAC_GRAPH, "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift"}
+FRESH_LEGACY = re.compile(r"\bSTALE_AFTER\w*|\bstaleAfter\b|\bisStale\b")
+# a glucose value turned into text: Kotlin "${r.sgv}" / "$sgv" / sgv.toString(), Swift "\(x.mgdl)" / format(x.mgdl), LO/HI literals
+FRESH_FORMAT = re.compile(r'"[^"\n]*\$\{?[\w.?!]*\bsgv\b[^"\n]*"|\bsgv\.toString\(\)|"[^"\n]*\\\([^)]*\b(?:sgv|mgdl)\b[^)]*\)[^"\n]*"'
+                          r'|\bunit\.format\([^)]*\bmgdl\b|"(?:LO|HI)"')
+
+
+def check_freshness_surface(ch, rep):
+    """freshness-surface: see the module doc. Whole tree (at the change's revision)."""
+    text = ch.blob(FRESH_REGISTRY) if ch.rev else (open(os.path.join(ROOT, FRESH_REGISTRY)).read()
+                                                     if os.path.exists(os.path.join(ROOT, FRESH_REGISTRY)) else "")
+    if not text:
+        rep.add("FAIL", "freshness-surface", "%s is missing: it lists every glucose surface the freshness fixtures run." % FRESH_REGISTRY)
+        return
+    reg = json.loads(text).get("surfaces", {})
+    listed = {p: "%s/%s" % (plat, sid) for plat, ids in reg.items() for sid, paths in ids.items() for p in paths}
+    where = ["--cached"] if not ch.rev else []
+    out = git("ls-files", *where, "--", *SURFACE_GLOBS, ok=True) if not ch.rev else \
+        git("ls-tree", "-r", "--name-only", ch.rev, "--", "spikes/showcase-android/app/src/main", "spikes/menubar/Sources",
+            "spikes/widgets-macos/Shared", "spikes/widgets-macos/Widget", ok=True)
+    files = set(p for p in out.splitlines() if match(p, SURFACE_GLOBS))
+    for p, sid in sorted(listed.items()):
+        if p not in files:
+            rep.add("FAIL", "freshness-surface", "%s (surface %s in %s) doesn't exist: fix the registry." % (p, sid, FRESH_REGISTRY))
+    for p in sorted(files):
+        if p in FRESH_OWNERS or p.endswith("SelfTest.swift"):
+            continue
+        body = ch.blob(p)
+        code = [(n, l) for n, l in enumerate(body.splitlines(), 1)
+                if not l.lstrip().startswith(("//", "*", "/*", "///")) and "freshness-ok" not in l]
+        for n, l in code:
+            if "Freshness.of(" in l:
+                rep.add("FAIL", "freshness-surface", "%s:%d judges the reading's age itself (Freshness.of). Take the look from\n"
+                        "Freshness.look (one decision for every surface) and list the surface in %s." % (p, n, FRESH_REGISTRY))
+            if FRESH_LEGACY.search(l):
+                rep.add("FAIL", "freshness-surface", "%s:%d uses an old staleness threshold. The steps are Freshness.look's." % (p, n))
+        if p not in listed:
+            continue
+        if "Freshness.look(" not in body and "GlucoseLook" not in body:
+            rep.add("FAIL", "freshness-surface", "%s (surface %s) neither calls Freshness.look nor takes a GlucoseLook: its value can't follow the steps." % (p, listed[p]))
+        for n, l in code:
+            if FRESH_FORMAT.search(l):
+                rep.add("FAIL", "freshness-surface", "%s:%d (surface %s) formats a glucose value itself. Show GlucoseLook.text / .plain\n"
+                        "(Freshness.look) so it is struck at 5 min and gone at 20 min, or mark the line '// freshness-ok: <why>'." % (p, n, listed[p]))
+
+
 def check_static(ch, rep):
     allow = load("allow.json")
     live = ch.live()
@@ -427,6 +481,7 @@ def main(argv):
         check_debug(ch, rep)
         check_cleartext(ch, rep)
         check_graph_surface(ch, rep)
+        check_freshness_surface(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

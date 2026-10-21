@@ -96,17 +96,9 @@ enum GlucoseRange {
     static func formatDelta(_ mgdl: Double) -> String {
         mmol ? String(format: "%+.1f", mgdl / 18.0182) : String(format: "%+.0f", mgdl)
     }
-    static let staleAfter: TimeInterval = 5 * 60
 
     enum Level { case low, inRange, high }
     static func level(_ v: Double) -> Level { v < low ? .low : (v > high ? .high : .inRange) }
-}
-
-enum TrendAngle {
-    /// Same mapping as spikes/menubar TrendArrow: 0 → flat, ±3 mg/dL/min → vertical, linear between.
-    static let fullScaleRate = 3.0
-    /// Degrees, counter-clockwise positive (up = rising).
-    static func degrees(forRate rate: Double) -> Double { max(-1, min(1, rate / fullScaleRate)) * 90 }
 }
 
 /// Where the host publishes and where the widget looks. Order = preference.

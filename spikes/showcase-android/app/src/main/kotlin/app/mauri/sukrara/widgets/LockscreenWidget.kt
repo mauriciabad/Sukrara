@@ -229,11 +229,6 @@ private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {
 
 private fun describe(c: android.content.Context, frame: WidgetUpdater.Frame): String {
     val r = frame.history.lastOrNull()
-    val f = r?.let { Freshness.of(frame.nowSec - it.t) }
-    val value = when {
-        r == null -> c.getString(R.string.widget_desc_no_readings)
-        !f!!.showValue -> c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, frame.nowSec))
-        else -> c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
-    }
+    val value = valueWords(c, Freshness.look(r?.sgv, r?.t, r?.rate, frame.nowSec), r, frame.nowSec, withTime = false)
     return c.getString(R.string.lock_widget_desc, value)
 }

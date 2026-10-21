@@ -7,14 +7,19 @@
 // status bar it ignores the icon level, so every value gets its own vector: sb_n40 … sb_n400,
 // sb_lo/sb_hi, and the trend arrow in 5° steps (sb_t00 = straight up … sb_t36 = straight down).
 //
-// usage: swift tools/gen-slot-drawables.swift <GoogleSansFlex.ttf> app/src/main/res/drawable
-//   font: https://github.com/google/fonts/tree/main/ofl/googlesansflex (SIL OFL 1.1)
+// Freshness (the user, 2026-10-21; graph/Freshness.kt): every number also gets a struck-through, half-strength variant
+// sb_s40 … sb_s400 / sb_slo / sb_shi (from 5 min; SystemUI tints it, so half alpha reads grey), and the "no trend"
+// mark is a hollow ring (sb_t_none; struck: sb_t_none_s). Those are derived from the sb_n files already in the
+// directory, so they can be regenerated without the font.
+//
+// usage: swift tools/gen-slot-drawables.swift [<GoogleSansFlex.ttf>] app/src/main/res/drawable
+//   font: https://github.com/google/fonts/tree/main/ofl/googlesansflex (SIL OFL 1.1); without it only the derived ones
 import CoreText
 import Foundation
 
 let args = CommandLine.arguments
-guard args.count == 3 else { fatalError("usage: gen-slot-drawables <font.ttf> <res/drawable dir>") }
-let outDir = URL(fileURLWithPath: args[2])
+guard args.count == 2 || args.count == 3 else { fatalError("usage: gen-slot-drawables [<font.ttf>] <res/drawable dir>") }
+let outDir = URL(fileURLWithPath: args[args.count - 1])
 
 // Geometry in dp. SystemUI scales system icons to status_bar_system_icon_size (15dp on Pixel)
 // by height and lays them out at their intrinsic width, so wide drawables keep their width.
@@ -23,68 +28,15 @@ let digitH = 12.4         // cap height of the digits: measured on the phone to 
 let gap = 0.15            // extra tracking between glyphs
 let outer = 1.0           // padding left of the number and right of the arrow: the pair reads as one unit
 let minMgdl = 40, maxMgdl = 400
-
-let descs = CTFontManagerCreateFontDescriptorsFromURL(URL(fileURLWithPath: args[1]) as CFURL) as! [CTFontDescriptor]
-let wght = 0x77676874 // 'wght'
-let desc = CTFontDescriptorCreateCopyWithAttributes(descs[0],
-    [kCTFontVariationAttribute: [wght: 560]] as CFDictionary)
-
-func font(size: Double) -> CTFont { CTFontCreateWithFontDescriptor(desc, size, nil) }
-
-func glyphPath(_ ch: Character, _ f: CTFont) -> CGPath {
-    var u = Array(String(ch).utf16), g = [CGGlyph](repeating: 0, count: u.count)
-    CTFontGetGlyphsForCharacters(f, &u, &g, u.count)
-    return CTFontCreatePathForGlyph(f, g[0], nil)!
-}
-
-// Scale the font so that "0" is digitH tall.
-let unit = font(size: 100)
-let size = 100 * digitH / glyphPath("0", unit).boundingBoxOfPath.height
-let f = font(size: size)
-let baseline = (iconH + digitH) / 2                  // vertically centred in the icon
+let staleAlpha = "0.5"    // the struck-through value: half strength, so SystemUI's tint reads grey
 
 func fmt(_ v: Double) -> String { String(format: "%.2f", v).replacingOccurrences(of: ".00", with: "") }
 
-/// SVG path data for a glyph whose origin is at x, y flipped to screen space.
-func svg(_ ch: Character, x: Double) -> String {
-    let p = glyphPath(ch, f)
-    var s = ""
-    func pt(_ q: CGPoint) -> String { "\(fmt(q.x + x)),\(fmt(baseline - q.y))" }
-    p.applyWithBlock { e in
-        let a = e.pointee.points
-        switch e.pointee.type {
-        case .moveToPoint: s += "M\(pt(a[0]))"
-        case .addLineToPoint: s += "L\(pt(a[0]))"
-        case .addQuadCurveToPoint: s += "Q\(pt(a[0])) \(pt(a[1]))"
-        case .addCurveToPoint: s += "C\(pt(a[0])) \(pt(a[1])) \(pt(a[2]))"
-        case .closeSubpath: s += "Z"
-        @unknown default: break
-        }
-    }
-    return s
-}
-
-func advance(_ ch: Character) -> Double {
-    var u = Array(String(ch).utf16), g = [CGGlyph](repeating: 0, count: u.count)
-    CTFontGetGlyphsForCharacters(f, &u, &g, u.count)
-    return CTFontGetAdvancesForGlyphs(f, .horizontal, &g, nil, 1)
-}
-
-/// A word set with the font's own (proportional) advances, side bearings trimmed so it fills its width.
-func word(_ text: String) -> String {
-    var x = 0.0, paths: [String] = [], minX = Double.infinity, maxX = -Double.infinity
-    for ch in text {
-        let b = glyphPath(ch, f).boundingBoxOfPath
-        minX = min(minX, x + b.minX); maxX = max(maxX, x + b.maxX)
-        paths.append(svg(ch, x: x))
-        x += advance(ch) + gap
-    }
-    return vector(width: maxX - minX + outer, paths: [], shift: outer - minX, raw: paths)
-}
-
-func vector(width: Double, paths: [String], shift: Double = 0, raw: [String] = []) -> String {
-    let all = paths.map { "    <path android:fillColor=\"#FFFFFFFF\" android:pathData=\"\($0)\"/>" } + (raw.isEmpty ? [] : [
-        "    <group android:translateX=\"\(fmt(shift))\">"] + raw.map { "        <path android:fillColor=\"#FFFFFFFF\" android:pathData=\"\($0)\"/>" } + ["    </group>"])
+func vector(width: Double, paths: [String], shift: Double = 0, raw: [String] = [], alpha: String? = nil,
+            extra: [String] = []) -> String {
+    let fill = "android:fillColor=\"#FFFFFFFF\"" + (alpha.map { " android:fillAlpha=\"\($0)\"" } ?? "")
+    let all = paths.map { "    <path \(fill) android:pathData=\"\($0)\"/>" } + (raw.isEmpty ? [] : [
+        "    <group android:translateX=\"\(fmt(shift))\">"] + raw.map { "        <path \(fill) android:pathData=\"\($0)\"/>" } + ["    </group>"]) + extra
     return """
     <?xml version="1.0" encoding="utf-8"?>
     <!-- Generated by tools/gen-slot-drawables.swift — do not edit. -->
@@ -97,34 +49,119 @@ func vector(width: Double, paths: [String], shift: Double = 0, raw: [String] = [
     """
 }
 
-
-
 func write(_ name: String, _ text: String) {
     try! text.write(to: outDir.appendingPathComponent("\(name).xml"), atomically: true, encoding: .utf8)
 }
 
-// One vector per value: SystemUI's Compose status bar ignores the icon level, so a level-list can't pick
-// the number — the app selects the resource (sb_n<value>) instead.
-for v in minMgdl...maxMgdl { write("sb_n\(v)", word(String(v))) }
-write("sb_lo", word("LO"))
-write("sb_hi", word("HI"))
-print("123 is \(fmt(advance("1") + advance("2") + advance("3")))dp wide")
-
-// Trend: same unit arrow as the Mac (TrendArrow.swift). Each angle's drawable is only as wide as the arrow (plus
-// [outer] on the right), so it sits close to the number instead of in a padded square.
 let a = iconH, cy = a / 2, k = a * 0.92
-func arrow(_ deg: Double, _ polys: [(Double, Double)]...) -> String {
-    let r = deg * .pi / 180
-    let pts = polys.map { $0.map { (x, y) in ((x * cos(r) - y * sin(r)) * k, (x * sin(r) + y * cos(r)) * k) } }   // y down
-    let minX = pts.flatMap { $0 }.map(\.0).min()!, maxX = pts.flatMap { $0 }.map(\.0).max()!
-    let paths = pts.map { p in "M" + p.map { "\(fmt($0.0 - minX)),\(fmt(cy + $0.1))" }.joined(separator: "L") + "Z" }
-    return vector(width: maxX - minX + outer, paths: paths)
+
+if args.count == 3 {
+    let descs = CTFontManagerCreateFontDescriptorsFromURL(URL(fileURLWithPath: args[1]) as CFURL) as! [CTFontDescriptor]
+    let wght = 0x77676874 // 'wght'
+    let desc = CTFontDescriptorCreateCopyWithAttributes(descs[0],
+        [kCTFontVariationAttribute: [wght: 560]] as CFDictionary)
+
+    func font(size: Double) -> CTFont { CTFontCreateWithFontDescriptor(desc, size, nil) }
+
+    func glyphPath(_ ch: Character, _ f: CTFont) -> CGPath {
+        var u = Array(String(ch).utf16), g = [CGGlyph](repeating: 0, count: u.count)
+        CTFontGetGlyphsForCharacters(f, &u, &g, u.count)
+        return CTFontCreatePathForGlyph(f, g[0], nil)!
+    }
+
+    // Scale the font so that "0" is digitH tall.
+    let unit = font(size: 100)
+    let size = 100 * digitH / glyphPath("0", unit).boundingBoxOfPath.height
+    let f = font(size: size)
+    let baseline = (iconH + digitH) / 2                  // vertically centred in the icon
+
+    /// SVG path data for a glyph whose origin is at x, y flipped to screen space.
+    func svg(_ ch: Character, x: Double) -> String {
+        let p = glyphPath(ch, f)
+        var s = ""
+        func pt(_ q: CGPoint) -> String { "\(fmt(q.x + x)),\(fmt(baseline - q.y))" }
+        p.applyWithBlock { e in
+            let a = e.pointee.points
+            switch e.pointee.type {
+            case .moveToPoint: s += "M\(pt(a[0]))"
+            case .addLineToPoint: s += "L\(pt(a[0]))"
+            case .addQuadCurveToPoint: s += "Q\(pt(a[0])) \(pt(a[1]))"
+            case .addCurveToPoint: s += "C\(pt(a[0])) \(pt(a[1])) \(pt(a[2]))"
+            case .closeSubpath: s += "Z"
+            @unknown default: break
+            }
+        }
+        return s
+    }
+
+    func advance(_ ch: Character) -> Double {
+        var u = Array(String(ch).utf16), g = [CGGlyph](repeating: 0, count: u.count)
+        CTFontGetGlyphsForCharacters(f, &u, &g, u.count)
+        return CTFontGetAdvancesForGlyphs(f, .horizontal, &g, nil, 1)
+    }
+
+    /// A word set with the font's own (proportional) advances, side bearings trimmed so it fills its width.
+    func word(_ text: String) -> String {
+        var x = 0.0, paths: [String] = [], minX = Double.infinity, maxX = -Double.infinity
+        for ch in text {
+            let b = glyphPath(ch, f).boundingBoxOfPath
+            minX = min(minX, x + b.minX); maxX = max(maxX, x + b.maxX)
+            paths.append(svg(ch, x: x))
+            x += advance(ch) + gap
+        }
+        return vector(width: maxX - minX + outer, paths: [], shift: outer - minX, raw: paths)
+    }
+
+    // One vector per value: SystemUI's Compose status bar ignores the icon level, so a level-list can't pick
+    // the number — the app selects the resource (sb_n<value>) instead.
+    for v in minMgdl...maxMgdl { write("sb_n\(v)", word(String(v))) }
+    write("sb_lo", word("LO"))
+    write("sb_hi", word("HI"))
+    print("123 is \(fmt(advance("1") + advance("2") + advance("3")))dp wide")
+
+    // Trend: same unit arrow as the Mac (TrendArrow.swift). Each angle's drawable is only as wide as the arrow (plus
+    // [outer] on the right), so it sits close to the number instead of in a padded square.
+    func arrow(_ deg: Double, _ polys: [(Double, Double)]...) -> String {
+        let r = deg * .pi / 180
+        let pts = polys.map { $0.map { (x, y) in ((x * cos(r) - y * sin(r)) * k, (x * sin(r) + y * cos(r)) * k) } }   // y down
+        let minX = pts.flatMap { $0 }.map(\.0).min()!, maxX = pts.flatMap { $0 }.map(\.0).max()!
+        let paths = pts.map { p in "M" + p.map { "\(fmt($0.0 - minX)),\(fmt(cy + $0.1))" }.joined(separator: "L") + "Z" }
+        return vector(width: maxX - minX + outer, paths: paths)
+    }
+    let shaftPts = [(-0.42, -0.085), (0.25, -0.085), (0.25, 0.085), (-0.42, 0.085)]
+    func headPts(_ tip: Double) -> [(Double, Double)] { [(tip, 0), (tip - 0.40, -0.30), (tip - 0.30, 0), (tip - 0.40, 0.30)] }
+    // One arrow per 5° from straight up (-90°) to straight down (+90°): sb_t00 … sb_t36, plus double arrows.
+    for i in 0...36 { write("sb_t\(String(format: "%02d", i))", arrow(Double(i * 5 - 90), shaftPts, headPts(0.46))) }
+    write("sb_t_up2", arrow(-90, shaftPts, headPts(0.46), headPts(0.12)))
+    write("sb_t_down2", arrow(90, shaftPts, headPts(0.46), headPts(0.12)))
 }
-let shaftPts = [(-0.42, -0.085), (0.25, -0.085), (0.25, 0.085), (-0.42, 0.085)]
-func headPts(_ tip: Double) -> [(Double, Double)] { [(tip, 0), (tip - 0.40, -0.30), (tip - 0.30, 0), (tip - 0.40, 0.30)] }
-// One arrow per 5° from straight up (-90°) to straight down (+90°): sb_t00 … sb_t36, plus double arrows.
-for i in 0...36 { write("sb_t\(String(format: "%02d", i))", arrow(Double(i * 5 - 90), shaftPts, headPts(0.46))) }
-write("sb_t_up2", arrow(-90, shaftPts, headPts(0.46), headPts(0.12)))
-write("sb_t_down2", arrow(90, shaftPts, headPts(0.46), headPts(0.12)))
-let dr = 0.11 * k
-write("sb_t_none", vector(width: 2 * dr + outer, paths: ["M0,\(fmt(cy))A\(fmt(dr)),\(fmt(dr)) 0 1,0 \(fmt(2 * dr)),\(fmt(cy))A\(fmt(dr)),\(fmt(dr)) 0 1,0 0,\(fmt(cy))Z"]))
+
+// --- derived (no font needed) ------------------------------------------------------------------------------
+
+// "No trend": a hollow ring the size of the arrows' box (graph/Freshness.kt TrendMark: radius 0.24, stroke 0.11 of it).
+let rr = 0.24 * k, sw = 0.11 * k
+func ring(_ alpha: String?) -> String {
+    let w = 2 * rr + sw + outer, cx = rr + sw / 2
+    let d = "M\(fmt(cx - rr)),\(fmt(cy))A\(fmt(rr)),\(fmt(rr)) 0 1,0 \(fmt(cx + rr)),\(fmt(cy))A\(fmt(rr)),\(fmt(rr)) 0 1,0 \(fmt(cx - rr)),\(fmt(cy))Z"
+    return vector(width: w, paths: [], extra: [
+        "    <path android:strokeColor=\"#FFFFFFFF\"\(alpha.map { " android:strokeAlpha=\"\($0)\"" } ?? "") android:strokeWidth=\"\(fmt(sw))\" android:pathData=\"\(d)\"/>"])
+}
+write("sb_t_none", ring(nil))
+write("sb_t_none_s", ring(staleAlpha))
+
+// Struck through: the number's own paths at half strength plus a bar across the digits' middle.
+let barH = 1.3, barY = (iconH - digitH) / 2 + digitH * 0.52 - barH / 2
+let names = ((try? FileManager.default.contentsOfDirectory(atPath: outDir.path)) ?? [])
+    .filter { $0.hasPrefix("sb_n") || $0 == "sb_lo.xml" || $0 == "sb_hi.xml" }
+for file in names.sorted() {
+    var xml = try! String(contentsOf: outDir.appendingPathComponent(file), encoding: .utf8)
+    guard let wr = xml.range(of: #"android:viewportWidth="([0-9.]+)""#, options: .regularExpression),
+          let width = Double(xml[wr].dropFirst(#"android:viewportWidth=""#.count).dropLast()) else { continue }
+    xml = xml.replacingOccurrences(of: "android:fillColor=\"#FFFFFFFF\" android:pathData",
+                                   with: "android:fillColor=\"#FFFFFFFF\" android:fillAlpha=\"\(staleAlpha)\" android:pathData")
+    let bar = "    <path android:fillColor=\"#FFFFFFFF\" android:fillAlpha=\"\(staleAlpha)\" android:pathData=\"M\(fmt(outer * 0.4)),\(fmt(barY))H\(fmt(width - outer * 0.2))V\(fmt(barY + barH))H\(fmt(outer * 0.4))Z\"/>\n</vector>"
+    xml = xml.replacingOccurrences(of: "</vector>", with: bar)
+    let name = file == "sb_lo.xml" ? "sb_slo" : file == "sb_hi.xml" ? "sb_shi" : "sb_s" + file.dropFirst(4).dropLast(4)
+    write(name, xml)
+}
+print("derived: sb_t_none, sb_t_none_s, \(names.count) struck numbers")

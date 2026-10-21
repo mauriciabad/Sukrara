@@ -99,3 +99,13 @@ The ring's crown / laurel and the % column's crown (docs/FEATURES.md, "Time-in-r
 | `column` | `[below, in range, above]` as the % column shows them (largest remainder; in range is 100 only when it is all) |
 | `crown` | whether the column's 100 wears the crown |
 | `flower` | the laurel's flower (`Bloom`): `none`, `lavender` (95), `forget_me_not` (96), `daisy` (97), `cherry` (98), `rosette` (99 and the crowned 100) |
+
+## Freshness steps (`freshness/freshness.json`)
+
+What every glucose surface shows as the latest reading ages (90 s time, 5 min struck + grey + "no trend" ring, 20 min
+"no readings" icon, 3 h no chart), through the one shared `Freshness.look` per platform. The file also holds the
+**surface registry** (`surfaces.android` / `surfaces.mac`: id → files): `FreshnessFixtureTest` (Android, Robolectric on
+JDK 21) and `-graphselftest` (Mac) render every case through one adapter per surface id and fail when a listed surface
+has none; `tools/check` `freshness-surface` scans the listed files (no value formatted outside the look, no own
+thresholds). A new glucose surface: add it to the registry, write its adapter on its platform. `steps` pins the redraw
+times (`Freshness.nextChangeAt`), which `FreshnessFixtureTest.night` replays with Android's alarm.

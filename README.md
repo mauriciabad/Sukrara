@@ -58,7 +58,9 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   good and very high inside), and time-in-range rings for 1, 7 or 14 days. A perfect window earns a green crown (on
   the ring and over the 100 beside the chart) with a flowered laurel; 90 % earns a laurel and
   95–99 % a flowered one (lavender, forget-me-not, daisy, cherry, rosette); both can be turned off in the graph settings. No "time ago": the reading's time
-  appears only once it's late, then the number is struck through, then hidden. A dashed line at 100 plus lines of
+  appears only once it's late, then (5 min) the number is struck through and grey, then (20 min) hidden behind a
+  "no readings" icon, then (3 h) the chart goes too: the same steps on every surface, the status bar and the Mac
+  menubar included, redrawn on time without a new reading. No trend from the sensor: a hollow ring instead of the arrow. A dashed line at 100 plus lines of
   your own, the very good part of the range in its own colour, and extremely high (≥ 300) in magenta. Ranges,
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.
   [16](docs/16-graph.md)

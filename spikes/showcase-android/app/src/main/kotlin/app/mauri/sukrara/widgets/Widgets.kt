@@ -202,16 +202,30 @@ private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<ap
     app.mauri.sukrara.core.SensorLife.current.value?.takeIf { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, now) }?.let {
         return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
     }
-    if (r == null) return c.getString(R.string.widget_desc_no_readings)
-    val f = Freshness.of(now - r.t)
-    if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+    val look = Freshness.look(r?.sgv, r?.t, r?.rate, now)
+    if (r == null || look.state != app.mauri.sukrara.graph.GlucoseLook.State.VALUE) return valueWords(c, look, r, now, withTime = true)
     val badge = treatments?.let {
         app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
             app.mauri.sukrara.alerts.Alerts.paused.value), now)
     }
-    val value = if (f.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
-        else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
+    val value = valueWords(c, look, r, now, withTime = true)
     return value + (badge?.let { ". $it" } ?: "")
+}
+
+/**
+ * What a screen reader says for the latest reading [r] with its [look] ([Freshness.look]): the value (and "old" once
+ * struck through), the trend's word (unknown with the "no trend" ring), the reading's time once late ([withTime]);
+ * "no reading since …" from 20 min. The home widgets and the lock screen widget.
+ */
+internal fun valueWords(c: Context, look: app.mauri.sukrara.graph.GlucoseLook, r: Reading?, now: Long, withTime: Boolean): String = when {
+    r == null || look.state == app.mauri.sukrara.graph.GlucoseLook.State.NONE -> c.getString(R.string.widget_desc_no_readings)
+    look.state != app.mauri.sukrara.graph.GlucoseLook.State.VALUE -> c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+    else -> {
+        val v = if (look.strike) c.getString(R.string.notif_value_old, look.text) else look.text!!
+        val trend = Trend.word(r.rate.takeIf { look.trend == app.mauri.sukrara.graph.TrendMark.ARROW })
+        if (withTime && look.fresh.showTime) c.getString(R.string.widget_desc_value_at, v, trend, Freshness.timeText(r.t, now))
+        else c.getString(R.string.widget_desc_value, v, trend)
+    }
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */

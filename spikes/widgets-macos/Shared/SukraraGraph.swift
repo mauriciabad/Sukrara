@@ -207,6 +207,26 @@ enum Freshness {
     /// The next age at which `of` changes (for a one-shot timer / timeline entry).
     static func nextChange(age: TimeInterval) -> TimeInterval? { [lateS, staleS, oldS, goneS].first { $0 >= age }.map { $0 + 1 } }
 
+    /// When the step of a reading taken at `t` changes next, seen at `now`; nil = never again / no reading.
+    static func nextChangeAt(_ t: TimeInterval?, now: TimeInterval) -> TimeInterval? {
+        guard let t else { return nil }
+        return nextChange(age: now - t).map { t + $0 }
+    }
+
+    /// What every glucose surface shows for the latest reading (`sgv` at `t`, `rate` mg/dL/min) at `now`: the one
+    /// decision behind the card (menubar dropdown, widgets) and the menubar title. Android's `Freshness.look`
+    /// (graph/Freshness.kt) is the same rule; both run spikes/graph-fixtures/freshness. `ended` = the sensor has ended.
+    /// `format` writes a value in the user's unit (mg/dL by default); LO / HI outside 40–400 mg/dL.
+    static func look(sgv: Int?, t: TimeInterval?, rate: Double?, now: TimeInterval, ended: Bool = false,
+                     format: (Int) -> String = { "\($0)" }) -> GlucoseLook {
+        let fr = of(age: t.map { now - $0 })
+        if ended { return GlucoseLook(state: .ended, fresh: fr, text: nil, strike: false, trend: nil) }
+        guard let sgv, t != nil else { return GlucoseLook(state: .none, fresh: fr, text: nil, strike: false, trend: nil) }
+        guard fr.showValue else { return GlucoseLook(state: .noReadings, fresh: fr, text: nil, strike: false, trend: nil) }
+        return GlucoseLook(state: .value, fresh: fr, text: sgv < 40 ? "LO" : sgv > 400 ? "HI" : format(sgv), strike: fr.strike,
+                           trend: rate != nil && !fr.strike ? TrendMark.arrow : TrendMark.noTrend)
+    }
+
     /// "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the Mac's 12/24-hour setting (`Clock`).
     /// A clock time doesn't tick.
     static func timeText(_ t: TimeInterval, now: TimeInterval) -> String {
@@ -216,6 +236,30 @@ enum Freshness {
         if now - t < 6 * 86400 { return d.formatted(.dateTime.weekday(.abbreviated)) + " " + time }
         return d.formatted(.dateTime.day().month(.abbreviated))
     }
+}
+
+/// The trend beside a value: the arrow, or `.noTrend` = no trend to show (no rate, or the value is struck through): a
+/// hollow ring of the arrow's size (graph/Freshness.kt TrendMark: a circle has no direction, so it can't read as steady,
+/// and unlike the old dot it doesn't look like a speck). Text places write it as `ring`.
+enum TrendMark: String {
+    case arrow, noTrend = "none"
+    static let ring = "○"
+    static func ringRadius(_ size: CGFloat) -> CGFloat { size * 0.24 }
+    static func ringStroke(_ size: CGFloat) -> CGFloat { size * 0.11 }
+}
+
+/// `Freshness.look`'s answer (graph/Freshness.kt GlucoseLook): the state; for a value its text, whether it's struck
+/// through and grey (5–20 min) and its trend (nil without a value).
+struct GlucoseLook: Equatable {
+    enum State: String { case value, noReadings = "no_readings", none, ended }
+    var state: State
+    var fresh: Freshness
+    var text: String?
+    var strike: Bool
+    var trend: TrendMark?
+    var grey: Bool { strike }
+    /// SF Symbol for "no readings for 20 min" (Android: Material Symbols sensors_off): the menubar and the card.
+    static let noReadingsSymbol = "antenna.radiowaves.left.and.right.slash"
 }
 
 // MARK: - Clock
@@ -551,6 +595,12 @@ struct GraphConfig: Codable, Equatable {
 
 // MARK: - Drawing helpers (y-down CGContext)
 
+/// What the card drew, for the self-tests (spikes/graph-fixtures/freshness: the card adapter, like Android's recording
+/// canvas): each text with its strike flag and y, the "no trend" rings, the SF Symbols. nil (always, outside a test) = off.
+enum DrawTrace {
+    static var on: ((_ kind: String, _ text: String, _ strike: Bool, _ y: CGFloat) -> Void)?
+}
+
 enum Ink {
     static func font(_ size: CGFloat, _ weight: NSFont.Weight, rounded: Bool = false) -> CTFont {
         var f = NSFont.systemFont(ofSize: size, weight: weight)
@@ -580,6 +630,7 @@ enum Ink {
     /// Draws with the baseline at `y` (y-down context). Strikethrough is drawn by hand (CTLineDraw doesn't).
     static func draw(_ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, _ color: CGColor,
                      align: CGFloat = 0, strike: Bool = false) {
+        DrawTrace.on?("text", s, strike, y)
         let l = line(s, font, color)
         let w = CGFloat(CTLineGetTypographicBounds(l, nil, nil, nil))
         let x0 = x - w * align
@@ -2063,7 +2114,13 @@ enum SensorBadge {
     /// top-left at (`x`, `y`) in the card's y-down context, tinted `color`. Returns its width (0 if the symbol is missing).
     @discardableResult
     static func flag(_ ctx: CGContext, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) -> CGFloat {
-        guard let sym = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: nil)?
+        symbol(ctx, "flag.checkered", x: x, y: y, size: size, color: color)
+    }
+
+    /// An SF Symbol `name` `size` tall in `color`, top-left at (`x`, `y`) of a y-down context; returns its width.
+    static func symbol(_ ctx: CGContext, _ name: String, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) -> CGFloat {
+        DrawTrace.on?("symbol", name, false, y)
+        guard let sym = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
                 .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)) else { return 0 }
         let k = size / max(sym.size.height, 1)
         let rect = NSRect(x: x, y: y, width: sym.size.width * k, height: size)
@@ -2117,7 +2174,7 @@ enum GlucoseCard {
         let latest = readings.max { $0.t < $1.t }
         let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now, paused: paused) } ?? .none
         let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
-        let fr = Freshness.of(age: latest.map { now - $0.t })
+        let fr = Freshness.look(sgv: latest?.sgv, t: latest?.t, rate: latest?.rate, now: now).fresh
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
         let graph = fr.showGraph ? st.graph : nil
         let bands = (st.graph?.bands ?? Bands()).sane()
@@ -2202,20 +2259,25 @@ enum GlucoseCard {
         if let sensor, sensor.warmup != nil { return drawWarmup(ctx, box, sensor, small, now, pal, d: d) }
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
         if let sensor, sensor.ended { return drawEnded(ctx, box, pal, d: d) }
-        guard let r, fr.showValue else {
-            // Fit the longer line into the space left of the rings.
+        // the freshness steps (the user, 2026-10-21): the one look every surface shares
+        let gl = Freshness.look(sgv: r?.sgv, t: r?.t, rate: r?.rate, now: now)
+        guard let r, gl.state == .value, let s = gl.text else {
+            // Fit the longer line into the space left of the rings; no readings for 20 min: the menubar's "no readings"
+            // symbol before the words, as tall as both lines.
             let lines = r.map { ["No reading since", Freshness.timeText($0.t, now: now)] } ?? ["No readings yet"]
             var size = min(box.height * 0.26, 20 * d)
+            let iconW: (CGFloat) -> CGFloat = { r == nil ? 0 : $0 * 2.1 + $0 * 0.35 }
             let widest = lines.map { Ink.width($0, Ink.font(size, .semibold)) }.max() ?? 0
-            if widest > box.width - 8 * d, widest > 0 { size *= max(0.4, (box.width - 8 * d) / widest) }
+            if widest + iconW(size) > box.width - 8 * d, widest > 0 { size *= max(0.4, (box.width - 8 * d) / (widest + iconW(size))) }
             let big = Ink.font(size, .semibold)
             let y = box.midY - (lines.count == 1 ? -size / 3 : size * 0.15)
-            Ink.draw(ctx, lines[0], x: box.minX, y: y, big, pal.inkSoft)
-            if lines.count > 1 { Ink.draw(ctx, lines[1], x: box.minX, y: y + size * 1.25, big, pal.inkSoft) }
+            if r != nil { _ = SensorBadge.symbol(ctx, GlucoseLook.noReadingsSymbol, x: box.minX, y: y - size * 0.95, size: size * 2.1, color: pal.inkSoft) }
+            let x = box.minX + iconW(size)
+            Ink.draw(ctx, lines[0], x: x, y: y, big, pal.inkSoft)
+            if lines.count > 1 { Ink.draw(ctx, lines[1], x: x, y: y + size * 1.25, big, pal.inkSoft) }
             return
         }
         let color = fr.strike ? pal.inkSoft : pal.at(bands, Double(r.sgv))
-        let s = "\(r.sgv)"
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
         let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""
         let smallH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
@@ -2243,12 +2305,19 @@ enum GlucoseCard {
         Ink.draw(ctx, s, x: box.minX - numSize * 0.04, y: baseY, num, color, strike: fr.strike)
         let x = box.minX + Ink.width(s, num) + numSize * 0.08
         let arrowSize = numSize * arrowFactor
-        if !fr.strike, let rate = r.rate {
+        if gl.trend == .arrow, let rate = r.rate {
             ctx.saveGState()
             ctx.translateBy(x: x + arrowSize / 2, y: numBox.midY)
             ctx.rotate(by: CGFloat(-max(-1, min(1, rate / 3))) * .pi / 2)
             drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: abs(rate) >= 3)
             ctx.restoreGState()
+        } else {
+            // no trend (no rate, or the value is struck through): the hollow ring in the arrow's place
+            ctx.setStrokeColor(color)
+            ctx.setLineWidth(TrendMark.ringStroke(arrowSize))
+            let rr = TrendMark.ringRadius(arrowSize)
+            DrawTrace.on?("ring", "", false, numBox.midY)
+            ctx.strokeEllipse(in: CGRect(x: x + arrowSize / 2 - rr, y: numBox.midY - rr, width: 2 * rr, height: 2 * rr))
         }
         // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
         if let sensor, lifeBadge {

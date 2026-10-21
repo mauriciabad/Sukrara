@@ -13,6 +13,9 @@ import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
+import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.TrendMark
 import java.io.BufferedReader
 import java.io.Writer
 import java.util.concurrent.Executors
@@ -60,7 +63,7 @@ object RootStatusBar {
         val app = ctx.applicationContext
         io.execute {
             runCatching {
-                if (!f.systemIcons) stopDaemon() else if (sensorEnded()) showEnded(app) else if (r != null) showIcons(app, r)
+                if (!f.systemIcons) stopDaemon() else show(app, iconPlan(look(r, System.currentTimeMillis() / 1000), r))
             }.onFailure { Log.w(TAG, "system icons", it) }
         }
     }
@@ -121,26 +124,43 @@ object RootStatusBar {
 
     // --- 3a: system icons through the root daemon ---------------------------------------------------------
 
-    private fun sensorEnded() = app.mauri.sukrara.core.SensorLife.current.value
-        ?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, System.currentTimeMillis() / 1000) } == true
+    /** The status bar's look for [r] at [nowS]: [Freshness.look] with the sensor's end (the flag). */
+    fun look(r: Reading?, nowS: Long): GlucoseLook = Freshness.look(r?.sgv, r?.t, r?.rate, nowS,
+        ended = app.mauri.sukrara.core.SensorLife.current.value?.let { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, nowS) } == true)
 
-    /** Round sensor-life: an ended sensor shows the checkered flag in the trend slot and no number (not a stale value). */
-    private fun showEnded(ctx: Context) {
-        if (!send(ctx, "set $SLOT_TREND ${res(ctx, "ic_stat_sensor_ended")} 0 Sensor ended")) return
-        send(ctx, "remove $SLOT_NUMBER")
+    /** What the two slots show: drawable names (null = remove the slot) and what TalkBack says. */
+    data class IconPlan(val trend: String?, val number: String?, val desc: String)
+
+    /**
+     * The system icons for a [look] ([Freshness.look], the user 2026-10-21): the number and the trend while fresh or
+     * late; from 5 min the number struck through at half strength (`sb_s…`, so it reads grey in SystemUI's tint) beside
+     * the "no trend" ring (`sb_t_none_s`); from 20 min only the "no readings" icon (sensors_off) in the trend slot; an
+     * ended sensor the checkered flag (round sensor-life). SystemUI draws them itself (tinted, no colour).
+     */
+    fun iconPlan(look: GlucoseLook, r: Reading?): IconPlan = when (look.state) {
+        GlucoseLook.State.ENDED -> IconPlan("ic_stat_sensor_ended", null, "Sensor ended")
+        GlucoseLook.State.NO_READINGS -> IconPlan("ic_stat_no_readings", null,
+            "No glucose readings since ${r?.let { Freshness.timeText(it.t, System.currentTimeMillis() / 1000) } ?: "?"}")   // i18n-ok: SystemUI icon description, English like "Glucose …"
+        GlucoseLook.State.NONE -> IconPlan(null, null, "")
+        GlucoseLook.State.VALUE -> {
+            // One resource per value: the Compose status bar ignores the icon level (see tools/gen-slot-drawables.swift).
+            val v = when (look.text) { "LO" -> "lo"; "HI" -> "hi"; else -> "n${look.text}" }   // freshness-ok: the look's text → its drawable name
+            val number = if (look.strike) "sb_s${v.removePrefix("n")}" else "sb_$v"
+            val trend = when {
+                look.trend == TrendMark.ARROW && r?.rate != null -> Trend.drawableName(r.rate)
+                look.strike -> "sb_t_none_s"
+                else -> "sb_t_none"
+            }
+            IconPlan(trend, number, "Glucose ${look.text} mg/dL ${if (look.strike) "(old)" else Trend.arrow(r?.rate)}")   // i18n-ok: SystemUI icon description
+        }
     }
 
-    private fun showIcons(ctx: Context, r: Reading) {
-        // One resource per value: the Compose status bar ignores the icon level (see tools/gen-slot-drawables.swift).
-        val number = when {
-            r.sgv < 40 -> "sb_lo"
-            r.sgv > 400 -> "sb_hi"
-            else -> "sb_n${r.sgv}"
-        }
-        val desc = "Glucose ${r.sgv} mg/dL ${Trend.arrow(r.rate)}"
+    private fun show(ctx: Context, plan: IconPlan) {
         // External icons are placed first (leftmost), newest first: add the trend before the number.
-        if (!send(ctx, "set $SLOT_TREND ${Trend.drawable(r.rate)} 0 $desc")) return
-        send(ctx, "set $SLOT_NUMBER ${res(ctx, number)} 0 $desc")
+        if (plan.trend == null) send(ctx, "remove $SLOT_TREND")
+        else if (!send(ctx, "set $SLOT_TREND ${res(ctx, plan.trend)} 0 ${plan.desc}")) return
+        if (plan.number == null) send(ctx, "remove $SLOT_NUMBER")
+        else send(ctx, "set $SLOT_NUMBER ${res(ctx, plan.number)} 0 ${plan.desc}")
     }
 
     @SuppressLint("DiscouragedApi")

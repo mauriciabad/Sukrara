@@ -352,7 +352,7 @@ object GlucoseCard {
         val latest = readings.maxByOrNull { it.t }
         val status = alerts?.let { AlertStatus.of(latest, it, treatments, nowS, paused) } ?: AlertStatus.None
         val last = if (st.last != LastPlace.OFF && alerts != null) LastTreatment.of(treatments, alerts, status, nowS) else null
-        val fr = Freshness.of(latest?.let { nowS - it.t })
+        val fr = Freshness.look(latest?.sgv, latest?.t, latest?.rate, nowS).fresh
         val sl = SensorBadge.look(sensor, nowS, latest?.t)
         val graph = st.graph?.takeIf { fr.showGraph }
         val bands = (st.graph?.bands ?: Bands()).sane()
@@ -493,6 +493,18 @@ object GlucoseCard {
         cv.drawText(line, box.left, baseY + small.textSize * 1.25f, t)
     }
 
+    private val noReadingsPath by lazy { androidx.core.graphics.PathParser.createPathFromPathData(GlucoseLook.NO_READINGS_PATH) }
+
+    /** The "no readings" icon (Material Symbols `sensors_off`, [GlucoseLook.NO_READINGS_PATH]), [size] square, top-left at ([x], [y]). */
+    fun drawNoReadings(cv: Canvas, x: Float, y: Float, size: Float, color: Int) {
+        cv.save()
+        cv.translate(x, y)
+        cv.scale(size / 960f, size / 960f)
+        cv.translate(0f, 960f)
+        cv.drawPath(noReadingsPath, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        cv.restore()
+    }
+
     /**
      * The number + arrow, and under it the late reading's time and/or the status badge ([look]). The badge takes a row
      * under the number when the box is tall enough to keep the number at least 26 dp; otherwise it shrinks to its icon
@@ -505,14 +517,25 @@ object GlucoseCard {
         if (sensor?.warmup != null) return drawWarmup(cv, box, sensor, small, nowS, pal, d, hour24)
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
         if (sensor?.ended == true) return drawEnded(cv, box, nowS, pal, d)
-        if (r == null || !fr.showValue) {
+        // the freshness steps (the user, 2026-10-21): the one look every surface shares
+        val gl = Freshness.look(r?.sgv, r?.t, r?.rate, nowS)
+        if (r == null || gl.state != GlucoseLook.State.VALUE) {
             val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
             val w = Words.current
             val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
             val line2 = r?.let { Freshness.timeText(it.t, nowS, hour24) }
+            // no readings for 20 min: the status bar's "no readings" icon (sensors_off) before the words, as tall as both
+            // lines; icon and words fit the room left of the rings (as on the Mac)
+            fun iconW() = if (r != null) big.textSize * (2.1f + 0.35f) else 0f
+            val widest = listOfNotNull(line1, line2).maxOf { big.measureText(it) }
+            if (widest + iconW() > box.width() - 8 * d && widest > 0)
+                big.textSize *= max(0.4f, (box.width() - 8 * d) / (widest + iconW()))
             val y = box.centerY() - if (line2 == null) -big.textSize / 3 else big.textSize * 0.15f
-            cv.drawText(line1, box.left, y, big)
-            if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, big)
+            val icon = if (r != null) big.textSize * 2.1f else 0f
+            if (r != null) drawNoReadings(cv, box.left, y - big.textSize * 0.95f, icon, pal.inkSoft)
+            val x = box.left + if (r != null) icon + big.textSize * 0.35f else 0f
+            cv.drawText(line1, x, y, big)
+            if (line2 != null) cv.drawText(line2, x, y + big.textSize * 1.25f, big)
             return
         }
         val color = if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
@@ -527,7 +550,7 @@ object GlucoseCard {
             textSize = numBox.height() * 1.18f
             isStrikeThruText = fr.strike
         }
-        val s = "${r.sgv}"
+        val s = gl.text!!
         // Fit the width as well: number + arrow must stay left of the rings.
         val arrowFactor = 0.62f
         // the sensor badge beside the arrow (SensorSpot.VALUE) is part of the row: the number shrinks to make room for it
@@ -546,13 +569,19 @@ object GlucoseCard {
         cv.drawText(s, box.left - num.textSize * 0.04f, baseY, num)
         var x = box.left + num.measureText(s) + num.textSize * 0.08f
         val arrowSize = num.textSize * arrowFactor
-        if (!fr.strike) r.rate?.let { rate ->
+        val rate = r.rate
+        if (gl.trend == TrendMark.ARROW && rate != null) {
             cv.save()
             cv.translate(x + arrowSize / 2, cy)
             cv.rotate(Trend.angleDeg(rate))
             GlucoseNotification.drawArrow(cv, arrowSize * 1.05f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color },
                 double = Trend.isDouble(rate))
             cv.restore()
+        } else {
+            // no trend (no rate, or the value is struck through): the hollow ring in the arrow's place
+            cv.drawCircle(x + arrowSize / 2, cy, TrendMark.ringRadius(arrowSize), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color; style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowSize)
+            })
         }
         // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
         sensor?.takeIf { lifeBadge }?.let { sl ->

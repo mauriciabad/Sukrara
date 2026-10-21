@@ -29,7 +29,9 @@ import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.HookPosition
 import app.mauri.sukrara.status.GlucoseNotification
 import app.mauri.sukrara.core.Range
-import app.mauri.sukrara.core.STALE_AFTER_S
+import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.core.Trend
 import java.lang.ref.WeakReference
@@ -174,7 +176,10 @@ class SystemUiHook : XposedModule() {
         val st = state
         val r = st.reading ?: return null
         if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
-        if (System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S) return null
+        val now = System.currentTimeMillis() / 1000
+        val look = Freshness.look(r.sgv, r.t, r.rate, now, ended = st.sensorEnd in 1..now)
+        // struck (its drawable is already half strength), no readings, ended: SystemUI's own tint
+        if (look.state != GlucoseLook.State.VALUE || look.strike) return null
         return Range.color(r.sgv)
     }
 
@@ -353,7 +358,7 @@ class SystemUiHook : XposedModule() {
     private inner class GlucoseView(ctx: Context) : TextView(ctx) {
         var reference: WeakReference<TextView>? = null
         private val arrow = ArrowDrawable()
-        private val flag = FlagDrawable()
+        private val flag = PathDrawable(app.mauri.sukrara.core.SensorLife.FLAG_PATH)
         private var lastRefColor = 0
         private var followAlpha = 1f
         private var staleAlpha = 1f
@@ -383,44 +388,35 @@ class SystemUiHook : XposedModule() {
                 visibility = GONE; return@safe
             }
             visibility = VISIBLE
-            // round sensor-life: an ended sensor shows the checkered flag instead of a stale value
-            if (state.sensorEnd > 0 && System.currentTimeMillis() / 1000 >= state.sensorEnd) {
-                val base = reference?.get()?.currentTextColor ?: currentTextColor
-                text = ""
-                paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-                staleAlpha = 1f; alpha = followAlpha
-                flag.color = base
-                val s = (textSize * 1.05f).toInt()
-                flag.setBounds(0, 0, s, s)
-                setCompoundDrawables(null, null, flag, null)
-                contentDescription = "Sensor ended"   // i18n-ok: SystemUI process, English like "Glucose …" below
-                return@safe
-            }
-            text = when {
-                r.sgv < 40 -> "LO"
-                r.sgv > 400 -> "HI"
-                else -> r.sgv.toString()
-            }
-            val stale = System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S
             val base = reference?.get()?.currentTextColor ?: currentTextColor
-            val color = if (stale || !state.color) base else Range.color(r.sgv) ?: base
-            setTextColor(color)
-            staleAlpha = if (stale) 0.5f else 1f
+            val now = System.currentTimeMillis() / 1000
+            val v = HookText.of(Freshness.look(r.sgv, r.t, r.rate, now, ended = state.sensorEnd in 1..now), state.color, Range.color(r.sgv), base)
+            text = v.text
+            paintFlags = if (v.strike) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            setTextColor(v.color)
+            staleAlpha = v.alpha
             alpha = followAlpha * staleAlpha
-            paintFlags = if (stale) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-            arrow.rate = r.rate
-            arrow.color = color
-            val s = (textSize * 0.95f).toInt()
-            arrow.setBounds(0, 0, s, s)
-            setCompoundDrawables(null, null, arrow, null)
-            contentDescription = "Glucose ${r.sgv} ${Trend.arrow(r.rate)}"
+            val drawable = when (v.mark) {
+                HookText.Mark.ARROW, HookText.Mark.RING -> arrow.also { it.rate = if (v.mark == HookText.Mark.ARROW) r.rate else null; it.color = v.color }
+                // round sensor-life: an ended sensor shows the checkered flag instead of a stale value; from 20 min
+                // without a reading the "no readings" icon (sensors_off) instead of the old value
+                HookText.Mark.FLAG -> flag.also { it.color = v.color }
+                HookText.Mark.NO_READINGS -> noReadings.also { it.color = v.color }
+            }
+            val s = (textSize * if (v.mark == HookText.Mark.ARROW || v.mark == HookText.Mark.RING) 0.95f else 1.05f).toInt()
+            drawable.setBounds(0, 0, s, s)
+            setCompoundDrawables(null, null, drawable, null)
+            contentDescription = v.desc
         }
     }
 
-    /** The "sensor ended" flag (Material Symbols `sports_score`, core/SensorLife.FLAG_PATH), as a Drawable. */
-    private class FlagDrawable : Drawable() {
+    /** The "no readings" icon (Material Symbols `sensors_off`, [GlucoseLook.NO_READINGS_PATH]), as a Drawable. */
+    private val noReadings by lazy { PathDrawable(GlucoseLook.NO_READINGS_PATH) }
+
+    /** A Material Symbols path (960 × 960, y from −960) as a Drawable: the "sensor ended" flag, the "no readings" icon. */
+    private class PathDrawable(private val data: String) : Drawable() {
         var color = 0
-        private val path by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_PATH) }
+        private val path by lazy { androidx.core.graphics.PathParser.createPathFromPathData(data) }
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         override fun draw(cv: Canvas) {
@@ -451,7 +447,9 @@ class SystemUiHook : XposedModule() {
             cv.save()
             cv.translate(b.exactCenterX(), b.exactCenterY())
             if (rate == null) {
-                cv.drawCircle(0f, 0f, b.width() * 0.11f, paint)
+                // no trend: the hollow ring ([TrendMark])
+                val p = Paint(paint).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(b.width().toFloat()) }
+                cv.drawCircle(0f, 0f, TrendMark.ringRadius(b.width().toFloat()), p)
             } else {
                 cv.rotate(Trend.angleDeg(rate))
                 GlucoseNotification.drawArrow(cv, b.width().toFloat(), paint, Trend.isDouble(rate))

@@ -80,7 +80,10 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         app.mauri.sukrara.nightscout.Nightscout.start(ctx, scope)   // off until the user sets up a site (docs/25); wearer only
         // the sensor ended / a new one started: the notification and the status bar follow at once (round sensor-life)
         jobs += scope.launch { app.mauri.sukrara.core.SensorLife.current.drop(1).collect { render(force = true) } }
-        // Staleness ("123?") and age text when readings stop: at most one re-post per minute, only without readings.
+        // The freshness steps without a reading (struck at 5 min, "no readings" at 20 min): FreshnessTicker's alarm.
+        app.mauri.sukrara.status.FreshnessTicker.onStep = { render(force = true) }
+        jobs += scope.launch(kotlinx.coroutines.Dispatchers.IO) { app.mauri.sukrara.status.FreshnessTicker.replan(ctx) }
+        // A safety net for the age-based parts: at most one re-post per minute, only without readings.
         jobs += scope.launch {
             while (isActive) {
                 delay(60_000)
@@ -95,6 +98,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         jobs.forEach { it.cancel() }
         jobs.clear()
         if (Live.listener === this) Live.listener = null
+        app.mauri.sukrara.status.FreshnessTicker.onStep = null
         runCatching { ctx.unregisterReceiver(screen) }
         local.stop()
         app.mauri.sukrara.tidepool.Tidepool.stop()
