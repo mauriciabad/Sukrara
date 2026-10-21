@@ -500,8 +500,8 @@ def check_clock(ch, rep):
 
 DURATIONS_KT = APP_KT + "core/Durations.kt"
 DURATIONS_SWIFT = "spikes/widgets-macos/Shared/Durations.swift"
-# FAIL once every surface uses the formatter (round f30 flips it in its last commit)
-DURATIONS_LEVEL = "WARN"
+# every surface uses the formatter since round f30
+DURATIONS_LEVEL = "FAIL"
 WORDS_KT = APP_KT + "core/Words.kt"  # the formats' home (the Words fields Durations reads)
 # a number (template, interpolation or format directive) followed by a minute unit inside a string literal
 KT_MINUTES = re.compile(r"(\$\{[^}\"]*\}\s?|\$[A-Za-z_]\w*\s|%(\d\$)?d\s?)(min|mins|minutes|m)\b")
