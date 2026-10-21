@@ -171,3 +171,22 @@ What the widgets need from Sukrara's data layer:
   out at 244×149, so Exact mode's bitmap was clipped. Graph widgets now measure the real size with a one-off probe
   (16 sized layouts; the launcher loads the image of the one it applies):
   [10](10-showcase.md#widgets-the-launchers-reported-size-is-wrong-v0106).
+
+## In Sukrara: the add-the-widget banner (2026-10-21)
+
+The user: "the way this app is meant to be used is by adding a big widget to your launcher". Official guidance read
+first: pinning from the app ([discoverability#pin](https://developer.android.com/develop/ui/views/appwidgets/discoverability#pin)),
+promotion that "should never block or hinder the user's primary actions"
+([discovery-promotion](https://developer.android.com/design/ui/mobile/guides/widgets/discovery-promotion)),
+`AppWidgetManager` ([reference](https://developer.android.com/reference/android/appwidget/AppWidgetManager)).
+
+- **Added:** home card while no graph widget is placed (`getAppWidgetIds` per provider; tested on the emulator: the id
+  disappears when the widget is removed, no stale ids), one *Add widget* pill → `requestPinAppWidget` for *Glucose +
+  graph* with a success callback (`WidgetPresence.PinnedReceiver`) and a re-check on resume; a how-to line when the
+  launcher can't pin; dismissible for good ([FEATURES](FEATURES.md#add-the-widget-banner)).
+- **Discarded:** a live preview in the pin dialog (`EXTRA_APPWIDGET_PREVIEW` via Glance `requestPinGlanceAppWidget`):
+  one fixed-size RemoteViews that Pixel Launcher stretched into the 4×3 frame. Without it the dialog shows the
+  generated picker preview (`setWidgetPreview`, Android 15+, "widget picker and pin app widget flow"), drawn at the
+  right size. Counting the value-only or lock screen widget as "placed": they aren't the main surface. A Mac
+  equivalent (`WidgetCenter.getCurrentConfigurations`): the menubar is the Mac's main surface and macOS can't place
+  a widget for the user, so a banner could only say where to look.

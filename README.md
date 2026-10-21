@@ -116,7 +116,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
-  and give each its own window and rings (touch & hold → Reconfigure). [12](docs/12-android-widgets.md),
+  and give each its own window and rings (touch & hold → Reconfigure). Until one is placed, home offers *Add widget*
+  (the launcher's own dialog), dismissible. [12](docs/12-android-widgets.md),
   The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low). Tapping a widget or the glucose notification

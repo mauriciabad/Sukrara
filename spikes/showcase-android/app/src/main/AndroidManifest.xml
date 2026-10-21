@@ -219,6 +219,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_combined" />
         </receiver>
+        <!-- the home screen's "add the widget" banner: requestPinAppWidget's success callback (PendingIntent only) -->
+        <receiver
+            android:name=".widgets.WidgetPresence$PinnedReceiver"
+            android:exported="false" />
         <!-- investigation 17: the lock screen widget, hosted by the LSPosed module inside SystemUI -->
         <receiver
             android:name=".widgets.LockscreenWidgetReceiver"

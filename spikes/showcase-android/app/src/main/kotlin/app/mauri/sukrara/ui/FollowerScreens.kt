@@ -229,6 +229,8 @@ fun FollowerHome(u: FollowerUi, a: FollowerActions) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text(stringResource(R.string.follower_home_fetching))
             }
         }
+        // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)
+        HomeWidgetBanner()
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         GlucoseReport(l?.t)
         Reveal(u.status == "active") { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
