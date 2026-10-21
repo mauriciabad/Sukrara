@@ -435,14 +435,68 @@ struct CardStyle {
     var sensor: SensorInfo? = nil
     /// The countdown window: the ring shows in the sensor's last N hours (`countdownHours`, 1–24, default 8).
     var countdownHours = SensorLife.defaultCountdownHours
-    /// The sensor's time left on this card (`GraphConfig.sensorTime`); warm-up and ended show regardless.
-    var sensorTime = true
+    /// The sensor's time left on this card (`GraphConfig.sensorTime`); warm-up and ended show regardless. No default:
+    /// every place passes its own setting.
+    var sensorTime: Bool
 }
 
-/// Which part of a card one `GlucoseCard.draw` call paints (CardPart in GlucoseCard.kt): a surface that puts the value
-/// and the chart in boxes of its own draws each part with the SAME whole-card style, so the decisions that depend on
-/// the whole card (where the sensor badge goes) are still made once, in `GlucoseCard`.
-enum CardPart { case all, value, graph }
+/// Which part of a card one `GlucoseCard.draw` call paints (CardPart in GlucoseCard.kt): a surface that puts parts of
+/// the card in boxes of its own draws each part with the SAME whole-card style, so the decisions that depend on the
+/// whole card are still made once, in `GlucoseCard`. `header` = value + slots, `value` = the value alone, `slots` = the
+/// slots alone, `graph` = the chart alone.
+enum CardPart: String { case all, header, value, slots, graph }
+
+/// Every place on the Mac that shows the card or its value: the registry of spikes/graph-fixtures/surfaces/surfaces.json
+/// (CardSurface.kt is Android's). A card surface draws only through `GlucoseCard.draw` / `image` and names itself; a
+/// glyph surface (the menubar title) takes its value from `GlucoseCard.face`. tools/check (card-surface, card-api) and
+/// the layout self-test (LayoutSelfTest.swift, in -graphselftest) enforce it.
+enum CardSurface: String, CaseIterable {
+    case menubarCard = "menubar-card"
+    case menubarTitle = "menubar-title"
+    case widgetValue = "widget-value"
+    case widgetGraph = "widget-graph"
+    case widgetCombined = "widget-combined"
+    /// Picture sheets and self-tests only.
+    case test = "test"
+
+    var glyph: Bool { self == .menubarTitle }
+}
+
+/// What one `GlucoseCard.draw` call laid out (CardLayout in CardSurface.kt): every element, its box (in the call's own
+/// coordinates) and what it shows. Read by the layout self-test; ignored by the app.
+final class CardLayout {
+    struct El { var name: String; var box: CGRect?; var info: String }
+    let surface: CardSurface, part: CardPart, style: CardStyle, w: CGFloat, h: CGFloat, d: CGFloat
+    var elements: [El] = []
+    init(_ surface: CardSurface, _ part: CardPart, _ style: CardStyle, w: CGFloat, h: CGFloat, d: CGFloat) {
+        self.surface = surface; self.part = part; self.style = style; self.w = w; self.h = h; self.d = d
+    }
+    func add(_ name: String, _ box: CGRect? = nil, _ info: String = "") { elements.append(El(name: name, box: box, info: info)) }
+    func first(_ name: String) -> El? { elements.first { $0.name == name } }
+    func all(_ name: String) -> [El] { elements.filter { $0.name == name } }
+    /// `px` in dp to the nearest 0.5, as the report writes it on both platforms ("33.5", "40").
+    static func dp(_ px: CGFloat, _ d: CGFloat) -> String {
+        let v = (Double(px / d) * 2).rounded(.toNearestOrAwayFromZero) / 2
+        return v == v.rounded(.down) ? "\(Int64(v))" : "\(v)"
+    }
+}
+
+/// The value's decision for one reading (ValueFace in CardSurface.kt), shared by the card and the glyph surfaces.
+struct ValueFace: Equatable {
+    enum State: String { case value = "VALUE", noReadingSince = "NO_READING_SINCE", noReadings = "NO_READINGS",
+                          warmingUp = "WARMING_UP", ended = "ENDED" }
+    var state: State
+    var sgv: Int?
+    var rate: Double?
+    var strike = false
+    var showTime = false
+    var t: TimeInterval?
+    var warmup: String?
+    var shown: Bool { state == .value }
+    /// The trend arrow beside the number (never on a struck value).
+    var arrow: Bool { shown && !strike && rate != nil }
+    var number: String? { shown ? sgv.map { "\($0)" } : nil }
+}
 
 /// Where the sensor's time left goes on a card (`GlucoseCard.sensorSpot`; SensorSpot in GlucoseCard.kt).
 enum SensorSpot: String { case graph, value, none }
@@ -639,7 +693,7 @@ enum GlucoseGraph {
     /// (tools/check `graph-surface`).
     static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
                      _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat, alerts: AlertSettings?,
-                     sensor: SensorBadge.Look?) {
+                     sensor: SensorBadge.Look?, rec: CardLayout) {
         let from = now - st.window
         let b = st.bands.sane()
         let pts = GlucoseStats.window(readings, from: from - 60, to: now)
@@ -665,7 +719,14 @@ enum GlucoseGraph {
         let top = area.minY + 3 * d
         let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
         let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
-        guard right - left >= 20 * d, plotBottom - top >= 20 * d else { return }
+        rec.add("chart", area, "\(Int(st.window / 3600))h")
+        guard right - left >= 20 * d, plotBottom - top >= 20 * d else {
+            rec.add("chart.tooSmall", area)
+            if let sensor { rec.add("chart.sensor", nil, "\(sensor.label) (no room)") }
+            return
+        }
+        rec.add("chart.plot", CGRect(x: left, y: top, width: right - left, height: plotBottom - top))
+        if lane1 > 0 { rec.add("chart.lane2") }
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out.
         ctx.beginTransparencyLayer(in: area.insetBy(dx: -6 * d, dy: 0), auxiliaryInfo: nil)
@@ -704,7 +765,9 @@ enum GlucoseGraph {
         // user, 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
         var lastLabelEnd = -CGFloat.infinity
         if let sensor, let badgeRoom {
-            SensorBadge.draw(ctx, x: area.minX, y: sensorTop(area.maxY, lane1: lane1, d: d), h: sensorDp * d, sensor, pal)
+            let sy = sensorTop(area.maxY, lane1: lane1, d: d)
+            SensorBadge.draw(ctx, x: area.minX, y: sy, h: sensorDp * d, sensor, pal)
+            rec.add("chart.sensor", CGRect(x: area.minX, y: sy, width: sensorWidth(sensor.label, d: d), height: sensorDp * d), sensor.label)
             lastLabelEnd = badgeRoom.1
         }
         while hour.timeIntervalSince1970 <= now {
@@ -718,6 +781,7 @@ enum GlucoseGraph {
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
                     if lx > lastLabelEnd + 6 * d && !(layout?.blocks(lx - 3 * d, lx + tw + 3 * d) ?? false) {
                         Ink.draw(ctx, s, x: lx, y: area.maxY - 2 * d - lane1, text, pal.inkSoft)
+                        if rec.first("chart.hours") == nil { rec.add("chart.hours") }
                         lastLabelEnd = lx + tw
                     }
                 }
@@ -725,16 +789,18 @@ enum GlucoseGraph {
             hour.addTimeInterval(TimeInterval(step * 3600))
         }
         ctx.restoreGState()
+        if labels && rec.first("chart.hours") == nil { rec.add("chart.hours", nil, "(no room)") }
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written.
-        var written: [CGFloat] = []
+        var written: [CGFloat] = [], writtenV: [Int] = []
         for v in [b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines
         where labels && Double(v) > yMin && Double(v) < yMax {
             let ly = y(Double(v))
             if written.contains(where: { abs($0 - ly) < 12 * d }) { continue }
-            written.append(ly)
+            written.append(ly); writtenV.append(v)
             Ink.draw(ctx, "\(v)", x: right + 4 * d, y: ly + 10 * d / 3, text, pal.inkSoft)
         }
+        if !writtenV.isEmpty { rec.add("chart.values", nil, writtenV.map(String.init).joined(separator: ",")) }
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         ctx.beginTransparencyLayer(in: area, auxiliaryInfo: nil)
@@ -750,6 +816,8 @@ enum GlucoseGraph {
             }
         }
         ctx.restoreGState()
+        let shownLines = st.lines.filter { Double($0) > yMin && Double($0) < yMax }
+        if !shownLines.isEmpty { rec.add("chart.lines", nil, shownLines.map(String.init).joined(separator: ",")) }
 
         // The line: a dot per reading.
         let spacing = pts.count > 1 ? (right - left) / CGFloat(max(1, pts.count)) : 99
@@ -793,6 +861,7 @@ enum GlucoseGraph {
             ctx.restoreGState()
         }
         ctx.endTransparencyLayer()
+        if !rows.isEmpty { rec.add("chart.distribution", CGRect(x: left, y: top, width: sideW, height: plotBottom - top)) }
         for row in rows {
             ctx.setFillColor(row.color)
             for k in 0..<row.n {
@@ -817,6 +886,7 @@ enum GlucoseGraph {
                 Ink.draw(ctx, s, x: x0, y: cy + 13 * d * 0.36, pctBig, pal.ink)
                 Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: cy + 13 * d * 0.36, pctSmall, pal.inkSoft)
             }
+            rec.add("chart.pct", CGRect(x: area.minX, y: top, width: pctCol, height: plotBottom - top), "\(p.0)/\(p.1)/\(p.2) w" + CardLayout.dp(pctCol, d))
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
             if st.crown, TirMark.column(tir) {
                 let numW = Ink.width("100", pctBig), cw = numW * 0.62
@@ -824,11 +894,17 @@ enum GlucoseGraph {
                 if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
                     Crown.fill(ctx, x: left - 4 * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
                                pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
-                }
+                    rec.add("chart.pct.crown")
+                } else { rec.add("chart.pct.crown", nil, "(no room)") }
             }
         }
 
         if !shownMarks.isEmpty {
+            rec.add("chart.markers", nil, "\(shownMarks.filter { ["rapid", "long", "carbs", "note"].contains($0.k) }.count)")
+            for l in layout?.labels ?? [] {
+                let lb = l.lane == 0 ? area.maxY - lane1 : area.maxY
+                rec.add("chart.label", CGRect(x: l.left, y: lb - 14 * d, width: l.w, height: 14 * d), "\(l.text) lane\(l.lane)")
+            }
             TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d,
                                 layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
                                 now: now, muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
@@ -1505,7 +1581,7 @@ enum TirRing {
         }
         let num = Ink.font(r * 0.78, .heavy, rounded: true)
         let sub = Ink.font(r * 0.34, .semibold, rounded: true)
-        let v = tir.empty ? "–" : ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil)
+        let v = tir.empty ? "–" : text(tir, spec)
         let base = c.y + r * 0.78 * 0.28
         // "69.7", "<0.1": the decimals fit inside the ring (TirRing.draw on Android)
         var size = v.count > 3 ? r * 0.78 * 0.7 : r * 0.78
@@ -1519,6 +1595,8 @@ enum TirRing {
 extension TirRing {
     /// The ring's `TirMark` (none without data).
     static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark { tir.empty || !spec.marks ? .none : TirMark.of(tir, spec.range) }
+    /// The number in the middle: in range against its > 70 % goal, very good on its own (TirRing.text).
+    static func text(_ tir: TimeInRange, _ spec: RingSpec) -> String { ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil) }
 }
 
 /// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
@@ -1736,6 +1814,30 @@ enum Slots {
 
     /// Room kept at the card's edge (right of the first item) when it wears a laurel: 0.3 r (Slots.edgeInset).
     static func edgeInset(_ items: [SlotItem], r: CGFloat) -> CGFloat { items.first.map { laurel($0) } == true ? r * 0.3 : 0 }
+
+    /// All the `extraGap`s of `items` and the `edgeInset` together (Slots.extraWidth).
+    static func extraWidth(_ items: [SlotItem], r: CGFloat) -> CGFloat {
+        items.indices.reduce(0) { $0 + extraGap(items, $1, r: r) } + edgeInset(items, r: r)
+    }
+
+    /// What a slot shows, for the layout report (Slots.describe in CardStatus.kt, the same words): kind, window, range,
+    /// the number in it, its mark, and whether it is the main one (and carries the sensor countdown ring).
+    static func describe(_ item: SlotItem, main: Bool, countdown: Double?) -> String {
+        var out: String
+        switch item {
+        case let .metric(spec, m, _):
+            out = "\(spec.kind.rawValue) \(Int(spec.window))"
+            if spec.kind == .tir { out += " \(spec.range.rawValue)" }
+            out += " " + (m.empty ? "-" : spec.kind == .tir ? TirRing.text(m.tir, spec) : MetricGauge.text(spec.kind, m).0)
+            let mk = mark(item)
+            if mk != .none { out += " \(mk.rawValue)" }
+        case let .last(info):
+            out = "LAST \(info.tr.k)" + (info.carbs.map { "+\($0.info.tr.k)" } ?? "")
+        }
+        if main { out += " [main]" }
+        if countdown != nil { out += " [countdown]" }
+        return out
+    }
 
     /// The slots' centres, right to left from `right` (the card's edge), `edgeInset` in, `gap` + `extraGap` apart.
     static func centers(_ items: [SlotItem], right: CGFloat, size: CGFloat, gap: CGFloat) -> [CGFloat] {
@@ -2106,14 +2208,21 @@ enum SensorBadge {
 /// Value + trend arrow + rings + chart in one drawing (GlucoseCard.kt), adapting to the size.
 enum GlucoseCard {
     static let minCoverage = 0.25
+    /// Self-tests: every layout drawn and every face decided, as it happens (nil in the app).
+    nonisolated(unsafe) static var observer: ((CardLayout) -> Void)?
+    nonisolated(unsafe) static var faceObserver: ((CardSurface, ValueFace) -> Void)?
 
-    /// `metricsOf` gives a slot's numbers; by default computed from `readings` (enough for windows they cover).
-    /// `alerts` = the alert rules behind the badge, the mute lines and the last-treatment slot (nil = none of them).
+    /// Draw `part` of the card `st` for `surface` and return what was laid out. `metricsOf` gives a slot's numbers; by
+    /// default computed from `readings` (enough for windows they cover). `alerts` = the alert rules behind the badge,
+    /// the mute lines and the last-treatment slot (nil = none of them).
+    @discardableResult
     static func draw(_ ctx: CGContext, size: CGSize, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
-                     _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1,
+                     _ st: CardStyle, _ pal: GraphPalette, d: CGFloat = 1, surface: CardSurface, part: CardPart,
                      metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
-                     paused: [String: TimeInterval] = [:], part: CardPart = .all) {
+                     paused: [String: TimeInterval] = [:]) -> CardLayout {
         let w = size.width, h = size.height
+        let rec = CardLayout(surface, part, st, w: w, h: h, d: d)
+        defer { observer?(rec) }
         let latest = readings.max { $0.t < $1.t }
         let status = alerts.map { AlertStatus.of(latest, $0, marks, now: now, paused: paused) } ?? .none
         let last = st.last != .off ? alerts.flatMap { LastTreatment.of(marks, $0, status, now: now) } : nil
@@ -2121,35 +2230,60 @@ enum GlucoseCard {
         let sl = SensorBadge.look(st.sensor, now: now, latest: latest?.t)
         let graph = fr.showGraph ? st.graph : nil
         let bands = (st.graph?.bands ?? Bands()).sane()
-        // one part in a box of its own: that box is the part's whole area
-        let sideBySide = part == .all && graph != nil && st.value && h < 100 * d && w > 2.6 * h
-        let headerH: CGFloat = part == .value ? h : (part == .graph || !st.value) ? 0
-            : (graph == nil || sideBySide) ? h : min(max(h * 0.34, 30 * d), 80 * d)
-        let valueRight = sideBySide ? min(w * 0.32, 120 * d) : w
         let metrics = metricsOf ?? { r, b in GlucoseMetrics.of(readings, from: now - r.window, to: now, bands: b) }
         let spot = sensorSpot(st, sl, fr)
+        let countdown = SensorBadge.ring(sl, st.sensor, now: now, hours: st.countdownHours)
+        if part == .slots {
+            _ = drawRings(ctx, CGRect(x: 0, y: 0, width: w, height: h), st, last, now, bands, pal, d: d, metrics, countdown: countdown,
+                          rec: rec, dedicated: true)
+            return rec
+        }
+        // one part in a box of its own: that box is the part's whole area
+        let sideBySide = part == .all && graph != nil && st.value && h < 100 * d && w > 2.6 * h
+        let headerH: CGFloat = (part == .value || part == .header) ? h : (part == .graph || !st.value) ? 0
+            : (graph == nil || sideBySide) ? h : min(max(h * 0.34, 30 * d), 80 * d)
+        let valueRight = sideBySide ? min(w * 0.32, 120 * d) : w
 
         let chart = sideBySide ? CGRect(x: valueRight + 6 * d, y: 0, width: w - valueRight - 6 * d, height: h)
             : part == .graph ? CGRect(x: 0, y: 0, width: w, height: h)
             : CGRect(x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
-        if part != .value {
+        if part == .all || part == .graph {
             if let graph {
                 GlucoseGraph.draw(ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
-                                  sensor: spot == .graph ? sl : nil)
+                                  sensor: spot == .graph ? sl : nil, rec: rec)
             } else if st.graph != nil && chart.height > 24 * d {
-                let msg = sl?.warmup != nil ? "Warming up" : sl?.ended == true ? "Sensor ended"
+                let f = face(latest, now: now, sensor: sl, surface: surface)
+                let msg = f.state == .warmingUp ? "Warming up" : f.state == .ended ? "Sensor ended"
                     : latest.map { "No readings since \(Freshness.timeText($0.t, now: now))" } ?? "No readings yet"
                 Ink.draw(ctx, msg, x: chart.midX, y: chart.midY, Ink.font(12 * d, .regular), pal.inkSoft, align: 0.5)
+                rec.add("chart.message", chart, f.state.rawValue)
             }
         }
         if st.value && part != .graph {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
-            let countdown = SensorBadge.ring(sl, st.sensor, now: now, hours: st.countdownHours)
-            let ringsW = sideBySide ? 0 : drawRings(ctx, box, st, last, now, bands, pal, d: d, metrics, countdown: countdown)
+            let ringsW = sideBySide || part == .value ? 0
+                : drawRings(ctx, box, st, last, now, bands, pal, d: d, metrics, countdown: countdown, rec: rec, dedicated: false)
             let look = st.badge ? StatusBadge.look(status, now: now) : nil
             drawValue(ctx, CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height), latest, fr, now, bands, pal,
-                      d: d, look: look, sensor: sl, lifeBadge: spot == .value)
+                      d: d, look: look, sensor: sl, lifeBadge: spot == .value, rec: rec)
         }
+        return rec
+    }
+
+    /// The value's decision for the newest reading `latest` (GlucoseCard.face on Android): a warming-up or ended
+    /// sensor says so first, then the reading's `Freshness` (struck when stale, gone when old).
+    static func face(_ latest: GraphReading?, now: TimeInterval, sensor: SensorBadge.Look?, surface: CardSurface) -> ValueFace {
+        let fr = Freshness.of(age: latest.map { now - $0.t })
+        let f: ValueFace
+        if let w = sensor?.warmup { f = ValueFace(state: .warmingUp, t: latest?.t, warmup: w) }
+        else if sensor?.ended == true { f = ValueFace(state: .ended, t: latest?.t) }
+        else if let latest {
+            f = fr.showValue ? ValueFace(state: .value, sgv: latest.sgv, rate: latest.rate, strike: fr.strike,
+                                         showTime: fr.showTime, t: latest.t)
+                : ValueFace(state: .noReadingSince, showTime: true, t: latest.t)
+        } else { f = ValueFace(state: .noReadings) }
+        faceObserver?(surface, f)
+        return f
     }
 
     /// Where the sensor's time left goes on a card `st` (the WHOLE card, also when its parts are drawn in separate boxes):
@@ -2163,16 +2297,18 @@ enum GlucoseCard {
         return st.value && fr.showValue ? .value : .none
     }
 
-    /// Slots (`Slots.arrange`) right-aligned in `box` (main rightmost); returns the width used.
+    /// Slots (`Slots.arrange`) right-aligned in `box` (main rightmost); returns the width used. Beside the value
+    /// (`dedicated` false) they take at most 55 % of the row; in a box of their own (`.slots`) as many as fit whole.
     private static func drawRings(_ ctx: CGContext, _ box: CGRect, _ st: CardStyle, _ last: LastTreatment.Info?, _ now: TimeInterval,
                                   _ bands: Bands, _ pal: GraphPalette, d: CGFloat,
-                                  _ metricsOf: (RingSpec, Bands) -> GlucoseMetrics, countdown: Double? = nil) -> CGFloat {
+                                  _ metricsOf: (RingSpec, Bands) -> GlucoseMetrics, countdown: Double? = nil,
+                                  rec: CardLayout, dedicated: Bool) -> CGFloat {
         let extra = st.last != .off && (last != nil || st.lastElse != nil)
         guard !st.rings.isEmpty || extra else { return 0 }
         let size = min(box.height * 0.96, 84 * d)
         guard size >= 30 * d else { return 0 }
         let gap = size * 0.14
-        let fit = min(Int((box.width * 0.55 + gap) / (size + gap)), 4)
+        let fit = min(Int((box.width * (dedicated ? 1 : 0.55) + gap) / (size + gap)), 4)
         guard fit >= 1 else { return 0 }
         let rings = st.rings.prefix(3).enumerated().compactMap { (i, spec) -> (Int, RingSpec, GlucoseMetrics)? in
             let m = metricsOf(spec, bands)
@@ -2181,14 +2317,25 @@ enum GlucoseCard {
         let fallback: (RingSpec, GlucoseMetrics)? = st.last != .off && last == nil
             ? st.lastElse.flatMap { s in let m = metricsOf(s, bands); return m.tir.coverage >= minCoverage ? (s, m) : nil } : nil
         let x = box.maxX
-        let items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit)
+        var items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: fit)
+        // in a box of its own every slot fits whole, the laurels' extra room included
+        if dedicated {
+            while !items.isEmpty && CGFloat(items.count) * size + CGFloat(items.count - 1) * gap + Slots.extraWidth(items, r: size / 2) > box.width + 0.5 {
+                items = Slots.arrange(rings, place: st.last, last: last, fallback: fallback, max: items.count - 1)
+            }
+        }
+        guard !items.isEmpty else { return 0 }
         let main = Slots.mainIndex(items)
         let cx = Slots.centers(items, right: x, size: size, gap: gap)
         Slots.drawUnder(ctx, items, cx: cx, cy: box.midY, radius: size / 2, pal)
         for (i, item) in items.enumerated() {
             Slots.draw(ctx, item, center: CGPoint(x: cx[i], y: box.midY), radius: size / 2, now: now, pal, d: d,
                        countdown: i == main ? countdown : nil)
+            rec.add("slot", CGRect(x: cx[i] - size / 2, y: box.midY - size / 2, width: size, height: size),
+                    Slots.describe(item, main: i == main, countdown: i == main ? countdown : nil))
         }
+        rec.add("slots", CGRect(x: cx.last! - size / 2, y: box.minY, width: x - (cx.last! - size / 2), height: box.height), "\(items.count)")
+        rec.add("slots.box", box)
         return cx.last.map { x - ($0 - size / 2) + gap } ?? 0
     }
 
@@ -2197,12 +2344,13 @@ enum GlucoseCard {
     /// icon beside the arrow, or is left out when there's no room there either.
     private static func drawValue(_ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
                                   _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,
-                                  sensor: SensorBadge.Look?, lifeBadge: Bool) {
+                                  sensor: SensorBadge.Look?, lifeBadge: Bool, rec: CardLayout) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
-        if let sensor, sensor.warmup != nil { return drawWarmup(ctx, box, sensor, small, now, pal, d: d) }
+        let face = face(r, now: now, sensor: sensor, surface: rec.surface)
+        if face.state == .warmingUp, let sensor { return drawWarmup(ctx, box, sensor, small, now, pal, d: d, rec: rec) }
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
-        if let sensor, sensor.ended { return drawEnded(ctx, box, pal, d: d) }
-        guard let r, fr.showValue else {
+        if face.state == .ended { return drawEnded(ctx, box, pal, d: d, rec: rec) }
+        guard let r, face.shown else {
             // Fit the longer line into the space left of the rings.
             let lines = r.map { ["No reading since", Freshness.timeText($0.t, now: now)] } ?? ["No readings yet"]
             var size = min(box.height * 0.26, 20 * d)
@@ -2212,6 +2360,7 @@ enum GlucoseCard {
             let y = box.midY - (lines.count == 1 ? -size / 3 : size * 0.15)
             Ink.draw(ctx, lines[0], x: box.minX, y: y, big, pal.inkSoft)
             if lines.count > 1 { Ink.draw(ctx, lines[1], x: box.minX, y: y + size * 1.25, big, pal.inkSoft) }
+            rec.add("value.none", CGRect(x: box.minX, y: y - size, width: box.width, height: size * CGFloat(lines.count) * 1.25), face.state.rawValue)
             return
         }
         let color = fr.strike ? pal.inkSoft : pal.at(bands, Double(r.sgv))
@@ -2241,42 +2390,56 @@ enum GlucoseCard {
         let capH = CTFontGetCapHeight(num)
         let baseY = numBox.midY + capH / 2
         Ink.draw(ctx, s, x: box.minX - numSize * 0.04, y: baseY, num, color, strike: fr.strike)
+        rec.add("value.number", CGRect(x: box.minX, y: numBox.midY - capH / 2, width: Ink.width(s, num), height: capH), fr.strike ? "\(s) struck" : s)
         let x = box.minX + Ink.width(s, num) + numSize * 0.08
         let arrowSize = numSize * arrowFactor
-        if !fr.strike, let rate = r.rate {
+        if face.arrow, let rate = r.rate {
             ctx.saveGState()
             ctx.translateBy(x: x + arrowSize / 2, y: numBox.midY)
             ctx.rotate(by: CGFloat(-max(-1, min(1, rate / 3))) * .pi / 2)
             drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: abs(rate) >= 3)
             ctx.restoreGState()
+            rec.add("value.arrow", CGRect(x: x, y: numBox.midY - arrowSize / 2, width: arrowSize, height: arrowSize), abs(rate) >= 3 ? "double" : "single")
         }
         // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
         if let sensor, lifeBadge {
             let sh = min(max(capH * 0.24, 9 * d), 14 * d)
             let sx = x + arrowSize * 1.15 + (iconBadge ? iconH + arrowSize * 0.15 : 0)
-            if sx + SensorBadge.width(sensor, h: sh) <= box.maxX { SensorBadge.draw(ctx, x: sx, y: numBox.midY - capH / 2, h: sh, sensor, pal) }
+            let sw = SensorBadge.width(sensor, h: sh)
+            if sx + sw <= box.maxX {
+                SensorBadge.draw(ctx, x: sx, y: numBox.midY - capH / 2, h: sh, sensor, pal)
+                rec.add("value.sensor", CGRect(x: sx, y: numBox.midY - capH / 2, width: sw, height: sh), sensor.label)
+            } else { rec.add("value.sensor", nil, "\(sensor.label) (no room)") }
         }
         if badgeRow, let look {
             let top = numBox.maxY + badgeH * 0.25
             let bw = StatusBadge.draw(ctx, x: box.minX, y: top, h: badgeH, maxW: box.width, look, dark: pal.dark, knockout: pal.knockout)
+            rec.add("value.status", CGRect(x: box.minX, y: top, width: bw, height: badgeH), "\(look.kind) [row]")
             if fr.showTime {
                 let t = Ink.font(badgeH * 0.56, .regular)
                 let tx = box.minX + bw + badgeH * 0.35
-                if tx + Ink.width(time, t) <= box.maxX { Ink.draw(ctx, time, x: tx, y: top + badgeH / 2 + badgeH * 0.56 * 0.36, t, pal.inkSoft) }
+                if tx + Ink.width(time, t) <= box.maxX {
+                    Ink.draw(ctx, time, x: tx, y: top + badgeH / 2 + badgeH * 0.56 * 0.36, t, pal.inkSoft)
+                    rec.add("value.time", CGRect(x: tx, y: top, width: Ink.width(time, t), height: badgeH), "[badge row]")
+                } else { rec.add("value.time", nil, "[badge row] (no room)") }
             }
         } else {
             if iconBadge, let look {
                 StatusBadge.draw(ctx, x: x + arrowSize * 1.15, y: numBox.midY - iconH / 2, h: iconH, maxW: iconH, look, dark: pal.dark,
                                  knockout: pal.knockout)
+                rec.add("value.status", CGRect(x: x + arrowSize * 1.15, y: numBox.midY - iconH / 2, width: iconH, height: iconH), "\(look.kind) [icon]")
+            } else if let look { rec.add("value.status", nil, "\(look.kind) (no room)") }
+            if fr.showTime {
+                Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft)
+                rec.add("value.time", CGRect(x: box.minX, y: baseY, width: Ink.width(time, small), height: CTFontGetSize(small) * 1.25), "[own row]")
             }
-            if fr.showTime { Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft) }
         }
     }
 
     /// The sensor has ended: "Sensor ended" in the secondary colour (a state, not an error) and under it the action pill
     /// "Replace sensor" (StatusBadge.replaceSensor, the same pill as "Eat carbs": full, short or icon only as room
     /// allows); a box too short for the pill's row gets the icon-only pill beside the words (GlucoseCard.drawEnded).
-    private static func drawEnded(_ ctx: CGContext, _ box: CGRect, _ pal: GraphPalette, d: CGFloat) {
+    private static func drawEnded(_ ctx: CGContext, _ box: CGRect, _ pal: GraphPalette, d: CGFloat, rec: CardLayout) {
         let words = "Sensor ended"
         let badgeH = min(max(box.height * 0.24, 14 * d), 24 * d)
         let row = box.height - badgeH * 1.25 >= 20 * d
@@ -2290,21 +2453,24 @@ enum GlucoseCard {
         let base = textBox.midY + size * 0.36, fs = size * 1.05, cap = CTFontGetCapHeight(f)
         SensorBadge.flag(ctx, x: box.minX, y: base - cap - (fs - cap) / 2, size: fs, color: pal.inkSoft)
         Ink.draw(ctx, words, x: box.minX + size * 1.25, y: base, f, pal.inkSoft)
+        rec.add("value.ended", CGRect(x: box.minX, y: textBox.minY, width: size * 1.25 + Ink.width(words, f), height: textBox.height))
         if row {
-            _ = StatusBadge.draw(ctx, x: box.minX, y: textBox.maxY + badgeH * 0.25, h: badgeH, maxW: box.width, StatusBadge.replaceSensor,
+            let pw = StatusBadge.draw(ctx, x: box.minX, y: textBox.maxY + badgeH * 0.25, h: badgeH, maxW: box.width, StatusBadge.replaceSensor,
                              dark: pal.dark, knockout: pal.knockout)
+            rec.add("value.pill", CGRect(x: box.minX, y: textBox.maxY + badgeH * 0.25, width: pw, height: badgeH), "[row]")
         } else {
             let x = box.minX + size * 1.25 + Ink.width(words, f) + badgeH * 0.3
             if x + badgeH <= box.maxX {
                 _ = StatusBadge.draw(ctx, x: x, y: box.midY - badgeH / 2, h: badgeH, maxW: badgeH, StatusBadge.replaceSensor, dark: pal.dark, knockout: pal.knockout)
-            }
+                rec.add("value.pill", CGRect(x: x, y: box.midY - badgeH / 2, width: badgeH, height: badgeH), "[icon]")
+            } else { rec.add("value.pill", nil, "(no room)") }
         }
     }
 
     /// A new sensor warming up: the time left ("42m") where the number goes, in the secondary colour, the sensor disc
     /// beside it filling up, and "Ready at 19:45" under it (GlucoseCard.drawWarmup on Android).
     private static func drawWarmup(_ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ small: CTFont, _ now: TimeInterval,
-                                   _ pal: GraphPalette, d: CGFloat) {
+                                   _ pal: GraphPalette, d: CGFloat, rec: CardLayout) {
         guard let s = look.warmup else { return }
         let line = look.warmupLine(now: now)
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - CTFontGetSize(small) * 1.25)
@@ -2321,6 +2487,7 @@ enum GlucoseCard {
         let lw = Ink.width(line, t)
         if lw > box.width, lw > 0 { t = Ink.font(CTFontGetSize(small) * box.width / lw, .regular) }
         Ink.draw(ctx, line, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, t, pal.inkSoft)
+        rec.add("value.warmup", CGRect(x: box.minX, y: numBox.midY - capH / 2, width: need, height: capH), s)
     }
 
     /// Same geometry as GlucoseNotification.drawArrow / the menubar TrendArrow: unit arrow pointing +x.
@@ -2342,7 +2509,7 @@ enum GlucoseCard {
     /// `overflow`: room around the card in the picture (it is `overflow` larger on every side) for what overflows the
     /// card, such as a ring's laurel or crown; the card itself keeps `size`.
     static func image(size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
-                      _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil,
+                      _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil, surface: CardSurface,
                       metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: AlertSettings? = nil,
                       paused: [String: TimeInterval] = [:], overflow: CGFloat = 0) -> CGImage? {
         let pw = max(16, Int((size.width + 2 * overflow) * scale)), ph = max(16, Int((size.height + 2 * overflow) * scale))
@@ -2353,7 +2520,8 @@ enum GlucoseCard {
         ctx.scaleBy(x: scale, y: -scale)
         ctx.translateBy(x: overflow, y: overflow)
         if let background { ctx.setFillColor(background); ctx.fill(CGRect(origin: .zero, size: size)) }
-        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, metricsOf: metricsOf, alerts: alerts, paused: paused)
+        draw(ctx, size: size, readings: readings, marks: marks, now: now, st, pal, surface: surface, part: .all, metricsOf: metricsOf,
+             alerts: alerts, paused: paused)
         return ctx.makeImage()
     }
 }

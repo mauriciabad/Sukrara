@@ -162,7 +162,6 @@ extension Bands {
             return
         }
         let age = Date().timeIntervalSince(snap.latest.date)
-        let fresh = Freshness.of(age: age)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
         endTimer?.invalidate()
         freshTimer?.invalidate()
@@ -171,24 +170,27 @@ extension Bands {
         }
         freshTimer?.tolerance = 5
         let rate = snap.rate
-        let color = fresh.strike ? NSColor.secondaryLabelColor : graph.bands.color(for: snap.latest.mgdl)
+        let nowT = Date().timeIntervalSince1970
+        // what shows is the card's own decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
+        // then struck when stale, a dash once old
+        let face = Self.titleFace(snap.latest, rate: rate, now: nowT, sensor: SensorStore.current)
+        let color = face.strike ? NSColor.secondaryLabelColor : graph.bands.color(for: snap.latest.mgdl)
 
         var attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
         ]
         if let color { attrs[.foregroundColor] = color }
-        if fresh.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
+        if face.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         // Old (> 20 min): no value at all, just a dash; the panel says since when.
         button.imagePosition = .imageTrailing
-        button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
-        button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
+        button.attributedTitle = NSAttributedString(string: face.shown ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
+        button.image = face.shown ? TrendArrow.image(rate: face.arrow ? rate : nil, size: 15, color: color) : nil
         button.toolTip = "Sukrara · reading at \(Clock.time(snap.latest.date))"
         let unitName = unit == .mgdl ? "mg/dL" : "mmol/L"
-        button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
+        button.setAccessibilityLabel(face.shown ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
-        let nowT = Date().timeIntervalSince1970
         if let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
-            if sl.ended {
+            if face.state == .ended {
                 // as soon as it has ended (not an error): the checkered flag instead of a value; the panel has the pill
                 button.attributedTitle = NSAttributedString(string: "")
                 let img = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: "Sensor ended") ?? NSImage()
@@ -197,7 +199,7 @@ extension Bands {
                 button.imagePosition = .imageOnly
                 button.toolTip = "Sensor ended — replace sensor"
                 button.setAccessibilityLabel("Sensor ended — replace sensor")
-            } else if !fresh.showValue, let w = sl.warmup {
+            } else if face.state == .warmingUp, let w = face.warmup {
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
                 button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
@@ -215,18 +217,29 @@ extension Bands {
             }
         }
 
-        var g = graph.graphStyle()
-        g.hour24 = GraphStyle.systemHour24
         var pts = history?() ?? snap.history.map { GraphReading(t: $0.date.timeIntervalSince1970, v: $0.mgdl, rate: $0.rate) }
         if !pts.isEmpty { pts[pts.count - 1].rate = rate }
         panelModel.hasData = true
-        var st = graph.cardStyle(graph: g)
-        st.sensor = SensorStore.current
-        panelModel.style = st
+        panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
         panelModel.readings = pts
         panelModel.tick += 1
+    }
+
+    /// The dropdown card's style (the menubar place's settings), also the layout self-test's.
+    static func dropdownStyle(_ graph: GraphConfig, sensor: SensorInfo?) -> CardStyle {
+        var g = graph.graphStyle()
+        g.hour24 = GraphStyle.systemHour24
+        var st = graph.cardStyle(graph: g)
+        st.sensor = sensor
+        return st
+    }
+
+    /// The status item's value decision (its one, also the layout self-test's): the card's face for `latest`.
+    static func titleFace(_ latest: Reading, rate: Double?, now: TimeInterval, sensor: SensorInfo?) -> ValueFace {
+        let r = GraphReading(t: latest.date.timeIntervalSince1970, v: latest.mgdl, rate: rate)
+        return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle)
     }
 
     private func marks() -> [GraphMark] {
@@ -305,7 +318,7 @@ enum MacSurface {
 final class CardView: NSView {
     var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
-    var style = CardStyle()
+    var style = CardStyle(sensorTime: true)
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
@@ -325,9 +338,15 @@ final class CardView: NSView {
                        height: bounds.height - inset.top - inset.bottom)
         ctx.saveGState()
         ctx.translateBy(x: r.minX, y: r.minY)
-        GlucoseCard.draw(ctx, size: r.size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
-                         style, pal, metricsOf: metricsOf, alerts: alerts, paused: paused)
+        paint(ctx, size: r.size, pal)
         ctx.restoreGState()
+    }
+
+    /// The dropdown's card (its one drawing entry, also the layout self-test's): the whole card at `size`.
+    @discardableResult
+    func paint(_ ctx: CGContext, size: CGSize, _ pal: GraphPalette) -> CardLayout {
+        GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
+                         style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused)
     }
 
     override func viewDidChangeEffectiveAppearance() { needsDisplay = true }

@@ -19,7 +19,7 @@ import SwiftUI
     // the card
     @Published var readings: [GraphReading] = []
     @Published var marks: [GraphMark] = []
-    @Published var style = CardStyle()
+    @Published var style = CardStyle(sensorTime: true)
     @Published var alerts: AlertSettings?
     @Published var paused: [String: TimeInterval] = [:]
     @Published var hasData = false

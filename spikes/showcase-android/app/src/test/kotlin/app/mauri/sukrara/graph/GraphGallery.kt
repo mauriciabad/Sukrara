@@ -56,7 +56,7 @@ class GraphGallery {
         val end = data.last().t + 20
         val pal = GraphPalette.DARK
         sheet("real-card", listOf(Tile("your last 12 h", "") { cv, w, h ->
-            GlucoseCard.draw(cv, w, h, data, emptyList(), end, CardStyle(rings = listOf(RingSpec(86400), RingSpec(86400, TirRange.TIGHT))), pal, d)
+            GlucoseCard.draw(cv, w, h, data, emptyList(), end, CardStyle(rings = listOf(RingSpec(86400), RingSpec(86400, TirRange.TIGHT)), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
         }), 560f, 270f, cols = 1, pal)
     }
 
@@ -65,7 +65,7 @@ class GraphGallery {
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
             sheet("card-${if (dark) "dark" else "light"}", listOf(Tile("12 h · rings 1d + 7d", "") { cv, w, h ->
-                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = false)), pal, d)
+                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = false), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }), 560f, 270f, cols = 1, pal)
         }
     }
@@ -77,7 +77,7 @@ class GraphGallery {
             75 * 60L to "old · 75 min", 5 * 3600L to "gone · 5 h")
         sheet("freshness", ages.map { (age, label) ->
             Tile(label, "") { cv, w, h ->
-                GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - age }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = false)), pal, d)
+                GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - age }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = false), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }
         }, 360f, 190f, cols = 2, pal)
     }
@@ -93,7 +93,7 @@ class GraphGallery {
             "3 rings · very good 70–140" to listOf(RingSpec(day, TirRange.TIGHT), RingSpec(7 * day, TirRange.TIGHT), RingSpec(14 * day, TirRange.TIGHT)),
         )
         sheet("rings", v.map { (label, rings) ->
-            Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings), pal, d) }
+            Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL) }
         }, 360f, 76f, cols = 2, pal)
     }
 
@@ -125,11 +125,11 @@ class GraphGallery {
                     RingSpec(14 * day, kind = SlotKind.CV, faded = false)),
             )
             sheet("slots-${if (dark) "dark" else "light"}", v.map { (label, rings) ->
-                Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings), pal, d) }
+                Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL) }
             }, 440f, 76f, cols = 1, pal)
             sheet("widget-gmi-${if (dark) "dark" else "light"}", listOf(Tile("4×2 combined, GMI 30d in the third slot", "") { cv, w, h ->
                 GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = true),
-                    rings = listOf(RingSpec(day), RingSpec(7 * day), RingSpec(30 * day, kind = SlotKind.GMI, faded = false))), pal, d)
+                    rings = listOf(RingSpec(day), RingSpec(7 * day), RingSpec(30 * day, kind = SlotKind.GMI, faded = false)), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }), 340f, 170f, cols = 1, pal)
         }
     }
@@ -140,18 +140,18 @@ class GraphGallery {
             val pal = GraphPalette.of(dark)
             val g = GraphStyle(hour24 = true)
             val v = listOf(
-                Triple("4×2 combined", 300f to 150f, CardStyle(graph = g)),
-                Triple("4×1 combined (side by side)", 300f to 70f, CardStyle(graph = g)),
-                Triple("5×3 combined, 24 h", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L))),
-                Triple("4×2 graph only, 6 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 6 * 3600L), value = false)),
-                Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)))),
-                Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null)),
-                Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g.copy(treatments = true), value = false)),
+                Triple("4×2 combined", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
+                Triple("4×1 combined (side by side)", 300f to 70f, CardStyle(graph = g, sensorTime = true)),
+                Triple("5×3 combined, 24 h", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L), sensorTime = true)),
+                Triple("4×2 graph only, 6 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 6 * 3600L), value = false, sensorTime = true)),
+                Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)), sensorTime = true)),
+                Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null, sensorTime = true)),
+                Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g.copy(treatments = true), value = false, sensorTime = true)),
                 Triple("the same 4×2 widget, reconfigured: 3 h, 1 ring (very good), no side", 300f to 150f,
-                    CardStyle(graph = g.copy(windowS = 3 * 3600L, side = false), rings = listOf(RingSpec(86400, TirRange.TIGHT)))),
+                    CardStyle(graph = g.copy(windowS = 3 * 3600L, side = false), rings = listOf(RingSpec(86400, TirRange.TIGHT)), sensorTime = true)),
             )
             sheet("sizes-${if (dark) "dark" else "light"}", v.map { (label, sz, st) ->
-                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, st, pal, d) }
+                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, st, pal, d, surface = CardSurface.TEST, part = CardPart.ALL) }
             }, 380f, 230f, cols = 2, pal)
         }
     }
@@ -174,22 +174,22 @@ class GraphGallery {
             val g = GraphStyle(hour24 = true)
             sheet("tir-marks-cards-${if (dark) "dark" else "light"}", listOf(
                 Tile("4×2 · 24 h 100 % (crown), 7 d 96 % (laurel)", "") { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("4×2 · with the sensor countdown (5 h left)", "") { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = ending)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = ending, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("3×1 · rings only", "", 230f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null), pal, d, sensor = null)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("2×1 · one ring", "", 150f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400))), pal, d, sensor = null)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400)), sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("4×1 side by side", "", 300f, 70f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("4×3 · in-app size", "", 300f, 200f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g), pal, d, sensor = null)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
             ), 300f, 150f, cols = 2, pal)
             val rings = listOf(
@@ -224,8 +224,8 @@ class GraphGallery {
                 val windows = listOf(86400L, 7 * 86400L, 14 * 86400L).take(marks.length)
                 val byWindow = windows.zip(marks.reversed().toList()).toMap()
                 val trs = if (insulin) listOf(Treatment(id = "r", t = now - 20 * 60L, k = "rapid", a = 2.0, u = 0, o = "phone")) else emptyList()
-                GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = three.take(marks.length), last = if (insulin) LastPlace.NEAR_VALUE else LastPlace.OFF), pal, d, sensor = null,
-                    metricsOf = { spec, _ -> GlucoseMetrics(k.getValue(byWindow.getValue(spec.windowS)), 120.0, 30.0, 1000) })
+                GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = three.take(marks.length), last = if (insulin) LastPlace.NEAR_VALUE else LastPlace.OFF, sensorTime = true), pal, d, sensor = null,
+                    metricsOf = { spec, _ -> GlucoseMetrics(k.getValue(byWindow.getValue(spec.windowS)), 120.0, 30.0, 1000) }, surface = CardSurface.TEST, part = CardPart.ALL)
             }
             sheet("tir-marks-combos-${if (dark) "dark" else "light"}", listOf(
                 combo("7d laurel · 1d crown", "LC"), combo("7d flowers · 1d flowers", "FF"),
@@ -253,30 +253,30 @@ class GraphGallery {
             )
             val tiles = v.map { (label, left, rd) ->
                 Tile("4×2 · $label", "", 300f, 150f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, rd, emptyList(), now, CardStyle(graph = g), pal, d, sensor = sensor(left))
+                    GlucoseCard.draw(cv, w, h, rd, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = sensor(left), surface = CardSurface.TEST, part = CardPart.ALL)
                 }
             } + listOf(
                 Tile("warming up, 18 min in (old sensor's data)", "", 300f, 150f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 40 * 60 }, emptyList(), now, CardStyle(graph = g), pal, d, sensor = fresh)
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 40 * 60 }, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = fresh, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("ended 2 h ago, no readings since", "", 300f, 150f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 2 * 3600 }, emptyList(), now, CardStyle(graph = g), pal, d,
-                        sensor = sensor(-2 * 3600L))
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 2 * 3600 }, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d,
+                        sensor = sensor(-2 * 3600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("3×1 · 5 h left", "", 230f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null), pal, d, sensor = sensor(5 * 3600L))
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, sensorTime = true), pal, d, sensor = sensor(5 * 3600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("3×1 · ended 10 min ago, last value still fresh", "", 230f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null), pal, d,
-                        sensor = sensor(-600L))
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null, sensorTime = true), pal, d,
+                        sensor = sensor(-600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("2×1 · ended 10 min ago", "", 150f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400))),
-                        pal, d, sensor = sensor(-600L))
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 600 }, emptyList(), now, CardStyle(graph = null, rings = listOf(RingSpec(86400)), sensorTime = true),
+                        pal, d, sensor = sensor(-600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("4×1 side by side · ended yesterday", "", 300f, 70f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = true)),
-                        pal, d, sensor = sensor(-26 * 3600L))
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = true), sensorTime = true),
+                        pal, d, sensor = sensor(-26 * 3600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
             )
             sheet("sensor-${if (dark) "dark" else "light"}", tiles, 300f, 150f, cols = 2, pal)
@@ -293,34 +293,34 @@ class GraphGallery {
         val sensor = app.mauri.sukrara.core.SensorInfo("S", now - 2 * 86_400L, now + 13 * 86_400L)
         val trs = Synthetic.treatments(now)
         fun split(cv: Canvas, w: Float, valueH: Float, chartH: Float, st: CardStyle, pal: GraphPalette, valueW: Float = w) {
-            GlucoseCard.draw(cv, valueW, valueH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.VALUE)
+            GlucoseCard.draw(cv, valueW, valueH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.VALUE, surface = CardSurface.TEST)
             cv.save(); cv.translate(0f, valueH + 8 * d)
-            GlucoseCard.draw(cv, w, chartH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.GRAPH)
+            GlucoseCard.draw(cv, w, chartH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.GRAPH, surface = CardSurface.TEST)
             cv.restore()
         }
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
             val g = GraphStyle(hour24 = true)
             fun card(label: String, w: Float, h: Float, st: CardStyle) = Tile(label, "", w, h) { cv, cw, ch ->
-                GlucoseCard.draw(cv, cw, ch, data, trs, now, st, pal, d, sensor = sensor)
+                GlucoseCard.draw(cv, cw, ch, data, trs, now, st, pal, d, sensor = sensor, surface = CardSurface.TEST, part = CardPart.ALL)
             }
             val tiles = listOf(
                 Tile("app panel (value + chart, one card)", "", 360f, 300f) { cv, w, _ ->
-                    split(cv, w, 82 * d, 210 * d, CardStyle(graph = g), pal)
+                    split(cv, w, 82 * d, 210 * d, CardStyle(graph = g, sensorTime = true), pal)
                 },
                 Tile("lock screen (value left of the lock, chart under)", "", 360f, 200f) { cv, w, _ ->
-                    split(cv, w, 60 * d, 130 * d, CardStyle(graph = g, rings = emptyList()), pal, valueW = 140 * d)
+                    split(cv, w, 60 * d, 130 * d, CardStyle(graph = g, rings = emptyList(), sensorTime = true), pal, valueW = 140 * d)
                 },
-                card("widget 4×2 combined", 300f, 150f, CardStyle(graph = g)),
-                card("widget 5×3 combined, 24 h", 380f, 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L))),
-                card("widget 4×1 combined (side by side)", 300f, 70f, CardStyle(graph = g)),
-                card("widget 4×2 graph only", 300f, 150f, CardStyle(graph = g, rings = emptyList(), value = false)),
-                card("widget 2×2 graph only (no % column)", 150f, 150f, CardStyle(graph = g, rings = emptyList(), value = false)),
-                card("notification chart", 340f, 110f, CardStyle(graph = g, rings = emptyList(), value = false)),
-                card("widget 3×1 value", 230f, 60f, CardStyle(graph = null)),
-                card("widget 2×1 value", 150f, 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)))),
+                card("widget 4×2 combined", 300f, 150f, CardStyle(graph = g, sensorTime = true)),
+                card("widget 5×3 combined, 24 h", 380f, 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L), sensorTime = true)),
+                card("widget 4×1 combined (side by side)", 300f, 70f, CardStyle(graph = g, sensorTime = true)),
+                card("widget 4×2 graph only", 300f, 150f, CardStyle(graph = g, rings = emptyList(), value = false, sensorTime = true)),
+                card("widget 2×2 graph only (no % column)", 150f, 150f, CardStyle(graph = g, rings = emptyList(), value = false, sensorTime = true)),
+                card("notification chart", 340f, 110f, CardStyle(graph = g, rings = emptyList(), value = false, sensorTime = true)),
+                card("widget 3×1 value", 230f, 60f, CardStyle(graph = null, sensorTime = true)),
+                card("widget 2×1 value", 150f, 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)), sensorTime = true)),
                 card("setting off (Graph › Sensor time left)", 300f, 150f, CardStyle(graph = g, sensorTime = false)),
-                card("time labels off: beside the arrow", 300f, 150f, CardStyle(graph = g.copy(axisLabels = false))),
+                card("time labels off: beside the arrow", 300f, 150f, CardStyle(graph = g.copy(axisLabels = false), sensorTime = true)),
             )
             sheet("surfaces-${if (dark) "dark" else "light"}", tiles, 380f, 300f, cols = 2, pal)
         }
@@ -344,15 +344,15 @@ class GraphGallery {
             val pal = GraphPalette.of(dark)
             val g = GraphStyle(hour24 = true, windowS = 6 * 3600L)
             val sizes = listOf(
-                Triple("4×2 combined", 300f to 150f, CardStyle(graph = g)),
-                Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null)),
-                Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(day)))),
-                Triple("4×1 side by side", 300f to 70f, CardStyle(graph = g)),
+                Triple("4×2 combined", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
+                Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null, sensorTime = true)),
+                Triple("2×1 value + 1 ring", 150f to 60f, CardStyle(graph = null, rings = listOf(RingSpec(day)), sensorTime = true)),
+                Triple("4×1 side by side", 300f to 70f, CardStyle(graph = g, sensorTime = true)),
             )
             for ((si, sz) in sizes.withIndex()) {
                 sheet("badge-${si + 1}-${if (dark) "dark" else "light"}", states.map { (label, data, trs) ->
                     Tile("${sz.first} · $label", "", sz.second.first, sz.second.second) { cv, w, h ->
-                        GlucoseCard.draw(cv, w, h, data, trs, now, sz.third, pal, d, alerts = a)
+                        GlucoseCard.draw(cv, w, h, data, trs, now, sz.third, pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                     }
                 }, 300f, 150f, cols = 2, pal)
             }
@@ -380,32 +380,32 @@ class GraphGallery {
             sheet("last-${if (dark) "dark" else "light"}", states.flatMap { (label, trs) ->
                 listOf(
                     Tile("3×1 · $label", "", 230f, 60f) { cv, w, h ->
-                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                     },
                     Tile("4×2 combined · next to the number", "", 300f, 150f) { cv, w, h ->
                         GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = GraphStyle(hour24 = true, windowS = 6 * 3600L), rings = rings,
-                            last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                            last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                     },
                 )
             }, 300f, 150f, cols = 2, pal)
             sheet("last-places-${if (dark) "dark" else "light"}", listOf(
                 Tile("at the right end", "", 380f, 100f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.END, lastElse = fallback), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.END, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("next to the number: room for two, the 7d ring gives way", "", 380f, 100f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("no recent one, fallback off", "", 380f, 100f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = null), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = null, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("2×1, room for one: the main ring stays", "", 150f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("2×1, last treatment only (rings off): insulin + carbs", "", 150f, 60f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = emptyList(), last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = emptyList(), last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("5×3: the biggest slot, insulin + carbs", "", 380f, 100f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                 },
             ), 380f, 100f, cols = 2, pal)
         }
@@ -424,15 +424,15 @@ class GraphGallery {
             val pal = GraphPalette.of(dark)
             val g = GraphStyle(hour24 = true)
             val v = listOf(
-                Triple("4×2 combined, 12 h", 300f to 150f, CardStyle(graph = g)),
-                Triple("4×2 combined, 3 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L))),
-                Triple("4×1 combined (side by side), 6 h", 300f to 70f, CardStyle(graph = g.copy(windowS = 6 * 3600L))),
-                Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g, value = false)),
-                Triple("5×3 combined, 24 h", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L))),
-                Triple("app, 12 h", 360f to 210f, CardStyle(graph = g, value = false)),
+                Triple("4×2 combined, 12 h", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
+                Triple("4×2 combined, 3 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L), sensorTime = true)),
+                Triple("4×1 combined (side by side), 6 h", 300f to 70f, CardStyle(graph = g.copy(windowS = 6 * 3600L), sensorTime = true)),
+                Triple("notification (no value, 12 h)", 340f to 110f, CardStyle(graph = g, value = false, sensorTime = true)),
+                Triple("5×3 combined, 24 h", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L), sensorTime = true)),
+                Triple("app, 12 h", 360f to 210f, CardStyle(graph = g, value = false, sensorTime = true)),
             )
             sheet("marks-${if (dark) "dark" else "light"}", v.map { (label, sz, st) ->
-                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, trs, now, st, pal, d, alerts = a) }
+                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, trs, now, st, pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL) }
             }, 380f, 230f, cols = 2, pal)
         }
     }
@@ -452,22 +452,22 @@ class GraphGallery {
                 tr("carbs", 70.0, 504), tr("carbs", 15.0, 304), tr("carbs", 10.0, 284), tr("rapid", 8.0, 104),
                 tr("carbs", 80.0, 99), tr("rapid", 1.5, 24), tr("long", 18.0, 9))
             val v = listOf(
-                Triple("4×2, 12 h: two 5g snacks 11 h ago", 300f to 150f, CardStyle(graph = g) to
+                Triple("4×2, 12 h: two 5g snacks 11 h ago", 300f to 150f, CardStyle(graph = g, sensorTime = true) to
                     listOf(tr("carbs", 5.0, 680), tr("carbs", 5.0, 665), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
-                Triple("4×2, 3 h: meal, snack, correction", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L)) to
+                Triple("4×2, 3 h: meal, snack, correction", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L), sensorTime = true) to
                     listOf(tr("rapid", 4.5, 95), tr("carbs", 45.0, 95), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
-                Triple("notification, 12 h: insulin + carbs just now", 340f to 110f, CardStyle(graph = g, value = false) to
+                Triple("notification, 12 h: insulin + carbs just now", 340f to 110f, CardStyle(graph = g, value = false, sensorTime = true) to
                     listOf(tr("rapid", 6.0, 490), tr("carbs", 60.0, 480), tr("carbs", 30.0, 5), tr("rapid", 3.0, 2))),
-                Triple("2×2 graph widget, 12 h", 150f to 150f, CardStyle(graph = g, value = false, rings = emptyList()) to
+                Triple("2×2 graph widget, 12 h", 150f to 150f, CardStyle(graph = g, value = false, rings = emptyList(), sensorTime = true) to
                     listOf(tr("rapid", 6.0, 490), tr("carbs", 60.0, 480), tr("rapid", 4.5, 95), tr("carbs", 45.0, 95),
                         tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
-                Triple("5×3, 24 h: a full day", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L)) to day),
-                Triple("app, 12 h: corrections close together", 360f to 210f, CardStyle(graph = g, value = false) to
+                Triple("5×3, 24 h: a full day", 380f to 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L), sensorTime = true) to day),
+                Triple("app, 12 h: corrections close together", 360f to 210f, CardStyle(graph = g, value = false, sensorTime = true) to
                     listOf(tr("rapid", 1.0, 190), tr("rapid", 1.5, 170), tr("carbs", 10.0, 160), tr("rapid", 4.5, 95),
                         tr("carbs", 45.0, 95), tr("carbs", 15.0, 40), tr("rapid", 2.0, 20))),
             )
             sheet("marks-close-${if (dark) "dark" else "light"}", v.map { (label, sz, s) ->
-                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, s.second, now, s.first, pal, d, alerts = a) }
+                Tile(label, "", sz.first, sz.second) { cv, w, h -> GlucoseCard.draw(cv, w, h, data, s.second, now, s.first, pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL) }
             }, 380f, 230f, cols = 2, pal)
         }
     }

@@ -38,7 +38,9 @@ import androidx.glance.layout.padding
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.Trend
+import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
+import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GraphData
@@ -168,48 +170,67 @@ fun cardStyle(c: Context, kind: WidgetKind, w: WidgetGraphConfig): CardStyle {
     }
 }
 
+/** The registered surface of each widget kind ([CardSurface]). */
+fun WidgetKind.surface() = when (this) {
+    WidgetKind.VALUE -> CardSurface.WIDGET_VALUE
+    WidgetKind.GRAPH -> CardSurface.WIDGET_GRAPH
+    WidgetKind.COMBINED -> CardSurface.WIDGET_COMBINED
+}
+
+/**
+ * A widget's picture, the one entry every home-screen widget and the widget settings' preview draw through: the
+ * card for [kind] with this placement's settings [w], [wDp] × [hDp] dp of widget. The picture covers the whole
+ * widget and the card is drawn inset by the margin, so what overflows the card (a ring's laurel or crown) shows in
+ * the margin instead of being cut at the card's edge. [metricsOf] null = the slots from the stored history.
+ */
+fun renderWidget(c: Context, kind: WidgetKind, wDp: Float, hDp: Float, frame: WidgetUpdater.Frame, w: WidgetGraphConfig,
+                 metricsOf: ((app.mauri.sukrara.graph.RingSpec, app.mauri.sukrara.graph.Bands) -> app.mauri.sukrara.graph.GlucoseMetrics)? = null): android.graphics.Bitmap {
+    val cw = wDp - 2 * PAD_DP
+    val ch = hDp - 2 * PAD_DP
+    val st = cardStyle(c, kind, w)
+    val d = c.resources.displayMetrics.density
+    // all sizes of one widget stay well under the RemoteViews bitmap limit
+    val scale = min(1f, 1400f / (maxOf(cw, ch) * d))
+    val pad = PAD_DP * d * scale
+    val bmp = createBitmap((cw * d * scale + 2 * pad).roundToInt().coerceAtLeast(16), (ch * d * scale + 2 * pad).roundToInt().coerceAtLeast(16))
+    val cv = Canvas(bmp).apply { translate(pad, pad) }
+    GlucoseCard.draw(cv, bmp.width - 2 * pad, bmp.height - 2 * pad, frame.history, frame.treatments, frame.nowSec,
+        st, systemPalette(c), d * scale, kind.surface(), CardPart.ALL,
+        metricsOf = metricsOf ?: { r, b -> GraphData.metrics(c, r.windowS, b, frame.nowSec) })
+    return bmp
+}
+
 @Composable
 fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? = null) {
     val ctx = LocalContext.current
     val size = realSize(appWidgetId)
-    // the picture covers the whole widget and the card is drawn inset by the margin, so what overflows the card (a
-    // ring's laurel or crown) shows in the margin instead of being cut at the card's edge
-    val w = size.width.value - 2 * PAD_DP
-    val h = size.height.value - 2 * PAD_DP
-    val st = cardStyle(ctx, kind, appWidgetId?.let { GraphSettings.widget(ctx, it) } ?: WidgetGraphConfig())
-    val d = ctx.resources.displayMetrics.density
-    // all sizes of one widget stay well under the RemoteViews bitmap limit
-    val scale = min(1f, 1400f / (maxOf(w, h) * d))
-    val pad = PAD_DP * d * scale
-    val bmp = createBitmap((w * d * scale + 2 * pad).roundToInt().coerceAtLeast(16), (h * d * scale + 2 * pad).roundToInt().coerceAtLeast(16))
-    val cv = Canvas(bmp).apply { translate(pad, pad) }
-    GlucoseCard.draw(cv, bmp.width - 2 * pad, bmp.height - 2 * pad, frame.history, frame.treatments, frame.nowSec,
-        st, systemPalette(ctx), d * scale,
-        metricsOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseMetrics.of(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) }
-            else { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) })
+    val bmp = renderWidget(ctx, kind, size.width.value, size.height.value, frame,
+        appWidgetId?.let { GraphSettings.widget(ctx, it) } ?: WidgetGraphConfig(),
+        // the picker's preview has no stored history: its slots come from the sample frame
+        metricsOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseMetrics.of(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) } else null)
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
+        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments, kind),
         modifier = GlanceModifier.fillMaxSize(),
         contentScale = ContentScale.FillBounds,
     )
 }
 
-/** The value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
-private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
-    val r = frame.history.lastOrNull()
-    val now = frame.nowSec
-    app.mauri.sukrara.core.SensorLife.current.value?.takeIf { app.mauri.sukrara.core.SensorLife.ended(it.endEpoch, now) }?.let {
+private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?, kind: WidgetKind): String =
+    describeCard(c, frame.history.lastOrNull(), frame.nowSec, treatments, kind.surface())
+
+/** What a card says to a screen reader: the value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
+fun describeCard(c: Context, r: Reading?, now: Long, treatments: List<app.mauri.sukrara.treatments.Treatment>?, surface: CardSurface): String {
+    val face = GlucoseCard.face(r, now, app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t), surface)
+    if (face.state == app.mauri.sukrara.graph.ValueFace.State.ENDED)
         return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
-    }
     if (r == null) return c.getString(R.string.widget_desc_no_readings)
-    val f = Freshness.of(now - r.t)
-    if (!f.showValue) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+    if (!face.shown) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
     val badge = treatments?.let {
         app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
             app.mauri.sukrara.alerts.Alerts.paused.value), now)
     }
-    val value = if (f.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
+    val value = if (face.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
         else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
     return value + (badge?.let { ". $it" } ?: "")
 }

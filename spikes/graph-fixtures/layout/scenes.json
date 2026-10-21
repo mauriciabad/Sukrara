@@ -1,0 +1,29 @@
+{
+ "about": "The scenes every registered surface is rendered with (CardLayoutTest on Android, -graphselftest on the Mac); format: ../README.md, 'Layout across surfaces'. Times are seconds relative to now (1800000000, UTC). Readings every 5 min from -days to -age, a triangle wave lo..hi with the given period (integer maths: lo + (hi - lo) * tri / half, tri = k or period - k, k = (t - first) mod period, half = period / 2); the newest one is 'last' with 'rate'.",
+ "now": 1800000000,
+ "scenes": [
+  {"id": "live", "lo": 80, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 156, "rate": 1.0,
+   "sensor": {"start": -172800, "end": 1123200, "warmupEnd": -169200},
+   "treatments": [{"id": "i1", "k": "rapid", "a": 4.5, "t": -3000}, {"id": "c1", "k": "carbs", "a": 30, "t": -2700},
+                  {"id": "n1", "k": "note", "a": 0, "t": -10800, "n": "walk"}]},
+  {"id": "late", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 200, "last": 132, "rate": -0.5},
+  {"id": "stale", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 600, "last": 141, "rate": 2.0},
+  {"id": "old", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 3600, "last": 118, "rate": 0.2},
+  {"id": "gone", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 18000, "last": 125, "rate": 0.0},
+  {"id": "none", "days": 0},
+  {"id": "warmup", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 7200, "last": 110, "rate": 0.0,
+   "sensor": {"start": -1200, "end": 1208400, "warmupEnd": 2400}},
+  {"id": "ended", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 4200, "last": 120, "rate": 0.0,
+   "sensor": {"start": -1213200, "end": -3600, "warmupEnd": -1209600}},
+  {"id": "perfect", "lo": 100, "hi": 130, "period": 14400, "days": 8, "age": 60, "last": 128, "rate": 3.4,
+   "sensor": {"start": -1191600, "end": 18000, "warmupEnd": -1188000}},
+  {"id": "low", "lo": 60, "hi": 75, "period": 7200, "days": 8, "age": 60, "last": 64, "rate": -1.2}
+ ],
+ "settings": [
+  {"id": "default"},
+  {"id": "sensor-off", "sensorTime": false},
+  {"id": "side-off", "side": false},
+  {"id": "three-end", "ringCount": 3, "lastPlace": "END"},
+  {"id": "lines", "lines": [100, 120], "gridHours": 0}
+ ]
+}

@@ -1,0 +1,83 @@
+{
+ "about": "Every place that shows the glucose card or its value, per platform: the registry behind 'One graph everywhere' (CLAUDE.md). A 'card' surface draws card pixels only through the renderer (GlucoseCard.draw / GlucoseCard.image) and chooses only its size, its place's settings and the parts; a 'glyph' surface (text and icons the system lays out) takes the value, arrow and freshness from GlucoseCard.face. tools/check: card-surface (a file that calls the renderer must be the registered file of the surface it names), card-api (outside 'owners' only 'api' members of the renderer's objects). CardLayoutTest (Android) and -graphselftest (Mac) render ../layout/scenes.json through each surface's real entry path at its sizes and check ../layout/rules.json. Sizes are dp / pt of the surface's own box (see each surface's 'size').",
+ "android": {
+  "enum": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
+  "owners": [
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/SensorBadge.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Blooms.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/RoundedFont.kt",
+   "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt"
+  ],
+  "sources": ["spikes/showcase-android/app/src/main/kotlin/**.kt"],
+  "tests": ["spikes/showcase-android/app/src/test/kotlin/**.kt"],
+  "api": {
+   "GlucoseCard": ["draw", "face", "observer"],
+   "ValueGlyphs": ["arrow", "number", "trendIcon", "icon", "numberPaint", "REFERENCE"],
+   "SensorBadge": ["look", "describe", "Look"],
+   "StatusBadge": ["look", "describe", "Look"],
+   "Slots": ["text"],
+   "TirRing": [],
+   "TreatmentMarks": ["palette", "color", "onColor", "amount", "duration", "label", "Palette", "marker"],
+   "RoundedFont": ["init"],
+   "TextModel": []
+  },
+  "surfaces": [
+   {"id": "widget-value", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt",
+    "entry": "renderWidget", "parts": ["all"], "size": "widget, margins included", "sizes": [[170, 80], [250, 80], [170, 170]]},
+   {"id": "widget-graph", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt",
+    "entry": "renderWidget", "parts": ["all"], "size": "widget, margins included", "sizes": [[170, 170], [320, 80], [320, 170], [400, 250]]},
+   {"id": "widget-combined", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt",
+    "entry": "renderWidget", "parts": ["all"], "size": "widget, margins included", "sizes": [[170, 170], [250, 170], [320, 90], [320, 170], [320, 250], [400, 250]]},
+   {"id": "app-panel", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/Widgets.kt",
+    "entry": "PanelCard", "parts": ["header", "graph"], "size": "the panel's width (its card, padding included)", "sizes": [[379, 0], [328, 0]]},
+   {"id": "first-reading", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/NewSensorScreen.kt",
+    "entry": "firstReadingStyle", "parts": ["value"], "size": "fixed 220 x 72", "sizes": [[220, 72]]},
+   {"id": "lockscreen", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/LockscreenWidget.kt",
+    "entry": "draw", "parts": ["value", "slots", "graph"], "size": "the widget; the lock icon in the middle, 76 dp down", "sizes": [[380, 200], [360, 170]]},
+   {"id": "notification", "kind": "card", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/status/GlucoseNotification.kt",
+    "entry": "paintArt", "parts": ["slots", "graph"], "size": "the content column's width", "sizes": [[291, 0], [240, 0]]},
+   {"id": "notification-text", "kind": "glyph", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/status/GlucoseNotification.kt",
+    "entry": "build", "what": "title, Live Update chip text and small icon, the custom card's value and arrow"},
+   {"id": "status-bar", "kind": "glyph", "file": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/SystemUiHook.kt",
+    "entry": "chipContent", "what": "the root status bar chip (text, strike, arrow) and the icons' range colour"}
+  ]
+ },
+ "mac": {
+  "enum": "spikes/widgets-macos/Shared/SukraraGraph.swift",
+  "owners": [
+   "spikes/widgets-macos/Shared/SukraraGraph.swift",
+   "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift"
+  ],
+  "sources": ["spikes/menubar/Sources/GlucoseBar/*.swift", "spikes/widgets-macos/Shared/*.swift", "spikes/widgets-macos/Widget/*.swift"],
+  "tests": ["spikes/menubar/Sources/GlucoseBar/SelfTest.swift", "spikes/menubar/Sources/GlucoseBar/AlertsSelfTest.swift",
+            "spikes/menubar/Sources/GlucoseBar/LayoutSelfTest.swift", "spikes/widgets-macos/Render/RenderMain.swift",
+            "spikes/menubar/Sources/GlucoseBar/Preview.swift"],
+  "api": {
+   "GlucoseCard": ["draw", "image", "face", "observer"],
+   "SensorBadge": ["look", "describe", "Look", "flag"],
+   "StatusBadge": ["look", "describe", "Look"],
+   "Slots": [],
+   "TreatmentMarks": ["color", "onColor", "amount", "duration"],
+   "TirRing": [],
+   "Ink": ["font", "draw", "width", "line"],
+   "TextModel": []
+  },
+  "surfaces": [
+   {"id": "menubar-card", "kind": "card", "file": "spikes/menubar/Sources/GlucoseBar/StatusController.swift",
+    "entry": "CardView.paint", "parts": ["all"], "size": "the dropdown's card", "sizes": [[340, 196]]},
+   {"id": "menubar-title", "kind": "glyph", "file": "spikes/menubar/Sources/GlucoseBar/StatusController.swift",
+    "entry": "StatusController.title", "what": "the status item's value, strike and arrow"},
+   {"id": "widget-value", "kind": "card", "file": "spikes/widgets-macos/Shared/CardSurfaces.swift",
+    "entry": "MacWidget.image", "parts": ["all"], "size": "the family's content (16 pt margins off)", "sizes": [[138, 138], [332, 138]]},
+   {"id": "widget-graph", "kind": "card", "file": "spikes/widgets-macos/Shared/CardSurfaces.swift",
+    "entry": "MacWidget.image", "parts": ["all"], "size": "the family's content (16 pt margins off)", "sizes": [[138, 138], [332, 138], [332, 350], [714, 350]]},
+   {"id": "widget-combined", "kind": "card", "file": "spikes/widgets-macos/Shared/CardSurfaces.swift",
+    "entry": "MacWidget.image", "parts": ["all"], "size": "the family's content (16 pt margins off)", "sizes": [[138, 138], [332, 138], [332, 350], [714, 350]]}
+  ]
+ }
+}

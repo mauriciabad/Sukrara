@@ -166,6 +166,42 @@ object Slots {
 
     private fun mark(item: SlotItem) =
         if (item is SlotItem.Metric && item.spec.kind == SlotKind.TIR) TirRing.mark(item.m.tir, item.spec) else TirMark.NONE
+    /**
+     * What a slot shows, for the layout report ([CardLayout]): kind, window, range, the number in it, its mark, and
+     * whether it is the main one (and carries the sensor countdown ring). The same words on the Mac.
+     */
+    fun describe(item: SlotItem, main: Boolean, countdown: Double?): String = buildString {
+        when (item) {
+            is SlotItem.Metric -> {
+                append(item.spec.kind.name).append(' ').append(item.spec.windowS)
+                if (item.spec.kind == SlotKind.TIR) append(' ').append(item.spec.range.name)
+                append(' ').append(if (item.m.empty) "-" else if (item.spec.kind == SlotKind.TIR) TirRing.text(item.m.tir, item.spec)
+                    else MetricGauge.text(item.spec.kind, item.m).first)
+                mark(item).takeIf { it != TirMark.NONE }?.let { append(' ').append(it.name.lowercase()) }
+            }
+            is SlotItem.Last -> {
+                append("LAST ").append(item.info.tr.k)
+                item.info.carbs?.let { append('+').append(it.tr.k) }
+            }
+        }
+        if (main) append(" [main]")
+        if (countdown != null) append(" [countdown]")
+    }
+
+    /**
+     * A slot as words for a place that shows text only (the Live Update card's metrics): the value and a short label
+     * ("86%" · "in range 1d", "4.5u" · "12m ago"); null = nothing to show.
+     */
+    fun text(item: SlotItem, now: Long): Pair<String, String>? = when (item) {
+        is SlotItem.Metric -> if (item.m.empty) null else when (item.spec.kind) {
+            SlotKind.TIR -> "${TirRing.text(item.m.tir, item.spec)}%" to
+                "${Words.current.let { if (item.spec.range == TirRange.TIGHT) it.tirVeryGood else it.tirInRange }} ${item.spec.period}"
+            else -> MetricGauge.text(item.spec.kind, item.m).let { (v, u) -> "$v$u" } to "${item.spec.kind.short} ${item.spec.period}"
+        }
+        is SlotItem.Last -> (TreatmentMarks.label(item.info.tr, 8) ?: item.info.tr.k) to
+            Words.current.ago.format(TreatmentMarks.duration(now - item.info.tr.t))
+    }
+
     /** Whether [item] is a ring that wears a laurel (any [TirMark]). */
     fun hasLaurel(item: SlotItem) = mark(item) != TirMark.NONE
 

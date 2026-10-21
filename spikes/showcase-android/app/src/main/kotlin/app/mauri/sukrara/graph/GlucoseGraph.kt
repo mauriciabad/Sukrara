@@ -85,12 +85,12 @@ object GlucoseGraph {
     /**
      * [alerts] = the rules behind the treatments' mute lines (null = no lines). [sensor] = the life badge to put in the
      * hour-label row ([sensorTop]); only [GlucoseCard] decides that ([GlucoseCard.sensorSpot]), so only it calls this
-     * (tools/check `graph-surface`).
+     * (tools/check `card-api`). [rec] gets what was laid out.
      */
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
         st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings?,
-        sensor: SensorBadge.Look?,
+        sensor: SensorBadge.Look?, rec: CardLayout,
     ) {
         val from = nowS - st.windowS
         val b = st.bands.sane()
@@ -118,7 +118,14 @@ object GlucoseGraph {
         val top = area.top + 3 * d
         val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
         val plotBottom = if (marks) bottom - 12 * d else bottom
-        if (right - left < 20 * d || plotBottom - top < 20 * d) return
+        rec.add("chart", area, "${st.windowS / 3600}h", exact = true)
+        if (right - left < 20 * d || plotBottom - top < 20 * d) {
+            rec.add("chart.tooSmall", area, exact = true)
+            sensor?.let { rec.add("chart.sensor", info = "${it.label} (no room)", exact = true) }
+            return
+        }
+        rec.add("chart.plot", RectF(left, top, right, plotBottom), exact = true)
+        if (lane1 > 0) rec.add("chart.lane2", exact = true)
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out, as it always could.
         val chartLayer = cv.saveLayer(area.left - 6 * d, area.top, area.right + 6 * d, area.bottom, null)
@@ -158,7 +165,9 @@ object GlucoseGraph {
         // 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
         var labelEnd = Float.NEGATIVE_INFINITY
         if (sensor != null && badgeRoom != null) {
-            SensorBadge.draw(cv, area.left, sensorTop(area.bottom, lane1, d), SENSOR_DP * d, sensor, pal)
+            val sy = sensorTop(area.bottom, lane1, d)
+            SensorBadge.draw(cv, area.left, sy, SENSOR_DP * d, sensor, pal)
+            rec.add("chart.sensor", RectF(area.left, sy, area.left + sensorWidth(sensor.label, d), sy + SENSOR_DP * d), sensor.label, exact = true)
             labelEnd = badgeRoom.second
         }
         while (cal.timeInMillis / 1000 <= nowS) {
@@ -172,24 +181,29 @@ object GlucoseGraph {
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
                     if (lx > labelEnd + 6 * d && layout?.blocks(lx - 3 * d, lx + tw + 3 * d) != true) {
                         cv.drawText(s, lx, area.bottom - 2 * d - lane1, text)
+                        if (rec.first("chart.hours") == null) rec.add("chart.hours")
                         labelEnd = lx + tw
                     }
                 }
             }
             cal.add(Calendar.HOUR_OF_DAY, step)
         }
+        if (labels && rec.first("chart.hours") == null) rec.add("chart.hours", info = "(no room)")
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written.
         val written = ArrayList<Float>()
+        val writtenV = ArrayList<Int>()
         fun value(v: Int) {
             if (!labels || v <= yMin || v >= yMax) return
             val ly = y(v.toFloat())
             if (written.any { kotlin.math.abs(it - ly) < text.textSize * 1.2f }) return
             written += ly
+            writtenV += v
             cv.drawText("$v", right + 4 * d, ly + text.textSize / 3, text)
         }
         (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) + st.lines)
             .forEach(::value)
+        if (writtenV.isNotEmpty()) rec.add("chart.values", info = writtenV.joinToString(","), exact = true)
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         val layer = cv.saveLayer(area, null)
@@ -198,6 +212,7 @@ object GlucoseGraph {
         for (v in listOf(b.veryLow, b.veryHigh, b.extremelyHigh)) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
         val userLine = Paint(grid).apply { color = ColorUtils.setAlphaComponent(pal.inkSoft, 0x66) }
         for (v in st.lines) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), userLine)
+        st.lines.filter { it > yMin && it < yMax }.takeIf { it.isNotEmpty() }?.let { rec.add("chart.lines", info = it.joinToString(","), exact = true) }
 
         // The line: one dot per reading, coloured by band.
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -229,6 +244,7 @@ object GlucoseGraph {
             for (row in rows) cv.drawRoundRect(area.left, row.cy - h, row.endX + PROFILE_GAP * d, row.cy + h, h, h, cut)
         }
         cv.restoreToCount(layer)
+        if (rows.isNotEmpty()) rec.add("chart.distribution", RectF(left, top, left + sideW, plotBottom), exact = true)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
         for (row in rows) {
             p.color = row.color
@@ -252,16 +268,26 @@ object GlucoseGraph {
             label(hi, cHi)
             label(inr, cIn)
             label(lo, cLo)
+            rec.add("chart.pct", RectF(area.left, top, left, plotBottom), "$lo/$inr/$hi w" + CardLayout.dp(pctCol, d), exact = true)
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
             if (st.crown && TirMark.column(tir)) {
                 val numW = pctBig.measureText("100")
                 val cw = numW * 0.62f
                 val bottom = cIn + pctBig.textSize * (0.36f - 0.72f) - 1.5f * d
-                if (bottom - cw * Crown.H >= cHi + pctBig.textSize * 0.36f + 2 * d)
+                if (bottom - cw * Crown.H >= cHi + pctBig.textSize * 0.36f + 2 * d) {
                     Crown.draw(cv, left - 4 * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
+                    rec.add("chart.pct.crown")
+                } else rec.add("chart.pct.crown", info = "(no room)")
             }
         }
 
+        if (marks) {
+            rec.add("chart.markers", info = "${shown.count { it.k in setOf("rapid", "long", "carbs", "note") }}", exact = true)
+            layout?.labels?.forEach { l ->
+                rec.add("chart.label", RectF(l.left, if (l.lane == 0) area.bottom - 14 * d - lane1 else area.bottom - 14 * d, l.left + l.w,
+                    if (l.lane == 0) area.bottom - lane1 else area.bottom), "${l.text} lane${l.lane}", exact = true)
+            }
+        }
         if (marks) TreatmentMarks.draw(cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
             nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })

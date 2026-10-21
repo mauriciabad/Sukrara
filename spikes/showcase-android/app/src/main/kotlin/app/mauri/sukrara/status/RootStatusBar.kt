@@ -86,6 +86,9 @@ object RootStatusBar {
             .putExtra("lockBg", f.lockBg)
             .putExtra("lockLook", f.lockLook)
             .putExtra("sensorEnd", app.mauri.sukrara.core.SensorLife.current.value?.endEpoch ?: 0L)   // the flag once it has ended
+            // the warm-up's time left, as the card shows it (GlucoseCard.face in the hook)
+            .putExtra("sensorStart", app.mauri.sukrara.core.SensorLife.current.value?.startEpoch ?: 0L)
+            .putExtra("sensorWarmup", app.mauri.sukrara.core.SensorLife.current.value?.warmupEndEpoch ?: 0L)
         if (r != null) {
             i.putExtra("mgdl", r.sgv).putExtra("epochSec", r.t)
             r.rate?.let { i.putExtra("rate", it) }

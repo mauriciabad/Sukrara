@@ -27,9 +27,11 @@ import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.HookPosition
-import app.mauri.sukrara.status.GlucoseNotification
+import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.ValueFace
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.core.Range
-import app.mauri.sukrara.core.STALE_AFTER_S
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.core.Trend
 import java.lang.ref.WeakReference
@@ -174,7 +176,9 @@ class SystemUiHook : XposedModule() {
         val st = state
         val r = st.reading ?: return null
         if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
-        if (System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S) return null
+        // the card's decision for this reading (GlucoseCard.face): no range colour once it's struck or gone
+        val face = chipFace(r, System.currentTimeMillis() / 1000, st.sensor())
+        if (!face.shown || face.strike) return null
         return Range.color(r.sgv)
     }
 
@@ -306,7 +310,11 @@ class SystemUiHook : XposedModule() {
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
                              val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true,
-                             val hideIcon: Boolean = false, val sensorEnd: Long = 0)
+                             val hideIcon: Boolean = false, val sensorEnd: Long = 0, val sensorStart: Long = 0,
+                             val sensorWarmup: Long = 0) {
+        /** The sensor as the app sent it (null = none known). */
+        fun sensor() = if (sensorEnd > 0) app.mauri.sukrara.core.SensorInfo("", sensorStart, sensorEnd, sensorWarmup) else null
+    }
 
     /** Written on the main thread (receiver), read by the Compose/flow hooks on SystemUI's background threads. */
     @Volatile private var state = State()
@@ -336,7 +344,8 @@ class SystemUiHook : XposedModule() {
         val reading = if (i.hasExtra("mgdl")) Reading(i.getLongExtra("epochSec", 0), i.getIntExtra("mgdl", 0),
             if (i.hasExtra("rate")) i.getDoubleExtra("rate", 0.0) else null) else old.reading
         state = State(reading, i.getBooleanExtra("enabled", true), i.getStringExtra("position") ?: old.position,
-            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon), i.getLongExtra("sensorEnd", 0))
+            i.getBooleanExtra("color", old.color), i.getBooleanExtra("hideIcon", old.hideIcon), i.getLongExtra("sensorEnd", 0),
+            i.getLongExtra("sensorStart", 0), i.getLongExtra("sensorWarmup", 0))
         if (i.hasExtra("lockWidget")) lockWidget.enabled = i.getBooleanExtra("lockWidget", false)
         i.getStringExtra("lockBg")?.let { lockWidget.background = it }
         i.getStringExtra("lockLook")?.let { lockWidget.look = it }
@@ -383,8 +392,11 @@ class SystemUiHook : XposedModule() {
                 visibility = GONE; return@safe
             }
             visibility = VISIBLE
+            // what shows is the card's decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
+            // then struck when stale, a dash once old
+            val face = chipFace(r, System.currentTimeMillis() / 1000, state.sensor())
             // round sensor-life: an ended sensor shows the checkered flag instead of a stale value
-            if (state.sensorEnd > 0 && System.currentTimeMillis() / 1000 >= state.sensorEnd) {
+            if (face.state == ValueFace.State.ENDED) {
                 val base = reference?.get()?.currentTextColor ?: currentTextColor
                 text = ""
                 paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
@@ -396,19 +408,25 @@ class SystemUiHook : XposedModule() {
                 contentDescription = "Sensor ended"   // i18n-ok: SystemUI process, English like "Glucose …" below
                 return@safe
             }
-            text = when {
-                r.sgv < 40 -> "LO"
-                r.sgv > 400 -> "HI"
-                else -> r.sgv.toString()
-            }
-            val stale = System.currentTimeMillis() / 1000 - r.t > STALE_AFTER_S
             val base = reference?.get()?.currentTextColor ?: currentTextColor
-            val color = if (stale || !state.color) base else Range.color(r.sgv) ?: base
+            // a new sensor warming up: the time left where the number goes (the card and the Mac's menubar say the same)
+            if (face.state == ValueFace.State.WARMING_UP) {
+                text = face.warmup
+                setTextColor(base)
+                paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                staleAlpha = 1f; alpha = followAlpha
+                setCompoundDrawables(null, null, null, null)
+                contentDescription = "Sensor warming up, ${face.warmup}"   // i18n-ok: SystemUI process, English like "Glucose …" below
+                return@safe
+            }
+            text = face.compact ?: "–"
+            val dim = !face.shown || face.strike
+            val color = if (dim || !state.color) base else Range.color(r.sgv) ?: base
             setTextColor(color)
-            staleAlpha = if (stale) 0.5f else 1f
+            staleAlpha = if (dim) 0.5f else 1f
             alpha = followAlpha * staleAlpha
-            paintFlags = if (stale) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-            arrow.rate = r.rate
+            paintFlags = if (face.strike) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            arrow.face = face
             arrow.color = color
             val s = (textSize * 0.95f).toInt()
             arrow.setBounds(0, 0, s, s)
@@ -438,23 +456,23 @@ class SystemUiHook : XposedModule() {
         @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
-    /** The Mac's continuous-angle arrow (GlucoseNotification.drawArrow), as a Drawable. */
+    /** The card's arrow for the face ([ValueGlyphs.arrow], the Mac's continuous angle), as a Drawable; a dot without one. */
     private class ArrowDrawable : Drawable() {
-        var rate: Double? = null
+        var face: ValueFace? = null
         var color = 0
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         override fun draw(cv: Canvas) {
             val b = bounds
             paint.color = color
-            val rate = rate
+            val f = face
             cv.save()
             cv.translate(b.exactCenterX(), b.exactCenterY())
-            if (rate == null) {
+            if (f == null || !f.arrow) {
                 cv.drawCircle(0f, 0f, b.width() * 0.11f, paint)
             } else {
-                cv.rotate(Trend.angleDeg(rate))
-                GlucoseNotification.drawArrow(cv, b.width().toFloat(), paint, Trend.isDouble(rate))
+                cv.rotate(Trend.angleDeg(f.rate!!))
+                ValueGlyphs.arrow(cv, b.width().toFloat(), paint, Trend.isDouble(f.rate))
             }
             cv.restore()
         }
@@ -491,3 +509,10 @@ class SystemUiHook : XposedModule() {
         val OUR_SLOTS = setOf(RootStatusBar.SLOT_NUMBER, RootStatusBar.SLOT_TREND)
     }
 }
+
+/**
+ * What the root status bar shows for [r] (its chip's text, strike and arrow, and whether the icons get the range
+ * colour): the card's own decision, [GlucoseCard.face]. The hook's one value decision, also the tests'.
+ */
+internal fun chipFace(r: Reading, nowS: Long, sensor: app.mauri.sukrara.core.SensorInfo?) =
+    GlucoseCard.face(r, nowS, app.mauri.sukrara.graph.SensorBadge.look(sensor, nowS, r.t), CardSurface.STATUS_BAR)

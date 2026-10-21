@@ -174,6 +174,7 @@ enum GraphFixtures {
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
             + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
             + mark(dir.appendingPathComponent("mark")) + place(dir.appendingPathComponent("place/place.json"))
+            + MainActor.assumeIsolated { LayoutSelfTest.run(dir) }
     }
 
     /// Where the sensor's time left goes (spikes/graph-fixtures/place, the file GraphFixtureTest.place runs):
