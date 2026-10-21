@@ -104,22 +104,65 @@ object GlucoseGraph {
 
         val labels = st.axisLabels
         val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
-        // the % labels as drawn (real font): the column is the widest of them plus PCT_GAP_DP on each side
+        // the % labels as drawn (real font): the column is the widest of them plus SIDE_GAP_DP on each side
         fun pctW(v: Int) = pctBig.measureText("$v") + pctSmall.measureText("%")
-        val (left, right) = plotX(area.left, area.right, st.side && !tir.empty, labels, d, maxOf(pctW(lo), pctW(inr), pctW(hi)))
-        val pctCol = left - area.left
-        fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
+        val pctLabelW = maxOf(pctW(lo), pctW(inr), pctW(hi))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..nowS } else emptyList()
         val marks = shown.isNotEmpty()
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
-        val layout = if (marks) TreatmentMarks.layout(shown, ::x, nowS, area.left, area.right, lanes(area.height(), d), d, badgeRoom) else null
-        val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
-        val textRow = labels || layout?.labels?.isNotEmpty() == true
-        val top = area.top + 3 * d
-        val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
-        val plotBottom = if (marks) bottom - 12 * d else bottom
+        val dMin = pts.minOfOrNull { it.sgv } ?: b.low
+        val dMax = pts.maxOfOrNull { it.sgv } ?: b.high
+        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
+        // don't change it: one outside the range isn't drawn.
+        val yMin = minOf(b.low - 22, b.veryLow - 6, dMin - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat())
+        val yMax = maxOf(b.high + 40, b.veryHigh + 8, dMax + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
+        // The values on the right: low and high always, then very good, very low / very high and the extra lines,
+        // each only where it doesn't touch one already written (in the plot from [top] to [plotBottom]).
+        val candidates = if (!labels) emptyList() else
+            (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) + st.lines)
+                .filter { it > yMin && it < yMax }
+        fun axisValues(top: Float, plotBottom: Float): List<Pair<Int, Float>> {
+            val out = ArrayList<Pair<Int, Float>>()
+            for (v in candidates) {
+                val ly = plotBottom - (v - yMin) / (yMax - yMin) * (plotBottom - top)
+                if (out.none { kotlin.math.abs(it.second - ly) < text.textSize * 1.2f }) out += v to ly
+            }
+            return out
+        }
+        fun valuesW(vs: List<Int>) = vs.maxOfOrNull { text.measureText("$it") } ?: 0f
+        // The plot's sides: the % column and the values column, each its widest drawn label + SIDE_GAP_DP on each side.
+        // Which values show depends on the plot's height, which depends (second treatment lane) on its width: start from
+        // every candidate and settle on the values actually written (one or two more rounds at most).
+        class Geo(val valW: Float) {
+            val lr = plotX(area.left, area.right, st.side && !tir.empty, labels, d, pctLabelW, valW)
+            val left = lr.first
+            val right = lr.second
+            val layout = if (marks) TreatmentMarks.layout(shown, { t -> left + (t - from).toFloat() / st.windowS * (right - left) }, nowS,
+                area.left, area.right, lanes(area.height(), d), d, badgeRoom) else null
+            val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
+            val textRow = labels || layout?.labels?.isNotEmpty() == true
+            val top = area.top + 3 * d
+            val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
+            val plotBottom = if (marks) bottom - 12 * d else bottom
+            val values = axisValues(top, plotBottom)
+        }
+        var g = Geo(valuesW(candidates))
+        for (round in 0 until 3) {
+            val w = valuesW(g.values.map { it.first })
+            if (w == g.valW) break
+            g = Geo(w)
+        }
+        val left = g.left
+        val right = g.right
+        val pctCol = left - area.left
+        fun x(t: Long) = left + (t - from).toFloat() / st.windowS * (right - left)
+        val layout = g.layout
+        val lane1 = g.lane1
+        val top = g.top
+        val bottom = g.bottom
+        val plotBottom = g.plotBottom
         rec.add("chart", area, "${st.windowS / 3600}h", exact = true)
         if (right - left < 20 * d || plotBottom - top < 20 * d) {
             rec.add("chart.tooSmall", area, exact = true)
@@ -132,12 +175,6 @@ object GlucoseGraph {
         // wider than the area: a marker at the plot's edge may stick out, as it always could.
         val chartLayer = cv.saveLayer(area.left - 6 * d, area.top, area.right + 6 * d, area.bottom, null)
 
-        val dMin = pts.minOfOrNull { it.sgv } ?: b.low
-        val dMax = pts.maxOfOrNull { it.sgv } ?: b.high
-        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
-        // don't change it: one outside the range isn't drawn.
-        val yMin = minOf(b.low - 22, b.veryLow - 6, dMin - 6).toFloat().coerceAtLeast(GlucoseStats.MIN_MG.toFloat())
-        val yMax = maxOf(b.high + 40, b.veryHigh + 8, dMax + 8).toFloat().coerceAtMost(GlucoseStats.MAX_MG.toFloat())
         fun y(v: Float) = plotBottom - (v.coerceIn(yMin, yMax) - yMin) / (yMax - yMin) * (plotBottom - top)
         val sideW = if (st.side && !tir.empty) min((right - left) * 0.26f, 130 * d) else 0f
 
@@ -191,21 +228,17 @@ object GlucoseGraph {
             cal.add(Calendar.HOUR_OF_DAY, step)
         }
         if (labels && rec.first("chart.hours") == null) rec.add("chart.hours", info = "(no room)")
-        // The values on the right: low and high always, then very good, very low / very high and the extra lines,
-        // each only where it doesn't touch one already written.
-        val written = ArrayList<Float>()
-        val writtenV = ArrayList<Int>()
-        fun value(v: Int) {
-            if (!labels || v <= yMin || v >= yMax) return
-            val ly = y(v.toFloat())
-            if (written.any { kotlin.math.abs(it - ly) < text.textSize * 1.2f }) return
-            written += ly
-            writtenV += v
-            cv.drawText("$v", right + 4 * d, ly + text.textSize / 3, text)
+        // The values on the right (axisValues), left-aligned SIDE_GAP_DP after the plot; the widest ends SIDE_GAP_DP
+        // before the area's edge.
+        for ((v, ly) in g.values) {
+            val s = "$v"
+            val base = ly + text.textSize / 3
+            cv.drawText(s, right + SIDE_GAP_DP * d, base, text)
+            // the drawn label's box (CardLayoutTest checks the column's gaps against it: layout/rules.json "gaps")
+            rec.add("chart.values.label", RectF(right + SIDE_GAP_DP * d, base - text.textSize * 0.72f, right + SIDE_GAP_DP * d + text.measureText(s), base), s, exact = true)
         }
-        (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) + st.lines)
-            .forEach(::value)
-        if (writtenV.isNotEmpty()) rec.add("chart.values", info = writtenV.joinToString(","), exact = true)
+        if (g.values.isNotEmpty()) rec.add("chart.values", RectF(right, top, area.right, plotBottom),
+            g.values.joinToString(",") { "${it.first}" } + " [w" + CardLayout.dp(area.right - right, d) + "]", exact = true)
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         val layer = cv.saveLayer(area, null)
@@ -262,7 +295,7 @@ object GlucoseGraph {
             fun label(v: Int, cy: Float) {
                 val s = "$v"
                 val w = pctW(v)
-                val x0 = left - PCT_GAP_DP * d - w
+                val x0 = left - SIDE_GAP_DP * d - w
                 val base = cy + pctBig.textSize * 0.36f
                 cv.drawText(s, x0, base, pctBig)
                 cv.drawText("%", x0 + pctBig.measureText(s), base, pctSmall)
@@ -279,7 +312,7 @@ object GlucoseGraph {
                 val cw = numW * 0.62f
                 val bottom = cIn + pctBig.textSize * (0.36f - 0.72f) - 1.5f * d
                 if (bottom - cw * Crown.H >= cHi + pctBig.textSize * 0.36f + 2 * d) {
-                    Crown.draw(cv, left - PCT_GAP_DP * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
+                    Crown.draw(cv, left - SIDE_GAP_DP * d - pctSmall.measureText("%") - numW / 2, bottom, cw, pal.tight)
                     rec.add("chart.pct.crown")
                 } else rec.add("chart.pct.crown", info = "(no room)")
             }
@@ -300,14 +333,14 @@ object GlucoseGraph {
 
     /**
      * The plot's left and right edge in an area [areaLeft]..[areaRight]: the % column on the left ([pct]: the time in
-     * range is shown and has data; only from [PCT_MIN_WIDTH_DP]) and the values on the right ([labels]), both sized by
-     * the [TextModel]. The % column is [pctW] (the widest % label actually drawn, measured with the paints that draw it)
-     * plus [PCT_GAP_DP] on each side, whatever the surface, size or font (the user, 2026-10-21: "it should depend on
-     * the longest text width"; the TextModel's worst-case widths left up to ~10 dp of extra margin on its left).
+     * range is shown and has data; only from [PCT_MIN_WIDTH_DP]) and the values on the right ([labels]). Each column is
+     * its widest label actually drawn ([pctW], [valW]: measured with the paints that draw them) plus [SIDE_GAP_DP] on
+     * each side, whatever the surface, size or font (the user, 2026-10-21: "it should depend on the longest text
+     * width"; the TextModel's worst-case widths had left up to ~10 dp of extra margin beside the labels).
      */
-    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float, pctW: Float): Pair<Float, Float> {
-        val pctCol = if (pct && labels && areaRight - areaLeft >= PCT_MIN_WIDTH_DP * d) pctW + 2 * PCT_GAP_DP * d else 0f
-        return areaLeft + pctCol to areaRight - if (labels) TextModel.width("180", 10 * d) + 5 * d else 0f
+    fun plotX(areaLeft: Float, areaRight: Float, pct: Boolean, labels: Boolean, d: Float, pctW: Float, valW: Float): Pair<Float, Float> {
+        val pctCol = if (pct && labels && areaRight - areaLeft >= PCT_MIN_WIDTH_DP * d) pctW + 2 * SIDE_GAP_DP * d else 0f
+        return areaLeft + pctCol to areaRight - if (labels) valW + 2 * SIDE_GAP_DP * d else 0f
     }
 
     /** Height of the sensor badge in the hour-label row (dp). */
@@ -323,8 +356,8 @@ object GlucoseGraph {
     /** The badge's width in the [TextModel] (the room kept free of treatment labels; the same on every platform). */
     fun sensorWidth(label: String, d: Float): Float = SENSOR_DP * d * 1.3f + TextModel.width(label, SENSOR_DP * d * 0.95f)
 
-    /** The % column's margin (dp) on each side of its widest label: one constant (layout/rules.json "gaps"; Mac `pctGap`). */
-    const val PCT_GAP_DP = 3f
+    /** The side columns' margin (dp) on each side of their widest label: one constant (layout/rules.json "gaps"; Mac `sideGap`). */
+    const val SIDE_GAP_DP = 3f
 
     /** Treatment label lanes for a chart [h] px tall: a second one from [TreatmentMarks.TWO_LANES_DP]. */
     fun lanes(h: Float, d: Float) = if (h >= TreatmentMarks.TWO_LANES_DP * d) 2 else 1

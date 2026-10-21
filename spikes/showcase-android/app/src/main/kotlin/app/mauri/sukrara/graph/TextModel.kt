@@ -5,7 +5,7 @@ package app.mauri.sukrara.graph
 
 /**
  * A fixed text width model, so layout decisions never depend on the font (Roboto here, SF Pro on the Mac): the graph's
- * side columns and the treatment label layout use it, and only the drawing measures real text (centred in the
+ * treatment label layout and the sensor badge's room use it (the side columns measure their real labels), and only the drawing measures real text (centred in the
  * modelled box). Widths in em, at or a little above the wider of Roboto and SF Pro at bold weight and small sizes (SF
  * Pro Text Bold at 9 pt: digits up to 0.71 em, "m" 0.95; Roboto's digits 0.56), so a modelled box always holds the
  * real text on both (the Mac's `-graphselftest` checks it for every fixture label). Same table in SukraraGraph.swift

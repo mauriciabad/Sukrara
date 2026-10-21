@@ -17,7 +17,9 @@
   {"name": "slot-count", "elements": ["slots"], "by": ["scene", "settings", "rings", "part", "box"]}
  ],
  "gaps": [
-  {"column": "chart.pct", "labels": "chart.pct.label", "gap": 3,
-   "about": "The % column is its widest drawn label plus this many dp on each side (the user, 2026-10-21: 'it should depend on the longest text width'): column left → widest label's left = gap, every label's right → column right = gap (± 0.05 dp), on every surface, size and platform."}
+  {"column": "chart.pct", "labels": "chart.pct.label", "align": "right", "gap": 3,
+   "about": "The % column is its widest drawn label plus this many dp on each side (the user, 2026-10-21: 'it should depend on the longest text width'): column left → widest label's left = gap, every label's right → column right = gap (± 0.05 dp), on every surface, size and platform."},
+  {"column": "chart.values", "labels": "chart.values.label", "align": "left", "gap": 3,
+   "about": "The values on the right of the plot (mg/dL), the same rule mirrored (the user, 2026-10-21: 'can this margin fix logic also be applied to the right axis labels?'): column left (the plot's right edge) → every label's left = gap, widest label's right → column right = gap."}
  ]
 }

@@ -335,11 +335,13 @@ class CardLayoutTest {
                 val ls = l.all(g.getString("labels")).mapNotNull { e -> e.box?.let { e.info to it } }
                 if (ls.isEmpty()) { problems += "${g.getString("column")}: $r draws no ${g.getString("labels")}"; continue }
                 seen++
-                val left = (ls.minOf { it.second.left } - col.left) / l.d
-                val rights = ls.map { (s, b) -> s to (col.right - b.right) / l.d }
-                if (kotlin.math.abs(left - gap) > 0.05 || rights.any { kotlin.math.abs(it.second - gap) > 0.05 })
-                    problems += "${g.getString("column")} gaps on $r (${r.scene}/${r.settings}): left %.2f, right %s dp; want %.2f each (widest label %.2f dp, column %.2f dp)"
-                        .format(Locale.US, left, rights.joinToString { (s, v) -> "%s %.2f".format(Locale.US, s, v) }, gap,
+                // the aligned side: every label; the other side: the widest
+                val alignRight = g.getString("align") == "right"
+                val each = ls.map { (s, b) -> s to (if (alignRight) col.right - b.right else b.left - col.left) / l.d }
+                val widest = (if (alignRight) ls.minOf { it.second.left } - col.left else col.right - ls.maxOf { it.second.right }) / l.d
+                if (kotlin.math.abs(widest - gap) > 0.05 || each.any { kotlin.math.abs(it.second - gap) > 0.05 })
+                    problems += "${g.getString("column")} gaps on $r (${r.scene}/${r.settings}): widest label's free side %.2f, aligned side %s dp; want %.2f each (widest label %.2f dp, column %.2f dp)"
+                        .format(Locale.US, widest, each.joinToString { (s, v) -> "%s %.2f".format(Locale.US, s, v) }, gap,
                             ls.maxOf { it.second.width() } / l.d, col.width() / l.d)
             }
             if (seen == 0) problems += "${g.getString("column")}: no render shows it (gaps rule untested)"

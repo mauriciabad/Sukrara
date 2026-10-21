@@ -98,7 +98,7 @@ class GraphFixtureTest {
             for (i in 0 until cases.length()) {
                 val c = cases.getJSONObject(i)
                 val name = "${f.name}: ${c.getString("name")}"
-                val got = labelDump(c, root.getDouble("pctLabel").toFloat())
+                val got = labelDump(c, root.getDouble("pctLabel").toFloat(), root.getDouble("valueLabel").toFloat())
                 val want = c.getJSONObject("expect")
                 if (!sameDump(want, got)) fails += "$name\n  want ${want}\n  got  $got"
                 n++
@@ -263,11 +263,11 @@ class GraphFixtureTest {
     }
 
     /** What the graph decides for a label case, in the fixtures' `expect` form. */
-    private fun labelDump(c: JSONObject, pctLabel: Float): JSONObject {
+    private fun labelDump(c: JSONObject, pctLabel: Float, valueLabel: Float): JSONObject {
         val w = c.getJSONObject("chart").getDouble("w").toFloat()
         val h = c.getJSONObject("chart").getDouble("h").toFloat()
         val windowS = (c.getDouble("hours") * 3600).toLong()
-        val (left, right) = GlucoseGraph.plotX(0f, w, c.optBoolean("pct", true), true, 1f, pctLabel)
+        val (left, right) = GlucoseGraph.plotX(0f, w, c.optBoolean("pct", true), true, 1f, pctLabel, valueLabel)
         val trs = c.getJSONArray("treatments").let { a ->
             (0 until a.length()).map { a.getJSONObject(it) }.map {
                 Treatment(id = it.getString("id"), k = it.getString("k"), a = it.getDouble("a"), t = now + it.getLong("t"), u = 0, o = "phone")

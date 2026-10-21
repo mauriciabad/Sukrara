@@ -690,7 +690,7 @@ enum Ink {
 }
 
 /// A fixed text width model (TextModel.kt), so layout decisions never depend on the font (SF Pro here, Roboto on
-/// Android): the graph's side columns and the treatment label layout use it; only the drawing measures real text
+/// Android): the treatment label layout and the sensor badge's room use it (the side columns measure their real labels); only the drawing measures real text
 /// (centred in the modelled box). Widths in em, at or a little above the wider of SF Pro and Roboto at bold weight and
 /// small sizes (SF Pro Text Bold at 9 pt: digits up to 0.71 em); `-graphselftest` checks every fixture label fits.
 enum TextModel {
@@ -741,24 +741,59 @@ enum GlucoseGraph {
 
         let labels = st.axisLabels
         let p = pct3(tir.below, tir.inRange, tir.above)
-        // the % labels as drawn (real font): the column is the widest of them plus `pctGap` on each side
+        // the % labels as drawn (real font): the column is the widest of them plus `sideGap` on each side
         func pctW(_ v: Int) -> CGFloat { Ink.width("\(v)", pctBig) + Ink.width("%", pctSmall) }
-        let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d,
-                                  pctW: max(pctW(p.0), pctW(p.1), pctW(p.2)))
-        let pctCol = left - area.minX
-        func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
+        let pctLabelW = max(pctW(p.0), pctW(p.1), pctW(p.2))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         let shownMarks = st.treatments ? marks.filter { $0.t >= from && $0.t <= now } : []
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         let badgeRoom: (CGFloat, CGFloat)? = labels ? sensor.map { (area.minX, area.minX + sensorWidth($0.label, d: d) + 3 * d) } : nil
-        let layout = shownMarks.isEmpty ? nil
-            : TreatmentMarks.layout(shownMarks, x: x, now: now, minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d,
-                                    reserve: badgeRoom)
-        let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
-        let textRow = labels || !(layout?.labels.isEmpty ?? true)
-        let top = area.minY + 3 * d
-        let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
-        let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
+        let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
+        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
+        // don't change it: one outside the range isn't drawn.
+        let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
+        let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
+        let split = b.tight < b.high
+        // The values on the right: low and high always, then very good, very low / very high and the extra lines,
+        // each only where it doesn't touch one already written (in the plot from `top` to `plotBottom`).
+        let candidates = !labels ? [] : ([b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines)
+            .filter { Double($0) > yMin && Double($0) < yMax }
+        func axisValues(_ top: CGFloat, _ plotBottom: CGFloat) -> [(Int, CGFloat)] {
+            var out: [(Int, CGFloat)] = []
+            for v in candidates {
+                let ly = plotBottom - CGFloat((Double(v) - yMin) / (yMax - yMin)) * (plotBottom - top)
+                if !out.contains(where: { abs($0.1 - ly) < 12 * d }) { out.append((v, ly)) }
+            }
+            return out
+        }
+        func valuesW(_ vs: [Int]) -> CGFloat { vs.map { Ink.width("\($0)", text) }.max() ?? 0 }
+        // The plot's sides: the % column and the values column, each its widest drawn label + `sideGap` on each side.
+        // Which values show depends on the plot's height, which depends (second treatment lane) on its width: start from
+        // every candidate and settle on the values actually written (GlucoseGraph.kt).
+        struct Geo { var valW: CGFloat; var left: CGFloat; var right: CGFloat; var layout: TreatmentMarks.Layout?
+                     var lane1: CGFloat; var top: CGFloat; var bottom: CGFloat; var plotBottom: CGFloat; var values: [(Int, CGFloat)] }
+        func geo(_ valW: CGFloat) -> Geo {
+            let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d, pctW: pctLabelW, valW: valW)
+            let layout = shownMarks.isEmpty ? nil
+                : TreatmentMarks.layout(shownMarks, x: { left + CGFloat(($0 - from) / st.window) * (right - left) }, now: now,
+                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, reserve: badgeRoom)
+            let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
+            let textRow = labels || !(layout?.labels.isEmpty ?? true)
+            let top = area.minY + 3 * d
+            let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
+            let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
+            return Geo(valW: valW, left: left, right: right, layout: layout, lane1: lane1, top: top, bottom: bottom,
+                       plotBottom: plotBottom, values: axisValues(top, plotBottom))
+        }
+        var g = geo(valuesW(candidates))
+        for _ in 0..<3 {
+            let w = valuesW(g.values.map(\.0))
+            if w == g.valW { break }
+            g = geo(w)
+        }
+        let left = g.left, right = g.right, layout = g.layout, lane1 = g.lane1, top = g.top, bottom = g.bottom, plotBottom = g.plotBottom
+        let pctCol = left - area.minX
+        func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
         rec.add("chart", area, "\(Int(st.window / 3600))h")
         guard right - left >= 20 * d, plotBottom - top >= 20 * d else {
             rec.add("chart.tooSmall", area)
@@ -772,16 +807,10 @@ enum GlucoseGraph {
         ctx.beginTransparencyLayer(in: area.insetBy(dx: -6 * d, dy: 0), auxiliaryInfo: nil)
         defer { ctx.endTransparencyLayer() }
 
-        let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
-        // The y range always reaches the very low / very high limits, so their lines always show. The user's own lines
-        // don't change it: one outside the range isn't drawn.
-        let yMin = max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
-        let yMax = min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
         func y(_ v: Double) -> CGFloat { plotBottom - CGFloat((min(max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (plotBottom - top) }
         let sideW: CGFloat = st.side && !tir.empty ? min((right - left) * 0.26, 130 * d) : 0
 
         // The in-range band across the whole plot; its very good part (low…tight) a little stronger, in its own colour.
-        let split = b.tight < b.high
         let tightTop = y(Double(split ? b.tight : b.high))
         let bandDecor: CGFloat = pal.decor < 1 ? 0.5 : 1
         ctx.setFillColor(pal.tight.a(CGFloat(split ? (pal.dark ? 0x2A : 0x24) : (pal.dark ? 0x1E : 0x18)) / 255 * bandDecor))
@@ -830,17 +859,18 @@ enum GlucoseGraph {
         }
         ctx.restoreGState()
         if labels && rec.first("chart.hours") == nil { rec.add("chart.hours", nil, "(no room)") }
-        // The values on the right: low and high always, then very good, very low / very high and the extra lines,
-        // each only where it doesn't touch one already written.
-        var written: [CGFloat] = [], writtenV: [Int] = []
-        for v in [b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines
-        where labels && Double(v) > yMin && Double(v) < yMax {
-            let ly = y(Double(v))
-            if written.contains(where: { abs($0 - ly) < 12 * d }) { continue }
-            written.append(ly); writtenV.append(v)
-            Ink.draw(ctx, "\(v)", x: right + 4 * d, y: ly + 10 * d / 3, text, pal.inkSoft)
+        // The values on the right (axisValues), left-aligned `sideGap` after the plot; the widest ends `sideGap` before
+        // the area's edge.
+        for (v, ly) in g.values {
+            let s = "\(v)", base = ly + 10 * d / 3, w = Ink.width(s, text)
+            Ink.draw(ctx, s, x: right + Self.sideGap * d, y: base, text, pal.inkSoft)
+            // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
+            rec.add("chart.values.label", CGRect(x: right + Self.sideGap * d, y: base - 10 * d * 0.72, width: w, height: 10 * d * 0.72), s)
         }
-        if !writtenV.isEmpty { rec.add("chart.values", nil, writtenV.map(String.init).joined(separator: ",")) }
+        if !g.values.isEmpty {
+            rec.add("chart.values", CGRect(x: right, y: top, width: area.maxX - right, height: plotBottom - top),
+                    g.values.map { String($0.0) }.joined(separator: ",") + " [w" + CardLayout.dp(area.maxX - right, d) + "]")
+        }
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
         ctx.beginTransparencyLayer(in: area, auxiliaryInfo: nil)
@@ -922,7 +952,7 @@ enum GlucoseGraph {
             for (v, cy) in zip([p.2, p.1, p.0], c) {
                 let s = "\(v)"
                 let w = pctW(v)
-                let x0 = left - Self.pctGap * d - w, base = cy + 13 * d * 0.36
+                let x0 = left - Self.sideGap * d - w, base = cy + 13 * d * 0.36
                 Ink.draw(ctx, s, x: x0, y: base, pctBig, pal.ink)
                 Ink.draw(ctx, "%", x: x0 + Ink.width(s, pctBig), y: base, pctSmall, pal.inkSoft)
                 // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
@@ -934,7 +964,7 @@ enum GlucoseGraph {
                 let numW = Ink.width("100", pctBig), cw = numW * 0.62
                 let bottom = c[1] + 13 * d * (0.36 - 0.72) - 1.5 * d
                 if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
-                    Crown.fill(ctx, x: left - Self.pctGap * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
+                    Crown.fill(ctx, x: left - Self.sideGap * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
                                pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
                     rec.add("chart.pct.crown")
                 } else { rec.add("chart.pct.crown", nil, "(no room)") }
@@ -962,19 +992,19 @@ enum GlucoseGraph {
     static func sensorWidth(_ label: String, d: CGFloat) -> CGFloat { sensorDp * d * 1.3 + TextModel.width(label, sensorDp * d * 0.95) }
 
     /// The plot's left and right edge in `areaLeft`…`areaRight` (GlucoseGraph.kt `plotX`): the % column (`pct`: time
-    /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`, sized by the
-    /// `TextModel`). The % column is `pctW` (the widest % label actually drawn, measured with the fonts that draw it)
-    /// plus `pctGap` on each side, whatever the surface, size or font (the user, 2026-10-21: "it should depend on the
-    /// longest text width"; the TextModel's worst-case widths left extra margin on its left).
+    /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`). Each column is its
+    /// widest label actually drawn (`pctW`, `valW`: measured with the fonts that draw them) plus `sideGap` on each side,
+    /// whatever the surface, size or font (the user, 2026-10-21: "it should depend on the longest text width"; the
+    /// TextModel's worst-case widths had left extra margin beside the labels).
     static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat,
-                      pctW: CGFloat) -> (CGFloat, CGFloat) {
-        let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d ? pctW + 2 * pctGap * d : 0
-        return (areaLeft + pctCol, areaRight - (labels ? TextModel.width("180", 10 * d) + 5 * d : 0))
+                      pctW: CGFloat, valW: CGFloat) -> (CGFloat, CGFloat) {
+        let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d ? pctW + 2 * sideGap * d : 0
+        return (areaLeft + pctCol, areaRight - (labels ? valW + 2 * sideGap * d : 0))
     }
 
-    /// The % column's margin (pt) on each side of its widest label: one constant (layout/rules.json "gaps";
-    /// GlucoseGraph.kt `PCT_GAP_DP`).
-    static let pctGap: CGFloat = 3
+    /// The side columns' margin (pt) on each side of their widest label: one constant (layout/rules.json "gaps";
+    /// GlucoseGraph.kt `SIDE_GAP_DP`).
+    static let sideGap: CGFloat = 3
 
     /// Treatment label lanes for a chart `h` tall: a second one from `TreatmentMarks.twoLanesH`.
     static func lanes(_ h: CGFloat, d: CGFloat) -> Int { h >= TreatmentMarks.twoLanesH * d ? 2 : 1 }

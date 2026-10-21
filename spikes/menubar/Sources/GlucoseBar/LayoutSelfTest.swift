@@ -243,11 +243,13 @@ enum LayoutSelfTest {
                 let ls = l.all(labName).compactMap { e in e.box.map { (e.info, $0) } }
                 if ls.isEmpty { fail("\(colName): \(r) draws no \(labName)"); continue }
                 seen += 1
-                let left = Double((ls.map(\.1.minX).min()! - col.minX) / l.d)
-                let rights = ls.map { ($0.0, Double((col.maxX - $0.1.maxX) / l.d)) }
-                if (abs(left - gap) > 0.05 || rights.contains { abs($0.1 - gap) > 0.05 }) && gapShown < 20 {
+                // the aligned side: every label; the other side: the widest
+                let alignRight = g["align"] as? String == "right"
+                let widest = Double((alignRight ? ls.map(\.1.minX).min()! - col.minX : col.maxX - ls.map(\.1.maxX).max()!) / l.d)
+                let rights = ls.map { ($0.0, Double((alignRight ? col.maxX - $0.1.maxX : $0.1.minX - col.minX) / l.d)) }
+                if (abs(widest - gap) > 0.05 || rights.contains { abs($0.1 - gap) > 0.05 }) && gapShown < 20 {
                     gapShown += 1
-                    fail("\(colName) gaps on \(r) (\(r.scene)/\(r.settings)): left \(String(format: "%.2f", left)), right "
+                    fail("\(colName) gaps on \(r) (\(r.scene)/\(r.settings)): widest label's free side \(String(format: "%.2f", widest)), aligned side "
                          + rights.map { "\($0.0) \(String(format: "%.2f", $0.1))" }.joined(separator: ", ")
                          + " dp; want \(gap) each (widest label \(String(format: "%.2f", Double(ls.map(\.1.width).max()! / l.d))) dp, column \(String(format: "%.2f", Double(col.width / l.d))) dp)")
                 }
