@@ -252,7 +252,8 @@ class AlertEngine {
             val (why, until) = when {
                 tc != null && by != null -> (if (by == "rapid") QUIET_INSULIN else QUIET_CARBS) to maxOf(tc + s.muteS(by), note ?: 0)
                 note != null -> QUIET_NOTIFICATION to note
-                e.on && e.muted != null -> QUIET_FALLING to 0L
+                // quiet only because of Mute all: that's [allMuted]'s, not a falling mute to "Alert me anyway" out of
+                e.on && e.muted != null && (allMuted(now) == 0L || fallingMute(e.kind, s, now) != null) -> QUIET_FALLING to 0L
                 else -> null to 0L
             }
             if (why == null && relax == 0) continue

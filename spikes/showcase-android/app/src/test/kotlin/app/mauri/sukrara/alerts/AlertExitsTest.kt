@@ -169,6 +169,7 @@ class AlertExitsTest {
         assertNull(k.notification(Kind.LOW))    // the alert showing goes
         assertEquals(k.now + 7200, Alerts.allMuted.value)
         assertEquals("All alerts muted for 2 h", k.history().first())
+        assertTrue("Mute all is its own entry, not a falling mute", Alerts.active.value.isEmpty())
         assertFalse(k.history().toString(), k.history().any { "cleared" in it })
         k.advance(60); k.reading(50)            // very low: nothing posted
         assertNull(k.notification(Kind.VERY_LOW))
