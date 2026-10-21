@@ -283,6 +283,49 @@ class GraphGallery {
         }
     }
 
+    /**
+     * The user, 2026-10-21: the sensor's time left on EVERY surface at once (13 days left, the same data), so a surface
+     * that places it on its own shows up here. Split surfaces (app panel, lock screen) draw their two boxes with one
+     * whole-card style ([CardPart]), as the app does.
+     */
+    @Test fun surfaces() {
+        val data = Synthetic.days(now, 15)
+        val sensor = app.mauri.sukrara.core.SensorInfo("S", now - 2 * 86_400L, now + 13 * 86_400L)
+        val trs = Synthetic.treatments(now)
+        fun split(cv: Canvas, w: Float, valueH: Float, chartH: Float, st: CardStyle, pal: GraphPalette, valueW: Float = w) {
+            GlucoseCard.draw(cv, valueW, valueH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.VALUE)
+            cv.save(); cv.translate(0f, valueH + 8 * d)
+            GlucoseCard.draw(cv, w, chartH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.GRAPH)
+            cv.restore()
+        }
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val g = GraphStyle(hour24 = true)
+            fun card(label: String, w: Float, h: Float, st: CardStyle) = Tile(label, "", w, h) { cv, cw, ch ->
+                GlucoseCard.draw(cv, cw, ch, data, trs, now, st, pal, d, sensor = sensor)
+            }
+            val tiles = listOf(
+                Tile("app panel (value + chart, one card)", "", 360f, 300f) { cv, w, _ ->
+                    split(cv, w, 82 * d, 210 * d, CardStyle(graph = g), pal)
+                },
+                Tile("lock screen (value left of the lock, chart under)", "", 360f, 200f) { cv, w, _ ->
+                    split(cv, w, 60 * d, 130 * d, CardStyle(graph = g, rings = emptyList()), pal, valueW = 140 * d)
+                },
+                card("widget 4×2 combined", 300f, 150f, CardStyle(graph = g)),
+                card("widget 5×3 combined, 24 h", 380f, 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L))),
+                card("widget 4×1 combined (side by side)", 300f, 70f, CardStyle(graph = g)),
+                card("widget 4×2 graph only", 300f, 150f, CardStyle(graph = g, rings = emptyList(), value = false)),
+                card("widget 2×2 graph only (no % column)", 150f, 150f, CardStyle(graph = g, rings = emptyList(), value = false)),
+                card("notification chart", 340f, 110f, CardStyle(graph = g, rings = emptyList(), value = false)),
+                card("widget 3×1 value", 230f, 60f, CardStyle(graph = null)),
+                card("widget 2×1 value", 150f, 60f, CardStyle(graph = null, rings = listOf(RingSpec(86400)))),
+                card("setting off (Graph › Sensor time left)", 300f, 150f, CardStyle(graph = g, sensorTime = false)),
+                card("time labels off: beside the arrow", 300f, 150f, CardStyle(graph = g.copy(axisLabels = false))),
+            )
+            sheet("surfaces-${if (dark) "dark" else "light"}", tiles, 380f, 300f, cols = 2, pal)
+        }
+    }
+
     /** 2026-10-18 round: the status badge under the value, at the widget sizes and in both themes. */
     @Test fun badge() {
         val base = Synthetic.days(now, 31)
@@ -325,7 +368,8 @@ class GraphGallery {
         val rings = listOf(RingSpec(day), RingSpec(7 * day))
         val fallback = RingSpec(30 * day)
         val states = listOf(
-            "rapid 4.5u, 12 min ago (mute 60 min)" to listOf(tr("rapid", 4.5, 12), tr("carbs", 45.0, 12)),
+            "rapid 4.5u + carbs 45g, 12 min ago (mute 60 min)" to listOf(tr("rapid", 4.5, 12), tr("carbs", 45.0, 12)),
+            "rapid 8u 20 min ago, then carbs 5g 5 min ago" to listOf(tr("rapid", 8.0, 20), tr("carbs", 5.0, 5)),
             "carbs 15g, 10 min ago (mute 15 min)" to listOf(tr("carbs", 15.0, 10)),
             "rapid 6u, 2 h ago: mute over, grey ring" to listOf(tr("rapid", 6.0, 125)),
             "rapid 6u, 5 h ago: hidden → 30d ring" to listOf(tr("rapid", 6.0, 300)),
@@ -356,6 +400,12 @@ class GraphGallery {
                 },
                 Tile("2×1, room for one: the main ring stays", "", 150f, 60f) { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, states[0].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                },
+                Tile("2×1, last treatment only (rings off): insulin + carbs", "", 150f, 60f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = emptyList(), last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
+                },
+                Tile("5×3: the biggest slot, insulin + carbs", "", 380f, 100f) { cv, w, h ->
+                    GlucoseCard.draw(cv, w, h, data, states[1].second, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback), pal, d, alerts = a)
                 },
             ), 380f, 100f, cols = 2, pal)
         }

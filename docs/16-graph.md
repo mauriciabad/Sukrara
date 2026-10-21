@@ -454,6 +454,35 @@ card's main ring is pixel-identical with "388" ↗ and "68" → at 2×1, 3×1 an
 | proportional figures for the value on Android | tabular figures (wide gaps around "1", and the value outgrew the row) |
 | a measured value width in the app panel and notification, value shrinks before a slot goes | the fixed 188 dp / 110 dp guesses (wrong as soon as the face changed) |
 
+## One sensor-badge placement for every surface (2026-10-21)
+
+The 0.11.33 move of the sensor's time left under the % column reached only the cards that draw value and chart in
+one `GlucoseCard.draw` with a % column: the app panel (Compose value + its own `GlucoseGraph.draw`), the lock screen
+(two `GlucoseCard.draw` calls with different styles), graph-only widgets and the notification kept the old place or
+none. Now the placement is one decision, `GlucoseCard.sensorSpot`, over the whole card's style:
+
+- a card with a labelled chart puts the badge at the start of the hour labels' row (left edge, under the % column and
+  the distribution; with no % column the same corner), hour labels start after it, treatment labels keep its box free;
+- a card without one (value widgets, time labels off) puts it beside the arrow, and the number shrinks to make room;
+- surfaces that draw a card in boxes of their own pass the same whole-card `CardStyle` with `part` (`CardPart`);
+- the place's setting (*Sensor time left*, per place and per Android widget) is part of the style.
+
+Guards: `spikes/graph-fixtures/place` (both platforms decide the same; the box and the label room in the `TextModel`),
+two label cases with the badge's room, and `tools/check` `graph-surface` (whole tree): only `GlucoseCard` draws the chart
+and the badge, every surface `CardStyle` carries `sensorTime`, a file drawing a card in parts passes `part` each time,
+the Compose badge only next to `GlucoseCard.sensorSpot`. The gallery's `surfaces` sheet (Android) and `render treatments`
+`mac-surfaces` (Mac) draw every surface with the same data.
+
+The last-treatment slot in the same round: carbs logged while rapid insulin's mute runs share the slot as an inner ring
+(`8u` over `5g`), on slots ≥ 40 dp across; smaller ones keep the insulin alone.
+
+| Added | Discarded (why) |
+|---|---|
+| One placement rule for every surface, the badge in the chart wherever a labelled chart is shown | a % column condition and a fallback beside the arrow when a treatment label sat there (the place depended on the data, and split surfaces couldn't know it) |
+| Treatment labels keep the badge's box free | the badge giving way to a label (it would jump between places) |
+| *Sensor time left* per place / per Android widget | one global switch (every other graph setting is per place) |
+| Concentric insulin + carbs slot (two values inside) | both values in one ring segment (unreadable); the time since in the pair (no room; the single slot keeps it); the pair on slots under 40 dp (text under ~7 dp) |
+
 ## Open
 
 - macOS per-widget settings would need an Xcode project (so the App Intents metadata is registered properly).

@@ -153,6 +153,9 @@ enum GraphFixtures {
                     check("\(name): last id", last.flatMap { id($0.tr) } == l["id"] as? String, last.flatMap { id($0.tr) })
                     let until = (l["until"] as? Double).map { now + $0 }
                     check("\(name): last until", last?.until == until, last?.until.map { $0 - now })
+                    let w = l["with"] as? [String: Any]
+                    check("\(name): last with", last?.carbs.flatMap { id($0.tr) } == w?["id"] as? String, last?.carbs.flatMap { id($0.tr) })
+                    if let w { check("\(name): last with until", last?.carbs?.until == (w["until"] as? Double).map { now + $0 }, last?.carbs?.until.map { $0 - now }) }
                 } else { check("\(name): last", last == nil, last) }
                 for (key, want) in e["amounts"] as? [String: Any] ?? [:] {
                     guard let m = marks.first(where: { id($0) == key }) else { check("\(name): amount \(key) exists", false, nil); continue }
@@ -165,7 +168,50 @@ enum GraphFixtures {
         print("graph fixtures: \(n) cases, \(failures) failed")
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
             + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
-            + mark(dir.appendingPathComponent("mark"))
+            + mark(dir.appendingPathComponent("mark")) + place(dir.appendingPathComponent("place/place.json"))
+    }
+
+    /// Where the sensor's time left goes (spikes/graph-fixtures/place, the file GraphFixtureTest.place runs):
+    /// `GlucoseCard.sensorSpot` for whole cards of every shape, the badge's box and the room it keeps from labels.
+    static func place(_ file: URL) -> Int {
+        let now: TimeInterval = 1_800_000_000
+        guard let data = FileManager.default.contents(atPath: file.path),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { print("FAIL place fixtures: unreadable"); return 1 }
+        var failures = 0, n = 0
+        func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
+        for r in root["rooms"] as? [[String: Any]] ?? [] {
+            let got = (Double(GlucoseGraph.sensorWidth(r["label"] as? String ?? "", d: 1)) * 10).rounded() / 10
+            if num(r["room"]).map({ abs($0 - got) > 0.05 }) ?? true { print("FAIL place room \(r["label"] ?? "?"): got \(got)"); failures += 1 }
+        }
+        for c in root["cases"] as? [[String: Any]] ?? [] {
+            let card = c["card"] as? [String: Any] ?? [:]
+            var g = GraphStyle(); g.axisLabels = card["axisLabels"] as? Bool ?? true
+            let st = CardStyle(graph: card["graph"] as? Bool == true ? g : nil, value: card["value"] as? Bool ?? true,
+                               sensorTime: card["sensorTime"] as? Bool ?? true)
+            let latest = now - (num(c["age"]) ?? 60)
+            let kind = c["sensor"] as? String ?? "none"
+            let info: SensorInfo? = switch kind {
+                case "live": SensorInfo(start: now - 2 * 86400, end: now + 13 * 86400, warmupEnd: now - 2 * 86400 + 3600)
+                case "warmup": SensorInfo(start: now - 600, end: now + 15 * 86400 - 600, warmupEnd: now + 3000)
+                case "ended": SensorInfo(start: now - 15 * 86400 - 3600, end: now - 3600, warmupEnd: now - 15 * 86400)
+                default: nil
+            }
+            let look = SensorBadge.look(info, now: now, latest: kind == "warmup" ? nil : latest)
+            let spot = GlucoseCard.sensorSpot(st, look, Freshness.of(age: now - latest)).rawValue
+            let want = c["expect"] as? [String: Any] ?? [:]
+            var ok = spot == want["spot"] as? String
+            var box = ""
+            if let ch = c["chart"] as? [String: Any] {
+                let top = GlucoseGraph.sensorTop(CGFloat(num(ch["h"]) ?? 0), lane1: 0, d: 1)
+                box = "[0, \(top), \(GlucoseGraph.sensorDp)]"
+                let wb = (want["box"] as? [Any])?.compactMap(num) ?? []
+                ok = ok && wb.count == 3 && wb[0] == 0 && abs(Double(top) - wb[1]) < 0.05 && abs(Double(GlucoseGraph.sensorDp) - wb[2]) < 0.05
+            }
+            if !ok { print("FAIL place: \(c["name"] as? String ?? "?") (got \(spot) \(box))"); failures += 1 }
+            n += 1
+        }
+        print("place fixtures: \(n) cases, \(failures) failed")
+        return failures
     }
 
     /// The ring's mark and the % column's crown (spikes/graph-fixtures/mark/*.json, the files GraphFixtureTest.mark runs).
@@ -311,7 +357,8 @@ enum GraphFixtures {
                 }.filter { $0.t >= from && $0.t <= now }
                 let lanes = GlucoseGraph.lanes(h, d: 1)
                 let lay = TreatmentMarks.layout(marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now,
-                                                minX: 0, maxX: w, lanes: lanes, d: 1)
+                                                minX: 0, maxX: w, lanes: lanes, d: 1,
+                                                reserve: (c["sensor"] as? String).map { (0, GlucoseGraph.sensorWidth($0, d: 1) + 3) })
                 let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
                 // the width model holds the real text (SF Pro, the wider font) of every label
                 let bold = Ink.font(TreatmentMarks.labelSize, .bold), medium = Ink.font(TreatmentMarks.labelSize, .medium)

@@ -212,6 +212,15 @@ fun GraphScreen(onBack: () -> Unit) {
                 summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
         }
         Note(stringResource(R.string.graph_side_note))
+
+        SettingsGroup(stringResource(R.string.graph_group_sensor), titleAction = {
+            Reset(stringResource(R.string.graph_group_sensor), g.sensorHidden != D.sensorHidden) { set { it.copy(sensorHidden = D.sensorHidden) } }
+        }) {
+            for (p in GraphPlace.entries) switch(stringResource(graphPlaceLabel(p)), g.sensorTime(p)) { v ->
+                set { it.copy(sensorHidden = if (v) it.sensorHidden - p else it.sensorHidden + p) }
+            }
+        }
+        Note(stringResource(R.string.graph_sensor_note))
         if (g != D) SettingsGroup { action(stringResource(R.string.graph_reset_all), icon = R.drawable.ic_sym_restart_alt) { set { D } } }
         SettingsFooter(stringResource(R.string.graph_footer))
     }

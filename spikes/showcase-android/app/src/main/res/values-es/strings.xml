@@ -388,6 +388,8 @@
     <string name="widget_config_side">Tiempo en rango junto a la gráfica</string>
     <!-- Widget configuration switch summary [CHAR LIMIT=60] -->
     <string name="widget_config_side_summary" formatted="false">La distribución y el % a la izquierda</string>
+    <string name="widget_config_sensor">Tiempo restante del sensor</string>
+    <string name="widget_config_sensor_summary" formatted="false">Cuánto le queda al sensor, al principio de la fila de horas</string>
     <!-- Widget configuration: reset to the app's settings [CHAR LIMIT=25] -->
     <string name="widget_config_use_app_settings">Usar ajustes de la app</string>
     <!-- Widget configuration: save button [CHAR LIMIT=15] -->
@@ -1543,6 +1545,8 @@
     <string name="graph_side">Tiempo en rango y distribución</string>
     <string name="graph_side_summary" formatted="false">El % del tiempo por debajo, dentro y por encima del rango, y cuánto tiempo se pasó en cada nivel</string>
     <string name="graph_side_note">La distribución cubre el mismo tiempo que la gráfica; las líneas se detienen antes de sus puntos. Cada widget puede desactivarla por su cuenta.</string>
+    <string name="graph_group_sensor">Tiempo restante del sensor</string>
+    <string name="graph_sensor_note" formatted="false">El tiempo restante del sensor va al principio de la fila de horas, debajo del % de tiempo en rango (junto a la flecha si la tarjeta no tiene gráfica). El calentamiento y \"Sensor terminado\" se muestran igualmente. Cada widget puede desactivarlo por su cuenta.</string>
     <string name="graph_reset_all">Restablecer todos los ajustes de la gráfica</string>
     <string name="graph_reset_section">Restablecer «%1$s» a los valores predeterminados</string>
     <string name="graph_footer">Los ajustes propios de cada widget se mantienen; restablécelos desde el widget (mantener pulsado → Reconfigurar → Usar ajustes de la app).</string>

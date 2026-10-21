@@ -30,6 +30,7 @@ import app.mauri.sukrara.features.FeatureState
 import app.mauri.sukrara.features.Features
 import app.mauri.sukrara.features.LockAppearance
 import app.mauri.sukrara.features.LockBackground
+import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
@@ -155,11 +156,16 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     val h = cv.height.toFloat() - pad
     val rowH = hole.bottom * d
 
+    // One card in two boxes: the value left of the lock icon, the chart below. Both parts are drawn with the same
+    // whole-card style, so GlucoseCard decides where the sensor badge goes once for both (CardPart).
+    val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
+    val card = CardStyle(graph = graph, rings = emptyList(), sensorTime = cfg.sensorTime(GraphPlace.WIDGETS))
+
     // Value + arrow, left of the lock icon (a little shorter than the row so the number isn't taller than the icon).
     val valueBox = RectF(pad, rowH * 0.1f, hole.left * d, rowH * 0.9f)
     cv.withBox(valueBox) {
         GlucoseCard.draw(cv, valueBox.width(), valueBox.height(), frame.history, frame.treatments, frame.nowSec,
-            CardStyle(graph = null, rings = emptyList()), pal, d)
+            card, pal, d, part = CardPart.VALUE)
     }
 
     // The slots (time in range, GMI, average, CV, last treatment: investigations 16 and 18), right of the lock icon,
@@ -182,9 +188,8 @@ private fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Hol
     // The chart below.
     val chart = RectF(pad, rowH + 8 * d, w, h)
     if (chart.height() > 24 * d) cv.withBox(chart) {
-        val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
         GlucoseCard.draw(cv, chart.width(), chart.height(), frame.history, frame.treatments, frame.nowSec,
-            CardStyle(graph = graph, rings = emptyList(), value = false), pal, d)
+            card, pal, d, part = CardPart.GRAPH)
     }
     if (LockscreenWidget.testPattern) testPattern(cv, d)
 }

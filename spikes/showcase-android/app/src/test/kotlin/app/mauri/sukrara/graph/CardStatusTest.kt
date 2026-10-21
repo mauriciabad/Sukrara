@@ -43,19 +43,24 @@ class CardStatusTest {
         // newest rapid / carbs; a meal at the same minute shows the insulin; long and notes never
         assertEquals("rapid", LastTreatment.of(listOf(tr("carbs", 45.0, 12), tr("rapid", 4.5, 12)), s, AlertStatus.None, now)?.tr?.k)
         assertNull(LastTreatment.of(listOf(tr("long", 18.0, 5), tr("note", 0.0, 1)), s, AlertStatus.None, now))
-        // kept 4 h (rapid) / 3 h (carbs), deleted ones skipped
-        assertNull(LastTreatment.of(listOf(tr("rapid", 6.0, 241), tr("carbs", 20.0, 181)), s, AlertStatus.None, now))
-        assertEquals(20.0, LastTreatment.of(listOf(tr("rapid", 6.0, 200), tr("carbs", 20.0, 179)), s, AlertStatus.None, now)!!.tr.a, 0.0)
+        // kept 4 h (rapid) / 3 min per gram, 30 min–3 h (carbs), deleted ones skipped
+        assertNull(LastTreatment.of(listOf(tr("rapid", 6.0, 241), tr("carbs", 60.0, 181)), s, AlertStatus.None, now))
+        assertEquals(60.0, LastTreatment.of(listOf(tr("rapid", 6.0, 200), tr("carbs", 60.0, 179)), s, AlertStatus.None, now)!!.tr.a, 0.0)
+        assertEquals(6.0, LastTreatment.of(listOf(tr("rapid", 6.0, 200), tr("carbs", 20.0, 61)), s, AlertStatus.None, now)!!.tr.a, 0.0)
         assertNull(LastTreatment.of(listOf(tr("rapid", 6.0, 10, del = true)), s, AlertStatus.None, now))
         // the ring: share of the mute left (60 min insulin, 15 min carbs), 0 when over
         val i = LastTreatment.of(listOf(tr("rapid", 4.5, 12)), s, AlertStatus.None, now)!!
         assertEquals(0.8f, i.left(now), 0.001f)
         assertEquals(0f, LastTreatment.of(listOf(tr("carbs", 15.0, 20)), s, AlertStatus.None, now)!!.left(now), 0f)
         assertEquals(0f, LastTreatment.of(listOf(tr("rapid", 4.5, 12)), s.copy(muteInsulin = false), AlertStatus.None, now)!!.left(now), 0f)
-        // the treatment muting the current alert wins over a newer one
+        // the treatment muting the current alert wins over a newer one, except rapid insulin whose mute runs (the user,
+        // 2026-10-21): then the carbs ride along in the inner ring
         val carbs = tr("carbs", 15.0, 8)
         val taken = AlertStatus.Taken("low", carbs, now + 7 * 60)
-        assertEquals(carbs, LastTreatment.of(listOf(carbs, tr("rapid", 1.0, 2)), s, taken, now)!!.tr)
+        assertEquals(carbs, LastTreatment.of(listOf(carbs, tr("carbs", 5.0, 2)), s, taken, now)!!.tr)
+        val both = LastTreatment.of(listOf(carbs, tr("rapid", 1.0, 2)), s, taken, now)!!
+        assertEquals("rapid", both.tr.k)
+        assertEquals(carbs, both.carbs?.tr)
     }
 
     @Test fun badgeWords() {
