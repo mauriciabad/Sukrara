@@ -92,7 +92,7 @@ class DebugReceiver : BroadcastReceiver() {
         // Screenshots: a made-up value in the root status bar until the next real reading. Debug builds only (DebugFakes).
         if (i.hasExtra("previewSgv")) DebugFakes.run(c, "previewSgv", i, out)
         // Root: reload the LSPosed module (kill, not `am crash`: crashes count towards Android's rescue mode).
-        if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi())
+        if (i.getBooleanExtra("restartSystemUi", false)) out.put("restartSystemUi", app.mauri.sukrara.status.RootStatusBar.restartSystemUi() ?: "killed")
         runCatching { command(c, i, out) }.onFailure { notes += "cmd failed: ${it.message}" }
         // Investigation 15: --es alertSettings '<json>' (SPEC §3). Debug builds only (DebugFakes): --es alertTest high
         // (fires once, shared with followers) · --es alertFeed '204,-0.5' (a made-up reading through the rules)
