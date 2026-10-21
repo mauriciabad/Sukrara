@@ -257,6 +257,8 @@
     <string name="notif_waiting_for_glucose">Sukrara · esperando la glucosa…</string>
     <!-- Glucose notification title when the last reading is too old; %1$s = a time like 14:05, Tue 14:05 or 12 Oct [CHAR LIMIT=40] -->
     <string name="notif_no_reading_since">Sin lecturas desde %1$s</string>
+    <!-- Screen reader: the struck-through (old) value on the glucose notification; %1$s = the value [CHAR LIMIT=30] -->
+    <string name="notif_value_old">%1$s (antiguo)</string>
     <!-- Glucose notification: when the (late) reading was taken; %1$s = a time like 14:05 [CHAR LIMIT=30] -->
     <string name="notif_reading_at">a las %1$s</string>
     <!-- Live Update card: label under the reading's time [CHAR LIMIT=12] -->
@@ -364,10 +366,10 @@
     <string name="widget_desc_no_readings">Glucosa: aún no hay lecturas</string>
     <!-- Widget description: last reading too old; %1$s = a time like 14:05 or Tue 14:05 [CHAR LIMIT=NONE] -->
     <string name="widget_desc_no_reading_since">Glucosa: sin lecturas desde %1$s</string>
-    <!-- Widget description: %1$d = glucose in mg/dL, %2$s = trend in words (e.g. rising) [CHAR LIMIT=NONE] -->
-    <string name="widget_desc_value">Glucosa %1$d mg/dL, %2$s</string>
-    <!-- Widget description with the reading's time; %1$d = mg/dL, %2$s = trend in words, %3$s = time [CHAR LIMIT=NONE] -->
-    <string name="widget_desc_value_at">Glucosa %1$d mg/dL, %2$s, a las %3$s</string>
+    <!-- Widget description: %1$s = glucose in mg/dL (LO / HI; "123 (old)" when struck through), %2$s = trend in words (e.g. rising) [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_value">Glucosa %1$s mg/dL, %2$s</string>
+    <!-- Widget description with the reading's time; %1$s = mg/dL (as above), %2$s = trend in words, %3$s = time [CHAR LIMIT=NONE] -->
+    <string name="widget_desc_value_at">Glucosa %1$s mg/dL, %2$s, a las %3$s</string>
     <!-- Lock screen widget description: %1$s = widget_desc_* text; a tap adds a treatment [CHAR LIMIT=NONE] -->
     <string name="lock_widget_desc">%1$s. Añadir tratamiento</string>
     <!-- Widget configuration screen title [CHAR LIMIT=30] -->
@@ -892,8 +894,6 @@
         <item quantity="one">Registro enviado</item>
         <item quantity="other">%d registros enviados</item>
     </plurals>
-    <!-- Quick Settings tile subtitle: the last value is old; %1$d = glucose in mg/dL [CHAR LIMIT=15] -->
-    <string name="tile_value_old">%1$d (antiguo)</string>
 
     <!-- ========== Glucose report ========== -->
     <!-- Report card title [CHAR LIMIT=30] -->

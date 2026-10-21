@@ -1,0 +1,67 @@
+{
+  "_about": [
+    "Freshness steps (the user, 2026-10-21; docs/FEATURES.md): 90 s time shown, 5 min struck through + grey, 20 min no value",
+    "('no readings' + its icon), 3 h no chart. Every glucose surface takes its look from ONE function per platform",
+    "(Android graph/Freshness.kt Freshness.look, Mac SukraraGraph.swift Freshness.look). GraphFixtureTest.freshness and",
+    "Sukrara -graphselftest run every case through the shared function AND through every surface in 'surfaces' (each",
+    "platform has one adapter per surface id; a surface without one fails). tools/check (freshness-surface) scans the",
+    "listed files: a glucose value formatted there without the shared function fails.",
+    "A case: age (s since the reading, null = no reading), sgv, rate (null = no trend), ended (sensor ended).",
+    "expect: state value|no_readings|none|ended, text (null = no value), strike (also grey), trend arrow|none|null",
+    "(none = the 'no trend' ring), time (the reading's time shown), graph (the chart shown)."
+  ],
+  "surfaces": {
+    "android": {
+      "card": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt"],
+      "app-panel": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/Widgets.kt"],
+      "widget-description": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt"],
+      "lock-widget-description": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/LockscreenWidget.kt"],
+      "notification": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/status/GlucoseNotification.kt"],
+      "status-icons": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/status/RootStatusBar.kt"],
+      "status-hook": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/SystemUiHook.kt",
+                      "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/HookText.kt"],
+      "quick-tile": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/TreatmentTile.kt"]
+    },
+    "mac": {
+      "card": ["spikes/widgets-macos/Shared/SukraraGraph.swift"],
+      "menubar-title": ["spikes/menubar/Sources/GlucoseBar/StatusController.swift"]
+    }
+  },
+  "steps": {
+    "_about": "A reading at 0, then nothing: the times (s) at which every surface must redraw by itself (Freshness.nextChangeAt).",
+    "from": [0, 30, 91, 200, 301, 1201, 5000, 10801],
+    "next": [91, 91, 301, 301, 1201, 10801, 10801, null]
+  },
+  "cases": [
+    {"name": "fresh", "age": 30, "sgv": 123, "rate": 1.2,
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true}},
+    {"name": "fresh at 90 s", "age": 90, "sgv": 123, "rate": -0.4,
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true}},
+    {"name": "late from 91 s", "age": 91, "sgv": 123, "rate": -0.4,
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": true, "graph": true}},
+    {"name": "late at 5 min", "age": 300, "sgv": 123, "rate": 2.5,
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": true, "graph": true}},
+    {"name": "struck from 5 min", "age": 301, "sgv": 123, "rate": 2.5,
+     "expect": {"state": "value", "text": "123", "strike": true, "trend": "none", "time": true, "graph": true}},
+    {"name": "struck at 20 min", "age": 1200, "sgv": 77, "rate": -1.0,
+     "expect": {"state": "value", "text": "77", "strike": true, "trend": "none", "time": true, "graph": true}},
+    {"name": "no readings from 20 min", "age": 1201, "sgv": 77, "rate": -1.0,
+     "expect": {"state": "no_readings", "text": null, "strike": false, "trend": null, "time": true, "graph": true}},
+    {"name": "no readings at 3 h", "age": 10800, "sgv": 77, "rate": -1.0,
+     "expect": {"state": "no_readings", "text": null, "strike": false, "trend": null, "time": true, "graph": true}},
+    {"name": "no chart from 3 h", "age": 10801, "sgv": 77, "rate": -1.0,
+     "expect": {"state": "no_readings", "text": null, "strike": false, "trend": null, "time": true, "graph": false}},
+    {"name": "no trend (fresh)", "age": 30, "sgv": 95, "rate": null,
+     "expect": {"state": "value", "text": "95", "strike": false, "trend": "none", "time": false, "graph": true}},
+    {"name": "no trend (late)", "age": 200, "sgv": 95, "rate": null,
+     "expect": {"state": "value", "text": "95", "strike": false, "trend": "none", "time": true, "graph": true}},
+    {"name": "LO", "age": 30, "sgv": 39, "rate": -2.0,
+     "expect": {"state": "value", "text": "LO", "strike": false, "trend": "arrow", "time": false, "graph": true}},
+    {"name": "HI struck", "age": 600, "sgv": 401, "rate": 1.0,
+     "expect": {"state": "value", "text": "HI", "strike": true, "trend": "none", "time": true, "graph": true}},
+    {"name": "no reading yet", "age": null, "sgv": null, "rate": null,
+     "expect": {"state": "none", "text": null, "strike": false, "trend": null, "time": true, "graph": false}},
+    {"name": "sensor ended", "age": 30, "sgv": 123, "rate": 1.0, "ended": true,
+     "expect": {"state": "ended", "text": null, "strike": false, "trend": null, "time": false, "graph": true}}
+  ]
+}

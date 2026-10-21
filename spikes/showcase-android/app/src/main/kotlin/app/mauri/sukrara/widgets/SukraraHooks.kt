@@ -5,6 +5,7 @@ package app.mauri.sukrara.widgets
 
 import app.mauri.sukrara.alerts.AlertNotifier
 import app.mauri.sukrara.core.Notifications
+import app.mauri.sukrara.status.FreshnessTicker
 import app.mauri.sukrara.status.GlucoseNotification
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -35,6 +36,7 @@ object SukraraHooks {
         val app = c.applicationContext
         scope.launch {
             if (runCatching { RecentHistory.add(app, list) }.getOrDefault(false)) WidgetUpdater.refreshSafely(app, reason)
+            FreshnessTicker.replan(app)   // the next freshness step of the newest reading
         }
     }
 
@@ -45,6 +47,8 @@ object SukraraHooks {
     fun reload(c: Context, reason: String) {
         RecentHistory.reload()
         refresh(c, reason, force = true)
+        val app = c.applicationContext
+        scope.launch { FreshnessTicker.replan(app) }
     }
 
     /**

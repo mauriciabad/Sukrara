@@ -20,10 +20,12 @@ enum TrendArrow {
     static func image(rate: Double?, size: CGFloat = 16, color: NSColor? = nil) -> NSImage {
         let img = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             guard let rate else {
-                // Unknown trend: a small dot.
-                let d = rect.width * 0.22
-                (color ?? .black).setFill()
-                NSBezierPath(ovalIn: NSRect(x: rect.midX - d / 2, y: rect.midY - d / 2, width: d, height: d)).fill()
+                // No trend (no rate, or the value is struck through): the hollow ring (TrendMark, as on the card)
+                let r = TrendMark.ringRadius(rect.width)
+                (color ?? .black).setStroke()
+                let ring = NSBezierPath(ovalIn: NSRect(x: rect.midX - r, y: rect.midY - r, width: 2 * r, height: 2 * r))
+                ring.lineWidth = TrendMark.ringStroke(rect.width)
+                ring.stroke()
                 return true
             }
             // Transform the context (not the paths) so stroke widths scale with the arrow.

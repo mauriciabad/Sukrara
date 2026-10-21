@@ -22,47 +22,6 @@ struct GlucoseEntryContent {
     var error: String? = nil     // shown when there is no data at all
 
     var latest: GlucoseSample? { snapshot?.latest }
-    var isStale: Bool {
-        guard let l = latest else { return true }
-        return date.timeIntervalSince(l.t) > GlucoseRange.staleAfter
-    }
-}
-
-// MARK: - Trend arrow (continuous angle, same geometry as the menubar TrendArrow)
-
-struct TrendArrowShape: Shape {
-    var double: Bool
-    func path(in r: CGRect) -> Path {
-        // Unit arrow pointing to +x, centred on the origin; y down in SwiftUI.
-        func head(_ tip: CGFloat) -> Path {
-            var p = Path()
-            p.move(to: CGPoint(x: tip, y: 0))
-            p.addLine(to: CGPoint(x: tip - 0.40, y: -0.30))
-            p.addLine(to: CGPoint(x: tip - 0.30, y: 0))
-            p.addLine(to: CGPoint(x: tip - 0.40, y: 0.30))
-            p.closeSubpath()
-            return p
-        }
-        var p = Path()
-        p.addPath(Path { s in s.move(to: CGPoint(x: -0.42, y: 0)); s.addLine(to: CGPoint(x: 0.25, y: 0)) }
-            .strokedPath(StrokeStyle(lineWidth: 0.14, lineCap: .round)))
-        p.addPath(head(0.46))
-        if double { p.addPath(head(0.12)) }
-        let s = min(r.width, r.height)
-        return p.applying(CGAffineTransform(translationX: r.midX, y: r.midY).scaledBy(x: s, y: s))
-    }
-}
-
-struct TrendArrow: View {
-    var rate: Double?
-    var body: some View {
-        if let rate {
-            TrendArrowShape(double: abs(rate) >= TrendAngle.fullScaleRate)
-                .rotationEffect(.degrees(-TrendAngle.degrees(forRate: rate))) // CCW positive → up
-        } else {
-            Circle().scale(0.22)
-        }
-    }
 }
 
 // MARK: - Card (investigation 16)

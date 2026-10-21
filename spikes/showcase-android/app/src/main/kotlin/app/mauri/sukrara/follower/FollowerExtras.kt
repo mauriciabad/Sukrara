@@ -68,7 +68,10 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
         jobs += scope.launch {
             engine.ui.map { Triple(it.status, it.last?.t, it.lastVia) }.distinctUntilChanged().collect { render() }
         }
-        // Age / staleness ("123?") and widget age text: once a minute, only while the screen is on.
+        // The freshness steps without a reading (struck at 5 min, "no readings" at 20 min): FreshnessTicker's alarm
+        // (planned by SukraraHooks.reload / onReadings).
+        app.mauri.sukrara.status.FreshnessTicker.onStep = { render(force = true) }
+        // A safety net: once a minute, only while the screen is on.
         jobs += scope.launch {
             while (isActive) {
                 delay(60_000)
@@ -84,6 +87,7 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
         jobs.forEach { it.cancel() }
         jobs.clear()
         engine.onReadings = null
+        app.mauri.sukrara.status.FreshnessTicker.onStep = null
         runCatching { ctx.unregisterReceiver(screen) }
         local.stop()
         app.mauri.sukrara.tidepool.Tidepool.stop()

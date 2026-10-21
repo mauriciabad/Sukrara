@@ -162,42 +162,53 @@ extension Bands {
             return
         }
         let age = Date().timeIntervalSince(snap.latest.date)
-        let fresh = Freshness.of(age: age)
+        let nowT = Date().timeIntervalSince1970
+        let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970)
+        let rate = snap.rate
+        // the freshness steps (the user, 2026-10-21): the one look every surface shares (Freshness.look)
+        let look = Freshness.look(sgv: Int(snap.latest.mgdl.rounded()), t: snap.latest.date.timeIntervalSince1970, rate: rate,
+                                  now: nowT, ended: sl?.ended == true, format: { self.unit.format(Double($0)) })
+        let title = MenubarTitle.of(look)
         // Instead of polling: one timer for the next freshness step (re-armed by every new reading).
         endTimer?.invalidate()
         freshTimer?.invalidate()
         freshTimer = Freshness.nextChange(age: age).map { next in
             Timer.scheduledTimer(withTimeInterval: next - age, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
         }
-        freshTimer?.tolerance = 5
-        let rate = snap.rate
-        let color = fresh.strike ? NSColor.secondaryLabelColor : graph.bands.color(for: snap.latest.mgdl)
+        freshTimer?.tolerance = 1
+        let color = title.grey ? NSColor.secondaryLabelColor : graph.bands.color(for: snap.latest.mgdl)
 
         var attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
         ]
         if let color { attrs[.foregroundColor] = color }
-        if fresh.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-        // Old (> 20 min): no value at all, just a dash; the panel says since when.
+        if title.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         button.imagePosition = .imageTrailing
-        button.attributedTitle = NSAttributedString(string: fresh.showValue ? unit.format(snap.latest.mgdl) : "–", attributes: attrs)
-        button.image = fresh.showValue ? TrendArrow.image(rate: fresh.strike ? nil : rate, size: 15, color: color) : nil
-        button.toolTip = "Sukrara · reading at \(Clock.time(snap.latest.date))"
-        let unitName = unit == .mgdl ? "mg/dL" : "mmol/L"
-        button.setAccessibilityLabel(fresh.showValue ? "Glucose \(unit.format(snap.latest.mgdl)) \(unitName)" : "Glucose: no recent reading")
+        button.attributedTitle = NSAttributedString(string: title.text, attributes: attrs)
+        switch title.image {
+        case .arrow: button.image = TrendArrow.image(rate: rate, size: 15, color: color)
+        case .ring: button.image = TrendArrow.image(rate: nil, size: 15, color: color)
+        case .noReadings, .flag:
+            // no readings for 20 min / the sensor ended: a symbol instead of a value (template: follows light / dark)
+            let img = NSImage(systemSymbolName: title.image == .flag ? "flag.checkered" : GlucoseLook.noReadingsSymbol,
+                              accessibilityDescription: title.label) ?? NSImage()
+            img.isTemplate = true
+            button.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize, weight: .medium)) ?? img
+            button.imagePosition = .imageOnly
+        case .none: button.image = nil
+        }
+        button.toolTip = title.image == .noReadings ? "Sukrara · no reading since \(Clock.time(snap.latest.date))"
+            : "Sukrara · reading at \(Clock.time(snap.latest.date))"
+        button.setAccessibilityLabel(title.image == .noReadings ? "Glucose: no reading since \(Clock.time(snap.latest.date))" : title.label)
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
-        let nowT = Date().timeIntervalSince1970
-        if let sl = SensorBadge.look(SensorStore.current, now: nowT, latest: snap.latest.date.timeIntervalSince1970) {
+        if let sl {
             if sl.ended {
-                // as soon as it has ended (not an error): the checkered flag instead of a value; the panel has the pill
-                button.attributedTitle = NSAttributedString(string: "")
-                let img = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: "Sensor ended") ?? NSImage()
-                img.isTemplate = true   // follows the menubar's light / dark appearance
-                button.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize, weight: .medium)) ?? img
-                button.imagePosition = .imageOnly
+                // as soon as it has ended (not an error): the checkered flag instead of a value (above); the panel has the pill
                 button.toolTip = "Sensor ended — replace sensor"
                 button.setAccessibilityLabel("Sensor ended — replace sensor")
-            } else if !fresh.showValue, let w = sl.warmup {
+            } else if look.state != .value, let w = sl.warmup {
+                button.image = nil
+                button.imagePosition = .imageTrailing
                 attrs[.foregroundColor] = NSColor.secondaryLabelColor
                 attrs.removeValue(forKey: .strikethroughStyle)
                 button.attributedTitle = NSAttributedString(string: w, attributes: attrs)
@@ -331,4 +342,29 @@ final class CardView: NSView {
     }
 
     override func viewDidChangeEffectiveAppearance() { needsDisplay = true }
+}
+
+/// The menubar title for a `look` (`Freshness.look`, the user 2026-10-21): the value in its range colour with the trend
+/// arrow, or the "no trend" ring; from 5 min struck through and grey with the ring; from 20 min no value, only the "no
+/// readings" symbol (`GlucoseLook.noReadingsSymbol`); the flag once the sensor has ended. Pure, so `-graphselftest`
+/// runs it at every step boundary (spikes/graph-fixtures/freshness, surface `menubar-title`).
+struct MenubarTitle: Equatable {
+    enum Image: String { case arrow, ring, noReadings = "no_readings", flag, none }
+    var text: String
+    var strike: Bool
+    var grey: Bool
+    var image: Image
+    var label: String
+
+    static func of(_ look: GlucoseLook) -> MenubarTitle {
+        switch look.state {
+        case .value:
+            let t = look.text ?? ""
+            return MenubarTitle(text: t, strike: look.strike, grey: look.grey, image: look.trend == .arrow ? .arrow : .ring,
+                                label: "Glucose \(t)" + (look.strike ? " (old)" : ""))
+        case .noReadings: return MenubarTitle(text: "", strike: false, grey: false, image: .noReadings, label: "Glucose: no recent reading")
+        case .ended: return MenubarTitle(text: "", strike: false, grey: false, image: .flag, label: "Sensor ended — replace sensor")
+        case .none: return MenubarTitle(text: "–", strike: false, grey: false, image: .none, label: "Sukrara: no glucose data")
+        }
+    }
 }

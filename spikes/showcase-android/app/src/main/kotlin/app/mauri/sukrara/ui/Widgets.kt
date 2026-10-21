@@ -106,7 +106,14 @@ fun nowSeconds(everyMs: Long = 10_000): Long {
  */
 @Composable
 fun TrendArrow(rate: Double?, color: Color, modifier: Modifier = Modifier.size(56.dp)) {
-    if (rate == null) { Text("?", fontSize = 36.sp, color = color); return }
+    if (rate == null) {
+        // no trend: the hollow ring in the arrow's place (TrendMark), as on the card, the widgets and the Mac
+        Canvas(modifier) {
+            drawCircle(color, app.mauri.sukrara.graph.TrendMark.ringRadius(size.width), center,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(app.mauri.sukrara.graph.TrendMark.ringStroke(size.width)))
+        }
+        return
+    }
     // turns to each new trend with the expressive spatial spring (a hint of overshoot), once per reading
     val angle by animateFloatAsState(-(rate.coerceIn(-3.0, 3.0) / 3.0 * 90.0).toFloat(),
         Motion.defaultSpatialSpec(), label = "trend")
@@ -149,7 +156,9 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val sensorLook = app.mauri.sukrara.graph.SensorBadge.look(sensor, now, t)
     val countdown = app.mauri.sukrara.graph.SensorBadge.ring(sensorLook, sensor, now, countdownH)
-    val fresh = Freshness.of(t?.let { now - it })
+    // the freshness steps (the user, 2026-10-21): the one look every surface shares
+    val look = Freshness.look(sgv, t, rate, now)
+    val fresh = look.fresh
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
     val status = AlertStatus.of(reading, alerts, treatments, now, paused)
     val last = if (cfg.lastPlace != LastPlace.OFF) LastTreatment.of(treatments, alerts, status, now) else null
@@ -183,7 +192,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             val warmup = sensorLook?.takeIf { it.warmup != null }
-            val number = if (sgv != null && fresh.showValue && warmup == null && sensorLook?.ended != true) "$sgv" else null
+            val number = if (look.state == app.mauri.sukrara.graph.GlucoseLook.State.VALUE && warmup == null && sensorLook?.ended != true) look.text else null
             ValueAndSlots(number, { fit -> Slots.arrange(rings, cfg.lastPlace, last, fallback, fit) },
                 value = { scale ->
                     if (warmup != null) {
@@ -221,14 +230,20 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                     } else if (number != null) {
                         // A late reading's time goes under the number, so it never takes the rings' room.
                         Column {
-                            ValueNumber(number, rate, color, fresh.strike, scale, sensorLook.takeIf { spot == SensorSpot.VALUE }, pal)
+                            ValueNumber(number, rate.takeIf { look.trend == app.mauri.sukrara.graph.TrendMark.ARROW }, color, look.strike, scale,
+                                sensorLook.takeIf { spot == SensorSpot.VALUE }, pal)
                             RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
                             if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
-                            style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // no readings for 20 min: the status bar's "no readings" icon (sensors_off) before the words
+                            if (t != null) androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_stat_no_readings), contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 10.dp).size(40.dp))
+                            Text(if (t == null) stringResource(R.string.card_no_readings_yet) else stringResource(R.string.card_no_reading_since) + "\n" + Freshness.timeText(t, now),
+                                style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 },
                 slot = { item, main ->
@@ -274,7 +289,8 @@ fun ValueNumber(number: String, rate: Double?, color: Color, strike: Boolean, sc
             }
         }
         Spacer(Modifier.width((8 * scale).dp))
-        if (!strike) TrendArrow(rate, color, Modifier.size((56 * scale).dp))
+        // the arrow, or the "no trend" ring (no rate, or struck through: the caller passes null)
+        TrendArrow(rate, color, Modifier.size((56 * scale).dp))
         if (sensor != null && pal != null) SensorLifeBadge(sensor, pal, scale, Modifier.align(Alignment.Top).padding(top = (14 * scale).dp))
     }
 }

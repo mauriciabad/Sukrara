@@ -4,28 +4,15 @@
 package app.mauri.sukrara.core
 
 import android.graphics.Color
-import app.mauri.sukrara.R
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * How a [Reading] looks, shared by every surface outside the app's own screens: status-bar notification, system
- * icons, SystemUI hook, home-screen widgets.
+ * How a [Reading]'s trend and range look, shared by every surface outside the app's own screens: status-bar
+ * notification, system icons, SystemUI hook, home-screen widgets.
  */
 
-/** A reading older than this is stale (struck through / grey / "123?"). */
-const val STALE_AFTER_S = 5 * 60
-
-fun Reading.ageS(nowS: Long) = nowS - t
-fun Reading.stale(nowS: Long) = ageS(nowS) > STALE_AFTER_S
-
-/** "now", "3 min ago", "2 h ago". */
-fun ageText(ageS: Long): String = when {
-    ageS < 60 -> "now"
-    ageS < 3600 -> "${ageS / 60} min ago"
-    ageS < 86_400 -> "${ageS / 3600} h ago"
-    else -> "${ageS / 86_400} d ago"
-}
+// How old a reading may be before it's struck through / hidden: graph/Freshness.kt (Freshness.look), for every surface.
 
 /** Same mapping as the Mac (spikes/menubar TrendArrow.swift): 0 → flat, ±3 mg/dL/min → vertical. */
 object Trend {
@@ -36,7 +23,7 @@ object Trend {
     fun isDouble(rate: Double) = abs(rate) >= FULL_SCALE
 
     fun arrow(rate: Double?): String = when {
-        rate == null -> "·"
+        rate == null -> app.mauri.sukrara.graph.TrendMark.RING
         rate >= FULL_SCALE -> "⇈"
         rate >= 2.0 -> "↑"
         rate >= 1.0 -> "↗"
@@ -58,22 +45,10 @@ object Trend {
      * sb_t36 = down, from tools/gen-slot-drawables.swift), for surfaces that can't rotate a view: system icons and
      * widgets. Each is trimmed to its arrow's width, 15 dp tall.
      */
-    fun drawable(rate: Double?): Int = when {
-        rate == null -> R.drawable.sb_t_none
-        isDouble(rate) -> if (rate > 0) R.drawable.sb_t_up2 else R.drawable.sb_t_down2
-        else -> ARROWS[((angleDeg(rate) + 90) / 5).roundToInt().coerceIn(0, 36)]
+    fun drawableName(rate: Double): String = when {
+        isDouble(rate) -> if (rate > 0) "sb_t_up2" else "sb_t_down2"
+        else -> "sb_t%02d".format(java.util.Locale.ROOT, ((angleDeg(rate) + 90) / 5).roundToInt().coerceIn(0, 36))
     }
-
-    private val ARROWS = intArrayOf(
-        R.drawable.sb_t00, R.drawable.sb_t01, R.drawable.sb_t02, R.drawable.sb_t03, R.drawable.sb_t04,
-        R.drawable.sb_t05, R.drawable.sb_t06, R.drawable.sb_t07, R.drawable.sb_t08, R.drawable.sb_t09,
-        R.drawable.sb_t10, R.drawable.sb_t11, R.drawable.sb_t12, R.drawable.sb_t13, R.drawable.sb_t14,
-        R.drawable.sb_t15, R.drawable.sb_t16, R.drawable.sb_t17, R.drawable.sb_t18, R.drawable.sb_t19,
-        R.drawable.sb_t20, R.drawable.sb_t21, R.drawable.sb_t22, R.drawable.sb_t23, R.drawable.sb_t24,
-        R.drawable.sb_t25, R.drawable.sb_t26, R.drawable.sb_t27, R.drawable.sb_t28, R.drawable.sb_t29,
-        R.drawable.sb_t30, R.drawable.sb_t31, R.drawable.sb_t32, R.drawable.sb_t33, R.drawable.sb_t34,
-        R.drawable.sb_t35, R.drawable.sb_t36,
-    )
 }
 
 /**
