@@ -63,6 +63,12 @@ if let dir = defaults.string(forKey: "panelPreview") {
     MainActor.assumeIsolated { PanelPreview.run(dir: dir) }
     exit(0)
 }
+// Evidence aid: `-treatmentTimeSnapshot <dir>` renders the When? popover (clock time, minutes ago) and Add Treatment with
+// a minutes-ago chip to PNGs, in invisible windows (no screen recording, nothing on screen, no app data).
+if let dir = defaults.string(forKey: "treatmentTimeSnapshot") {
+    MainActor.assumeIsolated { TreatmentTimeSnapshot.run(dir: dir) }
+    exit(0)
+}
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }

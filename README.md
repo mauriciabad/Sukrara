@@ -123,7 +123,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   (the launcher's own dialog), dismissible. [12](docs/12-android-widgets.md),
   The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
-- Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low). Tapping a widget or the glucose notification
+- Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low), now or earlier: pick
+  the time, or type how many minutes ago (or tap 5 / 15 / 30 / 60), on Android and Mac. Tapping a widget or the glucose notification
   opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
   *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
   it keeps alerts quiet. On the charts the labels sit under their markers, in the time axis' row, never over the

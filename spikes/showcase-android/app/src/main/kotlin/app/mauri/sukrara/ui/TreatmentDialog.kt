@@ -10,25 +10,36 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldLabelPosition
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -47,9 +58,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -84,12 +97,19 @@ import java.util.Calendar
  */
 @Composable
 fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false) {
-    var rapid by rememberSaveable { mutableStateOf("") }
-    var long by rememberSaveable { mutableStateOf("") }
-    var carbs by rememberSaveable { mutableStateOf("") }
+    val rapidState = rememberTextFieldState()
+    val longState = rememberTextFieldState()
+    val carbsState = rememberTextFieldState()
+    val rapid = rapidState.text.toString()
+    val long = longState.text.toString()
+    val carbs = carbsState.text.toString()
     var note by rememberSaveable { mutableStateOf("") }
     /** null = now (resolved when saving); else epoch s. */
     var at by rememberSaveable { mutableStateOf<Long?>(null) }
+    /** Minutes before the moment of saving (the picker's minutes-ago mode), instead of [at]; null = not relative. */
+    var ago by rememberSaveable { mutableStateOf<Int?>(null) }
+    /** When the entries happen, for a save or the quiet line at [now] (epoch s). */
+    val whenAt = { now: Long -> ago?.let { TreatmentForm.agoTime(now, it) } ?: at ?: now }
     var pickTime by remember { mutableStateOf(false) }
 
     val r = TreatmentForm.parse(rapid, grams = false)
@@ -98,11 +118,11 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val invalid = TreatmentForm.invalid(rapid, long, carbs)
     val entries = { t: Long -> TreatmentForm.entries(rapid, long, carbs, note, t).orEmpty() }
     val canSave = !invalid && entries(0).isNotEmpty()
-    val save = { if (canSave) { onSave(entries(at ?: (System.currentTimeMillis() / 1000))); onDismiss() } }
+    val save = { if (canSave) { onSave(entries(whenAt(System.currentTimeMillis() / 1000))); onDismiss() } }
 
     val ctx = LocalContext.current
     val nowS = System.currentTimeMillis() / 1000
-    val quiet = Alerts.quietNote(ctx, r?.isNaN() == false, c?.isNaN() == false, at ?: nowS, nowS)
+    val quiet = Alerts.quietNote(ctx, r?.isNaN() == false, c?.isNaN() == false, whenAt(nowS), nowS)
     var shownQuiet by remember { mutableStateOf("") }   // keeps the text while the line fades out
     if (quiet != null) shownQuiet = quiet
 
@@ -119,21 +139,21 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.padding(horizontal = 16.dp).widthIn(min = 280.dp, max = 560.dp).fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = 16.dp).widthIn(min = 280.dp, max = 560.dp).fillMaxWidth().testTag("treatment_card"),
         ) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    AssistChip(onClick = { pickTime = true }, label = { Swap(at) { Text(timeLabel(it)) } })
+                    AssistChip(onClick = { pickTime = true }, label = { Swap(at to ago) { (a, g) -> Text(timeLabel(a, g)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField(stringResource(R.string.treatment_rapid), "u", rapid, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first)) { rapid = it }
-                    AmountField(stringResource(R.string.treatment_long), "u", long, l, Color(pal.long), "long", Modifier.weight(1f)) { long = it }
-                    AmountField(stringResource(R.string.treatment_carbs), "g", carbs, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus)) { carbs = it }
+                    AmountField(stringResource(R.string.treatment_rapid), "u", rapidState, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first).testTag("treatment_rapid"))
+                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).testTag("treatment_long"))
+                    AmountField(stringResource(R.string.treatment_carbs), "g", carbsState, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus).testTag("treatment_carbs"))
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
-                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth(),
+                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth().testTag("treatment_note"),
                     label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.treatment_note)) } },
                     placeholder = { Text(stringResource(R.string.treatment_note_placeholder)) },
                     maxLines = 3,
@@ -160,21 +180,33 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     }
     if (inWindow) card()
     else Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) { card() }
-    if (pickTime) TimeDialog(at, onDismiss = { pickTime = false }) { at = it; pickTime = false }
+    if (pickTime) TimeDialog(at, ago, onDismiss = { pickTime = false }) { a, g -> at = a; ago = g; pickTime = false }
 }
 
 @Composable
-private fun AmountField(label: String, unit: String, value: String, parsed: Double?, color: Color, kind: String,
-                        modifier: Modifier, onChange: (String) -> Unit) {
+private fun AmountField(label: String, unit: String, state: TextFieldState, parsed: Double?, color: Color, kind: String,
+                        modifier: Modifier) {
     OutlinedTextField(
-        value, { v -> onChange(TreatmentForm.filterAmount(v)) }, modifier,
-        label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label) } },
+        state, modifier,
+        inputTransformation = AmountInput,
+        // The label always sits small on the outline (never inside the empty field) and keeps to one line: a third of the
+        // dialog is too narrow for it at body size, so it wrapped there and the field was taller unfocused than
+        // focused; every focus change resized the field and the dialog (user, 2026-10-21). The unit shows throughout.
+        labelPosition = TextFieldLabelPosition.Attached(alwaysMinimize = true),
+        label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         suffix = { Text(unit) },
-        singleLine = true,
+        lineLimits = TextFieldLineLimits.SingleLine,
         isError = parsed?.isNaN() == true,
         textStyle = MaterialTheme.typography.titleLarge,
         keyboardOptions = KeyboardOptions(keyboardType = if (unit == "g") KeyboardType.Number else KeyboardType.Decimal, imeAction = ImeAction.Next),
     )
+}
+
+/** Keeps what [TreatmentForm.filterAmount] keeps of an edit. */
+private val AmountInput = InputTransformation {
+    val typed = toString()
+    val kept = TreatmentForm.filterAmount(typed)
+    if (kept != typed) replace(0, length, kept)
 }
 
 /** The same marker the charts draw for this kind (TreatmentMarks): rapid ▼ filled, long ▽ outlined, carbs ●, note ◆. */
@@ -195,8 +227,8 @@ fun KindMark(kind: String, color: Color) {
 }
 
 @Composable
-private fun timeLabel(at: Long?): String {
-    val ctx = LocalContext.current
+private fun timeLabel(at: Long?, ago: Int?): String {
+    if (ago != null) return stringResource(R.string.treatment_time_ago, ago)
     if (at == null) return stringResource(R.string.treatment_time_now)
     val fmt = app.mauri.sukrara.graph.Clock.time(at)
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
@@ -204,25 +236,63 @@ private fun timeLabel(at: Long?): String {
     return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)
 }
 
-/** M3 time picker; a time later than now means yesterday ([TreatmentForm.pickTime]). */
+/**
+ * When it happened: an M3 segmented button switches between the time picker (a time later than now means yesterday,
+ * [TreatmentForm.pickTime]) and minutes ago — a number field with one-tap 5 / 15 / 30 / 60 chips that fill it
+ * ([TreatmentForm.agoMinutes], under a day like the picker; resolved when saving). M3 segmented buttons "help people
+ * select options, switch views"; the chips are filter chips, the selected one checked.
+ * [onPick] gets (time, null), (null, minutes ago) or (null, null) = now.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit) {
-    val ctx = LocalContext.current
+private fun TimeDialog(at: Long?, ago: Int?, onDismiss: () -> Unit, onPick: (Long?, Int?) -> Unit) {
     val cal = Calendar.getInstance().apply { at?.let { timeInMillis = it * 1000 } }
     val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+    var relative by rememberSaveable { mutableStateOf(ago != null) }
+    var minutes by rememberSaveable { mutableStateOf(ago?.toString() ?: "") }
+    val m = TreatmentForm.agoMinutes(minutes)
+    val field = remember { FocusRequester() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.treatment_time_title)) },
-        text = { TimePicker(state) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(!relative, { relative = false }, SegmentedButtonDefaults.itemShape(0, 2), Modifier.testTag("when_time")) {
+                        Text(stringResource(R.string.treatment_time_mode_time))
+                    }
+                    SegmentedButton(relative, { relative = true }, SegmentedButtonDefaults.itemShape(1, 2), Modifier.testTag("when_ago")) {
+                        Text(stringResource(R.string.treatment_time_mode_ago))
+                    }
+                }
+                if (!relative) TimePicker(state)
+                else {
+                    OutlinedTextField(
+                        // a fixed width: fillMaxWidth here never settled inside AlertDialog on a 411 dp screen (TreatmentTimeTest)
+                        minutes, { minutes = TreatmentForm.filterMinutes(it) }, Modifier.width(200.dp).focusRequester(field).testTag("when_minutes"),
+                        suffix = { Text(stringResource(R.string.unit_min)) },
+                        singleLine = true,
+                        isError = minutes.isNotEmpty() && m == null,
+                        textStyle = MaterialTheme.typography.headlineMedium,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { m?.let { onPick(null, it.takeIf { it > 0 }) } }),
+                    )
+                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                        for (q in listOf(5, 15, 30, 60)) FilterChip(m == q, { minutes = "$q" }, { Text(stringResource(R.string.treatment_time_ago_chip, q), maxLines = 1) })
+                    }
+                    LaunchedEffect(Unit) { field.requestFocus() }
+                }
+            }
+        },
         confirmButton = {
-            Button(onClick = {
-                onPick(TreatmentForm.pickTime(Calendar.getInstance(), state.hour, state.minute))
+            Button(enabled = !relative || m != null, onClick = {
+                if (relative) onPick(null, m?.takeIf { it > 0 })
+                else onPick(TreatmentForm.pickTime(Calendar.getInstance(), state.hour, state.minute), null)
             }) { Text(stringResource(android.R.string.ok)) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = { onPick(null) }) { Text(stringResource(R.string.treatment_time_now)) }
+                TextButton(onClick = { onPick(null, null) }) { Text(stringResource(R.string.treatment_time_now)) }
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
             }
         },
