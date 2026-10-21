@@ -90,7 +90,7 @@ if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
-if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() ? 0 : 1) }
+if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() && GlucoseCsv.periodSelfTest() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running
 // instance (cmd log = as the menu | treatment-keys {keys} = typing into Add Treatment |
 // remove {id} = as the menu | paths | edit {id,a,n} |
@@ -609,7 +609,9 @@ let reportWindow = MainActor.assumeIsolated {
     let r = ReportWindow()
     r.model.metricsOf = { window, bands in readingsStore.metrics(window: window, bands: bands) }
     r.model.bandsOf = { status.graph.bands }
-    r.model.onExport = { days in GlucoseCsv.save(days: days, readings: readingsStore.readings, treatments: treatmentStore.rows) }
+    r.model.onExport = { days in
+        GlucoseCsv.save(reportDays: days, readings: readingsStore.readings, treatments: treatmentStore.rows, sensor: SensorStore.current)
+    }
     return r
 }
 // Treatments… (TreatmentsWindow.swift): the treatment history, its own window.

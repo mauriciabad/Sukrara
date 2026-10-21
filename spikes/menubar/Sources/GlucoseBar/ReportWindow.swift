@@ -6,8 +6,8 @@ import SwiftUI
 
 /// "Glucose Report…": the doctor's report (investigation 18, ReportView.swift) in a normal window rather than the
 /// menu bar panel (HIG "The menu bar": the panel is for the glance; HIG "Windows"). The period sits with the report
-/// (HIG "Settings" › Task-specific options), saved as `reportDays`. Export CSV… under it saves the report's period
-/// (GlucoseCsv.swift). The treatment history has its own window (TreatmentsWindow.swift). Position remembered (frame
+/// (HIG "Settings" › Task-specific options), saved as `reportDays`. Export CSV… under it opens a save panel with the
+/// export's own Period (This sensor, 7 / 14 / 30 days, All time; GlucoseCsv.swift), starting on the report's. The treatment history has its own window (TreatmentsWindow.swift). Position remembered (frame
 /// autosave), closes with ⌘W.
 @MainActor final class ReportWindow: NSObject {
     static let periods = [1, 7, 14, 30]
@@ -71,7 +71,7 @@ import SwiftUI
     @Published private(set) var bands = Bands()
     var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
     var bandsOf: () -> Bands = { Bands() }
-    /// Export… under the report: the report's period as a CSV (GlucoseCsv.save).
+    /// Export CSV… under the report (GlucoseCsv.save, given the report's period to start on).
     var onExport: ((Int) -> Void)?
 
     func reload() {
@@ -97,7 +97,7 @@ struct ReportWindowView: View {
             .fixedSize()
             ReportRep(metrics: model.metrics, bands: model.bands, days: model.days)
                 .frame(width: GlucoseReport.width, height: reportHeight)
-            // the period above is the file's period too
+            // the save panel has the export's own period, starting on this one
             Button("Export CSV…") { model.onExport?(model.days) }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)

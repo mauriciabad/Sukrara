@@ -173,8 +173,8 @@ by the app's icon code.</sub>
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
   *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
-  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…* for its period,
-  the same file as the phone's); right-click for Settings and Quit.
+  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
+  and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Rings, Alerts, Following) laid out after Apple's guidelines, reopening on the
   last pane. **Settings from**: the wearer's own settings (default), Sukrara's defaults, or Custom; only Custom shows
