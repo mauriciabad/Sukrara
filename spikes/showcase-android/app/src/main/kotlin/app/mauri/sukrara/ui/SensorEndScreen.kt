@@ -63,7 +63,7 @@ import com.android.settingslib.spa.widget.ui.SettingsDialogItem
 fun reminderDays(d: Int) = if (d == 0) stringResource(R.string.sensorend_end_day) else pluralStringResource(R.plurals.sensorend_days_before, d, d)
 
 private fun minuteText(ctx: android.content.Context, m: Int): String =
-    app.mauri.sukrara.graph.Clock.minuteOfDay(m, DateFormat.is24HourFormat(ctx))
+    app.mauri.sukrara.graph.Clock.minuteOfDay(m)
 
 /** The overview row's summary: "2 reminders · Countdown 8 h". */
 @Composable
@@ -93,7 +93,7 @@ fun SensorEndSettings(onBack: () -> Unit) {
         SettingsGroup {
             val now = System.currentTimeMillis() / 1000
             val s = sensor
-            val at = s?.let { app.mauri.sukrara.graph.Clock.dateTime(it.endEpoch, DateFormat.is24HourFormat(ctx)) }
+            val at = s?.let { app.mauri.sukrara.graph.Clock.dateTime(it.endEpoch) }
             info(stringResource(R.string.sensorend_current), when {
                 s == null || at == null -> stringResource(R.string.sensorend_current_none)
                 SensorLife.ended(s.endEpoch, now) -> stringResource(R.string.sensorend_current_ended, at)
@@ -150,7 +150,7 @@ fun SensorEndSettings(onBack: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimeDialog(title: String, minute: Int, onClose: () -> Unit, onPick: (Int) -> Unit) {
-    val state = rememberTimePickerState(minute / 60, minute % 60, DateFormat.is24HourFormat(LocalContext.current))
+    val state = rememberTimePickerState(minute / 60, minute % 60)
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text(title) },

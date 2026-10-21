@@ -29,6 +29,8 @@
   {"id": "side-off", "side": false},
   {"id": "three-end", "ringCount": 3, "lastPlace": "END"},
   {"id": "lines", "lines": [100, 120], "gridHours": 0},
-  {"id": "high200", "high": 200}
+  {"id": "high200", "high": 200},
+  {"id": "clock12", "hour24": false, "about": "the phone's 12-hour time: every clock time on every surface (card, hour labels, notification, tile, screen-reader words, Mac) is 12-hour"},
+  {"id": "clock24", "hour24": true}
  ]
 }

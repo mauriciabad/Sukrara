@@ -238,9 +238,7 @@ extension Bands {
 
     /// The dropdown card's style (the menubar place's settings), also the layout self-test's.
     static func dropdownStyle(_ graph: GraphConfig, sensor: SensorInfo?) -> CardStyle {
-        var g = graph.graphStyle()
-        g.hour24 = GraphStyle.systemHour24
-        var st = graph.cardStyle(graph: g)
+        var st = graph.cardStyle(graph: graph.graphStyle())
         st.sensor = sensor
         return st
     }

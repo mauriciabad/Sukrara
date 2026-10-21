@@ -291,7 +291,7 @@ object GlucoseNotification {
                           graph: Boolean = true): Art {
         val d = gc.resources.displayMetrics.density
         val cfg = GraphSettings.value
-        val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(gc)),
+        val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION)),
             rings = cfg.rings(), last = cfg.lastPlace, lastElse = cfg.lastElseRing(),
             sensorTime = cfg.sensorTime(GraphPlace.NOTIFICATION), slotDisc = discs, valueInk = ink)
         val metrics = metricsOf ?: { s, b -> app.mauri.sukrara.graph.GraphData.metrics(gc, s.windowS, b, now) }
