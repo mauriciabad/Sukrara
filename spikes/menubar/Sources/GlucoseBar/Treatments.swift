@@ -241,7 +241,7 @@ struct TreatmentPaths {
         }
     }
 
-    /// Where an entry made on this Mac is, in the user's words (Glucose Report › Treatments); nil for entries made
+    /// Where an entry made on this Mac is, in the user's words (the Treatments window); nil for entries made
     /// elsewhere or kept on this Mac.
     @MainActor static func delivery(of t: Treatment, store: TreatmentStore, now: Date = Date()) -> (Delivery, Date)? {
         guard t.o == "mac", let s = store.v2Status(t.id) else { return nil }

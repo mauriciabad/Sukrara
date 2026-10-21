@@ -57,25 +57,13 @@ import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.alerts.Kind
 import app.mauri.sukrara.widgets.RecentHistory
-import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.NewEntry
+import app.mauri.sukrara.treatments.TreatmentForm
+import app.mauri.sukrara.treatments.TreatmentForm.MAX_GRAMS
+import app.mauri.sukrara.treatments.TreatmentForm.MAX_UNITS
+import app.mauri.sukrara.treatments.TreatmentForm.NOTE_BYTES
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
-
-/** One entry the dialog creates; [at] = epoch s. */
-data class NewEntry(val k: String, val a: Double, val note: String, val at: Long)
-
-private const val MAX_UNITS = 100.0
-private const val MAX_GRAMS = 500.0
-private const val NOTE_BYTES = 100
-
-/** "4", "4.5" (insulin, 0.1u steps) or whole grams; null = empty; NaN = not a valid amount. */
-private fun parse(s: String, grams: Boolean): Double? {
-    val t = s.trim().replace(',', '.')
-    if (t.isEmpty()) return null
-    val v = t.toDoubleOrNull() ?: return Double.NaN
-    val max = if (grams) MAX_GRAMS else MAX_UNITS
-    return if (v <= 0 || v > max) Double.NaN else if (grams) Math.round(v).toDouble() else Math.round(v * 10) / 10.0
-}
 
 /**
  * Add insulin, carbs and a note in one go: rapid, long-acting and carbs side by side, a note below, all optional;
@@ -104,19 +92,11 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     var at by rememberSaveable { mutableStateOf<Long?>(null) }
     var pickTime by remember { mutableStateOf(false) }
 
-    val r = parse(rapid, grams = false)
-    val l = parse(long, grams = false)
-    val c = parse(carbs, grams = true)
-    val n = note.trim()
-    val invalid = listOf(r, l, c).any { it != null && it.isNaN() }
-    val entries = { t: Long ->
-        buildList {
-            r?.let { add(NewEntry("rapid", it, "", t)) }
-            l?.let { add(NewEntry("long", it, "", t)) }
-            c?.let { add(NewEntry("carbs", it, "", t)) }
-            if (n.isNotEmpty()) add(NewEntry("note", 0.0, Treatment.clip(n, NOTE_BYTES), t))
-        }
-    }
+    val r = TreatmentForm.parse(rapid, grams = false)
+    val l = TreatmentForm.parse(long, grams = false)
+    val c = TreatmentForm.parse(carbs, grams = true)
+    val invalid = TreatmentForm.invalid(rapid, long, carbs)
+    val entries = { t: Long -> TreatmentForm.entries(rapid, long, carbs, note, t).orEmpty() }
     val canSave = !invalid && entries(0).isNotEmpty()
     val save = { if (canSave) { onSave(entries(at ?: (System.currentTimeMillis() / 1000))); onDismiss() } }
 
@@ -187,7 +167,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
 private fun AmountField(label: String, unit: String, value: String, parsed: Double?, color: Color, kind: String,
                         modifier: Modifier, onChange: (String) -> Unit) {
     OutlinedTextField(
-        value, { v -> onChange(v.filter { it.isDigit() || it == '.' || it == ',' }.take(5)) }, modifier,
+        value, { v -> onChange(TreatmentForm.filterAmount(v)) }, modifier,
         label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark(kind, color); Spacer(Modifier.size(6.dp)); Text(label) } },
         suffix = { Text(unit) },
         singleLine = true,
@@ -218,32 +198,26 @@ fun KindMark(kind: String, color: Color) {
 private fun timeLabel(at: Long?): String {
     val ctx = LocalContext.current
     if (at == null) return stringResource(R.string.treatment_time_now)
-    val fmt = app.mauri.sukrara.graph.Clock.time(at, DateFormat.is24HourFormat(ctx))
+    val fmt = app.mauri.sukrara.graph.Clock.time(at)
     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val day = Calendar.getInstance().apply { timeInMillis = at * 1000 }.get(Calendar.DAY_OF_YEAR)
     return stringResource(if (day == today) R.string.treatment_time_today else R.string.treatment_time_yesterday, fmt)
 }
 
-/** M3 time picker; a time later than now means yesterday (entries are logged after the fact, never ahead). */
+/** M3 time picker; a time later than now means yesterday ([TreatmentForm.pickTime]). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimeDialog(at: Long?, onDismiss: () -> Unit, onPick: (Long?) -> Unit) {
     val ctx = LocalContext.current
     val cal = Calendar.getInstance().apply { at?.let { timeInMillis = it * 1000 } }
-    val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), DateFormat.is24HourFormat(ctx))
+    val state = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.treatment_time_title)) },
         text = { TimePicker(state) },
         confirmButton = {
             Button(onClick = {
-                val now = Calendar.getInstance()
-                val pick = (now.clone() as Calendar).apply {
-                    set(Calendar.HOUR_OF_DAY, state.hour); set(Calendar.MINUTE, state.minute); set(Calendar.SECOND, 0)
-                    if (after(now)) add(Calendar.DAY_OF_YEAR, -1)
-                }
-                // within the current minute = now
-                onPick(if (now.timeInMillis - pick.timeInMillis < 60_000) null else pick.timeInMillis / 1000)
+                onPick(TreatmentForm.pickTime(Calendar.getInstance(), state.hour, state.minute))
             }) { Text(stringResource(android.R.string.ok)) }
         },
         dismissButton = {

@@ -278,8 +278,27 @@ struct GlucoseLook: Equatable {
 /// treatments, the report, the graph's hour labels. They follow System Settings → General → Date & Time → 24-hour
 /// time, not the locale's default (Android: graph/Clock.kt; shared cases in spikes/graph-fixtures/clock).
 enum Clock {
-    /// The Mac's 24-hour setting.
-    static var hour24: Bool { GraphStyle.systemHour24 }
+    /// Self-tests: the 24-hour setting to use instead of the Mac's (nil in the app), and every time formatted with the
+    /// cycle it was formatted in, as it happens.
+    nonisolated(unsafe) static var hour24Override: Bool?
+    nonisolated(unsafe) static var observer: ((String, Bool) -> Void)?
+
+    /// The Mac's 24-hour setting: the ONE place it is read. Every surface (dropdown card, hour labels, widgets, menubar
+    /// tooltips, settings, reports) formats through `Clock` with it, never a flag of its own (2026-10-21: Android's value
+    /// widget and chart cards read it from different places). The explicit-cycle functions are for the clock fixtures.
+    static var hour24: Bool {
+        hour24Override ?? !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
+    }
+
+    /// What tells that the clock's look changed while Sukrara runs: System Settings › Date & Time › 24-hour time posts
+    /// the current locale's change, and the time zone. The status item redraws and re-publishes to the widgets on them
+    /// (`observeChanges`, `-graphselftest` posts each one).
+    static let changeNotifications: [Notification.Name] = [NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange]
+
+    /// Calls `f` on the main queue for each of `changeNotifications` posted on `center`; keep the tokens.
+    static func observeChanges(_ center: NotificationCenter = .default, _ f: @escaping () -> Void) -> [NSObjectProtocol] {
+        changeNotifications.map { center.addObserver(forName: $0, object: nil, queue: .main) { _ in f() } }
+    }
 
     /// "21:08" / "9:08 PM" in the Mac's setting.
     static func time(_ d: Date) -> String { time(d, hour24: hour24, locale: .autoupdatingCurrent) }
@@ -287,9 +306,13 @@ enum Clock {
     /// "21:08" / "9:08 PM" in the given hour cycle and locale.
     static func time(_ d: Date, hour24: Bool, locale: Locale, zone: TimeZone = .current) -> String {
         let f = DateFormatter()
-        f.locale = locale; f.timeZone = zone
+        // the bare locale: `.autoupdatingCurrent` carries the user's forced 12/24-hour preference, which would override
+        // the cycle asked for here (the setting is read once, in `hour24`)
+        f.locale = Locale(identifier: locale.identifier); f.timeZone = zone
         f.setLocalizedDateFormatFromTemplate(hour24 ? "Hmm" : "hmm")
-        return f.string(from: d)
+        let s = f.string(from: d)
+        observer?(s, hour24)
+        return s
     }
 
     /// "12 Oct 2026, 21:08": the locale's medium date and the time.
@@ -301,10 +324,11 @@ enum Clock {
     }
 
     /// The graph's hour label: "21:00" / "9 PM" (the locale's day period).
-    static func hourLabel(_ h: Int, _ hour24: Bool, locale: Locale = .autoupdatingCurrent) -> String {
-        if hour24 { return String(format: "%02d:00", h) }
+    static func hourLabel(_ h: Int, _ hour24: Bool = Clock.hour24, locale: Locale = .autoupdatingCurrent) -> String {
         let f = DateFormatter(); f.locale = locale
-        return "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? f.amSymbol! : f.pmSymbol!)"
+        let s = hour24 ? String(format: "%02d:00", h) : "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? f.amSymbol! : f.pmSymbol!)"
+        observer?(s, hour24)
+        return s
     }
 }
 
@@ -356,15 +380,10 @@ struct GraphStyle {
     var crown = true
     var axisLabels = true
     var treatments = true
-    var hour24 = GraphStyle.systemHour24
     /// Extra dashed lines, mg/dL (`GraphConfig.lines`).
     var lines = GraphConfig.defaultLines
     /// Hours between the vertical lines, at least (`GraphConfig.gridHours`); 0 = none (the time labels stay).
     var gridHours = 1
-
-    static var systemHour24: Bool {
-        !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
-    }
 }
 
 /// What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers.
@@ -847,12 +866,13 @@ enum GlucoseGraph {
             if gx > left + sideW * 0.6 {
                 if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
                 if labels {
-                    let s = Clock.hourLabel(cal.component(.hour, from: hour), st.hour24)
+                    let s = Clock.hourLabel(cal.component(.hour, from: hour))
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
                     if lx > lastLabelEnd + 6 * d && !(layout?.blocks(lx - 3 * d, lx + tw + 3 * d) ?? false) {
                         Ink.draw(ctx, s, x: lx, y: area.maxY - 2 * d - lane1, text, pal.inkSoft)
+                        rec.add("time.text", nil, s)
                         if rec.first("chart.hours") == nil { rec.add("chart.hours") }
                         lastLabelEnd = lx + tw
                     }
@@ -2445,7 +2465,7 @@ enum GlucoseCard {
             if r != nil { _ = SensorBadge.symbol(ctx, GlucoseLook.noReadingsSymbol, x: box.minX, y: y - size * 0.95, size: size * 2.1, color: pal.inkSoft) }
             let x = box.minX + iconW(size)
             Ink.draw(ctx, lines[0], x: x, y: y, big, pal.inkSoft)
-            if lines.count > 1 { Ink.draw(ctx, lines[1], x: x, y: y + size * 1.25, big, pal.inkSoft) }
+            if lines.count > 1 { Ink.draw(ctx, lines[1], x: x, y: y + size * 1.25, big, pal.inkSoft); rec.add("time.text", nil, lines[1]) }
             rec.add("value.none", CGRect(x: box.minX, y: y - size, width: box.width, height: size * CGFloat(lines.count) * 1.25), face.state.layoutName)
             return
         }
@@ -2499,6 +2519,7 @@ enum GlucoseCard {
                 if tx + Ink.width(time, t) <= box.maxX {
                     Ink.draw(ctx, time, x: tx, y: top + badgeH / 2 + badgeH * 0.56 * 0.36, t, pal.inkSoft)
                     rec.add("value.time", CGRect(x: tx, y: top, width: Ink.width(time, t), height: badgeH), "[badge row]")
+                    rec.add("time.text", nil, time)
                 } else { rec.add("value.time", nil, "[badge row] (no room)") }
             }
         } else {
@@ -2510,6 +2531,7 @@ enum GlucoseCard {
             if fr.showTime {
                 Ink.draw(ctx, time, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, small, pal.inkSoft)
                 rec.add("value.time", CGRect(x: box.minX, y: baseY, width: Ink.width(time, small), height: CTFontGetSize(small) * 1.25), "[own row]")
+                rec.add("time.text", nil, time)
             }
         }
     }
@@ -2565,6 +2587,7 @@ enum GlucoseCard {
         let lw = Ink.width(line, t)
         if lw > box.width, lw > 0 { t = Ink.font(CTFontGetSize(small) * box.width / lw, .regular) }
         Ink.draw(ctx, line, x: box.minX, y: baseY + CTFontGetSize(small) * 1.25, t, pal.inkSoft)
+        if !look.waiting(now: now) { rec.add("time.text", nil, line) }
         rec.add("value.warmup", CGRect(x: box.minX, y: numBox.midY - capH / 2, width: need, height: capH), s)
     }
 

@@ -45,6 +45,7 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
 
     private val screen = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
+            if (SukraraHooks.onClockChange(ctx, i) { render(force = true) }) return
             screenOn = i.action == Intent.ACTION_SCREEN_ON
             if (screenOn) { render(force = true); SukraraHooks.refresh(ctx, "screen on") }
         }
@@ -56,7 +57,9 @@ class FollowerExtras(private val ctx: Context, private val scope: CoroutineScope
             seed()
             engine.onReadings = { list, reason -> onReadings(list, reason) }
         }
-        ctx.registerReceiver(screen, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF) })
+        ctx.registerReceiver(screen, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF); SukraraHooks.CLOCK_ACTIONS.forEach(::addAction)
+        })
         local.apply(null, Features.value)
         jobs += scope.launch {
             var old = Features.value

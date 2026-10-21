@@ -36,6 +36,8 @@ Checks
               drawText / Text with sgv or mgdl, LO / HI literals): it shows the look's text (GlucoseCard.face), so a
               new surface that skips the renderer fails too. Data and event text (CSV, logs, an alert's reading) is
               listed in the registry's value_text_ok with the reason; a single line is marked '// card-ok: <why>'.
+  clock       every clock time goes through Clock with the one 24-hour setting (Android: is24HourFormat only where
+              App.kt installs Clock.hour24Source; no own hour24 flag or time formatter; Mac: the same outside Clock)
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -441,6 +443,44 @@ def check_card(ch, rep):
                         "path to the test's runner." % (s["id"], plat, plat))
 
 
+CLOCK_KT = APP_KT + "graph/Clock.kt"
+CLOCK_SWIFT = "spikes/widgets-macos/Shared/SukraraGraph.swift"
+# files that write times as data or log text (not the user's clock): why
+CLOCK_OK = {
+    APP_KT + "core/EventLog.kt": "the event log's own HH:mm:ss",
+    APP_KT + "bridge/XdripServer.kt": "xDrip+ / Juggluco wire formats",
+    APP_KT + "alerts/Alerts.kt": "the English log line of an alert note",
+    "spikes/menubar/Sources/GlucoseBar/main.swift": "log lines",
+    "spikes/menubar/Sources/GlucoseBar/NostrSource.swift": "log lines",
+}
+LOCAL_HOUR24 = re.compile(r"(?<!Clock\.)\bhour24\b")
+KT_TIME_FMT = re.compile(r"is24HourFormat\(|getTimeFormat\(|ofLocalizedTime\(|SimpleDateFormat\(\s*\"[^\"]*[Hhk]{1,2}:mm")
+SWIFT_TIME_FMT = re.compile(r"time:\s*\.(shortened|standard|complete)|\.timeStyle|fromTemplate:\s*\"[^\"]*[Hhj]")
+
+
+def check_clock(ch, rep):
+    """clock: every clock time goes through Clock with the one 24-hour setting (the user, 2026-10-21: the value widget
+    wrote "08:59" beside the chart cards' "8:59 AM"). Android: is24HourFormat only in App.kt (Clock.hour24Source);
+    no own hour24 flag or time formatter outside graph/Clock.kt. Mac: no own hour24 / time formatter outside Clock
+    (SukraraGraph.swift). Whole tree at the change's revision; data / log formats are listed in CLOCK_OK."""
+    for p in tree_files(ch):
+        swift = p.endswith(".swift") and p.startswith(("spikes/menubar/Sources/", "spikes/widgets-macos/Shared/",
+                                                       "spikes/widgets-macos/Widget/"))
+        kt = p.endswith(".kt") and p.startswith(APP_KT)
+        if not (swift or kt) or p in (CLOCK_KT, CLOCK_SWIFT) or p in CLOCK_OK or "SelfTest" in p:
+            continue
+        for n, l in code_lines(ch.blob(p) or ""):
+            if kt and "is24HourFormat(" in l and p == APP_KT + "App.kt" and "hour24Source" in l:
+                continue
+            if "yyyy" in l:  # ISO / wire timestamps are data, not the user's clock
+                continue
+            bad = (KT_TIME_FMT if kt else SWIFT_TIME_FMT).search(l) or LOCAL_HOUR24.search(l)
+            if bad:
+                rep.add("FAIL", "clock", "%s:%d formats a clock time or reads the 24-hour setting itself (%s). Use Clock\n"
+                        "(Clock.time / dateTime / minuteOfDay / hourLabel, Freshness.timeText) with its default setting."
+                        % (p, n, bad.group(0)))
+
+
 def check_static(ch, rep):
     allow = load("allow.json")
     live = ch.live()
@@ -569,6 +609,7 @@ def main(argv):
         check_debug(ch, rep)
         check_cleartext(ch, rep)
         check_card(ch, rep)
+        check_clock(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

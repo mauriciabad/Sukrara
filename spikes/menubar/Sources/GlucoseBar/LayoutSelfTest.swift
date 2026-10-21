@@ -15,6 +15,8 @@ enum LayoutSelfTest {
     private struct Render: CustomStringConvertible {
         var surface: CardSurface; var size: String; var scene: String; var settings: String
         var layouts: [CardLayout]; var faces: [GlucoseLook]
+        /// Every clock time its entry path formatted (Clock.observer) and drew (card "time.text"): text, 24-hour.
+        var clock: [(String, Bool)] = []
         var description: String { "\(surface.rawValue) \(size)" }
     }
 
@@ -63,6 +65,7 @@ enum LayoutSelfTest {
             }
             return Scene(id: o["id"] as? String ?? "?", readings: rs, marks: marks, sensor: sensor)
         }
+        var hour24Of: [String: Bool] = [:]
         let settings: [(String, GraphConfig)] = (scenesRoot["settings"] as? [[String: Any]] ?? []).map { o in
             var c = GraphConfig()
             if let v = o["sensorTime"] as? Bool { c.sensorTime = v }
@@ -72,6 +75,7 @@ enum LayoutSelfTest {
             if let v = o["lines"] as? [NSNumber] { c.lines = v.map(\.intValue) }
             if let v = o["gridHours"] as? NSNumber { c.gridHours = v.intValue }
             if let v = o["high"] as? NSNumber { c.bands.high = v.intValue }
+            hour24Of[o["id"] as? String ?? "?"] = o["hour24"] as? Bool ?? true
             return (o["id"] as? String ?? "?", c)
         }
         func sizes(_ s: CardSurface) -> [CGSize] {
@@ -83,7 +87,14 @@ enum LayoutSelfTest {
         var captured: [CardLayout] = [], faces: [GlucoseLook] = []
         GlucoseCard.observer = { captured.append($0) }
         GlucoseCard.faceObserver = { s, f in if s != .test { faces.append(f) } }
-        defer { GlucoseCard.observer = nil; GlucoseCard.faceObserver = nil }
+        var clockCalls: [(String, Bool)] = []
+        Clock.observer = { t, h in clockCalls.append((t, h)) }
+        defer { GlucoseCard.observer = nil; GlucoseCard.faceObserver = nil; Clock.observer = nil; Clock.hour24Override = nil }
+        /// Is a drawn clock time 24-hour? nil = no hour in it (a date).
+        func cycleOf(_ t: String) -> Bool? {
+            if t.range(of: "(?i)\\b(am|pm|a\\.\\s?m\\.|p\\.\\s?m\\.)", options: .regularExpression) != nil { return false }
+            return t.range(of: "\\d{1,2}:\\d{2}", options: .regularExpression) != nil ? true : nil
+        }
         let pal = GraphPalette.of(dark: false)
 
         /// Renders `s` through its real entry path; every case is a registered surface (exhaustive switch).
@@ -113,17 +124,20 @@ enum LayoutSelfTest {
 
         var renders: [Render] = []
         for (sid, cfg) in settings {
+            Clock.hour24Override = hour24Of[sid] ?? true
             for sc in scenes {
                 for s in CardSurface.allCases where s != .test {
-                    if s.glyph && sid != "default" { continue }
+                    if s.glyph && sid != "default" && !sid.hasPrefix("clock") { continue }
                     for size in sizes(s) {
-                        captured = []; faces = []
+                        captured = []; faces = []; clockCalls = []
                         render(s, size, sc, cfg)
                         var byPart: [CardPart: CardLayout] = [:]
                         for l in captured where l.surface == s { byPart[l.part] = l }
                         renders.append(Render(surface: s, size: "\(Int(size.width))x\(Int(size.height))", scene: sc.id, settings: sid,
                                               layouts: byPart.values.sorted { $0.part.rawValue < $1.part.rawValue },
-                                              faces: s.glyph ? faces : []))
+                                              faces: s.glyph ? faces : [],
+                                              clock: clockCalls + captured.filter { $0.surface == s }.flatMap { l in
+                                                  l.all("time.text").compactMap { e in cycleOf(e.info).map { (e.info, $0) } } }))
                     }
                 }
             }
@@ -143,6 +157,15 @@ enum LayoutSelfTest {
             }
         }
         if !renders.contains(where: { $0.surface == .menubarTitle && !$0.faces.isEmpty }) { fail("menubar-title never asked GlucoseCard.face") }
+        // one clock: every time any surface formats or draws is in that variant's setting (CardLayoutTest's twin)
+        var clockShown = 0
+        for r in renders {
+            let want = hour24Of[r.settings] ?? true
+            if let bad = r.clock.first(where: { $0.1 != want }), clockShown < 20 {
+                fail("clock: \(r) (\(r.scene)/\(r.settings)) shows \"\(bad.0)\", want \(want ? 24 : 12)-hour time"); clockShown += 1
+            }
+        }
+        for v in ["clock12", "clock24"] where !renders.contains(where: { $0.settings == v && !$0.clock.isEmpty }) { fail("clock: no render in \(v) shows a time") }
 
         func strip(_ s: String) -> String {
             s.replacingOccurrences(of: "\\s*\\[[^]]*]", with: "", options: .regularExpression)
@@ -267,6 +290,15 @@ enum LayoutSelfTest {
             } }
             if seen == 0 { fail("\(colName): no render shows it (gaps rule untested)") }
         }
+        // a change of the 24-hour setting or the time zone redraws (StatusController observes Clock.changeNotifications)
+        let center = NotificationCenter(); var fired = 0
+        let tokens = Clock.observeChanges(center) { fired += 1 }
+        for n in Clock.changeNotifications { center.post(name: n, object: nil) }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        if fired != 2 || !Clock.changeNotifications.contains(NSLocale.currentLocaleDidChangeNotification) {
+            fail("clock: a 24-hour / time zone change fired \(fired) of 2 redraws")
+        }
+        tokens.forEach(center.removeObserver)
         print(failures == 0 ? "layout self-test OK (\(renders.count) renders)" : "layout self-test: \(failures) failure(s)")
         return failures
     }

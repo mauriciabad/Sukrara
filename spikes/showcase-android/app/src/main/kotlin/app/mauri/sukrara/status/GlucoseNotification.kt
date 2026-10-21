@@ -113,6 +113,7 @@ object GlucoseNotification {
         GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
         app.mauri.sukrara.alerts.Alerts.paused.value,   // the status pill ("45m left") after a notification's Mute
         c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
+        app.mauri.sukrara.graph.Clock.signature(),
         chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
     )
 
@@ -253,7 +254,7 @@ object GlucoseNotification {
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         val treatments = app.mauri.sukrara.treatments.TreatmentFeed.items.value
         val common = "${r.t}|$night|${java.util.Locale.getDefault()}|${treatments.hashCode()}|${GraphSettings.value.hashCode()}|" +
-            "${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}"
+            "${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|${app.mauri.sukrara.graph.Clock.signature()}"
         val gKey = "$common|${now / 300}"
         val hKey = "$common|${now / 60}|$ink|${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}"
         val interactive = c.getSystemService(PowerManager::class.java).isInteractive
@@ -292,7 +293,7 @@ object GlucoseNotification {
                           graph: Boolean = true): Art {
         val d = gc.resources.displayMetrics.density
         val cfg = GraphSettings.value
-        val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION), android.text.format.DateFormat.is24HourFormat(gc)),
+        val card = CardStyle(graph = cfg.graphStyle(cfg.hours(GraphPlace.NOTIFICATION)),
             rings = cfg.rings(), last = cfg.lastPlace, lastElse = cfg.lastElseRing(),
             sensorTime = cfg.sensorTime(GraphPlace.NOTIFICATION), slotDisc = discs, valueInk = ink)
         val metrics = metricsOf ?: { s, b -> app.mauri.sukrara.graph.GraphData.metrics(gc, s.windowS, b, now) }

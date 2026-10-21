@@ -16,7 +16,7 @@ extension Bands {
 }
 
 /// The menu bar item: the number + trend arrow; a click opens the glance panel (Panel.swift), a right-click a short
-/// menu (Glucose Report…, Settings…, Quit). Everything that configures the app lives in Settings (HIG "Settings").
+/// menu (Treatments…, Glucose Report…, Settings…, Quit). Everything that configures the app lives in Settings (HIG "Settings").
 @MainActor final class StatusController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let panelModel = PanelModel()
@@ -39,6 +39,7 @@ extension Bands {
     var onFollow: (() -> Void)?
     var onSettings: (() -> Void)?
     var onReport: (() -> Void)?
+    var onTreatments: (() -> Void)?
 
     /// The protocol v2 follow state line ("Following Ana · key epoch 2 · 4 relays"), nil when not following; shown
     /// in Settings › Following only.
@@ -53,16 +54,19 @@ extension Bands {
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
     var onLogTreatment: ((Treatment) -> Void)?
+    /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
+    var onAddTreatment: ((NSScreen?) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
-    /// Per-entry delivery status ("v2 accepted ✓") and its long form (Glucose Report › Treatments).
+    /// Per-entry delivery status ("v2 accepted ✓") and its long form (the Treatments window).
     var treatmentStatus: ((Treatment) -> String)?
     var treatmentDetails: ((Treatment) -> [String])?
 
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
     private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
+    private var clockObservers: [NSObjectProtocol] = []
 
     override init() {
         super.init()
@@ -73,15 +77,19 @@ extension Bands {
         button.target = self
         button.action = #selector(clicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        contextMenu.addItem(withTitle: "Treatments…", action: #selector(treatmentsList), keyEquivalent: "").target = self
         contextMenu.addItem(withTitle: "Glucose Report…", action: #selector(report), keyEquivalent: "").target = self
         contextMenu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        panelModel.onLog = { [weak self] t in self?.onLogTreatment?(t) }
-        panelModel.onUndo = { [weak self] id in self?.onDeleteTreatment?(id) }
+        panelModel.onAddTreatment = { [weak self] in
+            self?.panel.close()
+            self?.onAddTreatment?(self?.item.button?.window?.screen)
+        }
         panelModel.onFollow = { [weak self] in self?.panel.close(); self?.onFollow?() }
         panelModel.onReport = { [weak self] in self?.panel.close(); self?.onReport?() }
+        panelModel.onTreatments = { [weak self] in self?.panel.close(); self?.onTreatments?() }
         panelModel.onSettings = { [weak self] in self?.panel.close(); self?.onSettings?() }
         panel.onVisible = { [weak self] visible in
             guard let self else { return }
@@ -94,6 +102,8 @@ extension Bands {
             RunLoop.main.add(t, forMode: .common)
             self.tick = t
         }
+        // The 24-hour setting or the time zone changed: every time on the menubar, dropdown and widgets follows at once.
+        clockObservers = Clock.observeChanges { [weak self] in MainActor.assumeIsolated { self?.reloadGraph() } }
         // Increase Contrast switches the card's ink at once.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
                                                           object: nil, queue: .main) { [weak self] _ in
@@ -138,6 +148,7 @@ extension Bands {
 
     @objc private func settings() { onSettings?() }
     @objc private func report() { onReport?() }
+    @objc private func treatmentsList() { onTreatments?() }
 
     /// nil = not following anyone over v2.
     func setFollow(_ text: String?, image: NSImage? = nil) {
@@ -238,9 +249,7 @@ extension Bands {
 
     /// The dropdown card's style (the menubar place's settings), also the layout self-test's.
     static func dropdownStyle(_ graph: GraphConfig, sensor: SensorInfo?) -> CardStyle {
-        var g = graph.graphStyle()
-        g.hour24 = GraphStyle.systemHour24
-        var st = graph.cardStyle(graph: g)
+        var st = graph.cardStyle(graph: graph.graphStyle())
         st.sensor = sensor
         return st
     }

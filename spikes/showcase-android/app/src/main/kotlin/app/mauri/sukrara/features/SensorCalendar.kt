@@ -268,7 +268,7 @@ object SensorCalendar {
         }
         if (cur != null) {
             val (serial, start, end) = cur
-            val started = app.mauri.sukrara.graph.Clock.dateTime(start, android.text.format.DateFormat.is24HourFormat(ctx))
+            val started = app.mauri.sukrara.graph.Clock.dateTime(start)
             val e = event(serial, end, ctx.getString(R.string.calendar_event_title), ctx.getString(R.string.calendar_event_description, serial, started))
             val v = ContentValues().apply {
                 put(Events.CALENDAR_ID, cal); put(Events.TITLE, e.title); put(Events.DESCRIPTION, e.description)

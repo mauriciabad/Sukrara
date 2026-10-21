@@ -65,7 +65,7 @@ class GraphGallery {
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
             sheet("card-${if (dark) "dark" else "light"}", listOf(Tile("12 h · rings 1d + 7d", "") { cv, w, h ->
-                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = false), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
+                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }), 560f, 270f, cols = 1, pal)
         }
     }
@@ -77,7 +77,7 @@ class GraphGallery {
             75 * 60L to "old · 75 min", 5 * 3600L to "gone · 5 h")
         sheet("freshness", ages.map { (age, label) ->
             Tile(label, "") { cv, w, h ->
-                GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - age }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = false), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
+                GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - age }, emptyList(), now, CardStyle(graph = GraphStyle(), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }
         }, 360f, 190f, cols = 2, pal)
     }
@@ -128,7 +128,7 @@ class GraphGallery {
                 Tile(label, "") { cv, w, h -> GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = null, rings = rings, sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL) }
             }, 440f, 76f, cols = 1, pal)
             sheet("widget-gmi-${if (dark) "dark" else "light"}", listOf(Tile("4×2 combined, GMI 30d in the third slot", "") { cv, w, h ->
-                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(hour24 = true),
+                GlucoseCard.draw(cv, w, h, data, Synthetic.treatments(now), now, CardStyle(graph = GraphStyle(),
                     rings = listOf(RingSpec(day), RingSpec(7 * day), RingSpec(30 * day, kind = SlotKind.GMI, faded = false)), sensorTime = true), pal, d, surface = CardSurface.TEST, part = CardPart.ALL)
             }), 340f, 170f, cols = 1, pal)
         }
@@ -138,7 +138,7 @@ class GraphGallery {
         val data = Synthetic.days(now, 15)
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             val v = listOf(
                 Triple("4×2 combined", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
                 Triple("4×1 combined (side by side)", 300f to 70f, CardStyle(graph = g, sensorTime = true)),
@@ -171,7 +171,7 @@ class GraphGallery {
         fun tir(below: Double, tight: Double, target: Double, above: Double) = TimeInRange(0.0, below, tight, target, above, 0.0, 1.0)
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             sheet("tir-marks-cards-${if (dark) "dark" else "light"}", listOf(
                 Tile("4×2 · 24 h 100 % (crown), 7 d 96 % (laurel)", "") { cv, w, h ->
                     GlucoseCard.draw(cv, w, h, data, emptyList(), now, CardStyle(graph = g, sensorTime = true), pal, d, sensor = null, surface = CardSurface.TEST, part = CardPart.ALL)
@@ -244,7 +244,7 @@ class GraphGallery {
         val fresh = app.mauri.sukrara.core.SensorLife.fromStart("S2", now - 18 * 60, 0)
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             val v = listOf(
                 Triple("13 days left", 13 * 86_400L + 5 * 3600, data),
                 Triple("20 h left (8 h window: no ring)", 20 * 3600L, data),
@@ -275,7 +275,7 @@ class GraphGallery {
                         pal, d, sensor = sensor(-600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
                 Tile("4×1 side by side · ended yesterday", "", 300f, 70f) { cv, w, h ->
-                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(hour24 = true), sensorTime = true),
+                    GlucoseCard.draw(cv, w, h, data.filter { it.t <= now - 26 * 3600 }, emptyList(), now, CardStyle(graph = GraphStyle(), sensorTime = true),
                         pal, d, sensor = sensor(-26 * 3600L), surface = CardSurface.TEST, part = CardPart.ALL)
                 },
             )
@@ -301,7 +301,7 @@ class GraphGallery {
         }
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             fun card(label: String, w: Float, h: Float, st: CardStyle) = Tile(label, "", w, h) { cv, cw, ch ->
                 GlucoseCard.draw(cv, cw, ch, data, trs, now, st, pal, d, sensor = sensor, surface = CardSurface.TEST, part = CardPart.ALL)
             }
@@ -343,7 +343,7 @@ class GraphGallery {
         )
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true, windowS = 6 * 3600L)
+            val g = GraphStyle(windowS = 6 * 3600L)
             val sizes = listOf(
                 Triple("4×2 combined", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
                 Triple("3×1 value + 2 rings", 230f to 60f, CardStyle(graph = null, sensorTime = true)),
@@ -384,7 +384,7 @@ class GraphGallery {
                         GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = null, rings = rings, last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                     },
                     Tile("4×2 combined · next to the number", "", 300f, 150f) { cv, w, h ->
-                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = GraphStyle(hour24 = true, windowS = 6 * 3600L), rings = rings,
+                        GlucoseCard.draw(cv, w, h, data, trs, now, CardStyle(graph = GraphStyle(windowS = 6 * 3600L), rings = rings,
                             last = LastPlace.NEAR_VALUE, lastElse = fallback, sensorTime = true), pal, d, alerts = a, surface = CardSurface.TEST, part = CardPart.ALL)
                     },
                 )
@@ -423,7 +423,7 @@ class GraphGallery {
         )
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             val v = listOf(
                 Triple("4×2 combined, 12 h", 300f to 150f, CardStyle(graph = g, sensorTime = true)),
                 Triple("4×2 combined, 3 h", 300f to 150f, CardStyle(graph = g.copy(windowS = 3 * 3600L), sensorTime = true)),
@@ -448,7 +448,7 @@ class GraphGallery {
         fun tr(k: String, a: Double, minAgo: Int) = Treatment(id = "$k$minAgo", t = now - minAgo * 60L, k = k, a = a, u = 0, o = "phone")
         for (dark in listOf(true, false)) {
             val pal = GraphPalette.of(dark)
-            val g = GraphStyle(hour24 = true)
+            val g = GraphStyle()
             val day = listOf(tr("carbs", 10.0, 1364), tr("rapid", 5.0, 859), tr("carbs", 40.0, 854), tr("rapid", 7.0, 509),
                 tr("carbs", 70.0, 504), tr("carbs", 15.0, 304), tr("carbs", 10.0, 284), tr("rapid", 8.0, 104),
                 tr("carbs", 80.0, 99), tr("rapid", 1.5, 24), tr("long", 18.0, 9))

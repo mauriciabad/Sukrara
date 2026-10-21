@@ -4,15 +4,14 @@
 import AppKit
 import SwiftUI
 
-/// "Glucose Report…": the doctor's report (investigation 18, ReportView.swift) and the treatment history, in a
-/// normal window rather than the menu bar panel (HIG "The menu bar": the panel is for the glance; HIG "Windows").
-/// Two views switched by a segmented control at the top (the window's title follows it); the report's period sits
-/// with the report (HIG "Settings" › Task-specific options), saved as `reportDays`. The Treatments list replaces the
-/// menu's old 24 h rows: the last 7 days, newest first, each with its delivery state; Delete (context menu or ⌫)
-/// when this Mac may log. Export CSV… under the report saves the report's period (GlucoseCsv.swift). Position remembered (frame autosave), closes with ⌘W.
+/// "Glucose Report…": the doctor's report (investigation 18, ReportView.swift) in a normal window rather than the
+/// menu bar panel (HIG "The menu bar": the panel is for the glance; HIG "Windows"). The period sits with the report
+/// (HIG "Settings" › Task-specific options), saved as `reportDays`. Export CSV… under it saves the report's period
+/// (GlucoseCsv.swift). The treatment history has its own window (TreatmentsWindow.swift). Position remembered (frame
+/// autosave), closes with ⌘W.
 @MainActor final class ReportWindow: NSObject {
     static let periods = [1, 7, 14, 30]
-    let model = HistoryModel()
+    let model = ReportModel()
     private var window: NSWindow?
 
     /// The report's window, days (`reportDays`, 1|7|14|30, default 14).
@@ -23,27 +22,24 @@ import SwiftUI
 
     var isVisible: Bool { window?.isVisible == true }
 
-    func show(_ tab: HistoryModel.Tab = .report) {
+    func show() {
         let w = window ?? make()
         window = w
-        model.tab = tab
         refresh()
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
     }
 
-    /// New readings, treatments or settings: redraw while open.
+    /// New readings or settings: redraw while open.
     func refresh() { model.reload() }
 
     private func make() -> NSWindow {
-        let host = NSHostingController(rootView: HistoryView(model: model))
+        let host = NSHostingController(rootView: ReportWindowView(model: model))
         host.sizingOptions = [.preferredContentSize]
         let w = NSWindow(contentViewController: host)
         w.styleMask = [.titled, .closable, .miniaturizable]
         w.isReleasedWhenClosed = false
-        w.titlebarAppearsTransparent = false
-        model.onTitle = { [weak w] t in w?.title = t }
-        w.title = model.tab.title
+        w.title = "Glucose Report"
         if !w.setFrameUsingName("SukraraReport") { w.center() }
         w.setFrameAutosaveName("SukraraReport")
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
@@ -53,91 +49,42 @@ import SwiftUI
         return w
     }
 
-    /// Evidence aid: `-reportSnapshot <dir>` → report.png and treatments.png (screencapture -l).
+    /// Evidence aid: `-reportSnapshot <dir>` → report.png (screencapture -l).
     func snapshot(to dir: String) {
-        show(.report)
-        func shot(_ name: String, then: (() -> Void)? = nil) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                guard let n = self?.window?.windowNumber else { return }
-                let p = Process()
-                p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-                p.arguments = ["-x", "-o", "-l\(n)", "\(dir)/\(name).png"]
-                try? p.run(); p.waitUntilExit()
-                log("report snapshot → \(dir)/\(name).png")
-                then?()
-            }
+        show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let n = self?.window?.windowNumber else { return }
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            p.arguments = ["-x", "-o", "-l\(n)", "\(dir)/report.png"]
+            try? p.run(); p.waitUntilExit()
+            log("report snapshot → \(dir)/report.png")
         }
-        shot("report") { [weak self] in self?.model.tab = .treatments; shot("treatments") }
     }
 }
 
-@MainActor final class HistoryModel: ObservableObject {
-    enum Tab: String, CaseIterable {
-        case report, treatments
-        var title: String { self == .report ? "Glucose Report" : "Treatments" }
-    }
-    @Published var tab = Tab.report { didSet { onTitle?(tab.title) } }
+@MainActor final class ReportModel: ObservableObject {
     @Published var days = ReportWindow.days {
         didSet { UserDefaults.standard.set(days, forKey: "reportDays"); reload() }
     }
     @Published private(set) var metrics: GlucoseMetrics?
     @Published private(set) var bands = Bands()
-    @Published private(set) var rows: [Treatment] = []
-    @Published private(set) var canDelete = false
-    @Published var selection: String?
-
     var metricsOf: ((TimeInterval, Bands) -> GlucoseMetrics)?
     var bandsOf: () -> Bands = { Bands() }
-    var treatments: () -> [Treatment] = { [] }
-    var delivery: (Treatment) -> (Delivery, Date)? = { _ in nil }
-    /// The wearer's name for the delivery wording ("On Ana's phone since 14:07").
-    var who: () -> String = { "the wearer" }
-    var details: (Treatment) -> [String] = { _ in [] }
-    var canLog: () -> Bool = { false }
-    /// A writer deletes only the entries it made (P4): the rest stay read-only here.
-    var mayChange: (Treatment) -> Bool = { _ in true }
-    var onDelete: ((String) -> Void)?
     /// Export… under the report: the report's period as a CSV (GlucoseCsv.save).
     var onExport: ((Int) -> Void)?
-    var onTitle: ((String) -> Void)?
 
     func reload() {
         bands = bandsOf()
         metrics = metricsOf?(TimeInterval(days) * 86400, bands)
-        let since = Int64(Date().timeIntervalSince1970) - 7 * 86400
-        rows = treatments().filter { !$0.del && $0.t >= since }.sorted { $0.t > $1.t }
-        canDelete = canLog()
-    }
-
-    func deletable(_ t: Treatment) -> Bool { canDelete && mayChange(t) }
-
-    func delete(_ id: String?) {
-        guard canDelete, let id, let t = rows.first(where: { $0.id == id }), mayChange(t) else { return }
-        onDelete?(id)
-        reload()
     }
 }
 
-struct HistoryView: View {
-    @ObservedObject var model: HistoryModel
+struct ReportWindowView: View {
+    @ObservedObject var model: ReportModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("View", selection: $model.tab) {
-                Text("Report").tag(HistoryModel.Tab.report)
-                Text("Treatments").tag(HistoryModel.Tab.treatments)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .padding(.vertical, 12)
-            Divider()
-            switch model.tab {
-            case .report: report
-            case .treatments: treatments
-            }
-        }
-        .frame(width: 420)
+        report.frame(width: 420)
     }
 
     private var report: some View {
@@ -168,90 +115,6 @@ struct HistoryView: View {
         return v.fittingHeight()
     }
 
-    @ViewBuilder private var treatments: some View {
-        if model.rows.isEmpty {
-            Text("No treatments in the last 7 days")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, minHeight: 200)
-        } else {
-            List(selection: $model.selection) {
-                ForEach(days, id: \.0) { day, rows in
-                    Section(day) {
-                        ForEach(rows, id: \.id) { t in
-                            TreatmentRow(t: t, delivery: model.delivery(t), who: model.who())
-                                .tag(t.id)
-                                .help(model.details(t).joined(separator: "\n"))
-                                .contextMenu {
-                                    Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.deletable(t))
-                                }
-                        }
-                    }
-                }
-            }
-            .onDeleteCommand { model.delete(model.selection) }
-            .frame(height: 420)
-        }
-    }
-
-    /// Rows grouped by day: "Today", "Yesterday", "Thursday 16 October".
-    private var days: [(String, [Treatment])] {
-        let cal = Calendar.current
-        var out: [(String, [Treatment])] = []
-        for t in model.rows {
-            let d = Date(timeIntervalSince1970: TimeInterval(t.t))
-            let name = cal.isDateInToday(d) ? "Today" : cal.isDateInYesterday(d) ? "Yesterday" : d.formatted(.dateTime.weekday(.wide).day().month(.wide))
-            if out.last?.0 == name { out[out.count - 1].1.append(t) } else { out.append((name, [t])) }
-        }
-        return out
-    }
-}
-
-private struct TreatmentRow: View {
-    let t: Treatment
-    let delivery: (Delivery, Date)?
-    let who: String
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: QuickLog.kinds.first { $0.k == t.k }?.symbol ?? "circle")
-                .foregroundStyle(Color(cgColor: TreatmentMarks.color(t.k, dark: scheme == .dark)))
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                if !t.n.isEmpty, t.k != "note" { Text(t.n).font(.callout).foregroundStyle(.secondary) }
-            }
-            Spacer()
-            // Delivery like Messages' "Delivered": a symbol, its sentence as tooltip and for VoiceOver.
-            if let (d, at) = delivery {
-                let text = d.text(who: who, at: at)
-                Image(systemName: d.symbol)
-                    .foregroundStyle(d == .delivered ? AnyShapeStyle(.green) : d == .late ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
-                    .help(text)
-                    .accessibilityLabel(text)
-            }
-            // Time of day, then the time since it like Android's lists (`12m`, `3h`), refreshed while shown.
-            TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                HStack(spacing: 6) {
-                    Text(Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t))))
-                        .foregroundStyle(.secondary)
-                    Text(TreatmentMarks.duration(ctx.date.timeIntervalSince1970 - TimeInterval(t.t)))
-                        .frame(minWidth: 34, alignment: .trailing)
-                }
-                .monospacedDigit()
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var title: String {
-        switch t.k {
-        case "rapid": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") rapid insulin"
-        case "long": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") long insulin"
-        case "carbs": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") carbs"
-        default: t.n.isEmpty ? "Note" : t.n
-        }
-    }
 }
 
 private struct ReportRep: NSViewRepresentable {

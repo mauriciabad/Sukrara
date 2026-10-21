@@ -15,9 +15,12 @@ import java.util.Locale
  * Every clock time Sukrara shows ("21:08" / "9:08 PM"): the card, the widgets, the lock screen, the notifications,
  * the sensor reminders and calendar event, the treatments, the graph's hour labels. They follow the phone's
  * Settings → 24-hour time, not the locale's default. Plain Kotlin (no Context) so the drawing code and the JVM tests
- * use it too: the app installs [hour24Source] (`DateFormat.is24HourFormat`) at start; code with a Context passes
- * the flag itself where it can (a widget, a notification, System UI's lock screen widget), and the graph gets it
- * through [GraphStyle.hour24]. Mac: `Clock` in SukraraGraph.swift.
+ * use it too: the app installs [hour24Source] (`DateFormat.is24HourFormat`) at start and that is the ONE place the
+ * setting is read; every surface (cards, graph hour labels, widgets, notifications, screens) formats through here with
+ * the default [hour24], never a flag of its own (2026-10-21: the value widget read it from one place and the chart
+ * cards from another, "08:59" beside "8:59 AM"). The explicit parameter is for the clock fixtures only. tools/check
+ * `clock` holds the code to it; CardLayoutTest renders every surface in 12- and 24-hour time. Mac: `Clock` in
+ * SukraraGraph.swift.
  *
  * The pattern is the locale's short time with its hour field switched to the wanted cycle (`h:mm a` ↔ `HH:mm`), the
  * same result as Android's `DateFormat.getTimeFormat` without needing Android's ICU.
@@ -29,12 +32,22 @@ object Clock {
     /** The phone's 24-hour setting (the locale's default when unknown). */
     val hour24: Boolean get() = hour24Source?.let { runCatching(it).getOrNull() } ?: localeHour24(Locale.getDefault())
 
+    /**
+     * What every clock time drawn now depends on: the 24-hour setting and the time zone. Part of every redraw key (widgets,
+     * the notification and its pictures), so a flip of the setting while Sukrara runs redraws them
+     * ([app.mauri.sukrara.widgets.SukraraHooks.CLOCK_ACTIONS] triggers it).
+     */
+    fun signature(): String = "${hour24}|${java.util.TimeZone.getDefault().id}"
+
     /** Does [locale] use a 24-hour clock by default? */
     fun localeHour24(locale: Locale): Boolean = unquoted(localePattern(locale)).none { it == 'h' || it == 'K' }
 
+    /** Tests: every time formatted and the hour cycle it was formatted in, as it happens (null in the app). */
+    @Volatile var observer: ((String, Boolean) -> Unit)? = null
+
     /** "21:08" / "9:08 PM" for [t] (unix s). */
     fun time(t: Long, hour24: Boolean = this.hour24, locale: Locale = Locale.getDefault()): String =
-        SimpleDateFormat(pattern(hour24, locale), locale).format(Date(t * 1000))
+        SimpleDateFormat(pattern(hour24, locale), locale).format(Date(t * 1000)).also { observer?.invoke(it, hour24) }
 
     /** "12 Oct 21:08": a day this year and its time. */
     fun dayTime(t: Long, hour24: Boolean = this.hour24, locale: Locale = Locale.getDefault()): String =
@@ -47,13 +60,14 @@ object Clock {
     /** A minute of the day (0–1439, e.g. a reminder's time) as a clock time. */
     fun minuteOfDay(m: Int, hour24: Boolean = this.hour24, locale: Locale = Locale.getDefault()): String {
         val f = SimpleDateFormat(pattern(hour24, locale), locale).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-        return f.format(Date(((m / 60) * 3600L + (m % 60) * 60L) * 1000))
+        return f.format(Date(((m / 60) * 3600L + (m % 60) * 60L) * 1000)).also { observer?.invoke(it, hour24) }
     }
 
     /** The graph's hour label: "21:00" / "9 PM". */
-    fun hourLabel(h: Int, hour24: Boolean, locale: Locale = Locale.getDefault()): String =
-        if (hour24) "%02d:00".format(Locale.ROOT, h)
-        else "${if (h % 12 == 0) 12 else h % 12} ${DateFormatSymbols.getInstance(locale).amPmStrings[if (h < 12) 0 else 1]}"
+    fun hourLabel(h: Int, hour24: Boolean = this.hour24, locale: Locale = Locale.getDefault()): String =
+        (if (hour24) "%02d:00".format(Locale.ROOT, h)
+        else "${if (h % 12 == 0) 12 else h % 12} ${DateFormatSymbols.getInstance(locale).amPmStrings[if (h < 12) 0 else 1]}")
+            .also { observer?.invoke(it, hour24) }
 
     /** The time pattern for [locale] in the wanted hour cycle. */
     fun pattern(hour24: Boolean, locale: Locale): String {

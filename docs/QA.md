@@ -76,8 +76,9 @@ Cheap tools:
 ## Q6 Mac menubar panel
 
 - [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour; click → panel
-      (card in its module, focus in the log field: `4.5u` ↩ logs, Undo, ⌘1–⌘4, *Now ▾*, Escape / click outside
-      closes); right-click menu; Glucose Report (Report + Treatments, delete); Settings (each pane; ⌘, ⌘W, paste in
+      (card in its module, Return opens *Add Treatment*: Tab rapid → long → carbs → note, `4.5u` keeps `4.5`,
+      quiet line, limits line at 600g, time chip popover, Return saves all, Escape cancels; Escape / click outside
+      closes the panel); right-click menu; Treatments… (7 days, delete with ⌫ / context menu, ⌘W); Glucose Report (report only, period, Export CSV…); Settings (each pane; ⌘, ⌘W, paste in
       the invite field); light and dark, over a bright and a dark window/wallpaper, Increase Contrast and Reduce
       Transparency (System Settings → Accessibility → Display).
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take

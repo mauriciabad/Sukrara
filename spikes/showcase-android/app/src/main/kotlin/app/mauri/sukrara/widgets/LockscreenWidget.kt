@@ -161,7 +161,7 @@ internal fun draw(ctx: Context, cv: Canvas, frame: WidgetUpdater.Frame, hole: Ho
 
     // One card in three boxes: the value left of the lock icon, the slots right of it, the chart below. Every part is
     // drawn with the same whole-card style, so GlucoseCard decides the card once for all of them (CardPart).
-    val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS), android.text.format.DateFormat.is24HourFormat(ctx))
+    val graph = cfg.graphStyle(cfg.hours(GraphPlace.WIDGETS))
     val card = CardStyle(graph = graph, rings = cfg.rings(), last = cfg.lastPlace, lastElse = cfg.lastElseRing(),
         sensorTime = cfg.sensorTime(GraphPlace.WIDGETS))
     val metrics = metricsOf ?: { r, b -> GraphData.metrics(ctx, r.windowS, b, frame.nowSec) }

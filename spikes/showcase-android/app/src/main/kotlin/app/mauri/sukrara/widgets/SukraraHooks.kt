@@ -31,6 +31,22 @@ import kotlinx.coroutines.launch
 object SukraraHooks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /**
+     * The system's broadcasts for a change of the clock's look: Settings sends ACTION_TIME_CHANGED when the 24-hour
+     * format is switched (EXTRA_TIME_PREF_24_HOUR), and the time zone. Each role's receiver (WearerExtras,
+     * FollowerExtras) listens for them and redraws the notification and the widgets at once ([onClockChange]);
+     * [app.mauri.sukrara.graph.Clock.signature] in the redraw keys makes those redraws real.
+     */
+    val CLOCK_ACTIONS = listOf(Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED)
+
+    /** A role's receiver got [i]: a clock change redraws through [render] and the widgets; true = handled. */
+    fun onClockChange(c: Context, i: Intent, render: () -> Unit): Boolean {
+        if (i.action !in CLOCK_ACTIONS) return false
+        render()
+        refresh(c, "clock", force = true)
+        return true
+    }
+
     fun onReadings(c: Context, list: List<Reading>, reason: String) {
         if (list.isEmpty()) return
         val app = c.applicationContext

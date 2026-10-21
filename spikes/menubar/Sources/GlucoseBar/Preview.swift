@@ -51,7 +51,7 @@ enum Preview {
 /// wallpaper drawn inside it (`.withinWindow`; the live panel blends with the desktop, `.behindWindow`), captured
 /// with `screencapture -l` → `<dir>/panel-<appearance>-<wallpaper>.png`. Needs Screen Recording for the capture.
 enum PanelPreview {
-    @MainActor private static var reports: [ReportWindow] = []
+    @MainActor private static var reports: [TreatmentsWindow] = []
     @MainActor static func run(dir: String) {
         var dc = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         dc.hour = 22; dc.minute = 14
@@ -65,7 +65,7 @@ enum PanelPreview {
             Treatment(k: "long", a: 12, t: at(110)), Treatment(k: "note", a: 0, t: at(75), n: "walk"),
             Treatment(k: "rapid", a: 1.5, t: at(40)), Treatment(k: "carbs", a: 15, t: at(22)),
         ]
-        func model(entry: String, logged: Bool) -> PanelModel {
+        func model() -> PanelModel {
             let m = PanelModel()
             m.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
             m.marks = rows.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
@@ -75,19 +75,15 @@ enum PanelPreview {
             m.now = end.addingTimeInterval(30)
             m.hasData = true
             m.following = true
-            m.kind = "rapid"
-            m.entry = entry
-            if logged { m.logged = ("15g carbs", "x") }
             return m
         }
-        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, entry: String, logged: Bool)
+        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool)
         let shots: [Shot] = [
-            ("light-bright", .aqua, true, "4.5u", false), ("light-dark", .aqua, false, "", true),
-            ("dark-bright", .darkAqua, true, "", true), ("dark-dark", .darkAqua, false, "30g pasta", false),
+            ("light-bright", .aqua, true), ("light-dark", .aqua, false), ("dark-bright", .darkAqua, true), ("dark-dark", .darkAqua, false),
         ]
         var windows: [NSWindow] = []
         for (i, shot) in shots.enumerated() {
-            let m = model(entry: shot.entry, logged: shot.logged)
+            let m = model()
             let panel = GlancePanel.content(m, blending: .withinWindow)
             panel.appearance = NSAppearance(named: shot.appearance)
             panel.layoutSubtreeIfNeeded()
@@ -104,20 +100,19 @@ enum PanelPreview {
             w.orderFrontRegardless()
             windows.append(w)
         }
-        // The Glucose Report window's Treatments, from the same entries (three made on this Mac, one per delivery
+        // The Treatments window, from the same entries (three made on this Mac, one per delivery
         // state) and the real clock, so the relative times read `12m`, `1h`…
         var names: [String] = shots.map { "panel-\($0.name)" }
         let realNow = Int64(Date().timeIntervalSince1970)
         let entries = rows.map { var t = $0; t.t = realNow - (now - $0.t); return t }
         let mine = Dictionary(uniqueKeysWithValues: [(entries[3].id, Delivery.delivered), (entries[4].id, .late), (entries[5].id, .sending)])
         for (i, dark) in [false, true].enumerated() {
-            let r = ReportWindow()
-            r.model.metricsOf = { window, b in GlucoseMetrics.of(all, from: end.timeIntervalSince1970 - window, to: end.timeIntervalSince1970, bands: b) }
+            let r = TreatmentsWindow()
             r.model.treatments = { entries }
             r.model.delivery = { t in mine[t.id].map { ($0, Date(timeIntervalSince1970: TimeInterval(t.t + 20))) } }
             r.model.who = { "Ana" }
             r.model.canLog = { true }
-            r.show(.treatments)
+            r.show()
             if let w = NSApp.windows.last(where: { $0.title == "Treatments" && !windows.contains($0) }) {
                 w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 w.setFrameOrigin(NSPoint(x: 600 + CGFloat(i) * 40, y: 120))

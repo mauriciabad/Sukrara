@@ -168,10 +168,10 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range. A click opens a glance panel (like Control Center's):
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
-  *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then a log field — type
-  `4.5u`, `30g`, `12 long` or a note and press Return (Undo right after). **Glucose Report…** opens a window with the
-  1/7/14/30-day report (with *Export CSV…* for its period, the same file as the phone's) and the last 7 days of
-  treatments (delete there); right-click for Settings and Quit.
+  *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then **Add Treatment…** (or Return),
+  which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
+  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…* for its period,
+  the same file as the phone's); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
   six ranges and Open at Login; it reopens on the last pane.

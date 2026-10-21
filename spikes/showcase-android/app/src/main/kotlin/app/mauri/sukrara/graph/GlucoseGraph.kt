@@ -58,7 +58,6 @@ data class GraphStyle(
     val side: Boolean = true,
     val axisLabels: Boolean = true,
     val treatments: Boolean = true,
-    val hour24: Boolean = true,
     /** Extra dashed lines, mg/dL ([GraphConfig.lines]). */
     val lines: List<Int> = DEFAULT_LINES,
     /** Hours between the vertical lines, at least ([GraphConfig.gridHours]); 0 = none (the time labels stay). */
@@ -214,12 +213,13 @@ object GlucoseGraph {
             if (gx > left + sideW * 0.6f) {
                 if (st.gridHours > 0) cv.drawLine(gx, top, gx, plotBottom, grid)
                 if (labels) {
-                    val s = Clock.hourLabel(cal.get(Calendar.HOUR_OF_DAY), st.hour24)
+                    val s = Clock.hourLabel(cal.get(Calendar.HOUR_OF_DAY))
                     val tw = text.measureText(s)
                     val lx = (gx - tw / 2).coerceIn(left, right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
                     if (lx > labelEnd + 6 * d && layout?.blocks(lx - 3 * d, lx + tw + 3 * d) != true) {
                         cv.drawText(s, lx, area.bottom - 2 * d - lane1, text)
+                        rec.add("time.text", info = s)
                         if (rec.first("chart.hours") == null) rec.add("chart.hours")
                         labelEnd = lx + tw
                     }
