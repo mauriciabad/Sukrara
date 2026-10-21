@@ -259,6 +259,11 @@ struct GeneralView: View {
     var ringMarks: Binding<Bool> { bind(\.ringMarks) { self.set("ringMarks", $0) } }
     var gridHours: Binding<Int> { bind(\.gridHours) { self.set("gridHours", $0) } }
     var countdownHours: Binding<Int> { bind(\.countdownHours) { self.set("countdownHours", $0) } }
+    /// The sensor's time left per place: the dropdown (`menubarSensorTime`) and the widgets (`widgetSensorTime`).
+    func sensorTime(_ place: String) -> Binding<Bool> {
+        Binding(get: { self.d.object(forKey: "\(place)SensorTime") as? Bool ?? true },
+                set: { v in self.set("\(place)SensorTime", v) })
+    }
     var ringCount: Binding<Int> { bind(\.ringCount) { self.set("ringCount", $0) } }
     var ringRange: Binding<TirRange> { bind(\.ringRange) { self.set("ringRange", $0.rawValue) } }
     var lastPlace: Binding<LastPlace> { bind(\.lastPlace) { self.set("lastPlace", $0.rawValue) } }
@@ -344,6 +349,15 @@ struct GraphSettingsView: View {
                     LabeledContent { Text("Last \(c.countdownHours) h") } label: { Label("Sensor countdown", systemImage: "flag.checkered") }
                 }
                 .help("A ring over the main ring counts down the sensor's last hours")
+            }
+            Section {
+                Toggle("In the menu bar dropdown", isOn: model.sensorTime("menubar"))
+                Toggle("On widgets", isOn: model.sensorTime("widget"))
+            } header: {
+                Text("Sensor time left")
+            } footer: {
+                Text("At the start of the time row, under the % of time in range (beside the arrow where a card has no graph). The warm-up and \"Sensor ended\" show either way.")
+                    .foregroundStyle(.secondary)
             }
             Section {
                 ForEach(c.lines, id: \.self) { l in

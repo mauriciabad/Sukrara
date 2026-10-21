@@ -192,6 +192,12 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
                     .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
             }
+            // the home screen's "add the widget" banner: what it sees (read-only); --ez reset true shows it again
+            "widgetBanner" -> {
+                if (i.getBooleanExtra("reset", false)) app.mauri.sukrara.widgets.WidgetPresence.undismiss(c)
+                else app.mauri.sukrara.widgets.WidgetPresence.refresh(c)
+                out.put("widgetBanner", app.mauri.sukrara.widgets.WidgetPresence.state.value.toString())
+            }
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             // sensor end: without extras only the state (nothing changes). Settings: --ei countdownHours H; --ez countdown B;

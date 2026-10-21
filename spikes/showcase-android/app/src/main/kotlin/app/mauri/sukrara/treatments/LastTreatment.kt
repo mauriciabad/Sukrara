@@ -26,8 +26,12 @@ object LastTreatment {
         else -> null
     }
 
-    /** [tr], its mute's end ([until], epoch s; null = its kind mutes nothing in the settings). */
-    data class Info(val tr: Treatment, val until: Long?) {
+    /**
+     * [tr], its mute's end ([until], epoch s; null = its kind mutes nothing in the settings). [carbs]: while [tr] is
+     * rapid insulin whose mute runs, the newest carbs still inside [keepS] (the slot draws both, concentric, where it
+     * is big enough: [app.mauri.sukrara.graph.LastSlot]).
+     */
+    data class Info(val tr: Treatment, val until: Long?, val carbs: Info? = null) {
         /** Share of the mute window left at [now], 0 when over or none. */
         fun left(now: Long): Float {
             val u = until ?: return 0f
@@ -40,7 +44,8 @@ object LastTreatment {
      * The entry for the slot at [now], or null (nothing recent: the slot shows its fallback). Rapid insulin whose
      * mute is still running wins (the user: carbs logged on top of it show only once the insulin mute is over); then
      * the treatment that mutes the current alert ([status] Taken); otherwise the newest rapid / carbs entry still
-     * inside [keepS] (a meal logged as insulin + carbs at the same minute shows the insulin).
+     * inside [keepS] (a meal logged as insulin + carbs at the same minute shows the insulin). Running insulin carries the
+     * newest carbs inside [keepS] along ([Info.carbs]).
      */
     fun of(treatments: List<Treatment>, s: AlertSettings, status: AlertStatus, now: Long): Info? {
         val live = treatments.filter { !it.del && it.t <= now }
@@ -49,6 +54,11 @@ object LastTreatment {
             ?: live.filter { t -> keepS(t)?.let { now - t.t < it } == true }
                 .maxWithOrNull(compareBy<Treatment> { it.t / 60 }.thenBy { if (it.k == "rapid") 1 else 0 })
             ?: return null
-        return Info(tr, AlertStatus.muteUntil(tr, s))
+        val until = AlertStatus.muteUntil(tr, s)
+        // carbs logged while the insulin works ride along in the same slot (the user, 2026-10-21)
+        val carbs = if (tr.k == "rapid" && (until ?: 0) > now)
+            live.filter { it.k == "carbs" && keepS(it)?.let { k -> now - it.t < k } == true }.maxByOrNull { it.t }
+        else null
+        return Info(tr, until, carbs?.let { Info(it, AlertStatus.muteUntil(it, s)) })
     }
 }

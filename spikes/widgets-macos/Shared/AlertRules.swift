@@ -268,6 +268,9 @@ enum LastTreatment {
         var tr: GraphMark
         /// Its mute's end (epoch s); nil = its kind mutes nothing in the settings.
         var until: TimeInterval?
+        /// While `tr` is rapid insulin whose mute runs: the newest carbs still inside `keepS` (the slot draws both,
+        /// concentric, where it is big enough: `LastSlot`).
+        var carbs: Companion? = nil
         /// Share of the mute window left at `now`, 0 when over or none.
         func left(_ now: TimeInterval) -> Double {
             guard let u = until else { return 0 }
@@ -277,7 +280,8 @@ enum LastTreatment {
 
     /// Rapid insulin whose mute is still running (carbs on top of it show once it is over), else the treatment that
     /// mutes the current alert (`status` taken), else the newest rapid / carbs entry still inside `keepS` (a meal logged
-    /// at the same minute shows the insulin); nil = nothing recent (the slot shows its fallback).
+    /// at the same minute shows the insulin); nil = nothing recent (the slot shows its fallback). Running insulin carries
+    /// the newest carbs inside `keepS` along (`carbs`).
     static func of(_ marks: [GraphMark], _ s: AlertSettings, _ status: AlertStatus, now: TimeInterval) -> Info? {
         let tr: GraphMark
         let live = marks.filter { $0.t <= now }
@@ -289,6 +293,20 @@ enum LastTreatment {
                 .max(by: { key($0) < key($1) }) else { return nil }
             tr = t
         }
-        return Info(tr: tr, until: AlertStatus.muteUntil(tr, s))
+        let until = AlertStatus.muteUntil(tr, s)
+        // carbs logged while the insulin works ride along in the same slot (the user, 2026-10-21)
+        var carbs: Companion? = nil
+        if tr.k == "rapid", (until ?? 0) > now,
+           let c = live.filter({ m in m.k == "carbs" && keepS(m).map { now - m.t < $0 } == true }).max(by: { $0.t < $1.t }) {
+            carbs = Companion(tr: c, until: AlertStatus.muteUntil(c, s))
+        }
+        return Info(tr: tr, until: until, carbs: carbs)
+    }
+
+    /// The carbs drawn with running insulin (an `Info` without a companion of its own).
+    struct Companion: Equatable {
+        var tr: GraphMark
+        var until: TimeInterval?
+        var info: Info { Info(tr: tr, until: until) }
     }
 }

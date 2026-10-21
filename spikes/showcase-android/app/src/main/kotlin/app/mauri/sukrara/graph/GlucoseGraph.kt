@@ -82,12 +82,16 @@ object GlucoseGraph {
     /** Narrowest chart (dp) that still gets the % labels beside it. */
     const val PCT_MIN_WIDTH_DP = 240f
 
-    /** [alerts] = the rules behind the treatments' mute lines (null = no lines). */
+    /**
+     * [alerts] = the rules behind the treatments' mute lines (null = no lines). [sensor] = the life badge to put in the
+     * hour-label row ([sensorTop]); only [GlucoseCard] decides that ([GlucoseCard.sensorSpot]), so only it calls this
+     * (tools/check `graph-surface`).
+     */
     fun draw(
         cv: Canvas, area: RectF, readings: List<Reading>, treatments: List<Treatment>, nowS: Long,
-        st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings? = Alerts.settings.value,
-        sensor: SensorBadge.Look? = null,
-    ): Boolean {
+        st: GraphStyle, pal: GraphPalette, d: Float, alerts: AlertSettings?,
+        sensor: SensorBadge.Look?,
+    ) {
         val from = nowS - st.windowS
         val b = st.bands.sane()
         val pts = GlucoseStats.window(readings, from - 60, nowS)
@@ -106,13 +110,15 @@ object GlucoseGraph {
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..nowS } else emptyList()
         val marks = shown.isNotEmpty()
-        val layout = if (marks) TreatmentMarks.layout(shown, ::x, nowS, area.left, area.right, lanes(area.height(), d), d) else null
+        // the sensor badge's place in the hour-label row is kept free of treatment labels
+        val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
+        val layout = if (marks) TreatmentMarks.layout(shown, ::x, nowS, area.left, area.right, lanes(area.height(), d), d, badgeRoom) else null
         val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
         val textRow = labels || layout?.labels?.isNotEmpty() == true
         val top = area.top + 3 * d
         val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
         val plotBottom = if (marks) bottom - 12 * d else bottom
-        if (right - left < 20 * d || plotBottom - top < 20 * d) return false
+        if (right - left < 20 * d || plotBottom - top < 20 * d) return
         // The whole chart in one layer: the treatment labels' halos are erased from it (on any background). A little
         // wider than the area: a marker at the plot's edge may stick out, as it always could.
         val chartLayer = cv.saveLayer(area.left - 6 * d, area.top, area.right + 6 * d, area.bottom, null)
@@ -148,14 +154,13 @@ object GlucoseGraph {
             add(Calendar.HOUR_OF_DAY, 1)
             while (get(Calendar.HOUR_OF_DAY) % step != 0) add(Calendar.HOUR_OF_DAY, 1)
         }
-        // The sensor life badge in the hour labels' row, left of the plot under the % column and the distribution
-        // (the user, 2026-10-19), where no treatment label is; the card puts it beside the arrow otherwise.
-        val badgeH = 10 * d
-        val badgeW = sensor?.let { SensorBadge.width(it, badgeH, pal) } ?: 0f
-        val hosted = sensor != null && pctCol > 0 && labels && area.left + badgeW <= left + sideW * 0.6f &&
-            layout?.blocks(area.left, area.left + badgeW + 3 * d) != true
-        if (hosted) SensorBadge.draw(cv, area.left, area.bottom - 2 * d - lane1 - 3.6f * d - badgeH / 2, badgeH, sensor!!, pal)
-        var labelEnd = if (hosted) area.left + badgeW else Float.NEGATIVE_INFINITY
+        // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the user,
+        // 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
+        var labelEnd = Float.NEGATIVE_INFINITY
+        if (sensor != null && badgeRoom != null) {
+            SensorBadge.draw(cv, area.left, sensorTop(area.bottom, lane1, d), SENSOR_DP * d, sensor, pal)
+            labelEnd = badgeRoom.second
+        }
         while (cal.timeInMillis / 1000 <= nowS) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
@@ -261,7 +266,6 @@ object GlucoseGraph {
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
             nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
         cv.restoreToCount(chartLayer)
-        return hosted
     }
 
     /**
@@ -275,6 +279,19 @@ object GlucoseGraph {
             TextModel.width(widest, 13 * d) + TextModel.width("%", 8.5f * d) + 6 * d else 0f
         return areaLeft + pctCol to areaRight - if (labels) TextModel.width("180", 10 * d) + 5 * d else 0f
     }
+
+    /** Height of the sensor badge in the hour-label row (dp). */
+    const val SENSOR_DP = 10f
+
+    /**
+     * The top of the sensor badge (at the chart's left edge, [SENSOR_DP] tall) in a chart whose area ends at [bottom],
+     * with [lane1] px of second label lane: centred on the hour labels' x-height (fixtures spikes/graph-fixtures/place;
+     * Mac `sensorTop`).
+     */
+    fun sensorTop(bottom: Float, lane1: Float, d: Float): Float = bottom - 2 * d - lane1 - 3.6f * d - SENSOR_DP * d / 2
+
+    /** The badge's width in the [TextModel] (the room kept free of treatment labels; the same on every platform). */
+    fun sensorWidth(label: String, d: Float): Float = SENSOR_DP * d * 1.3f + TextModel.width(label, SENSOR_DP * d * 0.95f)
 
     /** The % label of [v] that is widest in the [TextModel]. */
     fun widest(vararg v: Int): String = v.map { "$it" }.maxBy { TextModel.width(it, 13f) }

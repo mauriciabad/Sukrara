@@ -255,7 +255,11 @@ object Slots {
  * left; [LastTreatment.keepS] later the slot gives way to its fallback.
  */
 object LastSlot {
+    /** Smallest slot radius (dp) that draws insulin + carbs concentric; smaller slots show the insulin alone. */
+    const val PAIR_MIN_DP = 20f
+
     fun draw(cv: Canvas, cx: Float, cy: Float, radius: Float, info: LastTreatment.Info, nowS: Long, pal: GraphPalette, d: Float) {
+        info.carbs?.takeIf { radius >= PAIR_MIN_DP * d }?.let { return drawPair(cv, cx, cy, radius, info, it, nowS, pal) }
         val sw = radius * 0.2f
         val oval = RectF(cx - radius + sw / 2, cy - radius + sw / 2, cx + radius - sw / 2, cy + radius - sw / 2)
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.ROUND }
@@ -280,6 +284,46 @@ object LastSlot {
             textSize = radius * 0.3f; typeface = Typeface.create(Typeface.DEFAULT, 600, false); color = pal.inkSoft
         }
         cv.drawText(TreatmentMarks.duration(nowS - info.tr.t), cx, cy + radius * 0.17f + sub.textSize * 1.25f, sub)
+    }
+
+    /**
+     * Insulin with carbs logged while it works (the user, 2026-10-21): two concentric rings, the outer one the insulin's
+     * mute left, the inner one the carbs' (both the slot's ring style, thinner), and the two amounts stacked inside in
+     * their colours ("4.5u" over "45g"); no markers or time (the colours and the units say which is which). The Mac
+     * draws the same (SukraraGraph.swift `LastSlot.drawPair`).
+     */
+    private fun drawPair(cv: Canvas, cx: Float, cy: Float, radius: Float, ins: LastTreatment.Info, carbs: LastTreatment.Info,
+                         nowS: Long, pal: GraphPalette) {
+        val tp = TreatmentMarks.palette(pal.dark)
+        val outerSw = radius * 0.16f
+        val innerSw = radius * 0.13f
+        val outerR = radius - outerSw / 2
+        val innerR = radius - outerSw - radius * 0.05f - innerSw / 2
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+        for ((info, r, sw) in listOf(Triple(ins, outerR, outerSw), Triple(carbs, innerR, innerSw))) {
+            val oval = RectF(cx - r, cy - r, cx + r, cy + r)
+            ring.strokeWidth = sw; ring.color = pal.grid
+            cv.drawOval(oval, ring)
+            val left = info.left(nowS)
+            if (left > 0f) {
+                ring.color = TreatmentMarks.color(tp, info.tr.k)
+                cv.drawArc(oval, -90f, (360f * left).coerceAtLeast(2f), false, ring)
+            }
+        }
+        // the two amounts in the inner circle, one size so they read as a pair
+        val room = (innerR - innerSw / 2) * 2 * 0.84f
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, 800, false) }
+        num.textSize = radius * 0.36f
+        val a = TreatmentMarks.amount(ins.tr) ?: ""
+        val b = TreatmentMarks.amount(carbs.tr) ?: ""
+        val widest = maxOf(num.measureText(a), num.measureText(b)).coerceAtLeast(1f)
+        num.textSize = min(num.textSize, num.textSize * room / widest)
+        val cap = num.textSize * 0.72f
+        val gap = num.textSize * 0.28f
+        num.color = TreatmentMarks.color(tp, ins.tr.k)
+        cv.drawText(a, cx, cy - gap / 2, num)
+        num.color = TreatmentMarks.color(tp, carbs.tr.k)
+        cv.drawText(b, cx, cy + gap / 2 + cap, num)
     }
 }
 

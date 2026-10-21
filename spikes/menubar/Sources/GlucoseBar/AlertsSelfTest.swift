@@ -133,22 +133,19 @@ enum AlertsSelfTest {
         check("last: a meal at the same minute shows the insulin",
               LastTreatment.of([tr("carbs", 45, 12), tr("rapid", 4.5, 12)], st, .none, now: now)?.tr.k == "rapid")
         check("last: long and notes never", LastTreatment.of([tr("long", 18, 5), tr("note", 0, 1)], st, .none, now: now) == nil)
-        check("last: kept 4 h rapid / carbs 3 min per gram, 30 min to 3 h",
-              LastTreatment.of([tr("rapid", 6, 241), tr("carbs", 20, 61)], st, .none, now: now) == nil
-              && LastTreatment.of([tr("rapid", 6, 200), tr("carbs", 20, 59)], st, .none, now: now)?.tr.a == 20
-              && LastTreatment.of([tr("carbs", 5, 29)], st, .none, now: now)?.tr.a == 5
-              && LastTreatment.of([tr("carbs", 5, 31)], st, .none, now: now) == nil
-              && LastTreatment.of([tr("carbs", 80, 181)], st, .none, now: now) == nil)
+        check("last: kept 4 h rapid / 3 min per gram (30 min–3 h) carbs", LastTreatment.of([tr("rapid", 6, 241), tr("carbs", 60, 181)], st, .none, now: now) == nil
+              && LastTreatment.of([tr("rapid", 6, 200), tr("carbs", 60, 179)], st, .none, now: now)?.tr.a == 60
+              && LastTreatment.of([tr("rapid", 6, 200), tr("carbs", 20, 61)], st, .none, now: now)?.tr.a == 6)
         var noInsulinMute = st; noInsulinMute.muteAfterInsulin.on = false
         check("last: ring = share of the mute left",
               abs((LastTreatment.of([tr("rapid", 4.5, 12)], st, .none, now: now)?.left(now) ?? 0) - 0.8) < 0.001
               && LastTreatment.of([tr("carbs", 15, 20)], st, .none, now: now)?.left(now) == 0
               && LastTreatment.of([tr("rapid", 4.5, 12)], noInsulinMute, .none, now: now)?.left(now) == 0)
         let carbs = tr("carbs", 15, 8)
-        check("last: rapid insulin first while its mute runs",
-              LastTreatment.of([carbs, tr("rapid", 1, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr.k == "rapid")
-        check("last: the muting treatment wins over a newer one",
-              LastTreatment.of([carbs, tr("rapid", 1, 2)], noInsulinMute, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr == carbs)
+        check("last: the muting treatment wins over a newer one (not over running insulin: carbs ride along)",
+              LastTreatment.of([carbs, tr("carbs", 5, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr == carbs
+              && LastTreatment.of([carbs, tr("rapid", 1, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.tr.k == "rapid"
+              && LastTreatment.of([carbs, tr("rapid", 1, 2)], st, .taken(.low, treatment: carbs, until: now + 420), now: now)?.carbs?.tr == carbs)
         check("badge: Eat carbs / Take insulin / none",
               StatusBadge.look(AlertStatus.of(rd(60), st, [], now: now), now: now)?.text == "Eat carbs"
               && StatusBadge.look(AlertStatus.of(rd(220), st, [], now: now), now: now)?.text == "Take insulin"

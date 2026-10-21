@@ -62,7 +62,11 @@ data class GraphConfig(
     val lastPlace: LastPlace = LastPlace.NEAR_VALUE,
     /** What that slot shows while there's no recent treatment (null = nothing): a 30-day time-in-range ring by default. */
     val lastElse: RingSpec? = DEFAULT_LAST_ELSE,
+    /** Places whose card leaves out the sensor's time left ([CardStyle.sensorTime]); each widget can override it. */
+    val sensorHidden: Set<GraphPlace> = emptySet(),
 ) {
+    /** Whether [p]'s cards show the sensor's time left. */
+    fun sensorTime(p: GraphPlace) = p !in sensorHidden
     /** [lastElse] with the ring settings applied. */
     fun lastElseRing() = lastElse?.copy(range = ringRange, order = ringOrder, marks = ringMarks)
     fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
@@ -85,6 +89,7 @@ data class GraphConfig(
         .put("gridHours", gridHours)
         .put("lastPlace", lastPlace.name)
         .put("lastElse", lastElse?.let(::slotText) ?: "")
+        .put("sensorHidden", sensorHidden.sorted().joinToString(",") { it.name })
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
@@ -109,6 +114,7 @@ data class GraphConfig(
                 gridHours = o.optInt("gridHours", d.gridHours).takeIf { it in GRID_HOURS } ?: d.gridHours,
                 lastPlace = runCatching { LastPlace.valueOf(o.optString("lastPlace")) }.getOrDefault(d.lastPlace),
                 lastElse = if (o.has("lastElse")) parseSlot(o.optString("lastElse")) else d.lastElse,
+                sensorHidden = o.optString("sensorHidden").split(",").mapNotNull { n -> GraphPlace.entries.firstOrNull { it.name == n } }.toSet(),
             )
         }
     }
@@ -123,10 +129,12 @@ data class WidgetGraphConfig(
     val rings: Int? = null,
     val ringRange: TirRange? = null,
     val side: Boolean? = null,
+    /** The sensor's time left on this widget (null = the Widgets place's setting). */
+    val sensor: Boolean? = null,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         hours?.let { put("hours", it) }; rings?.let { put("rings", it) }; ringRange?.let { put("ringRange", it.name) }
-        side?.let { put("side", it) }
+        side?.let { put("side", it) }; sensor?.let { put("sensor", it) }
     }
 
     companion object {
@@ -135,6 +143,7 @@ data class WidgetGraphConfig(
             rings = if (o.has("rings")) o.optInt("rings").coerceIn(0, 3) else null,
             ringRange = runCatching { TirRange.valueOf(o.optString("ringRange")) }.getOrNull(),
             side = if (o.has("side")) o.optBoolean("side") else null,
+            sensor = if (o.has("sensor")) o.optBoolean("sensor") else null,
         )
     }
 }

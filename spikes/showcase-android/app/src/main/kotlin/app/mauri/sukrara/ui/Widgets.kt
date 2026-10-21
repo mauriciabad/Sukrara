@@ -57,7 +57,9 @@ import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.RelayStats
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
-import app.mauri.sukrara.graph.GlucoseGraph
+import app.mauri.sukrara.graph.CardPart
+import app.mauri.sukrara.graph.CardStyle
+import app.mauri.sukrara.graph.SensorSpot
 import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
@@ -152,6 +154,11 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val status = AlertStatus.of(reading, alerts, treatments, now, paused)
     val last = if (cfg.lastPlace != LastPlace.OFF) LastTreatment.of(treatments, alerts, status, now) else null
     val hours = cfg.hours(GraphPlace.APP)
+    // The panel is one card drawn in two parts (the value in Compose, the chart on a canvas): both follow this whole-card
+    // style, and GlucoseCard alone decides where the sensor badge goes (sensorSpot), as on every other surface.
+    val card = CardStyle(graph = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx)), rings = emptyList(),
+        sensorTime = cfg.sensorTime(GraphPlace.APP))
+    val spot = GlucoseCard.sensorSpot(card, sensorLook, fresh)
     // History for the chart and the rings: from the role's store, again for every new reading / setting / 5 min.
     val history by produceState(emptyList<Reading>(), t, hours, now / 300) {
         value = withContext(Dispatchers.IO) { GraphData.readings(ctx, Proto.nowS() - hours * 3600L - 60) }
@@ -214,7 +221,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                     } else if (number != null) {
                         // A late reading's time goes under the number, so it never takes the rings' room.
                         Column {
-                            ValueNumber(number, rate, color, fresh.strike, scale, sensorLook, pal)
+                            ValueNumber(number, rate, color, fresh.strike, scale, sensorLook.takeIf { spot == SensorSpot.VALUE }, pal)
                             RevealValue(StatusBadge.look(status, now)) { StatusBadgeChip(it) }
                             if (fresh.showTime && t != null) Text(Freshness.timeText(t, now),
                                 style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -235,11 +242,10 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
                 under = { items, cx, cy, r -> drawIntoCanvas { Slots.drawUnder(it.nativeCanvas, items, cx, cy, r, pal) } })
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))
-                val st = cfg.graphStyle(hours, android.text.format.DateFormat.is24HourFormat(ctx))
                 Canvas(Modifier.fillMaxWidth().height(210.dp)) {
                     drawIntoCanvas {
-                        GlucoseGraph.draw(it.nativeCanvas, RectF(0f, 0f, size.width, size.height), history,
-                            treatments.filter { tr -> tr.t >= now - hours * 3600L }, now, st, pal, density)
+                        GlucoseCard.draw(it.nativeCanvas, size.width, size.height, history, treatments, now, card, pal, density,
+                            alerts = alerts, sensor = sensor, countdownH = countdownH, part = CardPart.GRAPH)
                     }
                 }
             }

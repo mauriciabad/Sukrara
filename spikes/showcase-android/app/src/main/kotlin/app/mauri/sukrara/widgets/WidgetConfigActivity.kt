@@ -126,6 +126,14 @@ class WidgetConfigActivity : ComponentActivity() {
                             }
                             Switch(w.side ?: app.side, { w = w.copy(side = it) })
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.widget_config_sensor))
+                                Text(stringResource(R.string.widget_config_sensor_summary), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline)
+                            }
+                            Switch(w.sensor ?: app.sensorTime(GraphPlace.WIDGETS), { w = w.copy(sensor = it) })
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { w = WidgetGraphConfig() }) { Text(stringResource(R.string.widget_config_use_app_settings)) }
                             Button(onClick = { save(id, w) }) { Text(stringResource(R.string.widget_config_save)) }

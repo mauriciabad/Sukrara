@@ -16,7 +16,7 @@ A case: `name`; optional `settings` (alert settings JSON, spikes/alerts/SPEC.md 
 | `status` | `none`, `needed:<kind>`, `taken:<kind>:<treatment id>` or `paused:<kind>` (AlertStatus) |
 | `until` | for `taken`: end of the mute, seconds from now |
 | `badge` | `null` or `{kind, text, short, tonal}` (StatusBadge.look, English words) |
-| `last` | `null` or `{id, until}` (LastTreatment.of; `until` null = its kind mutes nothing) |
+| `last` | `null` or `{id, until, with?}` (LastTreatment.of; `until` null = its kind mutes nothing; `with` = the carbs drawn with running insulin, `{id, until}`, absent = none) |
 | `amounts` | `{id: "4.5u" \| null}` (TreatmentMarks.amount) |
 
 ## Treatment label layout (`labels/*.json`)
@@ -37,6 +37,18 @@ width of each label fits the width model. A case: `name`; `chart` `{w, h}` (the 
 Positions are rounded to 0.5 dp; Android computes in `Float`, the Mac in `Double`. To add a case, write it with an
 empty `expect`, run `GraphFixtureTest` (`--rerun`: Gradle doesn't see the fixture files as inputs), check the dump in
 the failure message against the rules, paste it, and run the Mac self-test.
+
+## Where the sensor badge goes (`place/place.json`)
+
+One decision for every surface (docs/FEATURES.md, "Sensor badge"): `GlucoseCard.sensorSpot` on both platforms, the
+badge's box in the chart and the room it keeps free of treatment labels. Run by `GraphFixtureTest.place` (Android) and
+`-graphselftest` (Mac). `rooms`: `{label, room}` = `GlucoseGraph.sensorWidth(label)` in the `TextModel` (dp, ± 0.05).
+A case: `name`; `card` `{graph, value, axisLabels?, sensorTime?}` (the WHOLE card, also for surfaces drawn in parts);
+`sensor` `live` (13 days left) | `warmup` | `ended` | `none`; `age` (the newest reading's, s); optional `chart`
+`{w, h}`. `expect`: `spot` `graph` | `value` | `none`, and with a chart `box` `[x, top, h]` (dp, ± 0.05; no second
+label lane). `tools/check` (`graph-surface`) makes every surface go through this decision.
+
+A label case (above) may carry `sensor` (the badge's label): lane 0 starts with its room taken.
 
 ## Sensor life (`sensor/*.json`)
 
