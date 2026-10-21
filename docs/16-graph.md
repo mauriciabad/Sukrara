@@ -379,11 +379,14 @@ Units are dp, times seconds; the chart's area is `minX`…`maxX`, the plot `left
    from it (`DST_OUT` / `.destinationOut`) before the text is drawn. Unlike a stroke in the background colour this
    is right on every surface: the card, transparent Android widgets, the lock screen, the colorized notification,
    the Mac's material panel and tinted Mac widgets — so it is used everywhere, not only on the transparent ones.
-9. **Side columns** (`plotX`): the values on the right (`180` at 10 dp + 5 dp) are sized by the model. The % column is
-   the widest % label actually drawn (13 dp bold number + 8.5 dp `%`, measured with the drawing font) plus 3 dp on
-   each side (`PCT_GAP_DP` / `pctGap`; 2026-10-21: sizing it by the model left 9–11 dp on its left on Android, whose
-   digits are much narrower than the model's 0.72 em). So the plot's left edge differs by a few dp between Roboto and
-   SF Pro; the label fixtures use the file's `pctLabel` (37 dp) for the column's label.
+9. **Side columns** (`plotX`): each is the widest label actually drawn, measured with the drawing font, plus 3 dp on
+   each side (`SIDE_GAP_DP` / `sideGap`): the % column (13 dp bold number + 8.5 dp `%`, right-aligned) and the values
+   on the right (10 dp, left-aligned; the values written, which depend on the plot's height, which depends on the
+   second treatment lane, which depends on the width: the renderer starts from every candidate value and settles on
+   the written ones in one or two more rounds). 2026-10-21: sizing them by the model left 9–11 dp left of the % labels
+   and 5.6 dp right of the values on Android, whose digits are much narrower than the model's 0.72 em. So the plot's
+   edges differ by a few dp between Roboto and SF Pro; the label fixtures use the file's `pctLabel` (37 dp) and
+   `valueLabel` (20.6 dp) for the columns' labels.
 
 **Why not more rows or leader lines:** two rows already take 25 dp of a 4×2 widget's 93 dp chart; a third would
 take the plot's room, and a leader line would cross the marker lane's mute lines.
