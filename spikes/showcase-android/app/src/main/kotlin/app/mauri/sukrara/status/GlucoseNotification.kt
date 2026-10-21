@@ -271,7 +271,7 @@ object GlucoseNotification {
         // The content column: the shade's 16 dp sides, the icon column (72 dp in Android 17's notification templates,
         // 52 dp before) and the 16 dp end margin.
         val wDp = min(dm.widthPixels, dm.heightPixels) / dm.density - 32f - (if (Build.VERSION.SDK_INT >= 37) 72f else 52f) - 16f
-        paintArt(gc, dark, surface, history, treatments, now, wDp, r)
+        paintArt(gc, dark, surface, history, treatments, now, wDp, r, textMetrics = dm)
             .also { artCache = it; artKey = key }   // the previous ones may still be parcelled: the GC takes them
     }.onFailure { Log.w("Sukrara.notif", "art: $it") }.getOrNull()
 
@@ -280,10 +280,13 @@ object GlucoseNotification {
      * ([CardPart.GRAPH], window = the notification's setting) on a rounded [surface], and the slots ([CardPart.SLOTS]) as
      * discs of the same surface, so both read on any range colour; one whole-card style for both. [wDp] = the content
      * column's width; the slots get what is left beside the value (at least as wide as "388"), the arrow (6 + 34 dp),
-     * the info's 12 dp margin and the slots' 8 dp one. [metricsOf] null = the slots from the stored history.
+     * the info's 12 dp margin and the slots' 8 dp one; [textMetrics] = the phone's metrics the value is measured in
+     * (as before: its 44 sp in the phone's pixels, over the art's density). [metricsOf] null = the slots from the stored
+     * history.
      */
     internal fun paintArt(gc: Context, dark: Boolean, surface: Int, history: List<Reading>,
                           treatments: List<app.mauri.sukrara.treatments.Treatment>, now: Long, wDp: Float, r: Reading,
+                          textMetrics: android.util.DisplayMetrics = gc.resources.displayMetrics,
                           metricsOf: ((app.mauri.sukrara.graph.RingSpec, app.mauri.sukrara.graph.Bands) -> app.mauri.sukrara.graph.GlucoseMetrics)? = null): Art {
         val d = gc.resources.displayMetrics.density
         val pal = systemPalette(gc, dark)
@@ -307,7 +310,8 @@ object GlucoseNotification {
                 plot.recycle()
             }
         }
-        val vp = ValueGlyphs.numberPaint(0, android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, gc.resources.displayMetrics))
+        // the value as the card's row shows it (44 sp in the phone's own metrics), in the art's dp
+        val vp = ValueGlyphs.numberPaint(0, android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, textMetrics))
         val valueDp = (maxOf(vp.measureText(Freshness.valueText(r.sgv)), vp.measureText(ValueGlyphs.REFERENCE)) + 2) / d
         val room = ((wDp - valueDp - 6f - 34f - 12f - 8f) * d).toInt()
         val slots = if (room < SLOT_DP * d) null else createBitmap(room, (SLOT_DP * d).toInt()).let { strip ->

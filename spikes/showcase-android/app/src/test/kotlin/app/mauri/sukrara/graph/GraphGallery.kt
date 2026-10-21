@@ -292,8 +292,9 @@ class GraphGallery {
         val data = Synthetic.days(now, 15)
         val sensor = app.mauri.sukrara.core.SensorInfo("S", now - 2 * 86_400L, now + 13 * 86_400L)
         val trs = Synthetic.treatments(now)
-        fun split(cv: Canvas, w: Float, valueH: Float, chartH: Float, st: CardStyle, pal: GraphPalette, valueW: Float = w) {
-            GlucoseCard.draw(cv, valueW, valueH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.VALUE, surface = CardSurface.TEST)
+        fun split(cv: Canvas, w: Float, valueH: Float, chartH: Float, st: CardStyle, pal: GraphPalette, valueW: Float = w,
+                  head: CardPart = CardPart.HEADER) {
+            GlucoseCard.draw(cv, valueW, valueH, data, trs, now, st, pal, d, sensor = sensor, part = head, surface = CardSurface.TEST)
             cv.save(); cv.translate(0f, valueH + 8 * d)
             GlucoseCard.draw(cv, w, chartH, data, trs, now, st, pal, d, sensor = sensor, part = CardPart.GRAPH, surface = CardSurface.TEST)
             cv.restore()
@@ -306,10 +307,10 @@ class GraphGallery {
             }
             val tiles = listOf(
                 Tile("app panel (value + chart, one card)", "", 360f, 300f) { cv, w, _ ->
-                    split(cv, w, 82 * d, 210 * d, CardStyle(graph = g, sensorTime = true), pal)
+                    split(cv, w, 76 * d, 210 * d, CardStyle(graph = g, sensorTime = true), pal)
                 },
                 Tile("lock screen (value left of the lock, chart under)", "", 360f, 200f) { cv, w, _ ->
-                    split(cv, w, 60 * d, 130 * d, CardStyle(graph = g, rings = emptyList(), sensorTime = true), pal, valueW = 140 * d)
+                    split(cv, w, 60 * d, 130 * d, CardStyle(graph = g, rings = emptyList(), sensorTime = true), pal, valueW = 140 * d, head = CardPart.VALUE)
                 },
                 card("widget 4×2 combined", 300f, 150f, CardStyle(graph = g, sensorTime = true)),
                 card("widget 5×3 combined, 24 h", 380f, 230f, CardStyle(graph = g.copy(windowS = 24 * 3600L), sensorTime = true)),

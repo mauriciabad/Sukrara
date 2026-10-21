@@ -168,7 +168,7 @@ class CardLayoutTest {
                 // build() draws the card's parts only while a value shows (chip off); the same condition here
                 val look = SensorBadge.look(sc.sensor, now, latest?.t)
                 if (latest != null && GlucoseCard.face(latest, now, look, CardSurface.TEST).shown)
-                    app.mauri.sukrara.status.GlucoseNotification.paintArt(ctx, false, 0xFFEEEEEE.toInt(), sc.readings, sc.treatments, now, w, latest, metricsOf(sc))
+                    app.mauri.sukrara.status.GlucoseNotification.paintArt(ctx, false, 0xFFEEEEEE.toInt(), sc.readings, sc.treatments, now, w, latest, metricsOf = metricsOf(sc))
             }
             CardSurface.NOTIFICATION_TEXT ->
                 app.mauri.sukrara.status.GlucoseNotification.build(ctx, latest, chip = false, icon = true, detail = "", now = now)

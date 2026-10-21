@@ -43,7 +43,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: Unit tests (alert scenarios, graph fixtures, strings parity, stats; Robolectric + galleries on JDK 21)
+      - name: Unit tests (alert scenarios, graph fixtures, every surface's layout and freshness, strings parity, stats; Robolectric + galleries on JDK 21)
         working-directory: spikes/showcase-android
         env:
           GALLERY_JAVA_HOME: ${{ steps.jdk21.outputs.path }}
@@ -57,7 +57,13 @@ jobs:
       - name: swift build
         working-directory: spikes/menubar
         run: swift build
-      - name: Self-tests (alert scenarios, graph math + fixtures, CSV export, treatments merge, Bluetooth limits + INFO vectors)
+      - name: Type-check the widget extension and the evidence renderer (they draw the card through CardSurfaces.swift)
+        working-directory: spikes/widgets-macos
+        run: |
+          SDK=$(xcrun --show-sdk-path --sdk macosx)
+          swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -application-extension -module-name GlucoseWidget Shared/*.swift Widget/GlucoseWidgets.swift
+          swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -module-name Render Shared/*.swift Render/RenderMain.swift
+      - name: Self-tests (alert scenarios, graph math + fixtures + every surface's layout, CSV export, treatments merge, Bluetooth limits + INFO vectors)
         working-directory: spikes/menubar
         run: |
           .build/debug/GlucoseBar -alerts-selftest
