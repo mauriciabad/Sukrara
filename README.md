@@ -177,10 +177,14 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - A macOS Settings window (General, Graph, Alerts, Following) with every option that used to sit in submenus, plus the
   six ranges and Open at Login; it reopens on the last pane.
 - Follows a wearer over Bluetooth (no network needed) or over Nostr, with the same match-code pairing as the phone
-  (Settings → Following, with who you follow, name and picture). Keys stay in the macOS Keychain. Hours
+  (Settings → Following, with who you follow, name and picture; **Edit…** changes how the Mac appears to them: name
+  and generated picture, like the phone). Keys stay in the macOS Keychain. Hours
   the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
 - The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does, or
-  with the Mac's own settings. [15](docs/15-alerts.md)
+  with the Mac's own settings. Pick the pack, or another sound per alert, from a list with ▶ on each one.
+  [15](docs/15-alerts.md)
+- When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel
+  says why right under it.
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
 - Desktop and Notification Center widgets (value, graph, graph + value) with the same card, redrawn every minute.
   They need a build signed with an Apple certificate: a free Apple ID works on your own Mac, others need Developer

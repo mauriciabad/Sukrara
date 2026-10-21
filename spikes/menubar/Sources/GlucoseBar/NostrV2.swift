@@ -130,6 +130,26 @@ enum V2 {
         return .failure(.init(text: "Can't open this invite: \(why.isEmpty ? "it wasn't found online (it may have expired)" : why)."))
     }
 
+    /// PROTOCOL-v2 "Profiles": a name is trimmed and at most 40 characters (UTF-16 units, like Android's `take`); a
+    /// blank edit keeps the previous name (Android `FollowerEngine.setProfile`). Cases: identity/profile-v1.json.
+    static let maxName = 40
+    static func profileName(_ typed: String, previous: String) -> String {
+        let t = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        var out = "", units = 0
+        for ch in (t.isEmpty ? previous : t) {
+            units += ch.utf16.count
+            if units > maxName { break }
+            out.append(ch)
+        }
+        return out
+    }
+
+    /// The follower's later change of name / picture: rumor body `{"v":2,"type":"profile","profile":{name, avatar}}`
+    /// (Android `Proto.profileUpdate`), sealed by F and wrapped to I like the access request.
+    static func profileUpdate(name: String, avatar: [String: Any]?) -> [String: Any] {
+        ["v": 2, "type": "profile", "profile": ["name": name, "avatar": avatar ?? NSNull()] as [String: Any]]
+    }
+
     /// Gift-wrap TTLs (spec/ogs-nostr.md N§6): request, profile and rekey 7 d, history 1 d (P5).
     static let ttlRequest = 7 * 86400, ttlHistory = 86400
 
@@ -544,6 +564,22 @@ struct FollowerV2State: Codable {
     }
 
     func stop() { historyCheck?.cancel(); pool.stop() }
+
+    /// Change how the wearer sees this Mac (Settings › Following › Edit…): store it, then send a `profile` gift wrap
+    /// to I over the relays and the wearer's phone over Bluetooth. The wearer applies it once we're approved.
+    func setProfile(name typed: String, avatar: [String: Any]?) {
+        st.name = V2.profileName(typed, previous: st.name)
+        st.avatar = Avatar.of(avatar).map { V2.json($0) }
+        st.save()
+        guard let g = V2.gift(F, st.i, kind: V2.toOwner, V2.profileUpdate(name: st.name, avatar: Avatar.of(avatar)), ttl: V2.ttlRequest)
+        else { return log("v2: profile not sent (wrap failed)") }
+        pool.publish(g)
+        extraPublish?(g, nil)
+        log("v2: profile sent to the wearer: \"\(st.name)\"")
+    }
+
+    /// This Mac's own picture (nil = the grey initial).
+    var myAvatar: [String: Any]? { Avatar.of(st.avatar.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) }) }
 
     func sendRequest() {
         guard let g = V2.gift(F, st.i, kind: V2.toOwner, ["v": 2, "type": "request", "token": st.token, "profile": myProfile],

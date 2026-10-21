@@ -177,6 +177,10 @@ object Proto {
 
     // ------------------------------------------------------------------------------------------------ gift wraps
 
+    /** A follower's later change of name / picture (PROTOCOL-v2 "Profiles"); cases in spikes/nostr/identity/profile-v1.json. */
+    fun profileUpdate(me: app.mauri.sukrara.core.Profile): JSONObject =
+        JSONObject().put("v", 2).put("type", "profile").put("profile", me.toJson())
+
     /**
      * NIP-59: rumor (unsigned, author = sender) → seal (signed by sender) → wrap (one-time key, `p` = recipient).
      * The NIP-40 expiration is absolute (now + [ttlS]): NIP-59 backdates the wrap's created_at by up to 2 days, and a

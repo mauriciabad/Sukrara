@@ -16,6 +16,35 @@ enum Avatar {
          "a": Int.random(in: 0..<24) * 15, "n": Int.random(in: 0...Int(Int32.max))]
     }
 
+    /// A v1 picture from its numbers, normalised like Android's `Avatar.v1`: colours mod 8, an unknown shape → cube,
+    /// the angle mod 360 down to a multiple of 15, the seed's low 31 bits (spikes/nostr/identity/profile-v1.json).
+    static func v1(c: Int, s: String, a: Int, n: Int64) -> [String: Any] {
+        let k = V1.palettes.count
+        return ["v": 1, "c": ((c % k) + k) % k, "s": V1.shapes.contains(s) ? s : "cube",
+                "a": (((a % 360) + 360) % 360) / 15 * 15, "n": Int(n & 0x7fff_ffff)]
+    }
+
+    /// From the wire: any object with a positive integer `v` whose JSON is at most 512 bytes; an unknown version is
+    /// kept as is (PROTOCOL-v2 "Profiles").
+    static func of(_ any: Any?) -> [String: Any]? {
+        guard let o = any as? [String: Any], let v = o["v"] as? Int, v > 0, V2.json(o).utf8.count <= 512 else { return nil }
+        return o
+    }
+
+    /// A version this build draws (and can edit).
+    static func known(_ a: [String: Any]?) -> Bool { ((a?["v"] as? Int) ?? 0) >= 1 && ((a?["v"] as? Int) ?? 0) <= current }
+
+    /// `a` with one v1 field changed (the editor's shape, colour and "Turn the colours" buttons).
+    static func with(_ a: [String: Any], c: Int? = nil, s: String? = nil, a angle: Int? = nil, n: Int64? = nil) -> [String: Any] {
+        v1(c: c ?? (a["c"] as? Int ?? 0), s: s ?? (a["s"] as? String ?? "cube"), a: angle ?? (a["a"] as? Int ?? 0),
+           n: n ?? Int64(a["n"] as? Int ?? 0))
+    }
+
+    /// "Turn the colours": the gradient 45° further and the next dots seed (Android `ProfileEditor`).
+    static func turned(_ a: [String: Any]) -> [String: Any] {
+        with(a, a: (a["a"] as? Int ?? 0) + 45, n: Int64(a["n"] as? Int ?? 0) + 1)
+    }
+
     static func initial(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() } ?? "?"
     }

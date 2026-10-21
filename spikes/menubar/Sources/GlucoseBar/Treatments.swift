@@ -202,21 +202,48 @@ struct V2Send: Codable, Equatable {
 /// Which way an entry made on this Mac travels, for the menu and the Log dialog. The wearer decides, on the phone:
 ///   - **protocol v2** (SPEC §5) when the wearer made this Mac a writer (its key in the roster `writers`, the
 ///     follower's "Can add entries" switch): signed, so the phone knows it's this Mac;
-///   - otherwise no way at all: "Log treatment…" is disabled. When this Mac follows no one, entries stay on it.
+///   - otherwise no way at all: *Add Treatment…* is dimmed with the reason under it (`Blocked`). When this Mac follows
+///     no one, entries stay on it.
 struct TreatmentPaths {
     enum Route: String { case v2, local, none }
     var route: Route = .local
     var v2: String?                  // where entries go, in words (nil = not following anyone)
+    /// Why Add Treatment is unavailable (route `.none`), shown under the dimmed row and in its tooltip.
+    var blocked: Blocked?
+    var reason: String?
     var canLog: Bool { route != .none }
     var lines: [String] { [v2].compactMap { $0 } }
-    static let notAllowed = "The wearer hasn't allowed this Mac to log treatments"
+
+    /// The follow states in which this Mac can't log (HIG "Menus": show the item dimmed; the line under it says why
+    /// and what would change it).
+    enum Blocked: String {
+        case waiting, notWriter, revoked, ended
+        /// `who`: the wearer's name, "" if unknown.
+        func text(who: String) -> String {
+            let w = who.isEmpty ? "the wearer" : who, W = who.isEmpty ? "The wearer" : who
+            switch self {
+            case .waiting: return "Waiting for \(w) to approve this Mac"
+            case .notWriter: return "\(W) hasn’t turned on “Can add entries” for this Mac"
+            case .revoked: return "\(W) stopped sharing with this Mac"
+            case .ended: return "Not following \(w): ask for a new invite"
+            }
+        }
+    }
 
     @MainActor static func current(node: FollowerV2?) -> TreatmentPaths {
         var p = TreatmentPaths()
         guard let node else { return p }
-        guard case .active = node.phase else { p.route = .none; return p }
-        p.route = node.canWrite ? .v2 : .none
-        p.v2 = node.canWrite ? "Goes to the wearer's phone" : "The wearer hasn't allowed this Mac to log treatments"
+        let b: Blocked?
+        switch node.phase {
+        case .active: b = node.canWrite ? nil : .notWriter
+        case .waiting: b = .waiting
+        case .revoked: b = .revoked
+        case .ended: b = .ended
+        }
+        p.route = b == nil ? .v2 : .none
+        p.blocked = b
+        p.reason = b?.text(who: node.wearer.name)
+        p.v2 = b == nil ? "Goes to the wearer's phone" : p.reason
         return p
     }
 
