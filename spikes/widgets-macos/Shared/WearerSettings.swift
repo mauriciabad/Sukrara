@@ -48,6 +48,12 @@ enum WearerSettings {
         return true
     }
 
+    /// Forget the wearer's settings (this Mac stopped following).
+    static func forget(_ d: UserDefaults = .standard) {
+        d.removeObject(forKey: storeKey)
+        post()
+    }
+
     private static func post() {
         DispatchQueue.main.async { NotificationCenter.default.post(name: changed, object: nil) }
     }

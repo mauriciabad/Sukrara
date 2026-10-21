@@ -201,6 +201,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   [14](docs/14-nostr-identity.md)
 - Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
   [15](docs/15-alerts.md)
+- Followers (phone and Mac) see the graph, ranges and alerts with the wearer's own settings by default (*Settings
+  from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all. The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit

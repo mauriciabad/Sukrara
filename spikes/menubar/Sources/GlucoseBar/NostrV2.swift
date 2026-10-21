@@ -38,6 +38,8 @@ enum V2 {
     /// Treatments (libreview SPEC §5): `#c` index shared by every treatment, `d` per treatment id.
     static func treatmentsC(_ sid: String) -> String { H("cgm2:treatments:\(sid)") }
     static func treatmentD(_ sid: String, _ id: String) -> String { H("cgm2:tr:\(sid):\(id)") }
+    /// The wearer's settings event (PROTOCOL-v2 "Settings", round f28).
+    static func settingsD(_ sid: String) -> String { H("cgm2:settings:\(sid)") }
 
     static func json(_ o: Any) -> String {
         String(decoding: (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed])) ?? Data(), as: UTF8.self)
@@ -440,6 +442,8 @@ struct FollowerV2State: Codable {
     /// The wearer's sensor from the newest live event (PROTOCOL-v2 "Sensor life"); nil = the wearer knows none.
     var onSensor: ((SensorInfo?) -> Void)?
     private var sensorCreatedAt: Int64 = 0
+    /// Where the wearer's settings event goes (`WearerSettings.received`); the self-test uses its own suite.
+    var settingsDefaults: UserDefaults = .standard
 
     private(set) var st: FollowerV2State
     private let F: Keys
@@ -615,6 +619,7 @@ struct FollowerV2State: Codable {
         pool.subscribe("c", ["kinds": [Int(V2.chunk)], "authors": st.devices, "#c": [V2.chunkC(sid)],
                              "since": Self.chunkSince(newestStored: newest, now: now)])
         pool.subscribe("l", ["kinds": [Int(V2.live), Int(V2.alert)], "authors": st.devices, "since": now - 120])
+        pool.subscribe("s", ["kinds": [Int(V2.chunk)], "authors": st.devices, "#d": [V2.settingsD(sid)]])   // the wearer's settings
         scheduleHistoryCheck()
     }
 
@@ -755,6 +760,11 @@ struct FollowerV2State: Codable {
             guard age <= 600 else { return log("v2 alert \(id.prefix(8)) ignored: \(age) s old") }
             log("v2 alert \(body["k"] ?? "?") \(body["state"] ?? "?") n=\(body["n"] ?? "?") epoch \(epoch) via \(via)")
             onAlert?(body, via)
+        case V2.chunk where tag("d") == V2.settingsD(sid):
+            // the wearer's settings (PROTOCOL-v2 "Settings"): newest `u` wins (WearerSettings)
+            guard body["type"] as? String == "settings" else { return reject("settings: wrong type", id) }
+            let kept = WearerSettings.received(plain, settingsDefaults)
+            log("v2 wearer settings u \(body["u"] ?? "?") epoch \(epoch) via \(via)\(kept ? "" : " (not newer, ignored)")")
         case V2.chunk:
             // P10: a chunk is only what the stream's chunk index names, in the slot its own hour derives
             guard tag("c") == V2.chunkC(sid) else { return reject("30078 from a device that isn't a chunk (c tag)", id) }

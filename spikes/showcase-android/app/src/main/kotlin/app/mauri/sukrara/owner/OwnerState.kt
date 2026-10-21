@@ -65,6 +65,7 @@ class OwnerState(
     var backupPublishedAt: Long = 0,    // last owner-backup event
     var rosterPublishedAt: Long = 0,
     var treatmentsPublishedAt: Long = 0, // last full treatment republish (SPEC §5: weekly, rotation, new follower)
+    var settingsPublishedAt: Long = 0,   // last settings event (PROTOCOL-v2 "Settings": on change, rotation, weekly)
     var synthetic: Boolean = false,
     val pending: MutableList<PendingRequest> = mutableListOf(),
     val writers: MutableSet<String> = mutableSetOf(),     // investigation 07: followers allowed to add treatments
@@ -93,6 +94,7 @@ class OwnerState(
         .put("backupPublishedAt", backupPublishedAt)
         .put("rosterPublishedAt", rosterPublishedAt)
         .put("treatmentsPublishedAt", treatmentsPublishedAt)
+        .put("settingsPublishedAt", settingsPublishedAt)
         .put("synthetic", synthetic)
         .put("pending", JSONArray(pending.map {
             JSONObject().put("f", it.f).put("name", it.name).put("token", it.token).put("code", it.code).put("at", it.at)
@@ -127,6 +129,7 @@ class OwnerState(
             backupPublishedAt = j.optLong("backupPublishedAt")
             rosterPublishedAt = j.optLong("rosterPublishedAt")
             treatmentsPublishedAt = j.optLong("treatmentsPublishedAt")
+            settingsPublishedAt = j.optLong("settingsPublishedAt")
             synthetic = j.optBoolean("synthetic")
             j.optJSONArray("pending")?.let { a ->
                 for (k in 0 until a.length()) a.getJSONObject(k).let {
