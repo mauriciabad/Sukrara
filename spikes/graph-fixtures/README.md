@@ -12,7 +12,8 @@ A case: `name`; optional `settings` (alert settings JSON, spikes/alerts/SPEC.md 
 
 | key | meaning |
 |---|---|
-| `status` | `none`, `needed:<kind>` or `taken:<kind>:<treatment id>` (AlertStatus) |
+| `paused` | optional: the alert notification's Mute in force, side (`low`, `high`) → its end in seconds from now |
+| `status` | `none`, `needed:<kind>`, `taken:<kind>:<treatment id>` or `paused:<kind>` (AlertStatus) |
 | `until` | for `taken`: end of the mute, seconds from now |
 | `badge` | `null` or `{kind, text, short, tonal}` (StatusBadge.look, English words) |
 | `last` | `null` or `{id, until}` (LastTreatment.of; `until` null = its kind mutes nothing) |

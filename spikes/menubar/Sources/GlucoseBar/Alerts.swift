@@ -61,7 +61,10 @@ extension AlertKind: Codable {}
 /// - then it repeats every `repeatMin` (0 = never) counted from the last alert;
 /// - a treatment that answers it (carbs for lows and falling fast, rapid insulin for highs and rising fast) quiets
 ///   it for the mute window and restarts the count: when the window ends and it still matches, it alerts at once;
-/// - the falling-high mute only postpones: when it ends, whatever was due alerts.
+/// - the falling-high mute only postpones: when it ends, whatever was due alerts;
+/// - the alert notification's actions act on the episode: *Mute* (`mute`) quiets it like a treatment does (alerts at
+///   once when it ends, never very low or extremely high), *Slow down* (`slow`) repeats it at the slower interval;
+///   both end with the episode.
 final class AlertEngine {
     var settings: AlertSettings
     var now: () -> Date
@@ -81,6 +84,8 @@ final class AlertEngine {
 
     /// What the UI shows per group: the matching kind, and why it's quiet if it is.
     struct State { var kind: AlertKind; var muted: String?; var firedAt: Date?; var n: Int }
+    /// A notification action on a side's episode: muted until `until` (nil = not), repeats slowed to `slowMin` (0 = not).
+    struct Snooze: Equatable { var until: Date?; var slowMin: Int }
 
     private final class Episode: Codable {
         let side: String, start: Date
@@ -96,6 +101,10 @@ final class AlertEngine {
         var muted: String?
         /// When the next alert is due (nil = never), from the last evaluation: the timer.
         var next: Date?
+        /// The notification's Mute: quiet until then.
+        var quietUntil: Date?
+        /// The notification's Slow down: repeats at least this many minutes apart (0 = the kind's interval).
+        var slowMin = 0
         init(_ k: AlertKind, _ t: Date) { side = k.side; start = t; kind = k; lastIn = t; firedKind = k; next = t }
     }
 
@@ -149,6 +158,33 @@ final class AlertEngine {
         if latest.map({ r.date > $0.date }) ?? true { latest = r }
         evaluate()
     }
+
+    /// The alert notification's *Mute* for `min` minutes on `kind`'s episode, then an evaluation (its alert clears).
+    /// Nothing without an episode, or for very low and extremely high (`AlertKind.always`).
+    func mute(_ kind: AlertKind, min: Int) {
+        guard let e = episodes[kind.group], !kind.always, min > 0 else { return }
+        e.quietUntil = now().addingTimeInterval(TimeInterval(min * 60))
+        evaluate()
+    }
+
+    /// The alert notification's *Slow down* on `kind`'s episode: its repeats come every `notificationActions.slowMin`.
+    func slow(_ kind: AlertKind) {
+        guard let e = episodes[kind.group] else { return }
+        e.slowMin = settings.notificationActions.slowMin
+        evaluate()
+    }
+
+    /// The notification actions in force, per side ("low", "high", "falling_fast", …): the badge and the followers.
+    func snoozes(_ t: Date) -> [String: Snooze] {
+        var out: [String: Snooze] = [:]
+        for e in episodes.values where (e.quietUntil.map { $0 > t } ?? false) || e.slowMin > 0 {
+            out[e.side] = Snooze(until: e.quietUntil.flatMap { $0 > t ? $0 : nil }, slowMin: e.slowMin)
+        }
+        return out
+    }
+
+    /// Whether `kind`'s episode is slowed already (the notification leaves out *Slow down*).
+    func slowed(_ kind: AlertKind) -> Bool { (episodes[kind.group]?.slowMin ?? 0) > 0 }
 
     /// Timer: the no-data deadline, repeats and mute windows that end while the reading stays the same.
     func tick() { evaluate() }
@@ -224,6 +260,12 @@ final class AlertEngine {
             e.next = cover.map { $0.addingTimeInterval(s.muteS(by!)) }   // the falling mute has no end of its own
             return
         }
+        if let q = e.quietUntil, q > t, !want.always {
+            hide(e, t)
+            e.muted = "muted from the notification, \(Int((q.timeIntervalSince(t) + 59) / 60)) min left"
+            e.next = q
+            return
+        }
         e.muted = nil
         e.next = due(e, want, s, d, t)
         guard let next = e.next, t >= next else { return }
@@ -242,10 +284,13 @@ final class AlertEngine {
     private func due(_ e: Episode, _ k: AlertKind, _ s: AlertSettings, _ d: (String) -> [Date], _ t: Date) -> Date? {
         guard let fired = e.firedAt else { return e.start }
         if k.side == e.firedKind.side, k.severity > e.firedKind.severity { return t }
-        if let by = s.mutedBy(k), let tc = d(by).filter({ $0 >= fired && $0 <= t }).max() {
-            return max(tc.addingTimeInterval(s.muteS(by)), fired.addingTimeInterval(1))
-        }
-        let rep = s[k].repeatMin
+        // a treatment or the notification's Mute after the last alert: at once when its window ends
+        var ends: [Date] = []
+        if let by = s.mutedBy(k), let tc = d(by).filter({ $0 >= fired && $0 <= t }).max() { ends.append(tc.addingTimeInterval(s.muteS(by))) }
+        if let q = e.quietUntil, q > fired, !k.always { ends.append(q) }
+        if let end = ends.max() { return max(end, fired.addingTimeInterval(1)) }
+        let base = s[k].repeatMin
+        let rep = e.slowMin > 0 && base > 0 ? max(base, e.slowMin) : base
         return rep > 0 ? fired.addingTimeInterval(TimeInterval(rep * 60)) : nil
     }
 

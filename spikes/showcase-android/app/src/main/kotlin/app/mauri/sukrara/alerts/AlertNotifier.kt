@@ -8,6 +8,7 @@ import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -116,13 +117,43 @@ object AlertNotifier {
      * (it already rang; see Alerts.resume).
      */
     fun post(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
-             silent: Boolean = false) {
+             silent: Boolean = false, actions: Actions? = null) {
         runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind),
-            build(ctx, kind, sgv, rate, th, at, who, alarm, treated, silent)) }
+            build(ctx, kind, sgv, rate, th, at, who, alarm, treated, silent, actions)) }
     }
 
+    /**
+     * The alert's action buttons (at most three, developer.android.com/develop/ui/views/notifications/build-notification
+     * "Add action buttons": "up to three action buttons that let the user respond quickly, such as to snooze a
+     * reminder"), each a broadcast to [AlertActionReceiver] so nothing opens: *Mute [muteMin] min* and *Mute for…*
+     * (a direct reply, "Add a direct reply action": text entered in the notification, delivered without opening an
+     * activity) when [mute] (never very low or extremely high), *Slow to [slowMin] min* when non-null.
+     */
+    data class Actions(val mute: Boolean, val muteMin: Int, val slowMin: Int?)
+
+    private fun action(ctx: Context, kind: String, what: String, code: Int, mutable: Boolean = false, min: Int = 0) =
+        PendingIntent.getBroadcast(ctx, 200 + notificationId(kind) * 4 + code,
+            Intent(ctx, AlertActionReceiver::class.java).setAction(what).putExtra(AlertActionReceiver.KIND, kind).putExtra(AlertActionReceiver.MIN, min),
+            PendingIntent.FLAG_UPDATE_CURRENT or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE)
+
+    private fun Notification.Builder.actions(ctx: Context, kind: String, a: Actions): Notification.Builder {
+        if (a.mute) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_mute, a.muteMin),
+            action(ctx, kind, AlertActionReceiver.MUTE, 0, min = a.muteMin)).build())
+        a.slowMin?.let { m -> addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_slow, m),
+            action(ctx, kind, AlertActionReceiver.SLOW, 1)).build()) }
+        // the reply's PendingIntent must be mutable: the system adds the typed text to it
+        if (a.mute) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_mute_for),
+            action(ctx, kind, AlertActionReceiver.MUTE_FOR, 2, mutable = true))
+            .addRemoteInput(RemoteInput.Builder(AlertActionReceiver.TYPED).setLabel(ctx.getString(R.string.alert_action_mute_for_label)).build())
+            .build())
+        return this
+    }
+
+    /** The minutes in a typed *Mute for…* reply ("20", "20 min"), or null when there are none or they're out of range. */
+    fun minutes(typed: CharSequence?): Int? = typed?.let { Regex("\\d{1,4}").find(it)?.value?.toInt() }?.takeIf { it in AlertSettings.MUTE_RANGE }
+
     fun build(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
-              silent: Boolean = false): Notification {
+              silent: Boolean = false, actions: Actions? = null): Notification {
         val unit = Kind.unit(kind)
         val thText = if (kind in Kind.RATES) "%.1f".format(th) else th.toInt().toString()
         val value = "${sgv ?: "?"} mg/dL ${Trend.arrow(rate)}"
@@ -147,6 +178,7 @@ object AlertNotifier {
         // exists (NotificationRecord: suppressAlertingDueToGrouping); the channel's sound and vibration are skipped
         if (silent) b.setGroup(SILENT_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
         who?.let { b.setSubText(it) }
+        actions?.let { b.actions(ctx, kind, it) }
         return b.build()
     }
 

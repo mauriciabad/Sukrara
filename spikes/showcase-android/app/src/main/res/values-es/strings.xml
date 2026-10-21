@@ -426,6 +426,10 @@
     <string name="alert_headline_no_data">Sin datos de glucosa</string>
     <!-- Alert headline with what was already logged; %1$s = headline (e.g. Low glucose), %2$s = alert_context_* [CHAR LIMIT=60] -->
     <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <string name="alert_action_mute">Silenciar %1$d min</string>
+    <string name="alert_action_slow">Espaciar a %1$d min</string>
+    <string name="alert_action_mute_for">Silenciar…</string>
+    <string name="alert_action_mute_for_label">Minutos</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">come más</string>
     <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
@@ -969,6 +973,11 @@
     <string name="alerts_quiet_falling_summary">Sin alerta de alta si va a estar por debajo de %1$d en %2$d min</string>
     <string name="alerts_quiet_carbs">Tras hidratos</string>
     <string name="alerts_quiet_carbs_summary">Las bajas y las bajadas rápidas esperan %1$d min</string>
+    <string name="alerts_group_actions">Desde la notificación</string>
+    <string name="alerts_action_mute">Silenciar</string>
+    <string name="alerts_action_mute_summary">%1$d min · la muy baja y la extremadamente alta siempre avisan</string>
+    <string name="alerts_action_slow">Espaciar</string>
+    <string name="alerts_action_slow_summary">Recordatorios cada %1$d min hasta volver al rango</string>
     <string name="alerts_sound_pack">Paquete de sonidos</string>
     <string name="alerts_sound_pack_default">El del paquete (%1$s)</string>
     <string name="alerts_sound_system_settings">sonido elegido en los ajustes del sistema</string>
@@ -1453,10 +1462,13 @@
     <string name="alerts_quiet_reason_insulin">insulina hace %1$d min</string>
     <string name="alerts_quiet_reason_carbs">hidratos hace %1$d min</string>
     <string name="alerts_quiet_reason_falling">bajando, en rango en ~%1$d min</string>
+    <string name="alerts_quiet_reason_notification">silenciada desde la notificación, quedan %1$d min</string>
     <string name="alerts_note_fired">%1$s · %2$s mg/dL</string>
     <string name="alerts_note_fired_remote">%1$s (de quien lleva el sensor) · %2$s mg/dL</string>
     <string name="alerts_note_cleared">%1$s: resuelta</string>
     <string name="alerts_note_cleared_remote">%1$s: resuelta (por quien lleva el sensor)</string>
+    <string name="alerts_note_muted">%1$s silenciada %2$d min</string>
+    <string name="alerts_note_slowed">%1$s cada %2$d min</string>
     <string name="alerts_note_resumed">Reanudada: %1$s (sin sonido)</string>
     <string name="alerts_note_test">%1$s (prueba)</string>
     <string name="sound_arcade">Arcade (8 bits)</string>

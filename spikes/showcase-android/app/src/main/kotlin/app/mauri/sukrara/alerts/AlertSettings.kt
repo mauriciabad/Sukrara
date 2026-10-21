@@ -24,6 +24,11 @@ object Kind {
     val HIGH_SIDE = setOf(HIGH, VERY_HIGH)
     /** Alerts below a threshold (strictly `<`: low 70 alerts at 69); the rest of the levels are `>=`. */
     val LOW_SIDE = setOf(VERY_LOW, LOW)
+    /**
+     * Never muted from a notification's Mute action (the safety net on each side); Slow down still works on them, and
+     * a very low inside a muted low episode alerts at once.
+     */
+    val ALWAYS = setOf(VERY_LOW, EXTREMELY_HIGH)
 
     /** Severity within a side (an episode, see [AlertEngine]): moving to a higher one alerts at once. */
     fun severity(k: String) = when (k) { VERY_LOW, VERY_HIGH -> 2; EXTREMELY_HIGH -> 3; else -> 1 }
@@ -91,6 +96,9 @@ data class AlertSettings(
     val pack: String = "quest",
     val packFor: Map<String, String> = emptyMap(),
     val shuffle: Boolean = true,
+    /** The alert notification's actions (SPEC §2): *Mute <n> min* and the interval *Slow down* repeats at. */
+    val actionMuteMin: Int = 30,
+    val slowMin: Int = 15,
     /** Followers: "wearer" = mirror the wearer's alerts, "own" = these rules. */
     val source: String = "wearer",
 ) {
@@ -125,10 +133,15 @@ data class AlertSettings(
             .put("muteFallingHigh", JSONObject().put("on", muteFalling).put("min", muteFallingMin))
             .put("muteAfterCarbs", JSONObject().put("on", muteCarbs).put("min", muteCarbsMin))
             .put("sounds", JSONObject().put("pack", pack).put("kinds", kindsJ).put("shuffle", shuffle))
+            .put("notificationActions", JSONObject().put("muteMin", actionMuteMin).put("slowMin", slowMin))
             .put("source", source)
     }
 
     companion object {
+        /** Minutes a notification's Mute (preset or typed) and Slow down accept. */
+        val MUTE_RANGE = 1..720
+        val SLOW_RANGE = 5..120
+
         /** The user's own settings (2026-10-18). */
         val DEFAULTS = mapOf(
             Kind.VERY_LOW to KindCfg(true, 55.0, 5, alarm = true),
@@ -155,6 +168,7 @@ data class AlertSettings(
             val mf = j.optJSONObject("muteFallingHigh")
             val mc = j.optJSONObject("muteAfterCarbs")
             val s = j.optJSONObject("sounds")
+            val na = j.optJSONObject("notificationActions")
             val pf = s?.optJSONObject("kinds")
             return AlertSettings(
                 on = j.optBoolean("on", d.on),
@@ -168,6 +182,8 @@ data class AlertSettings(
                 pack = s?.optString("pack", d.pack) ?: d.pack,
                 packFor = pf?.keys()?.asSequence()?.filter { it in Kind.ALL }?.associateWith { pf.getString(it) } ?: emptyMap(),
                 shuffle = s?.optBoolean("shuffle", d.shuffle) ?: d.shuffle,
+                actionMuteMin = (na?.optInt("muteMin", d.actionMuteMin) ?: d.actionMuteMin).coerceIn(MUTE_RANGE),
+                slowMin = (na?.optInt("slowMin", d.slowMin) ?: d.slowMin).coerceIn(SLOW_RANGE),
                 source = j.optString("source", d.source).takeIf { it == "own" || it == "wearer" } ?: d.source,
             )
         }
