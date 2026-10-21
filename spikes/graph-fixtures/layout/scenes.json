@@ -1,5 +1,5 @@
 {
- "about": "The scenes every registered surface is rendered with (CardLayoutTest on Android, -graphselftest on the Mac); format: ../README.md, 'Layout across surfaces'. Times are seconds relative to now (1800000000, UTC). Readings every 5 min from -days to -age, a triangle wave lo..hi with the given period (integer maths: lo + (hi - lo) * tri / half, tri = k or period - k, k = (t - first) mod period, half = period / 2); the newest one is 'last' with 'rate'.",
+ "about": "The scenes every registered surface is rendered with (CardLayoutTest on Android, -graphselftest on the Mac); format: ../README.md, 'Layout across surfaces'. Times are seconds relative to now (1800000000, UTC). Readings every 5 min from -days to -age, a triangle wave lo..hi with the given period (integer maths: lo + (hi - lo) * tri / half, tri = k or period - k, k = (t - first) mod period, half = period / 2); the newest one is 'last' with 'rate' (null = the source sent none).",
  "now": 1800000000,
  "scenes": [
   {"id": "live", "lo": 80, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 156, "rate": 1.0,
@@ -17,13 +17,18 @@
    "sensor": {"start": -1213200, "end": -3600, "warmupEnd": -1209600}},
   {"id": "perfect", "lo": 100, "hi": 130, "period": 14400, "days": 8, "age": 60, "last": 128, "rate": 3.4,
    "sensor": {"start": -1191600, "end": 18000, "warmupEnd": -1188000}},
-  {"id": "low", "lo": 60, "hi": 75, "period": 7200, "days": 8, "age": 60, "last": 64, "rate": -1.2}
+  {"id": "low", "lo": 60, "hi": 75, "period": 7200, "days": 8, "age": 60, "last": 64, "rate": -1.2},
+  {"id": "high190", "lo": 120, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 190, "rate": 0.5,
+   "about": "above the default high (180), in range once the user's high is 200 (settings 'high200')"},
+  {"id": "norate", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 60, "last": 120, "rate": null,
+   "about": "a fresh reading the source sent without a rate (Juggluco direction \"\"): the 'no trend' ring on every surface, never an arrow derived from earlier readings (the Mac did, 2026-10-21)"}
  ],
  "settings": [
   {"id": "default"},
   {"id": "sensor-off", "sensorTime": false},
   {"id": "side-off", "side": false},
   {"id": "three-end", "ringCount": 3, "lastPlace": "END"},
-  {"id": "lines", "lines": [100, 120], "gridHours": 0}
+  {"id": "lines", "lines": [100, 120], "gridHours": 0},
+  {"id": "high200", "high": 200}
  ]
 }

@@ -53,7 +53,7 @@ enum LayoutSelfTest {
                     rs.append(GraphReading(t: TimeInterval(t), v: Double(lo + (hi - lo) * tri / half)))
                     t += 300
                 }
-                rs.append(GraphReading(t: TimeInterval(last), v: num(o["last"]), rate: num(o["rate"])))
+                rs.append(GraphReading(t: TimeInterval(last), v: num(o["last"]), rate: (o["rate"] as? NSNumber)?.doubleValue))
             }
             let marks = (o["treatments"] as? [[String: Any]] ?? []).map {
                 GraphMark(t: now + num($0["t"]), k: $0["k"] as? String ?? "", a: num($0["a"]), n: $0["n"] as? String ?? "", id: $0["id"] as? String ?? "")
@@ -71,6 +71,7 @@ enum LayoutSelfTest {
             if let v = o["lastPlace"] as? String, let p = LastPlace(rawValue: v) { c.lastPlace = p }
             if let v = o["lines"] as? [NSNumber] { c.lines = v.map(\.intValue) }
             if let v = o["gridHours"] as? NSNumber { c.gridHours = v.intValue }
+            if let v = o["high"] as? NSNumber { c.bands.high = v.intValue }
             return (o["id"] as? String ?? "?", c)
         }
         func sizes(_ s: CardSurface) -> [CGSize] {
@@ -98,9 +99,10 @@ enum LayoutSelfTest {
                 ctx.translateBy(x: 0, y: size.height * 2); ctx.scaleBy(x: 2, y: -2)
                 v.paint(ctx, size: size, pal)
             case .menubarTitle:
-                guard let r = sc.readings.last else { return }
-                _ = StatusController.titleFace(Reading(date: Date(timeIntervalSince1970: r.t), mgdl: r.v, rate: r.rate), rate: r.rate,
-                                               now: now, sensor: sc.sensor)
+                // through a Snapshot of the scene's whole history, as the app does: its rate is what the title shows
+                let hist = sc.readings.map { Reading(date: Date(timeIntervalSince1970: $0.t), mgdl: $0.v, rate: $0.rate) }
+                guard let last = hist.last else { return }
+                _ = StatusController.titleFace(Snapshot(latest: last, history: hist, source: "test"), now: now, sensor: sc.sensor)
             case .widgetValue, .widgetGraph, .widgetCombined:
                 let kind: WidgetKind = s == .widgetValue ? .value : s == .widgetGraph ? .graph : .combined
                 _ = MacWidget.image(kind, size: size, cfg: cfg, overrides: WidgetOverrides(), sensor: sc.sensor, readings: sc.readings,
@@ -132,6 +134,14 @@ enum LayoutSelfTest {
             let drawn = Set(renders.filter { $0.surface == s }.flatMap { $0.layouts.map(\.part.rawValue) })
             if drawn != want { fail("\(s.rawValue): draws the parts \(drawn.sorted()), registered \(want.sorted())") }
         }
+        // a card surface draws its value through the renderer too, or the registry says why not ("no_value";
+        // CardLayoutTest's twin: Android's notification once drew its own value row and missed the status pill)
+        for e in entries where e["kind"] as? String == "card" && e["no_value"] == nil {
+            let parts = e["parts"] as? [String] ?? []
+            if !parts.contains(where: { ["all", "header", "value"].contains($0) }) {
+                fail("\(e["id"] as? String ?? "?"): draws \(parts) but not its value (all / header / value), or set \"no_value\" with the reason")
+            }
+        }
         if !renders.contains(where: { $0.surface == .menubarTitle && !$0.faces.isEmpty }) { fail("menubar-title never asked GlucoseCard.face") }
 
         func strip(_ s: String) -> String {
@@ -160,7 +170,8 @@ enum LayoutSelfTest {
             func b(_ x: Bool?) -> String { x.map { "\($0)" } ?? "-" }
             return [
                 "scene": r.scene, "settings": r.settings,
-                "face": st.map { "\($0.value)" } ?? "\(!r.faces.isEmpty)",
+                // the value's place: a card with the value, or a chart card without its chart; or a glyph surface
+                "face": st.map { "\($0.value || ($0.graph != nil && chart == nil && r.layouts.contains { $0.part == .all }))" } ?? "\(!r.faces.isEmpty)",
                 "value": st.map { "\($0.value)" } ?? "glyph",
                 "graph": "\(st?.graph != nil)",
                 "labels": b(st?.graph?.axisLabels), "side": b(st?.graph?.side),

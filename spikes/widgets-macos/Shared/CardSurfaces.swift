@@ -38,7 +38,7 @@ enum MacWidget {
         var st: CardStyle
         switch kind {
         case .value: st = rc.cardStyle(graph: nil)
-        case .graph: st = CardStyle(graph: g, rings: [], value: false, sensorTime: rc.sensorTime)
+        case .graph: st = CardStyle(graph: g, rings: [], value: false, sensorTime: rc.sensorTime, bands: cfg.bands)
         case .combined: st = rc.cardStyle(graph: g)
         }
         st.sensor = sensor

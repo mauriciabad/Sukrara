@@ -356,7 +356,7 @@ struct GraphSettingsView: View {
             } header: {
                 Text("Sensor time left")
             } footer: {
-                Text("At the start of the time row, under the % of time in range (beside the arrow where a card has no graph). The warm-up and \"Sensor ended\" show either way.")
+                Text("At the start of the time row, under the % of time in range (a card without a graph shows just the number). The warm-up and \"Sensor ended\" show either way.")
                     .foregroundStyle(.secondary)
             }
             Section {

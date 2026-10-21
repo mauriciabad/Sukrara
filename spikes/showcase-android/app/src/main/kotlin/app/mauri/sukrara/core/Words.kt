@@ -40,7 +40,6 @@ data class Words(
     val tirVeryGood: String = "very good",
     // the card without a current reading
     val noReadingsYet: String = "No readings yet",
-    val noReadingsSince: String = "No readings since %1\$s",
     val noReadingSince: String = "No reading since",
     // the sensor life badge and the ended card (round sensor-life)
     val sensorLeft: String = "Sensor: %1\$s left",
@@ -92,7 +91,7 @@ data class Words(
             slotAverage = r.getString(R.string.slot_average_short), slotGmi = r.getString(R.string.slot_gmi_short),
             slotCv = r.getString(R.string.slot_cv_short), tirInRange = r.getString(R.string.slot_tir_in_range),
             tirVeryGood = r.getString(R.string.slot_tir_very_good),
-            noReadingsYet = r.getString(R.string.card_no_readings_yet), noReadingsSince = r.getString(R.string.card_no_readings_since),
+            noReadingsYet = r.getString(R.string.card_no_readings_yet),
             noReadingSince = r.getString(R.string.card_no_reading_since),
             sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
             replaceSensor = r.getString(R.string.badge_replace_sensor), replaceSensorShort = r.getString(R.string.badge_replace_sensor_short),

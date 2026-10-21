@@ -47,7 +47,7 @@ badge's box in the chart and the room it keeps free of treatment labels. Run by 
 `-graphselftest` (Mac). `rooms`: `{label, room}` = `GlucoseGraph.sensorWidth(label)` in the `TextModel` (dp, ± 0.05).
 A case: `name`; `card` `{graph, value, axisLabels?, sensorTime?}` (the WHOLE card, also for surfaces drawn in parts);
 `sensor` `live` (13 days left) | `warmup` | `ended` | `none`; `age` (the newest reading's, s); optional `chart`
-`{w, h}`. `expect`: `spot` `graph` | `value` | `none`, and with a chart `box` `[x, top, h]` (dp, ± 0.05; no second
+`{w, h}`. `expect`: `spot` `graph` | `none` (no badge beside the number: the user, 2026-10-21), and with a chart `box` `[x, top, h]` (dp, ± 0.05; no second
 label lane). `tools/check` (`graph-surface`) makes every surface go through this decision.
 
 A label case (above) may carry `sensor` (the badge's label): lane 0 starts with its room taken.
@@ -64,7 +64,7 @@ start + 60 min). `expect`:
 | `label` | the badge text, English words: ≥ 24 h left → whole days (`13d`), ≥ 1 h → hours (`20h`), else minutes (`45m`, `0m` once ended) |
 | `ended` | `now ≥ end`: badge in the alert colour, "Sensor ended" once readings stop |
 | `life` | the disc's arc: share of the sensor's life left, 1 → 0 (± 0.001) |
-| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`), `Almost ready` from the warm-up's end until the first reading (never `0m` or less); `null` = not warming |
+| `warmup` | while warming up (no reading since the start, ≤ 15 min past the warm-up's end) the card's figure, minutes rounded up (`42m`), from 60 of them hours (`1h`: one rounding, so 59:15 left is `1h`), `Almost ready` from the warm-up's end until the first reading (never `0m` or less); `null` = not warming |
 | `pill` | ended → the action pill under "Sensor ended", `{kind: "sensor", text, short, tonal}` (StatusBadge.replaceSensor, English words); else `null` |
 | `ring` | the ring over the main ring: warming → the warm-up done (fills 0 → 1); else the countdown, share of the window left; `null` = no ring (more than the window left, or ended) (± 0.001) |
 

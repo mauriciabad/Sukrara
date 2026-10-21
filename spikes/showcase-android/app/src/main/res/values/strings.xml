@@ -332,8 +332,6 @@
     <string name="slot_tir_very_good">very good</string>
     <!-- Card without any reading [CHAR LIMIT=30] -->
     <string name="card_no_readings_yet">No readings yet</string>
-    <!-- Card whose last reading is old; %1$s = a time like 14:05, Tue 14:05 or 12 Oct [CHAR LIMIT=40] -->
-    <string name="card_no_readings_since">No readings since %1$s</string>
     <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
     <string name="card_no_reading_since">No reading since</string>
     <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d" [CHAR LIMIT=40] -->
@@ -2096,7 +2094,7 @@
     <!-- Group in Graph settings: where the sensor's time left shows, one switch per place [CHAR LIMIT=30] -->
     <string name="graph_group_sensor">Sensor time left</string>
     <!-- Note under that group [CHAR LIMIT=NONE] -->
-    <string name="graph_sensor_note" formatted="false">The sensor\'s time left goes at the start of the time row, under the % of time in range (beside the arrow where a card has no graph). The warm-up and \"Sensor ended\" show either way. Each widget can turn it off on its own.</string>
+    <string name="graph_sensor_note" formatted="false">The sensor\'s time left goes at the start of the time row, under the % of time in range (a card without a graph shows just the number). The warm-up and \"Sensor ended\" show either way. Each widget can turn it off on its own.</string>
     <!-- Action [CHAR LIMIT=40] -->
     <string name="graph_reset_all">Reset all graph settings</string>
     <!-- Content description; %1$s = group name [CHAR LIMIT=50] -->
