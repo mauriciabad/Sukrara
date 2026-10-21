@@ -73,7 +73,7 @@ fun sensorCalendarRows(): SettingsGroupScope.() -> Unit {
     val hintTitle = stringResource(R.string.calendar_gcal_title)
     val hint = stringResource(R.string.calendar_gcal_hint)
     return {
-        switch(title, on, summary = summary) { v ->
+        switch(title, on, summary = summary, icon = R.drawable.ic_sym_calendar_month) { v ->
             when {
                 !v -> SensorCalendar.disable(ctx)
                 SensorCalendar.granted(ctx) -> SensorCalendar.enable(ctx)
@@ -81,8 +81,8 @@ fun sensorCalendarRows(): SettingsGroupScope.() -> Unit {
                 else -> ask.launch(SensorCalendar.PERMISSIONS)
             }
         }
-        value(whereTitle, where, enabled = on) { choosing = true }
-        if (on && s.target == SensorCalendar.OWN && gcal != null) link(hintTitle, hint, external = true) { ctx.startActivity(gcal) }
+        value(whereTitle, where, enabled = on, icon = R.drawable.ic_sym_edit_calendar) { choosing = true }
+        if (on && s.target == SensorCalendar.OWN && gcal != null) link(hintTitle, hint, icon = R.drawable.ic_sym_open_in_new, external = true) { ctx.startActivity(gcal) }
     }
 }
 

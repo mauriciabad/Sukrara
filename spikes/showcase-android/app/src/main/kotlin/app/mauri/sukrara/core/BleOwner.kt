@@ -56,9 +56,21 @@ class BleOwner(
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private val _connected = MutableStateFlow(0)
     val connected: StateFlow<Int> = _connected
+    private val _links = MutableStateFlow<List<Link>>(emptyList())
+    /** The subscribed centrals now, oldest first, with the follower each one turned out to be ([identify]). */
+    val links: StateFlow<List<Link>> = _links
     var bytesOut = 0L; private set
 
+    /**
+     * One connected follower phone, for Settings (Share with people → Nearby devices). [f] = the follower key it sent a
+     * signed request or treatment with during this connection, null until then: a `HELLO` carries no identity (B§6,
+     * P12), so a follower that only listens stays unnamed.
+     */
+    data class Link(val addr: String, val since: Long, val f: String?)
+
     private class Peer(val dev: BluetoothDevice) {
+        val since = System.currentTimeMillis() / 1000
+        @Volatile var f: String? = null
         var mtu = 23
         var subscribed = false
         val queue = ArrayDeque<ByteArray>()
@@ -116,7 +128,7 @@ class BleOwner(
                 peers.remove(device.address)
                 log("BLE: central ${device.address} disconnected (status $status)")
             }
-            _connected.value = peers.values.count { it.subscribed }
+            changed()
         }
 
         override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
@@ -130,7 +142,7 @@ class BleOwner(
             val p = peers[device.address] ?: return
             p.subscribed = value?.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == true ||
                 value?.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) == true
-            _connected.value = peers.values.count { it.subscribed }
+            changed()
             log("BLE: ${device.address} notifications ${if (p.subscribed) "on" else "off"}")
         }
 
@@ -165,6 +177,20 @@ class BleOwner(
             synchronized(p) { p.inFlight = false }
             pump(p)
         }
+    }
+
+    private fun changed() {
+        val subscribed = peers.values.filter { it.subscribed }
+        _connected.value = subscribed.size
+        _links.value = subscribed.sortedBy { it.since }.map { Link(it.dev.address, it.since, it.f) }
+    }
+
+    /** The central at [addr] sent a verified event signed by follower [f] (a request, a treatment): name its link. */
+    fun identify(addr: String, f: String) {
+        val p = peers[addr] ?: return
+        if (p.f == f) return
+        p.f = f
+        changed()
     }
 
     /** HELLO → INFO + backlog, at most one per [BACKLOG_GAP_MS] per central: a sooner one is answered when it's due. */

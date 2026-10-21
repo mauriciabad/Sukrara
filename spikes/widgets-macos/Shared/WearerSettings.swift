@@ -48,7 +48,7 @@ enum WearerSettings {
         return true
     }
 
-    /// Unfollowed: the wearer's settings go (a new wearer sends their own).
+    /// Forget the wearer's settings (this Mac stopped following; Settings from: Wearer falls back to the defaults).
     static func forget(_ d: UserDefaults = .standard) {
         guard d.object(forKey: storeKey) != nil else { return }
         d.removeObject(forKey: storeKey)

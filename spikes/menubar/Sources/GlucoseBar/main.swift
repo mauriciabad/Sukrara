@@ -449,7 +449,7 @@ let treatmentStore = MainActor.assumeIsolated {
     func unfollow() {
         stop()
         FollowerV2State.clear()
-        WearerSettings.forget()         // their settings go with them (Settings from: Wearer falls back to the defaults)
+        WearerSettings.forget()         // their settings go with them; the next wearer's event may carry an older `u`
         status.setFollow(nil)
         alerts.followChanged()
         log("v2: stopped following (keys deleted from the Keychain)")

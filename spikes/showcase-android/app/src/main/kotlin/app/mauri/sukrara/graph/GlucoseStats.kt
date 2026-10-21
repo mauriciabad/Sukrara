@@ -28,10 +28,13 @@ data class Bands(val veryLow: Int = 54, val low: Int = 70, val tight: Int = 140,
 
     /** Clamped so the order always holds (a settings slider can't produce low > tight > high). */
     fun sane(): Bands {
-        val l = low.coerceIn(40, 120)
-        val h = high.coerceIn(l + 20, 300)
-        val vh = veryHigh.coerceIn(h + 10, 400)
-        return Bands(veryLow.coerceIn(30, l - 5), l, tight.coerceIn(l + 10, h), h, vh, extremelyHigh.coerceIn(vh + 10, 450))
+        val S = app.mauri.sukrara.settings.SettingsSpec
+        fun hi(n: app.mauri.sukrara.settings.NumberSpec) = n.max.toInt()
+        val l = low.coerceIn(S.BAND_LOW.min.toInt(), hi(S.BAND_LOW))
+        val h = high.coerceIn(l + 20, hi(S.BAND_HIGH))
+        val vh = veryHigh.coerceIn(h + 10, hi(S.BAND_VERY_HIGH))
+        return Bands(veryLow.coerceIn(S.BAND_VERY_LOW.min.toInt(), l - 5), l, tight.coerceIn(l + 10, h), h, vh,
+            extremelyHigh.coerceIn(vh + 10, hi(S.BAND_EXTREMELY_HIGH)))
     }
 }
 

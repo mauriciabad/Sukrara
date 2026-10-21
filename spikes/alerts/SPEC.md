@@ -132,8 +132,11 @@ treatment rules for the badge under the value.
   120 and Slow down 15 / 20 / 30 / 45 / 60 / 90 / 120, the latter only the ones slower than every enabled level alert's
   repeat (an interval the alert already repeats at hides the button).
 - `source` (followers only): `"wearer"` (default) = alert exactly when the wearer's app does (mirror its `alert`
-  events, §4); `"own"` = run these rules locally on the followed readings and treatments. Settings are per device and
-  never synced.
+  events, §4); `"own"` = run these rules locally on the followed readings and treatments. **Not chosen on its own**
+  (round f28): it is derived from the follower's *Settings from* (`follower.settingsFrom`, spikes/settings/settings.json):
+  *Wearer* → `"wearer"`, *Default* / *Custom* → `"own"`. The settings file is per device; in *Wearer* mode the follower
+  also shows the wearer's own values of each kind's `on` / threshold / `repeatMin` (not `no_data`) and the three quiet
+  rules, from the wearer's settings event (PROTOCOL-v2 "Settings"); *Default* runs the defaults, *Custom* this file.
 - In `"wearer"` mode a follower still checks **`no_data` locally** (it's about *its* link to the wearer, which the
   wearer can't report), with its own `no_data` settings.
 

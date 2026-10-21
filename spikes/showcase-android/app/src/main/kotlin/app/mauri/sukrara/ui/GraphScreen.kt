@@ -71,6 +71,13 @@ import kotlin.math.roundToInt
  * rings and the side profile. A live preview (the real panel) sits on top. Each home-screen widget can override
  * window, rings and profile on its own (long-press → Reconfigure).
  */
+/** Where a graph shows: the app, its notification, the launcher widgets. */
+private fun placeIcon(p: GraphPlace) = when (p) {
+    GraphPlace.APP -> R.drawable.ic_sym_smartphone
+    GraphPlace.NOTIFICATION -> R.drawable.ic_sym_notifications
+    GraphPlace.WIDGETS -> R.drawable.ic_sym_widgets
+}
+
 @Composable
 fun GraphScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
@@ -129,13 +136,13 @@ fun GraphScreen(onBack: () -> Unit) {
         }) {
             val hours: (Int) -> String = { ctx.getString(R.string.graph_hours, it) }
             val default = stringResource(R.string.graph_window_default)
-            value(default, hours(g.defaultHours)) {
+            value(default, hours(g.defaultHours), icon = R.drawable.ic_sym_timelapse) {
                 numPick = NumPick(default, WINDOW_HOURS, g.defaultHours, hours, hoursRange) { h -> set { it.copy(defaultHours = h) } }
             }
             for (p in GraphPlace.entries) {
                 val label: (Int) -> String = { if (it == 0) ctx.getString(R.string.graph_window_default_hours, g.defaultHours) else hours(it) }
                 val place = stringResource(graphPlaceLabel(p))
-                value(place, label(g.placeHours[p] ?: 0)) {
+                value(place, label(g.placeHours[p] ?: 0), icon = placeIcon(p)) {
                     numPick = NumPick(place, listOf(0) + WINDOW_HOURS, g.placeHours[p] ?: 0, label, hoursRange) { h ->
                         set { it.copy(placeHours = if (h == 0) it.placeHours - p else it.placeHours + (p to h)) }
                     }
@@ -154,26 +161,26 @@ fun GraphScreen(onBack: () -> Unit) {
             val none = stringResource(R.string.graph_none)
             val count: (Int) -> String = { if (it == 0) none else "$it" }
             val rings = stringResource(R.string.graph_slots)
-            value(rings, count(g.ringCount)) { choose(rings, listOf(0, 1, 2, 3), g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
+            value(rings, count(g.ringCount), icon = R.drawable.ic_sym_donut_large) { choose(rings, listOf(0, 1, 2, 3), g.ringCount, count) { n -> set { it.copy(ringCount = n) } } }
             for (i in 0 until g.ringCount) {
                 val slot = g.slots[i]
                 fun setSlot(f: (RingSpec) -> RingSpec) = set { it.copy(slots = it.slots.toMutableList().also { l -> l[i] = f(l[i]) }) }
                 val name = stringResource(listOf(R.string.graph_slot_main, R.string.graph_slot_second, R.string.graph_slot_third)[i])
                 val kindLabel: (SlotKind) -> String = { ctx.getString(slotKindLabel(it)) }
-                value(name, kindLabel(slot.kind) + " · " + periodLabel(slot.windowS)) {
+                value(name, kindLabel(slot.kind) + " · " + periodLabel(slot.windowS), icon = R.drawable.ic_sym_donut_small) {
                     choose(ctx.getString(R.string.graph_slot_what, name), SlotKind.entries, slot.kind, kindLabel) { k -> setSlot { s -> s.copy(kind = k) } }
                 }
                 val period = stringResource(R.string.graph_slot_period, name)
-                value(period, periodLabel(slot.windowS)) {
+                value(period, periodLabel(slot.windowS), icon = R.drawable.ic_sym_date_range) {
                     numPick = NumPick(period, RING_WINDOWS_S.map { it.toInt() }, slot.windowS.toInt(), { periodLabel(it.toLong()) },
                         NumberRange(RING_DAYS_RANGE.first.toDouble(), RING_DAYS_RANGE.last.toDouble(), daysUnit, scale = 86400.0)) { w ->
                         setSlot { s -> s.copy(windowS = w.toLong()) }
                     }
                 }
-                if (i > 0) switch(stringResource(R.string.graph_slot_faded, name), slot.faded) { v -> setSlot { s -> s.copy(faded = v) } }
+                if (i > 0) switch(stringResource(R.string.graph_slot_faded, name), slot.faded, icon = R.drawable.ic_sym_opacity) { v -> setSlot { s -> s.copy(faded = v) } }
             }
             val last = stringResource(R.string.graph_last)
-            value(last, stringResource(lastPlaceLabel(g.lastPlace))) {
+            value(last, stringResource(lastPlaceLabel(g.lastPlace)), icon = R.drawable.ic_sym_last_page) {
                 choose(last, LastPlace.entries, g.lastPlace, { ctx.getString(lastPlaceLabel(it)) }) { p -> set { it.copy(lastPlace = p) } }
             }
             if (g.lastPlace != LastPlace.OFF) {
@@ -181,12 +188,12 @@ fun GraphScreen(onBack: () -> Unit) {
                 val noKind: SlotKind? = null
                 val nothing = stringResource(R.string.graph_nothing)
                 val what: (SlotKind?) -> String = { it?.let { k -> ctx.getString(slotKindLabel(k)) } ?: nothing }
-                value(stringResource(R.string.graph_last_else), other?.let { what(it.kind) + " · " + periodLabel(it.windowS) } ?: nothing) {
+                value(stringResource(R.string.graph_last_else), other?.let { what(it.kind) + " · " + periodLabel(it.windowS) } ?: nothing, icon = R.drawable.ic_sym_more_horiz) {
                     choose(ctx.getString(R.string.graph_last_else_dialog), listOf(noKind) + SlotKind.entries, other?.kind, what) { k ->
                         set { it.copy(lastElse = k?.let { kind -> (it.lastElse ?: DEFAULT_LAST_ELSE).copy(kind = kind) }) }
                     }
                 }
-                if (other != null) value(stringResource(R.string.graph_last_else_period), periodLabel(other.windowS)) {
+                if (other != null) value(stringResource(R.string.graph_last_else_period), periodLabel(other.windowS), icon = R.drawable.ic_sym_date_range) {
                     choose(ctx.getString(R.string.graph_last_else_period_dialog), RING_WINDOWS_S, other.windowS, ::periodLabel) { w ->
                         set { it.copy(lastElse = it.lastElse?.copy(windowS = w)) }
                     }
@@ -194,9 +201,9 @@ fun GraphScreen(onBack: () -> Unit) {
             }
             val range: (TirRange) -> String = { ctx.getString(R.string.graph_tir_with_span, ctx.getString(tirRangeLabel(it)), g.bands.low, if (it == TirRange.TIGHT) g.bands.tight else g.bands.high) }
             val counts = stringResource(R.string.graph_tir_counts)
-            value(counts, range(g.ringRange)) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
+            value(counts, range(g.ringRange), icon = R.drawable.ic_dia_range) { choose(counts, TirRange.entries, g.ringRange, range) { r -> set { it.copy(ringRange = r) } } }
             card { RingOrder(g) { o -> set { it.copy(ringOrder = o) } } }
-            switch(stringResource(R.string.graph_ring_marks), g.ringMarks,
+            switch(stringResource(R.string.graph_ring_marks), g.ringMarks, icon = R.drawable.ic_sym_workspace_premium,
                 summary = stringResource(R.string.graph_ring_marks_summary)) { v -> set { it.copy(ringMarks = v) } }
         }
         Note(stringResource(R.string.graph_beside_number_note))
@@ -206,9 +213,9 @@ fun GraphScreen(onBack: () -> Unit) {
                 set { it.copy(side = D.side, columnCrown = D.columnCrown) }
             }
         }) {
-            switch(stringResource(R.string.graph_side), g.side,
+            switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_view_sidebar,
                 summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
-            switch(stringResource(R.string.graph_column_crown), g.columnCrown,
+            switch(stringResource(R.string.graph_column_crown), g.columnCrown, icon = R.drawable.ic_sym_crown,
                 summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
         }
         Note(stringResource(R.string.graph_side_note))
@@ -216,7 +223,7 @@ fun GraphScreen(onBack: () -> Unit) {
         SettingsGroup(stringResource(R.string.graph_group_sensor), titleAction = {
             Reset(stringResource(R.string.graph_group_sensor), g.sensorHidden != D.sensorHidden) { set { it.copy(sensorHidden = D.sensorHidden) } }
         }) {
-            for (p in GraphPlace.entries) switch(stringResource(graphPlaceLabel(p)), g.sensorTime(p)) { v ->
+            for (p in GraphPlace.entries) switch(stringResource(graphPlaceLabel(p)), g.sensorTime(p), icon = placeIcon(p)) { v ->
                 set { it.copy(sensorHidden = if (v) it.sensorHidden - p else it.sensorHidden + p) }
             }
         }

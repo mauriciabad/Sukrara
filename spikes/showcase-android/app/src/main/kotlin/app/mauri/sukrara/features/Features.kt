@@ -88,14 +88,14 @@ data class FeatureState(
         /** [toJson] back, any missing or malformed key keeps [d]'s value (settings import). */
         fun fromJson(j: JSONObject, d: FeatureState = FeatureState()) = FeatureState(
             source = j.optString("source", d.source), nostr = j.optBoolean("nostr", d.nostr),
-            nostrIntervalMin = j.optInt("nostrInterval", d.nostrIntervalMin), bleFollowers = j.optBoolean("bleFollowers", d.bleFollowers),
+            nostrIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.NOSTR_INTERVAL, j.optInt("nostrInterval", d.nostrIntervalMin)), bleFollowers = j.optBoolean("bleFollowers", d.bleFollowers),
             chip = j.optBoolean("chip", d.chip), icon = j.optBoolean("icon", d.icon), hook = j.optBoolean("hook", d.hook),
             hookPosition = j.optString("hookPosition", d.hookPosition), hookColor = j.optBoolean("hookColor", d.hookColor),
             hideNotifIcon = j.optBoolean("hideNotifIcon", d.hideNotifIcon), lockWidget = j.optBoolean("lockWidget", d.lockWidget),
             lockBg = j.optString("lockBg", d.lockBg), lockLook = j.optString("lockLook", d.lockLook),
             screenOffSkip = j.optBoolean("screenOffSkip", d.screenOffSkip), garmin = j.optBoolean("garmin", d.garmin),
             nightscout = j.optBoolean("nightscout", d.nightscout), nightscoutLan = j.optBoolean("nightscoutLan", d.nightscoutLan),
-            libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = j.optInt("libreviewInterval", d.libreviewIntervalMin),
+            libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, j.optInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = j.optString("connPriority", d.connPriority),
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
         )
@@ -116,7 +116,7 @@ object Features {
         _state.value = FeatureState(
             source = p.getString("source", d.source)!!,
             nostr = p.getBoolean("nostr", d.nostr),
-            nostrIntervalMin = p.getInt("nostrInterval", d.nostrIntervalMin),
+            nostrIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.NOSTR_INTERVAL, p.getInt("nostrInterval", d.nostrIntervalMin)),
             bleFollowers = p.getBoolean("bleFollowers", d.bleFollowers),
             chip = p.getBoolean("chip", d.chip),
             icon = p.getBoolean("icon", d.icon),
@@ -132,7 +132,7 @@ object Features {
             nightscout = p.getBoolean("nightscout", d.nightscout),
             nightscoutLan = p.getBoolean("nightscoutLan", d.nightscoutLan),
             libreview = p.getBoolean("libreview", d.libreview),
-            libreviewIntervalMin = p.getInt("libreviewInterval", d.libreviewIntervalMin),
+            libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, p.getInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = p.getString("connPriority", d.connPriority)!!,
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
@@ -141,9 +141,9 @@ object Features {
     @Synchronized fun update(f: (FeatureState) -> FeatureState): FeatureState {
         val s = f(_state.value).let {
             it.copy(
-                nostrIntervalMin = it.nostrIntervalMin.coerceIn(0, 240),
+                nostrIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.NOSTR_INTERVAL, it.nostrIntervalMin),
                 systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX),
-                libreviewIntervalMin = it.libreviewIntervalMin.coerceIn(1, 240),
+                libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, it.libreviewIntervalMin),
                 source = if (it.source == "juggluco") "juggluco" else "direct",
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
                 lockBg = LockBackground.valid(it.lockBg),
@@ -250,3 +250,6 @@ object HookPosition {
     /** "slot:" = as system icons (root); "slot:wifi" = moved right after that icon (needs the module too). */
     const val SLOT_PREFIX = "slot:"
 }
+
+/** [v] minutes as [spec] accepts them (spikes/settings/settings.json): itself when valid, else the nearest valid value. */
+internal fun specMin(spec: app.mauri.sukrara.settings.NumberSpec, v: Int): Int = Math.round(spec.coerce(v.toDouble())).toInt()

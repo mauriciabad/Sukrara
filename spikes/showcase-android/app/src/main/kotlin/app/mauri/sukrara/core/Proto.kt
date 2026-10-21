@@ -74,6 +74,7 @@ object Proto {
     fun backupD(iPub: String) = h("cgm2:backup:$iPub")
     fun treatmentsC(sid: String) = h("cgm2:treatments:$sid")
     fun treatmentD(sid: String, id: String) = h("cgm2:tr:$sid:$id")
+    fun settingsD(sid: String) = h("cgm2:settings:$sid")
 
     /** 4 digits both screens show: `int(sha256(F.pub_hex + token)) mod 10000`, zero-padded. */
     fun matchCode(fPub: String, token: String): String =
@@ -167,6 +168,15 @@ object Proto {
         val tags = listOf(tag("d", treatmentD(sid, tr.getString("id"))), tag("c", treatmentsC(sid)), tag("gk", gk(gPub)),
             expiration(now + 30 * DAY))
         return signed(w, CHUNK, enc(w, gPub, tr.toString()), tags, now)
+    }
+
+    /**
+     * The wearer's mirrored settings (PROTOCOL-v2 "Settings", round f28): kind 30078 signed by D, `d = H("cgm2:settings:"+sid)`,
+     * NIP-44 to G_n, expires now + 30 d. [body] = `{"v":2,"type":"settings","u",…,"graph","alerts"}` (WearerSettings.outgoing).
+     */
+    fun settingsEvent(d: Keys, gPub: String, sid: String, body: JSONObject, createdAt: Long = nowS()): Event {
+        val tags = listOf(tag("d", settingsD(sid)), tag("gk", gk(gPub)), expiration(createdAt + 30 * DAY))
+        return signed(d, CHUNK, enc(d, gPub, body.toString()), tags, createdAt)
     }
 
     /** owner backup, kind 30078, signed by I and encrypted to I itself, expires now + 90 d. */

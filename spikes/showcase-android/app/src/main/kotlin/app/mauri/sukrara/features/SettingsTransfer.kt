@@ -26,10 +26,10 @@ object SettingsTransfer {
     fun export(): JSONObject = JSONObject()
         .put("kind", KIND).put("v", 1).put("app", BuildConfig.VERSION_NAME)
         .put("features", Features.value.toJson())
-        .put("alerts", Alerts.settings.value.toJson())
-        .put("graph", GraphSettings.state.value.toJson())
+        .put("alerts", Alerts.own.value.toJson())   // this device's own (a follower's "custom")
+        .put("graph", GraphSettings.own.value.toJson())
         .put("sensorEnd", app.mauri.sukrara.sensorend.SensorEnd.config.value.toJson()
-            .put("countdownHours", app.mauri.sukrara.core.SensorLife.countdown.value))
+            .put("countdownHours", app.mauri.sukrara.core.SensorLife.ownCountdown.value))
 
     /** Applies a file from [export]; parts it doesn't have keep their current values. Null = done, else why not. */
     fun import(ctx: Context, j: JSONObject): String? {
