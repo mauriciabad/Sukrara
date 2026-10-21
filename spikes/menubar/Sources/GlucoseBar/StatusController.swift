@@ -293,7 +293,9 @@ extension Bands {
 
     private func renderTreatments() {
         panelModel.marks = marks()
-        panelModel.canLog = treatments != nil && (treatmentPaths?() ?? TreatmentPaths()).canLog
+        let p = treatmentPaths?() ?? TreatmentPaths()
+        panelModel.canLog = treatments != nil && p.canLog
+        panelModel.logBlocked = p.canLog ? nil : p.reason
     }
 
     /// "14:05  2.5u rapid · 12m" (amounts lowercase without a space, the time since the entry last; delivery status

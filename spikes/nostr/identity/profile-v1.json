@@ -1,0 +1,216 @@
+{
+ "note": "Profile editing (PROTOCOL-v2 'Profiles'): run by Android ProfileFixtureTest and Mac -identityselftest. names: typed + previous -> stored. v1: numbers -> normalised picture. ops: editor buttons. wire: Avatar.of (null = rejected). update: the follower's profile rumor body.",
+ "names": [
+  {
+   "typed": "  Alex  ",
+   "previous": "Mac",
+   "name": "Alex"
+  },
+  {
+   "typed": "   ",
+   "previous": "Mac",
+   "name": "Mac"
+  },
+  {
+   "typed": "",
+   "previous": "Núria's MacBook",
+   "name": "Núria's MacBook"
+  },
+  {
+   "typed": "A name that is much longer than forty characters",
+   "previous": "x",
+   "name": "A name that is much longer than forty ch"
+  },
+  {
+   "typed": "\tJo\n",
+   "previous": "x",
+   "name": "Jo"
+  }
+ ],
+ "v1": [
+  {
+   "c": 2,
+   "s": "drop",
+   "a": 45,
+   "n": 7,
+   "avatar": {
+    "v": 1,
+    "c": 2,
+    "s": "drop",
+    "a": 45,
+    "n": 7
+   }
+  },
+  {
+   "c": 9,
+   "s": "star",
+   "a": 50,
+   "n": -1,
+   "avatar": {
+    "v": 1,
+    "c": 1,
+    "s": "cube",
+    "a": 45,
+    "n": 2147483647
+   }
+  },
+  {
+   "c": -1,
+   "s": "letter",
+   "a": -30,
+   "n": 2147483648,
+   "avatar": {
+    "v": 1,
+    "c": 7,
+    "s": "letter",
+    "a": 330,
+    "n": 0
+   }
+  }
+ ],
+ "ops": [
+  {
+   "op": "turn",
+   "from": {
+    "v": 1,
+    "c": 3,
+    "s": "rings",
+    "a": 330,
+    "n": 2147483647
+   },
+   "avatar": {
+    "v": 1,
+    "c": 3,
+    "s": "rings",
+    "a": 15,
+    "n": 0
+   }
+  },
+  {
+   "op": "shape",
+   "value": "dots",
+   "from": {
+    "v": 1,
+    "c": 3,
+    "s": "rings",
+    "a": 90,
+    "n": 5
+   },
+   "avatar": {
+    "v": 1,
+    "c": 3,
+    "s": "dots",
+    "a": 90,
+    "n": 5
+   }
+  },
+  {
+   "op": "colors",
+   "value": 6,
+   "from": {
+    "v": 1,
+    "c": 3,
+    "s": "rings",
+    "a": 90,
+    "n": 5
+   },
+   "avatar": {
+    "v": 1,
+    "c": 6,
+    "s": "rings",
+    "a": 90,
+    "n": 5
+   }
+  }
+ ],
+ "wire": [
+  {
+   "in": {
+    "v": 1,
+    "c": 0,
+    "s": "cube",
+    "a": 45,
+    "n": 1
+   },
+   "avatar": {
+    "v": 1,
+    "c": 0,
+    "s": "cube",
+    "a": 45,
+    "n": 1
+   }
+  },
+  {
+   "in": {
+    "v": 2,
+    "look": "future"
+   },
+   "avatar": {
+    "v": 2,
+    "look": "future"
+   }
+  },
+  {
+   "in": {
+    "v": 0,
+    "c": 1
+   },
+   "avatar": null
+  },
+  {
+   "in": {
+    "c": 1
+   },
+   "avatar": null
+  },
+  {
+   "in": {
+    "v": 1,
+    "c": 0,
+    "s": "cube",
+    "a": 0,
+    "n": 1,
+    "pad": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "avatar": null
+  }
+ ],
+ "update": [
+  {
+   "name": "Alex",
+   "avatar": {
+    "v": 1,
+    "c": 2,
+    "s": "drop",
+    "a": 45,
+    "n": 7
+   },
+   "body": {
+    "v": 2,
+    "type": "profile",
+    "profile": {
+     "name": "Alex",
+     "avatar": {
+      "v": 1,
+      "c": 2,
+      "s": "drop",
+      "a": 45,
+      "n": 7
+     }
+    }
+   }
+  },
+  {
+   "name": "Mac",
+   "avatar": null,
+   "body": {
+    "v": 2,
+    "type": "profile",
+    "profile": {
+     "name": "Mac",
+     "avatar": null
+    }
+   }
+  }
+ ]
+}
