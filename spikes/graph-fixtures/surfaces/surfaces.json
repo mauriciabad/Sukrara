@@ -28,6 +28,12 @@
    "TextModel": [],
    "Freshness": ["timeText", "nextChangeAt", "nextChangeS", "valueText"]
   },
+  "value_text_ok": [
+   {"path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertNotifier.kt", "why": "an alert's notification says the reading that fired it (the event, not the live value)"},
+   {"path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/Alerts.kt", "why": "the alert history line keeps the reading that fired it"},
+   {"path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/AppBroadcasts.kt", "why": "a log line"},
+   {"path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/GlucoseCsv.kt", "why": "the CSV export writes every reading as data"}
+  ],
   "surfaces": [
    {"id": "widget-value", "kind": "card", "entry": "renderWidget", "parts": ["all"], "size": "widget, margins included", "sizes": [[170, 80], [250, 80], [170, 170]], "files": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt"]},
    {"id": "widget-graph", "kind": "card", "entry": "renderWidget", "parts": ["all"], "size": "widget, margins included", "sizes": [[170, 170], [320, 80], [320, 170], [400, 250]], "files": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/widgets/Widgets.kt"]},
@@ -73,6 +79,12 @@
    "TextModel": [],
    "Freshness": ["timeText", "nextChange", "nextChangeAt"]
   },
+  "value_text_ok": [
+   {"path": "spikes/menubar/Sources/GlucoseBar/Alerts.swift", "why": "an alert's notification says the reading that fired it; log lines"},
+   {"path": "spikes/menubar/Sources/GlucoseBar/NostrSource.swift", "why": "a log line"},
+   {"path": "spikes/menubar/Sources/GlucoseBar/NostrV2.swift", "why": "a log line"},
+   {"path": "spikes/menubar/Sources/GlucoseBar/main.swift", "why": "log lines and the -dump CSV"}
+  ],
   "surfaces": [
    {"id": "menubar-card", "kind": "card", "entry": "CardView.paint", "parts": ["all"], "size": "the dropdown's card", "sizes": [[340, 196]], "files": ["spikes/menubar/Sources/GlucoseBar/StatusController.swift"]},
    {"id": "menubar-title", "kind": "glyph", "entry": "StatusController.title", "what": "the status item's value, strike and arrow", "files": ["spikes/menubar/Sources/GlucoseBar/StatusController.swift"]},

@@ -32,9 +32,10 @@ Checks
               so a new painter is covered the moment it exists; plus the registry's 'api' keys, e.g. Freshness)
               may only be used through the members 'api' lists: a surface never lays out or draws a card element
               itself, nor judges a reading's age (Freshness.of / look) or uses an old staleness threshold.
-  card-text   no registered surface formats a glucose value itself (string templates / drawText / Text with sgv
-              or mgdl, LO / HI literals): it shows the look's text (GlucoseCard.face). A line that must stay is
-              marked '// card-ok: <why>'.
+  card-text   no file (outside the renderer and the tests) writes a glucose value itself (string templates /
+              drawText / Text with sgv or mgdl, LO / HI literals): it shows the look's text (GlucoseCard.face), so a
+              new surface that skips the renderer fails too. Data and event text (CSV, logs, an alert's reading) is
+              listed in the registry's value_text_ok with the reason; a single line is marked '// card-ok: <why>'.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -372,6 +373,10 @@ def check_card(ch, rep):
         sources = sorted(p for p in files if match(p, cfg["sources"]) and p not in owners and not match(p, tests))
         texts = {p: ch.blob(p) for p in sources}
         api = cfg["api"]
+        value_ok = {e["path"] for e in cfg.get("value_text_ok", [])}
+        for e in cfg.get("value_text_ok", []):
+            if e["path"] not in files:
+                rep.add("FAIL", "card-text", "%s value_text_ok: %s doesn't exist." % (SURFACES, e["path"]))
         names = governed([ch.blob(o) for o in owners], swift) | set(api)
         ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
         for p, text in texts.items():
@@ -407,13 +412,15 @@ def check_card(ch, rep):
             for n, l in code:
                 if LEGACY_STALE.search(l) and "card-ok" not in raw[n - 1]:
                     rep.add("FAIL", "card-api", "%s:%d uses an old staleness threshold. The freshness steps are GlucoseCard.face's." % (p, n))
-            # no registered surface formats a glucose value itself
-            if mine:
+            # no file formats a glucose value itself (a new surface that skips the renderer included), except data and
+            # event text listed in the registry's value_text_ok
+            if p not in value_ok:
                 for n, l in code:
                     if VALUE_FORMAT.search(l) and "card-ok" not in raw[n - 1]:
-                        rep.add("FAIL", "card-text", "%s:%d (surface %s) formats a glucose value itself. Show the look's text\n"
-                                "(GlucoseCard.face) so it follows the card (LO / HI, struck at 5 min, gone at 20 min), or mark the\n"
-                                "line '// card-ok: <why>'." % (p, n, ", ".join(s["id"] for s in mine)))
+                        rep.add("FAIL", "card-text", "%s:%d (%s) writes a glucose value itself. Show the look's text (GlucoseCard.face)\n"
+                                "so it follows the card (LO / HI, struck at 5 min, gone at 20 min); a file that writes values as\n"
+                                "data or event text goes on %s value_text_ok with the reason, a single line is marked\n"
+                                "'// card-ok: <why>'." % (p, n, ("surface " + ", ".join(s["id"] for s in mine)) if mine else "not a registered surface", SURFACES))
             if not swift and "CardSurface.TEST" in text:
                 rep.add("FAIL", "card-surface", "%s: CardSurface.TEST is for tests only." % p)
         # each surface names itself in its files; a glyph surface asks GlucoseCard.face
