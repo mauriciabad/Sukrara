@@ -20,16 +20,21 @@ Checks
   cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
-  card-surface  one graph everywhere (the user, 2026-10-21: a badge moved on one surface only, "things like this
-              cannot happen again"). Whole tree, Android + Mac, from spikes/graph-fixtures/surfaces/surfaces.json:
-              a file that calls the card renderer (GlucoseCard.draw / image / face) must be the registered file of
-              the surface it names; the CardSurface enums list exactly the registry; a glyph surface takes its
-              value from GlucoseCard.face; every surface is rendered by CardLayoutTest / LayoutSelfTest.swift.
+  card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
+              surface only; the status bar kept a 20-min-old value as if current; "things like this cannot happen
+              again"). Whole tree, Android + Mac, from THE registry spikes/graph-fixtures/surfaces/surfaces.json:
+              a file that calls the card renderer (GlucoseCard.draw / image / face) must be a registered file of the
+              surface it names; the CardSurface enums list exactly the registry; a glyph surface takes its value from
+              GlucoseCard.face; every surface is rendered by the cross-surface tests (CardLayoutTest.kt /
+              LayoutSelfTest.swift, glyphs also FreshnessFixtureTest.kt / SelfTest.swift).
   card-api    outside the renderer's files ('owners'), the renderer's namespaces (every top-level Kotlin object /
-              Swift enum in them that paints, i.e. has a function taking a Canvas / CGContext; found automatically, so
-              a new painter is covered the moment it exists) may only be used through the members the registry's
-              'api' lists: a surface never lays out or draws a card element itself.
-  card-text   a card surface never writes the glucose value itself (drawText / Text of an sgv).
+              Swift enum in them that paints, i.e. has a function taking a Canvas / CGContext, found automatically
+              so a new painter is covered the moment it exists; plus the registry's 'api' keys, e.g. Freshness)
+              may only be used through the members 'api' lists: a surface never lays out or draws a card element
+              itself, nor judges a reading's age (Freshness.of / look) or uses an old staleness threshold.
+  card-text   no registered surface formats a glucose value itself (string templates / drawText / Text with sgv
+              or mgdl, LO / HI literals): it shows the look's text (GlucoseCard.face). A line that must stay is
+              marked '// card-ok: <why>'.
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
   qa          prints the docs/QA.md sections the change touches
@@ -258,6 +263,12 @@ def check_cleartext(ch, rep):
 
 
 SURFACES = "spikes/graph-fixtures/surfaces/surfaces.json"
+# old staleness thresholds (the freshness steps are Freshness.look's)
+LEGACY_STALE = re.compile(r"\bSTALE_AFTER\w*|\bstaleAfter\b|\bisStale\b")
+# a glucose value turned into text: Kotlin "${r.sgv}" / "$sgv" / sgv.toString(), Swift "\(x.mgdl)" / format(x.mgdl), LO/HI
+# literals, and a value drawn as text (drawText / Text with an sgv)
+VALUE_FORMAT = re.compile(r'"[^"\n]*\$\{?[\w.?!]*\bsgv\b[^"\n]*"|\bsgv\.toString\(\)|"[^"\n]*\\\([^)]*\b(?:sgv|mgdl)\b[^)]*\)[^"\n]*"'
+                          r'|\bunit\.format\([^)]*\bmgdl\b|"(?:LO|HI)"|(?:drawText|\bText)\s*\(.*\bsgv\b')
 # renderer calls a surface makes (Kotlin and Swift)
 RENDER_CALL = re.compile(r"\bGlucoseCard\.(draw|image|face)\s*\(")
 
@@ -279,10 +290,13 @@ def code_lines(text):
     return out
 
 
-def call_text(code, k, limit=8):
-    """The text of the call starting on code line index k, up to its closing parenthesis (at most limit lines)."""
+def call_text(code, k, start=0, limit=8):
+    """The text of the call starting on code line index k at column start, up to its closing parenthesis (at most limit
+    lines)."""
     joined, depth, started = "", 0, False
-    for _, l in code[k:k + limit]:
+    for i, (_, l) in enumerate(code[k:k + limit]):
+        if i == 0:
+            l = l[start:]
         for ch_ in l:
             joined += ch_
             if ch_ == "(":
@@ -325,7 +339,7 @@ def check_card(ch, rep):
     except ValueError:
         rep.add("FAIL", "card-surface", "%s is not valid JSON." % SURFACES)
         return
-    files = tree_files(ch)
+    files = set(tree_files(ch))
     for plat, swift in (("android", False), ("mac", True)):
         cfg = reg.get(plat)
         if not cfg:
@@ -348,20 +362,21 @@ def check_card(ch, rep):
             rep.add("FAIL", "card-surface", "%s: CardSurface (%s) and %s %s (%s) list different surfaces. Every place that\n"
                     "shows the card or its value is registered in both." % (cfg["enum"], ", ".join(sorted(consts.values())), SURFACES,
                                                                          plat, ", ".join(sorted(ids))))
-        sources = [p for p in files if match(p, cfg["sources"]) and p not in owners]
-        test_files = [p for p in files if match(p, tests)]
-        texts = {p: ch.blob(p) for p in sources}
-        api = cfg["api"]
-        names = governed([ch.blob(o) for o in owners], swift)
-        ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
+        const = (lambda c: "." + c) if swift else (lambda c: "CardSurface." + c)
         file_of = {}
         for s in surfaces:
-            file_of.setdefault(s["file"], []).append(s)
-        const = (lambda c: "." + c) if swift else (lambda c: "CardSurface." + c)
+            for f in s["files"]:
+                if f not in files:
+                    rep.add("FAIL", "card-surface", "%s (surface %s) doesn't exist: fix %s." % (f, s["id"], SURFACES))
+                file_of.setdefault(f, []).append(s)
+        sources = sorted(p for p in files if match(p, cfg["sources"]) and p not in owners and not match(p, tests))
+        texts = {p: ch.blob(p) for p in sources}
+        api = cfg["api"]
+        names = governed([ch.blob(o) for o in owners], swift) | set(api)
+        ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
         for p, text in texts.items():
-            if match(p, tests):
-                continue
-            code = code_lines(text)
+            code = [(n, l) for n, l in code_lines(text)]
+            raw = text.splitlines()
             mine = file_of.get(p, [])
             mine_consts = {by_id.get(s["id"]) for s in mine}
             for k, (n, l) in enumerate(code):
@@ -370,49 +385,53 @@ def check_card(ch, rep):
                     if not mine:
                         rep.add("FAIL", "card-surface", "%s:%d calls the card renderer (GlucoseCard.%s) but isn't a registered surface. Every\n"
                                 "place that shows the card or its value is in %s (and the CardSurface enum), with its sizes,\n"
-                                "and is rendered by CardLayoutTest / -graphselftest." % (p, n, m.group(1), SURFACES))
-                    elif m.group(1) in ("draw", "image"):
-                        call = call_text(code, k)
+                                "and is rendered by the cross-surface tests." % (p, n, m.group(1), SURFACES))
+                    else:
+                        call = call_text(code, k, m.start())
                         named = re.findall(r"CardSurface\.(\w+)" if not swift else r"surface:\s*\.(\w+)", call)
-                        if not named:
-                            # a helper that maps its kind to a surface (WidgetKind.surface()) is fine when it names one of this file's
-                            if not re.search(r"\.surface\(\)|surface:\s*\w+\.surface\b|surface\b", call):
-                                rep.add("FAIL", "card-surface", "%s:%d draws the card without naming its surface." % (p, n))
+                        if not named and not re.search(r"\.surface\(\)|surface:\s*\w+|\bsurface\b", call):
+                            rep.add("FAIL", "card-surface", "%s:%d asks the card renderer without naming its surface." % (p, n))
                         for c in named:
                             if c not in mine_consts:
-                                rep.add("FAIL", "card-surface", "%s:%d draws as %s, which isn't registered for this file in %s." % (
+                                rep.add("FAIL", "card-surface", "%s:%d asks the renderer as %s, which isn't registered for this file in %s." % (
                                     p, n, const(c), SURFACES))
-            for s in mine:
-                c = by_id.get(s["id"])
-                if c and not re.search(re.escape(const(c)) + r"\b", text):
-                    rep.add("FAIL", "card-surface", "%s is registered for surface '%s' but never names %s: move the entry to the file that\n"
-                            "draws it (or remove the surface from %s and the enum)." % (p, s["id"], const(c), SURFACES))
-                if s["kind"] == "glyph" and "GlucoseCard.face(" not in text:
-                    rep.add("FAIL", "card-surface", "%s: glyph surface '%s' must take the value / arrow / freshness from GlucoseCard.face." % (p, s["id"]))
             if ref:
                 for n, l in code:
                     for m in ref.finditer(l):
                         obj, member = m.group(1), m.group(2)
                         if member not in api.get(obj, []):
                             rep.add("FAIL", "card-api", "%s:%d uses %s.%s, an internal of the card renderer. Surfaces only choose the size, their\n"
-                                    "place's settings and the CardPart; the card's layout and drawing stay in the renderer (%s 'api'\n"
-                                    "lists what a surface may call; adding to it needs the same thinking as a new surface)." % (
-                                        p, n, obj, member, SURFACES))
-            # the card's own elements are never drawn by a surface: a card surface that writes the value as text
-            if any(s["kind"] == "card" for s in mine) and not any(s["kind"] == "glyph" for s in mine):
+                                    "place's settings and the CardPart, and take the value from GlucoseCard.face; the card's layout,\n"
+                                    "drawing and freshness stay in the renderer (%s 'api' lists what a surface may call; adding to\n"
+                                    "it needs the same thinking as a new surface)." % (p, n, obj, member, SURFACES))
+            for n, l in code:
+                if LEGACY_STALE.search(l) and "card-ok" not in raw[n - 1]:
+                    rep.add("FAIL", "card-api", "%s:%d uses an old staleness threshold. The freshness steps are GlucoseCard.face's." % (p, n))
+            # no registered surface formats a glucose value itself
+            if mine:
                 for n, l in code:
-                    if re.search(r"(drawText|\bText|draw)\s*\(.*\bsgv\b|\bsgv\b.*\.draw\(", l):
-                        rep.add("FAIL", "card-text", "%s:%d writes the glucose value itself. The card (GlucoseCard) draws the value on every\n"
-                                "card surface." % (p, n))
+                    if VALUE_FORMAT.search(l) and "card-ok" not in raw[n - 1]:
+                        rep.add("FAIL", "card-text", "%s:%d (surface %s) formats a glucose value itself. Show the look's text\n"
+                                "(GlucoseCard.face) so it follows the card (LO / HI, struck at 5 min, gone at 20 min), or mark the\n"
+                                "line '// card-ok: <why>'." % (p, n, ", ".join(s["id"] for s in mine)))
             if not swift and "CardSurface.TEST" in text:
                 rep.add("FAIL", "card-surface", "%s: CardSurface.TEST is for tests only." % p)
-        # every surface is rendered by the cross-surface test
-        harness = "\n".join(ch.blob(p) for p in test_files)
+        # each surface names itself in its files; a glyph surface asks GlucoseCard.face
         for s in surfaces:
             c = by_id.get(s["id"])
-            if c and const(c) not in harness:
-                rep.add("FAIL", "card-surface", "surface '%s' (%s) isn't rendered by the %s cross-surface test (%s): add its real entry\n"
-                        "path to the test's runner." % (s["id"], plat, plat, "CardLayoutTest.kt" if not swift else "LayoutSelfTest.swift"))
+            joined = "\n".join(ch.blob(f) for f in s["files"])
+            if c and not re.search(re.escape(const(c)) + r"\b", joined):
+                rep.add("FAIL", "card-surface", "surface '%s' (%s) never names %s in its files %s: move the entry to the files that\n"
+                        "draw it, or remove the surface from %s and the enum." % (s["id"], plat, const(c), ", ".join(s["files"]), SURFACES))
+            if s["kind"] == "glyph" and "GlucoseCard.face(" not in joined:
+                rep.add("FAIL", "card-surface", "glyph surface '%s' (%s) must take the value / trend / freshness from GlucoseCard.face." % (s["id"], plat))
+        # every surface is rendered by a cross-surface test
+        harness = "\n".join(ch.blob(p) for p in sorted(files) if match(p, tests))
+        for s in surfaces:
+            c = by_id.get(s["id"])
+            if c and const(c) not in harness and ('"%s"' % s["id"]) not in harness:
+                rep.add("FAIL", "card-surface", "surface '%s' (%s) isn't rendered by the %s cross-surface tests: add its real entry\n"
+                        "path to the test's runner." % (s["id"], plat, plat))
 
 
 def check_static(ch, rep):

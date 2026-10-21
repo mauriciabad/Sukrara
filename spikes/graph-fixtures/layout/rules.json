@@ -1,7 +1,7 @@
 {
  "about": "What each card element may depend on: for every rule, all renders (every registered surface, size, scene and settings, on both platforms) with the same values of 'by' must show the same 'elements' (names and what they show; ' (no room)' = decided but left out for room, counts as shown). The surface is never an input: an element that one surface lays out differently from another with the same inputs fails. 'mode' subset: the shown lists must be one priority order cut at different lengths (slots). 'box': the elements' boxes relative to the chart's bottom-left count too. 'shared': checked across Android and the Mac through expect.json. Facts: ../README.md, 'Layout across surfaces'.",
  "rules": [
-  {"name": "value", "elements": ["value.number", "value.arrow", "value.warmup", "value.ended", "value.none"],
+  {"name": "value", "elements": ["value.number", "value.trend", "value.warmup", "value.ended", "value.none"],
    "by": ["scene", "face"], "shared": true},
   {"name": "sensor", "elements": ["value.sensor", "chart.sensor"],
    "by": ["scene", "settings", "value", "graph", "labels", "sensorTime"], "shared": true},

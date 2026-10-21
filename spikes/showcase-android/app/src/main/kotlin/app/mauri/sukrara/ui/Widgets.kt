@@ -167,9 +167,9 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
     val readings = if (reading != null && (history.lastOrNull()?.t ?: 0) < reading.t) history + reading else history
     val look = app.mauri.sukrara.graph.SensorBadge.look(sensor, now, reading?.t)
     val face = GlucoseCard.face(reading, now, look, CardSurface.APP_PANEL)
-    val fresh = Freshness.of(reading?.let { now - it.t })
+    val fresh = face.fresh
     // Motion (paint only): the number rolls from the previous one, the arrow turns, the colour fades.
-    val number = face.number
+    val number = face.text.takeIf { face.shown }
     val roll = remember { Animatable(1f) }
     var from by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     var shown by remember { androidx.compose.runtime.mutableStateOf(number) }
@@ -192,11 +192,11 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
     }
     val color by animateColorAsState(Color(target), Motion.slowEffectsSpec(), label = "range")
     val motion = CardMotion(from, roll.value, up, angle, color.toArgb())
-    val desc = app.mauri.sukrara.widgets.describeCard(ctx, reading, now, treatments, CardSurface.APP_PANEL)
+    val desc = app.mauri.sukrara.widgets.describeCard(ctx, reading, now, treatments)
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Canvas(Modifier.fillMaxWidth().height(PANEL_HEADER_DP.dp).semantics { contentDescription = desc }
-                .then(if (face.state == app.mauri.sukrara.graph.ValueFace.State.ENDED && onEnded != null) Modifier.clickable { onEnded() } else Modifier)) {
+                .then(if (face.state == app.mauri.sukrara.graph.GlucoseLook.State.ENDED && onEnded != null) Modifier.clickable { onEnded() } else Modifier)) {
                 drawIntoCanvas {
                     GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
                         CardSurface.APP_PANEL, CardPart.HEADER, metricsOf = metricsOf, alerts = alerts, sensor = sensor,

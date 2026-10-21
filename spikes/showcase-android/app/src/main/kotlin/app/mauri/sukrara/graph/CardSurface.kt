@@ -13,8 +13,8 @@ import android.graphics.RectF
  * - a [Kind.CARD] surface draws card pixels only through [GlucoseCard.draw] (it chooses the size, its place's
  *   settings ([CardStyle]) and the [CardPart]s; nothing else), and every call names its surface;
  * - a [Kind.GLYPH] surface (text and icons the system lays out: status bar, notification header and chip, Live
- *   Update) takes the value, the arrow and the freshness from [GlucoseCard.face] and its glyphs from the card's
- *   painters ([ValueGlyphs]);
+ *   Update, the Quick Settings tile, the screen-reader words) takes the value, the arrow and the freshness steps from
+ *   [GlucoseCard.face] (a [GlucoseLook]) and its glyphs from the card's painters ([ValueGlyphs]);
  * - tools/check `card-surface` fails on a file that calls the renderer and isn't the registered file of the surface
  *   it names, and `card-api` on a file outside the renderer that uses the renderer's internals;
  * - `CardLayoutTest` (and the Mac's `-graphselftest`) renders the shared scenes through every surface's real entry
@@ -30,7 +30,11 @@ enum class CardSurface(val id: String, val kind: Kind) {
     LOCKSCREEN("lockscreen", Kind.CARD),
     NOTIFICATION("notification", Kind.CARD),
     NOTIFICATION_TEXT("notification-text", Kind.GLYPH),
-    STATUS_BAR("status-bar", Kind.GLYPH),
+    STATUS_HOOK("status-hook", Kind.GLYPH),
+    STATUS_ICONS("status-icons", Kind.GLYPH),
+    QUICK_TILE("quick-tile", Kind.GLYPH),
+    WIDGET_DESCRIPTION("widget-description", Kind.GLYPH),
+    LOCK_DESCRIPTION("lock-widget-description", Kind.GLYPH),
     /** Picture sheets and fixtures (tests only; tools/check keeps it out of the app). */
     TEST("test", Kind.CARD);
 
@@ -61,25 +65,6 @@ class CardLayout(val surface: CardSurface, val part: CardPart, val style: CardSt
             return if (v == Math.floor(v)) "${v.toLong()}" else "$v"
         }
     }
-}
-
-/**
- * The value's decision for one reading, shared by the card ([GlucoseCard]) and every glyph surface ([CardSurface.Kind.GLYPH]):
- * what shows where the number goes, struck or not, with an arrow or not ([Freshness], the sensor's warm-up / end).
- */
-data class ValueFace(val state: State, val sgv: Int?, val rate: Double?, val strike: Boolean, val showTime: Boolean,
-                     val t: Long?, val warmup: String?) {
-    enum class State { VALUE, NO_READING_SINCE, NO_READINGS, WARMING_UP, ENDED }
-
-    val shown: Boolean get() = state == State.VALUE
-    /** The trend arrow beside the number (never on a struck value). */
-    val arrow: Boolean get() = shown && !strike && rate != null
-    /** The number as text (null = none shows). */
-    val number: String? get() = if (shown) "$sgv" else null
-    /** For text-only places that can't strike through (notification chip, titles): "188?" when struck. */
-    val plain: String? get() = number?.let { if (strike) "$it?" else it }
-    /** For an icon a few pixels wide (status bar): LO / HI outside 40–400. */
-    val compact: String? get() = sgv?.takeIf { shown }?.let { if (it < 40) "LO" else if (it > 400) "HI" else "$it" }
 }
 
 /**

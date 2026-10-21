@@ -14,7 +14,7 @@ enum LayoutSelfTest {
     private struct Scene { var id: String; var readings: [GraphReading]; var marks: [GraphMark]; var sensor: SensorInfo? }
     private struct Render: CustomStringConvertible {
         var surface: CardSurface; var size: String; var scene: String; var settings: String
-        var layouts: [CardLayout]; var faces: [ValueFace]
+        var layouts: [CardLayout]; var faces: [GlucoseLook]
         var description: String { "\(surface.rawValue) \(size)" }
     }
 
@@ -79,7 +79,7 @@ enum LayoutSelfTest {
             return a.map { CGSize(width: $0[0].doubleValue, height: $0[1].doubleValue) }
         }
 
-        var captured: [CardLayout] = [], faces: [ValueFace] = []
+        var captured: [CardLayout] = [], faces: [GlucoseLook] = []
         GlucoseCard.observer = { captured.append($0) }
         GlucoseCard.faceObserver = { s, f in if s != .test { faces.append(f) } }
         defer { GlucoseCard.observer = nil; GlucoseCard.faceObserver = nil }
@@ -138,15 +138,14 @@ enum LayoutSelfTest {
             s.replacingOccurrences(of: "\\s*\\[[^]]*]", with: "", options: .regularExpression)
                 .replacingOccurrences(of: "\\s*\\(no room\\)", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
         }
-        func faceElements(_ f: ValueFace) -> [(String, String)] {
+        func faceElements(_ f: GlucoseLook) -> [(String, String)] {
             switch f.state {
             case .value:
-                var out = [("value.number", (f.number ?? "") + (f.strike ? " struck" : ""))]
-                if f.arrow, let r = f.rate { out.append(("value.arrow", abs(r) >= 3 ? "double" : "single")) }
-                return out
+                return [("value.number", (f.text ?? "") + (f.strike ? " struck" : "")),
+                        ("value.trend", f.trend == .arrow ? (abs(f.rate ?? 0) >= 3 ? "arrow double" : "arrow single") : "ring")]
             case .warmingUp: return [("value.warmup", f.warmup ?? "")]
             case .ended: return [("value.ended", "")]
-            default: return [("value.none", f.state.rawValue)]
+            default: return [("value.none", f.state.layoutName)]
             }
         }
         func ringsSignature(_ st: CardStyle) -> String {

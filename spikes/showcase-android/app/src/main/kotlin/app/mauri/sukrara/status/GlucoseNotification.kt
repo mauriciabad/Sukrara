@@ -32,12 +32,13 @@ import app.mauri.sukrara.ui.QuickTreatmentActivity
 import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.Freshness
+import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
-import app.mauri.sukrara.graph.ValueFace
-import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.appSlots
 import app.mauri.sukrara.graph.systemPalette
 import androidx.core.graphics.createBitmap
@@ -125,10 +126,11 @@ object GlucoseNotification {
             .setCategory(Notification.CATEGORY_STATUS)
         // round sensor-life: an ended or warming-up sensor says so instead of "waiting" / "No reading since"
         val sensor = app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t)
-        // what shows where the value goes: the card's own decision (freshness, warm-up, ended), as on every surface
-        val face = GlucoseCard.face(r, now, sensor, CardSurface.NOTIFICATION_TEXT)
+        // what shows where the value goes: the card's own decision (freshness steps, warm-up, ended), as on every surface
+        val look = GlucoseCard.face(r, now, sensor, CardSurface.NOTIFICATION_TEXT)
+        val fresh = look.fresh
         // ended: as soon as it has ended (not an error, and no value to show any more); warming: while no value shows
-        sensor?.takeIf { face.state == ValueFace.State.ENDED }?.let {
+        sensor?.takeIf { look.state == GlucoseLook.State.ENDED }?.let {
             // "Sensor ended" + the "Replace sensor" action (the card's pill) for the phone that wears it
             b.setSmallIcon(R.drawable.ic_stat_sensor_ended).setContentTitle(c.getString(R.string.card_sensor_ended))
             if (detail.isNotEmpty()) b.setContentText(detail)
@@ -138,52 +140,55 @@ object GlucoseNotification {
             }
             return b.build()
         }
-        sensor?.takeIf { face.state == ValueFace.State.WARMING_UP }?.let { sl ->
+        sensor?.takeIf { look.state == GlucoseLook.State.WARMING_UP }?.let { sl ->
             return b.setSmallIcon(R.drawable.ic_stat_sukrara)
                 .setContentTitle(if (sl.waiting(now)) c.getString(R.string.card_almost_ready)
                     else c.getString(R.string.card_ready_at, Freshness.timeText(sl.readyAt, now)))
                 .setContentText(detail).build()
         }
-        if (r == null) {
+        if (r == null || look.state == GlucoseLook.State.NONE) {
             return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_waiting_for_glucose))
                 .setContentText(detail).build()
         }
         // Investigation 16: no rate and no "time ago"; the reading's time only once it's late (Freshness).
-        if (!face.shown) {
-            return b.setSmallIcon(R.drawable.ic_stat_sukrara).setContentTitle(c.getString(R.string.notif_no_reading_since, Freshness.timeText(r.t, now)))
+        // From 20 min without a reading: no value, the "no readings" icon (status bar) and since when.
+        if (look.state == GlucoseLook.State.NO_READINGS) {
+            return b.setSmallIcon(smallIcon(look)).setContentTitle(c.getString(R.string.notif_no_reading_since, Freshness.timeText(r.t, now)))
                 .setContentText(detail).build()
         }
-        val ageText = if (face.showTime) c.getString(R.string.notif_reading_at, Freshness.timeText(r.t, now)) else ""
+        val stale = look.strike
+        val ageText = if (fresh.showTime) c.getString(R.string.notif_reading_at, Freshness.timeText(r.t, now)) else ""
         val line = listOf(ageText, detail).filter { it.isNotEmpty() }.joinToString(" · ")
-        b.setContentTitle("${face.number} mg/dL ${if (face.arrow) Trend.arrow(r.rate) else ""}".trimEnd())
+        b.setContentTitle(title(look, r.rate))
             .setContentText(line)
             .setWhen(r.t * 1000)
             .setShowWhen(true)
         // Promoted ongoing is missing on some API 36 images (emulator: NoSuchMethodError) and the user can revoke it.
         val live = chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }
             .getOrDefault(false) && runCatching {
-                b.setRequestPromotedOngoing(true).setShortCriticalText(face.plain)
+                b.setRequestPromotedOngoing(true).setShortCriticalText(look.plain)
             }.isSuccess
         if (live) {
-            b.setSmallIcon(Icon.createWithBitmap(ValueGlyphs.trendIcon(face)))
+            b.setSmallIcon(Icon.createWithBitmap(ValueGlyphs.trendIcon(if (look.trend == TrendMark.ARROW) r.rate else null)))
             if (Build.VERSION.SDK_INT >= 37) {
                 // The expanded promoted card uses the title as its header line (no app name), so it's not the value.
                 b.setContentTitle(Trend.word(r.rate).replaceFirstChar { it.uppercase() } + " · " + detail)
                 b.setStyle(Notification.MetricStyle()
                     // Labels are a third of the card width ("Glucose (mg/dL)" got ellipsized on the phone): the unit
                     // goes in the label, the values stay short. The reading's time only once it's late.
-                    .addMetric(Notification.Metric(Notification.Metric.FixedInt(r.sgv), "mg/dL", semantic(r.sgv)))
+                    .addMetric(if (stale || r.sgv !in 40..400) Notification.Metric(Notification.Metric.FixedText(look.plain!!), "mg/dL")
+                        else Notification.Metric(Notification.Metric.FixedInt(r.sgv), "mg/dL", semantic(r.sgv)))
                     .apply {
                         // The slots beside the value, like the home widgets (the trend is already the chip's arrow and
                         // the title); three metrics in all, the reading's time taking the last one once it's late.
                         val items = runCatching {
                             appSlots(c, RecentHistory.readings(c), app.mauri.sukrara.treatments.TreatmentFeed.items.value, now,
-                                if (face.showTime) 1 else 2)
+                                if (fresh.showTime) 1 else 2)
                         }.getOrDefault(emptyList())
                         for (item in items) app.mauri.sukrara.graph.Slots.text(item, now)?.let { (v, label) ->
                             addMetric(Notification.Metric(Notification.Metric.FixedText(v), label))
                         }
-                        if (face.showTime) addMetric(Notification.Metric(Notification.Metric.FixedText(
+                        if (fresh.showTime) addMetric(Notification.Metric(Notification.Metric.FixedText(
                             Freshness.timeText(r.t, now)), c.getString(R.string.notif_metric_reading)))
                     }
                     .setCriticalMetric(0))
@@ -192,16 +197,17 @@ object GlucoseNotification {
             }
         } else {
             // Colorized foreground service: keeps the number icon first and shown although the channel is LOW (docs/05).
-            val bg = Range.color(r.sgv) ?: 0xFF1BB5C9.toInt()
+            // struck through (5–20 min): grey instead of the range colour
+            val bg = if (stale) STALE_BG else Range.color(r.sgv) ?: 0xFF1BB5C9.toInt()
             val art = art(c, r)
-            b.setSmallIcon(if (icon) Icon.createWithBitmap(ValueGlyphs.icon(face)) else Icon.createWithResource(c, R.drawable.ic_stat_sukrara))
+            b.setSmallIcon(if (icon) Icon.createWithBitmap(ValueGlyphs.icon(look, r.rate)) else Icon.createWithResource(c, smallIcon(look)))
                 .setColorized(true).setColor(bg)
                 .setShowWhen(false)   // the age is in the card; the header keeps only the icon and app name (system-drawn)
                 // expanded: the follower line goes in the header beside "Sukrara" instead of a row of its own
                 .setSubText(detail.ifEmpty { null })
                 .setStyle(Notification.DecoratedCustomViewStyle())
-                .setCustomContentView(card(c, R.layout.notif_glucose_collapsed, face, bg, ageText, art?.slots))
-                .setCustomBigContentView(card(c, R.layout.notif_glucose_expanded, face, bg, ageText, art?.slots).apply {
+                .setCustomContentView(card(c, R.layout.notif_glucose_collapsed, look, r, bg, ageText, art?.slots))
+                .setCustomBigContentView(card(c, R.layout.notif_glucose_expanded, look, r, bg, ageText, art?.slots).apply {
                     art?.graph?.let { setImageViewBitmap(R.id.graph, it) }
                 })
         }
@@ -213,15 +219,16 @@ object GlucoseNotification {
         if (ColorUtils.calculateContrast(Color.BLACK, bg or 0xFF000000.toInt()) >= ColorUtils.calculateContrast(Color.WHITE, bg or 0xFF000000.toInt()))
             Color.BLACK else Color.WHITE
 
-    private fun card(c: Context, layout: Int, face: ValueFace, bg: Int, info: String, slots: Bitmap?): RemoteViews {
+    private fun card(c: Context, layout: Int, look: GlucoseLook, r: Reading, bg: Int, info: String, slots: Bitmap?): RemoteViews {
         val fg = ink(bg)
         return RemoteViews(c.packageName, layout).apply {
-            val value = face.plain ?: ""
+            val value = look.text!!
             val sp = if (layout == R.layout.notif_glucose_expanded) 44f else 30f
             setImageViewBitmap(R.id.value, ValueGlyphs.number(value, fg,
-                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, c.resources.displayMetrics)))
-            setContentDescription(R.id.value, value)
-            setImageViewBitmap(R.id.arrow, ValueGlyphs.trendIcon(face, (34 * c.resources.displayMetrics.density).toInt(), fg))
+                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, c.resources.displayMetrics), look.strike))
+            setContentDescription(R.id.value, if (look.strike) c.getString(R.string.notif_value_old, value) else value)
+            setImageViewBitmap(R.id.arrow, ValueGlyphs.trendIcon(if (look.trend == TrendMark.ARROW) r.rate else null,
+                (34 * c.resources.displayMetrics.density).toInt(), fg))
             setTextViewText(R.id.info, info)
             setTextColor(R.id.info, fg)
             if (slots != null) setImageViewBitmap(R.id.slots, slots)
@@ -301,7 +308,7 @@ object GlucoseNotification {
             }
         }
         val vp = ValueGlyphs.numberPaint(0, android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 44f, gc.resources.displayMetrics))
-        val valueDp = (maxOf(vp.measureText("${r.sgv}?"), vp.measureText(ValueGlyphs.REFERENCE)) + 2) / d
+        val valueDp = (maxOf(vp.measureText(Freshness.valueText(r.sgv)), vp.measureText(ValueGlyphs.REFERENCE)) + 2) / d
         val room = ((wDp - valueDp - 6f - 34f - 12f - 8f) * d).toInt()
         val slots = if (room < SLOT_DP * d) null else createBitmap(room, (SLOT_DP * d).toInt()).let { strip ->
             val lay = GlucoseCard.draw(Canvas(strip), strip.width.toFloat(), strip.height.toFloat(), history, treatments, now, card, pal, d,
@@ -319,5 +326,27 @@ object GlucoseNotification {
         Range.color(mgdl) == null -> Notification.SEMANTIC_STYLE_SAFE
         mgdl < Range.LOW -> Notification.SEMANTIC_STYLE_DANGER
         else -> Notification.SEMANTIC_STYLE_CAUTION
+    }
+
+    /** Struck-through values (5–20 min) colour the card grey instead of their range. */
+    private const val STALE_BG = 0xFF8E9099.toInt()
+
+    /**
+     * The notification's (and the Live Update chip's) look for a [look] ([GlucoseCard.face]): its small icon resource
+     * when it isn't the number ([ValueGlyphs.icon]) or the arrow ([ValueGlyphs.trendIcon]): the "no readings" icon (sensors_off) from 20
+     * min, the flag once the sensor has ended, else Sukrara's.
+     */
+    fun smallIcon(look: GlucoseLook): Int = when (look.state) {
+        GlucoseLook.State.NO_READINGS -> R.drawable.ic_stat_no_readings
+        GlucoseLook.State.ENDED -> R.drawable.ic_stat_sensor_ended
+        else -> R.drawable.ic_stat_sukrara
+    }
+
+    /** The title for a value: `123 mg/dL ↗`, struck through (a span) with the "no trend" ring from 5 min. */
+    fun title(look: GlucoseLook, rate: Double?): CharSequence {
+        val mark = if (look.trend == TrendMark.ARROW) Trend.arrow(rate) else TrendMark.RING
+        val s = android.text.SpannableString("${look.text} mg/dL $mark")
+        if (look.strike) s.setSpan(android.text.style.StrikethroughSpan(), 0, look.text!!.length, 0)
+        return s
     }
 }

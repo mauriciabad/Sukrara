@@ -61,7 +61,7 @@ class CardLayoutTest {
 
     /** Everything one surface drew for one scene: its card layouts (one per part) and the faces it asked for. */
     private class Render(val surface: CardSurface, val size: String, val scene: String, val settings: String,
-                         val layouts: List<CardLayout>, val faces: List<ValueFace>) {
+                         val layouts: List<CardLayout>, val faces: List<GlucoseLook>) {
         override fun toString() = "${surface.id} $size"
     }
 
@@ -126,7 +126,7 @@ class CardLayoutTest {
     // ---- the surfaces' real entry paths ------------------------------------------------------------------------
 
     private val captured = ArrayList<CardLayout>()
-    private val faces = ArrayList<ValueFace>()
+    private val faces = ArrayList<GlucoseLook>()
     private var panel by mutableStateOf<(@androidx.compose.runtime.Composable () -> Unit)?>(null)
 
     private fun metricsOf(sc: Scene): (RingSpec, Bands) -> GlucoseMetrics = { r, b -> GlucoseMetrics.of(sc.readings, now - r.windowS, now, b) }
@@ -172,7 +172,11 @@ class CardLayoutTest {
             }
             CardSurface.NOTIFICATION_TEXT ->
                 app.mauri.sukrara.status.GlucoseNotification.build(ctx, latest, chip = false, icon = true, detail = "", now = now)
-            CardSurface.STATUS_BAR -> latest?.let { app.mauri.sukrara.hook.chipFace(it, now, sc.sensor) }
+            CardSurface.STATUS_HOOK -> latest?.let { app.mauri.sukrara.hook.chipFace(it, now, sc.sensor) }
+            CardSurface.STATUS_ICONS -> app.mauri.sukrara.status.RootStatusBar.iconPlan(app.mauri.sukrara.status.RootStatusBar.look(latest, now), latest)
+            CardSurface.QUICK_TILE -> app.mauri.sukrara.ui.TreatmentTileService.look(latest, now)
+            CardSurface.WIDGET_DESCRIPTION -> app.mauri.sukrara.widgets.describeCard(ctx, latest, now, sc.treatments)
+            CardSurface.LOCK_DESCRIPTION -> app.mauri.sukrara.widgets.lockDescription(ctx, frame)
             CardSurface.TEST -> error("not a surface")
         }
     }
@@ -181,11 +185,11 @@ class CardLayoutTest {
 
     private fun strip(info: String) = info.replace(Regex("\\s*\\[[^]]*]"), "").replace(Regex("\\s*\\(no room\\)"), "").trim()
 
-    private fun faceElements(f: ValueFace): List<Pair<String, String>> = when (f.state) {
-        ValueFace.State.VALUE -> listOfNotNull("value.number" to (f.number + if (f.strike) " struck" else ""),
-            if (f.arrow) "value.arrow" to (if (app.mauri.sukrara.core.Trend.isDouble(f.rate!!)) "double" else "single") else null)
-        ValueFace.State.WARMING_UP -> listOf("value.warmup" to (f.warmup ?: ""))
-        ValueFace.State.ENDED -> listOf("value.ended" to "")
+    private fun faceElements(f: GlucoseLook): List<Pair<String, String>> = when (f.state) {
+        GlucoseLook.State.VALUE -> listOf("value.number" to (f.text + if (f.strike) " struck" else ""),
+            "value.trend" to (if (f.trend == TrendMark.ARROW) (if (app.mauri.sukrara.core.Trend.isDouble(f.rate!!)) "arrow double" else "arrow single") else "ring"))
+        GlucoseLook.State.WARMING_UP -> listOf("value.warmup" to (f.warmup ?: ""))
+        GlucoseLook.State.ENDED -> listOf("value.ended" to "")
         else -> listOf("value.none" to f.state.name)
     }
 

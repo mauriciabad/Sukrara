@@ -342,9 +342,9 @@ object GlucoseCard {
     /** A ring is only drawn when its window has at least this much data. */
     const val MIN_COVERAGE = 0.25
 
-    /** Tests: every [CardLayout] drawn and every [ValueFace] decided, as it happens (null in the app). */
+    /** Tests: every [CardLayout] drawn and every [GlucoseLook] decided ([face]), as it happens (null in the app). */
     @Volatile var observer: ((CardLayout) -> Unit)? = null
-    @Volatile var faceObserver: ((CardSurface, ValueFace) -> Unit)? = null
+    @Volatile var faceObserver: ((CardSurface, GlucoseLook) -> Unit)? = null
 
     /**
      * Draw [part] of the card [st] for [surface] into ([w] × [h]) at the canvas origin and return what was laid out.
@@ -399,8 +399,8 @@ object GlucoseCard {
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 12 * d; textAlign = Paint.Align.CENTER }
                 val face = face(latest, nowS, sl, surface)
                 val msg = when (face.state) {
-                    ValueFace.State.WARMING_UP -> Words.current.warmingUp
-                    ValueFace.State.ENDED -> Words.current.sensorEnded
+                    GlucoseLook.State.WARMING_UP -> Words.current.warmingUp
+                    GlucoseLook.State.ENDED -> Words.current.sensorEnded
                     else -> latest?.let { Words.current.noReadingsSince.format(Freshness.timeText(it.t, nowS, st.hour24)) } ?: Words.current.noReadingsYet
                 }
                 cv.drawText(msg, chart.centerX(), chart.centerY(), p)
@@ -419,19 +419,13 @@ object GlucoseCard {
     }
 
     /**
-     * The value's decision for the newest reading [latest] (the card's number and every glyph surface, [ValueFace]):
-     * a warming-up or ended sensor says so first, then the reading's [Freshness] (struck when stale, gone when old).
+     * The value's decision for the newest reading [latest] for [surface]: the card's number and every glyph surface
+     * ([CardSurface.Kind.GLYPH]) take it from here ([Freshness.look]: a warming-up or ended sensor first, then the
+     * reading's freshness steps), so the observer sees every surface's decision.
      */
-    fun face(latest: Reading?, nowS: Long, sensor: SensorBadge.Look?, surface: CardSurface): ValueFace {
-        val fr = Freshness.of(latest?.let { nowS - it.t })
-        return when {
-            sensor?.warmup != null -> ValueFace(ValueFace.State.WARMING_UP, null, null, false, false, latest?.t, sensor!!.warmup)
-            sensor?.ended == true -> ValueFace(ValueFace.State.ENDED, null, null, false, false, latest?.t, null)
-            latest == null -> ValueFace(ValueFace.State.NO_READINGS, null, null, false, false, null, null)
-            !fr.showValue -> ValueFace(ValueFace.State.NO_READING_SINCE, null, null, false, true, latest.t, null)
-            else -> ValueFace(ValueFace.State.VALUE, latest.sgv, latest.rate, fr.strike, fr.showTime, latest.t, null)
-        }.also { f -> faceObserver?.invoke(surface, f) }
-    }
+    fun face(latest: Reading?, nowS: Long, sensor: SensorBadge.Look?, surface: CardSurface): GlucoseLook =
+        Freshness.look(latest?.sgv, latest?.t, latest?.rate, nowS, ended = sensor?.ended == true, warmup = sensor?.warmup)
+            .also { f -> faceObserver?.invoke(surface, f) }
 
     /**
      * Where the sensor's time left goes on a card [st] (the WHOLE card, also when its parts are drawn in separate boxes):
@@ -555,6 +549,18 @@ object GlucoseCard {
         rec.add("value.warmup", RectF(box.left, cy - capH / 2, box.left + need, cy + capH / 2), s)
     }
 
+    private val noReadingsPath by lazy { androidx.core.graphics.PathParser.createPathFromPathData(GlucoseLook.NO_READINGS_PATH) }
+
+    /** The "no readings" icon (Material Symbols `sensors_off`, [GlucoseLook.NO_READINGS_PATH]), [size] square, top-left at ([x], [y]). */
+    fun drawNoReadings(cv: Canvas, x: Float, y: Float, size: Float, color: Int) {
+        cv.save()
+        cv.translate(x, y)
+        cv.scale(size / 960f, size / 960f)
+        cv.translate(0f, 960f)
+        cv.drawPath(noReadingsPath, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        cv.restore()
+    }
+
     /**
      * The number + arrow, and under it the late reading's time and/or the status badge ([look]). The badge takes a row
      * under the number when the box is tall enough to keep the number at least 26 dp; otherwise it shrinks to its icon
@@ -566,21 +572,30 @@ object GlucoseCard {
         val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
         val face = face(r, nowS, sensor, rec.surface)
         when (face.state) {
-            ValueFace.State.WARMING_UP -> return drawWarmup(cv, box, sensor!!, small, nowS, pal, d, hour24, rec)
+            GlucoseLook.State.WARMING_UP -> return drawWarmup(cv, box, sensor!!, small, nowS, pal, d, hour24, rec)
             // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
-            ValueFace.State.ENDED -> return drawEnded(cv, box, nowS, pal, d, rec)
-            ValueFace.State.NO_READINGS, ValueFace.State.NO_READING_SINCE -> {
+            GlucoseLook.State.ENDED -> return drawEnded(cv, box, nowS, pal, d, rec)
+            GlucoseLook.State.NO_READINGS, GlucoseLook.State.NONE -> {
                 val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
                 val w = Words.current
                 val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
                 val line2 = r?.let { Freshness.timeText(it.t, nowS, hour24) }
+                // no readings for 20 min: the status bar's "no readings" icon (sensors_off) before the words, as tall as both
+                // lines; icon and words fit the room left of the rings (as on the Mac)
+                fun iconW() = if (r != null) big.textSize * (2.1f + 0.35f) else 0f
+                val widest = listOfNotNull(line1, line2).maxOf { big.measureText(it) }
+                if (widest + iconW() > box.width() - 8 * d && widest > 0)
+                    big.textSize *= max(0.4f, (box.width() - 8 * d) / (widest + iconW()))
                 val y = box.centerY() - if (line2 == null) -big.textSize / 3 else big.textSize * 0.15f
-                cv.drawText(line1, box.left, y, big)
-                if (line2 != null) cv.drawText(line2, box.left, y + big.textSize * 1.25f, big)
+                val icon = if (r != null) big.textSize * 2.1f else 0f
+                if (r != null) drawNoReadings(cv, box.left, y - big.textSize * 0.95f, icon, pal.inkSoft)
+                val x = box.left + if (r != null) icon + big.textSize * 0.35f else 0f
+                cv.drawText(line1, x, y, big)
+                if (line2 != null) cv.drawText(line2, x, y + big.textSize * 1.25f, big)
                 rec.add("value.none", RectF(box.left, y - big.textSize, box.right, y + (if (line2 != null) big.textSize * 1.25f else 0f)), face.state.name)
                 return
             }
-            ValueFace.State.VALUE -> {}
+            GlucoseLook.State.VALUE -> {}
         }
         r!!
         val color = motion?.color ?: if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
@@ -595,7 +610,7 @@ object GlucoseCard {
             textSize = numBox.height() * 1.18f
             isStrikeThruText = fr.strike
         }
-        val s = "${r.sgv}"
+        val s = face.text!!
         // Fit the width as well: number + arrow must stay left of the rings.
         val arrowFactor = 0.62f
         // the sensor badge beside the arrow (SensorSpot.VALUE) is part of the row: the number shrinks to make room for it
@@ -616,14 +631,21 @@ object GlucoseCard {
         rec.add("value.number", RectF(box.left, cy - capH / 2, box.left + num.measureText(s), cy + capH / 2), if (fr.strike) "$s struck" else s)
         var x = box.left + num.measureText(s) + num.textSize * 0.08f
         val arrowSize = num.textSize * arrowFactor
-        if (face.arrow) r.rate?.let { rate ->
+        val rate = r.rate
+        if (face.trend == TrendMark.ARROW && rate != null) {
             cv.save()
             cv.translate(x + arrowSize / 2, cy)
             cv.rotate(motion?.arrowDeg ?: Trend.angleDeg(rate))
             ValueGlyphs.arrow(cv, arrowSize * 1.05f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color },
                 double = Trend.isDouble(rate))
             cv.restore()
-            rec.add("value.arrow", RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2), if (Trend.isDouble(rate)) "double" else "single")
+            rec.add("value.trend", RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2), if (Trend.isDouble(rate)) "arrow double" else "arrow single")
+        } else {
+            // no trend (no rate, or the value is struck through): the hollow ring in the arrow's place
+            cv.drawCircle(x + arrowSize / 2, cy, TrendMark.ringRadius(arrowSize), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.color = color; style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowSize)
+            })
+            rec.add("value.trend", RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2), "ring")
         }
         // the sensor life badge: right of the arrow (and of the icon badge), top-aligned with the number's caps
         sensor?.takeIf { lifeBadge }?.let { sl ->
@@ -691,9 +713,9 @@ object GlucoseCard {
 }
 
 /**
- * The value's glyphs for surfaces the system lays out ([CardSurface.Kind.GLYPH]: the notification's header, the
- * status bar), drawn from the card's decision ([ValueFace]): the number in the card's rounded face and the trend
- * arrow, the same arrow the card draws.
+ * The value's glyphs for surfaces the system lays out ([CardSurface.Kind.GLYPH]: the notification's header and small
+ * icon, the Live Update chip, the SystemUI hook), drawn from the card's decision ([GlucoseCard.face], a [GlucoseLook]):
+ * the number in the card's rounded face, the card's arrow, the "no trend" ring ([TrendMark]).
  */
 object ValueGlyphs {
     /** The value is sized for at least this wide a number, so a strip beside it doesn't change from 99 to 188. */
@@ -711,18 +733,28 @@ object ValueGlyphs {
         if (double) cv.drawPath(head(.12f), fill)
     }
 
-    /** The face's trend in a [size] px square: the arrow at its angle, a dot when there's none to show. */
-    fun trend(cv: Canvas, face: ValueFace, size: Int, p: Paint) {
-        if (!face.arrow) {
-            cv.drawCircle(size / 2f, size / 2f, size * 0.16f, p)
+    /** The arrow for [rate] in a [size] px square, or the "no trend" ring ([TrendMark.NONE]) when it's null. */
+    fun trend(cv: Canvas, rate: Double?, size: Int, p: Paint) {
+        if (rate == null) {
+            cv.drawCircle(size / 2f, size / 2f, TrendMark.ringRadius(size.toFloat()),
+                Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(size.toFloat()) })
             return
         }
         cv.save()
         cv.translate(size / 2f, size / 2f)
-        cv.rotate(Trend.angleDeg(face.rate!!))
-        arrow(cv, size * 1.02f, p, double = Trend.isDouble(face.rate))
+        cv.rotate(Trend.angleDeg(rate))
+        arrow(cv, size * 1.02f, p, double = Trend.isDouble(rate))
         cv.restore()
     }
+
+    /**
+     * The trend alone in a [size] px square ([trend]; pass the rate only when the look's trend is the arrow): the Live
+     * Update chip's small icon (an alpha mask when [color] is null) or the notification card's arrow.
+     */
+    fun trendIcon(rate: Double?, size: Int = 96, color: Int? = null): Bitmap =
+        Bitmap.createBitmap(size, size, if (color == null) Bitmap.Config.ALPHA_8 else Bitmap.Config.ARGB_8888).also {
+            trend(Canvas(it), rate, size, Paint(Paint.ANTI_ALIAS_FLAG).apply { if (color != null) this.color = color })
+        }
 
     /** The number paint in the card's rounded face at [px]. */
     fun numberPaint(color: Int, px: Float) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -730,11 +762,11 @@ object ValueGlyphs {
     }
 
     /**
-     * [s] (the face's [ValueFace.plain]) in the card's rounded face (proportional figures like SF Pro Rounded) at [px]
-     * text size, cropped to the digits' height (like a TextView without font padding).
+     * [s] (the look's text) in the card's rounded face (proportional figures like SF Pro Rounded) at [px] text size,
+     * struck through when [strike], cropped to the digits' height (like a TextView without font padding).
      */
-    fun number(s: String, color: Int, px: Float): Bitmap {
-        val p = numberPaint(color, px)
+    fun number(s: String, color: Int, px: Float, strike: Boolean = false): Bitmap {
+        val p = numberPaint(color, px).apply { isStrikeThruText = strike }
         val b = android.graphics.Rect().also { p.getTextBounds("0123456789", 0, 10, it) }
         val pad = (px * 0.06f).toInt() + 1
         return Bitmap.createBitmap(kotlin.math.ceil(p.measureText(s)).toInt() + 2, b.height() + 2 * pad, Bitmap.Config.ARGB_8888).also {
@@ -743,35 +775,35 @@ object ValueGlyphs {
     }
 
     /**
-     * The face's trend alone in a [size] px square ([trend]): the Live Update chip's small icon (an alpha mask when
-     * [color] is null) or the notification card's arrow.
+     * Alpha-mask small icon: the number fills the width, the trend arrow (or the "no trend" ring) underneath; struck
+     * from 5 min, at half strength.
      */
-    fun trendIcon(face: ValueFace, size: Int = 96, color: Int? = null): Bitmap =
-        Bitmap.createBitmap(size, size, if (color == null) Bitmap.Config.ALPHA_8 else Bitmap.Config.ARGB_8888).also {
-            trend(Canvas(it), face, size, Paint(Paint.ANTI_ALIAS_FLAG).apply { if (color != null) this.color = color })
-        }
-
-    /** Alpha-mask small icon: the face's number ([ValueFace.compact]) fills the width, its arrow sits underneath. */
-    fun icon(face: ValueFace, size: Int = 96): Bitmap {
+    fun icon(look: GlucoseLook, rate: Double?, size: Int = 96): Bitmap {
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ALPHA_8)
         val cv = Canvas(bmp)
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
             textAlign = Paint.Align.CENTER
         }
-        val text = face.compact ?: "–"
+        val text = look.text ?: return bmp
+        // struck: everything at half strength as one layer (the bar over the digits doesn't add up)
+        if (look.strike) cv.saveLayerAlpha(null, 128)
         val numberH = size * 0.62f
         p.textSize = numberH / 0.72f
         p.textSize *= min(1f, size / p.measureText(text))
         cv.drawText(text, size / 2f, numberH, p)
-        if (face.arrow) {
-            val arrowBox = size - numberH - size * 0.04f
-            cv.save()
-            cv.translate(size / 2f, size - arrowBox / 2)
-            cv.rotate(Trend.angleDeg(face.rate!!))
-            arrow(cv, arrowBox * 1.15f, p, double = Trend.isDouble(face.rate))
-            cv.restore()
+        if (look.strike) cv.drawRect(0f, numberH * 0.45f, size.toFloat(), numberH * 0.45f + size * 0.07f, p)
+        val arrowBox = size - numberH - size * 0.04f
+        cv.save()
+        cv.translate(size / 2f, size - arrowBox / 2)
+        if (look.trend == TrendMark.ARROW && rate != null) {
+            cv.rotate(Trend.angleDeg(rate))
+            arrow(cv, arrowBox * 1.15f, p, double = Trend.isDouble(rate))
+        } else {
+            cv.drawCircle(0f, 0f, TrendMark.ringRadius(arrowBox), Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowBox) })
         }
+        cv.restore()
+        if (look.strike) cv.restore()
         return bmp
     }
 }

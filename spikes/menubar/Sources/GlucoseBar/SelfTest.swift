@@ -1,7 +1,7 @@
 // CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
-import Foundation
+import AppKit
 
 /// CLI checks, no network and no Bluetooth:
 ///   Sukrara -treatmentsselftest   merge rule, the local store
@@ -173,8 +173,115 @@ enum GraphFixtures {
         print("graph fixtures: \(n) cases, \(failures) failed")
         return failures + labels(dir.appendingPathComponent("labels")) + sensor(dir.appendingPathComponent("sensor"))
             + clock(dir.appendingPathComponent("clock")) + share(dir.appendingPathComponent("share"))
+            + freshness(dir.appendingPathComponent("freshness/freshness.json"))
             + mark(dir.appendingPathComponent("mark")) + place(dir.appendingPathComponent("place/place.json"))
             + MainActor.assumeIsolated { LayoutSelfTest.run(dir) }
+    }
+
+    /// The freshness steps (spikes/graph-fixtures/freshness/freshness.json, the file Android's FreshnessFixtureTest
+    /// runs): `Freshness.look` at every step boundary, the redraw times, the card (its layout report) and every Mac
+    /// glyph surface of the one registry (surfaces/surfaces.json) through its own code (the menubar title). A
+    /// registered glyph surface without an adapter here fails; the card surfaces are rendered by LayoutSelfTest.
+    static func freshness(_ file: URL) -> Int {
+        let now: TimeInterval = 1_800_000_000
+        guard let data = FileManager.default.contents(atPath: file.path),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let cases = root["cases"] as? [[String: Any]] else { print("FAIL freshness fixtures: unreadable"); return 1 }
+        var failures = 0, n = 0
+        func fail(_ s: String) { print("FAIL freshness \(s)"); failures += 1 }
+        func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
+        // the redraw times
+        if let st = root["steps"] as? [String: Any], let from = st["from"] as? [Any], let next = st["next"] as? [Any] {
+            for (f, x) in zip(from, next) {
+                let got = Freshness.nextChangeAt(0, now: num(f) ?? -1)
+                if got != num(x) { fail("step after \(f): got \(got.map { "\($0)" } ?? "nil")") }
+            }
+        } else { fail("steps missing") }
+        // one adapter per Mac surface in the registry
+        typealias Adapter = ([String: Any], [String: Any]) -> [String]
+        let adapters: [String: Adapter] = ["menubar-title": freshnessTitle]
+        let reg = FileManager.default.contents(atPath: file.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("surfaces/surfaces.json").path).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let ids = Set(((reg?["mac"] as? [String: Any])?["surfaces"] as? [[String: Any]] ?? [])
+            .filter { $0["kind"] as? String == "glyph" }.compactMap { $0["id"] as? String })
+        if ids != Set(adapters.keys) { fail("registry glyph surfaces \(ids.sorted()) vs adapters \(adapters.keys.sorted())") }
+        for c in cases {
+            let name = c["name"] as? String ?? "?"
+            let e = c["expect"] as? [String: Any] ?? [:]
+            let age = num(c["age"]), sgv = num(c["sgv"]).map { Int($0) }
+            let l = Freshness.look(sgv: sgv, t: age.map { now - $0 }, rate: num(c["rate"]), now: now, ended: c["ended"] as? Bool ?? false)
+            let got = "\(l.state.rawValue) \(l.text ?? "nil") \(l.strike) \(l.trend?.rawValue ?? "nil") \(l.fresh.showTime) \(l.fresh.showGraph)"
+            let want = "\(e["state"] as? String ?? "?") \(e["text"] as? String ?? "nil") \(e["strike"] as? Bool ?? false) \(e["trend"] as? String ?? "nil") \(e["time"] as? Bool ?? false) \(e["graph"] as? Bool ?? false)"
+            if got != want { fail("\(name): look \(got), want \(want)") }
+            for m in freshnessCard(c, e) { fail("card · \(name): \(m)") }
+            for (id, a) in adapters { for m in a(c, e) { fail("\(id) · \(name): \(m)") } }
+            n += 1
+        }
+        print("freshness fixtures: \(n) cases × the card + \(adapters.count) glyph surfaces, \(failures) failed")
+        return failures
+    }
+
+    /// The card (menubar dropdown, widgets): drawn into a bitmap; what it laid out is its `CardLayout`.
+    static func freshnessCard(_ c: [String: Any], _ e: [String: Any]) -> [String] {
+        let now: TimeInterval = 1_800_000_000
+        var out: [String] = []
+        func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
+        let state = e["state"] as? String ?? "?", text = e["text"] as? String, strike = e["strike"] as? Bool ?? false
+        var readings: [GraphReading] = []
+        if let age = num(c["age"]), let sgv = num(c["sgv"]) {
+            let t = now - age
+            readings = (1...60).reversed().map { GraphReading(t: t - Double($0) * 60, v: 120, rate: 0) } + [GraphReading(t: t, v: sgv, rate: num(c["rate"]))]
+        }
+        var st = CardStyle(graph: GraphStyle(), rings: [], sensorTime: false)
+        if c["ended"] as? Bool == true { st.sensor = SensorInfo(start: now - 15 * 86400 - 3600, end: now - 3600, warmupEnd: now - 15 * 86400) }
+        let w = 360, h = 200
+        guard let ctx = CGContext(data: nil, width: w * 2, height: h * 2, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return ["no context"] }
+        ctx.translateBy(x: 0, y: CGFloat(h * 2)); ctx.scaleBy(x: 2, y: -2)
+        let lay = GlucoseCard.draw(ctx, size: CGSize(width: w, height: h), readings: readings, marks: [], now: now, st,
+                                   GraphPalette.of(dark: true), surface: .test, part: .all)
+        switch state {
+        case "value":
+            let v = lay.all("value.number").map(\.info)
+            if v != [(text ?? "") + (strike ? " struck" : "")] { out.append("value drawn (strike) \(v)") }
+            let ring = lay.first("value.trend")?.info == "ring"
+            if ring != (e["trend"] as? String == "none") { out.append("no-trend ring \(ring)") }
+            if (lay.first("value.time") != nil) != (e["time"] as? Bool ?? false) { out.append("the reading's time") }
+        case "no_readings":
+            if lay.first("value.none")?.info != "NO_READINGS" { out.append("says no reading since (with the symbol)") }
+        case "none": if lay.first("value.none")?.info != "NONE" { out.append("says no readings yet") }
+        case "ended": if lay.first("value.ended") == nil { out.append("says sensor ended") }
+        default: out.append("unknown state \(state)")
+        }
+        // the chart (its own box under the value row)
+        if state != "ended" {
+            let chart = lay.first("chart") != nil
+            if chart != (e["graph"] as? Bool ?? false) { out.append("chart \(chart)") }
+        }
+        return out
+    }
+
+    /// The menubar title (`MenubarTitle.of`).
+    static func freshnessTitle(_ c: [String: Any], _ e: [String: Any]) -> [String] {
+        let now: TimeInterval = 1_800_000_000
+        func num(_ a: Any?) -> Double? { (a as? NSNumber)?.doubleValue }
+        let l = Freshness.look(sgv: num(c["sgv"]).map { Int($0) }, t: num(c["age"]).map { now - $0 }, rate: num(c["rate"]), now: now,
+                               ended: c["ended"] as? Bool ?? false)
+        let t = MenubarTitle.of(l)
+        let strike = e["strike"] as? Bool ?? false
+        let want: MenubarTitle.Image = switch e["state"] as? String {
+            case "value": e["trend"] as? String == "arrow" ? .arrow : .ring
+            case "no_readings": .noReadings
+            case "ended": .flag
+            default: .none
+        }
+        var out: [String] = []
+        if t.image != want { out.append("image \(t.image) want \(want)") }
+        if e["state"] as? String == "value" {
+            if t.text != e["text"] as? String { out.append("text \(t.text)") }
+            if t.strike != strike || t.grey != strike { out.append("strike/grey \(t.strike)/\(t.grey)") }
+        } else if e["state"] as? String != "none", !t.text.isEmpty { out.append("a value without one: '\(t.text)'") }
+        return out
     }
 
     /// Where the sensor's time left goes (spikes/graph-fixtures/place, the file GraphFixtureTest.place runs):

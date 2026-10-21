@@ -29,9 +29,10 @@ import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.features.HookPosition
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.GlucoseCard
-import app.mauri.sukrara.graph.ValueFace
 import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.core.Range
+import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.status.RootStatusBar
 import app.mauri.sukrara.core.Trend
 import java.lang.ref.WeakReference
@@ -176,9 +177,10 @@ class SystemUiHook : XposedModule() {
         val st = state
         val r = st.reading ?: return null
         if (!st.enabled || !st.color || !st.position.startsWith(HookPosition.SLOT_PREFIX)) return null
-        // the card's decision for this reading (GlucoseCard.face): no range colour once it's struck or gone
-        val face = chipFace(r, System.currentTimeMillis() / 1000, st.sensor())
-        if (!face.shown || face.strike) return null
+        val now = System.currentTimeMillis() / 1000
+        val look = chipFace(r, now, st.sensor())
+        // struck (its drawable is already half strength), no readings, ended: SystemUI's own tint
+        if (look.state != GlucoseLook.State.VALUE || look.strike) return null
         return Range.color(r.sgv)
     }
 
@@ -362,7 +364,7 @@ class SystemUiHook : XposedModule() {
     private inner class GlucoseView(ctx: Context) : TextView(ctx) {
         var reference: WeakReference<TextView>? = null
         private val arrow = ArrowDrawable()
-        private val flag = FlagDrawable()
+        private val flag = PathDrawable(app.mauri.sukrara.core.SensorLife.FLAG_PATH)
         private var lastRefColor = 0
         private var followAlpha = 1f
         private var staleAlpha = 1f
@@ -392,53 +394,38 @@ class SystemUiHook : XposedModule() {
                 visibility = GONE; return@safe
             }
             visibility = VISIBLE
-            // what shows is the card's decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
-            // then struck when stale, a dash once old
-            val face = chipFace(r, System.currentTimeMillis() / 1000, state.sensor())
-            // round sensor-life: an ended sensor shows the checkered flag instead of a stale value
-            if (face.state == ValueFace.State.ENDED) {
-                val base = reference?.get()?.currentTextColor ?: currentTextColor
-                text = ""
-                paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-                staleAlpha = 1f; alpha = followAlpha
-                flag.color = base
-                val s = (textSize * 1.05f).toInt()
-                flag.setBounds(0, 0, s, s)
-                setCompoundDrawables(null, null, flag, null)
-                contentDescription = "Sensor ended"   // i18n-ok: SystemUI process, English like "Glucose …" below
-                return@safe
-            }
             val base = reference?.get()?.currentTextColor ?: currentTextColor
-            // a new sensor warming up: the time left where the number goes (the card and the Mac's menubar say the same)
-            if (face.state == ValueFace.State.WARMING_UP) {
-                text = face.warmup
-                setTextColor(base)
-                paintFlags = paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-                staleAlpha = 1f; alpha = followAlpha
-                setCompoundDrawables(null, null, null, null)
-                contentDescription = "Sensor warming up, ${face.warmup}"   // i18n-ok: SystemUI process, English like "Glucose …" below
-                return@safe
-            }
-            text = face.compact ?: "–"
-            val dim = !face.shown || face.strike
-            val color = if (dim || !state.color) base else Range.color(r.sgv) ?: base
-            setTextColor(color)
-            staleAlpha = if (dim) 0.5f else 1f
+            val now = System.currentTimeMillis() / 1000
+            // what shows is the card's decision for this reading (GlucoseCard.face): the sensor's end or warm-up first,
+            // then the freshness steps
+            val v = HookText.of(chipFace(r, now, state.sensor()), state.color, Range.color(r.sgv), base)
+            text = v.text
+            paintFlags = if (v.strike) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            setTextColor(v.color)
+            staleAlpha = v.alpha
             alpha = followAlpha * staleAlpha
-            paintFlags = if (face.strike) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
-            arrow.face = face
-            arrow.color = color
-            val s = (textSize * 0.95f).toInt()
-            arrow.setBounds(0, 0, s, s)
-            setCompoundDrawables(null, null, arrow, null)
-            contentDescription = "Glucose ${r.sgv} ${Trend.arrow(r.rate)}"
+            val drawable = when (v.mark) {
+                HookText.Mark.ARROW, HookText.Mark.RING -> arrow.also { it.rate = if (v.mark == HookText.Mark.ARROW) r.rate else null; it.color = v.color }
+                // round sensor-life: an ended sensor shows the checkered flag instead of a stale value; from 20 min
+                // without a reading the "no readings" icon (sensors_off) instead of the old value
+                HookText.Mark.FLAG -> flag.also { it.color = v.color }
+                HookText.Mark.NO_READINGS -> noReadings.also { it.color = v.color }
+                HookText.Mark.NONE -> null
+            }
+            val s = (textSize * if (v.mark == HookText.Mark.ARROW || v.mark == HookText.Mark.RING) 0.95f else 1.05f).toInt()
+            drawable?.setBounds(0, 0, s, s)
+            setCompoundDrawables(null, null, drawable, null)
+            contentDescription = v.desc
         }
     }
 
-    /** The "sensor ended" flag (Material Symbols `sports_score`, core/SensorLife.FLAG_PATH), as a Drawable. */
-    private class FlagDrawable : Drawable() {
+    /** The "no readings" icon (Material Symbols `sensors_off`, [GlucoseLook.NO_READINGS_PATH]), as a Drawable. */
+    private val noReadings by lazy { PathDrawable(GlucoseLook.NO_READINGS_PATH) }
+
+    /** A Material Symbols path (960 × 960, y from −960) as a Drawable: the "sensor ended" flag, the "no readings" icon. */
+    private class PathDrawable(private val data: String) : Drawable() {
         var color = 0
-        private val path by lazy { androidx.core.graphics.PathParser.createPathFromPathData(app.mauri.sukrara.core.SensorLife.FLAG_PATH) }
+        private val path by lazy { androidx.core.graphics.PathParser.createPathFromPathData(data) }
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         override fun draw(cv: Canvas) {
@@ -456,23 +443,25 @@ class SystemUiHook : XposedModule() {
         @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
 
-    /** The card's arrow for the face ([ValueGlyphs.arrow], the Mac's continuous angle), as a Drawable; a dot without one. */
+    /** The card's arrow ([ValueGlyphs.arrow], the Mac's continuous angle), as a Drawable. */
     private class ArrowDrawable : Drawable() {
-        var face: ValueFace? = null
+        var rate: Double? = null
         var color = 0
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         override fun draw(cv: Canvas) {
             val b = bounds
             paint.color = color
-            val f = face
+            val rate = rate
             cv.save()
             cv.translate(b.exactCenterX(), b.exactCenterY())
-            if (f == null || !f.arrow) {
-                cv.drawCircle(0f, 0f, b.width() * 0.11f, paint)
+            if (rate == null) {
+                // no trend: the hollow ring ([TrendMark])
+                val p = Paint(paint).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(b.width().toFloat()) }
+                cv.drawCircle(0f, 0f, TrendMark.ringRadius(b.width().toFloat()), p)
             } else {
-                cv.rotate(Trend.angleDeg(f.rate!!))
-                ValueGlyphs.arrow(cv, b.width().toFloat(), paint, Trend.isDouble(f.rate))
+                cv.rotate(Trend.angleDeg(rate))
+                ValueGlyphs.arrow(cv, b.width().toFloat(), paint, Trend.isDouble(rate))
             }
             cv.restore()
         }
@@ -511,8 +500,8 @@ class SystemUiHook : XposedModule() {
 }
 
 /**
- * What the root status bar shows for [r] (its chip's text, strike and arrow, and whether the icons get the range
- * colour): the card's own decision, [GlucoseCard.face]. The hook's one value decision, also the tests'.
+ * What the root status bar shows for [r] (its chip's text and mark, and whether the icons get the range colour): the
+ * card's own decision, [GlucoseCard.face], with the sensor the app sent. The hook's one value decision, also the tests'.
  */
 internal fun chipFace(r: Reading, nowS: Long, sensor: app.mauri.sukrara.core.SensorInfo?) =
-    GlucoseCard.face(r, nowS, app.mauri.sukrara.graph.SensorBadge.look(sensor, nowS, r.t), CardSurface.STATUS_BAR)
+    GlucoseCard.face(r, nowS, app.mauri.sukrara.graph.SensorBadge.look(sensor, nowS, r.t), CardSurface.STATUS_HOOK)

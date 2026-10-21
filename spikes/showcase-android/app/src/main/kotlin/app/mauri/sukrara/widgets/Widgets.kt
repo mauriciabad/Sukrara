@@ -43,6 +43,7 @@ import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.GraphData
 import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.GraphSettings
@@ -210,29 +211,47 @@ fun CardContent(frame: WidgetUpdater.Frame, kind: WidgetKind, appWidgetId: Int? 
         metricsOf = if (appWidgetId == null) { r, b -> app.mauri.sukrara.graph.GlucoseMetrics.of(frame.history, frame.nowSec - r.windowS, frame.nowSec, b) } else null)
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments, kind),
+        contentDescription = describe(ctx, frame, if (kind == WidgetKind.GRAPH) null else frame.treatments),
         modifier = GlanceModifier.fillMaxSize(),
         contentScale = ContentScale.FillBounds,
     )
 }
 
-private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?, kind: WidgetKind): String =
-    describeCard(c, frame.history.lastOrNull(), frame.nowSec, treatments, kind.surface())
+private fun describe(c: Context, frame: WidgetUpdater.Frame, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String =
+    describeCard(c, frame.history.lastOrNull(), frame.nowSec, treatments)
 
-/** What a card says to a screen reader: the value, and (cards with a value) the status badge's words; [treatments] null = no badge. */
-fun describeCard(c: Context, r: Reading?, now: Long, treatments: List<app.mauri.sukrara.treatments.Treatment>?, surface: CardSurface): String {
-    val face = GlucoseCard.face(r, now, app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t), surface)
-    if (face.state == app.mauri.sukrara.graph.ValueFace.State.ENDED)
-        return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
-    if (r == null) return c.getString(R.string.widget_desc_no_readings)
-    if (!face.shown) return c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+/**
+ * What a card says to a screen reader (the home widgets, the app panel): the value ([valueWords]) and, on cards with a
+ * value, the status badge's words; [treatments] null = no badge. Its decision is the card's ([GlucoseCard.face]).
+ */
+fun describeCard(c: Context, r: Reading?, now: Long, treatments: List<app.mauri.sukrara.treatments.Treatment>?): String {
+    val look = GlucoseCard.face(r, now, app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, now, r?.t),
+        CardSurface.WIDGET_DESCRIPTION)
+    if (look.state == GlucoseLook.State.ENDED) return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
+    if (r == null || look.state != GlucoseLook.State.VALUE) return valueWords(c, look, r, now, withTime = true)
     val badge = treatments?.let {
         app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
             app.mauri.sukrara.alerts.Alerts.paused.value), now)
     }
-    val value = if (face.showTime) c.getString(R.string.widget_desc_value_at, r.sgv, Trend.word(r.rate), Freshness.timeText(r.t, now))
-        else c.getString(R.string.widget_desc_value, r.sgv, Trend.word(r.rate))
+    val value = valueWords(c, look, r, now, withTime = true)
     return value + (badge?.let { ". $it" } ?: "")
+}
+
+/**
+ * What a screen reader says for the latest reading [r] with its [look] ([GlucoseCard.face]): the value (and "old" once
+ * struck through), the trend's word (unknown with the "no trend" ring), the reading's time once late ([withTime]);
+ * "no reading since …" from 20 min; a new sensor's warm-up. The home widgets, the app panel and the lock screen widget.
+ */
+internal fun valueWords(c: Context, look: GlucoseLook, r: Reading?, now: Long, withTime: Boolean): String = when {
+    look.state == GlucoseLook.State.WARMING_UP -> c.getString(R.string.card_warming_up)
+    r == null || look.state == GlucoseLook.State.NONE -> c.getString(R.string.widget_desc_no_readings)
+    look.state != GlucoseLook.State.VALUE -> c.getString(R.string.widget_desc_no_reading_since, Freshness.timeText(r.t, now))
+    else -> {
+        val v = if (look.strike) c.getString(R.string.notif_value_old, look.text) else look.text!!
+        val trend = Trend.word(r.rate.takeIf { look.trend == app.mauri.sukrara.graph.TrendMark.ARROW })
+        if (withTime && look.fresh.showTime) c.getString(R.string.widget_desc_value_at, v, trend, Freshness.timeText(r.t, now))
+        else c.getString(R.string.widget_desc_value, v, trend)
+    }
 }
 
 /** Widget-picker preview data: the synthetic curve (in range, slightly rising). */

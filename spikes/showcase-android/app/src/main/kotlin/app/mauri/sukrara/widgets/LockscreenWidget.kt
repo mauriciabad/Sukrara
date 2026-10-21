@@ -135,7 +135,7 @@ private fun LockscreenContent(frame: WidgetUpdater.Frame) {
     if (f.lockBg == LockBackground.SHADOW) bmp = withShadow(bmp, d * scale, LockAppearance.dark(f.lockLook, ctx))
     Image(
         ImageProvider(bmp),
-        contentDescription = describe(ctx, frame),
+        contentDescription = lockDescription(ctx, frame),
         modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity<app.mauri.sukrara.ui.QuickTreatmentActivity>()),
         contentScale = ContentScale.FillBounds,
     )
@@ -215,5 +215,10 @@ private inline fun Canvas.withBox(box: RectF, block: () -> Unit) {
     try { block() } finally { restore() }
 }
 
-private fun describe(c: android.content.Context, frame: WidgetUpdater.Frame): String =
-    c.getString(R.string.lock_widget_desc, describeCard(c, frame.history.lastOrNull(), frame.nowSec, null, CardSurface.LOCKSCREEN))
+/** What the lock screen widget says to a screen reader (its one value decision, also the tests'). */
+internal fun lockDescription(c: android.content.Context, frame: WidgetUpdater.Frame): String {
+    val r = frame.history.lastOrNull()
+    val look = GlucoseCard.face(r, frame.nowSec, app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, frame.nowSec, r?.t),
+        CardSurface.LOCK_DESCRIPTION)
+    return c.getString(R.string.lock_widget_desc, valueWords(c, look, r, frame.nowSec, withTime = false))
+}
