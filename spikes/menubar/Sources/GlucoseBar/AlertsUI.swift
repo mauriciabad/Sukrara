@@ -99,12 +99,9 @@ struct AlertsView: View {
             }
             .disabled(!model.s.on)
             Section {
-                Picker("Sound pack", selection: $model.s.sounds.pack) {
-                    ForEach(AlertSettings.packs, id: \.self) { Text($0.capitalized).tag($0) }
-                    Divider()
-                    Text("System").tag("system")
-                    Text("None").tag("none")
-                }
+                // Android plays the pack's high-glucose sound in its pack dialog
+                SoundPickerButton(title: "Sound pack", kind: .high, selection: $model.s.sounds.pack, packDefault: nil,
+                                  onPlay: { model.preview(.high, pack: $0) })
                 Toggle("Different sound each time", isOn: $model.s.sounds.shuffle)
             } header: { Text("Sounds") } footer: {
                 note("An alert can use another pack in its details.")
@@ -246,23 +243,8 @@ private struct KindDetails: View {
                 }
                 .disabled(locked || !rule.wrappedValue.on)
                 Section {
-                    LabeledContent("Sound") {
-                        HStack(spacing: 6) {
-                            Picker("Sound", selection: model.sound(kind)) {
-                                Text("Pack (\(model.s.sounds.pack.capitalized))").tag("")
-                                ForEach(AlertSettings.packs, id: \.self) { Text($0.capitalized).tag($0) }
-                                Divider()
-                                Text("System").tag("system")
-                                Text("None").tag("none")
-                            }
-                            .labelsHidden()
-                            .fixedSize()
-                            Button { model.preview(kind) } label: { Image(systemName: "play.fill") }
-                                .help("Play a random variant")
-                                .accessibilityLabel("Play")
-                                .disabled(model.s.pack(for: kind) == "none")
-                        }
-                    }
+                    SoundPickerButton(title: "Sound", kind: kind, selection: model.sound(kind), packDefault: model.s.sounds.pack,
+                                      onPlay: { model.preview(kind, pack: $0) })
                     // the phone's "Alarm volume"; macOS has no alarm volume, its nearest is Time Sensitive
                     Toggle("Like an alarm", isOn: rule.alarm)
                 } header: { Text("Sound") } footer: {

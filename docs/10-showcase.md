@@ -576,8 +576,12 @@ asked for the same numbers in the app and the widgets, e.g. GMI in the third wid
 - **Upgrade**: an existing wearer gets a random picture and "Add your name" in the header; existing followers show
   a grey initial until they set a picture (needs their app ≥ 0.11 and a `profile` update, or a new invite).
 
-**Left out**: public kind 0 / profile key, Blossom and photo upload, Nostr login (nsec / words / Amber), "Delete
-account everywhere".
+- **Mac editing** (2026-10-21): Settings › Following › Edit… (`IdentityUI.swift`, `FollowerV2.setProfile`) edits the
+  Mac's own name and picture with Android's options and sends the same `profile` message. Shared fixture
+  `spikes/nostr/identity/profile-v1.json` (Android `ProfileFixtureTest`, Mac `-identityselftest`, CI).
+
+**Left out**: public kind 0 / profile key, Blossom and photo upload (also on the Mac: no photo picking / cropping,
+profiles carry numbers, never an image), Nostr login (nsec / words / Amber), "Delete account everywhere".
 
 **Tested** (two emulators, wearer upgraded in place from 0.10.6; a test copy of Sukrara for Mac with a throwaway
 Keychain item; the Mac was overloaded at load ≈ 25, so some steps used the DebugReceiver instead of taps):
