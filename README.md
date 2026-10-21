@@ -25,28 +25,28 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
 <p align="center">
-  <img src="docs/img/settings/home.png" alt="Sukrara home screen on Android: the glucose card with rings, graph and Add treatment, under reminders to share with your clinic and back up" width="200">
-  <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="200">
-  <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="200">
-  <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the LibreView reminder and sections with coloured icons" width="200">
+  <img src="docs/img/widgets/widgets-light.png" alt="Android home-screen widgets, light: the glucose number 100 with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart with the time spent at each level and the sensor's 12 days left under it, and a smaller value widget" width="270">
+  <img src="docs/img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
+  <img src="docs/img/home/home.png" alt="Sukrara home screen on Android: the share-with-your-clinic banner with LibreView and Tidepool, a backup reminder, and the glucose card whose slot shows 4u of insulin and 40g of carbs logged a minute ago" width="206">
 </p>
 <p align="center">
-  <img src="docs/img/16/card-dark.png" alt="The glucose card: number, trend arrow, time-in-range rings for 1 and 7 days, 12 h chart with the time spent at each level and the share of time below, in and above range" width="540">
+  <img src="docs/img/mac/menubar.png" alt="Mac menubar item: 143 and a falling trend arrow" height="44">
+  &nbsp;
+  <img src="docs/img/mac/dropdown.png" alt="Mac menubar dropdown: the same card as the phone (113, rings, 12 h chart with insulin and carbs labels) above Add Treatment, Treatments, Glucose Report and Settings" width="300">
+  &nbsp;
+  <img src="docs/img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid 4.5u, long 12u, carbs 30g and a note, with how long highs and lows stay quiet" width="330">
+</p>
+<p align="center">
+  <img src="docs/img/notification/alert-actions.png" alt="Glucose notification above a low alert with one-tap choices 15, 60 and 120 min and the actions Mute 30 min, Slow to 30 min and Mute for…" width="300">
+  <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="180">
+  <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="180">
+  <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the share-with-your-clinic banner and sections with coloured icons" width="180">
 </p>
 <p align="center">
   <img src="docs/img/statusbar-all.png" alt="Android status bar with the glucose number in several places" width="540">
 </p>
-<p align="center">
-  <img src="docs/img/menubar-button.png" alt="Mac menubar item: number and trend arrow" height="44">
-  &nbsp;
-  <img src="docs/img/16/mac-menubar-dropdown-dark.png" alt="Menubar dropdown: the same card as the phone" height="200">
-  &nbsp;
-  <img src="docs/img/16/mac-widget-medium-dark.png" alt="macOS widget: value, rings and graph" height="120">
-  &nbsp;
-  <img src="spikes/menubar/evidence/ble-nearby-waiting.png" alt="Mac waiting for approval with a match code" height="120">
-</p>
 
-<sub>Android screenshots are from the emulator with a synthetic source. The trend arrow turns continuously with the rate
+<sub>Android screenshots are from the emulator with a synthetic source (a sine wave), Mac ones from a test copy fed with synthetic data. The trend arrow turns continuously with the rate
 of change (flat at 0, vertical at ±3 mg/dL/min, double beyond) instead of Libre's 5 fixed arrows. Colours follow
 your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's report).</sub>
 
