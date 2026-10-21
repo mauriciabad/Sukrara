@@ -34,16 +34,18 @@
   {"id": "clock24", "hour24": true}, {"id": "marks-all", "marks": "all", "about": "every part of every treatment kind (the look before Treatments on the graph)"}, {"id": "marks-mixed", "marks": {"rapid": ["amount", "time"], "carbs": ["point", "line", "amount"], "note": []}, "about": "rapid: labels without its point or mute line; carbs: amount without time (the meal label takes the time from nobody: none); notes hidden"}
  ],
  "scroll": {
-  "about": "Scrolled charts (the app panel and the Mac dropdown, the only surfaces that scroll): each case renders 'scene' with the window's end 'back' s before now through the scrollable surfaces' real entry paths (PanelCard with a ChartScroll; the dropdown's CardView with scrollEnd). Checked on both platforms: the chart is the chart of the visible data alone (the same entry path with every reading and treatment outside the window removed and now = the window's end: % column, y range, distribution dots, hour labels, treatment markers), its y range is the visible readings' (yMin = min(low - 22, veryLow - 6, lowest - 6), yMax = max(high + 40, veryHigh + 8, highest + 8)), the Now pill shows only when scrolled, and 'expect' (font-independent: chart.pct, chart.y, chart.window, chart.markers). Scenes: this list first, then the main one.",
+  "about": "Scrolled charts (the app panel and the Mac dropdown, the only surfaces that scroll): each case renders 'scene' with the window's end 'back' s before now and, when zoomed, 'span' s long (else the place's 12 h) through the scrollable surfaces' real entry paths (PanelCard with a ChartScroll; the dropdown's CardView with scrollEnd). Checked on both platforms: the chart is the chart of the visible data alone (the same entry path with every reading and treatment outside the window removed, now = the window's end and the place's time shown = the window's length: % column, y range, distribution dots, hour labels, treatment markers), its y range is the visible readings' (yMin = min(low - 22, veryLow - 6, lowest - 6), yMax = max(high + 40, veryHigh + 8, highest + 8)), the Now pill shows only when scrolled or zoomed, and 'expect' (font-independent: chart (its window), chart.pct, chart.y, chart.window, chart.markers). Scenes: this list first, then the main one.",
   "scenes": [
    {"id": "swing", "lo": 70, "hi": 300, "period": 172800, "days": 8, "age": 60, "last": 72, "rate": 0.0,
     "about": "a two-day swing: the last 12 h stay low (70-185), a day back high (185-300): the y range grows while scrolling back",
     "treatments": [{"id": "r1", "k": "rapid", "a": 6, "t": -93600}, {"id": "c1", "k": "carbs", "a": 20, "t": -3600}]}
   ],
   "cases": [
-   {"scene": "live", "back": 21600, "expect": {"chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "-1080m..-360m", "chart.markers": ""}},
-   {"scene": "swing", "back": 0, "expect": {"chart.pct": "0/96/4", "chart.y": "48-258", "chart.window": "", "chart.markers": "1"}},
-   {"scene": "swing", "back": 86400, "expect": {"chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-1440m", "chart.markers": "1"}}
+   {"scene": "live", "back": 21600, "expect": {"chart": "12h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "-1080m..-360m", "chart.markers": ""}},
+   {"scene": "swing", "back": 0, "expect": {"chart": "12h", "chart.pct": "0/96/4", "chart.y": "48-258", "chart.window": "", "chart.markers": "1"}},
+   {"scene": "swing", "back": 86400, "expect": {"chart": "12h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-1440m", "chart.markers": "1"}},
+   {"scene": "live", "back": 0, "span": 10800, "expect": {"chart": "3h", "chart.pct": "0/83/17", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
+   {"scene": "swing", "back": 43200, "span": 86400, "expect": {"chart": "24h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-720m", "chart.markers": "1"}}
   ]
  }
 }

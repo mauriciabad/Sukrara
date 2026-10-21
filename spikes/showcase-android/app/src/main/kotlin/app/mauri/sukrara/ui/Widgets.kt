@@ -99,6 +99,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.scrollableArea
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.customActions
@@ -274,11 +279,21 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
  * so the panel keeps it across recompositions and the tests can open the panel scrolled.
  */
 @androidx.compose.runtime.Stable
-class ChartScroll(endS: Long? = null) {
+class ChartScroll(endS: Long? = null, spanS: Long? = null) {
     var endS by androidx.compose.runtime.mutableStateOf(endS)
         private set
-    /** The exact end while dragging (sub-second steps add up). */
+    /** The window's length while zoomed (s; null = the place's "time shown"). */
+    var spanS by androidx.compose.runtime.mutableStateOf(spanS)
+        private set
+    /** The exact end and length while dragging / pinching (sub-second steps add up). */
     private var exact: Double? = endS?.toDouble()
+    private var exactSpan: Double? = spanS?.toDouble()
+
+    /** Scrolled or zoomed: the chart doesn't show the place's usual window up to now (the Now pill shows). */
+    val away: Boolean get() = endS != null || spanS != null
+
+    /** The window's length now, [default] = the place's "time shown". */
+    fun span(default: Long): Long = spanS ?: default
 
     /** Move the end by [dt] s, kept within [minEnd]..[now] (at [now] the chart follows now again); returns the seconds moved. */
     fun by(dt: Double, minEnd: Long, now: Long): Double {
@@ -287,6 +302,33 @@ class ChartScroll(endS: Long? = null) {
         exact = if (next >= now) null else next
         endS = exact?.toLong()
         return next - cur
+    }
+
+    /**
+     * Zoom the time axis by [factor] (> 1 = in) keeping the moment at [anchor] (0 = the plot's left edge, 1 = its right
+     * edge: the pinch's centre) where it is. The length stays within [ChartView.MIN_SPAN_S] and [ChartView.MAX_SPAN_S]
+     * or the history ([first] = the first reading), never narrower or wider than the place's own [default] needs; a
+     * window that reaches now keeps following now.
+     */
+    fun zoom(factor: Double, anchor: Double, default: Long, first: Long, now: Long) {
+        if (factor <= 0.0 || factor.isNaN()) return
+        val lo = minOf(app.mauri.sukrara.graph.ChartView.MIN_SPAN_S, default).toDouble()
+        val hi = maxOf(default, minOf(app.mauri.sukrara.graph.ChartView.MAX_SPAN_S, now - first)).toDouble()
+        val span0 = exactSpan ?: default.toDouble()
+        val span1 = (span0 / factor).coerceIn(lo, hi)
+        val end0 = exact ?: now.toDouble()
+        val a = anchor.coerceIn(0.0, 1.0)
+        val at = end0 - span0 * (1 - a)
+        val end1 = (at + span1 * (1 - a)).coerceIn(minOf(first + span1, now.toDouble()), now.toDouble())
+        set(end1, span1, default, now)
+    }
+
+    /** Put the window at [end] with length [span] (the way back to now animates through this). */
+    fun set(end: Double, span: Double, default: Long, now: Long) {
+        exactSpan = if (kotlin.math.abs(span - default) < 30) null else span
+        spanS = exactSpan?.toLong()
+        exact = if (end >= now) null else end
+        endS = exact?.toLong()
     }
 }
 
@@ -297,35 +339,43 @@ class ChartScroll(endS: Long? = null) {
  * the system's stretch overscroll). The renderer draws the window it's given ([ChartView]), so the line, the
  * distribution and %, the hour labels and the treatments are all about what's visible; the y range animates towards
  * the window's own (no jumps). Away from now the renderer's "Now" pill shows; a tap on it scrolls back.
+ *
+ * Pinch zoom on the time axis (the user, 2026-10-21): two fingers zoom the x axis only, anchored at their centroid so
+ * the moment under the fingers stays put, and move it with their centroid (like Maps / Photos), the Compose multi-touch
+ * guidance's `calculateZoom` / `calculateCentroid` / `calculatePan`
+ * (developer.android.com/develop/ui/compose/touch-input/pointer-input/multi-touch). Those events are consumed, so the
+ * scroll's drag and fling don't also run; one finger is the scroll's. The zoom is the panel's own: it starts at the
+ * place's "time shown" every time home is shown, and the Now pill also returns to it.
  */
 @Composable
 private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.sukrara.treatments.Treatment>, now: Long,
                            card: CardStyle, pal: GraphPalette, alerts: app.mauri.sukrara.alerts.AlertSettings,
                            paused: Map<String, Long>, sensor: app.mauri.sukrara.core.SensorInfo?, countdownH: Int,
                            metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, scroll: ChartScroll) {
-    val graph = card.graph ?: return
-    val windowS = graph.windowS
+    val base = card.graph ?: return
+    val default = base.windowS
     val latestNow = androidx.compose.runtime.rememberUpdatedState(now)
     // the earliest window end: the first stored reading at the left edge
-    val minEnd = (readings.firstOrNull()?.t ?: now) + windowS
-    val minEndState = androidx.compose.runtime.rememberUpdatedState(minEnd)
+    val firstState = androidx.compose.runtime.rememberUpdatedState(readings.firstOrNull()?.t ?: now)
     // what the last drawing laid out: the plot's width (px per second of drag) and the Now pill's box (taps)
     val laid = remember { ChartGeometry() }
     val state = androidx.compose.foundation.gestures.rememberScrollableState { delta ->
         // scrollableArea's delta: positive = forward (towards now), in px of the plot
-        val spp = windowS / laid.plotW.coerceAtLeast(1f).toDouble()
-        (scroll.by(delta * spp, minEndState.value, latestNow.value) / spp).toFloat()
+        val span = scroll.span(default)
+        val spp = span / laid.plotW.coerceAtLeast(1f).toDouble()
+        (scroll.by(delta * spp, firstState.value + span, latestNow.value) / spp).toFloat()
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val away by remember(scroll) { androidx.compose.runtime.derivedStateOf { scroll.endS != null } }
+    val away by remember(scroll) { androidx.compose.runtime.derivedStateOf { scroll.away } }
     val pill = animateFloatAsState(if (away) 1f else 0f, Motion.defaultEffectsSpec(), label = "now pill")
     // The y range: the window's own, animated (critically damped at the spatial spring's stiffness: a scale that
     // bounced would read as the data moving).
-    val y = remember { Animatable(GlucoseCard.yRange(readings, scroll.endS ?: now, graph).let { Offset(it.first, it.second) }, Offset.VectorConverter) }
+    fun zoomed(): app.mauri.sukrara.graph.GraphStyle = base.copy(windowS = scroll.span(default))
+    val y = remember { Animatable(GlucoseCard.yRange(readings, scroll.endS ?: now, zoomed()).let { Offset(it.first, it.second) }, Offset.VectorConverter) }
     val readingsState = androidx.compose.runtime.rememberUpdatedState(readings)
-    LaunchedEffect(graph, scroll) {
+    LaunchedEffect(base, scroll) {
         androidx.compose.runtime.snapshotFlow {
-            GlucoseCard.yRange(readingsState.value, scroll.endS ?: latestNow.value, graph).let { Offset(it.first, it.second) }
+            GlucoseCard.yRange(readingsState.value, scroll.endS ?: latestNow.value, zoomed()).let { Offset(it.first, it.second) }
         }.collectLatest { y.animateTo(it, androidx.compose.animation.core.spring(1f, 380f)) }
     }
     // The plot's bottom (px above the chart's bottom): the layout's, eased the same way, so the treatment lane that
@@ -334,37 +384,71 @@ private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.s
     LaunchedEffect(scroll) {
         androidx.compose.runtime.snapshotFlow { laid.insetTarget }.collectLatest { t ->
             if (t.isNaN()) return@collectLatest
-            if (inset.value.isNaN() || scroll.endS == null && !inset.isRunning) inset.snapTo(t)
+            if (inset.value.isNaN() || !scroll.away && !inset.isRunning) inset.snapTo(t)
             else inset.animateTo(t, androidx.compose.animation.core.spring(1f, 380f))
         }
     }
     val backToNow = stringResource(R.string.chart_back_to_now)
-    // back to now: the whole way in px of the plot, with the spatial spring (stops exactly at now: the end is clamped)
+    // back to now and the place's own window: end and length together, with the spatial spring (inside the scroll
+    // state's mutex, so a running fling stops)
     fun back() {
-        val end = scroll.endS ?: return
-        val spp = windowS / laid.plotW.coerceAtLeast(1f).toDouble()
-        scope.launch { state.animateScrollBy(((latestNow.value - end) / spp).toFloat() + 1f, Motion.defaultSpatialSpec()) }
+        if (!scroll.away) return
+        val end0 = (scroll.endS ?: latestNow.value).toDouble()
+        val span0 = scroll.span(default).toDouble()
+        scope.launch {
+            state.scroll {
+                val p = Animatable(0f)
+                p.animateTo(1f, androidx.compose.animation.core.spring(1f, 380f)) {
+                    val n = latestNow.value
+                    val f = value.toDouble()
+                    scroll.set(end0 + (n - end0) * f, span0 + (default - span0) * f, default, n)
+                }
+                scroll.set(latestNow.value.toDouble(), default.toDouble(), default, latestNow.value)
+            }
+        }
     }
     Canvas(Modifier.fillMaxWidth().height(PANEL_CHART_DP.dp).testTag("panel-chart")
         .scrollableArea(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
-        .pointerInput(Unit) {
+        // two fingers: zoom the time axis at their centroid and move it with them (one finger is the scroll's)
+        .pointerInput(scroll) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                do {
+                    val ev = awaitPointerEvent()
+                    if (ev.changes.count { it.pressed } >= 2) {
+                        val span = scroll.span(default)
+                        val spp = span / laid.plotW.coerceAtLeast(1f).toDouble()
+                        val c = ev.calculateCentroid(useCurrent = true)
+                        val pan = ev.calculatePan()
+                        if (pan.x != 0f) scroll.by(-pan.x * spp, firstState.value + span, latestNow.value)
+                        val z = ev.calculateZoom()
+                        if (z != 1f && c != Offset.Unspecified)
+                            scroll.zoom(z.toDouble(), ((c.x - laid.plotLeft) / laid.plotW.coerceAtLeast(1f)).toDouble(), default,
+                                firstState.value, latestNow.value)
+                        ev.changes.forEach { it.consume() }
+                    }
+                } while (ev.changes.any { it.pressed })
+            }
+        }
+        .pointerInput(scroll) {
             detectTapGestures { p ->
-                if (scroll.endS != null && laid.now?.contains(p.x, p.y) == true) back()
+                if (scroll.away && laid.now?.contains(p.x, p.y) == true) back()
             }
         }
         .semantics {
-            if (scroll.endS != null) customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction(backToNow) {
+            if (scroll.away) customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction(backToNow) {
                 back(); true
             })
         }) {
         val end = scroll.endS
-        val view = if (end == null && pill.value == 0f && !y.isRunning && !inset.isRunning) null
-            else app.mauri.sukrara.graph.ChartView(end ?: now, y.value.x to y.value.y, pill.value, inset.value.takeIf { !it.isNaN() })
+        val view = if (!scroll.away && pill.value == 0f && !y.isRunning && !inset.isRunning) null
+            else app.mauri.sukrara.graph.ChartView(end ?: now, y.value.x to y.value.y, pill.value, inset.value.takeIf { !it.isNaN() },
+                scroll.spanS)
         drawIntoCanvas {
             val rec = GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
                 CardSurface.APP_PANEL, CardPart.GRAPH, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
                 countdownH = countdownH, paused = paused, view = view)
-            rec.first("chart.plot")?.box?.let { b -> laid.plotW = b.width() }
+            rec.first("chart.plot")?.box?.let { b -> laid.plotW = b.width(); laid.plotLeft = b.left }
             laid.now = rec.first("chart.now")?.box
             val area = rec.first("chart")?.box
             rec.first("chart.plot.natural")?.box?.let { b -> if (area != null) laid.insetTarget = area.bottom - b.bottom }
@@ -375,6 +459,7 @@ private fun ScrollingChart(readings: List<Reading>, treatments: List<app.mauri.s
 /** What the panel's chart last laid out (plain fields: written while drawing, read by the gestures). */
 private class ChartGeometry {
     var plotW = 0f
+    var plotLeft = 0f
     var now: RectF? = null
     /** Where the layout ends the plot (px above the chart's bottom): a state, so the easing follows it. */
     var insetTarget by androidx.compose.runtime.mutableFloatStateOf(Float.NaN)

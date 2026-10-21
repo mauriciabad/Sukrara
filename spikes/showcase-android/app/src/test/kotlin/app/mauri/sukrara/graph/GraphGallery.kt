@@ -70,6 +70,30 @@ class GraphGallery {
         }
     }
 
+    /**
+     * The app panel's chart scrolled and zoomed (the user, 2026-10-21): the place's 12 h, pinched in to 3 h and 2 h (the
+     * limit), out to the whole history (dates on the axis, the line as columns), 3 h a day back and 24 h a week back; the
+     * % column, distribution, y range and the lines' step follow.
+     */
+    @Test fun zoom() {
+        val data = Synthetic.days(now, 15)
+        val trs = Synthetic.treatments(now)
+        for (dark in listOf(true, false)) {
+            val pal = GraphPalette.of(dark)
+            val st = CardStyle(graph = GraphStyle(), sensorTime = true)
+            fun chart(label: String, end: Long, span: Long?) = Tile(label, "", 360f, 210f) { cv, w, h ->
+                val g = st.graph!!.copy(windowS = span ?: st.graph!!.windowS)
+                val view = ChartView(end, GlucoseCard.yRange(data, end, g), if (span != null || end < now) 1f else 0f, spanS = span)
+                GlucoseCard.draw(cv, w, h, data, trs, now, st, pal, d, surface = CardSurface.TEST, part = CardPart.GRAPH, view = view)
+            }
+            sheet("zoom-${if (dark) "dark" else "light"}", listOf(
+                chart("12 h (the place's time shown)", now, null), chart("pinched in: 3 h", now, 3 * 3600L),
+                chart("in to the limit: 2 h", now, ChartView.MIN_SPAN_S), chart("out to the whole history: 15 days", now, 15 * 86_400L - 3600),
+                chart("3 h, a day back", now - 86400, 3 * 3600L), chart("24 h, a week back", now - 7 * 86400, 86_400L),
+            ), 360f, 210f, cols = 2, pal)
+        }
+    }
+
     /** Treatments on the graph (GraphStyle.marks): before (every part), the defaults (carbs: the point only), mixed. */
     @Test fun treatmentParts() {
         val data = Synthetic.days(now, 15)

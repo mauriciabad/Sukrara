@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.pinch
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
 import app.mauri.sukrara.alerts.AlertSettings
@@ -464,12 +465,13 @@ class CardLayoutTest {
         val b = GraphSettings.value.bands.sane()
         compose.setContent { panel?.invoke() }
         GlucoseCard.observer = { synchronized(captured) { captured += it } }
-        fun graph(rs: List<Reading>, trs: List<Treatment>, at: Long, sc: app.mauri.sukrara.ui.ChartScroll): CardLayout {
+        fun graph(rs: List<Reading>, trs: List<Treatment>, at: Long, sc: app.mauri.sukrara.ui.ChartScroll,
+                  cfg: GraphConfig = GraphSettings.value): CardLayout {
             synchronized(captured) { captured.clear() }
             val pal = systemPalette(ctx, false)
             panel = {
                 Box(Modifier.width(w.dp)) {
-                    app.mauri.sukrara.ui.PanelCard(rs.lastOrNull(), rs.dropLast(1), trs, at, GraphSettings.value, pal,
+                    app.mauri.sukrara.ui.PanelCard(rs.lastOrNull(), rs.dropLast(1), trs, at, cfg, pal,
                         AlertSettings(), emptyMap(), null, SensorLife.countdown.value,
                         { r, bb -> GlucoseMetrics.of(rs, at - r.windowS, at, bb) }, onEnded = null, scroll = sc)
                 }
@@ -486,12 +488,16 @@ class CardLayoutTest {
                 val c = cases.getJSONObject(i)
                 val sc = all.first { it.id == c.getString("scene") }
                 val back = c.getLong("back")
+                // a zoomed case: the window's length (s); its chart must equal a place set to that "time shown"
+                val span = c.optLong("span", 0L).takeIf { it > 0 }
+                val w = span ?: windowS
                 val end = now - back
-                val from = end - windowS
-                val name = "${sc.id} back ${back}s"
-                val scrolled = graph(sc.readings, sc.treatments, now, app.mauri.sukrara.ui.ChartScroll(if (back > 0) end else null))
+                val from = end - w
+                val name = "${sc.id} back ${back}s" + (span?.let { " span ${it}s" } ?: "")
+                val scrolled = graph(sc.readings, sc.treatments, now, app.mauri.sukrara.ui.ChartScroll(if (back > 0) end else null, span))
                 val visible = sc.readings.filter { it.t in (from - 60)..end }
-                val alone = graph(visible, sc.treatments.filter { it.t in from..end }, end, app.mauri.sukrara.ui.ChartScroll())
+                val alone = graph(visible, sc.treatments.filter { it.t in from..end }, end, app.mauri.sukrara.ui.ChartScroll(),
+                    GraphSettings.value.let { g -> g.copy(placeHours = g.placeHours + (GraphPlace.APP to (w / 3600).toInt())) })
                 fun info(l: CardLayout, n: String) = l.all(n).joinToString(",") { it.info }
                 fun box(l: CardLayout, n: String) = l.first(n)?.box?.let {
                     "${CardLayout.dp(it.left, l.d)},${CardLayout.dp(it.top, l.d)},${CardLayout.dp(it.right, l.d)},${CardLayout.dp(it.bottom, l.d)}"
@@ -507,9 +513,10 @@ class CardLayoutTest {
                 if (info(scrolled, "chart.y") != want) problems += "$name: y range ${info(scrolled, "chart.y")}, want $want (visible $lo..$hi)"
                 val window = if (back > 0) "${(from - now) / 60}m..${(end - now) / 60}m" else ""
                 if (info(scrolled, "chart.window") != window) problems += "$name: window \"${info(scrolled, "chart.window")}\", want \"$window\""
-                if ((scrolled.first("chart.now") != null) != (back > 0)) problems += "$name: the Now pill ${if (back > 0) "is missing" else "shows at now"}"
+                val away = back > 0 || span != null
+                if ((scrolled.first("chart.now") != null) != away) problems += "$name: the Now pill ${if (away) "is missing" else "shows at now"}"
                 // the shared, font-independent answer (the Mac checks the same)
-                val got = JSONObject().apply { for (n in listOf("chart.pct", "chart.y", "chart.window", "chart.markers")) put(n,
+                val got = JSONObject().apply { for (n in listOf("chart", "chart.pct", "chart.y", "chart.window", "chart.markers")) put(n,
                     scrolled.all(n).joinToString(",") { e -> e.info.replace(Regex("\\s*\\[[^]]*]"), "") }) }
                 val expect = c.getJSONObject("expect")
                 if (expect.toString() != got.toString()) { problems += "$name: expect ${expect}, got $got"; dumps += "$name: $got" }
@@ -527,6 +534,46 @@ class CardLayoutTest {
             compose.onNodeWithTag("panel-chart").performTouchInput { swipeRight(startX = centerX - 200f, endX = centerX + 200f) }
             compose.waitForIdle()
             if ((pos.endS ?: now) >= now) problems += "drag: a drag to the right didn't scroll into the past"
+            // pinch zoom on the time axis: two fingers spreading 100 → 200 px around the plot's middle zoom in 2× there,
+            // the moment under them stays put; pinching together zooms out to the limit (24 h); the Now pill resets it
+            val zs = app.mauri.sukrara.ui.ChartScroll()
+            val z0 = graph(sc.readings, sc.treatments, now, zs)
+            val zp = z0.first("chart.plot")?.box
+            if (zp == null) problems += "pinch: no plot" else {
+                val cx = zp.centerX(); val cy = zp.centerY()
+                val under = now - windowS / 2
+                compose.onNodeWithTag("panel-chart").performTouchInput {
+                    pinch(androidx.compose.ui.geometry.Offset(cx - 50, cy), androidx.compose.ui.geometry.Offset(cx - 100, cy),
+                        androidx.compose.ui.geometry.Offset(cx + 50, cy), androidx.compose.ui.geometry.Offset(cx + 100, cy), 400)
+                }
+                compose.waitForIdle()
+                val span = zs.span(windowS)
+                if (kotlin.math.abs(span - windowS / 2) > windowS * 0.02) problems += "pinch out: the window is ${span} s, want ${windowS / 2} s (2× in)"
+                val mid = (zs.endS ?: now) - span / 2
+                if (kotlin.math.abs(mid - under) > windowS * 0.01) problems += "pinch out: the moment under the fingers moved ${mid - under} s"
+                repeat(3) {   // each pinch together 300 → 20 px zooms out 15×
+                    compose.onNodeWithTag("panel-chart").performTouchInput {
+                        pinch(androidx.compose.ui.geometry.Offset(cx - 150, cy), androidx.compose.ui.geometry.Offset(cx - 10, cy),
+                            androidx.compose.ui.geometry.Offset(cx + 150, cy), androidx.compose.ui.geometry.Offset(cx + 10, cy), 400)
+                    }
+                    compose.waitForIdle()
+                }
+                // out to the whole history (the scene's 8 days; the limit is 31)
+                val history = minOf(ChartView.MAX_SPAN_S, now - sc.readings.first().t)
+                if (kotlin.math.abs(zs.span(windowS) - history) > 1) problems += "pinch in: the window is ${zs.span(windowS)} s, want the history ${history} s"
+                val zl = graph(sc.readings, sc.treatments, now, zs)
+                if (zl.first("chart")?.info != "${history / 3600}h") problems += "pinch in: the chart draws ${zl.first("chart")?.info}, want ${history / 3600}h"
+                val dayLabels = zl.all("time.text").map { it.info }
+                if (dayLabels.count { Regex("""^\d{1,2} \p{L}""").containsMatchIn(it) } < 2 ||
+                    dayLabels.any { Regex("""^\d{1,2}(:00| AM| PM)$""").matches(it) })
+                    problems += "pinch in: the axis labels are $dayLabels, want dates (a step of days)"
+                val pill = zl.first("chart.now")?.box
+                if (pill == null) problems += "pinch: no Now pill on a zoomed chart" else {
+                    compose.onNodeWithTag("panel-chart").performTouchInput { click(androidx.compose.ui.geometry.Offset(pill.centerX(), pill.centerY())) }
+                    compose.waitForIdle()
+                    if (zs.away) problems += "pinch: the Now pill left the chart at ${zs.endS?.minus(now)} s, ${zs.spanS} s long"
+                }
+            }
         } finally {
             GlucoseCard.observer = null
         }
