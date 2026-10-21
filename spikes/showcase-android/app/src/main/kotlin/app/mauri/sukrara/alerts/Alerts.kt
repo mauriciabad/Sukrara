@@ -195,6 +195,8 @@ object Alerts {
                 note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(k), remote = true))
             }
         }
+        // The wearer's low at its carbs' mute end arrives between two readings: redraw the widgets (ring, badge) now.
+        SukraraHooks.refresh(ctx, "alerts", force = true)
     }
 
     private fun note(n: AlertNote) {

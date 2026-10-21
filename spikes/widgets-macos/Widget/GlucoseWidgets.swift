@@ -54,6 +54,15 @@ struct Provider: TimelineProvider {
                     age = next
                 }
             }
+            // A treatment's alert mute ending between two readings (the low fires at once then): one entry at each
+            // end, so the last-treatment ring and the badge don't show the mute's last minute while the alert sounds.
+            if let s, let a = s.alerts {
+                for end in Set(s.graphMarks.compactMap { AlertStatus.muteUntil($0, a) }).sorted() where end > now.timeIntervalSince1970 {
+                    let at = Date(timeIntervalSince1970: end)
+                    entries.append(GlucoseEntry(date: at, content: GlucoseEntryContent(snapshot: s, date: at), via: via, overrides: overrides))
+                }
+                entries.sort { $0.date < $1.date }
+            }
             // Ask to be called again one minute after the latest reading (the next one is due then).
             // The system treats this as a hint; the host's reloadTimelines() is the real trigger.
             let next = max(now.addingTimeInterval(60), (s?.latest?.t ?? now).addingTimeInterval(65))
