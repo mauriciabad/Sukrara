@@ -282,7 +282,8 @@ private fun FollowerDialog(fl: Follower, writer: Boolean, a: OwnerActions, onClo
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.people_following_since, date(fl.since)), style = MaterialTheme.typography.bodyMedium)
-                SettingsGroup { switch(stringResource(R.string.people_writer), writer, summary = stringResource(R.string.people_writer_summary), icon = R.drawable.ic_sym_edit_note) { a.setWriter(fl.f, it) } }
+                // no icon on this one (the user, 2026-10-21): the dialog's own icon is the follower's picture
+                SettingsGroup { switch(stringResource(R.string.people_writer), writer, summary = stringResource(R.string.people_writer_summary)) { a.setWriter(fl.f, it) } }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_done)) } },

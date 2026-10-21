@@ -174,8 +174,9 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
 ## 5. Sound packs
 
 `spikes/alerts/sounds/` generates every pack from code (`gen.py`, original melodies, no samples). Files:
-`<pack>_<kind>_<n>.ogg` (Android, `res/raw`) and `.caf` (Mac, IMA4, copied into `Sukrara.app/Contents/Resources` by
-`bundle.sh`: `UNNotificationSound(named:)` looks in the main bundle). Every pack has the 7 kinds × 3 variants. Packs:
+`<pack>_<kind>_<n>.ogg` (Android, `res/raw`) and `.caf` (Mac, IMA4, in `Sukrara.app/Contents/Resources`; before a
+notification the app copies the one it rings to `~/Library/Sounds/Sukrara <pack> <kind> <n>.caf` and names that copy,
+because Notification Center didn't find the bundled file and played the default sound; `NotificationSounds.swift`). Every pack has the 7 kinds × 3 variants. Packs:
 `arcade` (8-bit), `kart` (racing), `quest` (adventure / RPG, the default), `soft` (calm, non-game).
 
 ## 6. Platform notes (details and sources: docs/15)

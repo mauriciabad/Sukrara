@@ -68,9 +68,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/GlucoseBar "$APP/Contents/MacOS/Sukrara"
 cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
-# Alert sounds (spikes/alerts/sounds/out, IMA4 CAF, 4 packs × 8 kinds × 3 variants): UNNotificationSound(named:)
-# looks in the app's Library/Sounds, a shared group container's Library/Sounds, then the main bundle — the bundle
-# keeps them with the app (and its signature) instead of writing into ~/Library/Sounds.
+# Alert sounds (spikes/alerts/sounds/out, IMA4 CAF, 4 packs × 8 kinds × 3 variants). The app copies the one a
+# notification rings to ~/Library/Sounds first (NotificationSounds.swift): Notification Center didn't find them here.
 cp ../alerts/sounds/out/*.caf "$APP/Contents/Resources/"
 # A build number that changes with every build: macOS (chronod) keeps a widget extension's gallery previews and
 # placeholders as long as its CFBundleVersion stays the same, so a constant "1" kept showing old previews.
@@ -85,7 +84,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Sukrara</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.11.37</string>
+  <key>CFBundleShortVersionString</key><string>0.11.38</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>CFBundleURLTypes</key><array><dict>

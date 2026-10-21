@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AVFoundation
 import Foundation
+import UserNotifications
 
 /// `Sukrara -alerts-selftest`: the AlertEngine over the shared scenario timelines with an injected clock
 /// (spikes/alerts/SPEC.md §1–§3, §7), plus the settings JSON and sound naming. No notifications, no network.
@@ -124,6 +125,49 @@ enum AlertsSelfTest {
                 return [kAudioFormatLinearPCM, kAudioFormatAppleIMA4, kAudioFormatULaw, kAudioFormatALaw].contains(id) && secs < 30 ? nil : "\(n): \(id) \(secs) s"
             }
         check("every sound is a notification format (IMA4 / PCM / µLaw / aLaw) under 30 s", badSounds.isEmpty, "\(badSounds.prefix(3))")
+        // The notification each alert posts, mirrored or from this Mac's rules, alarm or not, every pack: its sound must
+        // name a file in ~/Library/Sounds (here a temp dir), where Notification Center finds it. Naming the bundled
+        // file played Apple's default sound on the user's Mac (2026-10-21, NotificationSounds.swift).
+        let soundsDir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-sounds-\(UUID().uuidString)")
+        let saved = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+        UserDefaults.standard.setVolatileDomain(saved.merging(["soundsDir": soundsDir.path]) { $1 }, forName: UserDefaults.argumentDomain)
+        defer {
+            UserDefaults.standard.setVolatileDomain(saved, forName: UserDefaults.argumentDomain)
+            try? FileManager.default.removeItem(at: soundsDir)
+        }
+        var unresolved: [String] = []
+        for pack in AlertSettings.packs + ["system", "none"] {
+            for source in ["wearer", "own"] {
+                for k in AlertKind.allCases {
+                    for alarm in [false, true] {
+                        var st = AlertSettings(); st.source = source; st.sounds.pack = pack; st[k].alarm = alarm
+                        let snd = Alerts.sound(for: k, st)
+                        let c = Alerts.content(title: k.title, body: "", k: k, category: source == "wearer" ? "alert-ms" : "alert-m",
+                                               alarm: alarm, sound: snd)
+                        let what = "\(pack)/\(source)/\(k.rawValue)/alarm \(alarm)"
+                        switch snd {
+                        case .none: if c.sound != nil { unresolved.append("\(what): not silent") }
+                        case .system: if c.sound != .default { unresolved.append("\(what): not the default sound") }
+                        case .file(let file, let url):
+                            let name = NotificationSounds.installedName(file)
+                            let copy = soundsDir.appendingPathComponent(name)
+                            let same = url.flatMap { try? Data(contentsOf: $0) } == (try? Data(contentsOf: copy))
+                            if !FileManager.default.fileExists(atPath: copy.path) || !same
+                                || c.sound != UNNotificationSound(named: UNNotificationSoundName(name)) {
+                                unresolved.append("\(what): \(c.sound.map { "\($0)" } ?? "nil") not a copy in Library/Sounds")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        check("every alert's notification sound is a file in Library/Sounds (mirrored and own rules, alarm or not, every pack)",
+              unresolved.isEmpty, "\(unresolved.count) wrong, e.g. \(unresolved.prefix(2))")
+        let copies = (try? FileManager.default.contentsOfDirectory(atPath: soundsDir.path)) ?? []
+        try? Data().write(to: soundsDir.appendingPathComponent("Sukrara arcade urgent low 1.caf"))   // a renamed kind's leftover
+        NotificationSounds.prune()
+        check("prune removes leftovers, keeps the copies of bundled sounds",
+              !copies.isEmpty && Set((try? FileManager.default.contentsOfDirectory(atPath: soundsDir.path)) ?? []) == Set(copies))
 
         // 5. A wearer's §4 body parses; junk doesn't.
         let body: [String: Any] = ["v": 2, "type": "alert", "id": "0123456789abcdef", "k": "high", "state": "fire", "at": 1760650000,
