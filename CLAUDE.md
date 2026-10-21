@@ -33,6 +33,9 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
 - **Cleartext only where it's validated:** the app permits cleartext so a home-network Nightscout works; every
   `http://` / `ws://` URL or scheme and every place that opens a connection in the Android app needs an entry in
   `tools/check/allow.json` (`cleartext_ok` / `network_ok`) with the reason. *(check `cleartext`, whole tree; `NsSiteTest`)*
+- **Test and snapshot runs never touch the user's devices:** every Mac `-…Snapshot` / preview run and every dev build
+  runs offline — no Bluetooth, relays, LAN feed or alert engine (`LaunchGuard.services`, the one gate in main.swift).
+  *(`-argsselftest` in CI: the plan per flag and main.swift starting nothing outside it)*
 - **Debug commands never fake on a release build:** the release app never shows a glucose value, an alert, a treatment
   or a sensor state that isn't real (the user acts on it). DebugReceiver commands that replace the sensor or show /
   write made-up data (test alerts, status-bar previews, adb treatments, …) go through `DebugFakes.run` (debug builds

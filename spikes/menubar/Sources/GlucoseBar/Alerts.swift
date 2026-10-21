@@ -558,7 +558,9 @@ final class AlertEngine {
     private var muting = false
     /// Opens Settings on the Alerts pane (main.swift).
     var onOpenWindow: (() -> Void)?
-    private let center: UNUserNotificationCenter? = Bundle.main.bundleIdentifier == nil ? nil : .current()
+    private let center: UNUserNotificationCenter?
+    /// An offline run (LaunchGuard.services: evidence render, dev build): the rules are shown, nothing ever alerts.
+    let offline: Bool
     private var playing: NSSound?
     /// The engine's episodes (AlertEngine.snapshot), saved after every evaluation; read back once by `resume`.
     private static let episodesKey = "alertEpisodes"
@@ -577,10 +579,13 @@ final class AlertEngine {
     /// "wearer" chosen but nothing to mirror (no v2 follow link).
     var wearerUnavailable: Bool { settings.source == "wearer" && !followingV2() }
 
-    override init() {
+    init(offline: Bool) {
+        self.offline = offline
+        center = offline || Bundle.main.bundleIdentifier == nil ? nil : .current()
         engine = AlertEngine(settings: settings)
         engine.sensor = { SensorStore.current }
         super.init()
+        if offline { log("alerts: offline run, the alert engine is off"); return }
         if center != nil { NotificationSounds.prune() }
         center?.delegate = self
         registerCategories()
@@ -607,6 +612,7 @@ final class AlertEngine {
     /// back without sound (same identifier); only a repeat that's due rings (Android's Alerts.resume, docs/15).
     /// `newest`: the last stored reading, so no data still counts from it.
     func resume(newest: Reading?) {
+        guard !offline else { return }
         engine.seed(newest)
         guard let data = UserDefaults.standard.data(forKey: Self.episodesKey) else { return scheduleCheck() }
         let shown = engine.restore(data, at: Date())
@@ -764,6 +770,7 @@ final class AlertEngine {
 
     /// The newest merged reading (Store.publish), with the best available rate.
     func onLatest(_ r: Reading) {
+        guard !offline else { return }
         engine.levelAndRate = mode == .own
         engine.reading(r)
         saveEpisodes()
@@ -843,6 +850,7 @@ final class AlertEngine {
 
     /// A wearer's §4 event that passed FollowerV2's live checks (author ∈ roster devices, gk, NIP-44, v 2, ≤ 10 min).
     func onWearerAlert(_ body: [String: Any], via: String) {
+        guard !offline else { return }
         guard let ev = AlertEvent(body: body) else { return log("alerts: wearer alert not understood") }
         // relays + BLE: one copy each
         guard seenIds.insert("\(ev.id):\(ev.state)").inserted else { return }
@@ -1010,6 +1018,7 @@ final class AlertEngine {
 
     /// `silent`: an alert shown again after a restart (it already rang; see `resume`).
     func post(_ ev: AlertEvent, mirrored: Bool, test: Bool = false, silent: Bool = false) {
+        guard !offline else { return log("alerts: offline run, not alerting \(ev.k.rawValue)") }
         var (title, body) = text(ev, mirrored: mirrored)
         if test { title = "Test · " + title }
         let sound = silent ? .none : Self.sound(for: ev.k, settings, last: lastVariant[ev.k])

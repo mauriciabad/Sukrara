@@ -13,7 +13,11 @@ import Foundation
 ///     (`build/Sukrara.app`) — starts the full app only with `SUKRARA_DEV=1` in its environment (exit 3 otherwise),
 ///     because it would share the installed app's Keychain item, data files and defaults. Copies outside a repo
 ///     (`/Applications`, `~/Applications`, a release unzipped in Downloads) start as always.
-/// `Sukrara -argsselftest` checks both.
+///  3. `services(...)`: what the full app may start. An evidence render (`-…Snapshot`, `-panelPreview`, `-preview`,
+///     `-openPanel`, `-openTreatments`) and every dev build run offline: no Bluetooth, no relays, no LAN feed and no
+///     alert engine, so a test copy can never reach the user's phone or ring (2026-10-21: a `-settingsSnapshot` dev
+///     run joined the user's phone over Bluetooth). main.swift starts each transport only through this plan.
+/// `Sukrara -argsselftest` checks all three.
 enum LaunchGuard {
     /// Flags that take no value: the self-tests main.swift dispatches.
     static let bareFlags: Set<String> = ["-v2selftest", "-v2relaytest", "-bleselftest", "-qrselftest", "-treatmentsselftest",
@@ -55,6 +59,25 @@ enum LaunchGuard {
             + "anyway (with -keychainService <test> -readingsDir <dir> -treatmentsDir <dir> to keep the real data out)."
     }
 
+    /// Launch arguments that render evidence or drive a dev check (with or without a value).
+    static let renderFlags: Set<String> = ["-preview", "-panelPreview", "-openPanel", "-openTreatments"]
+
+    static func isRender(_ args: [String]) -> Bool {
+        args.contains { a in a.hasPrefix("-") && (a.hasSuffix("Snapshot") || renderFlags.contains(a)) }
+    }
+
+    /// What the full app may start. `wantLan` / `wantBle` / `wantNostr`: the user's settings (`lan`, `bleV2`, `nostr`).
+    struct Services: Equatable {
+        var lan, ble, nostr, follow, alerts: Bool
+        static let none = Services(lan: false, ble: false, nostr: false, follow: false, alerts: false)
+        var offline: Bool { self == .none }
+    }
+
+    static func services(args: [String], devBuild: Bool, wantLan: Bool, wantBle: Bool, wantNostr: Bool) -> Services {
+        if devBuild || isRender(args) { return .none }
+        return Services(lan: wantLan, ble: wantBle, nostr: wantNostr, follow: true, alerts: true)
+    }
+
     static func selfTest() -> Bool {
         var ok = true
         func check(_ name: String, _ c: Bool) { print("\(c ? "PASS" : "FAIL")  \(name)"); ok = ok && c }
@@ -76,6 +99,32 @@ enum LaunchGuard {
         check("dev build without SUKRARA_DEV is refused", devRefusal(bundlePath: "/x/.build/debug", isBundle: false, env: [:], exists: repo) != nil)
         check("dev build with SUKRARA_DEV=1 starts", devRefusal(bundlePath: "/x/.build/debug", isBundle: false, env: ["SUKRARA_DEV": "1"], exists: repo) == nil)
         check("installed copy starts", devRefusal(bundlePath: "/Users/u/Applications/Sukrara.app", isBundle: true, env: [:], exists: repo) == nil)
+        // 3. offline runs: no evidence render and no dev build may start Bluetooth, relays, the LAN feed or alerts
+        let all = Services(lan: true, ble: true, nostr: true, follow: true, alerts: true)
+        check("the installed app starts what its settings ask", services(args: [], devBuild: false, wantLan: true, wantBle: true, wantNostr: true) == all)
+        check("…and leaves off what they turn off", services(args: [], devBuild: false, wantLan: false, wantBle: false, wantNostr: false)
+              == Services(lan: false, ble: false, nostr: false, follow: true, alerts: true))
+        for flag in ["-settingsSnapshot", "-alertsSnapshot", "-reportSnapshot", "-pairSnapshot", "-identitySnapshot",
+                     "-treatmentTimeSnapshot", "-panelPreview", "-preview", "-someNewSnapshot"] {
+            check("\(flag) runs offline (no BLE, relays, LAN, alerts)", services(args: [flag, "/tmp/x"], devBuild: false, wantLan: true, wantBle: true, wantNostr: true).offline)
+        }
+        check("-openPanel / -openTreatments run offline", services(args: ["-openPanel"], devBuild: false, wantLan: true, wantBle: true, wantNostr: true).offline
+              && services(args: ["-openTreatments"], devBuild: false, wantLan: true, wantBle: true, wantNostr: true).offline)
+        check("a dev build runs offline even with SUKRARA_DEV=1", services(args: ["-keychainService", "t"], devBuild: true, wantLan: true, wantBle: true, wantNostr: true).offline)
+        check("this very binary runs offline", services(args: Array(CommandLine.arguments.dropFirst()),
+              devBuild: devBuild(bundlePath: Bundle.main.bundlePath, isBundle: Bundle.main.bundleIdentifier != nil), wantLan: true, wantBle: true, wantNostr: true).offline)
+        // …and main.swift starts each of them only through the plan (read from the source next to this file)
+        let main = (try? String(contentsOfFile: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("main.swift").path, encoding: .utf8)) ?? ""
+        func count(_ s: String) -> Int { main.components(separatedBy: s).count - 1 }
+        check("main.swift found", !main.isEmpty)
+        check("Bluetooth only through services.ble", main.contains("let bleV2On = services.ble") && count("BLELink(") == 1
+              && main.contains("let bleLink = bleV2On ? BLELink() : nil"))
+        check("LAN feed only through services.lan", main.contains("let lanEnabled = services.lan") && main.contains("guard services.lan else"))
+        check("Nostr v1 only through services.nostr", count("NostrSource.init") == 1 && main.contains("services.nostr ? nostrLink.flatMap(NostrSource.init(link:)) : nil"))
+        check("relays (v2 follow) only through services.follow", count("n.start()") == 3 && count("guard services.follow") == 4
+              && main.contains("guard services.follow, node == nil"))
+        check("alerts only through services.alerts", count("Alerts(") == 1 && main.contains("Alerts(offline: !services.alerts)"))
         check("this very binary counts as a dev build", devBuild(bundlePath: Bundle.main.bundlePath, isBundle: Bundle.main.bundleIdentifier != nil))
         print(ok ? "args self-test OK" : "args self-test FAILED")
         return ok
