@@ -31,7 +31,7 @@ import java.io.File
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h3000dp-xhdpi")
+@Config(sdk = [36], qualifiers = "w411dp-h4500dp-xhdpi")
 class SettingsGallery {
     @get:Rule val compose = createAndroidComposeRule<androidx.activity.ComponentActivity>()
     private val out = File(System.getProperty("gallery.out") ?: "build/gallery", "settings").also { it.mkdirs() }
@@ -65,6 +65,15 @@ class SettingsGallery {
         compose.setContent { SettingsTheme { GraphScreen(follower = true) {} } }
         page("android-after-graph-follower-custom")
         WearerSettings.setMode(WearerSettings.WEARER)
+    }
+
+    /** Settings › Graph › Treatments on the graph (round f29), at the defaults and with a mix. */
+    @Test fun graphMarks() {
+        compose.setContent { SettingsTheme { GraphMarksScreen {} } }
+        page("android-graph-marks-default")
+        GraphSettings.update { it.copy(marks = it.marks.with("carbs", "amount", true).with("rapid", "point", false)) }
+        page("android-graph-marks-mixed")
+        GraphSettings.update { it.copy(marks = app.mauri.sukrara.treatments.MarkShow.DEFAULT) }
     }
 
     @Test fun alertsFollowerWearer() {

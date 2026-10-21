@@ -32,6 +32,16 @@ import AppKit
         return NSEvent(cgEvent: cg)
     }
 
+    /// A trackpad pinch step as AppKit gets it (a gesture event of HID type zoom → NSEvent `.magnify`), at `x` (pt).
+    static func magnify(_ m: Double, x: Double) -> NSEvent? {
+        guard let cg = CGEvent(source: nil), let type = CGEventType(rawValue: 29) else { return nil }
+        cg.type = type
+        cg.location = CGPoint(x: x, y: 50)
+        cg.setIntegerValueField(CGEventField(rawValue: 110)!, value: 8)      // kIOHIDEventTypeZoom
+        cg.setDoubleValueField(CGEventField(rawValue: 113)!, value: m)       // the magnification
+        return NSEvent(cgEvent: cg).flatMap { $0.type == .magnify ? $0 : nil }
+    }
+
     static func run() -> Int {
         var failures = 0
         func fail(_ s: String) { print("FAIL scroll \(s)"); failures += 1 }
@@ -99,6 +109,55 @@ import AppKit
         if abs((v.scrollEnd ?? now) - (first + span)) > 1 {
             fail("clamp: the window ends \(Int(now - (v.scrollEnd ?? now))) s back, want \(Int(now - first - span)) s (the first reading at the left edge)")
         }
+        // ---- pinch zoom on the time axis (the user, 2026-10-21) -------------------------------------------------------
+        let z = CardView(frame: NSRect(origin: .zero, size: size))
+        z.readings = v.readings; z.style = v.style; z.alerts = v.alerts; z.now = v.now; z.metricsOf = v.metricsOf
+        func paintZ() -> CardLayout { z.paint(ctx, size: size, GraphPalette.of(dark: false)) }
+        guard let zp = paintZ().first("chart.plot")?.box else { fail("zoom: no plot"); return failures }
+        let midX = Double(zp.midX)   // the card is drawn at the view's origin (no inset)
+        func spanZ() -> Double { z.scrollSpan ?? span }
+        func endZ() -> Double { z.scrollEnd ?? now }
+        // pinch out (magnify > 0) at the plot's middle: 5 × 10 % → 1.61× in; the moment under the cursor stays put
+        let under = now - span / 2
+        for _ in 0..<5 { if let e = magnify(0.1, x: midX) { z.magnify(with: e) } else { fail("zoom: could not build a magnify event") } }
+        _ = paintZ()
+        let wantSpan = span / pow(1.1, 5)
+        if abs(spanZ() - wantSpan) > wantSpan * 0.01 { fail("zoom in: the window is \(Int(spanZ())) s, want \(Int(wantSpan)) s (5 pinch steps of 10 %)") }
+        if abs((endZ() - spanZ() / 2) - under) > 120 { fail("zoom in: the moment under the cursor moved \(Int((endZ() - spanZ() / 2) - under)) s") }
+        if paintZ().first("chart.now") == nil { fail("zoom in: no Now pill on a zoomed chart") }
+        // all the way in and out: 2 h, then the whole history (the store holds 15 days; the limit is 31)
+        for _ in 0..<40 { if let e = magnify(0.5, x: midX) { z.magnify(with: e); _ = paintZ() } }
+        if abs(spanZ() - ChartView.minSpan) > 1 { fail("zoom in limit: \(Int(spanZ())) s, want \(Int(ChartView.minSpan)) s") }
+        for _ in 0..<40 { if let e = magnify(-0.5, x: midX) { z.magnify(with: e); _ = paintZ() } }
+        let history = min(ChartView.maxSpan, now - (store.readings.first?.t ?? now))
+        if abs(spanZ() - history) > 1 { fail("zoom out limit: \(Int(spanZ())) s, want the history, \(Int(history)) s") }
+        let out = paintZ()
+        if let lbl = out.first("chart")?.info, lbl != "\(Int(history / 3600))h" { fail("zoom out: the chart draws \(lbl), want \(Int(history / 3600))h") }
+        if out.first("chart.line")?.info != "columns" { fail("zoom out: 15 days of readings drawn as dots, want columns") }
+        let dayLabels = out.all("time.text").map(\.info)
+        // (the value's own late time, "9:55 AM", is a time.text too: only hour labels count against)
+        let hourLike = dayLabels.filter { $0.range(of: "^\\d{1,2}(:00| AM| PM)$", options: .regularExpression) != nil }
+        if dayLabels.filter({ $0.range(of: "^\\d{1,2} \\p{L}", options: .regularExpression) != nil }).count < 2 || !hourLike.isEmpty {
+            fail("zoom out: the axis labels are \(dayLabels), want dates (a step of days)")
+        }
+        // ⌘-scroll zooms too: 10 pt up = e^0.1 in
+        let before = spanZ()
+        if let e = event(dx: 0, dy: 10, continuous: true, phase: 2).flatMap({ ev -> NSEvent? in
+            guard let cg = ev.cgEvent else { return nil }; cg.flags = .maskCommand; return NSEvent(cgEvent: cg) }) { z.scrollWheel(with: e) }
+        if abs(spanZ() - before / exp(0.1)) > before * 0.01 { fail("⌘-scroll zoom: \(Int(spanZ())) s, want \(Int(before / exp(0.1))) s") }
+        // a click on the Now pill returns to now and the place's window
+        if let pill = paintZ().first("chart.now")?.box {
+            let o = z.convert(NSPoint(x: 0, y: 0), from: nil), one = z.convert(NSPoint(x: 0, y: 1), from: nil)
+            let wy = (Double(pill.midY) - Double(o.y)) / Double(one.y - o.y)
+            if let cg = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: .zero, mouseButton: .left) {
+                cg.location = CGPoint(x: Double(pill.midX), y: 0)
+                if let e0 = NSEvent(cgEvent: cg), let e = NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: Double(pill.midX), y: wy),
+                        modifierFlags: [], timestamp: e0.timestamp, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                    z.mouseDown(with: e)
+                }
+            }
+            if z.away { fail("Now pill: a click left the chart scrolled \(Int(now - endZ())) s / zoomed to \(Int(spanZ())) s") }
+        } else { fail("Now pill: none to click") }
         print(failures == 0 ? "scroll self-test OK (\(String(format: "%.1f", perPt)) s per pt)" : "scroll self-test: \(failures) failure(s)")
         return failures
     }

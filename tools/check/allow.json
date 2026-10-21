@@ -92,5 +92,71 @@
       "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/GlucoseSource.kt",
       "reason": "Juggluco on loopback (OwnerEngine.JUGGLUCO)"
     }
+  ],
+  "states_pending": [
+    {
+      "section": "Treatments",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Readings and backfill",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "One card on every surface",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Freshness (every glucose surface)",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Sensor life",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "New sensor (pairing flow)",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Sensor scan: other sensors",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Data export",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Live notification",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Lock screen widget",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Sensor reminders and countdowns",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Sensor end in calendar",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Share with apps on this phone (investigation 22)",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Tidepool upload (docs/27)",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Nightscout upload (docs/25)",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    },
+    {
+      "section": "Languages",
+      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
+    }
   ]
 }

@@ -27,7 +27,11 @@ import java.security.SecureRandom
  * - the falling-high mute only postpones: when it ends, whatever was due alerts;
  * - the alert notification's actions act on the episode: *Mute* ([mute]) quiets it like a treatment does (alerts at
  *   once when it ends, never very low or extremely high), *Slow down* ([slow]) repeats it at the slower interval;
- *   both end with the episode.
+ *   both end with the episode;
+ * - the ways out (SPEC §2 "States and exits"): *Unmute* / *Alert me anyway* ([unmute]) lifts the notification's Mute,
+ *   the treatments logged so far and the falling-high mute for the rest of the episode, and alerts at once if it
+ *   still matches; *Stop slowing down* ([unslow]) goes back to the kind's interval (an overdue repeat at once); a
+ *   new [mute] on a muted episode changes its end.
  */
 class AlertEngine {
     sealed interface Action { val kind: String; val id: String; val at: Long }
@@ -48,6 +52,15 @@ class AlertEngine {
     /** What the UI shows per group: the matching kind, and why it's quiet if it is. */
     data class State(val kind: String, val muted: String?, val firedAt: Long, val n: Int)
 
+    /**
+     * An episode in a state the user can leave (SPEC §2 "States and exits"), for the app's sheet and Active now:
+     * [kind] = the episode's current kind, [on] = it still matches. [quiet] why it's quiet ([QUIET_NOTIFICATION],
+     * [QUIET_CARBS], [QUIET_INSULIN], [QUIET_FALLING]; null = not quiet) until [until] (epoch s; 0 = no fixed end),
+     * [slowMin] > 0 = slowed. [canMute] = a Mute applies (not very low / extremely high).
+     */
+    data class Quiet(val kind: String, val on: Boolean, val quiet: String?, val until: Long, val slowMin: Int, val canMute: Boolean,
+                     val canSlow: Boolean)
+
     private class Episode(val side: String, val start: Long, var kind: String) {
         /** The condition held at the last evaluation, and when it last did. */
         var on = true
@@ -65,6 +78,10 @@ class AlertEngine {
         var quietUntil = 0L
         /** The notification's Slow down: repeats at least this many minutes apart (0 = the kind's interval). */
         var slowMin = 0
+        /** *Unmute* / *Alert me anyway* at this time (0 = never): treatments logged up to then and the falling mute don't quiet it. */
+        var lifted = 0L
+        /** Lifted since the last alert: the next match alerts at once (cleared when it does). */
+        var liftPending = false
     }
 
     private val episodes = HashMap<String, Episode>()
@@ -95,7 +112,7 @@ class AlertEngine {
             .put("side", e.side).put("start", e.start).put("kind", e.kind).put("on", e.on).put("lastIn", e.lastIn)
             .put("n", e.n).put("firedAt", e.firedAt ?: JSONObject.NULL).put("firedKind", e.firedKind)
             .put("muted", e.muted ?: JSONObject.NULL).put("muteUntil", e.muteUntil).put("next", e.next)
-            .put("quietUntil", e.quietUntil).put("slowMin", e.slowMin)
+            .put("quietUntil", e.quietUntil).put("slowMin", e.slowMin).put("lifted", e.lifted).put("liftPending", e.liftPending)
             .put("shown", e.shown?.let { f -> JSONObject().put("kind", f.kind).put("id", f.id).put("n", f.n)
                 .put("th", f.th).put("at", f.at).put("treated", f.treated)
                 .put("reading", f.reading?.let { r -> JSONObject().put("t", r.t).put("sgv", r.sgv).put("rate", r.rate ?: JSONObject.NULL) } ?: JSONObject.NULL)
@@ -115,7 +132,7 @@ class AlertEngine {
                 on = o.getBoolean("on"); lastIn = o.getLong("lastIn"); n = o.getInt("n")
                 firedAt = if (o.isNull("firedAt")) null else o.getLong("firedAt"); firedKind = o.getString("firedKind")
                 muted = if (o.isNull("muted")) null else o.getString("muted"); muteUntil = o.getLong("muteUntil"); next = o.getLong("next")
-                quietUntil = o.optLong("quietUntil"); slowMin = o.optInt("slowMin")
+                quietUntil = o.optLong("quietUntil"); slowMin = o.optInt("slowMin"); lifted = o.optLong("lifted"); liftPending = o.optBoolean("liftPending")
                 shown = o.optJSONObject("shown")?.let { f ->
                     Fire(f.getString("kind"), f.getString("id"), f.getInt("n"),
                         f.optJSONObject("reading")?.let { r -> Reading(r.getLong("t"), r.getInt("sgv"), if (r.isNull("rate")) null else r.getDouble("rate")) },
@@ -143,6 +160,52 @@ class AlertEngine {
         val e = episodes[Kind.group(kind)] ?: return emptyList()
         e.slowMin = s.slowMin
         return evaluate(s, d, now)
+    }
+
+    /**
+     * *Unmute* (a notification mute) / *Alert me anyway* (a treatment or falling-high mute) on [kind]'s episode, this
+     * device only: whatever quiets it now is lifted for the rest of the episode (a treatment logged later mutes again),
+     * then [evaluate]: still matching → it alerts at once; back in range → nothing (it alerts at once if it matches
+     * again within the episode). Nothing when no episode or nothing is quiet.
+     */
+    fun unmute(kind: String, s: AlertSettings, d: Doses, now: Long): List<Action> {
+        val e = episodes[Kind.group(kind)] ?: return emptyList()
+        if (!(e.quietUntil > now || e.muted != null || cover(e, e.kind, s, d, now) != null)) return emptyList()
+        e.quietUntil = 0
+        e.lifted = now
+        e.liftPending = true
+        return evaluate(s, d, now)
+    }
+
+    /** *Stop slowing down* on [kind]'s episode: the kind's own interval again (a repeat already due alerts at once). */
+    fun unslow(kind: String, s: AlertSettings, d: Doses, now: Long): List<Action> {
+        val e = episodes[Kind.group(kind)] ?: return emptyList()
+        if (e.slowMin == 0) return emptyList()
+        e.slowMin = 0
+        return evaluate(s, d, now)
+    }
+
+    /** The episodes the user can act on now (quiet or slowed), newest rules first: see [Quiet]. */
+    fun quiets(s: AlertSettings, d: Doses, now: Long): List<Quiet> = listOf("level", "rate", Kind.NO_DATA).mapNotNull { g ->
+        val e = episodes[g] ?: return@mapNotNull null
+        val tc = cover(e, e.kind, s, d, now)
+        val by = s.mutedBy(e.kind)
+        val note = e.quietUntil.takeIf { it > now && e.kind !in Kind.ALWAYS }
+        val (why, until) = when {
+            tc != null && by != null -> (if (by == "rapid") QUIET_INSULIN else QUIET_CARBS) to maxOf(tc + s.muteS(by), note ?: 0)
+            note != null -> QUIET_NOTIFICATION to note
+            e.on && e.muted != null -> QUIET_FALLING to 0L
+            else -> null to 0L
+        }
+        if (why == null && e.slowMin == 0) return@mapNotNull null
+        val rep = s.cfg(e.kind).repeatMin
+        Quiet(e.kind, e.on, why, until, e.slowMin, e.kind !in Kind.ALWAYS, e.slowMin == 0 && rep in 1 until s.slowMin)
+    }
+
+    /** The newest treatment that quiets [k] in [e] at [now] (logged after an *Alert me anyway*), or null. */
+    private fun cover(e: Episode, k: String, s: AlertSettings, d: Doses, now: Long): Long? {
+        val by = s.mutedBy(k) ?: return null
+        return d.of(by).filter { t -> t <= now && now - t < s.muteS(by) && t > e.lifted }.maxOrNull()
     }
 
     /** The notification actions in force, per side ("low", "high", "falling_fast", …): the badge and the followers. */
@@ -209,8 +272,9 @@ class AlertEngine {
         e.kind = want
         if (e.shown.let { it != null && it.kind != want }) hide(e, now, out)
         val by = s.mutedBy(want)
-        val cover = by?.let { d.of(it).filter { t -> t <= now && now - t < s.muteS(it) }.maxOrNull() }
-        val mute = cover?.let { "${if (by == "rapid") "insulin" else by} ${(now - it) / 60} min ago" } ?: fallingMute(want, s, now)
+        val cover = cover(e, want, s, d, now)
+        val mute = cover?.let { "${if (by == "rapid") "insulin" else by} ${(now - it) / 60} min ago" }
+            ?: fallingMute(want, s, now).takeIf { e.lifted == 0L }
         if (mute != null) {
             hide(e, now, out)
             e.muted = mute
@@ -232,6 +296,7 @@ class AlertEngine {
         e.n++
         e.firedAt = now
         e.firedKind = want
+        e.liftPending = false
         val fire = Fire(want, newId(), e.n, last, threshold(want, s), now, treated(e, want, s, d, now))
         e.shown = fire
         e.next = due(e, want, s, d, now)
@@ -242,8 +307,9 @@ class AlertEngine {
     private fun due(e: Episode, k: String, s: AlertSettings, d: Doses, now: Long): Long {
         val fired = e.firedAt ?: return e.start
         if (Kind.side(k) == Kind.side(e.firedKind) && Kind.severity(k) > Kind.severity(e.firedKind)) return now
+        if (e.liftPending) return now   // an Unmute / Alert me anyway since the last alert: at once
         val by = s.mutedBy(k)
-        val tc = by?.let { d.of(it).filter { t -> t in fired..now }.maxOrNull() }
+        val tc = by?.let { d.of(it).filter { t -> t in fired..now && t > e.lifted }.maxOrNull() }
         // a treatment or the notification's Mute after the last alert: at once when its window ends
         val ends = listOfNotNull(if (tc != null && by != null) tc + s.muteS(by) else null,
             e.quietUntil.takeIf { it > fired && k !in Kind.ALWAYS })
@@ -295,6 +361,11 @@ class AlertEngine {
         const val FRESH_S = 15 * 60L
         /** An episode lasts until nothing of its side has matched for its repeat interval, but at least this long. */
         const val MIN_HOLD_MIN = 5
+        /** [Quiet.quiet]: why an episode is quiet. */
+        const val QUIET_NOTIFICATION = "notification"
+        const val QUIET_CARBS = "carbs"
+        const val QUIET_INSULIN = "insulin"
+        const val QUIET_FALLING = "falling"
         private val rng = SecureRandom()
         fun doses(trs: List<Treatment>) = trs.filter { !it.del }.let { l ->
             Doses(l.filter { it.k == "rapid" }.map { it.t }, l.filter { it.k == "carbs" }.map { it.t })

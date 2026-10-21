@@ -15,6 +15,7 @@ import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.MarkShow
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
 import java.util.Locale
@@ -64,6 +65,8 @@ data class GraphStyle(
     val gridHours: Int = 1,
     /** The crown over a perfect 100 in the % column ([GraphConfig.columnCrown]). */
     val crown: Boolean = true,
+    /** Which parts of each treatment kind show: point, mute line, amount, time ([GraphConfig.marks]). */
+    val marks: MarkShow = MarkShow.DEFAULT,
 )
 
 /**
@@ -71,9 +74,17 @@ data class GraphStyle(
  * [endS] (epoch s, at most now) instead of now; [y] = the y range to draw while the surface animates it towards the
  * window's own ([GlucoseCard.yRange]; null = the window's own); [now] = the "Now" pill's visibility 0..1 (0 = none);
  * [plotInset] = the plot's bottom as px above the chart's bottom while the surface eases it (the treatment lane comes and
- * goes with the marks in the window; null = where the layout puts it, "chart.plot.natural").
+ * goes with the marks in the window; null = where the layout puts it, "chart.plot.natural"); [spanS] = the window's
+ * length while the surface is zoomed ([MIN_SPAN_S]..[MAX_SPAN_S]; null = the place's "time shown", [GraphStyle.windowS]).
  */
-data class ChartView(val endS: Long, val y: Pair<Float, Float>? = null, val now: Float = 0f, val plotInset: Float? = null)
+data class ChartView(val endS: Long, val y: Pair<Float, Float>? = null, val now: Float = 0f, val plotInset: Float? = null,
+                     val spanS: Long? = null) {
+    companion object {
+        /** The narrowest and widest window a pinch zooms to (s; Mac `ChartView.minSpan` / `maxSpan`). */
+        const val MIN_SPAN_S = 2 * 3600L
+        const val MAX_SPAN_S = 31 * 86_400L
+    }
+}
 
 /**
  * The glucose chart of investigation 16, drawn on a plain [Canvas] so the app (Compose's native canvas), the widgets
@@ -119,8 +130,15 @@ object GlucoseGraph {
         fun pctW(v: Int) = pctBig.measureText("$v") + pctSmall.measureText("%")
         val pctLabelW = maxOf(pctW(lo), pctW(inr), pctW(hi))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
-        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end } else emptyList()
+        // Only the parts the settings show ([GraphStyle.marks]): an entry with nothing shown is left out, and the
+        // marker lane is there only when a point or a mute line is drawn in it.
+        val show = st.marks
+        val muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } }
+        val shown = if (st.treatments) treatments.filter { !it.del && it.t in from..end && show.any(it.k) &&
+            (show.has(it.k, MarkShow.POINT) || show.label(it.k) && TreatmentMarks.amount(it) != null ||
+                show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null) } else emptyList()
         val marks = shown.isNotEmpty()
+        val lane = shown.any { show.has(it.k, MarkShow.POINT) || show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null }
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
         // The y range of the window ([yRange]); a scrolling surface animates it towards that and passes the current one.
@@ -148,12 +166,12 @@ object GlucoseGraph {
             val left = lr.first
             val right = lr.second
             val layout = if (marks) TreatmentMarks.layout(shown, { t -> left + (t - from).toFloat() / st.windowS * (right - left) }, nowS,
-                area.left, area.right, lanes(area.height(), d), d, badgeRoom) else null
+                area.left, area.right, lanes(area.height(), d), d, badgeRoom, show) else null
             val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
             val textRow = labels || layout?.labels?.isNotEmpty() == true
             val top = area.top + 3 * d
             val bottom = area.bottom - (if (textRow) 10 * d + 4 * d else 0f) - lane1
-            val plotBottom = if (marks) bottom - 12 * d else bottom
+            val plotBottom = if (lane) bottom - 12 * d else bottom
             val values = axisValues(top, plotBottom)
         }
         var g = Geo(valuesW(candidates))
@@ -208,11 +226,13 @@ object GlucoseGraph {
             color = pal.grid; strokeWidth = 1 * d; pathEffect = DashPathEffect(floatArrayOf(2 * d, 3 * d), 0f)
         }
         val pxPerHour = (right - left) / (st.windowS / 3600f)
-        val step = listOf(1, 2, 3, 4, 6, 12, 24).filter { it >= st.gridHours }.firstOrNull { it * pxPerHour >= 44 * d } ?: 24
+        // From a day up (a zoomed-out chart) the lines fall on midnights (every day, 2 or 3 days, a week: Mondays) and the labels
+        // are dates; the steps are fixed to the calendar, not to the window, so they don't shift while the chart scrolls.
+        val step = gridStep(pxPerHour, st.gridHours, d)
         val cal = Calendar.getInstance().apply {
             timeInMillis = from * 1000; set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
             add(Calendar.HOUR_OF_DAY, 1)
-            while (get(Calendar.HOUR_OF_DAY) % step != 0) add(Calendar.HOUR_OF_DAY, 1)
+            while (!onStep(this, step)) add(Calendar.HOUR_OF_DAY, 1)
         }
         // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the user,
         // 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
@@ -228,7 +248,7 @@ object GlucoseGraph {
             if (gx > left + sideW * 0.6f) {
                 if (st.gridHours > 0) cv.drawLine(gx, top, gx, plotBottom, grid)
                 if (labels) {
-                    val s = Clock.hourLabel(cal.get(Calendar.HOUR_OF_DAY))
+                    val s = if (step >= 24) Clock.dayLabel(cal.timeInMillis / 1000) else Clock.hourLabel(cal.get(Calendar.HOUR_OF_DAY))
                     val tw = text.measureText(s)
                     val lx = (gx - tw / 2).coerceIn(left, right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
@@ -240,7 +260,8 @@ object GlucoseGraph {
                     }
                 }
             }
-            cal.add(Calendar.HOUR_OF_DAY, step)
+            if (step >= 24) { cal.add(Calendar.DAY_OF_MONTH, 1); while (!onStep(cal, step)) cal.add(Calendar.DAY_OF_MONTH, 1) }
+            else cal.add(Calendar.HOUR_OF_DAY, step)
         }
         if (labels && rec.first("chart.hours") == null) rec.add("chart.hours", info = "(no room)")
         // The values on the right (axisValues), left-aligned SIDE_GAP_DP after the plot; the widest ends SIDE_GAP_DP
@@ -264,12 +285,38 @@ object GlucoseGraph {
         for (v in st.lines) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), userLine)
         st.lines.filter { it > yMin && it < yMax }.takeIf { it.isNotEmpty() }?.let { rec.add("chart.lines", info = it.joinToString(","), exact = true) }
 
-        // The line: one dot per reading, coloured by band.
+        // The line: one dot per reading, coloured by band. Zoomed far out (more than DENSE_PER_DP readings per dp: days
+        // of 1-minute readings) the dots would pile up, so each 1 dp column draws one stroke from its lowest to its
+        // highest reading instead, split where it crosses a band, in the band's colour: the same picture, a few hundred
+        // strokes instead of tens of thousands of dots.
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
         val seg = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 1.6f * d; strokeCap = Paint.Cap.ROUND }
         val spacing = if (pts.size > 1) (right - left) / max(1f, pts.size.toFloat()) else 99f
         val r = (spacing * 0.55f).coerceIn(1.3f * d, 2.2f * d)
+        val dense = pts.size > DENSE_PER_DP * (right - left) / d
+        if (dense) {
+            rec.add("chart.line", info = "columns", exact = true)
+            seg.strokeWidth = 1.2f * d   // the columns just touch: an envelope, not bars
+            val edges = intArrayOf(b.veryLow, b.low, b.tight, b.high, b.veryHigh, b.extremelyHigh)
+            var k = pts.indexOfFirst { it.t >= from }.coerceAtLeast(0)
+            while (k < pts.size) {
+                val col = floor((x(pts[k].t) - left) / d)
+                var lo = pts[k].sgv; var hi = lo
+                var j = k + 1
+                while (j < pts.size && floor((x(pts[j].t) - left) / d) == col && pts[j].t - pts[j - 1].t <= GlucoseStats.MAX_GAP_S) {
+                    lo = min(lo, pts[j].sgv); hi = max(hi, pts[j].sgv); j++
+                }
+                val cx = left + (col + 0.5f) * d
+                var a = lo
+                for (e in edges) if (e in (a + 1)..hi) {
+                    seg.color = pal.at(b, a); cv.drawLine(cx, y(a.toFloat()), cx, y(e.toFloat()), seg); a = e
+                }
+                seg.color = pal.at(b, a); cv.drawLine(cx, y(a.toFloat()), cx, y(hi.toFloat()), seg)
+                k = j
+            }
+        }
         for (i in pts.indices) {
+            if (dense && i != pts.lastIndex) continue
             val p = pts[i]
             if (p.t < from) continue
             val px = x(p.t); val py = y(p.sgv.toFloat())
@@ -339,7 +386,12 @@ object GlucoseGraph {
         }
 
         if (marks) {
-            rec.add("chart.markers", info = "${shown.count { it.k in setOf("rapid", "long", "carbs", "note") }}", exact = true)
+            rec.add("chart.markers", info = "${shown.count { it.k in setOf("rapid", "long", "carbs", "note") && show.has(it.k, MarkShow.POINT) }}", exact = true)
+            // what each entry shows (layout/rules.json "marks": the same on every surface)
+            rec.add("chart.marks", info = shown.sortedBy { it.id }.joinToString(" ") { tr ->
+                tr.id + ":" + MarkShow.parts(tr.k).filter { p -> show.has(tr.k, p) && (p != MarkShow.LINE || muteUntil?.invoke(tr) != null) &&
+                    (p != MarkShow.AMOUNT && p != MarkShow.TIME || TreatmentMarks.amount(tr) != null) }.joinToString("+")
+            }, exact = true)
             layout?.labels?.forEach { l ->
                 rec.add("chart.label", RectF(l.left, if (l.lane == 0) area.bottom - 14 * d - lane1 else area.bottom - 14 * d, l.left + l.w,
                     if (l.lane == 0) area.bottom - lane1 else area.bottom), "${l.text} lane${l.lane}", exact = true)
@@ -347,7 +399,7 @@ object GlucoseGraph {
         }
         if (marks) TreatmentMarks.draw(cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
             base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
-            nowS = nowS, muteUntil = alerts?.let { a -> { t: Treatment -> AlertStatus.muteUntil(t, a) } })
+            nowS = nowS, muteUntil = muteUntil, show = show)
         // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
         // with [ChartView.now]; the surface makes its box (chart.now) tappable.
         if (view != null && view.now > 0f) {
@@ -362,6 +414,26 @@ object GlucoseGraph {
             rec.add("chart.now", RectF(px, py, px + pw, py + ph), look.text, exact = true)
         }
         cv.restoreToCount(chartLayer)
+    }
+
+    /** Readings per dp of plot from which the line is drawn as columns (Mac `densePerDp`). */
+    const val DENSE_PER_DP = 6f
+
+    /**
+     * The step (hours) between the vertical lines and their labels for [pxPerHour]: the user's step at least
+     * ([gridHours]), else the first one whose labels are ≥ 44 dp apart: 1, 2, 3, 4, 6, 12 h, then 1, 2, 3 days, a week
+     * (a zoomed-out chart; Mac `gridStep`).
+     */
+    fun gridStep(pxPerHour: Float, gridHours: Int, d: Float): Int =
+        listOf(1, 2, 3, 4, 6, 12, 24, 48, 72, 168).filter { it >= gridHours }.firstOrNull { it * pxPerHour >= 44 * d } ?: 168
+
+    /** Is [c] (on the hour) a line of [step]? Hours: the hour divides by it; days: a midnight whose day number divides by the step in days, a Monday (a week). */
+    private fun onStep(c: Calendar, step: Int): Boolean = when {
+        step < 24 -> c.get(Calendar.HOUR_OF_DAY) % step == 0
+        c.get(Calendar.HOUR_OF_DAY) != 0 -> false
+        step == 168 -> c.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY
+        step > 24 -> Math.floorDiv(c.timeInMillis + c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET), 86_400_000L) % (step / 24) == 0L
+        else -> true
     }
 
     /** The Now pill's height and its distance from the plot's top-right corner (dp; Mac `nowPill`, `nowInset`). */

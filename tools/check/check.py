@@ -45,6 +45,11 @@ Checks
               reason; every stored key (Android GraphConfig/WidgetGraphConfig/FeatureState JSON, Mac graph defaults
               keys) in the schema and every schema key in source; number settings only through the one input pattern
               (spec-driven NumberDialog / NumberSettingRow; NumberSpec values only from the generated file). Whole tree.
+  states      complete flows (the user, 2026-10-21: "There's no way to unmute! On any platform"): every '## ' feature
+              section of docs/FEATURES.md has a '**States and exits**' paragraph (each state a user can enter, where
+              it shows, how to change and leave it, on every platform), unless allow.json 'states_pending' lists the
+              section with the reason. A new section fails without one; a listed section that has one fails too
+              (take it off the list). Whole file at the change's revision.
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
@@ -675,6 +680,30 @@ def check_static(ch, rep):
             rep.add("FAIL", "strings", "only in values-es (stale): %s" % ", ".join(sorted(k_es - k_en)[:12]))
 
 
+def check_states(ch, rep):
+    """states: see the module doc."""
+    text = ch.blob("docs/FEATURES.md")
+    if text is None:
+        return
+    pending = {e["section"]: e.get("reason", "") for e in load("allow.json").get("states_pending", [])}
+    sections = re.split(r"(?m)^## ", text)[1:]
+    names = []
+    for sec in sections:
+        name = sec.split("\n", 1)[0].strip()
+        names.append(name)
+        has = "**States and exits**" in sec
+        if not has and name not in pending:
+            rep.add("FAIL", "states", "docs/FEATURES.md '## %s' has no **States and exits** paragraph.\n"
+                    "List every state a user can enter, where it shows, and how to change it and leave it (undo, cancel,\n"
+                    "turn off, unmute, go back) on every platform and surface (CLAUDE.md 'Complete flows')." % name)
+        elif has and name in pending:
+            rep.add("FAIL", "states", "docs/FEATURES.md '## %s' has its **States and exits** now: take it off\n"
+                    "tools/check/allow.json states_pending." % name)
+    for name in pending:
+        if name not in names:
+            rep.add("FAIL", "states", "tools/check/allow.json states_pending lists '## %s', which docs/FEATURES.md doesn't have." % name)
+
+
 def qa(ch):
     out = []
     for entry in load("qa.json")["map"]:
@@ -749,6 +778,7 @@ def main(argv):
         check_card(ch, rep)
         check_clock(ch, rep)
         check_settings(ch, rep)
+        check_states(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)

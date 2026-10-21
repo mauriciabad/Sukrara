@@ -53,6 +53,9 @@ extension Bands {
     var alertSettings: (() -> AlertSettings)?
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
+    /// The quiet alerts (Alerts.active) and their ways out, for the panel.
+    var alertActive: (() -> [Alerts.Active])?
+    var onQuiet: ((QuietOp) -> Void)? { didSet { panelModel.onQuiet = onQuiet } }
     var onLogTreatment: ((Treatment) -> Void)?
     /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
     var onAddTreatment: ((NSScreen?) -> Void)?
@@ -243,6 +246,7 @@ extension Bands {
         panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.quiet = alertActive?() ?? []
         panelModel.readings = pts
         panelModel.tick += 1
     }
@@ -274,7 +278,7 @@ extension Bands {
     /// Every graph setting (UserDefaults); the mirrored ones are `WearerSettings.graphWire`'s keys, the rest
     /// (per-place window and sensor time) are always this Mac's.
     nonisolated static let graphKeys = ["graphHours", "menubarHours", "widgetHours", "ringCount", "slots", "ringRange", "ringOrder",
-                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "columnCrown", "ringMarks", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours",
+                            "bandVeryLow", "bandLow", "bandTight", "bandHigh", "bandVeryHigh", "bandExtremelyHigh", "side", "columnCrown", "ringMarks", "lines", "gridHours", "lastPlace", "lastElse", "countdownHours", "marks",
                             "menubarSensorTime", "widgetSensorTime"]
     /// Every UserDefaults key a setting lives in (the schema's `defaults` store; `-settingsselftest` checks both ways).
     nonisolated static let settingsKeys = graphKeys + [WearerSettings.modeKey, "reportDays"]
@@ -290,13 +294,17 @@ extension Bands {
 
     func treatmentsChanged() {
         renderTreatments()
+        panelModel.quiet = alertActive?() ?? []   // a treatment's mute starts (or is deleted) at once
         panelModel.tick += 1
+        panel.relayout()
     }
 
     /// The alert settings changed: the badge, the mute lines and the slot follow them.
     func alertsChanged() {
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.quiet = alertActive?() ?? []
+        panel.relayout()
     }
 
     private func renderTreatments() {
@@ -352,6 +360,9 @@ final class CardView: NSView {
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
+    /// A click on the status pill ("45m left"): its box (view coordinates) and this view.
+    var onStatus: ((CGRect, NSView) -> Void)?
+    private var statusBox: CGRect?
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
@@ -365,14 +376,22 @@ final class CardView: NSView {
     // the chart's window through the history, clamped to the first reading. The renderer draws the window it's given
     // (`ChartView`): line, distribution and %, y range, hour labels and treatments are all about what's visible; the y
     // range eases towards the window's own; away from now the renderer's "Now" pill shows and a click on it scrolls back.
+    //
+    // Pinch zoom (the user, 2026-10-21): a trackpad pinch (`magnify(with:)`) or ⌘-scroll zooms the time axis only,
+    // anchored at the cursor so the moment under it stays put, within `ChartView.minSpan`…`maxSpan` (and the history).
+    // The Now pill also returns to the place's "time shown"; the dropdown opens at it again.
 
     /// The window's end while scrolled (s; nil = live, following now).
     var scrollEnd: TimeInterval? { didSet { if scrollEnd != oldValue { tick() } } }
+    /// The window's length while zoomed (s; nil = the place's "time shown").
+    var scrollSpan: TimeInterval? { didSet { if scrollSpan != oldValue { tick() } } }
+    /// Scrolled or zoomed: not the place's usual window up to now (the Now pill shows).
+    var away: Bool { scrollEnd != nil || scrollSpan != nil }
     private var shownY: ClosedRange<Double>?
     /// The plot's bottom (pt above the chart's bottom): the layout's (`insetTarget`), eased like the y range so the
     /// treatment lane that comes and goes with the marks in the window doesn't make the plot jump.
     private var shownInset: CGFloat?
-    private var insetTarget: CGFloat? { didSet { if insetTarget != oldValue, scrollEnd != nil { tick() } } }
+    private var insetTarget: CGFloat? { didSet { if insetTarget != oldValue, away { tick() } } }
     private var pillAlpha: CGFloat = 0
     private var backTarget = false
     private var link: CADisplayLink?
@@ -385,7 +404,37 @@ final class CardView: NSView {
     private var horizontalGesture: Bool?
 
     private var nowT: TimeInterval { (now ?? Date()).timeIntervalSince1970 }
-    private var span: TimeInterval { style.graph?.window ?? 12 * 3600 }
+    /// The place's "time shown", and the window's length now (zoomed or not).
+    private var baseSpan: TimeInterval { style.graph?.window ?? 12 * 3600 }
+    private var span: TimeInterval { scrollSpan ?? baseSpan }
+
+    /// Zoom the time axis by `factor` (> 1 = in) keeping the moment at `anchor` (0 = the plot's left edge, 1 = its right
+    /// edge) where it is; the length stays within `ChartView.minSpan`…`maxSpan` and the history, never narrower or
+    /// wider than the place's own needs; a window that reaches now keeps following now (GlucoseGraph.kt `ChartScroll.zoom`).
+    func zoom(by factor: Double, anchor: Double) {
+        guard factor > 0, factor.isFinite else { return }
+        let n = nowT, first = readings.first?.t ?? n, base = baseSpan
+        let lo = min(ChartView.minSpan, base), hi = max(base, min(ChartView.maxSpan, n - first))
+        let span0 = span, span1 = min(max(span0 / factor, lo), hi)
+        let a = min(max(anchor, 0), 1)
+        let at = (scrollEnd ?? n) - span0 * (1 - a)
+        let end1 = min(max(at + span1 * (1 - a), min(first + span1, n)), n)
+        backTarget = false
+        scrollSpan = abs(span1 - base) < 30 ? nil : span1
+        scrollEnd = end1 >= n ? nil : end1
+    }
+
+    /// The cursor's place across the plot (0…1) for an event.
+    private func anchor(_ e: NSEvent) -> Double {
+        guard let plot, plot.width > 0 else { return 1 }
+        let p = convert(e.locationInWindow, from: nil)
+        return Double((p.x - inset.left - plot.minX) / plot.width)
+    }
+
+    override func magnify(with e: NSEvent) {
+        guard style.graph != nil, plot != nil else { return super.magnify(with: e) }
+        zoom(by: 1 + Double(e.magnification), anchor: anchor(e))
+    }
 
     /// Move the window's end by `dt` s, within the history; at now it follows now again.
     func scroll(by dt: TimeInterval) {
@@ -397,6 +446,12 @@ final class CardView: NSView {
 
     override func scrollWheel(with e: NSEvent) {
         guard style.graph != nil, let plot, plot.width > 0 else { return super.scrollWheel(with: e) }
+        // ⌘-scroll zooms (up / away = in), anchored at the cursor
+        if e.modifierFlags.contains(.command) {
+            let d = e.hasPreciseScrollingDeltas ? e.scrollingDeltaY : e.scrollingDeltaY * 10
+            if d != 0 { zoom(by: exp(Double(d) * 0.01), anchor: anchor(e)) }
+            return
+        }
         if e.phase == .began || e.phase == .mayBegin { horizontalGesture = nil }
         if horizontalGesture == nil, e.phase != .began, e.scrollingDeltaX != 0 || e.scrollingDeltaY != 0 {
             horizontalGesture = abs(e.scrollingDeltaX) >= abs(e.scrollingDeltaY)
@@ -418,7 +473,12 @@ final class CardView: NSView {
     override func mouseDown(with e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
         let q = CGPoint(x: p.x - inset.left, y: p.y - inset.top)
-        if scrollEnd != nil, let nowBox, nowBox.insetBy(dx: -4, dy: -4).contains(q) { backTarget = true; tick(); return }
+        // the Now pill (in the chart, only while scrolled or zoomed) and the status pill (in the value row) never overlap:
+        // whichever box the click is in decides
+        if away, let nowBox, nowBox.insetBy(dx: -4, dy: -4).contains(q) { backTarget = true; tick(); return }
+        if let statusBox, let onStatus, statusBox.insetBy(dx: -4, dy: -4).contains(q) {
+            return onStatus(statusBox.offsetBy(dx: inset.left, dy: inset.top), self)
+        }
         super.mouseDown(with: e)
     }
 
@@ -426,7 +486,11 @@ final class CardView: NSView {
     private func tick() {
         needsDisplay = true
         // offscreen (the self-tests, previews): no frames to ease over, the end state at once
-        guard self.window != nil else { pillAlpha = scrollEnd == nil ? 0 : 1; shownY = nil; shownInset = nil; return }
+        guard self.window != nil else {
+            pillAlpha = away ? 1 : 0; shownY = nil; shownInset = nil
+            if backTarget { backTarget = false; scrollEnd = nil; scrollSpan = nil }
+            return
+        }
         guard link == nil else { return }
         let l = displayLink(target: self, selector: #selector(step(_:)))
         l.add(to: .main, forMode: .common)
@@ -440,10 +504,12 @@ final class CardView: NSView {
         // critically damped easing, ~0.12 s time constant (no bounce: a scale that bounced would read as data moving)
         let k = 1 - exp(-dt / 0.12)
         var busy = false
-        if backTarget, let e = scrollEnd {
-            let n = nowT, step = max((n - e) * (1 - exp(-dt / 0.08)), 30)
-            scrollEnd = e + step >= n - 1 ? nil : e + step
-            if scrollEnd == nil { backTarget = false } else { busy = true }
+        if backTarget {
+            // back to now and the place's window together
+            let n = nowT, g = 1 - exp(-dt / 0.08)
+            if let e = scrollEnd { let step = max((n - e) * g, 30); scrollEnd = e + step >= n - 1 ? nil : e + step }
+            if let s = scrollSpan { let next = s + (baseSpan - s) * g; scrollSpan = abs(next - baseSpan) < 60 ? nil : next }
+            if !away { backTarget = false } else { busy = true }
         }
         let target = targetY()
         if let y = shownY {
@@ -453,7 +519,7 @@ final class CardView: NSView {
         if let target = insetTarget {
             if let s = shownInset, abs(s - target) > 0.1 { shownInset = s + (target - s) * CGFloat(k); busy = true } else { shownInset = target }
         }
-        let want: CGFloat = scrollEnd == nil ? 0 : 1
+        let want: CGFloat = away ? 1 : 0
         pillAlpha += (want - pillAlpha) * CGFloat(1 - exp(-dt / 0.06))
         if abs(pillAlpha - want) < 0.01 { pillAlpha = want } else { busy = true }
         needsDisplay = true
@@ -461,20 +527,21 @@ final class CardView: NSView {
     }
 
     private func targetY() -> ClosedRange<Double> {
-        guard let g = style.graph else { return 0...1 }
+        guard var g = style.graph else { return 0...1 }
+        g.window = span
         return GlucoseCard.yRange(readings, end: scrollEnd ?? nowT, g)
     }
 
     /// The view the renderer gets: none while live and at rest (the same picture as every other surface).
     private var chartView: ChartView? {
-        if scrollEnd == nil && (link == nil || pillAlpha == 0 && shownY == targetY() && shownInset == insetTarget) { return nil }
-        return ChartView(end: scrollEnd ?? nowT, y: shownY, now: pillAlpha, plotInset: shownInset)
+        if !away && (link == nil || pillAlpha == 0 && shownY == targetY() && shownInset == insetTarget) { return nil }
+        return ChartView(end: scrollEnd ?? nowT, y: shownY, now: pillAlpha, plotInset: shownInset, span: scrollSpan)
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         // the dropdown opens at now again (a glance shows the latest reading)
-        if window == nil { link?.invalidate(); link = nil; scrollEnd = nil; pillAlpha = 0; shownY = nil; shownInset = nil; backTarget = false }
+        if window == nil { link?.invalidate(); link = nil; scrollEnd = nil; scrollSpan = nil; pillAlpha = 0; shownY = nil; shownInset = nil; backTarget = false }
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -499,6 +566,7 @@ final class CardView: NSView {
                          view: chartView)
         plot = rec.first("chart.plot")?.box
         nowBox = rec.first("chart.now")?.box
+        statusBox = rec.first("value.status")?.box
         if let area = rec.first("chart")?.box, let natural = rec.first("chart.plot.natural")?.box { insetTarget = area.maxY - natural.maxY }
         return rec
     }

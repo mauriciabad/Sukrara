@@ -47,6 +47,7 @@ class WearerSettingsTest {
         slots = listOf(RingSpec(3 * 86400L, faded = false), RingSpec(10 * 86400L), RingSpec(30 * 86400L, kind = SlotKind.TIR)),
         ringRange = TirRange.TIGHT, ringOrder = Band.entries.reversed(), side = false, columnCrown = false, ringMarks = false,
         lines = listOf(90, 150), gridHours = 3, lastPlace = LastPlace.END, lastElse = RingSpec(5 * 86400L, kind = SlotKind.GMI),
+        marks = app.mauri.sukrara.treatments.MarkShow.parse("rapid:amount+time,long:point,carbs:point+line+amount+time,note:"),
     )
     private val wearerCountdown = 13
     private val wearerAlerts = AlertSettings().let { d ->

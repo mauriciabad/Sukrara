@@ -375,7 +375,8 @@ object GlucoseCard {
         val last = if (st.last != LastPlace.OFF && alerts != null) LastTreatment.of(treatments, alerts, status, nowS) else null
         val fr = Freshness.of(latest?.let { nowS - it.t })
         val sl = SensorBadge.look(sensor, nowS, latest?.t)
-        val graph = st.graph?.takeIf { fr.showGraph }
+        // a zoomed chart: the same style with the window's length the surface zoomed to
+        val graph = st.graph?.takeIf { fr.showGraph }?.let { g -> view?.spanS?.let { g.copy(windowS = it) } ?: g }
         val bands = st.bands.sane()
         val spot = sensorSpot(st, sl, fr)
         val countdown = SensorBadge.ring(sl, sensor, nowS, countdownH)

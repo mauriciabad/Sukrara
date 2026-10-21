@@ -63,6 +63,9 @@ object Clock {
         return f.format(Date(((m / 60) * 3600L + (m % 60) * 60L) * 1000)).also { observer?.invoke(it, hour24) }
     }
 
+    /** The graph's day label (a zoomed-out chart): "17 Oct" (Mac `Clock.dayLabel`). */
+    fun dayLabel(t: Long, locale: Locale = Locale.getDefault()): String = "%te %tb".format(locale, t * 1000, t * 1000)
+
     /** The graph's hour label: "21:00" / "9 PM". */
     fun hourLabel(h: Int, hour24: Boolean = this.hour24, locale: Locale = Locale.getDefault()): String =
         (if (hour24) "%02d:00".format(Locale.ROOT, h)

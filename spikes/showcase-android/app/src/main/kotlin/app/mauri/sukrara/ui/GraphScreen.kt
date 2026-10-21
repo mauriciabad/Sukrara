@@ -58,6 +58,7 @@ import app.mauri.sukrara.graph.systemPalette
 import app.mauri.sukrara.settings.NumberSpec
 import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.settings.WearerSettings
+import app.mauri.sukrara.treatments.MarkShow
 import app.mauri.sukrara.widgets.SukraraHooks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -237,12 +238,17 @@ fun GraphScreen(follower: Boolean, onBack: () -> Unit) {
                     set { it.copy(side = D.side, columnCrown = D.columnCrown) }
                 }
             }) {
-                switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_view_sidebar,
-                    summary = stringResource(R.string.graph_side_summary)) { v -> set { it.copy(side = v) } }
+                switch(stringResource(R.string.graph_side), g.side, icon = R.drawable.ic_sym_bar_chart) { v -> set { it.copy(side = v) } }
                 switch(stringResource(R.string.graph_column_crown), g.columnCrown, icon = R.drawable.ic_sym_crown,
                     summary = stringResource(R.string.graph_column_crown_summary)) { v -> set { it.copy(columnCrown = v) } }
             }
             Note(stringResource(R.string.graph_side_note))
+
+            SettingsGroup(stringResource(R.string.graph_marks_title), titleAction = {
+                Reset(stringResource(R.string.graph_marks_title), g.marks != D.marks) { set { it.copy(marks = D.marks) } }
+            }) {
+                link(stringResource(R.string.graph_marks_title), marksSummary(g.marks), icon = R.drawable.ic_dia_carbs, to = GRAPH_MARKS_ROUTE)
+            }
         }
 
         SettingsGroup(stringResource(R.string.graph_group_sensor), titleAction = {
@@ -258,6 +264,70 @@ fun GraphScreen(follower: Boolean, onBack: () -> Unit) {
     }
     pick?.let { p -> ChoiceDialog(p.title, p.options, p.selected, onClose = { pick = null }, onChoose = p.onPick) }
     numPick?.let { p -> NumberDialog(p.title, p.spec, p.selected, p.label, onClose = { numPick = null }, reject = p.reject, onChoose = p.onPick) }
+}
+
+/** The route of [GraphMarksScreen]. */
+const val GRAPH_MARKS_ROUTE = "graph_marks"
+
+@Composable
+private fun kindName(k: String) = stringResource(when (k) {
+    "rapid" -> R.string.graph_marks_kind_rapid; "long" -> R.string.graph_marks_kind_long
+    "carbs" -> R.string.graph_marks_kind_carbs; else -> R.string.graph_marks_kind_note
+})
+
+/** "Carbs: point only" (the default), "Point, mute line, amount and time" (everything) or "Custom for each kind". */
+@Composable
+private fun marksSummary(m: MarkShow): String {
+    val pointOnly = MarkShow.KINDS.filter { k -> MarkShow.parts(k).size > 1 && MarkShow.parts(k).all { m.has(k, it) == (it == MarkShow.POINT) } }
+    val full = MarkShow.KINDS.filter { k -> MarkShow.parts(k).all { m.has(k, it) } }
+    val names = pointOnly.map { kindName(it) }
+    return when {
+        full.size == MarkShow.KINDS.size -> stringResource(R.string.graph_marks_summary_all)
+        (full + pointOnly).toSet().size == MarkShow.KINDS.size && pointOnly.isNotEmpty() ->
+            stringResource(R.string.graph_marks_summary_point, names.joinToString(", "))
+        else -> stringResource(R.string.graph_marks_summary_custom)
+    }
+}
+
+/**
+ * Settings › Graph › Treatments on the graph: one group per treatment kind (Android's settings pattern: "Group
+ * settings in smaller relevant groups … headings between groups", and "Use a switch or checkbox for a clear on and off
+ * state", developer.android.com/design/ui/mobile/guides/patterns/settings), each with a switch for every part that
+ * kind has ([MarkShow.parts]): point, mute line, amount label, time label. The real panel on top shows the effect.
+ * Global (every graph surface); a follower in Wearer / Default mode doesn't get here ([GraphScreen] shows the link only
+ * in Custom: the setting is mirrored).
+ */
+@Composable
+fun GraphMarksScreen(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val g by GraphSettings.state.collectAsState()
+    val idx = indexing
+    val last by produceState<app.mauri.sukrara.core.Reading?>(null) {
+        if (!idx) value = withContext(Dispatchers.IO) { app.mauri.sukrara.widgets.RecentHistory.readings(ctx).lastOrNull() }
+    }
+    fun set(k: String, part: String, v: Boolean) {
+        GraphSettings.update { it.copy(marks = it.marks.with(k, part, v)) }
+        SukraraHooks.refresh(ctx, "graph settings", force = true)
+    }
+    SettingsPage(stringResource(R.string.graph_marks_title), onBack) {
+        SettingsHeader { GlucosePanel(last?.sgv, last?.rate, last?.t) }
+        for (k in MarkShow.KINDS) {
+            val icon = when (k) {
+                "rapid" -> R.drawable.ic_dia_insulin_rapid; "long" -> R.drawable.ic_dia_insulin_long
+                "carbs" -> R.drawable.ic_dia_carbs; else -> R.drawable.ic_sym_edit_note
+            }
+            SettingsGroup(kindName(k)) {
+                for (p in MarkShow.parts(k)) when (p) {
+                    MarkShow.POINT -> switch(stringResource(R.string.graph_marks_point), g.marks.has(k, p), icon = icon) { v -> set(k, p, v) }
+                    MarkShow.LINE -> switch(stringResource(R.string.graph_marks_line), g.marks.has(k, p), icon = R.drawable.ic_sym_notifications_paused,
+                        summary = stringResource(R.string.graph_marks_line_summary)) { v -> set(k, p, v) }
+                    MarkShow.AMOUNT -> switch(stringResource(R.string.graph_marks_amount), g.marks.has(k, p), icon = R.drawable.ic_sym_123) { v -> set(k, p, v) }
+                    MarkShow.TIME -> switch(stringResource(R.string.graph_marks_time), g.marks.has(k, p), icon = R.drawable.ic_sym_schedule) { v -> set(k, p, v) }
+                }
+            }
+        }
+        Note(stringResource(R.string.graph_marks_note))
+    }
 }
 
 /** An open number dialog: the setting's spec, its value and how a value reads. */

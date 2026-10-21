@@ -63,8 +63,9 @@ by the app's icon code.</sub>
   menubar included, redrawn on time without a new reading. No trend from the sensor: a hollow ring instead of the arrow. A dashed line at 100 plus lines of
   your own, the very good part of the range in its own colour, and extremely high (≥ 300) in magenta. Ranges,
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.
-  Drag or fling the home screen's chart to go back in time: the % and the distribution beside it, the scale and the
-  treatments follow what's on screen, and a *Now* pill brings you back. [16](docs/16-graph.md)
+  Drag or fling the home screen's chart to go back in time and pinch it to zoom from 2 hours to the whole month: the %
+  and the distribution beside it, the scale, the time labels and the treatments follow what's on screen, and a *Now*
+  pill brings you back. [16](docs/16-graph.md)
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
   variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days; a share next to its goal gets
   decimals when rounding would put it on the wrong side (5.2 %, not 5 %, against < 5 %). Any of them can sit beside the number
@@ -133,7 +134,9 @@ by the app's icon code.</sub>
   *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
   it keeps alerts quiet. On the charts the labels sit under their markers, in the time axis' row, never over the
   line; a meal shares one label (`4.5u · 45g 1h 35m`), and close ones slide or take a second row, the same way on
-  Android and Mac. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
+  Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
+  (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
+  followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left (carbs eaten while insulin works: two rings, `8u` over `5g`); without a
@@ -165,7 +168,10 @@ by the app's icon code.</sub>
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
   A short dip back into range doesn't restart the alert. Extremely high is never muted. From the notification: mute
   the alert for 30 min (or 15 min to 2 h, or minutes you type) or slow its reminders to every 30 min, both until it's back in range
-  (very low and extremely high can only be slowed); a mute only quiets the device you tap it on, so the Mac and followers keep alerting. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  (very low and extremely high can only be slowed); a mute only quiets the device you tap it on, so the Mac and followers keep alerting.
+  Every quiet alert has a way back: *Unmute* or *Change…* on the muted notification, a tap on the "30m left" pill
+  (or the Mac panel's rows), and Settings › Alerts › *Active now* (Unmute, change the time, stop slowing down, or
+  *Alert me anyway* after carbs or insulin, on that device only). Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
   Android's app settings.
@@ -174,7 +180,7 @@ by the app's icon code.</sub>
 - The number and trend arrow in the menubar, coloured by range. A click opens a glance panel (like Control Center's):
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
   *Eat carbs* / *Take insulin* badge and the last-treatment slot; swipe the chart sideways with two fingers to go back
-  in time, *Now* to return) on the system material, then **Add Treatment…** (or Return),
+  in time, pinch or ⌘-scroll to zoom, *Now* to return) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
   days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
   and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.

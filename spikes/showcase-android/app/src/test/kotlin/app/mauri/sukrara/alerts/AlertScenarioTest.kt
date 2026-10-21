@@ -133,8 +133,9 @@ object AlertScenarios {
         var t = T0
         fun note(what: String) { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += what }
         fun record(acts: List<AlertEngine.Action>) = acts.forEach { note(describe(it)) }
+        val pubFires = HashMap<String, AlertEngine.Fire>()
         fun published(acts: List<AlertEngine.Action>) { if (sc.mirror) for (a in acts) when (a) {
-            is AlertEngine.Fire -> if (follower.fire(a.kind, a.id, a.n, a.at)) note("follower ${describe(a)}")
+            is AlertEngine.Fire -> { pubFires[a.id] = a; if (follower.fire(a.kind, a.id, a.n, a.at)) note("follower ${describe(a)}") }
             is AlertEngine.Clear -> if (follower.clear(a.kind, a.id)) note("follower ${describe(a)}")
         } }
         /** Both wearer engines (the shared one only in a mirror scenario): readings, treatments, settings, timer. */
@@ -171,11 +172,16 @@ object AlertScenarios {
                     // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
                     "mute" -> record(e.mute(w[1], w.getOrNull(2)?.toInt() ?: s.actionMuteMin, s, AlertEngine.doses(trs), t))
                     "slow" -> record(e.slow(w[1], s, AlertEngine.doses(trs), t))
+                    // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop slowing down
+                    "unmute" -> record(e.unmute(w[1], s, AlertEngine.doses(trs), t))
+                    "unslow" -> record(e.unslow(w[1], s, AlertEngine.doses(trs), t))
                     // the same actions on the follower's notification (mirror): this device only
                     "follower" -> when (w[1]) {
                         "mute" -> if (w[2] !in Kind.ALWAYS &&
                             follower.mute(w[2], t + (w.getOrNull(3)?.toInt() ?: s.actionMuteMin) * 60L)) note("follower clear ${w[2]}")
                         "slow" -> follower.slow(w[2], s.slowMin)
+                        "unmute" -> follower.unmute(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
+                        "unslow" -> follower.unslow(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
                         else -> error("unknown event: $ev")
                     }
                     "set" -> { s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }; check() }

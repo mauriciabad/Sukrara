@@ -349,6 +349,14 @@ each other at the left edge); for every graph, Android and Mac.
 | ![close, Android](img/16/marks-close-dark.png) | ![close, Mac](img/16/mac-marks-close-dark.png) |
 | Android (`GraphGallery.marksClose`) | Mac (`render treatments`, `mac-marks-close`): the same labels in the same places |
 
+**Which parts show (2026-10-21).** The user: "I don't care about the carbs amount and time label (and also
+line) … for each treatment I can decide to show or hide the point, the mute line, the amount label and the time
+label". `MarkShow` (both platforms; schema `graph.marks`, mirrored) holds per kind which of point / mute line /
+amount / time show (carbs by default: the point only). The steps below run on what shows: in step 2 only entries with
+their amount or time label shown take part; in step 3 a label holds the amounts that show and the time since the
+newest member whose time shows (none when no member's time shows); a label of times only has no "without the time"
+fallback. The marker lane exists only when a point or a mute line is drawn.
+
 ### Spec (Android `TreatmentMarks.layout` / `place`, Mac `TreatmentMarks.layout` / `place`)
 
 Units are dp, times seconds; the chart's area is `minX`…`maxX`, the plot `left`…`right` inside it.
@@ -527,6 +535,24 @@ also update", and "more outline so it masks out more of the content behind".
 - The second label lane still switches with the labels in the window (the labels move 11 dp); the plot itself eases.
 - Emulator frame stats as the performance measure: the shared emulator was saturated (its own vertical page scroll
   measured 100 ms frames), so the numbers above come from the renderer timed on the JVM and on the Mac.
+
+## Zooming the time axis (2026-10-21)
+
+The user: "can we make that in the scroll feature it can also zoom in and out the x axis with pinch gesture?", then
+"24h max limit is too low. vertical lines and axis labels should adapt".
+
+**Added.** `ChartView` carries the window's length; the renderer draws it like any window. Android: a pointer handler
+before the scroll's takes two-finger events only (the Compose multi-touch guidance's `calculateZoom` /
+`calculateCentroid` / `calculatePan`, developer.android.com/develop/ui/compose/touch-input/pointer-input/multi-touch),
+zooms the x axis at the centroid, moves with the centroid and consumes them, so the scroll's drag and fling don't run
+too. Mac: `magnify(with:)` and ⌘-scroll at the cursor. Limits: 2 h (the hour labels stay at least two) to the whole
+history, at most 31 days. The lines' step continues past 12 h into 1, 2, 3 days and a week, fixed to the calendar
+(midnights, day numbers, Mondays) so they don't move while scrolling, with date labels. Far out the line becomes 1 dp
+columns (lowest to highest reading, split by band). The Now pill also resets the zoom; the zoom never outlives the
+screen / the dropdown.
+
+**Left out.** Sub-hour steps (the user's grid setting is whole hours, and 2 h already shows two labels); a vertical zoom
+(the y range stays the window's own); keeping the zoom across visits (the user's place setting is the default).
 
 ## Open
 

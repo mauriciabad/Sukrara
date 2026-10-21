@@ -25,7 +25,8 @@ The layout dump: which treatment labels are drawn, where and with what text (rul
 labels"). Run by `GraphFixtureTest.labels` (Android) and `-graphselftest` (Mac), which also checks that SF Pro's real
 width of each label fits the width model. A case: `name`; `chart` `{w, h}` (the chart's area, dp); `hours` (window);
 `pct` (time in range has data, so the % column shows where the chart is ≥ 240 dp wide); `treatments` as above
-(`k`: rapid | long | carbs | note; times relative to "now"). The file's `pctLabel` and `valueLabel` stand in for the widest
+(`k`: rapid | long | carbs | note; times relative to "now"). Optional `marks` (Treatments on the graph): absent = the defaults (carbs: point
+only), `"all"` = every part of every kind, or `{kind: [point, line, amount, time]}` (missing kinds = their default). The file's `pctLabel` and `valueLabel` stand in for the widest
 % label and the widest value on the right (dp; the real ones are measured with the drawing font): each side column is
 it plus the gap of `layout/rules.json` on each side. `expect`:
 
@@ -137,7 +138,7 @@ times (`Freshness.nextChangeAt`), which `FreshnessFixtureTest.night` replays wit
   (`cut`, dp); both renderers' constants must equal them and every drawn distribution's erased box
   (`chart.distribution.cut`) is its dots' box (`chart.distribution.dots`) plus `cut` on the right and the top.
 - `layout/scenes.json` `scroll`: scrolled charts (the app panel, the Mac dropdown), each case a scene and how far back
-  (`back`, s) the window ends, rendered through the scrollable surfaces' entry paths (`PanelCard` with a `ChartScroll`,
+  (`back`, s) the window ends and, zoomed, how long it is (`span`, s), rendered through the scrollable surfaces' entry paths (`PanelCard` with a `ChartScroll`,
   `CardView.scrollEnd`): the chart must equal the chart of the visible data alone (every reading and treatment outside
   the window removed, now = the window's end), its y range (`chart.y`) the visible readings', the Now pill
   (`chart.now`) only when scrolled, and `expect` (font-independent: `chart.pct`, `chart.y`, `chart.window`,

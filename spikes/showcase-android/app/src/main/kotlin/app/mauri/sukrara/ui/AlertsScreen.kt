@@ -150,6 +150,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     val s by Alerts.settings.collectAsState()
     val state by Alerts.state.collectAsState()
     val history by Alerts.history.collectAsState()
+    val active by Alerts.active.collectAsState()
     var pickPack by remember { mutableStateOf(false) }
     val from by WearerSettings.mode.collectAsState()
     var minutes by remember { mutableStateOf<String?>(null) }   // which quiet rule's minutes dialog is open
@@ -161,9 +162,11 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         // what the rules see now, like a live preview at the top of the page
         SettingsHeader { Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                val now = state.values.toList()
+                // the quiet ones are under Active now, with their ways out
+                val now = state.values.filter { st -> active.none { Kind.group(it.kind) == Kind.group(st.kind) } }
                 Swap(now.isEmpty()) { empty ->
-                    if (empty) Text(stringResource(if (s.on) R.string.alerts_now_nothing else R.string.alerts_now_off), style = MaterialTheme.typography.bodyLarge)
+                    // with something under Active now, "nothing to alert about" would read as a contradiction
+                    if (empty) { if (active.isEmpty() || !s.on) Text(stringResource(if (s.on) R.string.alerts_now_nothing else R.string.alerts_now_off), style = MaterialTheme.typography.bodyLarge) }
                     else Column {
                         now.forEach { st ->
                             Text(AlertNotifier.label(ctx, st.kind) + " · " + (st.muted?.let { stringResource(R.string.alerts_now_quiet, quietReason(ctx, it)) }
@@ -175,6 +178,12 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
                 history.take(4).forEach { Text(noteText(ctx, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         } }
+        // Active now (round f29): every muted / quiet / slowed alert on this phone with its ways out (Unmute, Alert me
+        // anyway, Change, Stop slowing down), so all of them are reachable without the notification
+        if (active.isNotEmpty()) {
+            val t = nowSeconds()
+            SettingsGroup(stringResource(R.string.alerts_active_now)) { for (a in active) card { QuietRow(a, t) } }
+        }
         SettingsMainSwitch(stringResource(R.string.alerts_main_switch), s.on) { v -> set { it.copy(on = v) } }
         if (follower) SettingsFromGroup()
 
@@ -279,6 +288,8 @@ private fun noteText(ctx: Context, n: AlertNote): String {
         AlertNote.CLEARED -> ctx.getString(if (n.remote) R.string.alerts_note_cleared_remote else R.string.alerts_note_cleared, AlertNotifier.label(ctx, k))
         AlertNote.MUTED -> ctx.getString(R.string.alerts_note_muted, AlertNotifier.label(ctx, k), n.n)
         AlertNote.SLOWED -> ctx.getString(R.string.alerts_note_slowed, AlertNotifier.label(ctx, k), n.n)
+        AlertNote.UNMUTED -> ctx.getString(R.string.alerts_note_unmuted, AlertNotifier.label(ctx, k))
+        AlertNote.UNSLOWED -> ctx.getString(R.string.alerts_note_unslowed, AlertNotifier.label(ctx, k), n.n)
         else -> ctx.getString(R.string.alerts_note_resumed, n.kinds.joinToString { AlertNotifier.label(ctx, it) })
     }
     val t = app.mauri.sukrara.graph.Clock.time(n.at)
