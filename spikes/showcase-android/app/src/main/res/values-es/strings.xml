@@ -310,6 +310,12 @@
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
     <!-- Short duration in days; %1$d = days [CHAR LIMIT=6] -->
     <string name="duration_days">%1$d d</string>
+    <!-- A duration in words and settings, minutes only (under an hour); %1$d = minutes [CHAR LIMIT=8] -->
+    <string name="duration_text_minutes">%1$d min</string>
+    <!-- A duration in words and settings, whole hours; %1$d = hours [CHAR LIMIT=6] -->
+    <string name="duration_text_hours">%1$d h</string>
+    <!-- A duration in words and settings, hours and minutes; %1$d = hours, %2$d = minutes [CHAR LIMIT=14] -->
+    <string name="duration_text_hours_minutes">%1$d h %2$d min</string>
     <!-- How long ago; %1$s = a short duration like 12m [CHAR LIMIT=14] -->
     <string name="duration_ago">hace %1$s</string>
     <!-- Window of a slot (time-in-range ring, average) in days, e.g. 14d; %1$d = days [CHAR LIMIT=5] -->

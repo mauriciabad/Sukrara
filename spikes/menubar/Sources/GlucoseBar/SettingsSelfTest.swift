@@ -66,8 +66,29 @@ enum SettingsSelfTest {
         wire()
         options()
         reorder()
+        durations()
         print(ok ? "settings self-test OK" : "settings self-test FAILED")
         return ok
+    }
+
+    // MARK: (i) durations: THE formatter against spikes/durations/durations.json (Android's DurationsTest)
+
+    static func durations() {
+        var dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        while !FileManager.default.fileExists(atPath: dir.appendingPathComponent("spikes/durations/durations.json").path) {
+            if dir.path == "/" { check("(i) spikes/durations/durations.json found above the working directory", false); return }
+            dir.deleteLastPathComponent()
+        }
+        guard let data = try? Data(contentsOf: dir.appendingPathComponent("spikes/durations/durations.json")),
+              let f = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { check("(i) durations.json readable", false); return }
+        func cases(_ k: String) -> [[Any]] { f[k] as? [[Any]] ?? [] }
+        for c in cases("text") { let m = (c[0] as! NSNumber).intValue; check("(i) text \(m)", Durations.text(m) == c[1] as! String, Durations.text(m)) }
+        for c in cases("compact") { let m = (c[0] as! NSNumber).intValue; check("(i) compact \(m)", Durations.compact(m) == c[1] as! String, Durations.compact(m)) }
+        for c in cases("whole") { let m = (c[0] as! NSNumber).intValue; check("(i) whole \(m)", Durations.whole(m) == c[1] as! String, Durations.whole(m)) }
+        for c in cases("parse") {
+            let input = c[0] as! String, want = (c[1] as? NSNumber)?.intValue
+            check("(i) parse '\(input)'", Durations.parse(input) == want, "\(String(describing: Durations.parse(input)))")
+        }
     }
 
     // MARK: (h) ring order: the move logic of the reorderable list (drop gaps, Move Up / Move Down)

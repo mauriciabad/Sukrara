@@ -141,8 +141,7 @@ object SensorLife {
         val min = (info.warmupEndEpoch - now + 59) / 60
         return when {
             waitingFirstReading(info, now) -> w.almostReady
-            min >= 60 -> w.durHours.format(min / 60)
-            else -> w.durMinutes.format(min)
+            else -> Durations.whole(min, w)
         }
     }
 
@@ -164,11 +163,7 @@ object SensorLife {
      */
     fun label(endEpoch: Long, now: Long, w: Words = Words.current): String {
         val left = (endEpoch - now).coerceAtLeast(0)
-        return when {
-            left >= 86_400 -> w.durDays.format(left / 86_400)
-            left >= 3_600 -> w.durHours.format(left / 3_600)
-            else -> w.durMinutes.format(left / 60)
-        }
+        return Durations.whole(left / 60, w)
     }
 
     /** The badge disc's arc: the share of the sensor's life still left, 1 → 0. */

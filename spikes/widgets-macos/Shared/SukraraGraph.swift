@@ -1333,13 +1333,7 @@ enum TreatmentMarks {
     static func duration(_ s: TimeInterval, up: Bool = false) -> String {
         let sec = Int64(max(0, s))
         let m = up ? (sec + 59) / 60 : sec / 60
-        switch m {
-        case ..<1: return "now"
-        case ..<60: return "\(m)m"
-        case ..<(6 * 60): return m % 60 == 0 ? "\(m / 60)h" : "\(m / 60)h \(m % 60)m"
-        case ..<(48 * 60): return "\(m / 60)h"
-        default: return "\(m / 1440)d"
-        }
+        return m < 1 ? "now" : Durations.compact(Int(m))
     }
 
     private static let order = ["rapid": 0, "long": 1, "carbs": 2, "note": 3]
@@ -2387,10 +2381,7 @@ enum SensorLife {
 
     /// ≥ 24 h left → whole days ("13d"), ≥ 1 h → hours ("20h"), else minutes ("45m", "0m" once ended); floor.
     static func label(end: TimeInterval, now: TimeInterval) -> String {
-        let left = Int(max(0, (end - now).rounded(.down)))
-        if left >= 86400 { return "\(left / 86400)d" }
-        if left >= 3600 { return "\(left / 3600)h" }
-        return "\(left / 60)m"
+        Durations.whole(Int(max(0, (end - now).rounded(.down))) / 60)
     }
 
     /// The disc's arc: the share of the sensor's life left, 1 → 0.
@@ -2415,7 +2406,7 @@ enum SensorLife {
     static func warmupLabel(_ s: SensorInfo, now: TimeInterval) -> String {
         if waitingFirstReading(s, now: now) { return "Almost ready" }
         let min = (Int((s.warmupEnd - now).rounded(.down)) + 59) / 60
-        return min >= 60 ? "\(min / 60)h" : "\(min)m"
+        return Durations.whole(min)
     }
 
     /// While warming up: the warm-up's time is over and the first reading hasn't come yet.

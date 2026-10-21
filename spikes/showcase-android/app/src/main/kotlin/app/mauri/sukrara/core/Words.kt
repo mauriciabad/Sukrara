@@ -28,6 +28,10 @@ data class Words(
     val durHours: String = "%1\$dh",
     val durHoursMinutes: String = "%1\$dh %2\$dm",
     val durDays: String = "%1\$dd",
+    // durations in words and settings (core/Durations.text): "45 min", "1 h", "1 h 30 min"
+    val durTextMinutes: String = "%1\$d min",
+    val durTextHours: String = "%1\$d h",
+    val durTextHoursMinutes: String = "%1\$d h %2\$d min",
     val ago: String = "%1\$s ago",
     // slot windows ("1d", "12h")
     val periodDays: String = "%1\$dd",
@@ -88,7 +92,9 @@ data class Words(
             timeLeft = r.getString(R.string.badge_time_left), alertsPaused = r.getString(R.string.badge_alerts_paused_description),
             durNow = r.getString(R.string.duration_now), durMinutes = r.getString(R.string.duration_minutes),
             durHours = r.getString(R.string.duration_hours), durHoursMinutes = r.getString(R.string.duration_hours_minutes),
-            durDays = r.getString(R.string.duration_days), ago = r.getString(R.string.duration_ago),
+            durDays = r.getString(R.string.duration_days),
+            durTextMinutes = r.getString(R.string.duration_text_minutes), durTextHours = r.getString(R.string.duration_text_hours),
+            durTextHoursMinutes = r.getString(R.string.duration_text_hours_minutes), ago = r.getString(R.string.duration_ago),
             periodDays = r.getString(R.string.period_days), periodHours = r.getString(R.string.period_hours),
             slotAverage = r.getString(R.string.slot_average_short), slotGmi = r.getString(R.string.slot_gmi_short),
             slotCv = r.getString(R.string.slot_cv_short), tirInRange = r.getString(R.string.slot_tir_in_range),
