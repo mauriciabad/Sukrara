@@ -16,7 +16,7 @@ extension Bands {
 }
 
 /// The menu bar item: the number + trend arrow; a click opens the glance panel (Panel.swift), a right-click a short
-/// menu (Glucose Report…, Settings…, Quit). Everything that configures the app lives in Settings (HIG "Settings").
+/// menu (Treatments…, Glucose Report…, Settings…, Quit). Everything that configures the app lives in Settings (HIG "Settings").
 @MainActor final class StatusController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let panelModel = PanelModel()
@@ -39,6 +39,7 @@ extension Bands {
     var onFollow: (() -> Void)?
     var onSettings: (() -> Void)?
     var onReport: (() -> Void)?
+    var onTreatments: (() -> Void)?
 
     /// The protocol v2 follow state line ("Following Ana · key epoch 2 · 4 relays"), nil when not following; shown
     /// in Settings › Following only.
@@ -58,7 +59,7 @@ extension Bands {
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
-    /// Per-entry delivery status ("v2 accepted ✓") and its long form (Glucose Report › Treatments).
+    /// Per-entry delivery status ("v2 accepted ✓") and its long form (the Treatments window).
     var treatmentStatus: ((Treatment) -> String)?
     var treatmentDetails: ((Treatment) -> [String])?
 
@@ -76,6 +77,7 @@ extension Bands {
         button.target = self
         button.action = #selector(clicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        contextMenu.addItem(withTitle: "Treatments…", action: #selector(treatmentsList), keyEquivalent: "").target = self
         contextMenu.addItem(withTitle: "Glucose Report…", action: #selector(report), keyEquivalent: "").target = self
         contextMenu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         contextMenu.addItem(.separator())
@@ -87,6 +89,7 @@ extension Bands {
         }
         panelModel.onFollow = { [weak self] in self?.panel.close(); self?.onFollow?() }
         panelModel.onReport = { [weak self] in self?.panel.close(); self?.onReport?() }
+        panelModel.onTreatments = { [weak self] in self?.panel.close(); self?.onTreatments?() }
         panelModel.onSettings = { [weak self] in self?.panel.close(); self?.onSettings?() }
         panel.onVisible = { [weak self] visible in
             guard let self else { return }
@@ -145,6 +148,7 @@ extension Bands {
 
     @objc private func settings() { onSettings?() }
     @objc private func report() { onReport?() }
+    @objc private func treatmentsList() { onTreatments?() }
 
     /// nil = not following anyone over v2.
     func setFollow(_ text: String?, image: NSImage? = nil) {
