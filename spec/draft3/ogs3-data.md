@@ -224,7 +224,11 @@ on the wire.
   old and whose `(id, n)` it hasn't notified before. Older active alerts are shown, without a sound.
 - An alert isn't a delivery guarantee. Relays can be slow, phones can be offline. Apps SHOULD make "no data for N
   minutes" an alert of their own (S§9).
-- Producers SHOULD NOT send alerts the wearer muted. Whether a follower alerts at all is the follower's choice.
+- Producers SHOULD NOT send alerts muted by a shared treatment (carbs or insulin in the stream: every member has
+  it and would mute the same way). A device-local mute or slow-down of a notification (a "Mute 30 min" or "Slow down"
+  button) MUST NOT change what is published: the producer keeps sending the alerts its rules raise, and a member's
+  own mute or slow-down stays on that member's device and is never sent. Whether a follower alerts at all is the
+  follower's choice.
 
 ### D§8.3 `ack`
 
