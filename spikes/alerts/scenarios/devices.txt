@@ -1,0 +1,89 @@
+# Notification actions are per device (SPEC.md §2; user, 2026-10-21: "Mac notifications should work on their own …
+# if someone wants to mute, it shouldn't mute the other"). `mirror` runs a follower (a phone or the Mac) that mirrors
+# the wearer's `alert` events; `follower …` lines are its notification actions and what it shows. The wearer publishes
+# what its rules decide without its own Mute / Slow down. Format: SPEC.md §7.
+
+scenario The wearer's Mute quiets the wearer only: the follower still alerts on schedule
+mirror
+ 0  glucose 65   => Low glucose; follower Low glucose
+ 5               => Low glucose; follower Low glucose
+ 7  mute low     => clear low                 # the wearer's notification: Mute 30 min
+10               => follower Low glucose
+15               => follower Low glucose
+20               => follower Low glucose
+25               => follower Low glucose
+30               => follower Low glucose
+35               => follower Low glucose
+37               => Low glucose               # the wearer's mute ends
+38
+
+scenario The wearer's Slow down slows the wearer only
+mirror
+settings slow.min=15
+ 0  glucose 65   => Low glucose; follower Low glucose
+ 2  slow low
+ 5               => follower Low glucose
+10               => follower Low glucose
+15               => Low glucose; follower Low glucose
+16
+
+scenario The follower's Mute quiets the follower only: the wearer alerts on schedule
+mirror
+ 0  glucose 65          => Low glucose; follower Low glucose
+ 2  follower mute low   => follower clear low  # Mute 30 min on the follower (or the Mac)
+ 5                      => Low glucose
+10                      => Low glucose
+15                      => Low glucose
+20                      => Low glucose
+25                      => Low glucose
+30                      => Low glucose
+35                      => Low glucose; follower Low glucose   # the wearer's first alert after the mute
+36
+
+scenario The follower's Slow down slows the follower only
+mirror
+settings slow.min=15
+ 0  glucose 65          => Low glucose; follower Low glucose
+ 1  follower slow low
+ 5                      => Low glucose
+10                      => Low glucose
+15                      => Low glucose; follower Low glucose
+20                      => Low glucose
+21
+
+scenario Both mute on their own: each comes back on its own time
+mirror
+ 0  glucose 65            => Low glucose; follower Low glucose
+ 1  mute low 10           => clear low
+ 2  follower mute low 20  => follower clear low
+ 5
+11                        => Low glucose      # the wearer's 10 min end
+16                        => Low glucose
+21                        => Low glucose
+25                        => follower Low glucose   # the wearer's rules alert every 5 min; the follower's mute ended at 22
+26                        => Low glucose
+27
+
+scenario A follower's muted low still shows very low
+mirror
+ 0  glucose 65          => Low glucose; follower Low glucose
+ 2  follower mute low   => follower clear low
+ 4  glucose 50          => clear low; Very low glucose; follower Very low glucose
+ 5
+
+scenario The wearer's clear removes the follower's alert after a repeat it skipped
+mirror
+settings slow.min=15
+ 0  glucose 65          => Low glucose; follower Low glucose
+ 1  follower slow low
+ 5                      => Low glucose     # the follower skips this repeat: its first alert stays up
+ 7  glucose 90          => clear low; follower clear low
+ 8
+
+scenario Carbs quiet both: treatments are shared data
+mirror
+ 0  glucose 65   => Low glucose; follower Low glucose
+ 3  carbs 10     => clear low; follower clear low
+18               => Low glucose · eat more; follower Low glucose · eat more
+23               => Low glucose · eat more; follower Low glucose · eat more
+24

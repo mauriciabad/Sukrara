@@ -72,13 +72,25 @@ history (and the log) records "Low muted for 45 min (notification)", never "Low 
 *Mute for…* offers the other Mute presets as one-tap choices beside typed minutes (Android's RemoteInput has no
 number keyboard).
 
-Together with a treatment mute, the later end wins. On a follower that mirrors the wearer (`source` "wearer") the
-buttons quiet the wearer's alerts **on that device only** (dropped while muted; while slowed, a repeat shows only if
-`slowMin` has passed since the last one shown, a more severe kind always shows); a new episode on the wearer (`n` = 1)
-ends them. On the wearer they also go to the followers (§4 `snooze`), so the wearer's mute quiets the Mac and shows
-there as the badge.
+Together with a treatment mute, the later end wins. **The buttons act on the device they're tapped on only** (user,
+2026-10-21: "Mac notifications should work on their own. Mac and Android don't have to be from the same person, so if
+someone wants to mute, it shouldn't mute the other"): its notifications, its badge / "Xm left" pill and its history.
+Nothing about them is sent:
+- On the **wearer** they change only the phone's own notifications. What goes to the followers (§4) is what the rules
+  decide **without** them: the wearer runs the rules twice on the same readings and treatments, once for its own
+  notifications (with its Mute / Slow down) and once for the followers (without), so a Mac or follower that mirrors the
+  wearer keeps alerting on schedule while the wearer has muted.
+- On a **follower that mirrors the wearer** (`source` "wearer"; a phone or the Mac) they quiet the wearer's alerts on
+  that device (dropped while muted; while slowed, a repeat shows only if `slowMin` has passed since the last one shown,
+  a more severe kind always shows); a new episode on the wearer (`n` = 1) ends them. The wearer's `clear` removes the
+  alert shown there even when a repeat in between was skipped.
+- On a follower with its **own** rules (`source` "own") they act on its engine, like on the wearer.
 
-A muted alert is not "fired": no notification, no event to followers. A treatment mute ends at exactly `t + min`,
+Treatment mutes are different: carbs and rapid insulin are shared data (the treatment log syncs), so a treatment
+quiets the wearer, its followers and the Mac alike.
+
+A muted alert is not "fired": no notification here. A treatment-muted one isn't sent to the followers either (they
+have the same treatments); a notification-muted one is (above). A treatment mute ends at exactly `t + min`,
 and the timer wakes then (Android: an exact alarm; Mac: a one-shot timer), so it alerts on time even between
 readings. The UI shows why it's quiet ("High, muted: insulin 12 min ago"); `AlertStatus` (Android) applies the same
 treatment rules for the badge under the value.
@@ -139,8 +151,7 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
 |---|---|
 | `id` | random per firing; a `clear` repeats the `id` of the firing it ends |
 | `k` | alert kind (§1) |
-| `state` | `fire` (a notification was posted, including re-alerts), `clear` (condition left: remove it) or `snooze` (the wearer used a notification action on this episode, §2; `id` = the firing it was on) |
-| `mu`, `sl` | `snooze` only: muted until (unix s, 0 = not muted) and the slowed interval (min, 0 = not slowed) |
+| `state` | `fire` (the rules alert, including re-alerts; the wearer's own notification actions don't change it, §2) or `clear` (condition left: remove it) |
 | `at` | when the wearer fired/cleared (unix s) |
 | `t`, `sgv`, `r` | the reading that triggered it (`no_data`: the last reading, may be null) |
 | `th` | the threshold that matched (mg/dL, mg/dL/min, or minutes for `no_data`) |
@@ -152,8 +163,8 @@ expiration now + 1 h, content NIP-44 `D → G_n`:
   minutes still gets the newest one).
 - Followers accept it with the **same checks as live** (author ∈ `roster.devices`, known `gk`, decrypts, `v == 2`),
   dedupe by event id (it can arrive over BLE and several relays), and **ignore `at` older than 10 min**.
-- In `"wearer"` mode the follower posts the same kind with its **own** sound choice; `clear` removes it; `snooze`
-  shows the wearer's mute as the badge (no alert of that episode arrives while it lasts).
+- In `"wearer"` mode the follower posts the same kind with its **own** sound choice (unless its own notification
+  actions quiet it, §2); `clear` removes it.
   In `"own"` mode `alert` events are ignored.
 - Followers subscribe with `{"kinds":[21078,21079], "authors": roster.devices, "since": now − 120}`.
 
@@ -202,7 +213,12 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
   `mute <kind> [<min>]` (the notification's Mute, or Mute for… with typed minutes), `slow <kind>` (Slow down),
+  `follower mute <kind> [<min>]` / `follower slow <kind>` (the same on the mirroring follower, `mirror` only),
   `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
+- `mirror` (a line of its own, like `settings`): also run a follower (a phone or the Mac) that mirrors the wearer:
+  the wearer's second engine, which gets everything but the wearer's `mute` / `slow` (what it publishes, §2), feeds
+  the platform's `AlertMirror`. Its actions are expected as `follower <headline>` / `follower clear <kind>`, compared
+  apart from the wearer's (the order between the two within a minute is free); the follower's own `no_data` isn't run.
 - Settings keys: `alerts=on|off`, `<kind>=on|off|<threshold>`, `<kind>.repeat=<min>`,
   `carbs.mute|insulin.mute|falling.mute=off|<min>`, `mute.min=<min>`, `slow.min=<min>`.
 - Expectations: the fired headline (§1), `clear <kind>`, or `resume <kind>` (a `restart` shows that alert again
