@@ -12,7 +12,7 @@ import org.junit.Test
 class FeatureStateTest {
     @Test fun settingsFileRoundTrip() {
         val x = FeatureState(source = "juggluco", nostr = false, nostrIntervalMin = 15, garmin = true, nightscout = true,
-            lockBg = LockBackground.CARD, lockLook = LockAppearance.LIGHT, connPriority = "high", libreviewBannerDismissed = true)
+            lockBg = LockBackground.CARD, lockLook = LockAppearance.LIGHT, connPriority = "high", uploadBannerDismissed = true)
         assertEquals(x, FeatureState.fromJson(JSONObject(x.toJson().toString())))
     }
 

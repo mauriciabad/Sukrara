@@ -706,7 +706,7 @@ Settings rebuilt after the system Settings app and its guidelines
   dialogs.
 - **Home** keeps the glucose card (now with *Add treatment*), the report, treatments and *Share with someone*; the
   status card, nearby pairing, followers, backup and relays moved to Settings. Banners: set up LibreView
-  (dismissible) and not backed up.
+  (dismissible; since 2026-10-21 *Share your data with your clinic* with LibreView and Tidepool pills) and not backed up.
 - **Motion and back** like Settings, which has none of its own (SettingsLib's `SettingsTransitionHelper` is empty):
   the system activity transition (96 dp slides, 450 ms fast-out-extra-slow-in, short fades) and the cross-activity
   predictive back (90 % scale, window corners, 20/80 % scrim). Back is a real back stack (Alerts → Settings → Home).

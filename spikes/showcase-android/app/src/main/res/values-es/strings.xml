@@ -1029,9 +1029,8 @@
     <string name="sharing_upload_interval">Intervalo de subida</string>
     <string name="sharing_upload_interval_off">No disponible mientras compartir por internet esté desactivado</string>
     <string name="libreview_upload_every">Subir cada</string>
-    <string name="libreview_banner_title">Configura LibreView</string>
-    <string name="libreview_banner_text">Sube tu glucosa y tus registros a LibreView, el historial que ve tu médico.</string>
-    <string name="libreview_banner_action">Configurar</string>
+    <string name="upload_banner_title">Comparte tus datos con tu clínica</string>
+    <string name="upload_banner_dismiss">Descartar</string>
 
     <!-- Settings: overview of both roles -->
     <string name="settings_title">Ajustes</string>

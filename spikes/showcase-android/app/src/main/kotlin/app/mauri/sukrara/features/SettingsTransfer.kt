@@ -49,7 +49,7 @@ object SettingsTransfer {
      * (switching the source would drop the sensor; stopping the upload would leave the doctor's record behind).
      */
     fun reset(ctx: Context) {
-        Features.update { FeatureState(source = it.source, libreview = it.libreview, libreviewBannerDismissed = it.libreviewBannerDismissed) }
+        Features.update { FeatureState(source = it.source, libreview = it.libreview, uploadBannerDismissed = it.uploadBannerDismissed) }
         Alerts.update(ctx) { AlertSettings() }
         GraphSettings.update { GraphConfig() }
         app.mauri.sukrara.sensorend.SensorEnd.update(ctx) { app.mauri.sukrara.sensorend.SensorEndConfig() }

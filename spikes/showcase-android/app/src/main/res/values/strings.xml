@@ -1134,12 +1134,10 @@
     <string name="sharing_upload_interval_off">Unavailable while sharing over the internet is off</string>
     <!-- How often Sukrara uploads to LibreView. [CHAR LIMIT=40] -->
     <string name="libreview_upload_every">Upload every</string>
-    <!-- Banner asking to set up the LibreView upload. [CHAR LIMIT=40] -->
-    <string name="libreview_banner_title">Set up LibreView</string>
-    <!-- Banner text: why to set up LibreView. [CHAR LIMIT=NONE] -->
-    <string name="libreview_banner_text">Upload your glucose and entries to LibreView, the record your doctor sees.</string>
-    <!-- Banner button that opens the LibreView settings. [CHAR LIMIT=20] -->
-    <string name="libreview_banner_action">Set up</string>
+    <!-- Home + settings: banner while neither LibreView nor Tidepool uploads are set up; pills below pick one [CHAR LIMIT=40] -->
+    <string name="upload_banner_title">Share your data with your clinic</string>
+    <!-- Upload banner close button (accessibility) [CHAR LIMIT=30] -->
+    <string name="upload_banner_dismiss">Dismiss</string>
 
     <!-- ========== Settings: overview of both roles ========== -->
     <!-- Title of the settings overview and the search results' fallback location [CHAR LIMIT=30] -->
