@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Settings → Export data (both roles): readings and treatments of a period as one CSV ([GlucoseCsv], LibreView's
+ * Settings → Export data (both roles): readings and treatments of a period (the sensor, 7 / 14 / 30 days or all time) as one CSV ([GlucoseCsv], LibreView's
  * layout). The period is a list preference; the two actions are pills under it: Save file (the system file picker,
  * SAF ACTION_CREATE_DOCUMENT) and Share (the share sheet). Only data already on this phone ([Export.load]).
  */
@@ -67,7 +67,12 @@ fun ExportSettings(follower: Boolean, onBack: () -> Unit) {
         }
     }
     val sensorLabel = stringResource(R.string.export_period_sensor)
-    fun label(p: String) = if (p == "sensor") sensorLabel else ctx.getString(R.string.export_period_days, p.toInt())
+    val allLabel = stringResource(R.string.export_period_all)
+    fun label(p: String) = when (p) {
+        "sensor" -> sensorLabel
+        Export.ALL -> allLabel
+        else -> ctx.getString(R.string.export_period_days, p.toInt())
+    }
     SettingsPage(stringResource(R.string.export_title), onBack) {
         SettingsIntro(stringResource(if (follower) R.string.export_intro_follower else R.string.export_intro))
         SettingsGroup {
@@ -97,6 +102,6 @@ fun ExportSettings(follower: Boolean, onBack: () -> Unit) {
         SettingsFooter(stringResource(R.string.export_footer))
     }
     if (choosing) ChoiceDialog(stringResource(R.string.export_period),
-        (listOfNotNull("sensor".takeIf { sensor != null }) + Export.DAYS.map { it.toString() }).map { Choice(label(it), it) },
+        (listOfNotNull("sensor".takeIf { sensor != null }) + Export.DAYS.map { it.toString() } + Export.ALL).map { Choice(label(it), it) },
         period, { choosing = false }) { chosen = it }
 }

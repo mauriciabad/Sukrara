@@ -5,9 +5,11 @@ package app.mauri.sukrara.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -287,11 +289,14 @@ fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean 
  * [onClick] (a dialog), the switch toggles. [rowEnabled] greys the left part; [switchEnabled] only the switch.
  */
 fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
-                                   switchEnabled: Boolean = rowEnabled, to: String? = null, onClick: (() -> Unit)? = null,
-                                   onChange: (Boolean) -> Unit) = row(title, summary, to) {
-    val nav = LocalNav.current
-    TwoTargetSwitchPreference(switchModel(title, summary, null, checked, switchEnabled, onChange), primaryEnabled = { rowEnabled },
-        primaryOnClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
+                                   switchEnabled: Boolean = rowEnabled, @DrawableRes icon: Int? = null, to: String? = null,
+                                   onClick: (() -> Unit)? = null, onChange: (Boolean) -> Unit) {
+    val i = iconOf(icon, null)
+    row(title, summary, to, i) {
+        val nav = LocalNav.current
+        TwoTargetSwitchPreference(switchModel(title, summary, i, checked, switchEnabled, onChange), primaryEnabled = { rowEnabled },
+            primaryOnClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
+    }
 }
 
 /**
@@ -336,6 +341,43 @@ fun SettingsMainSwitch(title: String, checked: Boolean, enabled: Boolean = true,
     LocalSettingsIndex.current?.let { idx -> idx.rows[null to title] = IndexedRow(title, null, null, null); return }
     Box(Modifier.fullBleed()) {
         HighlightBox(title) { MainSwitchPreference(switchModel(title, null, null, checked, enabled, onChange)) }
+    }
+}
+
+/**
+ * A button under a group that adds to it or acts on the whole list ("Add reminder"): SettingsLib's
+ * SectionButtonPreference (Settings' expressive "See all" in Location; a medium filled button in surfaceBright,
+ * text and icon in the primary text colour), drawn by SPA's CategoryButton (its gallery: "Add SIM"). Start-aligned
+ * under the group, 16 dp in like the rows' text column of SPA (CategoryButton brings that padding).
+ */
+@Composable
+fun SettingsSectionButton(@DrawableRes icon: Int, text: String, onClick: () -> Unit) {
+    if (indexing) return
+    Box(Modifier.fullBleed().padding(vertical = SettingsSpace.extraSmall4)) {
+        com.android.settingslib.spa.widget.button.CategoryButton(ImageVector.vectorResource(icon), text,
+            contentColor = MaterialTheme.colorScheme.onSurface, onClick = onClick)
+    }
+}
+
+/**
+ * The pill that shows the hidden rest of a list: SettingsLib's NumberButtonPreference (what BannerMessagePreferenceGroup
+ * puts under a list to expand its dismissed items): the count in a secondaryContainer circle (title medium,
+ * onSecondaryContainer, at least 24 dp), then the title in label large, on a surfaceBright pill (radius 32 dp,
+ * padding 16 dp vertical and 24 dp horizontal), start-aligned with the list's 16 dp margin.
+ */
+@Composable
+fun SettingsNumberButton(count: Int, text: String, onClick: () -> Unit) {
+    if (indexing) return
+    Box(Modifier.fullBleed().padding(horizontal = SettingsSpace.small1, vertical = SettingsSpace.extraSmall4)) {
+        Row(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(32.dp)).background(MaterialTheme.colorScheme.surfaceBright)
+            .clickable(onClick = onClick).padding(vertical = SettingsSpace.small1, horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.padding(end = SettingsSpace.extraSmall4).defaultMinSize(24.dp, 24.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                Text("$count", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+            Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 

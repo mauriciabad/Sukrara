@@ -81,7 +81,7 @@ fun NightscoutUploadSettings(onBack: () -> Unit) {
         }
         SettingsMainSwitch(stringResource(R.string.ns_upload_main_switch), on, enabled = s.configured) { Nightscout.setOn(ctx, it) }
         SettingsGroup {
-            info(stringResource(R.string.upload_status_title), when {
+            info(stringResource(R.string.upload_status_title), icon = R.drawable.ic_sym_cloud_sync, summary = when {
                 !s.configured -> stringResource(R.string.ns_upload_status_setup)
                 !on -> stringResource(R.string.settings_off)
                 st.kind == "setup" -> stringResource(R.string.ns_upload_status_setup)
@@ -93,20 +93,20 @@ fun NightscoutUploadSettings(onBack: () -> Unit) {
                 icon = R.drawable.ic_sym_cloud_upload) { Nightscout.acceptConflict(ctx) }
         }
         SettingsGroup(stringResource(R.string.ns_upload_what)) {
-            switch(stringResource(R.string.ns_upload_readings), s.readings, enabled = on,
+            switch(stringResource(R.string.ns_upload_readings), s.readings, enabled = on, icon = R.drawable.ic_sym_monitoring,
                 summary = if (on) stringResource(R.string.ns_upload_readings_summary) else off) { Nightscout.setReadings(ctx, it) }
-            switch(stringResource(R.string.ns_upload_entries), s.treatments, enabled = on,
+            switch(stringResource(R.string.ns_upload_entries), s.treatments, enabled = on, icon = R.drawable.ic_sym_edit_note,
                 summary = if (on) stringResource(R.string.ns_upload_entries_summary) else off) { Nightscout.setTreatments(ctx, it) }
-            switch(stringResource(R.string.ns_upload_sensor), s.sensor, enabled = on,
+            switch(stringResource(R.string.ns_upload_sensor), s.sensor, enabled = on, icon = R.drawable.ic_dia_sensor,
                 summary = if (on) stringResource(R.string.ns_upload_sensor_summary) else off) { Nightscout.setSensor(ctx, it) }
-            switch(stringResource(R.string.ns_upload_battery), s.battery, enabled = on,
+            switch(stringResource(R.string.ns_upload_battery), s.battery, enabled = on, icon = R.drawable.ic_sym_battery_full,
                 summary = if (on) stringResource(R.string.ns_upload_battery_summary) else off) { Nightscout.setBattery(ctx, it) }
         }
         if (s.configured) SettingsGroup(stringResource(R.string.ns_upload_advanced)) {
-            value(stringResource(R.string.ns_upload_api), stringResource(if (s.api == NsApi.V3 && s.tokenKind) R.string.ns_upload_api_v3 else R.string.ns_upload_api_v1)) {
+            value(stringResource(R.string.ns_upload_api), stringResource(if (s.api == NsApi.V3 && s.tokenKind) R.string.ns_upload_api_v3 else R.string.ns_upload_api_v1), icon = R.drawable.ic_sym_api) {
                 choosingApi = true
             }
-            action(stringResource(R.string.ns_upload_remove)) { Nightscout.remove(ctx) }
+            action(stringResource(R.string.ns_upload_remove), icon = R.drawable.ic_sym_delete) { Nightscout.remove(ctx) }
         }
         SettingsFooter(stringResource(R.string.ns_upload_footer))
     }

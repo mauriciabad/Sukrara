@@ -25,7 +25,7 @@ class App : Application() {
         Notifications.channels(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
         app.mauri.sukrara.features.Features.init(this)
-        app.mauri.sukrara.features.SystemAccess.init()   // is the LSPosed module running in System UI?
+        app.mauri.sukrara.features.SystemAccess.init(this)   // is the LSPosed module running in System UI?
         app.mauri.sukrara.graph.GraphSettings.init(this)
         app.mauri.sukrara.features.SensorCalendar.init(this)   // sensor end in calendar (owner only; follows SensorLife)
         app.mauri.sukrara.core.SensorLife.init(this)   // sensor end + countdown window (round sensor-life)
