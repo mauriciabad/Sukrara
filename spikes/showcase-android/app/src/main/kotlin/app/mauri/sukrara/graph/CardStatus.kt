@@ -49,6 +49,9 @@ object StatusBadge {
     /** The action pill on an ended sensor (round sensor-life): the same pill, kind "sensor" (neutral colour, sensor disc). */
     fun replaceSensor(w: Words = Words.current) = Look("sensor", w.replaceSensor, w.replaceSensorShort, false)
 
+    /** The pill over a scrolled chart (GlucoseGraph, [ChartView.now]): the same pill, kind "now" (neutral colour, arrow). */
+    fun backToNow(w: Words = Words.current) = Look("now", w.backToNow, w.backToNow, false)
+
     /** For screen readers (widget descriptions). */
     fun describe(s: AlertStatus, now: Long): String? = when (s) {
         AlertStatus.None -> null

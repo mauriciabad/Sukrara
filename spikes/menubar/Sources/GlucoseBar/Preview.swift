@@ -65,9 +65,11 @@ enum PanelPreview {
             Treatment(k: "long", a: 12, t: at(110)), Treatment(k: "note", a: 0, t: at(75), n: "walk"),
             Treatment(k: "rapid", a: 1.5, t: at(40)), Treatment(k: "carbs", a: 15, t: at(22)),
         ]
-        func model() -> PanelModel {
+        func model(back: TimeInterval? = nil) -> PanelModel {
             let m = PanelModel()
-            m.readings = all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
+            // a scrolled shot gets the whole history (the dropdown has the store's 15 days)
+            m.readings = back != nil ? all : all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
+            m.previewScrollBack = back
             m.marks = rows.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
             m.style = cfg.cardStyle(graph: cfg.graphStyle())
             m.alerts = AlertSettings()
@@ -77,13 +79,15 @@ enum PanelPreview {
             m.following = true
             return m
         }
-        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool)
+        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, back: TimeInterval?)
         let shots: [Shot] = [
-            ("light-bright", .aqua, true), ("light-dark", .aqua, false), ("dark-bright", .darkAqua, true), ("dark-dark", .darkAqua, false),
+            ("light-bright", .aqua, true, nil), ("light-dark", .aqua, false, nil), ("dark-bright", .darkAqua, true, nil), ("dark-dark", .darkAqua, false, nil),
+            // the chart scrolled 30 h back (the Now pill, that window's distribution, %, y range and hours)
+            ("light-bright-scrolled", .aqua, true, 30 * 3600), ("dark-dark-scrolled", .darkAqua, false, 30 * 3600),
         ]
         var windows: [NSWindow] = []
         for (i, shot) in shots.enumerated() {
-            let m = model()
+            let m = model(back: shot.back)
             let panel = GlancePanel.content(m, blending: .withinWindow)
             panel.appearance = NSAppearance(named: shot.appearance)
             panel.layoutSubtreeIfNeeded()

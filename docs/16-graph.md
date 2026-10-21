@@ -488,6 +488,46 @@ The last-treatment slot in the same round: carbs logged while rapid insulin's mu
 | *Sensor time left* per place / per Android widget | one global switch (every other graph setting is per place) |
 | Concentric insulin + carbs slot (two values inside) | both values in one ring segment (unreadable); the time since in the pair (no room; the single slot keeps it); the pair on slots under 40 dp (text under ~7 dp) |
 
+## Scrolling through time and a wider cut-out (2026-10-21)
+
+The user: "I would like to be able to scroll the graph … The distribution would update live — it's about the data being
+shown. There should be a button to go back to now … natural native scroll and no weird physics. Graph scale should
+also update", and "more outline so it masks out more of the content behind".
+
+**Added.**
+- The renderer takes the window to draw (`ChartView`: its end, the y range and the plot's bottom while the surface
+  eases them, the Now pill's visibility), so the one card renderer stays the only thing that lays the chart out; a
+  surface that scrolls only owns the gesture and the easing. Everything on the chart follows the window: the line, the
+  distribution and the % column, the y range (`GlucoseCard.yRange`, the same 54 / 250 rules), the hour labels, the
+  treatment marks; the slots and the value stay about now.
+- Android app panel: `scrollableArea` with a `ScrollableState` (developer.android.com, "Scroll": the modifier the
+  Compose guidance names for custom scroll containers; it brings the platform's fling decay and the stretch overscroll
+  and lets the vertical page scroll keep vertical drags). The whole stored history loads (off the main thread) the
+  first time the chart leaves now. The y range and the plot's bottom ease with a critically damped spring at the
+  spatial spring's stiffness (a bouncing scale reads as the data moving); the pill fades with the effects spring.
+- Mac dropdown: `scrollWheel` with the system's own momentum events (what NSScrollView follows), axis-locked per
+  gesture so vertical swipes stay the panel's; a wheel scrolls the chart like a horizontal-only scroll view; a display
+  link eases the y range, the plot's bottom, the pill and the way back to now. The dropdown opens at now again.
+- The Now pill is the card's action pill (`StatusBadge`, kind `now`, neutral colour, Material `arrow_forward` / SF
+  `arrow.right`), drawn by the renderer at the plot's top right; the surfaces make its box tappable.
+- The distribution's erased outline went from 1.6 to 3 dp around the dots; the value lives in `layout/rules.json`
+  `distribution` and both test suites check the constants and every drawn outline against it.
+- Tests: `layout/scenes.json` `scroll` (a scrolled chart equals the chart of the visible data alone; y range = the
+  visible readings'; pill only when scrolled; shared font-independent answers), the tap / drag in `CardLayoutTest`,
+  `ChartScrollPerfTest` and the Mac self-test's frame timing (31 / 15 days of 1-minute readings: ~3 ms per scrolled
+  frame on the JVM, ~2.7 ms for the whole Mac card in a release build); `GlucoseStats.window` cuts a sorted history by
+  binary search and the distribution no longer builds per-band lists, so a frame touches only its window.
+
+**Left out.**
+- Widgets, the notification, the lock screen and the Mac widgets don't scroll: the system shows them as pictures
+  (RemoteViews / WidgetKit) without gestures.
+- An NSScrollView document view on the Mac: the scroll events already carry the system's momentum, and a document as
+  wide as two weeks of chart would only stand in for a number.
+- Easing the % column's width: it changes only when a window reaches 100 % (three digits), rarely while scrolling.
+- The second label lane still switches with the labels in the window (the labels move 11 dp); the plot itself eases.
+- Emulator frame stats as the performance measure: the shared emulator was saturated (its own vertical page scroll
+  measured 100 ms frames), so the numbers above come from the renderer timed on the JVM and on the Mac.
+
 ## Open
 
 - macOS per-widget settings would need an Xcode project (so the App Intents metadata is registered properly).

@@ -73,10 +73,33 @@ object GlucoseStats {
     const val MIN_MG = 20
     const val MAX_MG = 450
 
-    /** Readings in [from, to), sorted, deduplicated (±30 s). */
-    fun window(all: List<Reading>, from: Long, to: Long): List<Reading> =
-        all.asSequence().filter { it.t in from until to + 30 }.sortedBy { it.t }
-            .fold(ArrayList<Reading>()) { acc, r -> if (acc.isNotEmpty() && r.t - acc.last().t < 30) acc[acc.size - 1] = r else acc += r; acc }
+    /**
+     * Readings in [from, to), sorted, deduplicated (±30 s). A sorted history (the stores' order) is cut by binary search,
+     * so a scrolled chart over weeks of readings only touches its window each frame.
+     */
+    fun window(all: List<Reading>, from: Long, to: Long): List<Reading> {
+        val src = if (all is RandomAccess && sorted(all)) {
+            val lo = lowerBound(all, from)
+            val hi = lowerBound(all, to + 30)
+            all.subList(lo, hi)
+        } else all.filter { it.t in from until to + 30 }.sortedBy { it.t }
+        val out = ArrayList<Reading>(src.size)
+        for (r in src) if (out.isNotEmpty() && r.t - out[out.size - 1].t < 30) out[out.size - 1] = r else out += r
+        return out
+    }
+
+    private fun sorted(all: List<Reading>): Boolean {
+        for (i in 1 until all.size) if (all[i].t < all[i - 1].t) return false
+        return true
+    }
+
+    /** The first index with t ≥ [t] in a sorted list. */
+    private fun lowerBound(all: List<Reading>, t: Long): Int {
+        var lo = 0
+        var hi = all.size
+        while (lo < hi) { val m = (lo + hi) ushr 1; if (all[m].t < t) lo = m + 1 else hi = m }
+        return lo
+    }
 
     /**
      * Seconds each reading stands for (see [TimeInRange]). The last one: the spacing just before it (1-minute live or
@@ -113,11 +136,10 @@ object GlucoseStats {
         val rs = window(all, from, to)
         if (rs.isEmpty()) return DoubleArray(n)
         val d = smooth(occupation(rs), 4.0)
-        for (band in Band.entries) {
-            val ks = (0 until n).filter { b.of(MIN_MG + it) == band }
-            val area = ks.sumOf { d[it] }
-            if (area > 0) ks.forEach { d[it] *= tir.share(band) / area }
-        }
+        // each band's area, then each level scaled to its band's share (no per-band lists: a scrolled chart does this every frame)
+        val area = DoubleArray(Band.entries.size)
+        for (i in 0 until n) area[b.of(MIN_MG + i).ordinal] += d[i]
+        for (i in 0 until n) { val band = b.of(MIN_MG + i); val a = area[band.ordinal]; if (a > 0) d[i] *= tir.share(band) / a }
         return d
     }
 
