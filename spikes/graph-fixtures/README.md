@@ -25,7 +25,8 @@ The layout dump: which treatment labels are drawn, where and with what text (rul
 labels"). Run by `GraphFixtureTest.labels` (Android) and `-graphselftest` (Mac), which also checks that SF Pro's real
 width of each label fits the width model. A case: `name`; `chart` `{w, h}` (the chart's area, dp); `hours` (window);
 `pct` (time in range has data, so the % column shows where the chart is ≥ 240 dp wide); `treatments` as above
-(`k`: rapid | long | carbs | note; times relative to "now"). The file's `pctLabel` and `valueLabel` stand in for the widest
+(`k`: rapid | long | carbs | note; times relative to "now"). Optional `marks` (Treatments on the graph): absent = the defaults (carbs: point
+only), `"all"` = every part of every kind, or `{kind: [point, line, amount, time]}` (missing kinds = their default). The file's `pctLabel` and `valueLabel` stand in for the widest
 % label and the widest value on the right (dp; the real ones are measured with the drawing font): each side column is
 it plus the gap of `layout/rules.json` on each side. `expect`:
 

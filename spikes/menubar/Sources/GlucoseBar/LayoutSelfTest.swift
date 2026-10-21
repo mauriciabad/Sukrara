@@ -76,6 +76,7 @@ enum LayoutSelfTest {
             if let v = o["lines"] as? [NSNumber] { c.lines = v.map(\.intValue) }
             if let v = o["gridHours"] as? NSNumber { c.gridHours = v.intValue }
             if let v = o["high"] as? NSNumber { c.bands.high = v.intValue }
+            if o["marks"] != nil { c.marks = GraphFixtures.marksOf(o["marks"]) }
             hour24Of[o["id"] as? String ?? "?"] = o["hour24"] as? Bool ?? true
             return (o["id"] as? String ?? "?", c)
         }

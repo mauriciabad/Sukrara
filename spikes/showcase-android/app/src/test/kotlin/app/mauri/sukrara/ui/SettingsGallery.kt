@@ -67,6 +67,15 @@ class SettingsGallery {
         WearerSettings.setMode(WearerSettings.WEARER)
     }
 
+    /** Settings › Graph › Treatments on the graph (round f29), at the defaults and with a mix. */
+    @Test fun graphMarks() {
+        compose.setContent { SettingsTheme { GraphMarksScreen {} } }
+        page("android-graph-marks-default")
+        GraphSettings.update { it.copy(marks = it.marks.with("carbs", "amount", true).with("rapid", "point", false)) }
+        page("android-graph-marks-mixed")
+        GraphSettings.update { it.copy(marks = app.mauri.sukrara.treatments.MarkShow.DEFAULT) }
+    }
+
     @Test fun alertsFollowerWearer() {
         WearerSettings.setMode(WearerSettings.WEARER)
         compose.setContent { SettingsTheme { AlertsScreen(follower = true) {} } }

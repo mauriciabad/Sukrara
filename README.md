@@ -133,7 +133,9 @@ by the app's icon code.</sub>
   *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
   it keeps alerts quiet. On the charts the labels sit under their markers, in the time axis' row, never over the
   line; a meal shares one label (`4.5u · 45g 1h 35m`), and close ones slide or take a second row, the same way on
-  Android and Mac. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
+  Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
+  (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
+  followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left (carbs eaten while insulin works: two rings, `8u` over `5g`); without a

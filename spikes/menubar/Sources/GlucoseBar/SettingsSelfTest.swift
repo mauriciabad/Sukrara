@@ -234,7 +234,8 @@ enum SettingsSelfTest {
         "graph": ["veryLow": 50, "low": 80, "tight": 130, "high": 190, "veryHigh": 240, "extremelyHigh": 320, "defaultHours": 9,
                   "ringCount": 3, "slots": "AVERAGE:259200:0,TIR:86400:1,CV:604800:1", "ringRange": "TIGHT",
                   "ringOrder": "VERY_LOW,LOW,TIGHT,TARGET,HIGH,VERY_HIGH", "ringMarks": false, "side": false, "columnCrown": false,
-                  "lines": "90,150", "gridHours": 3, "lastPlace": "END", "lastElse": "GMI:1209600:0", "countdownHours": 5],
+                  "lines": "90,150", "gridHours": 3, "lastPlace": "END", "lastElse": "GMI:1209600:0", "countdownHours": 5,
+                  "marks": "rapid:amount+time,long:point,carbs:point+line+amount+time,note:"],
         "alerts": ["alerts": ["very_low": ["on": false, "mgdl": 52, "repeatMin": 7], "low": ["on": true, "mgdl": 75, "repeatMin": 0],
                               "high": ["on": true, "mgdl": 170, "repeatMin": 25], "very_high": ["on": false, "mgdl": 260, "repeatMin": 12],
                               "extremely_high": ["on": true, "mgdl": 330, "repeatMin": 3],
@@ -287,6 +288,7 @@ enum SettingsSelfTest {
             "graph.ringMarks": !g.ringMarks, "graph.side": !g.side, "graph.columnCrown": !g.columnCrown, "graph.lines": g.lines == [90, 150],
             "graph.gridHours": g.gridHours == 3, "graph.lastPlace": g.lastPlace == .end,
             "graph.lastElse": g.lastElse.map { GraphConfig.slotsText([$0]) } == "GMI:1209600:0", "graph.countdownHours": g.countdownHours == 5,
+            "graph.marks": g.marks.text == "rapid:amount+time,long:point,carbs:point+line+amount+time,note:",
             "alerts.muteAfterInsulin.on": !a.muteAfterInsulin.on, "alerts.muteAfterInsulin.min": a.muteAfterInsulin.min == 90,
             "alerts.muteFallingHigh.on": a.muteFallingHigh.on, "alerts.muteFallingHigh.min": a.muteFallingHigh.min == 35,
             "alerts.muteAfterCarbs.on": !a.muteAfterCarbs.on, "alerts.muteAfterCarbs.min": a.muteAfterCarbs.min == 25,
@@ -321,7 +323,8 @@ enum SettingsSelfTest {
 
     /// Every list of choices the Mac offers, against the schema's `options` (same values, same order as Android).
     static func options() {
-        let mac: [String: [String]] = [
+        var mac: [String: [String]] = [
+            "markKind": MarkShow.kinds, "markPart": MarkShow.allParts,
             "exportPeriod": GlucoseCsv.Period.allCases.map(\.rawValue),
             "reportPeriod": ReportWindow.periods.map(String.init),
             "slotKind": SlotKind.allCases.map(\.rawValue),
@@ -330,6 +333,11 @@ enum SettingsSelfTest {
             "soundPack": AlertSettings.packs + ["system", "none"],
             "settingsFrom": WearerSettings.modes,
         ]
+        // what each treatment kind can show and shows by default (Treatments on the graph)
+        for k in MarkShow.kinds {
+            mac["markParts.\(k)"] = MarkShow.parts(k)
+            mac["markDefault.\(k)"] = MarkShow.allParts.filter { MarkShow.defaults.has(k, $0) }
+        }
         for (k, want) in SettingsSpec.options.sorted(by: { $0.key < $1.key }) {
             check("(g) option list \(k) = schema \(want)", mac[k] == want, "Mac: \(mac[k].map { "\($0)" } ?? "no list")")
         }

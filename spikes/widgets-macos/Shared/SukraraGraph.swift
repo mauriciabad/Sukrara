@@ -404,6 +404,55 @@ struct GraphStyle {
     var lines = GraphConfig.defaultLines
     /// Hours between the vertical lines, at least (`GraphConfig.gridHours`); 0 = none (the time labels stay).
     var gridHours = 1
+    /// Which parts of each treatment kind show: point, mute line, amount, time (`GraphConfig.marks`).
+    var marks = MarkShow.defaults
+}
+
+/// Which parts of each kind's marks the chart draws (Settings › Graph › Treatments on the graph; schema `graph.marks`,
+/// mirrored): per kind (`kinds`) the point (marker), the mute line, the amount label and the time label (`allParts`),
+/// only those the kind has (`parts`: long-acting mutes nothing, a note has only its marker). The defaults are the
+/// schema's `markDefault.*` (carbs: the point only, the user 2026-10-21). Android `MarkShow` (TreatmentMarks.kt).
+struct MarkShow: Codable, Equatable {
+    static let point = "point", line = "line", amount = "amount", time = "time"
+    static let kinds: [String] = SettingsSpec.options["markKind"] ?? []
+    static let allParts: [String] = SettingsSpec.options["markPart"] ?? []
+    /// The parts kind `k` has, in `allParts` order.
+    static func parts(_ k: String) -> [String] { SettingsSpec.options["markParts.\(k)"] ?? [] }
+    private var on: [String: Set<String>]
+    private init(_ m: [String: Set<String>]) {
+        on = Dictionary(uniqueKeysWithValues: MarkShow.kinds.map { k in (k, Set(MarkShow.parts(k).filter { m[k]?.contains($0) == true })) })
+    }
+    static let defaults = MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { ($0, Set(SettingsSpec.options["markDefault.\($0)"] ?? [])) }))
+    /// Every part of every kind (the look before the setting existed).
+    static let all = MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { ($0, Set(parts($0))) }))
+
+    func has(_ k: String, _ part: String) -> Bool { on[k]?.contains(part) == true }
+    /// Anything of `k` shows.
+    func any(_ k: String) -> Bool { !(on[k]?.isEmpty ?? true) }
+    /// A label part (amount or time) of `k` shows.
+    func label(_ k: String) -> Bool { has(k, MarkShow.amount) || has(k, MarkShow.time) }
+    func with(_ k: String, _ part: String, _ v: Bool) -> MarkShow {
+        var m = on; var p = m[k] ?? []
+        if v { p.insert(part) } else { p.remove(part) }
+        m[k] = p
+        return MarkShow(m)
+    }
+    /// "rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point" (the stored and wire form).
+    var text: String { MarkShow.kinds.map { k in "\(k):" + MarkShow.parts(k).filter { has(k, $0) }.joined(separator: "+") }.joined(separator: ",") }
+    /// `text` back; a kind missing from it (or nil) keeps its default, unknown parts are dropped.
+    static func parse(_ text: String?) -> MarkShow {
+        guard let text, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return defaults }
+        var got: [String: Set<String>] = [:]
+        for e in text.split(separator: ",") {
+            let kv = e.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard kv.count == 2 else { continue }
+            got[kv[0].trimmingCharacters(in: .whitespaces)] = Set(kv[1].split(separator: "+").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        }
+        return MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { k in (k, got[k] ?? Set(SettingsSpec.options["markDefault.\(k)"] ?? [])) }))
+    }
+    // stored as its text (the widget snapshot too)
+    init(from decoder: Decoder) throws { self = MarkShow.parse(try decoder.singleValueContainer().decode(String.self)) }
+    func encode(to encoder: Encoder) throws { var c = encoder.singleValueContainer(); try c.encode(text) }
 }
 
 /// What a slot beside the value shows (investigation 18): a time-in-range ring or one of the report's numbers.
@@ -604,6 +653,8 @@ struct GraphConfig: Codable, Equatable {
     var countdownHours = SensorLife.defaultCountdownHours
     /// The sensor's time left on this place's cards (`<place>SensorTime`: menubarSensorTime, widgetSensorTime).
     var sensorTime = true
+    /// Per treatment kind: the point, the mute line, the amount and the time label on the chart (carbs: the point only).
+    var marks = MarkShow.defaults
 
     static let defaultLastElse = RingSpec(window: 30 * 86400)
     /// `lastElse` with the ring settings applied.
@@ -642,7 +693,8 @@ struct GraphConfig: Codable, Equatable {
         return RingSpec(window: SettingsSpec.ringWindow.coerce(w), kind: kind, faded: p.count < 3 || p[2] != "0")
     }
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
-        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines, gridHours: gridHours)
+        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines, gridHours: gridHours,
+                   marks: marks)
     }
 
     /// The mirrored settings as this Mac stores them in UserDefaults (keys of `WearerSettings.graphWire`): what
@@ -652,7 +704,7 @@ struct GraphConfig: Codable, Equatable {
          "bandExtremelyHigh": bands.extremelyHigh, "graphHours": hours, "ringCount": ringCount, "slots": GraphConfig.slotsText(slots),
          "ringRange": ringRange.rawValue, "ringOrder": ringOrderText(ringOrder), "ringMarks": ringMarks, "side": side,
          "columnCrown": columnCrown, "lines": GraphConfig.linesText(lines), "gridHours": gridHours, "lastPlace": lastPlace.rawValue,
-         "lastElse": lastElse.map { GraphConfig.slotsText([$0]) } ?? "", "countdownHours": countdownHours]
+         "lastElse": lastElse.map { GraphConfig.slotsText([$0]) } ?? "", "countdownHours": countdownHours, "marks": marks.text]
     }
 
     /// The graph settings that apply, for `place` ("menubar" / "widget") or the default. The mirrored ones (schema
@@ -663,7 +715,8 @@ struct GraphConfig: Codable, Equatable {
     /// Keys: graphHours, menubarHours / widgetHours, ringCount, slots (see `slotsText`), ringRange IN_RANGE|TIGHT,
     /// ringOrder "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH", bandVeryLow/bandLow/bandTight/bandHigh/bandVeryHigh/
     /// bandExtremelyHigh, side, columnCrown, ringMarks, lines "100,120", gridHours (0 = off), lastPlace
-    /// OFF|NEAR_VALUE|END, lastElse "TIR:2592000:1" or "" (same spellings as Android's GraphConfig JSON), countdownHours.
+    /// OFF|NEAR_VALUE|END, lastElse "TIR:2592000:1" or "" (same spellings as Android's GraphConfig JSON), countdownHours,
+    /// marks "rapid:point+line+amount+time,long:…,carbs:point,note:point" (`MarkShow.text`).
     static func load(_ d: UserDefaults = .standard, place: String? = nil, source: WearerSettings.Source? = nil) -> GraphConfig {
         let src = source ?? WearerSettings.source(d)
         var c = GraphConfig()
@@ -699,6 +752,7 @@ struct GraphConfig: Codable, Equatable {
         if let e = string("lastElse") { c.lastElse = parseSlot(e) }
         c.sensorTime = place.flatMap { d.object(forKey: "\($0)SensorTime") as? Bool } ?? true
         c.countdownHours = int("countdownHours", S.countdownHours) ?? Int(S.countdownHours.default)
+        c.marks = MarkShow.parse(string("marks"))
         return c
     }
 }
@@ -810,7 +864,16 @@ enum GlucoseGraph {
         func pctW(_ v: Int) -> CGFloat { Ink.width("\(v)", pctBig) + Ink.width("%", pctSmall) }
         let pctLabelW = max(pctW(p.0), pctW(p.1), pctW(p.2))
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
-        let shownMarks = st.treatments ? marks.filter { $0.t >= from && $0.t <= end } : []
+        // Only the parts the settings show (`st.marks`): an entry with nothing shown is left out, and the marker lane
+        // is there only when a point or a mute line is drawn in it.
+        let show = st.marks
+        let muteUntil: ((GraphMark) -> TimeInterval?)? = alerts.map { a in { AlertStatus.muteUntil($0, a) } }
+        func mutes(_ m: GraphMark) -> Bool { show.has(m.k, MarkShow.line) && muteUntil?(m) != nil }
+        let shownMarks = st.treatments ? marks.filter { m in
+            m.t >= from && m.t <= end && show.any(m.k) &&
+                (show.has(m.k, MarkShow.point) || show.label(m.k) && TreatmentMarks.amount(m) != nil || mutes(m))
+        } : []
+        let lane = shownMarks.contains { show.has($0.k, MarkShow.point) || mutes($0) }
         // the sensor badge's place in the hour-label row is kept free of treatment labels
         let badgeRoom: (CGFloat, CGFloat)? = labels ? sensor.map { (area.minX, area.minX + sensorWidth($0.label, d: d) + 3 * d) } : nil
         // The y range of the window (`yRange`); a scrolling surface animates it towards that and passes the current one.
@@ -840,12 +903,12 @@ enum GlucoseGraph {
             let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d, pctW: pctLabelW, valW: valW)
             let layout = shownMarks.isEmpty ? nil
                 : TreatmentMarks.layout(shownMarks, x: { left + CGFloat(($0 - from) / st.window) * (right - left) }, now: now,
-                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, reserve: badgeRoom)
+                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, reserve: badgeRoom, show: show)
             let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
             let textRow = labels || !(layout?.labels.isEmpty ?? true)
             let top = area.minY + 3 * d
             let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
-            let plotBottom = shownMarks.isEmpty ? bottom : bottom - 12 * d
+            let plotBottom = lane ? bottom - 12 * d : bottom
             return Geo(valW: valW, left: left, right: right, layout: layout, lane1: lane1, top: top, bottom: bottom,
                        plotBottom: plotBottom, values: axisValues(top, plotBottom))
         }
@@ -1048,14 +1111,20 @@ enum GlucoseGraph {
         }
 
         if !shownMarks.isEmpty {
-            rec.add("chart.markers", nil, "\(shownMarks.filter { ["rapid", "long", "carbs", "note"].contains($0.k) }.count)")
+            rec.add("chart.markers", nil, "\(shownMarks.filter { ["rapid", "long", "carbs", "note"].contains($0.k) && show.has($0.k, MarkShow.point) }.count)")
+            // what each entry shows (layout/rules.json "marks": the same on every surface)
+            rec.add("chart.marks", nil, shownMarks.sorted { $0.id < $1.id }.map { m in
+                m.id + ":" + MarkShow.parts(m.k).filter { p in
+                    show.has(m.k, p) && (p != MarkShow.line || muteUntil?(m) != nil) && (p != MarkShow.amount && p != MarkShow.time || TreatmentMarks.amount(m) != nil)
+                }.joined(separator: "+")
+            }.joined(separator: " "))
             for l in layout?.labels ?? [] {
                 let lb = l.lane == 0 ? area.maxY - lane1 : area.maxY
                 rec.add("chart.label", CGRect(x: l.left, y: lb - 14 * d, width: l.w, height: 14 * d), "\(l.text) lane\(l.lane)")
             }
             TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d,
                                 layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
-                                now: now, muteUntil: alerts.map { a in { AlertStatus.muteUntil($0, a) } })
+                                now: now, muteUntil: muteUntil, show: show)
         }
         // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
         // with `view.now`; the surface makes its box (chart.now) clickable.
@@ -1251,12 +1320,19 @@ enum TreatmentMarks {
     static let twoLanesH: CGFloat = 90, laneH: CGFloat = 11, inset: CGFloat = 3
     static let sep = " · "
 
-    /// One label: `members` in label order (kind, then time), `time` = since the newest (nil = left out for room),
-    /// `lane` 0 (the axis row) or 1 (under it), `left` + `w` = its modelled box (TextModel).
+    /// One label: `members` in label order (kind, then time), the entries with a label part shown (`MarkShow.label`);
+    /// `shownAmounts` = those whose amount shows; `time` = since `timeOf`, the newest member whose time shows (nil = none
+    /// wants it, or left out for room); `lane` 0 (the axis row) or 1 (under it), `left` + `w` = its modelled box (TextModel).
     struct Label {
-        var members: [GraphMark]; var time: String?; var lane: Int; var left: CGFloat; var w: CGFloat
-        var amounts: [String] { members.compactMap { TreatmentMarks.amount($0) } }
-        var text: String { amounts.joined(separator: TreatmentMarks.sep) + (time.map { " \($0)" } ?? "") }
+        var members: [GraphMark]; var shownAmounts: [GraphMark]; var timeOf: GraphMark?; var time: String?
+        var lane: Int; var left: CGFloat; var w: CGFloat
+        var amounts: [String] { shownAmounts.compactMap { TreatmentMarks.amount($0) } }
+        var text: String { TreatmentMarks.text(amounts, time) }
+    }
+
+    /// "4u · 40g 1h 4m", "40g", "1h 4m": the amounts joined by " · ", then the time.
+    static func text(_ amounts: [String], _ time: String?) -> String {
+        [amounts.isEmpty ? nil : amounts.joined(separator: sep), time].compactMap { $0 }.joined(separator: " ")
     }
 
     /// Where the labels go; `dropped` = the groups left without a label (their markers stay).
@@ -1273,8 +1349,8 @@ enum TreatmentMarks {
     /// without it that has a free place (`place`), else no label.
     /// `reserve` = a box of lane 0 already taken (the sensor badge at the row's start, `GlucoseGraph.sensorTop`).
     static func layout(_ marks: [GraphMark], x: (TimeInterval) -> CGFloat, now: TimeInterval?, minX: CGFloat, maxX: CGFloat,
-                       lanes: Int, d: CGFloat, reserve: (CGFloat, CGFloat)? = nil) -> Layout {
-        let items = marks.filter { amount($0) != nil && order[$0.k] != nil }
+                       lanes: Int, d: CGFloat, reserve: (CGFloat, CGFloat)? = nil, show: MarkShow = .defaults) -> Layout {
+        let items = marks.filter { amount($0) != nil && order[$0.k] != nil && show.label($0.k) }
             .sorted { ($0.t, order[$0.k]!, $0.a, $0.id) < ($1.t, order[$1.k]!, $1.a, $1.id) }
         var groups: [[GraphMark]] = []
         for m in items {
@@ -1286,15 +1362,22 @@ enum TreatmentMarks {
         var labels: [Label] = [], dropped: [[GraphMark]] = []
         for g in groups.sorted(by: { $0.last!.t > $1.last!.t }) {
             let members = g.sorted { (order[$0.k]!, $0.t, $0.a, $0.id) < (order[$1.k]!, $1.t, $1.a, $1.id) }
-            let amounts = members.compactMap { amount($0) }.joined(separator: sep)
-            let time = now.map { duration($0 - g.last!.t) }
+            let shownAmounts = members.filter { show.has($0.k, MarkShow.amount) }
+            let amounts = shownAmounts.compactMap { amount($0) }
+            // the time once, since the newest member that wants it
+            let timeOf = g.last { show.has($0.k, MarkShow.time) }
+            let time = timeOf.flatMap { m in now.map { duration($0 - m.t) } }
             let cx = (x(g.first!.t) + x(g.last!.t)) / 2
             var placed: Label?
-            for (lane, t) in [(0, time), (1, time), (0, nil), (1, nil)] where lane < lanes {
-                let w = TextModel.width(amounts + (t.map { " \($0)" } ?? ""), size)
+            var tries: [(Int, String?)] = []
+            for (lane, t) in [(0, time), (1, time), (0, nil), (1, nil)] where lane < lanes && (!amounts.isEmpty || t != nil) {
+                if !tries.contains(where: { $0.0 == lane && $0.1 == t }) { tries.append((lane, t)) }
+            }
+            for (lane, t) in tries {
+                let w = TextModel.width(text(amounts, t), size)
                 if let left = place(cx, w, taken[lane], minX: minX, maxX: maxX, gap: gap, inset: inset * d) {
                     taken[lane].append((left - gap / 2, left + w + gap / 2))
-                    placed = Label(members: members, time: t, lane: lane, left: left, w: w)
+                    placed = Label(members: members, shownAmounts: shownAmounts, timeOf: timeOf, time: t, lane: lane, left: left, w: w)
                     break
                 }
             }
@@ -1327,7 +1410,7 @@ enum TreatmentMarks {
     /// background (the caller draws the chart in its own transparency layer).
     static func draw(_ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
                      bottom: CGFloat, dark: Bool, d: CGFloat, layout: Layout?, base0: CGFloat, base1: CGFloat, sep sepColor: CGColor,
-                     now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil) {
+                     now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil, show: MarkShow = .defaults) {
         let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter { $0.1 >= left - 1 && $0.1 <= right + 1 }
         guard !items.isEmpty else { return }
         let cy = bottom - 5 * d
@@ -1337,7 +1420,7 @@ enum TreatmentMarks {
             ctx.saveGState()
             ctx.setLineWidth(2 * d); ctx.setLineCap(.round); ctx.setLineJoin(.round)
             // Insulin's line just above the lane's middle, carbs' just below: a meal's two lines lie side by side.
-            for (m, px) in back {
+            for (m, px) in back where show.has(m.k, MarkShow.line) {
                 guard let until = muteUntil(m) else { continue }
                 let ly = cy + (m.k == "carbs" ? 1.5 : -1.5) * d
                 let running = now.map { until > $0 } ?? false
@@ -1356,19 +1439,19 @@ enum TreatmentMarks {
             }
             ctx.restoreGState()
         }
-        for (m, px) in back { marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark)) }
+        for (m, px) in back where show.has(m.k, MarkShow.point) { marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark)) }
 
         guard let layout, !layout.labels.isEmpty else { return }
         let bold = Ink.font(labelSize * d, .bold), medium = Ink.font(labelSize * d, .medium)
         // pieces (text, font, colour) and the start of the real text, centred in its modelled box
         let drawn: [(Label, [(String, CTFont, CGColor)], CGFloat)] = layout.labels.map { l in
             var pieces: [(String, CTFont, CGColor)] = []
-            for (i, m) in l.members.filter({ amount($0) != nil }).enumerated() {
+            for (i, m) in l.shownAmounts.filter({ amount($0) != nil }).enumerated() {
                 if i > 0 { pieces.append((sep, medium, sepColor.copy(alpha: 0xC0 / 255.0)!)) }
                 pieces.append((amount(m)!, bold, color(m.k, dark: dark)))
             }
-            if let t = l.time, let newest = l.members.max(by: { $0.t < $1.t }) {
-                pieces.append((" " + t, medium, color(newest.k, dark: dark).copy(alpha: 0xC0 / 255.0)!))
+            if let t = l.time, let of = l.timeOf {
+                pieces.append(((pieces.isEmpty ? "" : " ") + t, medium, color(of.k, dark: dark).copy(alpha: 0xC0 / 255.0)!))
             }
             let w = pieces.reduce(0) { $0 + Ink.width($1.0, $1.1) }
             return (l, pieces, l.left + (l.w - w) / 2)

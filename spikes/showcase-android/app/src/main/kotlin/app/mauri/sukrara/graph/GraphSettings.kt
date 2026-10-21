@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.settings.NumberSpec
 import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.settings.WearerSettings
+import app.mauri.sukrara.treatments.MarkShow
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +72,8 @@ data class GraphConfig(
     val lastElse: RingSpec? = DEFAULT_LAST_ELSE,
     /** Places whose card leaves out the sensor's time left ([CardStyle.sensorTime]); each widget can override it. */
     val sensorHidden: Set<GraphPlace> = emptySet(),
+    /** Per treatment kind: the point, the mute line, the amount and the time label on the chart (carbs: the point only). */
+    val marks: MarkShow = MarkShow.DEFAULT,
 ) {
     /** Whether [p]'s cards show the sensor's time left. */
     fun sensorTime(p: GraphPlace) = p !in sensorHidden
@@ -81,7 +84,7 @@ data class GraphConfig(
         slots.take(count.coerceIn(0, 3)).map { it.copy(range = range, order = ringOrder, marks = ringMarks) }
     fun graphStyle(hours: Int) =
         GraphStyle(windowS = hours * 3600L, bands = bands, side = side, lines = lines, gridHours = gridHours,
-            crown = columnCrown)
+            crown = columnCrown, marks = marks)
 
     fun toJson(): JSONObject = JSONObject()
         .put("veryLow", bands.veryLow).put("low", bands.low).put("tight", bands.tight).put("high", bands.high)
@@ -97,6 +100,7 @@ data class GraphConfig(
         .put("lastPlace", lastPlace.name)
         .put("lastElse", lastElse?.let(::slotText) ?: "")
         .put("sensorHidden", sensorHidden.sorted().joinToString(",") { it.name })
+        .put("marks", marks.text)
 
     companion object {
         fun fromJson(o: JSONObject): GraphConfig {
@@ -123,6 +127,7 @@ data class GraphConfig(
                 lastPlace = runCatching { LastPlace.valueOf(o.optString("lastPlace")) }.getOrDefault(d.lastPlace),
                 lastElse = if (o.has("lastElse")) parseSlot(o.optString("lastElse")) else d.lastElse,
                 sensorHidden = o.optString("sensorHidden").split(",").mapNotNull { n -> GraphPlace.entries.firstOrNull { it.name == n } }.toSet(),
+                marks = MarkShow.parse(o.optString("marks").takeIf { o.has("marks") }),
             )
         }
     }

@@ -1601,6 +1601,20 @@
     <string name="graph_side">Tiempo en rango y distribución</string>
     <string name="graph_side_summary" formatted="false">Tiempo por debajo, dentro y por encima del rango</string>
     <string name="graph_side_note">La distribución cubre el mismo tiempo que la gráfica; las líneas se detienen antes de sus puntos. Cada widget puede desactivarla por su cuenta.</string>
+    <string name="graph_marks_title">Tratamientos en la gráfica</string>
+    <string name="graph_marks_summary_point">%1$s: solo el punto</string>
+    <string name="graph_marks_summary_all">Punto, línea de silencio, cantidad y tiempo</string>
+    <string name="graph_marks_summary_custom">Personalizado para cada tipo</string>
+    <string name="graph_marks_kind_rapid">Insulina rápida</string>
+    <string name="graph_marks_kind_long">Insulina lenta</string>
+    <string name="graph_marks_kind_carbs">Hidratos</string>
+    <string name="graph_marks_kind_note">Notas</string>
+    <string name="graph_marks_point">Punto</string>
+    <string name="graph_marks_line">Línea de silencio</string>
+    <string name="graph_marks_line_summary">Hasta que vuelven sus alertas</string>
+    <string name="graph_marks_amount">Etiqueta de cantidad</string>
+    <string name="graph_marks_time">Etiqueta de tiempo</string>
+    <string name="graph_marks_note">Los tratamientos cercanos comparten una etiqueta, como 4u · 40g 1h 4m. Las cantidades ocultas salen de ella, y el tiempo se muestra una vez, desde el tratamiento más reciente que muestra su tiempo. Todas las gráficas lo usan: la app, la notificación, los widgets y la pantalla de bloqueo.</string>
     <string name="graph_group_sensor">Tiempo restante del sensor</string>
     <string name="graph_sensor_note" formatted="false">El tiempo restante del sensor va al principio de la fila de horas, debajo del % de tiempo en rango (una tarjeta sin gráfica muestra solo el número). El calentamiento y \"Sensor terminado\" se muestran igualmente. Cada widget puede desactivarlo por su cuenta.</string>
     <string name="graph_reset_all">Restablecer todos los ajustes de la gráfica</string>

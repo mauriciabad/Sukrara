@@ -407,6 +407,12 @@ struct GeneralView: View {
     var columnCrown: Binding<Bool> { bind(\.columnCrown) { self.set("columnCrown", $0) } }
     var ringMarks: Binding<Bool> { bind(\.ringMarks) { self.set("ringMarks", $0) } }
     var gridHours: Binding<Double> { number(\.gridHours, "gridHours") }
+    /// One part (point, line, amount, time) of one treatment kind on the graph (`marks`, MarkShow.text).
+    func mark(_ k: String, _ part: String) -> Binding<Bool> {
+        bind({ $0.marks.has(k, part) }) { v in self.set("marks", self.c.marks.with(k, part, v).text) }
+    }
+    var marksChanged: Bool { c.marks != .defaults }
+    func resetMarks() { set("marks", nil) }
     var countdownHours: Binding<Double> { number(\.countdownHours, "countdownHours") }
     /// The sensor's time left per place: the dropdown (`menubarSensorTime`) and the widgets (`widgetSensorTime`).
     func sensorTime(_ place: String) -> Binding<Bool> {
@@ -474,6 +480,9 @@ struct GeneralView: View {
                 ("Lines across the graph", c.lines.isEmpty ? "None" : c.lines.map(String.init).joined(separator: ", ") + " mg/dL"),
                 ("Vertical lines", gridLabel(Double(c.gridHours))),
                 ("Beside the graph", [c.side ? "time in range" : nil, c.columnCrown ? "crown at 100 %" : nil].compactMap { $0 }.joined(separator: ", ").capitalizedFirst.ifEmpty("Nothing")),
+                ("Treatments on the graph", MarkShow.kinds.map { k in
+                    "\(markKindLabel(k)): " + MarkShow.parts(k).filter { c.marks.has(k, $0) }.map(markPartLabel).joined(separator: ", ").ifEmpty("nothing")
+                }.joined(separator: "; ")),
                 ("Sensor countdown", "Last \(c.countdownHours) h")]
     }
     var ringsSummary: [(String, String)] {
@@ -484,6 +493,15 @@ struct GeneralView: View {
                 ("Rewards on the rings", c.ringMarks ? "On" : "Off"),
                 ("Last treatment", c.lastPlace.label + (c.lastPlace == .off ? "" : c.lastElse.map { ", else \($0.kind.label) \(periodLabel($0.window))" } ?? ""))]
     }
+}
+
+/// A treatment kind on the graph settings ("Rapid insulin", …; Android graph_marks_kind_*).
+func markKindLabel(_ k: String) -> String {
+    switch k { case "rapid": "Rapid insulin"; case "long": "Long-acting insulin"; case "carbs": "Carbs"; default: "Notes" }
+}
+/// A part of a treatment's marks (Android graph_marks_point / line / amount / time).
+func markPartLabel(_ p: String) -> String {
+    switch p { case MarkShow.point: "Point"; case MarkShow.line: "Mute line"; case MarkShow.amount: "Amount label"; default: "Time label" }
 }
 
 /// "Off", "Every hour", "Every 3 hours".
@@ -522,6 +540,31 @@ struct GraphSettingsView: View {
                     Toggle("Time in range beside the graph", isOn: model.side)
                     Toggle("Crown at 100 % beside the graph", isOn: model.columnCrown)
                     NumberSettingRow(title: "Vertical lines", spec: SettingsSpec.gridHours, value: model.gridHours, label: gridLabel)
+                }
+                // Treatments on the graph: a row per kind, a checkbox per part it has (HIG Toggles, macOS: checkboxes for
+                // independent options in a group; developer.apple.com/design/human-interface-guidelines/toggles). Every
+                // graph (the dropdown, the widgets) uses these; mirrored (Settings from).
+                Section {
+                    Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
+                        GridRow {
+                            Text("")
+                            ForEach(MarkShow.allParts, id: \.self) { p in Text(markPartLabel(p)).foregroundStyle(.secondary).font(.caption) }
+                        }
+                        ForEach(MarkShow.kinds, id: \.self) { k in
+                            GridRow {
+                                Text(markKindLabel(k))
+                                ForEach(MarkShow.allParts, id: \.self) { p in
+                                    if MarkShow.parts(k).contains(p) {
+                                        Toggle(markPartLabel(p), isOn: model.mark(k, p)).toggleStyle(.checkbox).labelsHidden()
+                                            .accessibilityLabel("\(markKindLabel(k)): \(markPartLabel(p))")
+                                    } else { Text("—").foregroundStyle(.tertiary).accessibilityHidden(true) }
+                                }
+                            }
+                        }
+                    }
+                    HStack { Spacer(); Button("Reset Treatments") { model.resetMarks() }.disabled(!model.marksChanged) }
+                } header: { Text("Treatments on the graph") } footer: {
+                    note("Close treatments share one label, like 4u · 40g 1h 4m. Hidden amounts leave it, and the time shows once, since the newest treatment that shows its time.")
                 }
                 Section {
                     ForEach(c.lines, id: \.self) { l in
