@@ -73,6 +73,7 @@ jobs:
           .build/debug/GlucoseBar -bleselftest
           .build/debug/GlucoseBar -argsselftest
           .build/debug/GlucoseBar -identityselftest
+          .build/debug/GlucoseBar -settingsselftest
       - name: Launch guard (unknown flags and dev builds never start the full app)
         working-directory: spikes/menubar
         run: |

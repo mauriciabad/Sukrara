@@ -9,9 +9,10 @@ import UserNotifications
 //   AlertSettings  the §3 JSON, one string in UserDefaults `alertSettings` (AlertRules.swift, shared with the widgets)
 //   AlertEngine    §1–§2 rules on readings + a 60 s timer, with an injected clock (AlertsSelfTest drives it)
 //   Alerts         the Mac side: notifications + sounds, mirroring the wearer's `alert` events (§4), debug hooks
-// The Mac is a follower: `source` "wearer" (default) mirrors the wearer's phone and checks only `no_data` locally;
-// "own" runs every rule here. Without a v2 follow link (legacy BLE / Juggluco Wi-Fi only) there are no wearer
-// events, so "wearer" falls back to this Mac's rules (and the Alerts window says so).
+// The Mac is a follower: Settings from: Wearer (default; `source` "wearer") mirrors the wearer's phone and checks only
+// `no_data` locally; Default and Custom ("own") run every rule here, with the defaults or this Mac's values for the
+// mirrored rules (WearerSettings.swift). Without a v2 follow link (legacy BLE / Juggluco Wi-Fi only) there are no
+// wearer events, so "wearer" falls back to rules run here (and the Alerts window says so).
 
 // MARK: alert event (SPEC §4 body)
 
@@ -420,7 +421,10 @@ final class AlertEngine {
 
 /// Owns the settings, the engine and the notifications. Settings › Alerts (SettingsUI.swift, AlertsUI.swift) edits them.
 @MainActor final class Alerts: NSObject, UNUserNotificationCenterDelegate {
+    /// The rules that apply (`AlertSettings.load`: this Mac's own with the mirrored ones from Settings from).
     private(set) var settings = AlertSettings.load()
+    /// What this Mac stores (`alertSettings`): Settings › Alerts edits it.
+    private(set) var own = AlertSettings.own()
     let engine: AlertEngine
     /// Following someone over protocol v2 (approved) — the only path that carries the wearer's `alert` events.
     var followingV2: () -> Bool = { false }
@@ -574,12 +578,25 @@ final class AlertEngine {
     /// After `update`: the card and the widgets redraw (badge, mute lines, slot).
     var onSettingsChange: (() -> Void)?
 
-    func update(_ s: AlertSettings) {
+    /// Settings from changed, or the wearer sent new settings: the rules that apply follow.
+    func reloadSettings() {
+        own = AlertSettings.own()
+        apply(AlertSettings.load())
+    }
+
+    /// This Mac's own settings edited (Settings › Alerts): saved, then what applies is recomputed.
+    func update(_ o: AlertSettings) {
+        guard o != own else { return }
+        own = o
+        o.save()
+        apply(WearerSettings.alerts(own: o))
+    }
+
+    private func apply(_ s: AlertSettings) {
         guard s != settings else { return }
         let old = settings
         let wasOn = settings.on
         settings = s
-        s.save()
         engine.settings = s
         if s.notificationActions != old.notificationActions { registerCategories() }
         onSettingsChange?()

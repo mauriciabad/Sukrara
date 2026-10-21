@@ -90,6 +90,15 @@ Cheap tools:
       `-settingsSnapshot <dir>` / `-reportSnapshot <dir>` (with `SUKRARA_DEV=1` in the environment and
       `-keychainService <test> -readingsDir <dir> -treatmentsDir <dir> -v2NoRelays YES -bleV2 NO`; a dev build refuses
       to start the full app without `SUKRARA_DEV=1`, LaunchGuard).
+- [ ] Settings (round f28): `-settingsSnapshot <dir>` renders every pane in four synthetic states (defaults, Wearer
+      with a sample event from "Ana", Custom with custom numbers, an invalid typed number); check the toolbar (five
+      panes, title = pane), Settings from in General (Wearer / Default / Custom, *In use* line; Custom: *Copy the
+      Wearer's Settings…* disabled until an event arrived, *Reset to Defaults…* asks first), Default / Wearer show the
+      read-only summary and *Change…* opens General; every number: presets + *Custom…*, the field takes a value in range
+      on Return / leaving it, out-of-range text turns the range note red and changes nothing, the stepper and
+      Shift-click stay in range; a custom value (7 h, 45 days, 183 mg/dL) survives a relaunch and shows in the panel /
+      widgets; the per-place windows; ring order: drag a range onto another (insertion line), Control-click Move Up /
+      Down, VoiceOver actions; Details… of an alert in Custom vs Wearer; *Send Test Alert*. `-settingsselftest` must pass.
 - [ ] Relaunch the user's copy afterwards.
 
 ## Q7 Mac widgets

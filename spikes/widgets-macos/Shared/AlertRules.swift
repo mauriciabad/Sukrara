@@ -71,6 +71,19 @@ enum AlertKind: String, CaseIterable {
         return base + (treated == 1 ? " · still high after insulin" : " · still high after more insulin")
     }
 
+    /// The number format of this kind's threshold (spikes/settings/settings.json).
+    var thresholdSpec: NumberSpec {
+        switch self {
+        case .veryLow: SettingsSpec.thresholdVeryLow
+        case .low: SettingsSpec.thresholdLow
+        case .high: SettingsSpec.thresholdHigh
+        case .veryHigh: SettingsSpec.thresholdVeryHigh
+        case .extremelyHigh: SettingsSpec.thresholdExtremelyHigh
+        case .fallingFast, .risingFast: SettingsSpec.thresholdRate
+        case .noData: SettingsSpec.thresholdNoData
+        }
+    }
+
     /// The user's own settings (2026-10-18), same as Android's DEFAULTS.
     var defaultRule: AlertRule {
         switch self {
@@ -105,16 +118,13 @@ struct AlertRule: Codable, Equatable {
 
 struct AlertMute: Codable, Equatable { var on: Bool; var min: Double }
 
-/// The alert notification's actions (SPEC §2): *Mute <muteMin> min* and the interval *Slow down* repeats at.
+/// The alert notification's actions (SPEC §2): *Mute <muteMin> min* and the interval *Slow down* repeats at. Their
+/// formats (range, presets) are the schema's `actionMute` / `actionSlow` (spikes/settings/settings.json).
 struct AlertActions: Codable, Equatable {
     var muteMin: Int
     var slowMin: Int
-    /// Minutes a Mute (preset or typed) and Slow down accept.
-    static let muteRange = 1...720
-    static let slowRange = 5...120
-    /// The settings' presets (minutes), the same lists as Android's AlertSettings.
-    static let mutePresets = [15, 30, 60, 120]
-    static let slowPresets = [15, 20, 30, 45, 60, 90, 120]
+    /// Minutes a Mute (preset or typed) accepts.
+    static var muteRange: ClosedRange<Int> { Int(SettingsSpec.actionMute.min)...Int(SettingsSpec.actionMute.max) }
 }
 
 struct AlertSounds: Codable, Equatable {
@@ -133,7 +143,8 @@ struct AlertSettings: Codable, Equatable {
     var sounds = AlertSounds(pack: "quest", kinds: [:], shuffle: true)
     /// slowMin 30: slower than every level alert's default repeat (5–15 min), so Slow down shows on all of them.
     var notificationActions = AlertActions(muteMin: 30, slowMin: 30)
-    var source = "wearer"           // followers: wearer | own
+    /// Derived (`AlertSettings.load`): "wearer" = mirror the wearer's alert events (Settings from: Wearer), "own" = run these rules.
+    var source = "wearer"
 
     static let packs = ["arcade", "kart", "quest", "soft"]
     static let key = "alertSettings"
@@ -143,18 +154,21 @@ struct AlertSettings: Codable, Equatable {
         set { alerts[k.rawValue] = newValue }
     }
 
-    /// The Slow down intervals the settings offer: only ones slower than every enabled level alert's repeat, so the
-    /// button shows on all of them (Android's AlertSettings.slowChoices).
+    /// The slowest enabled level alert's repeat (minutes; 0 = none): Slow down must be slower than it.
+    var slowFloor: Int { AlertKind.levels.map { self[$0] }.filter { $0.on && $0.repeatMin > 0 }.map(\.repeatMin).max() ?? 0 }
+    /// The Slow down presets the settings offer: only ones slower than every enabled level alert's repeat, so the
+    /// button shows on all of them (Android's AlertSettings.slowChoices); a custom value starts at `slowFloor + 1`.
     var slowChoices: [Int] {
-        let floor = AlertKind.levels.map { self[$0] }.filter { $0.on && $0.repeatMin > 0 }.map(\.repeatMin).max() ?? 0
-        let c = AlertActions.slowPresets.filter { $0 > floor }
-        return c.isEmpty ? [AlertActions.slowRange.upperBound] : c
+        let c = SettingsSpec.actionSlow.presets.map { Int($0) }.filter { $0 > slowFloor }
+        return c.isEmpty ? [Int(SettingsSpec.actionSlow.max)] : c
     }
 
     init() {}
 
     /// Lenient: any missing or malformed key keeps its §3 default (a file written by an older or newer app still
-    /// loads), numbers may be ints or doubles.
+    /// loads), numbers may be ints or doubles. Every number is coerced to its schema format (`NumberSpec.coerce`:
+    /// in range, on step), so a value the settings accept loads back unchanged and nothing else gets in. `source` is
+    /// derived (`AlertSettings.load`, from Settings from), never read.
     init(from decoder: Decoder) throws {
         struct PartialRule: Decodable { var on, alarm: Bool?; var mgdl, rate, min, repeatMin: Double? }
         struct PartialMute: Decodable { var on: Bool?; var min: Double? }
@@ -163,40 +177,41 @@ struct AlertSettings: Codable, Equatable {
         enum K: String, CodingKey { case v, on, alerts, muteAfterInsulin, muteFallingHigh, muteAfterCarbs, sounds, notificationActions, source }
         let c = try decoder.container(keyedBy: K.self)
         if let on = try? c.decode(Bool.self, forKey: .on) { self.on = on }
-        if let src = try? c.decode(String.self, forKey: .source), ["wearer", "own"].contains(src) { source = src }
         let rules = (try? c.decode([String: PartialRule].self, forKey: .alerts)) ?? [:]
         for k in AlertKind.allCases {
             guard let p = rules[k.rawValue] else { continue }
             var r = k.defaultRule
             if let on = p.on { r.on = on }
-            if let x = p.mgdl, r.mgdl != nil { r.mgdl = x }
-            if let x = p.rate, r.rate != nil { r.rate = x }
-            if let x = p.min, r.min != nil { r.min = x }
-            if let x = p.repeatMin { r.repeatMin = max(0, Int(x)) }
+            let spec = k.thresholdSpec
+            if let x = p.mgdl, r.mgdl != nil { r.mgdl = spec.coerce(x) }
+            if let x = p.rate, r.rate != nil { r.rate = spec.coerce(x) }
+            if let x = p.min, r.min != nil { r.min = spec.coerce(x) }
+            if let x = p.repeatMin { r.repeatMin = Int(SettingsSpec.alertRepeat.coerce(x)) }
             if let x = p.alarm { r.alarm = x }
             self[k] = r
         }
-        func mute(_ key: K, _ d: AlertMute) -> AlertMute {
+        func mute(_ key: K, _ d: AlertMute, _ spec: NumberSpec) -> AlertMute {
             guard let p = try? c.decode(PartialMute.self, forKey: key) else { return d }
-            return AlertMute(on: p.on ?? d.on, min: p.min ?? d.min)
+            return AlertMute(on: p.on ?? d.on, min: p.min.map(spec.coerce) ?? d.min)
         }
-        muteAfterInsulin = mute(.muteAfterInsulin, muteAfterInsulin)
-        muteFallingHigh = mute(.muteFallingHigh, muteFallingHigh)
-        muteAfterCarbs = mute(.muteAfterCarbs, muteAfterCarbs)
+        muteAfterInsulin = mute(.muteAfterInsulin, muteAfterInsulin, SettingsSpec.muteInsulin)
+        muteFallingHigh = mute(.muteFallingHigh, muteFallingHigh, SettingsSpec.muteFalling)
+        muteAfterCarbs = mute(.muteAfterCarbs, muteAfterCarbs, SettingsSpec.muteCarbs)
         if let p = try? c.decode(PartialSounds.self, forKey: .sounds) {
             sounds = AlertSounds(pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
         }
         if let p = try? c.decode(PartialActions.self, forKey: .notificationActions) {
             let d = notificationActions
-            notificationActions = AlertActions(muteMin: p.muteMin.map { min(max(Int($0), AlertActions.muteRange.lowerBound), AlertActions.muteRange.upperBound) } ?? d.muteMin,
-                                               slowMin: p.slowMin.map { min(max(Int($0), AlertActions.slowRange.lowerBound), AlertActions.slowRange.upperBound) } ?? d.slowMin)
+            notificationActions = AlertActions(muteMin: p.muteMin.map { Int(SettingsSpec.actionMute.coerce($0)) } ?? d.muteMin,
+                                               slowMin: p.slowMin.map { Int(SettingsSpec.actionSlow.coerce($0)) } ?? d.slowMin)
         }
     }
 
-    static func load() -> AlertSettings {
-        guard let s = UserDefaults.standard.string(forKey: key),
-              let d = try? JSONDecoder().decode(AlertSettings.self, from: Data(s.utf8)) else { return AlertSettings() }
-        return d
+    /// This Mac's own stored settings (`alertSettings`); what applies is `load` (WearerSettings.swift).
+    static func own(_ d: UserDefaults = .standard) -> AlertSettings {
+        guard let s = d.string(forKey: key),
+              let a = try? JSONDecoder().decode(AlertSettings.self, from: Data(s.utf8)) else { return AlertSettings() }
+        return a
     }
 
     var json: String {
@@ -205,7 +220,7 @@ struct AlertSettings: Codable, Equatable {
         return (try? e.encode(self)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 
-    func save() { UserDefaults.standard.set(json, forKey: Self.key) }
+    func save(_ d: UserDefaults = .standard) { d.set(json, forKey: Self.key) }
 
     /// Which sound a kind plays: the per-kind override, else the pack.
     func pack(for k: AlertKind) -> String { sounds.kinds[k.rawValue] ?? sounds.pack }

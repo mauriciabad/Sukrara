@@ -4,55 +4,77 @@
 import AppKit
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Sukrara's Settings window (⌘, from the menu), per the HIG's macOS settings guidance
-/// (developer.apple.com/design/human-interface-guidelines/settings):
-/// - a non-customizable preference-style toolbar of panes that always shows the active one;
-/// - the window title is the visible pane's name;
-/// - minimize and zoom dimmed (titled + closable only); the window takes each pane's size, keeping its top edge;
-/// - it reopens on the most recently viewed pane (`settingsPane`) at its last position (frame autosave);
-/// - every change applies at once (no Save button), with standard controls in grouped forms.
-/// Panes: General (login, data source), Graph (everything the old Graph submenu held, plus the ranges), Alerts
-/// (AlertsUI.swift) and Following (protocol v2: follow, stop following).
+/// Sukrara's Settings window (⌘, from the menu). Redesigned in round f28 after the HIG
+/// (developer.apple.com/design/human-interface-guidelines/settings, macOS):
+/// - a preference-style toolbar of panes, not a sidebar: "Typically, a custom settings window contains a toolbar that
+///   includes buttons for switching between views — called panes — that each contain a group of related settings."
+///   Five panes fit a toolbar; HIG Sidebars: "A sidebar requires a large amount of vertical and horizontal space", which
+///   a settings window of this size doesn't need (System Settings uses one for dozens of areas).
+/// - "In your settings window, use a noncustomizable toolbar that remains visible and always indicates the active
+///   toolbar button."
+/// - "Update the window's title to reflect the currently visible pane."
+/// - "Dim a settings window's minimize and maximize buttons" (titled + closable only); the window takes each pane's
+///   size, keeping its top edge ("a settings window accommodates the size of the current pane").
+/// - "Restore the most recently viewed pane." (`settingsPane`, frame autosave)
+/// - "Aim to provide default settings that give the best experience to the largest number of people" and "Minimize the
+///   number of settings you offer": a follower takes the wearer's settings by default (Settings from, General), and the
+///   panes show only what this Mac can change in that mode, with a read-only summary of the rest.
+/// Every change applies at once (no Save button), with standard controls in grouped forms (`LabeledContent`, pop-up
+/// pickers, switches) and every number through `NumberSettingRow` (NumberSettingRow.swift).
+/// Panes: General (login, Settings from, data source), Graph (time shown, graph, lines, ranges, sensor), Rings (beside
+/// the value: rings and numbers, ring order, last treatment), Alerts (AlertsUI.swift), Following (protocol v2).
 @MainActor final class SettingsWindow: NSObject, NSToolbarDelegate {
     enum Pane: String, CaseIterable {
-        case general, graph, alerts, following
+        case general, graph, rings, alerts, following
         var title: String {
-            switch self { case .general: "General"; case .graph: "Graph"; case .alerts: "Alerts"; case .following: "Following" }
+            switch self { case .general: "General"; case .graph: "Graph"; case .rings: "Rings"; case .alerts: "Alerts"; case .following: "Following" }
         }
         var symbol: String {
-            switch self { case .general: "gearshape"; case .graph: "chart.xyaxis.line"; case .alerts: "bell.badge"; case .following: "person.2" }
+            switch self {
+            case .general: "gearshape"; case .graph: "chart.xyaxis.line"; case .rings: "circle.circle"; case .alerts: "bell.badge"
+            case .following: "person.2"
+            }
         }
         var height: CGFloat {
-            switch self { case .general: 400; case .graph: 720; case .alerts: 720; case .following: 300 }
+            switch self { case .general: 520; case .graph: 720; case .rings: 680; case .alerts: 720; case .following: 340 }
         }
         var id: NSToolbarItem.Identifier { .init(rawValue) }
     }
-    static let width: CGFloat = 580
+    static let width: CGFloat = 600
 
     let generalModel: GeneralModel
     let graphModel: GraphModel
     let alertsModel: AlertsModel
     let followingModel: FollowingModel
+    let from: SettingsFromModel
     private var window: NSWindow?
     private var views: [Pane: NSView] = [:]
     private var pane = Pane(rawValue: UserDefaults.standard.string(forKey: "settingsPane") ?? "") ?? .general
 
-    init(general: GeneralModel, graph: GraphModel, alerts: AlertsModel, following: FollowingModel) {
+    init(general: GeneralModel, graph: GraphModel, alerts: AlertsModel, following: FollowingModel, from: SettingsFromModel) {
         generalModel = general
         graphModel = graph
         alertsModel = alerts
         followingModel = following
+        self.from = from
         super.init()
+        from.onOpenGeneral = { [weak self] in self?.select(.general, animate: true) }
     }
 
     func show(_ p: Pane? = nil) {
         let w = window ?? make()
         window = w
-        generalModel.refresh(); graphModel.reload(); alertsModel.reload(); followingModel.refresh()
+        reload()
         select(p ?? pane, animate: false)
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
+    }
+
+    /// Settings from changed, the wearer sent new settings, or a setting changed elsewhere.
+    func reload() {
+        from.refresh(); generalModel.refresh(); graphModel.reload(); alertsModel.reload(); followingModel.refresh()
     }
 
     private func make() -> NSWindow {
@@ -79,21 +101,25 @@ import SwiftUI
             return h
         }
         let v: NSView = switch p {
-        case .general: host(GeneralView(model: generalModel))
-        case .graph: host(GraphSettingsView(model: graphModel))
-        case .alerts: host(AlertsView(model: alertsModel))
+        case .general: host(GeneralView(model: generalModel, from: from))
+        case .graph: host(GraphSettingsView(model: graphModel, from: from))
+        case .rings: host(RingsSettingsView(model: graphModel, from: from))
+        case .alerts: host(AlertsView(model: alertsModel, from: from))
         case .following: host(FollowingView(model: followingModel))
         }
         views[p] = v
         return v
     }
 
-    private func select(_ p: Pane, animate: Bool) {
+    /// Evidence aid: the panes are built again (a snapshot state's typed text shows on appear).
+    func rebuildViews() { views = [:] }
+
+    func select(_ p: Pane, animate: Bool, height: CGFloat? = nil) {
         guard let w = window, let container = w.contentView else { return }
         pane = p
         UserDefaults.standard.set(p.rawValue, forKey: "settingsPane")
         container.subviews.forEach { $0.removeFromSuperview() }
-        var f = w.frameRect(forContentRect: NSRect(x: 0, y: 0, width: Self.width, height: p.height))
+        var f = w.frameRect(forContentRect: NSRect(x: 0, y: 0, width: Self.width, height: height ?? p.height))
         f.origin = NSPoint(x: w.frame.minX, y: w.frame.maxY - f.height)        // keep the top edge where it was
         w.setFrame(f, display: true, animate: animate && w.isVisible)
         let v = view(p)
@@ -104,33 +130,51 @@ import SwiftUI
         w.toolbar?.selectedItemIdentifier = p.id
     }
 
-    /// Evidence aid: `-settingsSnapshot <dir>` renders every pane (title bar + toolbar + form) to `<dir>/<pane>.png`
-    /// without screen-recording permission; `-alertsSnapshot out.png` the Alerts pane alone.
-    func snapshot(_ p: Pane, to path: String) {
+    /// Evidence aid: `-settingsSnapshot <dir>` (SettingsSnapshot.swift) renders a pane (title bar + toolbar + the whole
+    /// form: the window is made tall, the empty rest cropped) without screen-recording permission.
+    func snapshot(_ p: Pane, to path: String) async {
         show(p)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let frame = self?.window?.contentView?.superview,
-                  let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return log("settings snapshot: no window") }
-            frame.cacheDisplay(in: frame.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-            log("settings snapshot → \(path)")
+        select(p, animate: false, height: 2600)
+        try? await Task.sleep(for: .milliseconds(900))
+        guard let frame = window?.contentView?.superview,
+              let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return log("settings snapshot: no window") }
+        frame.cacheDisplay(in: frame.bounds, to: rep)
+        try? Self.cropBottom(rep).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        select(p, animate: false)
+        log("settings snapshot → \(path)")
+    }
+
+    /// The rows at the bottom that are only the form's background, cut off (leaving a margin).
+    static func cropBottom(_ rep: NSBitmapImageRep) -> NSBitmapImageRep {
+        let w = rep.pixelsWide, h = rep.pixelsHigh
+        guard let bg = rep.colorAt(x: 2, y: h - 2) else { return rep }
+        func same(_ c: NSColor?) -> Bool {
+            guard let c = c?.usingColorSpace(.deviceRGB), let b = bg.usingColorSpace(.deviceRGB) else { return false }
+            return abs(c.redComponent - b.redComponent) + abs(c.greenComponent - b.greenComponent) + abs(c.blueComponent - b.blueComponent) < 0.02
         }
+        var last = h - 1
+        rows: while last > 0 {
+            for x in stride(from: 0, to: w, by: 3) where !same(rep.colorAt(x: x, y: last)) { break rows }
+            last -= 1
+        }
+        let keep = min(h, last + 40)
+        guard keep < h, let cg = rep.cgImage?.cropping(to: CGRect(x: 0, y: 0, width: w, height: keep)) else { return rep }
+        return NSBitmapImageRep(cgImage: cg)
     }
 
     /// Evidence aid: the alert Details sheet for `kind`, rendered in a window of its own.
-    func snapshotDetails(_ kind: AlertKind, to path: String) {
-        let host = NSHostingView(rootView: alertDetailsPreview(alertsModel, kind))
-        host.frame = NSRect(x: 0, y: 0, width: 460, height: 430)
+    func snapshotDetails(_ kind: AlertKind, to path: String) async {
+        let host = NSHostingView(rootView: alertDetailsPreview(alertsModel, from, kind))
+        host.frame = NSRect(origin: .zero, size: host.fittingSize)
         let w = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         w.contentView = host
         w.orderFront(nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
-            host.cacheDisplay(in: host.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-            w.orderOut(nil)
-            log("settings snapshot → \(path)")
-        }
+        try? await Task.sleep(for: .milliseconds(900))
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        w.orderOut(nil)
+        log("settings snapshot → \(path)")
     }
 
     // MARK: NSToolbarDelegate
@@ -151,6 +195,73 @@ import SwiftUI
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { Pane.allCases.map(\.id) }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { Pane.allCases.map(\.id) }
     func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { Pane.allCases.map(\.id) }
+}
+
+// MARK: - Settings from
+
+/// Settings from (schema `follower.settingsFrom`, WearerSettings.swift): Default, Wearer (the default) or Custom for
+/// the mirrored settings (schema `"mirror": true`). Only Custom shows them as controls; Default and Wearer show a
+/// read-only summary of what's in use (`MirroredSection`).
+@MainActor final class SettingsFromModel: ObservableObject {
+    @Published private(set) var mode = WearerSettings.mode()
+    /// When the wearer's settings in use were made (their `u`), nil = nothing received.
+    @Published private(set) var received: Date?
+    /// The followed person's name; nil = not following anyone.
+    @Published private(set) var wearer: String?
+    var wearerName: () -> String? = { nil }
+    var onOpenGeneral: (() -> Void)?
+    /// Evidence aid (`-settingsSnapshot`): the followed person's name.
+    static var previewWearer: String?
+
+    func refresh() {
+        mode = WearerSettings.mode()
+        received = (WearerSettings.content()?["u"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) }
+        wearer = Self.previewWearer ?? wearerName()
+    }
+
+    var custom: Bool { mode == "custom" }
+    var modeBinding: Binding<String> {
+        Binding(get: { self.mode }, set: { m in WearerSettings.setMode(m); self.mode = m })
+    }
+    /// "Ana", or "the wearer" without a name.
+    var who: String { wearer.flatMap { $0.isEmpty ? nil : $0 } ?? "the wearer" }
+    var wearerOption: String { wearer == nil ? "Wearer" : "\(who.prefix(1).uppercased() + who.dropFirst()) (wearer)" }
+    var modeName: String { mode == "custom" ? "Custom" : mode == "default" ? "Default" : wearerOption }
+
+    /// Where the mirrored settings come from now, in one sentence.
+    var statusLine: String {
+        switch mode {
+        case "custom": return "This Mac's own settings, below and in the Graph, Rings and Alerts panes."
+        case "default": return "Sukrara's defaults."
+        default:
+            guard wearer != nil else { return "Not following anyone, so Sukrara's defaults are used." }
+            guard let r = received else { return "Waiting for \(who)'s settings. Sukrara's defaults are used until they arrive." }
+            return "\(who.prefix(1).uppercased() + who.dropFirst())'s settings from their phone, changed \(RelativeDateTimeFormatter().localizedString(for: r, relativeTo: Date()))."
+        }
+    }
+
+    func copyWearer() { WearerSettings.overwriteCustom(fromWearer: true) }
+    func resetDefaults() { WearerSettings.overwriteCustom(fromWearer: false) }
+}
+
+/// In Default and Wearer: what's in use (read-only) and how to change it, instead of the mirrored controls.
+struct MirroredSection: View {
+    @ObservedObject var from: SettingsFromModel
+    let rows: [(String, String)]
+
+    var body: some View {
+        Section {
+            LabeledContent("Settings from", value: from.modeName)
+            ForEach(rows, id: \.0) { r in LabeledContent(r.0, value: r.1) }
+        } footer: {
+            HStack(alignment: .firstTextBaseline) {
+                Text(from.statusLine + " To change these on this Mac, choose Custom in General.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Change…") { from.onOpenGeneral?() }
+            }
+        }
+    }
 }
 
 // MARK: - General
@@ -201,6 +312,9 @@ import SwiftUI
 
 struct GeneralView: View {
     @ObservedObject var model: GeneralModel
+    @ObservedObject var from: SettingsFromModel
+    @State private var confirmCopy = false
+    @State private var confirmReset = false
 
     var body: some View {
         Form {
@@ -209,6 +323,24 @@ struct GeneralView: View {
                     .disabled(model.loginNote != nil && !model.openAtLogin && SMAppService.mainApp.status == .notFound)
             } footer: {
                 if let n = model.loginNote { Text(n).font(.callout).foregroundStyle(.secondary) }
+            }
+            Section {
+                Picker("Settings from", selection: from.modeBinding) {
+                    Text(from.wearerOption).tag("wearer")
+                    Text("Default").tag("default")
+                    Text("Custom").tag("custom")
+                }
+                LabeledContent("In use") { Text(from.statusLine).multilineTextAlignment(.trailing).foregroundStyle(.secondary) }
+                if from.custom {
+                    HStack {
+                        Spacer()
+                        Button("Copy the Wearer's Settings…") { confirmCopy = true }.disabled(from.received == nil)
+                        Button("Reset to Defaults…") { confirmReset = true }
+                    }
+                }
+            } header: { Text("Settings") } footer: {
+                Text("Wearer and Default decide the ranges, the time shown, the rings, the lines, the last treatment, the sensor countdown and when to alert (thresholds, reminders, quiet times); Custom lets you set them on this Mac. Sounds, like an alarm, the no-data alert, the notification's buttons and each place's own window and sensor time are always this Mac's.")
+                    .font(.callout).foregroundStyle(.secondary)
             }
             Section("Glucose data") {
                 LabeledContent("Source", value: model.source)
@@ -229,42 +361,59 @@ struct GeneralView: View {
             }
         }
         .formStyle(.grouped)
+        .confirmationDialog("Copy \(from.who)'s settings?", isPresented: $confirmCopy) {
+            Button("Copy Settings") { from.copyWearer() }
+        } message: {
+            Text("This Mac's ranges, time shown, rings, lines, last treatment, sensor countdown and alert rules become \(from.who)'s, as a starting point to customize. Sounds and the other settings of this Mac stay.")
+        }
+        .confirmationDialog("Reset to the defaults?", isPresented: $confirmReset) {
+            Button("Reset", role: .destructive) { from.resetDefaults() }
+        } message: {
+            Text("This Mac's ranges, time shown, rings, lines, last treatment, sensor countdown and alert rules go back to Sukrara's defaults. Sounds and the other settings of this Mac stay.")
+        }
     }
 }
 
-// MARK: - Graph
+// MARK: - Graph and Rings
 
-/// The graph settings (investigations 16 and 18) in UserDefaults keys (main.swift lists them); the same
+/// The graph settings (investigations 16 and 18) in UserDefaults (StatusController.graphKeys); the same
 /// `GraphConfig.load` the card and the widgets read, so a change shows in the menu and the widgets at once.
 @MainActor final class GraphModel: ObservableObject {
-    @Published private(set) var c = GraphConfig.load(place: "menubar")
-    @Published var newLine: Int?
+    /// What applies (Settings from); in Custom the same as this Mac's stored values, which these bindings write.
+    @Published private(set) var c = GraphConfig.load()
     private let d = UserDefaults.standard
     var onChange: (() -> Void)?
 
-    func reload() { c = GraphConfig.load(place: "menubar") }
+    func reload() { c = GraphConfig.load() }
     private func set(_ key: String, _ v: Any?) {
         if let v { d.set(v, forKey: key) } else { d.removeObject(forKey: key) }
-        if key == "graphHours" { d.removeObject(forKey: "menubarHours") }
         reload()
         onChange?()
     }
     private func bind<T>(_ get: @escaping @MainActor (GraphConfig) -> T, _ set: @escaping @MainActor @Sendable (T) -> Void) -> Binding<T> {
         Binding(get: { get(self.c) }, set: set)
     }
+    private func number(_ get: @escaping @MainActor (GraphConfig) -> Int, _ key: String) -> Binding<Double> {
+        bind({ Double(get($0)) }) { self.set(key, Int($0)) }
+    }
 
-    var hours: Binding<Int> { bind(\.hours) { self.set("graphHours", $0) } }
+    var hours: Binding<Double> { number(\.hours, "graphHours") }
+    /// A place's own window (`menubarHours`, `widgetHours`), 0 = same as the default: always this Mac's.
+    func placeHours(_ place: String) -> Binding<Double> {
+        Binding(get: { (self.d.object(forKey: "\(place)Hours") as? NSNumber)?.doubleValue ?? 0 },
+                set: { v in self.set("\(place)Hours", v == 0 ? nil : Int(v)) })
+    }
     var side: Binding<Bool> { bind(\.side) { self.set("side", $0) } }
     var columnCrown: Binding<Bool> { bind(\.columnCrown) { self.set("columnCrown", $0) } }
     var ringMarks: Binding<Bool> { bind(\.ringMarks) { self.set("ringMarks", $0) } }
-    var gridHours: Binding<Int> { bind(\.gridHours) { self.set("gridHours", $0) } }
-    var countdownHours: Binding<Int> { bind(\.countdownHours) { self.set("countdownHours", $0) } }
+    var gridHours: Binding<Double> { number(\.gridHours, "gridHours") }
+    var countdownHours: Binding<Double> { number(\.countdownHours, "countdownHours") }
     /// The sensor's time left per place: the dropdown (`menubarSensorTime`) and the widgets (`widgetSensorTime`).
     func sensorTime(_ place: String) -> Binding<Bool> {
         Binding(get: { self.d.object(forKey: "\(place)SensorTime") as? Bool ?? true },
                 set: { v in self.set("\(place)SensorTime", v) })
     }
-    var ringCount: Binding<Int> { bind(\.ringCount) { self.set("ringCount", $0) } }
+    var ringCount: Binding<Double> { number(\.ringCount, "ringCount") }
     var ringRange: Binding<TirRange> { bind(\.ringRange) { self.set("ringRange", $0.rawValue) } }
     var lastPlace: Binding<LastPlace> { bind(\.lastPlace) { self.set("lastPlace", $0.rawValue) } }
 
@@ -272,7 +421,7 @@ struct GeneralView: View {
         var s = c.slots; f(&s[i]); set("slots", GraphConfig.slotsText(s))
     }
     func kind(_ i: Int) -> Binding<SlotKind> { bind({ $0.slots[i].kind }) { v in self.setSlot(i) { $0.kind = v } } }
-    func window(_ i: Int) -> Binding<TimeInterval> { bind({ $0.slots[i].window }) { v in self.setSlot(i) { $0.window = v } } }
+    func window(_ i: Int) -> Binding<Double> { bind({ $0.slots[i].window }) { v in self.setSlot(i) { $0.window = v } } }
     func faded(_ i: Int) -> Binding<Bool> { bind({ $0.slots[i].faded }) { v in self.setSlot(i) { $0.faded = v } } }
 
     /// "" = nothing, else the fallback's kind.
@@ -286,32 +435,30 @@ struct GeneralView: View {
     private func setElse(_ f: (inout RingSpec) -> Void) {
         var r = c.lastElse ?? GraphConfig.defaultLastElse; f(&r); set("lastElse", GraphConfig.slotsText([r]))
     }
-    var elseWindow: Binding<TimeInterval> { bind({ $0.lastElse?.window ?? 0 }) { v in self.setElse { $0.window = v } } }
+    var elseWindow: Binding<Double> { bind({ $0.lastElse?.window ?? GraphConfig.defaultLastElse.window }) { v in self.setElse { $0.window = v } } }
     var elseFaded: Binding<Bool> { bind({ $0.lastElse?.faded ?? true }) { v in self.setElse { $0.faded = v } } }
 
-    func moveRing(_ i: Int, _ delta: Int) {
+    /// Ring order: `band` goes to `index` (drag and drop, or Move Up / Move Down).
+    func moveRing(_ band: Band, to index: Int) {
         var o = c.ringOrder
-        guard o.indices.contains(i + delta) else { return }
-        o.swapAt(i, i + delta)
+        guard let from = o.firstIndex(of: band) else { return }
+        o.remove(at: from)
+        o.insert(band, at: min(max(index, 0), o.count))
         set("ringOrder", ringOrderText(o))
     }
     func resetRingOrder() { set("ringOrder", nil) }
 
     func removeLine(_ l: Int) { set("lines", GraphConfig.linesText(c.lines.filter { $0 != l })) }
-    func addLine() {
-        guard let v = newLine, GraphConfig.lineRange.contains(v) else { return }
-        set("lines", GraphConfig.linesText(GraphConfig.parseLines(GraphConfig.linesText(c.lines + [v]))))
-        newLine = nil
-    }
-    var canAddLine: Bool { c.lines.count < GraphConfig.maxLines && newLine.map(GraphConfig.lineRange.contains) == true }
+    func addLine(_ v: Double) { set("lines", GraphConfig.linesText(GraphConfig.parseLines(GraphConfig.linesText(c.lines + [Int(v)])))) }
 
-    static let bandRows: [(String, String, WritableKeyPath<Bands, Int>)] = [
-        ("Very low below", "bandVeryLow", \.veryLow), ("Low below", "bandLow", \.low), ("Very good up to", "bandTight", \.tight),
-        ("High above", "bandHigh", \.high), ("Very high above", "bandVeryHigh", \.veryHigh),
-        ("Extremely high from", "bandExtremelyHigh", \.extremelyHigh),
+    static let bandRows: [(String, String, NumberSpec, WritableKeyPath<Bands, Int>)] = [
+        ("Very low below", "bandVeryLow", SettingsSpec.bandVeryLow, \.veryLow), ("Low below", "bandLow", SettingsSpec.bandLow, \.low),
+        ("Very good up to", "bandTight", SettingsSpec.bandTight, \.tight), ("High above", "bandHigh", SettingsSpec.bandHigh, \.high),
+        ("Very high above", "bandVeryHigh", SettingsSpec.bandVeryHigh, \.veryHigh),
+        ("Extremely high from", "bandExtremelyHigh", SettingsSpec.bandExtremelyHigh, \.extremelyHigh),
     ]
-    func band(_ key: String, _ kp: WritableKeyPath<Bands, Int>) -> Binding<Int> {
-        bind({ $0.bands[keyPath: kp] }) { v in self.set(key, max(GlucoseStats.minMg, min(GlucoseStats.maxMg, v))) }
+    func band(_ key: String, _ kp: WritableKeyPath<Bands, Int>) -> Binding<Double> {
+        bind({ Double($0.bands[keyPath: kp]) }) { v in self.set(key, Int(v)) }
     }
     var rangesChanged: Bool { Self.bandRows.contains { d.object(forKey: $0.1) != nil } }
     func resetRanges() { Self.bandRows.forEach { d.removeObject(forKey: $0.1) }; reload(); onChange?() }
@@ -319,136 +466,103 @@ struct GeneralView: View {
     var anyChanged: Bool { StatusController.graphKeys.contains { d.object(forKey: $0) != nil } }
     func resetAll() { StatusController.graphKeys.forEach { d.removeObject(forKey: $0) }; reload(); onChange?() }
 
-    /// The presets plus the current value when it's a custom one (Android's "Custom" days, 1–90).
-    func periods(_ current: TimeInterval) -> [TimeInterval] {
-        GraphConfig.ringChoices.contains(current) || current <= 0 ? GraphConfig.ringChoices : (GraphConfig.ringChoices + [current]).sorted()
+    // read-only summaries for Default / Wearer (MirroredSection)
+    var graphSummary: [(String, String)] {
+        let b = c.bands
+        return [("Time shown", NumberFormat.label(Double(c.hours), SettingsSpec.graphHours)),
+                ("Ranges", "\(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) · \(b.extremelyHigh) mg/dL"),
+                ("Lines across the graph", c.lines.isEmpty ? "None" : c.lines.map(String.init).joined(separator: ", ") + " mg/dL"),
+                ("Vertical lines", gridLabel(Double(c.gridHours))),
+                ("Beside the graph", [c.side ? "time in range" : nil, c.columnCrown ? "crown at 100 %" : nil].compactMap { $0 }.joined(separator: ", ").capitalizedFirst.ifEmpty("Nothing")),
+                ("Sensor countdown", "Last \(c.countdownHours) h")]
     }
+    var ringsSummary: [(String, String)] {
+        let rings = c.slots.prefix(c.ringCount).map { "\($0.kind.label) \(periodLabel($0.window))" }
+        return [("Rings and numbers", rings.isEmpty ? "None" : rings.joined(separator: ", ")),
+                ("A ring's centre counts", c.ringRange.label),
+                ("Ring order", c.ringOrder.map(\.label).joined(separator: ", ")),
+                ("Rewards on the rings", c.ringMarks ? "On" : "Off"),
+                ("Last treatment", c.lastPlace.label + (c.lastPlace == .off ? "" : c.lastElse.map { ", else \($0.kind.label) \(periodLabel($0.window))" } ?? ""))]
+    }
+}
+
+/// "Off", "Every hour", "Every 3 hours".
+func gridLabel(_ h: Double) -> String { h == 0 ? "Off" : h == 1 ? "Every hour" : "Every \(Int(h)) hours" }
+
+extension String {
+    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
+    func ifEmpty(_ s: String) -> String { isEmpty ? s : self }
 }
 
 struct GraphSettingsView: View {
     @ObservedObject var model: GraphModel
+    @ObservedObject var from: SettingsFromModel
     @State private var confirmReset = false
 
     private var c: GraphConfig { model.c }
+    /// The places with a window of their own (schema graph.hours.place, mac: menubarHours, widgetHours).
+    static let places = [("menubar", "Menu bar dropdown"), ("widget", "Widgets")]
 
     var body: some View {
         Form {
-            Section("Graph") {
-                Picker("Time shown", selection: model.hours) {
-                    ForEach(GraphConfig.windowHours, id: \.self) { Text("\($0) hours").tag($0) }
+            if !from.custom { MirroredSection(from: from, rows: model.graphSummary) }
+            Section {
+                if from.custom { NumberSettingRow(title: "Default", spec: SettingsSpec.graphHours, value: model.hours) }
+                // per place (Android: App / Notification / Widgets): always this Mac's
+                ForEach(Self.places, id: \.0) { p in
+                    NumberSettingRow(title: p.1, spec: SettingsSpec.placeHours, value: model.placeHours(p.0), label: { v in
+                        v == 0 ? "Same as default (\(NumberFormat.label(Double(c.hours), SettingsSpec.graphHours)))" : NumberFormat.label(v, SettingsSpec.placeHours)
+                    })
                 }
-                Toggle("Time in range beside the graph", isOn: model.side)
-                Toggle("Crown at 100 % beside the graph", isOn: model.columnCrown)
-                Toggle("Rewards on the rings (laurel, flowers, crown)", isOn: model.ringMarks)
-                Picker("Vertical lines", selection: model.gridHours) {
-                    ForEach(GraphConfig.gridChoices, id: \.self) { h in Text(h == 0 ? "Off" : h == 1 ? "Every hour" : "Every \(h) hours").tag(h) }
+            } header: { Text("Time shown") } footer: {
+                note("Each place can show a window of its own; \"Same as default\" follows the default.")
+            }
+            if from.custom {
+                Section("Graph") {
+                    Toggle("Time in range beside the graph", isOn: model.side)
+                    Toggle("Crown at 100 % beside the graph", isOn: model.columnCrown)
+                    NumberSettingRow(title: "Vertical lines", spec: SettingsSpec.gridHours, value: model.gridHours, label: gridLabel)
                 }
-                // round sensor-life: the ring over the main ring in the sensor's last hours (Android: Settings › Sensor)
-                Stepper(value: model.countdownHours, in: SensorLife.countdownRange) {
-                    // the menubar's "sensor ended" flag, so the two read as one thing
-                    LabeledContent { Text("Last \(c.countdownHours) h") } label: { Label("Sensor countdown", systemImage: "flag.checkered") }
+                Section {
+                    ForEach(c.lines, id: \.self) { l in
+                        LabeledContent("\(l) mg/dL") {
+                            Button(role: .destructive) { model.removeLine(l) } label: { Image(systemName: "minus.circle") }
+                                .buttonStyle(.borderless)
+                                .help("Remove this line")
+                                .accessibilityLabel("Remove the line at \(l) mg/dL")
+                        }
+                    }
+                    NumberAddRow(title: "Add a line at", spec: SettingsSpec.line, count: c.lines.count) { model.addLine($0) }
+                } header: { Text("Lines across the graph") } footer: { note("Dashed lines at these levels.") }
+                Section {
+                    ForEach(GraphModel.bandRows, id: \.1) { row in
+                        NumberSettingRow(title: row.0, spec: row.2, value: model.band(row.1, row.3))
+                    }
+                    HStack { Spacer(); Button("Reset Ranges") { model.resetRanges() }.disabled(!model.rangesChanged) }
+                } header: { Text("Ranges") } footer: {
+                    note("Used by the graph, the rings, the report and the menu bar colour, and kept in order.")
                 }
-                .help("A ring over the main ring counts down the sensor's last hours")
             }
             Section {
-                Toggle("In the menu bar dropdown", isOn: model.sensorTime("menubar"))
-                Toggle("On widgets", isOn: model.sensorTime("widget"))
+                if from.custom {
+                    // round sensor-life: the ring over the main ring in the sensor's last hours (Android: Settings › Sensor)
+                    NumberSettingRow(title: "Sensor countdown", spec: SettingsSpec.countdownHours, value: model.countdownHours,
+                                     label: { "Last " + NumberFormat.label($0, SettingsSpec.countdownHours) },
+                                     subtitle: "A ring over the main ring counts down the sensor's last hours")
+                }
+                Toggle("Time left in the menu bar dropdown", isOn: model.sensorTime("menubar"))
+                Toggle("Time left on widgets", isOn: model.sensorTime("widget"))
             } header: {
-                Text("Sensor time left")
+                Text("Sensor")
             } footer: {
-                Text("At the start of the time row, under the % of time in range (a card without a graph shows just the number). The warm-up and \"Sensor ended\" show either way.")
-                    .foregroundStyle(.secondary)
+                note("The time left shows at the start of the time row, under the % of time in range (a card without a graph shows just the number). The warm-up and \"Sensor ended\" show either way.")
             }
-            Section {
-                ForEach(c.lines, id: \.self) { l in
-                    LabeledContent("\(l) mg/dL") {
-                        Button(role: .destructive) { model.removeLine(l) } label: { Image(systemName: "minus.circle") }
-                            .buttonStyle(.borderless)
-                            .help("Remove this line")
-                            .accessibilityLabel("Remove the line at \(l) mg/dL")
+            if from.custom {
+                Section {
+                    HStack {
+                        Spacer()
+                        Button("Reset All Graph Settings…", role: .destructive) { confirmReset = true }.disabled(!model.anyChanged)
                     }
-                }
-                HStack {
-                    LabeledContent("Add a line at") {
-                        TextField("Add a line at", value: $model.newLine, format: .number, prompt: Text("mg/dL"))
-                            .labelsHidden().textFieldStyle(.roundedBorder).frame(width: 80).multilineTextAlignment(.trailing)
-                            .onSubmit { model.addLine() }
-                    }
-                    Button("Add") { model.addLine() }.disabled(!model.canAddLine)
-                }
-                .disabled(c.lines.count >= GraphConfig.maxLines)
-            } header: { Text("Lines across the graph") } footer: {
-                note("Dashed lines at these levels, \(GraphConfig.lineRange.lowerBound)–\(GraphConfig.lineRange.upperBound) mg/dL, up to \(GraphConfig.maxLines).")
-            }
-            Section("Beside the value") {
-                Picker("Rings and numbers", selection: model.ringCount) {
-                    Text("None").tag(0)
-                    ForEach(1...3, id: \.self) { Text("\($0)").tag($0) }
-                }
-                ForEach(0..<c.ringCount, id: \.self) { i in
-                    Picker(["Main", "Second", "Third"][i], selection: model.kind(i)) {
-                        ForEach(SlotKind.allCases, id: \.self) { Text($0.label).tag($0) }
-                    }
-                    Picker("Period", selection: model.window(i)) {
-                        ForEach(model.periods(c.slots[i].window), id: \.self) { Text(periodLabel($0)).tag($0) }
-                    }
-                    .padding(.leading, 16)
-                    Toggle("Fainter", isOn: model.faded(i)).padding(.leading, 16)
-                }
-                Picker("A ring's centre counts", selection: model.ringRange) {
-                    ForEach(TirRange.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-            }
-            Section {
-                ForEach(Array(c.ringOrder.enumerated()), id: \.offset) { i, band in
-                    LabeledContent("\(i + 1). \(band.label)") {
-                        HStack(spacing: 2) {
-                            Button { model.moveRing(i, -1) } label: { Image(systemName: "chevron.up") }
-                                .disabled(i == 0).help("Move earlier").accessibilityLabel("Move \(band.label) earlier")
-                            Button { model.moveRing(i, 1) } label: { Image(systemName: "chevron.down") }
-                                .disabled(i == c.ringOrder.count - 1).help("Move later").accessibilityLabel("Move \(band.label) later")
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-                HStack { Spacer(); Button("Reset Order") { model.resetRingOrder() }.disabled(c.ringOrder == DEFAULT_RING_ORDER) }
-            } header: { Text("Ring order") } footer: { note("Clockwise from 12 o'clock.") }
-            Section("Last treatment") {
-                Picker("Position", selection: model.lastPlace) {
-                    ForEach(LastPlace.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-                Picker("Without a recent treatment", selection: model.elseKind) {
-                    Text("Nothing").tag("")
-                    ForEach(SlotKind.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
-                }
-                .disabled(c.lastPlace == .off)
-                if let e = c.lastElse, c.lastPlace != .off {
-                    Picker("Period", selection: model.elseWindow) {
-                        ForEach(model.periods(e.window), id: \.self) { Text(periodLabel($0)).tag($0) }
-                    }
-                    .padding(.leading, 16)
-                    Toggle("Fainter", isOn: model.elseFaded).padding(.leading, 16)
-                }
-            }
-            Section {
-                ForEach(GraphModel.bandRows, id: \.1) { row in
-                    LabeledContent(row.0) {
-                        HStack(spacing: 4) {
-                            TextField(row.0, value: model.band(row.1, row.2), format: .number)
-                                .labelsHidden().textFieldStyle(.roundedBorder).frame(width: 56).multilineTextAlignment(.trailing)
-                            Stepper(row.0, value: model.band(row.1, row.2), step: 1).labelsHidden()
-                            Text("mg/dL").foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                HStack { Spacer(); Button("Reset Ranges") { model.resetRanges() }.disabled(!model.rangesChanged) }
-            } header: { Text("Ranges") } footer: {
-                note("Used by the graph, the rings, the report and the menu bar colour, and kept in order.")
-            }
-            Section {
-                HStack {
-                    Spacer()
-                    Button("Reset All Graph Settings…", role: .destructive) { confirmReset = true }.disabled(!model.anyChanged)
                 }
             }
         }
@@ -456,11 +570,100 @@ struct GraphSettingsView: View {
         .confirmationDialog("Reset all graph settings?", isPresented: $confirmReset) {
             Button("Reset", role: .destructive) { model.resetAll() }
         } message: {
-            Text("The window, rings, lines, ranges and last-treatment slot go back to their defaults.")
+            Text("The time shown, the rings, the lines, the ranges, the last-treatment slot and the sensor settings go back to their defaults.")
         }
     }
 
     private func note(_ s: String) -> some View { Text(s).font(.callout).foregroundStyle(.secondary) }
+}
+
+/// Rings and numbers beside the value, the ring order and the last-treatment slot (Android: "Beside the number").
+struct RingsSettingsView: View {
+    @ObservedObject var model: GraphModel
+    @ObservedObject var from: SettingsFromModel
+    @State private var dropTarget: Band?
+
+    private var c: GraphConfig { model.c }
+    private static let slotNames = ["Main", "Second", "Third"]
+
+    var body: some View {
+        Form {
+            if !from.custom {
+                MirroredSection(from: from, rows: model.ringsSummary)
+            } else {
+                Section {
+                    NumberSettingRow(title: "Rings and numbers", spec: SettingsSpec.ringCount, value: model.ringCount)
+                    ForEach(Array(c.slots.prefix(c.ringCount).enumerated()), id: \.offset) { i, _ in
+                        Picker(Self.slotNames[i], selection: model.kind(i)) {
+                            ForEach(SlotKind.allCases, id: \.self) { Text($0.label).tag($0) }
+                        }
+                        NumberSettingRow(title: "Period", spec: SettingsSpec.ringWindow, value: model.window(i)).padding(.leading, 16)
+                        // Android: the main slot is always full strength; Fainter only for the second and third
+                        if i > 0 { Toggle("Fainter", isOn: model.faded(i)).padding(.leading, 16) }
+                    }
+                    Picker("A ring's centre counts", selection: model.ringRange) {
+                        ForEach(TirRange.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    Toggle("Rewards on the rings (laurel, flowers, crown)", isOn: model.ringMarks)
+                } header: { Text("Beside the value") }
+                ringOrder
+                Section("Last treatment") {
+                    Picker("Position", selection: model.lastPlace) {
+                        ForEach(LastPlace.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    Picker("Without a recent treatment", selection: model.elseKind) {
+                        Text("Nothing").tag("")
+                        ForEach(SlotKind.allCases, id: \.self) { Text($0.label).tag($0.rawValue) }
+                    }
+                    .disabled(c.lastPlace == .off)
+                    if c.lastElse != nil, c.lastPlace != .off {
+                        NumberSettingRow(title: "Period", spec: SettingsSpec.ringWindow, value: model.elseWindow).padding(.leading, 16)
+                        Toggle("Fainter", isOn: model.elseFaded).padding(.leading, 16)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// Drag to reorder (HIG Lists and tables: "People appreciate being able to reorder a list, even if they can't add
+    /// or remove items."). HIG Drag and drop: "Offer alternative ways to accomplish drag-and-drop actions … you can
+    /// include menu commands" (each row's context menu and its VoiceOver actions: Move Up, Move Down) and "Show people
+    /// whether a destination can accept dragged content … display an insertion point" (the line over the target row).
+    private var ringOrder: some View {
+        Section {
+            ForEach(Array(c.ringOrder.enumerated()), id: \.element) { i, band in
+                HStack(spacing: 8) {
+                    Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary).accessibilityHidden(true)
+                    Circle().fill(Color(cgColor: GraphPalette.lightPalette.of(band))).frame(width: 10, height: 10).accessibilityHidden(true)
+                    Text("\(i + 1). \(band.label)")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .overlay(alignment: .top) {
+                    if dropTarget == band { Rectangle().fill(Color.accentColor).frame(height: 2).offset(y: -5) }
+                }
+                .draggable(band.name) { Text(band.label).padding(6) }
+                .dropDestination(for: String.self) { items, _ in
+                    guard let b = items.first.flatMap(Band.init(name:)) else { return false }
+                    model.moveRing(b, to: i)
+                    return true
+                } isTargeted: { on in dropTarget = on ? band : (dropTarget == band ? nil : dropTarget) }
+                .contextMenu {
+                    Button("Move Up") { model.moveRing(band, to: i - 1) }.disabled(i == 0)
+                    Button("Move Down") { model.moveRing(band, to: i + 1) }.disabled(i == c.ringOrder.count - 1)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(band.label), position \(i + 1) of \(c.ringOrder.count)")
+                .accessibilityAction(named: "Move Up") { model.moveRing(band, to: i - 1) }
+                .accessibilityAction(named: "Move Down") { model.moveRing(band, to: i + 1) }
+            }
+            HStack { Spacer(); Button("Reset Order") { model.resetRingOrder() }.disabled(c.ringOrder == DEFAULT_RING_ORDER) }
+        } header: { Text("Ring order") } footer: {
+            Text("Clockwise from 12 o'clock. Drag a range to move it, or Control-click it for Move Up and Move Down.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
 }
 
 // MARK: - Following
