@@ -109,13 +109,15 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root
   + LSPosed: system icons or a coloured value next to the clock. Settings detects root and the LSPosed module (via
-  LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI.
+  LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI. After an
+  update, home asks for a System UI restart only when the code System UI runs has changed (not on every install).
   [05](docs/05-android-status-bar.md)
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
   so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
   export / import / reset of the options, and a reminder to share your data with your clinic (LibreView or Tidepool). Apps and services show their real icons,
-  drawn like the system Settings app's list. Each alert has its own page
+  drawn like the system Settings app's list; every other row has an icon too, with custom ones for diabetes things
+  (the sensor, insulin, carbs, ranges, each alert). Each alert has its own page
   (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
@@ -137,8 +139,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
   like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
-- Export your readings and treatments as a CSV file (Settings → Export data): this sensor or the last 7, 14 or 30
-  days, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
+- Export your readings and treatments as a CSV file (Settings → Export data): this sensor, the last 7, 14 or 30
+  days or all time, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
   Tidepool's uploader imports it and any spreadsheet opens it, plus the time with its UTC offset, the trend and who
   entered each treatment (phone, Mac or follower, never a name). Followers export what is already on their phone.
   [22](docs/22-ecosystem-outputs.md#in-sukrara-csv-export)
@@ -198,7 +200,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
   [15](docs/15-alerts.md)
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
-- Pair nearby over Bluetooth with no internet at all. The phone broadcasts no name and shows who it is only while
+- Pair nearby over Bluetooth with no internet at all, and see which follower phones are connected now (Settings →
+  Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,

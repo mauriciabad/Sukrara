@@ -69,6 +69,7 @@ class OwnerState(
     val pending: MutableList<PendingRequest> = mutableListOf(),
     val writers: MutableSet<String> = mutableSetOf(),     // investigation 07: followers allowed to add treatments
     var profile: Profile = Profile("", Avatar.random()),  // the wearer's name + picture, sent only to followers
+    val nearbyPaired: MutableSet<String> = mutableSetOf(), // followers paired over Bluetooth (this phone only, not in the backup)
 ) {
     val current: Epoch get() = epochs.last()
     val iPub: String get() = Proto.pub(i)
@@ -94,6 +95,7 @@ class OwnerState(
         .put("rosterPublishedAt", rosterPublishedAt)
         .put("treatmentsPublishedAt", treatmentsPublishedAt)
         .put("synthetic", synthetic)
+        .put("nearbyPaired", JSONArray(nearbyPaired.toList()))
         .put("pending", JSONArray(pending.map {
             JSONObject().put("f", it.f).put("name", it.name).put("token", it.token).put("code", it.code).put("at", it.at)
                 .put("avatar", it.avatar?.json ?: JSONObject.NULL).put("label", it.label).put("nearby", it.nearby)
@@ -128,6 +130,7 @@ class OwnerState(
             rosterPublishedAt = j.optLong("rosterPublishedAt")
             treatmentsPublishedAt = j.optLong("treatmentsPublishedAt")
             synthetic = j.optBoolean("synthetic")
+            nearbyPaired += Proto.strings(j.optJSONArray("nearbyPaired"))
             j.optJSONArray("pending")?.let { a ->
                 for (k in 0 until a.length()) a.getJSONObject(k).let {
                     pending += PendingRequest(it.getString("f"), it.getString("name"), it.getString("token"), it.getString("code"),

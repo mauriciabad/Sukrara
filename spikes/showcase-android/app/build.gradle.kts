@@ -1,7 +1,33 @@
+import java.security.MessageDigest
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+}
+
+/**
+ * The fingerprint of the code System UI runs (features/SystemAccess, "does System UI need a restart?"): the LSPosed
+ * hook (hook/), the card renderer it draws with (graph/) and every file a hook/ file names directly (the lock screen
+ * widget, the status-bar state it reads…). The app records it per versionCode; when LSPosed says System UI runs an
+ * older build, a restart is only asked for when that build's fingerprint differs.
+ */
+fun hookCode(): String {
+    val root = file("src/main/kotlin/app/mauri/sukrara")
+    val all = root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+    fun rel(f: File) = f.relativeTo(root).invariantSeparatorsPath
+    val decl = HashMap<String, File>()
+    val declRe = Regex("""^(?:[a-z]+ )*(?:class|object|interface)\s+([A-Z]\w*)""", RegexOption.MULTILINE)
+    for (f in all) {
+        val pkg = rel(f).substringBeforeLast('/', "").replace('/', '.')
+        declRe.findAll(f.readText()).forEach { decl.putIfAbsent("$pkg.${it.groupValues[1]}", f) }
+    }
+    val refRe = Regex("""app\.mauri\.sukrara\.([a-z]+(?:\.[a-z]+)*\.[A-Z]\w*)""")
+    val base = all.filter { rel(it).startsWith("hook/") || rel(it).startsWith("graph/") }
+    val named = all.filter { rel(it).startsWith("hook/") }.flatMap { f -> refRe.findAll(f.readText()).mapNotNull { decl[it.groupValues[1]] }.toList() }
+    val md = MessageDigest.getInstance("SHA-256")
+    (base + named).distinct().sortedBy { rel(it) }.forEach { md.update((rel(it) + "\n").toByteArray()); md.update(it.readBytes()) }
+    return md.digest().joinToString("") { "%02x".format(it) }.take(16)
 }
 
 android {
@@ -14,6 +40,7 @@ android {
         targetSdk = 37
         versionCode = 11037
         versionName = "0.11.37"
+        buildConfigField("String", "HOOK_CODE", "\"${hookCode()}\"")
         // libnostr_sdk_ffi.so is ~7-9 MB per ABI; ship only arm64 (Pixel + Apple-silicon emulators).
         ndk { abiFilters += "arm64-v8a" }
     }

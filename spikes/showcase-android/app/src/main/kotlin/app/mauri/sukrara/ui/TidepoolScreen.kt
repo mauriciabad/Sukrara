@@ -68,19 +68,19 @@ fun TidepoolSettings(follower: Boolean, onBack: () -> Unit) {
         }
         SettingsMainSwitch(stringResource(R.string.tidepool_main_switch), on, enabled = s.signedIn) { Tidepool.setOn(ctx, it) }
         SettingsGroup {
-            info(stringResource(R.string.upload_status_title), when {
+            info(stringResource(R.string.upload_status_title), icon = R.drawable.ic_sym_cloud_sync, summary = when {
                 !s.signedIn && s.on -> stringResource(R.string.tidepool_status_sign_in)   // Tidepool ended the session
                 !s.signedIn -> stringResource(R.string.tidepool_sign_in_first)
                 !on -> stringResource(R.string.settings_off)
                 else -> statusText(st)
             })
-            if (follower) switch(stringResource(R.string.tidepool_follow), s.uploadFollowed, enabled = on,
+            if (follower) switch(stringResource(R.string.tidepool_follow), s.uploadFollowed, enabled = on, icon = R.drawable.ic_sym_person,
                 summary = if (!on) off else stringResource(if (s.uploadFollowed) R.string.tidepool_follow_on else R.string.tidepool_follow_off)) {
                 Tidepool.setUploadFollowed(ctx, it)
             }
-            switch(stringResource(R.string.tidepool_glucose), s.glucose, enabled = on,
+            switch(stringResource(R.string.tidepool_glucose), s.glucose, enabled = on, icon = R.drawable.ic_sym_monitoring,
                 summary = if (on) stringResource(R.string.tidepool_glucose_summary) else off) { Tidepool.setGlucose(ctx, it) }
-            switch(stringResource(R.string.tidepool_entries), s.treatments, enabled = on,
+            switch(stringResource(R.string.tidepool_entries), s.treatments, enabled = on, icon = R.drawable.ic_sym_edit_note,
                 summary = if (on) stringResource(R.string.tidepool_entries_summary) else off) { Tidepool.setTreatments(ctx, it) }
         }
         SettingsFooter(stringResource(R.string.tidepool_footer))

@@ -53,8 +53,9 @@ import com.android.settingslib.spa.widget.ui.SettingsDialogItem
  * Per the settings guidelines (source.android.com/docs/core/settings/settings-guidelines): the status below each
  * title ("show the specific details"), radio buttons only in a dialog ("Radio buttons should not be used in settings
  * list"), explanations in the footer. Each reminder is a row (when · time); tapping it opens its dialog (days before
- * as radio buttons, the time through the M3 time picker, Remove); "Add reminder" opens the same dialog empty.
- * Round "routine": a switch for first-unlock reminders under the list, and a Night group (the evening-before reminder,
+ * as radio buttons, the time through the M3 time picker, Remove); "Add reminder", a button under the list (SettingsLib
+ * SectionButtonPreference), opens the same dialog empty.
+ * Round "routine": a switch for first-unlock reminders in its own group under the list, and a Night group (the evening-before reminder,
  * bedtime and wake-up through the same time picker: Android's Bedtime schedule isn't readable by other apps).
  */
 
@@ -98,28 +99,31 @@ fun SensorEndSettings(onBack: () -> Unit) {
                 s == null || at == null -> stringResource(R.string.sensorend_current_none)
                 SensorLife.ended(s.endEpoch, now) -> stringResource(R.string.sensorend_current_ended, at)
                 else -> stringResource(R.string.sensorend_current_ends, at, SensorLife.label(s.endEpoch, now))
-            }, icon = R.drawable.ic_sym_nfc)
+            }, icon = R.drawable.ic_dia_sensor)
         }
         SettingsGroup(stringResource(R.string.sensorend_reminders)) {
             c.reminders.forEachIndexed { i, r ->
                 value(reminderDays(r.daysBefore), minuteText(ctx, r.minuteOfDay), icon = R.drawable.ic_sym_notifications) { editing = i }
             }
-            action(stringResource(R.string.sensorend_add), icon = R.drawable.ic_sym_add,
-                enabled = c.reminders.size < SensorEndConfig.MAX_REMINDERS) { editing = -1 }
-            switch(stringResource(R.string.sensorend_unlock_switch), c.unlock, summary = stringResource(R.string.sensorend_unlock_summary)) { v -> change { it.copy(unlock = v) } }
+        }
+        // adding to the list: a button under it (SettingsLib SectionButtonPreference, SPA CategoryButton), not a row of it
+        if (c.reminders.size < SensorEndConfig.MAX_REMINDERS) SettingsSectionButton(R.drawable.ic_sym_add, stringResource(R.string.sensorend_add)) { editing = -1 }
+        SettingsGroup {
+            switch(stringResource(R.string.sensorend_unlock_switch), c.unlock, summary = stringResource(R.string.sensorend_unlock_summary),
+                icon = R.drawable.ic_sym_lock_open) { v -> change { it.copy(unlock = v) } }
         }
         SettingsGroup(stringResource(R.string.sensorend_night_group)) {
             val evening = (c.nightStart - SensorEndPlan.EVENING_BEFORE + 24 * 60) % (24 * 60)
-            switch(stringResource(R.string.sensorend_evening_switch), c.evening,
+            switch(stringResource(R.string.sensorend_evening_switch), c.evening, icon = R.drawable.ic_sym_nightlight,
                 summary = stringResource(R.string.sensorend_evening_summary, minuteText(ctx, evening))) { v -> change { it.copy(evening = v) } }
-            value(stringResource(R.string.sensorend_bedtime), minuteText(ctx, c.nightStart), enabled = c.evening) { pickingNight = true }
-            value(stringResource(R.string.sensorend_wakeup), minuteText(ctx, c.nightEnd), enabled = c.evening) { pickingNight = false }
+            value(stringResource(R.string.sensorend_bedtime), minuteText(ctx, c.nightStart), enabled = c.evening, icon = R.drawable.ic_sym_bedtime) { pickingNight = true }
+            value(stringResource(R.string.sensorend_wakeup), minuteText(ctx, c.nightEnd), enabled = c.evening, icon = R.drawable.ic_sym_sunny) { pickingNight = false }
         }
         SettingsGroup(stringResource(R.string.sensorend_countdown_group)) {
-            switch(stringResource(R.string.sensorend_countdown_switch), c.countdown, summary = stringResource(R.string.sensorend_countdown_summary)) { v -> change { it.copy(countdown = v) } }
+            switch(stringResource(R.string.sensorend_countdown_switch), c.countdown, icon = R.drawable.ic_sym_timer, summary = stringResource(R.string.sensorend_countdown_summary)) { v -> change { it.copy(countdown = v) } }
             value(stringResource(R.string.sensorend_countdown_hours), pluralStringResource(R.plurals.sensorend_hours_before, hours, hours),
-                enabled = c.countdown) { choosingHours = true }
-            switch(stringResource(R.string.sensorend_warmup_switch), c.warmup, summary = stringResource(R.string.sensorend_warmup_summary)) { v -> change { it.copy(warmup = v) } }
+                enabled = c.countdown, icon = R.drawable.ic_sym_schedule) { choosingHours = true }
+            switch(stringResource(R.string.sensorend_warmup_switch), c.warmup, icon = R.drawable.ic_sym_hourglass_top, summary = stringResource(R.string.sensorend_warmup_summary)) { v -> change { it.copy(warmup = v) } }
         }
         SettingsGroup { calendar() }   // sensor end in calendar (features/SensorCalendar)
         SettingsFooter(stringResource(R.string.sensorend_footer))
