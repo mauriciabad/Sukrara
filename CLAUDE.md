@@ -42,6 +42,11 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
 - **Alert rules are guarded by timeline scenarios** (sequences of events → expected alerts, Android and Mac). Every
   alert-rule change adds or updates a scenario; never change a scenario's expectations without the user's OK.
   *(parity groups `alerts`, `alert-scenarios`, `alert-spec`; `AlertScenarioTest` + `-alerts-selftest` in CI)*
+- **Complete flows.** Every feature is designed as a whole user journey: every state a user can enter has a visible
+  way to see it, change it and leave it (undo, cancel, turn off, unmute, go back), on every platform and surface that
+  shows it, reachable without a notification and with TalkBack / VoiceOver. List the states and exits in the
+  feature's **States and exits** paragraph in `docs/FEATURES.md`. *(check `states`: every FEATURES.md section has
+  one or is on `allow.json` `states_pending`; QA.md Q19 walks it by hand)*
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
   *(check `features`)*
 - **One graph everywhere.** The card (value, arrow, badges, slots, chart and every element in them) is laid out and

@@ -9,8 +9,8 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * The alert notification's buttons ([AlertNotifier.Actions]): *Mute <n> min*, *Slow to <n> min* and *Mute for…* (the
- * typed minutes). A reply without valid minutes changes nothing and posts the notification again (without sound), which
+ * The alert notification's buttons ([AlertNotifier.Actions]): *Mute <n> min*, *Slow to <n> min* / *Stop slowing down*
+ * and *Mute for…* (the typed minutes); the muted notification's *Unmute* and *Change…* (a *Mute for…* reply). A reply without valid minutes changes nothing and posts the notification again (without sound), which
  * also takes the reply field's spinner away ("update the notification … to hide the direct reply UI").
  */
 class AlertActionReceiver : BroadcastReceiver() {
@@ -19,6 +19,8 @@ class AlertActionReceiver : BroadcastReceiver() {
         when (i.action) {
             MUTE -> Alerts.action(c, kind, slow = false, min = i.getIntExtra(MIN, 0).takeIf { it > 0 })
             SLOW -> Alerts.action(c, kind, slow = true)
+            UNMUTE -> Alerts.unmute(c, kind)
+            UNSLOW -> Alerts.unslow(c, kind)
             MUTE_FOR -> AlertNotifier.minutes(RemoteInput.getResultsFromIntent(i)?.getCharSequence(TYPED))
                 ?.let { Alerts.action(c, kind, slow = false, min = it) } ?: Alerts.repost(c, kind)
         }
@@ -28,6 +30,8 @@ class AlertActionReceiver : BroadcastReceiver() {
         const val MUTE = "app.mauri.sukrara.alert.MUTE"
         const val SLOW = "app.mauri.sukrara.alert.SLOW"
         const val MUTE_FOR = "app.mauri.sukrara.alert.MUTE_FOR"
+        const val UNMUTE = "app.mauri.sukrara.alert.UNMUTE"
+        const val UNSLOW = "app.mauri.sukrara.alert.UNSLOW"
         const val KIND = "kind"
         const val MIN = "min"
         const val TYPED = "minutes"

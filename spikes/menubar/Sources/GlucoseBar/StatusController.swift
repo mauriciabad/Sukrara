@@ -53,6 +53,9 @@ extension Bands {
     var alertSettings: (() -> AlertSettings)?
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
+    /// The quiet alerts (Alerts.active) and their ways out, for the panel.
+    var alertActive: (() -> [Alerts.Active])?
+    var onQuiet: ((QuietOp) -> Void)? { didSet { panelModel.onQuiet = onQuiet } }
     var onLogTreatment: ((Treatment) -> Void)?
     /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
     var onAddTreatment: ((NSScreen?) -> Void)?
@@ -243,6 +246,7 @@ extension Bands {
         panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.quiet = alertActive?() ?? []
         panelModel.readings = pts
         panelModel.tick += 1
     }
@@ -290,13 +294,17 @@ extension Bands {
 
     func treatmentsChanged() {
         renderTreatments()
+        panelModel.quiet = alertActive?() ?? []   // a treatment's mute starts (or is deleted) at once
         panelModel.tick += 1
+        panel.relayout()
     }
 
     /// The alert settings changed: the badge, the mute lines and the slot follow them.
     func alertsChanged() {
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.quiet = alertActive?() ?? []
+        panel.relayout()
     }
 
     private func renderTreatments() {
@@ -352,6 +360,9 @@ final class CardView: NSView {
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
+    /// A click on the status pill ("45m left"): its box (view coordinates) and this view.
+    var onStatus: ((CGRect, NSView) -> Void)?
+    private var statusBox: CGRect?
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
@@ -419,6 +430,9 @@ final class CardView: NSView {
         let p = convert(e.locationInWindow, from: nil)
         let q = CGPoint(x: p.x - inset.left, y: p.y - inset.top)
         if scrollEnd != nil, let nowBox, nowBox.insetBy(dx: -4, dy: -4).contains(q) { backTarget = true; tick(); return }
+        if let statusBox, let onStatus, statusBox.insetBy(dx: -4, dy: -4).contains(q) {
+            return onStatus(statusBox.offsetBy(dx: inset.left, dy: inset.top), self)
+        }
         super.mouseDown(with: e)
     }
 
@@ -499,6 +513,7 @@ final class CardView: NSView {
                          view: chartView)
         plot = rec.first("chart.plot")?.box
         nowBox = rec.first("chart.now")?.box
+        statusBox = rec.first("value.status")?.box
         if let area = rec.first("chart")?.box, let natural = rec.first("chart.plot.natural")?.box { insetTarget = area.maxY - natural.maxY }
         return rec
     }

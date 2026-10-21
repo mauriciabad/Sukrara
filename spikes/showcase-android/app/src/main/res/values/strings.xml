@@ -2301,4 +2301,44 @@
     <string name="graph_ring_drag">Drag to reorder</string>
     <!-- Note under the ring order. [CHAR LIMIT=NONE] -->
     <string name="graph_ring_order_note">Drag a row by its handle to change where its segment sits on the rings, clockwise from the top.</string>
+
+    <!-- Round f29: the ways out of a muted / quiet / slowed alert (SPEC §2 States and exits) -->
+    <!-- Muted alert notification: button that ends the mute [CHAR LIMIT=20] -->
+    <string name="alert_action_unmute">Unmute</string>
+    <!-- Muted alert notification: button to type or pick a new mute length [CHAR LIMIT=20] -->
+    <string name="alert_action_change">Change…</string>
+    <!-- Alert notification: button that ends Slow down [CHAR LIMIT=20] -->
+    <string name="alert_action_unslow">Stop slowing</string>
+    <!-- Alerts history line: the user ended a mute. %1$s = alert name [CHAR LIMIT=60] -->
+    <string name="alerts_note_unmuted">%1$s unmuted</string>
+    <!-- Alerts history line: the user stopped slowing down. %1$s = alert name, %2$d = minutes [CHAR LIMIT=60] -->
+    <string name="alerts_note_unslowed">%1$s back to every %2$d min</string>
+    <!-- Alert sheet / Active now: muted from a notification or here. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
+    <string name="quiet_title_muted">%1$s muted until %2$s</string>
+    <!-- Alert sheet / Active now: quiet after logging carbs. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
+    <string name="quiet_title_carbs">%1$s quiet after carbs until %2$s</string>
+    <!-- Alert sheet / Active now: quiet after rapid insulin. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
+    <string name="quiet_title_insulin">%1$s quiet after insulin until %2$s</string>
+    <!-- Alert sheet / Active now: quiet because glucose is falling back into range. %1$s = alert name [CHAR LIMIT=60] -->
+    <string name="quiet_title_falling">%1$s quiet: falling back into range</string>
+    <!-- Alert sheet / Active now: reminders slowed down. %1$s = alert name, %2$d = minutes [CHAR LIMIT=60] -->
+    <string name="quiet_title_slowed">%1$s reminders every %2$d min</string>
+    <!-- Alert sheet on a follower: quiet after a treatment, decided by the wearer's phone. %1$s = alert name [CHAR LIMIT=90] -->
+    <string name="quiet_title_mirrored_treatment">%1$s quiet after a treatment. The wearer\'s phone decides when it alerts again.</string>
+    <!-- Alert sheet / Active now: button that ends a mute [CHAR LIMIT=24] -->
+    <string name="quiet_unmute">Unmute</string>
+    <!-- Alert sheet / Active now: button that lifts a treatment mute on this device [CHAR LIMIT=24] -->
+    <string name="quiet_alert_anyway">Alert me anyway</string>
+    <!-- Alert sheet / Active now: button that ends Slow down [CHAR LIMIT=24] -->
+    <string name="quiet_stop_slowing">Stop slowing down</string>
+    <!-- Alert sheet / Active now: label over the mute lengths while muted [CHAR LIMIT=30] -->
+    <string name="quiet_change">Change to</string>
+    <!-- Alert sheet / Active now: label over the mute lengths [CHAR LIMIT=30] -->
+    <string name="quiet_mute_for">Mute for</string>
+    <!-- Alert sheet: opens the alerts settings page [CHAR LIMIT=24] -->
+    <string name="quiet_settings">Alert settings</string>
+    <!-- Alerts settings page: heading of the section listing muted / slowed alerts [CHAR LIMIT=30] -->
+    <string name="alerts_active_now">Active now</string>
+    <!-- Accessibility action on the glucose card. %1$s = alert name, %2$s = action [CHAR LIMIT=60] -->
+    <string name="quiet_a11y_action">%1$s: %2$s</string>
 </resources>

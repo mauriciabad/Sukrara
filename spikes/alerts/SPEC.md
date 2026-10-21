@@ -65,8 +65,8 @@ that notification's alert** (its side: lows incl. very low, highs, falling fast,
 | *Slow to `slowMin` min* | when it would slow anything (the kind's `repeatMin` is shorter) and the episode isn't slowed yet; every kind, very low and extremely high included | The repeats come every `max(repeatMin, slowMin)` minutes, counted from the last alert. |
 
 After *Mute* or *Mute for…* both buttons leave the same thing (round 22): Android replaces the alert's notification
-with a silent "Low muted until 10:42" without buttons, which goes when the mute ends (or the alert comes back) or the
-episode ends; Android asks an app to update a notification after a direct reply, and a cancelled one stayed in the
+with a silent "Low muted until 10:42" whose only buttons are the ways out, *Unmute* and *Change…* (below), which goes
+when the mute ends (or the alert comes back) or the episode ends; Android asks an app to update a notification after a direct reply, and a cancelled one stayed in the
 shade as SystemUI's copy with the typed text. macOS removes a notification once any of its actions is used. The
 history (and the log) records "Low muted for 45 min (notification)", never "Low cleared": the episode goes on.
 *Mute for…* offers the other Mute presets as one-tap choices beside typed minutes (Android's RemoteInput has no
@@ -85,6 +85,34 @@ Nothing about them is sent:
   a more severe kind always shows); a new episode on the wearer (`n` = 1) ends them. The wearer's `clear` removes the
   alert shown there even when a repeat in between was skipped.
 - On a follower with its **own** rules (`source` "own") they act on its engine, like on the wearer.
+
+**States and exits** (round f29; user, 2026-10-21: "There's no way to unmute! On any platform"). Every quiet state
+has a visible place and a way out on every device, all acting on that device only like the buttons above:
+
+| State (per side's episode) | Shown | Ways out |
+|---|---|---|
+| Normal (alerting) | the notification; the "Eat carbs" / "Take insulin" pill | *Mute*, *Mute for…*, *Slow down* (notification; the app's Active now / sheet: Mute for 15 / 30 / 60 / 120, Slow down) |
+| Muted from a notification (N min left) | Android: the "Low muted until 10:42" notification; the tonal pill "Nm left"; Active now | *Unmute* · *Change…* (notification) · the pill's sheet / Mac panel rows and pill menu / Settings › Alerts › Active now: Unmute, Change to 15 / 30 / 60 / 120 min · it ends by itself at its end or with the episode |
+| Quiet after carbs / rapid insulin (shared data) | the tonal pill, the last-treatment ring; Active now | *Alert me anyway* (sheet, panel, Active now; this device only, the treatment stays as it is) · ends at `t + min` · deleting the treatment |
+| Quiet: falling back into range | Active now | *Alert me anyway* · ends when the prediction no longer holds |
+| Slowed | Android: a "Low reminders every 30 min" chip under the card; Mac panel row; Active now; the notification shows *Stop slowing* in Slow down's place | *Stop slowing down* (notification, chip's sheet, panel, Active now) · ends with the episode |
+| Muted + slowed | both of the above | each exit on its own |
+| Mute ending | — | the alert comes at once if it still matches |
+| Episode ending | — | every mute and slow-down of it ends; nothing stays |
+
+- **Unmute / Alert me anyway** (`unmute`): lifts whatever quiets the episode now: the notification's Mute, the
+  treatments logged so far and the falling-high mute, for the rest of the episode (a treatment logged later mutes
+  again). Still matching → it alerts **at once** and the repeats count from there; back in range → nothing, and it
+  alerts at once if it matches again within the episode. Nothing quiet → nothing happens. The muted notification goes;
+  history ("Low unmuted"), badge, widgets and ring update at once.
+- **Change** = a new *Mute* on a muted episode: the end becomes now + the new minutes (shorter or longer).
+- **Stop slowing down** (`unslow`): the kind's own interval again; a repeat already due under it alerts at once.
+- On a **follower that mirrors the wearer** Unmute / Stop slowing down show the wearer's newest alert at once if the
+  wearer still has it up (it was dropped or skipped here). A treatment mute can't be lifted there: the wearer's phone
+  decides (the sheet says so and links to the alert settings, where *Settings from* Default / Custom runs the rules on
+  this device).
+- **Accessibility**: every way out is reachable without the notification: Android as buttons on the sheet and Active
+  now and as TalkBack actions on the card ("Low: Unmute"); Mac as panel rows, the pill's menu and Settings buttons.
 
 Treatment mutes are different: carbs and rapid insulin are shared data (the treatment log syncs), so a treatment
 quiets the wearer, its followers and the Mac alike.
@@ -216,8 +244,9 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
   `sensor ended` (the sensor reaches its end now; readings stop), `sensor started` (a new sensor starts now, 60 min
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
-  `mute <kind> [<min>]` (the notification's Mute, or Mute for… with typed minutes), `slow <kind>` (Slow down),
-  `follower mute <kind> [<min>]` / `follower slow <kind>` (the same on the mirroring follower, `mirror` only),
+  `mute <kind> [<min>]` (the notification's Mute, or Mute for… with typed minutes; on a muted episode: Change),
+  `slow <kind>` (Slow down), `unmute <kind>` (Unmute / Alert me anyway), `unslow <kind>` (Stop slowing down),
+  `follower mute|slow|unmute|unslow <kind> [<min>]` (the same on the mirroring follower, `mirror` only),
   `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
 - `mirror` (a line of its own, like `settings`): also run a follower (a phone or the Mac) that mirrors the wearer:
   the wearer's second engine, which gets everything but the wearer's `mute` / `slow` (what it publishes, §2), feeds

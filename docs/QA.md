@@ -294,3 +294,20 @@ throwaway data. Schema: `spikes/settings/settings.json`; `tools/check/run.sh` co
       graph follows within a minute. *Custom* → the rows appear; *Copy the wearer's settings* asks first, then copies.
 - [ ] Mac: the same choices per number (pop-up + *Custom…* field and stepper), Settings from in General, drag to
       reorder the rings. Spanish on Android: every new row and dialog translated.
+
+## Q19 Complete flows (states and exits)
+
+Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way to unmute! On any platform"). The
+`states` check only sees that FEATURES.md has the paragraph; this is the walk-through behind it.
+
+- [ ] List the states the change lets a user enter (muted, slowed, scrolled, dismissed, disabled, paired, custom…).
+      Each one is in the feature's **States and exits** paragraph in `docs/FEATURES.md`.
+- [ ] Each state is visible where the user looks for it, on every platform and surface that shows the feature (Android
+      app / widget / notification / lock screen, Mac panel / widget / notification / Settings).
+- [ ] Each state has a way to change it and to leave it (undo, cancel, turn off, unmute, go back), without needing a
+      notification, and with TalkBack / VoiceOver (a button or an accessibility action).
+- [ ] Leaving it updates everything that showed it at once (history, badge, widgets, ring, notification).
+- [ ] Alerts: emulator `--es alertFeed '65,0'` → Mute 30 min → the muted notification's *Unmute* brings *Low glucose*
+      back at once; Mute → the pill opens the sheet → *Change to 15 min*; Slow down → the chip → *Stop slowing down*;
+      log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under
+      the card and the pill's menu.

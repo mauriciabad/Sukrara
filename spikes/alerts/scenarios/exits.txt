@@ -1,0 +1,97 @@
+# The ways out of a quiet alert (SPEC.md §2 "States and exits"; user, 2026-10-21: "There's no way to unmute! On any
+# platform"): Unmute / Alert me anyway, Change (a new Mute on a muted episode), Stop slowing down. They act on this
+# device only, like the notification's buttons. Format: SPEC.md §7.
+
+scenario Unmute while still low: it alerts at once
+ 0  glucose 65   => Low glucose
+ 2  mute low     => clear low                 # Mute 30 min
+ 6  unmute low   => Low glucose               # still low: at once, not at minute 32
+11               => Low glucose               # the repeats count from there
+12
+
+scenario Unmute back in range: nothing now, at once if it's low again in the episode
+ 0  glucose 65   => Low glucose
+ 2  mute low     => clear low
+ 3  glucose 90                                # in range: the episode holds 5 min after the last low reading
+ 4  unmute low                                # nothing to alert about
+ 5  glucose 65   => Low glucose               # same episode, not muted any more: at once
+10               => Low glucose
+11
+
+scenario Unmute when nothing is muted changes nothing
+ 0  glucose 65   => Low glucose
+ 2  unmute low
+ 5               => Low glucose               # the normal repeat, no extra alert
+ 6
+
+scenario Change a running mute: shorter, then longer
+ 0  glucose 65    => Low glucose
+ 2  mute low 30   => clear low
+ 4  mute low 10                               # Change: until minute 14 instead of 32
+14                => Low glucose
+16  mute low 10   => clear low                # muted again: until 26
+20  mute low 60                               # Change: until 80
+80                => Low glucose
+85                => Low glucose
+86
+
+scenario Stop slowing down: back to the kind's interval, an overdue repeat at once
+settings slow.min=15
+ 0  glucose 65   => Low glucose
+ 2  slow low
+ 5                                            # slowed: no repeat
+ 8  unslow low   => Low glucose               # the 5-min repeat was due at 5: at once
+13               => Low glucose
+14
+
+scenario Alert me anyway lifts the carbs mute on this device; new carbs mute again
+ 0  glucose 65   => Low glucose
+ 3  carbs 10     => clear low                 # quiet until 18
+ 5  unmute low   => Low glucose · eat more    # Alert me anyway: at once
+10               => Low glucose · eat more
+12  carbs 10     => clear low                 # a new treatment mutes again (until 27)
+27               => Low glucose · eat more again
+32               => Low glucose · eat more again
+33
+
+scenario Alert me anyway lifts the insulin mute on a high
+ 0  glucose 200  => High glucose
+ 2  insulin 2    => clear high                # quiet until 62
+10  unmute high  => High glucose · still high after insulin
+25               => High glucose · still high after insulin
+26
+
+scenario Unmute lifts a notification mute and a treatment mute together
+ 0  glucose 65   => Low glucose
+ 2  carbs 10     => clear low                 # quiet until 17
+ 3  mute low 60                               # and muted until 63
+ 6  unmute low   => Low glucose · eat more
+11               => Low glucose · eat more
+12
+
+scenario The follower's Unmute shows the wearer's alert again at once
+mirror
+ 0  glucose 65            => Low glucose; follower Low glucose
+ 2  follower mute low     => follower clear low
+ 5                        => Low glucose      # dropped on the follower
+ 7  follower unmute low   => follower Low glucose   # the wearer's alert is still up: shown here now
+10                        => Low glucose; follower Low glucose
+11
+
+scenario The follower's Stop slowing down shows the skipped repeat at once
+mirror
+settings slow.min=15
+ 0  glucose 65            => Low glucose; follower Low glucose
+ 1  follower slow low
+ 5                        => Low glucose      # skipped on the follower
+ 7  follower unslow low   => follower Low glucose
+10                        => Low glucose; follower Low glucose
+11
+
+scenario The follower's Unmute back in range shows nothing
+mirror
+ 0  glucose 65            => Low glucose; follower Low glucose
+ 2  follower mute low     => follower clear low
+ 3  glucose 90            => clear low
+ 4  follower unmute low                       # the wearer cleared it: nothing to show
+ 5

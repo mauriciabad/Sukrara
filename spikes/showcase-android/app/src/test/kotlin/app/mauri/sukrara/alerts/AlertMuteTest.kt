@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Validation 21, item 7: *Mute 30 min* and a typed *Mute for…* leave the same thing in the shade (the alert becomes
- * "Low muted until …", silent, no buttons), the history says "Low muted for N min" and never "Low cleared" while the
+ * "Low muted until …", silent, with only Unmute and Change…), the history says "Low muted for N min" and never "Low cleared" while the
  * episode goes on; the defaults offer *Slow down* on every level alert; *Mute for…* has one-tap durations.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -50,7 +50,8 @@ class AlertMuteTest {
     private fun assertMuted(min: Int) {
         val n = alert()
         assertTrue(n.extras.getCharSequence("android.title").toString(), n.extras.getCharSequence("android.title").toString().startsWith("Low muted until"))
-        assertTrue("no buttons", n.actions.isNullOrEmpty())
+        // only the ways out (round f29): Unmute and Change… (a Mute for… reply)
+        assertEquals(listOf("Unmute", "Change…"), n.actions.map { it.title.toString() })
         assertTrue(n.timeoutAfter in 1..(min * 60_000L))
         val h = Alerts.history.value.map { it.english() }
         assertTrue(h.first(), h.first().endsWith("Low muted for $min min (notification)"))
