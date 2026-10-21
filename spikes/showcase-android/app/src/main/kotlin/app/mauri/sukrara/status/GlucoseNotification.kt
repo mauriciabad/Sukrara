@@ -76,7 +76,7 @@ object GlucoseNotification {
     private val poster by lazy {
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor { Thread(it, "Sukrara.notify").apply { isDaemon = true } }
     }
-    private val gate = PostGate(1_000, System::currentTimeMillis) { d, run ->
+    private val gate = PostGate(1_000, android.os.SystemClock::elapsedRealtime) { d, run ->
         poster.schedule({ runCatching(run).onFailure { Log.w("Sukrara.notify", "post: $it") } }, d, java.util.concurrent.TimeUnit.MILLISECONDS)
     }
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.features
 
+import kotlinx.coroutines.launch
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -189,8 +190,13 @@ class DebugReceiver : BroadcastReceiver() {
                     "graph" -> app.mauri.sukrara.widgets.GraphWidgetReceiver::class.java
                     else -> app.mauri.sukrara.widgets.CombinedWidgetReceiver::class.java
                 }
-                out.put("cmd", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
-                    .requestPinAppWidget(android.content.ComponentName(c, r), null, null))
+                // with the preview the home screen's banner sends (WidgetPresence.pinPreview)
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    val extras = app.mauri.sukrara.widgets.WidgetPresence.pinPreview(c, r)
+                    android.util.Log.i("Sukrara.debug", "pin requested: " + android.appwidget.AppWidgetManager.getInstance(c)
+                        .requestPinAppWidget(android.content.ComponentName(c, r), extras, null) + " preview=" + (extras != null))
+                }
+                out.put("cmd", "pin requested (with its preview, see the log)")
             }
             // the home screen's "add the widget" banner: what it sees (read-only); --ez reset true shows it again
             "widgetBanner" -> {

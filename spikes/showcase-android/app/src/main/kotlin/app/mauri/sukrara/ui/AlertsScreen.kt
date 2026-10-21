@@ -223,12 +223,14 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             { stringResource0(ctx, R.string.alerts_within_minutes, it) }, NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteFallingMin = m) } }
         "carbs" -> IntChoiceDialog(stringResource(R.string.alerts_quiet_carbs), listOf(10, 15, 20, 30, 45), s.muteCarbsMin, minLabel,
             NumberRange(5.0, 120.0, min), { minutes = null }) { m -> set { it.copy(muteCarbsMin = m) } }
-        "action" -> IntChoiceDialog(stringResource(R.string.alerts_action_mute), listOf(15, 30, 60, 120), s.actionMuteMin, minLabel,
+        "action" -> IntChoiceDialog(stringResource(R.string.alerts_action_mute), AlertSettings.MUTE_PRESETS, s.actionMuteMin, minLabel,
             NumberRange(AlertSettings.MUTE_RANGE.first.toDouble(), AlertSettings.MUTE_RANGE.last.toDouble(), min), { minutes = null }) { m ->
             set { it.copy(actionMuteMin = m) } }
-        "slow" -> IntChoiceDialog(stringResource(R.string.alerts_action_slow), listOf(10, 15, 20, 30, 60), s.slowMin,
+        // only intervals slower than every level alert's repeat: the button shows on all of them (SPEC §3)
+        "slow" -> IntChoiceDialog(stringResource(R.string.alerts_action_slow), s.slowChoices(), s.slowMin,
             { stringResource0(ctx, R.string.alerts_remind_every, it) },
-            NumberRange(AlertSettings.SLOW_RANGE.first.toDouble(), AlertSettings.SLOW_RANGE.last.toDouble(), min), { minutes = null }) { m ->
+            NumberRange(maxOf(AlertSettings.SLOW_RANGE.first, s.slowFloor() + 1).coerceAtMost(AlertSettings.SLOW_RANGE.last).toDouble(), AlertSettings.SLOW_RANGE.last.toDouble(), min),
+            { minutes = null }) { m ->
             set { it.copy(slowMin = m) } }
     }
     if (pickPack) SoundDialog(stringResource(R.string.alerts_sound_pack), Kind.HIGH, null, s.pack, s.cfg(Kind.HIGH).alarm,

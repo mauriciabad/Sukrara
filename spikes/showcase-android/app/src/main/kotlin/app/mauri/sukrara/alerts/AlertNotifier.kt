@@ -144,10 +144,20 @@ object AlertNotifier {
         // the reply's PendingIntent must be mutable: the system adds the typed text to it
         if (a.mute) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_mute_for),
             action(ctx, kind, AlertActionReceiver.MUTE_FOR, 2, mutable = true))
-            .addRemoteInput(RemoteInput.Builder(AlertActionReceiver.TYPED).setLabel(ctx.getString(R.string.alert_action_mute_for_label)).build())
+            .addRemoteInput(RemoteInput.Builder(AlertActionReceiver.TYPED).setLabel(ctx.getString(R.string.alert_action_mute_for_label))
+                // RemoteInput can't ask for a number pad (no input type in RemoteInput.Builder, API 37 SDK: only setChoices,
+                // setAllowFreeFormInput, setAllowDataType, setEditChoicesBeforeSending, setLabel). So the common durations
+                // come as choices, which SystemUI shows as one-tap reply chips (sent at once), and typed minutes still work.
+                .setChoices(muteChoices(a.muteMin).map { ctx.getString(R.string.alerts_minutes, it) }.toTypedArray())
+                .setAllowFreeFormInput(true)
+                .setEditChoicesBeforeSending(RemoteInput.EDIT_CHOICES_BEFORE_SENDING_DISABLED)
+                .build())
             .build())
         return this
     }
+
+    /** *Mute for…*'s one-tap durations: the Mute presets other than the button's own minutes. */
+    fun muteChoices(buttonMin: Int): List<Int> = AlertSettings.MUTE_PRESETS.filter { it != buttonMin }
 
     /** The minutes in a typed *Mute for…* reply ("20", "20 min"), or null when there are none or they're out of range. */
     fun minutes(typed: CharSequence?): Int? = typed?.let { Regex("\\d{1,4}").find(it)?.value?.toInt() }?.takeIf { it in AlertSettings.MUTE_RANGE }
@@ -183,4 +193,24 @@ object AlertNotifier {
     }
 
     fun cancel(ctx: Context, kind: String) = ctx.getSystemService(NotificationManager::class.java).cancel(notificationId(kind))
+
+    /**
+     * After *Mute* or *Mute for…*: the alert's notification becomes "Low muted until 10:42" (silent, no buttons, gone at
+     * the mute's end or when the episode ends), the same for both buttons. Android asks for this after a direct reply
+     * (developer.android.com/develop/ui/views/notifications/build-notification#retrieve-user-input: "After you process
+     * the text, you must update the notification … to hide the direct reply UI and confirm to the user that their reply
+     * is received and processed"); cancelling instead left SystemUI's copy with the typed minutes and the Mute buttons
+     * in the shade (validation 21), while the plain Mute's notification went away.
+     */
+    fun postMuted(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean,
+                  until: Long, now: Long) {
+        val base = build(ctx, kind, sgv, rate, th, at, who, alarm, 0, silent = true)
+        val n = Notification.Builder.recoverBuilder(ctx, base)
+            .setContentTitle(ctx.getString(R.string.alert_muted_title, label(ctx, kind),
+                app.mauri.sukrara.graph.Freshness.timeText(until, now)))
+            .setOnlyAlertOnce(true)
+            .setTimeoutAfter(((until - now) * 1000).coerceAtLeast(1_000))
+            .build()
+        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), n) }
+    }
 }

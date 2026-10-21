@@ -605,14 +605,14 @@ private fun settingsTransfer(): TransferUi {
         if (uri != null) message = runCatching {
             ctx.contentResolver.openOutputStream(uri)!!.use { it.write(T.export().toString(2).toByteArray()) }
             ctx.getString(R.string.transfer_exported)
-        }.getOrElse { ctx.getString(R.string.transfer_write_failed, it.message) }
+        }.getOrElse { ctx.getString(R.string.transfer_write_failed, UserErrors.of(ctx, it)) }
     }
     val importer = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) message = runCatching {
             val j = JSONObject(ctx.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() })
             T.import(ctx, j) ?: ctx.getString(R.string.transfer_imported)
-        }.getOrElse { ctx.getString(R.string.transfer_read_failed, it.message) }
+        }.getOrElse { ctx.getString(R.string.transfer_read_failed, UserErrors.of(ctx, it)) }
     }
     return TransferUi(group = {
         SettingsGroup(stringResource(R.string.transfer_group)) {

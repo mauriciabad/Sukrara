@@ -209,7 +209,7 @@ class MainActivity : ComponentActivity() {
                         } catch (e: GetCredentialCancellationException) {
                             restored(getString(R.string.onboarding_error_cancelled)); return@launch
                         } catch (e: GetCredentialException) {
-                            restored("${e.type}: ${e.message}"); return@launch
+                            restored(e.message?.takeIf { UserErrors.readable(it) } ?: getString(R.string.error_generic)); return@launch
                         }
                         if (secret == null) { restored(getString(R.string.onboarding_error_not_password)); return@launch }
                         busy = getString(R.string.onboarding_busy_restoring)

@@ -112,6 +112,9 @@ struct AlertActions: Codable, Equatable {
     /// Minutes a Mute (preset or typed) and Slow down accept.
     static let muteRange = 1...720
     static let slowRange = 5...120
+    /// The settings' presets (minutes), the same lists as Android's AlertSettings.
+    static let mutePresets = [15, 30, 60, 120]
+    static let slowPresets = [15, 20, 30, 45, 60, 90, 120]
 }
 
 struct AlertSounds: Codable, Equatable {
@@ -128,7 +131,8 @@ struct AlertSettings: Codable, Equatable {
     var muteFallingHigh = AlertMute(on: true, min: 20)
     var muteAfterCarbs = AlertMute(on: true, min: 15)
     var sounds = AlertSounds(pack: "quest", kinds: [:], shuffle: true)
-    var notificationActions = AlertActions(muteMin: 30, slowMin: 15)
+    /// slowMin 30: slower than every level alert's default repeat (5–15 min), so Slow down shows on all of them.
+    var notificationActions = AlertActions(muteMin: 30, slowMin: 30)
     var source = "wearer"           // followers: wearer | own
 
     static let packs = ["arcade", "kart", "quest", "soft"]
@@ -137,6 +141,14 @@ struct AlertSettings: Codable, Equatable {
     subscript(k: AlertKind) -> AlertRule {
         get { alerts[k.rawValue] ?? k.defaultRule }
         set { alerts[k.rawValue] = newValue }
+    }
+
+    /// The Slow down intervals the settings offer: only ones slower than every enabled level alert's repeat, so the
+    /// button shows on all of them (Android's AlertSettings.slowChoices).
+    var slowChoices: [Int] {
+        let floor = AlertKind.levels.map { self[$0] }.filter { $0.on && $0.repeatMin > 0 }.map(\.repeatMin).max() ?? 0
+        let c = AlertActions.slowPresets.filter { $0 > floor }
+        return c.isEmpty ? [AlertActions.slowRange.upperBound] : c
     }
 
     init() {}

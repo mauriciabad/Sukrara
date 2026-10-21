@@ -57,7 +57,7 @@ fun ExportSettings(follower: Boolean, onBack: () -> Unit) {
         value = null
         if (!idx) value = withContext(Dispatchers.IO) { Export.load(ctx, period) }
     }
-    fun failed(e: Throwable) = Toast.makeText(ctx, ctx.getString(R.string.transfer_write_failed, e.message), Toast.LENGTH_LONG).show()
+    fun failed(e: Throwable) = Toast.makeText(ctx, ctx.getString(R.string.transfer_write_failed, UserErrors.of(ctx, e)), Toast.LENGTH_LONG).show()
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(GlucoseCsv.MIME)) { uri ->
         val d = data
         if (uri != null && d != null) scope.launch {

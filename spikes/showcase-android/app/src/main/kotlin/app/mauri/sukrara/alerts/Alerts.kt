@@ -66,6 +66,10 @@ object Alerts {
     private val mirrorSnooze = HashMap<String, AlertEngine.Snooze>()
     /** Mirroring: group → when and which kind this phone last showed (Slow down spaces the wearer's repeats). */
     private val lastMirrored = HashMap<String, Pair<Long, String>>()
+    /** group → the kind whose "muted until" notification is up (AlertNotifier.postMuted): removed when the episode ends. */
+    private val mutedShown = HashMap<String, String>()
+    /** Set while a notification's Mute runs: its alert's clear is the mute, not the episode ending. */
+    private var muting: Long? = null
     /** Once per process: the saved episodes are read back on the first attach. */
     private var resumed = false
 
@@ -159,18 +163,26 @@ object Alerts {
     private fun apply(ctx: Context, actions: List<AlertEngine.Action>) {
         for (a in actions) when (a) {
             is AlertEngine.Fire -> {
+                mutedShown.remove(Kind.group(a.kind))
                 show(ctx, Shown(a.kind, a.reading?.sgv, a.reading?.rate, a.th, a.at, a.treated))
                 posted[Kind.group(a.kind)] = a.id
                 note(AlertNote(Proto.nowS(), AlertNote.FIRED, listOf(a.kind), a.treated, a.n, a.reading?.sgv))
                 publish?.invoke(event(a.kind, "fire", a.id, a.at, a.reading, a.th, a.n, a.treated))
             }
             is AlertEngine.Clear -> {
-                if (posted[Kind.group(a.kind)] == a.id) { AlertNotifier.cancel(ctx, a.kind); posted.remove(Kind.group(a.kind)) }
-                note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(a.kind)))
+                val until = muting
+                if (posted[Kind.group(a.kind)] == a.id) {
+                    posted.remove(Kind.group(a.kind))
+                    if (until != null) showMuted(ctx, a.kind, until) else AlertNotifier.cancel(ctx, a.kind)
+                }
+                // muted: the history already says "Low muted for 45 min"; the episode goes on
+                if (until == null) note(AlertNote(Proto.nowS(), AlertNote.CLEARED, listOf(a.kind)))
                 publish?.invoke(event(a.kind, "clear", a.id, a.at, engine.last, null, 0, 0))
             }
         }
         state.value = engine.states()
+        // the episode a "muted until" notification stands for is over: nothing is muted any more
+        mutedShown.entries.removeAll { (g, k) -> (g !in state.value).also { if (it) AlertNotifier.cancel(ctx, k) } }
         paused.value = enginePaused() + mirrorPaused()
         // A mute ending between two readings fires from the timer: redraw the widgets now, or their last-treatment
         // ring still shows the minute left from the last reading while the alert sounds.
@@ -189,6 +201,13 @@ object Alerts {
         val acts = AlertNotifier.Actions(mute = x.kind !in Kind.ALWAYS, muteMin = s.actionMuteMin,
             slowMin = s.slowMin.takeIf { !slowed && (mirrors(x.kind) || rep in 1 until s.slowMin) })
         AlertNotifier.post(ctx, x.kind, x.sgv, x.rate, x.th, x.at, who, s.cfg(x.kind).alarm, x.treated, silent, acts)
+    }
+
+    /** [kind]'s alert notification becomes "muted until [until]" (AlertNotifier.postMuted). */
+    private fun showMuted(ctx: Context, kind: String, until: Long) {
+        val x = shown[Kind.group(kind)] ?: return AlertNotifier.cancel(ctx, kind)
+        AlertNotifier.postMuted(ctx, x.kind, x.sgv, x.rate, x.th, x.at, who, _settings.value.cfg(x.kind).alarm, until, Proto.nowS())
+        if (!mirrors(kind)) mutedShown[Kind.group(kind)] = x.kind   // a mirrored one ends with its timeout
     }
 
     /** The notification of [kind]'s group again, without sound (its actions updated; a typed reply's spinner gone). */
@@ -223,7 +242,7 @@ object Alerts {
             val side = Kind.side(kind)
             val cur = mirrorSnooze[side] ?: AlertEngine.Snooze(0, 0)
             mirrorSnooze[side] = if (slow) cur.copy(slowMin = s.slowMin) else cur.copy(until = now + m * 60L)
-            if (slow) repost(ctx, kind) else posted.remove(Kind.group(kind))?.let { AlertNotifier.cancel(ctx, kind) }
+            if (slow) repost(ctx, kind) else posted.remove(Kind.group(kind))?.let { showMuted(ctx, kind, now + m * 60L) }
             paused.value = enginePaused() + mirrorPaused()
             SukraraHooks.refresh(ctx, "alerts", force = true)
             return
@@ -231,7 +250,8 @@ object Alerts {
         if (role == null) return
         engine.sensor = SensorLife.current.value
         val d = doses()
-        apply(ctx, if (slow) engine.slow(kind, effective(), d, now) else engine.mute(kind, m, effective(), d, now))
+        if (slow) apply(ctx, engine.slow(kind, effective(), d, now))
+        else { muting = now + m * 60L; try { apply(ctx, engine.mute(kind, m, effective(), d, now)) } finally { muting = null } }
         if (slow) repost(ctx, kind)
         engine.snoozes(now)[Kind.side(kind)]?.let { sn ->
             publish?.invoke(event(kind, "snooze", posted[Kind.group(kind)] ?: AlertEngine.newId(), now, engine.last, null, 0, 0)
@@ -339,7 +359,12 @@ object Alerts {
 private fun JSONObject.optIntOrNull(k: String): Int? = if (has(k) && !isNull(k)) optInt(k) else null
 private fun JSONObject.optDoubleOrNull(k: String): Double? = if (has(k) && !isNull(k)) optDouble(k) else null
 
-/** AlarmManager target of [Alerts]' timer. */
+/**
+ * AlarmManager target of [Alerts]' timer, and `TIME_SET`: the timer is an elapsed-time alarm planned from the wall
+ * clock, so after the clock is moved the check runs again at once (and plans the timer anew). Validation 21: with the
+ * clock moved 27 min forward the high stayed up and no "no data" came, because the alarm still waited the real
+ * minutes; a real gap alerts on time (scenario "A high with no more readings…").
+ */
 class AlertCheckReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = Alerts.check(context)
 }

@@ -98,11 +98,22 @@ data class AlertSettings(
     val shuffle: Boolean = true,
     /** The alert notification's actions (SPEC §2): *Mute <n> min* and the interval *Slow down* repeats at. */
     val actionMuteMin: Int = 30,
-    val slowMin: Int = 15,
+    /** 30: slower than every level alert's default repeat (5–15 min), so *Slow down* shows on all of them. */
+    val slowMin: Int = 30,
     /** Followers: "wearer" = mirror the wearer's alerts, "own" = these rules. */
     val source: String = "wearer",
 ) {
     fun cfg(k: String): KindCfg = kinds[k] ?: DEFAULTS.getValue(k)
+
+    /**
+     * The *Slow down* intervals the settings offer: only ones slower than every level alert's repeat (the alerts that
+     * repeat often enough to want it), so the button shows on all of them. An interval the alert already repeats at
+     * hides the button (SPEC §2): 10 min, offered before, hid it on every default alert but very low.
+     */
+    fun slowChoices(): List<Int> = SLOW_PRESETS.filter { it > slowFloor() }.ifEmpty { listOf(SLOW_RANGE.last) }
+
+    /** The longest repeat of the enabled level alerts: a *Slow down* interval must be longer (custom minutes too). */
+    fun slowFloor(): Int = Kind.LEVELS.map { cfg(it) }.filter { it.on && it.repeatMin > 0 }.maxOfOrNull { it.repeatMin } ?: 0
     fun soundOf(k: String): String = packFor[k] ?: pack
 
     /**
@@ -141,6 +152,9 @@ data class AlertSettings(
         /** Minutes a notification's Mute (preset or typed) and Slow down accept. */
         val MUTE_RANGE = 1..720
         val SLOW_RANGE = 5..120
+        /** The settings' presets (minutes): Mute and Slow down, the same lists on Android and Mac. */
+        val MUTE_PRESETS = listOf(15, 30, 60, 120)
+        val SLOW_PRESETS = listOf(15, 20, 30, 45, 60, 90, 120)
 
         /** The user's own settings (2026-10-18). */
         val DEFAULTS = mapOf(

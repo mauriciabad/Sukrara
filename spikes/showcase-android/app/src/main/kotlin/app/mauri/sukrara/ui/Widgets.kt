@@ -98,6 +98,8 @@ import kotlinx.coroutines.delay
 fun nowSeconds(everyMs: Long = 10_000): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis() / 1000; delay(everyMs) } }
+    // back in the foreground: the current time at once, not up to [everyMs] later (validation 21: a 3-min-old value)
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { now = System.currentTimeMillis() / 1000; onPauseOrDispose { } }
     return now
 }
 

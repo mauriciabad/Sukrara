@@ -49,6 +49,14 @@ object Live {
     @Volatile var listener: Listener? = null
     val status = MutableStateFlow(WearerStatus())
 
+    /**
+     * The newest stored reading at the service's start (a restart, an app update): the notification and the status bar
+     * show it ("No reading since …", struck through) instead of "waiting for glucose…" until the source sends one.
+     */
+    fun seed(r: Reading?) {
+        if (r != null) status.update { if ((it.last?.t ?: 0) < r.t) it.copy(last = r) else it }
+    }
+
     fun reading(r: Reading) {
         status.update { it.copy(last = r) }
         listener?.onReading(r)

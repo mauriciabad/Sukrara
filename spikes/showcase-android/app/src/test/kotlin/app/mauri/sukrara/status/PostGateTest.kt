@@ -73,4 +73,16 @@ class PostGateTest {
         advance(2_000)
         assertEquals(2, posted.size)
     }
+
+    /**
+     * Validation 21, item 5: the clock set back after a post (a wall clock put back 3 h) held the next change for 3 h and
+     * folded every later one into it: the notification stayed at "waiting for glucose…". A change still posts within
+     * one gap.
+     */
+    @Test fun clockSetBackNeverHoldsPosts() {
+        submit("waiting")
+        now -= 3 * 3_600_000L                     // the clock goes back 3 h
+        submit("r1"); advance(1_000); submit("r2"); advance(1_000)
+        assertEquals(listOf("waiting", "r1", "r2"), posted.map { it.second })
+    }
 }

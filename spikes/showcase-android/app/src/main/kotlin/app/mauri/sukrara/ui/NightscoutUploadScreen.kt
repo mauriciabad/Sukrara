@@ -180,7 +180,7 @@ private fun NightscoutSiteDialog(s: Nightscout.Settings, onClose: () -> Unit) {
                         val r = withContext(Dispatchers.IO) { runCatching { Nightscout.test(url, token, credential, if (token) s.api else NsApi.V1) } }
                         busy = false
                         result = r.fold({ true to okText.format(it.ifEmpty { "?" }) }, { e ->
-                            false to if (e is NsFailure && e.outcome is Outcome.AuthFailed) refused else errText.format(e.message ?: e.javaClass.simpleName)
+                            false to if (e is NsFailure && e.outcome is Outcome.AuthFailed) refused else errText.format(UserErrors.of(ctx, e))
                         })
                     }
                 }) { Text(stringResource(if (busy) R.string.ns_site_testing else R.string.ns_site_test)) }

@@ -165,7 +165,12 @@
             android:exported="true" />
         <receiver
             android:name=".alerts.AlertCheckReceiver"
-            android:exported="false" />
+            android:exported="false">
+            <!-- the clock was set (by hand, the network): the timer counts elapsed time, so re-check against the new clock -->
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
         <!-- the latest reading's next freshness step (90 s / 5 min / 20 min / 3 h): every surface redraws without a reading -->
         <receiver
             android:name=".status.FreshnessTicker$Receiver"

@@ -444,6 +444,8 @@
     <string name="alert_action_mute_for">Mute for…</string>
     <!-- Hint in the reply field of Mute for…: how many minutes. [CHAR LIMIT=20] -->
     <string name="alert_action_mute_for_label">Minutes</string>
+    <!-- The alert notification after Mute / Mute for…; %1$s = alert name ("Low"), %2$s = time the mute ends. [CHAR LIMIT=40] -->
+    <string name="alert_muted_title">%1$s muted until %2$s</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">eat more</string>
     <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
@@ -1044,13 +1046,13 @@
     <!-- Settings group: what the alert notification's buttons do. [CHAR LIMIT=40] -->
     <string name="alerts_group_actions">From the notification</string>
     <!-- Setting: how long the notification's Mute button silences the alert. [CHAR LIMIT=40] -->
-    <string name="alerts_action_mute">Mute</string>
+    <string name="alerts_action_mute">Mute for</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high always alert</string>
+    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high are never muted, only slowed down</string>
     <!-- Setting: the slower reminder interval the notification's Slow down button sets. [CHAR LIMIT=40] -->
-    <string name="alerts_action_slow">Slow down</string>
+    <string name="alerts_action_slow">Slow down to every</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_action_slow_summary">Reminders every %1$d min until back in range</string>
+    <string name="alerts_action_slow_summary">%1$d min · lasts until back in range</string>
     <!-- The set of sounds the alerts use. [CHAR LIMIT=40] -->
     <string name="alerts_sound_pack">Sound pack</string>
     <!-- Sound option: the sound pack's sound. %1$s = pack name. [CHAR LIMIT=60] -->
@@ -2187,4 +2189,36 @@
     <string name="ns_site_err">Could not reach it · %1$s</string>
     <!-- Button [CHAR LIMIT=20] -->
     <string name="ns_site_save">Save</string>
+    <!-- The glucose source's problem, under the home panel: Juggluco's web server can't be reached. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_juggluco">Can\'t reach Juggluco. Open it and check that its web server is on.</string>
+    <!-- Juggluco closed the live stream. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_juggluco_stream">Juggluco stopped sending readings. Reconnecting…</string>
+    <!-- Bluetooth is switched off. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_bluetooth_off">Bluetooth is off</string>
+    <!-- No sensor has been paired. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_no_sensor">No sensor paired</string>
+    <!-- The sensor reached its end. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_sensor_ended">The sensor has ended. Pair a new one.</string>
+    <!-- The paired sensor has no driver. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_unsupported">This sensor isn\'t supported</string>
+    <!-- The Bluetooth link to the sensor dropped. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_reconnecting">Lost the sensor. Reconnecting…</string>
+    <!-- The Nearby devices permission is missing. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_permission">Sukrara needs the Nearby devices permission to find the sensor</string>
+    <!-- Any other source problem. [CHAR LIMIT=NONE] -->
+    <string name="source_problem_other">Can\'t get readings from the sensor. Retrying…</string>
+    <!-- A failure: the server name doesn't resolve. [CHAR LIMIT=NONE] -->
+    <string name="error_no_server">Can\'t find the server. Check the address and the internet connection.</string>
+    <!-- A failure: the server didn't answer in time. [CHAR LIMIT=NONE] -->
+    <string name="error_timeout">The server didn\'t answer in time. Try again.</string>
+    <!-- A failure: the connection was refused. [CHAR LIMIT=NONE] -->
+    <string name="error_cannot_connect">Can\'t connect to the server. Check the internet connection.</string>
+    <!-- A failure: TLS failed. [CHAR LIMIT=NONE] -->
+    <string name="error_secure_connection">The secure connection failed</string>
+    <!-- A failure: data in an unexpected format. [CHAR LIMIT=NONE] -->
+    <string name="error_unexpected_answer">The data isn\'t in the expected format</string>
+    <!-- A failure: reading or sending data failed. [CHAR LIMIT=NONE] -->
+    <string name="error_network">Couldn\'t read or send the data. Try again.</string>
+    <!-- A failure without a better description. [CHAR LIMIT=NONE] -->
+    <string name="error_generic">Something went wrong. Try again.</string>
 </resources>
