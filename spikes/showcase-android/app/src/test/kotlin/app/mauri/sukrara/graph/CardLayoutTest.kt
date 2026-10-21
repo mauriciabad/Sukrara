@@ -513,6 +513,13 @@ class CardLayoutTest {
                 if (info(scrolled, "chart.y") != want) problems += "$name: y range ${info(scrolled, "chart.y")}, want $want (visible $lo..$hi)"
                 val window = if (back > 0) "${(from - now) / 60}m..${(end - now) / 60}m" else ""
                 if (info(scrolled, "chart.window") != window) problems += "$name: window \"${info(scrolled, "chart.window")}\", want \"$window\""
+                // treatment labels only up to rules.json "treatmentLabels" maxHours
+                val maxLabelS = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONObject("treatmentLabels").getLong("maxHours") * 3600
+                if (GlucoseGraph.LABELS_MAX_S != maxLabelS) problems += "labels: GlucoseGraph.LABELS_MAX_S ${GlucoseGraph.LABELS_MAX_S}, rules.json $maxLabelS"
+                val labelled = scrolled.all("chart.label").isNotEmpty()
+                if (w > maxLabelS && labelled) problems += "$name: a ${w / 3600} h window draws treatment labels (over ${maxLabelS / 3600} h: none)"
+                if (w <= maxLabelS && !labelled && sc.treatments.any { it.k != "note" && it.t in from..end && GraphSettings.value.marks.label(it.k) })
+                    problems += "$name: a ${w / 3600} h window with treatments draws no labels"
                 val away = back > 0 || span != null
                 if ((scrolled.first("chart.now") != null) != away) problems += "$name: the Now pill ${if (away) "is missing" else "shows at now"}"
                 // the shared, font-independent answer (the Mac checks the same)

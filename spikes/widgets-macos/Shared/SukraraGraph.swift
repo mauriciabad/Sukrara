@@ -441,6 +441,8 @@ struct MarkShow: Codable, Equatable {
     func any(_ k: String) -> Bool { !(on[k]?.isEmpty ?? true) }
     /// A label part (amount or time) of `k` shows.
     func label(_ k: String) -> Bool { has(k, MarkShow.amount) || has(k, MarkShow.time) }
+    /// The same without any label (a chart too long for them: `GlucoseGraph.labelsMaxS`).
+    func withoutLabels() -> MarkShow { MarkShow.kinds.reduce(self) { $0.with($1, MarkShow.amount, false).with($1, MarkShow.time, false) } }
     func with(_ k: String, _ part: String, _ v: Bool) -> MarkShow {
         var m = on; var p = m[k] ?? []
         if v { p.insert(part) } else { p.remove(part) }
@@ -876,7 +878,9 @@ enum GlucoseGraph {
         // Treatment labels go under their markers, in the hour labels' row and, when needed, a second row under it.
         // Only the parts the settings show (`st.marks`): an entry with nothing shown is left out, and the marker lane
         // is there only when a point or a mute line is drawn in it.
-        let show = st.marks
+        // A window longer than `labelsMaxS` (zoomed far out, a long widget) shows no treatment labels: they would be
+        // meaningless crowds (the user, 2026-10-21); points and mute lines follow the settings as always.
+        let show = st.window > Self.labelsMaxS ? st.marks.withoutLabels() : st.marks
         let muteUntil: ((GraphMark) -> TimeInterval?)? = alerts.map { a in { AlertStatus.muteUntil($0, a) } }
         func mutes(_ m: GraphMark) -> Bool { show.has(m.k, MarkShow.line) && muteUntil?(m) != nil }
         let shownMarks = st.treatments ? marks.filter { m in
@@ -928,10 +932,16 @@ enum GlucoseGraph {
             if w == g.valW { break }
             g = geo(w)
         }
-        let left = g.left, right = g.right, layout = g.layout, lane1 = g.lane1, top = g.top, bottom = g.bottom
-        // A scrolling surface eases the plot's bottom (the treatment lane comes and goes with the marks in the window)
-        // instead of letting the plot jump: `view.plotInset` is the distance from the area's bottom it draws at.
+        let left = g.left, right = g.right, layout = g.layout, top = g.top
+        // A scrolling surface eases the plot's bottom (the treatment lane and the second label row come and go with the
+        // marks in the window and the zoom) instead of letting the plot jump: `view.plotInset` is the distance from the
+        // area's bottom it draws at; the marker lane and the label rows follow it (GlucoseGraph.kt).
         let plotBottom = view?.plotInset.map { min(max(area.maxY - $0, top + 20 * d), area.maxY) } ?? g.plotBottom
+        let eased = view?.plotInset != nil
+        let textRow = labels || !(layout?.labels.isEmpty ?? true)
+        let lane1: CGFloat = !eased ? g.lane1
+            : min(max(area.maxY - (textRow ? 14 * d : 0) - (lane ? 12 * d : 0) - plotBottom, 0), TreatmentMarks.laneH * d)
+        let bottom: CGFloat = !eased ? g.bottom : lane ? plotBottom + 12 * d : plotBottom
         let values = plotBottom == g.plotBottom ? g.values : axisValues(top, plotBottom)
         let pctCol = left - area.minX
         func x(_ t: TimeInterval) -> CGFloat { left + CGFloat((t - from) / st.window) * (right - left) }
@@ -1181,6 +1191,9 @@ enum GlucoseGraph {
             rec.add("chart.now", CGRect(x: px, y: py, width: pw, height: ph), look.text)
         }
     }
+
+    /// The longest window whose treatment marks get labels (layout/rules.json "treatmentLabels"; GlucoseGraph.kt `LABELS_MAX_S`).
+    static let labelsMaxS: TimeInterval = 24 * 3600
 
     /// Readings per pt of plot from which the line is drawn as columns (GlucoseGraph.kt `DENSE_PER_DP`).
     static let densePerDp: CGFloat = 6
