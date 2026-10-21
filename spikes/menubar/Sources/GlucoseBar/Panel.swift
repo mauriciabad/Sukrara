@@ -38,11 +38,56 @@ import SwiftUI
     @Published var logBlocked: String?
     @Published var following = false
 
+    /// The quiet alerts on this Mac (Alerts.active) and what the user does with them (SPEC §2 "States and exits").
+    @Published var quiet: [Alerts.Active] = []
+    var onQuiet: ((QuietOp) -> Void)?
+
     var onAddTreatment: (() -> Void)?
     var onFollow: (() -> Void)?
     var onReport: (() -> Void)?
     var onTreatments: (() -> Void)?
     var onSettings: (() -> Void)?
+}
+
+/// A way out of a quiet alert (or into one, from the same list): the panel's rows, the pill's menu, Settings › Alerts.
+enum QuietOp { case unmute(AlertKind), unslow(AlertKind), mute(AlertKind, Int), slow(AlertKind) }
+
+/// The mute lengths offered (the schema's Mute presets).
+let quietMinutes: [Int] = SettingsSpec.actionMute.presets.map { Int($0) }
+
+/// `q`'s ways out as a menu (the card pill's click, AppKit): Unmute / Alert Me Anyway, Stop Slowing Down, Change to /
+/// Mute for … (HIG "Menus": a menu offers the commands for the item it opens on).
+@MainActor func quietMenu(_ list: [Alerts.Active], slowMin: Int, _ act: @escaping (QuietOp) -> Void) -> NSMenu {
+    let menu = NSMenu()
+    for (i, q) in list.enumerated() {
+        if i > 0 { menu.addItem(.separator()) }
+        let head = NSMenuItem(title: q.title, action: nil, keyEquivalent: "")
+        head.isEnabled = false
+        menu.addItem(head)
+        if let l = q.lift { menu.addItem(ClosureMenuItem(l) { act(.unmute(q.kind)) }) }
+        if q.slowMin > 0 { menu.addItem(ClosureMenuItem("Stop Slowing Down") { act(.unslow(q.kind)) }) }
+        else if q.canSlow { menu.addItem(ClosureMenuItem("Slow to \(slowMin) min") { act(.slow(q.kind)) }) }
+        if q.canMute {
+            let sub = NSMenu()
+            for m in quietMinutes { sub.addItem(ClosureMenuItem("\(m) min") { act(.mute(q.kind, m)) }) }
+            let item = NSMenuItem(title: q.quiet == .notification ? "Change To" : "Mute For", action: nil, keyEquivalent: "")
+            item.submenu = sub
+            menu.addItem(item)
+        }
+    }
+    return menu
+}
+
+/// A menu item that runs a closure.
+final class ClosureMenuItem: NSMenuItem {
+    private let run: () -> Void
+    init(_ title: String, _ run: @escaping () -> Void) {
+        self.run = run
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+    }
+    required init(coder: NSCoder) { fatalError("not used") }
+    @objc private func fire() { run() }
 }
 
 // MARK: - The view
@@ -53,6 +98,9 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             card
+            // the ways out of a quiet alert (round f29): one block per muted / quiet / slowed alert, its buttons as
+            // menu-like rows (VoiceOver reaches each one; nothing needs the notification)
+            ForEach(model.quiet, id: \.kind) { q in QuietBlock(q: q, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) } }
             Divider().padding(.horizontal, 4)
             VStack(spacing: 0) {
                 // A menu item like the rows under it; Return chooses it (shown as ↩, the menu's key-equivalent glyph).
@@ -110,6 +158,32 @@ private struct ModuleBackground: View {
     }
 }
 
+/// One quiet alert in the panel: its line, then Unmute / Alert Me Anyway, Stop Slowing Down and a Change To / Mute For
+/// menu of the mute lengths.
+private struct QuietBlock: View {
+    let q: Alerts.Active
+    let slowMin: Int
+    let act: (QuietOp) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Label(q.title, systemImage: q.quiet == nil ? "bell.badge.waveform" : "bell.slash")
+                .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            if let l = q.lift { PanelRow(title: l, action: { act(.unmute(q.kind)) }) }
+            if q.slowMin > 0 { PanelRow(title: "Stop Slowing Down", action: { act(.unslow(q.kind)) }) }
+            if q.canMute {
+                Menu {
+                    ForEach(quietMinutes, id: \.self) { m in Button("\(m) min") { act(.mute(q.kind, m)) } }
+                } label: {
+                    Text(q.quiet == .notification ? "Change To" : "Mute For").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.visible)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+            }
+        }
+    }
+}
+
 /// A menu-like row: full width, highlighted on hover, Return-free (click).
 private struct PanelRow: View {
     let title: String
@@ -160,6 +234,12 @@ private struct CardRep: NSViewRepresentable {
         v.style = model.style
         v.alerts = model.alerts
         v.paused = model.paused
+        // a click on the "45m left" pill opens its ways out as a menu (the same as the rows under the card)
+        v.onStatus = { [weak model] box, view in
+            guard let model, !model.quiet.isEmpty else { return }
+            let menu = quietMenu(model.quiet, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) }
+            menu.popUp(positioning: nil, at: NSPoint(x: box.minX, y: box.maxY + 4), in: view)
+        }
         v.metricsOf = model.metricsOf
         v.now = model.now
         if let back = model.previewScrollBack, let now = model.now { v.scrollEnd = back > 0 ? now.timeIntervalSince1970 - back : nil }

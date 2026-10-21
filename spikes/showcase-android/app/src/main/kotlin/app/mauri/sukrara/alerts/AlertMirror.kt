@@ -12,7 +12,9 @@ package app.mauri.sukrara.alerts
  * - *Mute* drops the wearer's alerts of that side while it lasts (very low and extremely high always show);
  * - *Slow down* shows a repeat only once `slowMin` has passed since the last one shown here (a more severe kind of the
  *   side always shows);
- * - both end with the wearer's episode (a firing with `n` = 1).
+ * - both end with the wearer's episode (a firing with `n` = 1);
+ * - *Unmute* ([unmute]) and *Stop slowing down* ([unslow]) end them on this device; the wearer's newest firing that's
+ *   still up (dropped or skipped here) then shows at once.
  *
  * The same class drives the app (Alerts) and the timeline scenarios (AlertScenarioTest, `mirror`).
  */
@@ -25,12 +27,15 @@ class AlertMirror {
     private val shown = HashMap<String, String>()
     /** group → id of the wearer's newest firing, shown here or not. */
     private val newest = HashMap<String, String>()
+    /** group → the wearer's newest firing was cleared by the wearer. */
+    private val newestCleared = HashSet<String>()
 
     /** The wearer fired [k] (firing [id], the episode's [n]th, at [at]): true = show it here. */
     fun fire(k: String, id: String, n: Int, at: Long): Boolean {
         val side = Kind.side(k)
         val group = Kind.group(k)
         newest[group] = id
+        newestCleared.remove(group)
         if (n <= 1) snooze.remove(side)   // a new episode on the wearer
         val sn = snooze[side]
         val muted = sn != null && sn.until > at && k !in Kind.ALWAYS
@@ -49,6 +54,7 @@ class AlertMirror {
      */
     fun clear(k: String, id: String): Boolean {
         val g = Kind.group(k)
+        if (newest[g] == id) newestCleared += g
         val cur = shown[g] ?: return false
         if (cur != id && newest[g] != id) return false
         shown.remove(g)
@@ -67,6 +73,41 @@ class AlertMirror {
         val side = Kind.side(k)
         snooze[side] = (snooze[side] ?: AlertEngine.Snooze(0, 0)).copy(slowMin = slowMin)
     }
+
+    /**
+     * This device's *Unmute* on [k]'s side at [now]: returns the id of the wearer's newest firing to show at once (it
+     * is still up on the wearer and isn't showing here), or null.
+     */
+    fun unmute(k: String, now: Long): String? {
+        val side = Kind.side(k)
+        val sn = snooze[side] ?: return null
+        if (sn.until <= now) return null
+        put(side, sn.copy(until = 0))
+        return again(k, now)
+    }
+
+    /** This device's *Stop slowing down* on [k]'s side: like [unmute], a skipped repeat still up shows at once. */
+    fun unslow(k: String, now: Long): String? {
+        val side = Kind.side(k)
+        val sn = snooze[side] ?: return null
+        if (sn.slowMin == 0) return null
+        put(side, sn.copy(slowMin = 0))
+        return if (sn.until > now && k !in Kind.ALWAYS) null else again(k, now)
+    }
+
+    private fun put(side: String, sn: AlertEngine.Snooze) { if (sn.until == 0L && sn.slowMin == 0) snooze.remove(side) else snooze[side] = sn }
+
+    private fun again(k: String, now: Long): String? {
+        val g = Kind.group(k)
+        val id = newest[g] ?: return null
+        if (g in newestCleared || shown[g] == id) return null
+        shown[g] = id
+        last[g] = now to k
+        return id
+    }
+
+    /** This device's actions in force on [k]'s side (the sheet and Active now). */
+    fun snooze(k: String): AlertEngine.Snooze? = snooze[Kind.side(k)]
 
     fun slowed(k: String): Boolean = (snooze[Kind.side(k)]?.slowMin ?: 0) > 0
     fun showing(k: String): Boolean = Kind.group(k) in shown

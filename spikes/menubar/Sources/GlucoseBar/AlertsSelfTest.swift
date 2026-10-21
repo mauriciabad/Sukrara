@@ -345,13 +345,14 @@ enum AlertScenarios {
         var sensorInfo: SensorInfo?
         func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
         var follower = AlertMirror()
+        var pubFires: [String: AlertEvent] = [:]
         func engine(published: Bool = false) -> AlertEngine {
             let e = AlertEngine(settings: s, now: { clock })
             e.sensor = { sensorInfo }
             e.rapidInsulin = { trs.filter { $0.k == "rapid" && !$0.del }.map(\.t) }
             e.carbs = { trs.filter { $0.k == "carbs" && !$0.del }.map(\.t) }
             if published {
-                e.onFire = { if follower.fire($0.k, id: $0.id, n: $0.n, at: $0.at) { record("follower \($0.k.message(treated: $0.tr))") } }
+                e.onFire = { pubFires[$0.id] = $0; if follower.fire($0.k, id: $0.id, n: $0.n, at: $0.at) { record("follower \($0.k.message(treated: $0.tr))") } }
                 e.onClear = { if follower.clear($0.k, id: $0.id) { record("follower clear \($0.k.rawValue)") } }
             } else {
                 e.onFire = { record($0.k.message(treated: $0.tr)) }
@@ -401,6 +402,9 @@ enum AlertScenarios {
                 // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
                 case "mute": e.mute(AlertKind(rawValue: w[1])!, min: w.count > 2 ? Int(w[2])! : s.notificationActions.muteMin)
                 case "slow": e.slow(AlertKind(rawValue: w[1])!)
+                // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop slowing down
+                case "unmute": e.unmute(AlertKind(rawValue: w[1])!)
+                case "unslow": e.unslow(AlertKind(rawValue: w[1])!)
                 // the same actions on the follower's notification (mirror): this device only
                 case "follower":
                     let k = AlertKind(rawValue: w[2])!
@@ -409,6 +413,10 @@ enum AlertScenarios {
                         let m = w.count > 3 ? Int(w[3])! : s.notificationActions.muteMin
                         if !k.always, follower.mute(k, until: clock.addingTimeInterval(TimeInterval(m * 60))) { record("follower clear \(k.rawValue)") }
                     case "slow": follower.slow(k, slowMin: s.notificationActions.slowMin)
+                    case "unmute", "unslow":
+                        if let id = w[1] == "unmute" ? follower.unmute(k, at: clock) : follower.unslow(k, at: clock), let f = pubFires[id] {
+                            record("follower \(f.k.message(treated: f.tr))")
+                        }
                     default: fatalError("unknown event: \(ev)")
                     }
                 case "set":

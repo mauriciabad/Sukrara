@@ -1752,4 +1752,25 @@
     <string name="graph_ring_move_bottom">Mover al final</string>
     <string name="graph_ring_drag">Arrastrar para reordenar</string>
     <string name="graph_ring_order_note">Arrastra una fila por su asa para cambiar dónde va su segmento en los anillos, en el sentido de las agujas del reloj desde arriba.</string>
+
+    <!-- Ronda f29: salir de una alerta silenciada / espaciada -->
+    <string name="alert_action_unmute">Reactivar</string>
+    <string name="alert_action_change">Cambiar…</string>
+    <string name="alert_action_unslow">Dejar de espaciar</string>
+    <string name="alerts_note_unmuted">%1$s reactivada</string>
+    <string name="alerts_note_unslowed">%1$s: de nuevo cada %2$d min</string>
+    <string name="quiet_title_muted">%1$s silenciada hasta las %2$s</string>
+    <string name="quiet_title_carbs">%1$s en silencio tras los hidratos hasta las %2$s</string>
+    <string name="quiet_title_insulin">%1$s en silencio tras la insulina hasta las %2$s</string>
+    <string name="quiet_title_falling">%1$s en silencio: bajando hacia el rango</string>
+    <string name="quiet_title_slowed">%1$s: avisos cada %2$d min</string>
+    <string name="quiet_title_mirrored_treatment">%1$s en silencio tras un tratamiento. El teléfono de quien lleva el sensor decide cuándo vuelve a avisar.</string>
+    <string name="quiet_unmute">Reactivar</string>
+    <string name="quiet_alert_anyway">Avisarme igualmente</string>
+    <string name="quiet_stop_slowing">Dejar de espaciar</string>
+    <string name="quiet_change">Cambiar a</string>
+    <string name="quiet_mute_for">Silenciar</string>
+    <string name="quiet_settings">Ajustes de alertas</string>
+    <string name="alerts_active_now">Activas ahora</string>
+    <string name="quiet_a11y_action">%1$s: %2$s</string>
 </resources>
