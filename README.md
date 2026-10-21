@@ -25,9 +25,9 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 > **Not a medical device** (see the [disclaimer](#disclaimer)).
 
 <p align="center">
-  <img src="docs/img/widgets/widgets-light.png" alt="Android home-screen widgets, light: the glucose number 100 with a trend arrow, time-in-range rings for 7 days and 1 day, a 12 h chart with the time spent at each level and the sensor's 12 days left under it, and a smaller value widget" width="270">
+  <img src="docs/img/widgets/widgets-light.png" alt="Android home-screen widgets, light: the glucose number 175 falling slowly after dinner, time-in-range rings for 7 days and 1 day, a 12 h chart of a day with meals (a short low before lunch, highs after lunch and dinner) with the time spent at each level and the sensor's 11 days left under it, and a smaller value widget" width="270">
   <img src="docs/img/widgets/widgets-dark.png" alt="The same widgets in the dark theme" width="270">
-  <img src="docs/img/home/home.png" alt="Sukrara home screen on Android: the share-with-your-clinic banner with LibreView and Tidepool, a backup reminder, and the glucose card whose slot shows 4u of insulin and 40g of carbs logged a minute ago" width="206">
+  <img src="docs/img/home/home.png" alt="Sukrara home screen on Android: the share-with-your-clinic banner with LibreView and Tidepool, a backup reminder, and the glucose card whose slot shows 4u of insulin and 40g of carbs just logged" width="206">
 </p>
 <p align="center">
   <img src="docs/img/mac/menubar.png" alt="Mac menubar item: 143 and a falling trend arrow" height="44">
@@ -38,17 +38,17 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
 </p>
 <p align="center">
   <img src="docs/img/notification/alert-actions.png" alt="Glucose notification above a low alert with one-tap choices 15, 60 and 120 min and the actions Mute 30 min, Slow to 30 min and Mute for…" width="300">
-  <img src="spikes/showcase-android/evidence/p4-share-v3-qr.png" alt="Share screen: a small QR for a 63-character link, with your name and picture" width="180">
-  <img src="spikes/showcase-android/evidence/q1-allow-dialog-matches.png" alt="Allow dialog: the follower's name and generated picture next to the invite's label" width="180">
+  <img src="docs/img/settings/sharing.png" alt="Share with people: send an invite link, pair nearby over Bluetooth, and the followers" width="180">
   <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the share-with-your-clinic banner and sections with coloured icons" width="180">
 </p>
 <p align="center">
-  <img src="docs/img/statusbar-all.png" alt="Android status bar with the glucose number in several places" width="540">
+  <img src="docs/img/statusbar/icon-states.png" alt="Renderer sheet of the number icon in the status bar without root (drawn by the app's icon code): fresh, the number with its trend arrow; 5 to 20 min old, struck through and grey with a ring instead of the arrow; from 20 min, the no-readings icon" width="540">
 </p>
 
-<sub>Android screenshots are from the emulator with a synthetic source (a sine wave), Mac ones from a test copy fed with synthetic data. The trend arrow turns continuously with the rate
+<sub>Android screenshots are from the emulator fed a synthetic day with meals, Mac ones from a test copy fed with synthetic data. The trend arrow turns continuously with the rate
 of change (flat at 0, vertical at ±3 mg/dL/min, double beyond) instead of Libre's 5 fixed arrows. Colours follow
-your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's report).</sub>
+your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's report). The status-bar sheet is drawn
+by the app's icon code.</sub>
 
 ## Features
 
@@ -109,13 +109,15 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
   glucose notification shows the value, the same slots as the widgets (time in range, report numbers, last treatment)
   and the graph. With root
   + LSPosed: system icons or a coloured value next to the clock. Settings detects root and the LSPosed module (via
-  LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI.
+  LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI. After an
+  update, home asks for a System UI restart only when the code System UI runs has changed (not on every install).
   [05](docs/05-android-status-bar.md)
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
   so it never goes out of date), the system's page and back-gesture motion, number options with a custom value,
   export / import / reset of the options, and a reminder to share your data with your clinic (LibreView or Tidepool). Apps and services show their real icons,
-  drawn like the system Settings app's list. Each alert has its own page
+  drawn like the system Settings app's list; every other row has an icon too, with custom ones for diabetes things
+  (the sensor, insulin, carbs, ranges, each alert). Each alert has its own page
   (threshold, reminders, sound, volume, test); sound previews play the alert's vibration too.
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
@@ -137,8 +139,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Lock screen (root + LSPosed): the value, rings and graph in the empty space around the fingerprint icon. Tap it to
   log a treatment without unlocking. Frosted glass behind it by default (or none, shadow, dim, card), light or dark
   like the home widgets, or following the dark theme (Settings → Lock screen). [17](docs/17-lockscreen-widget.md)
-- Export your readings and treatments as a CSV file (Settings → Export data): this sensor or the last 7, 14 or 30
-  days, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
+- Export your readings and treatments as a CSV file (Settings → Export data): this sensor, the last 7, 14 or 30
+  days or all time, saved with the system file picker or sent with the share sheet. It is laid out like LibreView's own export, so
   Tidepool's uploader imports it and any spreadsheet opens it, plus the time with its UTC offset, the trend and who
   entered each treatment (phone, Mac or follower, never a name). Followers export what is already on their phone.
   [22](docs/22-ecosystem-outputs.md#in-sukrara-csv-export)
@@ -204,7 +206,8 @@ your ranges (default 54 / 70 / 140 / 180 / 250 mg/dL, the levels of LibreView's 
 - Followers (phone and Mac) see the graph, ranges and alerts with the wearer's own settings by default (*Settings
   from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
-- Pair nearby over Bluetooth with no internet at all. The phone broadcasts no name and shows who it is only while
+- Pair nearby over Bluetooth with no internet at all, and see which follower phones are connected now (Settings →
+  Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,

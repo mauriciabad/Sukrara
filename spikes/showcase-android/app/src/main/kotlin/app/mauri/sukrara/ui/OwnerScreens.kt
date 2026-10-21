@@ -143,6 +143,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
             }
         }
         ClinicUploadBanner(a::open)
+        SystemUiRestartBanner()
         // Settings → Backup holds the details; home only nags while there's no backup (AOSP BannerMessagePreference)
         Reveal(u.backupSavedAt == 0L) {
             Card(onClick = { a.open("backup") }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),

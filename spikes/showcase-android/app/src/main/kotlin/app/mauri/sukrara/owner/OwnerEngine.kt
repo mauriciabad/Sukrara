@@ -70,6 +70,10 @@ data class OwnerUi(
     // investigation 07: Bluetooth
     val bleOn: Boolean = false,
     val bleCentrals: Int = 0,
+    /** The follower phones connected over Bluetooth now ([app.mauri.sukrara.core.BleOwner.links]). */
+    val bleLinks: List<app.mauri.sukrara.core.BleOwner.Link> = emptyList(),
+    /** Followers paired over Bluetooth (Pair nearby). */
+    val nearbyPaired: Set<String> = emptySet(),
     val nearbyUntil: Long = 0,
     val writers: Set<String> = emptySet(),
     val treatments: List<String> = emptyList(),
@@ -267,7 +271,7 @@ class OwnerEngine(private val ctx: Context) {
         b.close()
         ble = null
         log.i("BLE followers transport OFF")
-        _ui.update { it.copy(bleOn = false, bleCentrals = 0) }
+        _ui.update { it.copy(bleOn = false, bleCentrals = 0, bleLinks = emptyList()) }
     }
 
     fun stop() = scope.launch(serial) {
@@ -357,6 +361,7 @@ class OwnerEngine(private val ctx: Context) {
         publishSettings("ble", relays = false)   // likewise the settings event
         recentTreatments().forEach { publishTreatment(it, relays = false) }   // …and its treatment backlog
         scope.launch { b.connected.collect { n -> _ui.update { it.copy(bleOn = true, bleCentrals = n) } } }
+        scope.launch { b.links.collect { l -> _ui.update { it.copy(bleLinks = l) } } }
     }
 
     /** Retry BLE after the user granted the permissions. */
@@ -416,6 +421,7 @@ class OwnerEngine(private val ctx: Context) {
         val name = s.followers.lastOrNull { it.f == author }?.name ?: author.take(12)
         val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return log.i("treatment: malformed, ignored")
         if (!e.verify()) return log.i("treatment REJECTED: bad signature (via $via)")
+        if (via.startsWith("ble:")) ble?.identify(via.removePrefix("ble:"), author)
         if (author !in s.writers || s.followers.none { it.f == author && it.revoked == null }) {
             return log.i("treatment REJECTED: author $name (${author.take(12)}) is not in roster writers (via $via)")
         }
@@ -806,6 +812,7 @@ class OwnerEngine(private val ctx: Context) {
         if (!e.verify()) return log.i("wrap $id: bad signature, ignored")
         val u = Proto.unwrap(s.i, e) ?: return log.i("wrap ${id.take(8)}: cannot unwrap, ignored")
         if (u.kind != Proto.RUMOR_TO_OWNER || u.body.optInt("v") != 2) return
+        if (via.startsWith("ble:")) ble?.identify(via.removePrefix("ble:"), u.sender)
         val known = s.followers.lastOrNull { it.f == u.sender }
         val profile = app.mauri.sukrara.core.Profile.of(u.body.optJSONObject("profile"))
         val name = profile?.name?.ifBlank { null } ?: "?"
@@ -885,6 +892,7 @@ class OwnerEngine(private val ctx: Context) {
         s.pending.removeIf { it.token == p.token }
         s.followers.removeIf { it.f == f }
         s.followers += Follower(f, p.name, Proto.nowS(), avatar = p.avatar)
+        if (p.nearby) s.nearbyPaired += f
         save()
         deliverKey(f)
         publishBackup()
@@ -947,6 +955,7 @@ class OwnerEngine(private val ctx: Context) {
                 chunksSent = chunksSent,
                 inboxLive = foreground && pool?.hasSubscription("inbox") == true,
                 bleOn = ble != null,
+                nearbyPaired = s?.nearbyPaired?.toSet() ?: emptySet(),
                 nearbyUntil = nearby?.x ?: 0,
                 writers = s?.writers?.toSet() ?: emptySet(),
                 // deleted since (by anyone) → no longer listed; the merged log keeps the tombstone

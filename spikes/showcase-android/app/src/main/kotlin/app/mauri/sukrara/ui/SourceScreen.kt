@@ -140,7 +140,7 @@ fun SourceSettings(onBack: () -> Unit) {
                     if (!tagIntents) ctx.startActivity(Intent(NfcAdapter.ACTION_CHANGE_TAG_INTENT_PREFERENCE))
                     else { NfcLaunch.set(ctx, it); launchOnScan = it }
                 }
-                if (pairing != null) action(forget, icon = R.drawable.ic_sym_person_remove) {
+                if (pairing != null) action(forget, icon = R.drawable.ic_sym_link_off) {
                     SensorPairing.forget(ctx)
                     pairing = null
                     scope.launch { App.owner(ctx).restartSource() }
