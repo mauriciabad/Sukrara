@@ -8,7 +8,8 @@ import Foundation
 /// stored by the Mac, (b) every key the Mac stores is in the schema, (c) model defaults = schema defaults,
 /// (d) every number spec round-trips min, max, every preset and special and a custom value, and coerces invalid ones,
 /// (e) Settings from Default / Wearer / Custom give the expected mirrored vs local values, (f) every mirrored schema
-/// row's wire key is read from the wearer's settings event. Throwaway UserDefaults suites only.
+/// row's wire key is read from the wearer's settings event, (g) every option list the Mac offers equals the schema's
+/// `options`, in order. Throwaway UserDefaults suites only.
 enum SettingsSelfTest {
     // MARK: adapters (the one place that names the Mac API under test)
 
@@ -63,6 +64,7 @@ enum SettingsSelfTest {
         conformance()
         effective()
         wire()
+        options()
         print(ok ? "settings self-test OK" : "settings self-test FAILED")
         return ok
     }
@@ -313,5 +315,24 @@ enum SettingsSelfTest {
         for w in wires { check("(f) wire \(w) is read from the wearer's settings", checks[w] == true, checks[w] == nil ? "no check for it" : "not applied") }
         check("(f) every checked wire key is a schema wire key", Set(checks.keys).isSubset(of: Set(wires)), "\(Set(checks.keys).subtracting(wires))")
         drop(d)
+    }
+
+    // MARK: (g) option lists
+
+    /// Every list of choices the Mac offers, against the schema's `options` (same values, same order as Android).
+    static func options() {
+        let mac: [String: [String]] = [
+            "exportPeriod": GlucoseCsv.Period.allCases.map(\.rawValue),
+            "reportPeriod": ReportWindow.periods.map(String.init),
+            "slotKind": SlotKind.allCases.map(\.rawValue),
+            "tirRange": TirRange.allCases.map(\.rawValue),
+            "lastPlace": LastPlace.allCases.map(\.rawValue),
+            "soundPack": AlertSettings.packs + ["system", "none"],
+            "settingsFrom": WearerSettings.modes,
+        ]
+        for (k, want) in SettingsSpec.options.sorted(by: { $0.key < $1.key }) {
+            check("(g) option list \(k) = schema \(want)", mac[k] == want, "Mac: \(mac[k].map { "\($0)" } ?? "no list")")
+        }
+        for k in mac.keys.sorted() where SettingsSpec.options[k] == nil { check("(g) Mac list \(k) is in the schema", false) }
     }
 }

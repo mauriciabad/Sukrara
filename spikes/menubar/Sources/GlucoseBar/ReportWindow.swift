@@ -10,7 +10,7 @@ import SwiftUI
 /// export's own Period (This sensor, 7 / 14 / 30 days, All time; GlucoseCsv.swift), starting on the report's. The treatment history has its own window (TreatmentsWindow.swift). Position remembered (frame
 /// autosave), closes with ⌘W.
 @MainActor final class ReportWindow: NSObject {
-    static let periods = [1, 7, 14, 30]
+    nonisolated static let periods = [1, 7, 14, 30]
     let model = ReportModel()
     private var window: NSWindow?
 
