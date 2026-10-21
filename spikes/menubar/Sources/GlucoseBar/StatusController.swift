@@ -63,6 +63,7 @@ extension Bands {
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
     private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
+    private var clockObservers: [NSObjectProtocol] = []
 
     override init() {
         super.init()
@@ -94,6 +95,8 @@ extension Bands {
             RunLoop.main.add(t, forMode: .common)
             self.tick = t
         }
+        // The 24-hour setting or the time zone changed: every time on the menubar, dropdown and widgets follows at once.
+        clockObservers = Clock.observeChanges { [weak self] in MainActor.assumeIsolated { self?.reloadGraph() } }
         // Increase Contrast switches the card's ink at once.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
                                                           object: nil, queue: .main) { [weak self] _ in

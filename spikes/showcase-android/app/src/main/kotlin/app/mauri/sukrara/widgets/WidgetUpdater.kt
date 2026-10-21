@@ -67,6 +67,16 @@ object WidgetUpdater {
     suspend fun refreshSafely(c: Context, reason: String, force: Boolean = false) =
         runCatching { refresh(c, reason, force) }.onFailure { Log.w("Sukrara.widgets", "refresh ($reason): $it") }
 
+    /**
+     * Everything the widgets' pictures depend on besides the readings themselves: equal keys skip the redraw. The clock's
+     * look ([app.mauri.sukrara.graph.Clock.signature]: 24-hour setting, time zone) is in it, so switching the setting
+     * redraws them (2026-10-21).
+     */
+    internal fun drawKey(latestT: Long?, fresh: Long?, now: Long, night: Int, size: Int, treatments: Int): String =
+        "$latestT|$fresh|${now / 300}|$night|${java.util.Locale.getDefault()}|$size|$treatments|" +
+            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|" +
+            "${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}|${app.mauri.sukrara.graph.Clock.signature()}"
+
     suspend fun refresh(c: Context, reason: String, force: Boolean = false) = mutex.withLock {
         val history = RecentHistory.readings(c)
         val treatments = RecentHistory.treatments(c)
@@ -77,9 +87,7 @@ object WidgetUpdater {
         // settings (graph and alerts: the badge, the mute lines and the last-treatment ring follow the alert rules). A fresh card shows no age, so nothing ticks in between.
         // the step the latest reading is in: it changes exactly when the next step comes (Freshness.nextChangeAt)
         val fresh = app.mauri.sukrara.graph.Freshness.nextChangeAt(latest?.t, now)
-        val key = "${latest?.t}|$fresh|${now / 300}|$night|${java.util.Locale.getDefault()}|${history.size}|${treatments.hashCode()}|" +
-            "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|" +
-            "${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}"
+        val key = drawKey(latest?.t, fresh, now, night, history.size, treatments.hashCode())
         if (!force && key == lastKey) {
             stats.value = stats.value.run { copy(skippedSame = skippedSame + 1) }
             return@withLock

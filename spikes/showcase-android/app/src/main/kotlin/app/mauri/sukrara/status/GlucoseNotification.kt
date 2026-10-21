@@ -112,6 +112,7 @@ object GlucoseNotification {
         app.mauri.sukrara.treatments.TreatmentFeed.items.value.hashCode(),
         GraphSettings.value.hashCode(), app.mauri.sukrara.alerts.Alerts.settings.value.hashCode(),
         c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK, java.util.Locale.getDefault(),
+        app.mauri.sukrara.graph.Clock.signature(),
         chip && runCatching { c.getSystemService(NotificationManager::class.java).canPostPromotedNotifications() }.getOrDefault(false),
     )
 
@@ -252,7 +253,7 @@ object GlucoseNotification {
         val night = c.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         val treatments = app.mauri.sukrara.treatments.TreatmentFeed.items.value
         val common = "${r.t}|$night|${java.util.Locale.getDefault()}|${treatments.hashCode()}|${GraphSettings.value.hashCode()}|" +
-            "${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}"
+            "${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|${app.mauri.sukrara.graph.Clock.signature()}"
         val gKey = "$common|${now / 300}"
         val hKey = "$common|${now / 60}|$ink|${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}"
         val interactive = c.getSystemService(PowerManager::class.java).isInteractive
