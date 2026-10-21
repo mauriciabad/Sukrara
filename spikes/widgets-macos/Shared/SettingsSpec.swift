@@ -76,6 +76,9 @@ enum SettingsSpec {
 
     static let numbers: [String: NumberSpec] = ["bandVeryLow": bandVeryLow, "bandLow": bandLow, "bandTight": bandTight, "bandHigh": bandHigh, "bandVeryHigh": bandVeryHigh, "bandExtremelyHigh": bandExtremelyHigh, "graphHours": graphHours, "placeHours": placeHours, "ringCount": ringCount, "ringWindow": ringWindow, "line": line, "gridHours": gridHours, "countdownHours": countdownHours, "thresholdVeryLow": thresholdVeryLow, "thresholdLow": thresholdLow, "thresholdHigh": thresholdHigh, "thresholdVeryHigh": thresholdVeryHigh, "thresholdExtremelyHigh": thresholdExtremelyHigh, "thresholdRate": thresholdRate, "thresholdNoData": thresholdNoData, "alertRepeat": alertRepeat, "muteInsulin": muteInsulin, "muteFalling": muteFalling, "muteCarbs": muteCarbs, "actionMute": actionMute, "actionSlow": actionSlow, "nostrInterval": nostrInterval, "libreviewInterval": libreviewInterval]
 
+    /// Option lists both platforms offer, in order (schema "options").
+    static let options: [String: [String]] = ["exportPeriod": ["sensor", "7", "14", "30", "all"], "reportPeriod": ["1", "7", "14", "30"], "slotKind": ["TIR", "GMI", "AVERAGE", "CV"], "tirRange": ["IN_RANGE", "TIGHT"], "lastPlace": ["OFF", "NEAR_VALUE", "END"], "soundPack": ["arcade", "kart", "quest", "soft", "system", "none"], "settingsFrom": ["wearer", "default", "custom"]]
+
     static let settings: [SettingInfo] = [
         SettingInfo(id: "graph.band.veryLow", type: "number", number: "bandVeryLow", mirror: true, wire: "graph.veryLow", android: "graph:veryLow", mac: "defaults:bandVeryLow", only: nil, reason: nil),
         SettingInfo(id: "graph.band.low", type: "number", number: "bandLow", mirror: true, wire: "graph.low", android: "graph:low", mac: "defaults:bandLow", only: nil, reason: nil),

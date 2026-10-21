@@ -11,6 +11,16 @@
     "schema, or a number input that doesn't take its spec. SettingsSchemaTest (Android) and -settingsselftest (Mac)",
     "test the models against it."
   ],
+  "options": {
+    "_about": "Option lists both platforms offer (the user, 2026-10-21: option lists must not diverge either). Each platform's list is tested against these values in order (SettingsSchemaTest, -settingsselftest); a value one platform can't offer goes in 'only' with the reason.",
+    "exportPeriod": {"values": ["sensor", "7", "14", "30", "all"], "label": "Export data: this sensor, 7 / 14 / 30 days, all time"},
+    "reportPeriod": {"values": ["1", "7", "14", "30"], "label": "Glucose report: 1 / 7 / 14 / 30 days"},
+    "slotKind": {"values": ["TIR", "GMI", "AVERAGE", "CV"], "label": "What a slot beside the value shows"},
+    "tirRange": {"values": ["IN_RANGE", "TIGHT"], "label": "What a ring's centre counts"},
+    "lastPlace": {"values": ["OFF", "NEAR_VALUE", "END"], "label": "Last treatment position"},
+    "soundPack": {"values": ["arcade", "kart", "quest", "soft", "system", "none"], "label": "Sound packs (and per alert)"},
+    "settingsFrom": {"values": ["wearer", "default", "custom"], "label": "Followers: Settings from"}
+  },
   "numbers": {
     "bandVeryLow":   {"unit": "mg/dL", "min": 30, "max": 80, "step": 1, "nudge": 1, "presets": [50, 54, 55, 60], "default": 54},
     "bandLow":       {"unit": "mg/dL", "min": 40, "max": 120, "step": 1, "nudge": 1, "presets": [65, 70, 75, 80], "default": 70},

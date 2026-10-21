@@ -124,6 +124,10 @@ def kotlin(schema):
     L.append("    val NUMBERS: Map<String, NumberSpec> = mapOf(%s)" % ", ".join(
         "%s to %s" % (kstr(k), const_kt(k)) for k in schema["numbers"]))
     L.append("")
+    L.append("    /** Option lists both platforms offer, in order (schema \"options\"). */")
+    L.append("    val OPTIONS: Map<String, List<String>> = mapOf(%s)" % ", ".join(
+        "%s to listOf(%s)" % (kstr(k), ", ".join(kstr(v) for v in o["values"])) for k, o in schema.get("options", {}).items() if not k.startswith("_")))
+    L.append("")
     L.append("    val SETTINGS: List<SettingInfo> = listOf(")
     for s in schema["settings"]:
         only = s.get("only") or {}
@@ -197,6 +201,10 @@ def swift(schema):
     L.append("")
     L.append("    static let numbers: [String: NumberSpec] = [%s]" % ", ".join(
         "%s: %s" % (sstr(k), lower_camel(k)) for k in schema["numbers"]))
+    L.append("")
+    L.append("    /// Option lists both platforms offer, in order (schema \"options\").")
+    L.append("    static let options: [String: [String]] = [%s]" % (", ".join(
+        "%s: [%s]" % (sstr(k), ", ".join(sstr(v) for v in o["values"])) for k, o in schema.get("options", {}).items() if not k.startswith("_")) or ":"))
     L.append("")
     L.append("    static let settings: [SettingInfo] = [")
     for s in schema["settings"]:
