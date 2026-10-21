@@ -8,8 +8,8 @@ import SwiftUI
 // hold a play button per item, so the button opens a popover with the list (HIG "Popovers": options for the control
 // that opened it). Self-contained: the Settings window only places `SoundPickerButton`.
 //
-// Files: spikes/alerts/sounds (4 packs × 8 kinds × 3 variants, IMA4 CAF < 30 s, in Sukrara.app/Contents/Resources,
-// where UNNotificationSound(named:) looks); Alerts.sound picks the variant.
+// Files: spikes/alerts/sounds (4 packs × 8 kinds × 3 variants, IMA4 CAF < 30 s, in Sukrara.app/Contents/Resources;
+// notifications ring a copy in ~/Library/Sounds, NotificationSounds.swift); Alerts.sound picks the variant.
 
 enum SoundChoice {
     /// Every value in the order Android lists them ("" = the pack default, per alert only).
