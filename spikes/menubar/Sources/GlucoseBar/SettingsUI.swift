@@ -479,7 +479,7 @@ struct GeneralView: View {
                 ("Ranges", "\(b.veryLow) · \(b.low) · \(b.tight) · \(b.high) · \(b.veryHigh) · \(b.extremelyHigh) mg/dL"),
                 ("Lines across the graph", c.lines.isEmpty ? "None" : c.lines.map(String.init).joined(separator: ", ") + " mg/dL"),
                 ("Vertical lines", gridLabel(Double(c.gridHours))),
-                ("Beside the graph", [c.side ? "time in range" : nil, c.columnCrown ? "crown at 100 %" : nil].compactMap { $0 }.joined(separator: ", ").capitalizedFirst.ifEmpty("Nothing")),
+                ("Beside the graph", [c.side ? "time in range distribution" : nil, c.columnCrown ? "crown at 100 %" : nil].compactMap { $0 }.joined(separator: ", ").capitalizedFirst.ifEmpty("Nothing")),
                 ("Treatments on the graph", MarkShow.kinds.map { k in
                     "\(markKindLabel(k)): " + MarkShow.parts(k).filter { c.marks.has(k, $0) }.map(markPartLabel).joined(separator: ", ").ifEmpty("nothing")
                 }.joined(separator: "; ")),
@@ -537,7 +537,7 @@ struct GraphSettingsView: View {
             }
             if from.custom {
                 Section("Graph") {
-                    Toggle("Time in range beside the graph", isOn: model.side)
+                    Toggle("Time in range distribution", isOn: model.side)
                     Toggle("Crown at 100 % beside the graph", isOn: model.columnCrown)
                     NumberSettingRow(title: "Vertical lines", spec: SettingsSpec.gridHours, value: model.gridHours, label: gridLabel)
                 }

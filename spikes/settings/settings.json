@@ -96,7 +96,7 @@
      "android": {"store": "graph", "key": "ringOrder"}, "mac": {"store": "defaults", "key": "ringOrder"}},
     {"id": "graph.ringMarks", "section": "graph", "label": "Rewards on the rings", "type": "bool", "default": true, "mirror": true, "wire": "graph.ringMarks",
      "android": {"store": "graph", "key": "ringMarks"}, "mac": {"store": "defaults", "key": "ringMarks"}},
-    {"id": "graph.side", "section": "graph", "label": "Time in range beside the graph", "type": "bool", "default": true, "mirror": true, "wire": "graph.side",
+    {"id": "graph.side", "section": "graph", "label": "Time in range distribution", "type": "bool", "default": true, "mirror": true, "wire": "graph.side",
      "android": {"store": "graph", "key": "side"}, "mac": {"store": "defaults", "key": "side"}},
     {"id": "graph.marks", "section": "graph", "label": "Treatments on the graph: point, mute line, amount label, time label per kind (options markKind / markPart / markParts.* / markDefault.*); text 'rapid:point+line+amount+time,long:…,carbs:point,note:point'", "type": "marks", "mirror": true, "wire": "graph.marks",
      "android": {"store": "graph", "key": "marks"}, "mac": {"store": "defaults", "key": "marks"}},

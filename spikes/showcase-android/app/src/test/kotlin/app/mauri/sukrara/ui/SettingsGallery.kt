@@ -31,7 +31,7 @@ import java.io.File
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h3000dp-xhdpi")
+@Config(sdk = [36], qualifiers = "w411dp-h4500dp-xhdpi")
 class SettingsGallery {
     @get:Rule val compose = createAndroidComposeRule<androidx.activity.ComponentActivity>()
     private val out = File(System.getProperty("gallery.out") ?: "build/gallery", "settings").also { it.mkdirs() }
