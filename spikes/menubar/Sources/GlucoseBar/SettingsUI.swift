@@ -438,14 +438,8 @@ struct GeneralView: View {
     var elseWindow: Binding<Double> { bind({ $0.lastElse?.window ?? GraphConfig.defaultLastElse.window }) { v in self.setElse { $0.window = v } } }
     var elseFaded: Binding<Bool> { bind({ $0.lastElse?.faded ?? true }) { v in self.setElse { $0.faded = v } } }
 
-    /// Ring order: `band` goes to `index` (drag and drop, or Move Up / Move Down).
-    func moveRing(_ band: Band, to index: Int) {
-        var o = c.ringOrder
-        guard let from = o.firstIndex(of: band) else { return }
-        o.remove(at: from)
-        o.insert(band, at: min(max(index, 0), o.count))
-        set("ringOrder", ringOrderText(o))
-    }
+    /// Ring order: the new order from the reorderable list (drag and drop, Move Up / Move Down).
+    func setRingOrder(_ o: [Band]) { set("ringOrder", ringOrderText(o)) }
     func resetRingOrder() { set("ringOrder", nil) }
 
     func removeLine(_ l: Int) { set("lines", GraphConfig.linesText(c.lines.filter { $0 != l })) }
@@ -581,7 +575,6 @@ struct GraphSettingsView: View {
 struct RingsSettingsView: View {
     @ObservedObject var model: GraphModel
     @ObservedObject var from: SettingsFromModel
-    @State private var dropTarget: Band?
 
     private var c: GraphConfig { model.c }
     private static let slotNames = ["Main", "Second", "Third"]
@@ -626,38 +619,12 @@ struct RingsSettingsView: View {
         .formStyle(.grouped)
     }
 
-    /// Drag to reorder (HIG Lists and tables: "People appreciate being able to reorder a list, even if they can't add
-    /// or remove items."). HIG Drag and drop: "Offer alternative ways to accomplish drag-and-drop actions … you can
-    /// include menu commands" (each row's context menu and its VoiceOver actions: Move Up, Move Down) and "Show people
-    /// whether a destination can accept dragged content … display an insertion point" (the line over the target row).
+    /// The ring order as a native reorderable list (RingOrderTable: NSTableView with gap feedback, like the Finder
+    /// sidebar), Move Up / Move Down in each row's context menu and for VoiceOver, and Reset Order.
     private var ringOrder: some View {
         Section {
-            ForEach(Array(c.ringOrder.enumerated()), id: \.element) { i, band in
-                HStack(spacing: 8) {
-                    Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary).accessibilityHidden(true)
-                    Circle().fill(Color(cgColor: GraphPalette.lightPalette.of(band))).frame(width: 10, height: 10).accessibilityHidden(true)
-                    Text("\(i + 1). \(band.label)")
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-                .overlay(alignment: .top) {
-                    if dropTarget == band { Rectangle().fill(Color.accentColor).frame(height: 2).offset(y: -5) }
-                }
-                .draggable(band.name) { Text(band.label).padding(6) }
-                .dropDestination(for: String.self) { items, _ in
-                    guard let b = items.first.flatMap(Band.init(name:)) else { return false }
-                    model.moveRing(b, to: i)
-                    return true
-                } isTargeted: { on in dropTarget = on ? band : (dropTarget == band ? nil : dropTarget) }
-                .contextMenu {
-                    Button("Move Up") { model.moveRing(band, to: i - 1) }.disabled(i == 0)
-                    Button("Move Down") { model.moveRing(band, to: i + 1) }.disabled(i == c.ringOrder.count - 1)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(band.label), position \(i + 1) of \(c.ringOrder.count)")
-                .accessibilityAction(named: "Move Up") { model.moveRing(band, to: i - 1) }
-                .accessibilityAction(named: "Move Down") { model.moveRing(band, to: i + 1) }
-            }
+            RingOrderTable(order: c.ringOrder) { model.setRingOrder($0) }
+                .frame(height: RingOrderTable.rowHeight * CGFloat(c.ringOrder.count))
             HStack { Spacer(); Button("Reset Order") { model.resetRingOrder() }.disabled(c.ringOrder == DEFAULT_RING_ORDER) }
         } header: { Text("Ring order") } footer: {
             Text("Clockwise from 12 o'clock. Drag a range to move it, or Control-click it for Move Up and Move Down.")

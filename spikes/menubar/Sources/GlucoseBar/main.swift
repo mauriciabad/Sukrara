@@ -82,7 +82,7 @@ if let dir = defaults.string(forKey: "identitySnapshot") {
     exit(0)
 }
 if CommandLine.arguments.contains("-identityselftest") { exit(IdentitySelfTest.run() ? 0 : 1) }
-if CommandLine.arguments.contains("-settingsselftest") { exit(SettingsSelfTest.run() ? 0 : 1) }
+if CommandLine.arguments.contains("-settingsselftest") { exit(MainActor.assumeIsolated { SettingsSelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
