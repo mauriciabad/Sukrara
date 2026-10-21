@@ -9,10 +9,13 @@ import java.io.File
 
 /**
  * The root status bar's slot icons ([RootStatusBar.iconPlan]: a number drawable `sb_n…` / `sb_s…` / `sb_lo` / `sb_hi`
- * and, right of it, a trend drawable `sb_t…`) are laid out by SystemUI with no gap between them, so the gap between the
- * digits and the arrow / "no trend" ring is the drawables' own free space: the number's on its right plus the trend's
- * on its left. Without it they touched ("118→", 2026-10-21; the cross-surface tests only saw the icon *names*).
- * spikes/statusbar-android/tools/gen-slot-drawables.swift writes them; this reads the geometry back from the XML.
+ * and, right of it, a trend drawable `sb_t…`). SystemUI puts its own space between the two slot icons, as between all
+ * its status icons; the drawables' free sides add to it. Measured on the user's phone (Pixel 10 Pro, Android 17, root
+ * system-icon path, 420 dpi, 2026-10-21): 19 px = 7.24 dp from the digits to the arrow with 1.5 dp of drawable padding
+ * (0.11.34–0.11.37, "too separated"), so SystemUI's share is [SYSTEMUI_DP]; between its own icons it leaves 5.7–6.5 dp.
+ * The visible gap must stay in that range: not touching (an emulator approximation without SystemUI's spacing made it
+ * look that way and led to the padding), not wider than SystemUI's own spacing.
+ * spikes/statusbar-android/tools/gen-slot-drawables.swift writes the drawables; this reads the geometry back.
  */
 class SlotDrawablesTest {
     private val dir: File = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
@@ -41,15 +44,25 @@ class SlotDrawablesTest {
         return Triple(lo, hi, width)
     }
 
-    @Test fun numberAndTrendKeepAGap() {
+    @Test fun numberAndTrendSitAsSystemUiSpacesIcons() {
         val files = dir.listFiles()!!.filter { it.name.startsWith("sb_") && it.name.endsWith(".xml") }
         val (trends, numbers) = files.partition { it.name.startsWith("sb_t") }
         assertTrue("no slot drawables found in $dir", trends.isNotEmpty() && numbers.isNotEmpty())
-        val numberRight = numbers.minOf { f -> ink(f).let { it.third - it.second } }
+        val numberRight = numbers.associate { f -> f.name to ink(f).let { it.third - it.second } }
         val trendLeft = trends.associate { f -> f.name to ink(f).first }
-        val worst = trendLeft.minBy { it.value }
-        val gap = numberRight + worst.value
-        assertTrue("number → trend gap %.2f dp (numbers' free right side %.2f, %s's free left side %.2f); want ≥ 1.2 dp"
-            .format(gap, numberRight, worst.key, worst.value), gap >= 1.2)
+        val lo = numberRight.minBy { it.value }; val hi = numberRight.maxBy { it.value }
+        val tlo = trendLeft.minBy { it.value }; val thi = trendLeft.maxBy { it.value }
+        val narrowest = SYSTEMUI_DP + lo.value + tlo.value
+        val widest = SYSTEMUI_DP + hi.value + thi.value
+        assertTrue("number → trend %.2f–%.2f dp on the phone (%s + %s … %s + %s); want %.1f–%.1f dp, SystemUI's own icon spacing"
+            .format(narrowest, widest, lo.key, tlo.key, hi.key, thi.key, MIN_DP, MAX_DP), narrowest >= MIN_DP && widest <= MAX_DP)
+    }
+
+    companion object {
+        /** SystemUI's space between two slot icons on the root path (7.24 dp seen − the 1.5 dp drawable padding then). */
+        const val SYSTEMUI_DP = 5.74
+        /** The visible gap's range: SystemUI's spacing between its own status icons, measured on the same phone. */
+        const val MIN_DP = 5.0
+        const val MAX_DP = 6.5
     }
 }
