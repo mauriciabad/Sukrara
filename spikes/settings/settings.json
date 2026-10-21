@@ -109,7 +109,7 @@
 
     {"id": "alerts.on", "section": "alerts", "label": "Glucose alerts", "type": "bool", "default": true, "mirror": false,
      "android": {"store": "alerts", "key": "on"}, "mac": {"store": "alerts", "key": "on"}},
-    {"id": "alerts.kind.on", "section": "alerts", "label": "Each alert on", "type": "bool", "each": "kind", "mirror": true, "wire": "alerts.alerts.{kind}.on",
+    {"id": "alerts.kind.on", "section": "alerts", "label": "Each alert on", "type": "bool", "each": "kind", "mirror": true, "mirrorExcept": ["no_data"], "wire": "alerts.alerts.{kind}.on",
      "android": {"store": "alerts", "key": "alerts.{kind}.on"}, "mac": {"store": "alerts", "key": "alerts.{kind}.on"}},
     {"id": "alerts.threshold.very_low", "section": "alerts", "label": "Very low below", "type": "number", "number": "thresholdVeryLow", "mirror": true, "wire": "alerts.alerts.very_low.mgdl",
      "android": {"store": "alerts", "key": "alerts.very_low.mgdl"}, "mac": {"store": "alerts", "key": "alerts.very_low.mgdl"}},
@@ -127,7 +127,7 @@
      "android": {"store": "alerts", "key": "alerts.rising_fast.rate"}, "mac": {"store": "alerts", "key": "alerts.rising_fast.rate"}},
     {"id": "alerts.threshold.no_data", "section": "alerts", "label": "No data after", "type": "number", "number": "thresholdNoData", "mirror": false,
      "android": {"store": "alerts", "key": "alerts.no_data.min"}, "mac": {"store": "alerts", "key": "alerts.no_data.min"}},
-    {"id": "alerts.kind.repeat", "section": "alerts", "label": "Each alert: remind every", "type": "number", "number": "alertRepeat", "each": "kind", "mirror": true, "wire": "alerts.alerts.{kind}.repeatMin",
+    {"id": "alerts.kind.repeat", "section": "alerts", "label": "Each alert: remind every", "type": "number", "number": "alertRepeat", "each": "kind", "mirror": true, "mirrorExcept": ["no_data"], "wire": "alerts.alerts.{kind}.repeatMin",
      "android": {"store": "alerts", "key": "alerts.{kind}.repeatMin"}, "mac": {"store": "alerts", "key": "alerts.{kind}.repeatMin"}},
     {"id": "alerts.kind.alarm", "section": "alerts", "label": "Each alert: like an alarm (alarm volume / Time Sensitive)", "type": "bool", "each": "kind", "mirror": false,
      "android": {"store": "alerts", "key": "alerts.{kind}.alarm"}, "mac": {"store": "alerts", "key": "alerts.{kind}.alarm"}},

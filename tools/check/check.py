@@ -40,6 +40,11 @@ Checks
               App.kt installs Clock.hour24Source; no own hour24 flag or time formatter; Mac: the same outside Clock)
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
+  settings    THE settings schema spikes/settings/settings.json (the user, 2026-10-21: settings must not diverge across
+              platforms): generated SettingsSpec.kt/.swift up to date; every entry on both platforms or 'only' with the
+              reason; every stored key (Android GraphConfig/WidgetGraphConfig/FeatureState JSON, Mac graph defaults
+              keys) in the schema and every schema key in source; number settings only through the one input pattern
+              (spec-driven NumberDialog / NumberSettingRow; NumberSpec values only from the generated file). Whole tree.
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
@@ -481,6 +486,139 @@ def check_clock(ch, rep):
                         % (p, n, bad.group(0)))
 
 
+SETTINGS_SCHEMA = "spikes/settings/settings.json"
+SETTINGS_KT = APP_KT + "settings/SettingsSpec.kt"
+SETTINGS_SWIFT = "spikes/widgets-macos/Shared/SettingsSpec.swift"
+MAC_SRC = "spikes/menubar/Sources/GlucoseBar/"
+# the stores whose keys the static rule reads from source (the nested alert JSON is checked by SettingsSchemaTest /
+# -settingsselftest, which flatten the real objects): store -> (file, start marker, end marker)
+ANDROID_STORES = {
+    "graph": (APP_KT + "graph/GraphSettings.kt", "data class GraphConfig(", "data class WidgetGraphConfig("),
+    "graph-widgets": (APP_KT + "graph/GraphSettings.kt", "data class WidgetGraphConfig(", "/** One slot"),
+    "features": (APP_KT + "features/Features.kt", "data class FeatureState(", "companion object"),
+}
+MAC_GRAPH_KEYS = (MAC_SRC + "StatusController.swift", re.compile(r"static let graphKeys = \[([^\]]*)\]", re.S))
+# a number setting's input outside the one pattern (SettingsDialogs.kt NumberDialog / the Mac's NumberSettingRow)
+KT_NUMBER_INPUT = re.compile(r"\b(NumberRange|IntChoiceDialog|NumberChoiceDialog|Slider)\(|KeyboardType\.(Number|Decimal)\b"
+                             r"|\blistOf\(\s*-?\d+(?:\.\d+)?\s*[,)]")
+SWIFT_NUMBER_INPUT = re.compile(r"\bStepper\(|TextField\([^)]*\bvalue:|ForEach\(\s*(\d+\s*\.\.[.<]\s*\d|\[\s*-?\d)")
+
+
+def check_settings(ch, rep):
+    """settings: THE schema (spikes/settings/settings.json; the user, 2026-10-21: "make something that makes sure
+    settings don't diverge across platforms"). Whole tree at the change's revision:
+    - the generated SettingsSpec.kt / .swift match the schema (tools/settings/gen.py);
+    - every entry is on both platforms, or on one with 'only': {platform, reason}; number refs and defaults are valid;
+    - every stored key the rule can read from source (Android GraphConfig / WidgetGraphConfig / FeatureState JSON,
+      the Mac's graph defaults keys) has a schema entry for that platform, and every schema key exists in source;
+    - number settings use the one input pattern: in a settings screen (Android: calls SettingsPage; Mac: a grouped
+      Form) no Slider / NumberRange / old number dialogs / literal number lists / number keyboards (Android) and no
+      Stepper / numeric TextField / literal number ForEach (Mac) outside the pattern's own file, and NumberSpec values
+      are only made by the generated file (so every input takes a schema spec)."""
+    text = ch.blob(SETTINGS_SCHEMA)
+    if not text:
+        return
+    try:
+        schema = json.loads(text)
+    except ValueError as e:
+        return rep.add("FAIL", "settings", "%s is not valid JSON: %s" % (SETTINGS_SCHEMA, e))
+    sys.path.insert(0, os.path.join(HERE, "..", "settings"))
+    import gen  # noqa: E402  (tools/settings/gen.py, stdlib only)
+    for path, want in ((SETTINGS_KT, gen.kotlin(schema)), (SETTINGS_SWIFT, gen.swift(schema))):
+        if ch.blob(path) != want:
+            rep.add("FAIL", "settings", "%s is stale or edited by hand: run python3 tools/settings/gen.py and commit it." % path)
+    numbers = schema.get("numbers", {})
+    for name, n in numbers.items():
+        lo, hi, step = n.get("min"), n.get("max"), n.get("step")
+        if lo is None or hi is None or not step or lo > hi:
+            rep.add("FAIL", "settings", "number %s: needs min <= max and step > 0." % name)
+            continue
+        special = {float(k) for k in n.get("special", {})}
+        def valid(v):
+            on = abs((v - lo) / step - round((v - lo) / step)) < 1e-6
+            return v in special or v in n.get("presets", []) or (n.get("custom", True) and lo <= v <= hi and on)
+        if not valid(n.get("default")):
+            rep.add("FAIL", "settings", "number %s: default %s isn't a valid value." % (name, n.get("default")))
+    for name, o in schema.get("options", {}).items():
+        if name.startswith("_"):
+            continue
+        vals = o.get("values") or []
+        if not vals or len(set(vals)) != len(vals):
+            rep.add("FAIL", "settings", "options %s: needs a non-empty list of distinct values." % name)
+    seen, keys = set(), {"android": {}, "mac": {}}
+    for s in schema.get("settings", []):
+        sid = s.get("id", "?")
+        if sid in seen:
+            rep.add("FAIL", "settings", "setting %s is listed twice." % sid)
+        seen.add(sid)
+        if s.get("number") and s["number"] not in numbers:
+            rep.add("FAIL", "settings", "setting %s: number '%s' isn't in 'numbers'." % (sid, s["number"]))
+        on = [p for p in ("android", "mac") if s.get(p)]
+        only = s.get("only") or {}
+        if not on:
+            rep.add("FAIL", "settings", "setting %s is on neither platform." % sid)
+        elif len(on) == 1 and (only.get("platform") != on[0] or len(only.get("reason", "").strip()) < 10):
+            rep.add("FAIL", "settings", "setting %s exists on %s only: add it to the other platform, or give\n"
+                    "'only': {\"platform\": \"%s\", \"reason\": \"why it can't be there\"}." % (sid, on[0], on[0]))
+        elif len(on) == 2 and only:
+            rep.add("FAIL", "settings", "setting %s is on both platforms but says 'only' %s." % (sid, only.get("platform")))
+        if s.get("mirror") and not s.get("wire"):
+            rep.add("FAIL", "settings", "setting %s is mirrored from the wearer but has no 'wire' key." % sid)
+        for p in on:
+            st = s[p]["store"]
+            for k in s[p]["key"].split(","):
+                keys[p].setdefault(st, {})[k] = sid
+    # source keys -> schema, and schema keys -> source
+    for store, (path, start, end) in ANDROID_STORES.items():
+        src = ch.blob(path)
+        a = src.find(start)
+        b = src.find(end, a + 1) if a >= 0 else -1
+        if a < 0 or b < 0:
+            rep.add("FAIL", "settings", "%s: can't find '%s' … '%s' (update ANDROID_STORES in check.py)." % (path, start, end))
+            continue
+        found = set(re.findall(r'\bput\("(\w+)"', src[a:b]))
+        listed = set(keys["android"].get(store, {}))
+        for k in sorted(found - listed):
+            rep.add("FAIL", "settings", "Android stores '%s' (%s, %s) but the schema has no Android entry for it.\n"
+                    "Add it to %s (both platforms, or 'only' with the reason)." % (k, store, path, SETTINGS_SCHEMA))
+        for k in sorted(listed - found):
+            rep.add("FAIL", "settings", "schema %s: Android %s key '%s' isn't stored by %s." % (keys["android"][store][k], store, k, path))
+    path, rx = MAC_GRAPH_KEYS
+    m = rx.search(ch.blob(path) or "")
+    graph_keys = set(re.findall(r'"(\w+)"', m.group(1))) if m else set()
+    if not m:
+        rep.add("FAIL", "settings", "%s: can't find StatusController.graphKeys (update MAC_GRAPH_KEYS)." % path)
+    mac_files = [p for p in tree_files(ch) if p.endswith(".swift") and p.startswith((MAC_SRC, "spikes/widgets-macos/Shared/"))]
+    mac_text = "\n".join(ch.blob(p) or "" for p in mac_files if p != SETTINGS_SWIFT)
+    listed = keys["mac"].get("defaults", {})
+    for k in sorted(graph_keys - set(listed)):
+        rep.add("FAIL", "settings", "the Mac stores '%s' (graphKeys) but the schema has no Mac entry for it." % k)
+    for k, sid in sorted(listed.items()):
+        if k not in graph_keys and '"%s"' % k not in mac_text:
+            rep.add("FAIL", "settings", "schema %s: Mac defaults key '%s' isn't used by the Mac app." % (sid, k))
+    # one number-input pattern
+    for p in tree_files(ch):
+        kt = p.startswith(APP_KT) and p.endswith(".kt")
+        swift = p.startswith(MAC_SRC) and p.endswith(".swift")
+        if not (kt or swift) or p in (SETTINGS_KT, SETTINGS_SWIFT) or "SelfTest" in p:
+            continue
+        src = ch.blob(p) or ""
+        for n, l in code_lines(src):
+            if re.search(r"\bNumberSpec\(", l) and "class NumberSpec" not in l and "struct NumberSpec" not in l:
+                rep.add("FAIL", "settings", "%s:%d makes a NumberSpec by hand. Number formats come from %s (generated)."
+                        % (p, n, SETTINGS_SCHEMA))
+        screen = (kt and p.startswith(APP_KT + "ui/") and "SettingsPage(" in src and not p.endswith("/SettingsDialogs.kt")) or \
+                 (swift and ".formStyle(.grouped)" in src and "struct NumberSettingRow" not in src)
+        if not screen:
+            continue
+        for n, l in code_lines(src):
+            bad = (KT_NUMBER_INPUT if kt else SWIFT_NUMBER_INPUT).search(l)
+            if bad and "settings-ok" not in l:
+                rep.add("FAIL", "settings", "%s:%d a number setting's input outside the one pattern (%s). Use %s with its\n"
+                        "SettingsSpec number (spikes/settings/settings.json), or mark a non-number line // settings-ok: <why>."
+                        % (p, n, bad.group(0).strip(), "NumberDialog / numberRow (SettingsDialogs.kt)" if kt else "NumberSettingRow"))
+
+
 def check_static(ch, rep):
     allow = load("allow.json")
     live = ch.live()
@@ -610,6 +748,7 @@ def main(argv):
         check_cleartext(ch, rep)
         check_card(ch, rep)
         check_clock(ch, rep)
+        check_settings(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)
