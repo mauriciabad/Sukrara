@@ -324,6 +324,27 @@ class CardLayoutTest {
                 }
             }
         }
+        // the gaps: a column is its widest drawn label plus one constant margin on each side
+        val gaps = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONArray("gaps")
+        for (i in 0 until gaps.length()) {
+            val g = gaps.getJSONObject(i)
+            val gap = g.getDouble("gap")
+            var seen = 0
+            for (r in renders) for (l in r.layouts) {
+                val col = l.first(g.getString("column"))?.box ?: continue
+                val ls = l.all(g.getString("labels")).mapNotNull { e -> e.box?.let { e.info to it } }
+                if (ls.isEmpty()) { problems += "${g.getString("column")}: $r draws no ${g.getString("labels")}"; continue }
+                seen++
+                val left = (ls.minOf { it.second.left } - col.left) / l.d
+                val rights = ls.map { (s, b) -> s to (col.right - b.right) / l.d }
+                if (kotlin.math.abs(left - gap) > 0.05 || rights.any { kotlin.math.abs(it.second - gap) > 0.05 })
+                    problems += "${g.getString("column")} gaps on $r (${r.scene}/${r.settings}): left %.2f, right %s dp; want %.2f each (widest label %.2f dp, column %.2f dp)"
+                        .format(Locale.US, left, rights.joinToString { (s, v) -> "%s %.2f".format(Locale.US, s, v) }, gap,
+                            ls.maxOf { it.second.width() } / l.d, col.width() / l.d)
+            }
+            if (seen == 0) problems += "${g.getString("column")}: no render shows it (gaps rule untested)"
+        }
+
         if (problems.isNotEmpty()) fail("${problems.size} surface rule failures (spikes/graph-fixtures/layout/rules.json):\n  " +
             problems.take(40).joinToString("\n  "))
 

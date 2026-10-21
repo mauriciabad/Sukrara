@@ -458,12 +458,13 @@ enum GraphFixtures {
             guard let data = FileManager.default.contents(atPath: dir.appendingPathComponent(f).path),
                   let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let cases = root["cases"] as? [[String: Any]] else { print("FAIL labels/\(f): unreadable"); failures += 1; continue }
+            let pctLabel = CGFloat((root["pctLabel"] as? NSNumber)?.doubleValue ?? 0)
             for c in cases {
                 let name = "labels/\(f): \(c["name"] as? String ?? "?")"
                 let chart = c["chart"] as? [String: Double] ?? [:]
                 let w = CGFloat(chart["w"] ?? 0), h = CGFloat(chart["h"] ?? 0)
                 let window = ((c["hours"] as? Double) ?? 12) * 3600
-                let (left, right) = GlucoseGraph.plotX(0, w, pct: c["pct"] as? Bool ?? true, labels: true, d: 1)
+                let (left, right) = GlucoseGraph.plotX(0, w, pct: c["pct"] as? Bool ?? true, labels: true, d: 1, pctW: pctLabel)
                 let from = now - window
                 let marks = (c["treatments"] as? [[String: Any]] ?? []).map {
                     GraphMark(t: now + (($0["t"] as? Double) ?? 0), k: $0["k"] as? String ?? "", a: ($0["a"] as? Double) ?? 0, id: $0["id"] as? String ?? "")

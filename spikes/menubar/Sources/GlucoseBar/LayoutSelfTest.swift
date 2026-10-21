@@ -234,6 +234,26 @@ enum LayoutSelfTest {
                 }
             }
         }
+        // the gaps: a column is its widest drawn label plus one constant margin on each side (CardLayoutTest's twin)
+        for g in json("layout/rules.json")?["gaps"] as? [[String: Any]] ?? [] {
+            let colName = g["column"] as? String ?? "?", labName = g["labels"] as? String ?? "?", gap = num(g["gap"])
+            var seen = 0, gapShown = 0
+            for r in renders { for l in r.layouts {
+                guard let col = l.first(colName)?.box else { continue }
+                let ls = l.all(labName).compactMap { e in e.box.map { (e.info, $0) } }
+                if ls.isEmpty { fail("\(colName): \(r) draws no \(labName)"); continue }
+                seen += 1
+                let left = Double((ls.map(\.1.minX).min()! - col.minX) / l.d)
+                let rights = ls.map { ($0.0, Double((col.maxX - $0.1.maxX) / l.d)) }
+                if (abs(left - gap) > 0.05 || rights.contains { abs($0.1 - gap) > 0.05 }) && gapShown < 20 {
+                    gapShown += 1
+                    fail("\(colName) gaps on \(r) (\(r.scene)/\(r.settings)): left \(String(format: "%.2f", left)), right "
+                         + rights.map { "\($0.0) \(String(format: "%.2f", $0.1))" }.joined(separator: ", ")
+                         + " dp; want \(gap) each (widest label \(String(format: "%.2f", Double(ls.map(\.1.width).max()! / l.d))) dp, column \(String(format: "%.2f", Double(col.width / l.d))) dp)")
+                }
+            } }
+            if seen == 0 { fail("\(colName): no render shows it (gaps rule untested)") }
+        }
         print(failures == 0 ? "layout self-test OK (\(renders.count) renders)" : "layout self-test: \(failures) failure(s)")
         return failures
     }
