@@ -32,6 +32,13 @@ object Clock {
     /** The phone's 24-hour setting (the locale's default when unknown). */
     val hour24: Boolean get() = hour24Source?.let { runCatching(it).getOrNull() } ?: localeHour24(Locale.getDefault())
 
+    /**
+     * What every clock time drawn now depends on: the 24-hour setting and the time zone. Part of every redraw key (widgets,
+     * the notification and its pictures), so a flip of the setting while Sukrara runs redraws them
+     * ([app.mauri.sukrara.widgets.SukraraHooks.CLOCK_ACTIONS] triggers it).
+     */
+    fun signature(): String = "${hour24}|${java.util.TimeZone.getDefault().id}"
+
     /** Does [locale] use a 24-hour clock by default? */
     fun localeHour24(locale: Locale): Boolean = unquoted(localePattern(locale)).none { it == 'h' || it == 'K' }
 

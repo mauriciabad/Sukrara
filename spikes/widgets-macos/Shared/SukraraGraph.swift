@@ -290,6 +290,16 @@ enum Clock {
         hour24Override ?? !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
     }
 
+    /// What tells that the clock's look changed while Sukrara runs: System Settings › Date & Time › 24-hour time posts
+    /// the current locale's change, and the time zone. The status item redraws and re-publishes to the widgets on them
+    /// (`observeChanges`, `-graphselftest` posts each one).
+    static let changeNotifications: [Notification.Name] = [NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange]
+
+    /// Calls `f` on the main queue for each of `changeNotifications` posted on `center`; keep the tokens.
+    static func observeChanges(_ center: NotificationCenter = .default, _ f: @escaping () -> Void) -> [NSObjectProtocol] {
+        changeNotifications.map { center.addObserver(forName: $0, object: nil, queue: .main) { _ in f() } }
+    }
+
     /// "21:08" / "9:08 PM" in the Mac's setting.
     static func time(_ d: Date) -> String { time(d, hour24: hour24, locale: .autoupdatingCurrent) }
 

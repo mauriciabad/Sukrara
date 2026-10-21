@@ -290,6 +290,15 @@ enum LayoutSelfTest {
             } }
             if seen == 0 { fail("\(colName): no render shows it (gaps rule untested)") }
         }
+        // a change of the 24-hour setting or the time zone redraws (StatusController observes Clock.changeNotifications)
+        let center = NotificationCenter(); var fired = 0
+        let tokens = Clock.observeChanges(center) { fired += 1 }
+        for n in Clock.changeNotifications { center.post(name: n, object: nil) }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        if fired != 2 || !Clock.changeNotifications.contains(NSLocale.currentLocaleDidChangeNotification) {
+            fail("clock: a 24-hour / time zone change fired \(fired) of 2 redraws")
+        }
+        tokens.forEach(center.removeObserver)
         print(failures == 0 ? "layout self-test OK (\(renders.count) renders)" : "layout self-test: \(failures) failure(s)")
         return failures
     }
