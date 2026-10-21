@@ -524,12 +524,14 @@ def check_durations(ch, rep):
         text = ch.blob(p) or ""
         if xml:
             for n, l in enumerate(text.splitlines(), 1):
-                m = re.search(r'<(string|item)\b[^>]*?(name="([^"]+)")?[^>]*>(.*)', l)
-                if not m or (m.group(3) or "").startswith("duration_"):
+                # the name is optional (an <item>), but when it's there the group must get it: a lazy optional group
+                # matched nothing and let the duration_* formats themselves be flagged
+                m = re.search(r'<(string|item)\b(?:[^>]*?\bname="([^"]+)")?[^>]*>(.*)', l)
+                if not m or (m.group(2) or "").startswith("duration_"):
                     continue
-                if XML_MINUTES.search(m.group(4)):
+                if XML_MINUTES.search(m.group(3)):
                     rep.add(DURATIONS_LEVEL, "durations", "%s:%d writes minutes by hand (%s). Take the duration as %%1$s and pass\n"
-                            "Durations.text(min) (\"1 h 30 min\"), or Durations.compact on the card." % (p, n, m.group(4).strip()[:60]))
+                            "Durations.text(min) (\"1 h 30 min\"), or Durations.compact on the card." % (p, n, m.group(3).strip()[:60]))
             continue
         for n, l in code_lines(text):
             if "duration-ok:" in l or LOG_CALL.search(l):
