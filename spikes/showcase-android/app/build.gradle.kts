@@ -118,9 +118,9 @@ tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").with
 // The shared graph fixtures and the surface registry likewise (GraphFixtureTest, CardLayoutTest).
 tasks.withType<Test>().configureEach { inputs.dir("../../graph-fixtures").withPropertyName("graphFixtures") }
 
-// Robolectric's SDK 36 sandbox (the graph/report galleries, CardLayoutTest, FreshnessFixtureTest, AlertNotifierTest, AlertMuteTest, UserErrorsTest, ScreenHostTest, TidepoolScreenTest, WearerSettingsTest) needs Java 21+: run unit tests on
+// Robolectric's SDK 36 sandbox (the graph/report galleries, CardLayoutTest, ChartScrollPerfTest, FreshnessFixtureTest, AlertNotifierTest, AlertMuteTest, UserErrorsTest, ScreenHostTest, TidepoolScreenTest, WearerSettingsTest) needs Java 21+: run unit tests on
 // GALLERY_JAVA_HOME when set, else leave those out so `testDebugUnitTest` passes on the build's JDK 17.
-if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/CardLayoutTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*", "**/AlertMuteTest*", "**/UserErrorsTest*", "**/WearerSettingsTest*") }
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/CardLayoutTest*", "**/ChartScrollPerfTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/WearerSettingsTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*", "**/AlertMuteTest*", "**/UserErrorsTest*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",

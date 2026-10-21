@@ -63,7 +63,8 @@ by the app's icon code.</sub>
   menubar included, redrawn on time without a new reading. No trend from the sensor: a hollow ring instead of the arrow. A dashed line at 100 plus lines of
   your own, the very good part of the range in its own colour, and extremely high (≥ 300) in magenta. Ranges,
   lines, vertical hour lines (off, or every 1–12 h), windows (per place and per widget) and rings are settings.
-  [16](docs/16-graph.md)
+  Drag or fling the home screen's chart to go back in time: the % and the distribution beside it, the scale and the
+  treatments follow what's on screen, and a *Now* pill brings you back. [16](docs/16-graph.md)
 - Your doctor's report on the home screen: time in the five ranges, average glucose, GMI (% and mmol/mol) and
   variability (CV), each against the consensus goal, for 1, 7, 14 or 30 days; a share next to its goal gets
   decimals when rounding would put it on the wrong side (5.2 %, not 5 %, against < 5 %). Any of them can sit beside the number
@@ -172,7 +173,8 @@ by the app's icon code.</sub>
 **On your Mac** (Sukrara for Mac, formerly GlucoseBar)
 - The number and trend arrow in the menubar, coloured by range. A click opens a glance panel (like Control Center's):
   the same graph card as the phone (rings, 12 h chart, distribution, treatment marks with their quiet-time lines, the
-  *Eat carbs* / *Take insulin* badge and the last-treatment slot) on the system material, then **Add Treatment…** (or Return),
+  *Eat carbs* / *Take insulin* badge and the last-treatment slot; swipe the chart sideways with two fingers to go back
+  in time, *Now* to return) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
   days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
   and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.

@@ -74,6 +74,9 @@ object TreatmentMarks {
         }
     }
 
+    /** Material Symbols "arrow_back" (Apache 2.0, viewBox 0 -960 960 960; also `ic_sym_arrow_back`), mirrored to "arrow_forward" in [marker]. */
+    private val arrowForward: Path by lazy { androidx.core.graphics.PathParser.createPathFromPathData("m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z") }
+
     private val ORDER = mapOf("rapid" to 0, "long" to 1, "carbs" to 2, "note" to 3)
 
     /**
@@ -101,6 +104,13 @@ object TreatmentMarks {
                 cv.drawCircle(x, y, r * 0.8f, Paint(fill).apply { style = Paint.Style.STROKE; strokeWidth = r * 0.26f })
                 cv.drawCircle(x, y, r * 0.3f, fill)
             }
+            // the "Now" pill over a scrolled chart (StatusBadge.backToNow): Material Symbols "arrow_forward"
+            "now" -> cv.drawPath(Path(arrowForward).apply {
+                transform(android.graphics.Matrix().apply {
+                    setScale(-1f, 1f, 480f, 0f); postTranslate(0f, 960f); postScale(r * 2.2f / 960f, r * 2.2f / 960f)
+                    postTranslate(x - r * 1.1f, y - r * 1.1f)
+                })
+            }, fill)
             else -> cv.drawPath(Path().apply {
                 moveTo(x, y - r * 0.67f); lineTo(x + r * 0.67f, y); lineTo(x, y + r * 0.67f); lineTo(x - r * 0.67f, y); close()
             }, fill)

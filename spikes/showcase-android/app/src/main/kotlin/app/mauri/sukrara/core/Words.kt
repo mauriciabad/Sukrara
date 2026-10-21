@@ -47,6 +47,8 @@ data class Words(
     /** The action pill on an ended sensor (StatusBadge kind "sensor"), full and short like "Eat carbs" / "Carbs". */
     val replaceSensor: String = "Replace sensor",
     val replaceSensorShort: String = "Sensor",
+    /** The pill over a chart scrolled into the past (StatusBadge kind "now"): back to the latest reading. */
+    val backToNow: String = "Now",
     val warmingUp: String = "Warming up",
     val readyAt: String = "Ready at %1\$s",
     /** Past the warm-up's end, before the first reading: the figure and the line under it (never "0m" / "-3m"). */
@@ -95,6 +97,7 @@ data class Words(
             noReadingSince = r.getString(R.string.card_no_reading_since),
             sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
             replaceSensor = r.getString(R.string.badge_replace_sensor), replaceSensorShort = r.getString(R.string.badge_replace_sensor_short),
+            backToNow = r.getString(R.string.chart_back_to_now),
             warmingUp = r.getString(R.string.card_warming_up), readyAt = r.getString(R.string.card_ready_at),
             almostReady = r.getString(R.string.card_almost_ready), waitingReading = r.getString(R.string.card_waiting_reading),
             trendUnknown = r.getString(R.string.trend_unknown), trendSteady = r.getString(R.string.trend_steady),

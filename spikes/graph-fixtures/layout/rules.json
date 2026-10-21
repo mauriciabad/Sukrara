@@ -24,5 +24,7 @@
    "about": "The % column is its widest drawn label plus this many dp on each side (the user, 2026-10-21: 'it should depend on the longest text width'): column left → widest label's left = gap, every label's right → column right = gap (± 0.05 dp), on every surface, size and platform."},
   {"column": "chart.values", "labels": "chart.values.label", "align": "left", "gap": 3,
    "about": "The values on the right of the plot (mg/dL), the same rule mirrored (the user, 2026-10-21: 'can this margin fix logic also be applied to the right axis labels?'): column left (the plot's right edge) → every label's left = gap, widest label's right → column right = gap."}
- ]
+ ],
+ "distribution": {"pitch": 3.6, "dot": 1.35, "cut": 3,
+  "about": "The distribution beside the chart: rows of dots 'pitch' dp apart, dots of radius 'dot', and the outline erased (DST_OUT / .destinationOut) from the lines under them 'cut' dp wider than the dots (the user, 2026-10-21: 'more outline so it masks out more of the content behind'; it was 1.6). CardLayoutTest and -graphselftest check the renderers' constants against these and, on every render with a distribution, the erased outline's box (chart.distribution.cut) against the dots' (chart.distribution.dots): right and top margins = cut (± 0.05 dp)."}
 }

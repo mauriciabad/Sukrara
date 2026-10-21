@@ -367,6 +367,7 @@ object GlucoseCard {
         countdownH: Int = SensorLife.countdown.value,
         paused: Map<String, Long> = Alerts.paused.value,
         motion: CardMotion? = null,
+        view: ChartView? = null,
     ): CardLayout {
         val rec = CardLayout(surface, part, st, w, h, d)
         val latest = readings.maxByOrNull { it.t }
@@ -408,7 +409,7 @@ object GlucoseCard {
         }
         if ((part == CardPart.ALL || part == CardPart.GRAPH) && graph != null)
             GlucoseGraph.draw(cv, chart, readings, treatments, nowS, graph, pal, d, alerts,
-                sensor = sl.takeIf { spot == SensorSpot.GRAPH }, rec = rec)
+                sensor = sl.takeIf { spot == SensorSpot.GRAPH }, rec = rec, view = view, latestT = latest?.t)
         // a graph-only card without its chart: the value's face alone (no rings, no badge: a graph card has neither)
         if (noChart && !st.value)
             drawValue(cv, chart, latest, fr, nowS, bands, pal, d, null, sl, rec, motion)
@@ -421,6 +422,15 @@ object GlucoseCard {
                 pal, d, look, sl, rec, motion, st.valueInk)
         }
         return rec.also { observer?.invoke(it) }
+    }
+
+    /**
+     * The y range (mg/dL) the chart of [st] draws for the window ending at [endS] ([GlucoseGraph.yRange]): a scrolling
+     * surface animates [ChartView.y] towards it, so the scale never jumps.
+     */
+    fun yRange(readings: List<Reading>, endS: Long, st: GraphStyle): Pair<Float, Float> {
+        val from = endS - st.windowS
+        return GlucoseGraph.yRange(GlucoseStats.window(readings, from - 60, endS), from, st.bands.sane())
     }
 
     /**
