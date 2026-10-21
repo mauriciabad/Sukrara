@@ -106,6 +106,10 @@ struct RenderMain {
             TreatmentSheets.run(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "evidence"))
             return
         }
+        if CommandLine.arguments.dropFirst().first == "treatment-parts" {   // render treatment-parts <out-dir>
+            TreatmentSheets.parts(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "build/treatment-parts"))
+            return
+        }
         if CommandLine.arguments.dropFirst().first == "marks" {   // render marks <out-dir>
             renderMarks(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "build/marks"))
             return
@@ -255,6 +259,31 @@ enum TreatmentSheets {
         }
         try! NSBitmapImageRep(cgImage: ctx.makeImage()!).representation(using: .png, properties: [:])!.write(to: url)
         print("wrote", url.path)
+    }
+
+    /// Treatments on the graph (GraphStyle.marks): before (every part), the defaults (carbs: the point only), mixed
+    /// (GraphGallery.treatmentParts on Android: the same entries and variants).
+    static func parts(_ out: URL) {
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        Clock.hour24Override = false
+        let data = endAt(RealisticSynthetic.readings(until: now, days: 15), 160)
+        let trs = [GraphMark(t: now - 3840, k: "rapid", a: 4, id: "r1"), GraphMark(t: now - 3780, k: "carbs", a: 40, id: "c1"),
+                   GraphMark(t: now - 1500, k: "carbs", a: 15, id: "c2"), GraphMark(t: now - 600, k: "long", a: 18, id: "l1"),
+                   GraphMark(t: now - 4 * 3600, k: "note", a: 0, n: "walk", id: "n1")]
+        let v: [(String, MarkShow)] = [
+            ("before: every part of every kind", .all),
+            ("after: the defaults (carbs: point only)", .defaults),
+            ("carbs: point + amount (the meal's time is the insulin's)", MarkShow.defaults.with("carbs", "amount", true)),
+            ("rapid: labels only, no point or line; notes hidden",
+             MarkShow.defaults.with("rapid", "point", false).with("rapid", "line", false).with("note", "point", false)),
+        ]
+        for dark in [true, false] {
+            let tiles = v.map { (title, m) -> Tile in
+                var g = GraphStyle(); g.window = 6 * 3600; g.marks = m
+                return Tile(title: title, w: 340, h: 170, draw: card(data, trs, CardStyle(graph: g, sensorTime: true)))
+            }
+            sheet(out.appendingPathComponent("mac-marks-\(dark ? "dark" : "light").png"), tiles, cellW: 340, cellH: 170, cols: 2, dark: dark)
+        }
     }
 
     static func run(_ out: URL) {

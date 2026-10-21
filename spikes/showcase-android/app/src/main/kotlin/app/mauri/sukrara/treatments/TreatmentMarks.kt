@@ -4,6 +4,7 @@
 package app.mauri.sukrara.treatments
 
 import app.mauri.sukrara.core.Words
+import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.graph.TextModel
 import android.graphics.BlendMode
 import android.graphics.Canvas
@@ -32,6 +33,45 @@ import kotlin.math.roundToInt
  * entries share a label; see [layout] for the rules (the user, 2026-10-18: "the labels cover the chart data …
  * they can cover the axis labels, which are less important").
  */
+/**
+ * Which parts of each kind's marks the chart draws (Settings › Graph › Treatments on the graph; schema `graph.marks`,
+ * mirrored): per kind ([KINDS]) the point (marker), the mute line, the amount label and the time label ([PARTS]),
+ * only those the kind has ([parts]: long-acting mutes nothing, a note has only its marker). The defaults are the
+ * schema's `markDefault.*` (carbs: the point only, the user 2026-10-21). Mac `MarkShow`.
+ */
+class MarkShow private constructor(private val on: Map<String, Set<String>>) {
+    fun has(k: String, part: String) = part in (on[k] ?: emptySet())
+    /** Anything of [k] shows. */
+    fun any(k: String) = on[k]?.isNotEmpty() == true
+    /** A label part (amount or time) of [k] shows. */
+    fun label(k: String) = has(k, AMOUNT) || has(k, TIME)
+    fun with(k: String, part: String, v: Boolean) = of(on + (k to (on[k].orEmpty().let { if (v) it + part else it - part })))
+    /** "rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point" (the stored and wire form). */
+    val text: String get() = KINDS.joinToString(",") { k -> "$k:" + parts(k).filter { has(k, it) }.joinToString("+") }
+    override fun equals(other: Any?) = other is MarkShow && other.text == text
+    override fun hashCode() = text.hashCode()
+    override fun toString() = text
+
+    companion object {
+        const val POINT = "point"; const val LINE = "line"; const val AMOUNT = "amount"; const val TIME = "time"
+        val KINDS: List<String> = SettingsSpec.OPTIONS.getValue("markKind")
+        val PARTS: List<String> = SettingsSpec.OPTIONS.getValue("markPart")
+        /** The parts kind [k] has, in [PARTS] order. */
+        fun parts(k: String): List<String> = SettingsSpec.OPTIONS["markParts.$k"].orEmpty()
+        private fun of(m: Map<String, Set<String>>) = MarkShow(KINDS.associateWith { k -> parts(k).filter { it in m[k].orEmpty() }.toSet() })
+        val DEFAULT = of(KINDS.associateWith { SettingsSpec.OPTIONS["markDefault.$it"].orEmpty().toSet() })
+        /** Every part of every kind (the look before the setting existed). */
+        val ALL = of(KINDS.associateWith { parts(it).toSet() })
+        /** [text] back; a kind missing from it (or null) keeps its default, unknown parts are dropped. */
+        fun parse(text: String?): MarkShow {
+            if (text.isNullOrBlank()) return DEFAULT
+            val got = text.split(",").mapNotNull { e -> e.split(":", limit = 2).takeIf { it.size == 2 }?.let { it[0].trim() to it[1] } }
+                .associate { (k, v) -> k to v.split("+").map { it.trim() }.filter { it.isNotEmpty() }.toSet() }
+            return of(KINDS.associateWith { k -> got[k] ?: SettingsSpec.OPTIONS["markDefault.$k"].orEmpty().toSet() })
+        }
+    }
+}
+
 object TreatmentMarks {
     data class Palette(val rapid: Int, val long: Int, val carbs: Int, val note: Int)
 
@@ -133,14 +173,19 @@ object TreatmentMarks {
     const val INSET_DP = 3f
 
     /**
-     * One label under the markers: [members] in label order (kind: insulin, long-acting, carbs; then time), [time] =
-     * the time since the newest member (null = left out for room), [lane] 0 (the axis row) or 1 (under it),
-     * [left] + [w] = its modelled box ([TextModel], px).
+     * One label under the markers: [members] in label order (kind: insulin, long-acting, carbs; then time), the
+     * entries with a label part shown ([MarkShow.label]); [shownAmounts] = those whose amount shows; [time] = the time
+     * since [timeOf], the newest member whose time shows (null = none wants it, or left out for room); [lane] 0 (the
+     * axis row) or 1 (under it), [left] + [w] = its modelled box ([TextModel], px).
      */
-    class Label(val members: List<Treatment>, val time: String?, val lane: Int, val left: Float, val w: Float) {
-        val amounts: List<String> get() = members.mapNotNull { amount(it) }
-        val text: String get() = amounts.joinToString(SEP) + (time?.let { " $it" } ?: "")
+    class Label(val members: List<Treatment>, val shownAmounts: List<Treatment>, val timeOf: Treatment?, val time: String?,
+                val lane: Int, val left: Float, val w: Float) {
+        val amounts: List<String> get() = shownAmounts.mapNotNull { amount(it) }
+        val text: String get() = text(amounts, time)
     }
+
+    /** "4u · 40g 1h 4m", "40g", "1h 4m": the amounts joined by " · ", then the time. */
+    fun text(amounts: List<String>, time: String?) = listOfNotNull(amounts.joinToString(SEP).ifEmpty { null }, time).joinToString(" ")
 
     /** Where the labels go; [dropped] = the groups left without a label (their markers stay). */
     class Layout(val labels: List<Label>, val dropped: List<List<Treatment>>) {
@@ -156,19 +201,22 @@ object TreatmentMarks {
      * The label layout, a pure function of the entries, the time → px mapping [x], the room [minX]..[maxX] (the whole
      * chart width: labels may run under the % column and the values on the right) and [lanes] (1 or 2):
      *
-     * 1. Entries with an amount (notes: marker only), oldest first, are grouped: one joins the previous group when it is
-     *    at most [MERGE_S] after the group's last entry (a meal, chained) or its marker is less than [MERGE_DP] from the
-     *    group's first marker (markers that overlap; not chained, so a run of snacks doesn't become one label).
-     * 2. A group's label is its amounts in kind order joined by " · " plus the time since its newest entry
-     *    ("4.5u · 45g 1h 35m"); its anchor is the middle of its first and last marker. Widths come from [TextModel].
+     * 1. Entries with an amount (notes: marker only) whose amount or time label shows ([show]), oldest first, are
+     *    grouped: one joins the previous group when it is at most [MERGE_S] after the group's last entry (a meal,
+     *    chained) or its marker is less than [MERGE_DP] from the group's first marker (markers that overlap; not
+     *    chained, so a run of snacks doesn't become one label). Entries with both labels hidden take no part.
+     * 2. A group's label is the amounts that show, in kind order joined by " · ", plus the time since its newest entry
+     *    whose time shows ("4.5u · 45g 1h 35m"; once, and none when no member's time shows); its anchor is the middle
+     *    of its first and last marker. Widths come from [TextModel].
      * 3. Groups are placed newest first, each in the first of: lane 0 with the time, lane 1 with the time, lane 0
-     *    without it, lane 1 without it, that has a free place ([place]). A group with none gets no label.
+     *    without it, lane 1 without it (only when amounts show), that has a free place ([place]). A group with none
+     *    gets no label.
      *
      * [reserve] = a box of lane 0 that is already taken (the sensor badge at the row's start, [app.mauri.sukrara.graph.GlucoseGraph.sensorTop]).
      */
     fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float,
-               reserve: Pair<Float, Float>? = null): Layout {
-        val items = list.filter { !it.del && amount(it) != null }
+               reserve: Pair<Float, Float>? = null, show: MarkShow = MarkShow.DEFAULT): Layout {
+        val items = list.filter { !it.del && amount(it) != null && show.label(it.k) }
             .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.a }, { it.id }))
         val groups = ArrayList<MutableList<Treatment>>()
         for (tr in items) {
@@ -184,15 +232,19 @@ object TreatmentMarks {
         val dropped = ArrayList<List<Treatment>>()
         for (g in groups.sortedByDescending { it.last().t }) {
             val members = g.sortedWith(compareBy<Treatment>({ ORDER.getValue(it.k) }, { it.t }, { it.a }, { it.id }))
-            val amounts = members.mapNotNull { amount(it) }.joinToString(SEP)
-            val time = nowS?.let { duration(it - g.last().t) }
+            val shownAmounts = members.filter { show.has(it.k, MarkShow.AMOUNT) }
+            val amounts = shownAmounts.mapNotNull { amount(it) }
+            // the time once, since the newest member that wants it
+            val timeOf = g.lastOrNull { show.has(it.k, MarkShow.TIME) }
+            val time = if (timeOf != null) nowS?.let { duration(it - timeOf.t) } else null
             val cx = (x(g.first().t) + x(g.last().t)) / 2
-            val tries = listOf(0 to time, 1 to time, 0 to null, 1 to null).filter { it.first < lanes }
+            val tries = listOf(0 to time, 1 to time, 0 to null, 1 to null)
+                .filter { it.first < lanes && (amounts.isNotEmpty() || it.second != null) }.distinct()
             val label = tries.firstNotNullOfOrNull { (lane, t) ->
-                val w = TextModel.width(amounts + (t?.let { " $it" } ?: ""), size)
+                val w = TextModel.width(text(amounts, t), size)
                 place(cx, w, taken[lane], minX, maxX, gap, INSET_DP * d)?.let { left ->
                     taken[lane] += left - gap / 2 to left + w + gap / 2
-                    Label(members, t, lane, left, w)
+                    Label(members, shownAmounts, timeOf, t, lane, left, w)
                 }
             }
             if (label != null) labels += label else dropped += members
@@ -225,7 +277,7 @@ object TreatmentMarks {
     /**
      * Draw [list] (live entries; deleted ones are skipped) into the plot [left]..[right] × ..[bottom] of [cv]: the
      * markers in the lane just above [bottom], the faint time lines up to [top] (NaN = none), the mute lines
-     * ([muteUntil], null = none; [nowS] = the plot's right edge), then [layout]'s labels with their baselines at [base0]
+     * ([muteUntil], null = none; [nowS] = the plot's right edge), each only where [show] has it, then [layout]'s labels with their baselines at [base0]
      * (lane 0) and [base1] (lane 1). [x] maps epoch seconds to a pixel column; [density] = px per dp; [sep] = the
      * colour of the " · " between merged amounts.
      *
@@ -236,7 +288,7 @@ object TreatmentMarks {
     fun draw(
         cv: Canvas, list: List<Treatment>, x: (Long) -> Float, left: Float, right: Float, bottom: Float,
         density: Float, dark: Boolean, layout: Layout?, base0: Float, base1: Float, sep: Int,
-        top: Float = Float.NaN, nowS: Long? = null, muteUntil: ((Treatment) -> Long?)? = null,
+        top: Float = Float.NaN, nowS: Long? = null, muteUntil: ((Treatment) -> Long?)? = null, show: MarkShow = MarkShow.DEFAULT,
     ) {
         val d = density
         val pal = palette(dark)
@@ -256,6 +308,7 @@ object TreatmentMarks {
             val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2 * d; strokeCap = Paint.Cap.ROUND; style = Paint.Style.STROKE }
             // Insulin's line just above the lane's middle, carbs' just below: a meal's two lines lie side by side.
             for ((tr, px) in items.sortedByDescending { ORDER.getValue(it.first.k) }) {
+                if (!show.has(tr.k, MarkShow.LINE)) continue
                 val until = muteUntil(tr) ?: continue
                 val ly = cy + if (tr.k == "carbs") 1.5f * d else -1.5f * d
                 val running = nowS != null && until > nowS
@@ -270,7 +323,7 @@ object TreatmentMarks {
             }
         }
         for ((tr, px) in items.sortedByDescending { ORDER.getValue(it.first.k) })
-            marker(cv, tr.k, px, cy, 4.5f * d, color(pal, tr.k))
+            if (show.has(tr.k, MarkShow.POINT)) marker(cv, tr.k, px, cy, 4.5f * d, color(pal, tr.k))
 
         if (layout == null || layout.labels.isEmpty()) return
         val bold = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = LABEL_DP * d; typeface = Typeface.DEFAULT_BOLD }
@@ -278,11 +331,13 @@ object TreatmentMarks {
         class Piece(val s: String, val paint: Paint, val color: Int)
         val drawn = layout.labels.map { l ->
             val pieces = ArrayList<Piece>()
-            l.members.filter { amount(it) != null }.forEachIndexed { i, tr ->
+            l.shownAmounts.filter { amount(it) != null }.forEachIndexed { i, tr ->
                 if (i > 0) pieces += Piece(SEP, medium, ColorUtils.setAlphaComponent(sep, 0xC0))
                 pieces += Piece(amount(tr)!!, bold, color(pal, tr.k))
             }
-            l.time?.let { pieces += Piece(" $it", medium, ColorUtils.setAlphaComponent(color(pal, l.members.maxBy { m -> m.t }.k), 0xC0)) }
+            val timeOf = l.timeOf
+            if (l.time != null && timeOf != null)
+                pieces += Piece(if (pieces.isEmpty()) l.time else " ${l.time}", medium, ColorUtils.setAlphaComponent(color(pal, timeOf.k), 0xC0))
             val w = pieces.sumOf { it.paint.measureText(it.s).toDouble() }.toFloat()
             Triple(l, pieces, l.left + (l.w - w) / 2)   // the real text, centred in its modelled box
         }

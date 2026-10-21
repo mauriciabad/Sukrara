@@ -8,6 +8,7 @@ import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.treatments.LastTreatment
 import app.mauri.sukrara.treatments.Treatment
+import app.mauri.sukrara.treatments.MarkShow
 import app.mauri.sukrara.treatments.TreatmentMarks
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -262,6 +263,15 @@ class GraphFixtureTest {
         assertTrue("place fixtures failed:\n" + fails.joinToString("\n"), fails.isEmpty())
     }
 
+    /** A case's `marks`: absent = the defaults, "all" = every part, or `{kind: [parts]}` (missing kinds = their default). */
+    private fun marksOf(c: JSONObject): MarkShow = when (val m = c.opt("marks")) {
+        null -> MarkShow.DEFAULT
+        "all" -> MarkShow.ALL
+        is JSONObject -> MarkShow.parse(m.keys().asSequence().joinToString(",") { k ->
+            val a = m.getJSONArray(k); "$k:" + (0 until a.length()).joinToString("+") { a.getString(it) } })
+        else -> error("marks: $m")
+    }
+
     /** What the graph decides for a label case, in the fixtures' `expect` form. */
     private fun labelDump(c: JSONObject, pctLabel: Float, valueLabel: Float): JSONObject {
         val w = c.getJSONObject("chart").getDouble("w").toFloat()
@@ -276,7 +286,7 @@ class GraphFixtureTest {
         val from = now - windowS
         val lay = TreatmentMarks.layout(trs.filter { it.t in from..now }, { t -> left + (t - from).toFloat() / windowS * (right - left) },
             now, 0f, w, GlucoseGraph.lanes(h, 1f), 1f,
-            c.optString("sensor").takeIf { it.isNotEmpty() }?.let { 0f to GlucoseGraph.sensorWidth(it, 1f) + 3f })
+            c.optString("sensor").takeIf { it.isNotEmpty() }?.let { 0f to GlucoseGraph.sensorWidth(it, 1f) + 3f }, marksOf(c))
         fun r(v: Float) = Math.round(v * 2) / 2.0
         return JSONObject()
             .put("plot", org.json.JSONArray(listOf(r(left), r(right))))
@@ -291,6 +301,7 @@ class GraphFixtureTest {
     /** Equal, with dp values within 0.5 (float vs double, rounding to the nearest 0.5). */
     private fun sameDump(a: JSONObject, b: JSONObject): Boolean {
         fun near(x: Double, y: Double) = kotlin.math.abs(x - y) <= 0.5
+        if (!a.has("plot")) return false   // a new case with an empty expect: the failure prints the dump
         val pa = a.getJSONArray("plot"); val pb = b.getJSONArray("plot")
         if (!near(pa.getDouble(0), pb.getDouble(0)) || !near(pa.getDouble(1), pb.getDouble(1))) return false
         if (a.getInt("lanes") != b.getInt("lanes")) return false

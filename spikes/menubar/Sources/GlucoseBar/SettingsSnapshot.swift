@@ -32,7 +32,7 @@ import Foundation
         let custom: [String: Any] = [
             WearerSettings.modeKey: "custom", "graphHours": 7, "widgetHours": 36, "countdownHours": 10, "bandLow": 68, "bandHigh": 175,
             "lines": "100,155", "ringCount": 3, "slots": "TIR:86400:1,TIR:3888000:1,GMI:1209600:1", "lastElse": "TIR:5184000:1",
-            "ringOrder": "TIGHT,TARGET,HIGH,VERY_HIGH,LOW,VERY_LOW", AlertSettings.key: customAlerts,
+            "ringOrder": "TIGHT,TARGET,HIGH,VERY_HIGH,LOW,VERY_LOW", "marks": "rapid:amount+time,carbs:point+amount", AlertSettings.key: customAlerts,
         ]
         return [
             State(suffix: "", details: .low),
