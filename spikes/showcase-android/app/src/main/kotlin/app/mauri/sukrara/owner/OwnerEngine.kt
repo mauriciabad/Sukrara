@@ -319,10 +319,14 @@ class OwnerEngine(private val ctx: Context) {
         val granted = listOf(android.Manifest.permission.BLUETOOTH_CONNECT, android.Manifest.permission.BLUETOOTH_ADVERTISE)
             .all { ctx.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
         if (!granted) return log.i("BLE: permissions not granted, Bluetooth transport off")
-        val b = app.mauri.sukrara.core.BleOwner(ctx, log::i, ::onEvent) { nonce ->
+        val b = app.mauri.sukrara.core.BleOwner(ctx, log::i, ::onEvent, info = { nonce ->
             val n = nearby?.takeIf { it.x > Proto.nowS() }
             app.mauri.sukrara.core.Ble.info(s.iPub, s.sid, nonce, s.relays, n?.t, n?.x ?: 0, s.profile)
-        }
+        }, who = { sig, nonce ->
+            // the HELLO's identity proof against the current followers (spec/ogs-ble.md B§6 "Who's connected")
+            val st = this.st
+            st?.let { runCatching { app.mauri.sukrara.core.Ble.identify(sig, it.sid, nonce, it.active().map { f -> f.f }) }.getOrNull() }
+        })
         if (!b.start()) return
         ble = b
         attach(b)
@@ -389,7 +393,6 @@ class OwnerEngine(private val ctx: Context) {
         val name = s.followers.lastOrNull { it.f == author }?.name ?: author.take(12)
         val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return log.i("treatment: malformed, ignored")
         if (!e.verify()) return log.i("treatment REJECTED: bad signature (via $via)")
-        if (via.startsWith("ble:")) ble?.identify(via.removePrefix("ble:"), author)
         if (author !in s.writers || s.followers.none { it.f == author && it.revoked == null }) {
             return log.i("treatment REJECTED: author $name (${author.take(12)}) is not in roster writers (via $via)")
         }
@@ -778,7 +781,6 @@ class OwnerEngine(private val ctx: Context) {
         if (!e.verify()) return log.i("wrap $id: bad signature, ignored")
         val u = Proto.unwrap(s.i, e) ?: return log.i("wrap ${id.take(8)}: cannot unwrap, ignored")
         if (u.kind != Proto.RUMOR_TO_OWNER || u.body.optInt("v") != 2) return
-        if (via.startsWith("ble:")) ble?.identify(via.removePrefix("ble:"), u.sender)
         val known = s.followers.lastOrNull { it.f == u.sender }
         val profile = app.mauri.sukrara.core.Profile.of(u.body.optJSONObject("profile"))
         val name = profile?.name?.ifBlank { null } ?: "?"

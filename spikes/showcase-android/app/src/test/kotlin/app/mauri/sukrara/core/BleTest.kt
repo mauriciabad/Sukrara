@@ -118,4 +118,23 @@ class BleTest {
         assertFalse("no expiration tag", Ble.expired(ev(null), now = 200))
         assertEquals(100L, Ble.expiration(ev(100)))
     }
+
+    /** B§5/B§6: the HELLO identity proof names its follower and device, and nothing else (vector `ble.hello_id`). */
+    @Test fun helloIdentityProof() {
+        val hi = ble.getJSONObject("hello_id")
+        val sid = hi.getString("sid"); val nonce = hi.getString("nonce"); val f = hi.getString("follower")
+        val sig = hi.getJSONArray("hello").getJSONObject(1).getString("id")
+        val keys = vec.getJSONObject("keys")
+        val others = listOf("W", "X").map { keys.getJSONObject(it).getString("pub") }
+        assertEquals(hi.getString("content"), Ble.idContent(sid, nonce, hi.getString("dev")))
+        assertEquals(f to "mac", Ble.identify(sig, sid, nonce, others + f))
+        assertNull(Ble.identify(sig, sid, nonce, others))
+        assertNull("another nonce", Ble.identify(sig, sid, "00".repeat(16), listOf(f)))
+        assertNull("another sid", Ble.identify(sig, "0".repeat(32), nonce, listOf(f)))
+        assertNull("not a signature", Ble.identify("zz", sid, nonce, listOf(f)))
+        // the proof is a NIP-01 event signature: the vector's live event checks out with the same verifier
+        val live = ble.getJSONArray("message").getJSONObject(1)
+        assertTrue(Schnorr.verify(Proto.unhex(live.getString("id")), Proto.unhex(live.getString("pubkey")), Proto.unhex(live.getString("sig"))))
+        assertFalse(Schnorr.verify(Proto.unhex(live.getString("id")), Proto.unhex(f), Proto.unhex(live.getString("sig"))))
+    }
 }

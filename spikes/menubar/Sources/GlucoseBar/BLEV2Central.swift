@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CoreBluetooth
+import NostrSDK
 import Foundation
 
 /// Protocol v2 over Bluetooth (docs/07-bluetooth-followers.md): the CGM Share owner phone is a GATT server; this Mac
@@ -9,7 +10,7 @@ import Foundation
 /// rules as relay events (seal signer = I, roster devices, known gk, valid signature). The Bluetooth connection is
 /// `BLELink`'s (one link per phone).
 ///   frame = [msgId u16][idx u16][count u16][payload]  (big endian); message = JSON array
-///   follower → owner: ["HELLO",{"v":2,"nonce":<hex>}], ["EVENT",<event>]   owner → follower: ["INFO",{…}], ["EVENT",<event>]
+///   follower → owner: ["HELLO",{"v":2,"nonce":<hex>,"id":<proof>}], ["EVENT",<event>]   owner → follower: ["INFO",{…}], ["EVENT",<event>]
 /// INFO proves the stream's `sid` over our HELLO's nonce (`m`) and names the identity `I` only while "Pair nearby" is
 /// open (P12); nothing is written to a phone before it proved it's the wearer's (`verifiedOwner`, set by the app).
 final class BLEV2Central: NSObject, BLEService {
@@ -28,6 +29,23 @@ final class BLEV2Central: NSObject, BLEService {
 
     /// spec/ogs-ble.md B§5: `m = H("cgm2:ble:" + sid + ":" + nonce)` (Android `Ble.infoM`).
     static func infoM(sid: String, nonce: String) -> String { V2.H("cgm2:ble:\(sid):\(nonce)") }
+
+    /// spec/ogs-ble.md B§5 identity proof (Android `Ble.idProof`): HELLO `id` = F's BIP-340 signature of the kind-21080
+    /// event `{created_at 0, tags [], content H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)}`. The event is never sent; the
+    /// wearer's phone rebuilds it for each follower to name this link ("<name> · Mac").
+    static let idKind: UInt16 = 21080
+    static func idContent(sid: String, nonce: String, dev: String) -> String { V2.H("cgm2:ble-id:\(sid):\(nonce):\(dev)") }
+    /// The proof event's id (NIP-01 serialization; the content is hex, nothing to escape): what F signs.
+    static func idEventId(fPub: String, sid: String, nonce: String, dev: String) -> String {
+        V2.hex(V2.sha("[0,\"\(fPub)\",0,\(idKind),[],\"\(idContent(sid: sid, nonce: nonce, dev: dev))\"]"))
+    }
+    static func idProof(f: Keys, sid: String, nonce: String, dev: String) -> String? {
+        guard let ev = try? EventBuilder(kind: Kind(kind: idKind), content: idContent(sid: sid, nonce: nonce, dev: dev))
+                .customCreatedAt(createdAt: Timestamp.fromSecs(secs: 0)).finalize(signer: f),
+              let json = try? ev.asJson(),
+              let o = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else { return nil }
+        return o["sig"] as? String
+    }
 
     /// B§6 "Which owner" (Android `Ble.owner`): ours = `m` proves our `sid` for one of our HELLO nonces, or `i` is our
     /// identity; other = another identity, or a missing/wrong proof while we know the `sid`; unknown = our request is
@@ -83,6 +101,8 @@ final class BLEV2Central: NSObject, BLEService {
 
     var onEvent: ((String, String) -> Void)?        // (event json, via "ble:<name>")
     var onInfo: ((Info, String) -> Void)?           // (info, peripheral name)
+    /// The identity proof for a HELLO nonce (`FollowerV2.bleIdProof`), nil while we don't know `sid`.
+    var proof: ((String) -> String?)?
     var onState: ((String) -> Void)?
 
     // BLEService: the connection itself belongs to BLELink (one link per phone).
@@ -171,11 +191,13 @@ final class BLEV2Central: NSObject, BLEService {
         send(["EVENT", o], done: done)
     }
 
-    /// HELLO with a fresh 16-byte nonce (the last 4 are kept for the INFO check).
+    /// HELLO with a fresh 16-byte nonce (the last 4 are kept for the INFO check) and, once we know `sid`, our identity proof.
     func hello() {
         let n = V2.hex((0..<16).map { _ in UInt8.random(in: 0...255) })
         nonces = Array((nonces + [n]).suffix(4))
-        send(["HELLO", ["v": 2, "nonce": n]])
+        var body: [String: Any] = ["v": 2, "nonce": n]
+        if let id = proof?(n) { body["id"] = id }     // once we know `sid`: who we are (B§5)
+        send(["HELLO", body])
     }
 
     private func pump() {

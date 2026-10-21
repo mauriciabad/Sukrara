@@ -1130,8 +1130,12 @@
     <string name="people_nearby_connected">Conectado</string>
     <!-- Nearby device state (AOSP bluetooth_disconnected) [CHAR LIMIT=30] -->
     <string name="people_nearby_disconnected">Desconectado</string>
-    <!-- A connected phone that hasn't said which follower it is yet [CHAR LIMIT=40] -->
-    <string name="people_nearby_unnamed">Teléfono de un seguidor</string>
+    <!-- Nearby device row title: %1$s = follower name, %2$s = device type (Phone / Mac) [CHAR LIMIT=40] -->
+    <string name="people_nearby_on">%1$s · %2$s</string>
+    <!-- Device type of a connected follower [CHAR LIMIT=20] -->
+    <string name="people_nearby_phone">Teléfono</string>
+    <!-- Device type of a connected follower; Mac is a product name [CHAR LIMIT=20] -->
+    <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">Ningún dispositivo</string>
     <string name="people_footer">Al quitar a alguien se cambia la clave de lectura, así que deja de recibir lecturas nuevas al instante. Los seguidores a los que permitas añadir registros pueden apuntar insulina, hidratos y notas por ti.</string>

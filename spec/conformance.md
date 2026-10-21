@@ -79,6 +79,7 @@ Privacy
 - [ ] BO: `INFO` carries `nonce` and `m` (reproduces the `ble.info_m` vector); `i`, `relays` and `pair` only while pairing (B§5)
 - [ ] BO: no expired event in a backlog (B§6)
 - [ ] BF: a fresh `nonce` per `HELLO`; writes nothing but `HELLO` until `INFO` proves the stream (`m`, or `i` while pairing); leaves another wearer's phone (B§6)
+- [ ] BF: once it knows `sid`, every `HELLO` carries `id` (reproduces the `ble.hello_id` vector with zero aux); BO: names a link only by a verified `id` against its roster, never by a made-up name (B§5, B§6)
 - [ ] Reassembly: 30 s idle timeout, 256 KiB cap, at most 16 buffers (B§4.3)
 - [ ] BO SHOULD: check writes before answering; cap centrals; per-central rate limits; one backlog per few seconds (B§8)
 
