@@ -18,7 +18,8 @@ import org.json.JSONObject
  *
  * Frame = `[msgId u16][idx u16][count u16]` (big endian) + up to `mtu - 3 - 6` payload bytes.
  * A message is the UTF-8 of a JSON array, Nostr-wire style:
- *  - `["HELLO", {"v":2,"nonce":<32 hex>}]` follower → owner: "send me INFO + what you have"; `nonce` is fresh per HELLO
+ *  - `["HELLO", {"v":2,"nonce":<32 hex>,"id":<128 hex>}]` follower → owner: "send me INFO + what you have"; `nonce` is
+ *    fresh per HELLO; `id` (once the follower knows `sid`) proves which follower and device is connecting ([idProof])
  *  - `["INFO", {...}]`         owner → follower: `{"v":2,"nonce":<the HELLO's>,"m":H("cgm2:ble:"+sid+":"+nonce)}`, plus
  *    `"i":<I hex>,"relays":[…],"pair":{"t":token,"x":expiry,"profile":{…}}` only while "Pair nearby" is open (P12)
  *  - `["EVENT", <nostr event>]` both ways: live, chunks, roster, gift wraps, treatments — verified by the engine
@@ -136,6 +137,34 @@ object Ble {
 
     /** `m = H("cgm2:ble:" + sid + ":" + nonce)`: proves the owner holds the stream's `sid` without naming it (P12). */
     fun infoM(sid: String, nonce: String) = Proto.h("cgm2:ble:$sid:$nonce")
+
+    /** spec/ogs-ble.md B§5: the identity proof's kind (never sent or published) and what a follower device can be. */
+    const val ID_KIND = 21080
+    val DEVICES = listOf("phone", "mac")
+
+    /** B§5: the identity proof's content, H("cgm2:ble-id:" + sid + ":" + nonce + ":" + dev). */
+    fun idContent(sid: String, nonce: String, dev: String) = Proto.h("cgm2:ble-id:$sid:$nonce:$dev")
+
+    /** B§5: HELLO `id` = the follower key [f]'s BIP-340 signature of the identity proof (kind 21080, created_at 0, no tags). */
+    fun idProof(f: org.nostrdevkit.sdk.Keys, sid: String, nonce: String, dev: String): String =
+        JSONObject(Proto.signed(f, ID_KIND, idContent(sid, nonce, dev), emptyList(), 0).asJson()).getString("sig")
+
+    /** The identity proof's event id (NIP-01 serialization; the content is hex, so nothing to escape): what F signs. */
+    fun idEventId(fPub: String, sid: String, nonce: String, dev: String): ByteArray =
+        Proto.sha256("""[0,"$fPub",0,$ID_KIND,[],"${idContent(sid, nonce, dev)}"]""".toByteArray())
+
+    /**
+     * B§6 "Who's connected": the (follower key, device) among [followers] whose identity proof [sig] signs for [nonce],
+     * or null. Without `sid` the signature can't be tested against any key.
+     */
+    fun identify(sig: String, sid: String, nonce: String, followers: Collection<String>): Pair<String, String>? {
+        if (sig.length != 128 || !sig.all { it in '0'..'9' || it in 'a'..'f' }) return null
+        for (f in followers) for (dev in DEVICES) {
+            val ok = runCatching { Schnorr.verify(idEventId(f, sid, nonce, dev), Proto.unhex(f), Proto.unhex(sig)) }.getOrDefault(false)
+            if (ok) return f to dev
+        }
+        return null
+    }
 
     /** The HELLO's nonce if it is one (1–64 hex chars), else null (the owner then makes one). */
     fun nonceOf(hello: JSONObject?): String? = hello?.optString("nonce")?.takeIf { it.length in 1..64 && it.all { c -> c in '0'..'9' || c in 'a'..'f' } }

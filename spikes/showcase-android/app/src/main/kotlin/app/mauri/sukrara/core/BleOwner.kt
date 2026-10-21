@@ -39,6 +39,8 @@ class BleOwner(
     private val log: (String) -> Unit,
     private val onEvent: (JSONObject, String) -> Unit,
     private val info: (nonce: String) -> JSONObject,
+    /** B§6 "Who's connected": the (follower key, device) a HELLO's identity proof names, or null. */
+    private val who: (sig: String, nonce: String) -> Pair<String, String>? = { _, _ -> null },
 ) : Transport {
     private val bm = ctx.getSystemService(BluetoothManager::class.java)
     private var server: BluetoothGattServer? = null
@@ -62,15 +64,15 @@ class BleOwner(
     var bytesOut = 0L; private set
 
     /**
-     * One connected follower phone, for Settings (Share with people → Nearby devices). [f] = the follower key it sent a
-     * signed request or treatment with during this connection, null until then: a `HELLO` carries no identity (B§6,
-     * P12), so a follower that only listens stays unnamed.
+     * One connected follower device, for Settings (Share with people → Nearby devices). [f] and [kind] (`phone` / `mac`)
+     * come from the identity proof in its `HELLO` (spec/ogs-ble.md B§5/B§6), null until one checks out.
      */
-    data class Link(val addr: String, val since: Long, val f: String?)
+    data class Link(val addr: String, val since: Long, val f: String?, val kind: String? = null)
 
     private class Peer(val dev: BluetoothDevice) {
         val since = System.currentTimeMillis() / 1000
         @Volatile var f: String? = null
+        @Volatile var kind: String? = null   // phone | mac, from the identity proof
         var mtu = 23
         var subscribed = false
         val queue = ArrayDeque<ByteArray>()
@@ -167,7 +169,12 @@ class BleOwner(
             val m = p!!.rx.add(value!!) ?: return
             if (!p.limit.message()) return log("BLE: ${device.address} over its message budget, ${m.optString(0)} dropped")
             when (m.optString(0)) {
-                "HELLO" -> hello(p, Ble.nonceOf(m.optJSONObject(1)) ?: Ble.newNonce())
+                "HELLO" -> {
+                    val body = m.optJSONObject(1)
+                    val nonce = Ble.nonceOf(body)
+                    if (nonce != null) identify(p, nonce, body?.optString("id")?.ifEmpty { null })
+                    hello(p, nonce ?: Ble.newNonce())
+                }
                 "EVENT" -> m.optJSONObject(1)?.let { onEvent(it, "ble:${device.address}") }
             }
         }
@@ -182,14 +189,22 @@ class BleOwner(
     private fun changed() {
         val subscribed = peers.values.filter { it.subscribed }
         _connected.value = subscribed.size
-        _links.value = subscribed.sortedBy { it.since }.map { Link(it.dev.address, it.since, it.f) }
+        _links.value = subscribed.sortedBy { it.since }.map { Link(it.dev.address, it.since, it.f, it.kind) }
     }
 
-    /** The central at [addr] sent a verified event signed by follower [f] (a request, a treatment): name its link. */
-    fun identify(addr: String, f: String) {
-        val p = peers[addr] ?: return
-        if (p.f == f) return
-        p.f = f
+    /** Nonces whose identity proof named a link: a replayed HELLO doesn't name another one (B§6). */
+    private val provedNonces = object : LinkedHashMap<String, Boolean>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 256
+    }
+
+    /** A HELLO's identity proof ([Ble.identify] through [who]): name the link, or leave it unnamed. */
+    private fun identify(p: Peer, nonce: String, sig: String?) {
+        val r = sig?.let { s -> synchronized(provedNonces) { if (provedNonces.containsKey(nonce)) null else who(s, nonce) } }
+        if (r == null) { if (sig != null) log("BLE: ${p.dev.address} HELLO id names no follower"); return }
+        synchronized(provedNonces) { provedNonces[nonce] = true }
+        if (p.f == r.first && p.kind == r.second) return
+        p.f = r.first; p.kind = r.second
+        log("BLE: ${p.dev.address} is ${r.first.take(12)}… (${r.second})")
         changed()
     }
 

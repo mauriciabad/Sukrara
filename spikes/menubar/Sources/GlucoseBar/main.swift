@@ -468,6 +468,7 @@ MainActor.assumeIsolated {
         let b = BLEV2Central(link: bleLink)
         b.onState = { log($0) }
         b.onEvent = { json, via in MainActor.assumeIsolated { following.node?.onEvent(json, via: via) } }
+        b.proof = { n in MainActor.assumeIsolated { following.node?.bleIdProof(nonce: n) } }
         b.onInfo = { info, phone in
             MainActor.assumeIsolated {
                 log("BLE v2: INFO from \(phone): \(info.i.map { "owner \($0.prefix(12))…" } ?? "owner blinded"), pairing \(info.token == nil ? "closed" : "OPEN")")

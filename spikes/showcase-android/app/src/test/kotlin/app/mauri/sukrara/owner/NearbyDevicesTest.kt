@@ -7,7 +7,10 @@ import app.mauri.sukrara.core.BleOwner
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Settings → Share with people → Nearby devices: connected phones first (oldest link first), then the saved ones. */
+/**
+ * Settings → Share with people → Nearby devices: identified connections first (oldest link first, with the device
+ * type), then the saved ones; a link its HELLO didn't name is not listed (no made-up "Follower's phone").
+ */
 class NearbyDevicesTest {
     private val sam = Follower("s", "Sam", 10)
     private val robin = Follower("r", "Robin", 20)
@@ -15,19 +18,17 @@ class NearbyDevicesTest {
 
     @Test fun connectedFirstThenPaired() {
         val rows = NearbyDevices.of(listOf(sam, robin, kim), setOf("s", "r", "k"),
-            listOf(BleOwner.Link("A", 100, "r"), BleOwner.Link("B", 50, null)))
-        assertEquals(listOf(null to true, robin to true, sam to false), rows.map { it.follower to it.connected })
+            listOf(BleOwner.Link("A", 100, "r", "mac"), BleOwner.Link("B", 50, null)))
+        assertEquals(listOf(NearbyDevices.Row(robin, true, 100, "mac"), NearbyDevices.Row(sam, false, 10)), rows)
     }
 
     @Test fun aConnectedFollowerPairedOverTheInternetShowsToo() {
-        val rows = NearbyDevices.of(listOf(sam), emptySet(), listOf(BleOwner.Link("A", 100, "s")))
-        assertEquals(listOf(NearbyDevices.Row(sam, true, 100)), rows)
+        val rows = NearbyDevices.of(listOf(sam), emptySet(), listOf(BleOwner.Link("A", 100, "s", "phone")))
+        assertEquals(listOf(NearbyDevices.Row(sam, true, 100, "phone")), rows)
     }
 
-    @Test fun removedFollowersAreUnnamedPhones() {
-        val rows = NearbyDevices.of(listOf(kim), setOf("k"), listOf(BleOwner.Link("A", 100, "k")))
-        assertEquals(listOf(NearbyDevices.Row(null, true, 100)), rows)
+    @Test fun unnamedAndRemovedLinksAreNotListed() {
+        val rows = NearbyDevices.of(listOf(kim), setOf("k"), listOf(BleOwner.Link("A", 100, "k", "mac"), BleOwner.Link("B", 100, null)))
+        assertEquals(emptyList<NearbyDevices.Row>(), rows)
     }
-
-    @Test fun nothing() = assertEquals(emptyList<NearbyDevices.Row>(), NearbyDevices.of(listOf(sam), emptySet(), emptyList()))
 }

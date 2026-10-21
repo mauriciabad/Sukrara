@@ -88,6 +88,11 @@ entries, deletes.
 - On every change of the log: that entry, at once (CONTROL lane, paced ≥ 2 s per relay, replaced by `d` in the queue).
 - **Republish** every entry with `t` ≥ now − 30 d (tombstones too), paced: on an **epoch rotation** (encrypted to the
   new `G`), when a **new follower is approved**, and at least **weekly** (keeps the 30-day expiry rolling).
+- BLE identity (2026-10-21, spec/ogs-ble.md B§5/B§6): a follower that knows `sid` signs every `HELLO` with its
+  follower key (`id` = BIP-340 signature of a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)`,
+  `dev` = `phone` | `mac`, created_at 0, never sent); the wearer's phone finds which roster follower and device type
+  signed it and names the link (Settings → Share with people → Nearby devices). Unnamed links aren't listed. No old
+  `HELLO` without `id` is supported.
 - BLE: every treatment event is pushed to subscribed centrals like any publish; the `HELLO` backlog also carries the
   treatment events of the last 30 days (newest 200), after the chunks and before live.
 - Sukrara for Mac follows over v2 like any follower; while it is a writer, its entries go over v2 only (not the

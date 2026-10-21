@@ -119,6 +119,7 @@ class FollowerEngine(private val ctx: Context) {
         attach(b)
         b.onSent = { onSent(it) }
         b.check = ::bleOwner
+        b.proof = { n -> st?.let { s -> s.sid?.let { sid -> app.mauri.sukrara.core.Ble.idProof(s.f, sid, n, "phone") } } }
         scope.launch { b.state.collect { v -> _ui.update { it.copy(ble = v) } } }
     } }
 

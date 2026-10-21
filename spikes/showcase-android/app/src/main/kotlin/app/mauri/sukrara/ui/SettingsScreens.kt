@@ -215,21 +215,28 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
                 SettingsSectionButton(R.drawable.ic_sym_expand_less, stringResource(R.string.people_removed_hide)) { showRemoved = false }
             }
         }
+        // the followers' devices that proved who they are (the list below); an unnamed link isn't counted either
+        val devices = app.mauri.sukrara.owner.NearbyDevices.of(u.followers, u.nearbyPaired, u.bleLinks)
+        val named = devices.count { it.connected }
         SettingsGroup(stringResource(R.string.people_group_travel)) {
             nostrRows(f) { choosing = true }
             switch(stringResource(R.string.people_bluetooth), f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
                 summary = if (!u.bleOn) stringResource(R.string.people_bluetooth_off)
-                    else pluralStringResource(R.plurals.people_bluetooth_connected, u.bleCentrals, u.bleCentrals)) { v -> set { it.copy(bleFollowers = v) } }
+                    else pluralStringResource(R.plurals.people_bluetooth_connected, named, named)) { v -> set { it.copy(bleFollowers = v) } }
         }
         if (f.bleFollowers) {
-            val devices = app.mauri.sukrara.owner.NearbyDevices.of(u.followers, u.nearbyPaired, u.bleLinks)
             SettingsGroup(stringResource(R.string.people_group_nearby)) {
                 if (devices.isEmpty()) info(stringResource(R.string.people_nearby_none), icon = R.drawable.ic_sym_bluetooth_disabled)
                 for (d in devices) {
                     val state = stringResource(if (d.connected) R.string.people_nearby_connected else R.string.people_nearby_disconnected)
                     val fl = d.follower
-                    if (fl == null) info(stringResource(R.string.people_nearby_unnamed), state, icon = R.drawable.ic_sym_bluetooth_connected)
-                    else link(fl.name, state, leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
+                    // the device type next to the name, from the link's identity proof (a saved one has none)
+                    val title = when (d.kind) {
+                        "mac" -> stringResource(R.string.people_nearby_on, fl.name, stringResource(R.string.people_nearby_mac))
+                        "phone" -> stringResource(R.string.people_nearby_on, fl.name, stringResource(R.string.people_nearby_phone))
+                        else -> fl.name
+                    }
+                    link(title, state, leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
                 }
             }
         }

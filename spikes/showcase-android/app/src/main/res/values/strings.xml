@@ -1287,8 +1287,12 @@
     <string name="people_nearby_connected">Connected</string>
     <!-- Nearby device state (AOSP bluetooth_disconnected) [CHAR LIMIT=30] -->
     <string name="people_nearby_disconnected">Disconnected</string>
-    <!-- A connected phone that hasn't said which follower it is yet [CHAR LIMIT=40] -->
-    <string name="people_nearby_unnamed">Follower\'s phone</string>
+    <!-- Nearby device row title: %1$s = follower name, %2$s = device type (Phone / Mac) [CHAR LIMIT=40] -->
+    <string name="people_nearby_on">%1$s · %2$s</string>
+    <!-- Device type of a connected follower [CHAR LIMIT=20] -->
+    <string name="people_nearby_phone">Phone</string>
+    <!-- Device type of a connected follower; Mac is a product name [CHAR LIMIT=20] -->
+    <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">No devices</string>
     <!-- Sharing with people page footer [CHAR LIMIT=NONE] -->

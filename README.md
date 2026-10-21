@@ -204,7 +204,7 @@ by the app's icon code.</sub>
 - Followers alert when the wearer's phone alerts (the alert itself is sent, encrypted), or use their own settings.
   [15](docs/15-alerts.md)
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
-- Pair nearby over Bluetooth with no internet at all, and see which follower phones are connected now (Settings →
+- Pair nearby over Bluetooth with no internet at all, and see which followers are connected now and on what (phone or Mac; each device proves who it is) (Settings →
   Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)

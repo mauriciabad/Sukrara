@@ -179,6 +179,9 @@ def generate() -> dict:
                                "writers": [W.pub], "sensor": sensor, "alerts": 1}},
         "ble": {"message": msg, "msg_id": 7, "frames_by_att_mtu": frames,
                 "hello": ble.hello(ble_nonce),
+                "hello_id": {"sid": SID, "nonce": ble_nonce, "follower": F.pub, "dev": "mac",
+                             "content": ble.id_content(SID, ble_nonce, "mac"),
+                             "hello": ble.hello(ble_nonce, ble.id_proof(F, SID, ble_nonce, "mac", bytes(32)))},
                 "info_m": {"sid": SID, "nonce": ble_nonce, "m": ble.info_m(SID, ble_nonce)},
                 "info": ble.info(SID, ble_nonce),
                 "info_pairing": ble.info(SID, ble_nonce, i_pub=I.pub, relays=RELAYS,
@@ -256,6 +259,15 @@ def verify_file(vec: dict) -> list[str]:
             ble.owner_check(b["info"][1], vec["keys"]["I"]["pub"], vec["sid"], ["00" * 16]) != "other" or \
             ble.owner_check(b["info_pairing"][1], vec["keys"]["X"]["pub"], None, []) != "other":
         fails.append("ble owner check")
+    hi = b["hello_id"]
+    sig = hi["hello"][1]["id"]
+    others = [vec["keys"][k]["pub"] for k in ("W", "X")]
+    if ble.id_content(hi["sid"], hi["nonce"], hi["dev"]) != hi["content"] or \
+            ble.identify(sig, hi["sid"], hi["nonce"], others + [hi["follower"]]) != (hi["follower"], hi["dev"]) or \
+            ble.identify(sig, hi["sid"], hi["nonce"], others) is not None or \
+            ble.identify(sig, hi["sid"], "00" * 16, [hi["follower"]]) is not None or \
+            ble.identify(sig, "0" * 32, hi["nonce"], [hi["follower"]]) is not None:
+        fails.append("ble HELLO id")
     re = ble.Reassembler()
     for mtu, frames in vec["ble"]["frames_by_att_mtu"].items():
         out = [re.push(bytes.fromhex(fr)) for fr in frames]

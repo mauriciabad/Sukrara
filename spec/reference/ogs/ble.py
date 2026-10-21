@@ -76,9 +76,52 @@ class Reassembler:
         return msg if isinstance(msg, list) and len(msg) >= 2 and isinstance(msg[0], str) else None
 
 
-def hello(nonce: str) -> list:
-    """B§5: a fresh 16-byte nonce (hex) per HELLO; the owner proves `sid` over it in INFO."""
-    return ["HELLO", {"v": 2, "nonce": nonce}]
+ID_KIND = 21080                                  # B§5: the identity proof's kind (never published)
+DEVICES = ("phone", "mac")                       # B§5: what a follower device can be
+
+
+def hello(nonce: str, id_sig: str | None = None) -> list:
+    """B§5: a fresh 16-byte nonce (hex) per HELLO; the owner proves `sid` over it in INFO. A follower that knows `sid`
+    adds `id`, its signed identity proof for this nonce."""
+    body = {"v": 2, "nonce": nonce}
+    if id_sig is not None:
+        body["id"] = id_sig
+    return ["HELLO", body]
+
+
+def id_content(sid: str, nonce: str, dev: str) -> str:
+    """B§5: the identity proof's content, H(NS + ":ble-id:" + sid + ":" + nonce + ":" + dev)."""
+    from .model import H, NS
+    return H(f"{NS}:ble-id:{sid}:{nonce}:{dev}")
+
+
+def id_event(f_pub: str, sid: str, nonce: str, dev: str) -> dict:
+    """B§5: the identity proof (unsigned): kind 21080 by the follower key F, created_at 0, no tags."""
+    from .nostr import event_id
+    ev = {"pubkey": f_pub, "created_at": 0, "kind": ID_KIND, "tags": [], "content": id_content(sid, nonce, dev)}
+    ev["id"] = event_id(ev)
+    return ev
+
+
+def id_proof(f, sid: str, nonce: str, dev: str, aux: bytes | None = None) -> str:
+    """B§5: HELLO `id` = the BIP-340 signature of the identity proof by F (64 bytes, hex)."""
+    from .nostr import sign
+    return sign(f, ID_KIND, id_content(sid, nonce, dev), [], 0, aux)["sig"]
+
+
+def identify(id_sig: str, sid: str, nonce: str, followers) -> tuple[str, str] | None:
+    """B§6 "Who's connected": the (F, dev) whose identity proof `id_sig` signs, among the roster's followers; None if
+    none does. Without `sid` nobody can tell which key signed it."""
+    from . import crypto as c
+    for f_pub in followers:
+        for dev in DEVICES:
+            ev = id_event(f_pub, sid, nonce, dev)
+            try:
+                if c.schnorr_verify(bytes.fromhex(ev["id"]), bytes.fromhex(f_pub), bytes.fromhex(id_sig)):
+                    return f_pub, dev
+            except ValueError:
+                return None
+    return None
 
 
 def info_m(sid: str, nonce: str) -> str:

@@ -239,11 +239,17 @@ class BleFollower(
      * Ask the owner for INFO + its cached events again (e.g. after a new key made them readable). Each HELLO carries a
      * fresh nonce; the INFO must prove `sid` for one of the last few (a recorded INFO can't be replayed).
      */
+    /** The identity proof for a HELLO nonce ([Ble.idProof]), null while the follower doesn't know `sid`. */
+    @Volatile var proof: ((nonce: String) -> String?)? = null
+
     fun hello() {
         if (rx == null) return
         val n = Ble.newNonce()
         synchronized(nonces) { nonces.addLast(n); while (nonces.size > 4) nonces.removeFirst() }
-        send(Ble.msg("HELLO", JSONObject().put("v", 2).put("nonce", n)))
+        // once we know `sid`: who we are (spec/ogs-ble.md B§5 identity proof), so the wearer's phone can name this link
+        val body = JSONObject().put("v", 2).put("nonce", n)
+        runCatching { proof?.invoke(n) }.getOrNull()?.let { body.put("id", it) }
+        send(Ble.msg("HELLO", body))
     }
 
     // ============================================================================================ Transport

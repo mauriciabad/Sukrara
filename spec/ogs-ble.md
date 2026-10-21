@@ -83,9 +83,15 @@ Each message is a JSON array in the Nostr wire style:
 
 | Message | Direction | Meaning |
 |---|---|---|
-| `["HELLO", {"v":2,"nonce":"<hex>"}]` | follower → owner | "send `INFO`, then everything you have". Sent after notifications are enabled, and again after accepting a key with a new `gk`. `nonce`: 16 fresh random bytes per `HELLO`, lowercase hex. |
+| `["HELLO", {"v":2,"nonce":"<hex>","id":"<hex>"}]` | follower → owner | "send `INFO`, then everything you have". Sent after notifications are enabled, and again after accepting a key with a new `gk`. `nonce`: 16 fresh random bytes per `HELLO`, lowercase hex. `id`: the follower's identity proof for this `nonce` (below); a follower that knows `sid` MUST send it, one without `sid` (request pending, pairing) sends none. |
 | `["INFO", {"v":2,"nonce":"<hex>","m":"<hex>"}]` | owner → follower | the answer to `HELLO`. `nonce` echoes the `HELLO`'s (the owner makes one if the `HELLO` had none or an invalid one: 1–64 lowercase hex characters) and `m = H(NS + ":ble:" + sid + ":" + nonce)` (N§4), which only holders of `sid` can check. While nearby pairing is open, and only then, it also carries `"i":"<I hex>","relays":["wss://…"],"pair":{"t":"<token>","x":<expiry>,"profile":{…}}`. |
 | `["EVENT", <signed event>]` | both | any OGS event: live (21078), alert (21079), chunk, roster or treatment (30078), and gift wraps (1059: key deliveries, requests, rekeys and the rest) |
+
+**Identity proof.** `id` is the BIP-340 signature (64 bytes, lowercase hex) by the follower key `F` (the key the
+roster lists the follower under) of the Nostr event `{"pubkey": F, "created_at": 0, "kind": 21080, "tags": [],
+"content": H(NS + ":ble-id:" + sid + ":" + nonce + ":" + dev)}` (N§4 `H`), where `dev` is what the follower device is:
+`phone` or `mac`. The event itself is never sent or published: the owner rebuilds it for each follower in its roster
+and each `dev` and checks the signature (B§6 "Who's connected"). Neither `F` nor `dev` is on the wire.
 
 Receivers MUST ignore message types they don't know. **[P8]** Draft 2 adds `"caps"` to `HELLO` and `INFO`.
 
@@ -124,6 +130,13 @@ follower                                              owner
   follower MUST disconnect and keep scanning (Sukrara avoids that phone for 10 minutes). A follower whose request is
   still pending (no `sid` yet) MAY stay connected to a phone that isn't pairing to receive events, but MUST NOT write.
 
+- **Who's connected.** On a `HELLO` with `id`, the owner looks for the roster follower `F` and the `dev` whose
+  identity proof `id` signs (at most 2 × followers checks). A match names that link: the wearer's app shows the
+  follower's name and picture and the device type. No match, or no `id`: the link stays unnamed and the app MUST NOT
+  make up a name for it (Sukrara doesn't list it). The owner SHOULD ignore an `id` for a `nonce` it has already
+  accepted (a recorded `HELLO` replayed by someone else). Naming a link changes nothing else: events are still trusted
+  only by their signatures (B§8).
+
 ## B§7 Nearby pairing
 
 1. The wearer opens "pair nearby". The owner creates an ordinary invite token (single use, expiring in 10 minutes)
@@ -144,7 +157,8 @@ The single-claim rule and `invite-used` apply as for QR invites.
 - **What a stranger in range learns:** that a phone runs an OGS owner (the service UUID), the activity rhythm and
   sizes of the encrypted events, and, only while nearby pairing is open, `I`, the relays and the owner's profile.
   Outside pairing `INFO` carries only `nonce` and `m`; a fresh nonce per `HELLO` makes two sessions unlinkable to
-  anyone without `sid`. There is no name in the advertisement. Not covered: on Android, a *connected* central can read
+  anyone without `sid`. The same holds for `HELLO`'s `id`: without `sid` nobody can rebuild the signed event, so the
+  signature can't be tested against any key and tells a stranger nothing about who is connecting. There is no name in the advertisement. Not covered: on Android, a *connected* central can read
   the phone's name from the platform's GAP service (0x1800, Device Name), which apps can't turn off. Removed followers
   still know `sid`, so they can still recognise the phone (as they can recognise the stream's tags on relays).
 - **Abuse limits.** An owner MUST check a write before answering it and SHOULD:
@@ -159,7 +173,8 @@ The single-claim rule and `invite-used` apply as for QR invites.
 
 `test-vectors/ogs-draft1.json` → `ble`: one `["EVENT", live]` message split with `msgId` 7 at ATT MTU 23, 185 and
 517, with the exact frames; a `HELLO` with its nonce, `info_m` (`sid`, `nonce`, `m`), and the `INFO` an owner sends
-for it outside and during pairing. Sukrara checks them in Android `BleTest` and Mac `-bleselftest`.
+for it outside and during pairing; `hello_id`: a `HELLO` with the identity proof of follower `F` on a `mac` (signed with
+zero aux randomness), its `content`, and the expectation that it names `F` / `mac` and no other key, nonce or `sid`. Sukrara checks them in Android `BleTest` and Mac `-bleselftest`.
 
 ## Annex A — Why not NIP-BE
 

@@ -414,6 +414,21 @@ enum BLESelfTest {
         let pairing = BLEV2Central.Info(i: iPub, relays: [], token: "t", expiry: 1, profile: nil, nonce: nonce, m: im["m"])
         check("pairing INFO naming our I → ours", BLEV2Central.owner(pairing, i: iPub, sid: nil, nonces: []) == .ours)
         check("pairing INFO naming another I → other", BLEV2Central.owner(pairing, i: String(repeating: "c", count: 64), sid: sid, nonces: [nonce]) == .other)
+        // B§5/B§6 identity proof (vector ble.hello_id): our own proof for F signs the event the phone rebuilds
+        if let hi = ble["hello_id"] as? [String: Any], let hs = hi["sid"] as? String, let hn = hi["nonce"] as? String,
+           let hf = hi["follower"] as? String, let hc = hi["content"] as? String,
+           let fSec = ((vec["keys"] as? [String: Any])?["F"] as? [String: String])?["sec"], let fk = try? Keys.parse(secretKey: fSec),
+           let vsig = ((hi["hello"] as? [Any])?.last as? [String: Any])?["id"] as? String {
+            check("identity proof content matches the vectors", BLEV2Central.idContent(sid: hs, nonce: hn, dev: "mac") == hc)
+            func verifies(_ sig: String, _ dev: String) -> Bool {
+                let id = BLEV2Central.idEventId(fPub: hf, sid: hs, nonce: hn, dev: dev)
+                let j = #"{"id":"\#(id)","pubkey":"\#(hf)","created_at":0,"kind":21080,"tags":[],"content":"\#(BLEV2Central.idContent(sid: hs, nonce: hn, dev: dev))","sig":"\#(sig)"}"#
+                return (try? Event.fromJson(json: j))?.verify() ?? false
+            }
+            check("the vector's proof verifies for F on a mac", verifies(vsig, "mac") && !verifies(vsig, "phone"))
+            let mine = BLEV2Central.idProof(f: fk, sid: hs, nonce: hn, dev: "mac")
+            check("this Mac's proof is the event the phone rebuilds", mine.map { verifies($0, "mac") } ?? false)
+        } else { check("vector ble.hello_id present", false) }
         print(ok ? "ble self-test OK" : "ble self-test FAILED")
         return ok
     }

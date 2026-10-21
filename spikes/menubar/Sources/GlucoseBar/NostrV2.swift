@@ -515,6 +515,11 @@ struct FollowerV2State: Codable {
         return ((p?["name"] as? String) ?? "", p?["avatar"] as? [String: Any])
     }
     var followerPub: String { F.publicKey().toHex() }     // public — fine to show/log
+    /// spec/ogs-ble.md B§5: this Mac's HELLO identity proof for [nonce], nil until we know `sid`.
+    func bleIdProof(nonce: String) -> String? {
+        guard let sid = st.sid else { return nil }
+        return BLEV2Central.idProof(f: F, sid: sid, nonce: nonce, dev: "mac")
+    }
     var connectedRelays: Int { pool.connected }
 
     init?(state: FollowerV2State) {
