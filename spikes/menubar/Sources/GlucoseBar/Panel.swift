@@ -32,6 +32,8 @@ import SwiftUI
 
     // Add Treatment
     @Published var canLog = true
+    /// Why Add Treatment is dimmed (TreatmentPaths.Blocked), shown under it; nil = available or no reason to give.
+    @Published var logBlocked: String?
     @Published var following = false
 
     var onAddTreatment: (() -> Void)?
@@ -53,9 +55,13 @@ struct PanelView: View {
             VStack(spacing: 0) {
                 // A menu item like the rows under it; Return chooses it (shown as ↩, the menu's key-equivalent glyph).
                 if model.hasData || model.following {
-                    PanelRow(title: "Add Treatment…", shortcut: "↩", enabled: model.canLog, action: { model.onAddTreatment?() })
+                    // Unavailable: dimmed (HIG "Menus": show people when a menu item is unavailable) with the reason
+                    // on a second line, like a macOS 14.4+ menu item subtitle, so it's seen without hovering; the
+                    // tooltip repeats it (HIG "Offering help": context-sensitive tooltips).
+                    PanelRow(title: "Add Treatment…", detail: model.canLog ? nil : model.logBlocked, shortcut: "↩",
+                             enabled: model.canLog, action: { model.onAddTreatment?() })
                         .keyboardShortcut(.defaultAction)
-                        .help(model.canLog ? "" : TreatmentPaths.notAllowed)
+                        .help(model.canLog ? "" : model.logBlocked ?? "")
                 }
                 PanelRow(title: "Treatments…", action: { model.onTreatments?() })
                 PanelRow(title: "Glucose Report…", action: { model.onReport?() })
@@ -105,6 +111,8 @@ private struct ModuleBackground: View {
 /// A menu-like row: full width, highlighted on hover, Return-free (click).
 private struct PanelRow: View {
     let title: String
+    /// A second, smaller line (the reason an unavailable item is dimmed).
+    var detail: String? = nil
     var shortcut: String? = nil
     var enabled = true
     let action: () -> Void
@@ -112,8 +120,13 @@ private struct PanelRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(title)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                    if let detail {
+                        Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Spacer()
                 if let shortcut { Text(shortcut).foregroundStyle(.tertiary) }
             }

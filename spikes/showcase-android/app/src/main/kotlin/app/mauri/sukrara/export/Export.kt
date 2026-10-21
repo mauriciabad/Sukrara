@@ -20,24 +20,42 @@ import java.time.ZoneId
  * treatments it received (follower.db). Followers' sensor info has no serial, so their Serial Number column is empty.
  */
 object Export {
-    /** Period choices: "sensor" (the current sensor, when one is known) or a number of days. */
+    /** Period choices: "sensor" (the current sensor, when one is known), a number of days or [ALL]. */
     val DAYS = listOf(7, 14, 30)
     const val DEFAULT = "14"
+    /** Everything on this phone: from its oldest reading or entry. */
+    const val ALL = "all"
 
     class Data(val from: Long, val to: Long, val readings: List<GlucoseCsv.Row>, val treatments: List<Treatment>, val sensor: GlucoseCsv.Sensor?) {
         val readingRows get() = GlucoseCsv.thin(readings, from, to).size
         val treatmentRows get() = treatments.count { !it.del && it.t in from until to }
     }
 
-    fun range(period: String, now: Long = Proto.nowS()): Pair<Long, Long> {
+    /** [oldest] = the oldest reading or entry on the phone, for [ALL] (none: an empty period ending now). */
+    fun range(period: String, now: Long = Proto.nowS(), oldest: Long? = null): Pair<Long, Long> {
         val s = SensorLife.current.value
-        val from = if (period == "sensor" && s != null) s.startEpoch else now - (period.toIntOrNull() ?: 14) * Proto.DAY
+        val from = when {
+            period == ALL -> minOf(oldest ?: now, now)
+            period == "sensor" && s != null -> s.startEpoch
+            else -> now - (period.toIntOrNull() ?: 14) * Proto.DAY
+        }
         return from to now + 1
     }
 
+    /** The oldest time among [readings] and the live (not deleted) [treatments], null when there are none. */
+    fun oldest(readings: List<GlucoseCsv.Row>, treatments: List<Treatment>): Long? =
+        listOfNotNull(readings.minOfOrNull { it.t }, treatments.filter { !it.del }.minOfOrNull { it.t }).minOrNull()
+
     /** Reads the role's store (disk: call off the main thread). */
     fun load(ctx: Context, period: String): Data {
-        val (from, to) = range(period)
+        val d = loadFrom(ctx, if (period == ALL) 0 else range(period).first)
+        if (period != ALL) return d
+        val (from, to) = range(ALL, oldest = oldest(d.readings, d.treatments))
+        return Data(from, to, d.readings, d.treatments, d.sensor)
+    }
+
+    private fun loadFrom(ctx: Context, from: Long): Data {
+        val to = Proto.nowS() + 1
         val s = SensorLife.current.value
         // the wearer's own sensor family when it isn't a Libre 3 names the rows (followers don't know it)
         val model = app.mauri.sukrara.core.ActiveSensor.profile.value?.takeIf { it.id != app.mauri.sukrara.core.SensorProfiles.LIBRE_3.id }

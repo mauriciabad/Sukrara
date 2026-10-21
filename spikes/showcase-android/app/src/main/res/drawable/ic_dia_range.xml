@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara custom icon: a glucose range: the trace between a low and a high line. Drawn on the Material Symbols grid (960 units = 24 dp, 80-unit strokes = weight
+     400, round caps), so it sits with the Material Symbols rows; tinted by Compose Icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="false">
+    <path android:pathData="M120,200 L840,200" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M120,760 L840,760" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M160,580 L320,400 L480,540 L640,380 L800,460" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+</vector>

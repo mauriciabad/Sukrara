@@ -118,6 +118,21 @@ private fun soundSummary(k: String, s: AlertSettings): String {
 /** The rule can't be changed here: a follower mirroring the wearer's alerts (no data is checked on each phone). */
 private fun mirrored(follower: Boolean, s: AlertSettings, k: String) = follower && s.source == "wearer" && k != Kind.NO_DATA
 
+/**
+ * Each alert's icon: the level alerts are the reading (a dot) below or above one, two or three threshold lines (custom,
+ * drawn on the Material Symbols grid); the rates are Material's double arrows, like a CGM's fast trend arrows.
+ */
+internal fun kindIcon(k: String): Int = when (k) {
+    Kind.VERY_LOW -> R.drawable.ic_dia_very_low
+    Kind.LOW -> R.drawable.ic_dia_low
+    Kind.HIGH -> R.drawable.ic_dia_high
+    Kind.VERY_HIGH -> R.drawable.ic_dia_very_high
+    Kind.EXTREMELY_HIGH -> R.drawable.ic_dia_extremely_high
+    Kind.FALLING_FAST -> R.drawable.ic_sym_keyboard_double_arrow_down
+    Kind.RISING_FAST -> R.drawable.ic_sym_keyboard_double_arrow_up
+    else -> R.drawable.ic_stat_no_readings
+}
+
 @Composable
 fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
     val ctx = LocalContext.current
@@ -153,7 +168,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         SettingsMainSwitch(stringResource(R.string.alerts_main_switch), s.on) { v -> set { it.copy(on = v) } }
         if (follower) SettingsGroup {
             value(stringResource(R.string.alerts_rules), stringResource(if (s.source == "wearer") R.string.alerts_rules_wearer else R.string.alerts_rules_own),
-                enabled = s.on) { pickSource = true }
+                enabled = s.on, icon = R.drawable.ic_sym_rule) { pickSource = true }
         }
 
         // each alert: the switch turns it on or off, the row opens its page
@@ -167,7 +182,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             }
             SettingsGroup(title) {
                 for ((k, c, summary) in rows) splitSwitch(AlertNotifier.label(ctx, k), summary, checked = c.on && !mirrored(follower, s, k),
-                    rowEnabled = s.on, switchEnabled = s.on && !mirrored(follower, s, k), to = ALERT_ROUTE + k) { v ->
+                    rowEnabled = s.on, switchEnabled = s.on && !mirrored(follower, s, k), icon = kindIcon(k), to = ALERT_ROUTE + k) { v ->
                     set { it.copy(kinds = it.kinds + (k to it.cfg(k).copy(on = v))) }
                 }
             }
@@ -180,16 +195,16 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         val rules = s.on && !mirror
         SettingsGroup(stringResource(R.string.alerts_group_quiet)) {
             splitSwitch(stringResource(R.string.alerts_quiet_insulin), if (mirror) wearers else stringResource(R.string.alerts_quiet_insulin_summary, s.muteInsulinMin),
-                checked = s.muteInsulin, rowEnabled = rules && s.muteInsulin, switchEnabled = rules, onClick = { minutes = "insulin" }) { v ->
+                checked = s.muteInsulin, rowEnabled = rules && s.muteInsulin, switchEnabled = rules, icon = R.drawable.ic_dia_insulin_rapid, onClick = { minutes = "insulin" }) { v ->
                 set { it.copy(muteInsulin = v) }
             }
             splitSwitch(stringResource(R.string.alerts_quiet_falling), if (mirror) wearers
                 else stringResource(R.string.alerts_quiet_falling_summary, s.cfg(Kind.HIGH).value.toInt(), s.muteFallingMin),
-                checked = s.muteFalling, rowEnabled = rules && s.muteFalling, switchEnabled = rules, onClick = { minutes = "falling" }) { v ->
+                checked = s.muteFalling, rowEnabled = rules && s.muteFalling, switchEnabled = rules, icon = R.drawable.ic_sym_trending_down, onClick = { minutes = "falling" }) { v ->
                 set { it.copy(muteFalling = v) }
             }
             splitSwitch(stringResource(R.string.alerts_quiet_carbs), if (mirror) wearers else stringResource(R.string.alerts_quiet_carbs_summary, s.muteCarbsMin),
-                checked = s.muteCarbs, rowEnabled = rules && s.muteCarbs, switchEnabled = rules, onClick = { minutes = "carbs" }) { v ->
+                checked = s.muteCarbs, rowEnabled = rules && s.muteCarbs, switchEnabled = rules, icon = R.drawable.ic_dia_carbs, onClick = { minutes = "carbs" }) { v ->
                 set { it.copy(muteCarbs = v) }
             }
         }
@@ -197,14 +212,14 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         // the alert notification's buttons: local on every device (a follower mirroring the wearer mutes its own copy)
         SettingsGroup(stringResource(R.string.alerts_group_actions)) {
             value(stringResource(R.string.alerts_action_mute), stringResource(R.string.alerts_action_mute_summary, s.actionMuteMin),
-                enabled = s.on) { minutes = "action" }
+                enabled = s.on, icon = R.drawable.ic_sym_notifications_off) { minutes = "action" }
             value(stringResource(R.string.alerts_action_slow), stringResource(R.string.alerts_action_slow_summary, s.slowMin),
-                enabled = s.on) { minutes = "slow" }
+                enabled = s.on, icon = R.drawable.ic_sym_snooze) { minutes = "slow" }
         }
 
         SettingsGroup(stringResource(R.string.alerts_group_sounds)) {
             value(stringResource(R.string.alerts_sound_pack), soundLabel(ctx, s.pack), enabled = s.on, icon = R.drawable.ic_sym_volume_up) { pickPack = true }
-            switch(stringResource(R.string.alerts_shuffle), s.shuffle, enabled = s.on,
+            switch(stringResource(R.string.alerts_shuffle), s.shuffle, enabled = s.on, icon = R.drawable.ic_sym_shuffle,
                 summary = stringResource(R.string.alerts_shuffle_summary, AlertSounds.VARIANTS)) { v -> set { it.copy(shuffle = v) } }
             link(stringResource(R.string.alerts_notification_settings), stringResource(R.string.alerts_notification_settings_summary),
                 icon = R.drawable.ic_sym_notifications, external = true) {
@@ -341,24 +356,24 @@ fun AlertKindScreen(k: String, follower: Boolean, onBack: () -> Unit) {
         SettingsGroup(stringResource(R.string.alerts_group_when)) {
             value(stringResource(if (k == Kind.NO_DATA) R.string.alerts_after else if (k in Kind.RATES) R.string.alerts_rate else R.string.alerts_threshold),
                 if (locked) "$wearers · ${thresholdText(k, c.value)}" else if (!on) off else thresholdText(k, c.value),
-                enabled = on && !locked) { dialog = "threshold" }
+                enabled = on && !locked, icon = kindIcon(k)) { dialog = "threshold" }
             value(stringResource(R.string.alerts_remind), if (locked) "$wearers · ${repeatText(c.repeatMin)}" else if (!on) off else repeatText(c.repeatMin),
-                enabled = on && !locked) { dialog = "repeat" }
+                enabled = on && !locked, icon = R.drawable.ic_sym_repeat) { dialog = "repeat" }
         }
         SettingsGroup(stringResource(R.string.alerts_group_sound)) {
-            value(stringResource(R.string.alerts_sound), if (!s.on) off else soundSummary(k, s), enabled = s.on) { dialog = "sound" }
-            value(stringResource(R.string.alerts_volume), if (!s.on) off else volume, enabled = s.on) { dialog = "volume" }
+            value(stringResource(R.string.alerts_sound), if (!s.on) off else soundSummary(k, s), enabled = s.on, icon = R.drawable.ic_sym_music_note) { dialog = "sound" }
+            value(stringResource(R.string.alerts_volume), if (!s.on) off else volume, enabled = s.on, icon = R.drawable.ic_sym_volume_up) { dialog = "volume" }
         }
         SettingsGroup(stringResource(R.string.alerts_group_test)) {
             action(stringResource(R.string.alerts_play_sound), stringResource(if (vibrate) R.string.alerts_play_sound_vibrate else R.string.alerts_play_sound_only,
-                soundName(s.soundOf(k)), volume), enabled = s.soundOf(k) != AlertSounds.NONE || vibrate) {
+                soundName(s.soundOf(k)), volume), enabled = s.soundOf(k) != AlertSounds.NONE || vibrate, icon = R.drawable.ic_sym_play_arrow) {
                 TestPlayback.play(ctx, k, s.soundOf(k), c.alarm)
             }
-            checkbox(stringResource(R.string.alerts_vibrate), vibrate, summary = stringResource(R.string.alerts_vibrate_summary)) { TestPlayback.setVibrate(ctx, it) }
-            action(stringResource(R.string.alerts_test), stringResource(R.string.alerts_test_summary)) {
+            checkbox(stringResource(R.string.alerts_vibrate), vibrate, summary = stringResource(R.string.alerts_vibrate_summary), icon = R.drawable.ic_sym_vibration) { TestPlayback.setVibrate(ctx, it) }
+            action(stringResource(R.string.alerts_test), stringResource(R.string.alerts_test_summary), icon = R.drawable.ic_sym_science) {
                 Alerts.test(ctx, k, share = false)
             }
-            link(stringResource(R.string.alerts_channel_settings), stringResource(R.string.alerts_channel_settings_summary), external = true) {
+            link(stringResource(R.string.alerts_channel_settings), stringResource(R.string.alerts_channel_settings_summary), icon = R.drawable.ic_sym_tune, external = true) {
                 ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                     .putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
                     .putExtra(Settings.EXTRA_CHANNEL_ID, AlertNotifier.channelId(k, c.alarm)))

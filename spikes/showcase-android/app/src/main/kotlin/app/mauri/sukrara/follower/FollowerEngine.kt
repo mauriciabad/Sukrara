@@ -255,10 +255,10 @@ class FollowerEngine(private val ctx: Context) {
     /** Change how the wearer sees us: a `profile` gift wrap (PROTOCOL-v2), applied by the wearer if we're approved. */
     fun setProfile(me: app.mauri.sukrara.core.Profile) = scope.launch(serial) {
         val s = st ?: return@launch
-        s.name = me.name.trim().ifBlank { s.name }.take(app.mauri.sukrara.core.Profile.MAX_NAME)
+        s.name = app.mauri.sukrara.core.Profile.editedName(me.name, s.name)
         s.avatar = me.avatar
         save()
-        val body = JSONObject().put("v", 2).put("type", "profile").put("profile", s.me.toJson())
+        val body = Proto.profileUpdate(s.me)
         publish(Proto.gift(s.f, s.iPub, Proto.RUMOR_TO_OWNER, body, ttlS = 7 * Proto.DAY), app.mauri.sukrara.core.Lane.CONTROL)
         log.i("profile sent to the wearer: '${s.name}'")
         publishUi()

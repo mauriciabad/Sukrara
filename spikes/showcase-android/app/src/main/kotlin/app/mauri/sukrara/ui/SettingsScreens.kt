@@ -120,7 +120,7 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
         SettingsGroup {
             link(stringResource(R.string.alerts_title), alertsSummary(alerts, follower = false), leading = { CategoryIcon(R.drawable.ic_sym_notifications, Category.RED) }, to = "alerts")
             link(stringResource(R.string.source_title), sourceSummary(f.source, st.source.removePrefix("direct: ")),
-                leading = { CategoryIcon(R.drawable.ic_sym_glucose, Category.GREEN) }, to = "source")
+                leading = { CategoryIcon(R.drawable.ic_dia_sensor, Category.GREEN) }, to = "source")
             link(stringResource(R.string.sensorend_title), sensorEndSummary(), leading = { CategoryIcon(R.drawable.ic_stat_sensor_ended, Category.ORANGE) }, to = "sensorend")   // the status bar's "sensor ended" flag
         }
         SettingsGroup {
@@ -185,7 +185,10 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Follower?>(null) }
+    // removed followers stay folded under a pill, like SettingsLib's BannerMessagePreferenceGroup folds dismissed items
+    var showRemoved by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val active = u.followers.filter { it.revoked == null }
+    val removed = u.followers.filter { it.revoked != null }
     val pairing = u.nearbyUntil > Proto.nowS()
     SettingsPage(stringResource(R.string.people_title), onBack) {
         SettingsIntro(stringResource(R.string.people_intro))
@@ -198,16 +201,37 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
             }, icon = R.drawable.ic_sym_bluetooth_searching, enabled = u.bleOn, onClick = a::nearbyPairing)
         }
         SettingsGroup(stringResource(R.string.people_group_followers)) {
-            if (active.isEmpty()) info(stringResource(R.string.people_nobody))
+            if (active.isEmpty()) info(stringResource(R.string.people_nobody), icon = R.drawable.ic_sym_group_off)
             for (fl in active) link(fl.name, stringResource(R.string.people_follower_summary, date(fl.since),
                     stringResource(if (fl.f in u.writers) R.string.people_can_add_entries else R.string.people_sees_only)),
                 leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
-            for (fl in u.followers.filter { it.revoked != null }) info(fl.name, stringResource(R.string.people_removed_at, date(fl.revoked!!)), icon = R.drawable.ic_sym_person_remove)
+        }
+        if (removed.isNotEmpty()) {
+            if (!showRemoved) SettingsNumberButton(removed.size, stringResource(R.string.people_removed_show)) { showRemoved = true }
+            else {
+                SettingsGroup(stringResource(R.string.people_group_removed)) {
+                    for (fl in removed) info(fl.name, stringResource(R.string.people_removed_at, date(fl.revoked!!)), icon = R.drawable.ic_sym_person_remove)
+                }
+                SettingsSectionButton(R.drawable.ic_sym_expand_less, stringResource(R.string.people_removed_hide)) { showRemoved = false }
+            }
         }
         SettingsGroup(stringResource(R.string.people_group_travel)) {
             nostrRows(f) { choosing = true }
             switch(stringResource(R.string.people_bluetooth), f.bleFollowers, icon = R.drawable.ic_brand_bluetooth,
-                summary = if (u.bleOn) stringResource(R.string.people_bluetooth_connected, u.bleCentrals) else stringResource(R.string.people_bluetooth_off)) { v -> set { it.copy(bleFollowers = v) } }
+                summary = if (!u.bleOn) stringResource(R.string.people_bluetooth_off)
+                    else pluralStringResource(R.plurals.people_bluetooth_connected, u.bleCentrals, u.bleCentrals)) { v -> set { it.copy(bleFollowers = v) } }
+        }
+        if (f.bleFollowers) {
+            val devices = app.mauri.sukrara.owner.NearbyDevices.of(u.followers, u.nearbyPaired, u.bleLinks)
+            SettingsGroup(stringResource(R.string.people_group_nearby)) {
+                if (devices.isEmpty()) info(stringResource(R.string.people_nearby_none), icon = R.drawable.ic_sym_bluetooth_disabled)
+                for (d in devices) {
+                    val state = stringResource(if (d.connected) R.string.people_nearby_connected else R.string.people_nearby_disconnected)
+                    val fl = d.follower
+                    if (fl == null) info(stringResource(R.string.people_nearby_unnamed), state, icon = R.drawable.ic_sym_bluetooth_connected)
+                    else link(fl.name, state, leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
+                }
+            }
         }
         SettingsGroup { link(stringResource(R.string.apps_title), "LibreView, Tidepool, xDrip+, Nightscout", icon = R.drawable.ic_sym_apps, to = "apps") }
         SettingsFooter(stringResource(R.string.people_footer))
@@ -216,14 +240,14 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     editing?.let { fl -> FollowerDialog(fl, fl.f in u.writers, a) { editing = null } }
 }
 
-/** Nostr relays, on both sharing pages (followers' phones and Macs read from them). */
+/** Sharing over the internet (Nostr relays), on both sharing pages (followers' phones and Macs read from them). */
 @Composable
 private fun SettingsGroupScope.nostrRows(f: FeatureState, onInterval: () -> Unit) {
-    switch(stringResource(R.string.people_nostr), f.nostr, icon = R.drawable.ic_brand_nostr, summary = stringResource(R.string.people_nostr_summary)) { v ->
+    switch(stringResource(R.string.people_internet), f.nostr, icon = R.drawable.ic_sym_public, summary = stringResource(R.string.people_internet_summary)) { v ->
         set { it.copy(nostr = v) }
     }
     value(stringResource(R.string.sharing_upload_interval), if (f.nostr) intervalLabel(LocalContext.current, f.nostrIntervalMin) else stringResource(R.string.sharing_upload_interval_off),
-        enabled = f.nostr, onClick = onInterval)
+        enabled = f.nostr, icon = R.drawable.ic_sym_schedule, onClick = onInterval)
 }
 
 @Composable
@@ -250,7 +274,7 @@ private fun FollowerDialog(fl: Follower, writer: Boolean, a: OwnerActions, onClo
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.people_following_since, date(fl.since)), style = MaterialTheme.typography.bodyMedium)
-                SettingsGroup { switch(stringResource(R.string.people_writer), writer, summary = stringResource(R.string.people_writer_summary)) { a.setWriter(fl.f, it) } }
+                SettingsGroup { switch(stringResource(R.string.people_writer), writer, summary = stringResource(R.string.people_writer_summary), icon = R.drawable.ic_sym_edit_note) { a.setWriter(fl.f, it) } }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_done)) } },
@@ -286,16 +310,14 @@ private fun SystemAccessBanner(root: Boolean, module: Boolean) {
         module && access.module == app.mauri.sukrara.features.SystemAccess.Module.NO_SCOPE -> SettingsBanner(icon, stringResource(R.string.access_scope_title),
             stringResource(R.string.access_scope_text, access.framework ?: "LSPosed") + (problem?.let { " ($it)" } ?: ""),
             stringResource(R.string.access_scope_action), { app.mauri.sukrara.features.SystemAccess.requestSystemUi { problem = it } })
-        module && access.module in setOf(app.mauri.sukrara.features.SystemAccess.Module.RESTART, app.mauri.sukrara.features.SystemAccess.Module.UPDATE) -> SettingsBanner(icon, stringResource(R.string.access_restart_title),
-            stringResource(if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE) R.string.access_restart_text_updated else R.string.access_restart_text),
-            if (rootOk == true && !restarting) stringResource(R.string.access_restart_title) else null, {
+        module && access.needsRestart -> SettingsBanner(icon, stringResource(R.string.access_restart_title),
+            stringResource(if (access.module == app.mauri.sukrara.features.SystemAccess.Module.UPDATE) R.string.access_restart_text_updated else R.string.access_restart_text) +
+                (problem?.let { " " + stringResource(R.string.home_restart_failed, it) } ?: ""),
+            // always the root restart: the su call itself asks for root when it isn't granted yet
+            if (!restarting) stringResource(R.string.access_restart_title) else null, {
                 restarting = true
-                scope.launch {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.mauri.sukrara.status.RootStatusBar.restartSystemUi() }
-                    kotlinx.coroutines.delay(4_000)
-                    app.mauri.sukrara.features.SystemAccess.refresh()
-                    restarting = false
-                }
+                problem = null
+                scope.launch { problem = app.mauri.sukrara.features.SystemAccess.restartSystemUi(); restarting = false }
             })
     }
 }
@@ -324,22 +346,22 @@ fun StatusBarSettings(onBack: () -> Unit) {
         SettingsIntro(stringResource(R.string.statusbar_intro))
         SystemAccessBanner(root = true, module = true)
         SettingsGroup {
-            switch(stringResource(R.string.statusbar_chip), f.chip, summary = stringResource(R.string.statusbar_chip_summary)) { v -> set { it.copy(chip = v) } }
-            if (f.chip && !nm.canPostPromotedNotifications()) link(stringResource(R.string.statusbar_allow_live_updates), stringResource(R.string.statusbar_allow_live_updates_summary), external = true) {
+            switch(stringResource(R.string.statusbar_chip), f.chip, summary = stringResource(R.string.statusbar_chip_summary), icon = R.drawable.ic_glyph_chip) { v -> set { it.copy(chip = v) } }
+            if (f.chip && !nm.canPostPromotedNotifications()) link(stringResource(R.string.statusbar_allow_live_updates), stringResource(R.string.statusbar_allow_live_updates_summary), icon = R.drawable.ic_sym_notifications_active, external = true) {
                 ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
             }
-            switch(stringResource(R.string.statusbar_icon), f.icon) { v -> set { it.copy(icon = v) } }
+            switch(stringResource(R.string.statusbar_icon), f.icon, icon = R.drawable.ic_sym_123) { v -> set { it.copy(icon = v) } }
         }
         SettingsGroup(stringResource(R.string.statusbar_group_root)) {
-            switch(stringResource(R.string.statusbar_value), f.hook && ok, enabled = ok, summary = when (root) {
+            switch(stringResource(R.string.statusbar_value), f.hook && ok, enabled = ok, icon = R.drawable.ic_sym_smartphone, summary = when (root) {
                 null -> stringResource(R.string.statusbar_value_checking)
                 false -> stringResource(R.string.statusbar_value_no_root)
                 true -> if (!f.hook) stringResource(R.string.settings_off) else if (needsModule(f.hookPosition) && !module) stringResource(R.string.statusbar_value_needs_module, placement) else placement
             }) { v -> set { it.copy(hook = v) } }
-            switch(stringResource(R.string.statusbar_colour), f.hookColor, enabled = hookOn && module,
+            switch(stringResource(R.string.statusbar_colour), f.hookColor, enabled = hookOn && module, icon = R.drawable.ic_sym_palette,
                 summary = if (!hookOn) off else if (!module) needs else null) { v -> set { it.copy(hookColor = v) } }
-            value(stringResource(R.string.statusbar_placement), if (hookOn) placement else off, enabled = hookOn) { choosing = true }
-            switch(stringResource(R.string.statusbar_hide_icon), f.hideNotifIcon, enabled = hookOn && module,
+            value(stringResource(R.string.statusbar_placement), if (hookOn) placement else off, enabled = hookOn, icon = R.drawable.ic_sym_align_horizontal_left) { choosing = true }
+            switch(stringResource(R.string.statusbar_hide_icon), f.hideNotifIcon, enabled = hookOn && module, icon = R.drawable.ic_sym_visibility_off,
                 summary = if (!hookOn) off else if (!module) needs else stringResource(R.string.statusbar_hide_icon_summary)) { v ->
                 set { it.copy(hideNotifIcon = v) }
             }
@@ -376,8 +398,8 @@ fun LockscreenSettings(onBack: () -> Unit) {
         SystemAccessBanner(root = false, module = true)
         SettingsMainSwitch(stringResource(R.string.lock_main_switch), on, enabled = module) { v -> change { it.copy(lockWidget = v) } }
         SettingsGroup {
-            value(stringResource(R.string.lock_background), if (on) stringResource(lockBackgroundLabel(f.lockBg)) else off, enabled = on) { choosing = "bg" }
-            value(stringResource(R.string.lock_appearance), if (on) stringResource(lockAppearanceLabel(f.lockLook)) else off, enabled = on) { choosing = "look" }
+            value(stringResource(R.string.lock_background), if (on) stringResource(lockBackgroundLabel(f.lockBg)) else off, enabled = on, icon = R.drawable.ic_sym_wallpaper) { choosing = "bg" }
+            value(stringResource(R.string.lock_appearance), if (on) stringResource(lockAppearanceLabel(f.lockLook)) else off, enabled = on, icon = R.drawable.ic_sym_palette) { choosing = "look" }
         }
         SettingsFooter(stringResource(R.string.lock_footer))
     }
@@ -428,12 +450,16 @@ fun AppsSettings(wearer: Boolean, onBack: () -> Unit) {
                 summary = if (f.nightscout) "http://127.0.0.1:${Features.NIGHTSCOUT_PORT} · ${st.nightscout}" else stringResource(R.string.apps_nightscout_summary)) { v ->
                 set { it.copy(nightscout = v) }
             }
-            switch(stringResource(R.string.apps_nightscout_lan), f.nightscoutLan, enabled = f.nightscout,
+            switch(stringResource(R.string.apps_nightscout_lan), f.nightscoutLan, enabled = f.nightscout, icon = R.drawable.ic_sym_wifi,
                 summary = stringResource(if (f.nightscout) R.string.apps_nightscout_lan_summary else R.string.apps_nightscout_unavailable)) { v -> set { it.copy(nightscoutLan = v) } }
             if (f.nightscout && f.nightscoutLan) action(stringResource(R.string.apps_show_secret), icon = R.drawable.ic_sym_key) { secret = true }
         }
         if (wearer) SettingsGroup("Nostr") { nostrRows(f) { choosing = true } }
-        if (wearer) SettingsGroup { link(stringResource(R.string.people_title), stringResource(R.string.apps_people_summary), icon = R.drawable.ic_sym_group, to = "sharing") }
+        SettingsGroup {
+            if (wearer) link(stringResource(R.string.people_title), stringResource(R.string.apps_people_summary), icon = R.drawable.ic_sym_group, to = "sharing")
+            // a file for any other app (a spreadsheet, a clinic portal): Export data, both roles
+            link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary), icon = R.drawable.ic_sym_file_export, to = "export")
+        }
         SettingsFooter(stringResource(R.string.apps_footer))
     }
     if (choosing) NostrIntervalDialog(f) { choosing = false }
@@ -463,8 +489,8 @@ private fun phoneAppsGroups(direct: Boolean) {
     val active by app.mauri.sukrara.core.ActiveSensor.profile.collectAsState()
     val paused = app.mauri.sukrara.core.SensorOutputs.broadcastsPausedBy(active)
     SettingsGroup(stringResource(R.string.apps_phone_group)) {
-        if (direct && paused != null) info(stringResource(R.string.apps_phone_paused_untested, paused.name))
-        if (receivers?.isEmpty() == true && readers.isEmpty()) info(stringResource(R.string.apps_phone_none))
+        if (direct && paused != null) info(stringResource(R.string.apps_phone_paused_untested, paused.name), icon = R.drawable.ic_sym_pause_circle)
+        if (receivers?.isEmpty() == true && readers.isEmpty()) info(stringResource(R.string.apps_phone_none), icon = R.drawable.ic_sym_info)
         for (r in receivers.orEmpty()) switch(r.label, direct && r.pkg in allowed, enabled = direct,
             summary = if (direct) null else stringResource(R.string.apps_phone_needs_direct), leading = { PackageIcon(r.pkg) }) { v ->
             app.mauri.sukrara.bridge.AppBroadcasts.setAllowed(ctx, r.pkg, v)
@@ -531,21 +557,21 @@ fun LibreViewSettings(onBack: () -> Unit) {
         SettingsGroup { value(stringResource(R.string.libreview_account), if (signedIn) s.email else stringResource(R.string.libreview_not_signed_in), icon = R.drawable.ic_sym_person) { signIn = true } }
         SettingsMainSwitch(stringResource(R.string.libreview_main_switch), on, enabled = signedIn) { v -> set { it.copy(libreview = v) }; uploader.kick() }
         SettingsGroup {
-            info(stringResource(R.string.libreview_status), if (!signedIn) stringResource(R.string.libreview_sign_in_first) else if (on) status.replaceFirstChar { it.uppercase() } else stringResource(R.string.settings_off))
-            switch(stringResource(R.string.libreview_glucose), s.glucose, enabled = on && direct, summary = when {
+            info(stringResource(R.string.libreview_status), icon = R.drawable.ic_sym_cloud_sync, summary = if (!signedIn) stringResource(R.string.libreview_sign_in_first) else if (on) status.replaceFirstChar { it.uppercase() } else stringResource(R.string.settings_off))
+            switch(stringResource(R.string.libreview_glucose), s.glucose, enabled = on && direct, icon = R.drawable.ic_sym_monitoring, summary = when {
                 !on -> off
                 !direct -> stringResource(R.string.libreview_glucose_needs_direct)
                 else -> uploader.glucoseFrom?.let { stringResource(R.string.libreview_glucose_from, app.mauri.sukrara.graph.Clock.dateTime(it)) }
                     ?: if (s.glucose) stringResource(R.string.libreview_glucose_from_now) else stringResource(R.string.settings_off)
             }) { uploader.configure(glucose = it) }
-            switch(stringResource(R.string.libreview_entries), s.treatments, enabled = on, summary = if (on) stringResource(R.string.libreview_entries_summary) else off) {
+            switch(stringResource(R.string.libreview_entries), s.treatments, enabled = on, icon = R.drawable.ic_sym_edit_note, summary = if (on) stringResource(R.string.libreview_entries_summary) else off) {
                 uploader.configure(treatments = it)
             }
-            switch(stringResource(R.string.libreview_takeover), s.takeover, enabled = on, summary = if (!on) off
+            switch(stringResource(R.string.libreview_takeover), s.takeover, enabled = on, icon = R.drawable.ic_sym_cloud_upload, summary = if (!on) off
                 else stringResource(if (s.takeover) R.string.libreview_takeover_on else R.string.libreview_takeover_off)) {
                 uploader.configure(takeover = it)
             }
-            value(stringResource(R.string.libreview_upload_every), if (on) intervalLabel(ctx, f.libreviewIntervalMin) else off, enabled = on) { choosing = true }
+            value(stringResource(R.string.libreview_upload_every), if (on) intervalLabel(ctx, f.libreviewIntervalMin) else off, enabled = on, icon = R.drawable.ic_sym_schedule) { choosing = true }
         }
         SettingsFooter(stringResource(R.string.libreview_footer))
     }
@@ -631,18 +657,18 @@ fun WearerAdvanced(u: OwnerUi, relays: Map<String, RelayStats>, a: OwnerActions,
     SettingsPage(stringResource(R.string.advanced_title), onBack) {
         SettingsGroup(stringResource(R.string.advanced_relays)) {
             card { if (relays.isEmpty()) Text(stringResource(R.string.advanced_no_relays), style = MaterialTheme.typography.bodyMedium) else RelayList(relays) }
-            info(stringResource(R.string.advanced_requests), stringResource(if (u.inboxLive) R.string.advanced_requests_live else R.string.advanced_requests_polled))
+            info(stringResource(R.string.advanced_requests), icon = R.drawable.ic_sym_inbox, summary = stringResource(if (u.inboxLive) R.string.advanced_requests_live else R.string.advanced_requests_polled))
             action(stringResource(R.string.advanced_check_requests), icon = R.drawable.ic_sym_update, onClick = a::checkNow)
         }
         SettingsGroup(stringResource(R.string.advanced_diagnostics)) {
             link(stringResource(R.string.advanced_log), stringResource(R.string.advanced_log_summary), icon = R.drawable.ic_sym_receipt_long, to = "log")
             info(stringResource(R.string.advanced_identity), stringResource(R.string.advanced_identity_summary, u.iPub?.let { Proto.shortNpub(it) } ?: "–", u.epoch), icon = R.drawable.ic_sym_key)
-            info(stringResource(R.string.advanced_sent), stringResource(R.string.advanced_sent_summary, u.liveSent, u.chunksSent, st.notificationPosts, st.notificationSkipped))
+            info(stringResource(R.string.advanced_sent), icon = R.drawable.ic_sym_send, summary = stringResource(R.string.advanced_sent_summary, u.liveSent, u.chunksSent, st.notificationPosts, st.notificationSkipped))
         }
         SettingsGroup(stringResource(R.string.advanced_experimental)) {
-            value(stringResource(R.string.advanced_priority), if (direct) stringResource(priorityLabel(f.connPriority))
+            value(stringResource(R.string.advanced_priority), icon = R.drawable.ic_sym_speed, value = if (direct) stringResource(priorityLabel(f.connPriority))
                 else stringResource(R.string.source_sensor_unavailable), enabled = direct) { choosing = true }
-            switch(stringResource(R.string.advanced_screen_off), f.screenOffSkip, summary = stringResource(R.string.advanced_screen_off_summary)) { v ->
+            switch(stringResource(R.string.advanced_screen_off), f.screenOffSkip, icon = R.drawable.ic_sym_mobile_off, summary = stringResource(R.string.advanced_screen_off_summary)) { v ->
                 set { it.copy(screenOffSkip = v) }
             }
             if (BuildConfig.DEBUG) switch(stringResource(R.string.advanced_synthetic), u.synthetic, summary = stringResource(R.string.advanced_debug_only), icon = R.drawable.ic_sym_bug_report, onChange = a::setSynthetic)
@@ -702,7 +728,7 @@ fun FollowingSettings(u: FollowerUi, a: FollowerActions, onBack: () -> Unit) {
     SettingsPage(stringResource(R.string.following_title), onBack) {
         SettingsGroup {
             info(u.wearer?.name ?: "Sukrara", u.ownerPub?.let { Proto.shortNpub(it) }, icon = R.drawable.ic_sym_person)
-            info(stringResource(R.string.people_writer), stringResource(if (u.canWrite) R.string.following_can_write else R.string.following_cannot_write))
+            info(stringResource(R.string.people_writer), icon = R.drawable.ic_sym_edit_note, summary = stringResource(if (u.canWrite) R.string.following_can_write else R.string.following_cannot_write))
             info("Bluetooth", u.ble, icon = R.drawable.ic_brand_bluetooth)
         }
         SettingsGroup { action(stringResource(R.string.following_stop), stringResource(R.string.following_stop_summary), icon = R.drawable.ic_sym_person_remove) { leaving = true } }
@@ -725,9 +751,9 @@ fun FollowerAdvanced(u: FollowerUi, relays: Map<String, RelayStats>, a: Follower
         SettingsGroup(stringResource(R.string.advanced_relays)) { card { if (relays.isEmpty()) Text(stringResource(R.string.advanced_no_relays), style = MaterialTheme.typography.bodyMedium) else RelayList(relays) } }
         SettingsGroup(stringResource(R.string.advanced_diagnostics)) {
             link(stringResource(R.string.advanced_log), stringResource(R.string.advanced_log_summary), icon = R.drawable.ic_sym_receipt_long, to = "log")
-            info(stringResource(R.string.advanced_stored), stringResource(R.string.advanced_stored_summary, u.count, u.rejects) + (u.lastReject?.let { " ($it)" } ?: ""))
+            info(stringResource(R.string.advanced_stored), icon = R.drawable.ic_sym_database, summary = stringResource(R.string.advanced_stored_summary, u.count, u.rejects) + (u.lastReject?.let { " ($it)" } ?: ""))
             info(stringResource(R.string.advanced_keys), stringResource(R.string.advanced_keys_summary, u.epoch, u.devices.joinToString { it.take(8) }), icon = R.drawable.ic_sym_key)
-            info(stringResource(R.string.advanced_this_phone), u.fPub?.let { Proto.npub(it) })
+            info(stringResource(R.string.advanced_this_phone), u.fPub?.let { Proto.npub(it) }, icon = R.drawable.ic_sym_smartphone)
         }
         if (BuildConfig.DEBUG) SettingsGroup(stringResource(R.string.advanced_experimental)) {
             switch(stringResource(R.string.advanced_unfiltered), u.testUnfiltered, summary = stringResource(R.string.advanced_debug_only),
@@ -807,7 +833,7 @@ fun AboutSettings(onBack: () -> Unit) {
         }
         SettingsGroup(stringResource(R.string.about_other_devices)) {
             when {
-                release == null -> info(stringResource(R.string.about_looking))
+                release == null -> info(stringResource(R.string.about_looking), icon = R.drawable.ic_sym_downloading)
                 r == null -> link(stringResource(R.string.about_downloads), stringResource(R.string.about_downloads_offline), icon = R.drawable.ic_sym_download, external = true) { open("$REPO/releases/latest") }
                 else -> for (d in r.files) {
                     val (label, icon) = platformOf(d.name)

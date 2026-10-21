@@ -739,7 +739,7 @@
     <!-- Sensor screen: button that opens the New sensor screen [CHAR LIMIT=30] -->
     <string name="sensor_pair_new">Pair new sensor</string>
     <!-- Sensor screen: the open-on-scan switch's summary when Android blocks Sukrara's tag intents [CHAR LIMIT=60] -->
-    <string name="sensor_launch_on_scan_blocked">Blocked in Android settings. Tap to allow</string>
+    <string name="sensor_launch_on_scan_blocked">Blocked · tap to allow</string>
     <!-- New sensor screen: title [CHAR LIMIT=30] -->
     <string name="newsensor_title">New sensor</string>
     <!-- New sensor screen: close button (accessibility) and button when the phone has no NFC [CHAR LIMIT=20] -->
@@ -897,6 +897,18 @@
     <string name="home_widget_banner_manual">Touch &amp; hold the home screen, then Widgets › Sukrara</string>
     <!-- Home: widget banner close button (accessibility) [CHAR LIMIT=30] -->
     <string name="home_widget_banner_dismiss">Dismiss</string>
+    <!-- Home card: System UI must restart to run Sukrara's status bar / lock screen code [CHAR LIMIT=40] -->
+    <string name="home_restart_title">Restart System UI</string>
+    <!-- Home card text: System UI still runs the previous build's code [CHAR LIMIT=NONE] -->
+    <string name="home_restart_text_updated">The status bar and lock screen still use the previous version</string>
+    <!-- Home card text: System UI doesn't run the module [CHAR LIMIT=NONE] -->
+    <string name="home_restart_text">Your status bar and lock screen settings are off until then</string>
+    <!-- Restart card / banner error (red): su refused or failed; %1$s = the reason from su [CHAR LIMIT=NONE] -->
+    <string name="home_restart_failed">Couldn\'t restart System UI: %1$s</string>
+    <!-- Home card pill: restart System UI now (root) [CHAR LIMIT=20] -->
+    <string name="home_restart_action">Restart</string>
+    <!-- Close button description of the restart card [CHAR LIMIT=20] -->
+    <string name="home_restart_dismiss">Dismiss</string>
 
     <!-- Badge icon accessibility label: alerts wait while a treatment works [CHAR LIMIT=30] -->
     <string name="badge_alerts_paused">Alerts paused</string>
@@ -1004,9 +1016,9 @@
     <!-- Follower alert rules option: run the rules on this phone. [CHAR LIMIT=60] -->
     <string name="alerts_rules_own">This phone\'s own settings</string>
     <!-- Explains the mirror option. [CHAR LIMIT=NONE] -->
-    <string name="alerts_rules_wearer_summary">Alerts when the wearer\'s phone alerts, including its quiet rules. No data is checked here.</string>
+    <string name="alerts_rules_wearer_summary">Same alerts and quiet rules as the wearer\'s phone</string>
     <!-- Explains the own-rules option. [CHAR LIMIT=NONE] -->
-    <string name="alerts_rules_own_summary">The rules below run on this phone with the readings and entries it receives.</string>
+    <string name="alerts_rules_own_summary">This phone\'s own rules</string>
     <!-- Summary of a rule a follower can't change because it mirrors the wearer. [CHAR LIMIT=NONE] -->
     <string name="alerts_set_by_wearer">Set by the wearer\'s app</string>
     <!-- Category of low glucose alerts. [CHAR LIMIT=40] -->
@@ -1042,11 +1054,11 @@
     <!-- Quiet rule: hold highs back after rapid insulin. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_insulin">After rapid insulin</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_insulin_summary">Highs and rising fast wait %1$d min · extremely high always alerts</string>
+    <string name="alerts_quiet_insulin_summary">Highs and rising fast wait %1$d min</string>
     <!-- Quiet rule: no high alert while glucose is returning to range. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_falling">When falling back into range</string>
     <!-- %1$d = mg/dL, %2$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_falling_summary">No high alert while it\'ll be under %1$d within %2$d min</string>
+    <string name="alerts_quiet_falling_summary">If it\'ll be under %1$d within %2$d min</string>
     <!-- Quiet rule: hold lows back after carbs. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_carbs">After carbs</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
@@ -1056,7 +1068,7 @@
     <!-- Setting: how long the notification's Mute button silences the alert. [CHAR LIMIT=40] -->
     <string name="alerts_action_mute">Mute for</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high are never muted, only slowed down</string>
+    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high only slow down</string>
     <!-- Setting: the slower reminder interval the notification's Slow down button sets. [CHAR LIMIT=40] -->
     <string name="alerts_action_slow">Slow down to every</string>
     <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
@@ -1070,19 +1082,19 @@
     <!-- Switch: pick one of the pack's sounds at random. [CHAR LIMIT=60] -->
     <string name="alerts_shuffle">A different sound each time</string>
     <!-- %1$d = sounds per alert. [CHAR LIMIT=NONE] -->
-    <string name="alerts_shuffle_summary">%1$d sounds per alert in every pack, picked at random</string>
+    <string name="alerts_shuffle_summary">%1$d sounds per alert, at random</string>
     <!-- Opens the system notification settings of the app. [CHAR LIMIT=40] -->
     <string name="alerts_notification_settings">Notification settings</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_notification_settings_summary">Sound, vibration and Do Not Disturb per alert</string>
+    <string name="alerts_notification_settings_summary">Sound, vibration, Do Not Disturb</string>
     <!-- Footer of the alerts page. [CHAR LIMIT=NONE] -->
-    <string name="alerts_footer">Each alert is its own notification category: a sound picked in the system settings replaces Sukrara\'s. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). Settings stay on this phone.</string>
+    <string name="alerts_footer">Each alert is its own notification category: a sound picked in the system settings replaces Sukrara\'s. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). Settings stay on this phone. Very low and extremely high are never muted from a notification, only slowed down, and the quiet rules never hold back extremely high.</string>
     <!-- Main switch of one alert's page. %1$s = the alert's name, e.g. Low. [CHAR LIMIT=60] -->
     <string name="alerts_kind_main_switch">Use %1$s alert</string>
     <!-- Summary of a disabled row. [CHAR LIMIT=NONE] -->
     <string name="alerts_unavailable_off">Unavailable while this alert is off</string>
     <!-- Summary of a disabled row. [CHAR LIMIT=NONE] -->
-    <string name="alerts_unavailable_all_off">Unavailable while glucose alerts are off</string>
+    <string name="alerts_unavailable_all_off">Unavailable while alerts are off</string>
     <!-- Category: when the alert rings. [CHAR LIMIT=40] -->
     <string name="alerts_group_when">Alert when</string>
     <!-- Category: how the alert sounds. [CHAR LIMIT=40] -->
@@ -1106,9 +1118,9 @@
     <!-- Volume option. [CHAR LIMIT=40] -->
     <string name="alerts_volume_notification">Notification volume</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_volume_alarm_summary">Like an alarm clock. Rings in Do Not Disturb when alarms are allowed</string>
+    <string name="alerts_volume_alarm_summary">Like an alarm clock, also in Do Not Disturb</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_volume_notification_summary">Rings in Do Not Disturb only if reminders are allowed</string>
+    <string name="alerts_volume_notification_summary">Like a reminder in Do Not Disturb</string>
     <!-- Content description of the play button next to a sound. [CHAR LIMIT=20] -->
     <string name="alerts_play">Play</string>
     <!-- Plays this alert's sound. [CHAR LIMIT=40] -->
@@ -1120,15 +1132,15 @@
     <!-- Check box next to the sound previews (▶): a preview also plays the alert's vibration. Only for previews, not for the alerts. [CHAR LIMIT=40] -->
     <string name="alerts_vibrate">Play with vibration</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_vibrate_summary">For the previews here. The alert\'s own vibration is set in its notification category</string>
+    <string name="alerts_vibrate_summary">Previews only</string>
     <!-- Fires this alert once as a real notification. [CHAR LIMIT=40] -->
     <string name="alerts_test">Send a test alert</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_test_summary">A real notification with its sound and vibration; followers don\'t get it</string>
+    <string name="alerts_test_summary">Sound and vibration · not sent to followers</string>
     <!-- Opens this alert's notification category in the system settings. [CHAR LIMIT=40] -->
     <string name="alerts_channel_settings">Notification category</string>
     <!-- [CHAR LIMIT=NONE] -->
-    <string name="alerts_channel_settings_summary">Vibration, Do Not Disturb and more in the system settings</string>
+    <string name="alerts_channel_settings_summary">Vibration, Do Not Disturb and more</string>
     <!-- Footer of one alert's page. [CHAR LIMIT=NONE] -->
     <string name="alerts_kind_footer">The sound and vibration of this alert are its notification category\'s: a sound picked there replaces Sukrara\'s.</string>
     <!-- Footer for followers mirroring the wearer. [CHAR LIMIT=NONE] -->
@@ -1141,7 +1153,7 @@
     <!-- How often readings go to the Nostr relays. [CHAR LIMIT=40] -->
     <string name="sharing_upload_interval">Upload interval</string>
     <!-- Summary of the disabled upload interval row. [CHAR LIMIT=NONE] -->
-    <string name="sharing_upload_interval_off">Unavailable while sharing over the internet is off</string>
+    <string name="sharing_upload_interval_off">Unavailable while internet sharing is off</string>
     <!-- How often Sukrara uploads to LibreView. [CHAR LIMIT=40] -->
     <string name="libreview_upload_every">Upload every</string>
     <!-- Home + settings: banner while neither LibreView nor Tidepool uploads are set up; pills below pick one [CHAR LIMIT=40] -->
@@ -1207,13 +1219,13 @@
     <!-- Source option: Sukrara reads the Libre 3 itself [CHAR LIMIT=30] -->
     <string name="source_direct">This phone</string>
     <!-- Source option description [CHAR LIMIT=NONE] -->
-    <string name="source_direct_summary">Sukrara reads the sensor itself: FreeStyle Libre 3 / 3 Plus, or an untested Dexcom, Accu-Chek or Aidex sensor</string>
+    <string name="source_direct_summary">Libre 3 / 3 Plus · Dexcom, Accu-Chek, Aidex untested</string>
     <!-- Source option: the Juggluco app (brand name) [CHAR LIMIT=30] -->
     <string name="source_juggluco">Juggluco</string>
     <!-- Source option description [CHAR LIMIT=NONE] -->
-    <string name="source_juggluco_summary">Reads Juggluco\'s web server; Juggluco keeps the sensor and its alarms</string>
+    <string name="source_juggluco_summary">Juggluco keeps the sensor and its alarms</string>
     <!-- Why the sensor rows are disabled [CHAR LIMIT=60] -->
-    <string name="source_sensor_unavailable">Unavailable while Juggluco holds the sensor</string>
+    <string name="source_sensor_unavailable">Unavailable while Juggluco has the sensor</string>
     <!-- Glucose source page footer [CHAR LIMIT=NONE] -->
     <string name="source_footer">Only one app can read a sensor at a time. While this phone reads it, Juggluco\'s own alarms don\'t ring: use Alerts.</string>
     <!-- Dialog title before switching to the direct source [CHAR LIMIT=40] -->
@@ -1233,11 +1245,11 @@
     <!-- Row while pairing is open [CHAR LIMIT=30] -->
     <string name="people_pairing">Pairing nearby…</string>
     <!-- Pair nearby summary [CHAR LIMIT=60] -->
-    <string name="people_pair_summary">For 10 minutes, no internet needed</string>
+    <string name="people_pair_summary">For 10 minutes, no internet</string>
     <!-- Why Pair nearby is disabled [CHAR LIMIT=60] -->
     <string name="people_pair_bluetooth_off">Unavailable while Bluetooth is off</string>
     <!-- Pairing open; %1$s = date and time it closes [CHAR LIMIT=60] -->
-    <string name="people_pairing_summary">Open until %1$s · tap to extend 10 min</string>
+    <string name="people_pairing_summary">Until %1$s · tap to extend</string>
     <!-- Group of follower rows [CHAR LIMIT=30] -->
     <string name="people_group_followers">Followers</string>
     <!-- Shown when nobody follows the wearer [CHAR LIMIT=60] -->
@@ -1250,18 +1262,37 @@
     <string name="people_sees_only">sees only</string>
     <!-- A removed follower; %1$s = date removed [CHAR LIMIT=40] -->
     <string name="people_removed_at">Removed %1$s</string>
+    <!-- Pill under the followers that shows the removed ones (the count is drawn before it) [CHAR LIMIT=30] -->
+    <string name="people_removed_show">Removed</string>
+    <!-- Group: followers the wearer removed [CHAR LIMIT=30] -->
+    <string name="people_group_removed">Removed followers</string>
+    <!-- Button under the removed followers: fold them again (AOSP See less) [CHAR LIMIT=30] -->
+    <string name="people_removed_hide">See less</string>
     <!-- Group: transports for the readings [CHAR LIMIT=40] -->
     <string name="people_group_travel">How readings travel</string>
     <!-- Switch: share over Bluetooth with nearby followers [CHAR LIMIT=40] -->
     <string name="people_bluetooth">Over Bluetooth nearby</string>
-    <!-- Bluetooth summary; %1$d = followers connected now [CHAR LIMIT=40] -->
-    <string name="people_bluetooth_connected">%1$d connected now</string>
+    <!-- Bluetooth summary; %d = follower phones connected now [CHAR LIMIT=40] -->
+    <plurals name="people_bluetooth_connected">
+        <item quantity="one">%d connected</item>
+        <item quantity="other">%d connected</item>
+    </plurals>
     <!-- Bluetooth summary when it\'s off [CHAR LIMIT=40] -->
     <string name="people_bluetooth_off">Bluetooth is off</string>
-    <!-- Switch: share over Nostr relays [CHAR LIMIT=40] -->
-    <string name="people_nostr">Over the internet (Nostr relays)</string>
-    <!-- Nostr switch summary [CHAR LIMIT=60] -->
-    <string name="people_nostr_summary">End-to-end encrypted; followers anywhere</string>
+    <!-- Switch: share over the internet (through Nostr relays) [CHAR LIMIT=40] -->
+    <string name="people_internet">Over the internet</string>
+    <!-- Over the internet summary; Nostr is a protocol name [CHAR LIMIT=60] -->
+    <string name="people_internet_summary">Encrypted, through Nostr relays</string>
+    <!-- Group: follower phones paired or connected over Bluetooth (AOSP Connected devices) [CHAR LIMIT=40] -->
+    <string name="people_group_nearby">Nearby devices</string>
+    <!-- Nearby device state (AOSP bluetooth_connected) [CHAR LIMIT=30] -->
+    <string name="people_nearby_connected">Connected</string>
+    <!-- Nearby device state (AOSP bluetooth_disconnected) [CHAR LIMIT=30] -->
+    <string name="people_nearby_disconnected">Disconnected</string>
+    <!-- A connected phone that hasn't said which follower it is yet [CHAR LIMIT=40] -->
+    <string name="people_nearby_unnamed">Follower\'s phone</string>
+    <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
+    <string name="people_nearby_none">No devices</string>
     <!-- Sharing with people page footer [CHAR LIMIT=NONE] -->
     <string name="people_footer">Removing someone rotates the read key, so they stop receiving new readings at once. Followers you allow to add entries can log insulin, carbs and notes for you.</string>
     <!-- Dialog title; %1$s = follower name [CHAR LIMIT=40] -->
@@ -1325,9 +1356,9 @@
     <!-- Value summary without root [CHAR LIMIT=60] -->
     <string name="statusbar_value_no_root">Unavailable: needs root for Sukrara (KernelSU)</string>
     <!-- Value summary; %1$s = the placement [CHAR LIMIT=60] -->
-    <string name="statusbar_value_needs_module">Not shown: %1$s needs the LSPosed module</string>
+    <string name="statusbar_value_needs_module">%1$s needs the LSPosed module</string>
     <!-- Why the root rows are disabled [CHAR LIMIT=60] -->
-    <string name="statusbar_unavailable">Unavailable while the value in the status bar is off</string>
+    <string name="statusbar_unavailable">Unavailable while the value is off</string>
     <!-- Switch: colour the value by range [CHAR LIMIT=40] -->
     <string name="statusbar_colour">Colour by range</string>
     <!-- Row and dialog: where the value goes [CHAR LIMIT=30] -->
@@ -1335,7 +1366,7 @@
     <!-- Switch: hide Sukrara\'s notification icon [CHAR LIMIT=40] -->
     <string name="statusbar_hide_icon">Hide Sukrara\'s notification icon</string>
     <!-- Hide icon summary [CHAR LIMIT=60] -->
-    <string name="statusbar_hide_icon_summary">In the status bar only; the notification stays in the shade</string>
+    <string name="statusbar_hide_icon_summary">The notification stays in the shade</string>
     <!-- Status bar page footer [CHAR LIMIT=NONE] -->
     <string name="statusbar_footer">The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed (scope System UI), then a System UI restart.</string>
     <!-- Placement option [CHAR LIMIT=40] -->
@@ -1363,7 +1394,7 @@
     <!-- Main switch of the lock screen page [CHAR LIMIT=40] -->
     <string name="lock_main_switch">Glucose on the lock screen</string>
     <!-- Why the lock screen rows are disabled [CHAR LIMIT=60] -->
-    <string name="lock_unavailable">Unavailable while glucose on the lock screen is off</string>
+    <string name="lock_unavailable">Unavailable while it\'s off</string>
     <!-- Row and dialog: what is behind the widget [CHAR LIMIT=30] -->
     <string name="lock_background">Background</string>
     <!-- Row and dialog: light or dark widget [CHAR LIMIT=30] -->
@@ -1418,7 +1449,7 @@
     <!-- Switch [CHAR LIMIT=40] -->
     <string name="sensorend_countdown_switch">End countdown</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
-    <string name="sensorend_countdown_summary">The time left in the sensor\'s last hours</string>
+    <string name="sensorend_countdown_summary">Time left in the last hours</string>
     <!-- Row and dialog: how long before the end the countdown starts [CHAR LIMIT=30] -->
     <string name="sensorend_countdown_hours">Countdown starts</string>
     <!-- Option: N hours before the end -->
@@ -1429,19 +1460,19 @@
     <!-- Switch [CHAR LIMIT=40] -->
     <string name="sensorend_warmup_switch">Warm-up countdown</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
-    <string name="sensorend_warmup_summary">A new sensor\'s first hour, until readings start</string>
+    <string name="sensorend_warmup_summary">A new sensor\'s first hour</string>
     <!-- Unit for the custom hours field [CHAR LIMIT=10] -->
     <string name="sensorend_hours_unit">h</string>
     <!-- Switch in the Reminders group: morning reminders (and the evening one) come at the first unlock [CHAR LIMIT=40] -->
-    <string name="sensorend_unlock_switch">Remind me when I first unlock the phone</string>
+    <string name="sensorend_unlock_switch">Remind at first unlock</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
-    <string name="sensorend_unlock_summary">Morning and evening reminders come at your first unlock, if that\'s before their time</string>
+    <string name="sensorend_unlock_summary">Morning and evening reminders, if you unlock earlier</string>
     <!-- Group title: the sensor ending while the user sleeps [CHAR LIMIT=30] -->
     <string name="sensorend_night_group">Night</string>
     <!-- Switch: a reminder the evening before a night-time end [CHAR LIMIT=40] -->
-    <string name="sensorend_evening_switch">Remind me the evening before</string>
+    <string name="sensorend_evening_switch">Remind the evening before</string>
     <!-- Switch summary; %1$s = time of the evening reminder (e.g. 21:00) [CHAR LIMIT=NONE] -->
-    <string name="sensorend_evening_summary">If it ends during the night, at %1$s</string>
+    <string name="sensorend_evening_summary">For a night-time end, at %1$s</string>
     <!-- Row and time picker title: when the night starts [CHAR LIMIT=30] -->
     <string name="sensorend_bedtime">Bedtime</string>
     <!-- Row and time picker title: when the night ends [CHAR LIMIT=30] -->
@@ -1529,7 +1560,7 @@
     <!-- Switch: the xDrip+-compatible local server [CHAR LIMIT=40] -->
     <string name="apps_xdrip">xDrip+ server</string>
     <!-- xDrip+ summary; %1$s = server status [CHAR LIMIT=NONE] -->
-    <string name="apps_xdrip_summary">For Garmin watch faces and data fields · %1$s</string>
+    <string name="apps_xdrip_summary">For Garmin watches · %1$s</string>
     <!-- When a watch last asked; %1$s = now or 5 min ago [CHAR LIMIT=40] -->
     <string name="apps_xdrip_last_asked">last asked %1$s</string>
     <!-- xDrip+ server summary: the installed apps that read it; %1$s = app names, e.g. Garmin Connect [CHAR LIMIT=NONE] -->
@@ -1541,7 +1572,7 @@
     <!-- Switch: serve the API on the Wi-Fi network [CHAR LIMIT=40] -->
     <string name="apps_nightscout_lan">Also on this Wi-Fi network</string>
     <!-- Wi-Fi switch summary [CHAR LIMIT=60] -->
-    <string name="apps_nightscout_lan_summary">Other devices need the API secret</string>
+    <string name="apps_nightscout_lan_summary">Needs the API secret</string>
     <!-- Why the Wi-Fi switch is disabled [CHAR LIMIT=60] -->
     <string name="apps_nightscout_unavailable">Unavailable while the API is off</string>
     <!-- Action: show the API secret [CHAR LIMIT=40] -->
@@ -1551,13 +1582,13 @@
     <!-- Group: installed apps that listen for glucose broadcasts (xDrip+, LibreLink, Juggluco formats) [CHAR LIMIT=40] -->
     <string name="apps_phone_group">Apps on this phone</string>
     <!-- Shown when no installed app listens for glucose broadcasts (nor reads the xDrip+ server); points to the server switch [CHAR LIMIT=NONE] -->
-    <string name="apps_phone_none">No app on this phone listens for glucose broadcasts. Garmin watches read the xDrip+ server below.</string>
+    <string name="apps_phone_none">No apps found · Garmin watches use the xDrip+ server</string>
     <!-- Apps on this phone: why no app gets broadcasts while an untested sensor family is in use, %1$s = the sensor [CHAR LIMIT=NONE] -->
     <string name="apps_phone_paused_untested">Paused: %1$s support is untested</string>
     <!-- Why the app switches are disabled: Juggluco reads the sensor (it broadcasts itself) [CHAR LIMIT=60] -->
-    <string name="apps_phone_needs_direct">Only while Sukrara reads the sensor itself</string>
+    <string name="apps_phone_needs_direct">Only when Sukrara reads the sensor</string>
     <!-- Summary of an installed app (Garmin Connect) that reads the local xDrip+ server; its switch is the server's [CHAR LIMIT=NONE] -->
-    <string name="apps_phone_via_server">Reads your glucose through the xDrip+ server</string>
+    <string name="apps_phone_via_server">Through the xDrip+ server</string>
     <!-- Overview summary: how many apps on this phone get the glucose [CHAR LIMIT=30] -->
     <plurals name="apps_phone_summary">
         <item quantity="one">%d app</item>
@@ -1566,7 +1597,7 @@
     <!-- Switch: write blood glucose to Health Connect [CHAR LIMIT=40] -->
     <string name="apps_health_connect" translatable="false">Health Connect</string>
     <!-- Health Connect summary while off [CHAR LIMIT=60] -->
-    <string name="apps_health_connect_summary">Blood glucose for your health apps</string>
+    <string name="apps_health_connect_summary">Blood glucose for health apps</string>
     <!-- Health Connect summary while on [CHAR LIMIT=60] -->
     <string name="apps_health_connect_on">Writing every reading</string>
     <!-- Health Connect summary after its permission was denied [CHAR LIMIT=60] -->
@@ -1576,11 +1607,11 @@
     <!-- Sensor end in calendar: the switch (sensor settings) [CHAR LIMIT=40] -->
     <string name="calendar_title">Sensor end in calendar</string>
     <!-- Sensor end in calendar: summary while off [CHAR LIMIT=NONE] -->
-    <string name="calendar_summary_off">Off · adds when each sensor ends to a calendar</string>
+    <string name="calendar_summary_off">Off</string>
     <!-- Sensor end in calendar: summary after the calendar permission was denied [CHAR LIMIT=NONE] -->
     <string name="calendar_summary_denied">Off · needs access to your calendar</string>
     <!-- Sensor end in calendar: summary when the permission can only be granted in the app's system settings [CHAR LIMIT=NONE] -->
-    <string name="calendar_summary_blocked">Off · calendar access is blocked: tap to allow it in app settings</string>
+    <string name="calendar_summary_blocked">Off · access blocked, tap to allow</string>
     <!-- Sensor end in calendar: the row that picks where the events go [CHAR LIMIT=30] -->
     <string name="calendar_where">Calendar</string>
     <!-- Sensor end in calendar: Sukrara's own calendar (the default) [CHAR LIMIT=40] -->
@@ -1592,7 +1623,7 @@
     <!-- Sensor end in calendar: row shown with Sukrara's own calendar when Google Calendar is installed; opens Google Calendar [CHAR LIMIT=40] -->
     <string name="calendar_gcal_title">Show in Google Calendar</string>
     <!-- Sensor end in calendar: under that row; Google Calendar hides Sukrara's calendar until it is turned on there [CHAR LIMIT=NONE] -->
-    <string name="calendar_gcal_hint">Turn on Sukrara in Google Calendar → Settings → Manage accounts, or the events won\'t show there</string>
+    <string name="calendar_gcal_hint">Google Calendar → Settings → Manage accounts → Sukrara</string>
     <!-- Sensor end in calendar: the event's title [CHAR LIMIT=40] -->
     <string name="calendar_event_title">Sensor ends</string>
     <!-- Sensor end in calendar: the event's description; %1$s = sensor serial, %2$s = start date and time [CHAR LIMIT=NONE] -->
@@ -1614,11 +1645,11 @@
     <!-- Status before signing in [CHAR LIMIT=40] -->
     <string name="libreview_sign_in_first">Sign in first</string>
     <!-- Why the upload rows are disabled [CHAR LIMIT=60] -->
-    <string name="libreview_unavailable">Unavailable while the upload is off</string>
+    <string name="libreview_unavailable">Unavailable while uploading is off</string>
     <!-- Switch: upload glucose readings [CHAR LIMIT=40] -->
     <string name="libreview_glucose">Glucose readings</string>
     <!-- Why glucose upload is disabled [CHAR LIMIT=60] -->
-    <string name="libreview_glucose_needs_direct">Only while Sukrara reads the sensor itself</string>
+    <string name="libreview_glucose_needs_direct">Only when Sukrara reads the sensor</string>
     <!-- Glucose upload summary; %1$s = date and time [CHAR LIMIT=40] -->
     <string name="libreview_glucose_from">From %1$s</string>
     <!-- Glucose upload summary [CHAR LIMIT=40] -->
@@ -1630,9 +1661,9 @@
     <!-- Switch: be the account\'s uploading device [CHAR LIMIT=50] -->
     <string name="libreview_takeover">Use this phone as the account\'s device</string>
     <!-- Takeover summary while on [CHAR LIMIT=60] -->
-    <string name="libreview_takeover_on">The Libre app or Juggluco stops uploading to this account</string>
+    <string name="libreview_takeover_on">Other apps stop uploading to this account</string>
     <!-- Takeover summary while off [CHAR LIMIT=60] -->
-    <string name="libreview_takeover_off">Uploads stop if another app holds the account</string>
+    <string name="libreview_takeover_off">Stops if another app uploads</string>
     <!-- LibreView page footer [CHAR LIMIT=NONE] -->
     <string name="libreview_footer">Uploaded entries can\'t be deleted in LibreView. Glucose goes up from the moment you switch it on.</string>
 
@@ -1676,7 +1707,7 @@
     <!-- Switch: upload treatments [CHAR LIMIT=40] -->
     <string name="tidepool_entries">Insulin, carbs &amp; notes</string>
     <!-- Treatments summary [CHAR LIMIT=60] -->
-    <string name="tidepool_entries_summary">Edits and deletions are uploaded too</string>
+    <string name="tidepool_entries_summary">Edits and deletions too</string>
     <!-- Tidepool page footer [CHAR LIMIT=NONE] -->
     <string name="tidepool_footer">Sukrara signs in with Tidepool\'s own login and keeps only the session, never your password. If Tidepool already gets your Libre data through LibreView, turn glucose off here, or each reading shows up twice.</string>
     <!-- Sign-in dialog title [CHAR LIMIT=30] -->
@@ -1710,7 +1741,7 @@
     <!-- Save action summary [CHAR LIMIT=40] -->
     <string name="backup_recommended">Recommended</string>
     <!-- Recovery code summary [CHAR LIMIT=60] -->
-    <string name="backup_recovery_summary">An encrypted key to write down or store elsewhere</string>
+    <string name="backup_recovery_summary">An encrypted key to keep elsewhere</string>
     <!-- Row: the encrypted backup on the relays [CHAR LIMIT=30] -->
     <string name="backup_relays">Backup on relays</string>
     <!-- Relay backup state; %1$s = date and time [CHAR LIMIT=40] -->
@@ -1724,15 +1755,15 @@
     <!-- Action [CHAR LIMIT=30] -->
     <string name="transfer_export">Export settings</string>
     <!-- Action summary [CHAR LIMIT=60] -->
-    <string name="transfer_export_summary">Save the options to a file</string>
+    <string name="transfer_export_summary">To a file</string>
     <!-- Action [CHAR LIMIT=30] -->
     <string name="transfer_import">Import settings</string>
     <!-- Action summary [CHAR LIMIT=60] -->
-    <string name="transfer_import_summary">Use the options from a file</string>
+    <string name="transfer_import_summary">From a file</string>
     <!-- Action [CHAR LIMIT=30] -->
     <string name="transfer_reset">Reset settings</string>
     <!-- Action summary [CHAR LIMIT=60] -->
-    <string name="transfer_reset_summary">Every option back to its default</string>
+    <string name="transfer_reset_summary">All options to their defaults</string>
     <!-- Dialog title [CHAR LIMIT=40] -->
     <string name="transfer_reset_title">Reset settings?</string>
     <!-- Dialog text [CHAR LIMIT=NONE] -->
@@ -1767,6 +1798,8 @@
     <string name="export_period_sensor">This sensor</string>
     <!-- Period option; %1$d = number of days (7, 14 or 30) [CHAR LIMIT=30] -->
     <string name="export_period_days">Last %1$d days</string>
+    <!-- Period choice: everything on this phone, from its oldest reading or entry [CHAR LIMIT=30] -->
+    <string name="export_period_all">All time</string>
     <!-- Row: what the file will contain [CHAR LIMIT=30] -->
     <string name="export_contents">In the file</string>
     <!-- In the file summary while counting [CHAR LIMIT=30] -->
@@ -1812,7 +1845,7 @@
     <!-- Row and page: the app log [CHAR LIMIT=30] -->
     <string name="advanced_log">Log</string>
     <!-- Log row summary [CHAR LIMIT=40] -->
-    <string name="advanced_log_summary">What Sukrara did lately</string>
+    <string name="advanced_log_summary">Recent activity</string>
     <!-- Empty log [CHAR LIMIT=40] -->
     <string name="advanced_log_empty">Nothing yet</string>
     <!-- Row: the wearer\'s identity [CHAR LIMIT=30] -->
@@ -1836,9 +1869,9 @@
     <!-- Priority option [CHAR LIMIT=30] -->
     <string name="advanced_priority_high">High</string>
     <!-- Switch [CHAR LIMIT=50] -->
-    <string name="advanced_screen_off">Pause refreshes while the screen is off</string>
+    <string name="advanced_screen_off">Pause with the screen off</string>
     <!-- Switch summary [CHAR LIMIT=60] -->
-    <string name="advanced_screen_off_summary">Saves a post per minute; catches up on screen on</string>
+    <string name="advanced_screen_off_summary">Catches up when the screen turns on</string>
     <!-- Debug switch [CHAR LIMIT=40] -->
     <string name="advanced_synthetic">Synthetic source</string>
     <!-- Debug switch summary [CHAR LIMIT=40] -->
@@ -2089,14 +2122,14 @@
     <!-- Switch title in Graph settings: the laurel, flowers and crown the time-in-range rings wear [CHAR LIMIT=40] -->
     <string name="graph_ring_marks">Rewards on the rings</string>
     <!-- Its summary [CHAR LIMIT=90] -->
-    <string name="graph_ring_marks_summary" formatted="false">A laurel from 90 % in range, flowers from 95 %, a crown at 100 %</string>
+    <string name="graph_ring_marks_summary" formatted="false">Laurel from 90 %, flowers from 95 %, crown at 100 %</string>
     <!-- Switch title in Graph settings: the crown over a perfect 100 % beside the chart [CHAR LIMIT=40] -->
     <string name="graph_column_crown" formatted="false">Crown at 100 %</string>
     <!-- Its summary [CHAR LIMIT=90] -->
-    <string name="graph_column_crown_summary" formatted="false">Over the 100 % when nothing was out of range</string>
+    <string name="graph_column_crown_summary" formatted="false">When nothing was out of range</string>
     <string name="graph_side">Time in range and distribution</string>
     <!-- Switch summary [CHAR LIMIT=NONE] -->
-    <string name="graph_side_summary" formatted="false">The % of time below, in and above range, and how much time was spent at each level</string>
+    <string name="graph_side_summary" formatted="false">Time below, in and above range</string>
     <!-- Beside the graph note [CHAR LIMIT=NONE] -->
     <string name="graph_side_note">The distribution covers the same time as the graph; the lines stop short of its dots. Each widget can turn it off on its own.</string>
     <!-- Group in Graph settings: where the sensor's time left shows, one switch per place [CHAR LIMIT=30] -->
@@ -2118,7 +2151,7 @@
     <!-- Row: the Nightscout address [CHAR LIMIT=30] -->
     <string name="ns_upload_site">Site</string>
     <!-- Warning under the site when it is http:// on the home network [CHAR LIMIT=NONE] -->
-    <string name="ns_upload_insecure">Not encrypted: anyone on this network can read what is sent. Use https:// when you can.</string>
+    <string name="ns_upload_insecure">Not encrypted on this network · use https://</string>
     <!-- Main switch [CHAR LIMIT=40] -->
     <string name="ns_upload_main_switch">Upload to my Nightscout</string>
     <!-- Status before a site and token are saved [CHAR LIMIT=50] -->
@@ -2140,15 +2173,15 @@
     <!-- Switch [CHAR LIMIT=40] -->
     <string name="ns_upload_entries">Insulin, carbs &amp; notes</string>
     <!-- Switch summary [CHAR LIMIT=60] -->
-    <string name="ns_upload_entries_summary">Edits and deletions are uploaded too</string>
+    <string name="ns_upload_entries_summary">Edits and deletions too</string>
     <!-- Switch [CHAR LIMIT=40] -->
     <string name="ns_upload_sensor">Sensor changes</string>
     <!-- Switch summary [CHAR LIMIT=60] -->
-    <string name="ns_upload_sensor_summary">The sensor start, for the sensor age</string>
+    <string name="ns_upload_sensor_summary">For the sensor age</string>
     <!-- Switch [CHAR LIMIT=40] -->
     <string name="ns_upload_battery">Phone battery</string>
     <!-- Switch summary [CHAR LIMIT=60] -->
-    <string name="ns_upload_battery_summary">For the battery shown in Nightscout and LoopFollow</string>
+    <string name="ns_upload_battery_summary">Shown in Nightscout and LoopFollow</string>
     <!-- Group title [CHAR LIMIT=30] -->
     <string name="ns_upload_advanced">Advanced</string>
     <!-- Row: which Nightscout API [CHAR LIMIT=30] -->

@@ -34,6 +34,8 @@ import AppKit
 //                      engine;  -alertsSnapshot out.png / -settingsSnapshot <dir> / -reportSnapshot <dir>: render
 //                      Settings › Alerts / every Settings pane / the report window
 //   -argsselftest   the launch guard (LaunchGuard.swift): unknown flags and dev builds never start the full app
+//   -identityselftest  profile editing against spikes/nostr/identity/profile-v1.json (Android ProfileFixtureTest);
+//                      -identitySnapshot <dir>: the identity editor, sound picker and dimmed Add Treatment as PNGs
 let defaults = UserDefaults.standard
 setvbuf(stdout, nil, _IOLBF, 0)
 // An argument this binary doesn't understand never falls through to the full app (LaunchGuard).
@@ -69,6 +71,13 @@ if let dir = defaults.string(forKey: "treatmentTimeSnapshot") {
     MainActor.assumeIsolated { TreatmentTimeSnapshot.run(dir: dir) }
     exit(0)
 }
+// Evidence aid: `-identitySnapshot <dir>` renders the identity editor, the sound picker and the dimmed Add Treatment
+// row with its reason (IdentityUI.swift), the same way: synthetic data, nothing on screen.
+if let dir = defaults.string(forKey: "identitySnapshot") {
+    MainActor.assumeIsolated { IdentitySnapshot.run(dir: dir) }
+    exit(0)
+}
+if CommandLine.arguments.contains("-identityselftest") { exit(IdentitySelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated { V2SelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
@@ -502,7 +511,7 @@ MainActor.assumeIsolated {
         switch p.route {
         case .v2: treatments.upsertLocal(t, creator: following.node?.followerPub); following.sendTreatment(t)
         case .local: treatments.upsertLocal(t)
-        case .none: log("treatment NOT logged: \(TreatmentPaths.notAllowed)")
+        case .none: log("treatment NOT logged: \(paths().reason ?? "not allowed")")
         }
     }
     // Add Treatment (TreatmentDialog.swift): every entry of the form takes the same path as one logged alone.
@@ -525,7 +534,7 @@ MainActor.assumeIsolated {
             }
             if let t = treatments.delete(id) { following.sendTreatment(t) }
         case .local: treatments.delete(id)
-        case .none: log("treatment NOT deleted: \(TreatmentPaths.notAllowed)")
+        case .none: log("treatment NOT deleted: \(paths().reason ?? "not allowed")")
         }
     }
     status.treatmentsChanged()
@@ -623,6 +632,11 @@ let settings = MainActor.assumeIsolated {
     follow.onFollow = { following.begin() }
     follow.onFollowQR = { following.beginFromQR() }
     follow.onUnfollow = { following.unfollow() }
+    follow.identity = { following.node.map { ($0.st.name, $0.myAvatar, $0.wearer.name) } }
+    follow.onSaveIdentity = { [weak follow] name, avatar in
+        following.node?.setProfile(name: name, avatar: avatar)
+        follow?.refresh()
+    }
     return SettingsWindow(general: general, graph: graph, alerts: AlertsModel(alerts: alerts), following: follow)
 }
 MainActor.assumeIsolated {

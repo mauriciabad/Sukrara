@@ -164,6 +164,9 @@ data class Profile(val name: String, val avatar: Avatar?) {
     companion object {
         const val MAX_NAME = 40
 
+        /** An edit of [typed] over the stored [previous] name: trimmed, at most [MAX_NAME], blank keeps [previous]. */
+        fun editedName(typed: String, previous: String): String = typed.trim().ifBlank { previous }.take(MAX_NAME)
+
         fun of(j: JSONObject?): Profile? = j?.let {
             Profile(it.optString("name").trim().take(MAX_NAME), Avatar.of(it.optJSONObject("avatar")))
         }
