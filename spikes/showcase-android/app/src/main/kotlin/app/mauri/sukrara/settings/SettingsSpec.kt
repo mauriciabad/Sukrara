@@ -166,7 +166,7 @@ object SettingsSpec {
         SettingInfo("apps.broadcasts", "group", null, false, null, "app-broadcasts:allowed", "", "android", "Android inter-app broadcasts and Health Connect"),
         SettingInfo("sensor.reminders", "group", null, false, null, "sensorend:config", "", "android", "The wearer's phone owns the sensor and reminds its wearer; a Mac follower shows the sensor's time left and countdown ring only"),
         SettingInfo("widget.overrides", "group", null, false, null, "graph-widgets:hours,rings,ringRange,side,sensor", "", "android", "Android widgets are configured per placement (Reconfigure); Mac widgets follow the Widgets place's settings"),
-        SettingInfo("pens.reading", "bool", null, false, null, "features:penReading", "", "android", "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"),
+        SettingInfo("pens.reading", "enum", null, false, null, "features:penReading", "", "android", "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"),
         SettingInfo("pens.primeBelow", "number", "penPrimeBelow", false, null, "features:penPrimeBelow", "", "android", "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"),
         SettingInfo("pens.pen", "group", null, false, null, "pens:pens", "", "android", "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"),
     )

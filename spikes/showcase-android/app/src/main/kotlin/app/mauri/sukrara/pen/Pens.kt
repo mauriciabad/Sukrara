@@ -37,7 +37,8 @@ object Pens {
      * read; [read] is the raw read (newest dose for the display check).
      */
     data class ReadState(val stage: String, val serial: String? = null, val report: Report? = null, val undo: UndoRecord? = null,
-                         val read: PenRead? = null, val at: Long = System.currentTimeMillis() / 1000, val undone: Boolean = false)
+                         val read: PenRead? = null, val at: Long = System.currentTimeMillis() / 1000, val undone: Boolean = false,
+                         val tip: Boolean = false, val firstPen: Boolean = false)
     val readState = MutableStateFlow<ReadState?>(null)
 
     /** A read of an untested pen waiting for the display check (PRODUCT §6), applied on *It matches*. */
@@ -55,9 +56,13 @@ object Pens {
 
     /** Pen reading exists only on the wearer's own phone with NFC (never on a follower: it would log into someone else's log). */
     fun available(ctx: Context): Boolean =
-        App.role(ctx) == "owner" && ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC)
+        App.role(ctx) == "owner" && (ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC) || fakeNfc)
 
-    fun enabled(ctx: Context): Boolean { Features.init(ctx); return available(ctx) && Features.value.penReading }
+    /** Debug builds only (DebugFakes `penRead` on an emulator without NFC): show the pen surfaces anyway. */
+    @Volatile var fakeNfc = false
+
+    /** The background reader is on in "ask" (the first tap asks) and "on"; only "on" logs. */
+    fun enabled(ctx: Context): Boolean { Features.init(ctx); return available(ctx) && Features.value.penReading != "off" }
 
     private fun component(ctx: Context) = ComponentName(ctx, "app.mauri.sukrara.pen.PenReadActivity")
 
@@ -68,7 +73,18 @@ object Pens {
             PackageManager.DONT_KILL_APP)
     }
 
-    fun setReading(ctx: Context, on: Boolean) { Features.update { it.copy(penReading = on) }; syncComponent(ctx) }
+    fun setReading(ctx: Context, on: Boolean) { Features.update { it.copy(penReading = if (on) "on" else "off") }; syncComponent(ctx) }
+
+    /** *Turn on* on the first tap's question (PRODUCT §1b): reading on, and the held read goes in as a first scan. */
+    fun turnOn(ctx: Context): ReadState? {
+        setReading(ctx, true)
+        val r = held ?: return null
+        held = null
+        return onRead(ctx, r)
+    }
+
+    /** *No*: reading off and the reader disabled, never asked again (Settings turns it on). */
+    fun decline(ctx: Context) { held = null; setReading(ctx, false); readState.value = null }
 
     fun rules() = PenRules(primeBelow = Features.value.penPrimeBelow)
     private fun engine() = PenEngine(rules(), origin = "phone", log = { Log.i(TAG, it) })
@@ -115,6 +131,11 @@ object Pens {
         init(ctx)
         val profile = PenProfiles.identify(r)
         val pen = ledger.value.pens[r.serial]
+        // a fresh install asks once (PRODUCT §1b): nothing is logged before *Turn on*
+        if (Features.value.penReading == "ask") {
+            held = r
+            return ReadState("ask", r.serial, read = r).also { readState.value = it }
+        }
         if (!profile.verified && !checked && pen?.check != "ok") {
             if (pen?.check == "failed") return ReadState("notusable", r.serial, read = r).also { readState.value = it }
             held = r
@@ -129,6 +150,62 @@ object Pens {
         return ReadState("done", r.serial, o.report, o.undo, r).also { readState.value = it }
     }
 
+    /**
+     * The treatment dialog read the pen (PRODUCT §4.6b): its newest not-yet-logged injection fills the dialog and stays
+     * unread until *Save* ([saveFill]); every other new injection of the read is logged as on a background read.
+     */
+    data class Fill(val read: PenRead, val serial: String, val kind: String, val a: Double, val pr: Double, val t: Long,
+                    val primed: Map<String, Boolean>, val unclear: Boolean, val also: Int, val offer: Boolean = false)
+
+    /** null = nothing new to fill (the rest of the read, if anything, is applied). */
+    @Synchronized
+    fun readForDialog(ctx: Context, r: PenRead): Fill? {
+        init(ctx)
+        val profile = PenProfiles.identify(r)
+        val pen = ledger.value.pens[r.serial]
+        if (Features.value.penReading != "on" || (!profile.verified && pen?.check != "ok")) { onRead(ctx, r); return null }
+        val dry = engine().scan(ledger.value, scanOf(r), entries(), now())
+        val dl = dry.ledger.pens.getValue(r.serial)
+        if (dry.report.first && dry.report.offer != null && !dry.report.returning) {
+            apply(ctx, dry)
+            ledger.value.pens[r.serial]?.takeIf { it.name.isEmpty() }?.let { save(engine().update(ledger.value, r.serial) { it.copy(name = defaultName(r.serial, profile), model = profile.id) }) }
+            val o = dry.report.offer
+            return Fill(r, r.serial, dl.kind, o.a, o.pr, o.t, o.doses, unclear = false, also = 0, offer = true)
+        }
+        val made = (dry.report.created + dry.report.merged).mapNotNull { id -> dry.writes.firstOrNull { it.id == id } }.maxByOrNull { it.t }
+        val asked = dry.report.asked.mapNotNull { id -> dry.ledger.questions.firstOrNull { it.id == id && it.type == PenEngine.DOSES } }
+            .maxByOrNull { q -> q.keys.maxOf { dl.doses.getValue(it).t } }
+        val askedT = asked?.keys?.maxOf { dl.doses.getValue(it).t }
+        val pick: Pair<Set<String>, Boolean>? = when {
+            made != null && (askedT == null || made.t >= askedT) -> dl.doses.filter { it.value.e == made.id }.keys to false
+            asked != null -> asked.keys.toSet() to true
+            else -> null
+        }
+        if (pick == null) { apply(ctx, dry); return null }
+        val (keys, unclear) = pick
+        val rest = r.copy(doses = r.doses.filterNot { PenEngine.key(it.relTime, it.units) in keys })
+        val o = apply(ctx, engine().scan(ledger.value, scanOf(rest), entries(), now()))
+        val ds = keys.map { dl.doses.getValue(it) }
+        val inj = ds.filter { !it.p }
+        return Fill(r, r.serial, dl.kind, PenEngine.r1(inj.sumOf { it.a }), PenEngine.r1(ds.filter { it.p }.sumOf { it.a }),
+            inj.minOfOrNull { it.t } ?: ds.minOf { it.t }, keys.associateWith { dl.doses.getValue(it).p }, unclear,
+            also = o.report.created.size + o.report.merged.size)
+    }
+
+    /** *Save* in the dialog with the pen's amount: the whole read goes in now; [primed] are the roles the dialog shows. */
+    @Synchronized
+    fun saveFill(ctx: Context, f: Fill, primed: Map<String, Boolean>) {
+        if (f.offer) { logDoses(ctx, f.serial, primed); return }
+        val o = apply(ctx, engine().scan(ledger.value, scanOf(f.read), entries(), now()))
+        readState.value = ReadState("done", f.serial, o.report, o.undo, f.read)
+        val q = ledger.value.open().firstOrNull { it.type == PenEngine.DOSES && it.keys.any { k -> k in primed } }
+        if (q != null) { answerDoses(ctx, q.id, q.keys.filter { primed[it] == true }.toSet()); return }
+        val id = ledger.value.pens[f.serial]?.doses?.get(primed.keys.first())?.e ?: return
+        val tr = Treat.store.entry(id)?.second ?: return
+        val roles = tr.pd.orEmpty().map { d -> primed.entries.firstOrNull { (k, _) -> ledger.value.pens[f.serial]?.doses?.get(k)?.let { it.t == d.t && PenEngine.tenths(it.a) == PenEngine.tenths(d.a) } == true }?.value ?: d.p }
+        if (roles != tr.pd.orEmpty().map { it.p }) correct(ctx, tr, roles)
+    }
+
     fun scanOf(r: PenRead) = PenScan(r.serial, r.scanTime, r.penRelNow,
         r.doses.map { ReadDose(it.relTime, it.time, it.units, it.incomplete) }, r.model)
 
@@ -138,8 +215,17 @@ object Pens {
         return if (same > 0) "${profile.name} ·${serial.takeLast(3)}" else profile.name
     }
 
-    fun failed(serial: String?) { readState.value = ReadState("failed", serial) }
-    fun reading() { readState.value = ReadState("reading") }
+    private var lastFail = 0L
+
+    /** A failed read; a second one within 2 min adds the tips line (PRODUCT §4.1). */
+    fun failed(serial: String?) {
+        val now = now()
+        readState.value = ReadState("failed", serial, tip = now - lastFail < 120_000)
+        lastFail = now
+    }
+
+    /** Reading; with no pen known yet the card says the first read takes a few seconds (the whole memory comes over). */
+    fun reading() { readState.value = ReadState("reading", firstPen = ledger.value.pens.isEmpty()) }
 
     fun undoRead(ctx: Context, r: UndoRecord) = synchronized(this) {
         apply(ctx, engine().undo(ledger.value, r, entries(), now()))

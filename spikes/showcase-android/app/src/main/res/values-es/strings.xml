@@ -677,7 +677,7 @@
     <!-- Delete treatment dialog title [CHAR LIMIT=40] -->
     <string name="treatments_delete_title">¿Eliminar este registro?</string>
     <!-- Delete treatment dialog: an uploaded entry stays in LibreView [CHAR LIMIT=NONE] -->
-    <string name="treatments_delete_libreview">Seguirá en LibreView: allí no se pueden eliminar registros.</string>
+    <string name="treatments_delete_libreview">También se elimina de LibreView.</string>
     <!-- Delete treatment dialog: confirm [CHAR LIMIT=15] -->
     <string name="treatments_delete">Eliminar</string>
     <!-- LibreView account dialog title; LibreView is a product name [CHAR LIMIT=40] -->
@@ -1361,7 +1361,7 @@
     <string name="libreview_takeover">Usar este teléfono como dispositivo de la cuenta</string>
     <string name="libreview_takeover_on">Otras apps dejan de subir a esta cuenta</string>
     <string name="libreview_takeover_off">Se detiene si otra app sube</string>
-    <string name="libreview_footer">Los registros subidos no se pueden eliminar en LibreView. La glucosa se sube desde el momento en que lo activas.</string>
+    <string name="libreview_footer">Los registros que cambias o eliminas en Sukrara también cambian en LibreView. La glucosa se sube desde el momento en que lo activas.</string>
 
     <!-- ========== Settings: Tidepool ========== -->
     <!-- Tidepool page intro (wearer) [CHAR LIMIT=NONE] -->
@@ -1881,7 +1881,7 @@
     <!-- Pen read sheet: the read failed (error) [CHAR LIMIT=34] -->
     <string name="pen_read_failed">No se ha podido leer la pluma</string>
     <!-- Pen read sheet line for a failed read [CHAR LIMIT=NONE] -->
-    <string name="pen_read_failed_text">No se ha registrado nada. Mantenla junto al teléfono hasta que vibre.</string>
+    <string name="pen_read_failed_text">Tus dosis están a salvo en la pluma. Vuelve a acercarla sin moverla.</string>
     <!-- Pen read sheet: an untested pen that failed the display check [CHAR LIMIT=34] -->
     <string name="pen_read_notusable">Sukrara no registra esta pluma</string>
     <!-- Why the pen isn't used [CHAR LIMIT=NONE] -->
@@ -1995,7 +1995,7 @@
     <!-- Overview summary: the pen and when it was read [CHAR LIMIT=50] -->
     <string name="pens_summary_one">%1$s · leída %2$s</string>
     <!-- Insulin pens page intro [CHAR LIMIT=NONE] -->
-    <string name="pens_intro">Desbloquea el teléfono y acerca el extremo de la pluma a su parte trasera. Sukrara registra las dosis sin abrirse.</string>
+    <string name="pens_intro">Desbloquea el teléfono y acerca la pluma a su parte trasera hasta que vibre. ¿No vibra? No se pierde nada: la próxima vez se pone al día.</string>
     <!-- Main switch [CHAR LIMIT=40] -->
     <string name="pens_switch">Leer plumas de insulina</string>
     <!-- Status row: NFC is off [CHAR LIMIT=30] -->
@@ -2099,7 +2099,7 @@
     </plurals>
     <!-- New pen: earlier doses not imported [CHAR LIMIT=NONE] -->
     <plurals name="pen_new_older">
-        <item quantity="one">La dosis anterior no entra en tu registro.</item>
+        <item quantity="one">%1$d dosis anterior no entra en tu registro.</item>
         <item quantity="other">Las %1$d dosis anteriores no entran en tu registro.</item>
     </plurals>
     <!-- Display check: whole hours since the newest dose [CHAR LIMIT=20] -->
@@ -2172,4 +2172,26 @@
         <item quantity="one">También registrada: %1$d inyección anterior</item>
         <item quantity="other">También registradas: %1$d inyecciones anteriores</item>
     </plurals>
+    <!-- Card: the first pen tap on a fresh install [CHAR LIMIT=40] -->
+    <string name="pen_ask_title">¿Registrar esta pluma en Sukrara?</string>
+    <!-- Action: turn pen reading on [CHAR LIMIT=15] -->
+    <string name="pen_turn_on">Activar</string>
+    <!-- Action: don't read pens [CHAR LIMIT=10] -->
+    <string name="pen_no">No</string>
+    <!-- Overview / switch summary in the Ask state [CHAR LIMIT=50] -->
+    <string name="pens_summary_ask">Desactivado · pregunta al acercar una pluma</string>
+    <!-- Treatments list hint after carbs without insulin [CHAR LIMIT=NONE] -->
+    <string name="pen_hint_carbs">¿Te has inyectado? Acerca tu pluma al teléfono.</string>
+    <!-- Snackbar after typing rapid insulin by hand while a pen is known [CHAR LIMIT=40] -->
+    <string name="pen_hint_snack">La próxima vez, solo acerca tu pluma</string>
+    <!-- Treatments title row: the pen was last read long ago, e.g. Pen read 2d ago [CHAR LIMIT=30] -->
+    <string name="pen_hint_stale">Pluma leída hace %1$s</string>
+    <!-- Lock screen version of the pen read notification (no amounts) [CHAR LIMIT=30] -->
+    <string name="pen_notif_public">Pluma leída</string>
+    <!-- Failed read, the second within 2 min: tips [CHAR LIMIT=NONE] -->
+    <string name="pen_read_failed_tip">Toca el teléfono donde está el círculo, saca las tarjetas de la funda y comprueba que el contador marca 0.</string>
+    <!-- Reading a new pen [CHAR LIMIT=NONE] -->
+    <string name="pen_read_first_slow">La primera lectura tarda unos segundos.</string>
+    <!-- Doses read top line: injected and priming units in the last 30 days [CHAR LIMIT=NONE] -->
+    <string name="pen_h_totals">Últimos 30 días: %1$s inyectadas · %2$s de purgado</string>
 </resources>

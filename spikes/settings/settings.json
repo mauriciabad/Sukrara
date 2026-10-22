@@ -267,7 +267,7 @@
     {"id": "widget.overrides", "section": "graph", "label": "One home screen widget's own window, rings, centre count, side, sensor time", "type": "group", "mirror": false,
      "android": {"store": "graph-widgets", "key": "hours,rings,ringRange,side,sensor"}, "mac": null,
      "only": {"platform": "android", "reason": "Android widgets are configured per placement (Reconfigure); Mac widgets follow the Widgets place's settings"}},
-    {"id": "pens.reading", "section": "pens", "label": "Read insulin pens (an NFC tap logs the doses)", "type": "bool", "default": true, "mirror": false,
+    {"id": "pens.reading", "section": "pens", "label": "Read insulin pens: ask at the first pen tap, on, off", "type": "enum", "values": ["ask", "on", "off"], "default": "ask", "mirror": false,
      "android": {"store": "features", "key": "penReading"}, "mac": null,
      "only": {"platform": "android", "reason": "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"}},
     {"id": "pens.primeBelow", "section": "pens", "label": "Priming is smaller than", "type": "number", "number": "penPrimeBelow", "mirror": false,

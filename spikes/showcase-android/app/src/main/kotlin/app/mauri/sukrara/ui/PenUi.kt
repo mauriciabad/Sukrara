@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -85,7 +86,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The undo after a correction or a removal (PRODUCT §4.3), over whichever screen it happened on. */
 object PenSnack {
-    data class Snack(val message: String, val undo: () -> Unit)
+    data class Snack(val message: String, val undo: (() -> Unit)?)
+
+    /**
+     * "Next time, just tap your pen" after rapid insulin typed by hand while a pen is known (PRODUCT §1b): at most once a
+     * day, three times ever.
+     */
+    fun typedRapid(ctx: Context) {
+        val f = app.mauri.sukrara.features.Features.value
+        if (f.penReading != "on" || Pens.ledger.value.pens.isEmpty()) return
+        val p = ctx.getSharedPreferences("pen_hints", Context.MODE_PRIVATE)
+        val day = System.currentTimeMillis() / 86_400_000
+        val n = p.getInt("tapHint", 0)
+        if (n >= 3 || p.getLong("tapHintDay", -1) == day) return
+        p.edit().putInt("tapHint", n + 1).putLong("tapHintDay", day).apply()
+        pending.value = Snack(ctx.getString(R.string.pen_hint_snack), null)
+    }
     val pending = MutableStateFlow<Snack?>(null)
 }
 
@@ -95,7 +111,7 @@ fun PenUndoSnackbar(host: SnackbarHostState = remember { SnackbarHostState() }) 
     val undo = stringResource(R.string.pen_undo)
     LaunchedEffect(s) {
         val snack = s ?: return@LaunchedEffect
-        if (host.showSnackbar(snack.message, actionLabel = undo, duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) snack.undo()
+        if (host.showSnackbar(snack.message, actionLabel = if (snack.undo != null) undo else null, duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) snack.undo?.invoke()
         PenSnack.pending.value = null
     }
     Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.BottomCenter) { SnackbarHost(host) }
@@ -118,8 +134,23 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
     val entry = r?.let { (it.created + it.merged + it.updated).firstNotNullOfOrNull { id -> Treat.store.entry(id)?.second?.takeIf { e -> !e.del } } }
     val asked = r?.asked?.firstNotNullOfOrNull { id -> Pens.ledger.value.open().firstOrNull { it.id == id } }
     val cs = MaterialTheme.colorScheme
+    val view = androidx.compose.ui.platform.LocalView.current
+    val still = remember { app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx) }
+    // Feel (PRODUCT §4.11): the card springs up from the bottom edge; a failure shakes gently (damped); reduced motion: none
+    val rise = remember { androidx.compose.animation.core.Animatable(if (still) 0f else 1f) }
+    LaunchedEffect(Unit) { rise.animateTo(0f, androidx.compose.animation.core.spring(0.6f, 800f)) }
+    val shake = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(card.error) {
+        if (card.error && !still) { shake.snapTo(6f); shake.animateTo(0f, androidx.compose.animation.core.spring(0.3f, 1500f), initialVelocity = -400f) }
+    }
+    // the injected number counts up in the pen dial's 0.5u steps (semantics keep the final text)
+    val countTo = entry?.takeIf { !s.undone && r != null && entry.id in (r.created + r.merged) && r.created.size + r.merged.size == 1 }?.a ?: 0.0
+    val counted by androidx.compose.animation.core.animateFloatAsState(countTo.toFloat(),
+        if (still) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(350), label = "count")
+    val shownTitle = if (countTo > 0 && counted < countTo) ctx.getString(R.string.pen_read_logged, w.u(Math.floor(counted * 2.0) / 2.0)) else card.title
     Card(
-        Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding().onFocusChanged { onA11y(it.hasFocus) },
+        Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding().onFocusChanged { onA11y(it.hasFocus) }
+            .graphicsLayer { translationY = rise.value * size.height * 1.2f; translationX = shake.value * density },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = if (card.error) cs.errorContainer else cs.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -134,12 +165,12 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
                         contentDescription = null, tint = if (card.error) cs.error else cs.onSurfaceVariant, modifier = Modifier.size(24.dp))
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(card.title, style = MaterialTheme.typography.titleMedium, color = if (card.error) cs.onErrorContainer else cs.onSurface,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    Text(shownTitle, style = MaterialTheme.typography.titleMedium, color = if (card.error) cs.onErrorContainer else cs.onSurface,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite; contentDescription = card.title })
                     card.lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = if (card.error) cs.onErrorContainer else cs.onSurfaceVariant) }
                 }
             }
-            val pills = pills(ctx, s, entry, asked, onOpen, onClose)
+            val pills = pills(ctx, s, entry, asked, onOpen, onClose) { app.mauri.sukrara.pen.PenHaptics.play(view, app.mauri.sukrara.pen.PenHaptics.Moment.UNDO) }
             if (pills.isNotEmpty()) Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pills.forEachIndexed { i, (label, act) ->
                     val click = { onInteract(); act() }
@@ -151,16 +182,19 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
 }
 
 /** The card's pills (label, action), at most two: PRODUCT §4.1's table. */
-private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Question?, onOpen: (String, String) -> Unit, onClose: () -> Unit): List<Pair<String, () -> Unit>> {
+private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Question?, onOpen: (String, String) -> Unit, onClose: () -> Unit,
+                  onUndo: () -> Unit): List<Pair<String, () -> Unit>> {
     val w = PenWords(ctx)
     val r = s.report
     val serial = s.serial ?: return emptyList()
     val check = ctx.getString(R.string.pen_check) to { onOpen("penQuestion", asked?.id ?: "") }
-    val undo = ctx.getString(R.string.pen_undo) to { s.undo?.let { Pens.undoRead(ctx, it) }; app.mauri.sukrara.pen.PenNotifier.cancelRead(ctx); Unit }
+    val undo = ctx.getString(R.string.pen_undo) to { s.undo?.let { Pens.undoRead(ctx, it) }; app.mauri.sukrara.pen.PenNotifier.cancelRead(ctx); onUndo() }
     return when {
         s.undone || s.stage == "reading" || s.stage == "failed" -> emptyList()
         s.stage == "notusable" -> listOf(ctx.getString(R.string.pen_open) to { onOpen("penPage", serial) })
         s.stage == "check" -> listOf(ctx.getString(R.string.pen_set_up) to { onOpen("penSetup", serial) })
+        s.stage == "ask" -> listOf(ctx.getString(R.string.pen_no) to { Pens.decline(ctx); onClose() },
+            ctx.getString(R.string.pen_turn_on) to { Pens.turnOn(ctx)?.let { app.mauri.sukrara.pen.PenReadActivity.notify(ctx, it) }; Unit })
         r == null -> emptyList()
         r.first && !r.returning && entry == null -> listOfNotNull(
             r.offer?.let { o -> ctx.getString(R.string.pen_log_amount, w.u(o.a)) to {
@@ -273,8 +307,10 @@ fun PenEntrySheet(tr: Treatment, readOnly: Boolean = false, onDismiss: () -> Uni
  * options). TalkBack reads the row as one node ("13:10, 1 unit, priming") with the custom action to flip it.
  */
 @Composable
-fun DoseRow(t: Long, a: Double, primed: Boolean, incomplete: Boolean, readOnly: Boolean, onChange: (Boolean) -> Unit) {
+fun DoseRow(t: Long, a: Double, primed: Boolean, incomplete: Boolean, readOnly: Boolean, onChange0: (Boolean) -> Unit) {
     val ctx = LocalContext.current
+    val view = androidx.compose.ui.platform.LocalView.current
+    val onChange = { p: Boolean -> if (p != primed) app.mauri.sukrara.pen.PenHaptics.play(view, app.mauri.sukrara.pen.PenHaptics.Moment.FLIP); onChange0(p) }
     val w = remember { PenWords(ctx) }
     val spoken = ctx.resources.getQuantityString(R.plurals.pen_units_spoken, if (a == 1.0) 1 else 2, PenWords.number(a))
     val desc = ctx.getString(R.string.pen_dose_a11y, Clock.time(t), spoken, ctx.getString(if (primed) R.string.pen_role_priming else R.string.pen_role_injected))

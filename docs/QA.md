@@ -355,6 +355,28 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
       log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under
       the card and the pill's menu.
 
+## Q21 Insulin pens
+
+Emulator only (debug build, synthetic data: `DebugReceiver --es cmd penRead …`, docs/10 "Insulin pens"); a real pen
+only on the user's phone, by the user. The full checklist is `spikes/novopen-android/PRODUCT.md` §9 (59 rows).
+
+- [ ] Fresh install (*Ask*): the first tap shows *Log this pen in Sukrara?*; nothing logged; *Turn on* → *New pen
+      added · … · 412 earlier doses left out* with *Log 8.5u* + *Set up*; *No* → later taps do nothing, Settings off.
+- [ ] `1, 0.5, 8, 0.5` → card *8.5u logged · Rapid · 13:12 · 1.5u primed*, *Add treatment* + *Undo*, no scrim, closes
+      by itself; the low-importance notification has the same text; home row `8.5u rapid · from the pen`.
+- [ ] *Undo* → *Undone*; a merged hand entry is back with its note; Doses read *Not logged* → *Log this injection*.
+- [ ] Rescan → *Nothing new*; top-up → *Now 8.5u · 0.5u added*; `1, 1.5` 40 min ago → *Priming or injected?* card
+      + home card + notification, *Log 1.5u* clears all three.
+- [ ] Entry sheet: flip a dose → header updates, *Save* → snackbar *Entry changed · Undo*; all priming → *Remove from
+      log*; TalkBack reads one node per dose with *Mark as injected / priming*.
+- [ ] Type 8u rapid within 45 min of a pen entry → *Already logged by your pen?*; carbs in the same save are saved.
+- [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.
+- [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → red 10 s confirmation → display
+      check; *It doesn't* → *Sukrara doesn't log this pen*.
+- [ ] Follower: no Insulin pens row; pen entries open read-only.
+- [ ] LibreView / Nightscout / Tidepool / CSV / graph / insulin mute: `a` only; CSV column 23 *Primed Insulin*.
+- [ ] Spanish: *pluma*, *purgado*, amounts `8.5u`.
+
 ## Q20 The person and the feel
 
 Every app change (CLAUDE.md *Design from the person's life first*, *Make it juicy*; user, 2026-10-23).

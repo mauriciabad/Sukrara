@@ -73,8 +73,11 @@ data class FeatureState(
     val connPriority: String = "default",
     /** The "share with your clinic" banner (LibreView or Tidepool, home + settings) was dismissed. */
     val uploadBannerDismissed: Boolean = false,
-    /** Insulin pens (inv. 29): tapping a NovoPen logs its doses. On by default on the wearer's own phone (the setup at the first tap is the opt-in). */
-    val penReading: Boolean = true,
+    /**
+     * Insulin pens (inv. 29): "ask" (fresh install: the first pen tap asks *Log this pen in Sukrara?*), "on", "off"
+     * (after *No* or turning it off: taps do nothing). PRODUCT §1b.
+     */
+    val penReading: String = "ask",
     /** A pen dose smaller than this (u) can be priming (`penPrimeBelow`). */
     val penPrimeBelow: Double = 2.0,
 ) {
@@ -104,7 +107,7 @@ data class FeatureState(
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, j.optInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = j.optString("connPriority", d.connPriority),
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
-            penReading = j.optBoolean("penReading", d.penReading),
+            penReading = j.optString("penReading", d.penReading).takeIf { it in Features.PEN_READING } ?: d.penReading,
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, j.optDouble("penPrimeBelow", d.penPrimeBelow)),
         )
     }
@@ -143,7 +146,7 @@ object Features {
             libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, p.getInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = p.getString("connPriority", d.connPriority)!!,
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
-            penReading = p.getBoolean("penReading", d.penReading),
+            penReading = p.getString("penReading", d.penReading)!!.takeIf { it in Features.PEN_READING } ?: d.penReading,
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, p.getFloat("penPrimeBelow", d.penPrimeBelow.toFloat()).toDouble()),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
@@ -172,13 +175,14 @@ object Features {
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
             putBoolean("uploadBanner", s.uploadBannerDismissed)
-            putBoolean("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
+            putString("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
         }?.apply()
         _state.value = s
         return s
     }
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
+    val PEN_READING = listOf("ask", "on", "off")
 
     /** Placements offered in Settings (their words: ui/SettingsLabels.kt). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(

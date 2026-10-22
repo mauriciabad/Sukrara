@@ -32,7 +32,7 @@ object DebugFakes {
      * shows (2026-10-19): everything that shows or writes made-up data is here.
      */
     val COMMANDS = setOf("fakeSensor", "sensor", "backfill", "sensorEnd", "sensorStart", "sensorUnlock", "alertFeed",
-        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat", "sensorProfile")
+        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat", "sensorProfile", "penRead", "penReset", "penOpen")
 
     fun run(c: Context, cmd: String, i: Intent, out: JSONObject, debug: Boolean = BuildConfig.DEBUG) {
         if (!debug) { out.accumulate("debugOnly", "$cmd: debug builds only, nothing changed"); return }
@@ -56,6 +56,7 @@ object DebugFakes {
                 out.put("cmd", "newSensor $stage")
             }
             "treat" -> treat(c, i, out)
+            "penRead", "penReset", "penOpen" -> FakePen.play(c, cmd, i, out)
             // the active sensor's family forced (the untested-sensor banner on home; screenshots), until the source restarts
             "sensorProfile" -> {
                 val p = app.mauri.sukrara.core.SensorProfiles.byId(i.getStringExtra("profile") ?: "")
@@ -134,5 +135,68 @@ object DebugFakes {
         app.mauri.sukrara.alerts.Alerts.onReading(c, Reading(System.currentTimeMillis() / 1000, p[0].trim().toInt(),
             p.getOrNull(1)?.trim()?.toDoubleOrNull()))
         out.put("alertFeed", "made-up reading ${p[0].trim()}")
+    }
+}
+
+/**
+ * A made-up NovoPen for the emulator (inv. 29, PRODUCT §4.10), debug builds only (through [DebugFakes.run]):
+ * - `penRead --es doses "1,0.5,8,0.5" --ei agoMin 3 [--es serial FHB2N9KE] [--es model novopen6] [--ei older 412]
+ *   [--ez fail true] [--ez reset true] [--ei every 30]`: the doses join the fake pen's memory (agoMin minutes ago, `every`
+ *   s apart; `older` earlier doses spread over the last months), then the pen is "read": the real engine, ledger, card
+ *   and notification. `fail` = a broken-off read. `reset` = the pen clock went back.
+ * - `penReset [--es penReading ask|on|off]`: forget the fake pens and their memory.
+ * - `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview [--es id …]`: Sukrara at that sheet.
+ */
+private object FakePen {
+    private class Mem(var offset: Long) { val doses = mutableListOf<Triple<Long, Double, Boolean>>() }
+    private val pens = mutableMapOf<String, Mem>()
+    private val base = 1_700_000_000L
+
+    internal fun play(c: Context, cmd: String, i: Intent, out: JSONObject) {
+        val now = System.currentTimeMillis() / 1000
+        val serial = i.getStringExtra("serial") ?: "FHB2N9KE"
+        app.mauri.sukrara.pen.Pens.fakeNfc = true
+        app.mauri.sukrara.pen.Pens.syncComponent(c)
+        when (cmd) {
+            "penReset" -> {
+                pens.clear()
+                app.mauri.sukrara.pen.Pens.init(c)
+                app.mauri.sukrara.pen.Pens.ledger.value.pens.keys.toList().forEach { app.mauri.sukrara.pen.Pens.forget(it) }
+                i.getStringExtra("penReading")?.let { v -> Features.update { it.copy(penReading = v) }; app.mauri.sukrara.pen.Pens.syncComponent(c) }
+                out.put("cmd", "fake pens forgotten")
+            }
+            "penOpen" -> {
+                c.startActivity(Intent(c, app.mauri.sukrara.ui.MainActivity::class.java).putExtra(i.getStringExtra("what") ?: "penHistory", i.getStringExtra("id") ?: serial)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                out.put("cmd", "opened")
+            }
+            "penRead" -> {
+                val m = pens.getOrPut(serial) { Mem(0) }
+                if (i.getBooleanExtra("reset", false)) m.offset -= 10_000_000
+                val older = i.getIntExtra("older", 0)
+                repeat(older) { k -> m.doses += Triple(now - 3 * 86400 - (older - k) * 15_000L, listOf(1.0, 6.0, 0.5, 7.5)[k % 4], false) }
+                val every = i.getIntExtra("every", 30)
+                val at = now - i.getIntExtra("agoMin", 3) * 60L
+                i.getStringExtra("doses")?.split(',')?.filter { it.isNotBlank() }?.forEachIndexed { k, d ->
+                    m.doses += Triple(at + k * every, d.trim().removeSuffix("!").toDouble(), d.trim().endsWith("!"))
+                }
+                app.mauri.sukrara.pen.Pens.init(c)
+                if (i.getBooleanExtra("fail", false)) {
+                    app.mauri.sukrara.pen.Pens.failed(serial)
+                } else {
+                    val model = if (i.getStringExtra("model") == "novopen6") "Novo Nordisk A/S NovoPen" else "Novo Nordisk A/S NovoPen"
+                    val half = i.getStringExtra("model") != "novopen6"
+                    val doses = m.doses.filter { half || Math.round(it.second * 10) % 10 == 0L }.map { (t, a, inc) ->
+                        app.mauri.sukrara.pen.opennov.PenDose(t - base + m.offset, t, a, if (inc) 0x08000001L else 0x08000000L)
+                    }
+                    val r = app.mauri.sukrara.pen.opennov.PenRead(serial, model, now, now - base + m.offset, doses)
+                    val st = app.mauri.sukrara.pen.Pens.onRead(c, r)
+                    app.mauri.sukrara.pen.PenReadActivity.notify(c, st)
+                }
+                c.startActivity(Intent(c, app.mauri.sukrara.pen.PenReadActivity::class.java).putExtra(app.mauri.sukrara.pen.PenReadActivity.PREVIEW, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                out.put("cmd", "fake pen read").put("state", app.mauri.sukrara.pen.Pens.readState.value?.stage)
+            }
+        }
     }
 }

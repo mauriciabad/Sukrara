@@ -51,22 +51,34 @@ data class Treatment(
         /** Parse a v2 body (SPEC §5); null if it isn't a valid treatment. */
         fun fromWire(j: org.json.JSONObject): Treatment? = runCatching {
             val k = j.getString("k").takeIf { it in KINDS } ?: return null
-            val (pr, pen, pd) = penKeys(j)
+            val (pr, pen, pd) = penKeys(j) ?: return null
             Treatment(id = j.getString("id").takeIf { it.isNotEmpty() } ?: return null, k = k, a = j.optDouble("a", 0.0),
                 t = j.getLong("t"), n = clip(j.optString("n")), u = j.getLong("u"), del = j.optBoolean("del", false),
                 o = j.optString("o").ifEmpty { "phone" }.take(16), pr = pr, pen = pen, pd = pd)
         }.getOrNull()
 
-        /** The optional pen keys of a v2 body (SPEC §1), bounded; malformed ones are dropped, never the entry. */
-        fun penKeys(j: org.json.JSONObject): Triple<Double?, String?, List<PdDose>?> {
-            val pr = if (j.has("pr")) j.optDouble("pr").takeIf { it.isFinite() && it >= 0 } else null
-            val pen = j.optString("pen").takeIf { j.has("pen") && it.isNotEmpty() }?.take(32)
-            val pd = j.optJSONArray("pd")?.let { a ->
-                (0 until minOf(a.length(), 64)).mapNotNull { i -> a.optJSONObject(i)?.let { d ->
-                    if (!d.has("t") || !d.has("a")) null else PdDose(d.getLong("t"), d.getDouble("a"), d.optBoolean("p", false)) } }
+        /**
+         * The optional pen keys of a v2 body (SPEC §1). Malformed ones reject the entry (null pair): a negative `pr`, a
+         * `pen` over 32 bytes, a `pd` that isn't ≤ 20 items of `{t: int, a ≥ 0, p?: bool}` in time order.
+         */
+        fun penKeys(j: org.json.JSONObject): Triple<Double?, String?, List<PdDose>?>? {
+            val pr = if (j.has("pr")) j.optDouble("pr", Double.NaN).takeIf { it.isFinite() && it >= 0 } ?: return null else null
+            val pen = if (j.has("pen")) j.optString("pen").takeIf { it.isNotEmpty() && it.toByteArray().size <= 32 } ?: return null else null
+            val pd = if (!j.has("pd")) null else {
+                val a = j.optJSONArray("pd") ?: return null
+                if (a.length() > MAX_PD) return null
+                (0 until a.length()).map { i ->
+                    val d = a.optJSONObject(i) ?: return null
+                    val t = d.opt("t"); val u = d.opt("a")
+                    if (t !is Number || t.toDouble() != t.toLong().toDouble() || u !is Number || u.toDouble() < 0 || !u.toDouble().isFinite()) return null
+                    if (d.has("p") && d.opt("p") !is Boolean) return null
+                    PdDose(t.toLong(), u.toDouble(), d.optBoolean("p", false))
+                }.also { l -> if (l.zipWithNext().any { (x, y) -> y.t < x.t }) return null }
             }
             return Triple(pr, pen, pd)
         }
+
+        const val MAX_PD = 20
 
         /** A pen entry's session is open this long after its last dose (DESIGN §4.1 cluster gap). */
         const val PEN_SETTLE_S = 600L

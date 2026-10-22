@@ -167,7 +167,7 @@ class WearerExtras(private val ctx: Context, private val scope: CoroutineScope, 
         runCatching {
             val k = tr.optString("k").takeIf { it in Treatment.KINDS } ?: return
             // a writer's (or the Mac's) change of a pen entry keeps its pen keys (pr, pen, pd: inv. 29)
-            val (pr, pen, pd) = Treatment.penKeys(tr)
+            val (pr, pen, pd) = Treatment.penKeys(tr) ?: return Log.w(tag, "follower treatment rejected: malformed pen keys").let { }
             Treat.store.merge(Treatment(id = tr.getString("id"), k = k, a = tr.optDouble("a", 0.0), t = tr.getLong("t"),
                 n = Treatment.clip(tr.optString("n")), u = tr.optLong("u", System.currentTimeMillis()),
                 del = tr.optBoolean("del", false), o = "follower", pr = pr, pen = pen, pd = pd))

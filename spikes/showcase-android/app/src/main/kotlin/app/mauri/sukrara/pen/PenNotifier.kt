@@ -50,6 +50,10 @@ object PenNotifier {
             .setSmallIcon(R.drawable.ic_stat_sukrara)
             .setContentTitle(title).setContentText(line)
             .setTimeoutAfter(2 * 3600_000L)
+            // no amounts on the lock screen (PRODUCT §1b): the public version only says a pen was read
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(Notification.Builder(ctx, READS).setSmallIcon(R.drawable.ic_stat_sukrara)
+                .setContentTitle(ctx.getString(R.string.pen_notif_public)).build())
             .setOnlyAlertOnce(true).setAutoCancel(true)
             .setContentIntent(open(ctx, if (entry != null) "penEntry" else "penHistory", entry?.id ?: "", 400))
         // an activity straight from the action (a receiver may not start one: Android 12 notification trampolines)

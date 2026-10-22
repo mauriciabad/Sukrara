@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -112,7 +113,18 @@ fun TreatmentsSection() {
     val recent = items.filter { !it.del && it.t >= since }
     val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
-    SectionTitle(stringResource(R.string.treatments_title))
+    // the pen's passive hints (PRODUCT §1b): "Pen read 2d ago" in the title row once it's over a day
+    val pens = app.mauri.sukrara.pen.Pens.ledger.collectAsState().value.pens.values
+    val penOn = f.penReading == "on" && pens.isNotEmpty()
+    val lastRead = pens.maxOfOrNull { it.lastScan } ?: 0
+    val nav = LocalNav.current
+    Row(verticalAlignment = Alignment.Bottom) {
+        Box(Modifier.weight(1f)) { SectionTitle(stringResource(R.string.treatments_title)) }
+        if (penOn && lastRead > 0 && now - lastRead > 24 * 3600) Text(
+            stringResource(R.string.pen_hint_stale, app.mauri.sukrara.treatments.TreatmentMarks.duration(now - lastRead)),
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clickable { pens.maxByOrNull { it.lastScan }?.let { nav?.open(PEN_ROUTE + it.serial) } }.padding(4.dp))
+    }
     Reveal(recent.isEmpty()) { Text(stringResource(R.string.treatments_empty),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
     // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
@@ -132,6 +144,11 @@ fun TreatmentsSection() {
         }
     }
 
+    // carbs saved, no rapid insulin within 30 min of them yet: one quiet line for 60 min
+    val carbs = recent.filter { it.k == "carbs" && now - it.t < 3600 }.maxByOrNull { it.t }
+    Reveal(penOn && carbs != null && recent.none { it.k == "rapid" && kotlin.math.abs(it.t - carbs.t) <= 1800 }) {
+        Text(stringResource(R.string.pen_hint_carbs), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+    }
     penEntry?.let { tr -> items.firstOrNull { it.id == tr.id && !it.del }?.let { PenEntrySheet(it) { penEntry = null } } ?: run { penEntry = null } }
     deleting?.let { tr ->
         AlertDialog(

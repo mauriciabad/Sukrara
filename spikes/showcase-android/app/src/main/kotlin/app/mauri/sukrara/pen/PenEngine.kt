@@ -112,6 +112,7 @@ data class PenRules(
     val cluster: Long = 600, val primeBefore: Long = 1800, val pending: Long = 1800,
     val match: Long = 2700, val matchUnits: Double = 1.0, val matchShare: Double = 0.25,
     val future: Long = 120, val resetMatch: Long = 120, val review: Long = 72 * 3600L, val offer: Long = 24 * 3600L,
+    val maxDoses: Int = 20,   // SPEC §1: a `pd` holds at most 20 doses; a longer session is split
 )
 
 class PenEngine(
@@ -525,7 +526,8 @@ class PenEngine(
             val target = items.map { w.seen(s, it.d.key) }.firstOrNull { (it.role == INJECTED || it.role == PRIMED) && it.e != null }?.e
             if (target != null) {
                 val e = w.entries[target]
-                if (e == null || e.del || w.edited(s, e)) { dosesQuestion(w, s, items, fresh, now); continue }
+                val inEntry = items.count { w.seen(s, it.d.key).e == target }
+                if (e == null || e.del || w.edited(s, e) || inEntry + fresh.size > rules.maxDoses) { dosesQuestion(w, s, items, fresh, now); continue }
                 fresh.forEach { w.final(s, it.d.key, it.p, target) }
                 w.write(s, w.build(s, target, e)); w.updated += target
                 continue
@@ -576,6 +578,8 @@ class PenEngine(
 
     /** §4.5: an injection's doses → merged into the one hand-typed entry, a match question, or a new entry. (entry, question) */
     private fun place(w: Work, s: String, items: List<Item>, now: Long): Pair<String?, String?> {
+        // SPEC §1 caps `pd` at 20 doses: a longer session (a cartridge of primes, a stuck button) is split in time order
+        if (items.size > rules.maxDoses) return items.sortedBy { it.d.t }.chunked(rules.maxDoses).map { place(w, s, it, now) }.last()
         val inj = items.filter { !it.p }
         if (inj.isEmpty()) { items.forEach { w.final(s, it.d.key, true, null) }; return null to null }
         val t = inj.minOf { it.d.t }; val a = r1(inj.sumOf { it.d.a })
@@ -593,8 +597,21 @@ class PenEngine(
         }
     }
 
+    /**
+     * The pen's doses replace hand-typed entry [c]. The wearer's own entry (`o` phone / mac) keeps its `id`, note and
+     * origin; a writer's (a caregiver's, `o` follower) is tombstoned and a new pen entry of the wearer's takes its note
+     * (PROTOCOL review 2026-10-23: a writer may edit its own entry later and could drop the pen keys).
+     */
     private fun merge(w: Work, s: String, items: List<Item>, c: PenEntry): String {
         w.claimed += c.id
+        if (c.o != origin && c.o != "mac") {
+            w.write(s, c.copy(del = true), user = true)
+            val id = newId()
+            items.forEach { w.final(s, it.d.key, it.p, id) }
+            w.pens[s] = w.pen(s).let { it.copy(replaced = it.replaced + (id to c)) }
+            w.write(s, w.build(s, id, null).copy(n = c.n)); w.merged += id
+            return id
+        }
         items.forEach { w.final(s, it.d.key, it.p, c.id) }
         w.pens[s] = w.pen(s).let { it.copy(replaced = it.replaced + (c.id to c)) }
         w.write(s, w.build(s, c.id, c)); w.merged += c.id

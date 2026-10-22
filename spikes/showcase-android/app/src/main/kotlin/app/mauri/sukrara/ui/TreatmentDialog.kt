@@ -27,6 +27,8 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -100,7 +102,7 @@ import java.util.Calendar
  */
 @Composable
 fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false,
-                    focus: String? = null) {
+                    focus: String? = null, initialAt: Long? = null) {
     val rapidState = rememberTextFieldState()
     val longState = rememberTextFieldState()
     val carbsState = rememberTextFieldState()
@@ -109,7 +111,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val carbs = carbsState.text.toString()
     var note by rememberSaveable { mutableStateOf("") }
     /** null = now (resolved when saving); else epoch s. */
-    var at by rememberSaveable { mutableStateOf<Long?>(null) }
+    var at by rememberSaveable { mutableStateOf(initialAt) }
     /** Minutes before the moment of saving (the picker's minutes-ago mode), instead of [at]; null = not relative. */
     var ago by rememberSaveable { mutableStateOf<Int?>(null) }
     /** When the entries happen, for a save or the quiet line at [now] (epoch s). */
@@ -122,7 +124,32 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val invalid = TreatmentForm.invalid(rapid, long, carbs)
     val entries = { t: Long -> TreatmentForm.entries(rapid, long, carbs, note, t).orEmpty() }
     val canSave = !invalid && entries(0).isNotEmpty()
-    val save = { if (canSave) { onSave(entries(whenAt(System.currentTimeMillis() / 1000))); onDismiss() } }
+    // the pen read into the dialog (PRODUCT §4.6b): its amount, roles, and the text it put in the field
+    var fill by remember { mutableStateOf<app.mauri.sukrara.pen.Pens.Fill?>(null) }
+    var fillText by remember { mutableStateOf("") }
+    val fillRoles = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val penField = fill?.let { if (it.kind == "long") longState else rapidState }
+    val penActive = fill != null && penField?.text?.toString() == fillText
+    var dup by remember { mutableStateOf<Pair<app.mauri.sukrara.treatments.Treatment, List<NewEntry>>?>(null) }
+    val ctx0 = LocalContext.current
+    val save = { if (canSave) {
+        val list = entries(whenAt(System.currentTimeMillis() / 1000))
+        val f = fill
+        if (penActive && f != null) {
+            // the pen's amount is logged as the pen entry, not as a typed one
+            app.mauri.sukrara.pen.Pens.saveFill(ctx0, f, fillRoles.toMap())
+            onSave(list.filter { it.k != f.kind }); onDismiss()
+        } else {
+            val hit = PenDuplicate.find(ctx0, list)
+            if (hit == null) { onSave(list); onDismiss(); if (list.any { it.k == "rapid" }) PenSnack.typedRapid(ctx0) }
+            else {
+                // §4.6: only the insulin waits; carbs and the note are saved either way
+                val (ins, rest) = list.partition { it.k == "rapid" || it.k == "long" }
+                if (rest.isNotEmpty()) { onSave(rest); carbsState.clearText(); note = "" }
+                dup = hit to ins
+            }
+        }
+    } }
 
     val ctx = LocalContext.current
     val nowS = System.currentTimeMillis() / 1000
@@ -132,12 +159,19 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
 
     val first = remember { FocusRequester() }
     val carbsFocus = remember { FocusRequester() }
+    val longFocus = remember { FocusRequester() }
     // low now (the latest reading, the alert rules' low thresholds): the carbs field takes the focus
     val low = remember {
         AlertStatus.level(RecentHistory.readings(ctx).lastOrNull(), Alerts.settings.value, nowS) in Kind.LOW_SIDE
     }
     // [focus] from the card's pill (Eat carbs → carbs, Take insulin → rapid) wins over the low rule
-    LaunchedEffect(Unit) { (if (focus == "carbs" || focus == null && low) carbsFocus else first).requestFocus() }
+    LaunchedEffect(Unit) { (if (focus == "carbs" || focus == null && low) carbsFocus else if (focus == "long") longFocus else first).requestFocus() }
+    PenReaderEffect { f ->
+        fill = f; fillRoles.clear(); fillRoles.putAll(f.primed)
+        fillText = app.mauri.sukrara.pen.PenWords.number(f.a)
+        (if (f.kind == "long") longState else rapidState).setTextAndPlaceCursorAtEnd(fillText)
+        at = f.t; ago = null
+    }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
     val card: @Composable () -> Unit = {
@@ -149,11 +183,12 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    PenReaderSign()
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at to ago) { (a, g) -> Text(timeLabel(a, g)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AmountField(stringResource(R.string.treatment_rapid), "u", rapidState, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first).testTag("treatment_rapid"))
-                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).testTag("treatment_long"))
+                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).focusRequester(longFocus).testTag("treatment_long"))
                     AmountField(stringResource(R.string.treatment_carbs), "g", carbsState, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus).testTag("treatment_carbs"))
                 }
                 OutlinedTextField(
@@ -166,6 +201,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
+                fill?.takeIf { penActive }?.let { f -> PenFillLine(f, fillRoles) }
                 Reveal(quiet != null) {
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -186,6 +222,17 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     if (inWindow) card()
     else Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) { card() }
     if (pickTime) TimeDialog(at, ago, onDismiss = { pickTime = false }) { a, g -> at = a; ago = g; pickTime = false }
+    dup?.let { (hit, ins) ->
+        val w = app.mauri.sukrara.pen.PenWords(ctx0)
+        AlertDialog(
+            onDismissRequest = { dup = null },
+            title = { Text(stringResource(R.string.pen_dup_title)) },
+            text = { Text(stringResource(R.string.pen_at, ctx0.getString(if (hit.k == "long") R.string.treatments_row_long else R.string.treatments_row_rapid, w.u(hit.a)),
+                app.mauri.sukrara.graph.Clock.time(hit.t))) },
+            confirmButton = { Button(onClick = { onSave(ins); dup = null; onDismiss() }) { Text(stringResource(R.string.pen_dup_log)) } },
+            dismissButton = { TextButton(onClick = { dup = null }) { Text(stringResource(R.string.treatment_cancel)) } },
+        )
+    }
 }
 
 @Composable

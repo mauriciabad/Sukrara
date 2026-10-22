@@ -689,7 +689,7 @@
     <!-- Delete treatment dialog title [CHAR LIMIT=40] -->
     <string name="treatments_delete_title">Delete this entry?</string>
     <!-- Delete treatment dialog: an uploaded entry stays in LibreView [CHAR LIMIT=NONE] -->
-    <string name="treatments_delete_libreview">It stays in LibreView: entries can\'t be deleted there.</string>
+    <string name="treatments_delete_libreview">It\'s removed from LibreView too.</string>
     <!-- Delete treatment dialog: confirm [CHAR LIMIT=15] -->
     <string name="treatments_delete">Delete</string>
     <!-- LibreView account dialog title; LibreView is a product name [CHAR LIMIT=40] -->
@@ -1703,7 +1703,7 @@
     <!-- Takeover summary while off [CHAR LIMIT=60] -->
     <string name="libreview_takeover_off">Stops if another app uploads</string>
     <!-- LibreView page footer [CHAR LIMIT=NONE] -->
-    <string name="libreview_footer">Uploaded entries can\'t be deleted in LibreView. Glucose goes up from the moment you switch it on.</string>
+    <string name="libreview_footer">Entries you edit or delete in Sukrara change in LibreView too. Glucose goes up from the moment you switch it on.</string>
 
     <!-- ========== Settings: Tidepool ========== -->
     <!-- Tidepool page intro (wearer) [CHAR LIMIT=NONE] -->
@@ -2510,7 +2510,7 @@
     <!-- Pen read sheet: the read failed (error) [CHAR LIMIT=34] -->
     <string name="pen_read_failed">Couldn\'t read the pen</string>
     <!-- Pen read sheet line for a failed read [CHAR LIMIT=NONE] -->
-    <string name="pen_read_failed_text">Nothing was logged. Hold it to the phone until it vibrates.</string>
+    <string name="pen_read_failed_text">Your doses are safe in the pen. Tap again and hold it still.</string>
     <!-- Pen read sheet: an untested pen that failed the display check [CHAR LIMIT=34] -->
     <string name="pen_read_notusable">Sukrara doesn\'t log this pen</string>
     <!-- Why the pen isn't used [CHAR LIMIT=NONE] -->
@@ -2624,7 +2624,7 @@
     <!-- Overview summary: the pen and when it was read [CHAR LIMIT=50] -->
     <string name="pens_summary_one">%1$s · read %2$s</string>
     <!-- Insulin pens page intro [CHAR LIMIT=NONE] -->
-    <string name="pens_intro">Unlock your phone and hold the pen\'s end to the back of it. Sukrara logs the doses without opening.</string>
+    <string name="pens_intro">Unlock your phone and hold the pen to the back of it until it vibrates. No vibration? Nothing is lost: the next tap catches up.</string>
     <!-- Main switch [CHAR LIMIT=40] -->
     <string name="pens_switch">Read insulin pens</string>
     <!-- Status row: NFC is off [CHAR LIMIT=30] -->
@@ -2801,4 +2801,26 @@
         <item quantity="one">Also logged: %1$d earlier injection</item>
         <item quantity="other">Also logged: %1$d earlier injections</item>
     </plurals>
+    <!-- Card: the first pen tap on a fresh install [CHAR LIMIT=40] -->
+    <string name="pen_ask_title">Log this pen in Sukrara?</string>
+    <!-- Action: turn pen reading on [CHAR LIMIT=15] -->
+    <string name="pen_turn_on">Turn on</string>
+    <!-- Action: don't read pens [CHAR LIMIT=10] -->
+    <string name="pen_no">No</string>
+    <!-- Overview / switch summary in the Ask state [CHAR LIMIT=50] -->
+    <string name="pens_summary_ask">Off · asks when you tap a pen</string>
+    <!-- Treatments list hint after carbs without insulin [CHAR LIMIT=NONE] -->
+    <string name="pen_hint_carbs">Injected? Hold your pen to the phone.</string>
+    <!-- Snackbar after typing rapid insulin by hand while a pen is known [CHAR LIMIT=40] -->
+    <string name="pen_hint_snack">Next time, just tap your pen</string>
+    <!-- Treatments title row: the pen was last read long ago, e.g. Pen read 2d ago [CHAR LIMIT=30] -->
+    <string name="pen_hint_stale">Pen read %1$s ago</string>
+    <!-- Lock screen version of the pen read notification (no amounts) [CHAR LIMIT=30] -->
+    <string name="pen_notif_public">Pen read</string>
+    <!-- Failed read, the second within 2 min: tips [CHAR LIMIT=NONE] -->
+    <string name="pen_read_failed_tip">Touch the phone where the circle is, take cards out of the case, and check the counter shows 0.</string>
+    <!-- Reading a new pen [CHAR LIMIT=NONE] -->
+    <string name="pen_read_first_slow">The first read takes a few seconds.</string>
+    <!-- Doses read top line: injected and priming units in the last 30 days [CHAR LIMIT=NONE] -->
+    <string name="pen_h_totals">Last 30 days: %1$s injected · %2$s priming</string>
 </resources>

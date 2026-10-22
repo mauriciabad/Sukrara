@@ -48,6 +48,7 @@ import kotlinx.coroutines.withContext
  */
 class PenReadActivity : ComponentActivity() {
     private var a11yInside = false
+    private var hold = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +56,9 @@ class PenReadActivity : ComponentActivity() {
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         window.setGravity(Gravity.BOTTOM)
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH)
-        if (!intent.getBooleanExtra(PREVIEW, false)) start(intent)
+        // a debug preview (DebugFakes penRead, emulator screenshots) stays until closed
+        hold = intent.getBooleanExtra(PREVIEW, false)
+        if (!hold) start(intent)
         setContent {
             val ctx = LocalContext.current
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)) {
@@ -65,7 +68,7 @@ class PenReadActivity : ComponentActivity() {
                     PenReadCard(s, onClose = ::finish, onOpen = ::openInApp, onInteract = { touched++ }, onA11y = { a11yInside = it })
                     // closes by itself (PRODUCT §4.1): the accessibility timeout, 3 s for "Nothing new", never while reading
                     LaunchedEffect(s, touched) {
-                        if (s.stage == "reading") return@LaunchedEffect
+                        if (s.stage == "reading" || hold) return@LaunchedEffect
                         val nothing = PenWords(ctx).card(s).title == ctx.getString(app.mauri.sukrara.R.string.pen_read_nothing)
                         val base = if (nothing) 3000 else 6000
                         val ms = ctx.getSystemService(AccessibilityManager::class.java).getRecommendedTimeoutMillis(base,
@@ -94,15 +97,24 @@ class PenReadActivity : ComponentActivity() {
         if (!Pens.enabled(this)) { finish(); return }
         if (!PenTag.isPen(tag)) { finish(); return }   // a sticker or another phone: not a pen, not a word
         Pens.reading()
+        val view = window.decorView
+        PenHaptics.play(view, PenHaptics.Moment.TAP)
         lifecycleScope.launch {
             val st = withContext(Dispatchers.IO) {
-                runCatching { PenTag.read(tag) { Pens.stopBefore(it) }?.let { Pens.onRead(this@PenReadActivity, it) } }.getOrNull()
+                var n = 0
+                runCatching { PenTag.read(tag, onExchange = { if (++n % 5 == 0) view.post { PenHaptics.play(view, PenHaptics.Moment.SEGMENT) } }) { Pens.stopBefore(it) }
+                    ?.let { Pens.onRead(this@PenReadActivity, it) } }.getOrNull()
             }
-            if (st == null) { Pens.failed(null); haptic(false) } else { haptic(true); notify(this@PenReadActivity, st) }
+            if (st == null) { Pens.failed(null); haptic(false) }
+            else {
+                val nothing = st.report?.let { it.created.isEmpty() && it.merged.isEmpty() && it.updated.isEmpty() && it.asked.isEmpty() } == true && !st.report.first
+                PenHaptics.play(view, if (nothing) PenHaptics.Moment.NOTHING else PenHaptics.Moment.SUCCESS)
+                notify(this@PenReadActivity, st)
+            }
         }
     }
 
-    private fun haptic(ok: Boolean) = window.decorView.performHapticFeedback(if (ok) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.REJECT)
+    private fun haptic(ok: Boolean) = PenHaptics.read(window.decorView, ok)
 
     /** Sukrara at [what] (`penEntry` / `penHistory` / `penSetup` / `penQuestion`) for [id]. */
     private fun openInApp(what: String, id: String) {

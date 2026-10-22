@@ -43,7 +43,7 @@ object GlucoseCsv {
             "Non-numeric Rapid-Acting Insulin", "Rapid-Acting Insulin (units)", "Non-numeric Food", "Carbohydrates (grams)",
             "Carbohydrates (servings)", "Non-numeric Long-Acting Insulin", "Long-Acting Insulin (units)", "Notes",
             "Strip Glucose $u", "Ketone mmol/L", "Meal Insulin (units)", "Correction Insulin (units)",
-            "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By")
+            "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By", "Primed Insulin (units)")
     }
 
     /** The CSV for `t` in [[from], [to]) (epoch s), CRLF line ends. Treatments include tombstones; they're skipped. */
@@ -51,7 +51,7 @@ object GlucoseCsv {
               sensor: Sensor? = null, mmol: Boolean = false): String {
         fun serial(t: Long) = sensor?.takeIf { it.serial.isNotEmpty() && t >= it.start && t < it.end }?.serial ?: ""
         fun device(t: Long) = sensor?.takeIf { it.model != null && t >= it.start && t < it.end }?.let { "Sukrara · ${it.model}" } ?: "Sukrara"
-        fun base(t: Long, type: String) = Array(22) { "" }.also {
+        fun base(t: Long, type: String) = Array(23) { "" }.also {
             it[0] = device(t); it[1] = serial(t); it[2] = local(t, zone); it[3] = type; it[19] = iso(t, zone)
         }
         class Line(val t: Long, val order: Int, val id: String, val f: Array<String>)
@@ -71,6 +71,8 @@ object GlucoseCsv {
                 else -> base(tr.t, "6")
             }
             f[13] = textCell(tr.n); f[21] = tr.o
+            // a pen entry's priming (inv. 29): never in the insulin columns, which stay `a`
+            if (tr.pen != null && (tr.k == "rapid" || tr.k == "long")) f[22] = tenths(tr.pr ?: 0.0)
             lines += Line(tr.t, 1, tr.id, f)
         }
         lines.sortWith(compareBy<Line>({ it.t }, { it.order }, { it.id }))

@@ -3,6 +3,13 @@
 The shared interface for the round `n-pen29`, written before dispatch. The Android agent (spike + app) and the Mac
 agent both build against it. Change it only through the orchestrator.
 
+**As built (2026-10-23)**: PRODUCT.md overrides this contract where they differ, and the engine follows PRODUCT
+§3. The rules below are updated to what `PenEngine` does (scenarios.json is the executable form); the changes and their
+reasons are in docs/29-novopen.md ("Discarded or changed"). In short: priming = small doses before the **last** large
+dose (small = below `penPrimeBelow`, default 2u); no top-up across sessions (asked instead, with a suggestion); no
+movable `since` (Doses read logs one session at a time); big reads (> 72 h) log at once and are flagged; only a pen
+clock reset holds a read; a writer's matched entry is tombstoned and recreated as the wearer's; `pd` ≤ 20 doses.
+
 ## 1. What the user has and wants
 
 - **NovoPen Echo Plus** (NFC, 0.5 u steps, stores ~800 doses with its own clock), rapid insulin. Used for a long time,
@@ -38,8 +45,8 @@ every dose key seen and what it became (entry id + role, or `before-since`, `que
 - **First scan of a serial**: `since` = that scan time. Nothing older is ever imported automatically. The first scan
   opens a short setup in Sukrara (kind, what happened: "412 earlier doses in the pen weren't imported") — the only
   read that brings the app forward.
-- Moving `since` earlier is possible from the pen's settings page, behind a preview (how many entries it would add,
-  which hand-typed entries it would merge) and a warning that doses typed straight into LibreView can't be checked.
+- No movable `since`: *Doses read* lists every session the pen holds; an earlier one is logged one at a time with
+  *Log this injection* (through rule 5). A lost ledger is rebuilt from the pen entries in the synced log.
 - Every dose key is processed once. Deleting a pen entry leaves its keys consumed (never re-imported). Rescanning the
   same pen changes nothing unless new doses appeared or a session grew.
 - Pen clock sanity: drop doses later than scan time + 2 min (log it); if the pen clock went backwards (reset), match
@@ -50,12 +57,12 @@ every dose key seen and what it became (entry id + role, or `before-since`, `que
 Doses of one pen, sorted by time, below `since` dropped, 0 u dropped.
 
 1. **Cluster**: consecutive doses ≤ 10 min apart.
-2. A cluster with a dose ≥ **threshold** (setting `penPrimeBelow`, default 2.0 u) is an **injection**: the doses before
-   the first ≥ threshold dose are priming, that dose and **every later one** in the cluster are injected.
+2. A cluster with a dose ≥ **threshold** (setting `penPrimeBelow`, default 2.0 u) is an **injection**: the small doses
+   before the **last** large dose are priming, every other dose is injected (PRODUCT §3.2).
    `1 u, 0.5 u, 8 u, 0.5 u` → injected 8.5 u, primed 1.5 u. Entry time `t` = time of the first injected dose.
 3. A cluster with every dose below the threshold:
    - an injection cluster starts ≤ 30 min after it ends → it is that injection's priming;
-   - else it starts ≤ 60 min after an injection cluster ended → a **top-up**: injected, added to that entry;
+   - (no top-up across sessions: PRODUCT §3.4)
    - else → a **question** to the user ("What were 1 u and 1.5 u at 13:02?": priming / injected / some of each, per
      dose). Not logged until answered. If it's the newest cluster and < 30 min old at scan time it is **pending**
      (an injection may follow); it becomes a question 30 min after its last dose if no scan resolved it.

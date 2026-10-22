@@ -129,6 +129,7 @@ class PenScenarioTest {
                 "restore" in st -> apply(engine.restore(ledger, removed!!.pen!!, removed!!, entries.values.toList(), ms))
                 "undo" in st -> apply(engine.undo(ledger, last!!.undo!!, entries.values.toList(), ms))
                 "delete" in st -> { val e = ref(st.getValue("delete").jsonPrimitive.content); entries[e.id] = e.copy(del = true, u = maxOf(ms, e.u + 1)) }
+                "editA" in st -> { val e = ref(st.getValue("editA").jsonPrimitive.content); entries[e.id] = e.copy(a = st.getValue("a").jsonPrimitive.double, u = maxOf(ms, e.u + 1)) }
                 "edit" in st -> { val e = ref(st.getValue("edit").jsonPrimitive.content); entries[e.id] = e.copy(n = st.getValue("n").jsonPrimitive.content, u = maxOf(ms, e.u + 1)) }
                 "correct" in st -> {
                     val e = ref(st.getValue("correct").jsonPrimitive.content)
@@ -146,7 +147,10 @@ class PenScenarioTest {
                     val want = (st["is"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content?.let { ref(it).id }
                     assertEquals("$where: near", want, got?.id)
                 }
-                "expect" in st -> expect(where, st.getValue("expect").jsonObject, live(), openQs(), ledger, last, ::time) { s -> engine.history(ledger, s, entries.values.toList()) }
+                "expect" in st -> {
+                    st.getValue("expect").jsonObject["deleted"]?.jsonArray?.forEach { d -> assertEquals("$where: ${d.jsonPrimitive.content} deleted", true, entries[d.jsonPrimitive.content]?.del) }
+                    expect(where, st.getValue("expect").jsonObject, live(), openQs(), ledger, last, ::time) { s -> engine.history(ledger, s, entries.values.toList()) }
+                }
                 else -> error("$where: unknown step $st")
             }
         }
@@ -165,6 +169,7 @@ class PenScenarioTest {
                 w["pr"]?.let { assertEquals("$at pr", it.jsonPrimitive.double, e.pr ?: 0.0, 1e-9) }
                 w["n"]?.let { assertEquals("$at n", it.jsonPrimitive.content, e.n) }
                 w["o"]?.let { assertEquals("$at o", it.jsonPrimitive.content, e.o) }
+                w["pdCount"]?.let { assertEquals("$at pd size", it.jsonPrimitive.int, e.pd?.size) }
                 if ("pen" in w) assertEquals("$at pen", (w["pen"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content, e.pen)
                 w["pd"]?.jsonArray?.let { pd ->
                     assertEquals("$at pd", pd.map { val a = it.jsonArray; Triple(time(a[0].jsonPrimitive.content), a[1].jsonPrimitive.double, a[2].jsonPrimitive.boolean) },

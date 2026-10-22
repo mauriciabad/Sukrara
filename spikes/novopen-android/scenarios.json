@@ -21,6 +21,11 @@
       "steps": [
         { "scan": "P1", "at": "13:30", "add": [["13:00", 2], ["13:00:30", 2], ["13:01", 2], ["13:02", 5]] },
         { "expect": { "entries": [{ "t": "13:02", "a": 5, "pr": 6 }], "questions": [] } } ] },
+    { "name": "xDrip #4770: a run of 2u primes until the spray, the cartridge running out mid-dose (size 2.5): every prime counted, both parts injected",
+      "rules": { "primeBelow": 2.5 },
+      "steps": [
+        { "scan": "P1", "at": "13:30", "add": [["13:00", 2], ["13:00:20", 2], ["13:00:40", 2], ["13:01", 3], ["13:03", 2], ["13:03:30", 5]] },
+        { "expect": { "entries": [{ "t": "13:01", "a": 8, "pr": 8 }], "questions": [] } } ] },
     { "name": "a 2u dose is not priming at the default size (2u = large)",
       "steps": [
         { "scan": "P1", "at": "14:00", "add": [["13:00", 2]] },
@@ -133,11 +138,31 @@
         { "scan": "P1", "at": "13:30", "add": [["13:00", 1], ["13:01", 8]] },
         { "expect": { "entries": [{ "id": "h1", "t": "13:01", "a": 8, "pr": 1, "pen": "P1", "n": "lunch", "o": "mac" }], "report": { "merged": 1, "created": 0 },
           "history": [{ "status": "merged", "a": 8 }] } } ] },
-    { "name": "merge tolerance: 7.5u typed by a caregiver, pen 8.5u (within 1u) merges",
-      "entries": [{ "id": "h1", "k": "rapid", "a": 7.5, "t": "12:40", "o": "follower" }],
+    { "name": "merge tolerance: 7.5u typed on the phone, pen 8.5u (within 1u) merges in place",
+      "entries": [{ "id": "h1", "k": "rapid", "a": 7.5, "t": "12:40" }],
       "steps": [
         { "scan": "P1", "at": "13:30", "add": [["13:01", 8.5]] },
         { "expect": { "entries": [{ "id": "h1", "a": 8.5, "pen": "P1" }] } } ] },
+    { "name": "a writer's entry (caregiver, o follower) matched: tombstoned, a new pen entry of the wearer's takes its note; Undo brings it back",
+      "entries": [{ "id": "h1", "k": "rapid", "a": 8, "t": "13:05", "n": "by Ana", "o": "follower" }],
+      "steps": [
+        { "scan": "P1", "at": "13:30", "add": [["13:01", 8.5]] },
+        { "expect": { "entries": [{ "id": "n1", "t": "13:01", "a": 8.5, "pen": "P1", "n": "by Ana", "o": "phone" }], "deleted": ["h1"], "report": { "merged": 1 },
+          "history": [{ "status": "merged", "a": 8.5 }] } },
+        { "undo": true, "at": "13:31" },
+        { "expect": { "entries": [{ "id": "h1", "a": 8, "pen": null, "o": "follower" }] } } ] },
+    { "name": "the amount edited by hand (a without pd) is a user edit: a rescan never reverts it, a dose joining it is asked",
+      "steps": [
+        { "scan": "P1", "at": "13:03", "add": [["13:00", 1], ["13:02", 8]] },
+        { "editA": "@1", "a": 7, "at": "13:04" },
+        { "scan": "P1", "at": "13:05" },
+        { "expect": { "entries": [{ "a": 7, "pr": 1 }], "writes": 0 } },
+        { "scan": "P1", "at": "13:10", "add": [["13:07", 0.5]] },
+        { "expect": { "entries": [{ "a": 7 }], "questions": [{ "type": "doses", "doses": [["13:07", 0.5]] }], "writes": 0 } } ] },
+    { "name": "an oversized session (25 doses in one cluster) is split into entries of at most 20 doses",
+      "steps": [
+        { "scan": "P1", "at": "14:00", "add": [{ "n": 25, "from": "13:00", "every": 30, "a": 3 }] },
+        { "expect": { "entries": [{ "a": 60, "pdCount": 20 }, { "a": 15, "pdCount": 5 }], "questions": [] } } ] },
     { "name": "two candidates → match question; nothing logged until answered; answered with the second",
       "entries": [{ "id": "h1", "k": "rapid", "a": 5, "t": "13:00" }, { "id": "h2", "k": "rapid", "a": 6, "t": "13:20" }],
       "steps": [

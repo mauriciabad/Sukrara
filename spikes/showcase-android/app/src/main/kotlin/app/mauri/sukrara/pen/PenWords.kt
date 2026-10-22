@@ -59,9 +59,11 @@ class PenWords(private val ctx: Context) {
         val r = st.report
         val pen = st.serial?.let { Pens.ledger.value.pens[it] }
         when {
-            st.stage == "reading" -> return Card(s(R.string.pen_read_reading), listOf(s(R.string.pen_read_keep_still)))
-            st.stage == "failed" -> return Card(s(R.string.pen_read_failed), listOf(s(R.string.pen_read_failed_text)), error = true)
+            st.stage == "reading" -> return Card(s(R.string.pen_read_reading), listOf(s(if (st.firstPen) R.string.pen_read_first_slow else R.string.pen_read_keep_still)))
+            st.stage == "failed" -> return Card(s(R.string.pen_read_failed),
+                listOfNotNull(s(R.string.pen_read_failed_text), if (st.tip) s(R.string.pen_read_failed_tip) else null), error = true)
             st.stage == "notusable" -> return Card(s(R.string.pen_read_notusable), listOf(s(R.string.pen_read_notusable_text)))
+            st.stage == "ask" -> return Card(s(R.string.pen_ask_title), listOf(st.read?.let { PenProfiles.identify(it).name } ?: PenProfiles.ECHO_PLUS.name))
             st.stage == "check" -> return Card(s(R.string.pen_untested_added),
                 listOf(s(R.string.pen_untested_added_line, pen?.name?.ifEmpty { null } ?: PenProfiles.NOVOPEN_6.name)))
             st.undone -> return Card(s(R.string.pen_undone), listOf(s(R.string.pen_undone_text)))

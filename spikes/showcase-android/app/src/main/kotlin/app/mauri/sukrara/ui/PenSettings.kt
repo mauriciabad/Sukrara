@@ -88,7 +88,8 @@ fun pensSummary(): String {
     val nfc = remember { NfcAdapter.getDefaultAdapter(ctx) }
     val last = pens.maxOfOrNull { it.lastScan }?.takeIf { it > 0 }?.let { Clock.time(it) }
     return when {
-        !f.penReading -> stringResource(R.string.settings_off)
+        f.penReading == "ask" -> stringResource(R.string.pens_summary_ask)
+        f.penReading == "off" -> stringResource(R.string.settings_off)
         !NfcLaunch.allowed(nfc) -> stringResource(R.string.sensor_launch_on_scan_blocked)
         pens.isEmpty() || last == null -> stringResource(R.string.pens_empty)
         pens.size == 1 -> stringResource(R.string.pens_summary_one, pens.first().name, last)
@@ -120,8 +121,9 @@ fun PensSettings(onBack: () -> Unit) {
     val nav = LocalNav.current
     SettingsPage(stringResource(R.string.pens_title), onBack) {
         SettingsIntro(stringResource(R.string.pens_intro))
-        SettingsMainSwitch(stringResource(R.string.pens_switch), f.penReading) { Pens.setReading(ctx, it) }
-        if (f.penReading) {
+        SettingsMainSwitch(stringResource(R.string.pens_switch), f.penReading == "on") { Pens.setReading(ctx, it) }
+        if (f.penReading == "ask") SettingsFooter(stringResource(R.string.pens_summary_ask))
+        if (f.penReading == "on") {
             SettingsGroup {
                 if (!nfcOn) action(stringResource(R.string.pens_nfc_off), stringResource(R.string.pens_nfc_on), icon = R.drawable.ic_sym_nfc) {
                     ctx.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
@@ -245,6 +247,12 @@ fun DosesReadSettings(serial: String, review: Boolean, onBack: () -> Unit) {
     var open by remember { mutableStateOf<Session?>(null) }
     val pen = Pens.ledger.value.pens[serial]
     SettingsPage(stringResource(R.string.pen_doses_read), onBack) {
+        if (!review) {
+            val since = System.currentTimeMillis() / 1000 - 30 * 86400L
+            val logged = Treat.store.all().filter { !it.del && it.pen == serial && it.t >= since }
+            val primedOnly = all.filter { it.status == Session.PRIMING && it.t >= since }.sumOf { it.pr }
+            SettingsIntro(stringResource(R.string.pen_h_totals, w.u(PenEngine.r1(logged.sumOf { it.a })), w.u(PenEngine.r1(logged.sumOf { it.pr ?: 0.0 } + primedOnly))))
+        }
         if (review && read?.undo != null && !read!!.undone) SettingsHeader {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.pen_review_line, ctx.resources.getQuantityString(R.plurals.pen_read_several, sessions.size, sessions.size),

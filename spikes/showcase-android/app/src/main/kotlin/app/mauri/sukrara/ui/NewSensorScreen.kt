@@ -231,8 +231,11 @@ fun NewSensorScreen(onClose: () -> Unit) {
     LifecycleResumeEffect(nfc, listening) {
         nfcOn = nfc?.isEnabled == true
         btOn = bluetoothOn(ctx)
-        if (listening) nfc.enableReaderMode(activity, { t -> activity.runOnUiThread { scan(t) } },
-            NfcAdapter.FLAG_READER_NFC_V or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, null)
+        // a pen tapped here goes to the pen reader (inv. 29); no system sound: Sukrara's own haptics say it worked
+        if (listening) nfc.enableReaderMode(activity, { t ->
+            if (app.mauri.sukrara.pen.PenTag.isPen(t)) app.mauri.sukrara.pen.PenReadActivity.fromReaderMode(activity, t)
+            else activity.runOnUiThread { scan(t) }
+        }, NfcAdapter.FLAG_READER_NFC_V or NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS, null)
         onPauseOrDispose { if (listening) nfc.disableReaderMode(activity) }
     }
 
@@ -539,9 +542,8 @@ private fun SensorDisc(modifier: Modifier) {
  * middle) and rings going out from it while Sukrara listens. The rings stop when the system's animations are off.
  */
 @Composable
-private fun ScanArt(spot: Offset) {
+internal fun ScanArt(spot: Offset, desc: String = stringResource(R.string.newsensor_art_desc)) {
     val cs = MaterialTheme.colorScheme
-    val desc = stringResource(R.string.newsensor_art_desc)
     val pulse by rememberInfiniteTransition(label = "nfc").animateFloat(0f, 1f,
         infiniteRepeatable(tween(1_800, easing = LinearEasing), RepeatMode.Restart), label = "rings")
     Canvas(Modifier.size(width = 200.dp, height = 260.dp).semantics { contentDescription = desc }) {
@@ -574,7 +576,7 @@ private fun ScanArt(spot: Offset) {
  * Where this phone's NFC antenna is, as a fraction of the phone's back (x from the left, y from the top, back view).
  * AvailableNfcAntenna gives millimetres from the top left of the front in portrait, so x is mirrored.
  */
-private fun antennaSpot(nfc: NfcAdapter?): Offset {
+internal fun antennaSpot(nfc: NfcAdapter?): Offset {
     val info = runCatching { nfc?.nfcAntennaInfo }.getOrNull()
     val a = info?.availableNfcAntennas?.firstOrNull()
     if (info == null || a == null || info.deviceWidth <= 0 || info.deviceHeight <= 0) return Offset(0.5f, 0.45f)

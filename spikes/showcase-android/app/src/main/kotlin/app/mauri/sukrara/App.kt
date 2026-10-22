@@ -33,6 +33,9 @@ class App : Application() {
         app.mauri.sukrara.core.SensorLife.init(this)   // sensor end + countdown window (round sensor-life)
         // sensor end reminders + live countdowns (wearer); a failure there must never stop the app from starting
         runCatching { app.mauri.sukrara.sensorend.SensorEnd.init(this) }.onFailure { android.util.Log.e("Sukrara.SensorEnd", "init failed", it) }
+        // insulin pens (inv. 29): the ledger, the background reader's enabled state, a timed-out pending dose
+        runCatching { app.mauri.sukrara.pen.Pens.init(this); app.mauri.sukrara.pen.Pens.syncComponent(this); app.mauri.sukrara.pen.PenWork.schedule(this) }
+            .onFailure { android.util.Log.e("SukraraPen", "init failed", it) }
         app.mauri.sukrara.widgets.SukraraHooks.publishPreviewsOnce(this)
         app.mauri.sukrara.widgets.SukraraHooks.watchTreatments(this)   // treatments → widgets (both roles)
         app.mauri.sukrara.widgets.SukraraHooks.watchConfiguration(this)   // dark theme or language → widgets, channel names
