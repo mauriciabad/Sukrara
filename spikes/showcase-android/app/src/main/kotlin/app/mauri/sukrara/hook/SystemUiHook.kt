@@ -269,9 +269,15 @@ class SystemUiHook : XposedModule() {
                     if (fit.broken || list == null || !shownAsIcons()) null
                     else fit.plan(chain.thisObject!!, chain.getArg(0)!!, list, chain.getArg(2) as Long)
                 } catch (t: Throwable) { fit.fail("plan", t); null }
-                if (plan == null) return@intercept chain.proceed()
+                if (plan == null) {
+                    safe("fit diag") {
+                        fit.diag("skip", "in ${fit.describe(chain.getArg(2) as Long)}, ${list?.size} icons, " +
+                            when { fit.broken -> "broken"; !shownAsIcons() -> "not a slot: placement"; else -> "none of ours" })
+                    }
+                    return@intercept chain.proceed()
+                }
                 val result = chain.proceed(arrayOf(chain.getArg(0), plan.permuted, plan.constraints))
-                try { fit.apply(chain.thisObject!!, chain.getArg(0)!!, chain.getArg(2) as Long, result, plan) }
+                try { fit.diag("fit", fit.apply(chain.thisObject!!, chain.getArg(0)!!, chain.getArg(2) as Long, result, plan)) }
                 catch (t: Throwable) { fit.fail("apply", t) }
                 result
             }
@@ -329,6 +335,23 @@ class SystemUiHook : XposedModule() {
 
         fun fail(what: String, t: Throwable) { broken = true; log("icon fit $what failed, SystemUI's own fit from now on: $t") }
 
+        // --- diagnostics (round f38: the dot showed with room to spare): logged only when they change, <= 40 a minute
+        private val lastDiag = HashMap<String, String>()
+        private var diagWindow = 0L
+        private var diagCount = 0
+
+        fun diag(key: String, msg: String) {
+            if (lastDiag[key] == msg) return
+            lastDiag[key] = msg
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - diagWindow > 60_000) { diagWindow = now; diagCount = 0 }
+            if (++diagCount <= 40) log("fit $key: $msg")
+        }
+
+        /** "min..max" width of a Constraints (Compose's own functions). */
+        fun describe(c: Long): String =
+            "${(minWidth?.invoke(null, c) as? Int) ?: "?"}..${(maxWidthOf?.invoke(null, c) as? Int)?.let { if (it == Int.MAX_VALUE) "inf" else it } ?: "?"}"
+
         fun plan(thiz: Any, scope: Any, list: List<*>, constraints: Long): Plan? {
             checkNotNull(semantics) { "no LayoutNode.getSemanticsConfiguration" }
             val kinds = list.map { kindOf(it) }
@@ -367,8 +390,11 @@ class SystemUiHook : XposedModule() {
             return copyDefault?.invoke(null, c, 0, max + px, 0, 0, 0b1101, null) as? Long
         }
 
-        /** After SystemUI's measurement: rewrite its decision (read by its placement block, which runs later). */
-        fun apply(thiz: Any, scope: Any, constraints: Long, result: Any?, plan: Plan) {
+        /**
+         * After SystemUI's measurement: rewrite its decision (read by its placement block, which runs later). Returns what
+         * happened, for the log ([diag]).
+         */
+        fun apply(thiz: Any, scope: Any, constraints: Long, result: Any?, plan: Plan): String {
             val blockField = result?.javaClass?.declaredFields?.firstOrNull { it.type.name == "kotlin.jvm.functions.Function1" &&
                 it.apply { isAccessible = true }.get(result)?.javaClass?.name?.startsWith(policy.name.substringBefore("\$")) == true }
                 ?: error("no placement block in $result")
@@ -397,10 +423,15 @@ class SystemUiHook : XposedModule() {
             // With extra room handed to SystemUI the pull gives back exactly that (the row then fits the real width).
             val pull = if (adjacent && isLtr(scope) && pullHooked && placeableWidthField != null)
                 (if (plan.extend > 0) plan.extend else measured) else 0
-            if (after.visible.size == before.visible.size && pull == 0 && plan.extend == 0) return // at most the order changed
-            // Our pair folded into the dot, or pulled together: the row is narrower than SystemUI measured it.
             val old = fields.filter { it.type == Int::class.javaPrimitiveType && it.name.contains("idth", true) }
-            val oldTotal = old.firstOrNull()?.getInt(decision) ?: return
+            val oldTotal = old.firstOrNull()?.getInt(decision)
+            val note = "in ${describe(constraints)} passed ${describe(plan.constraints)} (extend ${plan.extend}); " +
+                "widths $widths (permuted; original ${plan.perm.toList()}), ours ${plan.oursPermuted} n=$n t=$t; " +
+                "SystemUI ${before.visible}/${before.overflow} -> ${after.visible}/${after.overflow}; spacing $spacing pull $pull " +
+                "(measured $measured); SystemUI width $oldTotal"
+            if (after.visible.size == before.visible.size && pull == 0 && plan.extend == 0) return note // at most the order changed
+            // Our pair folded into the dot, or pulled together: the row is narrower than SystemUI measured it.
+            if (oldTotal == null) return "$note; no width field"
             val total = oldTotal - IconFit.width(widths, before, spacing, 0) + IconFit.place(widths, after, spacing, 0, n, pull).second
             old.forEach { it.setInt(decision, total) }
             // never wider than the real room (SystemUI was offered plan.extend more)
@@ -409,6 +440,7 @@ class SystemUiHook : XposedModule() {
             result.javaClass.declaredFields.filter { it.type == Int::class.javaPrimitiveType && it.name.removePrefix("\$") == "width" }
                 .forEach { it.isAccessible = true; it.setInt(result, w) }
             if (pull > 0) pulls[block] = Pull(plan.permuted[n!!]!!, pull)
+            return "$note -> $total, row $w (real max $real)"
         }
 
         /**
@@ -499,7 +531,31 @@ class SystemUiHook : XposedModule() {
         }
         place(slot)
         view.render()
+        if (bar == Bar.MAIN) root.findGroup("status_bar_end_side_container")?.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            safe("end side diag") { endSideDiag(v as ViewGroup) }
+        }
         log("attached to $bar")
+    }
+
+    private var lastEndSide: String? = null
+
+    /**
+     * Diagnostics (round f38): SystemUI caps the icon row at the end-side container's width on screen, read at its layouts
+     * (StatusBarRoot `rememberViewWidthAsState`: `getBoundsOnScreen(status_bar_end_side_container).width()`). Logs that
+     * width beside the container's own, the content's and the ComposeView's, when they change.
+     */
+    private fun endSideDiag(container: ViewGroup) {
+        val onScreen = runCatching {
+            android.graphics.Rect().also { View::class.java.getMethod("getBoundsOnScreen", android.graphics.Rect::class.java).invoke(container, it) }.width()
+        }.getOrNull()
+        val content = container.findGroup("status_bar_end_side_content")
+        val compose = content?.let { c -> (0 until c.childCount).map(c::getChildAt).lastOrNull { it.visibility == View.VISIBLE } }
+        val msg = "container ${container.width} (on screen $onScreen, scaleX ${container.scaleX}, parent scaleX " +
+            "${(container.parent as? View)?.scaleX}), content ${content?.width}, compose ${compose?.javaClass?.simpleName} " +
+            "${compose?.width} (measured ${compose?.measuredWidth})"
+        if (msg == lastEndSide) return
+        lastEndSide = msg
+        log("end side: $msg")
     }
 
     @SuppressLint("DiscouragedApi")

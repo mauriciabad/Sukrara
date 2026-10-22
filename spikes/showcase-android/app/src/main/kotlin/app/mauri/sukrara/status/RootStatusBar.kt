@@ -263,6 +263,23 @@ object RootStatusBar {
         return r
     }
 
+    /**
+     * The SystemUI module's own log lines (tagged Sukrara) from LSPosed's newest module log, read with Sukrara's root
+     * (DebugReceiver `hookLog`; read-only: adb shell's su is refused on the phone). The last [lines] (1–500), then the
+     * file's name; or why not.
+     */
+    fun hookLog(lines: Int): String = runCatching {
+        val n = lines.coerceIn(1, 500)
+        val script = "f=\$(ls -t /data/adb/lspd/log/modules_*.log 2>/dev/null | head -n 1); " +
+            "[ -n \"\$f\" ] || { echo 'no LSPosed module log'; exit 0; }; grep Sukrara \"\$f\" | tail -n $n; echo \"== \$f\""
+        val p = ProcessBuilder("su", "-c", script).redirectErrorStream(true).start()
+        val out = java.util.concurrent.Executors.newSingleThreadExecutor().let { ex ->
+            ex.submit<String> { p.inputStream.bufferedReader().readText() }.also { ex.shutdown() }
+        }
+        if (!p.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) { p.destroy(); return "no answer from su" }
+        out.get(2, java.util.concurrent.TimeUnit.SECONDS).trimEnd()
+    }.getOrElse { "couldn't read the module log: ${it.message}" }
+
     /** What a `su -c kill …` run means: null = System UI was killed; else a short reason ([exit] null = no answer in time). */
     internal fun restartError(exit: Int?, output: String): String? = when {
         exit == null -> TIMED_OUT

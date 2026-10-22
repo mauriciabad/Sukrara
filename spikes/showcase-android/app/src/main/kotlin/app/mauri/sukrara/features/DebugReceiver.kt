@@ -35,6 +35,7 @@ import org.json.JSONObject
  *       [--es cmd newSensor]   (opens the New sensor screen, the live flow) \
  *       [--es graph JSON] [--es widgetGraph ID:JSON] [--es cmd pinWidget --es kind value|graph|combined] [--es cmd widgetprobe]
  *       [--es alertSettings JSON]
+ *       [--es cmd hookLog [--ei lines N]]   (read-only: the last N "Sukrara" lines of LSPosed's newest module log, via root)
  *     debug builds only (DebugFakes: they replace the sensor, or show / write made-up data: a glucose value, an alert, a
  *     treatment, a sensor state; a release build changes nothing and the reply's `debugOnly` says so):
  *       [--es cmd sensorEnd --ei inMin N] [--es cmd sensorUnlock] [--es cmd sensorStart [--ei agoMin N | --ez firstReading true]]
@@ -204,6 +205,9 @@ class DebugReceiver : BroadcastReceiver() {
                 else app.mauri.sukrara.widgets.WidgetPresence.refresh(c)
                 out.put("widgetBanner", app.mauri.sukrara.widgets.WidgetPresence.state.value.toString())
             }
+            // read-only (any build): the SystemUI module's own log lines, from LSPosed's newest module log via Sukrara's
+            // root (adb shell's su is refused on the phone)
+            "hookLog" -> out.put("cmd", app.mauri.sukrara.status.RootStatusBar.hookLog(i.getIntExtra("lines", 80)))
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             // sensor end: without extras only the state (nothing changes). Settings: --ei countdownHours H; --ez countdown B;
