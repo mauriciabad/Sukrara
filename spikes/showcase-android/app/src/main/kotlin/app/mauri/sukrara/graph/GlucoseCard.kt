@@ -555,7 +555,7 @@ object GlucoseCard {
         val s = look.warmup ?: return
         val need = num.measureText(s) + num.textSize * 0.6f
         if (need > box.width()) num.textSize *= box.width() / need
-        val capH = num.textSize * 0.72f
+        val capH = num.textSize * ValueGlyphs.CAP
         val cy = numBox.centerY()
         val baseY = cy + capH / 2
         cv.drawText(s, box.left - num.textSize * 0.04f, baseY, num)
@@ -635,26 +635,26 @@ object GlucoseCard {
         }
         val s = face.text!!
         // Fit the width as well: number + arrow must stay left of the rings.
-        val arrowFactor = 0.62f
+        val arrowFactor = ValueGlyphs.MARK_BOX
         fun need() = num.measureText(s) + num.textSize * arrowFactor * 1.1f
         repeat(3) { need().let { n -> if (n > box.width()) num.textSize *= box.width() / n * 0.995f } }
         // no row for the badge: its icon goes beside the arrow if there's room
         val iconBadge = look != null && !badgeRow &&
             box.width() - (num.measureText(s) + num.textSize * arrowFactor * 1.2f) >= min(numBox.height() * 0.5f, 24 * d)
-        val capH = num.textSize * 0.72f
+        val capH = num.textSize * ValueGlyphs.CAP
         val cy = numBox.centerY()
         val baseY = cy + capH / 2
         if (motion?.prev != null && motion.prev != s && motion.roll < 1f) rollNumber(cv, s, motion, box.left - num.textSize * 0.04f, baseY, capH, num)
         else cv.drawText(s, box.left - num.textSize * 0.04f, baseY, num)
         rec.add("value.number", RectF(box.left, cy - capH / 2, box.left + num.measureText(s), cy + capH / 2), if (fr.strike) "$s struck" else s)
-        var x = box.left + num.measureText(s) + num.textSize * 0.08f
+        var x = box.left + num.measureText(s) + num.textSize * ValueGlyphs.MARK_GAP
         val arrowSize = num.textSize * arrowFactor
         val rate = r.rate
         if (face.trend == TrendMark.ARROW && rate != null) {
             cv.save()
             cv.translate(x + arrowSize / 2, cy)
             cv.rotate(motion?.arrowDeg ?: Trend.angleDeg(rate))
-            ValueGlyphs.arrow(cv, arrowSize * 1.05f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color },
+            ValueGlyphs.arrow(cv, arrowSize * ValueGlyphs.ARROW_IN_BOX, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color },
                 double = Trend.isDouble(rate))
             cv.restore()
             rec.add("value.trend", RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2), if (Trend.isDouble(rate)) "arrow double" else "arrow single")
@@ -731,16 +731,30 @@ object ValueGlyphs {
     /** The value is sized for at least this wide a number, so a strip beside it doesn't change from 99 to 188. */
     const val REFERENCE = "388"
 
+    /**
+     * The value's geometry on the card, in units of the number's text size: the digits' cap height, the gap from the
+     * number's advance to the trend mark's box, the mark's box and how much larger the arrow is drawn in it. The root
+     * status bar's module pulls its number and trend to the same proportion (hook/IconFit.CARD_GAP_OF_DIGIT).
+     */
+    const val CAP = 0.72f
+    const val MARK_GAP = 0.08f
+    const val MARK_BOX = 0.62f
+    const val ARROW_IN_BOX = 1.05f
+
+    /** The unit arrow's outline pointing +x: the shaft's corners, then the head's (tip at 0.46). */
+    val ARROW_SHAFT = floatArrayOf(-.42f, -.07f, .25f, .07f)
+    val ARROW_HEAD = listOf(.46f to 0f, .06f to .30f, .16f to 0f, .06f to -.30f)
+
     /** The unit arrow pointing +x ([scale] px long), at the Mac's geometry; [double] = a double arrow. */
     fun arrow(cv: Canvas, scale: Float, p: Paint, double: Boolean) {
-        fun head(tip: Float) = Path().apply {
-            moveTo(tip * scale, 0f); lineTo((tip - .40f) * scale, .30f * scale)
-            lineTo((tip - .30f) * scale, 0f); lineTo((tip - .40f) * scale, -.30f * scale); close()
+        fun head(shift: Float) = Path().apply {
+            ARROW_HEAD.forEachIndexed { i, (x, y) -> if (i == 0) moveTo((x + shift) * scale, y * scale) else lineTo((x + shift) * scale, y * scale) }
+            close()
         }
         val fill = Paint(p).apply { style = Paint.Style.FILL }
-        cv.drawRect(-.42f * scale, -.07f * scale, .25f * scale, .07f * scale, fill)
-        cv.drawPath(head(.46f), fill)
-        if (double) cv.drawPath(head(.12f), fill)
+        cv.drawRect(ARROW_SHAFT[0] * scale, ARROW_SHAFT[1] * scale, ARROW_SHAFT[2] * scale, ARROW_SHAFT[3] * scale, fill)
+        cv.drawPath(head(0f), fill)
+        if (double) cv.drawPath(head(-.34f), fill)
     }
 
     /** The arrow for [rate] in a [size] px square, or the "no trend" ring ([TrendMark.NONE]) when it's null. */
