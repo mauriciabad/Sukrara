@@ -661,17 +661,21 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         val text = when (what) {
             FIRED -> "${Kind.message(k, treated)}${if (n > 1) " ($n)" else ""}${if (remote) " (from the wearer)" else ""} · ${sgv ?: "–"} mg/dL"
             CLEARED -> "${Kind.label(k)} cleared${if (remote) " (by the wearer)" else ""}"
-            MUTED -> "${Kind.label(k)} muted for ${Durations.text(n, w)}${if (notification) " (notification)" else ""}"
-            RELAXED -> "${Kind.label(k)} relaxed: every ${Durations.text(n, w)}"
-            UNMUTED -> "${Kind.label(k)} unmuted"
-            UNRELAXED -> "${Kind.label(k)} back to every ${Durations.text(n, w)}"
-            BACK -> "${Kind.label(k)} back in range: mute and relax ended"
-            ALL_MUTED -> if (n == Alerts.NEVER_MIN) "All alerts muted until turned back on" else "All alerts muted for ${Durations.text(n, w)}"
-            ALL_BACK -> "Alerts back on"
+            // the side's lines as the app words them in English (MuteCopy, strings.xml alerts_note_*)
+            MUTED -> "${side(k)} alerts muted for ${Durations.text(n, w)}"
+            RELAXED -> "${side(k)} reminders every ${Durations.text(n, w)}"
+            UNMUTED -> "${side(k)} alerts unmuted"
+            UNRELAXED -> "${side(k)} reminders as usual (every ${Durations.text(n, w)})"
+            BACK -> "${side(k)} back in range: alerts as usual"
+            ALL_MUTED -> if (n == Alerts.NEVER_MIN) "All alerts muted until you turn it off" else "All alerts muted for ${Durations.text(n, w)}"
+            ALL_BACK -> "Alerts unmuted"
             else -> "resumed ${kinds.joinToString { Kind.label(it) }} (no sound)"
         }
         return "$t  $text${if (test) " (test)" else ""}"
     }
+
+    /** The side's English name in the mute lines (MuteCopy.side): very low is "Low". */
+    private fun side(k: String) = when (Kind.side(k)) { "low" -> "Low"; "high" -> "High"; else -> Kind.label(k) }
 
     companion object {
         const val FIRED = "fired"
@@ -681,11 +685,11 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         const val RELAXED = "relaxed"
         const val UNMUTED = "unmuted"
         const val UNRELAXED = "unrelaxed"
-        /** The side's Mute / Relax ended: back in range by the margin. */
+        /** The side's Mute / Remind less ended: back in range by the margin. */
         const val BACK = "back"
         /** Mute all started ([n] minutes, [Alerts.NEVER_MIN] = until turned back on). */
         const val ALL_MUTED = "all_muted"
-        /** Mute all ended: its time, or Turn alerts back on. */
+        /** Mute all ended: its time, or Unmute. */
         const val ALL_BACK = "all_back"
     }
 }

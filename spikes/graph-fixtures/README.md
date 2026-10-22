@@ -16,7 +16,7 @@ A case: `name`; optional `settings` (alert settings JSON, spikes/alerts/SPEC.md 
 | `allMuted` | optional: this device's *Mute all*, its end in seconds from now or `"never"` (until turned back on, AlertEngine.NEVER) |
 | `status` | `none`, `needed:<kind>`, `taken:<kind>:<treatment id>`, `paused:<kind>` or `muted` (in range or no current reading while Mute all is on) (AlertStatus) |
 | `until` | for `taken`: end of the mute, seconds from now |
-| `badge` | `null` or `{kind, text, short, tonal}` (StatusBadge.look, English words); `until` is `"never"` for Mute all without an end. A paused badge without an end reads "Muted"; the `muted` badge (kind `muted`: neutral colour, the "notifications off" bell) reads "Muted · 1h 20m" or "Alerts muted" (Never), short "Muted" |
+| `badge` | `null` or `{kind, text, short, tonal}` (StatusBadge.look, English words); `until` is `"never"` for Mute all without an end. A paused badge without an end reads "Muted"; the `muted` badge (kind `muted`: neutral colour, the "notifications off" bell) reads "Muted · 1h 20m" or "Muted" (until you turn it off), short "Muted" (spikes/alerts/copy.json `pill`) |
 | `last` | `null` or `{id, until, with?}` (LastTreatment.of; `until` null = its kind mutes nothing; `with` = the carbs drawn with running insulin, `{id, until}`, absent = none) |
 | `amounts` | `{id: "4.5u" \| null}` (TreatmentMarks.amount) |
 

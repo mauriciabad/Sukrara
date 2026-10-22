@@ -151,7 +151,7 @@ fun unitText(spec: NumberSpec): String = when (spec.unit) {
  * [presets] (default: the spec's) can be narrowed by the caller (Slow down), [customMin] raises the lowest custom
  * value, and [reject] returns a message for a value that is valid but not allowed here (a line already drawn).
  * [focusField] false keeps the keyboard closed (the JVM pictures: a blinking cursor never lets Compose idle).
- * [sub] gives an option a second line (Mute all's Never: "Until I turn them back on"). A spec whose unit is minutes
+ * [sub] gives an option a second line. A spec whose unit is minutes
  * labels its presets with Durations.text ("1 h", "2 h", not "60 min") through the caller's [label].
  */
 @Composable

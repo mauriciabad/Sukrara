@@ -31,7 +31,6 @@ import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.CardSurface
-import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GraphPalette
 import app.mauri.sukrara.graph.GraphSettings
@@ -55,10 +54,10 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 /**
- * Round f30 evidence + checks, rendered on the JVM from synthetic data: the home's Mute alerts control (off, until a
- * time, Never) driving the engine, the badge and back (Turn alerts back on, TalkBack actions), the muted pill on a
- * widget, the alert notification's actions (normal, relaxed, muted), and the duration texts of the settings (presets
- * "1 h / 2 h"). Out: the `f30` folder under `gallery.out`.
+ * Rounds f30 + f31 evidence and checks, rendered on the JVM from synthetic data: the home's Mute alerts control (off,
+ * for a time, until you turn it off) driving the engine, the badge and back (Unmute, TalkBack actions), the state line
+ * counting down, the muted pill on a widget, the alert notification's actions (normal, remind less, muted with its
+ * countdown), and the duration texts of the settings (presets "1 h / 2 h"). Out: the `f30` folder under `gallery.out`.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -90,25 +89,28 @@ class MuteAllGallery {
         return r
     }
 
-    /** Home → Mute alerts → 2 h → the engine, the badge, the state; Turn alerts back on → off again. */
+    /** Home → Mute alerts → For 2 h → the engine, the badge, the state; Unmute → off again. */
     @Test fun homeMuteAlertsForATimeAndBackOn() {
         home()
         shot("android-home-mute-alerts-off")
         compose.onNode(hasText("Mute alerts")).performClick()
         compose.waitForIdle()
         save("android-home-mute-alerts-dialog", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
-        compose.onNode(hasText("Until I turn them back on")).assertExists()
-        compose.onNode(hasText("2 h")).performClick()
+        // the choices as AOSP Do Not Disturb words them (spikes/alerts/copy.json `choice`), the one without an end last
+        for (c in listOf("For 30 min", "For 1 h", "For 2 h", "For 4 h", "For 8 h", "Until you turn it off", "Custom")) compose.onNode(hasText(c)).assertExists()
+        compose.onNode(hasText("Never")).assertDoesNotExist()
+        compose.onNode(hasText("For 2 h")).performClick()
         compose.waitForIdle()
         assertEquals(k.now + 7200, Alerts.allMuted.value)
         assertEquals(AlertStatus.Muted(k.now + 7200), k.status(120))
         assertEquals("Muted · 2h", StatusBadge.look(k.status(120), k.now)?.text)
-        compose.onNode(hasText("Alerts muted until ${Clock.time(k.now + 7200)}")).assertExists()
+        compose.onNode(hasText("Alerts muted · 2 h left")).assertExists()
         shot("android-home-muted-until")
         // TalkBack: the card says how to leave it
         val card = compose.onNode(SemanticsMatcher("has custom actions") { it.config.getOrNull(SemanticsActions.CustomActions)?.isNotEmpty() == true })
-        assertEquals(listOf("Alerts: Turn back on", "Alerts: Change mute"), card.fetchSemanticsNode().config[SemanticsActions.CustomActions].map { it.label })
-        compose.onNode(hasText("Turn alerts back on")).performClick()
+        assertEquals(listOf("Alerts: Unmute", "Alerts: Change time"), card.fetchSemanticsNode().config[SemanticsActions.CustomActions].map { it.label })
+        compose.onNode(hasText("Change time")).assertExists()
+        compose.onNode(hasText("Unmute")).performClick()
         compose.waitForIdle()
         assertEquals(0L, Alerts.allMuted.value)
         assertEquals(AlertStatus.None, k.status(120))
@@ -118,10 +120,11 @@ class MuteAllGallery {
     @Test fun homeMutedNeverAndTalkBackTurnsBackOn() {
         Alerts.muteAll(ctx, Alerts.NEVER_MIN)
         home()
-        compose.onNode(hasText("Alerts muted")).assertExists()
+        compose.onNode(hasText("Alerts muted until you turn it off")).assertExists()
+        assertEquals("Muted", StatusBadge.look(k.status(120), k.now)?.text)
         shot("android-home-muted-never")
         val card = compose.onNode(SemanticsMatcher("has custom actions") { it.config.getOrNull(SemanticsActions.CustomActions)?.isNotEmpty() == true })
-        val on = card.fetchSemanticsNode().config[SemanticsActions.CustomActions].first { it.label == "Alerts: Turn back on" }
+        val on = card.fetchSemanticsNode().config[SemanticsActions.CustomActions].first { it.label == "Alerts: Unmute" }
         compose.runOnUiThread { on.action() }
         assertEquals(0L, Alerts.allMuted.value)
     }
@@ -132,7 +135,7 @@ class MuteAllGallery {
         compose.setContent { SettingsTheme { AlertsScreen(follower = false) {} } }
         compose.waitForIdle()
         compose.onNode(hasText("Active now")).assertExists()
-        compose.onNode(hasText("Alerts muted until ${Clock.time(k.now + 3600)}")).assertExists()
+        compose.onNode(hasText("Alerts muted · 1 h left")).assertExists()
         shot("android-alerts-active-now-mute-all")
     }
 
@@ -141,7 +144,9 @@ class MuteAllGallery {
         compose.waitForIdle()
         compose.onNode(hasText("… for at least")).performScrollTo()
         shot("android-alerts-settings-actions")
-        compose.onNode(hasText("Relax: reminders every")).performClick()
+        compose.onNode(hasText("Mute: suggested time")).assertExists()
+        compose.onNode(hasText("Mute and Remind less end back in range by")).assertExists()
+        compose.onNode(hasText("Remind less: every")).performClick()
         compose.waitForIdle()
         save("android-relax-presets-after", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
         compose.onNode(hasText("Every 1 h 30 min")).assertExists()
@@ -163,8 +168,11 @@ class MuteAllGallery {
     }
 
     /** The posted notifications drawn from their own RemoteViews (what the shade inflates). */
-    private fun drawNotification(name: String, n: Notification) {
-        val b = Notification.Builder.recoverBuilder(ctx, n).setShowWhen(false)   // the JVM's clock isn't the test's
+    private fun drawNotification(name: String, n: Notification, showWhen: Boolean = false) {
+        // the JVM's clock isn't the test's; the muted one keeps its countdown chronometer (it runs from `when`)
+        val b = Notification.Builder.recoverBuilder(ctx, n).setShowWhen(showWhen)
+        // the chronometer counts from the framework's (Robolectric's) clock: keep the time left, not the instant
+        if (showWhen) b.setWhen(org.robolectric.shadows.ShadowSystem.currentTimeMillis() + (n.`when` - k.now * 1000))
         val views = b.createBigContentView() ?: b.createContentView()
         val parent = FrameLayout(ctx)
         val v = views.apply(ctx, parent)
@@ -179,11 +187,11 @@ class MuteAllGallery {
     @Test fun notificationActions() {
         k.reading(65)
         drawNotification("android-notification-normal", k.notification(Kind.LOW)!!)
-        k.tap(Kind.LOW, "Relax")
+        k.tap(Kind.LOW, "Remind less")
         drawNotification("android-notification-relaxed", k.notification(Kind.LOW)!!)
         k.tap(Kind.LOW, "Mute…", typed = "1 h")
-        drawNotification("android-notification-muted", k.notification(Kind.LOW)!!)
-        assertEquals(listOf("Unmute", "Change…"), k.buttons(Kind.LOW))
+        drawNotification("android-notification-muted", k.notification(Kind.LOW)!!, showWhen = true)
+        assertEquals(listOf("Unmute", "Change time"), k.buttons(Kind.LOW))
         assertTrue(SettingsSpec.MUTE_ALL.presets.contains(0.0))
     }
 }

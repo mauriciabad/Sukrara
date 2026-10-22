@@ -15,6 +15,7 @@ import androidx.core.graphics.PathParser
 import app.mauri.sukrara.alerts.AlertEngine
 import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.alerts.MuteCopy
 import app.mauri.sukrara.treatments.LastTreatment
 import app.mauri.sukrara.treatments.TreatmentMarks
 import kotlin.math.min
@@ -29,7 +30,8 @@ import kotlin.math.min
  * - Paused (this device's Mute of the side, or Mute all, while out of range): the same tonal pill and time left;
  *   "Muted" when it has no end ([app.mauri.sukrara.alerts.AlertEngine.NEVER]).
  * - Muted (Mute all, in range or without a current reading; round f30): a tonal pill in the neutral colour (kind
- *   "muted", like "sensor" / "now") with the "notifications off" bell: "Muted · 1h 20m", "Alerts muted" without an end.
+ *   "muted", like "sensor" / "now") with the "notifications off" bell: "Muted · 1h 20m", "Muted" without an end
+ *   (alerts/MuteCopy, spikes/alerts/copy.json).
  *
  * One look on every surface: the widgets and the lock screen draw it here, the app's panel with Compose
  * (`ui/Widgets.kt`, the same colours and words from [look]).
@@ -52,8 +54,8 @@ object StatusBadge {
             else TreatmentMarks.duration(s.until - now, up = true).let { Look(kind, w.timeLeft.format(it), it, true) }
         }
         is AlertStatus.Muted -> Words.current.let { w ->
-            if (s.until == AlertEngine.NEVER) Look(MUTED, w.alertsMuted, w.muted, true)
-            else Look(MUTED, w.mutedFor.format(TreatmentMarks.duration(s.until - now, up = true)), w.muted, true)
+            if (s.until == AlertEngine.NEVER) Look(MUTED, MuteCopy.pillForever(w), w.muted, true)
+            else Look(MUTED, MuteCopy.pill(MuteCopy.leftMin(s.until, now), w), w.muted, true)
         }
     }
 

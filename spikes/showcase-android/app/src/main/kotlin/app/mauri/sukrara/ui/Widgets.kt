@@ -107,9 +107,18 @@ import androidx.compose.ui.semantics.customActions
 
 /** Seconds since epoch, refreshed every [everyMs] while composed. */
 @Composable
-fun nowSeconds(everyMs: Long = 10_000): Long {
+fun nowSeconds(everyMs: Long = 10_000, countdowns: List<Long> = emptyList()): Long {
     var now by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
-    LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis() / 1000; delay(everyMs) } }
+    // [countdowns] = mute ends (epoch s): also wake exactly when one's time left changes (MuteCopy.nextChangeAt, the
+    // minute boundary counted from its end), so a countdown never shows a stale minute (round f31)
+    LaunchedEffect(countdowns) {
+        while (true) {
+            val ms = System.currentTimeMillis()
+            now = ms / 1000
+            val next = countdowns.mapNotNull { app.mauri.sukrara.alerts.MuteCopy.nextChangeAt(it, now) }.minOrNull()
+            delay(next?.let { (it * 1000 - ms).coerceIn(1, everyMs) } ?: everyMs)
+        }
+    }
     // back in the foreground: the current time at once, not up to [everyMs] later (validation 21: a 3-min-old value)
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) { now = System.currentTimeMillis() / 1000; onPauseOrDispose { } }
     return now
@@ -129,7 +138,6 @@ const val PANEL_CHART_DP = 210f
 @Composable
 fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: (() -> Unit)? = null, muteAlerts: Boolean = false) {
     val ctx = LocalContext.current
-    val now = nowSeconds()
     val cfg by GraphSettings.state.collectAsState()
     val dark = isSystemInDarkTheme()
     val pal = remember(dark) { systemPalette(ctx, dark) }
@@ -137,6 +145,8 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val alerts by Alerts.settings.collectAsState()
     val paused by Alerts.paused.collectAsState()
     val allMuted by Alerts.allMuted.collectAsState()
+    // the pill, the chips and Mute alerts' line tick down with the mutes (round f31)
+    val now = nowSeconds(countdowns = paused.values + allMuted)
     val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null

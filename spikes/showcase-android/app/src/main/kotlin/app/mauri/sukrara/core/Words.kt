@@ -24,11 +24,14 @@ data class Words(
     val alertsPaused: String = "%1\$s: alerts paused, %2\$s left",
     /** A side's mute without an end ([app.mauri.sukrara.alerts.AlertEngine.NEVER], Mute all), for screen readers. */
     val alertsPausedNever: String = "%1\$s: alerts muted",
-    /** Mute all (StatusBadge kind "muted", round f30): "Muted · 1h 20m", "Alerts muted" without an end, short "Muted". */
+    /**
+     * Mute alerts (StatusBadge kind "muted", rounds f30, f31): the pill "Muted · 1h 20m", "Muted" without an end (also
+     * its short form); [alertsMuted] / [alertsMutedDescription] are the screen reader's.
+     */
     val muted: String = "Muted",
     val mutedFor: String = "Muted · %1\$s",
-    val alertsMuted: String = "Alerts muted",
-    val alertsMutedDescription: String = "All alerts muted, %1\$s left",
+    val alertsMuted: String = "Alerts muted until you turn it off",
+    val alertsMutedDescription: String = "Alerts muted, %1\$s left",
     // short durations
     val durNow: String = "now",
     val durMinutes: String = "%1\$dm",

@@ -10,7 +10,7 @@ import android.content.Intent
 
 /**
  * The alert notification's two buttons ([AlertNotifier.Actions], round f30): *Mute…* (a reply: a chip like "1 h" or a
- * typed length) and *Relax* / *Stop relaxing*; the muted notification's *Unmute* and *Change…* (a *Mute…* reply). A
+ * typed length) and *Remind less* / *Remind as usual*; the muted notification's *Unmute* and *Change time* (a *Mute…* reply). A
  * reply that isn't a length in range changes nothing and posts the notification again (without sound), which also
  * takes the reply field's spinner away ("update the notification … to hide the direct reply UI").
  */
