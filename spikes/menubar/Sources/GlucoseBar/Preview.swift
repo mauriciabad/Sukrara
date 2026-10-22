@@ -100,7 +100,7 @@ enum PanelPreview {
             ("light-bright-zoom-3h", .aqua, true, 0, 3 * 3600, false, 0), ("dark-dark-zoom-15d", .darkAqua, false, 0, 15 * 86400 - 3600, false, 0),
             // a muted high and slowed reminders: the rows with their ways out under the card
             ("light-bright-quiet", .aqua, true, nil, nil, true, 0), ("dark-dark-quiet", .darkAqua, false, nil, nil, true, 0),
-            // Mute all for a time and with Never: "Alerts muted until …", Turn Alerts Back On, Change; the muted pill
+            // Mute all for a time and until turned off: "Alerts muted · 1 h 20 min left", Unmute, Change Time; the muted pill
             ("light-bright-muteall", .aqua, true, nil, nil, false, muteEnd), ("dark-dark-muteall-never", .darkAqua, false, nil, nil, false, AlertStatus.never),
         ]
         var windows: [NSWindow] = []

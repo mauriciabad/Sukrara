@@ -14,8 +14,8 @@ import SwiftUI
     @Published private(set) var state = ""
     /// Active now: the quiet alerts on this Mac with their ways out (round f29).
     @Published private(set) var quiet: [Alerts.Active] = []
-    /// Mute all on this Mac: "Alerts muted until 14:30" / "Alerts muted", nil = off.
-    @Published private(set) var allMuted: String?
+    /// Mute all's end on this Mac (unix s, 0 = off; `AlertStatus.never` = until turned off): the line ticks down.
+    @Published private(set) var allMuted: TimeInterval = 0
     @Published private(set) var following = false
 
     init(alerts: Alerts) {
@@ -30,10 +30,13 @@ import SwiftUI
 
     func perform(_ op: QuietOp) { alerts.perform(op); refreshState() }
 
+    /// The Now row's line at `t` (its Mute all part counts down).
+    func stateLine() -> String { alerts.stateLine }
+
     func refreshState() {
         state = alerts.stateLine
         quiet = alerts.active
-        allMuted = alerts.allMutedLine
+        allMuted = alerts.allMuted
         following = alerts.followingV2()
     }
 
@@ -93,22 +96,23 @@ struct AlertsView: View {
 
     var body: some View {
         Form {
-            if !model.quiet.isEmpty || model.allMuted != nil {
+            if !model.quiet.isEmpty || model.allMuted > Date().timeIntervalSince1970 {
                 // Active now (round f29, f30): Mute all and every muted / quiet / relaxed alert on this Mac with its
                 // ways out, reachable without the notification
                 Section("Active now") {
-                    if let line = model.allMuted {
-                        LabeledContent(line) {
+                    if model.allMuted > Date().timeIntervalSince1970 {
+                        LabeledContent {
                             HStack {
-                                Button("Turn Alerts Back On") { model.perform(.unmuteAll) }
-                                Menu("Change") {
-                                    ForEach(AlertActions.muteAllPresets.filter { $0 > 0 }, id: \.self) { m in
-                                        Button(muteAllLabel(m)) { model.perform(.muteAll(m)) }
-                                    }
-                                    Button("Never (until I turn them back on)") { model.perform(.muteAll(0)) }
+                                Button("Unmute") { model.perform(.unmuteAll) }.accessibilityLabel("Alerts: Unmute")
+                                Menu("Change Time") {
+                                    ForEach(muteAllChoices, id: \.1) { c in Button(c.0) { model.perform(.muteAll(c.1)) } }
                                 }
                                 .fixedSize()
-                                .accessibilityLabel("Change how long alerts stay muted")
+                                .accessibilityLabel("Alerts: Change time")
+                            }
+                        } label: {
+                            Countdown(until: Date(timeIntervalSince1970: model.allMuted)) { t in
+                                Text(MuteCopy.allLine(until: model.allMuted, now: t.timeIntervalSince1970) ?? "")
                             }
                         }
                     }
@@ -116,16 +120,16 @@ struct AlertsView: View {
                         LabeledContent {
                             HStack {
                                 if let l = q.lift { Button(l) { model.perform(.unmute(q.kind)) } }
-                                if q.relaxMin > 0 { Button("Stop Relaxing") { model.perform(.unrelax(q.kind)) } }
-                                else if q.canRelax { Button("Relax") { model.perform(.relax(q.kind)) } }
-                                Menu(q.quiet == .notification ? "Change To" : "Mute For") {
-                                    ForEach(quietMinutes, id: \.self) { m in Button(Durations.text(m)) { model.perform(.mute(q.kind, m)) } }
+                                if q.relaxMin > 0 { Button("Remind as Usual") { model.perform(.unrelax(q.kind)) } }
+                                else if q.canRelax { Button("Remind Less") { model.perform(.relax(q.kind)) } }
+                                Menu(quietMenuTitle(q)) {
+                                    ForEach(quietChoices, id: \.1) { c in Button(c.0) { model.perform(.mute(q.kind, c.1)) } }
                                 }
                                 .fixedSize()
-                                .accessibilityLabel(q.quiet == .notification ? "\(q.kind.title): change the mute" : "Mute \(q.kind.title)")
+                                .accessibilityLabel(quietMenuLabel(q))
                             }
                         } label: {
-                            Text(q.title)
+                            Countdown(until: q.ticks ? q.until : nil) { t in Text(q.title(now: t)) }
                             if q.quiet != nil, q.relaxMin > 0 { Text(q.relaxedLine) }
                         }
                     }
@@ -133,7 +137,12 @@ struct AlertsView: View {
             }
             Section {
                 Toggle("Glucose alerts", isOn: $model.s.on)
-                LabeledContent("Now") { Text(model.state).multilineTextAlignment(.trailing) }
+                LabeledContent("Now") {
+                    // its Mute all part counts down
+                    Countdown(until: model.allMuted > 0 ? Date(timeIntervalSince1970: model.allMuted) : nil) { _ in
+                        Text(model.stateLine()).multilineTextAlignment(.trailing)
+                    }
+                }
             } footer: {
                 if model.eff.source == "wearer" { note(model.following ? lockedNote : "Not following anyone over Sukrara's sharing, so the rules run on this Mac.") }
             }
@@ -173,13 +182,13 @@ struct AlertsView: View {
             }
             // the alert notification's buttons: local on every device (mirroring, they quiet this Mac's copy only)
             Section {
-                NumberSettingRow(title: "Mute…: first length offered", spec: SettingsSpec.actionMute, value: model.muteMin)
-                NumberSettingRow(title: "Relax: reminders every", spec: SettingsSpec.actionRelax, value: model.relaxMin,
+                NumberSettingRow(title: "Mute: suggested time", spec: SettingsSpec.actionMute, value: model.muteMin)
+                NumberSettingRow(title: "Remind Less: every", spec: SettingsSpec.actionRelax, value: model.relaxMin,
                                  presets: model.eff.relaxChoices.map(Double.init), customMin: Double(model.eff.relaxFloor + 1))
-                NumberSettingRow(title: "Mute and Relax end when back in range by", spec: SettingsSpec.backMgdl, value: model.backMgdl)
+                NumberSettingRow(title: "Mute and Remind Less end back in range by", spec: SettingsSpec.backMgdl, value: model.backMgdl)
                 NumberSettingRow(title: "… for at least", spec: SettingsSpec.backMin, value: model.backMin)
             } header: { Text("From the notification") } footer: {
-                note("Mute and Relax act on one side, lows or highs, on this Mac only.")
+                note("Mute and Remind Less act on one side, lows or highs, on this Mac only.")
             }
             .disabled(!model.s.on)
             Section {

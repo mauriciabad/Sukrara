@@ -2015,21 +2015,21 @@ enum StatusBadge {
             let d = TreatmentMarks.duration(until - now, up: true)
             return Look(kind: k.lowSide ? "carbs" : "rapid", text: "\(d) left", short: d, tonal: true)
         case .muted(let until):             // Mute all in range: neutral, the "notifications off" bell
-            if until >= AlertStatus.never { return Look(kind: "muted", text: "Alerts muted", short: "Muted", tonal: true) }
-            return Look(kind: "muted", text: "Muted · \(TreatmentMarks.duration(until - now, up: true))", short: "Muted", tonal: true)
+            if until >= AlertStatus.never { return Look(kind: "muted", text: MuteCopy.pillForever, short: "Muted", tonal: true) }
+            return Look(kind: "muted", text: MuteCopy.pill(leftMin: MuteCopy.leftMin(until - now)), short: "Muted", tonal: true)
         }
     }
 
-    /// For screen readers.
+    /// For screen readers (the mute lines are MuteCopy's: "Low alerts muted · 12 min left").
     static func describe(_ s: AlertStatus, now: TimeInterval) -> String? {
         switch s {
         case .none: nil
         case .needed: look(s, now: now)?.text
-        case .paused(let k, let until) where until >= AlertStatus.never: "\(k.title): alerts muted until turned back on"
-        case .taken(let k, _, let until), .paused(let k, let until):
-            "\(k.title): alerts paused, \(Durations.text(seconds: until - now)) left"
-        case .muted(let until) where until >= AlertStatus.never: "All alerts muted until turned back on"
-        case .muted(let until): "All alerts muted, \(Durations.text(seconds: until - now)) left"
+        // only Mute all has no end
+        case .paused(_, let until) where until >= AlertStatus.never: MuteCopy.allForever
+        case .paused(let k, let until): MuteCopy.sideMuted(k.side, leftMin: MuteCopy.leftMin(until - now))
+        case .taken(let k, _, let until): "\(k.title): alerts paused, \(Durations.text(seconds: until - now)) left"
+        case .muted(let until): MuteCopy.allLine(until: until, now: now) ?? MuteCopy.allForever
         }
     }
 

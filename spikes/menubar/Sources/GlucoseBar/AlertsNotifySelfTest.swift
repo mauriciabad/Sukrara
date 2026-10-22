@@ -53,8 +53,11 @@ import UserNotifications
         func cat(_ c: UNNotificationContent?) -> String { c?.categoryIdentifier ?? "nothing" }
         func title(_ c: UNNotificationContent?) -> String { c?.title ?? "nothing" }
         func at(_ m: Int) -> String { Clock.time(clock.addingTimeInterval(TimeInterval(m * 60))) }
+        /// The muted notification as "title | text" ("Low alerts muted | Until 10:42": the end, Mac can't count down).
+        func note(_ c: UNNotificationContent?) -> String { c.map { "\($0.title) | \($0.body)" } ?? "nothing" }
+        func muted(_ m: Int) -> String { "Low alerts muted | Until \(at(m))" }
 
-        // Categories: every alert has Mute… (a text input) and at most Relax / Stop relaxing; the muted one Unmute + Change….
+        // Categories: every alert has Mute… (a text input) and at most Remind Less / Remind as Usual; the muted one Unmute + Change Time….
         do {
             let (_, rec) = make()
             let c = Dictionary(uniqueKeysWithValues: rec.categories.map { ($0.identifier, $0.actions) })
@@ -64,24 +67,28 @@ import UserNotifications
             }
             print("      registered categories: " + c.keys.sorted().map { "\($0) = \(describe(c[$0]!))" }.joined(separator: " | "))
             check("notify: the four categories", Set(c.keys) == ["alert-r", "alert-u", "alert", "muted"], "\(c.keys.sorted())")
-            check("notify: alert-r = Mute… (text input, \"30 min, 1 h, 2 h…\") + Relax",
-                  describe(c["alert-r"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…], relax:Relax", describe(c["alert-r"] ?? []))
-            check("notify: alert-u = Mute… + Stop relaxing", describe(c["alert-u"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…], unrelax:Stop relaxing",
+            check("notify: alert-r = Mute… (text input, \"30 min, 1 h, 2 h…\") + Remind Less",
+                  describe(c["alert-r"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…], relax:Remind Less", describe(c["alert-r"] ?? []))
+            check("notify: alert-u = Mute… + Remind as Usual", describe(c["alert-u"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…], unrelax:Remind as Usual",
                   describe(c["alert-u"] ?? []))
-            check("notify: alert (Relax wouldn't slow it) = Mute… alone", describe(c["alert"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…]", describe(c["alert"] ?? []))
-            check("notify: muted = Unmute + Change… (the same input)", describe(c["muted"] ?? []) == "unmute:Unmute, mute:Change…[30 min, 1 h, 2 h…]",
+            check("notify: alert (Remind Less wouldn't slow it) = Mute… alone", describe(c["alert"] ?? []) == "mute:Mute…[30 min, 1 h, 2 h…]", describe(c["alert"] ?? []))
+            check("notify: muted = Unmute + Change Time… (the same input)", describe(c["muted"] ?? []) == "unmute:Unmute, mute:Change Time…[30 min, 1 h, 2 h…]",
                   describe(c["muted"] ?? []))
             check("notify: no alert category has more than two actions, none a one-tap Mute n min / Slow to",
-                  rec.categories.allSatisfy { $0.actions.count <= 2 && $0.actions.allSatisfy { !$0.title.contains("min") && !$0.title.hasPrefix("Slow") } }, "")
+                  rec.categories.allSatisfy { $0.actions.count <= 2 && $0.actions.allSatisfy { !$0.title.split(separator: " ").contains("min") && !$0.title.hasPrefix("Slow") } }, "")
         }
 
-        // The dropdown's Mute alerts lengths (the schema's muteAll presets, 0 = Never) and its Custom… input.
+        // The dropdown's Mute Alerts choices (the schema's muteAll presets, 0 = until turned off) and its Custom… input;
+        // menu items title-style (HIG), the units as written ("min", "h").
         do {
-            let menu = AlertActions.muteAllPresets.filter { $0 > 0 }.map(muteAllLabel) + ["Never (until I turn them back on)", "Custom…"]
-            print("      Mute alerts menu: " + menu.joined(separator: " · "))
-            check("mute all: the menu offers 30 min · 1 h · 2 h · 4 h · 8 h · Never · Custom…",
-                  menu == ["30 min", "1 h", "2 h", "4 h", "8 h", "Never (until I turn them back on)", "Custom…"] && AlertActions.muteAllPresets.contains(0),
+            let menu = muteAllChoices.map(\.0) + ["Custom…"]
+            print("      Mute Alerts menu: " + menu.joined(separator: " · "))
+            check("mute all: the menu offers For 30 min · For 1 h · For 2 h · For 4 h · For 8 h · Until You Turn It Off · Custom…",
+                  menu == ["For 30 min", "For 1 h", "For 2 h", "For 4 h", "For 8 h", "Until You Turn It Off", "Custom…"]
+                  && muteAllChoices.last?.1 == 0 && AlertActions.muteAllPresets.contains(0),
                   menu.joined(separator: " · "))
+            check("mute: the side lengths read For 15 min · For 30 min · For 1 h · For 2 h",
+                  quietChoices.map(\.0) == ["For 15 min", "For 30 min", "For 1 h", "For 2 h"], quietChoices.map(\.0).joined(separator: " · "))
             check("mute all: a custom length takes 5 min – 24 h", AlertActions.muteAllRange == 5...1440, "\(AlertActions.muteAllRange)")
         }
 
@@ -102,24 +109,30 @@ import UserNotifications
                   title(rec.up["no_data"]) == "No glucose data" && cat(rec.up["no_data"]) == "alert", "\(title(rec.up["no_data"])) \(cat(rec.up["no_data"]))")
         }
 
-        // Side muted: Mute… with a typed length → the passive "Low muted until …" (Unmute + Change…); Change; bad text; Unmute.
+        // Side muted: Mute… with a typed length → the passive "Low alerts muted" / "Until …" (Unmute + Change Time…); Change Time; bad text; Unmute.
         do {
             clock = t0
             let (a, rec) = make()
             feed(a, 60)
             a.respond("mute", .low, typed: "1 h")
-            check("muted: Mute… \"1 h\" → \"Low muted until \(at(60))\" (Unmute + Change…, passive)",
-                  title(rec.level) == "Low muted until \(at(60))" && cat(rec.level) == "muted" && rec.level?.interruptionLevel == .passive,
+            check("muted: Mute… \"1 h\" → \"\(muted(60))\" (Unmute + Change…, passive)",
+                  note(rec.level) == muted(60) && cat(rec.level) == "muted" && rec.level?.interruptionLevel == .passive,
                   "\(title(rec.level)) \(cat(rec.level))")
             check("muted: the badge's pause and the panel row", a.paused["low"] == clock.timeIntervalSince1970 + 3600
                   && a.active.first.map { $0.quiet == .notification && $0.lift == "Unmute" } == true, "\(a.paused) \(a.active)")
+            let row = a.active.first
+            check("muted: the row counts down: \"Low alerts muted · 1 h left\", 41 min later \"· 19 min left\", Change Time",
+                  row?.title(now: clock) == "Low alerts muted · 1 h left" && row?.title(now: clock + 41 * 60) == "Low alerts muted · 19 min left"
+                  && row?.title(now: clock + 41 * 60 + 30) == "Low alerts muted · 19 min left" && row?.title(now: clock + 59 * 60 + 59) == "Low alerts muted · 1 min left"
+                  && row.map(quietMenuTitle) == "Change Time" && row.map(quietMenuLabel) == "Low alerts: Change time",
+                  row.map { "\($0.title(now: clock)) / \($0.title(now: clock + 41 * 60))" } ?? "none")
             a.respond("mute", .low, typed: "15 min")
-            check("muted: Change… \"15 min\" → until \(at(15))", title(rec.level) == "Low muted until \(at(15))", title(rec.level))
+            check("muted: Change… \"15 min\" → until \(at(15))", note(rec.level) == muted(15), title(rec.level))
             a.respond("mute", .low, typed: "soon")
-            check("muted: a reply that isn't a length changes nothing", title(rec.level) == "Low muted until \(at(15))" && cat(rec.level) == "muted",
+            check("muted: a reply that isn't a length changes nothing", note(rec.level) == muted(15) && cat(rec.level) == "muted",
                   title(rec.level))
             a.respond("mute", .low, typed: "")
-            check("muted: an empty reply = the setting (30 min)", title(rec.level) == "Low muted until \(at(30))", title(rec.level))
+            check("muted: an empty reply = the setting (30 min)", note(rec.level) == muted(30), title(rec.level))
             walk(a, 50, minutes: 2)
             check("muted: a low's Mute covers very low (no alert while it lasts)", cat(rec.level) == "muted", "\(title(rec.level)) \(cat(rec.level))")
             a.respond("unmute", .low, typed: nil)
@@ -152,7 +165,7 @@ import UserNotifications
             let (a, rec) = make()
             feed(a, 60)
             a.perform(.mute(.low, 30))
-            check("muted: the panel / pill menu's Mute For 30 min posts the muted notification too", title(rec.level) == "Low muted until \(at(30))",
+            check("muted: the panel / pill menu's Mute › For 30 min posts the muted notification too", note(rec.level) == muted(30),
                   title(rec.level))
         }
 
@@ -183,15 +196,15 @@ import UserNotifications
             let (a, rec) = make()
             feed(a, 60)
             a.respond("relax", .low, typed: nil)
-            check("relaxed: the notification comes back silently with Stop relaxing", cat(rec.level) == "alert-u" && rec.level?.sound == nil,
+            check("relaxed: the notification comes back silently with Remind as Usual", cat(rec.level) == "alert-u" && rec.level?.sound == nil,
                   cat(rec.level))
-            check("relaxed: \"Low relaxed: reminders every 30 min\" in the panel", a.active.first?.title == "Low relaxed: reminders every 30 min",
-                  a.active.first?.title ?? "none")
+            check("relaxed: \"Low reminders every 30 min\" in the panel", a.active.first?.title(now: clock) == "Low reminders every 30 min",
+                  a.active.first?.title(now: clock) ?? "none")
             let adds = rec.ops.filter { $0.hasPrefix("add level") }.count
             walk(a, 60, minutes: 10)
             check("relaxed: no repeat at the low's 5 min", rec.ops.filter { $0.hasPrefix("add level") }.count == adds, "\(rec.ops.suffix(3))")
             a.respond("unrelax", .low, typed: nil)
-            check("relaxed: Stop relaxing → the overdue repeat at once, with Relax", cat(rec.level) == "alert-r"
+            check("relaxed: Remind as Usual → the overdue repeat at once, with Remind Less", cat(rec.level) == "alert-r"
                   && rec.ops.filter { $0.hasPrefix("add level") }.count == adds + 1, "\(cat(rec.level)) \(rec.ops.suffix(3))")
         }
 
@@ -217,14 +230,16 @@ import UserNotifications
             check("mute all: the alert up goes", rec.level == nil, title(rec.level))
             check("mute all: the quiet episode isn't listed as a falling mute (no Alert Me Anyway; Android 3d8c8e9b)",
                   a.active.isEmpty && a.engine.quiets().isEmpty, "\(a.active)")
-            check("mute all: \"Alerts muted until \(at(60))\" and the pill's end", a.allMutedLine == "Alerts muted until \(at(60))"
+            check("mute all: \"Alerts muted · 1 h left\" and the pill's end", a.allMutedLine == "Alerts muted · 1 h left"
                   && a.allMuted == clock.timeIntervalSince1970 + 3600, a.allMutedLine ?? "nil")
             walk(a, 50, minutes: 2)
             walk(a, 320, minutes: 2)
             clock += 25 * 60; a.testTick()
             check("mute all: very low, extremely high and no data post nothing", rec.up.isEmpty, "\(rec.up.keys.sorted())")
+            check("mute all: \"· 31 min left\" 29 min later", a.allMutedLine == "Alerts muted · 31 min left", a.allMutedLine ?? "nil")
             a.perform(.muteAll(0))
-            check("mute all: Change to Never → \"Alerts muted\"", a.allMutedLine == "Alerts muted" && a.allMuted == AlertStatus.never, a.allMutedLine ?? "nil")
+            check("mute all: Change Time › Until You Turn It Off → \"Alerts muted until you turn it off\"",
+                  a.allMutedLine == "Alerts muted until you turn it off" && a.allMuted == AlertStatus.never, a.allMutedLine ?? "nil")
             feed(a, 320)
             a.perform(.unmuteAll)
             check("mute all: Turn alerts back on → what matches alerts at once", title(rec.level) == "Extremely high glucose" && a.allMutedLine == nil,
@@ -258,7 +273,7 @@ import UserNotifications
             check("mirror: the wearer's low posts here with Mute… + Relax", title(rec.level) == "Low glucose" && cat(rec.level) == "alert-r",
                   "\(title(rec.level)) \(cat(rec.level))")
             a.respond("mute", .low, typed: "45")
-            check("mirror: Mute… → \"Low muted until \(at(45))\"", title(rec.level) == "Low muted until \(at(45))" && cat(rec.level) == "muted",
+            check("mirror: Mute… → \"\(muted(45))\"", note(rec.level) == muted(45) && cat(rec.level) == "muted",
                   title(rec.level))
             clock += 60; feed(a, 50)
             _ = wearer("very_low", sgv: 50)
