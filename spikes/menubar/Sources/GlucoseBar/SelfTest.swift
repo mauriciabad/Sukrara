@@ -80,6 +80,15 @@ enum SelfTest {
         check("fixture.json: every treatment decodes", !rows.isEmpty && fromFixture.count == rows.count)
         check("fixture.json: the pen entry keeps pr / pen / pd", fp?.a == 8.5 && fp?.pr == 1.5 && fp?.pen == "FHB2N9KE"
               && fp?.pd?.map(\.p) == [true, true, false, false] && fp.map { Treatment(dict: $0.dict) == $0 } == true)
+        // The public spec's vector (spec/test-vectors/ogs-draft1.json `treatment_payloads`, OGS D§6.1): the pen entry
+        // is accepted with its keys, every invalid one is rejected whole.
+        let tp = (FileManager.default.contents(atPath: dir.appendingPathComponent("spec/test-vectors/ogs-draft1.json").path))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["treatment_payloads"] as? [String: Any]
+        let ogsPen = (tp?["pen-entry"] as? [String: Any]).flatMap { Treatment(dict: $0) }
+        check("OGS vector: pen entry accepted with its keys", ogsPen?.a == 8.5 && ogsPen?.pr == 1.5 && ogsPen?.pen == "SYNTHETIC-PEN-1"
+              && ogsPen?.pd?.count == 4 && ogsPen.map { Treatment(dict: $0.dict) == $0 } == true)
+        let invalid = tp?["invalid"] as? [[String: Any]] ?? []
+        check("OGS vector: \(invalid.count) invalid pen entries rejected", invalid.count >= 7 && invalid.allSatisfy { Treatment(dict: $0) == nil })
         MainActor.assumeIsolated {
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-selftest-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: dir) }
