@@ -65,7 +65,7 @@ fun ClinicUploadBanner(open: (String) -> Unit) {
                     Icon(painterResource(R.drawable.ic_sym_cloud_upload), contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                     Text(stringResource(R.string.upload_banner_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { Features.update { it.copy(uploadBannerDismissed = true) } }) {
+                    IconButton(onClick = { app.mauri.sukrara.features.Tips.close(ctx, app.mauri.sukrara.features.Tips.Tip.CLINIC_UPLOAD) }) {
                         Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.upload_banner_dismiss),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     }

@@ -351,6 +351,7 @@
     <string name="badge_replace_sensor">Cambiar sensor</string>
     <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
     <string name="badge_replace_sensor_short">Sensor</string>
+    <string name="card_pill_alert_options">Mostrar opciones de alertas</string>
     <!-- Chart: the pill over a chart scrolled into the past; a tap scrolls back to the latest reading [CHAR LIMIT=10] -->
     <string name="chart_back_to_now">Ahora</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
@@ -1061,6 +1062,14 @@
     <string name="libreview_upload_every">Subir cada</string>
     <string name="upload_banner_title">Comparte tus datos con tu clínica</string>
     <string name="upload_banner_dismiss">Descartar</string>
+    <string name="tips_closed">Consejo cerrado</string>
+    <string name="tips_undo">Deshacer</string>
+    <string name="tips_show_again">Mostrar consejos cerrados</string>
+    <string name="tips_none_closed">No hay consejos cerrados</string>
+    <plurals name="tips_closed_count">
+        <item quantity="one">%d consejo cerrado</item>
+        <item quantity="other">%d consejos cerrados</item>
+    </plurals>
 
     <!-- Settings: overview of both roles -->
     <string name="settings_title">Ajustes</string>
@@ -1146,6 +1155,10 @@
     <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">Ningún dispositivo</string>
+    <string name="people_nearby_forget">Olvidar</string>
+    <string name="people_nearby_forget_title">¿Olvidar este dispositivo?</string>
+    <string name="people_nearby_forget_text">%1$s dejará de recibir tu glucosa. Para volver a compartir con él, usa Vincular cerca.</string>
+    <string name="people_nearby_forget_confirm">Olvidar dispositivo</string>
     <string name="people_footer">Al quitar a alguien se cambia la clave de lectura, así que deja de recibir lecturas nuevas al instante. Los seguidores a los que permitas añadir registros pueden apuntar insulina, hidratos y notas por ti.</string>
     <string name="people_remove_title">¿Quitar a %1$s?</string>
     <string name="people_remove_text">Deja de recibir lecturas nuevas al instante: Sukrara cambia la clave de lectura y la vuelve a enviar a todos los demás.</string>

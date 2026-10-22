@@ -59,8 +59,9 @@ extension Bands {
     var alertActive: (() -> [Alerts.Active])?
     var onQuiet: ((QuietOp) -> Void)? { didSet { panelModel.onQuiet = onQuiet } }
     var onLogTreatment: ((Treatment) -> Void)?
-    /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
-    var onAddTreatment: ((NSScreen?) -> Void)?
+    /// The panel's *Add Treatment…* (field nil) and the card's *Eat carbs* / *Take insulin* pill (field "carbs" /
+    /// "rapid"): open the Add Treatment window on this screen (the menubar item's) with that field focused.
+    var onAddTreatment: ((NSScreen?, String?) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
@@ -88,9 +89,9 @@ extension Bands {
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        panelModel.onAddTreatment = { [weak self] in
+        panelModel.onAddTreatment = { [weak self] field in
             self?.panel.close(.handOff)
-            self?.onAddTreatment?(self?.item.button?.window?.screen)
+            self?.onAddTreatment?(self?.item.button?.window?.screen, field)
         }
         panelModel.onFollow = { [weak self] in self?.panel.close(.handOff); self?.onFollow?() }
         panelModel.onReport = { [weak self] in self?.panel.close(.handOff); self?.onReport?() }
@@ -389,6 +390,13 @@ enum MacSurface {
 /// The glucose card (investigation 16): value, trend arrow, time-in-range rings and the graph with its side profile,
 /// drawn by the shared renderer (SukraraGraph.swift) like the widgets and Sukrara for Android, here in the panel's
 /// module on the menu material.
+/// The card pill's VoiceOver button: VoiceOver's press (VO-Space) runs `press`.
+final class PillAccessibilityElement: NSAccessibilityElement {
+    let press: () -> Bool
+    init(press: @escaping () -> Bool) { self.press = press; super.init() }
+    override func accessibilityPerformPress() -> Bool { press() }
+}
+
 final class CardView: NSView {
     var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
@@ -397,9 +405,39 @@ final class CardView: NSView {
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
     var allMuted: TimeInterval = 0 { didSet { needsDisplay = true } }
-    /// A click on the status pill ("45m left"): its box (view coordinates) and this view.
+    /// A click on the status pill ("Eat carbs", "45m left"): its box (view coordinates) and this view.
     var onStatus: ((CGRect, NSView) -> Void)?
+    /// This Mac may log entries: *Eat carbs* / *Take insulin* then open Add Treatment (PillAction).
+    var canAddTreatment = false
     private var statusBox: CGRect?
+
+    /// The pill as a VoiceOver button (round f33): its words as the label ("Eat carbs"), what pressing does as the help
+    /// ("Add Treatment"), pressing = clicking it. The card itself stays a picture; only the pill acts.
+    override func accessibilityChildren() -> [Any]? {
+        var children = super.accessibilityChildren() ?? []
+        if let e = pillElement() { children.append(e) }
+        return children
+    }
+
+    /// The accessibility element for the pill, or nil when no pill is drawn or it does nothing here.
+    func pillElement() -> NSAccessibilityElement? {
+        guard let statusBox, onStatus != nil, let alerts else { return nil }
+        let status = AlertStatus.of(readings.last, alerts, marks, now: nowT, paused: paused, allMuted: allMuted)
+        guard let name = PillAction.of(status, canAdd: canAddTreatment).actionName, let text = StatusBadge.describe(status, now: nowT)
+        else { return nil }
+        let box = statusBox.offsetBy(dx: inset.left, dy: inset.top)
+        let e = PillAccessibilityElement { [weak self] in
+            guard let self else { return false }
+            self.onStatus?(box, self)
+            return true
+        }
+        e.setAccessibilityRole(.button)
+        e.setAccessibilityLabel(text)
+        e.setAccessibilityHelp(name)
+        e.setAccessibilityParent(self)
+        e.setAccessibilityFrameInParentSpace(box)
+        return e
+    }
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)

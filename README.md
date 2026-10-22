@@ -125,7 +125,8 @@ by the app's icon code.</sub>
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). Until one is placed, home offers *Add widget*
-  (the launcher's own dialog), dismissible. [12](docs/12-android-widgets.md),
+  (the launcher's own dialog), dismissible. Every tip card you close offers *Undo* right away, and Settings →
+  *Show closed tips* brings them all back. [12](docs/12-android-widgets.md),
   The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low), now or earlier: pick
@@ -137,7 +138,8 @@ by the app's icon code.</sub>
   Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
   (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
   followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
-- Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
+- Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*; tap it to log
+  carbs or insulin right away, on the phone and the Mac), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left (carbs eaten while insulin works: two rings, `8u` over `5g`); without a
   recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
@@ -226,7 +228,7 @@ by the app's icon code.</sub>
   from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all, and see which followers are connected now and on what (phone or Mac; each device proves who it is) (Settings →
-  Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
+  Share with people → Nearby devices; tap one to *Forget* it, and pair it again any time). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,

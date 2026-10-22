@@ -94,7 +94,7 @@ if CommandLine.arguments.contains("-v2selftest") { exit(MainActor.assumeIsolated
 if CommandLine.arguments.contains("-v2relaytest") { exit(MainActor.assumeIsolated { V2RelayTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
-if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } ? 0 : 1) }
+if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } && PillAction.selfTest() ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-panelselftest") { exit(MainActor.assumeIsolated { PanelSelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
@@ -548,12 +548,13 @@ MainActor.assumeIsolated {
     treatmentDialog.model.settings = { alerts.settings }
     treatmentDialog.model.mirroring = { alerts.mode == .wearer }
     treatmentDialog.model.onSave = { entries in entries.forEach { status.onLogTreatment?($0) } }
-    status.onAddTreatment = { screen in
-        // the latest fresh reading below an enabled low-side threshold: carbs takes the focus (Android's dialog too)
+    status.onAddTreatment = { screen, field in
+        // the card's pill names its field (Eat carbs → carbs, Take insulin → rapid); else the latest fresh reading below an
+        // enabled low-side threshold puts carbs first (Android's dialog too)
         let low = readingsStore.readings.last.flatMap {
             AlertStatus.level(mgdl: $0.v, at: $0.t, alerts.settings, now: Date().timeIntervalSince1970)
         }?.lowSide ?? false
-        treatmentDialog.show(low: low, on: screen)
+        treatmentDialog.show(focus: field ?? (low ? "carbs" : "rapid"), on: screen)
     }
     status.onDeleteTreatment = { id in
         let p = paths()
@@ -717,7 +718,7 @@ MainActor.assumeIsolated {
     // Debug aid: open Add Treatment at launch (`-openAddTreatment YES`), logging its window for `screencapture -l`.
     if args.contains("-openAddTreatment") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            status.onAddTreatment?(nil)
+            status.onAddTreatment?(nil, nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 let f = treatmentDialog.frame, top = NSScreen.screens.first?.frame.maxY ?? 0
                 log("add treatment window \(treatmentDialog.windowNumber) rect \(Int(f.minX)),\(Int(top - f.maxY)),\(Int(f.width)),\(Int(f.height))")

@@ -278,6 +278,20 @@ class BleOwner(
         peers.values.filter { it.subscribed && it.dev.address != exceptAddr }.forEach { enqueue(it, payload) }
     }
 
+    /**
+     * Drops the links whose identity proof named follower [f] (Settings → Nearby devices → *Forget this device*). If
+     * that device connects again, its proof no longer names a current follower, so it isn't listed or trusted.
+     */
+    fun disconnect(f: String) {
+        peers.values.filter { it.f == f }.forEach { p ->
+            p.f = null
+            p.kind = null
+            log("BLE: ${p.dev.address} forgotten — disconnecting it")
+            runCatching { server?.cancelConnection(p.dev) }
+        }
+        changed()
+    }
+
     override fun subscribe(id: String, filters: () -> List<JSONObject>, onEvent: (JSONObject, String) -> Unit) = Unit
     override fun unsubscribe(id: String) = Unit
     override fun hasSubscription(id: String) = false

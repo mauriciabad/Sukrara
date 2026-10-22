@@ -134,9 +134,12 @@ const val PANEL_CHART_DP = 210f
  * [GlucoseCard] in two parts with one whole-card style ([CardPart.HEADER]: value, arrow, status badge, sensor badge,
  * slots; [CardPart.GRAPH]: the chart), so nothing here lays the card out. Only the motion is the panel's own, and it
  * is paint only ([CardMotion]): the number rolls, the arrow turns, the colour fades (Motion.kt's specs).
+ *
+ * [onAdd] opens Add treatment (null = this device can't add entries) with the field to focus: null from the
+ * *Add treatment* button, `carbs` / `rapid` from the *Eat carbs* / *Take insulin* pill ([PillAction]).
  */
 @Composable
-fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: (() -> Unit)? = null, muteAlerts: Boolean = false) {
+fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, onAdd: ((String?) -> Unit)? = null, muteAlerts: Boolean = false) {
     val ctx = LocalContext.current
     val cfg by GraphSettings.state.collectAsState()
     val dark = isSystemInDarkTheme()
@@ -179,7 +182,15 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     PanelCard(reading, history, treatments, now, cfg, pal, alerts, paused, sensor, countdownH, scroll = scroll, allMuted = allMuted,
         metricsOf = { s, _ -> metrics[s.windowS] ?: GlucoseMetrics.of(emptyList(), 0, 0, cfg.bands) },
         onEnded = if (app.mauri.sukrara.App.role(ctx) == "owner") ({ ctx.startActivity(MainActivity.sensorIntent(ctx)) }) else null,
-        onStatus = { sheet = it }, a11y = quietA11yActions(ctx, active) + muteAllA11yActions(ctx, allMuted) { muteAll = true }) {
+        canAdd = onAdd != null,
+        onPill = { p ->
+            when (p) {
+                is PillAction.Treat -> onAdd?.invoke(p.field)
+                is PillAction.Quiet -> sheet = p.kind
+                PillAction.MuteAll -> muteAll = true
+                PillAction.None -> Unit
+            }
+        }, a11y = quietA11yActions(ctx, active) + muteAllA11yActions(ctx, allMuted) { muteAll = true }) {
         // what the pill doesn't show (it shows a level alert's mute): slowed reminders, a quiet fast-change alert
         val pillKind = (AlertStatus.of(reading, alerts, treatments, now, paused, allMuted) as? AlertStatus.Paused)?.kind
             ?: (AlertStatus.of(reading, alerts, treatments, now, paused, allMuted) as? AlertStatus.Taken)?.kind
@@ -198,7 +209,7 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         if (muteAll) MuteAllDialog(onClose = { muteAll = false })
         subtitle?.let { Text(it, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         onAdd?.let {
-            androidx.compose.material3.FilledTonalButton(onClick = it, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
+            androidx.compose.material3.FilledTonalButton(onClick = { it(null) }, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
                 androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(app.mauri.sukrara.R.drawable.ic_sym_add),
                     contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
                 Text(stringResource(R.string.treatment_title))
@@ -210,7 +221,9 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
 /**
  * The panel's card (its one drawing entry, also the tests'): the header and the chart, both [GlucoseCard] parts of
  * the style built from the App place's settings. [onEnded] = what a tap does while the sensor has ended (the
- * "Replace sensor" pill's action, like the widgets' tap); null = nothing.
+ * "Replace sensor" pill's action, like the widgets' tap); null = nothing. [onPill] = what the status pill does
+ * ([PillAction.of] with [canAdd]: whether this device may add entries); the pill is then a button for touch and
+ * TalkBack ([PillButton]).
  */
 @Composable
 fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.mauri.sukrara.treatments.Treatment>, now: Long,
@@ -218,7 +231,8 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
               paused: Map<String, Long>, sensor: app.mauri.sukrara.core.SensorInfo?, countdownH: Int,
               metricsOf: (RingSpec, app.mauri.sukrara.graph.Bands) -> GlucoseMetrics, onEnded: (() -> Unit)?,
               scroll: ChartScroll = remember { ChartScroll() },
-              onStatus: ((String) -> Unit)? = null, a11y: List<androidx.compose.ui.semantics.CustomAccessibilityAction> = emptyList(),
+              onPill: ((PillAction) -> Unit)? = null, canAdd: Boolean = false,
+              a11y: List<androidx.compose.ui.semantics.CustomAccessibilityAction> = emptyList(),
               allMuted: Long = 0,
               footer: @Composable () -> Unit = {}) {
     val ctx = LocalContext.current
@@ -254,29 +268,31 @@ fun PanelCard(reading: Reading?, history: List<Reading>, treatments: List<app.ma
     val color by animateColorAsState(Color(target), Motion.slowEffectsSpec(), label = "range")
     val motion = CardMotion(from, roll.value, up, angle, color.toArgb())
     val desc = app.mauri.sukrara.widgets.describeCard(ctx, reading, now, treatments)
-    // a muted level alert's pill ("45m left", AlertStatus Taken / Paused) opens its ways out ([onStatus], AlertSheet.kt)
-    val quietKind = when (val st = AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, now, paused, allMuted)) {
-        is AlertStatus.Taken -> st.kind
-        is AlertStatus.Paused -> st.kind
-        else -> null
-    }
-    val pill = remember { arrayOfNulls<android.graphics.RectF>(1) }
+    // the status pill is an action (round f33): Eat carbs / Take insulin → Add treatment, a mute's pill → its ways out
+    val status = AlertStatus.of(readings.maxByOrNull { it.t }, alerts, treatments, now, paused, allMuted)
+    val action = PillAction.of(status, canAdd)
+    // where the renderer drew the pill (px in the header); state, so the pill's button follows it
+    var pill by remember { androidx.compose.runtime.mutableStateOf<android.graphics.RectF?>(null) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Canvas(Modifier.fillMaxWidth().height(PANEL_HEADER_DP.dp).semantics {
-                    contentDescription = desc
-                    if (a11y.isNotEmpty()) customActions = a11y
+            androidx.compose.foundation.layout.Box {
+                Canvas(Modifier.fillMaxWidth().height(PANEL_HEADER_DP.dp).semantics {
+                        contentDescription = desc
+                        if (a11y.isNotEmpty()) customActions = a11y
+                    }
+                    .then(if (face.state == app.mauri.sukrara.graph.GlucoseLook.State.ENDED && onEnded != null) Modifier.clickable { onEnded() } else Modifier)) {
+                    drawIntoCanvas {
+                        val rec = GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
+                            CardSurface.APP_PANEL, CardPart.HEADER, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
+                            countdownH = countdownH, paused = paused, allMuted = allMuted, motion = motion)
+                        val box = rec.first("value.status")?.box
+                        if (box != pill) pill = box?.let { b -> android.graphics.RectF(b) }
+                    }
                 }
-                .then(if (face.state == app.mauri.sukrara.graph.GlucoseLook.State.ENDED && onEnded != null) Modifier.clickable { onEnded() } else Modifier)
-                .then(if (quietKind != null && onStatus != null) Modifier.pointerInput(quietKind) {
-                    detectTapGestures { p -> if (pill[0]?.let { b -> android.graphics.RectF(b).apply { inset(-8 * density, -8 * density) }.contains(p.x, p.y) } == true) onStatus(quietKind) }
-                } else Modifier)) {
-                drawIntoCanvas {
-                    val rec = GlucoseCard.draw(it.nativeCanvas, size.width, size.height, readings, treatments, now, card, pal, density,
-                        CardSurface.APP_PANEL, CardPart.HEADER, metricsOf = metricsOf, alerts = alerts, sensor = sensor,
-                        countdownH = countdownH, paused = paused, allMuted = allMuted, motion = motion)
-                    pill[0] = rec.first("value.status")?.box
-                }
+                val p = pill
+                if (p != null && onPill != null && action != PillAction.None)
+                    PillButton(p, StatusBadge.describe(ctx, status, now) ?: "", stringResource(
+                        if (action is PillAction.Treat) R.string.treatment_title else R.string.card_pill_alert_options)) { onPill(action) }
             }
             if (fresh.showGraph) {
                 Spacer(Modifier.height(8.dp))

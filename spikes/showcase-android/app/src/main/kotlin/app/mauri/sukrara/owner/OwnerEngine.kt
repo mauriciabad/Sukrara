@@ -892,9 +892,7 @@ class OwnerEngine(private val ctx: Context) {
         // single use: the invite is done; it stays until it expires so later requesters still get "invite-used"
         s.invites[idx] = inv.copy(done = true)
         s.pending.removeIf { it.token == p.token }
-        s.followers.removeIf { it.f == f }
-        s.followers += Follower(f, p.name, Proto.nowS(), avatar = p.avatar)
-        if (p.nearby) s.nearbyPaired += f
+        NearbyDevices.approved(s.followers, s.nearbyPaired, p, Proto.nowS())
         save()
         deliverKey(f)
         publishBackup()
@@ -931,6 +929,27 @@ class OwnerEngine(private val ctx: Context) {
         sendRevoked(f)
         rotate("revoked ${fol.name}")
         _ui.update { it.copy(busy = null) }
+        publishUi()
+    }
+
+    /**
+     * Settings → Share with people → Nearby devices → *Forget this device*: [NearbyDevices.forget] (trust, nearby
+     * pairing, writer, waiting request), the Bluetooth link dropped, then what Remove does for a follower that was
+     * trusted (revoked notice + rotation). It can pair again with *Pair nearby*.
+     */
+    fun forget(f: String) = scope.launch(serial) {
+        val s = st ?: return@launch
+        val fol = s.followers.lastOrNull { it.f == f && it.revoked == null }
+        if (!NearbyDevices.forget(s.followers, s.nearbyPaired, s.writers, s.pending, f, Proto.nowS())) return@launch
+        save()
+        log.i("FORGOT nearby device of ${fol?.name ?: f.take(12)}")
+        if (fol != null) {
+            _ui.update { it.copy(busy = ctx.getString(R.string.sharing_busy_removing, fol.name)) }
+            sendRevoked(f)          // over the link too, before it's dropped
+            rotate("forgot ${fol.name}")
+            _ui.update { it.copy(busy = null) }
+        }
+        ble?.disconnect(f)
         publishUi()
     }
 

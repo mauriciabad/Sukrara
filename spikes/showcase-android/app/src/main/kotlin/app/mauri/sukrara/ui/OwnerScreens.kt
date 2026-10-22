@@ -74,6 +74,8 @@ interface OwnerActions {
     fun approve(f: String)
     fun deny(f: String)
     fun revoke(f: String)
+    /** Nearby devices → Forget this device (owner/NearbyDevices.forget). */
+    fun forget(f: String)
     fun setSynthetic(on: Boolean)
     fun checkNow()
     suspend fun ncryptsec(password: String): String?
@@ -125,6 +127,7 @@ fun OwnerOnboarding(busy: String?, error: String?, a: OwnerActions) {
 fun OwnerHome(u: OwnerUi, a: OwnerActions) {
     val ctx = LocalContext.current
     var adding by remember { mutableStateOf(false) }
+    var addFocus by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // the wearer's own profile: what followers see; tap to edit
@@ -157,7 +160,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         // the newest of the engine's state and the source's (the engine catches up after publishing; the source at once)
         val liveLast by remember { app.mauri.sukrara.wearer.Live.status.map { it.last }.distinctUntilChanged() }.collectAsState(null)
         val last = listOfNotNull(u.last, liveLast).maxByOrNull { it.t }
-        GlucosePanel(last?.sgv, last?.rate, last?.t, subtitle = UserErrors.source(ctx, u.source, u.sourceError), onAdd = { adding = true }, muteAlerts = true)
+        GlucosePanel(last?.sgv, last?.rate, last?.t, subtitle = UserErrors.source(ctx, u.source, u.sourceError), onAdd = { addFocus = it; adding = true }, muteAlerts = true)
         // an untested sensor family (investigation 23): the feedback banner, directly under the graph, for as long as it is used
         UntestedSensorBanner()
         // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)
@@ -176,7 +179,7 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         }
         Spacer(Modifier.size(24.dp))
     }
-    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) })
+    if (adding) TreatmentDialog(onDismiss = { adding = false }, onSave = { QuickEntry.save(ctx, it) }, focus = addFocus)
     u.busy?.let { BusyDialog(it) }
 }
 
