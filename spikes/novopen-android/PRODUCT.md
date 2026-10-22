@@ -81,10 +81,15 @@ DESIGN §4 numbers in brackets. "Small" = below the priming size (setting, defau
 10. **[§3] Changed: no movable start date.** Replaced (as already sent to the engineer) by **Doses read**: every
     session the pen holds, each with its status; an earlier injection is logged one at a time with *Log this
     injection* (merge preview included). Reason: one place, no date picker, no bulk import of years.
-11. **New: a big read asks first.** A read that would log an injection **older than 72 h** (pen not scanned for days,
-    reading turned back on, new phone) logs nothing on its own; the sheet says *Check 23 injections* and opens a review
-    (§4.9). Reason: "never flood the log" applies to every read, not just the first; 72 h leaves the normal
-    every-day-or-two habit silent.
+11. **New: a big read is flagged, not held.** A read that logs an injection **older than 72 h** (pen not scanned
+    for days, reading turned back on, new phone) logs like any read (rules 1–10, merges included) and the card says
+    *23 injections logged since 2 Oct* with *Review* (§4.9) and *Undo*. Reason: the user (2026-10-23): a pen read is
+    never confirmed and nothing blocks; the flood risk is the pen's pre-Sukrara history, which rule 9 already keeps out.
+17. **Nothing blocks a read** (the user, 2026-10-23: "the user doesn't have to confirm the pen reading … it cannot be
+    something blocking"). Every read logs what the rules decide at once and reports it in a card that closes by itself
+    plus a quiet notification. The only things that wait are the doses the rules can't decide (rule 5, the user's own
+    "ask" case; they are *not* logged meanwhile, everything else in the same read is) and the one-time untested-pen
+    check (§6). Even the first scan of a new pen doesn't open the app (§4.7).
 12. **[§4.4] Priming alone never makes an entry**; it stays visible in Doses read (*Only priming*).
 13. **Pen flags**: a dose the pen marks incomplete counts with the units the pen reports as delivered and shows
     *Incomplete* in the dose list; it never asks. A partial or failed read logs **nothing** (*Couldn't read the pen*).
@@ -125,28 +130,40 @@ TalkBack focus is inside). Live region (polite) announces the title. Haptics: `C
 | State | Title (en / es) | Line(s) | Pills |
 |---|---|---|---|
 | reading | *Reading your pen…* / *Leyendo la pluma…* | *Keep it still.* / *No la muevas.* | — |
-| logged, 1 | *8.5u logged* / *8.5u registradas* | *Rapid · 13:12 · 1.5u primed* / *Rápida · 13:12 · 1.5u purgadas* (no priming part when 0); + merge line *Replaced your 8u entry at 13:05* / *Sustituye tu entrada de 8u de las 13:05* | *Undo* / *Deshacer*, *Open* / *Abrir* |
-| logged, several | *3 injections logged* / *3 inyecciones registradas* | *14.5u since yesterday 21:40* / *14.5u desde ayer 21:40*; + *2 replaced your entries* / *2 sustituyen tus entradas* | *Undo*, *Open* |
-| entry grew (top-up after an earlier scan) | *Now 8.5u* / *Ahora 8.5u* | *Rapid · 13:12 · 0.5u added* / *Rápida · 13:12 · 0.5u añadidas* | *Undo*, *Open* |
+| logged, 1 | *8.5u logged* / *8.5u registradas* | *Rapid · 13:12 · 1.5u primed* / *Rápida · 13:12 · 1.5u purgadas* (no priming part when 0); + merge line *Replaced your 8u entry at 13:05* / *Sustituye tu entrada de 8u de las 13:05* | *Add treatment* / *Añadir tratamiento*, *Undo* / *Deshacer*; the card body opens the entry (§4.3) |
+| logged, several | *3 injections logged* / *3 inyecciones registradas* | *14.5u since yesterday 21:40* / *14.5u desde ayer 21:40*; + *2 replaced your entries* / *2 sustituyen tus entradas* | *Add treatment*, *Undo* |
+| entry grew (top-up after an earlier scan) | *Now 8.5u* / *Ahora 8.5u* | *Rapid · 13:12 · 0.5u added* / *Rápida · 13:12 · 0.5u añadidas* | *Add treatment*, *Undo* |
 | nothing new | *Nothing new* / *Nada nuevo* | *Last injection: 8.5u at 13:12* / *Última inyección: 8.5u a las 13:12* | — (closes after 3 s) |
 | only priming so far (pending) | *Only priming so far* / *Por ahora solo purgado* | *Hold the pen to the phone again after you inject.* / *Vuelve a acercar la pluma después de inyectarte.* | — |
 | unclear | *Priming or injected?* / *¿Purgado o inyección?* | *1u and 1.5u at 13:02* / *1u y 1.5u a las 13:02* | *Log 1.5u* / *Registrar 1.5u* (the suggestion), *Check* / *Revisar* (opens §4.4) |
 | same injection? | *Same injection?* / *¿Es la misma inyección?* | *Pen 8.5u at 13:12 · yours 5u at 13:05* / *Pluma 8.5u a las 13:12 · tuya 5u a las 13:05* | *Check* / *Revisar* (opens §4.5) |
-| big read | *Check 23 injections* / *Revisa 23 inyecciones* | *Since 2 Oct. Nothing is logged until you do.* / *Desde el 2 oct. No se registra nada hasta que lo hagas.* | *Check* / *Revisar* (opens §4.9) |
+| big read (rule 11) | *23 injections logged* / *23 inyecciones registradas* | *Since 2 Oct · 18 replaced your entries* / *Desde el 2 oct · 18 sustituyen tus entradas* | *Review* / *Revisar* (§4.9), *Undo* |
 | clock changed | *Pen clock changed* / *El reloj de la pluma ha cambiado* | *Nothing new was logged. Check its doses.* / *No se ha registrado nada nuevo. Revisa sus dosis.* | *Check* / *Revisar* (Doses read) |
 | failed / partial | *Couldn't read the pen* / *No se ha podido leer la pluma* (error container, the only red) | *Nothing was logged. Hold it to the phone until it vibrates.* / *No se ha registrado nada. Mantenla junto al teléfono hasta que vibre.* | — (tapping again retries) |
 | pen not usable (untested, failed check) | *Sukrara doesn't log this pen* / *Sukrara no registra esta pluma* | *Its doses didn't match its display.* / *Sus dosis no coincidían con su pantalla.* | *Open* |
-| new pen | — opens §4.7 directly (the only read that brings Sukrara forward) | | |
+| new pen | *New pen added* / *Pluma nueva añadida* | *NovoPen Echo Plus · rapid · 412 earlier doses left out* / *NovoPen Echo Plus · rápida · 412 dosis anteriores fuera* | *Log 8.5u* / *Registrar 8.5u* (its newest injection, only if < 24 h old; rule 9 merge applies, the line then says *Matches your 8u entry*), *Set up* / *Configurar* (§4.7) |
 
 Several states at once: logged + unclear → the logged card with the unclear line under it and both pill sets
 (*Undo*, *Check*). *Undo* removes the entries this read created and puts merged entries back as they were (a new
 version, so LibreView and followers follow); the sheet then says *Undone* / *Deshecho*, *Nothing from this read is
 logged.* / *No queda nada registrado de esta lectura.* and closes. Undone sessions show *Not logged* in Doses read,
-where *Log this injection* brings them back. *Open* opens Sukrara's home with the entry's sheet (§4.3).
+where *Log this injection* brings them back. Tapping the card's text opens Sukrara's home with the entry's sheet
+(§4.3). At most two pills per card (*Check* takes *Add treatment*'s place when something waits).
 
-Notifications: **none on success** (the sheet is the feedback; the entry is in the list). One channel *Pen doses* /
-*Dosis de la pluma* (default importance, silent, no vibration: the read already vibrated) used only for what waits for
-the user: §4.4/4.5/4.9 left unanswered when the sheet closes.
+**Add treatment** (the user, 2026-10-23: after lunch they inject rapid and long, and want to add the other treatments
+from where they see the pen read): opens the existing Quick treatment dialog (`QuickTreatmentActivity`, over the app
+the user is in) with *When?* set to the pen injection's time (*Today 13:12*), focus on the field the pen didn't fill:
+**Long** after a rapid read (their after-lunch case; carbs one tap away), **Rapid** after a long read. A second pen
+of the other kind makes this unnecessary: tapping it too gives its own card. The dialog's duplicate warning (§4.6) still
+applies, so re-typing the pen's dose is caught. Offered on the read card, the read notification, the pen entry sheet
+(§4.3) and Doses read's session sheets.
+
+**Read notification** (non-blocking, so the result is still there after the card closed or the phone was put down):
+channel *Pen reads* / *Lecturas de la pluma*, **low importance** (no sound, no vibration, no heads-up: the card and
+the haptic already told the user), title = the card's title (*8.5u logged*), text = its line, actions *Add treatment*
+and *Undo*; tap = the entry's sheet. Each read replaces the previous one; it times out after 2 h. Swiping it away
+changes nothing. A second channel *Pen doses to check* / *Dosis de la pluma por revisar* (default importance, silent)
+carries only what waits for the user (§4.4, §4.5) and stays until answered.
 
 ### 4.2 Home: treatments list row
 
@@ -170,7 +187,7 @@ flows after answering. Header total updates live while correcting.
  ─────────────────────────────────────────────────
  Pizza                                      (note, if any)
  Replaced your 8u entry at 13:05            (if merged)
- ( Delete )                              ( Done )
+ ( Delete )        ( Add treatment )       ( Done )
 ```
 
 - Strings: *From your pen* / *De tu pluma*; with two pens *From <pen name>* / *De <nombre>*; *1.5u primed* /
@@ -226,10 +243,40 @@ of that kind: AlertDialog title *Already logged by your pen?* / *¿Ya lo registr
 13:12* / *8.5u rápida a las 13:12*, buttons *Cancel* / *Cancelar* (back to the dialog, values kept) and *Log anyway*
 / *Registrar igualmente*. Only the insulin part is held; carbs and note in the same save are saved either way.
 
+### 4.6b Reading the pen into the treatment dialog
+
+The user, 2026-10-23: the Add treatment dialog shows a minimal sign that the pen can be read there, and a tap fills
+the dialog; **here a confirmation is right**, because the dialog already had *Save* from the start.
+
+- While the dialog is open (home, Quick treatment / widget / tile / notification) and pen reading is on with NFC on,
+  the dialog's activity holds NFC reader mode for pens. The sign: a 20 dp contactless-pen icon (`ic_dia_pen_nfc`,
+  onSurfaceVariant) at the end of the title row, before the *When?* chip. No text. TalkBack: *Hold your pen to the
+  phone to fill this in* / *Acerca tu pluma al teléfono para rellenarlo*. Hidden when reading is off, NFC is off or
+  blocked, or on a follower.
+- A tap reads the pen (the icon spins as the wavy ring; `CONFIRM` / `REJECT` haptics) and takes the **newest
+  not-yet-logged injection**: its injected units go into **Rapid** or **Long** by the pen's kind (the field gets the
+  pen colour mark and the supporting line *From the pen · 1.5u primed* / *De la pluma · 1.5u purgadas*), *When?* is
+  set to its time (*Today 13:12*); carbs and note typed in the same dialog share that time. Nothing is logged yet.
+- *Save* logs it as a pen entry (rules 2–8: priming, merge with a hand entry, all as on a background read; a merge
+  shows on home as the usual snackbar *Replaced your 8u entry at 13:05* · *Undo*). *Cancel* logs nothing from the pen:
+  its doses stay unread, so the next tap anywhere logs them as usual.
+- Unclear doses (rule 5) fill the suggestion and the supporting line reads *1u primed · tap to change* / *1u purgadas ·
+  toca para cambiar*; tapping it opens §4.3's dose list with the segmented buttons inside the dialog. Saving is the
+  answer.
+- Typing over a pen-filled amount turns it back into a hand-typed value (mark and line go away); the pen's doses are
+  then matched on the next read as usual (rule 6).
+- Other new injections in the same read (older than the newest) are logged as on a background read; the dialog shows
+  one line under the fields: *Also logged: 2 earlier injections* / *También registradas: 2 inyecciones anteriores*.
+- Nothing new: the icon area shows *Nothing new* / *Nada nuevo* for 3 s; failure: *Couldn't read the pen* in the
+  error colour for 3 s; the fields are untouched either way. A new pen read here is added (rapid) and fills the
+  dialog with its newest injection if < 24 h old (rule 9).
+- The Mac has no NFC: nothing changes there.
+
 ### 4.7 New pen (first scan)
 
 Full-screen, the New sensor screen's shape (close button, illustration, title, content, action at the bottom; no
-step bar: one step). Opens from the first tap of an unknown serial.
+step bar: one step). Opens from the new-pen card's *Set up* (and the pen page), **not** by itself: the first tap
+already added the pen as rapid (§4.1 *New pen added*), so the user can ignore the setup entirely.
 
 ```
  ✕                                   
@@ -309,10 +356,9 @@ session: time, `8.5u` big, summary with the status:
 | ignored | *Ignored: time in the future* / *Ignorada: hora futura* | — |
 | incomplete dose inside | *· Incomplete dose* / *· dosis incompleta* appended | as its status |
 
-Big-read review (rule 11) is this page filtered to the waiting read: top banner *23 injections since 2 Oct aren't
-logged yet* / *23 inyecciones desde el 2 oct aún no están registradas*, pills *Log all* / *Registrar todas* and *Not
-now* / *Ahora no*; each row says *New* / *Nueva* or *Replaces your 8u entry*. *Not now* leaves them *Not logged*
-(log one at a time later). Way in: the read sheet, the notification, the home card *Check 23 injections*.
+*Review* (rule 11) opens this page filtered to that read: top line *23 injections logged on 23 Oct* / *23
+inyecciones registradas el 23 oct* and the pill *Undo this read* / *Deshacer esta lectura*; each row says *New* /
+*Nueva* or *Replaced your 8u entry* / *Sustituyó tu entrada de 8u*; a row opens §4.3 (correct or delete one).
 
 ### 4.10 Debug (screenshots, emulator only, `DebugFakes.run`)
 
@@ -321,8 +367,11 @@ plus `--es cmd penEntry` (opens §4.3 with a fake 4-dose entry), `penQuestion` (
 
 ## 5. Journeys (states and exits)
 
-1. **First scan of a new pen**: unlock → tap → §4.7 opens → kind, optional *Log it* → *Done*. Exits: ✕/back (kind
-   rapid), later the pen page changes kind / forgets. Nothing older logged; it's all in Doses read.
+1. **First scan of a new pen**: unlock → tap → card *New pen added* (rapid) → optional *Log 8.5u*, optional *Set up*
+   (§4.7: kind, the same offer). Nothing blocks; nothing older is logged (Doses read has it). Exits: the pen page
+   changes kind / forgets.
+1b. **Rapid + long after lunch**: tap the rapid pen → card *8.5u logged* → *Add treatment* → Long focused, time 13:12
+   → *Save*. Or tap a second (long) pen: its own card.
 2. **Everyday background scan**: in any app, tap → read sheet *8.5u logged* (merge line if any) → closes by itself.
    Exits: *Undo* (sheet), later §4.3 Delete / correct, Doses read *Not logged* → *Log this injection*.
 3. **Scan with Sukrara open**: same read sheet over Sukrara (one reader, also from the sensor screen's reader mode);
@@ -350,9 +399,12 @@ Any pen the OpenNov reader identifies whose model isn't *NovoPen Echo Plus* (Nov
 reports) is **supported but untested**, `PenProfile.verified = false`, like sensor families. The Echo Plus becomes
 verified with the user's first real scan in this round.
 
-- First scan: before §4.7, the sensor flow's red **Untested pen** confirmation (`untested_confirm_*` pattern, 10 s
+- First tap: nothing is logged and nothing opens; the card says *Untested pen added* / *Pluma sin probar añadida* ·
+  *NovoPen 6 · check it once before Sukrara logs it* / *NovoPen 6 · compruébala una vez para que Sukrara la registre*
+  with *Set up*, and the pen row says *Check it to start* until then (the notification carries the same). *Set up*
+  shows the sensor flow's red **Untested pen** confirmation (`untested_confirm_*` pattern, 10 s
   *Continue anyway (10)*, *Cancel* tonal): *Sukrara's support for NovoPen 6 is untested: doses may be read wrong.* /
-  *El soporte de Sukrara para NovoPen 6 no está probado: las dosis pueden leerse mal.* Cancel = the pen isn't added.
+  *El soporte de Sukrara para NovoPen 6 no está probado: las dosis pueden leerse mal.* Cancel = stays unchecked (nothing logged; *Set up* again any time).
 - Then §4.7 adds one **check with the pen's display** before *Done*: *Remove the cap: does your pen show 0.5u and 2
   hours?* / *Quita el capuchón: ¿tu pluma muestra 0.5u y 2 horas?* (the newest dose, priming included, and the whole
   hours since: what the display shows), buttons *It doesn't* / *No coincide* and *It matches* / *Coincide*. Matches →
@@ -399,9 +451,10 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 1 | Insulin pens off (default) | Overview *Insulin pens · Off*; page intro, switch off, no pen rows |
 | 2 | On, no pen yet | *Your pens* empty line; priming row *2u* with the rule footer |
 | 3 | NFC off / blocked / Juggluco installed with pen reading | the matching status row with its fix; overview summary says *Blocked in Android settings* when blocked |
-| 4★ | First tap of an Echo Plus with 412 old doses, newest 8.5u 4 min ago, a hand 8u at 13:10 | §4.7: model, serial, Rapid preselected, *412 earlier doses stay out of your log.*, last-injection card with *Matches your 8u entry at 13:10* and *Log it*; no entries added before *Log it* |
+| 4★ | First tap of an Echo Plus with 412 old doses, newest 8.5u 4 min ago, a hand 8u at 13:10 | Sukrara doesn't open; card *New pen added* · *NovoPen Echo Plus · rapid · 412 earlier doses left out* · *Matches your 8u entry*, *Log 8.5u* + *Set up*; nothing logged until *Log 8.5u*; *Set up* opens §4.7 with the same offer |
 | 5 | Same, *Log it* | pill becomes *Logged*; home list shows one `8.5u rapid · from the pen` (not two) |
-| 6★ | Background tap: `1, 0.5, 8, 0.5` | read sheet *8.5u logged* · *Rapid · 13:12 · 1.5u primed*; *Undo*, *Open*; it closes by itself; no notification |
+| 6★ | Background tap: `1, 0.5, 8, 0.5` | entry logged with no confirmation; card *8.5u logged* · *Rapid · 13:12 · 1.5u primed*, *Add treatment* + *Undo*, no scrim, the app behind stays usable, closes by itself; a low-importance notification with the same text and actions (no heads-up, no sound) |
+| 6b★ | *Add treatment* after a rapid read (card, notification, §4.3) | Quick treatment over the current app, *When?* = *Today 13:12*, focus on Long; saving 14u long logs it at 13:12; typing 8.5u rapid there triggers §4.6 |
 | 7 | `5, 0.5, 0.5, 1, 3` (split around a cartridge) | *8u logged* · *2u primed*; §4.3 shows 5 Injected, three Priming, 3 Injected |
 | 8 | Merge with a hand 8u at 13:05 | sheet line *Replaced your 8u entry at 13:05*; list has one row with the hand entry's note |
 | 9 | *Undo* on 8 | *Undone*; the hand 8u entry is back as it was; Doses read shows *Not logged* |
@@ -420,8 +473,10 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 22 | Hand 3u at 13:05 vs pen 8.5u | *Same injection?* (amount outside tolerance) with *Different injections* / *Same injection* |
 | 23 | Caregiver's hand entry is the candidate | *Logged by Ana · 8u at 13:05* |
 | 24★ | Type 8u rapid 10 min after a pen entry | *Already logged by your pen?* · *8.5u rapid at 13:12*; *Cancel* returns with the values; carbs in the same save are saved |
+| 24b★ | Add treatment open, tap the pen after `1, 0.5, 8, 0.5` | before: the small contactless-pen icon in the title row (TalkBack label); after: Rapid = 8.5 with *From the pen · 1.5u primed*, *When?* = *Today 13:12*, nothing logged yet; *Save* logs one pen entry (merge snackbar when a hand entry matched); *Cancel* logs nothing and a later tap logs it |
+| 24c | Same with a long pen; with `1, 1.5`; typing over the filled value; nothing new; failure | Long filled; suggestion with *1u primed · tap to change*; mark gone; *Nothing new* / red *Couldn't read the pen* for 3 s, fields untouched |
 | 25 | Failed / partial read | red sheet *Couldn't read the pen*, REJECT haptic, nothing in the list |
-| 26 | Pen not scanned for 5 days | sheet *Check 23 injections*; review page with *New* / *Replaces your 8u entry* rows, *Log all*, *Not now*; nothing logged before *Log all* |
+| 26 | Pen not scanned for 5 days | logged at once; card *23 injections logged* · *Since 2 Oct · 18 replaced your entries*, *Review* + *Undo*; Review = Doses read filtered to that read |
 | 27 | Pen clock reset | *Pen clock changed*; no new entries; Doses read shows the doses |
 | 28 | Future-dated dose | not logged; Doses read *Ignored: time in the future* |
 | 29 | Incomplete dose flag | counted; *Incomplete* tag in §4.3 and Doses read; no question |
