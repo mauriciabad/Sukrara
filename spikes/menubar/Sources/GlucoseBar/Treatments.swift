@@ -58,7 +58,20 @@ struct Treatment: Codable, Equatable {
         pr = try c.decodeIfPresent(Double.self, forKey: .pr)
         pen = try c.decodeIfPresent(String.self, forKey: .pen)
         pd = try c.decodeIfPresent([PenDose].self, forKey: .pd)
+        // OGS D§6.1 receiver rules for the pen keys: the whole entry is rejected (a dose without an integer `t` or a
+        // number `a`, or a `p` that isn't a boolean, already fails to decode above)
+        func bad(_ why: String) -> DecodingError { .dataCorrupted(.init(codingPath: [], debugDescription: why)) }
+        if let pr, pr < 0 { throw bad("negative pr") }
+        if let pen, pen.utf8.count > Self.penMaxBytes { throw bad("pen over 32 bytes") }
+        if let pd {
+            if pd.count > Self.pdMax { throw bad("more than 20 doses") }
+            if pd.contains(where: { $0.a < 0 }) { throw bad("negative dose") }
+            if zip(pd, pd.dropFirst()).contains(where: { $0.t > $1.t }) { throw bad("doses out of time order") }
+        }
     }
+
+    static let penMaxBytes = 32
+    static let pdMax = 20
 
     /// SPEC §1 merge: newer (u, o) wins.
     static func merge(_ cur: Treatment?, _ inc: Treatment) -> Treatment {
