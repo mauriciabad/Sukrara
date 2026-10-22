@@ -22,6 +22,6 @@
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/NightscoutUploadScreen.kt"], "qa": ["Q17 Nightscout upload"]},
     {"paths": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/upload/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/UploadUi.kt"], "qa": ["Q16 Tidepool upload", "Q17 Nightscout upload"]},
     {"paths": ["spikes/settings/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/settings/*", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsDialogs.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/GraphScreen.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/AlertsScreen.kt", "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsFrom.kt", "spikes/menubar/Sources/GlucoseBar/SettingsUI.swift", "spikes/menubar/Sources/GlucoseBar/AlertsUI.swift"], "qa": ["Q18 Settings: numbers, Settings from, ring order"]},
-    {"paths": ["spikes/showcase-android/app/src/main/*", "spikes/menubar/Sources/*", "spikes/widgets-macos/Shared/*", "spikes/widgets-macos/Widget/*"], "qa": ["Q19 Complete flows (states and exits)"]}
+    {"paths": ["spikes/showcase-android/app/src/main/*", "spikes/menubar/Sources/*", "spikes/widgets-macos/Shared/*", "spikes/widgets-macos/Widget/*"], "qa": ["Q19 Complete flows (states and exits)", "Q20 The person and the feel"]}
   ]
 }
