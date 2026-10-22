@@ -190,7 +190,7 @@ class AlertExitsTest {
     @Test fun muteAllNeverLastsUntilTurnedBackOnAndCoversNoData() {
         k.start()
         k.reading(120)
-        Alerts.muteAll(k.ctx, Alerts.NEVER_MIN)
+        Alerts.muteAll(k.ctx, Alerts.UNTIL_TURNED_OFF_MIN)
         assertEquals(AlertEngine.NEVER, Alerts.allMuted.value)
         assertEquals("All alerts muted until you turn it off", k.history().first())
         assertEquals(AlertStatus.Muted(AlertEngine.NEVER), k.status(120))
@@ -218,7 +218,7 @@ class AlertExitsTest {
     @Test fun muteAllSurvivesARestart() {
         k.start()
         k.reading(120)
-        Alerts.muteAll(k.ctx, Alerts.NEVER_MIN)
+        Alerts.muteAll(k.ctx, Alerts.UNTIL_TURNED_OFF_MIN)
         // an app update kills the process: the saved state is all that's left
         Alerts.detach()
         Alerts.resetForTests(keepSaved = true)

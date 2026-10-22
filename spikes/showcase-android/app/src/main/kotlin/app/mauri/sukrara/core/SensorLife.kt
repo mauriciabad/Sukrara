@@ -166,6 +166,9 @@ object SensorLife {
         return Durations.whole(left / 60, w)
     }
 
+    /** The plural quantity of [label] ("queda 1d", "quedan 13d"; [Durations.wholeQuantity]). */
+    fun labelQuantity(endEpoch: Long, now: Long): Int = Durations.wholeQuantity((endEpoch - now).coerceAtLeast(0) / 60)
+
     /** The badge disc's arc: the share of the sensor's life still left, 1 → 0. */
     fun lifeFraction(info: SensorInfo, now: Long): Double =
         ((info.endEpoch - now).toDouble() / info.lengthS).coerceIn(0.0, 1.0)

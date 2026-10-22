@@ -166,7 +166,7 @@ data class AlertSettings(
         /** The settings' presets (minutes): Mute and Relax, the same lists on Android and Mac. */
         val MUTE_PRESETS: List<Int> = SettingsSpec.ACTION_MUTE.presets.map { it.toInt() }
         val RELAX_PRESETS: List<Int> = SettingsSpec.ACTION_RELAX.presets.map { it.toInt() }
-        /** *Mute all*: minutes a custom length accepts, and the presets (0 = Never, until turned back on). */
+        /** *Mute all*: minutes a custom length accepts, and the presets (0 = until turned back on, the special "until_turned_off"). */
         val MUTE_ALL_RANGE: IntRange = SettingsSpec.MUTE_ALL.let { it.min.toInt()..it.max.toInt() }
         val MUTE_ALL_PRESETS: List<Int> = SettingsSpec.MUTE_ALL.presets.map { it.toInt() }
 

@@ -2037,7 +2037,7 @@ enum StatusBadge {
         // only Mute all has no end
         case .paused(_, let until) where until >= AlertStatus.never: MuteCopy.allForever
         case .paused(let k, let until): MuteCopy.sideMuted(k.side, leftMin: MuteCopy.leftMin(until - now))
-        case .taken(let k, _, let until): "\(k.title): alerts paused, \(Durations.text(seconds: until - now)) left"
+        case .taken(let k, let tr, let until): MuteCopy.sideAfter(k.side, treatment: tr.k, leftMin: MuteCopy.leftMin(until - now))
         case .muted(let until): MuteCopy.allLine(until: until, now: now) ?? MuteCopy.allForever
         }
     }

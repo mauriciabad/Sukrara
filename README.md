@@ -174,7 +174,7 @@ by the app's icon code.</sub>
   on, shown on every card as a *Muted* pill. Mutes only quiet the device you tap them on, so the Mac and followers keep
   alerting. Every quiet state has a way back: *Unmute* / *Change…* on the muted notification, the pill's sheet (or the
   Mac panel's rows), *Unmute*, and Settings › Alerts › *Active now* (also *Remind as usual* and *Alert me
-  anyway* after carbs or insulin). Durations read *1 h*, *2 h*, never *60 min*. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  anyway* after carbs or insulin). Every muted state counts down (*Low alerts muted after carbs · 12 min left*). Durations read *1 h*, *2 h*, never *60 min*. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
   Android's app settings.

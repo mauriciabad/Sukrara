@@ -67,8 +67,23 @@ enum SettingsSelfTest {
         options()
         reorder()
         durations()
+        specials()
         print(ok ? "settings self-test OK" : "settings self-test FAILED")
         return ok
+    }
+
+    // MARK: (j) special values and the custom choice (round f33)
+
+    /// Every special value of the schema has its own words (no raw key in a menu), Mute all's 0 means "until you turn it
+    /// off" (the key says so: no "never" left), and the choice that opens a field ends in an ellipsis.
+    static func specials() {
+        let all = Array(SettingsSpec.numbers.values)
+        for s in all { for (v, w) in s.special { check("(j) \(s.id) special \(v) '\(w)' has words", NumberFormat.word(w) != w, NumberFormat.word(w)) } }
+        check("(j) muteAll 0 = until_turned_off", SettingsSpec.muteAll.specialOf(0) == "until_turned_off", SettingsSpec.muteAll.specialOf(0) ?? "nil")
+        check("(j) …reads \"Until you turn it off\"", NumberFormat.label(0, SettingsSpec.muteAll) == MuteCopy.choiceForever,
+              NumberFormat.label(0, SettingsSpec.muteAll))
+        check("(j) no special is called never", !all.contains { $0.special.values.contains("never") })
+        check("(j) the custom choice reads \"Custom…\" (ellipsis character)", NumberFormat.custom == "Custom\u{2026}", NumberFormat.custom)
     }
 
     // MARK: (i) durations: THE formatter against spikes/durations/durations.json (Android's DurationsTest)

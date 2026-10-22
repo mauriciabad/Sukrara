@@ -497,15 +497,15 @@ object Alerts {
     }
 
     /**
-     * *Mute all* on this device for [min] minutes, [NEVER_MIN] (0) = until turned back on (SettingsSpec MUTE_ALL's
-     * special 0 = "never"): every kind, very low, extremely high and no data included, the wearer's mirrored alerts
+     * *Mute all* on this device for [min] minutes, [UNTIL_TURNED_OFF_MIN] (0) = until turned back on (SettingsSpec MUTE_ALL's
+     * special 0 = "until_turned_off"): every kind, very low, extremely high and no data included, the wearer's mirrored alerts
      * too. The alerts showing go; a later call changes the end. Never shared with the followers ([shared]).
      */
     @Synchronized fun muteAll(ctx: Context, min: Int) {
         init(ctx)
         val now = Proto.nowS()
-        val m = if (min <= NEVER_MIN) NEVER_MIN else min.coerceIn(AlertSettings.MUTE_ALL_RANGE)
-        val until = if (m == NEVER_MIN) AlertEngine.NEVER else now + m * 60L
+        val m = if (min <= UNTIL_TURNED_OFF_MIN) UNTIL_TURNED_OFF_MIN else min.coerceIn(AlertSettings.MUTE_ALL_RANGE)
+        val until = if (m == UNTIL_TURNED_OFF_MIN) AlertEngine.NEVER else now + m * 60L
         note(AlertNote(now, AlertNote.ALL_MUTED, emptyList(), n = m))
         saveAll(ctx, until)
         for (g in mirror.muteAll(until)) { cancelGroup(ctx, g) }
@@ -539,8 +539,8 @@ object Alerts {
         if (role != null) schedule(ctx)
     }
 
-    /** [muteAll]'s length for "until turned back on". */
-    const val NEVER_MIN = 0
+    /** [muteAll]'s length for "until turned back on": SettingsSpec MUTE_ALL's special "until_turned_off" (SettingsSchemaTest). */
+    const val UNTIL_TURNED_OFF_MIN = 0
 
     /** spikes/alerts/SPEC.md §4 body. */
     private fun event(k: String, st: String, id: String, at: Long, r: Reading?, th: Double?, n: Int, treated: Int) = JSONObject()
@@ -667,7 +667,7 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
             UNMUTED -> "${side(k)} alerts unmuted"
             UNRELAXED -> "${side(k)} reminders as usual (every ${Durations.text(n, w)})"
             BACK -> "${side(k)} back in range: alerts as usual"
-            ALL_MUTED -> if (n == Alerts.NEVER_MIN) "All alerts muted until you turn it off" else "All alerts muted for ${Durations.text(n, w)}"
+            ALL_MUTED -> if (n == Alerts.UNTIL_TURNED_OFF_MIN) "All alerts muted until you turn it off" else "All alerts muted for ${Durations.text(n, w)}"
             ALL_BACK -> "Alerts unmuted"
             else -> "resumed ${kinds.joinToString { Kind.label(it) }} (no sound)"
         }
@@ -687,7 +687,7 @@ data class AlertNote(val at: Long, val what: String, val kinds: List<String>, va
         const val UNRELAXED = "unrelaxed"
         /** The side's Mute / Remind less ended: back in range by the margin. */
         const val BACK = "back"
-        /** Mute all started ([n] minutes, [Alerts.NEVER_MIN] = until turned back on). */
+        /** Mute all started ([n] minutes, [Alerts.UNTIL_TURNED_OFF_MIN] = until turned back on). */
         const val ALL_MUTED = "all_muted"
         /** Mute all ended: its time, or Unmute. */
         const val ALL_BACK = "all_back"

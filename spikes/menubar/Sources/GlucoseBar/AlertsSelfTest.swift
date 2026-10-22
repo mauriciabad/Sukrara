@@ -195,6 +195,8 @@ enum AlertsSelfTest {
             states.insert(st)
             let mine: String? = switch st {
             case "side_muted": MuteCopy.sideMuted(side, leftMin: n("leftMin"))
+            case "side_after": MuteCopy.sideAfter(side, treatment: c["treatment"] as? String ?? "", leftMin: n("leftMin"))
+            case "side_falling": MuteCopy.sideFalling(side)
             case "side_less": MuteCopy.sideLess(side, intervalMin: n("intervalMin"))
             case "all_timed": MuteCopy.allTimed(leftMin: n("leftMin"))
             case "all_forever": MuteCopy.allForever
@@ -219,6 +221,11 @@ enum AlertsSelfTest {
               && StatusBadge.describe(.paused(.veryLow, until: now0 + 12 * 60), now: now0) == "Low alerts muted · 12 min left"
               && StatusBadge.describe(.muted(until: AlertStatus.never), now: now0) == MuteCopy.allForever,
               StatusBadge.describe(.paused(.veryLow, until: now0 + 12 * 60), now: now0) ?? "nil")
+        // round f33: the badge after a treatment says the Active row's line (Android's TalkBack too)
+        let carbsMark = GraphMark(t: now0 - 180, k: "carbs", a: 15)
+        check("copy: VoiceOver on the badge after carbs = \"Low alerts muted after carbs · 12 min left\"",
+              StatusBadge.describe(.taken(.low, treatment: carbsMark, until: now0 + 12 * 60), now: now0) == "Low alerts muted after carbs · 12 min left",
+              StatusBadge.describe(.taken(.low, treatment: carbsMark, until: now0 + 12 * 60), now: now0) ?? "nil")
 
         print(ok ? "alerts self-test OK" : "alerts self-test FAILED")
         // 6. The card's status (CardStatusTest.kt): units, durations, AlertStatus, LastTreatment, badge, slot priority,

@@ -25,6 +25,14 @@ enum MuteCopy {
 
     /// "Low alerts muted · 12 min left".
     static func sideMuted(_ side: String, leftMin: Int) -> String { "\(Self.side(side)) alerts muted · \(Durations.text(leftMin)) left" }
+    /// A quiet rule after a treatment, worded like a mute and counting down to the rule's end (round f33):
+    /// "Low alerts muted after carbs · 12 min left", "High alerts muted after insulin · 1 h left". `treatment`: "carbs"
+    /// or "rapid".
+    static func sideAfter(_ side: String, treatment: String, leftMin: Int) -> String {
+        "\(Self.side(side)) alerts muted after \(treatment == "carbs" ? "carbs" : "insulin") · \(Durations.text(leftMin)) left"
+    }
+    /// The falling-back-into-range rule (no end of its own): "High alerts muted while falling back into range".
+    static func sideFalling(_ side: String) -> String { "\(Self.side(side)) alerts muted while falling back into range" }
     /// "Low reminders every 30 min".
     static func sideLess(_ side: String, intervalMin: Int) -> String { "\(Self.side(side)) reminders every \(Durations.text(intervalMin))" }
     /// Mute all for a time: "Alerts muted · 1 h 12 min left".

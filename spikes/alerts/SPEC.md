@@ -120,8 +120,8 @@ on that device only:
 |---|---|---|
 | Normal (alerting) | the notification; the "Eat carbs" / "Take insulin" pill | *Mute…*, *Remind less* (notification; the app's sheet / Active now / Mac panel) |
 | Side muted (N left) | Android: the counting-down "Low alerts muted" notification; the tonal pill "Nm left"; the line "Low alerts muted · 12 min left" (ticks); sheet, Active now; Mac panel rows, pill menu, Settings › Alerts | *Unmute* · *Change…* / Change to 15 min / 30 min / 1 h / 2 h · ends at its time or back by the margin |
-| Quiet after carbs / rapid insulin (shared data) | the tonal pill, the last-treatment ring; Active now | *Alert me anyway* (this device only, the treatment stays) · ends at `t + min` · deleting the treatment |
-| Quiet: falling back into range | Active now | *Alert me anyway* · ends when the prediction no longer holds |
+| Quiet after carbs / rapid insulin (shared data) | the tonal pill, the last-treatment ring; the line "Low alerts muted after carbs · 12 min left" (ticks, round f33); Active now | *Alert me anyway* (this device only, the treatment stays) · ends at `t + min` · deleting the treatment |
+| Quiet: falling back into range | "High alerts muted while falling back into range"; Active now | *Alert me anyway* · ends when the prediction no longer holds |
 | Side relaxed | Android: a "Low relaxed: reminders every 30 min" chip under the card; the notification's *Remind as usual*; Mac panel row; Active now | *Remind as usual* · ends back by the margin |
 | Muted + relaxed | both of the above | each exit on its own; the margin ends both |
 | All alerts muted (for a time / until you turn it off) | home control (Android) / dropdown row (Mac): "Alerts muted · 1 h 12 min left" (ticks) / "Alerts muted until you turn it off"; the `muted` pill on every card surface; the Mac menu bar; Active now | *Unmute* · *Change time* (a new length) · ends at its time (never with Never) |

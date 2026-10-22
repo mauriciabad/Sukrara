@@ -73,7 +73,7 @@ enum SettingsSpec {
     static let actionRelax = NumberSpec(id: "actionRelax", unit: "min", min: 5.0, max: 120.0, step: 1.0, nudge: 5.0, scale: 1.0, decimals: 0, presets: [15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0], default: 30.0, special: [:], custom: true, maxItems: 0)
     static let backMgdl = NumberSpec(id: "backMgdl", unit: "mg/dL", min: 0.0, max: 50.0, step: 1.0, nudge: 5.0, scale: 1.0, decimals: 0, presets: [0.0, 5.0, 10.0, 15.0, 20.0], default: 10.0, special: [:], custom: true, maxItems: 0)
     static let backMin = NumberSpec(id: "backMin", unit: "min", min: 0.0, max: 60.0, step: 1.0, nudge: 5.0, scale: 1.0, decimals: 0, presets: [0.0, 5.0, 10.0, 15.0, 30.0], default: 10.0, special: [:], custom: true, maxItems: 0)
-    static let muteAll = NumberSpec(id: "muteAll", unit: "min", min: 5.0, max: 1440.0, step: 1.0, nudge: 15.0, scale: 1.0, decimals: 0, presets: [30.0, 60.0, 120.0, 240.0, 480.0, 0.0], default: 60.0, special: [0.0: "never"], custom: true, maxItems: 0)
+    static let muteAll = NumberSpec(id: "muteAll", unit: "min", min: 5.0, max: 1440.0, step: 1.0, nudge: 15.0, scale: 1.0, decimals: 0, presets: [30.0, 60.0, 120.0, 240.0, 480.0, 0.0], default: 60.0, special: [0.0: "until_turned_off"], custom: true, maxItems: 0)
     static let nostrInterval = NumberSpec(id: "nostrInterval", unit: "min", min: 1.0, max: 120.0, step: 1.0, nudge: 5.0, scale: 1.0, decimals: 0, presets: [0.0, 5.0, 15.0, 30.0], default: 0.0, special: [0.0: "every_reading"], custom: true, maxItems: 0)
     static let libreviewInterval = NumberSpec(id: "libreviewInterval", unit: "min", min: 1.0, max: 240.0, step: 1.0, nudge: 5.0, scale: 1.0, decimals: 0, presets: [5.0, 15.0, 60.0], default: 5.0, special: [:], custom: true, maxItems: 0)
 

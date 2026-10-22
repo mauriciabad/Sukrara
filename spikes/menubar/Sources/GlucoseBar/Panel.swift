@@ -294,7 +294,7 @@ struct MuteAllBlock: View {
         Menu {
             ForEach(muteAllChoices, id: \.1) { c in Button(c.0) { act(.muteAll(c.1)) } }
             Divider()
-            Button("Custom…") { custom = true }
+            Button(NumberFormat.custom) { custom = true }
         } label: {
             Text(title).frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -844,22 +844,22 @@ final class AlertEngine {
     struct Active: Equatable {
         var kind: AlertKind; var quiet: AlertEngine.Quiet.Why?; var until: Date?; var relaxMin: Int
         var canRelax: Bool; var mirrored: Bool
-        /// "Low alerts muted · 12 min left" (MuteCopy; the views tick it down), "Low quiet after carbs until 10:42",
-        /// "Low reminders every 30 min".
+        /// "Low alerts muted · 12 min left", "Low alerts muted after carbs · 12 min left" (MuteCopy; the views tick them
+        /// down), "High alerts muted while falling back into range", "Low reminders every 30 min".
         func title(now: Date) -> String {
-            let t = until.map { Clock.time($0) } ?? ""
+            let left = MuteCopy.leftMin(until.map { $0.timeIntervalSince(now) } ?? 0)
             switch quiet {
-            case .notification: return MuteCopy.sideMuted(kind.side, leftMin: MuteCopy.leftMin(until.map { $0.timeIntervalSince(now) } ?? 0))
-            case .carbs: return "\(kind.title) quiet after carbs until \(t)"
-            case .insulin: return "\(kind.title) quiet after insulin until \(t)"
-            case .falling: return "\(kind.title) quiet: falling back into range"
+            case .notification: return MuteCopy.sideMuted(kind.side, leftMin: left)
+            case .carbs: return MuteCopy.sideAfter(kind.side, treatment: "carbs", leftMin: left)
+            case .insulin: return MuteCopy.sideAfter(kind.side, treatment: "rapid", leftMin: left)
+            case .falling: return MuteCopy.sideFalling(kind.side)
             case nil: return relaxedLine
             }
         }
         /// "Low reminders every 30 min" (Remind Less; also the second line of a muted side that reminds less).
         var relaxedLine: String { MuteCopy.sideLess(kind.side, intervalMin: relaxMin) }
-        /// A notification Mute (it counts down; the treatment quiets say their end).
-        var ticks: Bool { quiet == .notification && until != nil }
+        /// A notification Mute or a quiet after a treatment: its line counts down to `until` (round f33).
+        var ticks: Bool { [.notification, .carbs, .insulin].contains(quiet) && until != nil }
         /// The main way out: Unmute (a notification mute) or Alert Me Anyway (a treatment / falling mute here).
         var lift: String? {
             if quiet == .notification { return "Unmute" }

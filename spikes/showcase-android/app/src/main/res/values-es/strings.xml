@@ -297,14 +297,13 @@
     <!-- Badge, short form of badge_take_insulin [CHAR LIMIT=10] -->
     <string name="badge_insulin_short">Insulina</string>
     <!-- Badge after a treatment: time until alerts resume; %1$s = a short duration like 45m [CHAR LIMIT=16] -->
-    <string name="badge_time_left">quedan %1$s</string>
+    <plurals name="badge_time_left">
+        <item quantity="one">queda %1$s</item>
+        <item quantity="other">quedan %1$s</item>
+    </plurals>
     <!-- Screen reader text of the paused badge; %1$s = alert name (e.g. Low), %2$s = short duration [CHAR LIMIT=NONE] -->
-    <string name="badge_alerts_paused_description">%1$s: alertas en pausa, quedan %2$s</string>
     <string name="badge_muted_short">Silenciadas</string>
     <string name="badge_muted_for">Silenciadas · %1$s</string>
-    <string name="badge_alerts_muted">Alertas silenciadas hasta que lo desactives</string>
-    <string name="badge_alerts_muted_description">Alertas silenciadas, quedan %1$s</string>
-    <string name="badge_alerts_paused_never_description">%1$s: alertas silenciadas</string>
     <!-- Short duration under a minute [CHAR LIMIT=6] -->
     <string name="duration_now">ahora</string>
     <!-- Short duration in minutes, as compact as possible; %1$d = minutes [CHAR LIMIT=7] -->
@@ -342,7 +341,10 @@
     <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
     <string name="card_no_reading_since">Sin lecturas desde</string>
     <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d" [CHAR LIMIT=40] -->
-    <string name="card_sensor_left">Sensor: quedan %1$s</string>
+    <plurals name="card_sensor_left">
+        <item quantity="one">Sensor: queda %1$s</item>
+        <item quantity="other">Sensor: quedan %1$s</item>
+    </plurals>
     <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
     <string name="card_sensor_ended">Sensor terminado</string>
     <!-- Value card: action pill when the sensor has ended (like "Eat carbs"); opens the sensor scan [CHAR LIMIT=18] -->
@@ -975,7 +977,7 @@
     <string name="settings_dialog_done">Hecho</string>
     <string name="settings_dialog_ok">Aceptar</string>
     <string name="settings_dialog_cancel">Cancelar</string>
-    <string name="settings_custom_value">Personalizado</string>
+    <string name="settings_custom_value">Personalizado…</string>
     <string name="settings_custom_value_label">Valor</string>
     <string name="settings_custom_value_range">De %1$s a %2$s %3$s</string>
     <string name="unit_min">min</string>
@@ -1210,7 +1212,10 @@
         <item quantity="other">%d recordatorios</item>
     </plurals>
     <string name="sensorend_current">Este sensor</string>
-    <string name="sensorend_current_ends">Termina el %1$s · quedan %2$s</string>
+    <plurals name="sensorend_current_ends">
+        <item quantity="one">Termina el %1$s · queda %2$s</item>
+        <item quantity="other">Termina el %1$s · quedan %2$s</item>
+    </plurals>
     <string name="sensorend_current_ended">Terminó el %1$s</string>
     <string name="sensorend_current_none">Aún no hay sensor</string>
     <string name="sensorend_reminders">Recordatorios</string>
@@ -1773,10 +1778,7 @@
     <string name="alert_action_change">Cambiar duración</string>
     <string name="alerts_note_unmuted">Alertas %1$s reactivadas</string>
     <string name="alerts_note_unrelaxed">Avisos %1$s como siempre (cada %2$s)</string>
-    <string name="quiet_title_carbs">%1$s en silencio tras los hidratos hasta las %2$s</string>
-    <string name="quiet_title_insulin">%1$s en silencio tras la insulina hasta las %2$s</string>
-    <string name="quiet_title_falling">%1$s en silencio: bajando hacia el rango</string>
-    <string name="quiet_title_mirrored_treatment">%1$s en silencio tras un tratamiento. El teléfono de quien lleva el sensor decide cuándo vuelve a avisar.</string>
+    <string name="quiet_title_mirrored_treatment">Alertas %1$s silenciadas tras un tratamiento. El teléfono de quien lleva el sensor decide cuándo vuelven.</string>
     <string name="quiet_unmute">Reactivar</string>
     <string name="quiet_alert_anyway">Avisarme igualmente</string>
     <string name="quiet_change">Cambiar a</string>
@@ -1799,8 +1801,13 @@
     <string name="mute_side_muted">Alertas %1$s silenciadas</string>
     <string name="mute_side_less">Avisos %1$s cada %2$s</string>
     <string name="mute_with_left">%1$s · %2$s</string>
-    <string name="mute_left">quedan %1$s</string>
-    <string name="mute_left_one">queda %1$s</string>
+    <plurals name="mute_left">
+        <item quantity="one">queda %1$s</item>
+        <item quantity="other">quedan %1$s</item>
+    </plurals>
+    <string name="mute_side_after_carbs">Alertas %1$s silenciadas tras los hidratos</string>
+    <string name="mute_side_after_insulin">Alertas %1$s silenciadas tras la insulina</string>
+    <string name="mute_side_falling">Alertas %1$s silenciadas mientras baja hacia el rango</string>
     <string name="mute_all_forever">Alertas silenciadas hasta que lo desactives</string>
     <string name="mute_until">Hasta las %1$s</string>
     <string name="mute_choice">Durante %1$s</string>

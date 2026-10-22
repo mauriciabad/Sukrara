@@ -57,7 +57,7 @@ import app.mauri.sukrara.settings.SettingsSpec
 fun MuteAllDialog(onClose: () -> Unit) {
     val ctx = LocalContext.current
     IntNumberDialog(stringResource(R.string.mute_all_title), SettingsSpec.MUTE_ALL, SettingsSpec.MUTE_ALL.default.toInt(),
-        { m -> if (m == Alerts.NEVER_MIN) MuteCopy.choiceForever(ctx) else MuteCopy.choice(ctx, m) }, onClose) { m -> Alerts.muteAll(ctx, m) }
+        { m -> if (m == Alerts.UNTIL_TURNED_OFF_MIN) MuteCopy.choiceForever(ctx) else MuteCopy.choice(ctx, m) }, onClose) { m -> Alerts.muteAll(ctx, m) }
 }
 
 /**

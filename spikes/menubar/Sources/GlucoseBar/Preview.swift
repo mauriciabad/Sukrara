@@ -72,7 +72,10 @@ enum PanelPreview {
                 let until = end.addingTimeInterval(30 + 25 * 60)
                 m.paused = ["high": until.timeIntervalSince1970]
                 m.quiet = [Alerts.Active(kind: .high, quiet: .notification, until: until, relaxMin: 0, canRelax: true, mirrored: false),
-                           Alerts.Active(kind: .risingFast, quiet: nil, until: nil, relaxMin: 60, canRelax: false, mirrored: false)]
+                           Alerts.Active(kind: .risingFast, quiet: nil, until: nil, relaxMin: 60, canRelax: false, mirrored: false),
+                           // round f33: quiet after carbs, worded like the mutes and counting down
+                           Alerts.Active(kind: .low, quiet: .carbs, until: end.addingTimeInterval(30 + 12 * 60), relaxMin: 0,
+                                         canRelax: true, mirrored: false)]
             }
             // round f30: Mute all (until a time, or Never): the dropdown's row and the card's muted pill
             m.allMuted = muteAll

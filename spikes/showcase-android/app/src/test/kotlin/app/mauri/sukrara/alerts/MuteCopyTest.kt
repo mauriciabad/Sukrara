@@ -39,6 +39,8 @@ class MuteCopyTest {
         val side = c.optString("side")
         return when (val st = c.getString("state")) {
             "side_muted" -> MuteCopy.sideMuted(ctx, side, c.getLong("leftMin"), w)
+            "side_after" -> MuteCopy.sideAfter(ctx, side, c.getString("treatment"), c.getLong("leftMin"), w)
+            "side_falling" -> MuteCopy.sideFalling(ctx, side)
             "side_less" -> MuteCopy.sideLess(ctx, side, c.getInt("intervalMin"), w)
             "all_timed" -> MuteCopy.allTimed(ctx, c.getLong("leftMin"), w)
             "all_forever" -> MuteCopy.allForever(ctx)
@@ -64,6 +66,48 @@ class MuteCopyTest {
     @Test fun english() = check("en")
 
     @Test fun spanish() = check("es")
+
+    /**
+     * Round f33: Spanish agrees with the time left ("queda 1 h", "quedan 2 h", "quedan 1 h 5 min"): the mute lines, the
+     * badge's pill and what the screen reader says about it (the widgets, the app's card), the sensor's time left.
+     */
+    @Test fun spanishTimeLeftAgrees() {
+        val es = ctx("es")
+        val w = Words.of(es.resources)
+        assertEquals("queda 1 min", MuteCopy.left(es, 1, w))
+        assertEquals("queda 1 h", MuteCopy.left(es, 60, w))
+        assertEquals("quedan 2 h", MuteCopy.left(es, 120, w))
+        assertEquals("quedan 1 h 1 min", MuteCopy.left(es, 61, w))
+        assertEquals("quedan 12 min", MuteCopy.left(es, 12, w))
+        assertEquals("1 h left", MuteCopy.left(ctx("en"), 60, Words.of(ctx("en").resources)))
+        val now = 1_800_000_000L
+        val prev = Words.loader
+        val locale = Locale.getDefault()
+        Words.loader = { w }
+        Locale.setDefault(Locale.forLanguageTag("es"))
+        try {
+            val badge = app.mauri.sukrara.graph.StatusBadge
+            // the screen reader: the mute lines, never "quedan 1 h"
+            assertEquals("Alertas silenciadas · queda 1 h", badge.describe(es, AlertStatus.Muted(now + 3600), now))
+            assertEquals("Alertas de glucosa baja silenciadas · queda 1 min", badge.describe(es, AlertStatus.Paused(Kind.VERY_LOW, now + 30), now))
+            assertEquals("Alertas de glucosa baja silenciadas tras los hidratos · quedan 12 min",
+                badge.describe(es, AlertStatus.Taken(Kind.LOW, app.mauri.sukrara.treatments.Treatment(id = "c", k = "carbs", a = 15.0, t = now - 180, u = 0, o = "phone"), now + 720), now))
+            assertEquals("Alertas silenciadas hasta que lo desactives", badge.describe(es, AlertStatus.Paused(Kind.LOW, AlertEngine.NEVER), now))
+            // the pill: "queda 1 h", "quedan 45 min", "quedan 1 h 5 min"
+            assertEquals("queda 1 h", badge.look(AlertStatus.Paused(Kind.LOW, now + 3600), now)?.text)
+            assertEquals("quedan 45 min", badge.look(AlertStatus.Paused(Kind.LOW, now + 45 * 60), now)?.text)
+            assertEquals("quedan 1 h 5 min", badge.look(AlertStatus.Paused(Kind.LOW, now + 65 * 60), now)?.text)
+            // the sensor's time left
+            val sensor = app.mauri.sukrara.graph.SensorBadge
+            fun sensorSays(leftS: Long) = sensor.describe(app.mauri.sukrara.graph.SensorBadge.Look(
+                app.mauri.sukrara.core.SensorLife.label(now + leftS, now, w), 0.5f, false, end = now + leftS), now, w)
+            assertEquals("Sensor: queda 1 d", sensorSays(86_400 + 3600))
+            assertEquals("Sensor: quedan 13 d", sensorSays(13 * 86_400L))
+        } finally {
+            Locale.setDefault(locale)
+            Words.loader = prev
+        }
+    }
 
     /** Every side kind names its side: very low is "Low", extremely high "High". */
     @Test fun sidesUseTheirMainName() {
