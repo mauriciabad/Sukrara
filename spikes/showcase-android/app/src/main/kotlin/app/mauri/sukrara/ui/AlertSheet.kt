@@ -46,17 +46,17 @@ import app.mauri.sukrara.core.Durations
  * What each does is SPEC §2 "States and exits"; every one acts on this phone only, like the notification's buttons.
  */
 
-/** The sheet's title / Active now's line for [a], in the app's language. */
-fun quietTitle(ctx: Context, a: Alerts.Active, now: Long): String {
-    val name = AlertNotifier.label(ctx, a.kind)
-    val time = { app.mauri.sukrara.graph.Clock.time(a.until) }
-    return when (a.quiet) {
-        AlertEngine.QUIET_NOTIFICATION -> MuteCopy.sideMutedUntil(ctx, a.kind, a.until, now)
-        AlertEngine.QUIET_CARBS -> ctx.getString(R.string.quiet_title_carbs, name, time())
-        AlertEngine.QUIET_INSULIN -> ctx.getString(R.string.quiet_title_insulin, name, time())
-        AlertEngine.QUIET_FALLING -> ctx.getString(R.string.quiet_title_falling, name)
-        else -> MuteCopy.sideLess(ctx, a.kind, a.relaxMin)
-    }
+/**
+ * The sheet's title / Active now's line for [a], in the app's language, counting down with [now] (the callers tick on
+ * each minute boundary from the end): "Low alerts muted · 12 min left", "Low alerts muted after carbs · 12 min left"
+ * (round f33), "High alerts muted while falling back into range", "Low reminders every 30 min".
+ */
+fun quietTitle(ctx: Context, a: Alerts.Active, now: Long): String = when (a.quiet) {
+    AlertEngine.QUIET_NOTIFICATION -> MuteCopy.sideMutedUntil(ctx, a.kind, a.until, now)
+    AlertEngine.QUIET_CARBS -> MuteCopy.sideAfter(ctx, a.kind, "carbs", MuteCopy.leftMin(a.until, now))
+    AlertEngine.QUIET_INSULIN -> MuteCopy.sideAfter(ctx, a.kind, "rapid", MuteCopy.leftMin(a.until, now))
+    AlertEngine.QUIET_FALLING -> MuteCopy.sideFalling(ctx, a.kind)
+    else -> MuteCopy.sideLess(ctx, a.kind, a.relaxMin)
 }
 
 /** The second line when it also reminds less ("Low reminders every 30 min"), or null. */
@@ -132,7 +132,7 @@ fun AlertQuietSheet(kind: String, onDismiss: () -> Unit, onSettings: (() -> Unit
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (all != 0L) MuteAllState(all, onChange = { change = true })
-            if (mirroredTreatment && empty) Text(ctx.getString(R.string.quiet_title_mirrored_treatment, AlertNotifier.label(ctx, kind)),
+            if (mirroredTreatment && empty) Text(ctx.getString(R.string.quiet_title_mirrored_treatment, MuteCopy.side(ctx, kind)),
                 style = MaterialTheme.typography.bodyLarge)
             mine.forEach { QuietRow(it, now) }
             onSettings?.let { TextButton(onClick = { onDismiss(); it() }) { Text(stringResource(R.string.quiet_settings)) } }

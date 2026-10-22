@@ -67,7 +67,7 @@
     "backMgdl":      {"unit": "mg/dL", "min": 0, "max": 50, "step": 1, "nudge": 5, "presets": [0, 5, 10, 15, 20], "default": 10},
     "backMin":       {"unit": "min", "min": 0, "max": 60, "step": 1, "nudge": 5, "presets": [0, 5, 10, 15, 30], "default": 10},
     "muteAll":       {"unit": "min", "min": 5, "max": 1440, "step": 1, "nudge": 15, "presets": [30, 60, 120, 240, 480, 0], "default": 60,
-                      "special": {"0": "never"}},
+                      "special": {"0": "until_turned_off"}},
     "nostrInterval": {"unit": "min", "min": 1, "max": 120, "step": 1, "nudge": 5, "presets": [0, 5, 15, 30], "default": 0,
                       "special": {"0": "every_reading"}},
     "libreviewInterval": {"unit": "min", "min": 1, "max": 240, "step": 1, "nudge": 5, "presets": [5, 15, 60], "default": 5}

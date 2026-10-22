@@ -72,11 +72,10 @@ class StringsParityTest {
         val w = Words()
         val pairs = mapOf(
             "badge_eat_carbs" to w.eatCarbs, "badge_carbs_short" to w.carbsShort, "badge_take_insulin" to w.takeInsulin,
-            "badge_insulin_short" to w.insulinShort, "badge_time_left" to w.timeLeft,
-            "badge_alerts_paused_description" to w.alertsPaused,
-            "badge_alerts_paused_never_description" to w.alertsPausedNever, "badge_muted_short" to w.muted,
-            "badge_muted_for" to w.mutedFor, "badge_alerts_muted" to w.alertsMuted,
-            "badge_alerts_muted_description" to w.alertsMutedDescription,
+            "badge_insulin_short" to w.insulinShort,
+            "badge_time_left#one" to w.timeLeft.one, "badge_time_left#other" to w.timeLeft.other,
+            "card_sensor_left#one" to w.sensorLeft.one, "card_sensor_left#other" to w.sensorLeft.other,
+            "badge_muted_short" to w.muted, "badge_muted_for" to w.mutedFor,
             "duration_now" to w.durNow, "duration_minutes" to w.durMinutes, "duration_hours" to w.durHours,
             "duration_hours_minutes" to w.durHoursMinutes, "duration_days" to w.durDays,
             "duration_text_minutes" to w.durTextMinutes, "duration_text_hours" to w.durTextHours,
@@ -90,5 +89,29 @@ class StringsParityTest {
             "trend_rising_fast" to w.trendRisingFast, "trend_falling" to w.trendFalling, "trend_falling_fast" to w.trendFallingFast,
         ) + w.kinds.map { (k, v) -> "alert_kind_$k" to v }
         for ((key, value) in pairs) assertEquals(key, en[key], value)
+    }
+
+    /**
+     * Round f33 (a screen reader said "quedan 1 h"): Spanish "queda" / "quedan" agrees with the time after it, so every
+     * text that puts a duration after it is a plural (Durations.*Quantity picks the form), never a plain string.
+     */
+    @Test fun spanishTimeLeftIsAPlural() {
+        for (dir in translations) {
+            val plain = load(dir).filterKeys { '#' !in it }.filterValues { Regex("""\bquedan? %""").containsMatchIn(it) }
+            assertEquals("$dir: time left in a plain string (use <plurals>)", emptyMap<String, String>(), plain)
+            val forms = load(dir).filterKeys { '#' in it }.filterValues { Regex("""\bquedan? %""").containsMatchIn(it) }
+            for ((k, v) in forms) assertTrue("$dir/$k: $v", if (k.endsWith("#one")) "queda %" in v else "quedan %" in v)
+        }
+    }
+
+    /**
+     * Round f33: the choice that opens a field for the user's own value ends in an ellipsis, the one character "…"
+     * (like the Mac's Custom…, after Apple's HIG on menus: an ellipsis says the choice needs more input), in every language.
+     */
+    @Test fun customChoiceEndsInAnEllipsis() {
+        for (dir in listOf("values") + translations) {
+            val v = load(dir).getValue("settings_custom_value")
+            assertTrue("$dir/settings_custom_value: '$v'", v.endsWith("\u2026") && !v.endsWith("..."))
+        }
     }
 }

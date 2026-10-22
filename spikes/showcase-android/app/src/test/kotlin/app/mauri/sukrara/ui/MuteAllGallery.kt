@@ -97,8 +97,10 @@ class MuteAllGallery {
         compose.waitForIdle()
         save("android-home-mute-alerts-dialog", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
         // the choices as AOSP Do Not Disturb words them (spikes/alerts/copy.json `choice`), the one without an end last
-        for (c in listOf("For 30 min", "For 1 h", "For 2 h", "For 4 h", "For 8 h", "Until you turn it off", "Custom")) compose.onNode(hasText(c)).assertExists()
+        for (c in listOf("For 30 min", "For 1 h", "For 2 h", "For 4 h", "For 8 h", "Until you turn it off", "Custom…")) compose.onNode(hasText(c)).assertExists()
+        // round f33: the choice that opens a field ends in an ellipsis (one character)
         compose.onNode(hasText("Never")).assertDoesNotExist()
+        compose.onNode(hasText("Custom")).assertDoesNotExist()
         compose.onNode(hasText("For 2 h")).performClick()
         compose.waitForIdle()
         assertEquals(k.now + 7200, Alerts.allMuted.value)
@@ -118,7 +120,7 @@ class MuteAllGallery {
     }
 
     @Test fun homeMutedNeverAndTalkBackTurnsBackOn() {
-        Alerts.muteAll(ctx, Alerts.NEVER_MIN)
+        Alerts.muteAll(ctx, Alerts.UNTIL_TURNED_OFF_MIN)
         home()
         compose.onNode(hasText("Alerts muted until you turn it off")).assertExists()
         assertEquals("Muted", StatusBadge.look(k.status(120), k.now)?.text)
@@ -186,7 +188,9 @@ class MuteAllGallery {
 
     @Test fun notificationActions() {
         k.reading(65)
+        // docs/img/notification/alert-actions.png is this render (round f33: it still said Relax)
         drawNotification("android-notification-normal", k.notification(Kind.LOW)!!)
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         k.tap(Kind.LOW, "Remind less")
         drawNotification("android-notification-relaxed", k.notification(Kind.LOW)!!)
         k.tap(Kind.LOW, "Mute…", typed = "1 h")

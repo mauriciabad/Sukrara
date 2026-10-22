@@ -76,7 +76,7 @@ object SettingsSpec {
     val ACTION_RELAX = NumberSpec("actionRelax", "min", 5.0, 120.0, 1.0, 5.0, 1.0, 0, listOf(15.0, 20.0, 30.0, 45.0, 60.0, 90.0, 120.0), 30.0, mapOf(), true, 0)
     val BACK_MGDL = NumberSpec("backMgdl", "mg/dL", 0.0, 50.0, 1.0, 5.0, 1.0, 0, listOf(0.0, 5.0, 10.0, 15.0, 20.0), 10.0, mapOf(), true, 0)
     val BACK_MIN = NumberSpec("backMin", "min", 0.0, 60.0, 1.0, 5.0, 1.0, 0, listOf(0.0, 5.0, 10.0, 15.0, 30.0), 10.0, mapOf(), true, 0)
-    val MUTE_ALL = NumberSpec("muteAll", "min", 5.0, 1440.0, 1.0, 15.0, 1.0, 0, listOf(30.0, 60.0, 120.0, 240.0, 480.0, 0.0), 60.0, mapOf(0.0 to "never"), true, 0)
+    val MUTE_ALL = NumberSpec("muteAll", "min", 5.0, 1440.0, 1.0, 15.0, 1.0, 0, listOf(30.0, 60.0, 120.0, 240.0, 480.0, 0.0), 60.0, mapOf(0.0 to "until_turned_off"), true, 0)
     val NOSTR_INTERVAL = NumberSpec("nostrInterval", "min", 1.0, 120.0, 1.0, 5.0, 1.0, 0, listOf(0.0, 5.0, 15.0, 30.0), 0.0, mapOf(0.0 to "every_reading"), true, 0)
     val LIBREVIEW_INTERVAL = NumberSpec("libreviewInterval", "min", 1.0, 240.0, 1.0, 5.0, 1.0, 0, listOf(5.0, 15.0, 60.0), 5.0, mapOf(), true, 0)
 

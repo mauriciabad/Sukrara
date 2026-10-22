@@ -315,7 +315,7 @@ private fun noteText(ctx: Context, n: AlertNote): String {
         AlertNote.UNMUTED -> ctx.getString(R.string.alerts_note_unmuted, MuteCopy.side(ctx, k))
         AlertNote.UNRELAXED -> ctx.getString(R.string.alerts_note_unrelaxed, MuteCopy.side(ctx, k), Durations.text(n.n))
         AlertNote.BACK -> ctx.getString(R.string.alerts_note_back, MuteCopy.side(ctx, k))
-        AlertNote.ALL_MUTED -> if (n.n == Alerts.NEVER_MIN) ctx.getString(R.string.alerts_note_all_muted_never)
+        AlertNote.ALL_MUTED -> if (n.n == Alerts.UNTIL_TURNED_OFF_MIN) ctx.getString(R.string.alerts_note_all_muted_never)
             else ctx.getString(R.string.alerts_note_all_muted, Durations.text(n.n))
         AlertNote.ALL_BACK -> ctx.getString(R.string.alerts_note_all_back)
         else -> ctx.getString(R.string.alerts_note_resumed, n.kinds.joinToString { AlertNotifier.label(ctx, it) })

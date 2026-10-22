@@ -81,7 +81,7 @@ import UserNotifications
         // The dropdown's Mute Alerts choices (the schema's muteAll presets, 0 = until turned off) and its Custom… input;
         // menu items title-style (HIG), the units as written ("min", "h").
         do {
-            let menu = muteAllChoices.map(\.0) + ["Custom…"]
+            let menu = muteAllChoices.map(\.0) + [NumberFormat.custom]
             print("      Mute Alerts menu: " + menu.joined(separator: " · "))
             check("mute all: the menu offers For 30 min · For 1 h · For 2 h · For 4 h · For 8 h · Until You Turn It Off · Custom…",
                   menu == ["For 30 min", "For 1 h", "For 2 h", "For 4 h", "For 8 h", "Until You Turn It Off", "Custom…"]
@@ -216,6 +216,12 @@ import UserNotifications
             feed(a, 60)
             check("carbs: quiet after carbs, Alert Me Anyway offered", rec.level == nil && a.active.first.map { $0.quiet == .carbs && $0.lift == "Alert Me Anyway" } == true,
                   "\(title(rec.level)) \(a.active)")
+            // round f33: worded like a mute and counting down to the rule's end (15 min after the carbs, 14 min from now)
+            let row = a.active.first
+            check("carbs: \"Low alerts muted after carbs · 14 min left\", ticking down to \"1 min left\"",
+                  row?.ticks == true && row?.title(now: clock) == "Low alerts muted after carbs · 14 min left"
+                  && row?.title(now: clock + 13 * 60 + 30) == "Low alerts muted after carbs · 1 min left",
+                  row.map { "\($0.title(now: clock)) / \($0.title(now: clock + 13 * 60 + 30))" } ?? "none")
             a.perform(.unmute(.low))
             check("carbs: Alert Me Anyway → the alert at once (\"· eat more\")", title(rec.level) == "Low glucose · eat more", title(rec.level))
             trs = []

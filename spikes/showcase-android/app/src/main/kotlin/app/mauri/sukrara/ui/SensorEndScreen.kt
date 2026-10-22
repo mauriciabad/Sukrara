@@ -98,7 +98,7 @@ fun SensorEndSettings(onBack: () -> Unit) {
             info(stringResource(R.string.sensorend_current), when {
                 s == null || at == null -> stringResource(R.string.sensorend_current_none)
                 SensorLife.ended(s.endEpoch, now) -> stringResource(R.string.sensorend_current_ended, at)
-                else -> stringResource(R.string.sensorend_current_ends, at, SensorLife.label(s.endEpoch, now))
+                else -> pluralStringResource(R.plurals.sensorend_current_ends, SensorLife.labelQuantity(s.endEpoch, now), at, SensorLife.label(s.endEpoch, now))
             }, icon = R.drawable.ic_dia_sensor)
         }
         SettingsGroup(stringResource(R.string.sensorend_reminders)) {

@@ -42,9 +42,9 @@ object MuteCopy {
         else -> R.string.mute_side_no_data
     })
 
-    /** "12 min left" / "quedan 12 min" ("queda" with exactly one unit: 1 min, 1 h). */
+    /** "12 min left" / "quedan 12 min", "queda 1 h" (plurals mute_left, the quantity [Durations.textQuantity]). */
     fun left(ctx: Context, min: Long, w: Words = Words.current): String =
-        ctx.getString(if (min == 1L || min == 60L) R.string.mute_left_one else R.string.mute_left, Durations.text(min, w))
+        ctx.resources.getQuantityString(R.plurals.mute_left, Durations.textQuantity(min), Durations.text(min, w))
 
     /** "Low alerts muted · 12 min left"; [leftMin] null = no time (the muted notification's title, a mute without an end). */
     fun sideMuted(ctx: Context, kind: String, leftMin: Long?, w: Words = Words.current): String {
@@ -55,6 +55,19 @@ object MuteCopy {
     /** [sideMuted] for a mute ending at [until] seen at [now]. */
     fun sideMutedUntil(ctx: Context, kind: String, until: Long, now: Long, w: Words = Words.current): String =
         sideMuted(ctx, kind, if (until >= AlertEngine.NEVER) null else leftMin(until, now), w)
+
+    /**
+     * A quiet rule after a treatment, worded like a mute and counting down to the rule's end (round f33):
+     * "Low alerts muted after carbs · 12 min left", "High alerts muted after insulin · 1 h left". [treatment]: "carbs"
+     * or "rapid" (the dose's kind).
+     */
+    fun sideAfter(ctx: Context, kind: String, treatment: String, leftMin: Long, w: Words = Words.current): String {
+        val line = ctx.getString(if (treatment == "carbs") R.string.mute_side_after_carbs else R.string.mute_side_after_insulin, side(ctx, kind))
+        return ctx.getString(R.string.mute_with_left, line, left(ctx, leftMin, w))
+    }
+
+    /** The falling-back-into-range rule (no end of its own): "High alerts muted while falling back into range". */
+    fun sideFalling(ctx: Context, kind: String): String = ctx.getString(R.string.mute_side_falling, side(ctx, kind))
 
     /** "Low reminders every 30 min". */
     fun sideLess(ctx: Context, kind: String, intervalMin: Int, w: Words = Words.current): String =

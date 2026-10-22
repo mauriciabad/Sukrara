@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.core.Words
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -46,12 +48,12 @@ object StatusBadge {
             Words.current.let { w ->
                 if (s.kind in Kind.LOW_SIDE) Look("carbs", w.eatCarbs, w.carbsShort, false) else Look("rapid", w.takeInsulin, w.insulinShort, false)
             }
-        is AlertStatus.Taken -> TreatmentMarks.duration(s.until - now, up = true).let { Look(s.treatment.k, Words.current.timeLeft.format(it), it, true) }
+        is AlertStatus.Taken -> left(s.until, now, Words.current).let { (text, short) -> Look(s.treatment.k, text, short, true) }
         // muted from the notification: the colour of what answers it (carbs for lows, insulin for highs)
         is AlertStatus.Paused -> Words.current.let { w ->
             val kind = if (s.kind in Kind.LOW_SIDE) "carbs" else "rapid"
             if (s.until == AlertEngine.NEVER) Look(kind, w.muted, w.muted, true)
-            else TreatmentMarks.duration(s.until - now, up = true).let { Look(kind, w.timeLeft.format(it), it, true) }
+            else left(s.until, now, w).let { (text, short) -> Look(kind, text, short, true) }
         }
         is AlertStatus.Muted -> Words.current.let { w ->
             if (s.until == AlertEngine.NEVER) Look(MUTED, MuteCopy.pillForever(w), w.muted, true)
@@ -68,18 +70,23 @@ object StatusBadge {
     /** The pill over a scrolled chart (GlucoseGraph, [ChartView.now]): the same pill, kind "now" (neutral colour, arrow). */
     fun backToNow(w: Words = Words.current) = Look("now", w.backToNow, w.backToNow, false)
 
-    /** For screen readers (widget descriptions). */
-    fun describe(s: AlertStatus, now: Long): String? = when (s) {
+    /** The pill's "45m left" / "queda 1h" (plural badge_time_left) and its short form "45m", for an end [until]. */
+    private fun left(until: Long, now: Long, w: Words): Pair<String, String> {
+        val short = TreatmentMarks.duration(until - now, up = true)
+        return w.timeLeft.format(Durations.compactQuantity(MuteCopy.leftMin(until, now)), short) to short
+    }
+
+    /**
+     * For screen readers (widget descriptions, the app's card): the mute lines the app shows (alerts/MuteCopy, the
+     * Mac's VoiceOver says the same): "Low alerts muted after carbs · 12 min left", "Low alerts muted · 1 h left",
+     * "Alerts muted · 1 h 12 min left", "Alerts muted until you turn it off" (only Mute all has no end).
+     */
+    fun describe(ctx: Context, s: AlertStatus, now: Long): String? = when (s) {
         AlertStatus.None -> null
         is AlertStatus.Needed -> look(s, now)?.text
-        is AlertStatus.Taken -> Words.current.let { w -> w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true)) }
-        is AlertStatus.Paused -> Words.current.let { w ->
-            if (s.until == AlertEngine.NEVER) w.alertsPausedNever.format(w.kind(s.kind))
-            else w.alertsPaused.format(w.kind(s.kind), TreatmentMarks.duration(s.until - now, up = true))
-        }
-        is AlertStatus.Muted -> Words.current.let { w ->
-            if (s.until == AlertEngine.NEVER) w.alertsMuted else w.alertsMutedDescription.format(TreatmentMarks.duration(s.until - now, up = true))
-        }
+        is AlertStatus.Taken -> MuteCopy.sideAfter(ctx, s.kind, s.treatment.k, MuteCopy.leftMin(s.until, now))
+        is AlertStatus.Paused -> if (s.until >= AlertEngine.NEVER) MuteCopy.allForever(ctx) else MuteCopy.sideMutedUntil(ctx, s.kind, s.until, now)
+        is AlertStatus.Muted -> MuteCopy.all(ctx, s.until, now)
     }
 
     /** Material Symbols "notifications_paused" (Apache 2.0), viewBox 0 -960 960 960; also `ic_sym_notifications_paused`. */

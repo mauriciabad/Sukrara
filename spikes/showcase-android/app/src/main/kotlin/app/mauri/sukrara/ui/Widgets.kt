@@ -145,8 +145,9 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
     val alerts by Alerts.settings.collectAsState()
     val paused by Alerts.paused.collectAsState()
     val allMuted by Alerts.allMuted.collectAsState()
-    // the pill, the chips and Mute alerts' line tick down with the mutes (round f31)
-    val now = nowSeconds(countdowns = paused.values + allMuted)
+    // the pill, the chips and Mute alerts' line tick down with the mutes (round f31) and the quiets after a treatment (f33)
+    val active by Alerts.active.collectAsState()
+    val now = nowSeconds(countdowns = paused.values + allMuted + active.map { it.until })
     val sensor by app.mauri.sukrara.core.SensorLife.current.collectAsState()
     val countdownH by app.mauri.sukrara.core.SensorLife.countdown.collectAsState()
     val reading = if (sgv != null && t != null) Reading(t, sgv, rate) else null
@@ -172,7 +173,6 @@ fun GlucosePanel(sgv: Int?, rate: Double?, t: Long?, subtitle: String? = null, o
         value = withContext(Dispatchers.IO) { windows.associateWith { GraphData.metrics(ctx, it, cfg.bands) } }
     }
     // the ways out of a quiet alert (round f29): the pill's sheet, chips for what the pill doesn't show, TalkBack actions
-    val active by Alerts.active.collectAsState()
     var sheet by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     // Mute all (round f30): the home's control, its lengths dialog, the card's TalkBack actions
     var muteAll by remember { androidx.compose.runtime.mutableStateOf(false) }

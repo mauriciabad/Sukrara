@@ -82,7 +82,7 @@ struct NumberSettingRow: View {
                         ForEach(choices, id: \.self) { Text(name($0)).tag(Choice.value($0)) }
                         if spec.custom {
                             Divider()
-                            Text("Custom…").tag(Choice.custom)
+                            Text(NumberFormat.custom).tag(Choice.custom)
                         }
                     }
                     .labelsHidden()
@@ -198,10 +198,14 @@ enum NumberFormat {
         case "none": "None"
         case "same_as_default": "Same as default"
         case "every_reading": "Every reading"
-        case "never": MuteCopy.choiceForever
+        case "until_turned_off": MuteCopy.choiceForever
         default: special
         }
     }
+
+    /// The choice that opens a field for a typed value ends in an ellipsis because it needs more input before it
+    /// completes (HIG Menus on ellipses; Android's Custom… radio too; -settingsselftest (j)).
+    static let custom = "Custom…"
 
     /// The unit next to a custom field.
     static func unit(_ s: NumberSpec) -> String { s.unit == "d" ? "days" : s.unit }

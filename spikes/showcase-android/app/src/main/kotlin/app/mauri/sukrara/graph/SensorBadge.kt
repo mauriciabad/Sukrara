@@ -52,7 +52,7 @@ object SensorBadge {
     fun describe(look: Look, now: Long, w: Words = Words.current): String = when {
         look.warmup != null -> (if (look.waiting(now)) w.almostReady else w.warmingUp) + ". " + look.warmupLine(now, w)
         look.ended -> w.sensorEnded + ". " + w.replaceSensor
-        else -> w.sensorLeft.format(look.label)
+        else -> w.sensorLeft.format(SensorLife.labelQuantity(look.end, now), look.label)
     }
 
     /** The ring over the main ring: the warm-up filling up, else the end countdown draining (null = none). */

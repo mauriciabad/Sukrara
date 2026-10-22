@@ -49,7 +49,38 @@ object Durations {
         }
     }
 
-    private val H_MM = Regex("""^(\d{1,3}):(\d{2})$""")
+    /*
+     * The quantity a plural agrees with (round f33; Spanish "queda 1 h" / "quedan 1 h 30 min", Android `plurals`): the one
+     * number of a duration that shows a single unit ("1 h" → 1, "12m" → 12), else the minutes (two units read as many).
+     * One per format above, following its branches.
+     */
+
+    /** The plural quantity of [text] ([min] minutes). */
+    fun textQuantity(min: Long): Int {
+        val m = min.coerceAtLeast(0)
+        return (if (m >= 60 && m % 60 == 0L) m / 60 else m).toQuantity()
+    }
+
+    /** The plural quantity of [compact] ([min] minutes). */
+    fun compactQuantity(min: Long): Int {
+        val m = min.coerceAtLeast(0)
+        return when {
+            m < 60 -> m
+            m < 6 * 60 -> if (m % 60 == 0L) m / 60 else m
+            m < 48 * 60 -> m / 60
+            else -> m / 1440
+        }.toQuantity()
+    }
+
+    /** The plural quantity of [whole] ([min] minutes). */
+    fun wholeQuantity(min: Long): Int {
+        val m = min.coerceAtLeast(0)
+        return (if (m >= 1440) m / 1440 else if (m >= 60) m / 60 else m).toQuantity()
+    }
+
+    private fun Long.toQuantity(): Int = coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+    private val H_MM =Regex("""^(\d{1,3}):(\d{2})$""")
     private val HM = Regex("""^(?:(\d{1,3}(?:[.,]\d+)?)\s*h)?\s*(?:(\d{1,4})\s*(?:min|m)?)?$""")
 
     /**
