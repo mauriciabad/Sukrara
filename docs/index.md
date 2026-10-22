@@ -42,7 +42,7 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
 </p>
 <p>
   <img src="img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Remind less" width="300">
-  <img src="img/notification/alert-muted.png" alt="After Mute…: the alert says Low muted until 3:24 AM, with Unmute and Change…" width="300">
+  <img src="img/notification/alert-muted.png" alt="After Mute…: Low alerts muted, counting down to 4:28 AM, with Unmute and Change time" width="300">
 </p>
 <p>
   <img src="img/settings/settings.png" alt="Settings: search, the share-with-your-clinic banner and sections with coloured icons" width="180">

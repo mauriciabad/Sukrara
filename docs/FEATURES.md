@@ -42,9 +42,9 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 <p>
   <img src="img/notification/alert-actions.png" alt="A low alert with exactly two actions: Mute… and Remind less (Robolectric render, synthetic data)" width="300">
-  <img src="img/notification/alert-muted.png" alt="After Mute…: the silent 'Low muted until' notification with Unmute and Change…" width="300">
-  <img src="img/home/mute-alerts.png" alt="Home card with Mute all on: the Muted · 2h pill and 'Alerts muted until 01:29' with Unmute (Mute all) and Change" width="230">
-  <img src="img/settings/alerts-from-notification.png" alt="Settings › Alerts › From the notification: Mute… first length 30 min, Remind less every 30 min until back in range, the margin 10 mg/dL for 10 min" width="300">
+  <img src="img/notification/alert-muted.png" alt="After Mute…: the silent Low alerts muted notification counting down, Until 4:28 AM, with Unmute and Change time" width="300">
+  <img src="img/home/mute-alerts.png" alt="Home card with Mute all on: the Muted pill and Alerts muted with the time left, Unmute and Change time" width="230">
+  <img src="img/settings/alerts-from-notification.png" alt="Settings › Alerts › From the notification: Mute: suggested time 30 min, Remind less every 30 min until back in range, the margin 10 mg/dL for 10 min" width="300">
 </p>
 
 - Countdown and copy (round f31; the user, 2026-10-22: "muted alerts should show a countdown, and the Never option makes no sense … figure out the best copywriting"): every muted state counts down. Android's muted notification uses a count-down chronometer (`when` = the mute's end) titled *Low alerts muted* with *Until 10:42*; the pill, sheet, Active now and Mute-all line tick on each minute boundary; widgets and the lock screen re-render each minute while a mute runs. Mac rows, pill, Active now and menu-bar tooltip tick; Mac notifications say *Until 10:42* (they can't count down). The state lines come from one builder per platform (`MuteCopy`) tested against `spikes/alerts/copy.json` (en + es): *Low alerts muted · 12 min left*, *Low reminders every 30 min*, *Alerts muted · 1 h 12 min left*, *Alerts muted until you turn it off*; choices *For 30 min* … *For 8 h*, *Until you turn it off* (AOSP DND's *Until you turn off* / *For 1 hour*); buttons *Unmute* / *Change time*, *Remind less* / *Remind as usual*; pill *Muted · 1h 12m* / *Muted*. Mac uses title-style buttons and menu items (*Change Time*, *Remind as Usual*, *Until You Turn It Off*).
