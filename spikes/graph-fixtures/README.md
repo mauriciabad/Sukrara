@@ -52,7 +52,8 @@ A case: `name`; `card` `{graph, value, axisLabels?, sensorTime?}` (the WHOLE car
 `{w, h}`. `expect`: `spot` `graph` | `none` (no badge beside the number: the user, 2026-10-21), and with a chart `box` `[x, top, h]` (dp, ± 0.05; no second
 label lane). `tools/check` (`graph-surface`) makes every surface go through this decision.
 
-A label case (above) may carry `sensor` (the badge's label): lane 0 starts with its room taken.
+The badge takes no room in the label lanes: it is drawn last, over the time row, with its outline erased from what
+passes under it, so it never moves a label or adds the second row (`layout/rules.json` `badge`, below).
 
 ## Sensor life (`sensor/*.json`)
 

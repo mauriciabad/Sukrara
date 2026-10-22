@@ -888,8 +888,6 @@ enum GlucoseGraph {
                 (show.has(m.k, MarkShow.point) || show.label(m.k) && TreatmentMarks.amount(m) != nil || mutes(m))
         } : []
         let lane = shownMarks.contains { show.has($0.k, MarkShow.point) || mutes($0) }
-        // the sensor badge's place in the hour-label row is kept free of treatment labels
-        let badgeRoom: (CGFloat, CGFloat)? = labels ? sensor.map { (area.minX, area.minX + sensorWidth($0.label, d: d) + 3 * d) } : nil
         // The y range of the window (`yRange`); a scrolling surface animates it towards that and passes the current one.
         let own = yRange(pts, bands: b)
         let yMin = view?.y?.lowerBound ?? own.lowerBound, yMax = view?.y?.upperBound ?? own.upperBound
@@ -917,7 +915,7 @@ enum GlucoseGraph {
             let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d, pctW: pctLabelW, valW: valW)
             let layout = shownMarks.isEmpty ? nil
                 : TreatmentMarks.layout(shownMarks, x: { left + CGFloat(($0 - from) / st.window) * (right - left) }, now: now,
-                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, reserve: badgeRoom, show: show)
+                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, show: show)
             let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
             let textRow = labels || !(layout?.labels.isEmpty ?? true)
             let top = area.minY + 3 * d
@@ -986,15 +984,7 @@ enum GlucoseGraph {
         ctx.setStrokeColor(pal.grid.a(pal.decor))
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [2 * d, 3 * d])
-        // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the
-        // user, 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
         var lastLabelEnd = -CGFloat.infinity
-        if let sensor, let badgeRoom {
-            let sy = sensorTop(area.maxY, lane1: lane1, d: d)
-            SensorBadge.draw(ctx, x: area.minX, y: sy, h: sensorDp * d, sensor, pal)
-            rec.add("chart.sensor", CGRect(x: area.minX, y: sy, width: sensorWidth(sensor.label, d: d), height: sensorDp * d), sensor.label)
-            lastLabelEnd = badgeRoom.1
-        }
         while hour.timeIntervalSince1970 <= end {
             let gx = x(hour.timeIntervalSince1970)
             if gx > left + sideW * 0.6 {
@@ -1190,6 +1180,22 @@ enum GlucoseGraph {
             ctx.restoreGState()
             rec.add("chart.now", CGRect(x: px, y: py, width: pw, height: ph), look.text)
         }
+        // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the
+        // user, 2026-10-19/21), drawn last, over whatever passes under it: its outline is erased (`.destinationOut`,
+        // `badgeCut` around it) from the treatment and hour labels, which are laid out as if it weren't there, so it
+        // never pushes a label into a second row or makes anything jump while the chart scrolls (the user, 2026-10-22).
+        if let sensor, labels {
+            let sy = sensorTop(area.maxY, lane1: lane1, d: d)
+            let box = CGRect(x: area.minX, y: sy, width: sensorWidth(sensor.label, d: d), height: sensorDp * d)
+            let c = Self.badgeCut * d, cut = box.insetBy(dx: -c, dy: -c)
+            ctx.saveGState()
+            ctx.setBlendMode(.destinationOut)
+            ctx.addPath(CGPath(roundedRect: cut, cornerWidth: cut.height / 2, cornerHeight: cut.height / 2, transform: nil))
+            ctx.fillPath()
+            ctx.restoreGState()
+            SensorBadge.draw(ctx, x: area.minX, y: sy, h: sensorDp * d, sensor, pal)
+            rec.add("chart.sensor", box, sensor.label)
+        }
     }
 
     /// The longest window whose treatment marks get labels (layout/rules.json "treatmentLabels"; GlucoseGraph.kt `LABELS_MAX_S`).
@@ -1217,6 +1223,9 @@ enum GlucoseGraph {
         }
         return true
     }
+
+    /// The outline erased around the sensor badge (pt; GlucoseGraph.kt `BADGE_CUT_DP`).
+    static let badgeCut: CGFloat = 2
 
     /// The Now pill's height and its distance from the plot's top-right corner (pt; GlucoseGraph.kt `NOW_PILL_DP`, `NOW_INSET_DP`).
     static let nowPill: CGFloat = 22, nowInset: CGFloat = 4
@@ -1417,9 +1426,9 @@ enum TreatmentMarks {
     /// chained, or < `mergeDp` from the group's first marker), label = amounts in kind order joined by " · " + the time since the newest,
     /// anchored mid-group; newest group first, each in the first of lane 0 / lane 1 with the time, lane 0 / lane 1
     /// without it that has a free place (`place`), else no label.
-    /// `reserve` = a box of lane 0 already taken (the sensor badge at the row's start, `GlucoseGraph.sensorTop`).
+    /// Nothing else takes room in the lanes: the sensor badge is drawn over the row, masking what passes under it.
     static func layout(_ marks: [GraphMark], x: (TimeInterval) -> CGFloat, now: TimeInterval?, minX: CGFloat, maxX: CGFloat,
-                       lanes: Int, d: CGFloat, reserve: (CGFloat, CGFloat)? = nil, show: MarkShow = .defaults) -> Layout {
+                       lanes: Int, d: CGFloat, show: MarkShow = .defaults) -> Layout {
         let items = marks.filter { amount($0) != nil && order[$0.k] != nil && show.label($0.k) }
             .sorted { ($0.t, order[$0.k]!, $0.a, $0.id) < ($1.t, order[$1.k]!, $1.a, $1.id) }
         var groups: [[GraphMark]] = []
@@ -1428,7 +1437,7 @@ enum TreatmentMarks {
             else { groups.append([m]) }
         }
         let size = labelSize * d, gap = labelGap * d
-        var taken: [[(CGFloat, CGFloat)]] = [reserve.map { [$0] } ?? [], []]
+        var taken: [[(CGFloat, CGFloat)]] = [[], []]
         var labels: [Label] = [], dropped: [[GraphMark]] = []
         for g in groups.sorted(by: { $0.last!.t > $1.last!.t }) {
             let members = g.sorted { (order[$0.k]!, $0.t, $0.a, $0.id) < (order[$1.k]!, $1.t, $1.a, $1.id) }

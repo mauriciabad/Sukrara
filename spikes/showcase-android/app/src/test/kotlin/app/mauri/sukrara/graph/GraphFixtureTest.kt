@@ -294,7 +294,7 @@ class GraphFixtureTest {
         val from = now - windowS
         val lay = TreatmentMarks.layout(trs.filter { it.t in from..now }, { t -> left + (t - from).toFloat() / windowS * (right - left) },
             now, 0f, w, GlucoseGraph.lanes(h, 1f), 1f,
-            c.optString("sensor").takeIf { it.isNotEmpty() }?.let { 0f to GlucoseGraph.sensorWidth(it, 1f) + 3f }, marksOf(c))
+            marksOf(c))
         fun r(v: Float) = Math.round(v * 2) / 2.0
         return JSONObject()
             .put("plot", org.json.JSONArray(listOf(r(left), r(right))))

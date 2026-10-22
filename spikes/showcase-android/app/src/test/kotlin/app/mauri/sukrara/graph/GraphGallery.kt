@@ -118,6 +118,29 @@ class GraphGallery {
         }
     }
 
+    /**
+     * The app panel's chart scrolled so a treatment label passes the sensor badge at the start of the time row (the
+     * user, 2026-10-22: the label used to jump to a second row under the badge and back).
+     */
+    @Test fun badgeScroll() {
+        val data = Synthetic.days(now, 15)
+        val t0 = now - 14 * 3600L
+        val trs = listOf(Treatment(id = "r", t = t0, k = "rapid", a = 4.5, u = 0, o = "phone"),
+            Treatment(id = "c", t = t0 + 120, k = "carbs", a = 45.0, u = 0, o = "phone"))
+        val sensor = app.mauri.sukrara.core.SensorInfo("S", now - 2 * 86_400L, now + 13 * 86_400L)
+        val pal = GraphPalette.LIGHT
+        val st = CardStyle(graph = GraphStyle(marks = app.mauri.sukrara.treatments.MarkShow.ALL), sensorTime = true)
+        // scrolling forward: the treatment moves left towards the badge, from 2 h to 2 min after the window's start
+        val tiles = listOf(120, 90, 70, 50, 35, 20, 10, 2).mapIndexed { k, offMin ->
+            val e = t0 + 12 * 3600L - offMin * 60L
+            Tile("frame $k: the treatment $offMin min after the window's start", "", 380f, 210f) { cv, w, h ->
+                val view = ChartView(e, GlucoseCard.yRange(data, e, st.graph!!), 0f)
+                GlucoseCard.draw(cv, w, h, data, trs, now, st, pal, d, sensor = sensor, surface = CardSurface.TEST, part = CardPart.GRAPH, view = view)
+            }
+        }
+        sheet("badge-scroll", tiles, 380f, 210f, cols = 2, pal)
+    }
+
     @Test fun freshness() {
         val data = Synthetic.days(now, 15)
         val pal = GraphPalette.DARK

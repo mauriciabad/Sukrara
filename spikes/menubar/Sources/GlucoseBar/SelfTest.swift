@@ -491,7 +491,6 @@ enum GraphFixtures {
                 let lanes = GlucoseGraph.lanes(h, d: 1)
                 let lay = TreatmentMarks.layout(marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now,
                                                 minX: 0, maxX: w, lanes: lanes, d: 1,
-                                                reserve: (c["sensor"] as? String).map { (0, GlucoseGraph.sensorWidth($0, d: 1) + 3) },
                                                 show: marksOf(c["marks"]))
                 let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
                 // the width model holds the real text (SF Pro, the wider font) of every label
