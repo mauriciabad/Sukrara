@@ -42,9 +42,9 @@ Rules: [spikes/alerts/SPEC.md](../spikes/alerts/SPEC.md); timelines: [spikes/ale
 
 <p>
   <img src="img/notification/alert-actions.png" alt="A low alert with exactly two actions: Mute… and Relax (Robolectric render, synthetic data)" width="300">
-  <img src="img/notification/alert-muted.png" alt="After Mute…: the silent 'Low muted until' notification with Unmute and Change…" width="300">
-  <img src="img/home/mute-alerts.png" alt="Home card with Mute all on: the Muted · 2h pill and 'Alerts muted until 01:29' with Turn alerts back on and Change" width="230">
-  <img src="img/settings/alerts-from-notification.png" alt="Settings › Alerts › From the notification: Mute… first length 30 min, Relax every 30 min until back in range, the margin 10 mg/dL for 10 min" width="300">
+  <img src="img/notification/alert-muted.png" alt="After Mute…: the silent Low alerts muted notification counting down, Until 4:28 AM, with Unmute and Change time" width="300">
+  <img src="img/home/mute-alerts.png" alt="Home card with Mute all on: the Muted pill and Alerts muted with the time left, Unmute and Change time" width="230">
+  <img src="img/settings/alerts-from-notification.png" alt="Settings › Alerts › From the notification: Mute: suggested time 30 min, Remind less every 30 min until back in range, the margin 10 mg/dL for 10 min" width="300">
 </p>
 
 - **States and exits** (rounds f29, f30; SPEC §2 "States and exits"; scenarios `actions.txt`, `exits.txt`, `devices.txt`; Android `AlertMuteTest`, `AlertExitsTest`, `MuteAllGallery`, `QuietGallery` read back the posted notifications; Mac `-alerts-selftest` notification checks on the real `Alerts` class). Every way out acts on this device only and updates history, badge, widgets and ring at once.
