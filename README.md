@@ -37,7 +37,7 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
   <img src="docs/img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid 4.5u, long 12u, carbs 30g and a note, with how long highs and lows stay quiet" width="330">
 </p>
 <p align="center">
-  <img src="docs/img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Relax" width="300">
+  <img src="docs/img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Remind less" width="300">
   <img src="docs/img/settings/sharing.png" alt="Share with people: send an invite link, pair nearby over Bluetooth, and the followers" width="180">
   <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the share-with-your-clinic banner and sections with coloured icons" width="180">
 </p>
@@ -167,13 +167,13 @@ by the app's icon code.</sub>
   glucose is already falling back into range; lows (also very low) stay quiet for a while after carbs, and alert at once
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
   A short dip back into range doesn't restart the alert. Insulin never quiets extremely high. Every alert notification
-  has two buttons: *Mute…* (pick 15 min, 30 min, 1 h, 2 h or type a length) and *Relax* (fewer reminders, every 30 min).
+  has two buttons: *Mute…* (pick 15 min, 30 min, 1 h, 2 h or type a length) and *Remind less* (every 30 min instead).
   They cover only that side (a high's mute never silences a low, very low and extremely high included) and end at their
   time or once glucose is back in range with a margin (10 mg/dL for 10 min, so hovering at the edge doesn't end them).
   *Mute alerts* on the home screen and in the Mac menu silences every alert for 30 min to 8 h or until you turn them back
   on, shown on every card as a *Muted* pill. Mutes only quiet the device you tap them on, so the Mac and followers keep
   alerting. Every quiet state has a way back: *Unmute* / *Change…* on the muted notification, the pill's sheet (or the
-  Mac panel's rows), *Turn alerts back on*, and Settings › Alerts › *Active now* (also *Stop relaxing* and *Alert me
+  Mac panel's rows), *Unmute*, and Settings › Alerts › *Active now* (also *Remind as usual* and *Alert me
   anyway* after carbs or insulin). Durations read *1 h*, *2 h*, never *60 min*. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
@@ -199,7 +199,7 @@ by the app's icon code.</sub>
   and generated picture, like the phone). Keys stay in the macOS Keychain. Hours
   the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
 - The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does
-  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. The same Mute… / Relax
+  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. The same Mute… / Remind less
   notification actions and a *Mute Alerts* menu in the dropdown (bell-slash in the menu bar while on). Pick the pack, or another sound per alert, from a list with ▶ on each one.
   [15](docs/15-alerts.md)
 - When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel

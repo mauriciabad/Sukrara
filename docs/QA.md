@@ -314,8 +314,8 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
       notification, and with TalkBack / VoiceOver (a button or an accessibility action).
 - [ ] Leaving it updates everything that showed it at once (history, badge, widgets, ring, notification).
 - [ ] Alerts: emulator `--es alertFeed '65,0'` → Mute 30 min → the muted notification's *Unmute* brings *Low glucose*
-      back at once; Mute… → the pill opens the sheet → *Change to 15 min*; Relax → the chip → *Stop relaxing*; home
-      *Mute alerts* → 1 h → the muted pill on the card and widgets → *Turn alerts back on*; *Never* stays after a restart;
+      back at once; Mute… → the pill opens the sheet → *Change to 15 min*; Remind less → the chip → *Remind as usual*; home
+      *Mute alerts* → 1 h → the muted pill on the card and widgets → the line counts down → *Unmute*; *Until you turn it off* stays after a restart; the muted notification's header counts down;
       a high muted, then a low: the low alerts; muted low back at ≥ 80 for 10 min → the muted notification goes;
       durations everywhere read *1 h* / *2 h*;
       log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under

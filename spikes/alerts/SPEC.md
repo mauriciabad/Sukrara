@@ -65,17 +65,21 @@ So every alert notification, every kind, has exactly **two** actions, the same o
 | Button | Effect |
 |---|---|
 | *Mute…* | One action whose choices are the lengths: Android a direct reply with the choices `muteMin` first, then 15 min / 30 min / 1 h / 2 h (written by the one duration formatter) and free typing; Mac a text-input action (empty = `muteMin`). Typed text is read by the shared duration parser (`45`, `1 h 30`, `1:30`, `2h`; spikes/durations/durations.json), 1–720 min; anything else changes nothing. |
-| *Relax* | The side's repeats come every `max(repeatMin, relaxMin)` minutes, counted from the last alert. Shown when it would slow anything (the kind repeats faster than `relaxMin`); once relaxed the same slot is *Stop relaxing*. The interval is said in the secondary text (Android: the notification's subtext "Reminders every 30 min"), never in the button. |
+| *Remind less* (Mac *Remind Less*; es *Avisar menos*) | The side's repeats come every `max(repeatMin, relaxMin)` minutes, counted from the last alert. Shown when it would slow anything (the kind repeats faster than `relaxMin`); once relaxed the same slot is *Remind as usual*. The interval is said in the secondary text (Android: the notification's subtext "Reminders every 30 min"), never in the button. |
+
+**Copy** (round f31): every mute / remind-less state line is built by one function per platform (`MuteCopy`) from
+[`copy.json`](copy.json) (en + es; Android `MuteCopyTest`, Mac `-alerts-selftest`). Every muted state counts down
+(Android notification chronometer, app and Mac rows / pill tick each minute); Mac notifications say "Until 10:42".
 
 **Scope and end** (the user, 2026-10-21: "if the user is high, mutes for 2 h, injects insulin and then goes low, the
 low would be muted, and we don't want that … I don't want muting to stop when merely back in normal range"):
 
-- Mute and Relax act on **one side**: lows (low and very low), highs (high, very high, extremely high), falling fast,
+- Mute and Remind less act on **one side**: lows (low and very low), highs (high, very high, extremely high), falling fast,
   rising fast, no data. A high's Mute can never quiet a low, and vice versa.
 - They cover **every kind of the side**, very low and extremely high included (the user's explicit decision, round
   f30; before, the notification never muted those two). Treatment mutes are unchanged: rapid insulin never quiets
   extremely high.
-- They don't end with the episode. A Mute ends at its time; Mute and Relax both end once the side is **back by the
+- They don't end with the episode. A Mute ends at its time; Mute and Remind less both end once the side is **back by the
   margin**: lows at least `backMgdl` above the low threshold (the highest enabled low-side one), highs below the high
   threshold (the lowest enabled high-side one) minus `backMgdl`, a rate side while its rate doesn't match, no data while
   readings come — for `backMin` minutes in a row (fresh readings; the engine reports `back <side>`). A reading that
@@ -85,14 +89,14 @@ low would be muted, and we don't want that … I don't want muting to stop when 
   and the repeats count from there. Together with a treatment mute, the later end wins.
 
 **Mute all** (round f30; the user: "a global mute button with a time option for when alerts turn back on
-automatically (Never is also an option)"): from the Android home screen and the Mac's dropdown, on that device only.
-Lengths 30 min / 1 h / 2 h / 4 h / 8 h / **Never** (until turned back on) / custom (5 min–24 h, schema `muteAll`). It
+automatically (Never is also an option)"; round f31: "the Never option makes no sense, it should be always"): from the Android home screen and the Mac's dropdown, on that device only.
+Lengths *For 30 min* / *For 1 h* / *For 2 h* / *For 4 h* / *For 8 h* / **Until you turn it off** (round f31, after AOSP Do Not Disturb's "Until you turn off"; es *Hasta que lo desactives*) / custom (5 min–24 h, schema `muteAll`). It
 quiets every kind, no data included; when it ends whatever still matches alerts at once. It is visible wherever alerts
-show: the home control / dropdown row ("Alerts muted until 14:30", "Alerts muted" for Never), the card's pill on
+show: the home control / dropdown row ("Alerts muted · 1 h 12 min left", counting down; "Alerts muted until you turn it off"), the card's pill on
 every surface (`muted`, "Muted · 1h 20m" in range; the paused badge out of range), the Mac menu bar.
 
-After *Mute…* Android replaces the alert's notification with a silent "Low muted until 10:42" whose two buttons are the
-ways out, *Unmute* and *Change…* (the same Mute… input); it goes when the mute ends (or the alert comes back). Android
+After *Mute…* Android replaces the alert's notification with a silent "Low alerts muted" / "Until 10:42" with a count-down chronometer to the end (round f31), whose two buttons
+are the ways out, *Unmute* and *Change time* (the same Mute… input); it goes when the mute ends (or the alert comes back). Android
 asks an app to update a notification after a direct reply. macOS removes a notification once any of its actions is
 used. The history records "Low muted for 1 h (notification)", never "Low cleared": the episode goes on.
 
@@ -101,7 +105,7 @@ own. Mac and Android don't have to be from the same person, so if someone wants 
 other"): its notifications, its badge / pill and its history. Nothing about them is sent:
 - On the **wearer** they change only the phone's own notifications. What goes to the followers (§4) is what the rules
   decide **without** them: the wearer runs the rules twice on the same readings and treatments, once for its own
-  notifications (with its Mute / Relax / Mute all) and once for the followers (without).
+  notifications (with its Mute / Remind less / Mute all) and once for the followers (without).
 - On a **follower that mirrors the wearer** (`source` "wearer"; a phone or the Mac) they quiet the wearer's alerts on
   that device (dropped while muted; while relaxed, a repeat shows only if `relaxMin` has passed since the last one
   shown, a more severe kind always shows). They end by the same time and margin rules on the readings that device
@@ -114,13 +118,13 @@ on that device only:
 
 | State | Shown | Ways out |
 |---|---|---|
-| Normal (alerting) | the notification; the "Eat carbs" / "Take insulin" pill | *Mute…*, *Relax* (notification; the app's sheet / Active now / Mac panel) |
-| Side muted (N left) | Android: the "Low muted until 10:42" notification; the tonal pill "Nm left"; sheet, Active now; Mac panel rows, pill menu, Settings › Alerts | *Unmute* · *Change…* / Change to 15 min / 30 min / 1 h / 2 h · ends at its time or back by the margin |
+| Normal (alerting) | the notification; the "Eat carbs" / "Take insulin" pill | *Mute…*, *Remind less* (notification; the app's sheet / Active now / Mac panel) |
+| Side muted (N left) | Android: the counting-down "Low alerts muted" notification; the tonal pill "Nm left"; the line "Low alerts muted · 12 min left" (ticks); sheet, Active now; Mac panel rows, pill menu, Settings › Alerts | *Unmute* · *Change…* / Change to 15 min / 30 min / 1 h / 2 h · ends at its time or back by the margin |
 | Quiet after carbs / rapid insulin (shared data) | the tonal pill, the last-treatment ring; Active now | *Alert me anyway* (this device only, the treatment stays) · ends at `t + min` · deleting the treatment |
 | Quiet: falling back into range | Active now | *Alert me anyway* · ends when the prediction no longer holds |
-| Side relaxed | Android: a "Low relaxed: reminders every 30 min" chip under the card; the notification's *Stop relaxing*; Mac panel row; Active now | *Stop relaxing* · ends back by the margin |
+| Side relaxed | Android: a "Low relaxed: reminders every 30 min" chip under the card; the notification's *Remind as usual*; Mac panel row; Active now | *Remind as usual* · ends back by the margin |
 | Muted + relaxed | both of the above | each exit on its own; the margin ends both |
-| All alerts muted (until a time / Never) | home control (Android) / dropdown row (Mac): "Alerts muted until 14:30" / "Alerts muted"; the `muted` pill on every card surface; the Mac menu bar; Active now | *Turn alerts back on* · Change (a new length) · ends at its time (never with Never) |
+| All alerts muted (for a time / until you turn it off) | home control (Android) / dropdown row (Mac): "Alerts muted · 1 h 12 min left" (ticks) / "Alerts muted until you turn it off"; the `muted` pill on every card surface; the Mac menu bar; Active now | *Unmute* · *Change time* (a new length) · ends at its time (never with Never) |
 | Mute ending | — | the alert comes at once if it still matches |
 | Back by the margin | history "Low back in range: mute and relax ended" | — (nothing stays) |
 
@@ -129,9 +133,9 @@ on that device only:
   again). Still matching → it alerts **at once** and the repeats count from there; back in range → nothing, and it
   alerts at once if it matches again within the episode. Nothing quiet → nothing happens.
 - **Change** = a new *Mute* on a muted side: the end becomes now + the new length (shorter or longer).
-- **Stop relaxing** (`unrelax`): the kind's own interval again; a repeat already due under it alerts at once.
-- **Turn alerts back on** (`unmute all`): Mute all ends; whatever matches and isn't muted otherwise alerts at once.
-- On a **follower that mirrors the wearer** Unmute / Stop relaxing / Turn alerts back on show the wearer's newest
+- **Remind as usual** (`unrelax`): the kind's own interval again; a repeat already due under it alerts at once.
+- **Unmute** (`unmute all`): Mute all ends; whatever matches and isn't muted otherwise alerts at once.
+- On a **follower that mirrors the wearer** Unmute / Remind as usual / Unmute (Mute all) show the wearer's newest
   alert at once if the wearer still has it up (it was dropped or skipped here). A treatment mute can't be lifted there:
   the wearer's phone decides (the sheet says so and links to the alert settings, where *Settings from* Default /
   Custom runs the rules on this device).
@@ -180,9 +184,9 @@ treatment rules for the badge under the value.
   (off = always variant 1).
 - `notificationActions` (per device, also on a follower that mirrors the wearer): `muteMin` = the first length
   *Mute…* offers (1–720, default 30; presets 15 / 30 / 60 / 120 min, shown as 15 min / 30 min / 1 h / 2 h); `relaxMin`
-  = the interval *Relax* sets (5–120, default 30: slower than every level alert's default repeat, so the button shows
+  = the interval *Remind less* sets (5–120, default 30: slower than every level alert's default repeat, so the button shows
   on all of them; the settings offer only presets slower than every enabled level alert's repeat); `backMgdl` (0–50,
-  default 10) and `backMin` (0–60, default 10) = the margin that ends Mute and Relax (§2). Mute all's state is not a
+  default 10) and `backMin` (0–60, default 10) = the margin that ends Mute and Remind less (§2). Mute all's state is not a
   setting: the engine keeps it (snapshot) on that device.
 - `source` (followers only): `"wearer"` (default) = alert exactly when the wearer's app does (mirror its `alert`
   events, §4); `"own"` = run these rules locally on the followed readings and treatments. **Not chosen on its own**
@@ -270,20 +274,20 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,
   `mute <kind> [<length>]` (the notification's Mute… with `muteMin` or a picked / typed length, read by the shared
-  duration parser: `10`, `2h`, `1 h 30`; on a muted side: Change), `relax <kind>` (Relax), `unmute <kind>` (Unmute /
-  Alert me anyway), `unrelax <kind>` (Stop relaxing), `mute all <length>|never` (Mute all), `unmute all` (Turn alerts
+  duration parser: `10`, `2h`, `1 h 30`; on a muted side: Change), `relax <kind>` (Remind less), `unmute <kind>` (Unmute /
+  Alert me anyway), `unrelax <kind>` (Remind as usual), `mute all <length>|never` (Mute all), `unmute all` (Turn alerts
   back on), `follower mute|relax|unmute|unrelax <kind> [<length>]` and `follower mute all …` / `follower unmute all`
   (the same on the mirroring follower, `mirror` only),
   `restart` (the app process restarts: a new engine, seeded with the last reading, restores the old one's snapshot).
 - `mirror` (a line of its own, like `settings`): also run a follower (a phone or the Mac) that mirrors the wearer:
   the wearer's second engine, which gets everything but the wearer's `mute` / `relax` / `mute all` (what it publishes,
-  §2), feeds the platform's `AlertMirror`, which also gets every reading (its Mute / Relax end by the margin). Its
+  §2), feeds the platform's `AlertMirror`, which also gets every reading (its Mute / Remind less end by the margin). Its
   actions are expected as `follower <headline>` / `follower clear <kind>` / `follower back <side>`, compared
   apart from the wearer's (the order between the two within a minute is free); the follower's own `no_data` isn't run.
 - Settings keys: `alerts=on|off`, `<kind>=on|off|<threshold>`, `<kind>.repeat=<min>`,
   `carbs.mute|insulin.mute|falling.mute=off|<min>`, `mute.min=<min>`, `relax.min=<min>`, `back.mgdl=<mg/dL>`,
   `back.min=<min>`.
-- Expectations: the fired headline (§1), `clear <kind>`, `back <side>` (the side's Mute / Relax ended: back by the
+- Expectations: the fired headline (§1), `clear <kind>`, `back <side>` (the side's Mute / Remind less ended: back by the
   margin), or `resume <kind>` (a `restart` shows that alert again without sound), in the order they happen; `nothing` (or none) = no
   action. **Strict**: every minute without a line must have no action, and every action must be listed.
 - Driver (same on both platforms): time starts on a whole minute. At each instant, first the line's events in order
