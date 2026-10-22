@@ -271,7 +271,8 @@ different entry.
 
 `u` (number, units, 0–250, up to 3 decimals), `kind` (open: `rapid`, `long`, `intermediate`, `premixed`, `other`),
 `how` (open, optional: `pen`, `syringe`, `pump`, `inhaled`). Pump basal programmes, temporary basals and automated
-delivery are out of scope for draft 3 (rationale R10).
+delivery are out of scope for draft 3 (rationale R10). Open: the primed units and per-dose list draft 1 carries for
+pen entries (D§6 `pr`, `pd`), see [P16](../PROPOSALS.md#p16).
 
 ### D§9.4 `carbs`
 

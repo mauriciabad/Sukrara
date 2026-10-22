@@ -194,6 +194,26 @@ enum TreatmentForm {
         if quiet(true, true) != "Lows quiet for 15 min" { fail("quiet with the insulin mute off") }
         s.on = false
         if quiet(true, true) != nil { fail("quiet with alerts off") }
+        // Already logged by the pen? (PRODUCT §4.6 / §7): Cancel saves only carbs / note and keeps the insulin typed;
+        // Log Anyway saves everything; no pen entry near, no question.
+        MainActor.assumeIsolated {
+            var pen = Treatment(k: "rapid", a: 8.5, t: Int64(Date().timeIntervalSince1970) - 600, o: "phone")
+            pen.pen = "P"
+            var saves: [[String]] = [], asked = 0, answer = false, closed = 0
+            let m = TreatmentDialogModel()
+            m.existing = { [pen] }
+            m.onSave = { saves.append($0.map(\.k)) }
+            m.onClose = { closed += 1 }
+            m.confirmPen = { _, done in asked += 1; done(answer) }
+            m.f.rapid = "8"; m.f.carbs = "40"
+            m.save()
+            if asked != 1 || saves != [["carbs"]] || m.f.rapid != "8" || !m.f.carbs.isEmpty || closed != 0 { fail("pen warning: Cancel \(saves)") }
+            answer = true
+            m.save()
+            if asked != 2 || saves.last != ["rapid"] || closed != 1 { fail("pen warning: Log Anyway \(saves)") }
+            m.reset(focus: "rapid"); m.f.long = "12"; m.save()
+            if asked != 2 || saves.last != ["long"] { fail("pen warning: long isn't the pen's kind") }
+        }
         print(ok ? "treatment form selftest OK" : "treatment form selftest FAILED")
         return ok
     }
@@ -214,6 +234,10 @@ enum TreatmentForm {
     var mirroring: () -> Bool = { false }
     var onSave: (([Treatment]) -> Void)?
     var onClose: (() -> Void)?
+    /// The log as it is now, for the pen warning.
+    var existing: () -> [Treatment] = { [] }
+    /// Asks *Already logged by the pen?* about `pen`; answers true for Log Anyway (TreatmentDialog: a sheet).
+    var confirmPen: ((Treatment, @escaping (Bool) -> Void) -> Void)?
     private var saved = false
 
     func reset(focus: String) { f = .init(); at = nil; ago = nil; self.focus = focus; saved = false }
@@ -230,6 +254,19 @@ enum TreatmentForm {
 
     func save() {
         guard !saved, f.canSave, let e = f.entries(at: when(now: Int64(Date().timeIntervalSince1970))) else { return NSSound.beep() }
+        // Typing a dose the pen already logged (PRODUCT §4.6 / §7): only the insulin is held. Log Anyway saves all;
+        // Cancel saves the carbs and note, and leaves the insulin in the form.
+        if let pen = PenCopy.alreadyLogged(e, in: existing()), let confirmPen {
+            saved = true
+            confirmPen(pen) { [weak self] anyway in
+                guard let self else { return }
+                if anyway { self.onSave?(e); self.onClose?(); return }
+                let rest = e.filter { $0.k != "rapid" && $0.k != "long" }
+                if !rest.isEmpty { self.onSave?(rest); self.f.carbs = ""; self.f.note = "" }
+                self.saved = false
+            }
+            return
+        }
         saved = true
         onSave?(e)
         onClose?()
@@ -446,6 +483,21 @@ struct TimePicker: View {
     override init() {
         super.init()
         model.onClose = { [weak self] in self?.window?.close() }
+        model.confirmPen = { [weak self] pen, answer in
+            guard let w = self?.window else { return answer(true) }
+            Self.penAlert(pen).beginSheetModal(for: w) { answer($0 == .alertSecondButtonReturn) }
+        }
+    }
+
+    /// *Already logged by the pen?* · *8.5u rapid at 12:40* · Cancel (default: the duplicate is the likely mistake) /
+    /// Log Anyway. HIG "Alerts": a short question as title, title-case buttons, Cancel answers Escape.
+    static func penAlert(_ pen: Treatment) -> NSAlert {
+        let a = NSAlert()
+        a.messageText = PenCopy.alreadyTitle
+        a.informativeText = PenCopy.alreadyText(pen)
+        a.addButton(withTitle: "Cancel")
+        a.addButton(withTitle: "Log Anyway")
+        return a
     }
 
     /// `focus`: the field to focus ("carbs" / "rapid"). Cancel / Escape closes it with nothing saved; the dropdown it
@@ -519,9 +571,29 @@ struct TimePicker: View {
                 windows.append((w, host, "\(dir)/\(name)-\(dark ? "dark" : "light").png"))
             }
         }
+        // the pen warning (PRODUCT §7): the alert's own window, rendered like the rest
+        var pen = Treatment(k: "rapid", a: 8.5, t: Int64(Date().timeIntervalSince1970) - 47 * 60, o: "phone")
+        pen.pen = "P"; pen.pr = 1.5
+        for dark in [false, true] {
+            let alert = TreatmentDialog.penAlert(pen)
+            // a dev binary has no bundle icon (the app shows Sukrara's): use the brand asset when run from the repo
+            if let icon = NSImage(contentsOfFile: "../brand/assets/sukrara/macos/AppIcon-1024.png") { alert.icon = icon }
+            alert.window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            alert.layout()
+            // its vibrancy doesn't draw into a cached bitmap: put the content on an opaque window ground
+            if let v = alert.window.contentView {
+                let ground = NSBox(frame: v.bounds)
+                ground.boxType = .custom; ground.borderWidth = 0; ground.fillColor = .windowBackgroundColor
+                ground.autoresizingMask = [.width, .height]
+                v.addSubview(ground, positioned: .below, relativeTo: nil)
+                alert.window.alphaValue = 0
+                alert.window.orderFrontRegardless()
+                windows.append((alert.window, v, "\(dir)/add-treatment-pen-warning-\(dark ? "dark" : "light").png"))
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             for (w, host, out) in windows {
-                host.frame = NSRect(origin: .zero, size: host.fittingSize)
+                if !(w is NSPanel) { host.frame = NSRect(origin: .zero, size: host.fittingSize) }   // the alert lays itself out
                 guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
                 host.cacheDisplay(in: host.bounds, to: rep)
                 try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: out))

@@ -181,3 +181,8 @@ or point them at `spec/reference`. The interop harness (`spec/reference/interop/
 
 *Done:* `v2/cli.py`, `nodes.py`, `scenarios.py` and `debug_share.py` are deleted; `cgm2.py` keeps the primitives
 (no invite links, no owner/follower state) with the current relay list.
+
+## P16
+**Pen doses in draft 3.** Draft 1 carries an injection read from a connected pen as optional `pr` (primed units),
+`pen` (serial) and `pd` (the doses) on an insulin treatment (D§6). Draft 3's `insulin` record (ogs3-data D§9.3) has
+`how: pen` but no priming or per-dose list yet: add them (or a `doses` array) before draft 3 freezes.

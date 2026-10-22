@@ -45,6 +45,7 @@ Data
 - [ ] Unknown keys ignored; an unknown `v` dropped; unknown message `type`s ignored (D§10, N§11)
 - [ ] Sensor taken from the newest live event by `created_at`; no `se` clears it (D§5)
 - [ ] Treatments merged by `(u, o)` (D§6.2)
+- [ ] Pen entries: accepts and keeps `pr`, `pen`, `pd` through merge, storage and edits; rejects a negative `pr` or a malformed `pd`; shows and exports `a` only (D§6, vector `treatment_payloads`)
 - [ ] SHOULD render avatar v1 or the fallback; MUST keep and forward an unknown avatar unchanged (D§8)
 
 Privacy

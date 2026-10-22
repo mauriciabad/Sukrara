@@ -148,6 +148,10 @@ FIXTURE_INPUT = {
         {"id": "12345678-9abc-4def-8123-456789abcdef", "k": "long", "a": 14, "t": 1791993600, "n": "", "u": 4, "del": False, "o": "mac", "lv": 1},
         {"id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", "k": "carbs", "a": 20, "t": 1792083000, "n": "", "u": 5, "del": False, "o": "phone", "lv": 0},
         {"id": "dddddddd-0000-4000-8000-000000000000", "k": "rapid", "a": 1, "t": 1792083000, "n": "", "u": 6, "del": True, "o": "mac", "lv": 0},
+        # a pen entry (SPEC §1, investigation 29): units = a (injected); pr / pen / pd never reach LibreView
+        {"id": "eeeeeeee-0000-4000-8000-00000000000e", "k": "rapid", "a": 8.5, "t": 1792075020, "n": "", "u": 7, "del": False, "o": "phone", "lv": 0,
+         "pr": 1.5, "pen": "FHB2N9KE", "pd": [{"t": 1792074870, "a": 1, "p": True}, {"t": 1792074930, "a": 0.5, "p": True},
+                                              {"t": 1792075020, "a": 8, "p": False}, {"t": 1792075090, "a": 0.5, "p": False}]},
     ],
 }
 

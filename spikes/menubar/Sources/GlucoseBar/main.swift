@@ -82,6 +82,11 @@ if let dir = defaults.string(forKey: "treatmentTimeSnapshot") {
     MainActor.assumeIsolated { TreatmentTimeSnapshot.run(dir: dir) }
     exit(0)
 }
+// Evidence aid: `-treatmentsSnapshot <dir>` renders the Treatments window (pen entries closed and open) the same way.
+if let dir = defaults.string(forKey: "treatmentsSnapshot") {
+    MainActor.assumeIsolated { TreatmentsSnapshot.run(dir: dir) }
+    exit(0)
+}
 // Evidence aid: `-identitySnapshot <dir>` renders the identity editor, the sound picker and the dimmed Add Treatment
 // row with its reason (IdentityUI.swift), the same way: synthetic data, nothing on screen.
 if let dir = defaults.string(forKey: "identitySnapshot") {
@@ -547,6 +552,7 @@ MainActor.assumeIsolated {
     // Add Treatment (TreatmentDialog.swift): every entry of the form takes the same path as one logged alone.
     treatmentDialog.model.settings = { alerts.settings }
     treatmentDialog.model.mirroring = { alerts.mode == .wearer }
+    treatmentDialog.model.existing = { treatments.rows }   // the pen warning (Already logged by the pen?)
     treatmentDialog.model.onSave = { entries in entries.forEach { status.onLogTreatment?($0) } }
     status.onAddTreatment = { screen, field in
         // the card's pill names its field (Eat carbs → carbs, Take insulin → rapid); else the latest fresh reading below an

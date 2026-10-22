@@ -69,6 +69,41 @@
    "del": true,
    "o": "mac",
    "lv": 0
+  },
+  {
+   "id": "eeeeeeee-0000-4000-8000-00000000000e",
+   "k": "rapid",
+   "a": 8.5,
+   "t": 1792075020,
+   "n": "",
+   "u": 7,
+   "del": false,
+   "o": "phone",
+   "lv": 0,
+   "pr": 1.5,
+   "pen": "FHB2N9KE",
+   "pd": [
+    {
+     "t": 1792074870,
+     "a": 1,
+     "p": true
+    },
+    {
+     "t": 1792074930,
+     "a": 0.5,
+     "p": true
+    },
+    {
+     "t": 1792075020,
+     "a": 8,
+     "p": false
+    },
+    {
+     "t": 1792075090,
+     "a": 0.5,
+     "p": false
+    }
+   ]
   }
  ],
  "recordNumbers": [
@@ -131,7 +166,17 @@
    "dddddddd-0000-4000-8000-000000000000",
    6,
    174581543010305
+  ],
+  [
+   "eeeeeeee-0000-4000-8000-00000000000e",
+   1,
+   20580604002305
+  ],
+  [
+   "eeeeeeee-0000-4000-8000-00000000000e",
+   7,
+   236163389509889
   ]
  ],
- "expectedPayload": "{\"DeviceData\":{\"deviceSettings\":{\"factoryConfig\":{\"UOM\":\"mg/dL\"},\"firmwareVersion\":\"3.3.0\",\"miscellaneous\":{\"selectedLanguage\":\"en-ES\",\"valueGlucoseTargetRangeLowInMgPerDl\":70,\"valueGlucoseTargetRangeHighInMgPerDl\":140,\"selectedTimeFormat\":\"24hr\",\"selectedCarbType\":\"grams of carbs\"},\"timestamp\":\"2026-10-15T20:00:00.000+03:00\"},\"header\":{\"device\":{\"hardwareDescriptor\":\"GlucoBridge-spike\",\"hardwareName\":\"GlucoBridge\",\"modelName\":\"com.freestylelibre3.app.de\",\"osType\":\"Android\",\"osVersion\":\"36\",\"uniqueIdentifier\":\"00000000-0000-4000-8000-000000000001\"}},\"measurementLog\":{\"capabilities\":[\"scheduledContinuousGlucose\",\"unscheduledContinuousGlucose\",\"currentGlucose\",\"insulin\",\"food\",\"generic-com.abbottdiabetescare.informatics.exercise\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.low\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.high\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedlow\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedhigh\",\"generic-com.abbottdiabetescare.informatics.customnote\",\"generic-com.abbottdiabetescare.informatics.sensorstart\",\"generic-com.abbottdiabetescare.informatics.sensorEnd\",\"generic-com.abbottdiabetescare.informatics.isfGlucoseAlarm\",\"generic-com.abbottdiabetescare.informatics.alarmSetting\",\"generic-com.abbottdiabetescare.informatics.bleDisconnect\",\"generic-com.abbottdiabetescare.informatics.bleReconnect\",\"generic-com.abbottdiabetescare.informatics.error\"],\"currentGlucoseEntries\":[],\"foodEntries\":[{\"foodType\":\"Lunch\",\"gramsCarbs\":60,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:30:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":183030992707332,\"timestamp\":\"2026-10-15T15:30:00+03:00\"},{\"foodType\":\"Snack\",\"gramsCarbs\":20,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T16:50:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":51770241761284,\"timestamp\":\"2026-10-15T19:50:00+03:00\"}],\"genericEntries\":[{\"type\":\"com.abbottdiabetescare.informatics.customnote\",\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T13:00:00Z\",\"text\":\"spike \\\"test\\\" \\\\ é\\nline2\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":151401259859216,\"timestamp\":\"2026-10-15T16:00:00+03:00\"}],\"insulinEntries\":[{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":244090666150147,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":113989242222851,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"RapidActing\",\"units\":2.5,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:34:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":173429300163841,\"timestamp\":\"2026-10-15T15:34:00+03:00\"}],\"scheduledContinuousGlucoseEntries\":[],\"unscheduledContinuousGlucoseEntries\":[]}},\"UserToken\":\"TOKEN\",\"Domain\":\"Libreview\",\"GatewayType\":\"FSLibreLink3.Android\"}"
+ "expectedPayload": "{\"DeviceData\":{\"deviceSettings\":{\"factoryConfig\":{\"UOM\":\"mg/dL\"},\"firmwareVersion\":\"3.3.0\",\"miscellaneous\":{\"selectedLanguage\":\"en-ES\",\"valueGlucoseTargetRangeLowInMgPerDl\":70,\"valueGlucoseTargetRangeHighInMgPerDl\":140,\"selectedTimeFormat\":\"24hr\",\"selectedCarbType\":\"grams of carbs\"},\"timestamp\":\"2026-10-15T20:00:00.000+03:00\"},\"header\":{\"device\":{\"hardwareDescriptor\":\"GlucoBridge-spike\",\"hardwareName\":\"GlucoBridge\",\"modelName\":\"com.freestylelibre3.app.de\",\"osType\":\"Android\",\"osVersion\":\"36\",\"uniqueIdentifier\":\"00000000-0000-4000-8000-000000000001\"}},\"measurementLog\":{\"capabilities\":[\"scheduledContinuousGlucose\",\"unscheduledContinuousGlucose\",\"currentGlucose\",\"insulin\",\"food\",\"generic-com.abbottdiabetescare.informatics.exercise\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.low\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.high\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedlow\",\"generic-com.abbottdiabetescare.informatics.ondemandalarm.projectedhigh\",\"generic-com.abbottdiabetescare.informatics.customnote\",\"generic-com.abbottdiabetescare.informatics.sensorstart\",\"generic-com.abbottdiabetescare.informatics.sensorEnd\",\"generic-com.abbottdiabetescare.informatics.isfGlucoseAlarm\",\"generic-com.abbottdiabetescare.informatics.alarmSetting\",\"generic-com.abbottdiabetescare.informatics.bleDisconnect\",\"generic-com.abbottdiabetescare.informatics.bleReconnect\",\"generic-com.abbottdiabetescare.informatics.error\"],\"currentGlucoseEntries\":[],\"foodEntries\":[{\"foodType\":\"Lunch\",\"gramsCarbs\":60,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:30:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":183030992707332,\"timestamp\":\"2026-10-15T15:30:00+03:00\"},{\"foodType\":\"Snack\",\"gramsCarbs\":20,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T16:50:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":51770241761284,\"timestamp\":\"2026-10-15T19:50:00+03:00\"}],\"genericEntries\":[{\"type\":\"com.abbottdiabetescare.informatics.customnote\",\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T13:00:00Z\",\"text\":\"spike \\\"test\\\" \\\\ é\\nline2\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":151401259859216,\"timestamp\":\"2026-10-15T16:00:00+03:00\"}],\"insulinEntries\":[{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"action\":\"deleted\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":244090666150147,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"LongActing\",\"units\":14.0,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-14T16:00:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":113989242222851,\"timestamp\":\"2026-10-14T19:00:00+03:00\"},{\"insulinType\":\"RapidActing\",\"units\":2.5,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T12:34:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":173429300163841,\"timestamp\":\"2026-10-15T15:34:00+03:00\"},{\"insulinType\":\"RapidActing\",\"units\":8.5,\"extendedProperties\":{\"factoryTimestamp\":\"2026-10-15T14:37:00Z\",\"linkedGlucoseRecordNumber\":\"0\"},\"recordNumber\":236163389509889,\"timestamp\":\"2026-10-15T17:37:00+03:00\"}],\"scheduledContinuousGlucoseEntries\":[],\"unscheduledContinuousGlucoseEntries\":[]}},\"UserToken\":\"TOKEN\",\"Domain\":\"Libreview\",\"GatewayType\":\"FSLibreLink3.Android\"}"
 }
