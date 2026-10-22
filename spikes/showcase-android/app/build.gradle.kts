@@ -38,8 +38,8 @@ android {
         // Credential Manager *providers* (Proton Pass, Bitwarden, KeePassDX) plug into the framework on Android 14+.
         minSdk = 36
         targetSdk = 37
-        versionCode = 11043
-        versionName = "0.11.43"
+        versionCode = 11044
+        versionName = "0.11.44"
         buildConfigField("String", "HOOK_CODE", "\"${hookCode()}\"")
         // libnostr_sdk_ffi.so is ~7-9 MB per ABI; ship only arm64 (Pixel + Apple-silicon emulators).
         ndk { abiFilters += "arm64-v8a" }
