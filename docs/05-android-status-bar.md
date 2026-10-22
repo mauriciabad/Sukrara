@@ -217,6 +217,13 @@ left, the first icon that doesn't fit becomes the overflow dot and everything le
   into the correct position"): the jump was the daemon's re-add (3a above). The module's order hook now always emits
   number then trend (also for the plain placement), and its hello says the order hook is in place; the app then sends
   the daemon `order module`, which skips the re-add for that System UI pid. Root alone keeps the re-add.
+- *Added* (round f37, the user: the dot showed where vibrate would fit): SystemUI fitted the row with our pair at its
+  6 dp gap and the pull narrowed it only afterwards, so those 8 px were never offered to other icons. The measure hook
+  now hands SystemUI's fit Constraints with maxWidth + the pull (Compose's `Constraints.copy` `$default` bridge: R8
+  dropped the plain copy's receiver in the Pixel build), decided before measuring like the permutation; the pull then
+  takes exactly that back. Ours are fitted first, so the pair is either shown side by side (the pull applies, the row
+  ends within the real width) or folded into the dot with nothing else shown; never wider (also clamped). Only with the
+  number right before the trend and the gap hook in place.
 - *Discarded*: hiding the mobile network type (LTE / 5G) or the signal bars to make room. SystemUI hides the type only
   when mobile data isn't the active connection; hiding it while on mobile data drops real information without any
   sign, whereas the overflow dot is the platform's own "more icons" signal.

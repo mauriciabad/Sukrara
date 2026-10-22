@@ -265,10 +265,12 @@ class SystemUiHook : XposedModule() {
             hook(measure).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                 val list = chain.getArg(1) as? List<*>
                 // Decided before SystemUI measures: the children may be measured only once per pass.
-                val plan = try { if (fit.broken || list == null || !shownAsIcons()) null else fit.plan(chain.thisObject!!, list) }
-                    catch (t: Throwable) { fit.fail("plan", t); null }
+                val plan = try {
+                    if (fit.broken || list == null || !shownAsIcons()) null
+                    else fit.plan(chain.thisObject!!, chain.getArg(0)!!, list, chain.getArg(2) as Long)
+                } catch (t: Throwable) { fit.fail("plan", t); null }
                 if (plan == null) return@intercept chain.proceed()
-                val result = chain.proceed(arrayOf(chain.getArg(0), plan.permuted, chain.getArg(2)))
+                val result = chain.proceed(arrayOf(chain.getArg(0), plan.permuted, plan.constraints))
                 try { fit.apply(chain.thisObject!!, chain.getArg(0)!!, chain.getArg(2) as Long, result, plan) }
                 catch (t: Throwable) { fit.fail("apply", t) }
                 result
@@ -293,8 +295,25 @@ class SystemUiHook : XposedModule() {
         private val minWidth = cl.find("androidx.compose.ui.unit.Constraints")?.declaredMethods
             ?.firstOrNull { it.name.startsWith("getMinWidth-impl") && it.parameterCount == 1 }
 
-        /** Our icons' places in the row SystemUI measures ([permuted]); [number] / [trend] = the pair's, when both are there. */
-        inner class Plan(val permuted: List<Any?>, val perm: IntArray, val oursPermuted: Set<Int>, val number: Int?, val trend: Int?)
+        /**
+         * Our icons' places in the row SystemUI measures ([permuted]); [number] / [trend] = the pair's, when both are there;
+         * [extend] px more room handed to SystemUI's fit ([constraints]) because the pull will give them back.
+         */
+        inner class Plan(val permuted: List<Any?>, val perm: IntArray, val oursPermuted: Set<Int>, val number: Int?, val trend: Int?,
+                         val extend: Int, val constraints: Long)
+
+        private val constraintsClass = cl.find("androidx.compose.ui.unit.Constraints")
+        private fun constraintsFn(prefix: String, n: Int) = constraintsClass?.declaredMethods?.firstOrNull {
+            it.name.startsWith(prefix) && !it.name.endsWith("\$default") && it.parameterCount == n && it.parameterTypes[0] == Long::class.javaPrimitiveType
+        }
+        private val maxWidthOf = constraintsFn("getMaxWidth-impl", 1)
+        /** `Constraints.copy(maxWidth = …)` as compiled: its `$default` bridge (R8 may drop the plain copy's receiver). */
+        private val copyDefault = constraintsClass?.declaredMethods?.firstOrNull {
+            it.name.startsWith("copy-") && it.name.endsWith("\$default") && it.parameterCount == 7 && it.parameterTypes[0] == Long::class.javaPrimitiveType
+        }
+        private val fontScale by lazy { cl.find("androidx.compose.ui.unit.Density")?.methods?.firstOrNull { it.name == "getFontScale" && it.parameterCount == 0 } }
+        /** The last pull from real icon heights; before the first, estimated from SystemUI's 13 sp icon height. */
+        @Volatile private var lastPull = 0
 
         /** The number's placeable and how many px SystemUI's placement block moves everything after it left ([hookPull]). */
         inner class Pull(val number: Any, val px: Int)
@@ -310,7 +329,7 @@ class SystemUiHook : XposedModule() {
 
         fun fail(what: String, t: Throwable) { broken = true; log("icon fit $what failed, SystemUI's own fit from now on: $t") }
 
-        fun plan(thiz: Any, list: List<*>): Plan? {
+        fun plan(thiz: Any, scope: Any, list: List<*>, constraints: Long): Plan? {
             checkNotNull(semantics) { "no LayoutNode.getSemanticsConfiguration" }
             val kinds = list.map { kindOf(it) }
             val ours = list.indices.filter { kinds[it] != null }.toSet()
@@ -319,8 +338,33 @@ class SystemUiHook : XposedModule() {
             val perm = IconFit.permutation(list.size, ours, fromEnd) ?: IntArray(list.size) { it }
             val at = { k: Kind -> perm.indices.singleOrNull { kinds[perm[it]] == k } }
             val trend = at(Kind.TREND)
-            return Plan(perm.map { list[it] }, perm, perm.indices.filter { perm[it] in ours }.toSet(),
-                if (trend != null) at(Kind.OURS) else null, trend)
+            val number = if (trend != null) at(Kind.OURS) else null
+            // The pull will narrow our pair after SystemUI's fit: offer that room to SystemUI's fit up front, so another icon
+            // can take it instead of the dot (the user, 2026-10-22). Ours are fitted first, so either the pair fits (side by
+            // side: the pull applies and the row ends <= the real width) or nothing else does (IconFit.pulledRow).
+            // Only with number right before trend in SystemUI's order (the order hook's doing): then, both shown, they are
+            // side by side and the pull applies; otherwise no extra room (the row would end wider than the real width).
+            val pair = number != null && perm[number] + 1 == perm[trend!!]
+            val extend = if (pair && pullHooked && placeableWidthField != null && isLtr(scope)) {
+                val spacing = Math.round((spacingDp?.getFloat(thiz) ?: 6f) * (density?.invoke(scope) as Float))
+                lastPull.takeIf { it > 0 } ?: IconFit.pull(spacing,
+                    Math.round(13f * ((fontScale?.invoke(scope) as? Float) ?: 1f) * (density?.invoke(scope) as Float)))
+            } else 0
+            val wider = if (extend > 0) widen(constraints, extend) else null
+            return Plan(perm.map { list[it] }, perm, perm.indices.filter { perm[it] in ours }.toSet(), number, trend,
+                if (wider != null) extend else 0, wider ?: constraints)
+        }
+
+        private fun isLtr(scope: Any) = (layoutDirection?.invoke(scope) as? Enum<*>)?.name == "Ltr"
+
+        /**
+         * [c] with [px] more maximum width, through Compose's own Constraints functions (`copy(maxWidth = …)`: mask 0b1101
+         * keeps minWidth, minHeight and maxHeight), or null when unbounded or not found (then no extra room).
+         */
+        private fun widen(c: Long, px: Int): Long? {
+            val max = maxWidthOf?.invoke(null, c) as? Int ?: return null
+            if (max == Int.MAX_VALUE) return null
+            return copyDefault?.invoke(null, c, 0, max + px, 0, 0, 0b1101, null) as? Long
         }
 
         /** After SystemUI's measurement: rewrite its decision (read by its placement block, which runs later). */
@@ -348,16 +392,20 @@ class SystemUiHook : XposedModule() {
             // Number + trend next to each other: the trend at the card's gap from the number (the block moves it).
             val n = plan.number; val t = plan.trend
             val adjacent = n != null && t != null && after.visible.indexOf(n).let { it >= 0 && after.visible.getOrNull(it + 1) == t }
-            val ltr = (layoutDirection?.invoke(scope) as? Enum<*>)?.name == "Ltr"
-            val pull = if (adjacent && ltr && pullHooked && placeableWidthField != null)
-                IconFit.pull(spacing, (placeableHeight?.invoke(plan.permuted[n!!]) as? Int) ?: 0) else 0
-            if (after.visible.size == before.visible.size && pull == 0) return // at most the order changed
+            val measured = if (n != null && t != null) IconFit.pull(spacing, (placeableHeight?.invoke(plan.permuted[n]) as? Int) ?: 0) else 0
+            if (measured > 0) lastPull = measured
+            // With extra room handed to SystemUI the pull gives back exactly that (the row then fits the real width).
+            val pull = if (adjacent && isLtr(scope) && pullHooked && placeableWidthField != null)
+                (if (plan.extend > 0) plan.extend else measured) else 0
+            if (after.visible.size == before.visible.size && pull == 0 && plan.extend == 0) return // at most the order changed
             // Our pair folded into the dot, or pulled together: the row is narrower than SystemUI measured it.
             val old = fields.filter { it.type == Int::class.javaPrimitiveType && it.name.contains("idth", true) }
             val oldTotal = old.firstOrNull()?.getInt(decision) ?: return
             val total = oldTotal - IconFit.width(widths, before, spacing, 0) + IconFit.place(widths, after, spacing, 0, n, pull).second
             old.forEach { it.setInt(decision, total) }
-            val w = maxOf(total, (minWidth?.invoke(null, constraints) as? Int) ?: 0)
+            // never wider than the real room (SystemUI was offered plan.extend more)
+            val real = maxWidthOf?.invoke(null, constraints) as? Int ?: Int.MAX_VALUE
+            val w = maxOf(total, (minWidth?.invoke(null, constraints) as? Int) ?: 0).coerceAtMost(real)
             result.javaClass.declaredFields.filter { it.type == Int::class.javaPrimitiveType && it.name.removePrefix("\$") == "width" }
                 .forEach { it.isAccessible = true; it.setInt(result, w) }
             if (pull > 0) pulls[block] = Pull(plan.permuted[n!!]!!, pull)
