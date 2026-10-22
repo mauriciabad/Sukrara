@@ -248,6 +248,13 @@ trimmed to their width. Verified on the phone (release, updated in place): syste
 
 ![System icons after Wi-Fi, coloured: 212 high, in range, 54 low, in range](img/sukrara-root-statusbar-colour.png)
 
+**A full status bar** (round f34, 2026-10-22; [05 › In Sukrara](05-android-status-bar.md#in-sukrara)): with the
+module, the system-icon pair has priority over other icons in SystemUI's row (they fold into Android's overflow dot
+first) and number + arrow stay one unit (both, or both in the dot); "after X" with X hidden lands where X would be.
+Added: `hook/IconFit` + the `EllipsizingRow` measure hook (`IconFitTest`). Discarded: one combined icon per reading
+for root alone (14,883 resources, +6.4 MB measured), and hiding LTE / 5G or the signal bars (drops real information;
+the dot is the platform's own signal). Root without the module keeps SystemUI's own fit.
+
 **Hide Sukrara's notification icon** (polish round 2, on by default, under "Value in the status bar"): the module
 removes Sukrara's entries from the status bar's notification-icon row (`NotificationIconContainerStatusBarViewModel`,
 status bar only; shelf/AOD untouched), so the always-present logo disappears while the value is shown. There is no

@@ -83,6 +83,22 @@ Cheap tools:
 - [ ] Lock screen version (public/redacted) shows what the settings say.
 - [ ] Live Update chip / status bar value if the change touched them (phone).
 
+## Q5b Root status bar in a full row
+
+Phone with root + the LSPosed module (System UI restarted after the install), *Value in the status bar* on with a
+system-icon placement. Read-only checks; screenshots stay off the repo (health data).
+
+- [ ] `adb logcat -s LSPosedFramework Sukrara` after the System UI start: `icon fit hooks: 1`, no `icon fit … failed`.
+- [ ] Fill the row (vibrate, Do Not Disturb, hotspot, alarm, Bluetooth on): other icons fold into the overflow dot from
+      the left; number and arrow stay, at their placement.
+- [ ] Keep filling until even the pair can't fit (larger font / display size): number and arrow become the one dot
+      together, never the arrow alone; removing icons brings both back.
+- [ ] No readings (> 20 min) / sensor ended: the single icon keeps the same priority.
+- [ ] Placement *After the Bluetooth icon* with Bluetooth off: the value sits where Bluetooth would be (not far left);
+      turning Bluetooth on puts it right after the icon.
+- [ ] Without the module (or `settings put global sukrara_hook_disabled 1` + System UI restart): leftmost, SystemUI's
+      own fit (the arrow alone can show in a full row; documented).
+
 ## Q6 Mac menubar panel
 
 - [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour; click → panel

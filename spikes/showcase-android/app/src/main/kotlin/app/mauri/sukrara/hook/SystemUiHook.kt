@@ -65,6 +65,7 @@ class SystemUiHook : XposedModule() {
             }
         }
         safe("hook icon order") { hookIconOrder(cl) }
+        safe("hook icon fit") { hookIconFit(cl) }
         safe("hook icon tint") { hookIconTint(cl) }
         safe("hook notification icons") { hookNotificationIcons(cl) }
         safe("hook lock screen widget") { hookLockscreenWidget(cl) }
@@ -209,7 +210,11 @@ class SystemUiHook : XposedModule() {
 
     private fun ClassLoader.find(name: String): Class<*>? = runCatching { Class.forName(name, false, this) }.getOrNull()
 
-    /** The reordered list, or null to keep SystemUI's. */
+    /**
+     * The reordered list, or null to keep SystemUI's. SystemUI's list holds only the icons shown right now, so a hidden
+     * target (Bluetooth off, no VPN) is placed by the platform's slot order ([IconFit.insertAfter]): ours stay where
+     * they'd be next to it, not jump to the far left.
+     */
     private fun reorder(result: Any?): List<*>? {
         val after = state.position.takeIf { state.enabled && it.startsWith(HookPosition.SLOT_PREFIX) }
             ?.removePrefix(HookPosition.SLOT_PREFIX) ?: return null
@@ -217,10 +222,148 @@ class SystemUiHook : XposedModule() {
         val ours = list.filter { slotName(it) in OUR_SLOTS }
         if (ours.isEmpty()) return null
         val rest = list.filter { slotName(it) !in OUR_SLOTS }.toMutableList()
-        val i = rest.indexOfFirst { slotName(it) == after }
-        if (i < 0) return null // target icon not shown right now → leave ours first (leftmost)
-        rest.addAll(i + 1, ours)
+        val i = IconFit.insertAfter(rest.map(::slotName), after, slotOrder) ?: return null
+        rest.addAll(i, ours)
         return rest
+    }
+
+    /** The platform's status-bar slot order (`config_statusBarIcons`, what SystemUI sorts its own icons by). */
+    @get:SuppressLint("DiscouragedApi")
+    private val slotOrder: List<String> by lazy {
+        runCatching {
+            val res = android.content.res.Resources.getSystem()
+            res.getStringArray(res.getIdentifier("config_statusBarIcons", "array", "android")).toList()
+        }.getOrElse { log("no config_statusBarIcons: $it"); emptyList() }
+    }
+
+    /**
+     * Glucose wins the space (the user, 2026-10-22: with vibrate / hotspot icons on, only the arrow was left). SystemUI's
+     * `EllipsizingRow` measure policy fits the icons from the right and folds the first one that doesn't fit, and all
+     * left of it, into an overflow dot; ours were the leftmost, so the number went first. This hands SystemUI's own
+     * measurement the row with our icons at the priority end ([IconFit]), then puts the shown icons back in their
+     * on-screen order and keeps number + trend together (both, or both in the dot). The placement only chooses where
+     * ours sit. R8 keeps the classes' names in the Pixel build but they move between releases, so they're found by shape.
+     */
+    private fun hookIconFit(cl: ClassLoader) {
+        val policyIface = cl.find("androidx.compose.ui.layout.MeasurePolicy") ?: return log("no MeasurePolicy")
+        val policies = listOf("com.android.systemui.common.ui.compose", "com.android.systemui.statusbar.icons.ui.compose")
+            .flatMap { pkg -> (1..3).flatMap { a -> (1..3).map { b -> "$pkg.EllipsizingRowKt\$EllipsizingRow\$$a\$$b" } } }
+            .mapNotNull { cl.find(it) }.filter { policyIface.isAssignableFrom(it) }
+        var hooked = 0
+        for (c in policies) {
+            val measure = c.declaredMethods.firstOrNull {
+                it.name.startsWith("measure") && it.parameterCount == 3 && it.parameterTypes[1] == List::class.java &&
+                    it.parameterTypes[2] == Long::class.javaPrimitiveType
+            } ?: continue
+            val fit = RowFit(c, cl)
+            hook(measure).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                val list = chain.getArg(1) as? List<*>
+                // Decided before SystemUI measures: the children may be measured only once per pass.
+                val plan = try { if (fit.broken || list == null || !shownAsIcons()) null else fit.plan(chain.thisObject!!, list) }
+                    catch (t: Throwable) { fit.fail("plan", t); null }
+                if (plan == null) return@intercept chain.proceed()
+                val result = chain.proceed(arrayOf(chain.getArg(0), plan.permuted, chain.getArg(2)))
+                try { fit.apply(chain.thisObject!!, chain.getArg(0)!!, chain.getArg(2) as Long, result, plan) }
+                catch (t: Throwable) { fit.fail("apply", t) }
+                result
+            }
+            hooked++
+        }
+        log("icon fit hooks: $hooked")
+    }
+
+    /** Our icons are system icons right now (a `slot:` placement with the module on). */
+    private fun shownAsIcons() = state.enabled && state.position.startsWith(HookPosition.SLOT_PREFIX)
+
+    /** The reflection behind [hookIconFit] for one measure-policy class; [broken] after a failure (SystemUI's behaviour). */
+    private inner class RowFit(private val policy: Class<*>, private val cl: ClassLoader) {
+        @Volatile var broken = false
+        private val fromStart = policy.declaredFields.firstOrNull { it.type.isEnum && it.type.simpleName == "FillDirection" }
+            ?.apply { isAccessible = true }
+        private val spacingDp = policy.declaredFields.firstOrNull { it.type == Float::class.javaPrimitiveType }?.apply { isAccessible = true }
+        private val nodeClass = cl.find("androidx.compose.ui.node.LayoutNode")
+        private val placeableWidth = cl.find("androidx.compose.ui.layout.Placeable")?.getMethod("getWidth")
+        private val density = cl.find("androidx.compose.ui.unit.Density")?.getMethod("getDensity")
+        private val minWidth = cl.find("androidx.compose.ui.unit.Constraints")?.declaredMethods
+            ?.firstOrNull { it.name.startsWith("getMinWidth-impl") && it.parameterCount == 1 }
+
+        inner class Plan(val permuted: List<Any?>, val perm: IntArray, val oursPermuted: Set<Int>, val fromEnd: Boolean)
+
+        fun fail(what: String, t: Throwable) { broken = true; log("icon fit $what failed, SystemUI's own fit from now on: $t") }
+
+        fun plan(thiz: Any, list: List<*>): Plan? {
+            checkNotNull(semantics) { "no LayoutNode.getSemanticsConfiguration" }
+            val ours = list.indices.filter { isOurs(list[it]) }.toSet()
+            val fromEnd = (fromStart?.get(thiz) as? Enum<*>)?.name != "FromStart"
+            val perm = IconFit.permutation(list.size, ours, fromEnd) ?: return null
+            return Plan(perm.map { list[it] }, perm, perm.indices.filter { perm[it] in ours }.toSet(), fromEnd)
+        }
+
+        /** After SystemUI's measurement: rewrite its decision (read by its placement block, which runs later). */
+        fun apply(thiz: Any, scope: Any, constraints: Long, result: Any?, plan: Plan) {
+            val block = result?.javaClass?.declaredFields?.firstOrNull { it.type.name == "kotlin.jvm.functions.Function1" &&
+                it.apply { isAccessible = true }.get(result)?.javaClass?.name?.startsWith(policy.name.substringBefore("\$")) == true }
+                ?.get(result) ?: error("no placement block in $result")
+            val decision = block.javaClass.declaredFields.map { it.apply { isAccessible = true }.get(block) }
+                .firstOrNull { o -> o != null && o.javaClass.name.substringBeforeLast('.') == policy.name.substringBeforeLast('.') &&
+                    o.javaClass.declaredFields.any { it.type == List::class.java } && o.javaClass.declaredFields.any { it.type == Integer::class.java } }
+                ?: error("no MeasureResult in ${block.javaClass.name}")
+            val fields = decision.javaClass.declaredFields.onEach { it.isAccessible = true }
+            val visibleField = fields.first { it.type == List::class.java }
+            val overflowField = fields.first { it.type == Integer::class.java }
+            @Suppress("UNCHECKED_CAST") val visible = visibleField.get(decision) as MutableList<Int>
+            val before = IconFit.Fit(visible.toList(), overflowField.get(decision) as Int?)
+            val after = IconFit.repair(before, plan.perm, plan.oursPermuted)
+            if (after == before) return
+            visible.clear(); visible.addAll(after.visible)
+            overflowField.set(decision, after.overflow)
+            if (after.visible.size == before.visible.size) return // only the order changed
+            // Our pair folded into the dot: the row is narrower than SystemUI measured it.
+            val widths = plan.permuted.map { (placeableWidth?.invoke(it) as? Int) ?: 0 }
+            val spacing = Math.round((spacingDp?.getFloat(thiz) ?: 6f) * (density?.invoke(scope) as Float))
+            val old = fields.filter { it.type == Int::class.javaPrimitiveType && it.name.contains("idth", true) }
+            val total = (old.firstOrNull()?.getInt(decision) ?: return) - IconFit.width(widths, before, spacing, 0) + IconFit.width(widths, after, spacing, 0)
+            old.forEach { it.setInt(decision, total) }
+            val w = maxOf(total, (minWidth?.invoke(null, constraints) as? Int) ?: 0)
+            result.javaClass.declaredFields.filter { it.type == Int::class.javaPrimitiveType && it.name.removePrefix("\$") == "width" }
+                .forEach { it.isAccessible = true; it.setInt(result, w) }
+        }
+
+        /** Whether a row child (a measurable: its LayoutNode's measure delegate) holds one of our icons, by its TalkBack text. */
+        private fun isOurs(measurable: Any?): Boolean = nodeOf(measurable)?.let { describedAsOurs(it, 4) } == true
+
+        private val nodeOfDelegate = HashMap<Class<*>, (Any) -> Any?>()
+
+        /** The LayoutNode behind a measurable (MeasurePassDelegate → LayoutNodeLayoutDelegate → LayoutNode), found by type once per class. */
+        private fun nodeOf(o: Any?): Any? {
+            if (o == null || nodeClass == null) return null
+            return nodeOfDelegate.getOrPut(o.javaClass) {
+                val direct = o.javaClass.declaredFields.firstOrNull { it.type == nodeClass }?.apply { isAccessible = true }
+                val viaDelegate = o.javaClass.declaredFields.firstOrNull { it.type.name.endsWith("LayoutNodeLayoutDelegate") }?.apply { isAccessible = true }
+                val inner = viaDelegate?.type?.declaredFields?.firstOrNull { it.type == nodeClass }?.apply { isAccessible = true }
+                when {
+                    direct != null -> { x -> direct.get(x) }
+                    viaDelegate != null && inner != null -> { x -> viaDelegate.get(x)?.let(inner::get) }
+                    else -> { _ -> null }
+                }
+            }(o)
+        }
+
+        private val semantics by lazy { nodeClass?.methods?.firstOrNull { it.name == "getSemanticsConfiguration" && it.parameterCount == 0 } }
+        private val children by lazy { nodeClass?.methods?.firstOrNull { it.name.startsWith("getChildren\$") && it.parameterCount == 0 } }
+
+        private fun describedAsOurs(node: Any, depth: Int): Boolean {
+            val sem = semantics?.invoke(node)
+            (sem as? Iterable<*>)?.forEach { e ->
+                when (val v = (e as? Map.Entry<*, *>)?.value) {
+                    is String -> if (RootStatusBar.isOurDescription(v)) return true
+                    is List<*> -> if (v.any { it is String && RootStatusBar.isOurDescription(it) }) return true
+                }
+            }
+            if (depth == 0) return false
+            val kids = children?.invoke(node) as? List<*> ?: return false
+            return kids.any { it != null && describedAsOurs(it, depth - 1) }
+        }
     }
 
     private fun slotName(o: Any?): String? = o?.let {

@@ -176,3 +176,34 @@ the module didn't load and SystemUI kept running normally.
 - Offer **3b** when LSPosed is installed: colour, font match, clock-side or exact placement. Keep hooks few and
   shape-based (the R8 lambda names change between builds), keep everything wrapped, ship a kill switch.
 - Number-only small icon (2) is probably more readable than number + tiny arrow.
+
+## In Sukrara
+
+**Added** (0.11.13 onward, docs/10 *Root status bar*): 1 + 2 always; 3a through root (`SlotDaemon`), 3b through the
+LSPosed module, with the placements *With the system icons* (3a alone) and *After the VPN / Bluetooth / mobile / Wi-Fi
+icon* (3a reordered by 3b).
+
+**Full status bar (round f34, 2026-10-22).** With vibrate / mute / hotspot icons on, the user saw only the arrow. Cause
+(AOSP `EllipsizingRow.measureIcons`, Android 17, and the Pixel's SystemUI read with jadx): the row is fitted right to
+left, the first icon that doesn't fit becomes the overflow dot and everything left of it is hidden; external icons
+(ours) come first in the list, "the lowest priority", so the number (leftmost) went first.
+
+- *Added*: the module hooks the row's measure policy (`EllipsizingRowKt$EllipsizingRow$1$1` in
+  `com.android.systemui.common.ui.compose` on the Pixel build, found by shape; PROTECTIVE). It finds our icons by
+  walking each child's LayoutNode to the semantics of SystemUI's `Image` (our content description), hands SystemUI's
+  own measurement the list with ours at the priority end (one call: Compose measures each child once per pass), then
+  sorts SystemUI's visible indices back into on-screen order; if only part of our pair fits, both go into the dot (and
+  the row's width is corrected). Pure logic + tests: `hook/IconFit`, `IconFitTest` (SystemUI's algorithm incl.
+  FillDirection, the pair as one unit, the single no-readings / ended icon). Not verified on a device yet: the
+  emulators have no LSPosed.
+- *Added*: "after X" while X is hidden. On the Pixel build SystemUI's list already leaves hidden icons out (unlike the
+  AOSP `android17-release` source, which filters later), so the target wasn't found and ours jumped to the far left.
+  They now go after the last shown icon ranked no later than X in `config_statusBarIcons`.
+- *Discarded*: one combined icon (number + arrow) per reading, so that root alone keeps them together. The Compose
+  status bar ignores the icon level, so it needs one resource per (value, mark): 14,883 layer-lists generated at build
+  time (percentage insets, since SystemUI scales icons to 13 sp). Measured: release APK 20.33 → 26.76 MB (+6.4 MB;
+  +5.4 MB with `--no-xml-namespaces`); about 160 B per resource is zip and table overhead, so no variant gets under
+  ~3 MB without coarser arrows. Root without the module therefore can still be split by SystemUI's overflow.
+- *Discarded*: hiding the mobile network type (LTE / 5G) or the signal bars to make room. SystemUI hides the type only
+  when mobile data isn't the active connection; hiding it while on mobile data drops real information without any
+  sign, whereas the overflow dot is the platform's own "more icons" signal.
