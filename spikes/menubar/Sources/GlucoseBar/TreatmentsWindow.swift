@@ -44,6 +44,8 @@ import SwiftUI
     @Published private(set) var rows: [Treatment] = []
     @Published private(set) var canDelete = false
     @Published var selection: String?
+    /// Pen entries whose doses are shown (the row's disclosure triangle).
+    @Published var expanded: Set<String> = []
 
     var treatments: () -> [Treatment] = { [] }
     var delivery: (Treatment) -> (Delivery, Date)? = { _ in nil }
@@ -87,12 +89,15 @@ struct TreatmentsView: View {
                 ForEach(days, id: \.0) { day, rows in
                     Section(day) {
                         ForEach(rows, id: \.id) { t in
-                            TreatmentRow(t: t, delivery: model.delivery(t), who: model.who())
-                                .tag(t.id)
-                                .help(model.details(t).joined(separator: "\n"))
-                                .contextMenu {
-                                    Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.deletable(t))
-                                }
+                            if let doses = t.pd, doses.count > 1 {
+                                // A pen entry: one row per injection with its total; the doses the pen recorded
+                                // (priming included) under its disclosure triangle (HIG "Disclosure controls"); one dose = the total, no triangle.
+                                DisclosureGroup(isExpanded: expandedBinding(t.id)) {
+                                    ForEach(Array(doses.enumerated()), id: \.offset) { _, d in PenDoseRow(d: d) }
+                                } label: { row(t) }
+                            } else {
+                                row(t)
+                            }
                         }
                     }
                 }
@@ -100,6 +105,20 @@ struct TreatmentsView: View {
             .onDeleteCommand { model.delete(model.selection) }
             .frame(height: 420)
         }
+    }
+
+    private func row(_ t: Treatment) -> some View {
+        TreatmentRow(t: t, delivery: model.delivery(t), who: model.who())
+            .tag(t.id)
+            .help(model.details(t).joined(separator: "\n"))
+            .contextMenu {
+                Button("Delete", role: .destructive) { model.delete(t.id) }.disabled(!model.deletable(t))
+            }
+    }
+
+    private func expandedBinding(_ id: String) -> Binding<Bool> {
+        Binding(get: { model.expanded.contains(id) },
+                set: { if $0 { model.expanded.insert(id) } else { model.expanded.remove(id) } })
     }
 
     /// Rows grouped by day: "Today", "Yesterday", "Thursday 16 October".
@@ -128,6 +147,7 @@ private struct TreatmentRow: View {
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
+                if let pen = PenCopy.summary(t) { Text(pen).font(.callout).foregroundStyle(.secondary) }
                 if !t.n.isEmpty, t.k != "note" { Text(t.n).font(.callout).foregroundStyle(.secondary) }
             }
             Spacer()
@@ -163,6 +183,49 @@ private struct TreatmentRow: View {
     }
 }
 
+/// One dose under a pen entry: its time, its units, "primed" for an air shot (not counted in the entry's total).
+/// No role editor here: correcting the pen's split is the wearer's (SPEC §1), and a Mac writer may change only the
+/// entries it made (writer scope), never the phone's pen entries.
+private struct PenDoseRow: View {
+    let d: Treatment.PenDose
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(PenCopy.dose(d))
+                .foregroundStyle(d.p ? .secondary : .primary)
+            Spacer()
+            Text(Clock.time(Date(timeIntervalSince1970: TimeInterval(d.t))))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.leading, 28)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The words for an entry read from an insulin pen (spikes/novopen-android/DESIGN.md §5): the list row's second line,
+/// its doses and its tooltip. The total (`a`) is the row's title like any insulin entry.
+enum PenCopy {
+    /// "From the pen · 1.5u primed"; nil for entries typed by hand.
+    static func summary(_ t: Treatment) -> String? {
+        guard t.fromPen else { return nil }
+        guard let pr = t.pr, pr > 0, let amount = TreatmentMarks.amount(k: "rapid", a: pr) else { return "From the pen" }
+        return "From the pen · \(amount) primed"
+    }
+
+    /// "8u", "0.5u primed".
+    static func dose(_ d: Treatment.PenDose) -> String {
+        let amount = TreatmentMarks.amount(k: "rapid", a: d.a) ?? ""
+        return d.p ? "\(amount) primed" : amount
+    }
+
+    /// The tooltip's first line: "Read from pen FHB2N9KE on Ana's phone".
+    static func origin(_ t: Treatment, who: String) -> String? {
+        guard let pen = t.pen else { return nil }
+        return pen.isEmpty ? "Read from the pen on \(who)'s phone" : "Read from pen \(pen) on \(who)'s phone"
+    }
+}
+
 extension TreatmentsModel {
     /// `-treatmentsselftest`: the list shows the last 7 days without deleted rows, newest first; Delete only when this
     /// Mac may log and the entry is its own to change.
@@ -189,5 +252,53 @@ extension TreatmentsModel {
         check("its own entry is deleted", deleted == [a.id])
         print(ok ? "treatments window selftest OK" : "treatments window selftest FAILED")
         return ok
+    }
+}
+
+/// Evidence aid: `-treatmentsSnapshot <dir>` renders the Treatments window with synthetic entries (a pen entry closed
+/// and open, a pen entry without priming, hand-typed ones) to PNGs, light and dark, in invisible windows: no app data,
+/// nothing on screen, offline (LaunchGuard).
+@MainActor enum TreatmentsSnapshot {
+    static func run(dir: String) {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.prohibited)
+        let now = Int64(Date().timeIntervalSince1970) / 60 * 60
+        var pen = Treatment(id: "pen-lunch", k: "rapid", a: 8.5, t: now - 47 * 60, o: "phone")
+        pen.pr = 1.5; pen.pen = "FHB2N9KE"
+        pen.pd = [.init(t: pen.t - 150, a: 1, p: true), .init(t: pen.t - 90, a: 0.5, p: true), .init(t: pen.t, a: 8),
+                  .init(t: pen.t + 70, a: 0.5)]
+        var plain = Treatment(id: "pen-breakfast", k: "rapid", a: 5, t: now - 5 * 3600, o: "phone")
+        plain.pen = "FHB2N9KE"; plain.pr = 0; plain.pd = [.init(t: plain.t, a: 5)]
+        let rows = [pen, Treatment(k: "carbs", a: 60, t: now - 50 * 60, o: "phone"), plain,
+                    Treatment(k: "rapid", a: 2, t: now - 3 * 3600, o: "phone"), Treatment(k: "long", a: 14, t: now - 8 * 3600, o: "phone")]
+        var windows: [(NSWindow, NSView, String)] = []
+        for (name, open, list) in [("treatments-pen-row", false, rows), ("treatments-pen-detail", true, rows)] {
+            for dark in [false, true] {
+                let m = TreatmentsModel()
+                m.treatments = { list }
+                m.who = { "Ana" }
+                m.reload()
+                if open { m.expanded = [pen.id] }
+                let host = NSHostingView(rootView: TreatmentsView(model: m).background(Color(nsColor: .windowBackgroundColor)))
+                host.frame = NSRect(origin: .zero, size: host.fittingSize)
+                let w = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                w.contentView = host
+                w.alphaValue = 0
+                w.orderFrontRegardless()
+                windows.append((w, host, "\(dir)/\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            for (w, host, out) in windows {
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: out))
+                print(FileManager.default.fileExists(atPath: out) ? "wrote \(out)" : "FAILED \(out)")
+                w.orderOut(nil)
+            }
+            exit(0)
+        }
+        app.run()
     }
 }

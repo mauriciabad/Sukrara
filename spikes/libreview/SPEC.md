@@ -23,6 +23,27 @@ One JSON object per treatment. The same shape is stored on disk, sent over BLE a
 | `del` | tombstone (deleted treatments are kept so the delete syncs and reaches LibreView) |
 | `o` | device that created it: `phone` \| `mac` |
 | `lv` | the `u` that was last confirmed uploaded to LibreView by either device (0 = never) |
+| `pr` | *pen entries only* (insulin): primed units (air shots before or between doses), 1 decimal; never injected, never uploaded |
+| `pen` | *pen entries only*: serial (string) of the insulin pen the entry was read from |
+| `pd` | *pen entries only*: the pen's doses for this injection, time order: `[{"t":<epoch s>,"a":<units>,"p":<bool>}…]`, `p` = priming (absent = `false`) |
+
+**Pen entries** (investigation 29, [novopen-android/DESIGN.md](../novopen-android/DESIGN.md) §4–§5): an insulin entry
+read from a NovoPen carries `pr`, `pen`, `pd`; a hand-typed one has none of them. `a` stays the **injected** units
+(the non-priming doses of `pd`), so every consumer that ignores the new keys stays right: the graph marks, insulin
+mutes, LibreView (`units` = `a`; `pr` is never sent), the Nightscout API (`insulin` = `a`), the CSV export. Every
+implementation **keeps** the three keys through merge, storage, edits and re-publish (an edit on any device changes
+`a` / `n` / `t` and leaves them as they are; a tombstone keeps them too).
+
+**Correcting the split**: the user may mark any dose of `pd` as priming or injected (only where they may change the
+entry: the wearer's devices, writer scope). A role change recomputes from `pd`: `a` = the injected doses, `pr` = the
+priming doses (1 decimal each), `t` = the time of the first injected dose; new `u`, `pen` kept, published like any
+edit. A change that would leave every dose priming isn't saved (priming alone never makes an entry); the app offers
+deleting the entry instead. The phone treats an entry whose `pd` roles differ from its own computation as
+user-edited and never reverts it (later doses that would join it become a question, DESIGN §4.7).
+
+```json
+{"id":"…","k":"rapid","a":8.5,"t":1792075020,"n":"","u":1792075200000,"del":false,"o":"phone","lv":0,"pr":1.5,"pen":"FHB2N9KE","pd":[{"t":1792074870,"a":1,"p":true},{"t":1792074930,"a":0.5,"p":true},{"t":1792075020,"a":8,"p":false},{"t":1792075090,"a":0.5,"p":false}]}
+```
 
 **Merge** (receiving `inc` for an `id` we hold as `cur`):
 `winner = inc if (inc.u, inc.o) > (cur.u, cur.o) else cur`; result = winner with `lv = max(cur.lv, inc.lv)`.

@@ -82,6 +82,11 @@ if let dir = defaults.string(forKey: "treatmentTimeSnapshot") {
     MainActor.assumeIsolated { TreatmentTimeSnapshot.run(dir: dir) }
     exit(0)
 }
+// Evidence aid: `-treatmentsSnapshot <dir>` renders the Treatments window (pen entries closed and open) the same way.
+if let dir = defaults.string(forKey: "treatmentsSnapshot") {
+    MainActor.assumeIsolated { TreatmentsSnapshot.run(dir: dir) }
+    exit(0)
+}
 // Evidence aid: `-identitySnapshot <dir>` renders the identity editor, the sound picker and the dimmed Add Treatment
 // row with its reason (IdentityUI.swift), the same way: synthetic data, nothing on screen.
 if let dir = defaults.string(forKey: "identitySnapshot") {

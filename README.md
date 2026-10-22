@@ -190,7 +190,8 @@ by the app's icon code.</sub>
   *Eat carbs* / *Take insulin* badge and the last-treatment slot; swipe the chart sideways with two fingers to go back
   in time, pinch or ⌘-scroll to zoom, *Now* to return) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
-  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
+  days of treatments (delete there; doses read from an insulin pen on the phone show their total, the priming and each
+  dose), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
   and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Rings, Alerts, Following) laid out after Apple's guidelines, reopening on the
