@@ -354,3 +354,16 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
       durations everywhere read *1 h* / *2 h*;
       log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under
       the card and the pill's menu.
+
+## Q20 The person and the feel
+
+Every app change (CLAUDE.md *Design from the person's life first*, *Make it juicy*; user, 2026-10-23).
+
+- [ ] The feature's spec (PRODUCT.md or the round's notes) answers: why the person wants it, the contexts they'll use
+      it in, what it takes off their mind, what triggers the action and whether that can be detected or prompted, how
+      it's discovered, what people say online and what other apps do (judged).
+- [ ] Nothing blocks the person unless a confirmation already existed there or safety demands it.
+- [ ] Every action answers within ~100 ms: a visible change, and a haptic where the platform uses one (confirm /
+      reject); motion shows where things came from and went; numbers that change animate; no jank on a mid-range phone.
+- [ ] With reduced motion / remove animations on, and with TalkBack / VoiceOver, everything still works and reads well.
+
