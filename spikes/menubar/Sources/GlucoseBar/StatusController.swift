@@ -469,7 +469,6 @@ final class CardView: NSView {
     }
 
     override func magnify(with e: NSEvent) {
-        PinchDiag.log("card", e)   // TEMPORARY
         guard style.graph != nil, plot != nil else { return super.magnify(with: e) }
         zoom(by: 1 + Double(e.magnification), anchor: anchor(e))
     }

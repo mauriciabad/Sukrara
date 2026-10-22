@@ -124,8 +124,7 @@ let services = LaunchGuard.services(args: Array(CommandLine.arguments.dropFirst(
 if services.offline { log("offline run (evidence render or dev build): no Bluetooth, relays, LAN feed or alerts") }
 Migration.run()
 
-let app = DiagApplication.shared   // TEMPORARY (PinchDiag): NSApplication.shared before f32-macpinch
-MainActor.assumeIsolated { PinchDiag.install() }
+let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // menubar only, no Dock icon
 // Tests / captures: `-appearance dark|light` forces the app's appearance.
 if let a = defaults.string(forKey: "appearance") { app.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
