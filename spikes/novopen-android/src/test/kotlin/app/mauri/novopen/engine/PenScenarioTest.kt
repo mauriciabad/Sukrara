@@ -42,7 +42,7 @@ class PenScenarioTest {
         return d0 + day * 86400 + LocalTime.parse(hm).toSecondOfDay()
     }
 
-    private class PenSim(var offset: Long = 0) { val mem = mutableListOf<Pair<Long, Double>>() }
+    private class PenSim(var offset: Long = 0) { val mem = mutableListOf<Triple<Long, Double, Boolean>>() }
 
     @Test fun scenarios() {
         val root = Json.parseToJsonElement(fixture.readText()).jsonObject
@@ -58,7 +58,8 @@ class PenScenarioTest {
 
     private fun run(sc: JsonObject) {
         var n = 0
-        val engine = PenEngine(newId = { "n${++n}" })
+        val rules = sc["rules"]?.jsonObject?.get("primeBelow")?.jsonPrimitive?.double?.let { PenRules(primeBelow = it) } ?: PenRules()
+        val engine = PenEngine(rules, newId = { "n${++n}" })
         val first = sc["first"]?.jsonPrimitive?.boolean == true
         val entries = LinkedHashMap<String, PenEntry>()
         sc["entries"]?.jsonArray?.forEach { e ->
@@ -77,6 +78,8 @@ class PenScenarioTest {
         }
         var ledger = Ledger(pens)
         var last: Outcome? = null
+        var offer: Offer? = null
+        var removed: PenEntry? = null
         fun apply(o: Outcome) { last = o; ledger = o.ledger; o.writes.forEach { entries[it.id] = it } }
         fun live() = entries.values.filter { !it.del }.sortedWith(compareBy({ it.t }, { it.id }))
         fun ref(r: String) = if (r.startsWith("@")) live().filter { it.pen != null }[r.substring(1).toInt() - 1] else entries.getValue(r)
@@ -93,29 +96,37 @@ class PenScenarioTest {
                     val serial = st.getValue("scan").jsonPrimitive.content
                     val sim = sims.getOrPut(serial) { PenSim() }
                     st["add"]?.jsonArray?.forEach { d ->
-                        if (d is JsonArray) sim.mem += time(d[0].jsonPrimitive.content) to d[1].jsonPrimitive.double
+                        if (d is JsonArray) sim.mem += Triple(time(d[0].jsonPrimitive.content), d[1].jsonPrimitive.double, d.size > 2)
                         else { val g = d.jsonObject; val from = time(g.getValue("from").jsonPrimitive.content)
-                            repeat(g.getValue("n").jsonPrimitive.int) { k -> sim.mem += (from + k * g.getValue("every").jsonPrimitive.long) to g.getValue("a").jsonPrimitive.double } }
+                            repeat(g.getValue("n").jsonPrimitive.int) { k -> sim.mem += Triple(from + k * g.getValue("every").jsonPrimitive.long, g.getValue("a").jsonPrimitive.double, false) } }
                     }
                     if (st["reset"]?.jsonPrimitive?.boolean == true) sim.offset -= 50_000_000
                     val jitter = st["jitter"]?.jsonPrimitive?.long ?: 0
-                    val doses = sim.mem.map { (t, a) -> ReadDose(rel = t - clock0 + sim.offset, t = t + jitter, a = a) }
+                    val doses = sim.mem.map { (t, a, inc) -> ReadDose(rel = t - clock0 + sim.offset, t = t + jitter, a = a, incomplete = inc) }
                     apply(engine.scan(ledger, PenScan(serial, at, at - clock0 + sim.offset, doses), entries.values.toList(), ms))
+                    offer = last!!.report.offer
                 }
                 "refresh" in st -> { val t = time(st.getValue("refresh").jsonPrimitive.content); apply(engine.refresh(ledger, entries.values.toList(), t, t * 1000)) }
                 "answer" in st -> {
                     val q = openQs()[st.getValue("answer").jsonPrimitive.int]
                     apply(when {
+                        "suggested" in st -> engine.answerDoses(ledger, q.id, q.keys.filter { ledger.pens.getValue(q.serial).doses.getValue(it).p }.toSet(), entries.values.toList(), at, ms)
                         "primed" in st -> engine.answerDoses(ledger, q.id, st.getValue("primed").jsonArray.map { keyAt(q.serial, it.jsonPrimitive.content) }.toSet(), entries.values.toList(), at, ms)
                         "same" in st -> engine.answerMatch(ledger, q.id, st.getValue("same").jsonPrimitive.content, entries.values.toList(), at, ms)
                         else -> engine.answerMatch(ledger, q.id, null, entries.values.toList(), at, ms)
                     })
                 }
-                "dismiss" in st -> apply(engine.dismiss(ledger, openQs()[st.getValue("dismiss").jsonPrimitive.int].id, ms))
-                "set" in st -> {
+                "log" in st -> {
                     val serial = st["pen"]?.jsonPrimitive?.content ?: "P1"
-                    apply(engine.setDose(ledger, serial, keyAt(serial, st.getValue("set").jsonPrimitive.content), st.getValue("role").jsonPrimitive.content, entries.values.toList(), at, ms))
+                    val primed = st.getValue("primed").jsonArray.map { it.jsonPrimitive.content }.toSet()
+                    val doses = st.getValue("log").jsonArray.associate { keyAt(serial, it.jsonPrimitive.content) to (it.jsonPrimitive.content in primed) }
+                    apply(engine.logDoses(ledger, serial, doses, entries.values.toList(), at, ms))
                 }
+                "logOffer" in st -> apply(engine.logDoses(ledger, "P1", offer!!.doses, entries.values.toList(), at, ms))
+                "logReview" in st -> apply(engine.logReview(ledger, st.getValue("logReview").jsonPrimitive.content, entries.values.toList(), at, ms))
+                "skipReview" in st -> apply(engine.skipReview(ledger, st.getValue("skipReview").jsonPrimitive.content, ms))
+                "remove" in st -> { val e = ref(st.getValue("remove").jsonPrimitive.content); removed = e; apply(engine.removeEntry(ledger, e.pen!!, e.id, entries.values.toList(), ms)) }
+                "restore" in st -> apply(engine.restore(ledger, removed!!.pen!!, removed!!, entries.values.toList(), ms))
                 "undo" in st -> apply(engine.undo(ledger, last!!.undo!!, entries.values.toList(), ms))
                 "delete" in st -> { val e = ref(st.getValue("delete").jsonPrimitive.content); entries[e.id] = e.copy(del = true, u = maxOf(ms, e.u + 1)) }
                 "edit" in st -> { val e = ref(st.getValue("edit").jsonPrimitive.content); entries[e.id] = e.copy(n = st.getValue("n").jsonPrimitive.content, u = maxOf(ms, e.u + 1)) }
@@ -127,7 +138,7 @@ class PenScenarioTest {
                     entries[e.id] = c!!.copy(u = if (st["keepU"]?.jsonPrimitive?.boolean == true) e.u else maxOf(ms, e.u + 1))
                 }
                 "forget" in st -> ledger = engine.forget(ledger, st.getValue("forget").jsonPrimitive.content)
-                "kind" in st -> ledger = engine.setKind(ledger, st.getValue("kind").jsonPrimitive.content, st.getValue("to").jsonPrimitive.content)
+                "kind" in st -> ledger = engine.update(ledger, st.getValue("kind").jsonPrimitive.content) { it.copy(kind = st.getValue("to").jsonPrimitive.content) }
                 "lose" in st -> ledger = Ledger()
                 "near" in st -> {
                     val q = st.getValue("near").jsonObject
@@ -135,14 +146,14 @@ class PenScenarioTest {
                     val want = (st["is"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content?.let { ref(it).id }
                     assertEquals("$where: near", want, got?.id)
                 }
-                "expect" in st -> expect(where, st.getValue("expect").jsonObject, live(), openQs(), ledger, last, ::ref, ::time)
+                "expect" in st -> expect(where, st.getValue("expect").jsonObject, live(), openQs(), ledger, last, ::time) { s -> engine.history(ledger, s, entries.values.toList()) }
                 else -> error("$where: unknown step $st")
             }
         }
     }
 
     private fun expect(where: String, x: JsonObject, live: List<PenEntry>, qs: List<Question>, ledger: Ledger, last: Outcome?,
-                       ref: (String) -> PenEntry, time: (String) -> Long) {
+                       time: (String) -> Long, history: (String) -> List<Session>) {
         x["entries"]?.jsonArray?.let { want ->
             assertEquals("$where: entries ${live.map { "${it.k} ${it.a}@${it.t - d0} pr=${it.pr} pen=${it.pen}" }}", want.size, live.size)
             want.forEachIndexed { j, w0 ->
@@ -172,6 +183,10 @@ class PenScenarioTest {
                         q.keys.map { doses.getValue(it).let { d -> d.t to d.a } })
                 }
                 w["cands"]?.jsonArray?.let { c -> assertEquals("$where q${j + 1} cands", c.map { it.jsonPrimitive.content }, q.cands) }
+                w["suggest"]?.jsonArray?.let { sg ->
+                    val doses = ledger.pens.getValue(q.serial).doses
+                    assertEquals("$where q${j + 1} suggested priming", sg.map { time(it.jsonPrimitive.content) }, q.keys.map { doses.getValue(it) }.filter { it.p }.map { it.t })
+                }
             }
         }
         x["writes"]?.let { assertEquals("$where: writes", it.jsonPrimitive.int, last!!.writes.size) }
@@ -181,9 +196,16 @@ class PenScenarioTest {
                 "created" -> r.created.size; "updated" -> r.updated.size; "merged" -> r.merged.size; "asked" -> r.asked.size
                 "first" -> r.first; "pending" -> r.pending; "older" -> r.older; "future" -> r.future; "clockMatched" -> r.clockMatched
                 "restored" -> r.restored; "logged" -> r.logged; "primed" -> r.primed
+                "returning" -> r.returning; "clockChanged" -> r.clockChanged; "review" -> r.review
+                "reviewSince" -> r.reviewSince ?: "null"; "offerA" -> r.offer?.a ?: "null"; "offerMatch" -> r.offer?.match ?: "null"
                 else -> error("unknown report key $k")
             }
-            val want: Any = v.jsonPrimitive.let { p -> p.booleanOrNull ?: if (got is Double) p.double else p.int }
+            val want: Any = v.jsonPrimitive.let { p -> when {
+                p is JsonNull -> "null"
+                k == "reviewSince" -> time(p.content)
+                k == "offerMatch" -> p.content
+                else -> p.booleanOrNull ?: if (got is Double) p.double else p.int
+            } }
             assertEquals("$where: report.$k", want, got)
         }
         x["pens"]?.jsonObject?.forEach { (s, v) ->
@@ -191,6 +213,18 @@ class PenScenarioTest {
             v.jsonObject["since"]?.let { assertEquals("$where: $s since", time(it.jsonPrimitive.content), p.since) }
             v.jsonObject["older"]?.let { assertEquals("$where: $s older", it.jsonPrimitive.int, p.older) }
             v.jsonObject["kind"]?.let { assertEquals("$where: $s kind", it.jsonPrimitive.content, p.kind) }
+        }
+        x["history"]?.jsonArray?.let { want ->
+            val serial = ledger.pens.keys.first()
+            val h = history(serial)
+            assertEquals("$where: history ${h.map { "${it.status} ${it.a}/${it.pr}" }}", want.size, h.size)
+            want.forEachIndexed { j, w0 ->
+                val w = w0.jsonObject; val s = h[j]
+                w["status"]?.let { assertEquals("$where history ${j + 1} status", it.jsonPrimitive.content, s.status) }
+                w["a"]?.let { assertEquals("$where history ${j + 1} a", it.jsonPrimitive.double, s.a, 1e-9) }
+                w["pr"]?.let { assertEquals("$where history ${j + 1} pr", it.jsonPrimitive.double, s.pr, 1e-9) }
+                w["incomplete"]?.let { assertEquals("$where history ${j + 1} incomplete", it.jsonPrimitive.boolean, s.incomplete) }
+            }
         }
         if ("wake" in x) assertEquals("$where: wake", (x["wake"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content?.let(time), PenEngine.nextWake(ledger))
     }

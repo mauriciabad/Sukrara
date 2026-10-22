@@ -23,7 +23,10 @@ fun interface Transceiver {
  * move by a second or two between scans. [units] has 0.1 u resolution. [flags] is the raw 32-bit status word
  * (`0x08000000` on every normal dose seen so far, see docs/29-novopen.md).
  */
-data class PenDose(val relTime: Long, val time: Long, val units: Double, val flags: Long)
+data class PenDose(val relTime: Long, val time: Long, val units: Double, val flags: Long) {
+    /** A status bit in the flags' low byte (normal doses read `0x08000000`): taken as "incomplete" (docs/29: unverified). */
+    val incomplete get() = (flags and 0xFFL) != 0L
+}
 
 /**
  * A finished read. [doses] are the insulin records in time order (oldest first); records that aren't doses (no
@@ -34,6 +37,7 @@ data class PenDose(val relTime: Long, val time: Long, val units: Double, val fla
 data class PenRead(
     val serial: String,
     val model: String,
+    val part: String = "",      // the pen's part number (specification), how its model is told apart (docs/29)
     val scanTime: Long,
     val penRelNow: Long,
     val doses: List<PenDose>,
@@ -48,16 +52,21 @@ object OpenNovReader {
     /**
      * Reads the pen's identity and its whole dose history. [stopBefore] (epoch s), when set, ends the transfer once a
      * chunk reaches a dose older than it (the pen sends newest first) — a rescan then takes one chunk instead of ~45.
+     * [stopBeforeFor] does the same with a limit chosen from the pen's serial (null = read everything).
      * Throws [IOException] when the pen can't be selected, the session breaks off, or no serial arrived.
      */
-    fun read(t: Transceiver, nowEpochS: Long = System.currentTimeMillis() / 1000, log: (String) -> Unit = {}, stopBefore: Long? = null): PenRead =
+    fun read(t: Transceiver, nowEpochS: Long = System.currentTimeMillis() / 1000, log: (String) -> Unit = {}, stopBefore: Long? = null,
+             stopBeforeFor: ((serial: String) -> Long?)? = null): PenRead =
         OpenNovLog.with(log) {
             val started = System.nanoTime()
             val now = { nowEpochS + (System.nanoTime() - started) / 1_000_000_000L }
             val ts = T4Transceiver(t)
             val ph = PHDllHelper(ts)
             if (!ts.doNeededSelection()) throw IOException("not an OpenNov pen (Type 4 PHD selection failed)")
-            val stop = stopBefore?.let { limit -> { c: OpContext -> c.doses.any { it.units > 0 && it.absoluteTime < limit } } }
+            // [stopBeforeFor]: the limit for the serial the pen just reported (a pen seen before reads only its new part)
+            val limitFor = { c: OpContext -> stopBefore ?: c.specification?.serial?.let { s -> stopBeforeFor?.invoke(s) } }
+            val stop = if (stopBefore == null && stopBeforeFor == null) null
+                else { c: OpContext -> limitFor(c)?.let { limit -> c.doses.any { it.units > 0 && it.absoluteTime < limit } } == true }
             val machine = Machine(now, stop)
             var fsa = FSA.read()
             var errors = 0
@@ -81,7 +90,7 @@ object OpenNovReader {
                 .sortedBy { it.relTime }
             c.doses.filterNot { isDose(it) }.forEach { d -> OpenNovLog.d { "not a dose: rel ${d.relativeTime} units ${Hex.of(longBytes(d.unitsRaw))} flags ${Hex.of(longBytes(d.flags))}" } }
             val relNow = if (c.relativeTime >= 0) c.relativeTime else c.eventReport?.relativeTime ?: -1
-            PenRead(serial, c.model, nowEpochS, relNow, doses, stored = maxOf(machine.stored, 0L).toInt(), complete = !machine.stoppedEarly)
+            PenRead(serial, c.model, nowEpochS, relNow, doses, part = c.specification?.partNumber?.trim().orEmpty(), stored = maxOf(machine.stored, 0L).toInt(), complete = !machine.stoppedEarly)
         }
 
     /**
