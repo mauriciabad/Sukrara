@@ -20,6 +20,55 @@ Scope rule: fewer, well-chosen features. One setting (the priming size), one his
 | Android NFC ([tag dispatch](https://developer.android.com/develop/connectivity/nfc/nfc), Android 16 `NfcAdapter.isTagIntentAllowed` / `ACTION_CHANGE_TAG_INTENT_PREFERENCE`); lock-screen reports ([GrapheneOS #3438](https://github.com/GrapheneOS/os-issue-tracker/issues/3438), Samsung community) | Tags are dispatched only while the phone is **unlocked** (Pixel; "Require device unlock for NFC" doesn't change it for tags). Android 16+ lets the user block an app's tag intents. | Copy says "unlock your phone, then hold the pen to it". The engineer confirms on the Pixel (DESIGN §2); if locked reads turn out to work, §4.1 already fits the lock screen. Blocked tag intents get the sensor page's row. |
 | Material 3 ([snackbar](https://m3.material.io/components/snackbar/guidelines), [bottom sheets](https://m3.material.io/components/bottom-sheets/guidelines), [segmented buttons](https://m3.material.io/components/segmented-buttons/guidelines), [dialogs](https://m3.material.io/components/dialogs/guidelines)); Android [notifications](https://developer.android.com/develop/ui/views/notifications) and [channels](https://developer.android.com/develop/ui/views/notifications/channels); [accessibility timeouts](https://developer.android.com/reference/android/view/accessibility/AccessibilityManager#getRecommendedTimeoutMillis(int,int)) | Snackbar: one action, short, in-app only. Don't post a notification for something the user is looking at. Dialogs only for decisions that block. Segmented buttons for 2–5 exclusive options. Timed UI must respect the user's accessibility timeout. | Tap feedback is the read sheet itself (no success notification); notifications only for what waits for the user (questions); undo is a pill on the sheet + a snackbar in the app. |
 
+## 0b. What people say and what others do
+
+**People** (forums 2022–2026, GitHub issues; no Reddit thread surfaced in search):
+- *Priming counted as insulin* is the top complaint. LibreLink imports every press; people fix each one by hand
+  (*Dose / Prime* per logbook row; primes then stay out of the LibreView report)
+  ([diabetes.org.uk](https://forum.diabetes.org.uk/boards/threads/librelink-on-android-at-least-now-reads-novopen-echo-plus-and-novopen-6.102879/),
+  [diabetes.co.uk](https://www.diabetes.co.uk/forum/threads/smart-insulin-pens-how-do-i-avoid-the-priming-dose-being-included-in-the-actual-dosing-injection.192147/)).
+  Juggluco is praised for "only capturing the real dose"
+  ([diabetes.co.uk](https://www.diabetes.co.uk/forum/threads/freestyle-app-and-novopens.198329/)).
+- *Repeated primes*: a visually impaired xDrip user primes 2 + 2 + 2u until they feel the spray; xDrip removes only the
+  first, so IOB and logs are wrong, worse when the cartridge runs out mid-sequence. They ask to hear only real
+  injections with a screen reader, to see primed insulin as a total (for prescriptions), and for a quick "that last one
+  was priming" ([xDrip #4770](https://github.com/NightscoutFoundation/xDrip/issues/4770), Oct 2026, unanswered).
+  Another hid priming because a *Priming 2.0U* row squashed the graph
+  ([xDrip #2664](https://github.com/NightscoutFoundation/xDrip/discussions/2664)).
+- *Scanning is occasional*: "a bit irritating to scan but you only need to do it now and again" (diabetes.org.uk above).
+- *Failed scans scare*: Novo's FAQ has to say a failed transfer "does not mean the insulin wasn't injected"; tips:
+  touch the phone's NFC spot, keep payment / travel cards away, NFC on; a full 800-dose log takes longer
+  ([Novo NFC FAQ, Jan 2025](https://www.novonordisk.com/content/dam/nncorp/global/en/our-products/pdf/novopen-echo-and-6/NovoPen-and-NFC-faq.pdf)).
+  Glooko: scan with the dose button fully in and the counter at 0
+  ([Glooko](https://support.glooko.com/hc/en-us/articles/5651519276435-How-can-I-sync-my-NovoPen-6-and-NovoPen-Echo-Plus-to-my-Glooko-account)).
+  Users fixed failures by *touching* the NFC spot rather than hovering.
+- *Libre 3 users have no official option*: the Libre 3 app doesn't read the pens (diabetes.co.uk, Novo FAQ thread
+  above). That is this user's situation (Libre 3 Plus).
+- *Why it matters*: a Swedish real-world study saw fewer missed meal boluses and more time in range after people
+  started using the pen ([PMC7591375](https://pmc.ncbi.nlm.nih.gov/articles/PMC7591375)).
+
+**Software, judged for the person:**
+
+| Software | Priming | Corrections | Verdict |
+|---|---|---|---|
+| FreeStyle LibreLink (not the Libre 3 app) | none: every press is a dose | per row Dose / Prime | Bad: daily chore; forgotten fixes inflate the doctor's report. |
+| Glooko, mySugr | no priming field documented ([mySugr](https://www.mysugr.com/novo-nordisk-integration); Glooko's dose data has no prime flag, [sugarbar #39](https://github.com/Hammerset/sugarbar/issues/39)) | — | Bad for totals; fine as an archive. |
+| Medtronic InPen (BLE) | auto when the dose follows soon; a lone prime shows as a dose | tap entry → Dose / Prime | Good model; we copy the two-way selector. |
+| xDrip+ | opt-in, size + time window, removes only one prime; first sync pulls 7 days ([#2074](https://github.com/NightscoutFoundation/xDrip/issues/2074)) | delete only | Mixed: runs of primes wrong; 7-day import may duplicate hand entries. |
+| Juggluco | ≤ 2u within 60 s before the next dose, one only | none | Good default, wrong for runs and slow primes. |
+| xdripswift (proposal) | "use only the last dose on the display" ([#764](https://github.com/JohanDegraeve/xdripswift/issues/764)) | — | Bad: loses split doses and top-ups. |
+| AAPS | reads via xDrip treatments | — | Inherits xDrip. |
+
+What this confirms in our spec: runs of priming and the cartridge-runs-out split (rule 2), priming never on the graph
+or in the list (screen readers hear only injections), the two-way per-dose selector, catch-up after occasional scans,
+no bulk import of old days, and the priming size as a setting (2u primers per Novo's guide).
+
+**Changes from these findings** (applied below):
+1. Failed read copy reassures about the injection (Novo FAQ): *Your doses are safe in the pen. Tap again.*
+2. A second failure within 2 min adds the practical tips (touch the spot, cards out of the case, counter at 0).
+3. The first read of a new pen says it takes a few seconds (800-dose log).
+4. Doses read opens with one line of 30-day totals, priming included (the prescription / cartridge question).
+
 ## 1. User goals
 
 1. **Tap and forget**: unlock, hold the pen to the phone, feel the vibration, see "8.5u logged", put the phone away.
@@ -194,7 +243,8 @@ TalkBack focus is inside). Live region (polite) announces the title. Haptics: `C
 | same injection? | *Same injection?* / *¿Es la misma inyección?* | *Pen 8.5u at 13:12 · yours 5u at 13:05* / *Pluma 8.5u a las 13:12 · tuya 5u a las 13:05* | *Check* / *Revisar* (opens §4.5) |
 | big read (rule 11) | *23 injections logged* / *23 inyecciones registradas* | *Since 2 Oct · 18 replaced your entries* / *Desde el 2 oct · 18 sustituyen tus entradas* | *Review* / *Revisar* (§4.9), *Undo* |
 | clock changed | *Pen clock changed* / *El reloj de la pluma ha cambiado* | *Nothing new was logged. Check its doses.* / *No se ha registrado nada nuevo. Revisa sus dosis.* | *Check* / *Revisar* (Doses read) |
-| failed / partial | *Couldn't read the pen* / *No se ha podido leer la pluma* (error container, the only red) | *Nothing was logged. Hold it to the phone until it vibrates.* / *No se ha registrado nada. Mantenla junto al teléfono hasta que vibre.* | — (tapping again retries) |
+| failed / partial | *Couldn't read the pen* / *No se ha podido leer la pluma* (error container, the only red) | *Your doses are safe in the pen. Tap again and hold it still.* / *Tus dosis están a salvo en la pluma. Vuelve a acercarla sin moverla.* Second failure within 2 min adds: *Touch the phone where the circle is, take cards out of the case, and check the counter shows 0.* / *Toca el teléfono donde está el círculo, saca las tarjetas de la funda y comprueba que el contador marca 0.* | — (tapping again retries) |
+| reading, new pen | *Reading your pen…* | *The first read takes a few seconds.* / *La primera lectura tarda unos segundos.* | — |
 | pen not usable (untested, failed check) | *Sukrara doesn't log this pen* / *Sukrara no registra esta pluma* | *Its doses didn't match its display.* / *Sus dosis no coincidían con su pantalla.* | *Open* |
 | new pen | *New pen added* / *Pluma nueva añadida* | *NovoPen Echo Plus · rapid · 412 earlier doses left out* / *NovoPen Echo Plus · rápida · 412 dosis anteriores fuera* | *Log 8.5u* / *Registrar 8.5u* (its newest injection, only if < 24 h old; rule 9 merge applies, the line then says *Matches your 8u entry*), *Set up* / *Configurar* (§4.7) |
 
@@ -399,7 +449,8 @@ FHB2N9KE*, *Started 21 Oct* / *Desde el 21 oct*, *Last read 13:14* / *Última le
 
 ### 4.9 Doses read (history, corrections, earlier doses, big-read review)
 
-Settings page with the pen's sessions, newest first, grouped by day (*Today*, *Yesterday*, dates). One row per
+Settings page. First line (body, onSurfaceVariant): *Last 30 days: 612u injected · 41u priming* / *Últimos 30 días:
+612u inyectadas · 41u de purgado*. Then the pen's sessions, newest first, grouped by day (*Today*, *Yesterday*, dates). One row per
 session: time, `8.5u` big, summary with the status:
 
 | Status | Summary (en / es) | Tap |
@@ -533,7 +584,9 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 24★ | Type 8u rapid 10 min after a pen entry | *Already logged by your pen?* · *8.5u rapid at 13:12*; *Cancel* returns with the values; carbs in the same save are saved |
 | 24b★ | Add treatment open, tap the pen after `1, 0.5, 8, 0.5` | before: the small contactless-pen icon in the title row (TalkBack label); after: Rapid = 8.5 with *From the pen · 1.5u primed*, *When?* = *Today 13:12*, nothing logged yet; *Save* logs one pen entry (merge snackbar when a hand entry matched); *Cancel* logs nothing and a later tap logs it |
 | 24c | Same with a long pen; with `1, 1.5`; typing over the filled value; nothing new; failure | Long filled; suggestion with *1u primed · tap to change*; mark gone; *Nothing new* / red *Couldn't read the pen* for 3 s, fields untouched |
-| 25 | Failed / partial read | red sheet *Couldn't read the pen*, REJECT haptic, nothing in the list |
+| 25 | Failed / partial read | red card *Couldn't read the pen* · *Your doses are safe in the pen…*, REJECT haptic, nothing in the list; a second failure within 2 min adds the tips line |
+| 25b | First read of a new pen (slow) | *The first read takes a few seconds.* under *Reading your pen…* |
+| 30b | Doses read top | *Last 30 days: 612u injected · 41u priming* |
 | 26 | Pen not scanned for 5 days | logged at once; card *23 injections logged* · *Since 2 Oct · 18 replaced your entries*, *Review* + *Undo*; Review = Doses read filtered to that read |
 | 27 | Pen clock reset | *Pen clock changed*; no new entries; Doses read shows the doses |
 | 28 | Future-dated dose | not logged; Doses read *Ignored: time in the future* |
