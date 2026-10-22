@@ -30,6 +30,69 @@ enum SelfTest {
             check("older copy from v2 doesn't undo the delete", !st.receive(mine) && st.row(mine.id)?.del == true)
             check("persisted", TreatmentStore(directory: dir).row(mine.id)?.del == true)
         }
+        // Pen entries (spikes/novopen-android/DESIGN.md §5): pr / pen / pd survive JSON, v2 dict, merge, the store
+        // and an edit here; every output reads `a` (injected) only.
+        var pen = Treatment(id: "p", k: "rapid", a: 8.5, t: 2000, u: 3000, o: "phone")
+        pen.pr = 1.5; pen.pen = "FHB2N9KE"
+        pen.pd = [.init(t: 1880, a: 1, p: true), .init(t: 1940, a: 0.5, p: true), .init(t: 2000, a: 8), .init(t: 2060, a: 0.5)]
+        let json = (try? JSONEncoder().encode(pen)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        check("pen keys encoded", json.contains("\"pr\":1.5") && json.contains("\"pen\":\"FHB2N9KE\"") && json.contains("\"pd\":["))
+        check("pen JSON round trip", (try? JSONDecoder().decode(Treatment.self, from: Data(json.utf8))) == pen)
+        check("pen v2 dict round trip", Treatment(dict: pen.dict) == pen)
+        check("hand-typed entry has no pen keys", base.dict["pr"] == nil && base.dict["pen"] == nil && base.dict["pd"] == nil
+              && !((try? JSONEncoder().encode(base)).flatMap { String(data: $0, encoding: .utf8) } ?? "").contains("\"pd\""))
+        check("pd without p = injected", (try? JSONDecoder().decode(Treatment.self, from: Data(#"{"id":"q","k":"rapid","a":2,"t":1,"u":1,"o":"phone","pen":"X","pd":[{"t":1,"a":2}]}"#.utf8)))?.pd == [.init(t: 1, a: 2)])
+        var typed = pen; typed.pr = nil; typed.pen = nil; typed.pd = nil; typed.a = 8; typed.u = 1000
+        check("merge: the pen version replaces the hand-typed one", Treatment.merge(typed, pen) == pen && Treatment.merge(pen, typed) == pen)
+        var edited = pen; edited.n = "lunch"; edited.u = 4000; edited.o = "mac"
+        check("merge: a newer edit keeps the pen keys", Treatment.merge(pen, edited).pd == pen.pd && Treatment.merge(pen, edited).pr == 1.5)
+        check("outputs use a only", MainActor.assumeIsolated { StatusController.describe(pen) }.contains("8.5u rapid") && TreatmentMarks.amount(k: pen.k, a: pen.a) == "8.5u")
+        let csv = GlucoseCsv.write(readings: [], treatments: [pen], from: 0, to: 10_000, zone: TimeZone(identifier: "UTC")!,
+                                   generatedAt: 0, sensor: nil, mmol: false)
+        check("CSV export: insulin = a (8.5), priming only in Primed Insulin", csv.contains(",8.5,") && !csv.contains("10.0")
+              && csv.contains(",phone,1.5\r\n") && csv.contains("Entered By,Primed Insulin (units)\r\n"))
+        check("pen copy", PenCopy.summary(pen) == "From the pen · 1.5u primed" && PenCopy.summary(base) == nil
+              && PenCopy.dose(pen.pd![0]) == "1u primed" && PenCopy.dose(pen.pd![2]) == "8u"
+              && PenCopy.origin(pen, who: "Ana") == "Read from the pen on Ana's phone" && PenCopy.origin(base, who: "Ana") == nil)
+        let at = Clock.time(Date(timeIntervalSince1970: 2000))
+        check("VoiceOver: pen row", PenCopy.spokenRow(pen, now: 2000 + 47 * 60) == "8.5 units rapid insulin, from the pen, 1.5 units primed, \(at), 47 min ago")
+        check("VoiceOver: doses", PenCopy.spokenDose(pen.pd![0]) == "\(Clock.time(Date(timeIntervalSince1970: 1880))), 1 unit, primed"
+              && PenCopy.spokenDose(pen.pd![2]) == "\(at), 8 units")
+        // Add Treatment's warning: a hand-typed rapid / long within 45 min of a pen entry of that kind
+        let typedNow = Treatment(k: "rapid", a: 8, t: 2000 + 45 * 60), late = Treatment(k: "rapid", a: 8, t: 2000 + 45 * 60 + 1)
+        var gonePen = pen; gonePen.del = true
+        check("warning: rapid within 45 min", PenCopy.alreadyLogged([typedNow], in: [pen])?.id == pen.id)
+        check("warning: not past 45 min, other kind, carbs, deleted or hand-typed rows",
+              PenCopy.alreadyLogged([late], in: [pen]) == nil && PenCopy.alreadyLogged([Treatment(k: "long", a: 8, t: 2000)], in: [pen]) == nil
+              && PenCopy.alreadyLogged([Treatment(k: "carbs", a: 30, t: 2000)], in: [pen]) == nil
+              && PenCopy.alreadyLogged([typedNow], in: [gonePen]) == nil && PenCopy.alreadyLogged([typedNow], in: [typed]) == nil)
+        check("warning copy", PenCopy.alreadyTitle == "Already logged by the pen?" && PenCopy.alreadyText(pen) == "8.5u rapid at \(at)")
+        // The shared shape: spikes/libreview/fixture.json (lv.py) holds a pen entry; this Mac reads it with its keys and
+        // writes them back unchanged.
+        var dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        while !FileManager.default.fileExists(atPath: dir.appendingPathComponent("spikes/libreview/fixture.json").path), dir.path != "/" {
+            dir.deleteLastPathComponent()
+        }
+        let rows = (FileManager.default.contents(atPath: dir.appendingPathComponent("spikes/libreview/fixture.json").path))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["treatments"] as? [[String: Any]] ?? []
+        let fromFixture = rows.compactMap { Treatment(dict: $0) }
+        let fp = fromFixture.first { $0.pen != nil }
+        check("fixture.json: every treatment decodes", !rows.isEmpty && fromFixture.count == rows.count)
+        check("fixture.json: the pen entry keeps pr / pen / pd", fp?.a == 8.5 && fp?.pr == 1.5 && fp?.pen == "FHB2N9KE"
+              && fp?.pd?.map(\.p) == [true, true, false, false] && fp.map { Treatment(dict: $0.dict) == $0 } == true)
+        MainActor.assumeIsolated {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sukrara-selftest-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let st = TreatmentStore(directory: dir)
+            st.receive(typed)
+            check("store: pen version received over the typed one", st.receive(pen) && st.row("p") == pen)
+            check("store: persisted with the pen keys", TreatmentStore(directory: dir).row("p") == pen)
+            // the Mac's edit path (debug `edit`, the only one): mutate the stored row, newer u
+            var t = st.row("p")!; t.n = "lunch"; t.u = max(Treatment.nowMs(), t.u + 1); st.upsertLocal(t)
+            let back = TreatmentStore(directory: dir).row("p")
+            check("store: an edit here keeps pr / pen / pd", back?.pr == 1.5 && back?.pen == "FHB2N9KE" && back?.pd == pen.pd && back?.n == "lunch")
+            check("store: delete keeps the pen keys on the tombstone", st.delete("p").map { $0.pd == pen.pd && $0.pen == pen.pen } ?? false)
+        }
         print(failures == 0 ? "treatments selftest OK" : "treatments selftest: \(failures) failure(s)")
         return failures == 0
     }

@@ -6,8 +6,8 @@ import UniformTypeIdentifiers
 
 /// Readings and treatments as one CSV in LibreView's "Glucose Data" layout, byte for byte what Android's
 /// `export/GlucoseCsv.kt` writes (rules there and in docs/22 "In Sukrara: CSV export"); both run spikes/export-fixtures
-/// (`Sukrara -exportselftest`). Tidepool Uploader's LibreView import reads it; three columns of our own at the end
-/// (ISO 8601 time with offset, trend, who entered a treatment).
+/// (`Sukrara -exportselftest`). Tidepool Uploader's LibreView import reads it; four columns of our own at the end
+/// (ISO 8601 time with offset, trend, who entered a treatment, a pen entry's primed units).
 enum GlucoseCsv {
     static let minGap: Int64 = 280
     private static let mgdlPerMmol = 18.0182
@@ -21,7 +21,7 @@ enum GlucoseCsv {
                 "Non-numeric Rapid-Acting Insulin", "Rapid-Acting Insulin (units)", "Non-numeric Food", "Carbohydrates (grams)",
                 "Carbohydrates (servings)", "Non-numeric Long-Acting Insulin", "Long-Acting Insulin (units)", "Notes",
                 "Strip Glucose \(u)", "Ketone mmol/L", "Meal Insulin (units)", "Correction Insulin (units)",
-                "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By"]
+                "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By", "Primed Insulin (units)"]
     }
 
     /// The CSV for `t` in [from, to) (epoch s), CRLF line ends. Deleted treatments are skipped.
@@ -32,7 +32,7 @@ enum GlucoseCsv {
             return s.serial
         }
         func base(_ t: Int64, _ type: String) -> [String] {
-            var f = [String](repeating: "", count: 22)
+            var f = [String](repeating: "", count: 23)
             f[0] = "Sukrara"; f[1] = serial(t); f[2] = local(t, zone); f[3] = type; f[19] = iso(t, zone)
             return f
         }
@@ -55,6 +55,7 @@ enum GlucoseCsv {
             default: f = base(tr.t, "6")
             }
             f[13] = textCell(tr.n); f[21] = tr.o
+            if tr.fromPen { f[22] = tenths(tr.pr ?? 0) }   // a pen entry's priming (0.0 = none); never in the insulin column
             lines.append((tr.t, 1, tr.id, f))
         }
         lines.sort { ($0.t, $0.order, $0.id) < ($1.t, $1.order, $1.id) }
@@ -222,6 +223,10 @@ enum GlucoseCsv {
                 let treatments = (c["treatments"] as? [[String: Any]] ?? []).map {
                     Treatment(id: $0["id"] as? String ?? "", k: $0["k"] as? String ?? "", a: ($0["a"] as? NSNumber)?.doubleValue ?? 0,
                               t: i64($0["t"]), n: $0["n"] as? String ?? "", u: 1, del: ($0["del"] as? Bool) ?? false, o: $0["o"] as? String ?? "")
+                        .with { [o = $0] tr in   // pen keys as the case gives them
+                            tr.pr = (o["pr"] as? NSNumber)?.doubleValue; tr.pen = o["pen"] as? String
+                            tr.pd = (o["pd"] as? [[String: Any]])?.map { Treatment.PenDose(t: i64($0["t"]), a: ($0["a"] as? NSNumber)?.doubleValue ?? 0, p: $0["p"] as? Bool ?? false) }
+                        }
                 }
                 let sensor = (c["sensor"] as? [String: Any]).map { Sensor(serial: $0["serial"] as? String ?? "", start: i64($0["start"]), end: i64($0["end"])) }
                 let got = write(readings: readings, treatments: treatments, from: i64(c["from"]), to: i64(c["to"]),

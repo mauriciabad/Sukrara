@@ -370,9 +370,10 @@ checked against the shared cases in [`spikes/export-fixtures`](../spikes/export-
 | Nightscout | no file import: CSV is only a response format of its REST API (`/api/v3/entries.csv`) | `cgm-remote-monitor/lib/api3/doc/formats.md:5-12` |
 | xDrip+ | exports its own SiDiary CSV / DB zip; imports only its own DB | `xDrip/…/utils/DatabaseUtil.java:215` |
 
-So one file in that layout, readings and treatments together (LibreView puts them in one file; no zip), plus three
+So one file in that layout, readings and treatments together (LibreView puts them in one file; no zip), plus four
 columns at the end that position-based readers ignore: `Time (ISO 8601)` (with the offset), `Trend (mg/dL/min)`,
-`Entered By`. Verified: Tidepool's own driver code (`spikes/export-fixtures/tidepool-check`) reads every fixture and
+`Entered By`, `Primed Insulin (units)` (investigation 29: a pen entry's primed units, `0.0` without priming, empty for
+typed entries; the insulin columns keep the injected units only). Verified: Tidepool's own driver code (`spikes/export-fixtures/tidepool-check`) reads every fixture and
 the emulator's export into CBG records with the right UTC times, units (mg/dL, and mmol/L) and one device per sensor
 serial. Emulator check (debug build, synthetic data, Android 16): *Save file* wrote
 `sukrara-glucose-2026-10-12-to-2026-10-19.csv` to Downloads (293 five-minute rows, the three test treatments with

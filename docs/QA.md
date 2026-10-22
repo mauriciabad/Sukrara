@@ -120,7 +120,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 - [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour; click → panel
       (card in its module, Return opens *Add Treatment*: Tab rapid → long → carbs → note, `4.5u` keeps `4.5`,
       quiet line, limits line at 600g, time chip popover, Return saves all, Escape cancels; Escape / click outside
-      closes the panel); right-click menu; Treatments… (7 days, delete with ⌫ / context menu, ⌘W); Glucose Report (report only, period, Export CSV…); Settings (each pane; ⌘, ⌘W, paste in
+      closes the panel); right-click menu; Treatments… (7 days, delete with ⌫ / context menu, ⌘W; a pen entry from the phone: total as title, *From the pen · 1.5u primed*, the triangle opens the doses with *primed* on air shots, tooltip *Read from the pen on …'s phone* (no serial); Add Treatment with rapid within 45 min of a pen entry → *Already logged by the pen?*, Cancel keeps the insulin typed and saves carbs / note, Log Anyway saves; `-treatmentTimeSnapshot <dir>` → `add-treatment-pen-warning-*.png`; VoiceOver reads the row as one sentence and each dose as *12:37, 1 unit, primed*; a correction on the phone shows here within seconds; chart mark = the total; synthetic: `GlucoseBar -treatmentsSnapshot <dir>`); Glucose Report (report only, period, Export CSV…); Settings (each pane; ⌘, ⌘W, paste in
       the invite field); light and dark, over a bright and a dark window/wallpaper, Increase Contrast and Reduce
       Transparency (System Settings → Accessibility → Display).
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
@@ -257,7 +257,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
       This sensor shows only when a sensor is known (`--es cmd fakeSensor`).
 - [ ] *Save file*: the system picker suggests `sukrara-glucose-<from>-to-<to>.csv`; saving shows "File saved";
       `adb shell cat` the file (or open it in Files): line 1 `Glucose Data,…`, 5-minute rows, treatments with
-      `Entered By`.
+      `Entered By`; a pen entry has its priming in `Primed Insulin (units)` (`1.5`, `0.0` without), typed entries leave it empty.
 - [ ] *Share*: the share sheet shows the CSV (a preview line with the file name, no person's name); sending it to an
       app (Drive, Gmail, Files) attaches the file.
 - [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.

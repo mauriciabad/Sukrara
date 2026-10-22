@@ -115,6 +115,16 @@
       }
     },
     {
+      "name": "ogs-spec",
+      "why": "The app wire specs (PROTOCOL-v2.md, libreview SPEC.md) are published as the open standard spec/ogs-*.md: a wire change updates the public spec in the same change (pen keys round, 2026-10-23)",
+      "level": "fail",
+      "trigger": ["app-spec"],
+      "sides": {
+        "app-spec": ["spikes/nostr/PROTOCOL-v2.md", "spikes/libreview/SPEC.md"],
+        "ogs": ["spec/ogs-*.md"]
+      }
+    },
+    {
       "name": "protocol-v2-impl",
       "why": "Wire code changed on one platform only: check PROTOCOL-v2.md and the other platform",
       "level": "warn",

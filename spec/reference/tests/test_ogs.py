@@ -189,6 +189,22 @@ class Cgms(unittest.TestCase):
 
 
 class Vectors(unittest.TestCase):
+    def test_pen_entry_vector(self):
+        """D§6 pen keys: the committed pen entry parses, keeps pr / pen / pd and serialises back byte-equal; a hand
+        entry has none; the invalid ones are rejected."""
+        tp = json.loads(VECTORS.read_text())["treatment_payloads"]
+        tr = m.parse_treatment(tp["pen-entry"])
+        self.assertEqual((tr.a, tr.pr, tr.pen, [d.get("p", False) for d in tr.pd]), (8.5, 1.5, "SYNTHETIC-PEN-1",
+                                                                                     [True, True, False, False]))
+        self.assertEqual(m.treatment_dict(tr), tp["pen-entry"])
+        self.assertEqual(json.dumps(m.treatment_dict(tr)), json.dumps(tp["pen-entry"]))
+        self.assertAlmostEqual(tr.a, sum(d["a"] for d in tr.pd if not d.get("p")))
+        hand = {k: v for k, v in tp["pen-entry"].items() if k not in ("pr", "pen", "pd")}
+        self.assertNotIn("pd", m.treatment_dict(m.parse_treatment(hand)))
+        for bad in tp["invalid"]:
+            with self.assertRaises(m.Invalid):
+                m.parse_treatment(bad)
+
     def test_committed_vectors_verify(self):
         self.assertEqual(vectors.verify_file(json.loads(VECTORS.read_text())), [])
 

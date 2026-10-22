@@ -25,6 +25,12 @@ RELAYS = ["wss://relay.example.org", "wss://nos.lol"]
 PROFILE = {"name": "Alex", "avatar": {"v": 1, "c": 0, "s": "cube", "a": 45, "n": 1497950029}}
 
 
+PEN_ENTRY = {"v": 1, "id": "e1e2e3e4-0000-4000-8000-00000000000e", "k": "rapid", "a": 8.5, "t": NOW - 420, "n": "",
+             "u": (NOW - 300) * 1000, "del": False, "o": "phone", "pr": 1.5, "pen": "SYNTHETIC-PEN-1",
+             "pd": [{"t": NOW - 570, "a": 1, "p": True}, {"t": NOW - 510, "a": 0.5, "p": True},
+                    {"t": NOW - 420, "a": 8, "p": False}, {"t": NOW - 350, "a": 0.5, "p": False}]}
+
+
 def K(name: str) -> Keys:
     return Keys(hashlib.sha256(f"OGS test vector key: {name}".encode()).digest())
 
@@ -186,6 +192,15 @@ def generate() -> dict:
                 "info": ble.info(SID, ble_nonce),
                 "info_pairing": ble.info(SID, ble_nonce, i_pub=I.pub, relays=RELAYS,
                                          pair={"t": inv.token, "x": NOW + 600, "profile": PROFILE})},
+        # D§6 pen entry (payload only): accepted and kept as is; the invalid ones are rejected
+        "treatment_payloads": {
+            "pen-entry": PEN_ENTRY,
+            "invalid": [{**PEN_ENTRY, "pr": -0.5}, {**PEN_ENTRY, "pen": "X" * 33},
+                        {**PEN_ENTRY, "pd": [{"t": NOW - 400, "a": 1}] * 21},
+                        {**PEN_ENTRY, "pd": [{"t": NOW - 300, "a": 8}, {"t": NOW - 400, "a": 1, "p": True}]},
+                        {**PEN_ENTRY, "pd": [{"t": NOW - 300, "a": -1}]}, {**PEN_ENTRY, "pd": [{"a": 1}]},
+                        {**PEN_ENTRY, "pd": [{"t": NOW - 300, "a": 1, "p": "yes"}]}],
+        },
         "cgms": [{"ogs": {"sgv": rd.sgv, "t": rd.t, "r": rd.rate, "ss": sensor["ss"], "se": sensor["se"]},
                   "measurement": cgms.from_ogs(rd.sgv, rd.t, rd.rate, sensor["ss"], sensor["se"], NOW).hex()},
                  {"ogs": {"sgv": 192, "t": rd.t, "r": -0.4, "ss": sensor["ss"], "se": sensor["se"], "alert": "high"},
@@ -220,6 +235,18 @@ def run_scenario(vec: dict) -> list[str]:
 
 def verify_file(vec: dict) -> list[str]:
     fails = []
+    tp = vec.get("treatment_payloads", {})
+    try:
+        if m.treatment_dict(m.parse_treatment(tp["pen-entry"])) != tp["pen-entry"]:
+            fails.append("pen entry doesn't round-trip")
+    except (KeyError, m.Invalid) as ex:
+        fails.append(f"pen entry: {ex}")
+    for i, bad in enumerate(tp.get("invalid", [])):
+        try:
+            m.parse_treatment(bad)
+            fails.append(f"invalid pen entry {i} accepted")
+        except m.Invalid:
+            pass
     for name, e in vec["events"].items():
         if verify(e) != (name != "live-tampered"):
             fails.append(f"signature of {name}")
