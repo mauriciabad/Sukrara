@@ -552,6 +552,7 @@ MainActor.assumeIsolated {
     // Add Treatment (TreatmentDialog.swift): every entry of the form takes the same path as one logged alone.
     treatmentDialog.model.settings = { alerts.settings }
     treatmentDialog.model.mirroring = { alerts.mode == .wearer }
+    treatmentDialog.model.existing = { treatments.rows }   // the pen warning (Already logged by the pen?)
     treatmentDialog.model.onSave = { entries in entries.forEach { status.onLogTreatment?($0) } }
     status.onAddTreatment = { screen, field in
         // the card's pill names its field (Eat carbs → carbs, Take insulin → rapid); else the latest fresh reading below an

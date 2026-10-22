@@ -171,6 +171,7 @@ private struct TreatmentRow: View {
             }
         }
         .padding(.vertical, 2)
+        .modifier(PenSpoken(t: t))
     }
 
     private var title: String {
@@ -179,6 +180,19 @@ private struct TreatmentRow: View {
         case "long": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") long insulin"
         case "carbs": "\(TreatmentMarks.amount(k: t.k, a: t.a) ?? "") carbs"
         default: t.n.isEmpty ? "Note" : t.n
+        }
+    }
+}
+
+/// A pen row reads as one sentence (PRODUCT §7): total, from the pen, priming, time, time since.
+private struct PenSpoken: ViewModifier {
+    let t: Treatment
+    func body(content: Content) -> some View {
+        if t.fromPen {
+            content.accessibilityElement(children: .ignore)
+                .accessibilityLabel(PenCopy.spokenRow(t, now: Date().timeIntervalSince1970))
+        } else {
+            content
         }
     }
 }
@@ -199,7 +213,8 @@ private struct PenDoseRow: View {
                 .monospacedDigit()
         }
         .padding(.leading, 28)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PenCopy.spokenDose(d))
     }
 }
 
@@ -219,10 +234,52 @@ enum PenCopy {
         return d.p ? "\(amount) primed" : amount
     }
 
-    /// The tooltip's first line: "Read from pen FHB2N9KE on Ana's phone".
+    /// The tooltip's first line: "Read from the pen on Ana's phone" (no serial: two pens are told apart on the phone).
     static func origin(_ t: Treatment, who: String) -> String? {
-        guard let pen = t.pen else { return nil }
-        return pen.isEmpty ? "Read from the pen on \(who)'s phone" : "Read from pen \(pen) on \(who)'s phone"
+        t.fromPen ? "Read from the pen on \(who)'s phone" : nil
+    }
+
+    /// Spoken units: "1 unit", "8.5 units".
+    static func units(_ a: Double) -> String {
+        let v = a == a.rounded() ? String(Int(a)) : String(format: "%.1f", a)
+        return v == "1" ? "1 unit" : "\(v) units"
+    }
+
+    /// VoiceOver for a pen row: "8.5 units rapid insulin, from the pen, 1.5 units primed, 12:40, 47 min ago".
+    static func spokenRow(_ t: Treatment, now: TimeInterval) -> String {
+        let kind = t.k == "long" ? "long insulin" : "rapid insulin"
+        var parts = ["\(units(t.a)) \(kind)", "from the pen"]
+        if let pr = t.pr, pr > 0 { parts.append("\(units(pr)) primed") }
+        if !t.n.isEmpty { parts.append(t.n) }
+        parts.append(Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t))))
+        let ago = Int(max(0, now - TimeInterval(t.t))) / 60
+        parts.append(ago < 1 ? "now" : "\(Durations.text(ago)) ago")
+        return parts.joined(separator: ", ")
+    }
+
+    /// VoiceOver for a dose: "12:37, 1 unit, primed" / "12:40, 8 units".
+    static func spokenDose(_ d: Treatment.PenDose) -> String {
+        let time = Clock.time(Date(timeIntervalSince1970: TimeInterval(d.t)))
+        return d.p ? "\(time), \(units(d.a)), primed" : "\(time), \(units(d.a))"
+    }
+
+    /// The hand-typed insulin entry the pen already logged (Add Treatment's warning, PRODUCT §4.6 / §7): a live pen
+    /// entry of the same kind within 45 min of a rapid / long entry about to be saved, the closest first; nil = none.
+    static func alreadyLogged(_ entries: [Treatment], in rows: [Treatment]) -> Treatment? {
+        var best: (Treatment, Int64)?
+        for e in entries where e.k == "rapid" || e.k == "long" {
+            for r in rows where !r.del && r.fromPen && r.k == e.k {
+                let d = abs(r.t - e.t)
+                if d <= 45 * 60, best.map({ d < $0.1 }) ?? true { best = (r, d) }
+            }
+        }
+        return best?.0
+    }
+
+    static let alreadyTitle = "Already logged by the pen?"
+    /// "8.5u rapid at 12:40".
+    static func alreadyText(_ pen: Treatment) -> String {
+        "\(TreatmentMarks.amount(k: pen.k, a: pen.a) ?? "") \(pen.k == "long" ? "long" : "rapid") at \(Clock.time(Date(timeIntervalSince1970: TimeInterval(pen.t))))"
     }
 }
 

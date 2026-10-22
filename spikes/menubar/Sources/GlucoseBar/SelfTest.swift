@@ -52,7 +52,20 @@ enum SelfTest {
         check("CSV export: insulin = a (8.5), priming not added", csv.contains(",8.5,") && !csv.contains("10.0") && !csv.contains(",1.5,"))
         check("pen copy", PenCopy.summary(pen) == "From the pen · 1.5u primed" && PenCopy.summary(base) == nil
               && PenCopy.dose(pen.pd![0]) == "1u primed" && PenCopy.dose(pen.pd![2]) == "8u"
-              && PenCopy.origin(pen, who: "Ana") == "Read from pen FHB2N9KE on Ana's phone")
+              && PenCopy.origin(pen, who: "Ana") == "Read from the pen on Ana's phone" && PenCopy.origin(base, who: "Ana") == nil)
+        let at = Clock.time(Date(timeIntervalSince1970: 2000))
+        check("VoiceOver: pen row", PenCopy.spokenRow(pen, now: 2000 + 47 * 60) == "8.5 units rapid insulin, from the pen, 1.5 units primed, \(at), 47 min ago")
+        check("VoiceOver: doses", PenCopy.spokenDose(pen.pd![0]) == "\(Clock.time(Date(timeIntervalSince1970: 1880))), 1 unit, primed"
+              && PenCopy.spokenDose(pen.pd![2]) == "\(at), 8 units")
+        // Add Treatment's warning: a hand-typed rapid / long within 45 min of a pen entry of that kind
+        let typedNow = Treatment(k: "rapid", a: 8, t: 2000 + 45 * 60), late = Treatment(k: "rapid", a: 8, t: 2000 + 45 * 60 + 1)
+        var gonePen = pen; gonePen.del = true
+        check("warning: rapid within 45 min", PenCopy.alreadyLogged([typedNow], in: [pen])?.id == pen.id)
+        check("warning: not past 45 min, other kind, carbs, deleted or hand-typed rows",
+              PenCopy.alreadyLogged([late], in: [pen]) == nil && PenCopy.alreadyLogged([Treatment(k: "long", a: 8, t: 2000)], in: [pen]) == nil
+              && PenCopy.alreadyLogged([Treatment(k: "carbs", a: 30, t: 2000)], in: [pen]) == nil
+              && PenCopy.alreadyLogged([typedNow], in: [gonePen]) == nil && PenCopy.alreadyLogged([typedNow], in: [typed]) == nil)
+        check("warning copy", PenCopy.alreadyTitle == "Already logged by the pen?" && PenCopy.alreadyText(pen) == "8.5u rapid at \(at)")
         // The shared shape: spikes/libreview/fixture.json (lv.py) holds a pen entry; this Mac reads it with its keys and
         // writes them back unchanged.
         var dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
