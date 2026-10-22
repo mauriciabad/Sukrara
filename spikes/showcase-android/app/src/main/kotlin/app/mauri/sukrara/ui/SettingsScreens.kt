@@ -383,8 +383,11 @@ fun StatusBarSettings(onBack: () -> Unit) {
     val module = access.active
     val hookOn = ok && f.hook
     val placement = hookPositionLabel(f.hookPosition)?.let { stringResource(it) } ?: f.hookPosition
-    // "With the system icons" works with root alone; the other placements are drawn by the module
+    // "With the system icons" works with root alone; the other placements are drawn by the module. Without it the slot
+    // placements still show the icons (first of the system icons), the clock ones show nothing.
     fun needsModule(pos: String) = pos != app.mauri.sukrara.features.HookPosition.SLOT_PREFIX
+    val meanwhile = app.mauri.sukrara.features.HookPosition.showsWithoutModule(f.hookPosition)
+    val waiting = needsModule(f.hookPosition) && !module
     var choosing by remember { mutableStateOf(false) }
     val off = stringResource(R.string.statusbar_unavailable)
     val needs = stringResource(R.string.settings_needs_module)
@@ -403,11 +406,15 @@ fun StatusBarSettings(onBack: () -> Unit) {
             switch(stringResource(R.string.statusbar_value), f.hook && ok, enabled = ok, icon = R.drawable.ic_sym_smartphone, summary = when (root) {
                 null -> stringResource(R.string.statusbar_value_checking)
                 false -> stringResource(R.string.statusbar_value_no_root)
-                true -> if (!f.hook) stringResource(R.string.settings_off) else if (needsModule(f.hookPosition) && !module) stringResource(R.string.statusbar_value_needs_module, placement) else placement
+                true -> if (!f.hook) stringResource(R.string.settings_off)
+                    else if (waiting) stringResource(if (meanwhile) R.string.statusbar_value_needs_module_icons else R.string.statusbar_value_needs_module, placement)
+                    else placement
             }) { v -> set { it.copy(hook = v) } }
             switch(stringResource(R.string.statusbar_colour), f.hookColor, enabled = hookOn && module, icon = R.drawable.ic_sym_palette,
                 summary = if (!hookOn) off else if (!module) needs else null) { v -> set { it.copy(hookColor = v) } }
-            value(stringResource(R.string.statusbar_placement), if (hookOn) placement else off, enabled = hookOn, icon = R.drawable.ic_sym_align_horizontal_left) { choosing = true }
+            value(stringResource(R.string.statusbar_placement), if (!hookOn) off
+                else if (waiting) stringResource(if (meanwhile) R.string.statusbar_value_needs_module_icons else R.string.statusbar_value_needs_module, placement)
+                else placement, enabled = hookOn, icon = R.drawable.ic_sym_align_horizontal_left) { choosing = true }
             switch(stringResource(R.string.statusbar_hide_icon), f.hideNotifIcon, enabled = hookOn && module, icon = R.drawable.ic_sym_visibility_off,
                 summary = if (!hookOn) off else if (!module) needs else stringResource(R.string.statusbar_hide_icon_summary)) { v ->
                 set { it.copy(hideNotifIcon = v) }
@@ -417,7 +424,10 @@ fun StatusBarSettings(onBack: () -> Unit) {
     }
     if (choosing) ChoiceDialog(stringResource(R.string.statusbar_placement), Features.HOOK_POSITIONS.map { pos ->
             val ok = module || !needsModule(pos)
-            Choice(stringResource(hookPositionLabel(pos)!!), pos, sub = if (ok) null else needs, enabled = ok)
+            // a slot placement stays selectable without the module (the icons show, first of the system icons)
+            val icons = !ok && app.mauri.sukrara.features.HookPosition.showsWithoutModule(pos)
+            Choice(stringResource(hookPositionLabel(pos)!!), pos,
+                sub = if (ok) null else if (icons) stringResource(R.string.statusbar_pos_needs_module_icons) else needs, enabled = ok || icons)
         }, f.hookPosition,
         { choosing = false }) { pos -> set { it.copy(hookPosition = pos) } }
 }

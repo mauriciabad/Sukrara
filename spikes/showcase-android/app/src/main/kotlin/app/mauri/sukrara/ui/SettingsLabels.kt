@@ -71,6 +71,7 @@ import app.mauri.sukrara.graph.TirRange
     HookPosition.SLOT_PREFIX -> R.string.statusbar_pos_with_icons
     "${HookPosition.SLOT_PREFIX}vpn" -> R.string.statusbar_pos_after_vpn
     "${HookPosition.SLOT_PREFIX}bluetooth" -> R.string.statusbar_pos_after_bluetooth
+    HookPosition.DEFAULT -> R.string.statusbar_pos_before_mobile
     "${HookPosition.SLOT_PREFIX}mobile" -> R.string.statusbar_pos_after_mobile
     "${HookPosition.SLOT_PREFIX}wifi" -> R.string.statusbar_pos_after_wifi
     else -> null

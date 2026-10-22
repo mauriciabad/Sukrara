@@ -89,6 +89,13 @@ Phone with root + the LSPosed module (System UI restarted after the install), *V
 system-icon placement. Read-only checks; screenshots stay off the repo (health data).
 
 - [ ] `adb logcat -s LSPosedFramework Sukrara` after the System UI start: `icon fit hooks: 1`, no `icon fit … failed`.
+- [ ] *Before the mobile signal* (the default on a fresh install): glucose right of vibrate / VPN / speakerphone, right
+      before the mobile signal, never between mobile and Wi-Fi; Wi-Fi only (mobile hidden): still left of Wi-Fi.
+      Lock screen: the same order.
+- [ ] Without the module (module off in LSPosed, or emulator with root only): *Value in the status bar* and *Placement*
+      read "Before the mobile signal needs the LSPosed module. For now, it shows first among the system icons."; the
+      icons show leftmost; in the dialog the system-icon placements are selectable with that line, the clock ones are
+      disabled; choosing *With the system icons* clears the note. Spanish too.
 - [ ] Fill the row (vibrate, Do Not Disturb, hotspot, alarm, Bluetooth on): other icons fold into the overflow dot from
       the left; number and arrow stay, at their placement.
 - [ ] Keep filling until even the pair can't fit (larger font / display size): number and arrow become the one dot
@@ -338,6 +345,8 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
 - [ ] Each state has a way to change it and to leave it (undo, cancel, turn off, unmute, go back), without needing a
       notification, and with TalkBack / VoiceOver (a button or an accessibility action).
 - [ ] Leaving it updates everything that showed it at once (history, badge, widgets, ring, notification).
+- [ ] Status bar placement without the LSPosed module: the rows say the placement needs the module and what shows
+      meanwhile; the dialog lets you leave a clock placement (system-icon placements selectable).
 - [ ] Alerts: emulator `--es alertFeed '65,0'` → Mute 30 min → the muted notification's *Unmute* brings *Low glucose*
       back at once; Mute… → the pill opens the sheet → *Change to 15 min*; Remind less → the chip → *Remind as usual*; home
       *Mute alerts* → 1 h → the muted pill on the card and widgets → the line counts down → *Unmute*; *Until you turn it off* stays after a restart; the muted notification's header counts down;

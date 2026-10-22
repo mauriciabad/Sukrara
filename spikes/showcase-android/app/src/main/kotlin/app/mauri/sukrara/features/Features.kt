@@ -36,9 +36,10 @@ data class FeatureState(
     val hook: Boolean = false,
     /**
      * Where: next to the clock / left of the icons (drawn by the LSPosed module), or `slot:…` = as system icons
-     * (root), optionally moved right after another icon and coloured — both by the module when it's loaded.
+     * (root), optionally moved next to another icon and coloured — both by the module when it's loaded. Default: right
+     * before the mobile signal (the user, 2026-10-23), which also shows with root alone (then first of the system icons).
      */
-    val hookPosition: String = HookPosition.AFTER_CLOCK,
+    val hookPosition: String = HookPosition.DEFAULT,
     /** Colour the root status bar value by range (module only; off = like the clock / the other icons). */
     val hookColor: Boolean = true,
     /**
@@ -176,6 +177,7 @@ object Features {
         HookPosition.SLOT_PREFIX,   // leftmost system icons; works with root alone (no module)
         "${HookPosition.SLOT_PREFIX}vpn",
         "${HookPosition.SLOT_PREFIX}bluetooth",
+        HookPosition.DEFAULT,   // before the mobile signal: left of the more permanent icons (the user, 2026-10-23)
         "${HookPosition.SLOT_PREFIX}mobile",
         "${HookPosition.SLOT_PREFIX}wifi",
     )
@@ -247,8 +249,20 @@ object HookPosition {
     const val BEFORE_CLOCK = "before_clock"
     /** "icons:0" = left of all right-side icons ("icons:-1", right of the battery, gets clipped by the corner). */
     const val ICONS_PREFIX = "icons:"
-    /** "slot:" = as system icons (root); "slot:wifi" = moved right after that icon (needs the module too). */
+    /**
+     * "slot:" = as system icons (root); "slot:wifi" = moved right after that icon, "slot:<mobile" right before it ([BEFORE];
+     * both need the module too).
+     */
     const val SLOT_PREFIX = "slot:"
+    /** Marks a `slot:` target as "right before" instead of "right after" (hook/IconFit.arrange). */
+    const val BEFORE = "<"
+    /**
+     * The default placement: system icons right before the mobile signal, left of the more permanent icons. Unlike the
+     * clock placements it shows with root alone too (first of the system icons until the module is loaded).
+     */
+    const val DEFAULT = "${SLOT_PREFIX}${BEFORE}mobile"
+    /** Whether [pos] shows anything without the LSPosed module: the `slot:` placements (as plain system icons). */
+    fun showsWithoutModule(pos: String) = pos.startsWith(SLOT_PREFIX)
 }
 
 /** [v] minutes as [spec] accepts them (spikes/settings/settings.json): itself when valid, else the nearest valid value. */

@@ -614,7 +614,7 @@ class SystemUiHook : XposedModule() {
     // --- data from the app ---------------------------------------------------------------------------
 
     private data class State(val reading: Reading? = null, val enabled: Boolean = false,
-                             val position: String = HookPosition.AFTER_CLOCK, val color: Boolean = true,
+                             val position: String = HookPosition.DEFAULT, val color: Boolean = true,
                              val hideIcon: Boolean = false, val sensorEnd: Long = 0, val sensorStart: Long = 0,
                              val sensorWarmup: Long = 0) {
         /** The sensor as the app sent it (null = none known). */
