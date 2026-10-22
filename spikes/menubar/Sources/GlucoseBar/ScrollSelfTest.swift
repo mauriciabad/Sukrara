@@ -42,6 +42,52 @@ import AppKit
         return NSEvent(cgEvent: cg).flatMap { $0.type == .magnify ? $0 : nil }
     }
 
+    /// The real dropdown: the panel's own window class (`KeyPanel`, borderless, non-activating, never shown) with the
+    /// panel's content (material, SwiftUI hosting view, the card in it). The pinch goes in where the system delivers it,
+    /// `NSWindow.sendEvent` (2026-10-22: "I pinch on the trackpad and nothing happens": the card's own `magnify(with:)`
+    /// worked, the event never reached it through the hosting view).
+    static func throughThePanel(store: ReadingsStore, now: Double) -> Int {
+        var failures = 0
+        func fail(_ s: String) { print("FAIL scroll (panel) \(s)"); failures += 1 }
+        _ = NSApplication.shared   // windows get their numbers (event routing) only with an application
+        let m = PanelModel()
+        m.readings = store.readings
+        m.style = StatusController.dropdownStyle(GraphConfig(), sensor: nil)
+        m.alerts = AlertSettings()
+        m.metricsOf = { _, b in GlucoseMetrics.of([], from: 0, to: 1, bands: b) }
+        m.now = Date(timeIntervalSince1970: now)
+        m.hasData = true
+        let content = GlancePanel.content(m, blending: .withinWindow)
+        content.layoutSubtreeIfNeeded()
+        let size = content.fittingSize
+        let w = KeyPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.contentView = content
+        content.frame = NSRect(origin: .zero, size: size)
+        content.layoutSubtreeIfNeeded()
+        defer { w.contentView = nil; w.close() }
+        func find(_ v: NSView) -> CardView? { (v as? CardView) ?? v.subviews.lazy.compactMap(find).first }
+        guard let card = find(content) else { fail("no CardView in the panel's content"); return failures }
+        // lay the chart out as a drawing does (the plot's box, which a pinch anchors in)
+        if let ctx = CGContext(data: nil, width: Int(card.bounds.width), height: Int(card.bounds.height), bitsPerComponent: 8, bytesPerRow: 0,
+                               space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+            card.paint(ctx, size: card.bounds.size, GraphPalette.of(dark: false))
+        }
+        let span0 = card.scrollSpan
+        for _ in 0..<5 {
+            guard let cg = CGEvent(source: nil), let type = CGEventType(rawValue: 29) else { break }
+            cg.type = type
+            cg.setIntegerValueField(CGEventField(rawValue: 110)!, value: 8)      // a zoom gesture
+            cg.setDoubleValueField(CGEventField(rawValue: 113)!, value: 0.1)
+            cg.setIntegerValueField(CGEventField(rawValue: 51)!, value: Int64(w.windowNumber))   // for this window
+            guard let e = NSEvent(cgEvent: cg), e.window === w else { fail("could not build a magnify event for the panel"); break }
+            w.sendEvent(e)
+        }
+        if card.scrollSpan == span0 { fail("a trackpad pinch on the dropdown doesn't reach the chart (still \(card.scrollSpan.map { Int($0) } ?? 0) s)") }
+        print("scroll self-test (through the panel): \(failures == 0 ? "OK" : "\(failures) failure(s)")")
+        return failures
+    }
+
     static func run() -> Int {
         var failures = 0
         func fail(_ s: String) { print("FAIL scroll \(s)"); failures += 1 }
@@ -171,6 +217,7 @@ import AppKit
             }
             if z.away { fail("Now pill: a click left the chart scrolled \(Int(now - endZ())) s / zoomed to \(Int(spanZ())) s") }
         } else { fail("Now pill: none to click") }
+        failures += throughThePanel(store: store, now: now)
         print(failures == 0 ? "scroll self-test OK (\(String(format: "%.1f", perPt)) s per pt)" : "scroll self-test: \(failures) failure(s)")
         return failures
     }
