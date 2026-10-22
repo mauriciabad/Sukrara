@@ -155,4 +155,31 @@ class IconFitTest {
     }
 
     @Test fun anUnknownTargetLeavesTheRowAlone() = assertNull(IconFit.insertAfter(listOf("wifi"), "nfc", order))
+
+    // --- number, then trend, from System UI's first frame -----------------------------------------------------------
+
+    private val ourSlots = listOf("glucose", "glucose_trend")
+    private fun arranged(slots: List<String>, target: String?) = IconFit.arrange(slots, ourSlots, target, order)?.map { slots[it] } ?: slots
+
+    @Test fun afterARestartTheNumberComesBackFirst() {
+        // system_server hands them back trend first; plain "slot:" placement (no target): same place, fixed order
+        assertEquals(listOf("glucose", "glucose_trend", "vibrate", "wifi"), arranged(listOf("glucose_trend", "glucose", "vibrate", "wifi"), null))
+        assertEquals(listOf("other_app", "glucose", "glucose_trend", "wifi"), arranged(listOf("other_app", "glucose_trend", "glucose", "wifi"), ""))
+    }
+
+    @Test fun afterXInTheFixedOrderToo() {
+        assertEquals(listOf("vibrate", "wifi", "glucose", "glucose_trend", "mobile"),
+            arranged(listOf("glucose_trend", "glucose", "vibrate", "wifi", "mobile"), "wifi"))
+        // the target hidden: where it would be
+        assertEquals(listOf("vibrate", "glucose", "glucose_trend", "wifi"), arranged(listOf("glucose_trend", "glucose", "vibrate", "wifi"), "bluetooth"))
+    }
+
+    @Test fun nothingToDoWhenAlreadyInOrderOrNotThere() {
+        assertNull(IconFit.arrange(listOf("glucose", "glucose_trend", "wifi"), ourSlots, null, order))
+        assertNull(IconFit.arrange(listOf("vibrate", "wifi"), ourSlots, "wifi", order))
+        // a single icon (no readings / ended: the trend slot only) stays where it is
+        assertNull(IconFit.arrange(listOf("glucose_trend", "wifi"), ourSlots, null, order))
+        // an unknown target: ourSlots keep their place, fixed order
+        assertEquals(listOf("wifi", "glucose", "glucose_trend"), arranged(listOf("wifi", "glucose_trend", "glucose"), "nfc"))
+    }
 }

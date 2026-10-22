@@ -118,6 +118,21 @@ object IconFit {
     }
 
     /**
+     * The order to show SystemUI's row of [slots] in (indices into it), or null to keep it: our slots together in the
+     * fixed order [ours] (number, then trend: after a System UI restart system_server hands them back in hash order,
+     * trend first), after [target] ([insertAfter]) or, without a target (or an unknown one), where the first of ours is.
+     */
+    fun arrange(slots: List<String?>, ours: List<String>, target: String?, order: List<String>): List<Int>? {
+        val mine = ours.mapNotNull { s -> slots.indexOf(s).takeIf { it >= 0 } }
+        if (mine.isEmpty()) return null
+        val rest = slots.indices.filter { it !in mine }
+        val at = target?.takeIf { it.isNotEmpty() }?.let { insertAfter(rest.map { slots[it] }, it, order) }
+            ?: rest.count { it < mine.min() }
+        val arranged = rest.take(at) + mine + rest.drop(at)
+        return arranged.takeIf { it != slots.indices.toList() }
+    }
+
+    /**
      * Where "after [target]" puts our icons in SystemUI's row of visible icons ([slots], ours already taken out): right
      * after [target]; when it's hidden, where it would be: after the last visible icon that comes no later than it in
      * the platform's slot order [order] (`config_statusBarIcons`; slots not in it, like other apps' icons, come first,

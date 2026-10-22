@@ -213,6 +213,10 @@ left, the first icon that doesn't fit becomes the overflow dot and everything le
   apart. Discarded for this: an offset on our `Image` (moves pixels, not layout, so neighbour gaps would grow by half
   the pull each) and re-placing our icons ourselves (Compose's placement state lives in SystemUI's block). Root alone
   keeps SystemUI's spacing.
+- *Added* (round f36, the user: after a System UI restart "the arrow is on the left, and after some seconds it jumps
+  into the correct position"): the jump was the daemon's re-add (3a above). The module's order hook now always emits
+  number then trend (also for the plain placement), and its hello says the order hook is in place; the app then sends
+  the daemon `order module`, which skips the re-add for that System UI pid. Root alone keeps the re-add.
 - *Discarded*: hiding the mobile network type (LTE / 5G) or the signal bars to make room. SystemUI hides the type only
   when mobile data isn't the active connection; hiding it while on mobile data drops real information without any
   sign, whereas the overflow dot is the platform's own "more icons" signal.
