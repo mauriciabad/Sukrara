@@ -474,6 +474,59 @@ inyecciones registradas el 23 oct* and the pill *Undo this read* / *Deshacer est
 `DebugReceiver --es cmd penRead --es stage reading|logged|several|grew|nothing|pending|unclear|same|big|clock|failed|notusable|newpen|returning|untested`
 plus `--es cmd penEntry` (opens §4.3 with a fake 4-dose entry), `penQuestion` (card + notification), `penHistory`.
 
+## 4.11 Feel (CLAUDE.md *Make it juicy*, QA Q20)
+
+Principles: the information comes first, the motion explains it. Every card / sheet text is final and readable within
+~100 ms; motion only moves things that are already true; every animation ends within 300–400 ms (count-ups 350 ms);
+nothing waits for an animation to finish before it can be tapped. Motion uses the app's existing M3 expressive springs
+(`ui/Motion.kt`: `fastSpatialSpec` spring(0.6, 800) for things that pop, `defaultSpatialSpec` spring(0.8, 380) for
+things that move, `fastEffectsSpec` for colour / alpha). Haptics go through one helper `PenHaptics`:
+`VibrationEffect.startComposition()` primitives when `Vibrator.areAllPrimitivesSupported(...)` (Pixel: yes), else the
+`HapticFeedbackConstants` fallback named below; all respect the system's touch-feedback setting.
+
+| Moment | Motion | Haptic |
+|---|---|---|
+| Tap detected | card springs up from the bottom edge (translationY 100 % → 0, `fastSpatialSpec`, alpha `fastEffectsSpec`); the pen glyph sits in the wavy ring (M3 `CircularWavyProgressIndicator`, the sensor scan's) | `PRIMITIVE_CLICK` 0.6 (fallback `CONFIRM` is saved for the end, so: `CONTEXT_CLICK`) |
+| Reading | ring indeterminate until the pen reports its dose count, then determinate, filling as segments arrive (animated `progress` with `ProgressIndicatorDefaults.ProgressAnimationSpec`) | `PRIMITIVE_LOW_TICK` 0.3 per segment, at most one per 80 ms (feel the data flowing; a long first read doesn't buzz) |
+| Success | ring completes and morphs into a check (shape morph, 250 ms); the injected number **counts up** from 0 to 8.5 (`animateFloatAsState`, 350 ms, steps of 0.5u so it ticks like the pen dial); the priming doses appear as small grey chips beside it that **peel off** to the `1.5u primed` line (slide 8 dp + fade to onSurfaceVariant, 250 ms, staggered 40 ms) | `PRIMITIVE_CLICK` 1.0 + `PRIMITIVE_TICK` 0.5 at +60 ms (fallback `CONFIRM`) |
+| Several injections | one count-up of the total; the "3 injections" text is static | as success |
+| Merge | the merge line slides in under the title 60 ms after it (`defaultSpatialSpec`); no extra haptic | — |
+| Nothing new | card springs up with no ring fill; text static | one `PRIMITIVE_TICK` 0.4 (fallback `CLOCK_TICK`) |
+| Failure | card in the error container shakes gently: 3 horizontal oscillations of 6 dp, damped (spring(0.3, 1500)), 300 ms total | `PRIMITIVE_THUD` 0.8 (fallback `REJECT`) |
+| Card closes | slides down + fades (`fastEffectsSpec`), or follows the swipe | — |
+| Undo | the reverse of success: the number counts down to 0, the check morphs back to the pen glyph, then the card shows *Undone*; on home the row collapses out (`AnimatedItems`, existing) | `PRIMITIVE_TICK` 0.6 (fallback `GESTURE_END`) |
+| New pen | the pen illustration rises into place with a single soft scale (0.92 → 1, `defaultSpatialSpec`) and one ring of the brand colour expands from it once and fades (400 ms): calm, no confetti; the card text is there from the first frame | success haptic once |
+| Home row arrives | new pen row expands in (existing `AnimatedItems`), its amount counts up once; the graph's insulin mark fades in at its time | — |
+| Dialog filled from a tap (§4.6b) | the contactless icon pulses once (scale 1 → 1.15 → 1) as the read starts; the amount **types itself** into the Rapid / Long field (count-up 350 ms); the field's pen mark and the supporting line slide in (`expandVertically`, `defaultSpatialSpec`); the *When?* chip text crossfades to *Today 13:12* (`AnimatedContent`, the existing `Swap`) | success / failure as above |
+| Correction sheet (§4.3, §4.4) | the segmented button's selection slides (M3 default); the flipped dose's amount **moves** between the two totals: a 1-line ghost of `0.5u` travels from its row to the header's injected or primed figure (shared-element style `SharedTransitionLayout` + `Modifier.sharedBounds`, 300 ms), and both header numbers count to their new values; priming rows' text animates to onSurfaceVariant | `SEGMENT_TICK` per flip (`HapticFeedbackConstants`, API 34) |
+| All priming | the header's injected figure counts to 0 and crossfades to *Nothing injected*; *Save* crossfades to *Remove from log* | `SEGMENT_TICK` |
+| Save / Remove | the sheet hides (M3 sheet motion); the home row updates its amount with a count, or collapses out | `CONFIRM` |
+| Sheets and setup, back | predictive back: the sheet / screen scales and follows the gesture (M3 `ModalBottomSheet` and the app's `Page` predictive-back transition) | — |
+| Doses read | sessions appear with the page; *412 earlier doses* unfolds with the SettingsLib expand (`animateContentSize`); a session whose status changes (answered, logged) crossfades its summary; the 30-day totals count once when the page opens | — |
+| Home hints (§1b) | fade in (`fastEffectsSpec`), never move other content suddenly (the list reserves the line's space with `animateContentSize`) | none (passive) |
+
+**Sound: none.** A pen read is silent by default: it happens at restaurant tables and at night, the haptic already
+confirms, and Sukrara's sounds mean *alerts*; a second kind of Sukrara sound would dilute that. The only sound is
+the platform's own NFC tag click when Android dispatches the tag (not ours to change); in Sukrara's own reader mode
+(treatment dialog, sensor screen) `FLAG_READER_NO_PLATFORM_SOUNDS` mutes it, so a read there is haptic only.
+
+**Reduced motion** (`Settings.Global.ANIMATOR_DURATION_SCALE` == 0, i.e. Android's *Remove animations*): no slides,
+shakes, count-ups, ghosts or pulses; numbers and texts appear final at once, the card appears in place (alpha only),
+failure is shown by the error colour alone. Haptics stay (they are information, and they follow their own setting).
+
+**TalkBack**: the card's live region announces the final result once (*8.5 units logged, rapid, 13:12, 1.5 units
+primed* / failure text); count-ups and ghosts are invisible to accessibility (semantics carry the final value from
+the first frame); per-segment ticks stay haptic only; the card doesn't auto-close while focused (§4.1).
+
+**Rejected**: Android 16 `VibrationEffect.BasicEnvelopeBuilder` envelopes (primitives already express click / tick /
+thud on the Pixel; envelopes add tuning work for no clearer meaning); confetti or particle effects (medical context,
+calm); sounds (above); Lottie animations (a dependency for what Compose motion does).
+
+**Mac** (no NFC, no trackpad action here, so no haptics): a pen row that arrives in the open Treatments window slides
+in (List insertion, SwiftUI default spring) and its amount uses `.contentTransition(.numericText())`; the disclosure
+opens with the system's disclosure animation (already); an amount changed by a phone correction re-counts with
+`.numericText()`. `accessibilityReduceMotion` → no transitions.
+
 ## 5. Journeys (states and exits)
 
 1. **First scan of a new pen**: unlock → tap → card *New pen added* (rapid) → optional *Log 8.5u*, optional *Set up*
@@ -611,6 +664,15 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 48 | Lock screen with a pen-read notification | public version *Pen read*, no amounts |
 | 49 | Pen intro and setup | the "until it vibrates / next tap catches up" lines; the antenna spot drawn where this phone's NFC is |
 | 50 | Predictive back on §4.3, §4.4, §4.5, §4.7 | the system back preview animation, back = Cancel / close |
+| 51★ | Feel: background read | card readable at once, springs up ≤ 300 ms; ring fills during the read; ticks felt per segment; 8.5 counts up in 0.5 steps; primed chips peel to the grey line; CLICK+TICK on success; no sound from Sukrara |
+| 52 | Feel: failure | gentle 3-oscillation shake + THUD; text readable during the shake |
+| 53 | Feel: undo | count down, check → pen glyph, row collapses out on home; TICK |
+| 54 | Feel: correction | flip a 0.5u dose: ghost travels to the other total, both header numbers count; SEGMENT_TICK per flip |
+| 55 | Feel: dialog fill | icon pulse, amount counts into the field, supporting line slides in, time chip crossfades |
+| 56 | Feel: new pen | calm rise + one expanding ring; no confetti, text there from the first frame |
+| 57★ | Remove animations on | every state appears final at once, no shake (error colour only), haptics still there |
+| 58★ | TalkBack | one announcement of the final result per read; no partial numbers read out |
+| 59 | Mac | arriving pen row slides in, amount uses numeric transition; nothing with Reduce Motion |
 | 43 | Outputs | LibreView, Nightscout, Tidepool, graph, insulin mute: the injected amount only; priming nowhere |
 
 ## 10. Review of the Mac snapshots (pen29-mac, 0619cd1a)
