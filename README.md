@@ -125,7 +125,8 @@ by the app's icon code.</sub>
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). Until one is placed, home offers *Add widget*
-  (the launcher's own dialog), dismissible. [12](docs/12-android-widgets.md),
+  (the launcher's own dialog), dismissible. Every tip card you close offers *Undo* right away, and Settings →
+  *Show closed tips* brings them all back. [12](docs/12-android-widgets.md),
   The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low), now or earlier: pick

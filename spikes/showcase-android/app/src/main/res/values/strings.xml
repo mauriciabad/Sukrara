@@ -1164,6 +1164,19 @@
     <string name="upload_banner_title">Share your data with your clinic</string>
     <!-- Upload banner close button (accessibility) [CHAR LIMIT=30] -->
     <string name="upload_banner_dismiss">Dismiss</string>
+    <!-- Snackbar after a tip card on home or settings was closed (Undo brings it back) [CHAR LIMIT=40] -->
+    <string name="tips_closed">Tip closed</string>
+    <!-- Snackbar action: bring the closed tip back [CHAR LIMIT=15] -->
+    <string name="tips_undo">Undo</string>
+    <!-- Settings overview row: bring back every tip card the user closed [CHAR LIMIT=40] -->
+    <string name="tips_show_again">Show closed tips</string>
+    <!-- Summary of tips_show_again while no tip is closed (the row is unavailable) [CHAR LIMIT=60] -->
+    <string name="tips_none_closed">No closed tips</string>
+    <!-- Summary of tips_show_again: how many tip cards are closed [CHAR LIMIT=60] -->
+    <plurals name="tips_closed_count">
+        <item quantity="one">%d tip closed</item>
+        <item quantity="other">%d tips closed</item>
+    </plurals>
 
     <!-- ========== Settings: overview of both roles ========== -->
     <!-- Title of the settings overview and the search results' fallback location [CHAR LIMIT=30] -->

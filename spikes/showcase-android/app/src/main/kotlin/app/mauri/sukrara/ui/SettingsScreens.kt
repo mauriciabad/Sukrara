@@ -149,7 +149,11 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
                 leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
+        val tips = showClosedTipsRow()
+        val ctx = LocalContext.current
         SettingsGroup {
+            link(tips.first, tips.second, enabled = tips.third, leading = { CategoryIcon(R.drawable.ic_sym_lightbulb, Category.GREY) },
+                onClick = { app.mauri.sukrara.features.Tips.restoreAll(ctx) })
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_wearer), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
             link(stringResource(R.string.about_title), stringResource(R.string.settings_about_summary, BuildConfig.VERSION_NAME),
                 leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")
@@ -724,7 +728,11 @@ fun FollowerSettings(u: FollowerUi, onBack: () -> Unit) {
             link(stringResource(R.string.export_title), stringResource(R.string.settings_export_summary),
                 leading = { CategoryIcon(R.drawable.ic_sym_file_export, Category.YELLOW) }, to = "export")
         }
+        val tips = showClosedTipsRow()
+        val ctx = LocalContext.current
         SettingsGroup {
+            link(tips.first, tips.second, enabled = tips.third, leading = { CategoryIcon(R.drawable.ic_sym_lightbulb, Category.GREY) },
+                onClick = { app.mauri.sukrara.features.Tips.restoreAll(ctx) })
             link(stringResource(R.string.advanced_title), stringResource(R.string.settings_advanced_summary_follower), leading = { CategoryIcon(R.drawable.ic_sym_code, Category.GREY) }, to = "advanced")
             link(stringResource(R.string.about_title), stringResource(R.string.settings_about_summary, BuildConfig.VERSION_NAME),
                 leading = { CategoryIcon(R.drawable.ic_sym_info, Category.GREY) }, to = "about")

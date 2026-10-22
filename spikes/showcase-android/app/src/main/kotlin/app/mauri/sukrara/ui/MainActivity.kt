@@ -82,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 // every screen is a Page (own scroll + safe-area padding) so screens can animate as a whole (Motion.kt)
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Root()
+                    // a closed tip's Undo, over whichever screen it was closed on (home, the settings overview)
+                    TipUndoSnackbar()
                 }
             }
         }

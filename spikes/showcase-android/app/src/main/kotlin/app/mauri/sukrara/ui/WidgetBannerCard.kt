@@ -55,7 +55,7 @@ fun HomeWidgetBanner() {
                         tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                     Text(stringResource(R.string.home_widget_banner_title), style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f))
-                    IconButton(onClick = { WidgetPresence.dismiss(ctx) }) {
+                    IconButton(onClick = { app.mauri.sukrara.features.Tips.close(ctx, app.mauri.sukrara.features.Tips.Tip.ADD_WIDGET) }) {
                         Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.home_widget_banner_dismiss),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     }

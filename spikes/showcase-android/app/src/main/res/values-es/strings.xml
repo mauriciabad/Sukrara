@@ -1061,6 +1061,14 @@
     <string name="libreview_upload_every">Subir cada</string>
     <string name="upload_banner_title">Comparte tus datos con tu clínica</string>
     <string name="upload_banner_dismiss">Descartar</string>
+    <string name="tips_closed">Consejo cerrado</string>
+    <string name="tips_undo">Deshacer</string>
+    <string name="tips_show_again">Mostrar consejos cerrados</string>
+    <string name="tips_none_closed">No hay consejos cerrados</string>
+    <plurals name="tips_closed_count">
+        <item quantity="one">%d consejo cerrado</item>
+        <item quantity="other">%d consejos cerrados</item>
+    </plurals>
 
     <!-- Settings: overview of both roles -->
     <string name="settings_title">Ajustes</string>

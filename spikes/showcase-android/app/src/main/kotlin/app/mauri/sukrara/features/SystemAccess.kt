@@ -116,6 +116,15 @@ object SystemAccess {
         prefs?.edit()?.putString(DISMISSED, k)?.apply()
     }
 
+    /** Closed for the state System UI is in now (a closing for an older state hides nothing). */
+    fun closedNow() = _dismissed.value != null && _dismissed.value == key(_status.value)
+
+    /** Shows the home card again (Undo, Settings → Show closed tips: [Tips]). */
+    fun undismiss() {
+        _dismissed.value = null
+        prefs?.edit()?.remove(DISMISSED)?.apply()
+    }
+
     /** Asks LSPosed again (after a scope change, a System UI restart, coming back to the screen). */
     fun refresh() {
         val s = service ?: return
