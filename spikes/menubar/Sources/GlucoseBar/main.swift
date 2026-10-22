@@ -35,6 +35,8 @@ import AppKit
 //   alertSettings  glucose alerts, one JSON string (spikes/alerts/SPEC.md §3; edit it in Settings › Alerts)
 //   alert-test <kind>  tests: post that alert once with its sound;  alert-feed "200,-1.5[;…]": readings through the
 //                      engine;  -alertsSnapshot out.png / -reportSnapshot <dir>: render Settings › Alerts / the report window
+//   -panelselftest  the menubar dropdown opened through the status item path: Sukrara active, a pinch through
+//                   the app's event loop zooms its chart, closing gives the front back (needs a GUI session)
 //   -argsselftest   the launch guard (LaunchGuard.swift): unknown flags and dev builds never start the full app
 //   -settingsselftest  the Mac's settings against spikes/settings/settings.json (inventory, defaults, number formats,
 //                      Settings from); -settingsSnapshot <dir>: every Settings pane in four synthetic states
@@ -94,6 +96,7 @@ if CommandLine.arguments.contains("-bleselftest") { exit(BLESelfTest.run() ? 0 :
 if CommandLine.arguments.contains("-qrselftest") { exit(MainActor.assumeIsolated { FollowUI.qrSelfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-treatmentsselftest") { exit(SelfTest.merge() && TreatmentForm.selfTest() && MainActor.assumeIsolated { TreatmentsModel.selfTest() } ? 0 : 1) }
 if CommandLine.arguments.contains("-alerts-selftest") { exit(AlertsSelfTest.run() ? 0 : 1) }
+if CommandLine.arguments.contains("-panelselftest") { exit(MainActor.assumeIsolated { PanelSelfTest.run() } ? 0 : 1) }
 if CommandLine.arguments.contains("-graphselftest") { exit(GraphSelfTest.run() ? 0 : 1) }
 if CommandLine.arguments.contains("-exportselftest") { exit(GlucoseCsv.selfTest() && GlucoseCsv.periodSelfTest() ? 0 : 1) }
 // Spike experiments: `Sukrara -debugsend '{"cmd":"add","k":"rapid","a":0.5,"n":"…"}'` drives the running

@@ -89,13 +89,13 @@ extension Bands {
         contextMenu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         panelModel.onAddTreatment = { [weak self] in
-            self?.panel.close()
+            self?.panel.close(.handOff)
             self?.onAddTreatment?(self?.item.button?.window?.screen)
         }
-        panelModel.onFollow = { [weak self] in self?.panel.close(); self?.onFollow?() }
-        panelModel.onReport = { [weak self] in self?.panel.close(); self?.onReport?() }
-        panelModel.onTreatments = { [weak self] in self?.panel.close(); self?.onTreatments?() }
-        panelModel.onSettings = { [weak self] in self?.panel.close(); self?.onSettings?() }
+        panelModel.onFollow = { [weak self] in self?.panel.close(.handOff); self?.onFollow?() }
+        panelModel.onReport = { [weak self] in self?.panel.close(.handOff); self?.onReport?() }
+        panelModel.onTreatments = { [weak self] in self?.panel.close(.handOff); self?.onTreatments?() }
+        panelModel.onSettings = { [weak self] in self?.panel.close(.handOff); self?.onSettings?() }
         panel.onVisible = { [weak self] visible in
             guard let self else { return }
             self.item.button?.highlight(visible)
@@ -120,7 +120,7 @@ extension Bands {
     @objc private func clicked() {
         guard let button = item.button else { return }
         if NSApp.currentEvent?.type == .rightMouseUp || NSApp.currentEvent?.modifierFlags.contains(.control) == true {
-            panel.close()
+            panel.close(.dismiss)                   // the menu's items bring Sukrara forward themselves
             item.menu = contextMenu                 // shown by the next performClick, then detached again
             button.performClick(nil)
             item.menu = nil

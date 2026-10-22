@@ -380,15 +380,37 @@ private struct CardRep: NSViewRepresentable {
 
 // MARK: - The window
 
-/// A borderless, non-activating panel under the status item (like MenuBarExtra's window style): the menu material,
-/// rounded corners, a shadow; it can take keyboard focus without bringing Sukrara forward, closes on Escape, on a
-/// click outside and when it loses focus.
+/// A borderless panel under the status item (like MenuBarExtra's window style): the menu material, rounded corners,
+/// a shadow. Opening it brings Sukrara to the front, because macOS sends trackpad gestures (pinch, smart zoom) only to
+/// the active app: without that a pinch on the chart never arrived, while scrolls did (2026-10-22: "I pinch on the
+/// trackpad and nothing happens"; a non-activating panel, key and showing, got no `.magnify` at all, whatever its
+/// level or style, until the app was activated). Closing it gives the front back to the app that had it, so the
+/// dropdown still feels like a menu:
+///  - Escape, a second click on the menubar item or the right-click menu: back to that app at once.
+///  - A click outside: back to that app unless the click went to another app or to one of Sukrara's windows (then that
+///    one stays in front, the user moved there).
+///  - It loses focus (another app or a Sukrara window became key): nothing, the user moved there.
+///  - A row that opens a Sukrara window (Add Treatment, Treatments, Report, Settings, Follow): `close(.handOff)`,
+///    Sukrara stays in front with that window.
+/// `PanelSelfTest` (`-panelselftest`) opens it through the status item's path and pinches through the app's event loop.
 @MainActor final class GlancePanel: NSObject, NSWindowDelegate {
     let model: PanelModel
     private var panel: KeyPanel?
     private var monitor: Any?
     var onVisible: ((Bool) -> Void)?
     var isVisible: Bool { panel?.isVisible == true }
+    /// The app that was in front when the dropdown opened (never Sukrara itself); it gets the front back on close.
+    private(set) var returnTo: NSRunningApplication?
+
+    /// How the dropdown closes, which decides who is in front afterwards (see the type's comment).
+    enum Exit {
+        /// Escape, the menubar item, the right-click menu: give the front back.
+        case dismiss
+        /// A click outside or lost focus: give it back only if Sukrara is still in front with none of its windows key.
+        case outside
+        /// A row opened a Sukrara window: Sukrara stays in front.
+        case handOff
+    }
 
     init(model: PanelModel) {
         self.model = model
@@ -396,10 +418,12 @@ private struct CardRep: NSViewRepresentable {
     }
 
     func toggle(below button: NSStatusBarButton) {
-        isVisible ? close() : open(below: button)
+        isVisible ? close(.dismiss) : open(below: button)
     }
 
     func open(below button: NSStatusBarButton?) {
+        let front = NSWorkspace.shared.frontmostApplication
+        returnTo = front?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : front
         let p = panel ?? make()
         panel = p
         p.contentView?.layoutSubtreeIfNeeded()
@@ -415,18 +439,42 @@ private struct CardRep: NSViewRepresentable {
             p.center()
         }
         model.tick += 1
+        NSApp.activate(ignoringOtherApps: true)   // gestures go to the active app only (the type's comment)
         p.makeKeyAndOrderFront(nil)
         onVisible?(true)
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.close() }
+            MainActor.assumeIsolated { self?.close(.outside) }
         }
     }
 
-    func close() {
+    func close(_ exit: Exit) {
         guard let p = panel, p.isVisible else { return }
+        let back = returnTo
+        returnTo = nil
         p.orderOut(nil)
         if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
         onVisible?(false)
+        guard let back, !back.isTerminated else { return }
+        switch exit {
+        case .handOff: return
+        case .dismiss: Self.giveFront(to: back)
+        case .outside:
+            // after the click has reached whatever it hit: an app it activated, or a Sukrara window it made key, stays
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                guard NSApp.keyWindow == nil else { return }
+                Self.giveFront(to: back)
+            }
+        }
+    }
+
+    /// Sukrara is the app the system has in front (`NSApp.isActive` also reads true for a non-activating panel that
+    /// only took the keyboard).
+    static var inFront: Bool { NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier }
+
+    private static func giveFront(to app: NSRunningApplication) {
+        guard inFront else { return }   // the user already went somewhere else
+        NSApp.yieldActivation(to: app)
+        app.activate()
     }
 
     /// Size changes (logged line, no-data state): keep the top edge under the status item.
@@ -438,7 +486,7 @@ private struct CardRep: NSViewRepresentable {
         p.setFrame(NSRect(x: p.frame.minX, y: p.frame.maxY - size.height, width: size.width, height: size.height), display: true)
     }
 
-    func windowDidResignKey(_ notification: Notification) { close() }
+    func windowDidResignKey(_ notification: Notification) { close(.handOff) }   // the user moved to another window
 
     /// The panel's content on the menu material (shared with the preview harness).
     static func content(_ model: PanelModel, blending: NSVisualEffectView.BlendingMode) -> NSView {
@@ -471,11 +519,14 @@ private struct CardRep: NSViewRepresentable {
         p.hidesOnDeactivate = false
         p.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
         p.delegate = self
-        p.onCancel = { [weak self] in self?.close() }
+        p.onCancel = { [weak self] in self?.close(.dismiss) }
         p.contentView = Self.content(model, blending: .behindWindow)
         p.setAccessibilityLabel("Sukrara")
         return p
     }
+
+    /// The panel's window while it exists (`PanelSelfTest` sends events into it).
+    var window: KeyPanel? { panel }
 
     /// Debug aid (`-openPanel`): the panel's window number and frame for `screencapture`.
     var windowNumber: Int { panel?.windowNumber ?? 0 }
@@ -488,10 +539,10 @@ final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { onCancel?() }
 
-    /// A trackpad pinch goes to the card's chart straight from the window: AppKit didn't route it through the SwiftUI
-    /// hosting view to the card in this non-activating panel (2026-10-22: "I pinch on the trackpad and nothing
-    /// happens"; scroll events did arrive). The card under the pointer gets it, else the panel's one card (a pinch
-    /// anywhere on the dropdown zooms its chart, anchored where the pointer is). `ScrollSelfTest.throughThePanel`.
+    /// A trackpad pinch (and a smart zoom) goes to the card's chart straight from the window: the card under the
+    /// pointer gets it, else the panel's one card, so a pinch anywhere on the dropdown zooms its chart, anchored where
+    /// the pointer is. (Pinches reach this window at all only because opening the dropdown activates Sukrara:
+    /// GlancePanel's comment.) `PanelSelfTest` pinches through the app's event loop.
     override func sendEvent(_ e: NSEvent) {
         if e.type == .magnify || e.type == .smartMagnify, let card = card(at: e.locationInWindow) {
             if e.type == .magnify { card.magnify(with: e) } else { card.smartMagnify(with: e) }
