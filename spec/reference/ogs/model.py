@@ -275,6 +275,54 @@ class Treatment:
     u: int
     deleted: bool
     o: str
+    # D§6 pen entries (optional; None on hand-typed ones): primed units, pen serial, the pen's doses
+    pr: float | None = None
+    pen: str | None = None
+    pd: list[dict] | None = None
+
+
+PEN_MAX_BYTES = 32
+PD_MAX = 20
+
+
+def _pen_keys(o: dict) -> tuple[float | None, str | None, list[dict] | None]:
+    """D§6 pen keys: `pr` ≥ 0, `pen` a string ≤ 32 bytes, `pd` ≤ 20 `{t:int, a:number ≥ 0, p?:bool}` in time order.
+    `a` = the non-priming doses is the producer's invariant; a receiver doesn't check it (an edit of `a` alone is a
+    user correction) and shows `a`."""
+    pr = _num(o, "pr", opt=True)
+    if pr is not None and pr < 0:
+        raise Invalid("negative pr")
+    pen = o.get("pen")
+    if pen is not None and (not isinstance(pen, str) or len(pen.encode()) > PEN_MAX_BYTES):
+        raise Invalid("pen must be a string of ≤ 32 UTF-8 bytes")
+    pd = o.get("pd")
+    if pd is not None:
+        if not isinstance(pd, list) or len(pd) > PD_MAX:
+            raise Invalid("pd must be a list of ≤ 20 doses")
+        out, last = [], None
+        for d in pd:
+            if not isinstance(d, dict):
+                raise Invalid("pd dose is not an object")
+            t, a = _int(d, "t"), _num(d, "a")
+            p = d.get("p", False)
+            if a < 0 or not isinstance(p, bool):
+                raise Invalid("pd dose: negative a or non-boolean p")
+            if last is not None and t < last:
+                raise Invalid("pd not in time order")
+            last = t
+            out.append({"t": t, "a": d["a"], **({"p": p} if "p" in d else {})})   # the number as sent
+        pd = out
+    return pr, pen, pd
+
+
+def treatment_dict(tr: "Treatment") -> dict:
+    """The D§6 content of `tr` (v 1), pen keys only when present."""
+    o = {"v": TREATMENT_V, "id": tr.id, "k": tr.k, "a": tr.a, "t": tr.t, "n": tr.n, "u": tr.u, "del": tr.deleted,
+         "o": tr.o}
+    for k in ("pr", "pen", "pd"):
+        if getattr(tr, k) is not None:
+            o[k] = getattr(tr, k)
+    return o
 
 
 UUID4 = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -295,7 +343,9 @@ def parse_treatment(o: dict) -> Treatment:
     a = _num(o, "a", opt=True) or 0.0
     if a < 0:
         raise Invalid("negative amount")
-    return Treatment(tid, k, a, _int(o, "t"), n, _int(o, "u"), bool(o.get("del", False)), str(o.get("o", "")))
+    pr, pen, pd = _pen_keys(o)
+    return Treatment(tid, k, a, _int(o, "t"), n, _int(o, "u"), bool(o.get("del", False)), str(o.get("o", "")),
+                     pr, pen, pd)
 
 
 def treatment_newer(a: Treatment, b: Treatment) -> bool:

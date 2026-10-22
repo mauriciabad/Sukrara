@@ -161,6 +161,10 @@ MUST check the roster again whenever it changes.
 - The owner accepts a writer's entry (N§9.2), merges it ([D§6.2](ogs-data.md#d62-merge)) and republishes it signed by
   `D`. That republished copy, the *echo*, is how the writer learns the entry was accepted. There is no explicit
   rejection: an entry that is never echoed was not accepted.
+- Pen entries (D§6 `pr`, `pen`, `pd`) are the wearer's own, created and changed only by the owner's devices. When a
+  pen injection matches an entry a writer created, the owner tombstones that entry and publishes a new pen entry
+  (`o` = `phone`, the writer's `n` copied), so no writer can later break its doses; only the wearer's own typed
+  entries are merged in place.
 - `created_at` is the publish time and MUST strictly increase per `(author, d)`. The version is `u` in the payload,
   never `created_at`.
 

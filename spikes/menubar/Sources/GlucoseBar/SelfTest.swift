@@ -49,7 +49,8 @@ enum SelfTest {
         check("outputs use a only", MainActor.assumeIsolated { StatusController.describe(pen) }.contains("8.5u rapid") && TreatmentMarks.amount(k: pen.k, a: pen.a) == "8.5u")
         let csv = GlucoseCsv.write(readings: [], treatments: [pen], from: 0, to: 10_000, zone: TimeZone(identifier: "UTC")!,
                                    generatedAt: 0, sensor: nil, mmol: false)
-        check("CSV export: insulin = a (8.5), priming not added", csv.contains(",8.5,") && !csv.contains("10.0") && !csv.contains(",1.5,"))
+        check("CSV export: insulin = a (8.5), priming only in Primed Insulin", csv.contains(",8.5,") && !csv.contains("10.0")
+              && csv.contains(",phone,1.5\r\n") && csv.contains("Entered By,Primed Insulin (units)\r\n"))
         check("pen copy", PenCopy.summary(pen) == "From the pen · 1.5u primed" && PenCopy.summary(base) == nil
               && PenCopy.dose(pen.pd![0]) == "1u primed" && PenCopy.dose(pen.pd![2]) == "8u"
               && PenCopy.origin(pen, who: "Ana") == "Read from the pen on Ana's phone" && PenCopy.origin(base, who: "Ana") == nil)

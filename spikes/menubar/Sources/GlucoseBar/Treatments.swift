@@ -66,6 +66,9 @@ struct Treatment: Codable, Equatable {
         return (inc.u, inc.o) > (cur.u, cur.o) ? inc : cur
     }
 
+    /// A copy changed by `f` (fixtures, tests).
+    func with(_ f: (inout Treatment) -> Void) -> Treatment { var c = self; f(&c); return c }
+
     static func nowMs() -> Int64 { Int64((Date().timeIntervalSince1970 * 1000).rounded()) }
 
     static func truncate(_ s: String, bytes: Int = 100) -> String {

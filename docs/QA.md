@@ -257,7 +257,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
       This sensor shows only when a sensor is known (`--es cmd fakeSensor`).
 - [ ] *Save file*: the system picker suggests `sukrara-glucose-<from>-to-<to>.csv`; saving shows "File saved";
       `adb shell cat` the file (or open it in Files): line 1 `Glucose Data,…`, 5-minute rows, treatments with
-      `Entered By`.
+      `Entered By`; a pen entry has its priming in `Primed Insulin (units)` (`1.5`, `0.0` without), typed entries leave it empty.
 - [ ] *Share*: the share sheet shows the CSV (a preview line with the file name, no person's name); sending it to an
       app (Drive, Gmail, Files) attaches the file.
 - [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.

@@ -39,7 +39,14 @@ entry: the wearer's devices, writer scope). A role change recomputes from `pd`: 
 priming doses (1 decimal each), `t` = the time of the first injected dose; new `u`, `pen` kept, published like any
 edit. A change that would leave every dose priming isn't saved (priming alone never makes an entry); the app offers
 deleting the entry instead. The phone treats an entry whose `pd` roles differ from its own computation as
-user-edited and never reverts it (later doses that would join it become a question, DESIGN §4.7).
+user-edited and never reverts it (later doses that would join it become a question, DESIGN §4.7). The same holds
+for an edit that changes `a` directly without updating `pd`: the split is user-edited, and every display uses `a`.
+
+**Pen entries are the wearer's.** Only the wearer's own typed entries (`o` = `phone` / `mac`) are merged in place
+with a pen injection. When the match is a **writer's** entry (`o` = `follower`, a caregiver or a Mac), the phone
+tombstones it and creates a new pen entry with `o` = `phone`, copying its `n`: a writer may edit its own entries
+(writer scope), and that could break `a` = the injected doses, or a third-party writer could drop the keys. So pen
+entries are only ever created and changed on the wearer's devices.
 
 ```json
 {"id":"…","k":"rapid","a":8.5,"t":1792075020,"n":"","u":1792075200000,"del":false,"o":"phone","lv":0,"pr":1.5,"pen":"FHB2N9KE","pd":[{"t":1792074870,"a":1,"p":true},{"t":1792074930,"a":0.5,"p":true},{"t":1792075020,"a":8,"p":false},{"t":1792075090,"a":0.5,"p":false}]}

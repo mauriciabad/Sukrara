@@ -33,7 +33,7 @@ def write(c):
                      "Non-numeric Rapid-Acting Insulin", "Rapid-Acting Insulin (units)", "Non-numeric Food", "Carbohydrates (grams)",
                      "Carbohydrates (servings)", "Non-numeric Long-Acting Insulin", "Long-Acting Insulin (units)", "Notes",
                      f"Strip Glucose {unit}", "Ketone mmol/L", "Meal Insulin (units)", "Correction Insulin (units)",
-                     "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By"])]
+                     "User Change Insulin (units)", "Time (ISO 8601)", "Trend (mg/dL/min)", "Entered By", "Primed Insulin (units)"])]
     s = c.get("sensor")
     def serial(t): return s["serial"] if s and s["start"] <= t < s["end"] else ""
     rows = []
@@ -42,14 +42,14 @@ def write(c):
         if not (c["from"] <= r["t"] < c["to"]): continue
         if last is not None and r["t"] - last < 280: continue
         last = r["t"]
-        f = [""] * 22
+        f = [""] * 23
         f[0] = "Sukrara"; f[1] = serial(r["t"]); f[2] = local(r["t"], z); f[3] = "0"
         f[4] = tenths(r["sgv"] / 18.0182) if mmol else str(r["sgv"])
         f[19] = iso(r["t"], z); f[20] = tenths(r["rate"]) if r.get("rate") is not None else ""
         rows.append((r["t"], 0, "", f))
     for tr in c["treatments"]:
         if tr.get("del") or not (c["from"] <= tr["t"] < c["to"]): continue
-        f = [""] * 22
+        f = [""] * 23
         f[0] = "Sukrara"; f[1] = serial(tr["t"]); f[2] = local(tr["t"], z)
         k = tr["k"]
         if k == "rapid": f[3] = "4"; f[7] = tenths(tr["a"])
@@ -57,6 +57,7 @@ def write(c):
         elif k == "carbs": f[3] = "5"; f[9] = str(int(math.floor(tr["a"] + 0.5)))
         else: f[3] = "6"
         f[13] = note(tr.get("n", "")); f[19] = iso(tr["t"], z); f[21] = tr["o"]
+        if "pen" in tr: f[22] = tenths(tr.get("pr") or 0)   # a pen entry: its priming (0.0 = none), never in a
         rows.append((tr["t"], 1, tr["id"], f))
     rows.sort(key=lambda x: (x[0], x[1], x[2]))
     out += [",".join(esc(v) for v in f) for _, _, _, f in rows]
@@ -89,6 +90,16 @@ cases = [
          {"id": "e", "k": "note", "a": 0, "t": T + 2400, "n": "walk\nthen café", "o": "phone"},
          {"id": "f", "k": "rapid", "a": 4, "t": T + 2400, "n": "", "o": "phone", "del": True},
          {"id": "g", "k": "carbs", "a": 20, "t": T + 3600, "n": "", "o": "phone"}]},
+    {"name": "pen entries: injected units in the insulin column, primed units in Primed Insulin (0.0 without priming); typed entries leave it empty",
+     "zone": "Europe/Madrid", "generated": T + 3600, "from": T, "to": T + 3600, "sensor": None,
+     "readings": [],
+     "treatments": [
+         {"id": "p", "k": "rapid", "a": 8.5, "t": T + 600, "n": "", "o": "phone", "pr": 1.5, "pen": "SYNTHETIC-PEN-1",
+          "pd": [{"t": T + 450, "a": 1, "p": True}, {"t": T + 510, "a": 0.5, "p": True}, {"t": T + 600, "a": 8},
+                 {"t": T + 670, "a": 0.5}]},
+         {"id": "q", "k": "long", "a": 14, "t": T + 1200, "n": "night", "o": "phone", "pr": 0, "pen": "SYNTHETIC-PEN-2",
+          "pd": [{"t": T + 1200, "a": 14}]},
+         {"id": "r", "k": "rapid", "a": 2, "t": T + 1800, "n": "", "o": "phone"}]},
     {"name": "mmol/L: header and one-decimal values; trend stays mg/dL/min",
      "zone": "Europe/Madrid", "generated": T, "from": T, "to": T + 3600, "mmol": True, "sensor": None,
      "readings": [{"t": T, "sgv": 54, "rate": -2.0}, {"t": T + 300, "sgv": 100}, {"t": T + 600, "sgv": 181}],
