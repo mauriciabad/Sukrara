@@ -243,6 +243,35 @@ of that kind: AlertDialog title *Already logged by your pen?* / *¿Ya lo registr
 13:12* / *8.5u rápida a las 13:12*, buttons *Cancel* / *Cancelar* (back to the dialog, values kept) and *Log anyway*
 / *Registrar igualmente*. Only the insulin part is held; carbs and note in the same save are saved either way.
 
+### 4.6b Reading the pen into the treatment dialog
+
+The user, 2026-10-23: the Add treatment dialog shows a minimal sign that the pen can be read there, and a tap fills
+the dialog; **here a confirmation is right**, because the dialog already had *Save* from the start.
+
+- While the dialog is open (home, Quick treatment / widget / tile / notification) and pen reading is on with NFC on,
+  the dialog's activity holds NFC reader mode for pens. The sign: a 20 dp contactless-pen icon (`ic_dia_pen_nfc`,
+  onSurfaceVariant) at the end of the title row, before the *When?* chip. No text. TalkBack: *Hold your pen to the
+  phone to fill this in* / *Acerca tu pluma al teléfono para rellenarlo*. Hidden when reading is off, NFC is off or
+  blocked, or on a follower.
+- A tap reads the pen (the icon spins as the wavy ring; `CONFIRM` / `REJECT` haptics) and takes the **newest
+  not-yet-logged injection**: its injected units go into **Rapid** or **Long** by the pen's kind (the field gets the
+  pen colour mark and the supporting line *From the pen · 1.5u primed* / *De la pluma · 1.5u purgadas*), *When?* is
+  set to its time (*Today 13:12*); carbs and note typed in the same dialog share that time. Nothing is logged yet.
+- *Save* logs it as a pen entry (rules 2–8: priming, merge with a hand entry, all as on a background read; a merge
+  shows on home as the usual snackbar *Replaced your 8u entry at 13:05* · *Undo*). *Cancel* logs nothing from the pen:
+  its doses stay unread, so the next tap anywhere logs them as usual.
+- Unclear doses (rule 5) fill the suggestion and the supporting line reads *1u primed · tap to change* / *1u purgadas ·
+  toca para cambiar*; tapping it opens §4.3's dose list with the segmented buttons inside the dialog. Saving is the
+  answer.
+- Typing over a pen-filled amount turns it back into a hand-typed value (mark and line go away); the pen's doses are
+  then matched on the next read as usual (rule 6).
+- Other new injections in the same read (older than the newest) are logged as on a background read; the dialog shows
+  one line under the fields: *Also logged: 2 earlier injections* / *También registradas: 2 inyecciones anteriores*.
+- Nothing new: the icon area shows *Nothing new* / *Nada nuevo* for 3 s; failure: *Couldn't read the pen* in the
+  error colour for 3 s; the fields are untouched either way. A new pen read here is added (rapid) and fills the
+  dialog with its newest injection if < 24 h old (rule 9).
+- The Mac has no NFC: nothing changes there.
+
 ### 4.7 New pen (first scan)
 
 Full-screen, the New sensor screen's shape (close button, illustration, title, content, action at the bottom; no
@@ -444,6 +473,8 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 22 | Hand 3u at 13:05 vs pen 8.5u | *Same injection?* (amount outside tolerance) with *Different injections* / *Same injection* |
 | 23 | Caregiver's hand entry is the candidate | *Logged by Ana · 8u at 13:05* |
 | 24★ | Type 8u rapid 10 min after a pen entry | *Already logged by your pen?* · *8.5u rapid at 13:12*; *Cancel* returns with the values; carbs in the same save are saved |
+| 24b★ | Add treatment open, tap the pen after `1, 0.5, 8, 0.5` | before: the small contactless-pen icon in the title row (TalkBack label); after: Rapid = 8.5 with *From the pen · 1.5u primed*, *When?* = *Today 13:12*, nothing logged yet; *Save* logs one pen entry (merge snackbar when a hand entry matched); *Cancel* logs nothing and a later tap logs it |
+| 24c | Same with a long pen; with `1, 1.5`; typing over the filled value; nothing new; failure | Long filled; suggestion with *1u primed · tap to change*; mark gone; *Nothing new* / red *Couldn't read the pen* for 3 s, fields untouched |
 | 25 | Failed / partial read | red sheet *Couldn't read the pen*, REJECT haptic, nothing in the list |
 | 26 | Pen not scanned for 5 days | logged at once; card *23 injections logged* · *Since 2 Oct · 18 replaced your entries*, *Review* + *Undo*; Review = Doses read filtered to that read |
 | 27 | Pen clock reset | *Pen clock changed*; no new entries; Doses read shows the doses |
