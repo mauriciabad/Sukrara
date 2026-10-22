@@ -37,12 +37,12 @@ data class PenDose(val relTime: Long, val time: Long, val units: Double, val fla
 data class PenRead(
     val serial: String,
     val model: String,
-    val part: String = "",      // the pen's part number (specification), how its model is told apart (docs/29)
     val scanTime: Long,
     val penRelNow: Long,
     val doses: List<PenDose>,
     val stored: Int = doses.size,
     val complete: Boolean = true,
+    val part: String = "",      // the pen's part number (specification), how its model is told apart (docs/29)
 )
 
 object OpenNovReader {

@@ -83,6 +83,7 @@ data class Report(
     val review: Int = 0, val reviewSince: Long? = null,
     val logged: Double = 0.0, val primed: Double = 0.0,
     val offer: Offer? = null,
+    val bigSince: Long? = null,   // §3.11 the read logged an injection older than 72 h: the oldest one's time (Review)
 )
 
 /** What [PenEngine.undo] needs to take one read back: the doses it decided and the entries as they were before. */
@@ -125,7 +126,7 @@ class PenEngine(
         const val NEW = "new"                  // just read, not decided (transient)
         const val PENDING_ROLE = "pending"     // newest small doses: an injection may still follow
         const val QUESTION = "question"        // waits on a question
-        const val REVIEW = "review"            // a big read or a reset clock: waits for "Log all"
+        const val REVIEW = "review"            // read after a pen clock reset: waits in Doses read
         const val INJECTED = "injected"; const val PRIMED = "primed"
         const val IGNORED = "ignored"          // not logged: undone, "Not now"
         const val FUTURE = "future"            // later than the scan: never used
@@ -182,7 +183,7 @@ class PenEngine(
         val created = mutableListOf<String>(); val updated = mutableListOf<String>()
         val merged = mutableListOf<String>(); val asked = mutableListOf<String>()
         var pending = 0; var older = 0; var future = 0; var clockMatched = 0; var restored = 0
-        var review = 0; var reviewSince: Long? = null; var clockChanged = false
+        var review = 0; var reviewSince: Long? = null; var clockChanged = false; var bigSince: Long? = null
         var logged = 0.0; var primed = 0.0
         var offer: Offer? = null
 
@@ -242,7 +243,7 @@ class PenEngine(
                 Ledger(pens.toMap(), qs.toList()), writes.values.toList(),
                 Report(serial, first, serial?.let { pens[it]?.returning } == true && first, created.toList(), updated.toList(),
                     merged.toList(), asked.toList(), pending, older, future, clockChanged, clockMatched, restored,
-                    review, reviewSince, r1(logged), r1(primed), offer),
+                    review, reviewSince, r1(logged), r1(primed), offer, bigSince),
                 undo,
             )
         }
@@ -353,7 +354,7 @@ class PenEngine(
         return w.outcome(serial)
     }
 
-    /** The big-read review (PRODUCT §4.9): *Log all* the waiting injections. */
+    /** After a pen clock reset (PRODUCT §3.14): *Log all* the injections that wait in Doses read. */
     fun logReview(l: Ledger, serial: String, entries: List<PenEntry>, now: Long, nowMs: Long): Outcome {
         val w = Work(l, entries, nowMs)
         if (w.pens[serial] == null) return w.outcome(serial)
@@ -361,7 +362,7 @@ class PenEngine(
         return w.outcome(serial)
     }
 
-    /** The big-read review's *Not now*: the waiting injections become *Not logged* (one at a time later). */
+    /** After a pen clock reset: the waiting injections become *Not logged* (one at a time later). */
     fun skipReview(l: Ledger, serial: String, nowMs: Long): Outcome {
         val w = Work(l, emptyList(), nowMs)
         val pen = w.pens[serial] ?: return w.outcome(serial)
@@ -512,12 +513,9 @@ class PenEngine(
                 else -> questionCl += i
             }
         }
-        // §3.11 a read that would log an injection older than 72 h (or after a pen clock reset) logs nothing on its own
-        val toPlace = sessions.values.map { it.sortedWith(compareBy({ it.d.t }, { it.d.key })) }.filter { items ->
-            items.any { fresh(w, s, it) } && items.none { w.seen(s, it.d.key).q?.let { q -> w.q(q)?.type == MATCH_Q } == true } &&
-                items.none { w.seen(s, it.d.key).let { v -> (v.role == INJECTED || v.role == PRIMED) && v.e != null } }
-        }
-        val holdAll = hold || toPlace.any { items -> items.filter { !it.p }.minOf { it.d.t } < now - rules.review }
+        // PRODUCT §3.14: after a pen clock reset nothing new is logged on its own (it waits in Doses read); §3.17 every
+        // other read logs at once, a big one (an injection older than 72 h) is only flagged (Report.bigSince)
+        val holdAll = hold
         for ((_, items0) in sessions) {
             val items = items0.sortedWith(compareBy({ it.d.t }, { it.d.key }))
             val fresh = items.filter { fresh(w, s, it) }
@@ -540,6 +538,8 @@ class PenEngine(
                 continue
             }
             place(w, s, fresh, now)
+            val t = fresh.filter { !it.p }.minOfOrNull { it.d.t }
+            if (t != null && t < now - rules.review) w.bigSince = minOf(w.bigSince ?: t, t)
         }
         for (i in pendingCl) cl[i].filter { w.seen(s, it.key).role == NEW || w.seen(s, it.key).role == PENDING_ROLE }.forEach {
             w.setDose(s, it.key, w.seen(s, it.key).copy(role = PENDING_ROLE)); w.pending++

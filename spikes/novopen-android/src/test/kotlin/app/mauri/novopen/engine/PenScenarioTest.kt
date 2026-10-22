@@ -197,12 +197,12 @@ class PenScenarioTest {
                 "first" -> r.first; "pending" -> r.pending; "older" -> r.older; "future" -> r.future; "clockMatched" -> r.clockMatched
                 "restored" -> r.restored; "logged" -> r.logged; "primed" -> r.primed
                 "returning" -> r.returning; "clockChanged" -> r.clockChanged; "review" -> r.review
-                "reviewSince" -> r.reviewSince ?: "null"; "offerA" -> r.offer?.a ?: "null"; "offerMatch" -> r.offer?.match ?: "null"
+                "reviewSince" -> r.reviewSince ?: "null"; "bigSince" -> r.bigSince ?: "null"; "offerA" -> r.offer?.a ?: "null"; "offerMatch" -> r.offer?.match ?: "null"
                 else -> error("unknown report key $k")
             }
             val want: Any = v.jsonPrimitive.let { p -> when {
                 p is JsonNull -> "null"
-                k == "reviewSince" -> time(p.content)
+                k == "reviewSince" || k == "bigSince" -> time(p.content)
                 k == "offerMatch" -> p.content
                 else -> p.booleanOrNull ?: if (got is Double) p.double else p.int
             } }
