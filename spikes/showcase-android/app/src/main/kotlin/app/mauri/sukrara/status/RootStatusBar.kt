@@ -120,6 +120,7 @@ object RootStatusBar {
                 app.mauri.sukrara.widgets.SukraraHooks.refresh(c, "lock screen widget", force = true)
             }
             sendToHook(c, Features.value, last)
+            if (i.getBooleanExtra("iconOrder", false)) moduleHello()
             if (Features.value.hook && Features.value.hideNotifIcon) repostLater(c)
         }
     }
@@ -187,11 +188,24 @@ object RootStatusBar {
     @SuppressLint("DiscouragedApi")
     private fun res(ctx: Context, name: String) = ctx.resources.getIdentifier(name, "drawable", ctx.packageName)
 
+    /**
+     * The module came up in this System UI with its icon order hook (its hello): it shows number, then trend, from the
+     * first frame, so the slot daemon must not re-add them after the restart (that remove / add was the visible jump,
+     * the user 2026-10-22). The daemon keys this by System UI's pid, so a later restart without the module re-adds again.
+     */
+    private fun moduleHello() = io.execute {
+        moduleOrders = true
+        if (proc?.isAlive == true) runCatching { command(ORDER_MODULE) }.onFailure { Log.w(TAG, "order", it) }
+    }
+
+    /** The module said hello since this app process started: also told to a daemon started later. */
+    @Volatile private var moduleOrders = false
+    private const val ORDER_MODULE = "order module"
+
     private fun send(ctx: Context, cmd: String): Boolean {
         if (proc?.isAlive != true && !startDaemon(ctx)) return false
         return try {
-            stdin!!.apply { write(cmd + "\n"); flush() }
-            val reply = stdout!!.readLine() ?: "eof"
+            val reply = command(cmd)
             state = "on ($reply)"
             reply == "ok"
         } catch (e: Exception) {
@@ -201,6 +215,12 @@ object RootStatusBar {
         }
     }
 
+    /** One request → its reply, with the running daemon (on [io]). */
+    private fun command(cmd: String): String {
+        stdin!!.apply { write(cmd + "\n"); flush() }
+        return stdout!!.readLine() ?: "eof"
+    }
+
     private fun startDaemon(ctx: Context): Boolean = try {
         val cmd = "CLASSPATH=${ctx.applicationInfo.sourceDir} exec app_process /system/bin ${SlotDaemon::class.java.name} ${ctx.packageName}"
         val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
@@ -208,7 +228,11 @@ object RootStatusBar {
         stdin = p.outputStream.writer()
         stdout = p.inputStream.bufferedReader()
         val hello = stdout!!.readLine()
-        if (hello?.startsWith("ready") == true) { state = "on"; true } else { stopDaemon(); state = "daemon failed: $hello"; false }
+        if (hello?.startsWith("ready") == true) {
+            state = "on"
+            if (moduleOrders) command(ORDER_MODULE)
+            true
+        } else { stopDaemon(); state = "daemon failed: $hello"; false }
     } catch (e: Exception) {
         state = "no root: ${e.message}" // no su, or root not granted to Sukrara in KernelSU
         false

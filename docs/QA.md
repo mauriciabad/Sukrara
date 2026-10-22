@@ -96,6 +96,9 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 - [ ] No readings (> 20 min) / sensor ended: the single icon keeps the same priority.
 - [ ] Placement *After the Bluetooth icon* with Bluetooth off: the value sits where Bluetooth would be (not far left);
       turning Bluetooth on puts it right after the icon.
+- [ ] Restart System UI (home's *Restart System UI* card, or the Settings action): number then arrow from the first
+      frame, no swap and no blink a few seconds later; `adb logcat -s Sukrara.slots`: `orders our icons itself (module):
+      no re-add`. Same with the plain *With the system icons* placement.
 - [ ] Number and arrow about 3 dp apart (as on the app's card), closer than the other icons; the gap to the icons
       beside them unchanged (6 dp); still close after a reading, after a no-readings / ended spell and with the row
       full. `logcat`: `icon fit hooks: 1, gap hooks: 1`. TalkBack on the icons: *Glucose 120 mg/dL ↗*, *Glucose trend ↗*.

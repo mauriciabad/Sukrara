@@ -205,26 +205,26 @@ class SystemUiHook : XposedModule() {
             }
             hooked++
         }
+        iconOrderHooked = hooked > 0
         log("icon order hooks: $hooked")
     }
+
+    /** The icon order hook is in place: the hello tells the app, so the slot daemon leaves the order to us. */
+    @Volatile private var iconOrderHooked = false
 
     private fun ClassLoader.find(name: String): Class<*>? = runCatching { Class.forName(name, false, this) }.getOrNull()
 
     /**
-     * The reordered list, or null to keep SystemUI's. SystemUI's list holds only the icons shown right now, so a hidden
-     * target (Bluetooth off, no VPN) is placed by the platform's slot order ([IconFit.insertAfter]): ours stay where
-     * they'd be next to it, not jump to the far left.
+     * The reordered list, or null to keep SystemUI's ([IconFit.arrange]). Always number then trend: after a System UI
+     * restart system_server hands our icons back in hash order (trend first), so this holds them in place from the first
+     * frame, also for the plain `slot:` placement and before the app's state arrives (the slot daemon's re-add is then
+     * skipped, RootStatusBar.moduleHello). With "after X": SystemUI's list holds only the icons shown right now, so a
+     * hidden target (Bluetooth off, no VPN) is placed by the platform's slot order: ours stay where they'd be next to it.
      */
     private fun reorder(result: Any?): List<*>? {
-        val after = state.position.takeIf { state.enabled && it.startsWith(HookPosition.SLOT_PREFIX) }
-            ?.removePrefix(HookPosition.SLOT_PREFIX) ?: return null
         val list = result as? List<*> ?: return null
-        val ours = list.filter { slotName(it) in OUR_SLOTS }
-        if (ours.isEmpty()) return null
-        val rest = list.filter { slotName(it) !in OUR_SLOTS }.toMutableList()
-        val i = IconFit.insertAfter(rest.map(::slotName), after, slotOrder) ?: return null
-        rest.addAll(i, ours)
-        return rest
+        val after = state.position.takeIf { state.enabled && it.startsWith(HookPosition.SLOT_PREFIX) }?.removePrefix(HookPosition.SLOT_PREFIX)
+        return IconFit.arrange(list.map(::slotName), OUR_SLOTS, after, slotOrder)?.map { list[it] }
     }
 
     /** The platform's status-bar slot order (`config_statusBarIcons`, what SystemUI sorts its own icons by). */
@@ -532,7 +532,7 @@ class SystemUiHook : XposedModule() {
             override fun onReceive(c: Context, i: Intent) = safe("receive") { onUpdate(i) }
         }, IntentFilter(RootStatusBar.ACTION), RootStatusBar.PERMISSION, main, Context.RECEIVER_EXPORTED)
         // Ask the app for the current value instead of waiting for the next reading.
-        app.sendBroadcast(Intent(RootStatusBar.ACTION_HELLO).setPackage(RootStatusBar.PKG))
+        app.sendBroadcast(Intent(RootStatusBar.ACTION_HELLO).setPackage(RootStatusBar.PKG).putExtra("iconOrder", iconOrderHooked))
         // Re-render once a minute so "stale" appears even when no data arrives.
         main.postDelayed(object : Runnable {
             override fun run() { safe("tick") { renderAll() }; main.postDelayed(this, 30_000) }
@@ -694,7 +694,8 @@ class SystemUiHook : XposedModule() {
     companion object {
         const val SYSTEMUI = "com.android.systemui"
         const val KILL_SWITCH = "sukrara_hook_disabled"
-        val OUR_SLOTS = setOf(RootStatusBar.SLOT_NUMBER, RootStatusBar.SLOT_TREND)
+        /** Our slots in the order they show: the number, then the trend. */
+        val OUR_SLOTS = listOf(RootStatusBar.SLOT_NUMBER, RootStatusBar.SLOT_TREND)
     }
 }
 

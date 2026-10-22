@@ -16,10 +16,15 @@ import android.os.IBinder
  * Protocol: one command per line on stdin, one reply line on stdout.
  *     set <slot> <resId> <level> <description…>
  *     remove <slot>
+ *     order module | order daemon
  * On EOF (the app died or let go) every slot we set is removed, so no stale value stays on screen.
  *
  * When SystemUI restarts, system_server hands it our icons back in hash order, which can swap number and arrow.
- * So we watch SystemUI's pid and, after a restart, re-add our icons in the order they were first set.
+ * So we watch SystemUI's pid and, after a restart, re-add our icons in the order they were first set. The re-add is a
+ * visible jump (the arrow first for some seconds, then remove / add): when the LSPosed module runs in this SystemUI it
+ * orders our icons itself from the first frame, so the app sends `order module` on the module's hello and the re-add
+ * is skipped for that SystemUI process (keyed by its pid: a restart without the module re-adds again); `order daemon`
+ * takes it back.
  */
 object SlotDaemon {
     @JvmStatic
@@ -34,7 +39,12 @@ object SlotDaemon {
         val removeIcon = svc.javaClass.getMethod("removeIcon", String::class.java)
 
         val slots = LinkedHashMap<String, Array<Any>>() // slot → setIcon args, in first-set order
-        fun readd() = synchronized(slots) {
+        var modulePid: String? = null // the SystemUI process whose module orders our icons (`order module`)
+        fun readd(pid: String?) = synchronized(slots) {
+            if (pid != null && pid == modulePid) {
+                android.util.Log.i("Sukrara.slots", "SystemUI $pid orders our icons itself (module): no re-add")
+                return@synchronized
+            }
             android.util.Log.i("Sukrara.slots", "SystemUI restarted: re-adding ${slots.keys}")
             slots.keys.forEach { runCatching { removeIcon.invoke(svc, it) } }
             slots.values.forEach { runCatching { setIcon.invoke(svc, *it) } }
@@ -43,11 +53,11 @@ object SlotDaemon {
             var pid = systemUiPid()
             android.util.Log.i("Sukrara.slots", "slot daemon: SystemUI pid $pid, age ${pid?.let { ageSec(it) }}")
             // Started while SystemUI was (re)starting: same problem, without a pid change to notice.
-            pid?.let { ageSec(it) }?.takeIf { it < 20 }?.let { Thread.sleep(((13 - it).coerceAtLeast(0.0) * 1000).toLong()); readd() }
+            pid?.let { ageSec(it) }?.takeIf { it < 20 }?.let { Thread.sleep(((13 - it).coerceAtLeast(0.0) * 1000).toLong()); readd(pid) }
             while (true) {
                 Thread.sleep(5_000)
                 val now = systemUiPid()
-                if (now != null && pid != null && now != pid) { Thread.sleep(8_000); readd() } // let it register first
+                if (now != null && pid != null && now != pid) { Thread.sleep(8_000); readd(now) } // let it register first (and its module say hello)
                 if (now != null) pid = now
             }
         }.apply { isDaemon = true }.start()
@@ -63,6 +73,7 @@ object SlotDaemon {
                         synchronized(slots) { slots[parts[1]] = a }
                     }
                     "remove" -> { removeIcon.invoke(svc, parts[1]); synchronized(slots) { slots -= parts[1] } }
+                    "order" -> synchronized(slots) { modulePid = if (parts.getOrNull(1) == "module") systemUiPid() else null }
                     else -> { reply("err unknown command"); continue }
                 }
                 reply("ok")
