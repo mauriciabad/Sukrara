@@ -21,7 +21,7 @@ import org.json.JSONObject
  *   am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver \
  *       [--ez nostr B] [--ei nostrInterval MIN] [--ez libreview B] [--ei libreviewInterval MIN] \
  *       [--ez bleFollowers B] [--ez chip B] [--ez icon B] [--ez hook B] \
- *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:wifi|…] [--ez restartSystemUi true] \
+ *       [--es hookPosition after_clock|before_clock|icons:0|slot:|slot:<mobile|slot:wifi|…] [--ez restartSystemUi true] \
  *       [--ez hookColor B] [--ez hideNotifIcon B] \
  *       [--ez screenOffSkip B] [--ez garmin B] [--ez nightscout B] [--ez nightscoutLan B] \
  *       [--es connPriority default|low|balanced|high] \

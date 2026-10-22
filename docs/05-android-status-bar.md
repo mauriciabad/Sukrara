@@ -224,6 +224,13 @@ left, the first icon that doesn't fit becomes the overflow dot and everything le
   takes exactly that back. Ours are fitted first, so the pair is either shown side by side (the pull applies, the row
   ends within the real width) or folded into the dot with nothing else shown; never wider (also clamped). Only with the
   number right before the trend and the gap hook in place.
+- *Added* (round f39, the user: glucose "left of the icons that are more permanent: left of LTE/mobile but right of
+  vibration"): the placement *Before the mobile signal* (`slot:<mobile`, `IconFit.insertBefore`; a hidden mobile icon
+  places it by `config_statusBarIcons`, read on the phone: volume/vibrate ranks 25, mobile 33, wifi 34). It is the
+  **new default**: the old default, *After the clock*, is drawn only by the module, so with root alone it showed
+  nothing; every `slot:` placement shows with root alone (as plain system icons, first among them), and with the
+  module it sits where the user asked. Without the module Settings keeps the `slot:` placements selectable and says
+  what shows meanwhile; the clock placements stay disabled.
 - *Discarded*: hiding the mobile network type (LTE / 5G) or the signal bars to make room. SystemUI hides the type only
   when mobile data isn't the active connection; hiding it while on mobile data drops real information without any
   sign, whereas the overflow dot is the platform's own "more icons" signal.

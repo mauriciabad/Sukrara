@@ -1193,18 +1193,21 @@
     <string name="statusbar_value_checking">Comprobando root…</string>
     <string name="statusbar_value_no_root">No disponible: Sukrara necesita root (KernelSU)</string>
     <string name="statusbar_value_needs_module">«%1$s» necesita el módulo LSPosed</string>
+    <string name="statusbar_value_needs_module_icons">«%1$s» necesita el módulo LSPosed. Por ahora se muestra el primero de los iconos del sistema.</string>
+    <string name="statusbar_pos_needs_module_icons">Necesita el módulo LSPosed. Hasta entonces, el primero de los iconos del sistema</string>
     <string name="statusbar_unavailable">No disponible con el valor desactivado</string>
     <string name="statusbar_colour">Color según el rango</string>
     <string name="statusbar_placement">Posición</string>
     <string name="statusbar_hide_icon">Ocultar el icono de notificación de Sukrara</string>
     <string name="statusbar_hide_icon_summary">La notificación sigue en el panel</string>
-    <string name="statusbar_footer">El chip necesita Android 16. El valor en la barra de estado usa root; el color, ocultar el icono de notificación y todas las posiciones excepto «Con los iconos del sistema» necesitan además el módulo de Sukrara activado en LSPosed (ámbito System UI) y reiniciar System UI.</string>
+    <string name="statusbar_footer">El chip necesita Android 16. El valor en la barra de estado usa root; el color, ocultar el icono de notificación y las demás posiciones, salvo «Con los iconos del sistema», necesitan además el módulo de Sukrara activado en LSPosed (ámbito System UI) y reiniciar System UI. Hasta entonces, las posiciones entre los iconos del sistema se muestran las primeras y las del reloj no se muestran.</string>
     <string name="statusbar_pos_after_clock">Después del reloj</string>
     <string name="statusbar_pos_before_clock">Antes del reloj</string>
     <string name="statusbar_pos_left_of_icons">A la izquierda de los iconos del sistema</string>
     <string name="statusbar_pos_with_icons">Con los iconos del sistema</string>
     <string name="statusbar_pos_after_vpn">Después del icono de VPN</string>
     <string name="statusbar_pos_after_bluetooth">Después del icono de Bluetooth</string>
+    <string name="statusbar_pos_before_mobile">Antes de la señal móvil</string>
     <string name="statusbar_pos_after_mobile">Después de la señal móvil</string>
     <string name="statusbar_pos_after_wifi">Después del icono de Wi‑Fi</string>
 

@@ -1388,6 +1388,10 @@
     <string name="statusbar_value_no_root">Unavailable: needs root for Sukrara (KernelSU)</string>
     <!-- Value summary; %1$s = the placement [CHAR LIMIT=60] -->
     <string name="statusbar_value_needs_module">%1$s needs the LSPosed module</string>
+    <!-- Value / placement summary for a system-icon placement while the LSPosed module isn't running; %1$s = the placement [CHAR LIMIT=NONE] -->
+    <string name="statusbar_value_needs_module_icons">%1$s needs the LSPosed module. For now, it shows first among the system icons.</string>
+    <!-- Placement dialog: the line under a system-icon placement while the LSPosed module isn't running [CHAR LIMIT=NONE] -->
+    <string name="statusbar_pos_needs_module_icons">Needs the LSPosed module. Until then, first among the system icons</string>
     <!-- Why the root rows are disabled [CHAR LIMIT=60] -->
     <string name="statusbar_unavailable">Unavailable while the value is off</string>
     <!-- Switch: colour the value by range [CHAR LIMIT=40] -->
@@ -1399,7 +1403,7 @@
     <!-- Hide icon summary [CHAR LIMIT=60] -->
     <string name="statusbar_hide_icon_summary">The notification stays in the shade</string>
     <!-- Status bar page footer [CHAR LIMIT=NONE] -->
-    <string name="statusbar_footer">The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification icon and every placement except \"With the system icons\" also need the Sukrara module enabled in LSPosed (scope System UI), then a System UI restart.</string>
+    <string name="statusbar_footer">The chip needs Android 16. The value in the status bar uses root; colour, hiding the notification icon and the placements other than \"With the system icons\" also need the Sukrara module enabled in LSPosed (scope System UI), then a System UI restart. Until then the system-icon placements show first among the system icons and the clock ones show nothing.</string>
     <!-- Placement option [CHAR LIMIT=40] -->
     <string name="statusbar_pos_after_clock">After the clock</string>
     <!-- Placement option [CHAR LIMIT=40] -->
@@ -1412,6 +1416,8 @@
     <string name="statusbar_pos_after_vpn">After the VPN icon</string>
     <!-- Placement option [CHAR LIMIT=40] -->
     <string name="statusbar_pos_after_bluetooth">After the Bluetooth icon</string>
+    <!-- Placement option: right before (left of) the mobile signal icon [CHAR LIMIT=40] -->
+    <string name="statusbar_pos_before_mobile">Before the mobile signal</string>
     <!-- Placement option [CHAR LIMIT=40] -->
     <string name="statusbar_pos_after_mobile">After the mobile signal</string>
     <!-- Placement option [CHAR LIMIT=40] -->

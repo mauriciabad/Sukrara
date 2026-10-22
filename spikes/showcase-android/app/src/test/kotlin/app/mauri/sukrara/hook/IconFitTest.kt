@@ -203,6 +203,37 @@ class IconFitTest {
         assertEquals(listOf("vibrate", "glucose", "glucose_trend", "wifi"), arranged(listOf("glucose_trend", "glucose", "vibrate", "wifi"), "bluetooth"))
     }
 
+    // --- "before the mobile signal" ---------------------------------------------------------------------------------
+
+    /** The user's Pixel 10 Pro, Android 17 (`cmd overlay lookup android android:array/config_statusBarIcons`, 2026-10-23). */
+    private val pixel = listOf("no_calling", "call_strength", "alarm_clock", "rotate", "headset", "data_saver", "ime",
+        "sync_failing", "sync_active", "nfc", "tty", "speakerphone", "cdma_eri", "data_connection", "phone_evdo_signal",
+        "phone_signal", "secure", "managed_profile", "connected_display", "vpn", "bluetooth", "camera", "microphone",
+        "location", "mute", "volume", "zen", "screen_record", "cast", "ethernet", "satellite", "hotspot", "stacked_mobile",
+        "mobile", "wifi", "airplane", "battery", "sensors_off")
+    private fun before(slots: List<String>) = IconFit.arrange(slots, ourSlots, "<mobile", pixel)?.map { slots[it] } ?: slots
+
+    @Test fun beforeTheMobileSignalOnTheUsersRow() =
+        // today (after VPN): speakerphone, VPN, glucose, vibrate ("volume"), mobile, Wi-Fi → vibrate, glucose, mobile
+        assertEquals(listOf("speakerphone", "vpn", "volume", "glucose", "glucose_trend", "mobile", "wifi"),
+            before(listOf("speakerphone", "vpn", "glucose", "glucose_trend", "volume", "mobile", "wifi")))
+
+    @Test fun beforeAHiddenMobileSignalIsWhereItWouldBe() {
+        // no SIM / mobile hidden: after the last icon ranked before mobile, still left of Wi-Fi (ranked after mobile)
+        assertEquals(listOf("vpn", "volume", "glucose", "glucose_trend", "wifi"),
+            before(listOf("glucose_trend", "glucose", "vpn", "volume", "wifi")))
+        // nothing ranked before it shown: first
+        assertEquals(listOf("glucose", "glucose_trend", "wifi"), before(listOf("wifi", "glucose_trend", "glucose")))
+        // another app's icon (no rank) counts as before, like SystemUI puts it
+        assertEquals(1, IconFit.insertBefore(listOf("other_app", "wifi"), "mobile", pixel))
+    }
+
+    @Test fun beforeAnUnknownIconLeavesOursInPlace() {
+        assertNull(IconFit.insertBefore(listOf("wifi"), "nfc_reader", pixel))
+        assertEquals(listOf("wifi", "glucose", "glucose_trend"), IconFit.arrange(listOf("wifi", "glucose_trend", "glucose"), ourSlots, "<nfc_reader", pixel)!!
+            .map { listOf("wifi", "glucose_trend", "glucose")[it] })
+    }
+
     @Test fun nothingToDoWhenAlreadyInOrderOrNotThere() {
         assertNull(IconFit.arrange(listOf("glucose", "glucose_trend", "wifi"), ourSlots, null, order))
         assertNull(IconFit.arrange(listOf("vibrate", "wifi"), ourSlots, "wifi", order))

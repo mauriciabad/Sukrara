@@ -134,16 +134,32 @@ object IconFit {
     /**
      * The order to show SystemUI's row of [slots] in (indices into it), or null to keep it: our slots together in the
      * fixed order [ours] (number, then trend: after a System UI restart system_server hands them back in hash order,
-     * trend first), after [target] ([insertAfter]) or, without a target (or an unknown one), where the first of ours is.
+     * trend first), after [target] ([insertAfter]) or, for a target starting with HookPosition.BEFORE (`<mobile`), right
+     * before it ([insertBefore]); without a target (or an unknown one), where the first of ours is.
      */
     fun arrange(slots: List<String?>, ours: List<String>, target: String?, order: List<String>): List<Int>? {
         val mine = ours.mapNotNull { s -> slots.indexOf(s).takeIf { it >= 0 } }
         if (mine.isEmpty()) return null
         val rest = slots.indices.filter { it !in mine }
-        val at = target?.takeIf { it.isNotEmpty() }?.let { insertAfter(rest.map { slots[it] }, it, order) }
-            ?: rest.count { it < mine.min() }
+        val restSlots = rest.map { slots[it] }
+        val at = target?.takeIf { it.isNotEmpty() }?.let {
+            val before = app.mauri.sukrara.features.HookPosition.BEFORE
+            if (it.startsWith(before)) insertBefore(restSlots, it.removePrefix(before), order) else insertAfter(restSlots, it, order)
+        } ?: rest.count { it < mine.min() }
         val arranged = rest.take(at) + mine + rest.drop(at)
         return arranged.takeIf { it != slots.indices.toList() }
+    }
+
+    /**
+     * Where "before [target]" puts our icons in SystemUI's row of visible icons ([slots], ours taken out): right before
+     * [target]; when it's hidden, where it would be: after the last visible icon that comes before it in the platform's
+     * slot order [order] (slots not in it come first). Null = the target is unknown: leave the row as SystemUI made it.
+     */
+    fun insertBefore(slots: List<String?>, target: String, order: List<String>): Int? {
+        val at = slots.indexOf(target)
+        if (at >= 0) return at
+        val rank = order.indexOf(target).takeIf { it >= 0 } ?: return null
+        return slots.indexOfLast { order.indexOf(it) < rank } + 1
     }
 
     /**
