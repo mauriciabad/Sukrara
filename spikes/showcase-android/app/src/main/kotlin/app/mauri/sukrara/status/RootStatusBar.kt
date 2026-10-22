@@ -37,6 +37,13 @@ object RootStatusBar {
     const val SLOT_NUMBER = "glucose"
     const val SLOT_TREND = "glucose_trend"
 
+    /**
+     * How our system icons' TalkBack text starts ([iconPlan]): the module finds our icons in SystemUI's row by it
+     * (SystemUiHook.hookIconFit keeps them together and first in line; "Glucose …" also gets the range colour).
+     */
+    private val OUR_DESCRIPTIONS = listOf("Glucose ", "No glucose readings since ", "Sensor ended")   // i18n-ok: SystemUI icon descriptions
+    fun isOurDescription(d: String) = OUR_DESCRIPTIONS.any(d::startsWith)
+
     /** One thread: the daemon's stdin/stdout protocol is strictly request → reply. */
     private val io = Executors.newSingleThreadExecutor()
     @Volatile var state: String = "off"; private set
@@ -142,9 +149,9 @@ object RootStatusBar {
      * ended sensor the checkered flag (round sensor-life). SystemUI draws them itself (tinted, no colour).
      */
     fun iconPlan(look: GlucoseLook, r: Reading?): IconPlan = when (look.state) {
-        GlucoseLook.State.ENDED -> IconPlan("ic_stat_sensor_ended", null, "Sensor ended")
+        GlucoseLook.State.ENDED -> IconPlan("ic_stat_sensor_ended", null, OUR_DESCRIPTIONS[2])
         GlucoseLook.State.NO_READINGS -> IconPlan("ic_stat_no_readings", null,
-            "No glucose readings since ${r?.let { Freshness.timeText(it.t, System.currentTimeMillis() / 1000) } ?: "?"}")   // i18n-ok: SystemUI icon description, English like "Glucose …"
+            "${OUR_DESCRIPTIONS[1]}${r?.let { Freshness.timeText(it.t, System.currentTimeMillis() / 1000) } ?: "?"}")   // i18n-ok: SystemUI icon description, English like "Glucose …"
         GlucoseLook.State.NONE -> IconPlan(null, null, "")
         // a warm-up has no number to show in the number icons (one drawable per value): no slots until the first reading
         GlucoseLook.State.WARMING_UP -> IconPlan(null, null, "Sensor warming up")   // i18n-ok: SystemUI icon description
@@ -157,7 +164,7 @@ object RootStatusBar {
                 look.strike -> "sb_t_none_s"
                 else -> "sb_t_none"
             }
-            IconPlan(trend, number, "Glucose ${look.text} mg/dL ${if (look.strike) "(old)" else Trend.arrow(r?.rate)}")   // i18n-ok: SystemUI icon description
+            IconPlan(trend, number, "${OUR_DESCRIPTIONS[0]}${look.text} mg/dL ${if (look.strike) "(old)" else Trend.arrow(r?.rate)}")   // i18n-ok: SystemUI icon description
         }
     }
 
