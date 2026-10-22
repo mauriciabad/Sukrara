@@ -112,7 +112,7 @@ by the app's icon code.</sub>
   and the graph. With root
   + LSPosed: system icons or a coloured value next to the clock; as system icons, glucose keeps its place when the
   row fills up (other icons fold into Android's overflow dot first, and number and arrow go together, never just the
-  arrow). Settings detects root and the LSPosed module (via
+  arrow, as close as on the app's card). Settings detects root and the LSPosed module (via
   LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI. After an
   update, home asks for a System UI restart only when the code System UI runs has changed (not on every install).
   [05](docs/05-android-status-bar.md)

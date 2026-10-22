@@ -84,6 +84,40 @@ object IconFit {
     }
 
     /**
+     * The card's visible gap between the number's ink and the trend arrow's ink, as a share of the digits' height (the
+     * user, 2026-10-22: number and arrow closer, as on the card). Derived from the renderer
+     * ([app.mauri.sukrara.graph.ValueGlyphs] CAP / MARK_GAP / MARK_BOX / ARROW_IN_BOX / the arrow's outline) and the
+     * card's font, averaged over the digits and the 5° arrow angles; IconFitTest recomputes it.
+     */
+    const val CARD_GAP_OF_DIGIT = 0.27f
+
+    /** The status-bar number drawables' digit height over their height (tools/gen-slot-drawables.swift: 12.4 of 15 dp). */
+    const val DIGIT_OF_ICON = 12.4f / 15f
+
+    /**
+     * How many px the module pulls the trend icon towards the number: from SystemUI's [spacing] between status icons
+     * to the card's gap at icons [iconHeight] px tall (the drawables have no padding on those sides). Never apart.
+     */
+    fun pull(spacing: Int, iconHeight: Int): Int =
+        (spacing - Math.round(CARD_GAP_OF_DIGIT * DIGIT_OF_ICON * iconHeight)).coerceAtLeast(0)
+
+    /**
+     * Where SystemUI's placement puts the shown icons (x per entry of [fit].visible, the dot first at 0 when there is
+     * one) and the row's width, with everything after the icon [pullAfter] moved [pull] px left: how the module brings
+     * our trend next to our number while every other gap stays SystemUI's (the row is that much narrower).
+     */
+    fun place(widths: List<Int>, fit: Fit, spacing: Int, dotSpace: Int, pullAfter: Int? = null, pull: Int = 0): Pair<List<Int>, Int> {
+        var x = if (fit.overflow != null) dotSpace + if (fit.visible.isNotEmpty()) spacing else 0 else 0
+        val xs = fit.visible.mapIndexed { k, i ->
+            val at = x
+            x += widths[i] + (if (k < fit.visible.size - 1) spacing else 0) - (if (i == pullAfter && k < fit.visible.size - 1) pull else 0)
+            at
+        }
+        val pulled = pullAfter != null && fit.visible.indexOf(pullAfter).let { it >= 0 && it < fit.visible.size - 1 }
+        return xs to width(widths, fit, spacing, dotSpace) - if (pulled) pull else 0
+    }
+
+    /**
      * Where "after [target]" puts our icons in SystemUI's row of visible icons ([slots], ours already taken out): right
      * after [target]; when it's hidden, where it would be: after the last visible icon that comes no later than it in
      * the platform's slot order [order] (`config_statusBarIcons`; slots not in it, like other apps' icons, come first,

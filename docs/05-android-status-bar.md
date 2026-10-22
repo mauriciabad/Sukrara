@@ -204,6 +204,15 @@ left, the first icon that doesn't fit becomes the overflow dot and everything le
   time (percentage insets, since SystemUI scales icons to 13 sp). Measured: release APK 20.33 → 26.76 MB (+6.4 MB;
   +5.4 MB with `--no-xml-namespaces`); about 160 B per resource is zip and table overhead, so no variant gets under
   ~3 MB without coarser arrows. Root without the module therefore can still be split by SystemUI's overflow.
+- *Added* (round f35, the user: "the arrow and number closer, less spacing"): with the module, the trend sits at the
+  card's own gap from the number, 0.27 of the digits' height (renderer geometry + font, `IconFitTest`) = 8 px ≈ 3 dp
+  on the Pixel instead of SystemUI's 16 px. The measure hook narrows the row by the difference and a hook on SystemUI's
+  own placement block (the policy's synthetic lambda) lowers our number's `Placeable.width` by it while the block
+  runs, so the block places the trend and everything after it closer; restored right after. Each icon is still placed
+  once, by SystemUI; neighbour gaps stay 6 dp. The trend slot reads *Glucose trend ↗* so the module can tell the two
+  apart. Discarded for this: an offset on our `Image` (moves pixels, not layout, so neighbour gaps would grow by half
+  the pull each) and re-placing our icons ourselves (Compose's placement state lives in SystemUI's block). Root alone
+  keeps SystemUI's spacing.
 - *Discarded*: hiding the mobile network type (LTE / 5G) or the signal bars to make room. SystemUI hides the type only
   when mobile data isn't the active connection; hiding it while on mobile data drops real information without any
   sign, whereas the overflow dot is the platform's own "more icons" signal.

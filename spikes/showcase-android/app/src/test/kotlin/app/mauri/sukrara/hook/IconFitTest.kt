@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.hook
 
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.hook.IconFit.Fit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -80,6 +81,62 @@ class IconFitTest {
     @Test fun nothingToMoveWhenOursAreAlreadyLast() {
         assertNull(IconFit.permutation(3, setOf(1, 2)))
         assertNull(IconFit.permutation(3, emptySet()))
+    }
+
+    // --- number → trend at the card's gap ---------------------------------------------------------------------
+
+    @Test fun pullBringsTheTrendToTheCardsGap() {
+        // 13 sp icons at 420 dpi = 34 px; digits 28 px; the card's gap 0.27 of them = 8 px instead of SystemUI's 16
+        assertEquals(8, IconFit.pull(16, 34))
+        assertEquals(0, IconFit.pull(4, 34))   // never apart
+    }
+
+    @Test fun onlyWhatFollowsTheNumberMoves() {
+        // [vibrate 40][number 60][trend 22][wifi 40], all shown; pull 8 after the number (index 1)
+        val w = listOf(40, 60, 22, 40)
+        val all = Fit(listOf(0, 1, 2, 3), null)
+        assertEquals(listOf(0, 56, 132, 170) to 210, IconFit.place(w, all, sp, dot))
+        // the trend 8 px closer to the number, wifi keeps its 16 px from the trend, the row 8 px narrower
+        assertEquals(listOf(0, 56, 124, 162) to 202, IconFit.place(w, all, sp, dot, pullAfter = 1, pull = 8))
+    }
+
+    @Test fun theDotComesFirstAndAPairAtTheEndStillPulls() {
+        val w = listOf(40, 60, 22)
+        val f = Fit(listOf(1, 2), 0)
+        assertEquals(listOf(48, 124) to 32 + 16 + 60 + 16 + 22, IconFit.place(w, f, sp, dot))
+        assertEquals(listOf(48, 116) to 32 + 16 + 60 + 16 + 22 - 8, IconFit.place(w, f, sp, dot, pullAfter = 1, pull = 8))
+    }
+
+    @Test fun nothingToPullWhenTheNumberIsLastOrHidden() {
+        val w = listOf(40, 60)
+        assertEquals(listOf(0, 56) to 116, IconFit.place(w, Fit(listOf(0, 1), null), sp, dot, pullAfter = 1, pull = 8))
+        assertEquals(listOf(48) to 88, IconFit.place(w, Fit(listOf(0), 1), sp, dot, pullAfter = 1, pull = 8))
+    }
+
+    /**
+     * [IconFit.CARD_GAP_OF_DIGIT] is the card's own gap: the renderer's geometry ([ValueGlyphs]: the mark's box
+     * [ValueGlyphs.MARK_GAP] after the number's advance, the arrow drawn [ValueGlyphs.ARROW_IN_BOX] × its
+     * [ValueGlyphs.MARK_BOX] box, centred) with the card's font (the digits' right side bearing), ink to ink, averaged
+     * over the digits and the 5° arrow angles, per height of the digit "0".
+     */
+    @Test fun theGapIsTheCardsGap() {
+        val font = generateSequence(java.io.File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+            .map { java.io.File(it, "spikes/showcase-android/app/src/main/assets/fonts/GoogleSansFlexRounded-700.ttf") }.first { it.isFile }
+        val f = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, font).deriveFont(1000f)
+        val frc = java.awt.font.FontRenderContext(null, true, true)
+        fun glyph(c: Char) = f.createGlyphVector(frc, c.toString()).let { it.getGlyphOutline(0).bounds2D to it.getGlyphMetrics(0).advance }
+        val t = 1000.0
+        val bearing = "0123456789".map { glyph(it).let { (b, adv) -> adv - b.maxX } }.average()
+        val box = ValueGlyphs.MARK_BOX * t
+        val scale = box * ValueGlyphs.ARROW_IN_BOX
+        val s = ValueGlyphs.ARROW_SHAFT
+        val outline = listOf(s[0] to s[1], s[2] to s[1], s[2] to s[3], s[0] to s[3]) + ValueGlyphs.ARROW_HEAD
+        val inset = (-90..90 step 5).map { deg ->
+            val r = Math.toRadians(deg.toDouble())
+            box / 2 + outline.minOf { (x, y) -> (x * Math.cos(r) - y * Math.sin(r)) * scale }
+        }.average()
+        val gap = (ValueGlyphs.MARK_GAP * t + bearing + inset) / glyph('0').first.height
+        assertEquals("the card's number → arrow gap per digit height", gap, IconFit.CARD_GAP_OF_DIGIT.toDouble(), 0.005)
     }
 
     // --- "after X" when X is hidden ------------------------------------------------------------------------------

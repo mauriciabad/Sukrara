@@ -44,6 +44,10 @@ object RootStatusBar {
     private val OUR_DESCRIPTIONS = listOf("Glucose ", "No glucose readings since ", "Sensor ended")   // i18n-ok: SystemUI icon descriptions
     fun isOurDescription(d: String) = OUR_DESCRIPTIONS.any(d::startsWith)
 
+    /** The trend slot's text beside a number ("Glucose trend ↗"): tells the module which of the pair it is (hookIconFit's gap). */
+    const val TREND_DESCRIPTION = "Glucose trend "   // i18n-ok: SystemUI icon description
+    fun isTrendDescription(d: String) = d.startsWith(TREND_DESCRIPTION)
+
     /** One thread: the daemon's stdin/stdout protocol is strictly request → reply. */
     private val io = Executors.newSingleThreadExecutor()
     @Volatile var state: String = "off"; private set
@@ -139,8 +143,11 @@ object RootStatusBar {
         app.mauri.sukrara.graph.SensorBadge.look(app.mauri.sukrara.core.SensorLife.current.value, nowS, r?.t),
         app.mauri.sukrara.graph.CardSurface.STATUS_ICONS)
 
-    /** What the two slots show: drawable names (null = remove the slot) and what TalkBack says. */
-    data class IconPlan(val trend: String?, val number: String?, val desc: String)
+    /**
+     * What the two slots show: drawable names (null = remove the slot) and what TalkBack says ([desc] on the number, or
+     * on the single icon in the trend slot; [trendDesc] on the trend beside a number).
+     */
+    data class IconPlan(val trend: String?, val number: String?, val desc: String, val trendDesc: String = desc)
 
     /**
      * The system icons for a [look] ([GlucoseCard.face], the user 2026-10-21): the number and the trend while fresh or
@@ -164,14 +171,15 @@ object RootStatusBar {
                 look.strike -> "sb_t_none_s"
                 else -> "sb_t_none"
             }
-            IconPlan(trend, number, "${OUR_DESCRIPTIONS[0]}${look.text} mg/dL ${if (look.strike) "(old)" else Trend.arrow(r?.rate)}")   // i18n-ok: SystemUI icon description
+            val mark = if (look.strike) "(old)" else Trend.arrow(r?.rate)   // i18n-ok: SystemUI icon description
+            IconPlan(trend, number, "${OUR_DESCRIPTIONS[0]}${look.text} mg/dL $mark", "$TREND_DESCRIPTION$mark")
         }
     }
 
     private fun show(ctx: Context, plan: IconPlan) {
         // External icons are placed first (leftmost), newest first: add the trend before the number.
         if (plan.trend == null) send(ctx, "remove $SLOT_TREND")
-        else if (!send(ctx, "set $SLOT_TREND ${res(ctx, plan.trend)} 0 ${plan.desc}")) return
+        else if (!send(ctx, "set $SLOT_TREND ${res(ctx, plan.trend)} 0 ${if (plan.number == null) plan.desc else plan.trendDesc}")) return
         if (plan.number == null) send(ctx, "remove $SLOT_NUMBER")
         else send(ctx, "set $SLOT_NUMBER ${res(ctx, plan.number)} 0 ${plan.desc}")
     }
