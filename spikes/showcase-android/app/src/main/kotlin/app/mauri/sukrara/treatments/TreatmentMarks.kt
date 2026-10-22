@@ -208,10 +208,10 @@ object TreatmentMarks {
      *    without it, lane 1 without it (only when amounts show), that has a free place ([place]). A group with none
      *    gets no label.
      *
-     * [reserve] = a box of lane 0 that is already taken (the sensor badge at the row's start, [app.mauri.sukrara.graph.GlucoseGraph.sensorTop]).
+     * Nothing else takes room in the lanes: the sensor badge is drawn over the row, masking what passes under it.
      */
     fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float,
-               reserve: Pair<Float, Float>? = null, show: MarkShow = MarkShow.DEFAULT): Layout {
+               show: MarkShow = MarkShow.DEFAULT): Layout {
         val items = list.filter { !it.del && amount(it) != null && show.label(it.k) }
             .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.a }, { it.id }))
         val groups = ArrayList<MutableList<Treatment>>()
@@ -223,7 +223,6 @@ object TreatmentMarks {
         val size = LABEL_DP * d
         val gap = LABEL_GAP_DP * d
         val taken = List(2) { ArrayList<Pair<Float, Float>>() }
-        reserve?.let { taken[0] += it }
         val labels = ArrayList<Label>()
         val dropped = ArrayList<List<Treatment>>()
         for (g in groups.sortedByDescending { it.last().t }) {

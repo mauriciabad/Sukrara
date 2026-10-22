@@ -27,6 +27,8 @@
   {"column": "chart.values", "labels": "chart.values.label", "align": "left", "gap": 3,
    "about": "The values on the right of the plot (mg/dL), the same rule mirrored (the user, 2026-10-21: 'can this margin fix logic also be applied to the right axis labels?'): column left (the plot's right edge) → every label's left = gap, widest label's right → column right = gap."}
  ],
+ "badge": {"compare": ["default", "sensor-off"], "elements": ["chart.label", "chart.lane2", "chart.plot", "time.text"],
+  "about": "The sensor badge never moves a label (the user, 2026-10-22: a label passing it took a second row under it and came back, the chart jumping): every render with the badge (settings 'default') and without it ('sensor-off'), same surface, size and scene, lays out the treatment labels (boxes), the second label row, the plot and the hour labels the same; the badge is drawn over the row with its outline erased (BADGE_CUT_DP). Scene 'live' has a labelled treatment right at the window's start, under the badge. CardLayoutTest and -graphselftest."},
  "treatmentLabels": {"maxHours": 24,
   "about": "A chart whose window is longer than this (zoomed far out, a long widget) draws no treatment labels (amounts, times): they would only crowd (the user, 2026-10-21: 'when I zoom out a lot, the treatment labels become irrelevant'). Points and mute lines still follow the mark settings; the second label row and the label lane go with the labels (a scrolling surface eases them). Both renderers' constants equal it; the scroll cases check a window over it shows no chart.label and one within it does (CardLayoutTest, -graphselftest)."},
  "distribution": {"pitch": 3.6, "dot": 1.35, "cut": 3,

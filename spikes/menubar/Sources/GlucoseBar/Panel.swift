@@ -448,4 +448,23 @@ final class KeyPanel: NSPanel {
     var onCancel: (() -> Void)?
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { onCancel?() }
+
+    /// A trackpad pinch goes to the card's chart straight from the window: AppKit didn't route it through the SwiftUI
+    /// hosting view to the card in this non-activating panel (2026-10-22: "I pinch on the trackpad and nothing
+    /// happens"; scroll events did arrive). The card under the pointer gets it, else the panel's one card (a pinch
+    /// anywhere on the dropdown zooms its chart, anchored where the pointer is). `ScrollSelfTest.throughThePanel`.
+    override func sendEvent(_ e: NSEvent) {
+        if e.type == .magnify || e.type == .smartMagnify, let card = card(at: e.locationInWindow) {
+            if e.type == .magnify { card.magnify(with: e) } else { card.smartMagnify(with: e) }
+            return
+        }
+        super.sendEvent(e)
+    }
+
+    private func card(at p: NSPoint) -> CardView? {
+        var cards: [CardView] = []
+        func walk(_ v: NSView) { if let c = v as? CardView { cards.append(c) }; v.subviews.forEach(walk) }
+        if let c = contentView { walk(c) }
+        return cards.first { $0.bounds.contains($0.convert(p, from: nil)) } ?? (cards.count == 1 ? cards[0] : nil)
+    }
 }

@@ -406,6 +406,22 @@ class CardLayoutTest {
             if (seen == 0) problems += "${g.getString("column")}: no render shows it (gaps rule untested)"
         }
 
+        // the sensor badge never moves a label (rules.json "badge"): with and without it, the same layout
+        val badge = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONObject("badge")
+        val (withBadge, noBadge) = badge.getJSONArray("compare").let { it.getString(0) to it.getString(1) }
+        val badgeEls = badge.getJSONArray("elements").let { a -> (0 until a.length()).map(a::getString).toSet() }
+        fun badgeDesc(r: Render) = r.layouts.flatMap { l -> l.elements.filter { it.name in badgeEls }.map { e ->
+            "${e.name} ${e.info}" + (e.box?.let { b -> " @${CardLayout.dp(b.left, l.d)},${CardLayout.dp(b.top, l.d)},${CardLayout.dp(b.right, l.d)},${CardLayout.dp(b.bottom, l.d)}" } ?: "")
+        } }.sorted()
+        var badgeCompared = 0
+        for (r in renders.filter { it.settings == withBadge && it.layouts.any { l -> l.all("chart.sensor").any { e -> !e.info.contains("(no room)") } } }) {
+            val o = renders.firstOrNull { it.surface == r.surface && it.size == r.size && it.scene == r.scene && it.settings == noBadge } ?: continue
+            badgeCompared++
+            val a = badgeDesc(r); val b = badgeDesc(o)
+            if (a != b) problems += "badge on $r (${r.scene}): the layout changes with the sensor badge:\n      with    ${a - b.toSet()}\n      without ${b - a.toSet()}"
+        }
+        if (badgeCompared == 0) problems += "badge: no render shows the sensor badge (rule untested)"
+
         // the distribution's erased outline: the dots plus one constant margin (rules.json "distribution"), everywhere
         val dist = JSONObject(File(dir(), "layout/rules.json").readText()).getJSONObject("distribution")
         fun off(v: Float, k: String) = kotlin.math.abs(v - dist.getDouble(k)) > 1e-4

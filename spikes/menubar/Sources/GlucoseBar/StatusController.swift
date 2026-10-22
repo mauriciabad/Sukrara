@@ -469,6 +469,12 @@ final class CardView: NSView {
         zoom(by: 1 + Double(e.magnification), anchor: anchor(e))
     }
 
+    /// A two-finger double tap (smart zoom): back and forth between the place's window and 3 h there.
+    override func smartMagnify(with e: NSEvent) {
+        guard style.graph != nil, plot != nil else { return super.smartMagnify(with: e) }
+        zoom(by: scrollSpan == nil ? baseSpan / (3 * 3600) : span / baseSpan, anchor: anchor(e))
+    }
+
     /// Move the window's end by `dt` s, within the history; at now it follows now again.
     func scroll(by dt: TimeInterval) {
         let n = nowT

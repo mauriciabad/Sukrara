@@ -60,16 +60,6 @@
                 "labels": [
                   {"ids": ["c1"], "text": "20g", "lane": 0, "x": 10},
                   {"ids": ["r1"], "text": "2u 4h 7m", "lane": 0, "x": 54}]}},
-    {"name": "the first 4×2 case with the sensor badge (13d) at the row's start: the left label keeps clear of it", "chart": {"w": 300, "h": 93}, "hours": 12, "pct": true, "sensor": "13d", "marks": "all", "treatments": [{"id": "old", "k": "carbs", "a": 20, "t": -48000}, {"id": "c1", "k": "carbs", "a": 5, "t": -40800}, {"id": "c2", "k": "carbs", "a": 5, "t": -39900}, {"id": "c3", "k": "carbs", "a": 15, "t": -2400}, {"id": "r1", "k": "rapid", "a": 2, "t": -1200}],
-     "expect": {"plot": [43, 273.5], "lanes": 2, "dropped": [],
-                "labels": [
-                  {"ids": ["c1", "c2"], "text": "5g · 5g 11h", "lane": 0, "x": 66},
-                  {"ids": ["r1", "c3"], "text": "2u · 15g 20m", "lane": 0, "x": 264}]}},
-    {"name": "the same in one lane (80 dp)", "chart": {"w": 300, "h": 80}, "hours": 12, "pct": true, "sensor": "13d", "marks": "all", "treatments": [{"id": "old", "k": "carbs", "a": 20, "t": -48000}, {"id": "c1", "k": "carbs", "a": 5, "t": -40800}, {"id": "c2", "k": "carbs", "a": 5, "t": -39900}, {"id": "c3", "k": "carbs", "a": 15, "t": -2400}, {"id": "r1", "k": "rapid", "a": 2, "t": -1200}],
-     "expect": {"plot": [43, 273.5], "lanes": 1, "dropped": [],
-                "labels": [
-                  {"ids": ["c1", "c2"], "text": "5g · 5g 11h", "lane": 0, "x": 66},
-                  {"ids": ["r1", "c3"], "text": "2u · 15g 20m", "lane": 0, "x": 264}]}},
     {"name": "defaults (no marks key): carbs show only their point, so the meal's label is the insulin alone with its own time and the snack has none", "chart": {"w": 300, "h": 93}, "hours": 3, "pct": true, "treatments": [{"id": "r1", "k": "rapid", "a": 4, "t": -3840}, {"id": "c1", "k": "carbs", "a": 40, "t": -3780}, {"id": "c2", "k": "carbs", "a": 15, "t": -1500}, {"id": "l1", "k": "long", "a": 18, "t": -600}],
      "expect": {"plot": [43, 273.5], "lanes": 2, "dropped": [],
                 "labels": [
