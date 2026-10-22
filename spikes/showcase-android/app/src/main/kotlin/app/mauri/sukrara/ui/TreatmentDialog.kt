@@ -91,12 +91,16 @@ import java.util.Calendar
  * keyboard's Next walks rapid → long → carbs → note, and Done on the note saves. Units are lowercase with no space
  * ("4.5u", "30g").
  *
+ * [focus] (`carbs` / `rapid`): the field the card's *Eat carbs* / *Take insulin* pill asks for ([PillAction]); null =
+ * the rule above. Cancel, back and a tap outside close it with nothing saved, back where the user was.
+ *
  * [onOpenApp] adds an *Open Sukrara* action (for the quick dialog, where tapping no longer opens the app).
  * [inWindow] draws the dialog surface in the caller's own window instead of a `Dialog` window: the quick activity
  * draws its own scrim (a `Dialog` window over a translucent activity got neither the dim nor the keyboard).
  */
 @Composable
-fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false) {
+fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onOpenApp: (() -> Unit)? = null, inWindow: Boolean = false,
+                    focus: String? = null) {
     val rapidState = rememberTextFieldState()
     val longState = rememberTextFieldState()
     val carbsState = rememberTextFieldState()
@@ -132,7 +136,8 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val low = remember {
         AlertStatus.level(RecentHistory.readings(ctx).lastOrNull(), Alerts.settings.value, nowS) in Kind.LOW_SIDE
     }
-    LaunchedEffect(Unit) { (if (low) carbsFocus else first).requestFocus() }
+    // [focus] from the card's pill (Eat carbs → carbs, Take insulin → rapid) wins over the low rule
+    LaunchedEffect(Unit) { (if (focus == "carbs" || focus == null && low) carbsFocus else first).requestFocus() }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
     val card: @Composable () -> Unit = {

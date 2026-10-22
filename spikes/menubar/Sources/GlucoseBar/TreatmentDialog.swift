@@ -207,15 +207,16 @@ enum TreatmentForm {
     @Published var at: Int64?
     /// Minutes before the moment of saving (the picker's minutes-ago mode), instead of `at`; nil = not relative.
     @Published var ago: Int?
-    /// The latest reading is low: the carbs field takes the focus (eating is what's needed).
-    var low = false
+    /// The field that takes the focus: "carbs" (the latest reading is low, or the card's *Eat carbs* pill) or "rapid"
+    /// (otherwise, or *Take insulin*); Android's dialog decides the same (TreatmentDialog.kt `focus`).
+    var focus = "rapid"
     var settings: () -> AlertSettings = { AlertSettings() }
     var mirroring: () -> Bool = { false }
     var onSave: (([Treatment]) -> Void)?
     var onClose: (() -> Void)?
     private var saved = false
 
-    func reset(low: Bool) { f = .init(); at = nil; ago = nil; self.low = low; saved = false }
+    func reset(focus: String) { f = .init(); at = nil; ago = nil; self.focus = focus; saved = false }
 
     /// When the entries happen, for a save or the quiet line at `now` (epoch s).
     func when(now: Int64) -> Int64 { ago.flatMap { TreatmentForm.agoTime(now: now, minutes: $0) } ?? at ?? now }
@@ -295,7 +296,7 @@ struct TreatmentDialogView: View {
         .fixedSize(horizontal: false, vertical: true)
         .animation(.default, value: model.quiet)
         .animation(.default, value: model.f.invalid)
-        .onAppear { DispatchQueue.main.async { focus = model.low ? .carbs : .rapid } }
+        .onAppear { DispatchQueue.main.async { focus = model.focus == "carbs" ? .carbs : .rapid } }
     }
 
     private func label(_ k: String) -> some View {
@@ -447,9 +448,11 @@ struct TimePicker: View {
         model.onClose = { [weak self] in self?.window?.close() }
     }
 
-    func show(low: Bool, on screen: NSScreen? = nil) {
+    /// `focus`: the field to focus ("carbs" / "rapid"). Cancel / Escape closes it with nothing saved; the dropdown it
+    /// came from closed when it opened, so the Mac is back where it was.
+    func show(focus: String, on screen: NSScreen? = nil) {
         if let w = window, w.isVisible { NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil); return }
-        model.reset(low: low)
+        model.reset(focus: focus)
         let host = NSHostingController(rootView: TreatmentDialogView(model: model))
         host.sizingOptions = [.preferredContentSize]
         let w = NSWindow(contentViewController: host)
@@ -500,6 +503,8 @@ struct TimePicker: View {
             ("when-time", AnyView(TimePicker(at: nil, ago: nil, pick: { _, _ in }, cancel: {}))),
             ("when-minutes-ago", AnyView(TimePicker(at: nil, ago: 15, pick: { _, _ in }, cancel: {}))),
             ("add-treatment-16-min-ago", AnyView(TreatmentDialogView(model: model))),
+            // round f33: what the card's Eat carbs pill opens (carbs asked for; no key window here, so no focus ring)
+            ("add-treatment-eat-carbs", AnyView(TreatmentDialogView(model: { let m = TreatmentDialogModel(); m.focus = "carbs"; return m }()))),
         ]
         var windows: [(NSWindow, NSView, String)] = []
         for (name, view) in shots {

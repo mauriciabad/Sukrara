@@ -356,6 +356,8 @@
     <string name="badge_replace_sensor">Replace sensor</string>
     <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
     <string name="badge_replace_sensor_short">Sensor</string>
+    <!-- Value card: TalkBack action label of a mute's pill ("45m left", "Muted"): opens its unmute / change options [CHAR LIMIT=30] -->
+    <string name="card_pill_alert_options">Show alert options</string>
     <!-- Chart: the pill over a chart scrolled into the past; a tap scrolls back to the latest reading [CHAR LIMIT=10] -->
     <string name="chart_back_to_now">Now</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->

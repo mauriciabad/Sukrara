@@ -44,11 +44,73 @@ import SwiftUI
     @Published var quiet: [Alerts.Active] = []
     var onQuiet: ((QuietOp) -> Void)?
 
-    var onAddTreatment: (() -> Void)?
+    /// Add Treatment with a field focused: nil from *Add Treatment…*, "carbs" / "rapid" from the card's pill (PillAction).
+    var onAddTreatment: ((String?) -> Void)?
     var onFollow: (() -> Void)?
     var onReport: (() -> Void)?
     var onTreatments: (() -> Void)?
     var onSettings: (() -> Void)?
+}
+
+/// What a click on the card's status pill does (round f33, the user: "tapping Eat carbs does nothing"); Android decides
+/// the same (ui/PillAction.kt): *Eat carbs* / *Take insulin* → Add Treatment with the carbs / rapid field focused where
+/// this Mac may log; a side's mute pill → its ways out; Mute all's pill → its menu (Unmute, Change Time).
+enum PillAction: Equatable {
+    case treat(String), quiet(AlertKind), muteAll, none
+
+    static func of(_ s: AlertStatus, canAdd: Bool) -> PillAction {
+        switch s {
+        case .none: .none
+        case .needed(let k): canAdd ? .treat(k.lowSide ? "carbs" : "rapid") : .none
+        case .taken(let k, _, _), .paused(let k, _): .quiet(k)
+        case .muted: .muteAll
+        }
+    }
+
+    /// VoiceOver's name for what pressing the pill does.
+    var actionName: String? {
+        switch self {
+        case .treat: "Add Treatment"
+        case .quiet, .muteAll: "Show Alert Options"
+        case .none: nil
+        }
+    }
+
+    static func selfTest() -> Bool {
+        let all: [AlertStatus] = [.needed(.low), .needed(.veryLow), .needed(.high), .needed(.veryHigh), .needed(.extremelyHigh),
+                                  .paused(.low, until: 100), .paused(.high, until: AlertStatus.never), .muted(until: 100),
+                                  .muted(until: AlertStatus.never)]
+        var ok = true
+        func check(_ name: String, _ c: Bool) { print("\(c ? "ok  " : "FAIL") pill: \(name)"); ok = ok && c }
+        check("every pill has an action where entries can be added", all.allSatisfy { of($0, canAdd: true) != .none })
+        check("Eat carbs → carbs", of(.needed(.low), canAdd: true) == .treat("carbs") && of(.needed(.veryLow), canAdd: true) == .treat("carbs"))
+        check("Take insulin → rapid", of(.needed(.high), canAdd: true) == .treat("rapid"))
+        check("no pill, no action", of(.none, canAdd: true) == .none)
+        check("a Mac that can't log gets no Add Treatment", of(.needed(.low), canAdd: false) == .none)
+        // the real card: a low reading draws Eat carbs; VoiceOver sees a button that presses like a click on the pill
+        MainActor.assumeIsolated {
+            let now = Date().timeIntervalSince1970
+            let v = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 196))
+            v.now = Date(timeIntervalSince1970: now)
+            v.readings = (0..<12).map { GraphReading(t: now - Double(11 - $0) * 300, v: 62) }
+            v.alerts = AlertSettings()
+            v.canAddTreatment = true
+            var clicked = 0
+            v.onStatus = { _, _ in clicked += 1 }
+            let cs = CGColorSpaceCreateDeviceRGB()
+            if let ctx = CGContext(data: nil, width: 340, height: 196, bitsPerComponent: 8, bytesPerRow: 0, space: cs,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                v.paint(ctx, size: CGSize(width: 340, height: 196), MacSurface.materialPalette(dark: false, increaseContrast: false))
+            }
+            let e = v.pillElement()
+            check("Eat carbs is a VoiceOver button", e?.accessibilityRole() == .button && e?.accessibilityLabel() == "Eat carbs"
+                  && e?.accessibilityHelp() == "Add Treatment")
+            check("pressing it acts like a click on the pill", e?.accessibilityPerformPress() == true && clicked == 1)
+            v.canAddTreatment = false
+            check("no Add Treatment where this Mac can't log", v.pillElement() == nil)
+        }
+        return ok
+    }
 }
 
 /// A way out of a quiet alert (or into one, from the same list): the panel's rows, the pill's menu, Settings › Alerts.
@@ -145,7 +207,7 @@ struct PanelView: View {
                     // on a second line, like a macOS 14.4+ menu item subtitle, so it's seen without hovering; the
                     // tooltip repeats it (HIG "Offering help": context-sensitive tooltips).
                     PanelRow(title: "Add Treatment…", detail: model.canLog ? nil : model.logBlocked, shortcut: "↩",
-                             enabled: model.canLog, action: { model.onAddTreatment?() })
+                             enabled: model.canLog, action: { model.onAddTreatment?(nil) })
                         .keyboardShortcut(.defaultAction)
                         .help(model.canLog ? "" : model.logBlocked ?? "")
                 }
@@ -363,10 +425,17 @@ private struct CardRep: NSViewRepresentable {
         v.alerts = model.alerts
         v.paused = model.paused
         v.allMuted = model.allMuted
-        // a click on the "45m left" pill opens its ways out as a menu (the same as the rows under the card)
+        v.canAddTreatment = model.canLog
+        // a click on the pill (round f33): Eat carbs / Take insulin → Add Treatment with that field focused; a mute's
+        // pill ("45m left", "Muted") → its ways out as a menu (the same as the rows under the card)
         v.onStatus = { [weak model] box, view in
-            let line = MuteCopy.allLine(until: model?.allMuted ?? 0, now: Date().timeIntervalSince1970)
-            guard let model, !model.quiet.isEmpty || line != nil else { return }
+            guard let model else { return }
+            let now = Date().timeIntervalSince1970
+            let status = model.alerts.map { AlertStatus.of(model.readings.last, $0, model.marks, now: now, paused: model.paused,
+                                                           allMuted: model.allMuted) } ?? .none
+            if case .treat(let field) = PillAction.of(status, canAdd: model.canLog) { model.onAddTreatment?(field); return }
+            let line = MuteCopy.allLine(until: model.allMuted, now: now)
+            guard !model.quiet.isEmpty || line != nil else { return }
             let menu = quietMenu(model.quiet, allMuted: line) { model.onQuiet?($0) }
             menu.popUp(positioning: nil, at: NSPoint(x: box.minX, y: box.maxY + 4), in: view)
         }
