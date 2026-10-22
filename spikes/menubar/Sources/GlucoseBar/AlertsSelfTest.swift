@@ -182,6 +182,44 @@ enum AlertsSelfTest {
         // 5b. This Mac's notifications in every state of SPEC §2 "States and exits" (a recorder, no notification center).
         MainActor.assumeIsolated { AlertsNotifySelfTest.run { check($0, $1, $2) } }
 
+        // 5c. The mute / remind-less lines (round f31): MuteCopy builds every case of spikes/alerts/copy.json (en), the
+        //     same file Android's MuteCopyTest reads (en + es).
+        let copyURL = AlertScenarios.dir()?.deletingLastPathComponent().appendingPathComponent("copy.json")
+        let copyCases = copyURL.flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["cases"] as? [[String: Any]] ?? []
+        check("copy.json found with cases", !copyCases.isEmpty, copyURL?.path ?? "no spikes/alerts")
+        var states = Set<String>()
+        for c in copyCases {
+            let st = c["state"] as? String ?? "", side = c["side"] as? String ?? ""
+            func n(_ k: String) -> Int { (c[k] as? NSNumber)?.intValue ?? -1 }
+            states.insert(st)
+            let mine: String? = switch st {
+            case "side_muted": MuteCopy.sideMuted(side, leftMin: n("leftMin"))
+            case "side_less": MuteCopy.sideLess(side, intervalMin: n("intervalMin"))
+            case "all_timed": MuteCopy.allTimed(leftMin: n("leftMin"))
+            case "all_forever": MuteCopy.allForever
+            case "notif_title": MuteCopy.notifTitle(side)
+            case "notif_text": MuteCopy.notifText(until: c["until"] as? String ?? "")
+            case "pill": MuteCopy.pill(leftMin: n("leftMin"))
+            case "pill_forever": MuteCopy.pillForever
+            case "choice": MuteCopy.choice(n("min"))
+            case "choice_forever": MuteCopy.choiceForever
+            default: nil
+            }
+            check("copy: \(st)\(side.isEmpty ? "" : " \(side)") = \"\(c["en"] as? String ?? "")\"", mine == c["en"] as? String, mine ?? "unknown state")
+        }
+        let now0: TimeInterval = 1_800_000_000
+        check("copy: allLine counts down from the end (72 min, then 1 min until it is over, then nothing)",
+              MuteCopy.allLine(until: now0 + 72 * 60, now: now0) == "Alerts muted · 1 h 12 min left"
+              && MuteCopy.allLine(until: now0 + 72 * 60, now: now0 + 71 * 60 + 1) == "Alerts muted · 1 min left"
+              && MuteCopy.allLine(until: now0 + 72 * 60, now: now0 + 72 * 60) == nil
+              && MuteCopy.allLine(until: AlertStatus.never, now: now0) == MuteCopy.allForever)
+        check("copy: the pill and VoiceOver say the same", StatusBadge.look(.muted(until: now0 + 72 * 60), now: now0)?.text == "Muted · 1h 12m"
+              && StatusBadge.describe(.muted(until: now0 + 72 * 60), now: now0) == "Alerts muted · 1 h 12 min left"
+              && StatusBadge.describe(.paused(.veryLow, until: now0 + 12 * 60), now: now0) == "Low alerts muted · 12 min left"
+              && StatusBadge.describe(.muted(until: AlertStatus.never), now: now0) == MuteCopy.allForever,
+              StatusBadge.describe(.paused(.veryLow, until: now0 + 12 * 60), now: now0) ?? "nil")
+
         print(ok ? "alerts self-test OK" : "alerts self-test FAILED")
         // 6. The card's status (CardStatusTest.kt): units, durations, AlertStatus, LastTreatment, badge, slot priority,
         //    the graph settings' lastPlace / lastElse keys.

@@ -86,7 +86,7 @@ class QuietGallery {
         compose.setContent { SettingsTheme { GlucosePanel(r.sgv, r.rate, r.t) } }
         compose.waitForIdle()
         save("android-home-relaxed", compose.onRoot().captureToImage().asAndroidBitmap())
-        compose.onNode(androidx.compose.ui.test.hasText("Low relaxed: reminders every 30 min")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Low reminders every 30 min")).assertExists()
     }
 
     @Test fun sheetFromThePill() {
@@ -96,6 +96,20 @@ class QuietGallery {
         compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
         compose.waitForIdle()
         save("android-sheet-muted-relaxed", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted · 30 min left")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Low reminders every 30 min")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Remind as usual")).assertExists()
+    }
+
+    /** Round f31: a side's mute alone, its line counting down in the sheet. */
+    @Test fun sheetSideMuted() {
+        low()
+        Alerts.mute(ctx, Kind.LOW, 90)
+        compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
+        compose.waitForIdle()
+        save("android-sheet-muted", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted · 1 h 30 min left")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Remind less")).assertExists()
     }
 
     @Test fun alertsPageActiveNow() {

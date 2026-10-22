@@ -1,0 +1,30 @@
+{
+  "_about": [
+    "THE mute / remind-less state lines (round f31; the user, 2026-10-22: 'muted alerts should show a countdown, and the",
+    "Never option makes no sense … figure out the best copywriting'). Android alerts/MuteCopy.kt (en + es, MuteCopyTest)",
+    "and Mac MuteCopy (en, -alerts-selftest) build every line from these cases. Wording after AOSP Do Not Disturb",
+    "(core/res zen_mode_forever 'Until you turn off' / 'Hasta que lo desactives', zen_mode_until 'Until %1$s',",
+    "zen_mode_duration_hours 'For 1 hour' / 'Durante 1 hora'). Durations through Durations.text (lines) and",
+    "Durations.compact (the card pill). 'side' = the side's alerts: low (very low too), high (very high, extremely high",
+    "too), falling_fast, rising_fast, no_data. es side names: de glucosa baja, de glucosa alta, de bajada rápida, de",
+    "subida rápida, sin datos."
+  ],
+  "cases": [
+    {"state": "side_muted", "side": "low", "leftMin": 12, "en": "Low alerts muted · 12 min left", "es": "Alertas de glucosa baja silenciadas · quedan 12 min"},
+    {"state": "side_muted", "side": "high", "leftMin": 90, "en": "High alerts muted · 1 h 30 min left", "es": "Alertas de glucosa alta silenciadas · quedan 1 h 30 min"},
+    {"state": "side_muted", "side": "no_data", "leftMin": 60, "en": "No data alerts muted · 1 h left", "es": "Alertas sin datos silenciadas · queda 1 h"},
+    {"state": "side_less", "side": "low", "intervalMin": 30, "en": "Low reminders every 30 min", "es": "Avisos de glucosa baja cada 30 min"},
+    {"state": "side_less", "side": "rising_fast", "intervalMin": 60, "en": "Rising fast reminders every 1 h", "es": "Avisos de subida rápida cada 1 h"},
+    {"state": "all_timed", "leftMin": 72, "en": "Alerts muted · 1 h 12 min left", "es": "Alertas silenciadas · quedan 1 h 12 min"},
+    {"state": "all_timed", "leftMin": 1, "en": "Alerts muted · 1 min left", "es": "Alertas silenciadas · queda 1 min"},
+    {"state": "all_forever", "en": "Alerts muted until you turn it off", "es": "Alertas silenciadas hasta que lo desactives"},
+    {"state": "notif_title", "side": "low", "en": "Low alerts muted", "es": "Alertas de glucosa baja silenciadas"},
+    {"state": "notif_text", "until": "10:42", "en": "Until 10:42", "es": "Hasta las 10:42"},
+    {"state": "pill", "leftMin": 72, "en": "Muted · 1h 12m", "es": "Silenciadas · 1 h 12 min"},
+    {"state": "pill_forever", "en": "Muted", "es": "Silenciadas"},
+    {"state": "choice", "min": 30, "en": "For 30 min", "es": "Durante 30 min"},
+    {"state": "choice", "min": 60, "en": "For 1 h", "es": "Durante 1 h"},
+    {"state": "choice", "min": 480, "en": "For 8 h", "es": "Durante 8 h"},
+    {"state": "choice_forever", "en": "Until you turn it off", "es": "Hasta que lo desactives"}
+  ]
+}

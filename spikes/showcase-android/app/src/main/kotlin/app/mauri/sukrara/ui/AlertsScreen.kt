@@ -38,6 +38,7 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSounds
 import app.mauri.sukrara.alerts.Alerts
 import app.mauri.sukrara.alerts.Kind
+import app.mauri.sukrara.alerts.MuteCopy
 import app.mauri.sukrara.alerts.KindCfg
 import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.settings.NumberSpec
@@ -182,9 +183,10 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
             }
         } }
         // Active now (round f29, f30): Mute all and every muted / quiet / relaxed alert on this phone with its ways out
-        // (Turn alerts back on, Unmute, Alert me anyway, Change, Stop relaxing), all reachable without the notification
+        // (Unmute, Alert me anyway, Change time, Remind as usual), all reachable without the notification; the lines
+        // tick down with the mutes (round f31)
         if (active.isNotEmpty() || allMuted != 0L) {
-            val t = nowSeconds()
+            val t = nowSeconds(countdowns = active.map { it.until } + allMuted)
             SettingsGroup(stringResource(R.string.alerts_active_now)) {
                 if (allMuted != 0L) card { MuteAllState(allMuted, onChange = { muteAll = true }) }
                 for (a in active) card { QuietRow(a, t) }
@@ -234,7 +236,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         SettingsGroup(stringResource(R.string.alerts_group_actions)) {
             value(stringResource(R.string.alerts_action_mute), Durations.text(s.actionMuteMin),
                 enabled = s.on, icon = R.drawable.ic_sym_notifications_off) { minutes = "action" }
-            value(stringResource(R.string.alerts_action_relax), stringResource(R.string.alerts_action_relax_summary, Durations.text(s.relaxMin)),
+            value(stringResource(R.string.alerts_action_remind_less), stringResource(R.string.alerts_action_remind_less_summary, Durations.text(s.relaxMin)),
                 enabled = s.on, icon = R.drawable.ic_sym_snooze) { minutes = "relax" }
             // both end once back in range by the margin, for long enough (SPEC §2): glucose that oscillates at the edge stays quiet
             value(stringResource(R.string.alerts_back_mgdl), stringResource(R.string.alerts_back_mgdl_value, s.backMgdl),
@@ -267,7 +269,7 @@ fun AlertsScreen(follower: Boolean, onBack: () -> Unit) {
         "action" -> IntNumberDialog(stringResource(R.string.alerts_action_mute), S.ACTION_MUTE, s.actionMuteMin, minLabel,
             { minutes = null }) { m -> set { it.copy(actionMuteMin = m) } }
         // only intervals slower than every level alert's repeat: the button shows on all of them (SPEC §3)
-        "relax" -> IntNumberDialog(stringResource(R.string.alerts_action_relax), S.ACTION_RELAX, s.relaxMin,
+        "relax" -> IntNumberDialog(stringResource(R.string.alerts_action_remind_less), S.ACTION_RELAX, s.relaxMin,
             { stringResource0(ctx, R.string.alerts_remind_every, Durations.text(it)) }, { minutes = null },
             presets = s.relaxChoices(), customMin = (s.relaxFloor() + 1).coerceIn(S.ACTION_RELAX.min.toInt(), S.ACTION_RELAX.max.toInt())) { m ->
             set { it.copy(relaxMin = m) } }
@@ -291,8 +293,10 @@ private fun quietReason(ctx: Context, m: String): String {
     Regex("^(insulin|carbs) (.+) ago$").find(m)?.let { r ->
         return ctx.getString(if (r.groupValues[1] == "insulin") R.string.alerts_quiet_reason_insulin else R.string.alerts_quiet_reason_carbs, d(r.groupValues[2]))
     }
-    Regex("^muted from the notification, (.+) left$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_notification, d(r.groupValues[1])) }
-    Regex("^muted \\(all alerts\\), (.+) left$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_all, d(r.groupValues[1])) }
+    // the time left as the mute lines say it ("12 min left" / "quedan 12 min", MuteCopy.left)
+    fun left(s: String) = Durations.parse(s)?.let { MuteCopy.left(ctx, it.toLong()) } ?: s
+    Regex("^muted from the notification, (.+) left$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_notification, left(r.groupValues[1])) }
+    Regex("^muted \\(all alerts\\), (.+) left$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_all, left(r.groupValues[1])) }
     if (m == "all alerts muted") return ctx.getString(R.string.alerts_quiet_reason_all_never)
     Regex("^falling, back in range in ~(.+)$").find(m)?.let { r -> return ctx.getString(R.string.alerts_quiet_reason_falling, d(r.groupValues[1])) }
     return m
@@ -305,12 +309,12 @@ private fun noteText(ctx: Context, n: AlertNote): String {
         AlertNote.FIRED -> ctx.getString(if (n.remote) R.string.alerts_note_fired_remote else R.string.alerts_note_fired,
             AlertNotifier.headline(ctx, k, n.treated) + if (n.n > 1) " (${n.n})" else "", n.sgv?.toString() ?: "–")
         AlertNote.CLEARED -> ctx.getString(if (n.remote) R.string.alerts_note_cleared_remote else R.string.alerts_note_cleared, AlertNotifier.label(ctx, k))
-        AlertNote.MUTED -> ctx.getString(if (n.notification) R.string.alerts_note_muted_notification else R.string.alerts_note_muted,
-            AlertNotifier.label(ctx, k), Durations.text(n.n))
-        AlertNote.RELAXED -> ctx.getString(R.string.alerts_note_relaxed, AlertNotifier.label(ctx, k), Durations.text(n.n))
-        AlertNote.UNMUTED -> ctx.getString(R.string.alerts_note_unmuted, AlertNotifier.label(ctx, k))
-        AlertNote.UNRELAXED -> ctx.getString(R.string.alerts_note_unrelaxed, AlertNotifier.label(ctx, k), Durations.text(n.n))
-        AlertNote.BACK -> ctx.getString(R.string.alerts_note_back, AlertNotifier.label(ctx, k))
+        // a side's mute and remind less name the side (MuteCopy, round f31): "Low alerts muted for 1 h"
+        AlertNote.MUTED -> ctx.getString(R.string.alerts_note_muted, MuteCopy.side(ctx, k), Durations.text(n.n))
+        AlertNote.RELAXED -> MuteCopy.sideLess(ctx, k, n.n)
+        AlertNote.UNMUTED -> ctx.getString(R.string.alerts_note_unmuted, MuteCopy.side(ctx, k))
+        AlertNote.UNRELAXED -> ctx.getString(R.string.alerts_note_unrelaxed, MuteCopy.side(ctx, k), Durations.text(n.n))
+        AlertNote.BACK -> ctx.getString(R.string.alerts_note_back, MuteCopy.side(ctx, k))
         AlertNote.ALL_MUTED -> if (n.n == Alerts.NEVER_MIN) ctx.getString(R.string.alerts_note_all_muted_never)
             else ctx.getString(R.string.alerts_note_all_muted, Durations.text(n.n))
         AlertNote.ALL_BACK -> ctx.getString(R.string.alerts_note_all_back)

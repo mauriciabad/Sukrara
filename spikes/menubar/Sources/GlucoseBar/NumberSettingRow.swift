@@ -198,7 +198,7 @@ enum NumberFormat {
         case "none": "None"
         case "same_as_default": "Same as default"
         case "every_reading": "Every reading"
-        case "never": "Never"
+        case "never": MuteCopy.choiceForever
         default: special
         }
     }

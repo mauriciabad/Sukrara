@@ -130,7 +130,11 @@ object SukraraHooks {
 
     fun refresh(c: Context, reason: String, force: Boolean = false) {
         val app = c.applicationContext
-        scope.launch { WidgetUpdater.refreshSafely(app, reason, force) }
+        scope.launch {
+            WidgetUpdater.refreshSafely(app, reason, force)
+            // a mute started, changed or ended: the next redraw of its countdown (FreshnessTicker.next, round f31)
+            runCatching { FreshnessTicker.replan(app) }
+        }
     }
 
     /** Android 15+ picker previews; once per app version (the system rate-limits the call). */

@@ -41,7 +41,7 @@ source**), then **Install**. [Obtainium](https://obtainium.imranr.dev/) can keep
   <img src="img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid and long insulin, carbs and a note at once" width="330">
 </p>
 <p>
-  <img src="img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Relax" width="300">
+  <img src="img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Remind less" width="300">
   <img src="img/notification/alert-muted.png" alt="After Mute…: the alert says Low muted until 3:24 AM, with Unmute and Change…" width="300">
 </p>
 <p>

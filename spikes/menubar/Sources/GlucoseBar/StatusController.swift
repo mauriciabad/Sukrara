@@ -70,7 +70,7 @@ extension Bands {
 
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
-    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
+    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?, muteTimer: Timer?
     private var clockObservers: [NSObjectProtocol] = []
 
     override init() {
@@ -217,11 +217,20 @@ extension Bands {
             : "Sukrara · reading at \(Clock.time(snap.latest.date))"
         button.setAccessibilityLabel(title.image == .noReadings ? "Glucose: no reading since \(Clock.time(snap.latest.date))" : title.label)
         // Mute all (round f30): the "notifications off" bell before the value, while it lasts, and in the tooltip
-        if let line = Self.mutedLine(alertAllMuted?() ?? 0, now: nowT) {
+        let allEnd = alertAllMuted?() ?? 0
+        muteTimer?.invalidate(); muteTimer = nil
+        if let line = MuteCopy.allLine(until: allEnd, now: nowT) {
             button.attributedTitle = Self.withMutedBell(button.attributedTitle, line: line, attrs)
             if button.imagePosition == .imageOnly { button.imagePosition = .imageTrailing }
             button.toolTip = (button.toolTip ?? "Sukrara") + " · " + line
             button.setAccessibilityLabel(button.accessibilityLabel().map { "\($0), \(line)" } ?? line)
+            // the tooltip / VoiceOver line counts down: redraw when its minutes left change (aligned to the end)
+            if allEnd < AlertStatus.never {
+                let next = allEnd - TimeInterval(MuteCopy.leftMin(allEnd - nowT) - 1) * 60
+                let t = Timer(timeInterval: max(1, next - nowT + 0.5), repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
+                RunLoop.main.add(t, forMode: .common)
+                muteTimer = t
+            }
         }
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
         if let sl {
@@ -295,11 +304,6 @@ extension Bands {
         return t
     }
 
-    /// "Alerts muted until 14:30" / "Alerts muted" (Never) while Mute all `until` (unix s) lasts, else nil.
-    static func mutedLine(_ until: TimeInterval, now: TimeInterval) -> String? {
-        guard until > now else { return nil }
-        return until >= AlertStatus.never ? "Alerts muted" : "Alerts muted until \(Clock.time(Date(timeIntervalSince1970: until)))"
-    }
 
     private func marks() -> [GraphMark] {
         (treatments?() ?? []).filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
@@ -641,15 +645,15 @@ struct MenubarTitle: Equatable {
 }
 
 /// `-menubarSnapshot <png>` (evidence, round f30): the status item's title as `render` builds it (the card's face for
-/// a synthetic reading, the arrow, Mute all's bell): plain, Mute all until a time, Mute all with Never, on a light and a
+/// a synthetic reading, the arrow, Mute all's bell and its tooltip line): plain, Mute all for a time, until turned off, on a light and a
 /// dark menu bar. Offline like every `-…Snapshot` run (LaunchGuard): nothing starts.
 @MainActor enum MenubarSnapshot {
     static func render(to path: String) {
         let now = Date().timeIntervalSince1970
         let r = GraphReading(t: now - 30, v: 161, rate: 0.6)
         let title = MenubarTitle.of(GlucoseCard.face(r, now: now, sensor: nil, surface: .menubarTitle))
-        let rows: [(String, TimeInterval)] = [("not muted", 0), ("Mute all 1 h 20 min", now + 80 * 60), ("Mute all Never", AlertStatus.never)]
-        let cell = NSSize(width: 190, height: 24), scale: CGFloat = 3
+        let rows: [(String, TimeInterval)] = [("not muted", 0), ("Mute all 1 h 20 min", now + 80 * 60), ("Mute all until turned off", AlertStatus.never)]
+        let cell = NSSize(width: 240, height: 24), scale: CGFloat = 3
         let size = NSSize(width: cell.width * 2, height: cell.height * CGFloat(rows.count))
         let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -667,11 +671,12 @@ struct MenubarTitle: Equatable {
                     let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
                                                                 .foregroundColor: color]
                     var t = NSAttributedString(string: title.text, attributes: attrs)
-                    if let line = StatusController.mutedLine(row.1, now: now) { t = StatusController.withMutedBell(t, line: line, attrs) }
+                    if let line = MuteCopy.allLine(until: row.1, now: now) { t = StatusController.withMutedBell(t, line: line, attrs) }
                     let x = CGFloat(col) * cell.width + 10
                     t.draw(at: NSPoint(x: x, y: y + 4))
                     TrendArrow.image(rate: r.rate, size: 15, color: color).draw(in: NSRect(x: x + t.size().width + 2, y: y + 4.5, width: 15, height: 15))
-                    NSAttributedString(string: row.0, attributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor])
+                    // the label: the tooltip / VoiceOver line render adds (MuteCopy.allLine), else the row's name
+                    NSAttributedString(string: MuteCopy.allLine(until: row.1, now: now) ?? row.0, attributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor])
                         .draw(at: NSPoint(x: x + 72, y: y + 7))
                 }
             }

@@ -35,27 +35,27 @@ class AlertExitsTest {
         k.tap(Kind.LOW, "Mute…", typed = "30 min")
         k.tap(Kind.LOW, "Unmute")
         assertEquals("Low glucose", k.title(Kind.LOW))   // still low: at once, with its buttons back
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         assertFalse(k.silent(Kind.LOW))
         assertTrue(Alerts.active.value.isEmpty())
         assertTrue(Alerts.paused.value.isEmpty())
-        assertEquals(listOf("Low glucose (2) · 65 mg/dL", "Low unmuted"), k.history().take(2))
+        assertEquals(listOf("Low glucose (2) · 65 mg/dL", "Low alerts unmuted"), k.history().take(2))
     }
 
     @Test fun changeOnTheMutedNotificationSetsANewEnd() {
         k.start()
         k.reading(65)
         k.tap(Kind.LOW, "Mute…", typed = "30 min")
-        k.tap(Kind.LOW, "Change…", typed = "2 h")
-        assertTrue(k.title(Kind.LOW)!!.startsWith("Low muted until "))
-        assertEquals(listOf("Unmute", "Change…"), k.buttons(Kind.LOW))
+        k.tap(Kind.LOW, "Change time", typed = "2 h")
+        assertTrue(k.title(Kind.LOW) == "Low alerts muted")
+        assertEquals(listOf("Unmute", "Change time"), k.buttons(Kind.LOW))
         assertTrue(k.notification(Kind.LOW)!!.timeoutAfter in 119 * 60_000L..120 * 60_000L)
         assertEquals(k.now + 7200, Alerts.active.value.single().until)
-        assertEquals("Low muted for 2 h (notification)", k.history().first())
+        assertEquals("Low alerts muted for 2 h", k.history().first())
         // the sheet's / Active now's "Change to 15 min": the muted notification follows
         Alerts.mute(k.ctx, Kind.LOW, 15)
         assertTrue(k.notification(Kind.LOW)!!.timeoutAfter in 14 * 60_000L..15 * 60_000L)
-        assertEquals("Low muted for 15 min", k.history().first())
+        assertEquals("Low alerts muted for 15 min", k.history().first())
     }
 
     @Test fun aSideMuteEndsAtItsTimeAndAlertsAtOnce() {
@@ -65,7 +65,7 @@ class AlertExitsTest {
         k.advance(15 * 60L + 1)
         k.reading(64)
         assertEquals("Low glucose", k.title(Kind.LOW))
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         assertFalse(k.silent(Kind.LOW))
         assertTrue(Alerts.paused.value.isEmpty())
     }
@@ -75,14 +75,14 @@ class AlertExitsTest {
         k.reading(65)
         k.tap(Kind.LOW, "Mute…", typed = "1 h")
         k.advance(60); k.reading(85)            // ≥ 70 + 10: back by the margin, the count starts
-        assertTrue(k.title(Kind.LOW)!!.startsWith("Low muted until "))
+        assertTrue(k.title(Kind.LOW) == "Low alerts muted")
         k.advance(5 * 60); k.reading(75)        // crosses back out of the margin: the count restarts
         k.advance(5 * 60); k.reading(85)
         k.advance(9 * 60); k.reading(86)
         assertTrue("not 10 min in a row yet", Alerts.paused.value.containsKey("low"))
         k.advance(60); k.reading(86)            // 10 min in a row
         assertNull(k.notification(Kind.LOW))
-        assertEquals("Low back in range: mute and relax ended", k.history().first())
+        assertEquals("Low back in range: alerts as usual", k.history().first())
         assertTrue(Alerts.paused.value.isEmpty())
         assertTrue(Alerts.active.value.isEmpty())
         k.advance(60); k.reading(65)            // a new low alerts at once
@@ -92,10 +92,10 @@ class AlertExitsTest {
     @Test fun backInRangeByTheMarginEndsRelaxToo() {
         k.start()
         k.reading(65)
-        k.tap(Kind.LOW, "Relax")
+        k.tap(Kind.LOW, "Remind less")
         k.advance(60); k.reading(90)
         k.advance(10 * 60); k.reading(90)
-        assertEquals("Low back in range: mute and relax ended", k.history().first())
+        assertEquals("Low back in range: alerts as usual", k.history().first())
         assertTrue(Alerts.active.value.isEmpty())
     }
 
@@ -118,7 +118,7 @@ class AlertExitsTest {
         assertEquals(AlertEngine.QUIET_CARBS, Alerts.active.value.single().quiet)
         Alerts.unmute(k.ctx, Kind.LOW)          // Alert me anyway
         assertEquals("Low glucose · eat more", k.title(Kind.LOW))
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         assertTrue(Alerts.active.value.isEmpty())
     }
 
@@ -129,7 +129,7 @@ class AlertExitsTest {
         assertEquals(AlertEngine.QUIET_FALLING, Alerts.active.value.single().quiet)
         Alerts.unmute(k.ctx, Kind.HIGH)
         assertEquals("High glucose", k.title(Kind.HIGH))
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.HIGH))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.HIGH))
     }
 
     // ---------------------------------------------------------------- relaxed, muted + relaxed
@@ -138,24 +138,24 @@ class AlertExitsTest {
         k.start()
         k.reading(65)
         Alerts.relax(k.ctx, Kind.LOW)           // the sheet's Relax
-        assertEquals(listOf("Mute…", "Stop relaxing"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind as usual"), k.buttons(Kind.LOW))
         Alerts.unrelax(k.ctx, Kind.LOW)         // the sheet's / Active now's Stop relaxing
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         assertTrue(Alerts.active.value.isEmpty())
     }
 
     @Test fun mutedAndRelaxedTogether() {
         k.start()
         k.reading(65)
-        k.tap(Kind.LOW, "Relax")
+        k.tap(Kind.LOW, "Remind less")
         k.tap(Kind.LOW, "Mute…", typed = "1 h")
-        assertEquals(listOf("Unmute", "Change…"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Unmute", "Change time"), k.buttons(Kind.LOW))
         val a = Alerts.active.value.single()
         assertEquals(AlertEngine.QUIET_NOTIFICATION, a.quiet)
         assertEquals(30, a.relaxMin)
         k.tap(Kind.LOW, "Unmute")
         assertEquals("Low glucose", k.title(Kind.LOW))
-        assertEquals(listOf("Mute…", "Stop relaxing"), k.buttons(Kind.LOW))   // still relaxed
+        assertEquals(listOf("Mute…", "Remind as usual"), k.buttons(Kind.LOW))   // still relaxed
         assertEquals("Reminders every 30 min", k.sub(Kind.LOW))
     }
 
@@ -182,8 +182,8 @@ class AlertExitsTest {
         Alerts.unmuteAll(k.ctx)                 // Turn alerts back on: still extremely high, at once
         assertEquals(0L, Alerts.allMuted.value)
         assertEquals("Extremely high glucose", k.title(Kind.EXTREMELY_HIGH))
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.EXTREMELY_HIGH))
-        assertTrue(k.history().take(3).toString(), "Alerts back on" in k.history().take(3))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.EXTREMELY_HIGH))
+        assertTrue(k.history().take(3).toString(), "Alerts unmuted" in k.history().take(3))
         assertTrue(Alerts.paused.value.isEmpty())
     }
 
@@ -192,7 +192,7 @@ class AlertExitsTest {
         k.reading(120)
         Alerts.muteAll(k.ctx, Alerts.NEVER_MIN)
         assertEquals(AlertEngine.NEVER, Alerts.allMuted.value)
-        assertEquals("All alerts muted until turned back on", k.history().first())
+        assertEquals("All alerts muted until you turn it off", k.history().first())
         assertEquals(AlertStatus.Muted(AlertEngine.NEVER), k.status(120))
         k.advance(2 * 86_400L)                  // two days without readings: no "no data" either
         Alerts.check(k.ctx)
@@ -201,7 +201,7 @@ class AlertExitsTest {
         assertTrue(k.nm.activeNotifications.isEmpty())
         Alerts.unmuteAll(k.ctx)
         assertEquals("Very low glucose", k.title(Kind.VERY_LOW))
-        assertEquals("Alerts back on", k.history()[1])
+        assertEquals("Alerts unmuted", k.history()[1])
     }
 
     @Test fun muteAllEndsAtItsTime() {
@@ -212,7 +212,7 @@ class AlertExitsTest {
         k.reading(64)
         assertEquals("Low glucose", k.title(Kind.LOW))
         assertEquals(0L, Alerts.allMuted.value)
-        assertTrue(k.history().toString(), "Alerts back on" in k.history())
+        assertTrue(k.history().toString(), "Alerts unmuted" in k.history())
     }
 
     @Test fun muteAllSurvivesARestart() {
@@ -236,15 +236,15 @@ class AlertExitsTest {
         k.start(role = "follower")
         k.reading(65)
         k.remote(Kind.LOW, "a1", "fire", 65)
-        assertEquals(listOf("Mute…", "Relax"), k.buttons(Kind.LOW))
+        assertEquals(listOf("Mute…", "Remind less"), k.buttons(Kind.LOW))
         k.tap(Kind.LOW, "Mute…", typed = "1 h")
-        assertTrue(k.title(Kind.LOW)!!.startsWith("Low muted until "))
+        assertTrue(k.title(Kind.LOW) == "Low alerts muted")
         k.advance(60); k.remote(Kind.LOW, "a1", "fire", 64, n = 2)
-        assertTrue(k.title(Kind.LOW)!!.startsWith("Low muted until "))   // the wearer's repeat stays quiet here
+        assertTrue(k.title(Kind.LOW) == "Low alerts muted")   // the wearer's repeat stays quiet here
         k.advance(60); k.reading(85)
         k.advance(10 * 60); k.reading(85)
         assertNull(k.notification(Kind.LOW))    // back by the margin on the readings this phone gets
-        assertEquals("Low back in range: mute and relax ended", k.history().first())
+        assertEquals("Low back in range: alerts as usual", k.history().first())
         Alerts.muteAll(k.ctx, 60)
         k.advance(60); k.remote(Kind.VERY_LOW, "a2", "fire", 50)
         assertNull(k.notification(Kind.VERY_LOW))

@@ -581,8 +581,9 @@ final class AlertEngine {
         let quietUntil = [muteEnd(e.side, t), all].compactMap { $0 }.max()
         if let q = quietUntil {
             hide(e, t)
-            e.muted = all == Self.never ? "all alerts muted"
-                : "muted \(q == all ? "(all alerts)" : "from the notification"), \(Durations.text(seconds: q.timeIntervalSince(t))) left"
+            // an end, not a countdown: this line is built at the check, not each minute
+            e.muted = q >= Self.never ? MuteCopy.choiceForever.lowercased()
+                : "\(q == all ? "all alerts " : "")until \(Clock.time(q))"
             e.next = q
             return
         }
@@ -843,19 +844,22 @@ final class AlertEngine {
     struct Active: Equatable {
         var kind: AlertKind; var quiet: AlertEngine.Quiet.Why?; var until: Date?; var relaxMin: Int
         var canRelax: Bool; var mirrored: Bool
-        /// "Low muted until 10:42", "Low quiet after carbs until 10:42", "Low relaxed: reminders every 30 min".
-        var title: String {
+        /// "Low alerts muted · 12 min left" (MuteCopy; the views tick it down), "Low quiet after carbs until 10:42",
+        /// "Low reminders every 30 min".
+        func title(now: Date) -> String {
             let t = until.map { Clock.time($0) } ?? ""
             switch quiet {
-            case .notification: return "\(kind.title) muted until \(t)"
+            case .notification: return MuteCopy.sideMuted(kind.side, leftMin: MuteCopy.leftMin(until.map { $0.timeIntervalSince(now) } ?? 0))
             case .carbs: return "\(kind.title) quiet after carbs until \(t)"
             case .insulin: return "\(kind.title) quiet after insulin until \(t)"
             case .falling: return "\(kind.title) quiet: falling back into range"
             case nil: return relaxedLine
             }
         }
-        /// "Low relaxed: reminders every 30 min" (also the second line of a muted + relaxed side).
-        var relaxedLine: String { "\(kind.title) relaxed: reminders every \(Durations.text(relaxMin))" }
+        /// "Low reminders every 30 min" (Remind Less; also the second line of a muted side that reminds less).
+        var relaxedLine: String { MuteCopy.sideLess(kind.side, intervalMin: relaxMin) }
+        /// A notification Mute (it counts down; the treatment quiets say their end).
+        var ticks: Bool { quiet == .notification && until != nil }
         /// The main way out: Unmute (a notification mute) or Alert Me Anyway (a treatment / falling mute here).
         var lift: String? {
             if quiet == .notification { return "Unmute" }
@@ -886,16 +890,14 @@ final class AlertEngine {
     /// *Mute all*'s end (nil = off; `AlertEngine.never` = until turned back on).
     var allMutedUntil: Date? { allMuted > now().timeIntervalSince1970 ? Date(timeIntervalSince1970: allMuted) : nil }
 
-    /// "Alerts muted until 14:30" / "Alerts muted" (Never) / nil: the dropdown row, Settings › Alerts, the menu bar.
-    var allMutedLine: String? {
-        guard let u = allMutedUntil else { return nil }
-        return u >= AlertEngine.never ? "Alerts muted" : "Alerts muted until \(Clock.time(u))"
-    }
+    /// "Alerts muted · 1 h 12 min left" / "Alerts muted until you turn it off" / nil (MuteCopy.allLine): the dropdown
+    /// row, Settings › Alerts, the menu bar; the views tick it down.
+    var allMutedLine: String? { MuteCopy.allLine(until: allMuted, now: now().timeIntervalSince1970) }
 
     /// *Unmute* / *Alert Me Anyway* on `k`'s side, this Mac only: still out of range → it alerts now; back in range →
     /// nothing. The "muted until" notification goes; the card, the widgets and the ring redraw at once.
     func unmute(_ k: AlertKind) {
-        log("alerts: \(k.title) unmuted")
+        log("alerts: \(MuteCopy.side(k.side)) alerts unmuted")
         let g = k.group
         if mutedNote.removeValue(forKey: g) != nil { remove(g, "unmuted") }
         if mirrors(k) {
@@ -927,7 +929,7 @@ final class AlertEngine {
 
     /// *Stop relaxing* on `k`'s side, this Mac only: the kind's interval again (an overdue repeat now).
     func unrelax(_ k: AlertKind) {
-        log("alerts: \(k.title) back to every \(Durations.text(settings[k].repeatMin))")
+        log("alerts: \(MuteCopy.side(k.side)) reminders as usual (every \(Durations.text(settings[k].repeatMin)))")
         if mirrors(k) {
             if let id = mirror.unrelax(k, at: now()), let ev = remoteNewest[k.group], ev.id == id {
                 mirrored[k.group] = ev
@@ -951,7 +953,7 @@ final class AlertEngine {
     func muteAll(minutes: Int) {
         let t = now()
         let until = minutes <= 0 ? AlertEngine.never : t.addingTimeInterval(TimeInterval(minutes * 60))
-        log("alerts: \(minutes <= 0 ? "all alerts muted until turned back on" : "all alerts muted for \(Durations.text(minutes))")")
+        log("alerts: \(minutes <= 0 ? "All alerts muted until you turn it off" : "All alerts muted for \(Durations.text(minutes))")")
         for g in mirror.muteAll(until: until) { mirrored[g] = nil; remove(g, "all alerts muted") }
         engine.levelAndRate = mode == .own
         muting = true
@@ -969,7 +971,7 @@ final class AlertEngine {
     /// once, the wearer's newest alerts still up included.
     func unmuteAll() {
         guard allMutedUntil != nil else { return }
-        log("alerts: alerts back on")
+        log("alerts: Alerts unmuted")
         let t = now()
         for id in mirror.unmuteAll(at: t) {
             guard let (g, ev) = remoteNewest.first(where: { $0.value.id == id }) else { continue }
@@ -987,19 +989,20 @@ final class AlertEngine {
     /// notification goes, the badge and the panel follow.
     private func backInRange(_ side: String) {
         let k = AlertKind.main(side)
-        log("alerts: \(k.title) back in range: mute and relax ended")
+        log("alerts: \(MuteCopy.side(k.side)) back in range: alerts as usual")
         if mutedNote.removeValue(forKey: k.group) != nil { remove(k.group, "back in range") }
         updatePaused(force: true)
     }
 
-    /// The silent "Low muted until 10:42" notification with *Unmute* and *Change…* (the alert's own went when its
+    /// The silent "Low alerts muted" / "Until 10:42" notification with *Unmute* and *Change Time…* (the alert's own went when its
     /// button was used: macOS removes a notification once an action is chosen). Passive: no sound, no banner over Focus.
     private func postMuted(_ k: AlertKind, until: Date) {
         guard poster != nil else { return }
         mutedNote[k.group] = until
         let c = UNMutableNotificationContent()
-        c.title = "\(k.title) muted until \(Clock.time(until))"
-        if let (ev, m) = shownEvents[k.group] { c.body = text(ev, mirrored: m).1 }
+        // Mac notifications can't count down: the end time (MuteCopy, copy.json notif_title / notif_text)
+        c.title = MuteCopy.notifTitle(k.side)
+        c.body = MuteCopy.notifText(until: Clock.time(until))
         c.threadIdentifier = "sukrara-alerts"
         c.userInfo = ["k": k.rawValue]
         c.categoryIdentifier = "muted"
@@ -1180,16 +1183,17 @@ final class AlertEngine {
 
     // MARK: notification actions (SPEC §2)
 
-    /// The notification categories (round f30): every alert, every kind, has exactly two actions, *Mute…* (a text
-    /// input: a typed length, empty = `muteMin`) and *Relax* / *Stop relaxing*; an alert whose repeats Relax wouldn't
-    /// slow has Mute… alone. The muted notification: *Unmute* + *Change…* (the same input).
+    /// The notification categories (round f30, f31 copy): every alert, every kind, has exactly two actions, *Mute…* (a
+    /// text input: a typed length, empty = `muteMin`) and *Remind Less* / *Remind as Usual*; an alert whose repeats
+    /// Remind Less wouldn't slow has Mute… alone. The muted notification: *Unmute* + *Change Time…* (the same input).
+    /// Title-style buttons (HIG); the ellipsis = more input follows.
     nonisolated static func categories() -> Set<UNNotificationCategory> {
         let mute = UNTextInputNotificationAction(identifier: "mute", title: "Mute…", options: [],
                                                  textInputButtonTitle: "Mute", textInputPlaceholder: "30 min, 1 h, 2 h…")
-        let relax = UNNotificationAction(identifier: "relax", title: "Relax")
-        let unrelax = UNNotificationAction(identifier: "unrelax", title: "Stop relaxing")
+        let relax = UNNotificationAction(identifier: "relax", title: "Remind Less")
+        let unrelax = UNNotificationAction(identifier: "unrelax", title: "Remind as Usual")
         let unmute = UNNotificationAction(identifier: "unmute", title: "Unmute")
-        let change = UNTextInputNotificationAction(identifier: "mute", title: "Change…", options: [],
+        let change = UNTextInputNotificationAction(identifier: "mute", title: "Change Time…", options: [],
                                                    textInputButtonTitle: "Mute", textInputPlaceholder: "30 min, 1 h, 2 h…")
         return [
             UNNotificationCategory(identifier: "alert-r", actions: [mute, relax], intentIdentifiers: []),
@@ -1218,7 +1222,8 @@ final class AlertEngine {
         let r = AlertActions.muteRange
         let m = Swift.min(Swift.max(min ?? settings.notificationActions.muteMin, r.lowerBound), r.upperBound)
         let until = now().addingTimeInterval(TimeInterval(m * 60))
-        log("alerts: \(relax ? "\(k.title) relaxed: every \(Durations.text(settings.notificationActions.relaxMin))" : "\(k.title) muted for \(Durations.text(m))") (notification)")
+        let side = MuteCopy.side(k.side)
+        log("alerts: \(relax ? "\(side) reminders every \(Durations.text(settings.notificationActions.relaxMin))" : "\(side) alerts muted for \(Durations.text(m))")")
         let wasMuted = paused[k.side] != nil
         if mirrors(k) {
             if relax { mirror.relax(k, relaxMin: settings.notificationActions.relaxMin); repost(k.group) }
