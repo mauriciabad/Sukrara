@@ -31,6 +31,61 @@ Scope rule: fewer, well-chosen features. One setting (the priming size), one his
 4. **Rarely asked, quickly answered**: only genuinely unclear doses ask, with the likely answer one tap away.
 5. **Every automatic decision is visible and reversible**: what was logged, what was merged, what was priming.
 
+## 1b. The person outside the app
+
+**Why they want it** (what it takes off their mind):
+- *"Did I inject?"*: the classic fear of a missed or doubled dose. The pen knows; tapping it answers, even when nothing
+  is new (*Nothing new · Last injection: 8.5u at 13:12*). Also the reason the card always names the time.
+- *Typing every dose*: the chore, the typos, and the time drift (typed at the table, injected 10 min later).
+- *The doctor's report*: LibreView gets the injected amounts at the pen's time, priming left out.
+- *The people who follow them*: followers see the injection without asking "did you bolus?".
+- *Alerts after a meal*: Sukrara's quiet-after-insulin counts from the entry's time, so a prompt tap keeps the post-meal
+  highs quiet; a late tap still logs the right time but only quiets what's left.
+
+**Where the tap really happens**, and what each place needs:
+
+| Context | Needs | In the spec |
+|---|---|---|
+| Restaurant after lunch, others around | discreet, one move, no sound, nothing big on screen; rapid + long in one go | silent card at the bottom, haptic only; *Add treatment* (§4.1); a second pen's tap gets its own card |
+| Night, dark room, half asleep | no light burst, no sound, no decision | card follows the dark theme; no sound; unclear doses wait until morning (card + silent notification) |
+| In a hurry / walking | tap and go; if it didn't read, nothing is lost | **No vibration = not read.** The pen keeps ~800 doses, so the next tap catches up with the right times. Said once, in the setup and the page intro (below). |
+| Phone locked / in the pocket | Android reads tags only unlocked; a tap on a locked phone does nothing and the user may walk away thinking it logged | the "no vibration" rule; the stale-read line on home (below) catches the forgotten case |
+| Bag, phone case, pen cap on | know where to hold | the phone's NFC spot from `NfcAntennaInfo` (as on the sensor scan screen) drawn in the setup; engineer verifies cap on / thick case on the Pixel and puts the result in the setup copy |
+| Travel (time zones, flight mode) | right times, no surprises | pen times become absolute at the read (epoch), so time zones don't matter; NFC works in flight mode; uploads catch up later |
+| Forgot to tap for days | nothing lost, no flood, no guilt | the pen keeps the doses; the next tap logs them at their real times, merging what was typed (rule 6, rule 11); home says when the pen was last read once that is over a day |
+
+**Triggers (when to tap) and gentle prompts.** The moment to tap is right after injecting, usually after logging carbs.
+Adopted, all passive (no notification, never near the glucose value or alerts, each shown at most once per meal):
+1. **After carbs, no insulin yet**: when a carbs entry is saved and a pen is known, the treatments list shows one quiet
+   line for 60 min (or until a rapid entry exists within 30 min of the carbs): *Injected? Hold your pen to the phone.*
+   / *¿Te has inyectado? Acerca tu pluma al teléfono.* (bodySmall, outline colour, like the empty-list tip).
+2. **Typed rapid while a pen is known**: the save confirmation on home shows once a day at most, three times in total:
+   snackbar *Next time, just tap your pen* / *La próxima vez, solo acerca tu pluma*. (The entry is merged with the pen
+   dose on the next read anyway.)
+3. **Pen not read for over 24 h** (pen known, reading on): the treatments list title row ends with *Pen read 2d ago* /
+   *Pluma leída hace 2d* (labelMedium, onSurfaceVariant); tapping it opens the pen page. Gone at the next read.
+Rejected: a post-meal-rise detector ("rising, no insulin logged") and anything on the alert notifications (it would
+compete with alerts and guess wrong whenever they injected but didn't tap); scheduled meal-time reminders (nagging).
+
+**Discovery** (someone with a NovoPen who never set it up):
+- **The tap itself is the discovery.** The pen filter is enabled by default (state *Ask*), so the first pen tap shows
+  the card *Log this pen in Sukrara?* / *¿Registrar esta pluma en Sukrara?* · *NovoPen Echo Plus* · pills *Turn on* /
+  *Activar* and *No* / *No*. *Turn on* = reading on + the new-pen card (§4.1). *No* = reading off and the filter
+  disabled, never asked again (Settings turns it on). Nothing is logged before *Turn on*. Not shown on followers.
+- No home banner (rejected: it would push the glucose card down for a feature many users don't need). The Insulin pens
+  row in Settings and search are the other ways in.
+
+**Platform tech**, adopted: `enableReaderMode` with `FLAG_READER_NO_PLATFORM_SOUNDS` in the treatment dialog and the
+sensor screen (our own haptics, no system beep in a restaurant); `HapticFeedbackConstants.CONFIRM` / `REJECT`;
+`NfcAntennaInfo` (API 34) for where to hold; Android 16 `isTagIntentAllowed` + `ACTION_CHANGE_TAG_INTENT_PREFERENCE`;
+predictive back on every pen sheet and the setup screen (system back animation, `NavigationEvent`); notification
+`VISIBILITY_PRIVATE` with a public version *Pen read* / *Pluma leída* (no amounts on the lock screen in front of
+others); `AccessibilityManager.getRecommendedTimeoutMillis` for the card. Rejected: Android 16 Live Updates / promoted
+ongoing notifications (for ongoing user-started activities like a ride; a read lasts 2 s); NFC observe mode (payments
+/ HCE only); a Quick Settings tile (taps already work everywhere); Health Connect insulin export (an outputs topic,
+not this round); ML priming detection (the rules are explainable and scenario-tested); Wear OS NFC reading (no watch
+app); haptic composition beyond CONFIRM / REJECT (no gain).
+
 ## 2. Terminology (UI words; code names in brackets)
 
 | Concept | en | es | Notes |
@@ -315,10 +370,13 @@ Overview row (wearer only), after *Sensor end*, icon `ic_dia_pen` (custom, Mater
 settings*. Searchable (every row below).
 
 Page:
-- Intro (TopIntroPreference): *Unlock your phone and hold the pen's end to the back of it. Sukrara logs the doses
-  without opening.* / *Desbloquea el teléfono y acerca el extremo de la pluma a su parte trasera. Sukrara registra
-  las dosis sin abrirse.*
-- MainSwitchPreference *Read insulin pens* / *Leer plumas de insulina* (off by default; on enables the NFC component).
+- Intro (TopIntroPreference): *Unlock your phone and hold the pen to the back of it until it vibrates. No vibration?
+  Nothing is lost: the next tap catches up.* / *Desbloquea el teléfono y acerca la pluma a su parte trasera hasta que
+  vibre. ¿No vibra? No se pierde nada: la próxima vez se pone al día.* The same two sentences under the illustration
+  in §4.7.
+- MainSwitchPreference *Read insulin pens* / *Leer plumas de insulina*. Three states: *Ask* (fresh install: switch off,
+  but a pen tap asks once, §1b Discovery; summary *Off · asks when you tap a pen* / *Desactivado · pregunta al acercar
+  una pluma*), on, off (after *No* or turning it off here: taps do nothing).
 - Status rows (only when they apply, the source page's pattern): *NFC is off* · *Turn on NFC* (system NFC settings);
   *Blocked in Android settings · tap to allow* (Android 16+, `ACTION_CHANGE_TAG_INTENT_PREFERENCE`; reuse
   `sensor_launch_on_scan_blocked`); *Juggluco also reads pens* / *Juggluco también lee plumas* · *Turn off its NovoPen
@@ -493,6 +551,13 @@ Synthetic data only, emulator, en and es, light and dark, 360 dp and 412 dp; Tal
 | 40 | Mac | row + disclosure + tooltip without serial (§7); VoiceOver labels; add dialog warning |
 | 41 | es everywhere | every string of §4 in Spanish, *pluma*, *purgado*, no English leftovers; amounts `8.5u` |
 | 42 | TalkBack | read sheet title announced; auto-close waits for focus; dose rows' *Mark as injected / priming* actions; no "u" read as a letter |
+| 44★ | Fresh install, first pen tap | card *Log this pen in Sukrara?* with *Turn on* / *No*; nothing logged; *Turn on* → *New pen added* card; *No* → later taps do nothing, Settings shows the switch off |
+| 45 | Carbs saved, no rapid within 30 min, pen known | one quiet line in the treatments list *Injected? Hold your pen to the phone.*; gone after a pen read or 60 min; nothing near the glucose card, no notification |
+| 46 | Rapid typed by hand, pen known | snackbar *Next time, just tap your pen* at most once a day, three times ever |
+| 47 | Pen last read 2 days ago | treatments title row ends with *Pen read 2d ago*; tap opens the pen page; gone after a read |
+| 48 | Lock screen with a pen-read notification | public version *Pen read*, no amounts |
+| 49 | Pen intro and setup | the "until it vibrates / next tap catches up" lines; the antenna spot drawn where this phone's NFC is |
+| 50 | Predictive back on §4.3, §4.4, §4.5, §4.7 | the system back preview animation, back = Cancel / close |
 | 43 | Outputs | LibreView, Nightscout, Tidepool, graph, insulin mute: the injected amount only; priming nowhere |
 
 ## 10. Review of the Mac snapshots (pen29-mac, 0619cd1a)
