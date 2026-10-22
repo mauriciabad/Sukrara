@@ -1154,6 +1154,10 @@
     <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">Ningún dispositivo</string>
+    <string name="people_nearby_forget">Olvidar</string>
+    <string name="people_nearby_forget_title">¿Olvidar este dispositivo?</string>
+    <string name="people_nearby_forget_text">%1$s dejará de recibir tu glucosa. Para volver a compartir con él, usa Vincular cerca.</string>
+    <string name="people_nearby_forget_confirm">Olvidar dispositivo</string>
     <string name="people_footer">Al quitar a alguien se cambia la clave de lectura, así que deja de recibir lecturas nuevas al instante. Los seguidores a los que permitas añadir registros pueden apuntar insulina, hidratos y notas por ti.</string>
     <string name="people_remove_title">¿Quitar a %1$s?</string>
     <string name="people_remove_text">Deja de recibir lecturas nuevas al instante: Sukrara cambia la clave de lectura y la vuelve a enviar a todos los demás.</string>

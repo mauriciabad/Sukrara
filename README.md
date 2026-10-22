@@ -227,7 +227,7 @@ by the app's icon code.</sub>
   from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all, and see which followers are connected now and on what (phone or Mac; each device proves who it is) (Settings →
-  Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
+  Share with people → Nearby devices; tap one to *Forget* it, and pair it again any time). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,

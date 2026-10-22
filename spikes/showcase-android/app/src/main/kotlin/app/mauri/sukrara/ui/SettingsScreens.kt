@@ -190,6 +190,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     val f by Features.state.collectAsState()
     var choosing by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Follower?>(null) }
+    var device by remember { mutableStateOf<Pair<app.mauri.sukrara.owner.NearbyDevices.Row, String>?>(null) }
     // removed followers stay folded under a pill, like SettingsLib's BannerMessagePreferenceGroup folds dismissed items
     var showRemoved by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val active = u.followers.filter { it.revoked == null }
@@ -241,7 +242,7 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
                         "phone" -> stringResource(R.string.people_nearby_on, fl.name, stringResource(R.string.people_nearby_phone))
                         else -> fl.name
                     }
-                    link(title, state, leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { editing = fl }
+                    link(title, state, leading = { AvatarImage(fl.avatar, fl.name, 40.dp) }) { device = d to title }
                 }
             }
         }
@@ -250,6 +251,39 @@ fun SharingSettings(u: OwnerUi, a: OwnerActions, onBack: () -> Unit) {
     }
     if (choosing) NostrIntervalDialog(f) { choosing = false }
     editing?.let { fl -> FollowerDialog(fl, fl.f in u.writers, a) { editing = null } }
+    device?.let { (d, title) -> NearbyDeviceDialog(d, title, a) { device = null } }
+}
+
+/**
+ * One device in Nearby devices (round f33), like a device's page in Android's Bluetooth settings: its state, and
+ * *Forget* behind a confirmation (AOSP "Forget device?"). Forgetting ends its trust, nearby pairing and stored state
+ * ([app.mauri.sukrara.owner.NearbyDevices.forget]); *Pair nearby* pairs it again.
+ */
+@Composable
+internal fun NearbyDeviceDialog(d: app.mauri.sukrara.owner.NearbyDevices.Row, title: String, a: OwnerActions, onClose: () -> Unit) {
+    var confirming by remember { mutableStateOf(false) }
+    val fl = d.follower
+    if (confirming) AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(stringResource(R.string.people_nearby_forget_title)) },
+        text = { Text(stringResource(R.string.people_nearby_forget_text, title)) },
+        confirmButton = { Button(onClick = { a.forget(fl.f); onClose() }) { Text(stringResource(R.string.people_nearby_forget_confirm)) } },
+        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_cancel)) } },
+    ) else AlertDialog(
+        onDismissRequest = onClose,
+        icon = { AvatarImage(fl.avatar, fl.name, 48.dp) },
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(if (d.connected) R.string.people_nearby_connected else R.string.people_nearby_disconnected),
+                    style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.people_following_since, date(fl.since)), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.settings_dialog_done)) } },
+        dismissButton = { TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.people_nearby_forget)) } },
+    )
 }
 
 /** Sharing over the internet (Nostr relays), on both sharing pages (followers' phones and Macs read from them). */

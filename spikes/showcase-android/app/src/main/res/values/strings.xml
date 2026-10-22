@@ -1314,6 +1314,14 @@
     <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">No devices</string>
+    <!-- Nearby device dialog: button that removes this device's pairing and trust (AOSP Bluetooth "Forget") [CHAR LIMIT=20] -->
+    <string name="people_nearby_forget">Forget</string>
+    <!-- Confirmation title before forgetting a nearby device (AOSP bluetooth_unpair_dialog_title "Forget device?") [CHAR LIMIT=40] -->
+    <string name="people_nearby_forget_title">Forget this device?</string>
+    <!-- Confirmation text; %1$s = the device ("Sam · Mac" or the follower's name) [CHAR LIMIT=NONE] -->
+    <string name="people_nearby_forget_text">%1$s will stop getting your glucose. To share with it again, use Pair nearby.</string>
+    <!-- Confirmation button: forget the device [CHAR LIMIT=20] -->
+    <string name="people_nearby_forget_confirm">Forget device</string>
     <!-- Sharing with people page footer [CHAR LIMIT=NONE] -->
     <string name="people_footer">Removing someone rotates the read key, so they stop receiving new readings at once. Followers you allow to add entries can log insulin, carbs and notes for you.</string>
     <!-- Dialog title; %1$s = follower name [CHAR LIMIT=40] -->

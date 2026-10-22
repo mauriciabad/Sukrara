@@ -74,6 +74,8 @@ interface OwnerActions {
     fun approve(f: String)
     fun deny(f: String)
     fun revoke(f: String)
+    /** Nearby devices → Forget this device (owner/NearbyDevices.forget). */
+    fun forget(f: String)
     fun setSynthetic(on: Boolean)
     fun checkNow()
     suspend fun ncryptsec(password: String): String?
