@@ -16,8 +16,8 @@ enum PinchDiag {
 
     static func log(_ at: String, _ e: NSEvent) {
         guard enabled, types.contains(e.type) else { return }
-        // scroll events come in bursts: the first 40 and then every 20th
-        if e.type == .scrollWheel { scrolls += 1; if scrolls > 40 && scrolls % 20 != 0 { return } }
+        // scroll events come in bursts: the first 40 per dropdown opening (resetScrolls() on open)
+        if e.type == .scrollWheel { scrolls += 1; if scrolls > 40 { return } }
         var s = "pinchdiag \(at): type \(name(e.type)) phase \(e.phase.rawValue) momentum \(e.momentumPhase.rawValue)"
         if e.type == .magnify { s += " magnification \(String(format: "%.4f", e.magnification))" }
         if e.type == .scrollWheel { s += " dx \(e.scrollingDeltaX) dy \(e.scrollingDeltaY) precise \(e.hasPreciseScrollingDeltas)" }
@@ -31,6 +31,33 @@ enum PinchDiag {
         let nsApp: NSApplication? = NSApp
         s += " appActive \(nsApp?.isActive ?? false) keyWindow \(nsApp?.keyWindow.map { String(describing: type(of: $0)) } ?? "nil")"
         GlucoseBar.log(s)
+    }
+
+    static func resetScrolls() { scrolls = 0 }
+
+    /// TEMPORARY: the dropdown's window level and style, switchable without a restart (read on every open; a change
+    /// re-creates the panel): `defaults write <bundle id> pinchdiagLevel popUpMenu|statusBar|mainMenu|floating|normal`
+    /// and `defaults write <bundle id> pinchdiagActivating -bool true` (drops .nonactivatingPanel).
+    struct PanelConfig: Equatable {
+        var levelName: String
+        var level: NSWindow.Level
+        var activating: Bool
+        var styleMask: NSWindow.StyleMask { activating ? [.borderless] : [.borderless, .nonactivatingPanel] }
+        var describe: String { "level \(levelName) (\(level.rawValue)) style \(activating ? "[.borderless] (activating)" : "[.borderless, .nonactivatingPanel]")" }
+    }
+
+    static func panelConfig() -> PanelConfig {
+        let d = UserDefaults.standard
+        let name = d.string(forKey: "pinchdiagLevel") ?? "popUpMenu"
+        let level: NSWindow.Level
+        switch name {
+        case "statusBar": level = .statusBar
+        case "mainMenu": level = .mainMenu
+        case "floating": level = .floating
+        case "normal": level = .normal
+        default: level = .popUpMenu
+        }
+        return PanelConfig(levelName: level == .popUpMenu ? "popUpMenu" : name, level: level, activating: d.bool(forKey: "pinchdiagActivating"))
     }
 
     static func name(_ t: NSEvent.EventType) -> String {

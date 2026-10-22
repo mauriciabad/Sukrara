@@ -386,6 +386,7 @@ private struct CardRep: NSViewRepresentable {
 @MainActor final class GlancePanel: NSObject, NSWindowDelegate {
     let model: PanelModel
     private var panel: KeyPanel?
+    private var diagConfig: PinchDiag.PanelConfig?   // TEMPORARY (PinchDiag)
     private var monitor: Any?
     var onVisible: ((Bool) -> Void)?
     var isVisible: Bool { panel?.isVisible == true }
@@ -400,6 +401,11 @@ private struct CardRep: NSViewRepresentable {
     }
 
     func open(below button: NSStatusBarButton?) {
+        // TEMPORARY (PinchDiag): a changed pinchdiagLevel / pinchdiagActivating re-creates the panel on this open
+        let cfg = PinchDiag.panelConfig()
+        if let old = panel, cfg != diagConfig { old.orderOut(nil); old.delegate = nil; panel = nil }
+        diagConfig = cfg
+        PinchDiag.resetScrolls()
         let p = panel ?? make()
         panel = p
         p.contentView?.layoutSubtreeIfNeeded()
@@ -416,7 +422,7 @@ private struct CardRep: NSViewRepresentable {
         }
         model.tick += 1
         p.makeKeyAndOrderFront(nil)
-        if NSApp != nil { log("pinchdiag open: panel key \(p.isKeyWindow) canBecomeKey \(p.canBecomeKey) appActive \(NSApp.isActive) keyWindow \(NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "nil")") }   // TEMPORARY
+        if NSApp != nil { log("pinchdiag open: \(cfg.describe) styleMask \(p.styleMask.rawValue) actual level \(p.level.rawValue) panel key \(p.isKeyWindow) canBecomeKey \(p.canBecomeKey) appActive \(NSApp.isActive) keyWindow \(NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "nil")") }   // TEMPORARY
         onVisible?(true)
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
@@ -462,12 +468,13 @@ private struct CardRep: NSViewRepresentable {
     }
 
     private func make() -> KeyPanel {
-        let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 400), styleMask: [.borderless, .nonactivatingPanel],
+        let cfg = diagConfig ?? PinchDiag.panelConfig()   // TEMPORARY (PinchDiag): was [.borderless, .nonactivatingPanel], .popUpMenu
+        let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 400), styleMask: cfg.styleMask,
                          backing: .buffered, defer: true)
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = true
-        p.level = .popUpMenu
+        p.level = cfg.level   // TEMPORARY (PinchDiag): .popUpMenu
         p.isReleasedWhenClosed = false
         p.hidesOnDeactivate = false
         p.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
