@@ -123,6 +123,9 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
             link(stringResource(R.string.source_title), sourceSummary(f.source, st.source.removePrefix("direct: ")),
                 leading = { CategoryIcon(R.drawable.ic_dia_sensor, Category.GREEN) }, to = "source")
             link(stringResource(R.string.sensorend_title), sensorEndSummary(), leading = { CategoryIcon(R.drawable.ic_stat_sensor_ended, Category.ORANGE) }, to = "sensorend")   // the status bar's "sensor ended" flag
+            // insulin pens (inv. 29): the wearer's own phone with NFC only (never a follower: it would log into someone else's log)
+            if (app.mauri.sukrara.pen.Pens.available(LocalContext.current)) link(stringResource(R.string.pens_title), pensSummary(),
+                leading = { CategoryIcon(R.drawable.ic_dia_pen, Category.BLUE) }, to = "pens")
         }
         SettingsGroup {
             val n = u.followers.count { it.revoked == null }

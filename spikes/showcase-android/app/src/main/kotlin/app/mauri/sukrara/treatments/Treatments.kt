@@ -8,6 +8,7 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import app.mauri.sukrara.pen.PdDose
 
 /**
  * One insulin / carbs / note entry. Same JSON on disk, over BLE and (later) on Nostr.
@@ -24,21 +25,51 @@ data class Treatment(
     val del: Boolean = false,
     val o: String,              // phone | mac
     val lv: Long = 0,           // the `u` last confirmed uploaded to LibreView
+    // insulin pen entries only (inv. 29, SPEC §1), absent on hand-typed ones; `a` stays the injected units
+    val pr: Double? = null,     // primed units: never insulin, never uploaded
+    val pen: String? = null,    // the pen's serial
+    val pd: List<PdDose>? = null, // its doses, time order
 ) {
     val needsUpload get() = lv < u
 
-    /** The Nostr/BLE v2 body (SPEC §5): `{"v":1,…}` without `lv`. */
+    /**
+     * A pen entry's session may still grow (a top-up within [PEN_SETTLE_S] of its last dose): outputs that keep a copy
+     * (LibreView, Nightscout, Tidepool) wait until then, so a top-up doesn't mean a retraction + re-upload. The log,
+     * the graph, followers and the insulin mute have it at once. Null = ready.
+     */
+    fun heldUntil(nowS: Long): Long? = pd?.maxOfOrNull { it.t }?.plus(PEN_SETTLE_S)?.takeIf { it > nowS && !del }
+
+    /** The Nostr/BLE v2 body (SPEC §5): `{"v":1,…}` without `lv`; the pen keys only on pen entries. */
     fun wire(): org.json.JSONObject = org.json.JSONObject().put("v", 1).put("id", id).put("k", k).put("a", a).put("t", t)
-        .put("n", n).put("u", u).put("del", del).put("o", o)
+        .put("n", n).put("u", u).put("del", del).put("o", o).also { j ->
+            pr?.let { j.put("pr", it) }
+            pen?.let { j.put("pen", it) }
+            pd?.let { l -> j.put("pd", org.json.JSONArray().apply { l.forEach { d -> put(org.json.JSONObject().put("t", d.t).put("a", d.a).put("p", d.p)) } }) }
+        }
 
     companion object {
         /** Parse a v2 body (SPEC §5); null if it isn't a valid treatment. */
         fun fromWire(j: org.json.JSONObject): Treatment? = runCatching {
             val k = j.getString("k").takeIf { it in KINDS } ?: return null
+            val (pr, pen, pd) = penKeys(j)
             Treatment(id = j.getString("id").takeIf { it.isNotEmpty() } ?: return null, k = k, a = j.optDouble("a", 0.0),
                 t = j.getLong("t"), n = clip(j.optString("n")), u = j.getLong("u"), del = j.optBoolean("del", false),
-                o = j.optString("o").ifEmpty { "phone" }.take(16))
+                o = j.optString("o").ifEmpty { "phone" }.take(16), pr = pr, pen = pen, pd = pd)
         }.getOrNull()
+
+        /** The optional pen keys of a v2 body (SPEC §1), bounded; malformed ones are dropped, never the entry. */
+        fun penKeys(j: org.json.JSONObject): Triple<Double?, String?, List<PdDose>?> {
+            val pr = if (j.has("pr")) j.optDouble("pr").takeIf { it.isFinite() && it >= 0 } else null
+            val pen = j.optString("pen").takeIf { j.has("pen") && it.isNotEmpty() }?.take(32)
+            val pd = j.optJSONArray("pd")?.let { a ->
+                (0 until minOf(a.length(), 64)).mapNotNull { i -> a.optJSONObject(i)?.let { d ->
+                    if (!d.has("t") || !d.has("a")) null else PdDose(d.getLong("t"), d.getDouble("a"), d.optBoolean("p", false)) } }
+            }
+            return Triple(pr, pen, pd)
+        }
+
+        /** A pen entry's session is open this long after its last dose (DESIGN §4.1 cluster gap). */
+        const val PEN_SETTLE_S = 600L
 
         val KINDS = listOf("rapid", "long", "carbs", "note")
 
@@ -59,7 +90,7 @@ data class Treatment(
     }
 }
 
-val TreatmentJson = Json { encodeDefaults = true; ignoreUnknownKeys = true }
+val TreatmentJson = Json { encodeDefaults = true; ignoreUnknownKeys = true; explicitNulls = false }
 
 /**
  * The phone's treatment log. Every accepted change gets the next [seq].
@@ -107,6 +138,12 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
         apply(tr.id) { tr }
         return tr
     }
+
+    /**
+     * A pen entry written by the pen engine (inv. 29): stored as given (its `u` is the engine's), keeping the
+     * LibreView watermark of the row it replaces.
+     */
+    fun put(tr: Treatment): Treatment? = apply(tr.id) { cur -> tr.copy(lv = maxOf(cur?.lv ?: 0, tr.lv)) }
 
     fun delete(id: String) = apply(id) { cur ->
         if (cur == null || cur.del) cur else cur.copy(del = true, u = maxOf(System.currentTimeMillis(), cur.u + 1))

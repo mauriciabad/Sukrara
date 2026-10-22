@@ -55,6 +55,7 @@
     "thresholdVeryHigh": {"unit": "mg/dL", "min": 150, "max": 400, "step": 1, "nudge": 5, "presets": [200, 220, 250, 270, 300], "default": 250},
     "thresholdExtremelyHigh": {"unit": "mg/dL", "min": 200, "max": 450, "step": 1, "nudge": 5, "presets": [220, 250, 270, 300, 350], "default": 300},
     "thresholdRate":     {"unit": "mg/dL/min", "min": 0.5, "max": 5, "step": 0.1, "nudge": 0.5, "decimals": 1, "presets": [1, 1.5, 2, 2.5, 3], "default": 2},
+    "penPrimeBelow":     {"unit": "u", "min": 0.5, "max": 5, "step": 0.5, "nudge": 0.5, "decimals": 1, "presets": [1.5, 2, 2.5, 3], "default": 2},
     "thresholdNoData":   {"unit": "min", "min": 5, "max": 240, "step": 1, "nudge": 5, "presets": [10, 15, 20, 30, 60], "default": 20},
     "alertRepeat":   {"unit": "min", "min": 1, "max": 240, "step": 1, "nudge": 5, "presets": [0, 5, 10, 15, 30, 60, 120], "default": 5,
                       "special": {"0": "once"}},
@@ -265,6 +266,15 @@
      "only": {"platform": "android", "reason": "The wearer's phone owns the sensor and reminds its wearer; a Mac follower shows the sensor's time left and countdown ring only"}},
     {"id": "widget.overrides", "section": "graph", "label": "One home screen widget's own window, rings, centre count, side, sensor time", "type": "group", "mirror": false,
      "android": {"store": "graph-widgets", "key": "hours,rings,ringRange,side,sensor"}, "mac": null,
-     "only": {"platform": "android", "reason": "Android widgets are configured per placement (Reconfigure); Mac widgets follow the Widgets place's settings"}}
+     "only": {"platform": "android", "reason": "Android widgets are configured per placement (Reconfigure); Mac widgets follow the Widgets place's settings"}},
+    {"id": "pens.reading", "section": "pens", "label": "Read insulin pens (an NFC tap logs the doses)", "type": "bool", "default": true, "mirror": false,
+     "android": {"store": "features", "key": "penReading"}, "mac": null,
+     "only": {"platform": "android", "reason": "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"}},
+    {"id": "pens.primeBelow", "section": "pens", "label": "Priming is smaller than", "type": "number", "number": "penPrimeBelow", "mirror": false,
+     "android": {"store": "features", "key": "penPrimeBelow"}, "mac": null,
+     "only": {"platform": "android", "reason": "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"}},
+    {"id": "pens.pen", "section": "pens", "label": "Per pen: name, insulin, display check (pens.json, never synced)", "type": "group", "mirror": false,
+     "android": {"store": "pens", "key": "pens"}, "mac": null,
+     "only": {"platform": "android", "reason": "Only the wearer's phone reads insulin pens over NFC; the Mac shows the entries it gets (pen keys pr, pen, pd)"}}
   ]
 }

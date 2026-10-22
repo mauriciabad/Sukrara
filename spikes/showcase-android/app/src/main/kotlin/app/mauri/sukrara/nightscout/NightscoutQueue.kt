@@ -82,6 +82,7 @@ object NightscoutQueue {
         if (o.treatments) for (t in treatments) {
             val had = state.treatments[t.id]
             if (had == t.u) continue
+            if (t.heldUntil(nowS) != null) continue      // a pen session that may still grow (Treatment.heldUntil)
             when {
                 had == null && (t.del || t.t < from) -> if (t.del) settled += t
                 t.del -> deletes += t

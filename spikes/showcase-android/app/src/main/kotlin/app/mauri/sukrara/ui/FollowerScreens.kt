@@ -284,6 +284,9 @@ private fun FollowerEntries(u: FollowerUi) {
     val rows = u.treatments.filter { !it.tr.del }
     Reveal(rows.isEmpty()) { Text(stringResource(R.string.follower_entries_empty), style = MaterialTheme.typography.bodySmall) }
     val now = nowSeconds(30_000)
+    var penEntry by remember { mutableStateOf<app.mauri.sukrara.treatments.Treatment?>(null) }
+    // a pen entry: its doses read-only (the wearer's entries aren't the follower's to change), PRODUCT §4.3
+    penEntry?.let { PenEntrySheet(it, readOnly = true) { penEntry = null } }
     AnimatedItems(rows, { it.tr.id }) { e ->
         val tr = e.tr
         val amount = app.mauri.sukrara.treatments.TreatmentMarks.amount(tr)
@@ -292,8 +295,10 @@ private fun FollowerEntries(u: FollowerUi) {
             "long" -> stringResource(R.string.follower_entry_long, amount ?: "")
             "carbs" -> stringResource(R.string.follower_entry_carbs, amount ?: "")
             else -> stringResource(R.string.treatment_note)
-        } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "")
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        } + (if (tr.n.isNotBlank()) " · ${tr.n}" else "") +
+            (if (isPenEntry(tr)) " · " + stringResource(R.string.treatments_row_from, stringResource(R.string.pen_row_the_pen)) else "")
+        Row(Modifier.then(if (isPenEntry(tr)) Modifier.clickable { penEntry = tr } else Modifier),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(app.mauri.sukrara.graph.Clock.time(tr.t), fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
             Text(what, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             Text(app.mauri.sukrara.treatments.TreatmentMarks.duration(now - tr.t), style = MaterialTheme.typography.labelMedium,

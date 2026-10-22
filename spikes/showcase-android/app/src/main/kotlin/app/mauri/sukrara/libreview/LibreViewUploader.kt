@@ -125,7 +125,7 @@ class LibreViewUploader(context: Context, private val store: TreatmentStore) {
         if (s.email.isEmpty() || password.isNullOrEmpty()) { status.value = "set email + password"; return }
 
         val now = System.currentTimeMillis()
-        val rows = if (!s.treatments) emptyList() else store.all().filter { it.needsUpload }.filter { tr ->
+        val rows = if (!s.treatments) emptyList() else store.all().filter { it.needsUpload && it.heldUntil(now / 1000) == null }.filter { tr ->
             tr.o == store.origin || now - firstSeen.getOrPut("${tr.id}@${tr.u}") { now } > 120_000
         }
         val sensor = glucoseBatch(s)

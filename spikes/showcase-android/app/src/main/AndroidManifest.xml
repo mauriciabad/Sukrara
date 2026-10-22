@@ -119,6 +119,27 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_libre" />
         </activity-alias>
+        <!-- Insulin pens (inv. 29, pen/PenReadActivity): tapping a NovoPen reads it from any app and shows a card that closes by
+             itself (translucent, no history, not in recents). Enabled only while Settings → Insulin pens is on (pen/Pens.syncComponent). -->
+        <activity
+            android:name=".pen.PenReadActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Sukrara.Quick">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_pen" />
+        </activity>
+        <receiver
+            android:name=".pen.PenActionReceiver"
+            android:exported="false" />
         <!-- the quick treatment dialog: a tap on a widget or the glucose notification opens it over any app, and over
              the lock screen (inv. 17: SystemUI reads showWhenLocked from the manifest to skip the unlock) -->
         <activity

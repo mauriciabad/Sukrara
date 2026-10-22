@@ -73,6 +73,10 @@ data class FeatureState(
     val connPriority: String = "default",
     /** The "share with your clinic" banner (LibreView or Tidepool, home + settings) was dismissed. */
     val uploadBannerDismissed: Boolean = false,
+    /** Insulin pens (inv. 29): tapping a NovoPen logs its doses. On by default on the wearer's own phone (the setup at the first tap is the opt-in). */
+    val penReading: Boolean = true,
+    /** A pen dose smaller than this (u) can be priming (`penPrimeBelow`). */
+    val penPrimeBelow: Double = 2.0,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
@@ -84,6 +88,7 @@ data class FeatureState(
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
         .put("connPriority", connPriority).put("uploadBanner", uploadBannerDismissed)
+        .put("penReading", penReading).put("penPrimeBelow", penPrimeBelow)
 
     companion object {
         /** [toJson] back, any missing or malformed key keeps [d]'s value (settings import). */
@@ -99,6 +104,8 @@ data class FeatureState(
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, j.optInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = j.optString("connPriority", d.connPriority),
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
+            penReading = j.optBoolean("penReading", d.penReading),
+            penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, j.optDouble("penPrimeBelow", d.penPrimeBelow)),
         )
     }
 }
@@ -136,6 +143,8 @@ object Features {
             libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, p.getInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = p.getString("connPriority", d.connPriority)!!,
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
+            penReading = p.getBoolean("penReading", d.penReading),
+            penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, p.getFloat("penPrimeBelow", d.penPrimeBelow.toFloat()).toDouble()),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
 
@@ -149,6 +158,7 @@ object Features {
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
                 lockBg = LockBackground.valid(it.lockBg),
                 lockLook = LockAppearance.valid(it.lockLook),
+                penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, it.penPrimeBelow),
             )
         }
         prefs?.edit()?.apply {
@@ -162,6 +172,7 @@ object Features {
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
             putBoolean("uploadBanner", s.uploadBannerDismissed)
+            putBoolean("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
         }?.apply()
         _state.value = s
         return s
@@ -267,3 +278,4 @@ object HookPosition {
 
 /** [v] minutes as [spec] accepts them (spikes/settings/settings.json): itself when valid, else the nearest valid value. */
 internal fun specMin(spec: app.mauri.sukrara.settings.NumberSpec, v: Int): Int = Math.round(spec.coerce(v.toDouble())).toInt()
+internal fun specD(spec: app.mauri.sukrara.settings.NumberSpec, v: Double): Double = Math.round(spec.coerce(v) * 10) / 10.0
