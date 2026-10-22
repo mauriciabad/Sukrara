@@ -75,7 +75,10 @@ object WidgetUpdater {
     internal fun drawKey(latestT: Long?, fresh: Long?, now: Long, night: Int, size: Int, treatments: Int): String =
         "$latestT|$fresh|${now / 300}|$night|${java.util.Locale.getDefault()}|$size|$treatments|" +
             "${app.mauri.sukrara.graph.GraphSettings.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.settings.value.hashCode()}|" +
-            "${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}|${app.mauri.sukrara.graph.Clock.signature()}"
+            "${app.mauri.sukrara.alerts.Alerts.paused.value.hashCode()}|${app.mauri.sukrara.alerts.Alerts.allMuted.value}|" +
+            // a running mute's pill counts down: its next change is in the key (round f31, FreshnessTicker plans it)
+            "${app.mauri.sukrara.status.FreshnessTicker.mutes().mapNotNull { app.mauri.sukrara.alerts.MuteCopy.nextChangeAt(it, now) }.minOrNull()}|" +
+            app.mauri.sukrara.graph.Clock.signature()
 
     suspend fun refresh(c: Context, reason: String, force: Boolean = false) = mutex.withLock {
         val history = RecentHistory.readings(c)

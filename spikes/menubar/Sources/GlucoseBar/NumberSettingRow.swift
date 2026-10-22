@@ -28,9 +28,9 @@ struct NumberSettingRow: View {
     let title: String
     let spec: NumberSpec
     @Binding var value: Double
-    /// The presets offered when they differ from the spec's (Slow down: only slower than every alert's repeat).
+    /// The presets offered when they differ from the spec's (Relax: only slower than every alert's repeat).
     var presets: [Double]? = nil
-    /// The lowest custom value when it is above the spec's minimum (Slow down: the slowest repeat + 1).
+    /// The lowest custom value when it is above the spec's minimum (Relax: the slowest repeat + 1).
     var customMin: Double? = nil
     /// How a value reads in the menu, when `NumberFormat.label` doesn't fit ("Same as default (12 hours)").
     var label: ((Double) -> String)? = nil
@@ -82,7 +82,7 @@ struct NumberSettingRow: View {
                         ForEach(choices, id: \.self) { Text(name($0)).tag(Choice.value($0)) }
                         if spec.custom {
                             Divider()
-                            Text("Custom…").tag(Choice.custom)
+                            Text(NumberFormat.custom).tag(Choice.custom)
                         }
                     }
                     .labelsHidden()
@@ -198,9 +198,14 @@ enum NumberFormat {
         case "none": "None"
         case "same_as_default": "Same as default"
         case "every_reading": "Every reading"
+        case "until_turned_off": MuteCopy.choiceForever
         default: special
         }
     }
+
+    /// The choice that opens a field for a typed value ends in an ellipsis because it needs more input before it
+    /// completes (HIG Menus on ellipses; Android's Custom… radio too; -settingsselftest (j)).
+    static let custom = "Custom…"
 
     /// The unit next to a custom field.
     static func unit(_ s: NumberSpec) -> String { s.unit == "d" ? "days" : s.unit }
@@ -214,6 +219,7 @@ enum NumberFormat {
             if v < 86400 { let h = Int((v / 3600).rounded()); return h == 1 ? "1 hour" : "\(h) hours" }
             return n == "1" ? "1 day" : "\(n) days"
         case "": return n
+        case "min": return Durations.text(Int(v.rounded()))   // round f30: "1 h", "2 h", not "60 min"
         default: return "\(n) \(s.unit)"
         }
     }

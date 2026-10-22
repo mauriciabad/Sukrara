@@ -65,15 +65,20 @@ enum PanelPreview {
             Treatment(k: "long", a: 12, t: at(110)), Treatment(k: "note", a: 0, t: at(75), n: "walk"),
             Treatment(k: "rapid", a: 1.5, t: at(40)), Treatment(k: "carbs", a: 15, t: at(22)),
         ]
-        func model(back: TimeInterval? = nil, span: TimeInterval? = nil, quiet: Bool = false) -> PanelModel {
+        func model(back: TimeInterval? = nil, span: TimeInterval? = nil, quiet: Bool = false, muteAll: TimeInterval = 0) -> PanelModel {
             let m = PanelModel()
-            // round f29: a muted high (the pill's "Xm left") and slowed fast-rise reminders, with their ways out
+            // round f29: a muted high (the pill's "Xm left") and relaxed fast-rise reminders, with their ways out
             if quiet {
                 let until = end.addingTimeInterval(30 + 25 * 60)
                 m.paused = ["high": until.timeIntervalSince1970]
-                m.quiet = [Alerts.Active(kind: .high, quiet: .notification, until: until, slowMin: 0, canMute: true, canSlow: false, mirrored: false),
-                           Alerts.Active(kind: .risingFast, quiet: nil, until: nil, slowMin: 60, canMute: true, canSlow: false, mirrored: false)]
+                m.quiet = [Alerts.Active(kind: .high, quiet: .notification, until: until, relaxMin: 0, canRelax: true, mirrored: false),
+                           Alerts.Active(kind: .risingFast, quiet: nil, until: nil, relaxMin: 60, canRelax: false, mirrored: false),
+                           // round f33: quiet after carbs, worded like the mutes and counting down
+                           Alerts.Active(kind: .low, quiet: .carbs, until: end.addingTimeInterval(30 + 12 * 60), relaxMin: 0,
+                                         canRelax: true, mirrored: false)]
             }
+            // round f30: Mute all (until a time, or Never): the dropdown's row and the card's muted pill
+            m.allMuted = muteAll
             // a scrolled shot gets the whole history (the dropdown has the store's 15 days)
             m.readings = back != nil || span != nil ? all : all.filter { $0.t > end.timeIntervalSince1970 - 12 * 3600 - 120 }
             m.previewScrollBack = back
@@ -87,20 +92,23 @@ enum PanelPreview {
             m.following = true
             return m
         }
-        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, back: TimeInterval?, span: TimeInterval?, quiet: Bool)
+        typealias Shot = (name: String, appearance: NSAppearance.Name, bright: Bool, back: TimeInterval?, span: TimeInterval?, quiet: Bool, all: TimeInterval)
+        let muteEnd = end.addingTimeInterval(30 + 80 * 60).timeIntervalSince1970
         let shots: [Shot] = [
-            ("light-bright", .aqua, true, nil, nil, false), ("light-dark", .aqua, false, nil, nil, false),
-            ("dark-bright", .darkAqua, true, nil, nil, false), ("dark-dark", .darkAqua, false, nil, nil, false),
+            ("light-bright", .aqua, true, nil, nil, false, 0), ("light-dark", .aqua, false, nil, nil, false, 0),
+            ("dark-bright", .darkAqua, true, nil, nil, false, 0), ("dark-dark", .darkAqua, false, nil, nil, false, 0),
             // the chart scrolled 30 h back (the Now pill, that window's distribution, %, y range and hours)
-            ("light-bright-scrolled", .aqua, true, 30 * 3600, nil, false), ("dark-dark-scrolled", .darkAqua, false, 30 * 3600, nil, false),
+            ("light-bright-scrolled", .aqua, true, 30 * 3600, nil, false, 0), ("dark-dark-scrolled", .darkAqua, false, 30 * 3600, nil, false, 0),
             // pinched in to 3 h, and out to the whole 15 days (dates on the axis, the line as columns)
-            ("light-bright-zoom-3h", .aqua, true, 0, 3 * 3600, false), ("dark-dark-zoom-15d", .darkAqua, false, 0, 15 * 86400 - 3600, false),
+            ("light-bright-zoom-3h", .aqua, true, 0, 3 * 3600, false, 0), ("dark-dark-zoom-15d", .darkAqua, false, 0, 15 * 86400 - 3600, false, 0),
             // a muted high and slowed reminders: the rows with their ways out under the card
-            ("light-bright-quiet", .aqua, true, nil, nil, true), ("dark-dark-quiet", .darkAqua, false, nil, nil, true),
+            ("light-bright-quiet", .aqua, true, nil, nil, true, 0), ("dark-dark-quiet", .darkAqua, false, nil, nil, true, 0),
+            // Mute all for a time and until turned off: "Alerts muted · 1 h 20 min left", Unmute, Change Time; the muted pill
+            ("light-bright-muteall", .aqua, true, nil, nil, false, muteEnd), ("dark-dark-muteall-never", .darkAqua, false, nil, nil, false, AlertStatus.never),
         ]
         var windows: [NSWindow] = []
         for (i, shot) in shots.enumerated() {
-            let m = model(back: shot.back, span: shot.span, quiet: shot.quiet)
+            let m = model(back: shot.back, span: shot.span, quiet: shot.quiet, muteAll: shot.all)
             let panel = GlancePanel.content(m, blending: .withinWindow)
             panel.appearance = NSAppearance(named: shot.appearance)
             panel.layoutSubtreeIfNeeded()

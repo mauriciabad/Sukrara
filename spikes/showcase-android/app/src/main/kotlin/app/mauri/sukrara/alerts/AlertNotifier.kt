@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import app.mauri.sukrara.R
+import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.MainActivity
@@ -123,52 +124,55 @@ object AlertNotifier {
     }
 
     /**
-     * The alert's action buttons (at most three, developer.android.com/develop/ui/views/notifications/build-notification
-     * "Add action buttons": "up to three action buttons that let the user respond quickly, such as to snooze a
-     * reminder"), each a broadcast to [AlertActionReceiver] so nothing opens: *Mute [muteMin] min* and *Mute for…*
-     * (a direct reply, "Add a direct reply action": text entered in the notification, delivered without opening an
-     * activity) when [mute] (never very low or extremely high), *Slow to [slowMin] min* when non-null, *Stop slowing
-     * down* in its place when [unslow] (the episode is slowed: the way back, SPEC §2 "States and exits").
+     * The alert's action buttons, exactly two on every kind (round f30; very low and extremely high included), each a
+     * broadcast to [AlertActionReceiver] so nothing opens. Android: "A notification can offer up to three action
+     * buttons that let the user respond quickly, such as to snooze a reminder … But these action buttons must not
+     * duplicate the action performed when the user taps the notification"
+     * (developer.android.com/develop/ui/views/notifications/build-notification#Actions); the tap opens the Alerts page.
+     * 1. *Mute…*: a direct reply ("Add a direct reply action": "The direct reply action appears as an additional button
+     *    in the notification that opens a text input … the system attaches the text response to the intent"), its
+     *    lengths [mute] (minutes, the setting's first) as one-tap choices (RemoteInput.Builder#setChoices) worded by
+     *    Durations.text, and a typed length too (Durations.parse).
+     * 2. *Remind less* when [relax] (it would space the reminders), or *Remind as usual* in the same slot when the side
+     *    reminds less ([relaxedMin] > 0); the interval goes in the notification's secondary text, not the button.
      */
-    data class Actions(val mute: Boolean, val muteMin: Int, val slowMin: Int?, val unslow: Boolean = false)
+    data class Actions(val mute: List<Int>, val relax: Boolean, val relaxedMin: Int = 0)
 
-    private fun action(ctx: Context, kind: String, what: String, code: Int, mutable: Boolean = false, min: Int = 0) =
+    private fun action(ctx: Context, kind: String, what: String, code: Int, mutable: Boolean = false) =
         PendingIntent.getBroadcast(ctx, 200 + notificationId(kind) * 4 + code,
-            Intent(ctx, AlertActionReceiver::class.java).setAction(what).putExtra(AlertActionReceiver.KIND, kind).putExtra(AlertActionReceiver.MIN, min),
+            Intent(ctx, AlertActionReceiver::class.java).setAction(what).putExtra(AlertActionReceiver.KIND, kind),
             PendingIntent.FLAG_UPDATE_CURRENT or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE)
 
     private fun Notification.Builder.actions(ctx: Context, kind: String, a: Actions): Notification.Builder {
-        if (a.mute) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_mute, a.muteMin),
-            action(ctx, kind, AlertActionReceiver.MUTE, 0, min = a.muteMin)).build())
-        a.slowMin?.let { m -> addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_slow, m),
-            action(ctx, kind, AlertActionReceiver.SLOW, 1)).build()) }
-        if (a.unslow) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_unslow),
-            action(ctx, kind, AlertActionReceiver.UNSLOW, 1)).build())
-        if (a.mute) muteFor(ctx, kind, ctx.getString(R.string.alert_action_mute_for), muteChoices(a.muteMin))
+        muteFor(ctx, kind, ctx.getString(R.string.alert_action_mute), a.mute)
+        if (a.relaxedMin > 0) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_remind_usual),
+            action(ctx, kind, AlertActionReceiver.UNRELAX, 1)).build())
+        else if (a.relax) addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_remind_less),
+            action(ctx, kind, AlertActionReceiver.RELAX, 1)).build())
         return this
     }
 
     /**
-     * *Mute for…* (or *Change…* on the muted notification): a direct reply with the minutes, the other durations as
-     * one-tap choices. The reply's PendingIntent must be mutable: the system adds the typed text to it.
+     * *Mute…* (or *Change time* on the muted notification): a direct reply with the length, [choices] (minutes) as one-tap
+     * chips. The reply's PendingIntent must be mutable: the system adds the typed text to it.
      */
     private fun Notification.Builder.muteFor(ctx: Context, kind: String, title: String, choices: List<Int>) =
-        addAction(Notification.Action.Builder(null, title, action(ctx, kind, AlertActionReceiver.MUTE_FOR, 2, mutable = true))
+        addAction(Notification.Action.Builder(null, title, action(ctx, kind, AlertActionReceiver.MUTE, 2, mutable = true))
             .addRemoteInput(RemoteInput.Builder(AlertActionReceiver.TYPED).setLabel(ctx.getString(R.string.alert_action_mute_for_label))
                 // RemoteInput can't ask for a number pad (no input type in RemoteInput.Builder, API 37 SDK: only setChoices,
-                // setAllowFreeFormInput, setAllowDataType, setEditChoicesBeforeSending, setLabel). So the common durations
-                // come as choices, which SystemUI shows as one-tap reply chips (sent at once), and typed minutes still work.
-                .setChoices(choices.map { ctx.getString(R.string.alerts_minutes, it) }.toTypedArray())
+                // setAllowFreeFormInput, setAllowDataType, setEditChoicesBeforeSending, setLabel). So the common lengths
+                // come as choices, which SystemUI shows as one-tap reply chips (sent at once), and typed ones still work.
+                .setChoices(choiceTexts(choices).toTypedArray())
                 .setAllowFreeFormInput(true)
                 .setEditChoicesBeforeSending(RemoteInput.EDIT_CHOICES_BEFORE_SENDING_DISABLED)
                 .build())
             .build())
 
-    /** *Mute for…*'s one-tap durations: the Mute presets other than the button's own minutes. */
-    fun muteChoices(buttonMin: Int): List<Int> = AlertSettings.MUTE_PRESETS.filter { it != buttonMin }
+    /** The reply chips of *Mute…*: "30 min", "15 min", "1 h", "2 h" (Durations.text in the app's language). */
+    fun choiceTexts(choices: List<Int>): List<String> = choices.map { Durations.text(it) }
 
-    /** The minutes in a typed *Mute for…* reply ("20", "20 min"), or null when there are none or they're out of range. */
-    fun minutes(typed: CharSequence?): Int? = typed?.let { Regex("\\d{1,4}").find(it)?.value?.toInt() }?.takeIf { it in AlertSettings.MUTE_RANGE }
+    /** The minutes of a *Mute…* reply (a chip or typed: "20", "45 min", "1 h 30"), or null when it isn't a length in range. */
+    fun minutes(typed: CharSequence?): Int? = typed?.let { Durations.parse(it.toString()) }?.takeIf { it in AlertSettings.MUTE_RANGE }
 
     fun build(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
               silent: Boolean = false, actions: Actions? = null): Notification {
@@ -195,7 +199,9 @@ object AlertNotifier {
         // silent: what NotificationCompat.setSilent does: a group member that defers alerting to a summary that never
         // exists (NotificationRecord: suppressAlertingDueToGrouping); the channel's sound and vibration are skipped
         if (silent) b.setGroup(SILENT_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
-        who?.let { b.setSubText(it) }
+        // the follower's "who", and the interval of an alert that reminds less ("Reminders every 30 min"): secondary text, not the button
+        val relaxed = actions?.relaxedMin?.takeIf { it > 0 }?.let { ctx.getString(R.string.alert_relaxed_subtext, Durations.text(it)) }
+        listOfNotNull(who, relaxed).takeIf { it.isNotEmpty() }?.let { b.setSubText(it.joinToString(" · ")) }
         actions?.let { b.actions(ctx, kind, it) }
         return b.build()
     }
@@ -203,30 +209,37 @@ object AlertNotifier {
     fun cancel(ctx: Context, kind: String) = ctx.getSystemService(NotificationManager::class.java).cancel(notificationId(kind))
 
     /**
-     * After *Mute* or *Mute for…*: the alert's notification becomes "Low muted until 10:42" (silent, no buttons, gone at
-     * the mute's end or when the episode ends), the same for both buttons. Android asks for this after a direct reply
+     * After *Mute…*: the alert's notification becomes "Low alerts muted" / "Until 10:42" with a count-down chronometer
+     * to the mute's end (round f31; the user, 2026-10-22: "muted alerts should show a countdown"): `when` = the end,
+     * Notification.Builder#setUsesChronometer + #setChronometerCountDown ("the chronometer will count down to the
+     * time set in setWhen"), so SystemUI ticks it with no re-post. Silent, gone at the mute's end (setTimeoutAfter),
+     * when the side is back in range by the margin, or on Unmute. Android asks for this after a direct reply
      * (developer.android.com/develop/ui/views/notifications/build-notification#retrieve-user-input: "After you process
      * the text, you must update the notification … to hide the direct reply UI and confirm to the user that their reply
      * is received and processed"); cancelling instead left SystemUI's copy with the typed minutes and the Mute buttons
      * in the shade (validation 21), while the plain Mute's notification went away.
      *
      * Its two buttons are the ways out (round f29; user, 2026-10-21: "There's no way to unmute!"): *Unmute* (alerts at
-     * once if still out of range) and *Change…* (new minutes from now, the same direct reply as *Mute for…*). The
+     * once if still out of range) and *Change time* (a new length from now, the same direct reply as *Mute…*, [choices]). The
      * Material snackbar / Android notification guidance pairs an action that silences something with an immediate
      * undo (m3.material.io/components/snackbar/guidelines: "Snackbars can offer a single action … such as Undo";
      * developer.android.com/develop/ui/views/notifications: actions "let the user respond quickly").
      */
     fun postMuted(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean,
-                  until: Long, now: Long) {
+                  until: Long, now: Long, choices: List<Int>) {
         val base = build(ctx, kind, sgv, rate, th, at, who, alarm, 0, silent = true)
         val n = Notification.Builder.recoverBuilder(ctx, base)
-            .setContentTitle(ctx.getString(R.string.alert_muted_title, label(ctx, kind),
-                app.mauri.sukrara.graph.Freshness.timeText(until, now)))
+            .setContentTitle(MuteCopy.notifTitle(ctx, kind))
+            .setContentText(MuteCopy.notifText(ctx, app.mauri.sukrara.graph.Freshness.timeText(until, now)))
+            .setWhen(until * 1000)
+            .setShowWhen(true)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
             .setOnlyAlertOnce(true)
             .setTimeoutAfter(((until - now) * 1000).coerceAtLeast(1_000))
             .addAction(Notification.Action.Builder(null, ctx.getString(R.string.alert_action_unmute),
                 action(ctx, kind, AlertActionReceiver.UNMUTE, 3)).build())
-            .muteFor(ctx, kind, ctx.getString(R.string.alert_action_change), AlertSettings.MUTE_PRESETS)
+            .muteFor(ctx, kind, ctx.getString(R.string.alert_action_change), choices)
             .build()
         runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), n) }
     }

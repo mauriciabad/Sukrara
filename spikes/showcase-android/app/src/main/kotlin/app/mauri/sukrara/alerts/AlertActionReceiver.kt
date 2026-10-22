@@ -9,31 +9,29 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * The alert notification's buttons ([AlertNotifier.Actions]): *Mute <n> min*, *Slow to <n> min* / *Stop slowing down*
- * and *Mute for…* (the typed minutes); the muted notification's *Unmute* and *Change…* (a *Mute for…* reply). A reply without valid minutes changes nothing and posts the notification again (without sound), which
- * also takes the reply field's spinner away ("update the notification … to hide the direct reply UI").
+ * The alert notification's two buttons ([AlertNotifier.Actions], round f30): *Mute…* (a reply: a chip like "1 h" or a
+ * typed length) and *Remind less* / *Remind as usual*; the muted notification's *Unmute* and *Change time* (a *Mute…* reply). A
+ * reply that isn't a length in range changes nothing and posts the notification again (without sound), which also
+ * takes the reply field's spinner away ("update the notification … to hide the direct reply UI").
  */
 class AlertActionReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
         val kind = i.getStringExtra(KIND)?.takeIf { it in Kind.ALL } ?: return
         when (i.action) {
-            MUTE -> Alerts.action(c, kind, slow = false, min = i.getIntExtra(MIN, 0).takeIf { it > 0 })
-            SLOW -> Alerts.action(c, kind, slow = true)
+            MUTE -> AlertNotifier.minutes(RemoteInput.getResultsFromIntent(i)?.getCharSequence(TYPED))
+                ?.let { Alerts.mute(c, kind, it, notification = true) } ?: Alerts.repost(c, kind)
+            RELAX -> Alerts.relax(c, kind)
+            UNRELAX -> Alerts.unrelax(c, kind)
             UNMUTE -> Alerts.unmute(c, kind)
-            UNSLOW -> Alerts.unslow(c, kind)
-            MUTE_FOR -> AlertNotifier.minutes(RemoteInput.getResultsFromIntent(i)?.getCharSequence(TYPED))
-                ?.let { Alerts.action(c, kind, slow = false, min = it) } ?: Alerts.repost(c, kind)
         }
     }
 
     companion object {
         const val MUTE = "app.mauri.sukrara.alert.MUTE"
-        const val SLOW = "app.mauri.sukrara.alert.SLOW"
-        const val MUTE_FOR = "app.mauri.sukrara.alert.MUTE_FOR"
+        const val RELAX = "app.mauri.sukrara.alert.RELAX"
+        const val UNRELAX = "app.mauri.sukrara.alert.UNRELAX"
         const val UNMUTE = "app.mauri.sukrara.alert.UNMUTE"
-        const val UNSLOW = "app.mauri.sukrara.alert.UNSLOW"
         const val KIND = "kind"
-        const val MIN = "min"
         const val TYPED = "minutes"
     }
 }

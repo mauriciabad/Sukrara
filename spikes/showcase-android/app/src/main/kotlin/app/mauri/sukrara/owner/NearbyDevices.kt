@@ -22,4 +22,29 @@ object NearbyDevices {
             .sortedBy { it.name.lowercase() }.map { Row(it, false, it.since) }
         return connected + saved
     }
+
+    /**
+     * *Forget this device* (round f33; Android Bluetooth settings' "Forget"): everything this phone keeps for follower
+     * [f]'s device and nothing else. Its trust ends ([Follower.revoked], so it gets no new key and a rekey gets the
+     * revoked notice: the record stays under *Removed*), its nearby pairing, its "can add entries" and any request it
+     * left waiting go. Returns whether its trust ended now (the caller then sends the revoked notice and rotates the
+     * key, as Remove does); false = nothing was kept for it.
+     */
+    fun forget(followers: MutableList<Follower>, nearbyPaired: MutableSet<String>, writers: MutableSet<String>,
+               pending: MutableList<PendingRequest>, f: String, now: Long): Boolean {
+        val idx = followers.indexOfLast { it.f == f && it.revoked == null }
+        if (idx >= 0) followers[idx] = followers[idx].copy(revoked = now)
+        val changed = nearbyPaired.remove(f) or writers.remove(f) or pending.removeAll { it.f == f }
+        return idx >= 0 || changed
+    }
+
+    /**
+     * An approved request (the engine's `approve`): the device is a follower again from this moment, a forgotten or
+     * removed record replaced, and paired nearby when the request came over Bluetooth.
+     */
+    fun approved(followers: MutableList<Follower>, nearbyPaired: MutableSet<String>, p: PendingRequest, now: Long) {
+        followers.removeIf { it.f == p.f }
+        followers += Follower(p.f, p.name, now, avatar = p.avatar)
+        if (p.nearby) nearbyPaired += p.f
+    }
 }

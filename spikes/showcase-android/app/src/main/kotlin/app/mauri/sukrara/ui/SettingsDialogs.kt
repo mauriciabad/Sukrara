@@ -151,14 +151,16 @@ fun unitText(spec: NumberSpec): String = when (spec.unit) {
  * [presets] (default: the spec's) can be narrowed by the caller (Slow down), [customMin] raises the lowest custom
  * value, and [reject] returns a message for a value that is valid but not allowed here (a line already drawn).
  * [focusField] false keeps the keyboard closed (the JVM pictures: a blinking cursor never lets Compose idle).
+ * [sub] gives an option a second line. A spec whose unit is minutes
+ * labels its presets with Durations.text ("1 h", "2 h", not "60 min") through the caller's [label].
  */
 @Composable
 fun NumberDialog(title: String, spec: NumberSpec, selected: Double, label: (Double) -> String, onClose: () -> Unit,
                  presets: List<Double> = spec.presets, customMin: Double = spec.min, reject: (Double) -> String? = { null },
-                 focusField: Boolean = true, onChoose: (Double) -> Unit) {
+                 focusField: Boolean = true, sub: (Double) -> String? = { null }, onChoose: (Double) -> Unit) {
     val options = (spec.special.keys.filter { k -> presets.none { it == k } }.sorted() + presets).distinct()
     if (!spec.custom) {
-        ChoiceDialog(title, options.map { Choice(label(it), it) }, selected, onClose) { onChoose(it) }
+        ChoiceDialog(title, options.map { Choice(label(it), it, sub(it)) }, selected, onClose) { onChoose(it) }
         return
     }
     val isPreset = options.any { it == selected }
@@ -170,7 +172,7 @@ fun NumberDialog(title: String, spec: NumberSpec, selected: Double, label: (Doub
     val rejected = parsed?.let(reject)
     SettingsDialog(title = title, onDismissRequest = onClose) {
         Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
-            for (p in options) Radio(label(p), null, !custom && p == selected, true, null) { onChoose(p); onClose() }
+            for (p in options) Radio(label(p), sub(p), !custom && p == selected, true, null) { onChoose(p); onClose() }
             if (options.isNotEmpty()) Radio(stringResource(R.string.settings_custom_value), if (!isPreset && !custom) label(selected) else null, custom, true, null) {
                 custom = true
             }
@@ -199,7 +201,8 @@ fun NumberDialog(title: String, spec: NumberSpec, selected: Double, label: (Doub
 /** [NumberDialog] for a setting stored as a whole number. */
 @Composable
 fun IntNumberDialog(title: String, spec: NumberSpec, selected: Int, label: (Int) -> String, onClose: () -> Unit,
-                    presets: List<Int>? = null, customMin: Int? = null, reject: (Int) -> String? = { null }, onChoose: (Int) -> Unit) =
+                    presets: List<Int>? = null, customMin: Int? = null, reject: (Int) -> String? = { null },
+                    sub: (Int) -> String? = { null }, onChoose: (Int) -> Unit) =
     NumberDialog(title, spec, selected.toDouble(), { label(it.roundToLong().toInt()) }, onClose,
         presets = presets?.map { it.toDouble() } ?: spec.presets, customMin = customMin?.toDouble() ?: spec.min,
-        reject = { reject(it.roundToLong().toInt()) }) { onChoose(it.roundToLong().toInt()) }
+        reject = { reject(it.roundToLong().toInt()) }, sub = { sub(it.roundToLong().toInt()) }) { onChoose(it.roundToLong().toInt()) }

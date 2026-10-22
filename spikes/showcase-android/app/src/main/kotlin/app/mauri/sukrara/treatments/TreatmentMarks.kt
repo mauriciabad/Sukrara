@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.treatments
 
+import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.core.Words
 import app.mauri.sukrara.settings.SettingsSpec
 import app.mauri.sukrara.graph.TextModel
@@ -106,14 +107,7 @@ object TreatmentMarks {
      */
     fun duration(s: Long, up: Boolean = false): String {
         val m = if (up) (s.coerceAtLeast(0) + 59) / 60 else s.coerceAtLeast(0) / 60
-        val w = Words.current
-        return when {
-            m < 1 -> w.durNow
-            m < 60 -> w.durMinutes.format(m)
-            m < 6 * 60 -> if (m % 60 == 0L) w.durHours.format(m / 60) else w.durHoursMinutes.format(m / 60, m % 60)
-            m < 48 * 60 -> w.durHours.format(m / 60)
-            else -> w.durDays.format(m / 1440)
-        }
+        return if (m < 1) Words.current.durNow else Durations.compact(m)
     }
 
     /** Material Symbols "arrow_back" (Apache 2.0, viewBox 0 -960 960 960; also `ic_sym_arrow_back`), mirrored to "arrow_forward" in [marker]. */
@@ -214,10 +208,10 @@ object TreatmentMarks {
      *    without it, lane 1 without it (only when amounts show), that has a free place ([place]). A group with none
      *    gets no label.
      *
-     * [reserve] = a box of lane 0 that is already taken (the sensor badge at the row's start, [app.mauri.sukrara.graph.GlucoseGraph.sensorTop]).
+     * Nothing else takes room in the lanes: the sensor badge is drawn over the row, masking what passes under it.
      */
     fun layout(list: List<Treatment>, x: (Long) -> Float, nowS: Long?, minX: Float, maxX: Float, lanes: Int, d: Float,
-               reserve: Pair<Float, Float>? = null, show: MarkShow = MarkShow.DEFAULT): Layout {
+               show: MarkShow = MarkShow.DEFAULT): Layout {
         val items = list.filter { !it.del && amount(it) != null && show.label(it.k) }
             .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.a }, { it.id }))
         val groups = ArrayList<MutableList<Treatment>>()
@@ -229,7 +223,6 @@ object TreatmentMarks {
         val size = LABEL_DP * d
         val gap = LABEL_GAP_DP * d
         val taken = List(2) { ArrayList<Pair<Float, Float>>() }
-        reserve?.let { taken[0] += it }
         val labels = ArrayList<Label>()
         val dropped = ArrayList<List<Treatment>>()
         for (g in groups.sortedByDescending { it.last().t }) {

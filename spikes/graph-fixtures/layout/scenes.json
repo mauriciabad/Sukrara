@@ -5,7 +5,8 @@
   {"id": "live", "lo": 80, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 156, "rate": 1.0,
    "sensor": {"start": -172800, "end": 1123200, "warmupEnd": -169200},
    "treatments": [{"id": "i1", "k": "rapid", "a": 4.5, "t": -3000}, {"id": "c1", "k": "carbs", "a": 30, "t": -2700},
-                  {"id": "n1", "k": "note", "a": 0, "t": -10800, "n": "walk"}]},
+                  {"id": "n1", "k": "note", "a": 0, "t": -10800, "n": "walk"},
+                  {"id": "i0", "k": "rapid", "a": 3, "t": -41400, "about": "30 min after a 12 h window's start: its label passes under the sensor badge"}]},
   {"id": "late", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 200, "last": 132, "rate": -0.5},
   {"id": "stale", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 600, "last": 141, "rate": 2.0},
   {"id": "old", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 3600, "last": 118, "rate": 0.2},
@@ -41,11 +42,11 @@
     "treatments": [{"id": "r1", "k": "rapid", "a": 6, "t": -93600}, {"id": "c1", "k": "carbs", "a": 20, "t": -3600}]}
   ],
   "cases": [
-   {"scene": "live", "back": 21600, "expect": {"chart": "12h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "-1080m..-360m", "chart.markers": ""}},
+   {"scene": "live", "back": 21600, "expect": {"chart": "12h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "-1080m..-360m", "chart.markers": "1"}},
    {"scene": "swing", "back": 0, "expect": {"chart": "12h", "chart.pct": "0/96/4", "chart.y": "48-258", "chart.window": "", "chart.markers": "1"}},
    {"scene": "swing", "back": 86400, "expect": {"chart": "12h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-1440m", "chart.markers": "1"}},
    {"scene": "live", "back": 0, "span": 10800, "expect": {"chart": "3h", "chart.pct": "0/83/17", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
-   {"scene": "live", "back": 0, "span": 172800, "expect": {"chart": "48h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
+   {"scene": "live", "back": 0, "span": 172800, "expect": {"chart": "48h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "", "chart.markers": "4"}},
    {"scene": "swing", "back": 43200, "span": 86400, "expect": {"chart": "24h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-720m", "chart.markers": "1"}}
   ]
  }

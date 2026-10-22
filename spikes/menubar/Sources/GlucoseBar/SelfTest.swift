@@ -136,14 +136,21 @@ enum GraphFixtures {
                 let e = c["expect"] as? [String: Any] ?? [:]
                 // the alert notification's Mute in force: side → seconds from now
                 let paused = (c["paused"] as? [String: Double] ?? [:]).mapValues { now + $0 }
-                let st = AlertStatus.of(r, settings, marks, now: now, paused: paused)
+                // this Mac's Mute all: seconds from now or "never"
+                func end(_ a: Any?) -> TimeInterval? { a as? String == "never" ? AlertStatus.never : (a as? Double).map { now + $0 } }
+                let allMuted = end(c["allMuted"]) ?? 0
+                let st = AlertStatus.of(r, settings, marks, now: now, paused: paused, allMuted: allMuted)
+                let wantUntil = end(e["until"]) ?? .nan
                 let stText: String
                 switch st {
+                case .muted(let until):
+                    stText = "muted"
+                    check("\(name): until", until == wantUntil, until - now)
                 case .none: stText = "none"
                 case .needed(let k): stText = "needed:\(k.rawValue)"
                 case .paused(let k, let until):
                     stText = "paused:\(k.rawValue)"
-                    check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)
+                    check("\(name): until", until == wantUntil, until - now)
                 case .taken(let k, let tr, let until):
                     stText = "taken:\(k.rawValue):\(id(tr) ?? "?")"
                     check("\(name): until", until == now + ((e["until"] as? Double) ?? .nan), until - now)
@@ -484,7 +491,6 @@ enum GraphFixtures {
                 let lanes = GlucoseGraph.lanes(h, d: 1)
                 let lay = TreatmentMarks.layout(marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now,
                                                 minX: 0, maxX: w, lanes: lanes, d: 1,
-                                                reserve: (c["sensor"] as? String).map { (0, GlucoseGraph.sensorWidth($0, d: 1) + 3) },
                                                 show: marksOf(c["marks"]))
                 let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
                 // the width model holds the real text (SF Pro, the wider font) of every label

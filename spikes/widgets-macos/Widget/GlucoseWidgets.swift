@@ -59,7 +59,13 @@ struct Provider: TimelineProvider {
             if let s, let a = s.alerts {
                 // (the alert notification's mutes too: the badge turns back to what to do)
                 let ends = s.graphMarks.compactMap { AlertStatus.muteUntil($0, a) } + (s.paused ?? [:]).values
-                for end in Set(ends).sorted() where end > now.timeIntervalSince1970 {
+                    + [s.allMuted ?? 0].filter { $0 < AlertStatus.never }
+                // round f31: the pill counts down ("Muted · 1h 12m"): an entry at every minute it changes in the next
+                // hour too (aligned to the end), so it ticks even when no reading comes to reload the timeline
+                let nowT = now.timeIntervalSince1970
+                let steps = Set(ends.flatMap { end in (0...60).map { end - TimeInterval($0 * 60) } })
+                    .filter { $0 > nowT && ($0 <= nowT + 3600 || ends.contains($0)) }
+                for end in steps.sorted() {
                     let at = Date(timeIntervalSince1970: end)
                     entries.append(GlucoseEntry(date: at, content: GlucoseEntryContent(snapshot: s, date: at), via: via, overrides: overrides))
                 }

@@ -114,6 +114,10 @@ struct RenderMain {
             renderMarks(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "build/marks"))
             return
         }
+        if CommandLine.arguments.dropFirst().first == "muted" {   // render muted <out-dir>: Mute all's pill (round f30)
+            renderMuted(URL(fileURLWithPath: CommandLine.arguments.dropFirst(2).first ?? "build/muted"))
+            return
+        }
         let out = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "evidence")
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let live = scenario()
@@ -520,5 +524,28 @@ func renderMarks(_ out: URL) {
     for (i, m) in ["V-", "D-", "K-", "FF", "CC"].enumerated() {
         renderTinted(GlucoseWidgetView(kind: .value, family: .systemMedium, c: GlucoseEntryContent(snapshot: comboSnap(m, insulin: false), date: renderNow), mode: .accented)
             .padding(16), size: sizes[.systemMedium]!, to: out.appendingPathComponent("mac-marks-tinted-\(i).png"))
+    }
+}
+
+/// Mute all on the widgets (round f30): the muted pill with the time left and with Never, in range (the synthetic
+/// evening) and out of range (a low: the paused badge), light and dark.
+@MainActor func renderMuted(_ out: URL) {
+    try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+    for (n, until) in [("1h20m", renderNow.timeIntervalSince1970 + 80 * 60), ("never", AlertStatus.never)] {
+        var snap = scenario()
+        if snap.alerts == nil { snap.alerts = AlertSettings() }
+        snap.allMuted = until
+        for dark in [false, true] {
+            let tag = dark ? "dark" : "light"
+            let row = HStack(spacing: 0) {
+                Frame(size: sizes[.systemMedium]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: .combined, family: .systemMedium, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .fullColor)
+                }
+                Frame(size: sizes[.systemSmall]!, mode: .fullColor) {
+                    GlucoseWidgetView(kind: .value, family: .systemSmall, c: GlucoseEntryContent(snapshot: snap, date: renderNow), mode: .fullColor)
+                }
+            }
+            render(row, to: out.appendingPathComponent("mac-widget-muted-\(n)-\(tag).png"), dark: dark)
+        }
     }
 }

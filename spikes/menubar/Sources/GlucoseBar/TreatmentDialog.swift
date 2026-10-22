@@ -96,13 +96,13 @@ enum TreatmentForm {
 
     /// The time chip: "Now", "16 min ago", "Today 14:05", "Yesterday 23:10".
     static func timeLabel(_ at: Int64?, ago: Int? = nil, now: Date = Date()) -> String {
-        if let ago { return "\(ago) min ago" }
+        if let ago { return "\(Durations.text(ago)) ago" }
         guard let at else { return "Now" }
         let d = Date(timeIntervalSince1970: TimeInterval(at))
         return (Calendar.current.isDate(d, inSameDayAs: now) ? "Today " : "Yesterday ") + Clock.time(d)
     }
 
-    /// "Highs quiet for 60 min · lows quiet for 15 min" for what the form would log at `at` (Android
+    /// "Highs quiet for 1 h · lows quiet for 15 min" for what the form would log at `at` (Android
     /// `Alerts.quietNote`): rapid insulin quiets highs, carbs quiet lows, for the minutes in Settings › Alerts that are
     /// still left at `now`. nil when alerts are off, while this Mac mirrors the wearer's alerts (the wearer's phone
     /// decides, like an Android follower), or when nothing would be quiet.
@@ -114,9 +114,9 @@ enum TreatmentForm {
             return l > 0 ? l : nil
         }
         switch (left(rapid, s.muteAfterInsulin), left(carbs, s.muteAfterCarbs)) {
-        case let (h?, l?): return "Highs quiet for \(h) min · lows quiet for \(l) min"
-        case let (h?, nil): return "Highs quiet for \(h) min"
-        case let (nil, l?): return "Lows quiet for \(l) min"
+        case let (h?, l?): return "Highs quiet for \(Durations.text(h)) · lows quiet for \(Durations.text(l))"
+        case let (h?, nil): return "Highs quiet for \(Durations.text(h))"
+        case let (nil, l?): return "Lows quiet for \(Durations.text(l))"
         default: return nil
         }
     }
@@ -185,8 +185,8 @@ enum TreatmentForm {
         func quiet(_ r: Bool, _ c: Bool, ago: Int64 = 0, mirroring: Bool = false) -> String? {
             quietNote(rapid: r, carbs: c, at: now - ago * 60, now: now, settings: s, mirroring: mirroring)
         }
-        if quiet(true, true) != "Highs quiet for 60 min · lows quiet for 15 min" { fail("quiet both: \(String(describing: quiet(true, true)))") }
-        if quiet(true, false) != "Highs quiet for 60 min" { fail("quiet highs") }
+        if quiet(true, true) != "Highs quiet for 1 h · lows quiet for 15 min" { fail("quiet both: \(String(describing: quiet(true, true)))") }
+        if quiet(true, false) != "Highs quiet for 1 h" { fail("quiet highs") }
         if quiet(false, true, ago: 10) != "Lows quiet for 5 min" { fail("quiet lows 10 min ago: \(String(describing: quiet(false, true, ago: 10)))") }
         if quiet(false, true, ago: 15) != nil || quiet(false, false) != nil { fail("quiet over / nothing") }
         if quiet(true, true, mirroring: true) != nil { fail("quiet while mirroring") }
@@ -207,15 +207,16 @@ enum TreatmentForm {
     @Published var at: Int64?
     /// Minutes before the moment of saving (the picker's minutes-ago mode), instead of `at`; nil = not relative.
     @Published var ago: Int?
-    /// The latest reading is low: the carbs field takes the focus (eating is what's needed).
-    var low = false
+    /// The field that takes the focus: "carbs" (the latest reading is low, or the card's *Eat carbs* pill) or "rapid"
+    /// (otherwise, or *Take insulin*); Android's dialog decides the same (TreatmentDialog.kt `focus`).
+    var focus = "rapid"
     var settings: () -> AlertSettings = { AlertSettings() }
     var mirroring: () -> Bool = { false }
     var onSave: (([Treatment]) -> Void)?
     var onClose: (() -> Void)?
     private var saved = false
 
-    func reset(low: Bool) { f = .init(); at = nil; ago = nil; self.low = low; saved = false }
+    func reset(focus: String) { f = .init(); at = nil; ago = nil; self.focus = focus; saved = false }
 
     /// When the entries happen, for a save or the quiet line at `now` (epoch s).
     func when(now: Int64) -> Int64 { ago.flatMap { TreatmentForm.agoTime(now: now, minutes: $0) } ?? at ?? now }
@@ -295,7 +296,7 @@ struct TreatmentDialogView: View {
         .fixedSize(horizontal: false, vertical: true)
         .animation(.default, value: model.quiet)
         .animation(.default, value: model.f.invalid)
-        .onAppear { DispatchQueue.main.async { focus = model.low ? .carbs : .rapid } }
+        .onAppear { DispatchQueue.main.async { focus = model.focus == "carbs" ? .carbs : .rapid } }
     }
 
     private func label(_ k: String) -> some View {
@@ -398,8 +399,8 @@ struct TimePicker: View {
                 }
                 HStack(spacing: 6) {
                     ForEach([5, 15, 30, 60], id: \.self) { q in
-                        if m == q { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.borderedProminent) }
-                        else { Button("\(q) min") { minutes = "\(q)" }.buttonStyle(.bordered) }
+                        if m == q { Button(Durations.text(q)) { minutes = "\(q)" }.buttonStyle(.borderedProminent) }
+                        else { Button(Durations.text(q)) { minutes = "\(q)" }.buttonStyle(.bordered) }
                     }
                 }
                 .controlSize(.small)
@@ -447,9 +448,11 @@ struct TimePicker: View {
         model.onClose = { [weak self] in self?.window?.close() }
     }
 
-    func show(low: Bool, on screen: NSScreen? = nil) {
+    /// `focus`: the field to focus ("carbs" / "rapid"). Cancel / Escape closes it with nothing saved; the dropdown it
+    /// came from closed when it opened, so the Mac is back where it was.
+    func show(focus: String, on screen: NSScreen? = nil) {
         if let w = window, w.isVisible { NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil); return }
-        model.reset(low: low)
+        model.reset(focus: focus)
         let host = NSHostingController(rootView: TreatmentDialogView(model: model))
         host.sizingOptions = [.preferredContentSize]
         let w = NSWindow(contentViewController: host)
@@ -500,6 +503,8 @@ struct TimePicker: View {
             ("when-time", AnyView(TimePicker(at: nil, ago: nil, pick: { _, _ in }, cancel: {}))),
             ("when-minutes-ago", AnyView(TimePicker(at: nil, ago: 15, pick: { _, _ in }, cancel: {}))),
             ("add-treatment-16-min-ago", AnyView(TreatmentDialogView(model: model))),
+            // round f33: what the card's Eat carbs pill opens (carbs asked for; no key window here, so no focus ring)
+            ("add-treatment-eat-carbs", AnyView(TreatmentDialogView(model: { let m = TreatmentDialogModel(); m.focus = "carbs"; return m }()))),
         ]
         var windows: [(NSWindow, NSView, String)] = []
         for (name, view) in shots {

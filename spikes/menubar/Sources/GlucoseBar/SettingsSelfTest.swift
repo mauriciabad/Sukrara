@@ -66,8 +66,44 @@ enum SettingsSelfTest {
         wire()
         options()
         reorder()
+        durations()
+        specials()
         print(ok ? "settings self-test OK" : "settings self-test FAILED")
         return ok
+    }
+
+    // MARK: (j) special values and the custom choice (round f33)
+
+    /// Every special value of the schema has its own words (no raw key in a menu), Mute all's 0 means "until you turn it
+    /// off" (the key says so: no "never" left), and the choice that opens a field ends in an ellipsis.
+    static func specials() {
+        let all = Array(SettingsSpec.numbers.values)
+        for s in all { for (v, w) in s.special { check("(j) \(s.id) special \(v) '\(w)' has words", NumberFormat.word(w) != w, NumberFormat.word(w)) } }
+        check("(j) muteAll 0 = until_turned_off", SettingsSpec.muteAll.specialOf(0) == "until_turned_off", SettingsSpec.muteAll.specialOf(0) ?? "nil")
+        check("(j) …reads \"Until you turn it off\"", NumberFormat.label(0, SettingsSpec.muteAll) == MuteCopy.choiceForever,
+              NumberFormat.label(0, SettingsSpec.muteAll))
+        check("(j) no special is called never", !all.contains { $0.special.values.contains("never") })
+        check("(j) the custom choice reads \"Custom…\" (ellipsis character)", NumberFormat.custom == "Custom\u{2026}", NumberFormat.custom)
+    }
+
+    // MARK: (i) durations: THE formatter against spikes/durations/durations.json (Android's DurationsTest)
+
+    static func durations() {
+        var dir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        while !FileManager.default.fileExists(atPath: dir.appendingPathComponent("spikes/durations/durations.json").path) {
+            if dir.path == "/" { check("(i) spikes/durations/durations.json found above the working directory", false); return }
+            dir.deleteLastPathComponent()
+        }
+        guard let data = try? Data(contentsOf: dir.appendingPathComponent("spikes/durations/durations.json")),
+              let f = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { check("(i) durations.json readable", false); return }
+        func cases(_ k: String) -> [[Any]] { f[k] as? [[Any]] ?? [] }
+        for c in cases("text") { let m = (c[0] as! NSNumber).intValue; check("(i) text \(m)", Durations.text(m) == c[1] as! String, Durations.text(m)) }
+        for c in cases("compact") { let m = (c[0] as! NSNumber).intValue; check("(i) compact \(m)", Durations.compact(m) == c[1] as! String, Durations.compact(m)) }
+        for c in cases("whole") { let m = (c[0] as! NSNumber).intValue; check("(i) whole \(m)", Durations.whole(m) == c[1] as! String, Durations.whole(m)) }
+        for c in cases("parse") {
+            let input = c[0] as! String, want = (c[1] as? NSNumber)?.intValue
+            check("(i) parse '\(input)'", Durations.parse(input) == want, "\(String(describing: Durations.parse(input)))")
+        }
     }
 
     // MARK: (h) ring order: the move logic of the reorderable list (drop gaps, Move Up / Move Down)
@@ -135,7 +171,9 @@ enum SettingsSelfTest {
         check("(c) quiet falling \(a.muteFallingHigh.min) = schema", a.muteFallingHigh.min == S.muteFalling.default)
         check("(c) quiet after carbs \(a.muteAfterCarbs.min) = schema", a.muteAfterCarbs.min == S.muteCarbs.default)
         check("(c) Mute for \(a.notificationActions.muteMin) = schema", Double(a.notificationActions.muteMin) == S.actionMute.default)
-        check("(c) Slow down \(a.notificationActions.slowMin) = schema", Double(a.notificationActions.slowMin) == S.actionSlow.default)
+        check("(c) Relax \(a.notificationActions.relaxMin) = schema", Double(a.notificationActions.relaxMin) == S.actionRelax.default)
+        check("(c) back by \(a.notificationActions.backMgdl) mg/dL = schema", Double(a.notificationActions.backMgdl) == S.backMgdl.default)
+        check("(c) back for \(a.notificationActions.backMin) min = schema", Double(a.notificationActions.backMin) == S.backMin.default)
     }
 
     // MARK: (d) conformance
@@ -194,11 +232,17 @@ enum SettingsSelfTest {
                              read: { alerts($0)[keyPath: kp].min }))
         }
         out.append(Bound(name: "notificationActions.muteMin", spec: S.actionMute,
-                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": v, "slowMin": 30]]) },
+                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": v, "relaxMin": 30]]) },
                          read: { Double(alerts($0).notificationActions.muteMin) }))
-        out.append(Bound(name: "notificationActions.slowMin", spec: S.actionSlow,
-                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": 30, "slowMin": v]]) },
-                         read: { Double(alerts($0).notificationActions.slowMin) }))
+        out.append(Bound(name: "notificationActions.relaxMin", spec: S.actionRelax,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["muteMin": 30, "relaxMin": v]]) },
+                         read: { Double(alerts($0).notificationActions.relaxMin) }))
+        out.append(Bound(name: "notificationActions.backMgdl", spec: S.backMgdl,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["backMgdl": v]]) },
+                         read: { Double(alerts($0).notificationActions.backMgdl) }))
+        out.append(Bound(name: "notificationActions.backMin", spec: S.backMin,
+                         write: { d, v in setAlerts(d, ["notificationActions": ["backMin": v]]) },
+                         read: { Double(alerts($0).notificationActions.backMin) }))
         return out
     }
 
@@ -266,7 +310,7 @@ enum SettingsSelfTest {
         func own(_ d: UserDefaults) {
             d.set(6, forKey: "graphHours"); d.set(75, forKey: "bandLow"); d.set(3, forKey: "menubarHours"); d.set(false, forKey: "menubarSensorTime")
             setAlerts(d, ["alerts": ["high": ["mgdl": 200, "alarm": true], "no_data": ["min": 45]], "sounds": ["pack": "kart"],
-                          "notificationActions": ["muteMin": 60, "slowMin": 45]])
+                          "notificationActions": ["muteMin": 60, "relaxMin": 45]])
         }
         for (mode, content) in [("default", true), ("wearer", true), ("wearer", false), ("custom", true)] {
             let d = suite()
@@ -286,7 +330,7 @@ enum SettingsSelfTest {
             check("\(tag): local sensor time per place stays off", !m.sensorTime)
             check("\(tag): local like an alarm, sound pack, no data, notification actions stay this Mac's",
                   a[.high].alarm && a.sounds.pack == "kart" && a[.noData].threshold == 45 && a.notificationActions.muteMin == 60
-                  && a.notificationActions.slowMin == 45)
+                  && a.notificationActions.relaxMin == 45)
             check("\(tag): alert source \(a.source)", a.source == (mode == "wearer" ? "wearer" : "own"))
             drop(d)
         }

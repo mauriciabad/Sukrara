@@ -20,14 +20,24 @@ data class Words(
     val carbsShort: String = "Carbs",
     val takeInsulin: String = "Take insulin",
     val insulinShort: String = "Insulin",
-    val timeLeft: String = "%1\$s left",
-    val alertsPaused: String = "%1\$s: alerts paused, %2\$s left",
+    /** The badge's time left, "45m left" / "queda 1h" (a plural: the quantity is [Durations.compactQuantity]). */
+    val timeLeft: Plural = Plural("%1\$s left", "%1\$s left"),
+    /**
+     * Mute alerts (StatusBadge kind "muted", rounds f30, f31): the pill "Muted · 1h 20m", "Muted" without an end (also
+     * its short form). Screen readers say the badge with alerts/MuteCopy's lines (StatusBadge.describe).
+     */
+    val muted: String = "Muted",
+    val mutedFor: String = "Muted · %1\$s",
     // short durations
     val durNow: String = "now",
     val durMinutes: String = "%1\$dm",
     val durHours: String = "%1\$dh",
     val durHoursMinutes: String = "%1\$dh %2\$dm",
     val durDays: String = "%1\$dd",
+    // durations in words and settings (core/Durations.text): "45 min", "1 h", "1 h 30 min"
+    val durTextMinutes: String = "%1\$d min",
+    val durTextHours: String = "%1\$d h",
+    val durTextHoursMinutes: String = "%1\$d h %2\$d min",
     val ago: String = "%1\$s ago",
     // slot windows ("1d", "12h")
     val periodDays: String = "%1\$dd",
@@ -42,7 +52,8 @@ data class Words(
     val noReadingsYet: String = "No readings yet",
     val noReadingSince: String = "No reading since",
     // the sensor life badge and the ended card (round sensor-life)
-    val sensorLeft: String = "Sensor: %1\$s left",
+    /** "Sensor: 13d left" / "Sensor: queda 1d" (a plural: the quantity is [Durations.wholeQuantity]). */
+    val sensorLeft: Plural = Plural("Sensor: %1\$s left", "Sensor: %1\$s left"),
     val sensorEnded: String = "Sensor ended",
     /** The action pill on an ended sensor (StatusBadge kind "sensor"), full and short like "Eat carbs" / "Carbs". */
     val replaceSensor: String = "Replace sensor",
@@ -70,6 +81,18 @@ data class Words(
 ) {
     fun kind(k: String) = kinds[k] ?: k
 
+    /**
+     * A plural format (round f33: Spanish "queda 1 h", "quedan 2 h"): on the app [pick] is Android's plurals rules for
+     * its language (`Resources.getQuantityText`); on the JVM (no resources) the English [one] / [other].
+     */
+    class Plural(val one: String, val other: String, private val pick: ((Int) -> String)? = null) {
+        /** The format for [quantity]. */
+        fun of(quantity: Int): String = pick?.invoke(quantity) ?: if (quantity == 1) one else other
+        fun format(quantity: Int, vararg args: Any?): String = of(quantity).format(*args)
+        override fun equals(o: Any?) = o is Plural && of(1) == o.of(1) && of(2) == o.of(2)
+        override fun hashCode() = of(1).hashCode() * 31 + of(2).hashCode()
+    }
+
     companion object {
         /** Builds the words from the app's resources (installed by the app; null on the JVM = English). */
         @Volatile var loader: (() -> Words)? = null
@@ -82,20 +105,27 @@ data class Words(
             return (loader?.invoke() ?: Words()).also { cached = l to it }
         }
 
+        private fun plural(r: Resources, id: Int) = Plural(r.getQuantityText(id, 1).toString(), r.getQuantityText(id, 2).toString()) {
+            r.getQuantityText(id, it).toString()
+        }
+
         fun of(r: Resources) = Words(
             eatCarbs = r.getString(R.string.badge_eat_carbs), carbsShort = r.getString(R.string.badge_carbs_short),
             takeInsulin = r.getString(R.string.badge_take_insulin), insulinShort = r.getString(R.string.badge_insulin_short),
-            timeLeft = r.getString(R.string.badge_time_left), alertsPaused = r.getString(R.string.badge_alerts_paused_description),
+            timeLeft = plural(r, R.plurals.badge_time_left),
+            muted = r.getString(R.string.badge_muted_short), mutedFor = r.getString(R.string.badge_muted_for),
             durNow = r.getString(R.string.duration_now), durMinutes = r.getString(R.string.duration_minutes),
             durHours = r.getString(R.string.duration_hours), durHoursMinutes = r.getString(R.string.duration_hours_minutes),
-            durDays = r.getString(R.string.duration_days), ago = r.getString(R.string.duration_ago),
+            durDays = r.getString(R.string.duration_days),
+            durTextMinutes = r.getString(R.string.duration_text_minutes), durTextHours = r.getString(R.string.duration_text_hours),
+            durTextHoursMinutes = r.getString(R.string.duration_text_hours_minutes), ago = r.getString(R.string.duration_ago),
             periodDays = r.getString(R.string.period_days), periodHours = r.getString(R.string.period_hours),
             slotAverage = r.getString(R.string.slot_average_short), slotGmi = r.getString(R.string.slot_gmi_short),
             slotCv = r.getString(R.string.slot_cv_short), tirInRange = r.getString(R.string.slot_tir_in_range),
             tirVeryGood = r.getString(R.string.slot_tir_very_good),
             noReadingsYet = r.getString(R.string.card_no_readings_yet),
             noReadingSince = r.getString(R.string.card_no_reading_since),
-            sensorLeft = r.getString(R.string.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
+            sensorLeft = plural(r, R.plurals.card_sensor_left), sensorEnded = r.getString(R.string.card_sensor_ended),
             replaceSensor = r.getString(R.string.badge_replace_sensor), replaceSensorShort = r.getString(R.string.badge_replace_sensor_short),
             backToNow = r.getString(R.string.chart_back_to_now),
             warmingUp = r.getString(R.string.card_warming_up), readyAt = r.getString(R.string.card_ready_at),

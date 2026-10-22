@@ -141,8 +141,6 @@ object GlucoseGraph {
                 show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null) } else emptyList()
         val marks = shown.isNotEmpty()
         val lane = shown.any { show.has(it.k, MarkShow.POINT) || show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null }
-        // the sensor badge's place in the hour-label row is kept free of treatment labels
-        val badgeRoom = sensor?.takeIf { labels }?.let { area.left to area.left + sensorWidth(it.label, d) + 3 * d }
         // The y range of the window ([yRange]); a scrolling surface animates it towards that and passes the current one.
         val (yMin, yMax) = view?.y ?: yRange(pts, from, b)
         rec.add("chart.y", info = "${yRange(pts, from, b).let { "${it.first.roundToInt()}-${it.second.roundToInt()}" }}", exact = true)
@@ -168,7 +166,7 @@ object GlucoseGraph {
             val left = lr.first
             val right = lr.second
             val layout = if (marks) TreatmentMarks.layout(shown, { t -> left + (t - from).toFloat() / st.windowS * (right - left) }, nowS,
-                area.left, area.right, lanes(area.height(), d), d, badgeRoom, show) else null
+                area.left, area.right, lanes(area.height(), d), d, show) else null
             val lane1 = if (layout?.twoLanes == true) TreatmentMarks.LANE_DP * d else 0f
             val textRow = labels || layout?.labels?.isNotEmpty() == true
             val top = area.top + 3 * d
@@ -239,15 +237,7 @@ object GlucoseGraph {
             add(Calendar.HOUR_OF_DAY, 1)
             while (!onStep(this, step)) add(Calendar.HOUR_OF_DAY, 1)
         }
-        // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the user,
-        // 2026-10-19/21); hour labels start after it, treatment labels keep clear of it (badgeRoom).
         var labelEnd = Float.NEGATIVE_INFINITY
-        if (sensor != null && badgeRoom != null) {
-            val sy = sensorTop(area.bottom, lane1, d)
-            SensorBadge.draw(cv, area.left, sy, SENSOR_DP * d, sensor, pal)
-            rec.add("chart.sensor", RectF(area.left, sy, area.left + sensorWidth(sensor.label, d), sy + SENSOR_DP * d), sensor.label, exact = true)
-            labelEnd = badgeRoom.second
-        }
         while (cal.timeInMillis / 1000 <= end) {
             val gx = x(cal.timeInMillis / 1000)
             if (gx > left + sideW * 0.6f) {
@@ -418,8 +408,24 @@ object GlucoseGraph {
             cv.restoreToCount(a)
             rec.add("chart.now", RectF(px, py, px + pw, py + ph), look.text, exact = true)
         }
+        // The sensor life badge at the start of the hour labels' row, under the % column and the distribution (the user,
+        // 2026-10-19/21), drawn last, over whatever passes under it: its outline is erased (DST_OUT, BADGE_CUT_DP around
+        // it) from the treatment and hour labels, which are laid out as if it weren't there, so it never pushes a label
+        // into a second row or makes anything jump while the chart scrolls (the user, 2026-10-22).
+        if (sensor != null && labels) {
+            val sy = sensorTop(area.bottom, lane1, d)
+            val box = RectF(area.left, sy, area.left + sensorWidth(sensor.label, d), sy + SENSOR_DP * d)
+            val c = BADGE_CUT_DP * d
+            cv.drawRoundRect(RectF(box.left - c, box.top - c, box.right + c, box.bottom + c), box.height() / 2 + c, box.height() / 2 + c,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.DST_OUT })
+            SensorBadge.draw(cv, area.left, sy, SENSOR_DP * d, sensor, pal)
+            rec.add("chart.sensor", box, sensor.label, exact = true)
+        }
         cv.restoreToCount(chartLayer)
     }
+
+    /** The outline erased around the sensor badge (dp; Mac `badgeCut`). */
+    const val BADGE_CUT_DP = 2f
 
     /** The longest window (s) whose treatment marks get labels (layout/rules.json "treatmentLabels"; Mac `labelsMaxS`). */
     const val LABELS_MAX_S = 24 * 3600L

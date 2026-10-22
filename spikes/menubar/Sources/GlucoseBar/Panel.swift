@@ -21,6 +21,8 @@ import SwiftUI
     @Published var style = CardStyle(sensorTime: true)
     @Published var alerts: AlertSettings?
     @Published var paused: [String: TimeInterval] = [:]
+    /// This Mac's Mute all until (unix s; 0 = off, AlertStatus.never = until turned back on).
+    @Published var allMuted: TimeInterval = 0
     @Published var hasData = false
     /// Bumped to redraw the card (the clock moves even without new data).
     @Published var tick = 0
@@ -42,38 +44,129 @@ import SwiftUI
     @Published var quiet: [Alerts.Active] = []
     var onQuiet: ((QuietOp) -> Void)?
 
-    var onAddTreatment: (() -> Void)?
+    /// Add Treatment with a field focused: nil from *Add Treatment…*, "carbs" / "rapid" from the card's pill (PillAction).
+    var onAddTreatment: ((String?) -> Void)?
     var onFollow: (() -> Void)?
     var onReport: (() -> Void)?
     var onTreatments: (() -> Void)?
     var onSettings: (() -> Void)?
 }
 
+/// What a click on the card's status pill does (round f33, the user: "tapping Eat carbs does nothing"); Android decides
+/// the same (ui/PillAction.kt): *Eat carbs* / *Take insulin* → Add Treatment with the carbs / rapid field focused where
+/// this Mac may log; a side's mute pill → its ways out; Mute all's pill → its menu (Unmute, Change Time).
+enum PillAction: Equatable {
+    case treat(String), quiet(AlertKind), muteAll, none
+
+    static func of(_ s: AlertStatus, canAdd: Bool) -> PillAction {
+        switch s {
+        case .none: .none
+        case .needed(let k): canAdd ? .treat(k.lowSide ? "carbs" : "rapid") : .none
+        case .taken(let k, _, _), .paused(let k, _): .quiet(k)
+        case .muted: .muteAll
+        }
+    }
+
+    /// VoiceOver's name for what pressing the pill does.
+    var actionName: String? {
+        switch self {
+        case .treat: "Add Treatment"
+        case .quiet, .muteAll: "Show Alert Options"
+        case .none: nil
+        }
+    }
+
+    static func selfTest() -> Bool {
+        let all: [AlertStatus] = [.needed(.low), .needed(.veryLow), .needed(.high), .needed(.veryHigh), .needed(.extremelyHigh),
+                                  .paused(.low, until: 100), .paused(.high, until: AlertStatus.never), .muted(until: 100),
+                                  .muted(until: AlertStatus.never)]
+        var ok = true
+        func check(_ name: String, _ c: Bool) { print("\(c ? "ok  " : "FAIL") pill: \(name)"); ok = ok && c }
+        check("every pill has an action where entries can be added", all.allSatisfy { of($0, canAdd: true) != .none })
+        check("Eat carbs → carbs", of(.needed(.low), canAdd: true) == .treat("carbs") && of(.needed(.veryLow), canAdd: true) == .treat("carbs"))
+        check("Take insulin → rapid", of(.needed(.high), canAdd: true) == .treat("rapid"))
+        check("no pill, no action", of(.none, canAdd: true) == .none)
+        check("a Mac that can't log gets no Add Treatment", of(.needed(.low), canAdd: false) == .none)
+        // the real card: a low reading draws Eat carbs; VoiceOver sees a button that presses like a click on the pill
+        MainActor.assumeIsolated {
+            let now = Date().timeIntervalSince1970
+            let v = CardView(frame: NSRect(x: 0, y: 0, width: 340, height: 196))
+            v.now = Date(timeIntervalSince1970: now)
+            v.readings = (0..<12).map { GraphReading(t: now - Double(11 - $0) * 300, v: 62) }
+            v.alerts = AlertSettings()
+            v.canAddTreatment = true
+            var clicked = 0
+            v.onStatus = { _, _ in clicked += 1 }
+            let cs = CGColorSpaceCreateDeviceRGB()
+            if let ctx = CGContext(data: nil, width: 340, height: 196, bitsPerComponent: 8, bytesPerRow: 0, space: cs,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                v.paint(ctx, size: CGSize(width: 340, height: 196), MacSurface.materialPalette(dark: false, increaseContrast: false))
+            }
+            let e = v.pillElement()
+            check("Eat carbs is a VoiceOver button", e?.accessibilityRole() == .button && e?.accessibilityLabel() == "Eat carbs"
+                  && e?.accessibilityHelp() == "Add Treatment")
+            check("pressing it acts like a click on the pill", e?.accessibilityPerformPress() == true && clicked == 1)
+            v.canAddTreatment = false
+            check("no Add Treatment where this Mac can't log", v.pillElement() == nil)
+        }
+        return ok
+    }
+}
+
 /// A way out of a quiet alert (or into one, from the same list): the panel's rows, the pill's menu, Settings › Alerts.
-enum QuietOp { case unmute(AlertKind), unslow(AlertKind), mute(AlertKind, Int), slow(AlertKind) }
+/// `muteAll` minutes, 0 = Never (until turned back on).
+enum QuietOp { case unmute(AlertKind), unrelax(AlertKind), mute(AlertKind, Int), relax(AlertKind), muteAll(Int), unmuteAll }
 
 /// The mute lengths offered (the schema's Mute presets).
 let quietMinutes: [Int] = SettingsSpec.actionMute.presets.map { Int($0) }
 
-/// `q`'s ways out as a menu (the card pill's click, AppKit): Unmute / Alert Me Anyway, Stop Slowing Down, Change to /
-/// Mute for … (HIG "Menus": a menu offers the commands for the item it opens on).
-@MainActor func quietMenu(_ list: [Alerts.Active], slowMin: Int, _ act: @escaping (QuietOp) -> Void) -> NSMenu {
+/// The Mute Alerts menu (round f31): "For 30 min" … "For 8 h", "Until You Turn It Off" (0), as (title, minutes).
+/// Menu items are title-style (HIG "Menus"); the unit abbreviations keep their case (Apple Style Guide: "min", "h").
+let muteAllChoices: [(String, Int)] =
+    AlertActions.muteAllPresets.filter { $0 > 0 }.map { (MuteCopy.choice($0), $0) } + [(MuteCopy.menuForever, 0)]
+
+/// The side Mute / Change Time lengths: "For 15 min", "For 30 min", "For 1 h", "For 2 h".
+let quietChoices: [(String, Int)] = quietMinutes.map { (MuteCopy.choice($0), $0) }
+
+/// The side menu: *Change Time* for a notification Mute, else *Mute* (a treatment quiet, Remind Less alone).
+func quietMenuTitle(_ q: Alerts.Active) -> String { q.quiet == .notification ? "Change Time" : "Mute" }
+/// Its VoiceOver label: "Low alerts: Change time" / "Low alerts: Mute".
+func quietMenuLabel(_ q: Alerts.Active) -> String {
+    "\(MuteCopy.side(q.kind.side)) alerts: \(q.quiet == .notification ? "Change time" : "Mute")"
+}
+
+/// `q`'s ways out as a menu (the card pill's click, AppKit): Unmute / Alert Me Anyway, Remind as Usual / Remind Less,
+/// Change Time / Mute … and, while Mute all is on, Unmute (HIG "Menus": a menu offers the commands for the item it
+/// opens on). Built when it opens, so its lines say the time left then.
+@MainActor func quietMenu(_ list: [Alerts.Active], allMuted: String?, now: Date = Date(), _ act: @escaping (QuietOp) -> Void) -> NSMenu {
     let menu = NSMenu()
-    for (i, q) in list.enumerated() {
-        if i > 0 { menu.addItem(.separator()) }
-        let head = NSMenuItem(title: q.title, action: nil, keyEquivalent: "")
+    if let allMuted {
+        let head = NSMenuItem(title: allMuted, action: nil, keyEquivalent: "")
         head.isEnabled = false
         menu.addItem(head)
-        if let l = q.lift { menu.addItem(ClosureMenuItem(l) { act(.unmute(q.kind)) }) }
-        if q.slowMin > 0 { menu.addItem(ClosureMenuItem("Stop Slowing Down") { act(.unslow(q.kind)) }) }
-        else if q.canSlow { menu.addItem(ClosureMenuItem("Slow to \(slowMin) min") { act(.slow(q.kind)) }) }
-        if q.canMute {
-            let sub = NSMenu()
-            for m in quietMinutes { sub.addItem(ClosureMenuItem("\(m) min") { act(.mute(q.kind, m)) }) }
-            let item = NSMenuItem(title: q.quiet == .notification ? "Change To" : "Mute For", action: nil, keyEquivalent: "")
-            item.submenu = sub
-            menu.addItem(item)
+        let off = ClosureMenuItem("Unmute") { act(.unmuteAll) }
+        off.setAccessibilityLabel("Alerts: Unmute")
+        menu.addItem(off)
+    }
+    for (i, q) in list.enumerated() {
+        if i > 0 || allMuted != nil { menu.addItem(.separator()) }
+        let head = NSMenuItem(title: q.title(now: now), action: nil, keyEquivalent: "")
+        head.isEnabled = false
+        menu.addItem(head)
+        if q.quiet != nil, q.relaxMin > 0 {
+            let line = NSMenuItem(title: q.relaxedLine, action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            menu.addItem(line)
         }
+        if let l = q.lift { menu.addItem(ClosureMenuItem(l) { act(.unmute(q.kind)) }) }
+        if q.relaxMin > 0 { menu.addItem(ClosureMenuItem("Remind as Usual") { act(.unrelax(q.kind)) }) }
+        else if q.canRelax { menu.addItem(ClosureMenuItem("Remind Less") { act(.relax(q.kind)) }) }
+        let sub = NSMenu()
+        for (t, m) in quietChoices { sub.addItem(ClosureMenuItem(t) { act(.mute(q.kind, m)) }) }
+        let item = NSMenuItem(title: quietMenuTitle(q), action: nil, keyEquivalent: "")
+        item.setAccessibilityLabel(quietMenuLabel(q))
+        item.submenu = sub
+        menu.addItem(item)
     }
     return menu
 }
@@ -98,10 +191,15 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             card
-            // the ways out of a quiet alert (round f29): one block per muted / quiet / slowed alert, its buttons as
+            // the ways out of a quiet alert (round f29): one block per muted / quiet / relaxed alert, its buttons as
             // menu-like rows (VoiceOver reaches each one; nothing needs the notification)
-            ForEach(model.quiet, id: \.kind) { q in QuietBlock(q: q, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) } }
+            ForEach(model.quiet, id: \.kind) { q in QuietBlock(q: q, now: model.now) { model.onQuiet?($0) } }
             Divider().padding(.horizontal, 4)
+            // Mute all (round f30): this Mac's alerts off for a while or until turned back on, always reachable here
+            if model.alerts?.on ?? true {
+                MuteAllBlock(allMuted: model.allMuted, now: model.now) { model.onQuiet?($0) }
+                Divider().padding(.horizontal, 4)
+            }
             VStack(spacing: 0) {
                 // A menu item like the rows under it; Return chooses it (shown as ↩, the menu's key-equivalent glyph).
                 if model.hasData || model.following {
@@ -109,7 +207,7 @@ struct PanelView: View {
                     // on a second line, like a macOS 14.4+ menu item subtitle, so it's seen without hovering; the
                     // tooltip repeats it (HIG "Offering help": context-sensitive tooltips).
                     PanelRow(title: "Add Treatment…", detail: model.canLog ? nil : model.logBlocked, shortcut: "↩",
-                             enabled: model.canLog, action: { model.onAddTreatment?() })
+                             enabled: model.canLog, action: { model.onAddTreatment?(nil) })
                         .keyboardShortcut(.defaultAction)
                         .help(model.canLog ? "" : model.logBlocked ?? "")
                 }
@@ -158,29 +256,121 @@ private struct ModuleBackground: View {
     }
 }
 
-/// One quiet alert in the panel: its line, then Unmute / Alert Me Anyway, Stop Slowing Down and a Change To / Mute For
-/// menu of the mute lengths.
+/// Redraws `content` whenever the minutes left until `until` change: a TimelineView aligned to the end, so "12 min
+/// left" turns to "11 min left" right then, while the view is on screen (round f31). No end, or an indefinite one:
+/// drawn once. `now` fixes the time (the offline snapshots).
+struct Countdown<Content: View>: View {
+    let until: Date?
+    var now: Date? = nil
+    @ViewBuilder let content: (Date) -> Content
+
+    var body: some View {
+        if let now {
+            content(now)
+        } else if let until, until < AlertEngine.never {
+            // entries every minute back from the end (2 days before it covers every mute length)
+            TimelineView(.periodic(from: until.addingTimeInterval(-2 * 86_400), by: 60)) { ctx in content(ctx.date) }
+        } else {
+            content(Date())
+        }
+    }
+}
+
+/// One quiet alert in the panel: its line (ticking down), then Unmute / Alert Me Anyway, Remind as Usual and a
+/// Change Time / Mute menu of the mute lengths.
 private struct QuietBlock: View {
     let q: Alerts.Active
-    let slowMin: Int
+    var now: Date? = nil
     let act: (QuietOp) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Label(q.title, systemImage: q.quiet == nil ? "bell.badge.waveform" : "bell.slash")
-                .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            Countdown(until: q.ticks ? q.until : nil, now: now) { t in
+                Label(q.title(now: t), systemImage: q.quiet == nil ? "bell.badge.waveform" : "bell.slash")
+                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            }
+            if q.quiet != nil, q.relaxMin > 0 {
+                Label(q.relaxedLine, systemImage: "bell.badge.waveform")
+                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+            }
             if let l = q.lift { PanelRow(title: l, action: { act(.unmute(q.kind)) }) }
-            if q.slowMin > 0 { PanelRow(title: "Stop Slowing Down", action: { act(.unslow(q.kind)) }) }
-            if q.canMute {
-                Menu {
-                    ForEach(quietMinutes, id: \.self) { m in Button("\(m) min") { act(.mute(q.kind, m)) } }
-                } label: {
-                    Text(q.quiet == .notification ? "Change To" : "Mute For").frame(maxWidth: .infinity, alignment: .leading)
+            if q.relaxMin > 0 { PanelRow(title: "Remind as Usual", action: { act(.unrelax(q.kind)) }) }
+            Menu {
+                ForEach(quietChoices, id: \.1) { c in Button(c.0) { act(.mute(q.kind, c.1)) } }
+            } label: {
+                Text(quietMenuTitle(q)).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.visible)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .accessibilityLabel(quietMenuLabel(q))
+        }
+    }
+}
+
+/// *Mute Alerts* (round f30, f31 copy): off → a menu of the lengths (For 30 min · … · For 8 h · Until You Turn It Off ·
+/// Custom…); on → "Alerts muted · 1 h 12 min left" (ticking down) / "Alerts muted until you turn it off", *Unmute*
+/// and *Change Time*. Custom… opens a field for a typed length (Durations.parse, the schema's muteAll range).
+struct MuteAllBlock: View {
+    let allMuted: TimeInterval
+    var now: Date? = nil
+    let act: (QuietOp) -> Void
+    /// Evidence aid (`-panelPreview`): the custom field open.
+    var startCustom = false
+    @State private var custom = false
+    @State private var text = ""
+    @State private var invalid = false
+
+    private var end: Date? { allMuted > 0 ? Date(timeIntervalSince1970: allMuted) : nil }
+    private var range: ClosedRange<Int> { AlertActions.muteAllRange }
+    private var note: String { "Enter \(Durations.text(range.lowerBound))–\(Durations.text(range.upperBound)), e.g. 1 h 30 min" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if allMuted > (now ?? Date()).timeIntervalSince1970 {
+                Countdown(until: end, now: now) { t in
+                    Label(MuteCopy.allLine(until: allMuted, now: t.timeIntervalSince1970) ?? "", systemImage: "bell.slash")
+                        .font(.callout).foregroundStyle(.secondary).padding(.horizontal, 8).padding(.bottom, 2)
+                        .accessibilityAddTraits(.isHeader)
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.visible)
-                .padding(.horizontal, 8).padding(.vertical, 4)
+                PanelRow(title: "Unmute", action: { act(.unmuteAll) }).accessibilityLabel("Alerts: Unmute")
+                lengths("Change Time")
+            } else {
+                lengths("Mute Alerts")
+            }
+            if custom || startCustom {
+                HStack(spacing: 6) {
+                    TextField("Mute alerts for", text: $text, prompt: Text("2 h 30 min"))
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(commit)
+                        .accessibilityHint(note)
+                    Button("Mute", action: commit).disabled(text.isEmpty)
+                }
+                .padding(.horizontal, 8).padding(.top, 2)
+                Text(note).font(.caption).foregroundStyle(invalid ? Color.red : Color.secondary)
+                    .padding(.horizontal, 8).padding(.top, 2)
             }
         }
+    }
+
+    private func lengths(_ title: String) -> some View {
+        Menu {
+            ForEach(muteAllChoices, id: \.1) { c in Button(c.0) { act(.muteAll(c.1)) } }
+            Divider()
+            Button(NumberFormat.custom) { custom = true }
+        } label: {
+            Text(title).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.visible)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .accessibilityLabel(title == "Change Time" ? "Alerts: Change time" : "Mute alerts")
+    }
+
+    private func commit() {
+        guard let m = Durations.parse(text), range.contains(m) else { invalid = true; return }
+        invalid = false
+        custom = false
+        text = ""
+        act(.muteAll(m))
     }
 }
 
@@ -234,10 +424,19 @@ private struct CardRep: NSViewRepresentable {
         v.style = model.style
         v.alerts = model.alerts
         v.paused = model.paused
-        // a click on the "45m left" pill opens its ways out as a menu (the same as the rows under the card)
+        v.allMuted = model.allMuted
+        v.canAddTreatment = model.canLog
+        // a click on the pill (round f33): Eat carbs / Take insulin → Add Treatment with that field focused; a mute's
+        // pill ("45m left", "Muted") → its ways out as a menu (the same as the rows under the card)
         v.onStatus = { [weak model] box, view in
-            guard let model, !model.quiet.isEmpty else { return }
-            let menu = quietMenu(model.quiet, slowMin: model.alerts?.notificationActions.slowMin ?? 30) { model.onQuiet?($0) }
+            guard let model else { return }
+            let now = Date().timeIntervalSince1970
+            let status = model.alerts.map { AlertStatus.of(model.readings.last, $0, model.marks, now: now, paused: model.paused,
+                                                           allMuted: model.allMuted) } ?? .none
+            if case .treat(let field) = PillAction.of(status, canAdd: model.canLog) { model.onAddTreatment?(field); return }
+            let line = MuteCopy.allLine(until: model.allMuted, now: now)
+            guard !model.quiet.isEmpty || line != nil else { return }
+            let menu = quietMenu(model.quiet, allMuted: line) { model.onQuiet?($0) }
             menu.popUp(positioning: nil, at: NSPoint(x: box.minX, y: box.maxY + 4), in: view)
         }
         v.metricsOf = model.metricsOf
@@ -250,15 +449,37 @@ private struct CardRep: NSViewRepresentable {
 
 // MARK: - The window
 
-/// A borderless, non-activating panel under the status item (like MenuBarExtra's window style): the menu material,
-/// rounded corners, a shadow; it can take keyboard focus without bringing Sukrara forward, closes on Escape, on a
-/// click outside and when it loses focus.
+/// A borderless panel under the status item (like MenuBarExtra's window style): the menu material, rounded corners,
+/// a shadow. Opening it brings Sukrara to the front, because macOS sends trackpad gestures (pinch, smart zoom) only to
+/// the active app: without that a pinch on the chart never arrived, while scrolls did (2026-10-22: "I pinch on the
+/// trackpad and nothing happens"; a non-activating panel, key and showing, got no `.magnify` at all, whatever its
+/// level or style, until the app was activated). Closing it gives the front back to the app that had it, so the
+/// dropdown still feels like a menu:
+///  - Escape, a second click on the menubar item or the right-click menu: back to that app at once.
+///  - A click outside: back to that app unless the click went to another app or to one of Sukrara's windows (then that
+///    one stays in front, the user moved there).
+///  - It loses focus (another app or a Sukrara window became key): nothing, the user moved there.
+///  - A row that opens a Sukrara window (Add Treatment, Treatments, Report, Settings, Follow): `close(.handOff)`,
+///    Sukrara stays in front with that window.
+/// `PanelSelfTest` (`-panelselftest`) opens it through the status item's path and pinches through the app's event loop.
 @MainActor final class GlancePanel: NSObject, NSWindowDelegate {
     let model: PanelModel
     private var panel: KeyPanel?
     private var monitor: Any?
     var onVisible: ((Bool) -> Void)?
     var isVisible: Bool { panel?.isVisible == true }
+    /// The app that was in front when the dropdown opened (never Sukrara itself); it gets the front back on close.
+    private(set) var returnTo: NSRunningApplication?
+
+    /// How the dropdown closes, which decides who is in front afterwards (see the type's comment).
+    enum Exit {
+        /// Escape, the menubar item, the right-click menu: give the front back.
+        case dismiss
+        /// A click outside or lost focus: give it back only if Sukrara is still in front with none of its windows key.
+        case outside
+        /// A row opened a Sukrara window: Sukrara stays in front.
+        case handOff
+    }
 
     init(model: PanelModel) {
         self.model = model
@@ -266,10 +487,12 @@ private struct CardRep: NSViewRepresentable {
     }
 
     func toggle(below button: NSStatusBarButton) {
-        isVisible ? close() : open(below: button)
+        isVisible ? close(.dismiss) : open(below: button)
     }
 
     func open(below button: NSStatusBarButton?) {
+        let front = NSWorkspace.shared.frontmostApplication
+        returnTo = front?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : front
         let p = panel ?? make()
         panel = p
         p.contentView?.layoutSubtreeIfNeeded()
@@ -285,18 +508,42 @@ private struct CardRep: NSViewRepresentable {
             p.center()
         }
         model.tick += 1
+        NSApp.activate(ignoringOtherApps: true)   // gestures go to the active app only (the type's comment)
         p.makeKeyAndOrderFront(nil)
         onVisible?(true)
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.close() }
+            MainActor.assumeIsolated { self?.close(.outside) }
         }
     }
 
-    func close() {
+    func close(_ exit: Exit) {
         guard let p = panel, p.isVisible else { return }
+        let back = returnTo
+        returnTo = nil
         p.orderOut(nil)
         if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
         onVisible?(false)
+        guard let back, !back.isTerminated else { return }
+        switch exit {
+        case .handOff: return
+        case .dismiss: Self.giveFront(to: back)
+        case .outside:
+            // after the click has reached whatever it hit: an app it activated, or a Sukrara window it made key, stays
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                guard NSApp.keyWindow == nil else { return }
+                Self.giveFront(to: back)
+            }
+        }
+    }
+
+    /// Sukrara is the app the system has in front (`NSApp.isActive` also reads true for a non-activating panel that
+    /// only took the keyboard).
+    static var inFront: Bool { NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier }
+
+    private static func giveFront(to app: NSRunningApplication) {
+        guard inFront else { return }   // the user already went somewhere else
+        NSApp.yieldActivation(to: app)
+        app.activate()
     }
 
     /// Size changes (logged line, no-data state): keep the top edge under the status item.
@@ -308,7 +555,7 @@ private struct CardRep: NSViewRepresentable {
         p.setFrame(NSRect(x: p.frame.minX, y: p.frame.maxY - size.height, width: size.width, height: size.height), display: true)
     }
 
-    func windowDidResignKey(_ notification: Notification) { close() }
+    func windowDidResignKey(_ notification: Notification) { close(.handOff) }   // the user moved to another window
 
     /// The panel's content on the menu material (shared with the preview harness).
     static func content(_ model: PanelModel, blending: NSVisualEffectView.BlendingMode) -> NSView {
@@ -341,11 +588,14 @@ private struct CardRep: NSViewRepresentable {
         p.hidesOnDeactivate = false
         p.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
         p.delegate = self
-        p.onCancel = { [weak self] in self?.close() }
+        p.onCancel = { [weak self] in self?.close(.dismiss) }
         p.contentView = Self.content(model, blending: .behindWindow)
         p.setAccessibilityLabel("Sukrara")
         return p
     }
+
+    /// The panel's window while it exists (`PanelSelfTest` sends events into it).
+    var window: KeyPanel? { panel }
 
     /// Debug aid (`-openPanel`): the panel's window number and frame for `screencapture`.
     var windowNumber: Int { panel?.windowNumber ?? 0 }
@@ -357,4 +607,23 @@ final class KeyPanel: NSPanel {
     var onCancel: (() -> Void)?
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { onCancel?() }
+
+    /// A trackpad pinch (and a smart zoom) goes to the card's chart straight from the window: the card under the
+    /// pointer gets it, else the panel's one card, so a pinch anywhere on the dropdown zooms its chart, anchored where
+    /// the pointer is. (Pinches reach this window at all only because opening the dropdown activates Sukrara:
+    /// GlancePanel's comment.) `PanelSelfTest` pinches through the app's event loop.
+    override func sendEvent(_ e: NSEvent) {
+        if e.type == .magnify || e.type == .smartMagnify, let card = card(at: e.locationInWindow) {
+            if e.type == .magnify { card.magnify(with: e) } else { card.smartMagnify(with: e) }
+            return
+        }
+        super.sendEvent(e)
+    }
+
+    private func card(at p: NSPoint) -> CardView? {
+        var cards: [CardView] = []
+        func walk(_ v: NSView) { if let c = v as? CardView { cards.append(c) }; v.subviews.forEach(walk) }
+        if let c = contentView { walk(c) }
+        return cards.first { $0.bounds.contains($0.convert(p, from: nil)) } ?? (cards.count == 1 ? cards[0] : nil)
+    }
 }

@@ -48,6 +48,7 @@ fun SystemUiRestartBanner() {
     val s by SystemAccess.status.collectAsState()
     val f by Features.state.collectAsState()
     val dismissed by SystemAccess.dismissed.collectAsState()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     var restarting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -65,7 +66,7 @@ fun SystemUiRestartBanner() {
                     Icon(painterResource(R.drawable.ic_sym_restart_alt), contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                     Text(stringResource(R.string.home_restart_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = SystemAccess::dismiss) {
+                    IconButton(onClick = { app.mauri.sukrara.features.Tips.close(ctx, app.mauri.sukrara.features.Tips.Tip.RESTART_SYSTEM_UI) }) {
                         Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.home_restart_dismiss),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     }

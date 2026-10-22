@@ -318,6 +318,26 @@ build signed with that entitlement; today's builds show it as a normal notificat
   profile grants. The app checks its own entitlement: lows are `.timeSensitive` when it has it, `.active` otherwise
   (today).
 
+## Alert UX round f30 (2026-10-22)
+
+The user's feedback on 0.11.38: two kinds of buttons on the notification, mutes that never end, a high's mute that
+could hide the low after insulin, no global mute, very low / extremely high exceptions, "60 min" texts.
+
+**Added to Sukrara** (Android + Mac, SPEC §2, scenarios `actions.txt` / `devices.txt`):
+- Exactly two notification actions, *Mute…* (one direct reply / text input with the lengths as choices) and *Relax*
+  (was *Slow down*; the interval in the secondary text), per Android's guidance (up to three actions, none
+  duplicating the tap; RemoteInput choices).
+- Mute / Relax per side, covering very low and extremely high, ending at their time or back in range by a margin
+  (10 mg/dL for 10 min, settings `backMgdl` / `backMin`), not with the episode.
+- *Mute all* (30 min … 8 h, Never, custom) on the Android home card and the Mac dropdown, a *Muted* pill on every
+  card surface, the Mac menu bar's bell.slash.
+- One duration formatter per platform (`Durations`, fixture `spikes/durations/durations.json`) and a `durations`
+  check: on the code before this round it reported 98 hand-written minute texts.
+
+**Discarded**: an *Until tomorrow morning* length (8 h covers a night without clock rules); ending a mute when merely
+back in range (the user: glucose oscillates at the edge); the one-tap *Mute 30 min* button beside *Mute for…* (the
+mixed chip styles the user found confusing); the very-low / extremely-high exception (the user's decision).
+
 ## Code
 
 | Where | What |

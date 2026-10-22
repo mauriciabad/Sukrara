@@ -9,13 +9,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import app.mauri.sukrara.alerts.Alerts
+import app.mauri.sukrara.alerts.MuteCopy
 import app.mauri.sukrara.core.Proto
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.widgets.RecentHistory
 import app.mauri.sukrara.widgets.SukraraHooks
 
 /**
- * Redraws every glucose surface at the latest reading's next freshness step ([Freshness.nextChangeAt]: 90 s, 5 min,
+ * Redraws every glucose surface at the latest reading's next freshness step, and each minute of a running mute's
+ * countdown, ([Freshness.nextChangeAt]: 90 s, 5 min,
  * 20 min, 3 h) when no new reading comes (the user, 2026-10-21: the sensor stopped at night and the status bar kept
  * the old value as if it were current, the widget stayed struck through). Before, only a once-a-minute coroutine
  * re-posted, at most 60 s late and not at all while the CPU slept (`delay` runs on the monotonic clock).
@@ -34,8 +37,17 @@ object FreshnessTicker {
     /** The alarm armed now (epoch s), null = none. For tests and the debug state. */
     @Volatile var planned: Long? = null; private set
 
-    /** When the surfaces must redraw next for a latest reading at [t] (epoch s), seen at [nowS]; null = never. */
-    fun next(t: Long?, nowS: Long): Long? = Freshness.nextChangeAt(t, nowS)
+    /**
+     * When the surfaces must redraw next for a latest reading at [t] (epoch s), seen at [nowS]; null = never. While a
+     * mute runs ([mutes]: this device's side mutes and Mute alerts, their ends), also when its time left changes
+     * (MuteCopy.nextChangeAt: the minute boundary from the end, round f31), so the widgets' and the lock screen's
+     * "Muted · 1h 12m" / "12m left" pill counts down with the app's.
+     */
+    fun next(t: Long?, nowS: Long, mutes: Collection<Long> = mutes()): Long? =
+        (listOfNotNull(Freshness.nextChangeAt(t, nowS)) + mutes.mapNotNull { MuteCopy.nextChangeAt(it, nowS) }).minOrNull()
+
+    /** This device's running mutes' ends (epoch s). */
+    fun mutes(): List<Long> = Alerts.paused.value.values + Alerts.allMuted.value
 
     /** Arm (or move, or cancel) the alarm for the newest reading [t]. */
     fun plan(c: Context, t: Long?, nowS: Long = Proto.nowS()) {

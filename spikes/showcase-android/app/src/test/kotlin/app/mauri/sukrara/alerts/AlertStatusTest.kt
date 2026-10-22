@@ -70,7 +70,7 @@ class AlertStatusTest {
                     AlertStatus.None -> assertTrue(fired.isEmpty() && muted == null)
                     is AlertStatus.Needed -> assertEquals(listOf(st.kind), fired)
                     is AlertStatus.Taken -> assertTrue(fired.isEmpty())
-                    is AlertStatus.Paused -> error("no notification mute here")
+                    is AlertStatus.Paused, is AlertStatus.Muted -> error("no notification mute here")
                 }
             }
         }

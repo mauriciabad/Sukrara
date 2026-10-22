@@ -119,7 +119,7 @@ enum LayoutSelfTest {
             case .widgetValue, .widgetGraph, .widgetCombined:
                 let kind: WidgetKind = s == .widgetValue ? .value : s == .widgetGraph ? .graph : .combined
                 _ = MacWidget.image(kind, size: size, cfg: cfg, overrides: WidgetOverrides(), sensor: sc.sensor, readings: sc.readings,
-                                    marks: sc.marks, now: now, pal, metricsOf: metrics, alerts: AlertSettings(), paused: [:], overflow: 15)
+                                    marks: sc.marks, now: now, pal, metricsOf: metrics, alerts: AlertSettings(), paused: [:], allMuted: 0, overflow: 15)
             case .test: return
             }
         }
@@ -292,6 +292,27 @@ enum LayoutSelfTest {
             } }
             if seen == 0 { fail("\(colName): no render shows it (gaps rule untested)") }
         }
+        // the sensor badge never moves a label (rules.json "badge"): with and without it, the same layout
+        if let badge = json("layout/rules.json")?["badge"] as? [String: Any], let cmp = badge["compare"] as? [String], cmp.count == 2 {
+            let els = Set(badge["elements"] as? [String] ?? [])
+            func desc(_ r: Render) -> [String] {
+                r.layouts.flatMap { l in l.elements.filter { els.contains($0.name) }.map { e in
+                    "\(e.name) \(e.info)" + (e.box.map { b in " @\(CardLayout.dp(b.minX, l.d)),\(CardLayout.dp(b.minY, l.d)),\(CardLayout.dp(b.maxX, l.d)),\(CardLayout.dp(b.maxY, l.d))" } ?? "")
+                } }.sorted()
+            }
+            var compared = 0, shown = 0
+            for r in renders where r.settings == cmp[0] && r.layouts.contains(where: { $0.all("chart.sensor").contains { !$0.info.contains("(no room)") } }) {
+                guard let o = renders.first(where: { $0.surface == r.surface && $0.size == r.size && $0.scene == r.scene && $0.settings == cmp[1] }) else { continue }
+                compared += 1
+                let a = desc(r), b = desc(o)
+                if a != b && shown < 10 {
+                    shown += 1
+                    fail("badge on \(r) (\(r.scene)): the layout changes with the sensor badge: with \(a.filter { !b.contains($0) }), without \(b.filter { !a.contains($0) })")
+                }
+            }
+            if compared == 0 { fail("badge: no render shows the sensor badge (rule untested)") }
+        } else { fail("rules.json has no \"badge\"") }
+
         // the distribution's erased outline: the dots plus one constant margin (rules.json "distribution"), everywhere
         if let dist = json("layout/rules.json")?["distribution"] as? [String: Any] {
             let cut = num(dist["cut"])

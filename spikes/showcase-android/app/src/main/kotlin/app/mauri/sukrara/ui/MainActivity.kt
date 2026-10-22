@@ -82,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 // every screen is a Page (own scroll + safe-area padding) so screens can animate as a whole (Motion.kt)
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Root()
+                    // a closed tip's Undo, over whichever screen it was closed on (home, the settings overview)
+                    TipUndoSnackbar()
                 }
             }
         }
@@ -254,6 +256,7 @@ class MainActivity : ComponentActivity() {
                 override fun approve(f: String) { engine.approve(f) }
                 override fun deny(f: String) { engine.deny(f) }
                 override fun revoke(f: String) { engine.revoke(f) }
+                override fun forget(f: String) { engine.forget(f) }
                 override fun setSynthetic(on: Boolean) { engine.setSynthetic(on) }
                 override fun checkNow() { lifecycleScope.launch { engine.checkInbox("manual") } }
                 override suspend fun ncryptsec(password: String) = engine.identityNcryptsec(password)

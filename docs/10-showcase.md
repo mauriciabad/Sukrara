@@ -1203,6 +1203,13 @@ Value/effort: H/M/L.
 | 13 | Mac local reading DB (beyond 3 h) | n/a | no | every launch backfills 12 h / ~25 h | L / M | open |
 | 10 | Screenshots | emulator only | — | no follower view, no real data | M / L | **done for the follower** (emulator, real data); wearer screenshots need the unlocked phone |
 
+## Alert UX (round f30)
+
+Added: two notification actions (*Mute…*, *Relax*), side-scoped mutes that end by a margin, *Mute all* with Never, no
+very-low / extremely-high exception, "1 h" durations everywhere through one formatter per platform. Discarded (with
+the reasons in [docs/15](15-alerts.md#alert-ux-round-f30-2026-10-22)): *Until tomorrow morning*, ending at the first
+in-range reading, the separate one-tap mute button.
+
 ## What's left
 
 The remaining polish (user requests, known issues, rules for whoever continues) is tracked in

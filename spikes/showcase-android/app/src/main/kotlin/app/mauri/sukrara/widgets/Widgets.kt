@@ -231,8 +231,8 @@ fun describeCard(c: Context, r: Reading?, now: Long, treatments: List<app.mauri.
     if (look.state == GlucoseLook.State.ENDED) return c.getString(R.string.card_sensor_ended) + ". " + c.getString(R.string.badge_replace_sensor)
     if (r == null || look.state != GlucoseLook.State.VALUE) return valueWords(c, look, r, now, withTime = true)
     val badge = treatments?.let {
-        app.mauri.sukrara.graph.StatusBadge.describe(app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
-            app.mauri.sukrara.alerts.Alerts.paused.value), now)
+        app.mauri.sukrara.graph.StatusBadge.describe(c, app.mauri.sukrara.alerts.AlertStatus.of(r, app.mauri.sukrara.alerts.Alerts.settings.value, it, now,
+            app.mauri.sukrara.alerts.Alerts.paused.value, app.mauri.sukrara.alerts.Alerts.allMuted.value), now)
     }
     val value = valueWords(c, look, r, now, withTime = true)
     return value + (badge?.let { ". $it" } ?: "")

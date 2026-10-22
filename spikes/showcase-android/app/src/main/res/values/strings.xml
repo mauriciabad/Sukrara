@@ -300,10 +300,15 @@
     <string name="badge_take_insulin">Take insulin</string>
     <!-- Badge, short form of badge_take_insulin [CHAR LIMIT=10] -->
     <string name="badge_insulin_short">Insulin</string>
-    <!-- Badge after a treatment: time until alerts resume; %1$s = a short duration like 45m [CHAR LIMIT=16] -->
-    <string name="badge_time_left">%1$s left</string>
-    <!-- Screen reader text of the paused badge; %1$s = alert name (e.g. Low), %2$s = short duration [CHAR LIMIT=NONE] -->
-    <string name="badge_alerts_paused_description">%1$s: alerts paused, %2$s left</string>
+    <!-- Badge after a treatment: time until alerts resume; %1$s = a short duration like 45m or 1h 5m; the quantity is its one number, or many for two units [CHAR LIMIT=16] -->
+    <plurals name="badge_time_left">
+        <item quantity="one">%1$s left</item>
+        <item quantity="other">%1$s left</item>
+    </plurals>
+    <!-- Badge while every alert is muted (or a mute without an end), and its short form [CHAR LIMIT=12] -->
+    <string name="badge_muted_short">Muted</string>
+    <!-- Badge while every alert is muted for a time; %1$s = the time left, short, like 1h 12m [CHAR LIMIT=22] -->
+    <string name="badge_muted_for">Muted · %1$s</string>
     <!-- Short duration under a minute [CHAR LIMIT=6] -->
     <string name="duration_now">now</string>
     <!-- Short duration in minutes, as compact as possible; %1$d = minutes [CHAR LIMIT=7] -->
@@ -314,6 +319,12 @@
     <string name="duration_hours_minutes">%1$dh %2$dm</string>
     <!-- Short duration in days; %1$d = days [CHAR LIMIT=6] -->
     <string name="duration_days">%1$dd</string>
+    <!-- A duration in words and settings, minutes only (under an hour); %1$d = minutes [CHAR LIMIT=8] -->
+    <string name="duration_text_minutes">%1$d min</string>
+    <!-- A duration in words and settings, whole hours; %1$d = hours [CHAR LIMIT=6] -->
+    <string name="duration_text_hours">%1$d h</string>
+    <!-- A duration in words and settings, hours and minutes; %1$d = hours, %2$d = minutes [CHAR LIMIT=14] -->
+    <string name="duration_text_hours_minutes">%1$d h %2$d min</string>
     <!-- How long ago; %1$s = a short duration like 12m [CHAR LIMIT=14] -->
     <string name="duration_ago">%1$s ago</string>
     <!-- Window of a slot (time-in-range ring, average) in days, e.g. 14d; %1$d = days [CHAR LIMIT=5] -->
@@ -334,14 +345,19 @@
     <string name="card_no_readings_yet">No readings yet</string>
     <!-- Card whose last reading is old: first line, the time follows on the next line [CHAR LIMIT=20] -->
     <string name="card_no_reading_since">No reading since</string>
-    <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d" [CHAR LIMIT=40] -->
-    <string name="card_sensor_left">Sensor: %1$s left</string>
+    <!-- Value card: screen-reader text of the sensor life badge; %1$s = time left like "13d"; the quantity is its number [CHAR LIMIT=40] -->
+    <plurals name="card_sensor_left">
+        <item quantity="one">Sensor: %1$s left</item>
+        <item quantity="other">Sensor: %1$s left</item>
+    </plurals>
     <!-- Value card: the sensor has reached its end (badge description, first line once readings stop) [CHAR LIMIT=24] -->
     <string name="card_sensor_ended">Sensor ended</string>
     <!-- Value card: action pill when the sensor has ended (like "Eat carbs"); opens the sensor scan [CHAR LIMIT=18] -->
     <string name="badge_replace_sensor">Replace sensor</string>
     <!-- Value card: the same pill where there's little room (like "Carbs") [CHAR LIMIT=10] -->
     <string name="badge_replace_sensor_short">Sensor</string>
+    <!-- Value card: TalkBack action label of a mute's pill ("45m left", "Muted"): opens its unmute / change options [CHAR LIMIT=30] -->
+    <string name="card_pill_alert_options">Show alert options</string>
     <!-- Chart: the pill over a chart scrolled into the past; a tap scrolls back to the latest reading [CHAR LIMIT=10] -->
     <string name="chart_back_to_now">Now</string>
     <!-- Value card: a new sensor is warming up (no readings yet) [CHAR LIMIT=20] -->
@@ -436,16 +452,16 @@
     <string name="alert_headline_no_data">No glucose data</string>
     <!-- Alert headline with what was already logged; %1$s = headline (e.g. Low glucose), %2$s = alert_context_* [CHAR LIMIT=60] -->
     <string name="alert_headline_with_context">%1$s · %2$s</string>
-    <!-- Notification button: mute this alert for N minutes. [CHAR LIMIT=20] -->
-    <string name="alert_action_mute">Mute %1$d min</string>
-    <!-- Notification button: repeat this alert only every N minutes. [CHAR LIMIT=20] -->
-    <string name="alert_action_slow">Slow to %1$d min</string>
-    <!-- Notification button: mute this alert for minutes the user types. [CHAR LIMIT=20] -->
-    <string name="alert_action_mute_for">Mute for…</string>
-    <!-- Hint in the reply field of Mute for…: how many minutes. [CHAR LIMIT=20] -->
-    <string name="alert_action_mute_for_label">Minutes</string>
-    <!-- The alert notification after Mute / Mute for…; %1$s = alert name ("Low"), %2$s = time the mute ends. [CHAR LIMIT=40] -->
-    <string name="alert_muted_title">%1$s muted until %2$s</string>
+    <!-- Alert notification button: mute this alert's side; opens the reply field with lengths to pick or type [CHAR LIMIT=16] -->
+    <string name="alert_action_mute">Mute…</string>
+    <!-- Label of the reply field of Mute… / Change time on the alert notification (a length like 30 min, 1 h) [CHAR LIMIT=24] -->
+    <string name="alert_action_mute_for_label">Mute for</string>
+    <!-- Alert notification and sheet button: remind about this side less often (the interval shows as the secondary text) [CHAR LIMIT=20] -->
+    <string name="alert_action_remind_less">Remind less</string>
+    <!-- Alert notification and sheet button: back to the alert's own reminder interval [CHAR LIMIT=22] -->
+    <string name="alert_action_remind_usual">Remind as usual</string>
+    <!-- Secondary text of an alert notification that reminds less; %1$s = a duration like 30 min or 1 h [CHAR LIMIT=30] -->
+    <string name="alert_relaxed_subtext">Reminders every %1$s</string>
     <!-- Low alert after carbs were logged in this low: eat more [CHAR LIMIT=25] -->
     <string name="alert_context_eat_more">eat more</string>
     <!-- Low alert after carbs were logged twice or more in this low [CHAR LIMIT=25] -->
@@ -564,8 +580,8 @@
     <string name="follower_home_subtitle">Following · you appear as %1$s</string>
     <!-- Follower home: banner text after the wearer stopped sharing [CHAR LIMIT=NONE] -->
     <string name="follower_home_revoked_text">The wearer stopped sharing with this phone. No new readings will arrive; older ones stay on this phone.</string>
-    <!-- Follower home: no reading for a while; %1$d = minutes [CHAR LIMIT=30] -->
-    <string name="follower_home_no_data">No data for %1$d min</string>
+    <!-- Follower home: no reading for a while; %1$s = a duration like 25 min or 1 h 5 min [CHAR LIMIT=30] -->
+    <string name="follower_home_no_data">No data for %1$s</string>
     <!-- Follower home: just approved, the history is loading [CHAR LIMIT=40] -->
     <string name="follower_home_fetching">Approved — fetching history…</string>
     <!-- Follower home: this follower may not log treatments [CHAR LIMIT=NONE] -->
@@ -618,20 +634,18 @@
     <string name="treatment_time_yesterday">Yesterday %1$s</string>
     <!-- Treatment time picker title [CHAR LIMIT=20] -->
     <string name="treatment_time_title">When?</string>
-    <!-- Treatment dialog time chip for a relative time, resolved when saving; %1$d = minutes [CHAR LIMIT=20] -->
-    <string name="treatment_time_ago">%1$d min ago</string>
+    <!-- Treatment dialog time chip for a relative time, resolved when saving; %1$s = a duration like 15 min or 1 h [CHAR LIMIT=20] -->
+    <string name="treatment_time_ago">%1$s ago</string>
     <!-- Treatment time picker: segmented button for picking a clock time [CHAR LIMIT=15] -->
     <string name="treatment_time_mode_time">Time</string>
     <!-- Treatment time picker: segmented button for typing how many minutes ago [CHAR LIMIT=15] -->
     <string name="treatment_time_mode_ago">Minutes ago</string>
-    <!-- Treatment time picker: one-tap minutes-ago chip; %1$d = minutes (a quarter of the dialog) [CHAR LIMIT=7] -->
-    <string name="treatment_time_ago_chip">%1$d min</string>
-    <!-- Treatment dialog: rapid insulin pauses high alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_highs">Highs quiet for %1$d min</string>
-    <!-- Treatment dialog: carbs pause low alerts; %1$d = minutes [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_lows">Lows quiet for %1$d min</string>
-    <!-- Treatment dialog: both; %1$d = minutes for highs, %2$d = minutes for lows [CHAR LIMIT=NONE] -->
-    <string name="treatment_quiet_both">Highs quiet for %1$d min · lows quiet for %2$d min</string>
+    <!-- Treatment dialog: what logging rapid insulin silences; %1$s = a duration like 45 min or 1 h [CHAR LIMIT=40] -->
+    <string name="treatment_quiet_highs">Highs quiet for %1$s</string>
+    <!-- Treatment dialog: what logging carbs silences; %1$s = a duration like 15 min [CHAR LIMIT=40] -->
+    <string name="treatment_quiet_lows">Lows quiet for %1$s</string>
+    <!-- Treatment dialog: insulin and carbs logged together; %1$s, %2$s = durations like 1 h and 15 min [CHAR LIMIT=70] -->
+    <string name="treatment_quiet_both">Highs quiet for %1$s · lows quiet for %2$s</string>
 
     <!-- ========== Profile editor (picture) ========== -->
     <!-- Profile picture: draw a new random picture [CHAR LIMIT=15] -->
@@ -981,8 +995,8 @@
     <string name="settings_dialog_ok">OK</string>
     <!-- Button that closes a settings dialog without saving. [CHAR LIMIT=20] -->
     <string name="settings_dialog_cancel">Cancel</string>
-    <!-- Last option of a list of numbers: lets the user type their own number. [CHAR LIMIT=30] -->
-    <string name="settings_custom_value">Custom</string>
+    <!-- Last option of a list of numbers: opens a field to type their own number, so it ends in an ellipsis (…, one character) like every choice that needs more input. [CHAR LIMIT=30] -->
+    <string name="settings_custom_value">Custom…</string>
     <!-- Label of the field where the user types a custom number. [CHAR LIMIT=30] -->
     <string name="settings_custom_value_label">Value</string>
     <!-- Hint and error under the custom number field: the allowed range. %1$s = smallest, %2$s = largest, %3$s = unit (e.g. "min"). [CHAR LIMIT=NONE] -->
@@ -1031,38 +1045,40 @@
     <string name="alerts_threshold_falling">faster than −%1$s mg/dL/min</string>
     <!-- Rising-fast threshold. %1$s = rate. [CHAR LIMIT=NONE] -->
     <string name="alerts_threshold_rising">faster than +%1$s mg/dL/min</string>
-    <!-- No-data threshold. %1$d = minutes without a reading. [CHAR LIMIT=30] -->
-    <string name="alerts_threshold_no_data">after %1$d min</string>
+    <!-- No-data threshold; %1$s = a duration without a reading, like 20 min or 1 h [CHAR LIMIT=30] -->
+    <string name="alerts_threshold_no_data">after %1$s</string>
     <!-- Reminder option: alert only once. [CHAR LIMIT=30] -->
     <string name="alerts_remind_once">Once</string>
-    <!-- Reminder option: alert again every N minutes. [CHAR LIMIT=30] -->
-    <string name="alerts_remind_every">Every %1$d min</string>
-    <!-- A number of minutes. [CHAR LIMIT=20] -->
-    <string name="alerts_minutes">%1$d min</string>
-    <!-- Quiet rule option: in range again within N minutes. [CHAR LIMIT=30] -->
-    <string name="alerts_within_minutes">Within %1$d min</string>
+    <!-- Reminder option: alert again every so often; %1$s = a duration like 15 min or 1 h [CHAR LIMIT=30] -->
+    <string name="alerts_remind_every">Every %1$s</string>
+    <!-- Quiet rule option: in range again within this long; %1$s = a duration like 20 min [CHAR LIMIT=30] -->
+    <string name="alerts_within_minutes">Within %1$s</string>
     <!-- Quiet rule: hold highs back after rapid insulin. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_insulin">After rapid insulin</string>
-    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_insulin_summary">Highs and rising fast wait %1$d min</string>
+    <!-- Quiet rule summary; %1$s = a duration like 1 h [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_insulin_summary">Highs and rising fast wait %1$s</string>
     <!-- Quiet rule: no high alert while glucose is returning to range. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_falling">When falling back into range</string>
-    <!-- %1$d = mg/dL, %2$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_falling_summary">If it\'ll be under %1$d within %2$d min</string>
+    <!-- Quiet rule summary; %1$d = the high threshold in mg/dL, %2$s = a duration like 20 min [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_falling_summary">If it\'ll be under %1$d within %2$s</string>
     <!-- Quiet rule: hold lows back after carbs. [CHAR LIMIT=60] -->
     <string name="alerts_quiet_carbs">After carbs</string>
-    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_quiet_carbs_summary">Lows and falling fast wait %1$d min</string>
+    <!-- Quiet rule summary; %1$s = a duration like 15 min [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_carbs_summary">Lows and falling fast wait %1$s</string>
     <!-- Settings group: what the alert notification's buttons do. [CHAR LIMIT=40] -->
     <string name="alerts_group_actions">From the notification</string>
-    <!-- Setting: how long the notification's Mute button silences the alert. [CHAR LIMIT=40] -->
-    <string name="alerts_action_mute">Mute for</string>
-    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_action_mute_summary">%1$d min · very low and extremely high only slow down</string>
-    <!-- Setting: the slower reminder interval the notification's Slow down button sets. [CHAR LIMIT=40] -->
-    <string name="alerts_action_slow">Slow down to every</string>
-    <!-- %1$d = minutes. [CHAR LIMIT=NONE] -->
-    <string name="alerts_action_slow_summary">%1$d min · lasts until back in range</string>
+    <!-- Alerts settings row: the first length the notification's Mute… offers (summary = the length, like 30 min) [CHAR LIMIT=50] -->
+    <string name="alerts_action_mute">Mute: suggested time</string>
+    <!-- Alerts settings row: the reminder interval after Remind less [CHAR LIMIT=50] -->
+    <string name="alerts_action_remind_less">Remind less: every</string>
+    <!-- Summary of the Remind less row; %1$s = a duration like 30 min [CHAR LIMIT=50] -->
+    <string name="alerts_action_remind_less_summary">%1$s · until back in range</string>
+    <!-- Alerts settings row: how far inside the range glucose must be for a side's Mute / Remind less to end [CHAR LIMIT=60] -->
+    <string name="alerts_back_mgdl">Mute and Remind less end back in range by</string>
+    <!-- Summary / option of the back-in-range margin; %1$d = mg/dL [CHAR LIMIT=12] -->
+    <string name="alerts_back_mgdl_value">%1$d mg/dL</string>
+    <!-- Alerts settings row, follows the previous one: how long glucose must stay back in range (summary = a duration like 10 min) [CHAR LIMIT=40] -->
+    <string name="alerts_back_min">… for at least</string>
     <!-- The set of sounds the alerts use. [CHAR LIMIT=40] -->
     <string name="alerts_sound_pack">Sound pack</string>
     <!-- Sound option: the sound pack's sound. %1$s = pack name. [CHAR LIMIT=60] -->
@@ -1078,7 +1094,7 @@
     <!-- [CHAR LIMIT=NONE] -->
     <string name="alerts_notification_settings_summary">Sound, vibration, Do Not Disturb</string>
     <!-- Footer of the alerts page. [CHAR LIMIT=NONE] -->
-    <string name="alerts_footer">Each alert is its own notification category: a sound picked in the system settings replaces Sukrara\'s. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). Settings stay on this phone. Very low and extremely high are never muted from a notification, only slowed down, and the quiet rules never hold back extremely high.</string>
+    <string name="alerts_footer">Each alert is its own notification category: a sound picked in the system settings replaces Sukrara\'s. Each alert rings at alarm or notification volume (lows at alarm volume unless you change it). Settings stay on this phone. The quiet rules never hold back extremely high.</string>
     <!-- Main switch of one alert's page. %1$s = the alert's name, e.g. Low. [CHAR LIMIT=60] -->
     <string name="alerts_kind_main_switch">Use %1$s alert</string>
     <!-- Summary of a disabled row. [CHAR LIMIT=NONE] -->
@@ -1138,8 +1154,8 @@
     <!-- Settings pages -->
     <!-- Upload interval option: send every reading at once. [CHAR LIMIT=40] -->
     <string name="interval_every_reading">Every reading</string>
-    <!-- Upload interval option: send in batches every N minutes. %1$d = minutes. [CHAR LIMIT=40] -->
-    <string name="interval_every_min">Every %1$d min</string>
+    <!-- Upload interval option: send in batches this often; %1$s = a duration like 5 min or 1 h [CHAR LIMIT=40] -->
+    <string name="interval_every_min">Every %1$s</string>
     <!-- How often readings go to the Nostr relays. [CHAR LIMIT=40] -->
     <string name="sharing_upload_interval">Upload interval</string>
     <!-- Summary of the disabled upload interval row. [CHAR LIMIT=NONE] -->
@@ -1150,6 +1166,19 @@
     <string name="upload_banner_title">Share your data with your clinic</string>
     <!-- Upload banner close button (accessibility) [CHAR LIMIT=30] -->
     <string name="upload_banner_dismiss">Dismiss</string>
+    <!-- Snackbar after a tip card on home or settings was closed (Undo brings it back) [CHAR LIMIT=40] -->
+    <string name="tips_closed">Tip closed</string>
+    <!-- Snackbar action: bring the closed tip back [CHAR LIMIT=15] -->
+    <string name="tips_undo">Undo</string>
+    <!-- Settings overview row: bring back every tip card the user closed [CHAR LIMIT=40] -->
+    <string name="tips_show_again">Show closed tips</string>
+    <!-- Summary of tips_show_again while no tip is closed (the row is unavailable) [CHAR LIMIT=60] -->
+    <string name="tips_none_closed">No closed tips</string>
+    <!-- Summary of tips_show_again: how many tip cards are closed [CHAR LIMIT=60] -->
+    <plurals name="tips_closed_count">
+        <item quantity="one">%d tip closed</item>
+        <item quantity="other">%d tips closed</item>
+    </plurals>
 
     <!-- ========== Settings: overview of both roles ========== -->
     <!-- Title of the settings overview and the search results' fallback location [CHAR LIMIT=30] -->
@@ -1287,6 +1316,14 @@
     <string name="people_nearby_mac">Mac</string>
     <!-- No follower phone paired or connected over Bluetooth [CHAR LIMIT=40] -->
     <string name="people_nearby_none">No devices</string>
+    <!-- Nearby device dialog: button that removes this device's pairing and trust (AOSP Bluetooth "Forget") [CHAR LIMIT=20] -->
+    <string name="people_nearby_forget">Forget</string>
+    <!-- Confirmation title before forgetting a nearby device (AOSP bluetooth_unpair_dialog_title "Forget device?") [CHAR LIMIT=40] -->
+    <string name="people_nearby_forget_title">Forget this device?</string>
+    <!-- Confirmation text; %1$s = the device ("Sam · Mac" or the follower's name) [CHAR LIMIT=NONE] -->
+    <string name="people_nearby_forget_text">%1$s will stop getting your glucose. To share with it again, use Pair nearby.</string>
+    <!-- Confirmation button: forget the device [CHAR LIMIT=20] -->
+    <string name="people_nearby_forget_confirm">Forget device</string>
     <!-- Sharing with people page footer [CHAR LIMIT=NONE] -->
     <string name="people_footer">Removing someone rotates the read key, so they stop receiving new readings at once. Followers you allow to add entries can log insulin, carbs and notes for you.</string>
     <!-- Dialog title; %1$s = follower name [CHAR LIMIT=40] -->
@@ -1409,8 +1446,11 @@
     </plurals>
     <!-- Row: the current sensor [CHAR LIMIT=30] -->
     <string name="sensorend_current">This sensor</string>
-    <!-- Row summary; %1$s = date and time, %2$s = time left (e.g. 3d) [CHAR LIMIT=60] -->
-    <string name="sensorend_current_ends">Ends %1$s · %2$s left</string>
+    <!-- Row summary; %1$s = date and time, %2$s = time left (e.g. 3d); the quantity is the time left's number [CHAR LIMIT=60] -->
+    <plurals name="sensorend_current_ends">
+        <item quantity="one">Ends %1$s · %2$s left</item>
+        <item quantity="other">Ends %1$s · %2$s left</item>
+    </plurals>
     <!-- Row summary; %1$s = date and time [CHAR LIMIT=60] -->
     <string name="sensorend_current_ended">Ended %1$s</string>
     <!-- Row summary when no sensor is known [CHAR LIMIT=60] -->
@@ -1942,14 +1982,18 @@
     <string name="search_no_results">No results</string>
 
     <!-- ========== Settings: alert pages (labels, now and lately) ========== -->
-    <!-- Why an alert is quiet; %1$d = minutes since rapid insulin [CHAR LIMIT=40] -->
-    <string name="alerts_quiet_reason_insulin">insulin %1$d min ago</string>
-    <!-- Why an alert is quiet; %1$d = minutes since carbs [CHAR LIMIT=40] -->
-    <string name="alerts_quiet_reason_carbs">carbs %1$d min ago</string>
-    <!-- Why a high alert is quiet; %1$d = minutes until back in range [CHAR LIMIT=40] -->
-    <string name="alerts_quiet_reason_falling">falling, back in range in ~%1$d min</string>
-    <!-- Why an alert is quiet: the notification's Mute. %1$d = minutes left. [CHAR LIMIT=60] -->
-    <string name="alerts_quiet_reason_notification">muted from the notification, %1$d min left</string>
+    <!-- Why an alert is quiet; %1$s = a duration like 12 min [CHAR LIMIT=40] -->
+    <string name="alerts_quiet_reason_insulin">insulin %1$s ago</string>
+    <!-- Why an alert is quiet; %1$s = a duration like 5 min [CHAR LIMIT=40] -->
+    <string name="alerts_quiet_reason_carbs">carbs %1$s ago</string>
+    <!-- Why a high is quiet; %1$s = a duration like 8 min [CHAR LIMIT=50] -->
+    <string name="alerts_quiet_reason_falling">falling, back in range in ~%1$s</string>
+    <!-- Why an alert is quiet: its side is muted; %1$s = the time left (mute_left: 25 min left) [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_reason_notification">alerts muted, %1$s</string>
+    <!-- Why an alert is quiet: Mute alerts; %1$s = the time left (mute_left: 1 h 20 min left) [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_reason_all">all alerts muted, %1$s</string>
+    <!-- Why an alert is quiet: Mute alerts without an end [CHAR LIMIT=60] -->
+    <string name="alerts_quiet_reason_all_never">all alerts muted until you turn it off</string>
     <!-- Lately list: an alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
     <string name="alerts_note_fired">%1$s · %2$s mg/dL</string>
     <!-- Lately list (follower): the wearer\'s alert rang; %1$s = headline, %2$s = mg/dL value [CHAR LIMIT=NONE] -->
@@ -1958,10 +2002,16 @@
     <string name="alerts_note_cleared">%1$s cleared</string>
     <!-- Lately list (follower); %1$s = alert name [CHAR LIMIT=NONE] -->
     <string name="alerts_note_cleared_remote">%1$s cleared (by the wearer)</string>
-    <!-- Recent alert history: muted from the notification. %1$s = alert name, %2$d = minutes. [CHAR LIMIT=60] -->
-    <string name="alerts_note_muted">%1$s muted for %2$d min</string>
-    <!-- Recent alert history: slowed down from the notification. %1$s = alert name, %2$d = minutes. [CHAR LIMIT=60] -->
-    <string name="alerts_note_slowed">%1$s every %2$d min</string>
+    <!-- History line: a side muted; %1$s = side name (mute_side_*: Low), %2$s = a duration like 1 h [CHAR LIMIT=60] -->
+    <string name="alerts_note_muted">%1$s alerts muted for %2$s</string>
+    <!-- History line: glucose back in range by the margin ended the side's Mute / Remind less; %1$s = side name (mute_side_*) [CHAR LIMIT=70] -->
+    <string name="alerts_note_back">%1$s back in range: alerts as usual</string>
+    <!-- History line: Mute alerts; %1$s = a duration like 2 h [CHAR LIMIT=60] -->
+    <string name="alerts_note_all_muted">All alerts muted for %1$s</string>
+    <!-- History line: Mute alerts without an end [CHAR LIMIT=60] -->
+    <string name="alerts_note_all_muted_never">All alerts muted until you turn it off</string>
+    <!-- History line: Mute alerts ended (its time or Unmute) [CHAR LIMIT=40] -->
+    <string name="alerts_note_all_back">Alerts unmuted</string>
     <!-- Lately list: alerts shown again silently after a restart; %1$s = alert names [CHAR LIMIT=NONE] -->
     <string name="alerts_note_resumed">Resumed %1$s (no sound)</string>
     <!-- Lately list: a test alert; %1$s = the line [CHAR LIMIT=NONE] -->
@@ -2328,32 +2378,18 @@
     <!-- Round f29: the ways out of a muted / quiet / slowed alert (SPEC §2 States and exits) -->
     <!-- Muted alert notification: button that ends the mute [CHAR LIMIT=20] -->
     <string name="alert_action_unmute">Unmute</string>
-    <!-- Muted alert notification: button to type or pick a new mute length [CHAR LIMIT=20] -->
-    <string name="alert_action_change">Change…</string>
-    <!-- Alert notification: button that ends Slow down [CHAR LIMIT=20] -->
-    <string name="alert_action_unslow">Stop slowing</string>
-    <!-- Alerts history line: the user ended a mute. %1$s = alert name [CHAR LIMIT=60] -->
-    <string name="alerts_note_unmuted">%1$s unmuted</string>
-    <!-- Alerts history line: the user stopped slowing down. %1$s = alert name, %2$d = minutes [CHAR LIMIT=60] -->
-    <string name="alerts_note_unslowed">%1$s back to every %2$d min</string>
-    <!-- Alert sheet / Active now: muted from a notification or here. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
-    <string name="quiet_title_muted">%1$s muted until %2$s</string>
-    <!-- Alert sheet / Active now: quiet after logging carbs. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
-    <string name="quiet_title_carbs">%1$s quiet after carbs until %2$s</string>
-    <!-- Alert sheet / Active now: quiet after rapid insulin. %1$s = alert name, %2$s = time [CHAR LIMIT=60] -->
-    <string name="quiet_title_insulin">%1$s quiet after insulin until %2$s</string>
-    <!-- Alert sheet / Active now: quiet because glucose is falling back into range. %1$s = alert name [CHAR LIMIT=60] -->
-    <string name="quiet_title_falling">%1$s quiet: falling back into range</string>
-    <!-- Alert sheet / Active now: reminders slowed down. %1$s = alert name, %2$d = minutes [CHAR LIMIT=60] -->
-    <string name="quiet_title_slowed">%1$s reminders every %2$d min</string>
-    <!-- Alert sheet on a follower: quiet after a treatment, decided by the wearer's phone. %1$s = alert name [CHAR LIMIT=90] -->
-    <string name="quiet_title_mirrored_treatment">%1$s quiet after a treatment. The wearer\'s phone decides when it alerts again.</string>
+    <!-- Muted alert notification: button to pick or type a new mute length (opens the reply field) [CHAR LIMIT=20] -->
+    <string name="alert_action_change">Change time</string>
+    <!-- History line: the user ended a side's mute; %1$s = side name (mute_side_*) [CHAR LIMIT=60] -->
+    <string name="alerts_note_unmuted">%1$s alerts unmuted</string>
+    <!-- History line: Remind as usual; %1$s = side name (mute_side_*), %2$s = a duration like 5 min [CHAR LIMIT=60] -->
+    <string name="alerts_note_unrelaxed">%1$s reminders as usual (every %2$s)</string>
+    <!-- Alert sheet on a follower: muted after a treatment, decided by the wearer's phone. %1$s = side name (mute_side_*: Low) [CHAR LIMIT=90] -->
+    <string name="quiet_title_mirrored_treatment">%1$s alerts muted after a treatment. The wearer\'s phone decides when they come back.</string>
     <!-- Alert sheet / Active now: button that ends a mute [CHAR LIMIT=24] -->
     <string name="quiet_unmute">Unmute</string>
     <!-- Alert sheet / Active now: button that lifts a treatment mute on this device [CHAR LIMIT=24] -->
     <string name="quiet_alert_anyway">Alert me anyway</string>
-    <!-- Alert sheet / Active now: button that ends Slow down [CHAR LIMIT=24] -->
-    <string name="quiet_stop_slowing">Stop slowing down</string>
     <!-- Alert sheet / Active now: label over the mute lengths while muted [CHAR LIMIT=30] -->
     <string name="quiet_change">Change to</string>
     <!-- Alert sheet / Active now: label over the mute lengths [CHAR LIMIT=30] -->
@@ -2364,4 +2400,55 @@
     <string name="alerts_active_now">Active now</string>
     <!-- Accessibility action on the glucose card. %1$s = alert name, %2$s = action [CHAR LIMIT=60] -->
     <string name="quiet_a11y_action">%1$s: %2$s</string>
+    <!-- Home: button that mutes every alert on this device for a while [CHAR LIMIT=24] -->
+    <string name="mute_all_button">Mute alerts</string>
+    <!-- Title of the dialog with the Mute alerts lengths [CHAR LIMIT=40] -->
+    <string name="mute_all_title">Mute alerts</string>
+    <!-- Home / Active now: Mute all is on without an end [CHAR LIMIT=40] -->
+    <string name="mute_all_on">Alerts muted</string>
+    <!-- Button that ends Mute alerts [CHAR LIMIT=24] -->
+    <string name="mute_all_unmute">Unmute</string>
+    <!-- Button that picks a new Mute alerts length [CHAR LIMIT=20] -->
+    <string name="mute_all_change">Change time</string>
+    <!-- TalkBack action on the glucose card while Mute alerts is on [CHAR LIMIT=NONE] -->
+    <string name="mute_all_a11y_unmute">Alerts: Unmute</string>
+    <!-- TalkBack action on the glucose card while Mute alerts is on: pick a new length [CHAR LIMIT=NONE] -->
+    <string name="mute_all_a11y_change">Alerts: Change time</string>
+
+    <!-- Round f31: mute countdown + mute copy (alerts/MuteCopy.kt, spikes/alerts/copy.json) -->
+    <!-- Mute copy: the low side's name in the state lines (Low alerts muted; very low too) [CHAR LIMIT=20] -->
+    <string name="mute_side_low">Low</string>
+    <!-- Mute copy: the high side's name (High alerts muted; very and extremely high too) [CHAR LIMIT=20] -->
+    <string name="mute_side_high">High</string>
+    <!-- Mute copy: the falling fast alert's name [CHAR LIMIT=24] -->
+    <string name="mute_side_falling_fast">Falling fast</string>
+    <!-- Mute copy: the rising fast alert's name [CHAR LIMIT=24] -->
+    <string name="mute_side_rising_fast">Rising fast</string>
+    <!-- Mute copy: the no data alert's name [CHAR LIMIT=20] -->
+    <string name="mute_side_no_data">No data</string>
+    <!-- A side is muted: the muted notification's title, the sheet, Active now; %1$s = mute_side_* [CHAR LIMIT=40] -->
+    <string name="mute_side_muted">%1$s alerts muted</string>
+    <!-- A side reminds less (sheet, Active now, home chip, history); %1$s = mute_side_*, %2$s = a duration like 30 min [CHAR LIMIT=50] -->
+    <string name="mute_side_less">%1$s reminders every %2$s</string>
+    <!-- A mute's state line with its time left; %1$s = mute_side_muted / mute_all_on, %2$s = mute_left [CHAR LIMIT=70] -->
+    <string name="mute_with_left">%1$s · %2$s</string>
+    <!-- Time left of a mute, ticking down; %1$s = a duration like 12 min, 1 h or 1 h 12 min; the quantity is its one number (1 min, 1 h: one), or many for two units [CHAR LIMIT=24] -->
+    <plurals name="mute_left">
+        <item quantity="one">%1$s left</item>
+        <item quantity="other">%1$s left</item>
+    </plurals>
+    <!-- A side held back after carbs (Active now, the pill's sheet, screen readers), with mute_left after it; %1$s = mute_side_* (Low) [CHAR LIMIT=50] -->
+    <string name="mute_side_after_carbs">%1$s alerts muted after carbs</string>
+    <!-- A side held back after rapid insulin, with mute_left after it; %1$s = mute_side_* (High) [CHAR LIMIT=50] -->
+    <string name="mute_side_after_insulin">%1$s alerts muted after insulin</string>
+    <!-- Highs held back while glucose falls back into range (no end of its own); %1$s = mute_side_* (High) [CHAR LIMIT=60] -->
+    <string name="mute_side_falling">%1$s alerts muted while falling back into range</string>
+    <!-- Home / Active now: Mute alerts is on without an end (after AOSP Do Not Disturb zen_mode_forever) [CHAR LIMIT=50] -->
+    <string name="mute_all_forever">Alerts muted until you turn it off</string>
+    <!-- Muted notification text, beside the countdown; %1$s = the clock time the mute ends, like 10:42 (AOSP zen_mode_until) [CHAR LIMIT=24] -->
+    <string name="mute_until">Until %1$s</string>
+    <!-- Mute alerts dialog: one length; %1$s = a duration like 30 min or 1 h (AOSP zen_mode_duration) [CHAR LIMIT=24] -->
+    <string name="mute_choice">For %1$s</string>
+    <!-- Mute alerts dialog: the length without an end (AOSP zen_mode_forever) [CHAR LIMIT=30] -->
+    <string name="mute_choice_forever">Until you turn it off</string>
 </resources>

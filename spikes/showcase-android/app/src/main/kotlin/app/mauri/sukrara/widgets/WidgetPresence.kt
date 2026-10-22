@@ -63,14 +63,19 @@ object WidgetPresence {
             dismissed = prefs(c).getBoolean("dismissed", false), pinFailed = _state.value.pinFailed && !placed)
     }
 
+    /** Closed by the user (stored; [State.dismissed] starts optimistic before the first [refresh]). */
+    fun dismissed(c: Context) = prefs(c).getBoolean("dismissed", false)
+
+    /** The card's close button, through [app.mauri.sukrara.features.Tips.close]. */
     fun dismiss(c: Context) {
         prefs(c).edit().putBoolean("dismissed", true).apply()
         _state.value = _state.value.copy(dismissed = true)
     }
 
-    /** Debug builds: show the banner again (DebugReceiver `widgetBanner`). */
+    /** Undo, Settings → Show closed tips ([app.mauri.sukrara.features.Tips]) and DebugReceiver `widgetBanner --ez reset true`. */
     fun undismiss(c: Context) {
         prefs(c).edit().remove("dismissed").apply()
+        _state.value = _state.value.copy(dismissed = false)
         refresh(c)
     }
 

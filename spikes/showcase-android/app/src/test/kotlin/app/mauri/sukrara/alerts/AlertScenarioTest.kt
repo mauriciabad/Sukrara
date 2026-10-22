@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.Durations
 import app.mauri.sukrara.core.Reading
 import app.mauri.sukrara.core.SensorInfo
 import app.mauri.sukrara.core.SensorLife
@@ -91,7 +92,9 @@ object AlertScenarios {
             "carbs.mute" -> if (v == "off") s.copy(muteCarbs = false) else s.copy(muteCarbs = true, muteCarbsMin = min())
             "insulin.mute" -> if (v == "off") s.copy(muteInsulin = false) else s.copy(muteInsulin = true, muteInsulinMin = min())
             "mute.min" -> s.copy(actionMuteMin = min())
-            "slow.min" -> s.copy(slowMin = min())
+            "relax.min" -> s.copy(relaxMin = min())
+            "back.mgdl" -> s.copy(backMgdl = min())
+            "back.min" -> s.copy(backMin = min())
             "falling.mute" -> if (v == "off") s.copy(muteFalling = false) else s.copy(muteFalling = true, muteFallingMin = min())
             else -> {
                 val kind = k.substringBefore('.')
@@ -110,7 +113,16 @@ object AlertScenarios {
     fun describe(a: AlertEngine.Action) = when (a) {
         is AlertEngine.Fire -> Kind.message(a.kind, a.treated)
         is AlertEngine.Clear -> "clear ${a.kind}"
+        is AlertEngine.Back -> "back ${a.kind}"
     }
+
+    /** A scenario's duration ("30", "2h", "1h 30"): [Durations.parse], the parser the typed Mute… uses. */
+    private fun minutes(w: List<String>, from: Int): Int? = w.drop(from).joinToString(" ").takeIf { it.isNotBlank() }
+        ?.let { Durations.parse(it) ?: error("not a duration: $it") }
+
+    /** `mute all <duration>|never`: Mute all's end at [t]. */
+    private fun allEnd(w: List<String>, from: Int, t: Long): Long =
+        if (w.getOrNull(from) == "never") AlertEngine.NEVER else t + (minutes(w, from) ?: error("mute all needs a length")) * 60L
 
     /** Runs [sc] (driver: SPEC.md §7); returns one line per minute that differs, empty when it all matches. */
     fun run(sc: Scenario): List<String> {
@@ -137,7 +149,10 @@ object AlertScenarios {
         fun published(acts: List<AlertEngine.Action>) { if (sc.mirror) for (a in acts) when (a) {
             is AlertEngine.Fire -> { pubFires[a.id] = a; if (follower.fire(a.kind, a.id, a.n, a.at)) note("follower ${describe(a)}") }
             is AlertEngine.Clear -> if (follower.clear(a.kind, a.id)) note("follower ${describe(a)}")
+            is AlertEngine.Back -> Unit
         } }
+        /** The follower's own readings (the same live stream): its Mute / Relax end by the margin. */
+        fun followerReading(rd: Reading?) { if (sc.mirror) follower.reading(rd, s, t).forEach { note("follower back $it") } }
         /** Both wearer engines (the shared one only in a mirror scenario): readings, treatments, settings, timer. */
         fun both(f: (AlertEngine) -> List<AlertEngine.Action>) { record(f(e)); if (sc.mirror) published(f(pub)) }
         fun check() = both { it.evaluate(s, AlertEngine.doses(trs), t) }
@@ -169,19 +184,24 @@ object AlertScenarios {
                         trs[i] = trs[i].copy(del = true)
                         check()
                     }
-                    // the alert notification's actions: Mute (the setting's minutes, or typed ones), Slow down
-                    "mute" -> record(e.mute(w[1], w.getOrNull(2)?.toInt() ?: s.actionMuteMin, s, AlertEngine.doses(trs), t))
-                    "slow" -> record(e.slow(w[1], s, AlertEngine.doses(trs), t))
-                    // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop slowing down
-                    "unmute" -> record(e.unmute(w[1], s, AlertEngine.doses(trs), t))
-                    "unslow" -> record(e.unslow(w[1], s, AlertEngine.doses(trs), t))
-                    // the same actions on the follower's notification (mirror): this device only
+                    // the alert notification's actions: Mute… (the setting's minutes, or a typed / picked length), Relax;
+                    // Mute all (the home screen / menu bar): a length or never
+                    "mute" -> if (w[1] == "all") record(e.muteAll(allEnd(w, 2, t), s, AlertEngine.doses(trs), t))
+                        else record(e.mute(w[1], minutes(w, 2) ?: s.actionMuteMin, s, AlertEngine.doses(trs), t))
+                    "relax" -> record(e.relax(w[1], s, AlertEngine.doses(trs), t))
+                    // the ways out (SPEC §2 "States and exits"): Unmute / Alert me anyway, Stop relaxing, Turn alerts back on
+                    "unmute" -> if (w[1] == "all") record(e.unmuteAll(s, AlertEngine.doses(trs), t))
+                        else record(e.unmute(w[1], s, AlertEngine.doses(trs), t))
+                    "unrelax" -> record(e.unrelax(w[1], s, AlertEngine.doses(trs), t))
+                    // the same actions on the follower (mirror): this device only
                     "follower" -> when (w[1]) {
-                        "mute" -> if (w[2] !in Kind.ALWAYS &&
-                            follower.mute(w[2], t + (w.getOrNull(3)?.toInt() ?: s.actionMuteMin) * 60L)) note("follower clear ${w[2]}")
-                        "slow" -> follower.slow(w[2], s.slowMin)
-                        "unmute" -> follower.unmute(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
-                        "unslow" -> follower.unslow(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
+                        "mute" -> if (w[2] == "all") follower.muteAll(allEnd(w, 3, t)).forEach { g ->
+                                note("follower clear ${pubFires.values.filter { Kind.group(it.kind) == g }.maxBy { it.at }.kind}") }
+                            else if (follower.mute(w[2], t + (minutes(w, 3) ?: s.actionMuteMin) * 60L)) note("follower clear ${w[2]}")
+                        "relax" -> follower.relax(w[2], s.relaxMin)
+                        "unmute" -> if (w[2] == "all") follower.unmuteAll(t).forEach { id -> note("follower ${describe(pubFires.getValue(id))}") }
+                            else follower.unmute(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
+                        "unrelax" -> follower.unrelax(w[2], t)?.let { id -> note("follower ${describe(pubFires.getValue(id))}") }
                         else -> error("unknown event: $ev")
                     }
                     "set" -> { s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }; check() }
@@ -205,8 +225,9 @@ object AlertScenarios {
             if (sensor && reading != null && reading <= t) {
                 val rd = Reading(t - age * 60L, glucose, rate)
                 both { it.reading(rd, s, AlertEngine.doses(trs), t) }
+                followerReading(rd)
                 nextReading = t + every * 60L
-            } else if (timer != null && timer <= t) check()
+            } else if (timer != null && timer <= t) { check(); followerReading(e.last) }
             timer = listOfNotNull(e.nextCheckAt(s, t), pub.nextCheckAt(s, t).takeIf { sc.mirror }).minOrNull()
             t = listOfNotNull(byTime.keys.filter { it > t }.minOrNull(), nextReading?.takeIf { sensor }, timer).minOrNull() ?: break
         }

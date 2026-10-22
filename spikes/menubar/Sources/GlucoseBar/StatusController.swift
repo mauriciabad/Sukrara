@@ -53,12 +53,15 @@ extension Bands {
     var alertSettings: (() -> AlertSettings)?
     /// Muted from an alert notification (side → until): the badge under the value.
     var alertPaused: (() -> [String: TimeInterval])?
+    /// This Mac's Mute all until (unix s; 0 = off, AlertStatus.never = no end): the card's muted pill, the menu bar's bell.
+    var alertAllMuted: (() -> TimeInterval)?
     /// The quiet alerts (Alerts.active) and their ways out, for the panel.
     var alertActive: (() -> [Alerts.Active])?
     var onQuiet: ((QuietOp) -> Void)? { didSet { panelModel.onQuiet = onQuiet } }
     var onLogTreatment: ((Treatment) -> Void)?
-    /// The panel's *Add Treatment…*: open the Add Treatment window on this screen (the menubar item's).
-    var onAddTreatment: ((NSScreen?) -> Void)?
+    /// The panel's *Add Treatment…* (field nil) and the card's *Eat carbs* / *Take insulin* pill (field "carbs" /
+    /// "rapid"): open the Add Treatment window on this screen (the menubar item's) with that field focused.
+    var onAddTreatment: ((NSScreen?, String?) -> Void)?
     var onDeleteTreatment: ((String) -> Void)?
     /// Which paths a new entry takes and whether this Mac may log at all (v2 writer gating, NEXT §1 item 1).
     var treatmentPaths: (() -> TreatmentPaths)?
@@ -68,7 +71,7 @@ extension Bands {
 
     private(set) var snapshot: Snapshot?
     private(set) var lastError: String?
-    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?
+    private var tick: Timer?, freshTimer: Timer?, endTimer: Timer?, muteTimer: Timer?
     private var clockObservers: [NSObjectProtocol] = []
 
     override init() {
@@ -86,14 +89,14 @@ extension Bands {
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: "Quit Sukrara", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        panelModel.onAddTreatment = { [weak self] in
-            self?.panel.close()
-            self?.onAddTreatment?(self?.item.button?.window?.screen)
+        panelModel.onAddTreatment = { [weak self] field in
+            self?.panel.close(.handOff)
+            self?.onAddTreatment?(self?.item.button?.window?.screen, field)
         }
-        panelModel.onFollow = { [weak self] in self?.panel.close(); self?.onFollow?() }
-        panelModel.onReport = { [weak self] in self?.panel.close(); self?.onReport?() }
-        panelModel.onTreatments = { [weak self] in self?.panel.close(); self?.onTreatments?() }
-        panelModel.onSettings = { [weak self] in self?.panel.close(); self?.onSettings?() }
+        panelModel.onFollow = { [weak self] in self?.panel.close(.handOff); self?.onFollow?() }
+        panelModel.onReport = { [weak self] in self?.panel.close(.handOff); self?.onReport?() }
+        panelModel.onTreatments = { [weak self] in self?.panel.close(.handOff); self?.onTreatments?() }
+        panelModel.onSettings = { [weak self] in self?.panel.close(.handOff); self?.onSettings?() }
         panel.onVisible = { [weak self] visible in
             guard let self else { return }
             self.item.button?.highlight(visible)
@@ -118,7 +121,7 @@ extension Bands {
     @objc private func clicked() {
         guard let button = item.button else { return }
         if NSApp.currentEvent?.type == .rightMouseUp || NSApp.currentEvent?.modifierFlags.contains(.control) == true {
-            panel.close()
+            panel.close(.dismiss)                   // the menu's items bring Sukrara forward themselves
             item.menu = contextMenu                 // shown by the next performClick, then detached again
             button.performClick(nil)
             item.menu = nil
@@ -214,6 +217,22 @@ extension Bands {
         button.toolTip = title.image == .noReadings ? "Sukrara · no reading since \(Clock.time(snap.latest.date))"
             : "Sukrara · reading at \(Clock.time(snap.latest.date))"
         button.setAccessibilityLabel(title.image == .noReadings ? "Glucose: no reading since \(Clock.time(snap.latest.date))" : title.label)
+        // Mute all (round f30): the "notifications off" bell before the value, while it lasts, and in the tooltip
+        let allEnd = alertAllMuted?() ?? 0
+        muteTimer?.invalidate(); muteTimer = nil
+        if let line = MuteCopy.allLine(until: allEnd, now: nowT) {
+            button.attributedTitle = Self.withMutedBell(button.attributedTitle, line: line, attrs)
+            if button.imagePosition == .imageOnly { button.imagePosition = .imageTrailing }
+            button.toolTip = (button.toolTip ?? "Sukrara") + " · " + line
+            button.setAccessibilityLabel(button.accessibilityLabel().map { "\($0), \(line)" } ?? line)
+            // the tooltip / VoiceOver line counts down: redraw when its minutes left change (aligned to the end)
+            if allEnd < AlertStatus.never {
+                let next = allEnd - TimeInterval(MuteCopy.leftMin(allEnd - nowT) - 1) * 60
+                let t = Timer(timeInterval: max(1, next - nowT + 0.5), repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.render() } }
+                RunLoop.main.add(t, forMode: .common)
+                muteTimer = t
+            }
+        }
         // round sensor-life: no value because the sensor ended or warms up → say so (the dropdown card says it too)
         if let sl {
             if sl.ended {
@@ -246,6 +265,7 @@ extension Bands {
         panelModel.style = Self.dropdownStyle(graph, sensor: SensorStore.current)
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.allMuted = alertAllMuted?() ?? 0
         panelModel.quiet = alertActive?() ?? []
         panelModel.readings = pts
         panelModel.tick += 1
@@ -270,6 +290,21 @@ extension Bands {
         let r = GraphReading(t: snap.latest.date.timeIntervalSince1970, v: snap.latest.mgdl, rate: snap.rate)
         return GlucoseCard.face(r, now: now, sensor: SensorBadge.look(sensor, now: now, latest: r.t), surface: .menubarTitle, format: format)
     }
+
+    /// The menu bar title with the "notifications off" bell before it (Mute all; also `-menubarSnapshot`).
+    static func withMutedBell(_ title: NSAttributedString, line: String, _ attrs: [NSAttributedString.Key: Any]) -> NSAttributedString {
+        let bell = NSTextAttachment()
+        let img = NSImage(systemSymbolName: "bell.slash", accessibilityDescription: line)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize - 1, weight: .medium))
+        img?.isTemplate = true
+        bell.image = img
+        let t = NSMutableAttributedString(attachment: bell)
+        t.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: 0, length: t.length))
+        t.append(NSAttributedString(string: "\u{2009}", attributes: attrs))
+        t.append(title)
+        return t
+    }
+
 
     private func marks() -> [GraphMark] {
         (treatments?() ?? []).filter { !$0.del }.map { GraphMark(t: TimeInterval($0.t), k: $0.k, a: $0.a, n: $0.n) }
@@ -301,8 +336,10 @@ extension Bands {
 
     /// The alert settings changed: the badge, the mute lines and the slot follow them.
     func alertsChanged() {
+        render()   // the menu bar's Mute all bell
         panelModel.alerts = alertSettings?()
         panelModel.paused = alertPaused?() ?? [:]
+        panelModel.allMuted = alertAllMuted?() ?? 0
         panelModel.quiet = alertActive?() ?? []
         panel.relayout()
     }
@@ -353,6 +390,13 @@ enum MacSurface {
 /// The glucose card (investigation 16): value, trend arrow, time-in-range rings and the graph with its side profile,
 /// drawn by the shared renderer (SukraraGraph.swift) like the widgets and Sukrara for Android, here in the panel's
 /// module on the menu material.
+/// The card pill's VoiceOver button: VoiceOver's press (VO-Space) runs `press`.
+final class PillAccessibilityElement: NSAccessibilityElement {
+    let press: () -> Bool
+    init(press: @escaping () -> Bool) { self.press = press; super.init() }
+    override func accessibilityPerformPress() -> Bool { press() }
+}
+
 final class CardView: NSView {
     var readings: [GraphReading] = [] { didSet { needsDisplay = true } }
     var marks: [GraphMark] = [] { didSet { needsDisplay = true } }
@@ -360,9 +404,40 @@ final class CardView: NSView {
     var metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)?
     var alerts: AlertSettings? { didSet { needsDisplay = true } }
     var paused: [String: TimeInterval] = [:] { didSet { needsDisplay = true } }
-    /// A click on the status pill ("45m left"): its box (view coordinates) and this view.
+    var allMuted: TimeInterval = 0 { didSet { needsDisplay = true } }
+    /// A click on the status pill ("Eat carbs", "45m left"): its box (view coordinates) and this view.
     var onStatus: ((CGRect, NSView) -> Void)?
+    /// This Mac may log entries: *Eat carbs* / *Take insulin* then open Add Treatment (PillAction).
+    var canAddTreatment = false
     private var statusBox: CGRect?
+
+    /// The pill as a VoiceOver button (round f33): its words as the label ("Eat carbs"), what pressing does as the help
+    /// ("Add Treatment"), pressing = clicking it. The card itself stays a picture; only the pill acts.
+    override func accessibilityChildren() -> [Any]? {
+        var children = super.accessibilityChildren() ?? []
+        if let e = pillElement() { children.append(e) }
+        return children
+    }
+
+    /// The accessibility element for the pill, or nil when no pill is drawn or it does nothing here.
+    func pillElement() -> NSAccessibilityElement? {
+        guard let statusBox, onStatus != nil, let alerts else { return nil }
+        let status = AlertStatus.of(readings.last, alerts, marks, now: nowT, paused: paused, allMuted: allMuted)
+        guard let name = PillAction.of(status, canAdd: canAddTreatment).actionName, let text = StatusBadge.describe(status, now: nowT)
+        else { return nil }
+        let box = statusBox.offsetBy(dx: inset.left, dy: inset.top)
+        let e = PillAccessibilityElement { [weak self] in
+            guard let self else { return false }
+            self.onStatus?(box, self)
+            return true
+        }
+        e.setAccessibilityRole(.button)
+        e.setAccessibilityLabel(text)
+        e.setAccessibilityHelp(name)
+        e.setAccessibilityParent(self)
+        e.setAccessibilityFrameInParentSpace(box)
+        return e
+    }
     /// Tests / previews: draw as if this were now.
     var now: Date? = nil
     var inset = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
@@ -434,6 +509,12 @@ final class CardView: NSView {
     override func magnify(with e: NSEvent) {
         guard style.graph != nil, plot != nil else { return super.magnify(with: e) }
         zoom(by: 1 + Double(e.magnification), anchor: anchor(e))
+    }
+
+    /// A two-finger double tap (smart zoom): back and forth between the place's window and 3 h there.
+    override func smartMagnify(with e: NSEvent) {
+        guard style.graph != nil, plot != nil else { return super.smartMagnify(with: e) }
+        zoom(by: scrollSpan == nil ? baseSpan / (3 * 3600) : span / baseSpan, anchor: anchor(e))
     }
 
     /// Move the window's end by `dt` s, within the history; at now it follows now again.
@@ -563,7 +644,7 @@ final class CardView: NSView {
     func paint(_ ctx: CGContext, size: CGSize, _ pal: GraphPalette) -> CardLayout {
         let rec = GlucoseCard.draw(ctx, size: size, readings: readings, marks: marks, now: (now ?? Date()).timeIntervalSince1970,
                          style, pal, surface: .menubarCard, part: .all, metricsOf: metricsOf, alerts: alerts, paused: paused,
-                         view: chartView)
+                         allMuted: allMuted, view: chartView)
         plot = rec.first("chart.plot")?.box
         nowBox = rec.first("chart.now")?.box
         statusBox = rec.first("value.status")?.box
@@ -598,5 +679,48 @@ struct MenubarTitle: Equatable {
         // a new sensor warming up: its time left where the number goes (render writes it in the secondary colour)
         case .warmingUp: return MenubarTitle(text: look.warmup ?? "", strike: false, grey: true, image: .none, label: "Sensor warming up")
         }
+    }
+}
+
+/// `-menubarSnapshot <png>` (evidence, round f30): the status item's title as `render` builds it (the card's face for
+/// a synthetic reading, the arrow, Mute all's bell and its tooltip line): plain, Mute all for a time, until turned off, on a light and a
+/// dark menu bar. Offline like every `-…Snapshot` run (LaunchGuard): nothing starts.
+@MainActor enum MenubarSnapshot {
+    static func render(to path: String) {
+        let now = Date().timeIntervalSince1970
+        let r = GraphReading(t: now - 30, v: 161, rate: 0.6)
+        let title = MenubarTitle.of(GlucoseCard.face(r, now: now, sensor: nil, surface: .menubarTitle))
+        let rows: [(String, TimeInterval)] = [("not muted", 0), ("Mute all 1 h 20 min", now + 80 * 60), ("Mute all until turned off", AlertStatus.never)]
+        let cell = NSSize(width: 240, height: 24), scale: CGFloat = 3
+        let size = NSSize(width: cell.width * 2, height: cell.height * CGFloat(rows.count))
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        rep.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        for (col, dark) in [false, true].enumerated() {
+            NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+                (dark ? NSColor(white: 0.12, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+                NSRect(x: CGFloat(col) * cell.width, y: 0, width: cell.width, height: size.height).fill()
+                for (i, row) in rows.enumerated() {
+                    let y = size.height - CGFloat(i + 1) * cell.height
+                    let color = Bands().color(for: r.v) ?? .labelColor
+                    let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+                                                                .foregroundColor: color]
+                    var t = NSAttributedString(string: title.text, attributes: attrs)
+                    if let line = MuteCopy.allLine(until: row.1, now: now) { t = StatusController.withMutedBell(t, line: line, attrs) }
+                    let x = CGFloat(col) * cell.width + 10
+                    t.draw(at: NSPoint(x: x, y: y + 4))
+                    TrendArrow.image(rate: r.rate, size: 15, color: color).draw(in: NSRect(x: x + t.size().width + 2, y: y + 4.5, width: 15, height: 15))
+                    // the label: the tooltip / VoiceOver line render adds (MuteCopy.allLine), else the row's name
+                    NSAttributedString(string: MuteCopy.allLine(until: row.1, now: now) ?? row.0, attributes: [.font: NSFont.systemFont(ofSize: 8), .foregroundColor: NSColor.secondaryLabelColor])
+                        .draw(at: NSPoint(x: x + 72, y: y + 7))
+                }
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
+        print("wrote", path)
     }
 }

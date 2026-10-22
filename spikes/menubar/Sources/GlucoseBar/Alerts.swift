@@ -53,66 +53,101 @@ struct AlertEvent: Equatable, Codable {
 /// strictly local (user, 2026-10-21: "Mac notifications should work on their own … if someone wants to mute, it
 /// shouldn't mute the other"): the wearer never hears of them, and the wearer's own mutes never reach here (it keeps
 /// publishing what its rules decide).
-/// - *Mute* drops the wearer's alerts of that side while it lasts (very low and extremely high always show);
-/// - *Slow down* shows a repeat only once `slowMin` has passed since the last one shown here (a more severe kind of the
+/// - *Mute* drops the wearer's alerts of that side while it lasts (every kind of the side, very low and extremely high
+///   included; round f30), *Mute all* every alert;
+/// - *Relax* shows a repeat only once `relaxMin` has passed since the last one shown here (a more severe kind of the
 ///   side always shows);
-/// - both end with the wearer's episode (a firing with `n` = 1).
+/// - Mute and Relax end at their time or once the side is back by the margin on the readings this Mac gets
+///   (`reading`, the same rule as AlertEngine), not with the wearer's episode;
+/// - *Unmute*, *Stop relaxing* and *Turn alerts back on* end them on this Mac; the wearer's newest firing that's still
+///   up (dropped or skipped here) then shows at once.
 /// The same struct drives the app (Alerts) and the timeline scenarios (AlertScenarios, `mirror`).
 struct AlertMirror {
     /// side → this Mac's notification actions in force.
     private var snooze: [String: AlertEngine.Snooze] = [:]
-    /// group → when and which kind this Mac last showed (Slow down spaces the wearer's repeats).
+    /// *Mute all* on this Mac until then (nil = off, AlertEngine.never = until turned back on).
+    private(set) var allUntil: Date?
+    /// group → when and which kind this Mac last showed (Relax spaces the wearer's repeats).
     private var last: [AlertKind.Group: (Date, AlertKind)] = [:]
     /// group → id of the wearer's firing whose notification is up here.
     private var shown: [AlertKind.Group: String] = [:]
-    /// group → id of the wearer's newest firing, shown here or not.
-    private var newest: [AlertKind.Group: String] = [:]
+    /// group → id and kind of the wearer's newest firing, shown here or not.
+    private var newest: [AlertKind.Group: (String, AlertKind)] = [:]
     /// groups whose newest firing the wearer has cleared.
     private var newestCleared: Set<AlertKind.Group> = []
+
+    private func allOn(_ t: Date) -> Bool { allUntil.map { $0 > t } ?? false }
 
     /// The wearer fired `k` (firing `id`, the episode's `n`th, at `at`): true = show it here.
     mutating func fire(_ k: AlertKind, id: String, n: Int, at: Date) -> Bool {
         let side = k.side, g = k.group
-        newest[g] = id
+        newest[g] = (id, k)
         newestCleared.remove(g)
-        if n <= 1 { snooze[side] = nil }       // a new episode on the wearer
         let sn = snooze[side]
-        let muted = (sn?.until.map { $0 > at } ?? false) && !k.always
-        let slowed = sn.map { sn in sn.slowMin > 0 && last[g].map { (t, lk) in
-            lk.side == side && k.severity <= lk.severity && at.timeIntervalSince(t) < TimeInterval(sn.slowMin * 60) } ?? false } ?? false
-        if muted || slowed { return false }
+        let muted = (sn?.until.map { $0 > at } ?? false) || allOn(at)
+        let relaxed = sn.map { sn in sn.relaxMin > 0 && last[g].map { (t, lk) in
+            lk.side == side && k.severity <= lk.severity && at.timeIntervalSince(t) < TimeInterval(sn.relaxMin * 60) } ?? false } ?? false
+        if muted || relaxed { return false }
         shown[g] = id
         last[g] = (at, k)
         return true
     }
 
     /// The wearer cleared its firing `id` of `k`'s group: true = the notification shown here goes. That's the firing
-    /// shown here, or the wearer's newest one: a repeat this Mac skipped (slowed) left the earlier firing up, and the
+    /// shown here, or the wearer's newest one: a repeat this Mac skipped (relaxed) left the earlier firing up, and the
     /// wearer's clear of the repeat ends it too. An older clear arriving late changes nothing.
     mutating func clear(_ k: AlertKind, id: String) -> Bool {
         let g = k.group
-        if newest[g] == id { newestCleared.insert(g) }
-        guard let cur = shown[g], cur == id || newest[g] == id else { return false }
+        if newest[g]?.0 == id { newestCleared.insert(g) }
+        guard let cur = shown[g], cur == id || newest[g]?.0 == id else { return false }
         shown[g] = nil
         return true
     }
 
+    /// A reading this Mac got at `t` (`r` nil = none recent): ends a side's Mute / Relax once it is back by the margin
+    /// (`AlertEngine.backBy`); returns those sides. A Mute's time ending needs no reading.
+    mutating func reading(_ r: Reading?, _ s: AlertSettings, at t: Date) -> [String] {
+        var out: [String] = []
+        for side in snooze.keys.sorted() {
+            guard var cur = snooze[side] else { continue }
+            if let u = cur.until, u <= t { cur.until = nil; put(side, cur) }
+            guard var sn = snooze[side] else { continue }
+            guard let r, t.timeIntervalSince(r.date) <= AlertEngine.fresh else { continue }
+            if !AlertEngine.backBy(side, r, s) { sn.backSince = nil; snooze[side] = sn; continue }
+            let since = sn.backSince ?? t
+            if t.timeIntervalSince(since) >= TimeInterval(s.notificationActions.backMin * 60) { snooze[side] = nil; out.append(side) }
+            else { sn.backSince = since; snooze[side] = sn }
+        }
+        return out
+    }
+
     /// This Mac's *Mute* on `k`'s side until `until`: true = an alert of it was showing (it goes).
     mutating func mute(_ k: AlertKind, until: Date) -> Bool {
-        var sn = snooze[k.side] ?? AlertEngine.Snooze(until: nil, slowMin: 0)
+        var sn = snooze[k.side] ?? AlertEngine.Snooze()
         sn.until = until
+        sn.backSince = nil
         snooze[k.side] = sn
         return shown.removeValue(forKey: k.group) != nil
     }
 
-    /// This Mac's *Slow down* on `k`'s side.
-    mutating func slow(_ k: AlertKind, slowMin: Int) {
-        var sn = snooze[k.side] ?? AlertEngine.Snooze(until: nil, slowMin: 0)
-        sn.slowMin = slowMin
+    /// This Mac's *Relax* on `k`'s side.
+    mutating func relax(_ k: AlertKind, relaxMin: Int) {
+        var sn = snooze[k.side] ?? AlertEngine.Snooze()
+        sn.relaxMin = relaxMin
+        sn.backSince = nil
         snooze[k.side] = sn
     }
 
-    func slowed(_ k: AlertKind) -> Bool { (snooze[k.side]?.slowMin ?? 0) > 0 }
+    /// This Mac's *Mute all* until `until`: returns the groups whose alert was showing (they go).
+    mutating func muteAll(until: Date) -> [AlertKind.Group] {
+        allUntil = until
+        let gone = Array(shown.keys)
+        shown = [:]
+        return gone
+    }
+
+    func relaxed(_ k: AlertKind) -> Bool { (snooze[k.side]?.relaxMin ?? 0) > 0 }
+    func showing(_ k: AlertKind) -> Bool { shown[k.group] != nil }
 
     /// This Mac's *Unmute* on `k`'s side at `t`: the id of the wearer's newest firing to show at once (still up on the
     /// wearer and not showing here), or nil.
@@ -120,25 +155,35 @@ struct AlertMirror {
         guard var sn = snooze[k.side], let u = sn.until, u > t else { return nil }
         sn.until = nil
         put(k.side, sn)
-        return again(k, t)
+        return allOn(t) ? nil : again(k.group, t)
     }
 
-    /// This Mac's *Stop slowing down* on `k`'s side: like `unmute`, a skipped repeat still up shows at once.
-    mutating func unslow(_ k: AlertKind, at t: Date) -> String? {
-        guard var sn = snooze[k.side], sn.slowMin > 0 else { return nil }
-        sn.slowMin = 0
+    /// This Mac's *Stop relaxing* on `k`'s side: like `unmute`, a skipped repeat still up shows at once.
+    mutating func unrelax(_ k: AlertKind, at t: Date) -> String? {
+        guard var sn = snooze[k.side], sn.relaxMin > 0 else { return nil }
+        sn.relaxMin = 0
         put(k.side, sn)
-        if let u = sn.until, u > t, !k.always { return nil }
-        return again(k, t)
+        if (sn.until.map { $0 > t } ?? false) || allOn(t) { return nil }
+        return again(k.group, t)
+    }
+
+    /// *Turn alerts back on* at `t`: the ids of the wearer's newest firings still up to show at once (not muted otherwise).
+    mutating func unmuteAll(at t: Date) -> [String] {
+        guard allOn(t) else { return [] }
+        allUntil = nil
+        return [AlertKind.Group.level, .rate, .noData].compactMap { g in
+            guard let (_, k) = newest[g] else { return nil }
+            if snooze[k.side]?.until.map({ $0 > t }) == true { return nil }
+            return again(g, t)
+        }
     }
 
     private mutating func put(_ side: String, _ sn: AlertEngine.Snooze) {
-        snooze[side] = sn.until == nil && sn.slowMin == 0 ? nil : sn
+        snooze[side] = sn.until == nil && sn.relaxMin == 0 ? nil : sn
     }
 
-    private mutating func again(_ k: AlertKind, _ t: Date) -> String? {
-        let g = k.group
-        guard let id = newest[g], !newestCleared.contains(g), shown[g] != id else { return nil }
+    private mutating func again(_ g: AlertKind.Group, _ t: Date) -> String? {
+        guard let (id, k) = newest[g], !newestCleared.contains(g), shown[g] != id else { return nil }
         shown[g] = id
         last[g] = (t, k)
         return id
@@ -147,10 +192,19 @@ struct AlertMirror {
     /// This Mac's actions in force on `k`'s side (the panel and Settings › Alerts).
     func snooze(_ k: AlertKind) -> AlertEngine.Snooze? { snooze[k.side] }
 
+    /// Every side with an action in force (the panel lists the ones without an alert too).
+    func snoozes(_ t: Date) -> [String: AlertEngine.Snooze] {
+        snooze.filter { ($0.value.until.map { $0 > t } ?? false) || $0.value.relaxMin > 0 }
+            .mapValues { var sn = $0; if let u = sn.until, u <= t { sn.until = nil }; return sn }
+    }
+
+    /// Mute all's end at `t` (nil = off).
+    func allMuted(_ t: Date) -> Date? { allOn(t) ? allUntil : nil }
+
     /// Not mirroring any more (own rules, alerts off): nothing of the wearer's shows here.
     mutating func forgetShown() { shown = [:] }
 
-    /// Side → muted until, for the badge.
+    /// Side → muted until (the side's Mute), for the badge; Mute all is `allMuted`.
     func paused(_ t: Date) -> [String: Date] { snooze.compactMapValues { sn in sn.until.flatMap { $0 > t ? $0 : nil } } }
 }
 
@@ -159,8 +213,8 @@ struct AlertMirror {
 extension AlertKind: Codable {}
 
 /// The rules, without any UI — a 1:1 port of Android's AlertEngine: feed it the newest reading (`reading`) and call
-/// `tick()` every minute and at `nextCheckAt`; it reports firings and clears through `onFire` / `onClear`. Time comes
-/// from `now` (tests inject a clock).
+/// `tick()` every minute and at `nextCheckAt`; it reports firings, clears and margin ends through `onFire` / `onClear`
+/// / `onBack`. Time comes from `now` (tests inject a clock).
 ///
 /// Three independent groups (level, rate, no data), each with at most one **episode**: a stretch of time on one side
 /// (lows, highs, falling fast, rising fast, no data). An episode starts when a kind of that side matches and ends once
@@ -171,13 +225,17 @@ extension AlertKind: Codable {}
 /// - a treatment that answers it (carbs for lows and falling fast, rapid insulin for highs and rising fast) quiets
 ///   it for the mute window and restarts the count: when the window ends and it still matches, it alerts at once;
 /// - the falling-high mute only postpones: when it ends, whatever was due alerts;
-/// - the alert notification's actions act on the episode: *Mute* (`mute`) quiets it like a treatment does (alerts at
-///   once when it ends, never very low or extremely high), *Slow down* (`slow`) repeats it at the slower interval;
-///   both end with the episode;
-/// - the ways out (SPEC §2 "States and exits"): *Unmute* / *Alert me anyway* (`unmute`) lifts the notification's Mute,
-///   the treatments logged so far and the falling-high mute for the rest of the episode, and alerts at once if it still
-///   matches; *Stop slowing down* (`unslow`) goes back to the kind's interval (an overdue repeat at once); a new `mute`
-///   on a muted episode changes its end.
+/// - the alert notification's actions act on **one side** (lows incl. very low, highs incl. extremely high, falling
+///   fast, rising fast, no data; round f30): *Mute* (`mute`) quiets it like a treatment does (alerts at once when it
+///   ends), *Relax* (`relax`) repeats it at the slower interval. Neither ever touches the other side. They outlive the
+///   episode and end at their time (Mute) or once the side is **back by the margin** (`backMgdl` inside the threshold
+///   for `backMin` minutes: `onBack`), whichever comes first; crossing back out before that keeps them on;
+/// - *Mute all* (`muteAll`) quiets every kind on this Mac until its end (`never` = until turned back on); when it ends
+///   whatever still matches alerts at once;
+/// - the ways out (SPEC §2 "States and exits"): *Unmute* / *Alert me anyway* (`unmute`) lifts the side's Mute, the
+///   treatments logged so far and the falling-high mute for the rest of the episode, and alerts at once if it still
+///   matches; *Stop relaxing* (`unrelax`) goes back to the kind's interval (an overdue repeat at once); a new `mute`
+///   on a muted side changes its end; *Turn alerts back on* (`unmuteAll`) ends Mute all.
 final class AlertEngine {
     var settings: AlertSettings
     var now: () -> Date
@@ -189,21 +247,28 @@ final class AlertEngine {
     var levelAndRate = true
     var onFire: ((AlertEvent) -> Void)?
     var onClear: ((AlertEvent) -> Void)?
+    /// The Mute / Relax of a side ("low", "high", "falling_fast", …) ended because glucose is back by the margin.
+    var onBack: ((String) -> Void)?
 
     /// Readings older than this never alert (backfill, a late chunk).
     static let fresh = AlertStatus.fresh
     /// An episode lasts until nothing of its side has matched for its repeat interval, but at least this long.
     static let minHoldMin = 5
+    /// `muteAll` without an end: until the user turns alerts back on (Android's NEVER).
+    static let never = Date(timeIntervalSince1970: AlertStatus.never)
 
     /// What the UI shows per group: the matching kind, and why it's quiet if it is.
     struct State { var kind: AlertKind; var muted: String?; var firedAt: Date?; var n: Int }
-    /// A notification action on a side's episode: muted until `until` (nil = not), repeats slowed to `slowMin` (0 = not).
-    struct Snooze: Equatable { var until: Date?; var slowMin: Int }
-    /// An episode in a state the user can leave (SPEC §2 "States and exits"), for the panel and Settings › Alerts:
-    /// `quiet` why it's quiet (nil = not quiet) until `until` (nil = no fixed end), `slowMin` > 0 = slowed.
+    /// This device's notification actions on a side: muted until `until` (nil = not), repeats relaxed to `relaxMin`
+    /// (0 = not). `backSince`: when the side was first back by the margin without crossing out again (nil = it isn't).
+    struct Snooze: Equatable, Codable { var until: Date? = nil; var relaxMin = 0; var backSince: Date? = nil }
+    /// An episode or side in a state the user can leave (SPEC §2 "States and exits"), for the panel and Settings ›
+    /// Alerts: `quiet` why it's quiet (nil = not quiet) until `until` (nil = no fixed end), `relaxMin` > 0 = relaxed,
+    /// `canRelax` = a Relax would change anything. A side muted or relaxed after its episode ended shows with `on`
+    /// false and the side's main kind.
     struct Quiet: Equatable {
         enum Why: String { case notification, carbs, insulin, falling }
-        var kind: AlertKind; var on: Bool; var quiet: Why?; var until: Date?; var slowMin: Int; var canMute: Bool; var canSlow: Bool
+        var kind: AlertKind; var on: Bool; var quiet: Why?; var until: Date?; var relaxMin: Int; var canRelax: Bool
     }
 
     private final class Episode: Codable {
@@ -220,19 +285,18 @@ final class AlertEngine {
         var muted: String?
         /// When the next alert is due (nil = never), from the last evaluation: the timer.
         var next: Date?
-        /// The notification's Mute: quiet until then.
-        var quietUntil: Date?
-        /// The notification's Slow down: repeats at least this many minutes apart (0 = the kind's interval).
-        var slowMin = 0
         /// *Unmute* / *Alert me anyway* at this time: treatments logged up to then and the falling mute don't quiet it.
         var lifted: Date?
-        /// Lifted since the last alert: the next match alerts at once (cleared when it does). Optional: a saved
-        /// episode from before it existed still decodes.
-        var liftPending: Bool?
+        /// Lifted since the last alert: the next match alerts at once (cleared when it does).
+        var liftPending = false
         init(_ k: AlertKind, _ t: Date) { side = k.side; start = t; kind = k; lastIn = t; firedKind = k; next = t }
     }
 
     private var episodes: [AlertKind.Group: Episode] = [:]
+    /// side → this device's Mute / Relax (`mute`, `relax`); they outlive episodes (see the class comment).
+    private var snooze: [String: Snooze] = [:]
+    /// *Mute all* until then (nil = off, `never` = until turned back on).
+    private(set) var allUntil: Date?
     private(set) var latest: Reading?
     /// The current sensor (SensorStore; the live events' ss/se/sw): no `no_data` while it has ended or warms up (no
     /// reading is expected then, SPEC §2); a running no-data alert clears.
@@ -257,11 +321,14 @@ final class AlertEngine {
     /// The newest stored reading after a restart: no data counts from it. No evaluation (no alert for old news).
     func seed(_ r: Reading?) { if let r, latest.map({ r.date > $0.date }) ?? true { latest = r } }
 
-    /// The episodes, saved after every evaluation so a restart resumes them (Android's `AlertEngine.snapshot`): without
-    /// it the next check after an update or relaunch takes an ongoing alert for a new one and rings again at once
-    /// (docs/15, "Two sounds at once").
+    private struct Saved: Codable { var episodes: [String: Episode]; var snoozes: [String: Snooze]; var all: Date? }
+
+    /// The episodes, the sides' Mute / Relax and Mute all, saved after every evaluation so a restart resumes them
+    /// (Android's `AlertEngine.snapshot`): without it the next check after an update or relaunch takes an ongoing alert
+    /// for a new one and rings again at once (docs/15, "Two sounds at once").
     func snapshot() -> Data {
-        (try? JSONEncoder().encode(Dictionary(uniqueKeysWithValues: episodes.map { ($0.key.rawValue, $0.value) }))) ?? Data("{}".utf8)
+        let s = Saved(episodes: Dictionary(uniqueKeysWithValues: episodes.map { ($0.key.rawValue, $0.value) }), snoozes: snooze, all: allUntil)
+        return (try? JSONEncoder().encode(s)) ?? Data("{}".utf8)
     }
 
     /// Back to the `snapshot` state (episodes over by `t` are dropped). Returns the firings whose notification was up:
@@ -269,8 +336,10 @@ final class AlertEngine {
     /// the app was down alerts, anything else waits for its time.
     @discardableResult func restore(_ data: Data, at t: Date) -> [AlertEvent] {
         episodes = [:]
-        let saved = (try? JSONDecoder().decode([String: Episode].self, from: data)) ?? [:]
-        for (g, e) in saved {
+        let saved = try? JSONDecoder().decode(Saved.self, from: data)
+        snooze = saved?.snoozes ?? [:]
+        allUntil = saved?.all.flatMap { $0 > t ? $0 : nil }
+        for (g, e) in saved?.episodes ?? [:] {
             guard let group = AlertKind.Group(rawValue: g), t.timeIntervalSince(e.lastIn) < hold(e, settings) else { continue }
             episodes[group] = e
         }
@@ -283,59 +352,104 @@ final class AlertEngine {
         evaluate()
     }
 
-    /// The alert notification's *Mute* for `min` minutes on `kind`'s episode, then an evaluation (its alert clears).
-    /// Nothing without an episode, or for very low and extremely high (`AlertKind.always`).
+    /// The alert notification's *Mute* for `min` minutes on `kind`'s side (every kind, very low and extremely high
+    /// included; with or without an episode), then an evaluation (its alert clears). On a muted side: Change.
     func mute(_ kind: AlertKind, min: Int) {
-        guard let e = episodes[kind.group], !kind.always, min > 0 else { return }
-        e.quietUntil = now().addingTimeInterval(TimeInterval(min * 60))
+        guard min > 0 else { return }
+        var sn = snooze[kind.side] ?? Snooze()
+        sn.until = now().addingTimeInterval(TimeInterval(min * 60))
+        sn.backSince = nil
+        snooze[kind.side] = sn
         evaluate()
     }
 
-    /// The alert notification's *Slow down* on `kind`'s episode: its repeats come every `notificationActions.slowMin`.
-    func slow(_ kind: AlertKind) {
-        guard let e = episodes[kind.group] else { return }
-        e.slowMin = settings.notificationActions.slowMin
+    /// The alert notification's *Relax* on `kind`'s side: its repeats come every `notificationActions.relaxMin` at least.
+    func relax(_ kind: AlertKind) {
+        var sn = snooze[kind.side] ?? Snooze()
+        sn.relaxMin = settings.notificationActions.relaxMin
+        sn.backSince = nil
+        snooze[kind.side] = sn
         evaluate()
     }
 
-    /// *Unmute* (a notification mute) / *Alert me anyway* (a treatment or falling-high mute) on `kind`'s episode, this
-    /// device only: whatever quiets it now is lifted for the rest of the episode (a treatment logged later mutes again),
-    /// then an evaluation: still matching → it alerts at once; back in range → nothing (at once if it matches again
-    /// within the episode). Nothing when no episode or nothing is quiet.
+    /// *Unmute* (a notification mute) / *Alert me anyway* (a treatment or falling-high mute) on `kind`'s side, this
+    /// device only: the side's Mute ends, and whatever quiets its episode now is lifted for the rest of the episode (a
+    /// treatment logged later mutes again), then an evaluation: still matching → it alerts at once; back in range →
+    /// nothing. Nothing when nothing is quiet.
     func unmute(_ kind: AlertKind) {
-        guard let e = episodes[kind.group] else { return }
-        let t = now()
-        guard (e.quietUntil.map { $0 > t } ?? false) || e.muted != nil || cover(e, e.kind, settings, doses, t) != nil else { return }
-        e.quietUntil = nil
-        e.lifted = t
-        e.liftPending = true
+        let t = now(), side = kind.side
+        let sn = snooze[side]
+        let muted = sn?.until.map { $0 > t } ?? false
+        let e = episodes[kind.group].flatMap { $0.side == side ? $0 : nil }
+        let quiet = e.map { $0.muted != nil || cover($0, $0.kind, settings, doses, t) != nil } ?? false
+        guard muted || quiet else { return }
+        if var sn { sn.until = nil; put(side, sn) }
+        if let e {
+            e.lifted = t
+            e.liftPending = true
+        }
         evaluate()
     }
 
-    /// *Stop slowing down* on `kind`'s episode: the kind's own interval again (a repeat already due alerts at once).
-    func unslow(_ kind: AlertKind) {
-        guard let e = episodes[kind.group], e.slowMin > 0 else { return }
-        e.slowMin = 0
+    /// *Stop relaxing* on `kind`'s side: the kind's own interval again (a repeat already due alerts at once).
+    func unrelax(_ kind: AlertKind) {
+        guard var sn = snooze[kind.side], sn.relaxMin > 0 else { return }
+        sn.relaxMin = 0
+        put(kind.side, sn)
         evaluate()
     }
 
-    /// The episodes the user can act on now (quiet or slowed): see `Quiet`.
+    /// *Mute all* until `until` (`never` = until turned back on; a later call changes it), then an evaluation.
+    func muteAll(until: Date) {
+        guard until > now() else { return }
+        allUntil = until
+        evaluate()
+    }
+
+    /// *Turn alerts back on*: Mute all ends; whatever still matches (and isn't muted otherwise) alerts at once.
+    func unmuteAll() {
+        guard allMuted(now()) != nil else { return }
+        allUntil = nil
+        evaluate()
+    }
+
+    /// Mute all's end at `t` (nil = off, `never` = until turned back on).
+    func allMuted(_ t: Date) -> Date? { allUntil.flatMap { $0 > t ? $0 : nil } }
+
+    private func put(_ side: String, _ sn: Snooze) { snooze[side] = sn.until == nil && sn.relaxMin == 0 ? nil : sn }
+
+    /// The side's Mute in force at `t`, or nil.
+    private func muteEnd(_ side: String, _ t: Date) -> Date? { snooze[side]?.until.flatMap { $0 > t ? $0 : nil } }
+
+    /// The episodes and sides the user can act on now (quiet or relaxed): see `Quiet`. Mute all is `allMuted`.
     func quiets() -> [Quiet] {
         let s = settings, t = now()
-        return [AlertKind.Group.level, .rate, .noData].compactMap { g -> Quiet? in
-            guard let e = episodes[g] else { return nil }
-            let note = e.quietUntil.flatMap { $0 > t && !e.kind.always ? $0 : nil }
+        var out: [Quiet] = [], seen: Set<String> = []
+        func canRelax(_ k: AlertKind, _ relax: Int) -> Bool { relax == 0 && s[k].repeatMin > 0 && s[k].repeatMin < s.notificationActions.relaxMin }
+        for g in [AlertKind.Group.level, .rate, .noData] {
+            guard let e = episodes[g] else { continue }
+            seen.insert(e.side)
+            let note = muteEnd(e.side, t)
+            let relax = snooze[e.side]?.relaxMin ?? 0
             var why: Quiet.Why?, until: Date?
             if let by = s.mutedBy(e.kind), let tc = cover(e, e.kind, s, doses, t) {
                 why = by == "rapid" ? .insulin : .carbs
                 until = max(tc.addingTimeInterval(s.muteS(by)), note ?? .distantPast)
             } else if let note { why = .notification; until = note }
-            else if e.on, e.muted != nil { why = .falling }
-            guard why != nil || e.slowMin > 0 else { return nil }
-            let rep = s[e.kind].repeatMin
-            return Quiet(kind: e.kind, on: e.on, quiet: why, until: until, slowMin: e.slowMin, canMute: !e.kind.always,
-                         canSlow: e.slowMin == 0 && rep > 0 && rep < s.notificationActions.slowMin)
+            // the falling-high mute (Mute all's own text is not a falling mute: it shows as Mute all)
+            else if e.on, e.muted?.hasPrefix("falling") == true { why = .falling }
+            guard why != nil || relax > 0 else { continue }
+            out.append(Quiet(kind: e.kind, on: e.on, quiet: why, until: until, relaxMin: relax, canRelax: canRelax(e.kind, relax)))
         }
+        for side in snooze.keys.sorted() where !seen.contains(side) {
+            guard let sn = snooze[side] else { continue }
+            let until = sn.until.flatMap { $0 > t ? $0 : nil }
+            guard until != nil || sn.relaxMin > 0 else { continue }
+            let k = AlertKind.main(side)
+            out.append(Quiet(kind: k, on: false, quiet: until != nil ? .notification : nil, until: until, relaxMin: sn.relaxMin,
+                             canRelax: canRelax(k, sn.relaxMin)))
+        }
+        return out
     }
 
     private var doses: (String) -> [Date] { let r = rapidInsulin(), c = carbs(); return { $0 == "rapid" ? r : c } }
@@ -346,17 +460,14 @@ final class AlertEngine {
         return d(tk).filter { x in x <= t && t.timeIntervalSince(x) < s.muteS(tk) && (e.lifted.map { x > $0 } ?? true) }.max()
     }
 
-    /// The notification actions in force, per side ("low", "high", "falling_fast", …): the badge.
+    /// This device's notification actions in force, per side ("low", "high", "falling_fast", …): the badge, the panel.
     func snoozes(_ t: Date) -> [String: Snooze] {
-        var out: [String: Snooze] = [:]
-        for e in episodes.values where (e.quietUntil.map { $0 > t } ?? false) || e.slowMin > 0 {
-            out[e.side] = Snooze(until: e.quietUntil.flatMap { $0 > t ? $0 : nil }, slowMin: e.slowMin)
-        }
-        return out
+        snooze.filter { ($0.value.until.map { $0 > t } ?? false) || $0.value.relaxMin > 0 }
+            .mapValues { var sn = $0; if let u = sn.until, u <= t { sn.until = nil }; return sn }
     }
 
-    /// Whether `kind`'s episode is slowed already (the notification leaves out *Slow down*).
-    func slowed(_ kind: AlertKind) -> Bool { (episodes[kind.group]?.slowMin ?? 0) > 0 }
+    /// Whether `kind`'s side is relaxed already (the notification offers *Stop relaxing* instead of *Relax*).
+    func relaxed(_ kind: AlertKind) -> Bool { (snooze[kind.side]?.relaxMin ?? 0) > 0 }
 
     /// Timer: the no-data deadline, repeats and mute windows that end while the reading stays the same.
     func tick() { evaluate() }
@@ -367,6 +478,24 @@ final class AlertEngine {
     /// The level kind `r` is in at `now`, or nil (stale reading, in range, alerts off). Lows `<`, highs `>=`.
     static func level(_ r: Reading?, _ s: AlertSettings, _ now: Date) -> AlertKind? {
         r.flatMap { AlertStatus.level(mgdl: $0.mgdl, at: $0.date.timeIntervalSince1970, s, now: now.timeIntervalSince1970) }
+    }
+
+    /// The reading `r` is back in range by the margin for `side`: lows at least `backMgdl` above the low threshold (the
+    /// highest enabled low-side one), highs below the high threshold (the lowest enabled high-side one) minus that; a
+    /// rate side when `r`'s rate doesn't match it. The follower's AlertMirror uses it too.
+    static func backBy(_ side: String, _ r: Reading, _ s: AlertSettings) -> Bool {
+        let m = Double(s.notificationActions.backMgdl)
+        switch side {
+        case "low":
+            guard let edge = [AlertKind.veryLow, .low].filter({ s[$0].on }).map({ s[$0].threshold }).max() else { return true }
+            return r.mgdl >= edge + m
+        case "high":
+            guard let edge = [AlertKind.high, .veryHigh, .extremelyHigh].filter({ s[$0].on }).map({ s[$0].threshold }).min() else { return true }
+            return r.mgdl < edge - m
+        case AlertKind.fallingFast.rawValue: return !s[.fallingFast].on || (r.rate ?? 0) > -s[.fallingFast].threshold
+        case AlertKind.risingFast.rawValue: return !s[.risingFast].on || (r.rate ?? 0) < s[.risingFast].threshold
+        default: return true
+        }
     }
 
     private func evaluate() {
@@ -385,6 +514,22 @@ final class AlertEngine {
         }
         let nd = s[.noData]
         let noData = (r.map { nd.on && t.timeIntervalSince($0.date) >= nd.threshold * 60 } ?? false) && !quiet(t)
+        // the sides' Mute / Relax: a Mute's time is over, or the side is back by the margin for backMin minutes
+        for side in snooze.keys.sorted() {
+            guard var cur = snooze[side] else { continue }
+            if let u = cur.until, u <= t { cur.until = nil; put(side, cur) }
+            guard var sn = snooze[side] else { continue }
+            if !fresh && side != AlertKind.noData.rawValue { continue }    // nothing new to judge the margin by
+            let back: Bool = switch side {
+            case "low", "high": r.map { Self.backBy(side, $0, s) } ?? false
+            case AlertKind.noData.rawValue: !noData
+            default: rate?.rawValue != side
+            }
+            if !back { sn.backSince = nil; snooze[side] = sn; continue }
+            let since = sn.backSince ?? t
+            if t.timeIntervalSince(since) >= TimeInterval(s.notificationActions.backMin * 60) { snooze[side] = nil; onBack?(side) }
+            else { sn.backSince = since; snooze[side] = sn }
+        }
         let rapid = rapidInsulin(), cb = carbs()
         let doses: (String) -> [Date] = { $0 == "rapid" ? rapid : cb }
         step(.level, levelAndRate ? Self.level(r, s, t) : nil, s, doses, t)
@@ -425,16 +570,20 @@ final class AlertEngine {
         if let sh = e.shown, sh.k != want { hide(e, t) }
         let by = s.mutedBy(want)
         let cover = cover(e, want, s, d, t)
-        if let mute = cover.map({ "\(by == "rapid" ? "insulin" : "carbs") \(Int(t.timeIntervalSince($0) / 60)) min ago" })
+        if let mute = cover.map({ "\(by == "rapid" ? "insulin" : "carbs") \(Durations.text(Int(t.timeIntervalSince($0) / 60))) ago" })
             ?? (e.lifted == nil ? fallingMute(want, s) : nil) {
             hide(e, t)
             e.muted = mute
             e.next = cover.map { $0.addingTimeInterval(s.muteS(by!)) }   // the falling mute has no end of its own
             return
         }
-        if let q = e.quietUntil, q > t, !want.always {
+        let all = allMuted(t)
+        let quietUntil = [muteEnd(e.side, t), all].compactMap { $0 }.max()
+        if let q = quietUntil {
             hide(e, t)
-            e.muted = "muted from the notification, \(Int((q.timeIntervalSince(t) + 59) / 60)) min left"
+            // an end, not a countdown: this line is built at the check, not each minute
+            e.muted = q >= Self.never ? MuteCopy.choiceForever.lowercased()
+                : "\(q == all ? "all alerts " : "")until \(Clock.time(q))"
             e.next = q
             return
         }
@@ -444,7 +593,7 @@ final class AlertEngine {
         e.n += 1
         e.firedAt = t
         e.firedKind = want
-        e.liftPending = nil
+        e.liftPending = false
         let r = latest
         let ev = AlertEvent(id: AlertEvent.newId(), k: want, state: "fire", at: t, t: r?.date, sgv: r?.mgdl, r: r?.rate,
                             th: s[want].threshold, n: e.n, tr: treated(e, want, s, d, t))
@@ -457,16 +606,18 @@ final class AlertEngine {
     private func due(_ e: Episode, _ k: AlertKind, _ s: AlertSettings, _ d: (String) -> [Date], _ t: Date) -> Date? {
         guard let fired = e.firedAt else { return e.start }
         if k.side == e.firedKind.side, k.severity > e.firedKind.severity { return t }
-        if e.liftPending == true { return t }   // an Unmute / Alert me anyway since the last alert: at once
-        // a treatment or the notification's Mute after the last alert: at once when its window ends
+        if e.liftPending { return t }   // an Unmute / Alert me anyway since the last alert: at once
+        // a treatment, the side's Mute or Mute all after the last alert: at once when its window ends
         var ends: [Date] = []
         if let by = s.mutedBy(k), let tc = d(by).filter({ x in x >= fired && x <= t && (e.lifted.map { x > $0 } ?? true) }).max() {
             ends.append(tc.addingTimeInterval(s.muteS(by)))
         }
-        if let q = e.quietUntil, q > fired, !k.always { ends.append(q) }
+        if let q = snooze[e.side]?.until, q > fired { ends.append(q) }
+        if let a = allUntil, a > fired, a != Self.never { ends.append(a) }
         if let end = ends.max() { return max(end, fired.addingTimeInterval(1)) }
         let base = s[k].repeatMin
-        let rep = e.slowMin > 0 && base > 0 ? max(base, e.slowMin) : base
+        let relax = snooze[e.side]?.relaxMin ?? 0
+        let rep = relax > 0 && base > 0 ? max(base, relax) : base
         return rep > 0 ? fired.addingTimeInterval(TimeInterval(rep * 60)) : nil
     }
 
@@ -483,10 +634,10 @@ final class AlertEngine {
         guard let r = latest, let v = r.rate, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0 else { return nil }
         let high = s[.high].threshold
         guard r.mgdl + v * s.muteFallingHigh.min < high else { return nil }
-        return "falling, back in range in ~\(max(1, Int(((r.mgdl - high) / -v).rounded(.up)))) min"
+        return "falling, back in range in ~\(Durations.text(max(1, Int(((r.mgdl - high) / -v).rounded(.up)))))"
     }
 
-    /// When the next timer check is useful (no-data deadline, a repeat, a mute window ending), or nil.
+    /// When the next timer check is useful (no-data deadline, a repeat, a mute window ending, the margin's time), or nil.
     func nextCheckAt(_ now: Date) -> Date? {
         guard settings.on else { return nil }
         var c: [Date] = []
@@ -499,7 +650,13 @@ final class AlertEngine {
         if let s = sensor(), SensorLife.warming(s, latest: latest?.date.timeIntervalSince1970, now: now.timeIntervalSince1970) {
             c.append(Date(timeIntervalSince1970: s.warmupEnd + SensorLife.warmupGrace))
         }
-        for e in episodes.values where e.on { if let n = e.next { c.append(n) } }
+        for e in episodes.values where e.on { if let n = e.next, n < Self.never { c.append(n) } }
+        // a Mute ending without an episode, the margin's time, Mute all ending
+        for sn in snooze.values {
+            if let u = sn.until, u > now { c.append(u) }
+            if let b = sn.backSince { c.append(b.addingTimeInterval(TimeInterval(settings.notificationActions.backMin * 60))) }
+        }
+        if let a = allUntil, a > now, a < Self.never { c.append(a) }
         return c.filter { $0 > now }.min()
     }
 
@@ -518,17 +675,38 @@ final class AlertEngine {
         return t.timeIntervalSince(r.date) > Self.fresh ? "No recent reading" : "No alert"
     }
 
-    static func ago(_ s: TimeInterval) -> String { s < 90 ? "just now" : "\(Int(s / 60)) min ago" }
+    static func ago(_ s: TimeInterval) -> String { s < 90 ? "just now" : "\(Durations.text(Int(s / 60))) ago" }
 }
 
 // MARK: the Mac app side
 
+/// Where the alert notifications go: Notification Center in the app, a recorder in `-alerts-selftest` (AlertsSelfTest:
+/// every state's notification, its category and what each action posts or removes, without the real center).
+@MainActor protocol AlertPoster: AnyObject {
+    func add(_ req: UNNotificationRequest)
+    func remove(_ id: String)
+    func setCategories(_ c: Set<UNNotificationCategory>)
+}
+
+@MainActor final class CenterPoster: AlertPoster {
+    let center: UNUserNotificationCenter
+    init(_ c: UNUserNotificationCenter) { center = c }
+    func add(_ req: UNNotificationRequest) {
+        center.add(req) { err in if let err { log("alerts: notification failed: \(err.localizedDescription)") } }
+    }
+    func remove(_ id: String) { center.removeDeliveredNotifications(withIdentifiers: [id]) }
+    func setCategories(_ c: Set<UNNotificationCategory>) { center.setNotificationCategories(c) }
+}
+
 /// Owns the settings, the engine and the notifications. Settings › Alerts (SettingsUI.swift, AlertsUI.swift) edits them.
 @MainActor final class Alerts: NSObject, UNUserNotificationCenterDelegate {
+    private let defaults: UserDefaults
+    /// The clock (the self-test moves it; the engine reads it too).
+    var now: () -> Date = Date.init
     /// The rules that apply (`AlertSettings.load`: this Mac's own with the mirrored ones from Settings from).
-    private(set) var settings = AlertSettings.load()
+    private(set) var settings: AlertSettings
     /// What this Mac stores (`alertSettings`): Settings › Alerts edits it.
-    private(set) var own = AlertSettings.own()
+    private(set) var own: AlertSettings
     let engine: AlertEngine
     /// Following someone over protocol v2 (approved) — the only path that carries the wearer's `alert` events.
     var followingV2: () -> Bool = { false }
@@ -539,28 +717,35 @@ final class AlertEngine {
     /// Wearer mode: the notification each group shows now (kind + when the wearer fired it).
     private(set) var mirrored: [AlertKind.Group: AlertEvent] = [:]
     private var seenIds: Set<String> = []
-    /// What each group's notification shows now, to post it again without sound (after Slow down, a bad typed time).
+    /// What each group's notification shows now, to post it again without sound (after Relax, a bad typed length).
     private var shownEvents: [AlertKind.Group: (AlertEvent, Bool)] = [:]
+    /// Groups whose alert notification is up now (not the "muted until" one).
+    private var live: Set<AlertKind.Group> = []
     /// Mirroring the wearer: which of its alerts show here, and this Mac's own clicks on them (AlertMirror).
     private var mirror = AlertMirror()
-    /// Mirroring: the wearer's newest firing per group (shown here or not), for Unmute / Stop slowing down.
+    /// Mirroring: the wearer's newest firing per group (shown here or not), for Unmute / Stop relaxing.
     private var remoteNewest: [AlertKind.Group: AlertEvent] = [:]
-    /// group → the "Low muted until 10:42" notification is up until then (removed at the end, Unmute, episode end).
-    private var mutedNote: [AlertKind.Group: Date] = [:]
-    /// Side ("low", "high", …) → until (unix s): muted from this Mac's alert notification. The badge under the value
-    /// shows it (AlertStatus.paused); `onPausedChange` redraws the card and the widgets.
+    /// group → the "Low muted until 10:42" notification is up until then (removed at the end, Unmute, back in range).
+    private(set) var mutedNote: [AlertKind.Group: Date] = [:]
+    /// Side ("low", "high", …) → until (unix s): this Mac's Mute of the side. The badge under the value shows it
+    /// (AlertStatus.paused); `onPausedChange` redraws the card and the widgets.
     private(set) var paused: [String: TimeInterval] = [:]
+    /// This Mac's *Mute all* until (unix s; 0 = off, AlertStatus.never = until turned back on): the muted pill.
+    private(set) var allMuted: TimeInterval = 0
     var onPausedChange: (() -> Void)?
     private var timer: Timer?
     /// One-shot at `engine.nextCheckAt`: a mute window or repeat that ends between readings alerts on time.
     private var checkTimer: Timer?
-    /// Set while a notification's Mute runs (its clear is logged as the mute).
+    /// Set while a Mute / Mute all runs (its clear is logged as the mute).
     private var muting = false
     /// Opens Settings on the Alerts pane (main.swift).
     var onOpenWindow: (() -> Void)?
     private let center: UNUserNotificationCenter?
+    private let poster: AlertPoster?
     /// An offline run (LaunchGuard.services: evidence render, dev build): the rules are shown, nothing ever alerts.
     let offline: Bool
+    /// `-alerts-selftest`: a recorder instead of Notification Center, no timers, no sounds played.
+    let testing: Bool
     private var playing: NSSound?
     /// The engine's episodes (AlertEngine.snapshot), saved after every evaluation; read back once by `resume`.
     private static let episodesKey = "alertEpisodes"
@@ -579,19 +764,28 @@ final class AlertEngine {
     /// "wearer" chosen but nothing to mirror (no v2 follow link).
     var wearerUnavailable: Bool { settings.source == "wearer" && !followingV2() }
 
-    init(offline: Bool) {
+    /// `poster` + `defaults` (tests only): record the notifications instead of posting them, keep the state elsewhere.
+    init(offline: Bool, poster testPoster: AlertPoster? = nil, defaults: UserDefaults = .standard) {
         self.offline = offline
-        center = offline || Bundle.main.bundleIdentifier == nil ? nil : .current()
+        self.defaults = defaults
+        testing = testPoster != nil
+        settings = AlertSettings.load(defaults)
+        own = AlertSettings.own(defaults)
+        center = offline || testPoster != nil || Bundle.main.bundleIdentifier == nil ? nil : .current()
+        poster = testPoster ?? center.map { CenterPoster($0) }
         engine = AlertEngine(settings: settings)
         engine.sensor = { SensorStore.current }
         super.init()
+        engine.now = { [unowned self] in self.now() }
         if offline { log("alerts: offline run, the alert engine is off"); return }
         if center != nil { NotificationSounds.prune() }
         center?.delegate = self
         registerCategories()
         engine.onFire = { [weak self] ev in self?.mutedNote[ev.k.group] = nil; self?.post(ev, mirrored: false) }
-        // a clear while a notification's Mute runs is the mute (the log already says "muted for"), not the episode's end
-        engine.onClear = { [weak self] ev in self?.remove(ev.k.group, self?.muting == true ? "muted from the notification" : "\(ev.k.rawValue) cleared") }
+        // a clear while a Mute runs is the mute (the log already says "muted for"), not the episode's end
+        engine.onClear = { [weak self] ev in self?.remove(ev.k.group, self?.muting == true ? "muted" : "\(ev.k.rawValue) cleared") }
+        engine.onBack = { [weak self] side in self?.backInRange(side) }
+        if testing { return }
         if settings.on { authorize() }
         let t = Timer(timeInterval: 60, repeats: true) { _ in MainActor.assumeIsolated { self.tick() } }
         t.tolerance = 5
@@ -614,26 +808,29 @@ final class AlertEngine {
     func resume(newest: Reading?) {
         guard !offline else { return }
         engine.seed(newest)
-        guard let data = UserDefaults.standard.data(forKey: Self.episodesKey) else { return scheduleCheck() }
-        let shown = engine.restore(data, at: Date())
+        guard let data = defaults.data(forKey: Self.episodesKey) else { return scheduleCheck() }
+        let shown = engine.restore(data, at: now())
         for ev in shown { post(ev, mirrored: false, silent: true) }
         if !shown.isEmpty { log("alerts: resumed \(shown.map(\.k.title).joined(separator: ", ")) (no sound)") }
+        updatePaused(force: true)
         scheduleCheck()
     }
 
     private func saveEpisodes(force: Bool = false) {
-        UserDefaults.standard.set(engine.snapshot(), forKey: Self.episodesKey)
+        defaults.set(engine.snapshot(), forKey: Self.episodesKey)
         updatePaused(force: force)
     }
 
-    /// `force`: redraw even if no mute end changed (Stop slowing down, a lifted treatment mute: the panel's rows).
+    /// `force`: redraw even if no mute end changed (Stop relaxing, a lifted treatment mute: the panel's rows).
     private func updatePaused(force: Bool = false) {
-        let t = Date()
+        let t = now()
         var p: [String: TimeInterval] = [:]
         for (side, sn) in engine.snoozes(t) { if let u = sn.until { p[side] = u.timeIntervalSince1970 } }
         for (side, u) in mirror.paused(t) { p[side] = u.timeIntervalSince1970 }
-        guard p != paused || force else { return }
+        let all = [engine.allMuted(t), mirror.allMuted(t)].compactMap { $0?.timeIntervalSince1970 }.max() ?? 0
+        guard p != paused || all != allMuted || force else { return }
         paused = p
+        allMuted = all
         onPausedChange?()
     }
 
@@ -642,22 +839,27 @@ final class AlertEngine {
     // MARK: the ways out (SPEC §2 "States and exits")
 
     /// One quiet alert on this Mac (the panel's rows and pill menu, Settings › Alerts › Active now): `quiet` why
-    /// (nil = only slowed) until `until`; `mirrored` = the wearer's alert mirrored here (only this Mac's own Mute /
-    /// Slow down show; the wearer's phone decides the treatment mutes).
+    /// (nil = only relaxed) until `until`; `mirrored` = the wearer's alert mirrored here (only this Mac's own Mute /
+    /// Relax show; the wearer's phone decides the treatment mutes).
     struct Active: Equatable {
-        var kind: AlertKind; var quiet: AlertEngine.Quiet.Why?; var until: Date?; var slowMin: Int
-        var canMute: Bool; var canSlow: Bool; var mirrored: Bool
-        /// "Low muted until 10:42", "Low quiet after carbs until 10:42", "Low reminders every 30 min".
-        var title: String {
-            let t = until.map { Clock.time($0) } ?? ""
+        var kind: AlertKind; var quiet: AlertEngine.Quiet.Why?; var until: Date?; var relaxMin: Int
+        var canRelax: Bool; var mirrored: Bool
+        /// "Low alerts muted · 12 min left", "Low alerts muted after carbs · 12 min left" (MuteCopy; the views tick them
+        /// down), "High alerts muted while falling back into range", "Low reminders every 30 min".
+        func title(now: Date) -> String {
+            let left = MuteCopy.leftMin(until.map { $0.timeIntervalSince(now) } ?? 0)
             switch quiet {
-            case .notification: return "\(kind.title) muted until \(t)"
-            case .carbs: return "\(kind.title) quiet after carbs until \(t)"
-            case .insulin: return "\(kind.title) quiet after insulin until \(t)"
-            case .falling: return "\(kind.title) quiet: falling back into range"
-            case nil: return "\(kind.title) reminders every \(slowMin) min"
+            case .notification: return MuteCopy.sideMuted(kind.side, leftMin: left)
+            case .carbs: return MuteCopy.sideAfter(kind.side, treatment: "carbs", leftMin: left)
+            case .insulin: return MuteCopy.sideAfter(kind.side, treatment: "rapid", leftMin: left)
+            case .falling: return MuteCopy.sideFalling(kind.side)
+            case nil: return relaxedLine
             }
         }
+        /// "Low reminders every 30 min" (Remind Less; also the second line of a muted side that reminds less).
+        var relaxedLine: String { MuteCopy.sideLess(kind.side, intervalMin: relaxMin) }
+        /// A notification Mute or a quiet after a treatment: its line counts down to `until` (round f33).
+        var ticks: Bool { [.notification, .carbs, .insulin].contains(quiet) && until != nil }
         /// The main way out: Unmute (a notification mute) or Alert Me Anyway (a treatment / falling mute here).
         var lift: String? {
             if quiet == .notification { return "Unmute" }
@@ -665,35 +867,41 @@ final class AlertEngine {
         }
     }
 
-    /// Everything quiet or slowed on this Mac now.
+    /// Everything quiet or relaxed on this Mac now (the sides; Mute all is `allMutedUntil`).
     var active: [Active] {
-        let t = Date()
+        let t = now()
         var out: [Active] = []
         if mode == .wearer {
             for side in [AlertKind.low, .high, .fallingFast, .risingFast] {
                 guard let sn = mirror.snooze(side) else { continue }
                 let k = remoteNewest[side.group].flatMap { $0.k.side == side.side ? $0.k : nil } ?? side
                 let until = sn.until.flatMap { $0 > t ? $0 : nil }
-                guard until != nil || sn.slowMin > 0 else { continue }
-                out.append(Active(kind: k, quiet: until != nil ? .notification : nil, until: until, slowMin: sn.slowMin,
-                                  canMute: !k.always, canSlow: sn.slowMin == 0, mirrored: true))
+                guard until != nil || sn.relaxMin > 0 else { continue }
+                out.append(Active(kind: k, quiet: until != nil ? .notification : nil, until: until, relaxMin: sn.relaxMin,
+                                  canRelax: sn.relaxMin == 0, mirrored: true))
             }
         }
-        for q in engine.quiets() where !out.contains(where: { $0.kind.group == q.kind.group }) {
-            out.append(Active(kind: q.kind, quiet: q.quiet, until: q.until, slowMin: q.slowMin, canMute: q.canMute,
-                              canSlow: q.canSlow, mirrored: false))
+        for q in engine.quiets() where !out.contains(where: { $0.kind.side == q.kind.side }) {
+            out.append(Active(kind: q.kind, quiet: q.quiet, until: q.until, relaxMin: q.relaxMin, canRelax: q.canRelax, mirrored: false))
         }
         return out
     }
 
-    /// *Unmute* / *Alert Me Anyway* on `k`'s episode, this Mac only: still out of range → it alerts now; back in range →
+    /// *Mute all*'s end (nil = off; `AlertEngine.never` = until turned back on).
+    var allMutedUntil: Date? { allMuted > now().timeIntervalSince1970 ? Date(timeIntervalSince1970: allMuted) : nil }
+
+    /// "Alerts muted · 1 h 12 min left" / "Alerts muted until you turn it off" / nil (MuteCopy.allLine): the dropdown
+    /// row, Settings › Alerts, the menu bar; the views tick it down.
+    var allMutedLine: String? { MuteCopy.allLine(until: allMuted, now: now().timeIntervalSince1970) }
+
+    /// *Unmute* / *Alert Me Anyway* on `k`'s side, this Mac only: still out of range → it alerts now; back in range →
     /// nothing. The "muted until" notification goes; the card, the widgets and the ring redraw at once.
     func unmute(_ k: AlertKind) {
-        log("alerts: \(k.title) unmuted")
+        log("alerts: \(MuteCopy.side(k.side)) alerts unmuted")
         let g = k.group
         if mutedNote.removeValue(forKey: g) != nil { remove(g, "unmuted") }
         if mirrors(k) {
-            if let id = mirror.unmute(k, at: Date()), let ev = remoteNewest[g], ev.id == id {
+            if let id = mirror.unmute(k, at: now()), let ev = remoteNewest[g], ev.id == id {
                 mirrored[g] = ev
                 post(ev, mirrored: true)
             }
@@ -707,53 +915,105 @@ final class AlertEngine {
         onChange?()
     }
 
-    /// A way out (or a Mute / Slow down) chosen in the panel, the pill's menu or Settings › Alerts.
+    /// A way out (or a Mute / Relax / Mute all) chosen in the panel, the pill's menu or Settings › Alerts.
     func perform(_ op: QuietOp) {
         switch op {
         case .unmute(let k): unmute(k)
-        case .unslow(let k): unslow(k)
-        case .mute(let k, let m): action(k, slow: false, min: m)
-        case .slow(let k): action(k, slow: true)
+        case .unrelax(let k): unrelax(k)
+        case .mute(let k, let m): action(k, relax: false, min: m)
+        case .relax(let k): action(k, relax: true)
+        case .muteAll(let m): muteAll(minutes: m)
+        case .unmuteAll: unmuteAll()
         }
     }
 
-    /// *Stop Slowing Down* on `k`'s episode, this Mac only: the kind's interval again (an overdue repeat now).
-    func unslow(_ k: AlertKind) {
-        log("alerts: \(k.title) back to every \(settings[k].repeatMin) min")
+    /// *Stop relaxing* on `k`'s side, this Mac only: the kind's interval again (an overdue repeat now).
+    func unrelax(_ k: AlertKind) {
+        log("alerts: \(MuteCopy.side(k.side)) reminders as usual (every \(Durations.text(settings[k].repeatMin)))")
         if mirrors(k) {
-            if let id = mirror.unslow(k, at: Date()), let ev = remoteNewest[k.group], ev.id == id {
+            if let id = mirror.unrelax(k, at: now()), let ev = remoteNewest[k.group], ev.id == id {
                 mirrored[k.group] = ev
                 post(ev, mirrored: true)
             } else { repost(k.group) }
             updatePaused(force: true)
         } else {
             engine.levelAndRate = mode == .own
-            engine.unslow(k)
+            let before = shownEvents[k.group]?.0.id
+            engine.unrelax(k)
             saveEpisodes(force: true)
             scheduleCheck()
-            repost(k.group)
+            if shownEvents[k.group]?.0.id == before { repost(k.group) }   // an overdue repeat already posted itself
         }
         onChange?()
     }
 
-    /// The silent "Low muted until 10:42" notification with *Unmute* and *Change…* (the alert's own went when its
+    /// *Mute all* on this Mac for `minutes` (0 = Never, until turned back on), every kind incl. no data, very low and
+    /// extremely high, this Mac's own rules and the wearer's mirrored alerts: their notifications go. A new length
+    /// while on changes the end (Change).
+    func muteAll(minutes: Int) {
+        let t = now()
+        let until = minutes <= 0 ? AlertEngine.never : t.addingTimeInterval(TimeInterval(minutes * 60))
+        log("alerts: \(minutes <= 0 ? "All alerts muted until you turn it off" : "All alerts muted for \(Durations.text(minutes))")")
+        for g in mirror.muteAll(until: until) { mirrored[g] = nil; remove(g, "all alerts muted") }
+        engine.levelAndRate = mode == .own
+        muting = true
+        engine.muteAll(until: until)
+        muting = false
+        // the "muted until" notes go too: nothing alerts until Mute all ends
+        for g in mutedNote.keys { remove(g, "all alerts muted") }
+        mutedNote = [:]
+        saveEpisodes(force: true)
+        scheduleCheck()
+        onChange?()
+    }
+
+    /// *Turn alerts back on*: Mute all ends on this Mac; whatever still matches (and isn't muted otherwise) alerts at
+    /// once, the wearer's newest alerts still up included.
+    func unmuteAll() {
+        guard allMutedUntil != nil else { return }
+        log("alerts: Alerts unmuted")
+        let t = now()
+        for id in mirror.unmuteAll(at: t) {
+            guard let (g, ev) = remoteNewest.first(where: { $0.value.id == id }) else { continue }
+            mirrored[g] = ev
+            post(ev, mirrored: true)
+        }
+        engine.levelAndRate = mode == .own
+        engine.unmuteAll()
+        saveEpisodes(force: true)
+        scheduleCheck()
+        onChange?()
+    }
+
+    /// A side's Mute / Relax ended because glucose is back by the margin (engine or mirror): its "muted until"
+    /// notification goes, the badge and the panel follow.
+    private func backInRange(_ side: String) {
+        let k = AlertKind.main(side)
+        log("alerts: \(MuteCopy.side(k.side)) back in range: alerts as usual")
+        if mutedNote.removeValue(forKey: k.group) != nil { remove(k.group, "back in range") }
+        updatePaused(force: true)
+    }
+
+    /// The silent "Low alerts muted" / "Until 10:42" notification with *Unmute* and *Change Time…* (the alert's own went when its
     /// button was used: macOS removes a notification once an action is chosen). Passive: no sound, no banner over Focus.
     private func postMuted(_ k: AlertKind, until: Date) {
-        guard let center else { return }
+        guard poster != nil else { return }
         mutedNote[k.group] = until
         let c = UNMutableNotificationContent()
-        c.title = "\(k.title) muted until \(Clock.time(until))"
-        if let (ev, m) = shownEvents[k.group] { c.body = text(ev, mirrored: m).1 }
+        // Mac notifications can't count down: the end time (MuteCopy, copy.json notif_title / notif_text)
+        c.title = MuteCopy.notifTitle(k.side)
+        c.body = MuteCopy.notifText(until: Clock.time(until))
         c.threadIdentifier = "sukrara-alerts"
         c.userInfo = ["k": k.rawValue]
         c.categoryIdentifier = "muted"
         c.interruptionLevel = .passive
+        live.remove(k.group)
         send(k.group, UNNotificationRequest(identifier: k.group.rawValue, content: c, trigger: nil))
     }
 
-    /// Muted notifications whose mute is over (or whose episode ended) go.
+    /// Muted notifications whose mute is over (or whose side isn't muted any more) go.
     private func expireMutedNotes() {
-        let t = Date(), quiet = Set(active.filter { $0.quiet == .notification }.map(\.kind.group))
+        let t = now(), quiet = Set(active.filter { $0.quiet == .notification }.map(\.kind.group))
         for (g, until) in mutedNote where until <= t || !quiet.contains(g) {
             mutedNote[g] = nil
             remove(g, "mute over")
@@ -768,14 +1028,20 @@ final class AlertEngine {
 
     // MARK: inputs
 
-    /// The newest merged reading (Store.publish), with the best available rate.
+    /// The newest merged reading (Store.publish), with the best available rate: this Mac's rules, and the margin that
+    /// ends this Mac's Mute / Relax of the wearer's mirrored alerts (AlertMirror.reading).
     func onLatest(_ r: Reading) {
         guard !offline else { return }
         engine.levelAndRate = mode == .own
         engine.reading(r)
+        mirrorReading(r)
         saveEpisodes()
         scheduleCheck()
         onChange?()
+    }
+
+    private func mirrorReading(_ r: Reading?) {
+        for side in mirror.reading(r, settings, at: now()) { backInRange(side) }
     }
 
     /// A treatment was logged, edited or deleted: mutes start (or end) at once.
@@ -787,6 +1053,7 @@ final class AlertEngine {
     private func tick() {
         engine.levelAndRate = mode == .own
         engine.tick()
+        mirrorReading(engine.latest)
         expireMutedNotes()
         saveEpisodes()
         scheduleCheck()
@@ -796,7 +1063,7 @@ final class AlertEngine {
     private func scheduleCheck() {
         checkTimer?.invalidate()
         checkTimer = nil
-        guard let at = engine.nextCheckAt(Date()) else { return }
+        guard !testing, let at = engine.nextCheckAt(now()) else { return }
         let t = Timer(fire: at, interval: 0, repeats: false) { _ in MainActor.assumeIsolated { self.tick() } }
         t.tolerance = 1
         RunLoop.main.add(t, forMode: .common)
@@ -819,17 +1086,22 @@ final class AlertEngine {
 
     /// Settings from changed, or the wearer sent new settings: the rules that apply follow.
     func reloadSettings() {
-        own = AlertSettings.own()
-        apply(AlertSettings.load())
+        own = AlertSettings.own(defaults)
+        apply(AlertSettings.load(defaults))
     }
 
     /// This Mac's own settings edited (Settings › Alerts): saved, then what applies is recomputed.
     func update(_ o: AlertSettings) {
         guard o != own else { return }
         own = o
-        o.save()
-        apply(WearerSettings.alerts(own: o))
+        o.save(defaults)
+        apply(WearerSettings.alerts(own: o, defaults))
     }
+
+    /// The self-test's rules, as they apply (no Settings from).
+    func useForTest(_ s: AlertSettings) { apply(s) }
+    /// The self-test's minute timer.
+    func testTick() { tick() }
 
     private func apply(_ s: AlertSettings) {
         guard s != settings else { return }
@@ -856,7 +1128,7 @@ final class AlertEngine {
         guard seenIds.insert("\(ev.id):\(ev.state)").inserted else { return }
         guard settings.on, mode == .wearer else { return log("alerts: wearer \(ev.k.rawValue) \(ev.state) ignored (\(settings.on ? "own rules" : "alerts off"))") }
         let g = ev.k.group
-        // this Mac's own Mute / Slow down decide (AlertMirror); the wearer's never reach here
+        // this Mac's own Mute / Relax / Mute all decide (AlertMirror); the wearer's never reach here
         if ev.state == "fire" {
             remoteNewest[g] = ev
             if mirror.fire(ev.k, id: ev.id, n: ev.n, at: ev.at) {
@@ -876,14 +1148,15 @@ final class AlertEngine {
 
     var stateLine: String {
         var parts: [String] = []
+        let all = allMutedLine.map { [$0] } ?? []
         if settings.on, mode == .wearer {
             parts = [AlertKind.Group.level, .rate, .noData].compactMap { g in
-                mirrored[g].map { "\($0.k.message(treated: $0.tr)) · from the wearer \(AlertEngine.ago(Date().timeIntervalSince($0.at)))" }
+                mirrored[g].map { "\($0.k.message(treated: $0.tr)) · from the wearer \(AlertEngine.ago(now().timeIntervalSince($0.at)))" }
             }
             if let nd = engine.active[.noData] { parts.append("\(nd.kind.title) · here") }
-            return parts.isEmpty ? "No alert (mirroring the wearer)" : parts.joined(separator: " · ")
+            return (all + (parts.isEmpty ? ["No alert (mirroring the wearer)"] : parts)).joined(separator: " · ")
         }
-        return engine.stateLine
+        return (all + [engine.stateLine]).joined(separator: " · ")
     }
 
     /// Same as Android's AlertNotifier: headline = `AlertKind.message`, body "69 mg/dL ↘ · < 70 mg/dL".
@@ -897,7 +1170,7 @@ final class AlertEngine {
         case .veryLow, .low, .high, .veryHigh, .extremelyHigh: value
         case .fallingFast: "\(value) · falling \(rate(-(ev.r ?? 0))) \(units)/min"
         case .risingFast: "\(value) · rising \(rate(ev.r ?? 0)) \(units)/min"
-        case .noData: "Nothing received for \(Int(ev.th)) min" + (ev.sgv.map { " · last \(u.format($0)) \(units)" } ?? "")
+        case .noData: "Nothing received for \(Durations.text(Int(ev.th)))" + (ev.sgv.map { " · last \(u.format($0)) \(units)" } ?? "")
         }
         return (ev.k.message(treated: ev.tr), body)
     }
@@ -910,77 +1183,64 @@ final class AlertEngine {
 
     // MARK: notification actions (SPEC §2)
 
-    /// Categories by which buttons apply: Mute <n> min + Mute for… unless very low / extremely high, Slow down unless
-    /// already slowed. Registered again when the minutes change (the titles carry them).
-    private func registerCategories() {
-        guard let center else { return }
-        let a = settings.notificationActions
-        let mute = UNNotificationAction(identifier: "mute", title: "Mute \(a.muteMin) min")
-        let slow = UNNotificationAction(identifier: "slow", title: "Slow to \(a.slowMin) min")
-        let muteFor = UNTextInputNotificationAction(identifier: "muteFor", title: "Mute for…", options: [],
-                                                    textInputButtonTitle: "Mute", textInputPlaceholder: "Minutes")
-        // the ways out (SPEC §2 "States and exits"): Stop Slowing in Slow down's place once slowed; the muted
-        // notification's Unmute and Change… (the same typed minutes as Mute for…)
-        let unslow = UNNotificationAction(identifier: "unslow", title: "Stop Slowing")
+    /// The notification categories (round f30, f31 copy): every alert, every kind, has exactly two actions, *Mute…* (a
+    /// text input: a typed length, empty = `muteMin`) and *Remind Less* / *Remind as Usual*; an alert whose repeats
+    /// Remind Less wouldn't slow has Mute… alone. The muted notification: *Unmute* + *Change Time…* (the same input).
+    /// Title-style buttons (HIG); the ellipsis = more input follows.
+    nonisolated static func categories() -> Set<UNNotificationCategory> {
+        let mute = UNTextInputNotificationAction(identifier: "mute", title: "Mute…", options: [],
+                                                 textInputButtonTitle: "Mute", textInputPlaceholder: "30 min, 1 h, 2 h…")
+        let relax = UNNotificationAction(identifier: "relax", title: "Remind Less")
+        let unrelax = UNNotificationAction(identifier: "unrelax", title: "Remind as Usual")
         let unmute = UNNotificationAction(identifier: "unmute", title: "Unmute")
-        let change = UNTextInputNotificationAction(identifier: "muteFor", title: "Change…", options: [],
-                                                   textInputButtonTitle: "Mute", textInputPlaceholder: "Minutes")
-        center.setNotificationCategories([
-            UNNotificationCategory(identifier: "alert-ms", actions: [mute, slow, muteFor], intentIdentifiers: []),
-            UNNotificationCategory(identifier: "alert-m", actions: [mute, muteFor], intentIdentifiers: []),
-            UNNotificationCategory(identifier: "alert-s", actions: [slow], intentIdentifiers: []),
-            UNNotificationCategory(identifier: "alert-mu", actions: [mute, unslow, muteFor], intentIdentifiers: []),
-            UNNotificationCategory(identifier: "alert-u", actions: [unslow], intentIdentifiers: []),
+        let change = UNTextInputNotificationAction(identifier: "mute", title: "Change Time…", options: [],
+                                                   textInputButtonTitle: "Mute", textInputPlaceholder: "30 min, 1 h, 2 h…")
+        return [
+            UNNotificationCategory(identifier: "alert-r", actions: [mute, relax], intentIdentifiers: []),
+            UNNotificationCategory(identifier: "alert-u", actions: [mute, unrelax], intentIdentifiers: []),
+            UNNotificationCategory(identifier: "alert", actions: [mute], intentIdentifiers: []),
             UNNotificationCategory(identifier: "muted", actions: [unmute, change], intentIdentifiers: []),
-        ])
+        ]
     }
 
-    private func category(_ k: AlertKind, mirrored: Bool) -> String {
-        let slowed = mirrored ? mirror.slowed(k) : engine.slowed(k)
+    private func registerCategories() { poster?.setCategories(Self.categories()) }
+
+    /// The category of `k`'s alert: Stop relaxing once relaxed, Relax when it would slow the repeats, else Mute… alone.
+    func category(_ k: AlertKind, mirrored: Bool) -> String {
+        if mirrored ? mirror.relaxed(k) : engine.relaxed(k) { return "alert-u" }
         let rep = settings[k].repeatMin
-        let slow = !slowed && (mirrored || (rep > 0 && rep < settings.notificationActions.slowMin))
-        switch (!k.always, slow, slowed) {
-        case (true, true, _): return "alert-ms"
-        case (true, false, true): return "alert-mu"
-        case (true, false, false): return "alert-m"
-        case (false, true, _): return "alert-s"
-        case (false, false, true): return "alert-u"
-        case (false, false, false): return ""
-        }
+        return mirrored || (rep > 0 && rep < settings.notificationActions.relaxMin) ? "alert-r" : "alert"
     }
 
     /// The mirrored wearer's alerts are quieted on this Mac only (no data is always this Mac's own).
     private func mirrors(_ k: AlertKind) -> Bool { mode == .wearer && k != .noData }
 
-    /// An alert notification's button: *Mute* for `min` minutes (nil = the setting) or *Slow down* on `k`'s episode, on
-    /// this Mac only: mirroring the wearer it quiets the wearer's alerts here (AlertMirror), with own rules the engine
-    /// here. Nothing is sent anywhere.
-    func action(_ k: AlertKind, slow: Bool, min: Int? = nil) {
+    /// An alert notification's action: *Mute* for `min` minutes (nil = the setting) or *Relax* on `k`'s side, on this
+    /// Mac only: mirroring the wearer it quiets the wearer's alerts here (AlertMirror), with own rules the engine here.
+    /// Nothing is sent anywhere.
+    func action(_ k: AlertKind, relax: Bool, min: Int? = nil) {
         let r = AlertActions.muteRange
         let m = Swift.min(Swift.max(min ?? settings.notificationActions.muteMin, r.lowerBound), r.upperBound)
-        guard slow || !k.always else { return repost(k.group) }
-        let until = Date().addingTimeInterval(TimeInterval(m * 60))
-        log("alerts: \(k.title) \(slow ? "slowed to every \(settings.notificationActions.slowMin) min" : "muted for \(m) min") (notification)")
+        let until = now().addingTimeInterval(TimeInterval(m * 60))
+        let side = MuteCopy.side(k.side)
+        log("alerts: \(relax ? "\(side) reminders every \(Durations.text(settings.notificationActions.relaxMin))" : "\(side) alerts muted for \(Durations.text(m))")")
+        let wasMuted = paused[k.side] != nil
         if mirrors(k) {
-            if slow { mirror.slow(k, slowMin: settings.notificationActions.slowMin); repost(k.group) }
-            else {
-                let wasMuted = paused[k.side] != nil
-                if mirror.mute(k, until: until) || wasMuted {
-                    mirrored[k.group] = nil
-                    remove(k.group, "muted from the notification")
-                    postMuted(k, until: until)
-                }
+            if relax { mirror.relax(k, relaxMin: settings.notificationActions.relaxMin); repost(k.group) }
+            else if mirror.mute(k, until: until) || wasMuted || mutedNote[k.group] != nil {
+                mirrored[k.group] = nil
+                remove(k.group, "muted")
+                postMuted(k, until: until)
             }
             updatePaused(force: true)
         } else {
             engine.levelAndRate = mode == .own
-            if slow { engine.slow(k) } else { muting = true; engine.mute(k, min: m); muting = false }
+            let showing = live.contains(k.group) && shownEvents[k.group].map { $0.0.k.side == k.side } == true
+            if relax { engine.relax(k) } else { muting = true; engine.mute(k, min: m); muting = false }
             saveEpisodes(force: true)
             scheduleCheck()
-            if slow { repost(k.group) }
-            else if active.contains(where: { $0.kind.group == k.group && $0.quiet == .notification }), shownEvents[k.group] != nil {
-                postMuted(k, until: until)
-            }
+            if relax { repost(k.group) }
+            else if showing || mutedNote[k.group] != nil { postMuted(k, until: until) }
         }
         onChange?()
     }
@@ -988,7 +1248,24 @@ final class AlertEngine {
     /// The group's notification again, without sound and with its buttons updated.
     private func repost(_ g: AlertKind.Group) {
         guard let (ev, m) = shownEvents[g] else { return }
+        if let u = mutedNote[g] { return postMuted(ev.k, until: u) }
         post(ev, mirrored: m, silent: true)
+    }
+
+    /// A notification's action (`didReceive`, and the self-test): `typed` = the Mute… / Change… text.
+    func respond(_ id: String, _ k: AlertKind, typed: String?) {
+        switch id {
+        case "relax": action(k, relax: true)
+        case "unrelax": unrelax(k)
+        case "unmute": unmute(k)
+        case "mute":
+            // the length in the reply ("45", "1 h", "1h 30m"; Durations.parse); empty = the setting; invalid: unchanged
+            let text = (typed ?? "").trimmingCharacters(in: .whitespaces)
+            if text.isEmpty { action(k, relax: false) }
+            else if let m = Durations.parse(text), AlertActions.muteRange.contains(m) { action(k, relax: false, min: m) }
+            else if let u = mutedNote[k.group] { postMuted(k, until: u) } else { repost(k.group) }
+        default: break
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
@@ -999,18 +1276,7 @@ final class AlertEngine {
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 guard let k else { return }
-                switch id {
-                case "mute": self.action(k, slow: false)
-                case "slow": self.action(k, slow: true)
-                case "unslow": self.unslow(k)
-                case "unmute": self.unmute(k)
-                case "muteFor":
-                    // the minutes in the reply ("20", "20 min"); none or out of range: nothing changes
-                    if let m = typed.flatMap({ t in t.range(of: "\\d{1,4}", options: .regularExpression).flatMap { Int(t[$0]) } }), AlertActions.muteRange.contains(m) {
-                        self.action(k, slow: false, min: m)
-                    } else if let u = self.mutedNote[k.group] { self.postMuted(k, until: u) } else { self.repost(k.group) }
-                default: break
-                }
+                self.respond(id, k, typed: typed)
             }
         }
         done()
@@ -1021,14 +1287,14 @@ final class AlertEngine {
         guard !offline else { return log("alerts: offline run, not alerting \(ev.k.rawValue)") }
         var (title, body) = text(ev, mirrored: mirrored)
         if test { title = "Test · " + title }
-        let sound = silent ? .none : Self.sound(for: ev.k, settings, last: lastVariant[ev.k])
+        let sound = silent || testing ? .none : Self.sound(for: ev.k, settings, last: lastVariant[ev.k])
         if let v = sound.variant { lastVariant[ev.k] = v }
         log("ALERT \(title) — \(body) [\(ev.k.group.rawValue), sound \(sound.label)]")
-        guard center != nil else {           // `swift run`: no bundle, no notification center
+        guard poster != nil else {           // `swift run`: no bundle, no notification center
             play(sound)
             return
         }
-        if !test { shownEvents[ev.k.group] = (ev, mirrored) }
+        if !test { shownEvents[ev.k.group] = (ev, mirrored); live.insert(ev.k.group) }
         let c = Self.content(title: title, body: body, k: ev.k, category: category(ev.k, mirrored: mirrored),
                              alarm: settings[ev.k].alarm, sound: sound)
         send(ev.k.group, UNNotificationRequest(identifier: ev.k.group.rawValue, content: c, trigger: nil))
@@ -1051,25 +1317,25 @@ final class AlertEngine {
 
     private func remove(_ g: AlertKind.Group, _ why: String) {
         log("alerts: clear \(g.rawValue) (\(why))")
+        live.remove(g)
         send(g, nil)
     }
 
     /// What each group should show, sent once at the end of this run-loop turn: only the last word per group reaches
     /// Notification Center. A kind moving within its group (high → very high) is a clear + a firing in one go, and
     /// usernoted cancels both adds when two requests with the same identifier arrive milliseconds apart, or lets a
-    /// remove that arrives after the add take the new notification away (both seen in its log).
+    /// remove that arrives after the add take the new notification away (both seen in its log). The self-test's
+    /// recorder gets each one at once.
     private var outbox: [AlertKind.Group: UNNotificationRequest?] = [:]
     private func send(_ g: AlertKind.Group, _ req: UNNotificationRequest?) {
+        guard let poster else { return }
+        if testing { if let req { poster.add(req) } else { poster.remove(g.rawValue) }; return }
         let first = outbox.isEmpty
         outbox[g] = .some(req)
-        guard first, let center else { return }
+        guard first else { return }
         DispatchQueue.main.async { [self] in
             for (g, req) in outbox {
-                if let req {
-                    center.add(req) { err in if let err { log("alerts: notification failed: \(err.localizedDescription)") } }
-                } else {
-                    center.removeDeliveredNotifications(withIdentifiers: [g.rawValue])
-                }
+                if let req { poster.add(req) } else { poster.remove(g.rawValue) }
             }
             outbox = [:]
         }

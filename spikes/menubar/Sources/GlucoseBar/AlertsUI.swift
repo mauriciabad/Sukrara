@@ -14,6 +14,8 @@ import SwiftUI
     @Published private(set) var state = ""
     /// Active now: the quiet alerts on this Mac with their ways out (round f29).
     @Published private(set) var quiet: [Alerts.Active] = []
+    /// Mute all's end on this Mac (unix s, 0 = off; `AlertStatus.never` = until turned off): the line ticks down.
+    @Published private(set) var allMuted: TimeInterval = 0
     @Published private(set) var following = false
 
     init(alerts: Alerts) {
@@ -28,9 +30,13 @@ import SwiftUI
 
     func perform(_ op: QuietOp) { alerts.perform(op); refreshState() }
 
+    /// The Now row's line at `t` (its Mute all part counts down).
+    func stateLine() -> String { alerts.stateLine }
+
     func refreshState() {
         state = alerts.stateLine
         quiet = alerts.active
+        allMuted = alerts.allMuted
         following = alerts.followingV2()
     }
 
@@ -53,8 +59,14 @@ import SwiftUI
     var muteMin: Binding<Double> {
         Binding(get: { Double(self.s.notificationActions.muteMin) }, set: { self.s.notificationActions.muteMin = Int($0) })
     }
-    var slowMin: Binding<Double> {
-        Binding(get: { Double(self.s.notificationActions.slowMin) }, set: { self.s.notificationActions.slowMin = Int($0) })
+    var relaxMin: Binding<Double> {
+        Binding(get: { Double(self.s.notificationActions.relaxMin) }, set: { self.s.notificationActions.relaxMin = Int($0) })
+    }
+    var backMgdl: Binding<Double> {
+        Binding(get: { Double(self.s.notificationActions.backMgdl) }, set: { self.s.notificationActions.backMgdl = Int($0) })
+    }
+    var backMin: Binding<Double> {
+        Binding(get: { Double(self.s.notificationActions.backMin) }, set: { self.s.notificationActions.backMin = Int($0) })
     }
 
     func sound(_ k: AlertKind) -> Binding<String> {
@@ -64,7 +76,7 @@ import SwiftUI
 
     /// The quiet rules in use, for Default / Wearer (MirroredSection).
     var quietSummary: [(String, String)] {
-        func q(_ m: AlertMute) -> String { m.on ? "\(Int(m.min)) min" : "Off" }
+        func q(_ m: AlertMute) -> String { m.on ? Durations.text(Int(m.min)) : "Off" }
         return [("Quiet highs after rapid insulin", q(eff.muteAfterInsulin)),
                 ("Quiet highs falling back into range", q(eff.muteFallingHigh)),
                 ("Quiet lows after carbs", q(eff.muteAfterCarbs))]
@@ -84,29 +96,53 @@ struct AlertsView: View {
 
     var body: some View {
         Form {
-            if !model.quiet.isEmpty {
-                // Active now (round f29): every muted / quiet / slowed alert on this Mac with its ways out, reachable
-                // without the notification
+            if !model.quiet.isEmpty || model.allMuted > Date().timeIntervalSince1970 {
+                // Active now (round f29, f30): Mute all and every muted / quiet / relaxed alert on this Mac with its
+                // ways out, reachable without the notification
                 Section("Active now") {
+                    if model.allMuted > Date().timeIntervalSince1970 {
+                        LabeledContent {
+                            HStack {
+                                Button("Unmute") { model.perform(.unmuteAll) }.accessibilityLabel("Alerts: Unmute")
+                                Menu("Change Time") {
+                                    ForEach(muteAllChoices, id: \.1) { c in Button(c.0) { model.perform(.muteAll(c.1)) } }
+                                }
+                                .fixedSize()
+                                .accessibilityLabel("Alerts: Change time")
+                            }
+                        } label: {
+                            Countdown(until: Date(timeIntervalSince1970: model.allMuted)) { t in
+                                Text(MuteCopy.allLine(until: model.allMuted, now: t.timeIntervalSince1970) ?? "")
+                            }
+                        }
+                    }
                     ForEach(model.quiet, id: \.kind) { q in
-                        LabeledContent(q.title) {
+                        LabeledContent {
                             HStack {
                                 if let l = q.lift { Button(l) { model.perform(.unmute(q.kind)) } }
-                                if q.slowMin > 0 { Button("Stop Slowing Down") { model.perform(.unslow(q.kind)) } }
-                                if q.canMute {
-                                    Menu(q.quiet == .notification ? "Change To" : "Mute For") {
-                                        ForEach(quietMinutes, id: \.self) { m in Button("\(m) min") { model.perform(.mute(q.kind, m)) } }
-                                    }
-                                    .fixedSize()
+                                if q.relaxMin > 0 { Button("Remind as Usual") { model.perform(.unrelax(q.kind)) } }
+                                else if q.canRelax { Button("Remind Less") { model.perform(.relax(q.kind)) } }
+                                Menu(quietMenuTitle(q)) {
+                                    ForEach(quietChoices, id: \.1) { c in Button(c.0) { model.perform(.mute(q.kind, c.1)) } }
                                 }
+                                .fixedSize()
+                                .accessibilityLabel(quietMenuLabel(q))
                             }
+                        } label: {
+                            Countdown(until: q.ticks ? q.until : nil) { t in Text(q.title(now: t)) }
+                            if q.quiet != nil, q.relaxMin > 0 { Text(q.relaxedLine) }
                         }
                     }
                 }
             }
             Section {
                 Toggle("Glucose alerts", isOn: $model.s.on)
-                LabeledContent("Now") { Text(model.state).multilineTextAlignment(.trailing) }
+                LabeledContent("Now") {
+                    // its Mute all part counts down
+                    Countdown(until: model.allMuted > 0 ? Date(timeIntervalSince1970: model.allMuted) : nil) { _ in
+                        Text(model.stateLine()).multilineTextAlignment(.trailing)
+                    }
+                }
             } footer: {
                 if model.eff.source == "wearer" { note(model.following ? lockedNote : "Not following anyone over Sukrara's sharing, so the rules run on this Mac.") }
             }
@@ -146,11 +182,13 @@ struct AlertsView: View {
             }
             // the alert notification's buttons: local on every device (mirroring, they quiet this Mac's copy only)
             Section {
-                NumberSettingRow(title: "Mute for", spec: SettingsSpec.actionMute, value: model.muteMin)
-                NumberSettingRow(title: "Slow down to every", spec: SettingsSpec.actionSlow, value: model.slowMin,
-                                 presets: model.eff.slowChoices.map(Double.init), customMin: Double(model.eff.slowFloor + 1))
+                NumberSettingRow(title: "Mute: suggested time", spec: SettingsSpec.actionMute, value: model.muteMin)
+                NumberSettingRow(title: "Remind Less: every", spec: SettingsSpec.actionRelax, value: model.relaxMin,
+                                 presets: model.eff.relaxChoices.map(Double.init), customMin: Double(model.eff.relaxFloor + 1))
+                NumberSettingRow(title: "Mute and Remind Less end back in range by", spec: SettingsSpec.backMgdl, value: model.backMgdl)
+                NumberSettingRow(title: "… for at least", spec: SettingsSpec.backMin, value: model.backMin)
             } header: { Text("From the notification") } footer: {
-                note("Very low and extremely high are never muted, only slowed down. Slow down lasts until back in range and is slower than every alert's repeat.")
+                note("Mute and Remind Less act on one side, lows or highs, on this Mac only.")
             }
             .disabled(!model.s.on)
             Section {
@@ -196,9 +234,9 @@ extension AlertKind: Identifiable { public var id: String { rawValue } }
     let when: String = switch kind.group {
     case .level: (kind.lowSide ? "Below " : "From ") + "\(Int(t)) mg/dL"
     case .rate: "Faster than " + String(format: "%.1f", t) + " mg/dL/min"
-    case .noData: "After \(Int(t)) min without data"
+    case .noData: "After \(Durations.text(Int(t))) without data"
     }
-    let rep = r.repeatMin == 0 ? "once" : "repeats every \(r.repeatMin) min"
+    let rep = r.repeatMin == 0 ? "once" : "repeats every \(Durations.text(r.repeatMin))"
     let pack = model.eff.pack(for: kind)
     return [r.on ? nil : "Off", when, rep, pack == "none" ? "silent" : pack.capitalized, r.alarm ? "like an alarm" : nil]
         .compactMap { $0 }.joined(separator: " · ")
@@ -247,7 +285,7 @@ private struct KindDetails: View {
                     Section("Alert when") {
                         NumberSettingRow(title: thresholdLabel, spec: kind.thresholdSpec, value: model.threshold(kind))
                         NumberSettingRow(title: "Repeat", spec: SettingsSpec.alertRepeat, value: model.repeatMin(kind),
-                                         label: { $0 == 0 ? NumberFormat.word("once") : "Every \(Int($0)) min" })
+                                         label: { $0 == 0 ? NumberFormat.word("once") : "Every \(Durations.text(Int($0)))" })
                     }
                     .disabled(!rule.wrappedValue.on)
                 } else {

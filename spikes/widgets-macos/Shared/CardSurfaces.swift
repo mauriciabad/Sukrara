@@ -50,9 +50,9 @@ enum MacWidget {
     static func image(_ kind: WidgetKind, size: CGSize, cfg: GraphConfig, overrides: WidgetOverrides, sensor: SensorInfo?,
                       readings: [GraphReading], marks: [GraphMark], now: TimeInterval, _ pal: GraphPalette,
                       metricsOf: @escaping (RingSpec, Bands) -> GlucoseMetrics, alerts: AlertSettings?,
-                      paused: [String: TimeInterval], overflow: CGFloat) -> CGImage? {
+                      paused: [String: TimeInterval], allMuted: TimeInterval, overflow: CGFloat) -> CGImage? {
         GlucoseCard.image(size: size, scale: 2, readings: readings, marks: marks, now: now,
                           style(kind, cfg, overrides, sensor: sensor), pal, surface: surface(kind), metricsOf: metricsOf,
-                          alerts: alerts, paused: paused, overflow: overflow)
+                          alerts: alerts, paused: paused, allMuted: allMuted, overflow: overflow)
     }
 }

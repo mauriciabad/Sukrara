@@ -54,21 +54,63 @@ class QuietGallery {
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(ctx.resources) }
         GraphSettings.init(ctx)
         WearerSettings.init(ctx)
+        Alerts.resetForTests()
         Alerts.init(ctx)
-        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = {})
-        Alerts.update(ctx) { AlertSettings(on = false) }
         Alerts.update(ctx) { AlertSettings() }
+        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses() }, publish = {})
         Alerts.history.value = emptyList()
     }
 
-    @After fun tearDown() { Alerts.detach() }
+    @After fun tearDown() { Alerts.detach(); Alerts.resetForTests() }
+
+    /** Carbs logged [agoMin] minutes ago: the after-carbs rule holds lows back (AlertSettings' default 15 min). */
+    private fun carbs(agoMin: Int) {
+        val carbsAt = Proto.nowS() - agoMin * 60L
+        Alerts.detach()
+        Alerts.attach(ctx, "wearer", doses = { AlertEngine.Doses(carbs = listOf(carbsAt)) }, publish = {})
+    }
+
+    /** Round f33: quiet after carbs, its line worded like the mutes and counting down (the sheet). */
+    @Test fun sheetQuietAfterCarbs() {
+        carbs(3)
+        low()
+        compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
+        compose.waitForIdle()
+        save("android-sheet-quiet-carbs", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        // 15 min after the carbs, 3 min ago: 12 min left (the old "Low quiet after carbs until 10:42" is gone)
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted after carbs · 12 min left")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("quiet after carbs", substring = true)).assertDoesNotExist()
+        compose.onNode(androidx.compose.ui.test.hasText("Alert me anyway")).assertExists()
+    }
+
+    /** Round f33, in Spanish: "queda 1 h" (one unit), "quedan 12 min" after carbs, on the sheet and in Active now. */
+    @Test @Config(qualifiers = "es-w411dp-h900dp-xhdpi") fun spanishTimeLeftAgrees() {
+        carbs(3)
+        low()
+        Alerts.mute(ctx, Kind.FALLING_FAST, 60)
+        compose.setContent { SettingsTheme { AlertsScreen(follower = false) {} } }
+        compose.waitForIdle()
+        save("android-alerts-active-now-es", compose.onRoot().captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Alertas de glucosa baja silenciadas tras los hidratos · quedan 12 min")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Alertas de bajada rápida silenciadas · queda 1 h")).assertExists()
+    }
+
+    /** Round f33: the same line in Active now, and on the home card as a chip (the pill shows the low's own mute). */
+    @Test fun activeNowQuietAfterCarbs() {
+        carbs(3)
+        low()
+        compose.setContent { SettingsTheme { AlertsScreen(follower = false) {} } }
+        compose.waitForIdle()
+        save("android-alerts-active-now-carbs", compose.onRoot().captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted after carbs · 12 min left")).assertExists()
+    }
 
     private fun low(sgv: Int = 62) = Reading(t++, sgv, -0.4, "test").also { Alerts.onReading(ctx, it) }
     private fun save(name: String, b: Bitmap) = File(out, "$name.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
 
     @Test fun homeCardMutedWithTalkBackActions() {
         val r = low()
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { GlucosePanel(r.sgv, r.rate, r.t) } }
         compose.waitForIdle()
         save("android-home-muted", compose.onRoot().captureToImage().asAndroidBitmap())
@@ -80,27 +122,41 @@ class QuietGallery {
         assertTrue(Alerts.active.value.isEmpty())
     }
 
-    @Test fun homeCardSlowedChip() {
+    @Test fun homeCardRelaxedChip() {
         val r = low()
-        Alerts.action(ctx, Kind.LOW, slow = true)
+        Alerts.relax(ctx, Kind.LOW)
         compose.setContent { SettingsTheme { GlucosePanel(r.sgv, r.rate, r.t) } }
         compose.waitForIdle()
-        save("android-home-slowed", compose.onRoot().captureToImage().asAndroidBitmap())
+        save("android-home-relaxed", compose.onRoot().captureToImage().asAndroidBitmap())
         compose.onNode(androidx.compose.ui.test.hasText("Low reminders every 30 min")).assertExists()
     }
 
     @Test fun sheetFromThePill() {
         low()
-        Alerts.action(ctx, Kind.LOW, slow = true)
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.relax(ctx, Kind.LOW)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
         compose.waitForIdle()
-        save("android-sheet-muted-slowed", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        save("android-sheet-muted-relaxed", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted · 30 min left")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Low reminders every 30 min")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Remind as usual")).assertExists()
+    }
+
+    /** Round f31: a side's mute alone, its line counting down in the sheet. */
+    @Test fun sheetSideMuted() {
+        low()
+        Alerts.mute(ctx, Kind.LOW, 90)
+        compose.setContent { SettingsTheme { AlertQuietSheet(Kind.LOW, onDismiss = {}, onSettings = {}) } }
+        compose.waitForIdle()
+        save("android-sheet-muted", compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+        compose.onNode(androidx.compose.ui.test.hasText("Low alerts muted · 1 h 30 min left")).assertExists()
+        compose.onNode(androidx.compose.ui.test.hasText("Remind less")).assertExists()
     }
 
     @Test fun alertsPageActiveNow() {
         low()
-        Alerts.action(ctx, Kind.LOW, slow = false)
+        Alerts.mute(ctx, Kind.LOW, 30)
         compose.setContent { SettingsTheme { AlertsScreen(follower = false) {} } }
         compose.waitForIdle()
         save("android-alerts-active-now", compose.onRoot().captureToImage().asAndroidBitmap())

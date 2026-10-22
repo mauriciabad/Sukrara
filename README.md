@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.38/Sukrara-0.11.38.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.42/Sukrara-0.11.42.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.38/Sukrara-0.11.38.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.42/Sukrara-0.11.42.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -37,7 +37,7 @@ no cloud account to create and no server to host. The name is Catalan-ish: *sucr
   <img src="docs/img/mac/add-treatment.png" alt="Mac Add Treatment window: rapid 4.5u, long 12u, carbs 30g and a note, with how long highs and lows stay quiet" width="330">
 </p>
 <p align="center">
-  <img src="docs/img/notification/alert-actions.png" alt="Glucose notification above a low alert with one-tap choices 15, 60 and 120 min and the actions Mute 30 min, Slow to 30 min and Mute for…" width="300">
+  <img src="docs/img/notification/alert-actions.png" alt="A low alert with two actions: Mute… and Remind less" width="300">
   <img src="docs/img/settings/sharing.png" alt="Share with people: send an invite link, pair nearby over Bluetooth, and the followers" width="180">
   <img src="docs/img/settings/settings.png" alt="Settings overview like Android 16: a search pill, the share-with-your-clinic banner and sections with coloured icons" width="180">
 </p>
@@ -127,7 +127,8 @@ by the app's icon code.</sub>
   [10](docs/10-showcase.md)
 - Home-screen widgets: value (+ rings), graph, and graph + value, resizable, light/dark. Add the same widget twice
   and give each its own window and rings (touch & hold → Reconfigure). Until one is placed, home offers *Add widget*
-  (the launcher's own dialog), dismissible. [12](docs/12-android-widgets.md),
+  (the launcher's own dialog), dismissible. Every tip card you close offers *Undo* right away, and Settings →
+  *Show closed tips* brings them all back. [12](docs/12-android-widgets.md),
   The big numbers are rounded on both (SF Pro Rounded on the Mac, Google Sans Flex rounded on Android).
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low), now or earlier: pick
@@ -139,7 +140,8 @@ by the app's icon code.</sub>
   Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
   (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
   followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
-- Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*), or that alerts
+- Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*; tap it to log
+  carbs or insulin right away, on the phone and the Mac), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
   since and a ring for the quiet time left (carbs eaten while insulin works: two rings, `8u` over `5g`); without a
   recent one, a 30-day time-in-range ring. [16](docs/16-graph.md)
@@ -168,12 +170,15 @@ by the app's icon code.</sub>
   reminder and sound (lows alert strictly below the threshold). Highs stay quiet for a while after rapid insulin and while
   glucose is already falling back into range; lows (also very low) stay quiet for a while after carbs, and alert at once
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
-  A short dip back into range doesn't restart the alert. Extremely high is never muted. From the notification: mute
-  the alert for 30 min (or 15 min to 2 h, or minutes you type) or slow its reminders to every 30 min, both until it's back in range
-  (very low and extremely high can only be slowed); a mute only quiets the device you tap it on, so the Mac and followers keep alerting.
-  Every quiet alert has a way back: *Unmute* or *Change…* on the muted notification, a tap on the "30m left" pill
-  (or the Mac panel's rows), and Settings › Alerts › *Active now* (Unmute, change the time, stop slowing down, or
-  *Alert me anyway* after carbs or insulin, on that device only). Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
+  A short dip back into range doesn't restart the alert. Insulin never quiets extremely high. Every alert notification
+  has two buttons: *Mute…* (pick 15 min, 30 min, 1 h, 2 h or type a length) and *Remind less* (every 30 min instead).
+  They cover only that side (a high's mute never silences a low, very low and extremely high included) and end at their
+  time or once glucose is back in range with a margin (10 mg/dL for 10 min, so hovering at the edge doesn't end them).
+  *Mute alerts* on the home screen and in the Mac menu silences every alert for 30 min to 8 h or until you turn them back
+  on, shown on every card as a *Muted* pill. Mutes only quiet the device you tap them on, so the Mac and followers keep
+  alerting. Every quiet state has a way back: *Unmute* / *Change…* on the muted notification, the pill's sheet (or the
+  Mac panel's rows), *Unmute*, and Settings › Alerts › *Active now* (also *Remind as usual* and *Alert me
+  anyway* after carbs or insulin). Every muted state counts down (*Low alerts muted after carbs · 12 min left*). Durations read *1 h*, *2 h*, never *60 min*. Video-game sound packs ([listen](https://sukrara.mauri.app/sounds/)) with a different sound each time, and a
   vibration per alert you can tell apart in your pocket. [15](docs/15-alerts.md)
 - In English or Spanish (Spain), settings included: follows the phone's language, or pick one for Sukrara alone in
   Android's app settings.
@@ -198,7 +203,8 @@ by the app's icon code.</sub>
   and generated picture, like the phone). Keys stay in the macOS Keychain. Hours
   the Mac missed (asleep, offline) are filled in from the wearer's history. [07](docs/07-bluetooth-followers.md)
 - The same glucose alerts and sound packs as the phone (Settings → Alerts): alert when the wearer's phone does
-  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. Pick the pack, or another sound per alert, from a list with ▶ on each one.
+  (Settings from: Wearer), or with the defaults or the Mac's own rules; a test alert per alert. The same Mute… / Remind less
+  notification actions and a *Mute Alerts* menu in the dropdown (bell-slash in the menu bar while on). Pick the pack, or another sound per alert, from a list with ▶ on each one.
   [15](docs/15-alerts.md)
 - When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel
   says why right under it.
@@ -224,7 +230,7 @@ by the app's icon code.</sub>
   from: Wearer*, sent encrypted like the readings, over the internet or Bluetooth), or the defaults, or their own.
 - Remove a follower at any time: the read key rotates and everyone else keeps going without doing anything.
 - Pair nearby over Bluetooth with no internet at all, and see which followers are connected now and on what (phone or Mac; each device proves who it is) (Settings →
-  Share with people → Nearby devices). The phone broadcasts no name and shows who it is only while
+  Share with people → Nearby devices; tap one to *Forget* it, and pair it again any time). The phone broadcasts no name and shows who it is only while
   *Pair nearby* is open; followers send nothing to a phone until it proves it's the wearer's, and both sides limit
   what a stranger in range can send. [07](docs/07-bluetooth-followers.md), [24](docs/24-open-standard.md)
 - Let a follower add entries (for example, a parent logging a meal); the wearer's phone accepts only approved writers,
@@ -354,12 +360,12 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 
 ## Try it
 
-Downloads: [v0.11.38](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.38) (Android and Mac)
+Downloads: [v0.11.42](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.42) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.38.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.42.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -369,10 +375,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.38.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.42.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.38.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.42.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not
