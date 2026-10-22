@@ -70,12 +70,20 @@ Doses of one pen, sorted by time, below `since` dropped, 0 u dropped.
    ("Your pen already logged 8.5 u at 13:12") with *Log anyway* / *Cancel*.
 7. User edits win: an entry the user edited after import isn't rewritten by later scans; doses that would join it
    become a question.
+8. **Dose roles are correctable** (user, 2026-10-23): the engine keeps deciding automatically, but a pen entry's detail
+   has *Edit doses*, a per-dose priming / injected choice (TalkBack-reachable). Saving recomputes `a` (injected sum),
+   `pr` (primed sum), `pd[].p` and `t` (first injected dose), new `u`; if every dose is priming the app offers to delete
+   the entry instead. A correction is a user edit (rule 7). **Edited** is explicit: the entry's `u` differs from the
+   `u` the engine last wrote, **or** its `pd` roles differ from the ledger's (a correction made on the other device).
+   Answered questions stay changeable through the same per-dose edit (an all-priming answer, which made no entry,
+   is reopened from the pen's settings page).
 
 Every rule above is a scenario in a JSON fixture (doses + existing entries → entries + questions) run by the Android
 unit tests, like `spikes/alerts` timeline scenarios. Include at least: the user's examples, top-up, priming then
 distraction, two injections 40 min apart, all-small isolated, open session growing between two scans, pending → question,
 first scan with 400 old doses, rescan idempotence, delete then rescan, manual entry merge, two candidates, amount
-mismatch, edit then grow, clock reset, future dose, long pen, two pens.
+mismatch, edit then grow, clock reset, future dose, long pen, two pens, role correction then rescan, role correction
+on the other device then rescan.
 
 ## 5. Treatment format additions (SPEC §1, PROTOCOL-v2 content) — both platforms
 
@@ -99,7 +107,8 @@ every other output use `a` only. Priming alone never makes an entry.
 
 Android: pen reading switch, pen list (serial, kind, since, last read, counts; change kind; move `since`; forget
 pen), threshold setting, questions (notification **and** an in-app card on Home/treatments; answer, change the answer
-afterwards via the entry), the first-scan setup, the reverse-duplicate warning, a pen entry's detail. Mac: the pen
-entry's detail and list row. Settings in `spikes/settings/settings.json` (`only: android` + reason). Strings en+es,
+afterwards via the entry), the first-scan setup, the reverse-duplicate warning, a pen entry's detail with *Edit doses*
+(§4.8). Mac: the pen
+entry's detail (with the same per-dose correction) and list row. Settings in `spikes/settings/settings.json` (`only: android` + reason). Strings en+es,
 FEATURES.md (States and exits), README, QA.md, docs/10 + docs/29 "In Sukrara". Debug-only fake pen read through
 `DebugFakes.run` (emulator screenshots of every state).
