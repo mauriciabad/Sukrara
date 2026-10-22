@@ -113,6 +113,35 @@ class IconFitTest {
         assertEquals(listOf(48) to 88, IconFit.place(w, Fit(listOf(0), 1), sp, dot, pullAfter = 1, pull = 8))
     }
 
+    @Test fun thePulledPxGoToAnotherIconInsteadOfTheDot() {
+        // the user's row: [vibrate][number][trend][signal][wifi], 260 px. SystemUI alone (6 dp between number and trend):
+        // 22 + 76 + 56 + 56 = 210, vibrate needs 56 of the 50 left → the dot
+        val w = listOf(40, 60, 22, 40, 40)
+        assertEquals(Fit(listOf(1, 2, 3, 4), 0), IconFit.prioritized(w, setOf(1, 2), 260, sp, dot))
+        // offered the 8 px the pull gives back: vibrate fits, no dot, and the pulled row is 258 ≤ 260
+        assertEquals(Fit(listOf(0, 1, 2, 3, 4), null) to 258, IconFit.pulledRow(w, 1, 2, 260, sp, dot, 8))
+    }
+
+    @Test fun thePulledRowNeverOutgrowsTheRealWidth() {
+        val rnd = java.util.Random(7)
+        repeat(20_000) {
+            val others = rnd.nextInt(6)
+            val at = rnd.nextInt(others + 1)
+            val w = (0 until others).map { 10 + rnd.nextInt(70) }.toMutableList()
+            w.addAll(at, listOf(20 + rnd.nextInt(60), 8 + rnd.nextInt(20)))   // number, trend
+            val max = dot + rnd.nextInt(400)
+            val pull = rnd.nextInt(sp + 1)
+            for (fromEnd in listOf(true, false)) {
+                val (f, width) = IconFit.pulledRow(w, at, at + 1, max, sp, dot, pull, fromEnd)
+                val label = "widths $w max $max pull $pull fromEnd $fromEnd → $f, $width"
+                assertEquals(label, true, width <= max)
+                assertEquals("pair split: $label", (at in f.visible), (at + 1 in f.visible))
+                // with the pair shown nothing of ours is in the dot; without it nothing else shows
+                if (at !in f.visible) assertEquals(label, emptyList<Int>(), f.visible)
+            }
+        }
+    }
+
     /**
      * [IconFit.CARD_GAP_OF_DIGIT] is the card's own gap: the renderer's geometry ([ValueGlyphs]: the mark's box
      * [ValueGlyphs.MARK_GAP] after the number's advance, the arrow drawn [ValueGlyphs.ARROW_IN_BOX] × its

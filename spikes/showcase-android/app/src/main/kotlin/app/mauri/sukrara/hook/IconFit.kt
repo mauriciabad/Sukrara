@@ -118,6 +118,20 @@ object IconFit {
     }
 
     /**
+     * The whole module on a row (the tests' view): our [number] right before our [trend], first in line; SystemUI fits it
+     * with [pull] px more than [maxWidth] (the room the pull gives back), then the pull narrows the pair. Returns what
+     * shows and the row's final width, which stays within [maxWidth] (whenever SystemUI's own dot fits it): ours are
+     * fitted first, so either both fit, side by side, and the pull takes back the extra px, or they fold together into
+     * the dot and nothing else fits either.
+     */
+    fun pulledRow(widths: List<Int>, number: Int, trend: Int, maxWidth: Int, spacing: Int, dotSpace: Int, pull: Int,
+                  fromEnd: Boolean = true): Pair<Fit, Int> {
+        val f = prioritized(widths, setOf(number, trend), maxWidth + pull, spacing, dotSpace, fromEnd)
+        val both = number in f.visible && trend in f.visible
+        return f to place(widths, f, spacing, dotSpace, if (both) number else null, if (both) pull else 0).second
+    }
+
+    /**
      * The order to show SystemUI's row of [slots] in (indices into it), or null to keep it: our slots together in the
      * fixed order [ours] (number, then trend: after a System UI restart system_server hands them back in hash order,
      * trend first), after [target] ([insertAfter]) or, without a target (or an unknown one), where the first of ours is.

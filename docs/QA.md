@@ -99,6 +99,9 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 - [ ] Restart System UI (home's *Restart System UI* card, or the Settings action): number then arrow from the first
       frame, no swap and no blink a few seconds later; `adb logcat -s Sukrara.slots`: `orders our icons itself (module):
       no re-add`. Same with the plain *With the system icons* placement.
+- [ ] A row that is just full (an icon in the dot): if that icon would fit with the pair 8 px closer, it shows
+      instead of the dot; the row never runs into the clock / cut-out and number + arrow still go into the dot
+      together when there's no room.
 - [ ] Number and arrow about 3 dp apart (as on the app's card), closer than the other icons; the gap to the icons
       beside them unchanged (6 dp); still close after a reading, after a no-readings / ended spell and with the row
       full. `logcat`: `icon fit hooks: 1, gap hooks: 1`. TalkBack on the icons: *Glucose 120 mg/dL ↗*, *Glucose trend ↗*.
