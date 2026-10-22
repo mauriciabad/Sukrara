@@ -416,6 +416,7 @@ private struct CardRep: NSViewRepresentable {
         }
         model.tick += 1
         p.makeKeyAndOrderFront(nil)
+        if NSApp != nil { log("pinchdiag open: panel key \(p.isKeyWindow) canBecomeKey \(p.canBecomeKey) appActive \(NSApp.isActive) keyWindow \(NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "nil")") }   // TEMPORARY
         onVisible?(true)
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.close() }
@@ -493,6 +494,7 @@ final class KeyPanel: NSPanel {
     /// happens"; scroll events did arrive). The card under the pointer gets it, else the panel's one card (a pinch
     /// anywhere on the dropdown zooms its chart, anchored where the pointer is). `ScrollSelfTest.throughThePanel`.
     override func sendEvent(_ e: NSEvent) {
+        PinchDiag.log("panel", e)   // TEMPORARY
         if e.type == .magnify || e.type == .smartMagnify, let card = card(at: e.locationInWindow) {
             if e.type == .magnify { card.magnify(with: e) } else { card.smartMagnify(with: e) }
             return
