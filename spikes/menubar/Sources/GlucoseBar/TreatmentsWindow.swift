@@ -74,6 +74,7 @@ import SwiftUI
 
 struct TreatmentsView: View {
     @ObservedObject var model: TreatmentsModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         list.frame(width: 420)
@@ -104,6 +105,9 @@ struct TreatmentsView: View {
             }
             .onDeleteCommand { model.delete(model.selection) }
             .frame(height: 420)
+            // Feel (PRODUCT §4.11): an entry arriving while the window is open (a pen read on the phone) slides in with
+            // the default spring, a changed amount re-counts; Reduce Motion: no transitions.
+            .animation(reduceMotion ? nil : .spring, value: model.rows.map { "\($0.id)\($0.a)\($0.pr ?? 0)" })
         }
     }
 
@@ -118,7 +122,11 @@ struct TreatmentsView: View {
 
     private func expandedBinding(_ id: String) -> Binding<Bool> {
         Binding(get: { model.expanded.contains(id) },
-                set: { if $0 { model.expanded.insert(id) } else { model.expanded.remove(id) } })
+                set: { open in
+                    withAnimation(reduceMotion ? nil : .spring) {
+                        if open { model.expanded.insert(id) } else { model.expanded.remove(id) }
+                    }
+                })
     }
 
     /// Rows grouped by day: "Today", "Yesterday", "Thursday 16 October".
@@ -139,6 +147,7 @@ private struct TreatmentRow: View {
     let delivery: (Delivery, Date)?
     let who: String
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 10) {
@@ -147,7 +156,11 @@ private struct TreatmentRow: View {
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                if let pen = PenCopy.summary(t) { Text(pen).font(.callout).foregroundStyle(.secondary) }
+                    .contentTransition(reduceMotion ? .identity : .numericText(value: t.a))
+                if let pen = PenCopy.summary(t) {
+                    Text(pen).font(.callout).foregroundStyle(.secondary)
+                        .contentTransition(reduceMotion ? .identity : .numericText(value: t.pr ?? 0))
+                }
                 if !t.n.isEmpty, t.k != "note" { Text(t.n).font(.callout).foregroundStyle(.secondary) }
             }
             Spacer()
