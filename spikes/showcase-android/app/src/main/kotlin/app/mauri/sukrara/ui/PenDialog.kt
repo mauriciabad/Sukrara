@@ -101,9 +101,12 @@ fun PenReaderEffect(onFill: (Pens.Fill) -> Unit) {
         val nfc = NfcAdapter.getDefaultAdapter(ctx)
         if (on && act != null && nfc != null) nfc.enableReaderMode(act, { tag ->
             if (!PenTag.isPen(tag)) return@enableReaderMode
-            PenDialogRead.state.value = "reading"
             scope.launch {
-                val r = withContext(Dispatchers.IO) { runCatching { PenTag.read(tag) { Pens.stopBefore(it) } }.getOrNull() }
+                // a card or passport near the phone isn't a pen: nothing shows (only an answered selection reads)
+                var selected = false
+                val res = withContext(Dispatchers.IO) { runCatching { PenTag.read(tag, onSelected = { selected = true; PenDialogRead.state.value = "reading" }) { Pens.stopBefore(it) } } }
+                val r = res.getOrNull()
+                if (PenTag.outcome(selected, res.exceptionOrNull() ?: if (r == null) app.mauri.sukrara.pen.opennov.NotAPenException() else null) == PenTag.Outcome.NOT_PEN) return@launch
                 if (r == null) { app.mauri.sukrara.pen.PenHaptics.read(view, false); PenDialogRead.state.value = "failed"; return@launch }
                 app.mauri.sukrara.pen.PenHaptics.read(view, true)
                 val f = withContext(Dispatchers.IO) { Pens.readForDialog(ctx, r) }
