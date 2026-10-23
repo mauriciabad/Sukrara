@@ -382,10 +382,11 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → the pen's page: red 10 s confirmation → display
       check; *It doesn't* → *Sukrara doesn't log this pen*.
 - [ ] *Your pens*: one row per pen (pen icon, not a pencil), *· Revisa sus ajustes* until its page was opened; no extra setup row.
-- [ ] *Supported pens* (always, also with reading off and no pen): one row per `PenProfiles.ALL` (*NovoPen Echo Plus*
-      plain, *NovoPen 6* with the red *Untested* flask tag), not tappable, footer *Other NFC pens and Bluetooth pens or
-      caps (Tempo, InPen, Mallya…) aren't supported.*; TalkBack reads *NovoPen 6, Untested* as one node. Search finds
-      them: *NovoPen*, *pen*, Spanish *pluma*. Light and dark.
+- [ ] Which pens work = the page's footer (always, also with reading off and no pen; no rows, no red tag): *Sukrara
+      reads NovoPen Echo Plus and NovoPen 6 (untested). Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or
+      Mallya, aren't supported.* / *Sukrara lee NovoPen Echo Plus y NovoPen 6 (sin probar). …*; TalkBack reads it as
+      one paragraph. Settings search *NovoPen 6*, *novopen*, *pen*, Spanish *pluma* → *Insulin pens*. Light and dark,
+      largest font.
 - [ ] *Automatic detection* (pens page, reading Ask / On): intro (applies from now on), groups *Priming* (priming size,
       priming ahead of time), *Injections* (one injection, small doses on their own, last injection on a new pen),
       *Doses you type* (time apart, amount apart, amount apart for big doses); each summary states the rule with its value;

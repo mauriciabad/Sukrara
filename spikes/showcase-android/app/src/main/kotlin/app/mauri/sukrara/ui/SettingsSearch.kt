@@ -85,8 +85,8 @@ internal fun fold(s: String): String =
 
 /**
  * Hits for [query], best first, ranked like the stock Settings search (SettingsIntelligence DatabaseResultTask,
- * BASE_RANKS 1/3/7/9): a word that starts the title's first word ranks 1, another title word 3, the summary 7, the page
- * or group names 9. Every word of the query must match; a hit ranks as its worst word. Ties: shallower pages first.
+ * BASE_RANKS 1/3/7/9): a word that starts the title's first word ranks 1, another title word 3, the summary or a
+ * keyword (AOSP `settings:keywords`: found, never shown) 7, the page or group names 9. Every word of the query must match; a hit ranks as its worst word. Ties: shallower pages first.
  */
 fun search(hits: List<SettingsHit>, query: String): List<SettingsHit> {
     val words = fold(query).split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -96,12 +96,13 @@ fun search(hits: List<SettingsHit>, query: String): List<SettingsHit> {
     return hits.mapNotNull { h ->
         val title = words(h.row.title)
         val summary = fold(h.row.summary.orEmpty())
+        val keywords = words(h.row.keywords.orEmpty())
         val where = words((h.crumbs + listOfNotNull(h.row.group)).joinToString(" "))
         val rank = words.maxOf { w ->
             when {
                 title.firstOrNull()?.startsWith(w) == true -> 1
                 title.any { it.startsWith(w) } -> 3
-                w in summary -> 7
+                w in summary || keywords.any { it.startsWith(w) } -> 7
                 where.any { it.startsWith(w) } -> 9
                 else -> return@mapNotNull null
             }

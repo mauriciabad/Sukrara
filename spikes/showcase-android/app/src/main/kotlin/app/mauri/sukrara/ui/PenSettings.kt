@@ -173,30 +173,24 @@ fun PensSettings(onBack: () -> Unit) {
                     minutes(f.penClusterMin)), icon = R.drawable.ic_sym_tune, to = PEN_DETECTION_ROUTE)
             }
         }
-        // what works, before any pen is added (like the sensor families' brand step): every PenProfile, untested tagged
-        supportedPens()
-        SettingsFooter(stringResource(R.string.pens_supported_footer))
+        // which pens work: the page's footer (AOSP Hearing devices says what isn't supported in its footer), always shown
+        SettingsFooter(pensFooter(LocalContext.current))
     }
 }
 
 /**
- * *Supported pens*: one row per [PenProfiles.ALL] (the one source: a new profile shows here, in search and in the
- * tests), the red *Untested* tag on the unverified ones (the Glucose source / brand step pattern). Not tappable.
+ * The footer's *Sukrara reads NovoPen Echo Plus and NovoPen 6 (untested). Other NFC pens, …, aren't supported.*, built
+ * from [PenProfiles.ALL] (the one source: a new profile appears here), untested ones marked in words like the Glucose
+ * source summary, joined the locale's way (ICU [android.icu.text.ListFormatter]: *and* / *y*).
  */
-@Composable
-internal fun supportedPens() {
-    val untested = stringResource(R.string.newsensor_untested_tag)
-    SettingsGroup(stringResource(R.string.pens_supported_group)) {
-        for (p in PenProfiles.ALL) row(p.name, if (p.verified) null else untested) {
-            Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }.padding(horizontal = 24.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Icon(painterResource(R.drawable.ic_dia_pen), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(p.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                if (!p.verified) UntestedTag()
-            }
-        }
-    }
+internal fun pensFooter(ctx: android.content.Context): String {
+    val names = PenProfiles.ALL.map { if (it.verified) it.name else ctx.getString(R.string.pens_footer_untested, it.name) }
+    val list = android.icu.text.ListFormatter.getInstance(ctx.resources.configuration.locales[0]).format(names)
+    return ctx.getString(R.string.pens_footer, list)
 }
+
+/** What search finds the *Insulin pens* row by, never shown (AOSP `settings:keywords`): every [PenProfiles] model. */
+fun pensKeywords() = PenProfiles.ALL.joinToString(" ") { it.name }
 
 @Composable
 private fun minutes(m: Int) = "$m " + stringResource(R.string.unit_min)

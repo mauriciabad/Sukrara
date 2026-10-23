@@ -2010,10 +2010,10 @@
     <string name="pens_prime_below">Purgado: menos de</string>
     <!-- Footer: the priming rule [CHAR LIMIT=NONE] -->
     <string name="pens_prime_footer">Las dosis más pequeñas antes de una mayor son purgado; después, se suman a ella.</string>
-    <!-- Group: the pen models Sukrara reads [CHAR LIMIT=30] -->
-    <string name="pens_supported_group">Plumas compatibles</string>
-    <!-- Footer under Supported pens: what isn't supported [CHAR LIMIT=NONE] -->
-    <string name="pens_supported_footer">Otras plumas NFC y las plumas o capuchones Bluetooth (Tempo, InPen, Mallya…) no son compatibles.</string>
+    <!-- Settings > Insulin pens footer: which pens work (%1$s: the models joined, e.g. "NovoPen Echo Plus and NovoPen 6 (untested)"), then what doesn't [CHAR LIMIT=NONE] -->
+    <string name="pens_footer">Sukrara lee %1$s. Otras plumas NFC, y las plumas o capuchones Bluetooth como Tempo, InPen o Mallya, no son compatibles.</string>
+    <!-- One pen model in that footer list that was never tried on a real pen (%1$s: the model) [CHAR LIMIT=40] -->
+    <string name="pens_footer_untested">%1$s (sin probar)</string>
     <!-- Row: opens the dose detection rules page [CHAR LIMIT=40] -->
     <string name="pens_detection">Detección automática</string>
     <!-- Automatic detection row summary: priming size and injection window [CHAR LIMIT=NONE] -->

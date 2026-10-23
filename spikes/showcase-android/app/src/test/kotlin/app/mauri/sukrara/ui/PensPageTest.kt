@@ -6,8 +6,10 @@ package app.mauri.sukrara.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import app.mauri.sukrara.App
 import app.mauri.sukrara.R
 import app.mauri.sukrara.features.FeatureState
+import app.mauri.sukrara.owner.OwnerUi
 import app.mauri.sukrara.pen.PenProfiles
 import app.mauri.sukrara.pen.Pens
 import com.android.settingslib.spa.framework.theme.SettingsTheme
@@ -21,9 +23,10 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Settings → Insulin pens, composed in index mode (what search records): *Supported pens* lists exactly
- * [PenProfiles.ALL] (one source of truth), the unverified ones marked untested, and search finds them in English and
- * Spanish. The *Automatic detection* page has one row per tunable rule, and [Pens.rules] reads every one of them.
+ * Settings → Insulin pens. Which pens work is the page's footer (AOSP: rows are things you act on, information goes in
+ * the footer), built from [PenProfiles.ALL] (one source of truth), the untested ones marked in words; search finds the
+ * *Insulin pens* row by every model (its keywords, AOSP `settings:keywords`) in English and Spanish. The *Automatic
+ * detection* page has one row per tunable rule, and [Pens.rules] reads every one of them.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -41,27 +44,45 @@ class PensPageTest {
 
     private fun hits(idx: PageIndex) = idx.rows.values.map { SettingsHit(listOf("settings", idx.route), listOf(idx.title ?: ""), it, null) }
 
-    @Test fun supportedPensAreThePenProfiles() {
-        val idx = index("pens") { PensSettings {} }
-        val rows = idx.rows.values.filter { it.group == ctx.getString(R.string.pens_supported_group) }
-        assertEquals(PenProfiles.ALL.map { it.name }, rows.map { it.title })
-        val untested = ctx.getString(R.string.newsensor_untested_tag)
-        assertEquals(PenProfiles.ALL.map { if (it.verified) null else untested }, rows.map { it.summary })
-        assertTrue("one verified model", PenProfiles.ALL.any { it.verified })
+    /** The wearer's settings overview on a phone with NFC, indexed: the row that opens *Insulin pens* is there. */
+    private fun overview(): List<SettingsHit> {
+        App.setRole(ctx, "owner")
+        Pens.fakeNfc = true
+        try { return hits(index("settings") { WearerSettings(OwnerUi()) {} }) } finally { Pens.fakeNfc = false }
     }
 
-    @Test fun searchFindsTheSupportedPens() {
-        val hits = hits(index("pens") { PensSettings {} })
-        for (p in PenProfiles.ALL) assertTrue(p.name, search(hits, p.name).any { it.row.title == p.name })
-        assertTrue(search(hits, "NovoPen").map { it.row.title }.containsAll(PenProfiles.ALL.map { it.name }))
-        assertTrue(search(hits, "pen").map { it.row.title }.containsAll(PenProfiles.ALL.map { it.name }))
+    @Test fun footerNamesEveryPenProfile() {
+        val footer = pensFooter(ctx)
+        for (p in PenProfiles.ALL) {
+            assertTrue(footer, footer.contains(p.name))
+            assertEquals(p.name, !p.verified, footer.contains(ctx.getString(R.string.pens_footer_untested, p.name)))
+        }
+        assertTrue("one verified model", PenProfiles.ALL.any { it.verified })
+        assertEquals("Sukrara reads NovoPen Echo Plus and NovoPen 6 (untested). Other NFC pens, and Bluetooth pens or caps like " +
+            "Tempo, InPen or Mallya, aren't supported.", footer)
+    }
+
+    @Test fun noRowPerModel() {
+        // information isn't a list of rows: nothing on the page is titled with a model (the user's own pens go by their name)
+        val titles = index("pens") { PensSettings {} }.rows.values.map { it.title }
+        assertTrue(titles.toString(), PenProfiles.ALL.none { it.name in titles })
+    }
+
+    @Test fun searchFindsInsulinPensByModel() {
+        val hits = overview()
+        val title = ctx.getString(R.string.pens_title)
+        for (q in PenProfiles.ALL.map { it.name } + listOf("NovoPen", "echo plus", "pen"))
+            assertEquals(q, title, search(hits, q).firstOrNull()?.row?.title)
+        assertEquals("pens", search(hits, "NovoPen 6").first().row.to)
     }
 
     @Config(qualifiers = "es")
-    @Test fun spanishSearchFindsThem() {
-        val hits = hits(index("pens") { PensSettings {} })
-        assertTrue(search(hits, "pluma").map { it.row.title }.containsAll(PenProfiles.ALL.map { it.name }))
-        assertTrue(search(hits, "novopen").isNotEmpty())
+    @Test fun spanishFooterAndSearch() {
+        assertEquals("Sukrara lee NovoPen Echo Plus y NovoPen 6 (sin probar). Otras plumas NFC, y las plumas o capuchones Bluetooth " +
+            "como Tempo, InPen o Mallya, no son compatibles.", pensFooter(ctx))
+        val hits = overview()
+        val title = ctx.getString(R.string.pens_title)
+        for (q in listOf("pluma", "novopen", "NovoPen 6")) assertEquals(q, title, search(hits, q).firstOrNull()?.row?.title)
     }
 
     @Test fun detectionPageHasEveryRule() {

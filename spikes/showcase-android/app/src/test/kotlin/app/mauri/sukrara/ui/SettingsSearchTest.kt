@@ -37,6 +37,14 @@ class SettingsSearchTest {
         assertEquals(listOf("High"), search(all, "HÍG").map { it.row.title }.take(1))
     }
 
+    /** Keywords (AOSP `settings:keywords`) find a row like its summary does, and are never shown. */
+    @Test fun keywordsFindTheRow() {
+        val pens = SettingsHit(listOf("settings", "settings"), emptyList(),
+            IndexedRow("Insulin pens", "Off", null, null, to = "pens", keywords = "NovoPen Echo Plus NovoPen 6"), null)
+        assertEquals(listOf("Insulin pens"), search(all + pens, "novopen 6").map { it.row.title })
+        assertEquals(listOf("High", "After rapid insulin", "In range in white"), search(all + pens, "high").map { it.row.title })
+    }
+
     @Test fun blankFindsNothing() { assertTrue(search(all, "  ").isEmpty()) }
 
     /** The index holds the pages' resolved strings, so in Spanish it finds the Spanish rows, accents optional. */
