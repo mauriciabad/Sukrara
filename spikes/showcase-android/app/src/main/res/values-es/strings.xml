@@ -1872,8 +1872,6 @@
     <string name="pen_q_same_title">¿Es la misma inyección?</string>
     <!-- Pen amount + time · the user's amount + time [CHAR LIMIT=NONE] -->
     <string name="pen_q_same_line">Pluma %1$s a las %2$s · tuya %3$s a las %4$s</string>
-    <!-- Big read: since a date, nothing logged yet [CHAR LIMIT=NONE] -->
-    <string name="pen_read_big_text">Desde el %1$s. No se registra nada hasta que lo hagas.</string>
     <!-- Pen read sheet: the pen's clock went back [CHAR LIMIT=34] -->
     <string name="pen_read_clock">El reloj de la pluma ha cambiado</string>
     <!-- Pen read sheet line for a changed clock [CHAR LIMIT=NONE] -->
@@ -1977,7 +1975,7 @@
     <!-- Returning pen: in the log up to a time [CHAR LIMIT=NONE] -->
     <string name="pen_new_returning">Ya está en tu registro hasta %1$s. Las dosis más nuevas se registran ahora.</string>
     <!-- Dialog: an untested pen model [CHAR LIMIT=30] -->
-    <string name="pen_untested_title">Pluma no probada</string>
+    <string name="pen_untested_title">Pluma sin probar</string>
     <!-- Dialog text: the pen model [CHAR LIMIT=NONE] -->
     <string name="pen_untested_text">El soporte de Sukrara para %1$s no está probado: las dosis pueden leerse mal.</string>
     <!-- Display check: the newest dose and the hours since it [CHAR LIMIT=NONE] -->
@@ -2194,4 +2192,15 @@
     <string name="pen_read_first_slow">La primera lectura tarda unos segundos.</string>
     <!-- Doses read top line: injected and priming units in the last 30 days [CHAR LIMIT=NONE] -->
     <string name="pen_h_totals">Últimos 30 días: %1$s inyectadas · %2$s de purgado</string>
+    <!-- Insulin pens page: Android blocks Sukrara's tag intents [CHAR LIMIT=40] -->
+    <string name="pens_blocked">Los toques de la pluma están bloqueados</string>
+    <!-- A pen injection replaced a follower's entry: name, amount, time [CHAR LIMIT=NONE] -->
+    <string name="pen_read_replaced_by">Sustituye la entrada de %1$s de %2$s de las %3$s</string>
+    <!-- A pen injection replaced someone else's entry: amount, time [CHAR LIMIT=NONE] -->
+    <string name="pen_read_replaced_other">Sustituye la entrada de %1$s de las %2$s</string>
+    <!-- Card line: how many of the user's entries are near the pen injection [CHAR LIMIT=40] -->
+    <plurals name="pen_m_nearby">
+        <item quantity="one">%1$d entrada tuya cerca</item>
+        <item quantity="other">%1$d entradas tuyas cerca</item>
+    </plurals>
 </resources>

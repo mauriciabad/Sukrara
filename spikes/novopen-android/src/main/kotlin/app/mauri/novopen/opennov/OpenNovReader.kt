@@ -52,11 +52,12 @@ object OpenNovReader {
     /**
      * Reads the pen's identity and its whole dose history. [stopBefore] (epoch s), when set, ends the transfer once a
      * chunk reaches a dose older than it (the pen sends newest first) — a rescan then takes one chunk instead of ~45.
-     * [stopBeforeFor] does the same with a limit chosen from the pen's serial (null = read everything).
+     * [progress] gets the share of the records transferred so far (0–1) after each message, once the pen said how
+     * many it holds (the read card's ring). [stopBeforeFor] does the same with a limit chosen from the pen's serial (null = read everything).
      * Throws [IOException] when the pen can't be selected, the session breaks off, or no serial arrived.
      */
     fun read(t: Transceiver, nowEpochS: Long = System.currentTimeMillis() / 1000, log: (String) -> Unit = {}, stopBefore: Long? = null,
-             stopBeforeFor: ((serial: String) -> Long?)? = null): PenRead =
+             stopBeforeFor: ((serial: String) -> Long?)? = null, progress: (Float) -> Unit = {}): PenRead =
         OpenNovLog.with(log) {
             val started = System.nanoTime()
             val now = { nowEpochS + (System.nanoTime() - started) / 1_000_000_000L }
@@ -76,6 +77,8 @@ object OpenNovReader {
                 val payload = ph.extractInnerPacket(ts.readFromLinkLayer(), true)
                 if (payload == null) { errors++; OpenNovLog.d { "Read cycle got null, errors $errors" }; continue }
                 fsa = machine.processPayload(payload)
+                // the share of the pen's records transferred so far (once the pen said how many it holds)
+                if (machine.stored > 0) progress((machine.context.doses.size.toFloat() / machine.stored).coerceIn(0f, 1f))
                 if (fsa.action == FSA.Action.WRITE_READ) {
                     val out = fsa.payload ?: throw IOException("no reply to build in state ${machine.state}")
                     if (!ph.writeInnerPacket(out)) throw IOException("write failed in state ${machine.state}")

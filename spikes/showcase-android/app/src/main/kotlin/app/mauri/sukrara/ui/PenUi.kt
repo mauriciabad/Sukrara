@@ -53,6 +53,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -158,23 +161,82 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth().then(if (entry != null && !s.undone) Modifier.clickable { onOpen("penEntry", entry.id) } else Modifier),
                 horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                    if (s.stage == "reading") CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp)
-                    Icon(painterResource(when { card.error -> R.drawable.ic_sym_warning; s.stage == "reading" -> R.drawable.ic_dia_pen
-                        r != null && entry != null && !s.undone -> R.drawable.ic_sym_check; else -> R.drawable.ic_dia_pen }),
-                        contentDescription = null, tint = if (card.error) cs.error else cs.onSurfaceVariant, modifier = Modifier.size(24.dp))
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(shownTitle, style = MaterialTheme.typography.titleMedium, color = if (card.error) cs.onErrorContainer else cs.onSurface,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite; contentDescription = card.title })
+                PenReadGlyph(s, card.error, success = r != null && entry != null && !s.undone, still = still)
+                // TalkBack (QA review 2): the whole card once, title and lines, amounts as words
+                val said = remember(card) { w.spoken((listOf(card.title) + card.lines).joinToString(", ")) }
+                Column(Modifier.weight(1f).clearAndSetSemantics { liveRegion = LiveRegionMode.Polite; contentDescription = said },
+                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(shownTitle, style = MaterialTheme.typography.titleMedium, color = if (card.error) cs.onErrorContainer else cs.onSurface)
+                    // the priming doses peel off as small grey chips into the "primed" line (PRODUCT §4.11)
+                    if (!still && entry != null && !s.undone && entry.id in r!!.created + r.merged) PrimedChips(entry)
                     card.lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = if (card.error) cs.onErrorContainer else cs.onSurfaceVariant) }
                 }
             }
             val pills = pills(ctx, s, entry, asked, onOpen, onClose) { app.mauri.sukrara.pen.PenHaptics.play(view, app.mauri.sukrara.pen.PenHaptics.Moment.UNDO) }
             if (pills.isNotEmpty()) Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pills.forEachIndexed { i, (label, act) ->
+                // emphasis (QA review 6): Undo is never the filled pill; Add treatment tonal; the action that matters filled
+                val undoL = ctx.getString(R.string.pen_undo)
+                val tonal = setOf(ctx.getString(R.string.pen_add_treatment), ctx.getString(R.string.pen_set_up), ctx.getString(R.string.pen_no), ctx.getString(R.string.pen_check))
+                val hasPrimary = pills.any { it.first != undoL && it.first !in tonal }
+                pills.forEach { (label, act) ->
                     val click = { onInteract(); act() }
-                    if (i == pills.lastIndex) Button(onClick = click) { Text(label) } else FilledTonalButton(onClick = click) { Text(label) }
+                    when {
+                        label == undoL -> TextButton(onClick = click) { Text(label) }
+                        label in tonal && (hasPrimary || label == ctx.getString(R.string.pen_add_treatment)) -> FilledTonalButton(onClick = click) { Text(label) }
+                        else -> Button(onClick = click) { Text(label) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The pen glyph in its ring: indeterminate until the pen says how many records it holds, then filling as they arrive;
+ * on success the ring completes and the glyph turns into a check (scale + crossfade); undo turns it back. Reduced
+ * motion: no ring animation, the final glyph at once.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PenReadGlyph(s: Pens.ReadState, error: Boolean, success: Boolean, still: Boolean) {
+    val cs = MaterialTheme.colorScheme
+    val p by Pens.readProgress.collectAsState()
+    val target = when { s.stage == "reading" -> p ?: 0f; else -> 1f }
+    val shown by androidx.compose.animation.core.animateFloatAsState(target,
+        if (still) androidx.compose.animation.core.snap() else androidx.compose.material3.ProgressIndicatorDefaults.ProgressAnimationSpec, label = "ring")
+    var ringGone by remember(s.stage) { mutableStateOf(s.stage != "reading") }
+    LaunchedEffect(s.stage) { if (s.stage != "reading" && !still) { kotlinx.coroutines.delay(250) }; ringGone = s.stage != "reading" }
+    Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+        // the wavy ring, as on the sensor scan
+        if (s.stage == "reading" && p == null && !still) androidx.compose.material3.CircularWavyProgressIndicator(Modifier.size(40.dp))
+        else if (!ringGone || s.stage == "reading") androidx.compose.material3.CircularWavyProgressIndicator(progress = { shown }, modifier = Modifier.size(40.dp))
+        androidx.compose.animation.Crossfade(Triple(error, success, s.stage == "reading"), label = "glyph",
+            animationSpec = if (still) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(250)) { (err, ok, _) ->
+            val pop = remember { androidx.compose.animation.core.Animatable(if (ok && !still) 0.6f else 1f) }
+            LaunchedEffect(Unit) { pop.animateTo(1f, androidx.compose.animation.core.spring(0.6f, 800f)) }
+            val scale = pop.value
+            Icon(painterResource(when { err -> R.drawable.ic_sym_warning; ok -> R.drawable.ic_sym_check; else -> R.drawable.ic_dia_pen }),
+                contentDescription = null, tint = if (err) cs.error else if (ok) cs.primary else cs.onSurfaceVariant,
+                modifier = Modifier.size(24.dp).graphicsLayer { scaleX = scale; scaleY = scale })
+        }
+    }
+}
+
+/** The entry's priming doses as small grey chips that slide down 8 dp and fade into the line below, staggered 40 ms. */
+@Composable
+private fun PrimedChips(e: Treatment) {
+    val primed = e.pd.orEmpty().filter { it.p }
+    if (primed.isEmpty()) return
+    val w = PenWords(LocalContext.current)
+    var peel by remember(e.id) { mutableStateOf(false) }
+    LaunchedEffect(e.id) { kotlinx.coroutines.delay(500); peel = true }
+    Row(Modifier.clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        primed.forEachIndexed { i, d ->
+            androidx.compose.animation.AnimatedVisibility(!peel, exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(250, i * 40)) +
+                androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(250, i * 40)) { with(androidx.compose.ui.unit.Density(1f)) { 8 } }) {
+                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                    Text(w.u(d.a), Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -194,12 +256,11 @@ private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Que
         s.stage == "notusable" -> listOf(ctx.getString(R.string.pen_open) to { onOpen("penPage", serial) })
         s.stage == "check" -> listOf(ctx.getString(R.string.pen_set_up) to { onOpen("penSetup", serial) })
         s.stage == "ask" -> listOf(ctx.getString(R.string.pen_no) to { Pens.decline(ctx); onClose() },
-            ctx.getString(R.string.pen_turn_on) to { Pens.turnOn(ctx)?.let { app.mauri.sukrara.pen.PenReadActivity.notify(ctx, it) }; Unit })
+            ctx.getString(R.string.pen_turn_on) to { Pens.turnOn(ctx); Unit })
         r == null -> emptyList()
         r.first && !r.returning && entry == null -> listOfNotNull(
             r.offer?.let { o -> ctx.getString(R.string.pen_log_amount, w.u(o.a)) to {
-                val st = Pens.logDoses(ctx, serial, o.doses)
-                Pens.readState.value = s.copy(report = st.report.copy(first = false), undo = st.undo)
+                Pens.logDoses(ctx, serial, o.doses) { st -> Pens.readState.value = s.copy(report = st.report.copy(first = false), undo = st.undo) }
             } },
             ctx.getString(R.string.pen_set_up) to { onOpen("penSetup", serial) })
         r.clockChanged && entry == null -> listOf(ctx.getString(R.string.pen_check) to { onOpen("penHistory", serial) })
@@ -222,7 +283,7 @@ private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Que
 @Composable
 private fun fromLine(tr: Treatment): String {
     val pens = Pens.ledger.collectAsState().value.pens
-    val name = tr.pen?.let { pens[it]?.name }
+    val name = tr.pen?.takeIf { it in pens }?.let { Pens.displayName(it, pens) }
     return if (pens.size > 1 && !name.isNullOrEmpty()) stringResource(R.string.pen_entry_from_named, name) else stringResource(R.string.pen_entry_from)
 }
 
@@ -247,27 +308,51 @@ fun PenEntrySheet(tr: Treatment, readOnly: Boolean = false, onDismiss: () -> Uni
     val pen = tr.pen?.let { Pens.ledger.collectAsState().value.pens[it] }
     val untested = pen?.model?.let { PenProfiles.byId(it) }?.verified == false
     val doses = pen?.doses?.values.orEmpty()
+    // Feel (PRODUCT §4.11): both totals count to their new values; the flipped dose's amount travels as a ghost from
+    // its row to the total it joined. Reduced motion: none of it, the numbers change at once.
+    val still = remember { app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx) }
+    val aShown by androidx.compose.animation.core.animateFloatAsState(a.toFloat(), if (still) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(350), label = "a")
+    val prShown by androidx.compose.animation.core.animateFloatAsState(pr.toFloat(), if (still) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(350), label = "pr")
+    fun counted(v: Float, final: Double) = if (kotlin.math.abs(v - final) < 0.01) final else Math.round(v * 2) / 2.0
+    var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var injAt by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var prAt by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val rowAt = remember { mutableStateListOf(*Array(pd.size) { androidx.compose.ui.geometry.Offset.Zero }) }
+    var ghost by remember { mutableStateOf<Triple<String, androidx.compose.ui.geometry.Offset, androidx.compose.ui.geometry.Offset>?>(null) }
+    val travel = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(ghost) { if (ghost != null) { travel.snapTo(0f); travel.animateTo(1f, androidx.compose.animation.core.tween(300)); ghost = null } }
+    fun flip(i: Int, p: Boolean) {
+        if (roles[i] == p) return
+        roles[i] = p
+        if (!still) ghost = Triple(w.u(pd[i].a), rowAt[i] - origin, (if (p) prAt else injAt) - origin)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss) {
+      Box(Modifier.onGloballyPositioned { origin = it.positionInRoot() }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (inj.isEmpty()) stringResource(R.string.pen_nothing_injected)
-                    else ctx.getString(if (tr.k == "long") R.string.treatments_row_long else R.string.treatments_row_rapid, w.u(a)),
-                    style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite })
+                Text(if (inj.isEmpty() && aShown < 0.01f) stringResource(R.string.pen_nothing_injected)
+                    else ctx.getString(if (tr.k == "long") R.string.treatments_row_long else R.string.treatments_row_rapid, w.u(counted(aShown, a))),
+                    style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).onGloballyPositioned { injAt = it.positionInRoot() }
+                        .semantics { liveRegion = LiveRegionMode.Polite; contentDescription = if (inj.isEmpty()) ctx.getString(R.string.pen_nothing_injected)
+                            else ctx.getString(if (tr.k == "long") R.string.treatments_row_long else R.string.treatments_row_rapid, w.u(a)) })
                 Text(Clock.time(t), style = MaterialTheme.typography.titleMedium)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(listOfNotNull(fromLine(tr), pr.takeIf { it > 0 }?.let { stringResource(R.string.pen_primed, w.u(it)) }).joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(listOfNotNull(fromLine(tr), prShown.takeIf { it > 0.01f }?.let { stringResource(R.string.pen_primed, w.u(counted(it, pr))) }).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.onGloballyPositioned { prAt = it.positionInRoot() + androidx.compose.ui.geometry.Offset(it.size.width * 0.7f, 0f) })
                 if (untested) UntestedTag()
             }
             HorizontalDivider()
             pd.forEachIndexed { i, d ->
                 val inc = doses.any { it.t == d.t && PenEngine.tenths(it.a) == PenEngine.tenths(d.a) && it.inc }
-                DoseRow(d.t, d.a, roles[i], inc, readOnly) { roles[i] = it }
+                Box(Modifier.onGloballyPositioned { if (i < rowAt.size) rowAt[i] = it.positionInRoot() + androidx.compose.ui.geometry.Offset(170f, 0f) }) {
+                    DoseRow(d.t, d.a, roles[i], inc, readOnly) { flip(i, it) }
+                }
             }
             HorizontalDivider()
             if (tr.n.isNotEmpty()) Text(tr.n, style = MaterialTheme.typography.bodyMedium)
-            pen?.replaced?.get(tr.id)?.let { Text(stringResource(R.string.pen_read_replaced, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium,
+            pen?.replaced?.get(tr.id)?.let { Text(w.replacedLine(tr.id, it, now = false), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (!readOnly) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (changed) {
@@ -292,6 +377,13 @@ fun PenEntrySheet(tr: Treatment, readOnly: Boolean = false, onDismiss: () -> Uni
                 }
             } else Button(onClick = onDismiss, Modifier.align(Alignment.End)) { Text(stringResource(R.string.pen_done)) }
         }
+        ghost?.let { (text, from, to) ->
+            val f = travel.value
+            Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clearAndSetSemantics { }.offset { androidx.compose.ui.unit.IntOffset((from.x + (to.x - from.x) * f).toInt(), (from.y + (to.y - from.y) * f).toInt()) }
+                    .graphicsLayer { alpha = 1f - f * f })
+        }
+      }
     }
     if (deleting) AlertDialog(
         onDismissRequest = { deleting = false },
@@ -434,7 +526,7 @@ fun PenQuestionCard() {
     RevealValue(open.firstOrNull()) { q ->
         val w = remember { PenWords(ctx) }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val several = open.size > 1
                 Text(when {
                     several -> ctx.resources.getQuantityString(R.plurals.pen_q_several, open.size, open.size)

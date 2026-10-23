@@ -2501,8 +2501,6 @@
     <string name="pen_q_same_title">Same injection?</string>
     <!-- Pen amount + time · the user's amount + time [CHAR LIMIT=NONE] -->
     <string name="pen_q_same_line">Pen %1$s at %2$s · yours %3$s at %4$s</string>
-    <!-- Big read: since a date, nothing logged yet [CHAR LIMIT=NONE] -->
-    <string name="pen_read_big_text">Since %1$s. Nothing is logged until you do.</string>
     <!-- Pen read sheet: the pen's clock went back [CHAR LIMIT=34] -->
     <string name="pen_read_clock">Pen clock changed</string>
     <!-- Pen read sheet line for a changed clock [CHAR LIMIT=NONE] -->
@@ -2823,4 +2821,15 @@
     <string name="pen_read_first_slow">The first read takes a few seconds.</string>
     <!-- Doses read top line: injected and priming units in the last 30 days [CHAR LIMIT=NONE] -->
     <string name="pen_h_totals">Last 30 days: %1$s injected · %2$s priming</string>
+    <!-- Insulin pens page: Android blocks Sukrara's tag intents [CHAR LIMIT=40] -->
+    <string name="pens_blocked">Pen taps are blocked</string>
+    <!-- A pen injection replaced a follower's entry: name, amount, time [CHAR LIMIT=NONE] -->
+    <string name="pen_read_replaced_by">Replaced %1$s\'s %2$s entry at %3$s</string>
+    <!-- A pen injection replaced someone else's entry: amount, time [CHAR LIMIT=NONE] -->
+    <string name="pen_read_replaced_other">Replaced the %1$s entry at %2$s</string>
+    <!-- Card line: how many of the user's entries are near the pen injection [CHAR LIMIT=40] -->
+    <plurals name="pen_m_nearby">
+        <item quantity="one">%1$d of your entries nearby</item>
+        <item quantity="other">%1$d of your entries nearby</item>
+    </plurals>
 </resources>

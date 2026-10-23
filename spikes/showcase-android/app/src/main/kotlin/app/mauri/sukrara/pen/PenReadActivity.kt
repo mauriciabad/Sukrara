@@ -101,8 +101,11 @@ class PenReadActivity : ComponentActivity() {
         PenHaptics.play(view, PenHaptics.Moment.TAP)
         lifecycleScope.launch {
             val st = withContext(Dispatchers.IO) {
-                var n = 0
-                runCatching { PenTag.read(tag, onExchange = { if (++n % 5 == 0) view.post { PenHaptics.play(view, PenHaptics.Moment.SEGMENT) } }) { Pens.stopBefore(it) }
+                runCatching { PenTag.read(tag, progress = { p ->
+                    // a tick per segment that arrived (PenHaptics keeps them ≥ 80 ms apart)
+                    if (p > (Pens.readProgress.value ?: 0f)) view.post { PenHaptics.play(view, PenHaptics.Moment.SEGMENT) }
+                    Pens.readProgress.value = p
+                }) { Pens.stopBefore(it) }
                     ?.let { Pens.onRead(this@PenReadActivity, it) } }.getOrNull()
             }
             if (st == null) { Pens.failed(null); haptic(false) }

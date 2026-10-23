@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.graphicsLayer
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
 import app.mauri.sukrara.features.Features
@@ -120,12 +121,17 @@ fun PenReaderSign() {
     val st by PenDialogRead.state.collectAsState()
     LaunchedEffect(st) { if (st == "nothing" || st == "failed") { delay(3000); PenDialogRead.state.value = "idle" } }
     val label = stringResource(R.string.pen_dialog_read_a11y)
+    // the icon pulses once (1 → 1.15 → 1) as a read starts; reduced motion: no pulse
+    val ctx = LocalContext.current
+    val pulse = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(st) { if (st == "reading" && !app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx)) { pulse.animateTo(1.15f, androidx.compose.animation.core.tween(120)); pulse.animateTo(1f, androidx.compose.animation.core.spring(0.6f, 800f)) } }
     when (st) {
         "nothing" -> Text(stringResource(R.string.pen_read_nothing), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(end = 8.dp))
         "failed" -> Text(stringResource(R.string.pen_read_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error,
             modifier = Modifier.padding(end = 8.dp))
-        else -> Box(Modifier.padding(end = 8.dp).size(28.dp).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+        else -> Box(Modifier.padding(end = 8.dp).size(28.dp).semantics { contentDescription = label }.graphicsLayer { scaleX = pulse.value; scaleY = pulse.value },
+            contentAlignment = Alignment.Center) {
             if (st == "reading") CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
             Icon(painterResource(R.drawable.ic_dia_pen_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }

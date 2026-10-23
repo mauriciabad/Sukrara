@@ -188,24 +188,25 @@ private object FakePen {
                     m.doses += Triple(at + k * every, d.trim().removeSuffix("!").toDouble(), d.trim().endsWith("!"))
                 }
                 app.mauri.sukrara.pen.Pens.init(c)
-                // a pen known since N days (skips the first-scan start, so made-up doses minutes ago are new)
-                i.getIntExtra("knownDays", 0).takeIf { it > 0 && app.mauri.sukrara.pen.Pens.ledger.value.pens[serial] == null }?.let { days ->
-                    app.mauri.sukrara.pen.Pens.debugKnown(serial, now - days * 86400L, now - base + m.offset - 60)
-                }
-                if (i.getBooleanExtra("fail", false)) {
-                    app.mauri.sukrara.pen.Pens.failed(serial)
-                } else {
-                    val model = if (i.getStringExtra("model") == "novopen6") "Novo Nordisk A/S NovoPen" else "Novo Nordisk A/S NovoPen"
-                    val half = i.getStringExtra("model") != "novopen6"
-                    val doses = m.doses.filter { half || Math.round(it.second * 10) % 10 == 0L }.map { (t, a, inc) ->
-                        app.mauri.sukrara.pen.opennov.PenDose(t - base + m.offset, t, a, if (inc) 0x08000001L else 0x08000000L)
-                    }
-                    val r = app.mauri.sukrara.pen.opennov.PenRead(serial, model, now, now - base + m.offset, doses)
-                    val st = app.mauri.sukrara.pen.Pens.onRead(c, r)
-                    app.mauri.sukrara.pen.PenReadActivity.notify(c, st)
-                }
+                val P = app.mauri.sukrara.pen.Pens
+                P.reading()
                 c.startActivity(Intent(c, app.mauri.sukrara.pen.PenReadActivity::class.java).putExtra(app.mauri.sukrara.pen.PenReadActivity.PREVIEW, true)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                val knownDays = i.getIntExtra("knownDays", 0); val fail = i.getBooleanExtra("fail", false)
+                val model6 = i.getStringExtra("model") == "novopen6"; val slowMs = i.getIntExtra("slowMs", 0)
+                // off the main thread, like a real read; `slowMs` plays the ring filling segment by segment
+                Thread {
+                    if (knownDays > 0 && P.ledger.value.pens[serial] == null) P.debugKnown(serial, now - knownDays * 86400L, now - base + m.offset - 60)
+                    if (slowMs > 0) for (k in 1..8) { Thread.sleep(slowMs / 8L); P.readProgress.value = k / 8f }
+                    if (fail) P.failed(serial)
+                    else {
+                        val doses = m.doses.filter { !model6 || Math.round(it.second * 10) % 10 == 0L }.map { (t, a, inc) ->
+                            app.mauri.sukrara.pen.opennov.PenDose(t - base + m.offset, t, a, if (inc) 0x08000001L else 0x08000000L)
+                        }
+                        val st = P.onRead(c, app.mauri.sukrara.pen.opennov.PenRead(serial, "Novo Nordisk A/S NovoPen", now, now - base + m.offset, doses))
+                        app.mauri.sukrara.pen.PenReadActivity.notify(c, st)
+                    }
+                }.start()
                 out.put("cmd", "fake pen read").put("state", app.mauri.sukrara.pen.Pens.readState.value?.stage)
             }
         }

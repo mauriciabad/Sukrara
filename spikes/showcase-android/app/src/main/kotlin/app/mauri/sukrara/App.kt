@@ -17,6 +17,7 @@ import app.mauri.sukrara.owner.OwnerEngine
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) app.mauri.sukrara.core.MainWatchdog.start()   // StrictMode + main-thread stalls in logcat
         // the drawing code's words follow the app's language (per-app language, res/values-es)
         app.mauri.sukrara.core.Words.loader = { app.mauri.sukrara.core.Words.of(resources) }
         // every clock time follows Settings → 24-hour time, read live (graph/Clock)

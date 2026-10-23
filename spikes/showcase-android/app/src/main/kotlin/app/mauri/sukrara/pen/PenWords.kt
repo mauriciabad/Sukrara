@@ -45,8 +45,13 @@ class PenWords(private val ctx: Context) {
         val inj = ds.filter { !it.p }
         val c = q.cands.firstNotNullOfOrNull { Treat.store.entry(it)?.second }
         val t = inj.minOfOrNull { it.t } ?: 0
-        return if (c == null) s(R.string.pen_m_card, u(PenEngine.r1(inj.sumOf { it.a })), time(t))
-        else s(R.string.pen_q_same_line, u(PenEngine.r1(inj.sumOf { it.a })), time(t), u(c.a), time(c.t))
+        val n = q.cands.count { Treat.store.entry(it)?.second?.let { e -> !e.del && e.pen == null } == true }
+        return when {
+            c == null -> s(R.string.pen_m_card, u(PenEngine.r1(inj.sumOf { it.a })), time(t))
+            // several candidates: say how many, not one of them (QA review 10)
+            n > 1 -> s(R.string.pen_m_card, u(PenEngine.r1(inj.sumOf { it.a })), time(t)) + " · " + ctx.resources.getQuantityString(R.plurals.pen_m_nearby, n, n)
+            else -> s(R.string.pen_q_same_line, u(PenEngine.r1(inj.sumOf { it.a })), time(t), u(c.a), time(c.t))
+        }
     }
 
     /** "Rapid · 13:12 · 1.5u primed" (no priming part when 0). */
@@ -65,7 +70,7 @@ class PenWords(private val ctx: Context) {
             st.stage == "notusable" -> return Card(s(R.string.pen_read_notusable), listOf(s(R.string.pen_read_notusable_text)))
             st.stage == "ask" -> return Card(s(R.string.pen_ask_title), listOf(st.read?.let { PenProfiles.identify(it).name } ?: PenProfiles.ECHO_PLUS.name))
             st.stage == "check" -> return Card(s(R.string.pen_untested_added),
-                listOf(s(R.string.pen_untested_added_line, pen?.name?.ifEmpty { null } ?: PenProfiles.NOVOPEN_6.name)))
+                listOf(s(R.string.pen_untested_added_line, st.serial?.let { Pens.displayName(it) } ?: PenProfiles.NOVOPEN_6.name)))
             st.undone -> return Card(s(R.string.pen_undone), listOf(s(R.string.pen_undone_text)))
         }
         r ?: return Card(s(R.string.pen_read_nothing), emptyList())
@@ -74,7 +79,7 @@ class PenWords(private val ctx: Context) {
         val asked = r.asked.mapNotNull { id -> Pens.ledger.value.questions.firstOrNull { it.id == id && it.answer == null } }
         val askLine = asked.firstOrNull()?.let { q -> if (q.type == PenEngine.DOSES) s(R.string.pen_doses_at, doses(q), time(q)) else matchLine(q) }
         if (r.first && !r.returning && entries.isEmpty()) {
-            val name = pen?.name?.ifEmpty { null } ?: PenProfiles.ECHO_PLUS.name
+            val name = st.serial?.let { Pens.displayName(it) } ?: PenProfiles.ECHO_PLUS.name
             val parts = listOfNotNull(name, kindLower(pen?.kind ?: "rapid"),
                 r.older.takeIf { it > 0 }?.let { ctx.resources.getQuantityString(R.plurals.pen_older_left_out, it, it) })
             val matches = r.offer?.let { Pens.offerMatch(it) }?.let { s(R.string.pen_matches_short, u(it.a)) }
@@ -93,7 +98,7 @@ class PenWords(private val ctx: Context) {
                 } else {
                     title = s(R.string.pen_read_logged, u(e.a))
                     lines += entryLine(e)
-                    pen?.replaced?.get(e.id)?.takeIf { e.id in r.merged }?.let { lines += s(R.string.pen_read_replaced, u(it.a), time(it.t)) }
+                    pen?.replaced?.get(e.id)?.takeIf { e.id in r.merged }?.let { lines += replacedLine(e.id, it, now = true) }
                 }
             } else {
                 title = ctx.resources.getQuantityString(R.plurals.pen_read_several, entries.size, entries.size)
@@ -114,6 +119,28 @@ class PenWords(private val ctx: Context) {
         if (r.pending > 0) return Card(s(R.string.pen_read_pending), listOf(s(R.string.pen_read_pending_text)))
         val last = st.serial?.let { s -> Treat.store.all().filter { !it.del && it.pen == s }.maxByOrNull { it.t } }
         return Card(s(R.string.pen_read_nothing), listOfNotNull(last?.let { s(R.string.pen_read_last, u(it.a), time(it.t)) }))
+    }
+
+    /**
+     * The line saying which hand-typed entry a pen injection replaced: *your* entry (the wearer's), a follower's by name,
+     * or "the" entry. [now]: the read card (*Replaced …at 13:05*); else the history wording (*Replaced your 8u entry*).
+     */
+    fun replacedLine(id: String, was: PenEntry, now: Boolean): String {
+        val writer = was.o != "phone" && was.o != "mac"
+        val name = Pens.writerNames.value[id]
+        return when {
+            writer && name != null -> s(R.string.pen_read_replaced_by, name, u(was.a), time(was.t))
+            writer -> s(R.string.pen_read_replaced_other, u(was.a), time(was.t))
+            now -> s(R.string.pen_read_replaced, u(was.a), time(was.t))
+            else -> s(R.string.pen_h_merged, u(was.a))
+        }
+    }
+
+    /** What TalkBack says for a card: title and lines, amounts as words ("8,5 unidades", not "8.5u"). */
+    fun spoken(text: String): String = Regex("(\\d+(?:\\.\\d)?)u\\b").replace(text) { m ->
+        val v = m.groupValues[1].toDouble()
+        val shown = if (java.util.Locale.getDefault().language == "es") m.groupValues[1].replace('.', ',') else m.groupValues[1]
+        ctx.resources.getQuantityString(R.plurals.pen_units_spoken, if (v == 1.0) 1 else 2, shown)
     }
 
     companion object {

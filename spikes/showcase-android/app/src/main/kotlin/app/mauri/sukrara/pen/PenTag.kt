@@ -20,13 +20,13 @@ object PenTag {
         (Ndef.get(tag)?.type?.let { it == Ndef.NFC_FORUM_TYPE_4 } ?: true)
 
     /** [onExchange]: one APDU went through (the read card's "data flowing" ticks). */
-    fun read(tag: Tag, onExchange: () -> Unit = {}, stopBefore: (String) -> Long? = { null }): PenRead? {
+    fun read(tag: Tag, onExchange: () -> Unit = {}, progress: (Float) -> Unit = {}, stopBefore: (String) -> Long? = { null }): PenRead? {
         if (!isPen(tag)) return null
         val iso = IsoDep.get(tag)
         iso.connect()
         try {
             iso.timeout = 3000
-            return OpenNovReader.read({ iso.transceive(it).also { onExchange() } }, log = { Log.d("SukraraPen", it) }, stopBeforeFor = stopBefore)
+            return OpenNovReader.read({ iso.transceive(it).also { onExchange() } }, log = { Log.d("SukraraPen", it) }, stopBeforeFor = stopBefore, progress = progress)
         } finally {
             runCatching { iso.close() }
         }

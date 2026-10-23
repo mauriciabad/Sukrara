@@ -79,6 +79,7 @@ import app.mauri.sukrara.treatments.TreatmentForm.MAX_UNITS
 import app.mauri.sukrara.treatments.TreatmentForm.NOTE_BYTES
 import app.mauri.sukrara.treatments.TreatmentMarks
 import java.util.Calendar
+import kotlinx.coroutines.launch
 
 /**
  * Add insulin, carbs and a note in one go: rapid, long-acting and carbs side by side, a note below, all optional;
@@ -166,11 +167,21 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     }
     // [focus] from the card's pill (Eat carbs → carbs, Take insulin → rapid) wins over the low rule
     LaunchedEffect(Unit) { (if (focus == "carbs" || focus == null && low) carbsFocus else if (focus == "long") longFocus else first).requestFocus() }
+    val fillScope = androidx.compose.runtime.rememberCoroutineScope()
     PenReaderEffect { f ->
-        fill = f; fillRoles.clear(); fillRoles.putAll(f.primed)
-        fillText = app.mauri.sukrara.pen.PenWords.number(f.a)
-        (if (f.kind == "long") longState else rapidState).setTextAndPlaceCursorAtEnd(fillText)
+        fillRoles.clear(); fillRoles.putAll(f.primed)
+        val field = if (f.kind == "long") longState else rapidState
+        val final = app.mauri.sukrara.pen.PenWords.number(f.a)
         at = f.t; ago = null
+        fillScope.launch {
+            // the amount types itself into the field in the pen dial's 0.5u steps (350 ms); reduced motion: at once
+            if (!app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx0) && f.a >= 1) {
+                val steps = (f.a / 0.5).toInt().coerceAtMost(30)
+                for (k in 1..steps) { val v = k * 0.5; fillText = app.mauri.sukrara.pen.PenWords.number(v); field.setTextAndPlaceCursorAtEnd(fillText); kotlinx.coroutines.delay(350L / steps) }
+            }
+            fillText = final; field.setTextAndPlaceCursorAtEnd(final)
+            fill = f
+        }
     }
     val pal = TreatmentMarks.palette(isSystemInDarkTheme())
 
@@ -201,7 +212,9 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
-                fill?.takeIf { penActive }?.let { f -> PenFillLine(f, fillRoles) }
+                // the pen's supporting line slides in (expandVertically)
+                androidx.compose.animation.AnimatedVisibility(fill != null && penActive, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) { fill?.let { f -> PenFillLine(f, fillRoles) } }
                 Reveal(quiet != null) {
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

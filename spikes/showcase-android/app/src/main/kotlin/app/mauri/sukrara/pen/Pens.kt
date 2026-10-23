@@ -26,6 +26,16 @@ import kotlinx.serialization.json.Json
  */
 object Pens {
     private const val TAG = "SukraraPen"
+
+    /**
+     * Every change runs here, never on the main thread (it writes pens.json and the treatment log): a call from the UI
+     * returns at once and the flows ([ledger], [readState], Treat.store.items) update when it's done.
+     */
+    private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "pens") }
+    private fun offMain(block: () -> Unit) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) worker.execute { runCatching(block).onFailure { Log.e(TAG, "pen change failed", it) } }
+        else block()
+    }
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true; explicitNulls = false }
     private var file: File? = null
 
@@ -40,6 +50,9 @@ object Pens {
                          val read: PenRead? = null, val at: Long = System.currentTimeMillis() / 1000, val undone: Boolean = false,
                          val tip: Boolean = false, val firstPen: Boolean = false)
     val readState = MutableStateFlow<ReadState?>(null)
+
+    /** The running read's share of the pen's records (null = not known yet: the ring spins), PRODUCT §4.11. */
+    val readProgress = MutableStateFlow<Float?>(null)
 
     /** A read of an untested pen waiting for the display check (PRODUCT §6), applied on *It matches*. */
     @Volatile var held: PenRead? = null
@@ -76,15 +89,15 @@ object Pens {
     fun setReading(ctx: Context, on: Boolean) { Features.update { it.copy(penReading = if (on) "on" else "off") }; syncComponent(ctx) }
 
     /** *Turn on* on the first tap's question (PRODUCT §1b): reading on, and the held read goes in as a first scan. */
-    fun turnOn(ctx: Context): ReadState? {
+    fun turnOn(ctx: Context) = offMain { run {
         setReading(ctx, true)
-        val r = held ?: return null
+        val r = held ?: return@offMain
         held = null
-        return onRead(ctx, r)
-    }
+        onRead(ctx, r).let { PenReadActivity.notify(ctx, it) }
+    } }
 
     /** *No*: reading off and the reader disabled, never asked again (Settings turns it on). */
-    fun decline(ctx: Context) { held = null; setReading(ctx, false); readState.value = null }
+    fun decline(ctx: Context) = offMain { run { held = null; setReading(ctx, false); readState.value = null } }
 
     fun rules() = PenRules(primeBelow = Features.value.penPrimeBelow)
     private fun engine() = PenEngine(rules(), origin = "phone", log = { Log.i(TAG, it) })
@@ -105,6 +118,11 @@ object Pens {
             Treat.store.put(tr)
         }
         if (o.writes.isNotEmpty()) Treat.uploader.kick()
+        // whose entry a merge replaced (a writer's: tombstoned + recreated), for the card's merge line
+        o.report.merged.forEach { id ->
+            val was = ledger.value.pens.values.firstNotNullOfOrNull { it.replaced[id] } ?: return@forEach
+            if (was.o != "phone" && was.o != "mac") runCatching { App.owner(ctx).writerName(was.id) }.getOrNull()?.let { n -> writerNames.value = writerNames.value + (id to n) }
+        }
         PenWork.schedule(ctx)
         PenNotifier.sync(ctx)
         return o
@@ -141,13 +159,11 @@ object Pens {
             if (pen?.check == "failed") return ReadState("notusable", r.serial, read = r).also { readState.value = it }
             held = r
             if (pen == null) save(Ledger(ledger.value.pens + (r.serial to Pen(r.serial, model = profile.id,
-                name = defaultName(r.serial, profile), since = r.scanTime, first = r.scanTime, lastScan = r.scanTime)), ledger.value.questions))
+                since = r.scanTime, first = r.scanTime, lastScan = r.scanTime)), ledger.value.questions))
             return ReadState("check", r.serial, read = r).also { readState.value = it }
         }
         val o = apply(ctx, engine().scan(ledger.value, scanOf(r), entries(), now()))
-        ledger.value.pens[r.serial]?.takeIf { it.name.isEmpty() }?.let { p ->
-            save(engine().update(ledger.value, r.serial) { it.copy(name = defaultName(p.serial, profile), model = profile.id) })
-        }
+        ledger.value.pens[r.serial]?.takeIf { it.model.isEmpty() }?.let { save(engine().update(ledger.value, r.serial) { it.copy(model = profile.id) }) }
         return ReadState("done", r.serial, o.report, o.undo, r).also { readState.value = it }
     }
 
@@ -170,7 +186,7 @@ object Pens {
         val dl = dry.ledger.pens.getValue(r.serial)
         if (dry.report.first && dry.report.offer != null && !dry.report.returning) {
             apply(ctx, dry)
-            ledger.value.pens[r.serial]?.takeIf { it.name.isEmpty() }?.let { save(engine().update(ledger.value, r.serial) { it.copy(name = defaultName(r.serial, profile), model = profile.id) }) }
+            ledger.value.pens[r.serial]?.takeIf { it.model.isEmpty() }?.let { save(engine().update(ledger.value, r.serial) { it.copy(model = profile.id) }) }
             val o = dry.report.offer
             return Fill(r, r.serial, dl.kind, o.a, o.pr, o.t, o.doses, unclear = false, also = 0, offer = true)
         }
@@ -195,27 +211,35 @@ object Pens {
     }
 
     /** *Save* in the dialog with the pen's amount: the whole read goes in now; [primed] are the roles the dialog shows. */
-    @Synchronized
-    fun saveFill(ctx: Context, f: Fill, primed: Map<String, Boolean>) {
-        if (f.offer) { logDoses(ctx, f.serial, primed); return }
+    fun saveFill(ctx: Context, f: Fill, primed: Map<String, Boolean>) = offMain { synchronized(this) {
+        if (f.offer) { logDoses(ctx, f.serial, primed); return@offMain }
         val o = apply(ctx, engine().scan(ledger.value, scanOf(f.read), entries(), now()))
         readState.value = ReadState("done", f.serial, o.report, o.undo, f.read)
         val q = ledger.value.open().firstOrNull { it.type == PenEngine.DOSES && it.keys.any { k -> k in primed } }
-        if (q != null) { answerDoses(ctx, q.id, q.keys.filter { primed[it] == true }.toSet()); return }
-        val id = ledger.value.pens[f.serial]?.doses?.get(primed.keys.first())?.e ?: return
-        val tr = Treat.store.entry(id)?.second ?: return
+        if (q != null) { answerDoses(ctx, q.id, q.keys.filter { primed[it] == true }.toSet()); return@offMain }
+        val id = ledger.value.pens[f.serial]?.doses?.get(primed.keys.first())?.e ?: return@offMain
+        val tr = Treat.store.entry(id)?.second ?: return@offMain
         val roles = tr.pd.orEmpty().map { d -> primed.entries.firstOrNull { (k, _) -> ledger.value.pens[f.serial]?.doses?.get(k)?.let { it.t == d.t && PenEngine.tenths(it.a) == PenEngine.tenths(d.a) } == true }?.value ?: d.p }
         if (roles != tr.pd.orEmpty().map { it.p }) correct(ctx, tr, roles)
+    } }
+
+    /**
+     * The name a pen is shown with (QA review): the user's name if they renamed it; else its model alone when it is the
+     * only pen of that model, or the model and the serial's last 3 for every pen of a shared model.
+     */
+    fun displayName(serial: String, pens: Map<String, Pen> = ledger.value.pens): String {
+        val p = pens[serial] ?: return serial
+        val model = PenProfiles.byId(p.model)?.name ?: PenProfiles.ECHO_PLUS.name
+        if (p.name.isNotEmpty() && p.name != model && !p.name.startsWith("$model ·")) return p.name
+        return if (pens.values.count { it.model == p.model } > 1) "$model ·${serial.takeLast(3)}" else model
     }
+
+    /** A writer's name for an entry a pen read replaced (the card: *Replaced Ana's 8u entry*), in memory for the read. */
+    val writerNames = MutableStateFlow<Map<String, String>>(emptyMap())
 
     fun scanOf(r: PenRead) = PenScan(r.serial, r.scanTime, r.penRelNow,
         r.doses.map { ReadDose(it.relTime, it.time, it.units, it.incomplete) }, r.model)
 
-    /** The pen's default name: its model, plus the serial's last 3 when another pen has the same model (PRODUCT §4.7). */
-    private fun defaultName(serial: String, profile: PenProfile): String {
-        val same = ledger.value.pens.values.count { it.serial != serial && it.model == profile.id }
-        return if (same > 0) "${profile.name} ·${serial.takeLast(3)}" else profile.name
-    }
 
     private var lastFail = 0L
 
@@ -227,12 +251,12 @@ object Pens {
     }
 
     /** Reading; with no pen known yet the card says the first read takes a few seconds (the whole memory comes over). */
-    fun reading() { readState.value = ReadState("reading", firstPen = ledger.value.pens.isEmpty()) }
+    fun reading() { readProgress.value = null; readState.value = ReadState("reading", firstPen = ledger.value.pens.isEmpty()) }
 
-    fun undoRead(ctx: Context, r: UndoRecord) = synchronized(this) {
+    fun undoRead(ctx: Context, r: UndoRecord) = offMain { synchronized(this) {
         apply(ctx, engine().undo(ledger.value, r, entries(), now()))
         readState.value = readState.value?.copy(undone = true)
-    }
+    } }
 
     fun refresh(ctx: Context) = synchronized(this) {
         init(ctx)
@@ -240,56 +264,56 @@ object Pens {
         apply(ctx, engine().refresh(ledger.value, entries(), now() / 1000, now()))
     }
 
-    fun answerDoses(ctx: Context, qid: String, primed: Set<String>) = synchronized(this) {
+    fun answerDoses(ctx: Context, qid: String, primed: Set<String>) = offMain { synchronized(this) {
         apply(ctx, engine().answerDoses(ledger.value, qid, primed, entries(), now() / 1000, now()))
-    }
+    } }
 
-    fun answerMatch(ctx: Context, qid: String, same: String?) = synchronized(this) {
+    fun answerMatch(ctx: Context, qid: String, same: String?) = offMain { synchronized(this) {
         apply(ctx, engine().answerMatch(ledger.value, qid, same, entries(), now() / 1000, now()))
-    }
+    } }
 
     /** The suggestion (notification / card *Log 1.5u*): the question's pre-set priming doses. */
-    fun acceptSuggestion(ctx: Context, qid: String) {
-        val q = ledger.value.questions.firstOrNull { it.id == qid } ?: return
-        val doses = ledger.value.pens[q.serial]?.doses ?: return
+    fun acceptSuggestion(ctx: Context, qid: String) = offMain { run {
+        val q = ledger.value.questions.firstOrNull { it.id == qid } ?: return@offMain
+        val doses = ledger.value.pens[q.serial]?.doses ?: return@offMain
         answerDoses(ctx, qid, q.keys.filter { doses[it]?.p == true }.toSet())
-    }
+    } }
 
-    fun allPriming(ctx: Context, qid: String) {
-        val q = ledger.value.questions.firstOrNull { it.id == qid } ?: return
+    fun allPriming(ctx: Context, qid: String) = offMain { run {
+        val q = ledger.value.questions.firstOrNull { it.id == qid } ?: return@offMain
         answerDoses(ctx, qid, q.keys.toSet())
-    }
+    } }
 
-    fun logDoses(ctx: Context, serial: String, doses: Map<String, Boolean>) = synchronized(this) {
-        apply(ctx, engine().logDoses(ledger.value, serial, doses, entries(), now() / 1000, now()))
-    }
+    fun logDoses(ctx: Context, serial: String, doses: Map<String, Boolean>, onDone: (Outcome) -> Unit = {}) = offMain { synchronized(this) {
+        onDone(apply(ctx, engine().logDoses(ledger.value, serial, doses, entries(), now() / 1000, now())))
+    } }
 
-    fun logReview(ctx: Context, serial: String) = synchronized(this) {
+    fun logReview(ctx: Context, serial: String) = offMain { synchronized(this) {
         apply(ctx, engine().logReview(ledger.value, serial, entries(), now() / 1000, now()))
-    }
+    } }
 
-    fun skipReview(ctx: Context, serial: String) = synchronized(this) { apply(ctx, engine().skipReview(ledger.value, serial, now())) }
+    fun skipReview(ctx: Context, serial: String) = offMain { synchronized(this) { apply(ctx, engine().skipReview(ledger.value, serial, now())) } }
 
     /** §4.3 *Save* of a correction: the entry with its doses' roles as the user set them (a user edit, new `u`). */
-    fun correct(ctx: Context, tr: Treatment, primed: List<Boolean>): Treatment? {
-        val next = PenEngine.correct(toEntry(tr), primed) ?: return null
+    fun correct(ctx: Context, tr: Treatment, primed: List<Boolean>) = offMain { run {
+        val next = PenEngine.correct(toEntry(tr), primed) ?: return@offMain
         val saved = tr.copy(t = next.t, a = next.a, pr = next.pr, pd = next.pd, u = maxOf(now(), tr.u + 1))
         Treat.store.put(saved)
         Treat.uploader.kick()
-        return saved
-    }
+        Unit
+    } }
 
     /** §4.3 *Remove from log* (every dose priming). */
-    fun remove(ctx: Context, tr: Treatment) = synchronized(this) {
+    fun remove(ctx: Context, tr: Treatment) = offMain { synchronized(this) {
         val serial = tr.pen ?: return@synchronized
         apply(ctx, engine().removeEntry(ledger.value, serial, tr.id, entries(), now()))
-    }
+    } }
 
     /** The snackbar's *Undo* after a correction or a removal: [was] back as it was. */
-    fun restore(ctx: Context, was: Treatment) = synchronized(this) {
+    fun restore(ctx: Context, was: Treatment) = offMain { synchronized(this) {
         val serial = was.pen ?: return@synchronized
         apply(ctx, engine().restore(ledger.value, serial, toEntry(was), entries(), now()))
-    }
+    } }
 
     fun history(serial: String): List<Session> = engine().history(ledger.value, serial, entries())
 
@@ -301,33 +325,33 @@ object Pens {
         return engine().candidates(entries(), kind, t, a).second?.let { Treat.store.entry(it.id)?.second }
     }
 
-    fun update(serial: String, f: (Pen) -> Pen) = synchronized(this) { save(engine().update(ledger.value, serial, f)) }
+    fun update(serial: String, f: (Pen) -> Pen) = offMain { synchronized(this) { save(engine().update(ledger.value, serial, f)) } }
 
     /** Debug builds only (DebugFakes `penRead --ei knownDays`): a pen read before, since [since]. */
-    fun debugKnown(serial: String, since: Long, penNow: Long) = synchronized(this) {
-        save(Ledger(ledger.value.pens + (serial to Pen(serial, model = PenProfiles.ECHO_PLUS.id, name = PenProfiles.ECHO_PLUS.name,
+    fun debugKnown(serial: String, since: Long, penNow: Long) = offMain { synchronized(this) {
+        save(Ledger(ledger.value.pens + (serial to Pen(serial, model = PenProfiles.ECHO_PLUS.id,
             since = since, first = since, lastScan = since, lastPenNow = penNow)), ledger.value.questions))
-    }
+    } }
 
-    fun forget(serial: String) = synchronized(this) { save(engine().forget(ledger.value, serial)) }
+    fun forget(serial: String) = offMain { synchronized(this) { save(engine().forget(ledger.value, serial)) } }
 
     /** The display check passed (*It matches*): the pen is used like any other; a held read is applied now. */
-    fun checkPassed(ctx: Context, serial: String): ReadState? = synchronized(this) {
+    fun checkPassed(ctx: Context, serial: String) = offMain { synchronized(this) {
         val r = held?.takeIf { it.serial == serial }
         held = null
         val was = ledger.value.pens[serial]
-        if (r == null || was == null) { update(serial) { it.copy(check = "ok") }; return null }
+        if (r == null || was == null) { update(serial) { it.copy(check = "ok") }; return@offMain }
         // a new pen's placeholder makes way for its real first scan (start date, earlier doses, a returning pen)
         if (was.doses.isEmpty()) save(engine().forget(ledger.value, serial))
         val st = onRead(ctx, r, checked = true)
         update(serial) { it.copy(check = "ok", name = was.name, kind = if (was.doses.isEmpty()) was.kind else it.kind) }
-        return st
-    }
+        st.let { }
+    } }
 
     fun checkFailed(serial: String) = update(serial) { it.copy(check = "failed") }
 
     /** The pen tapped first as untested and cancelled: it isn't added (PRODUCT §6). */
-    fun cancelNew(serial: String) { held = null; forget(serial) }
+    fun cancelNew(serial: String) = offMain { run { held = null; forget(serial) } }
 
     /** Stop the read early once it reaches what the ledger already holds (minus 2 h, for sessions still open). */
     fun stopBefore(serial: String): Long? = ledger.value.pens[serial]?.let { p ->
