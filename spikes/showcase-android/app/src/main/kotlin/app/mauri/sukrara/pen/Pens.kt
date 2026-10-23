@@ -80,7 +80,7 @@ object Pens {
     /** The background reader is on in "ask" (the first tap asks) and "on"; only "on" logs. */
     fun enabled(ctx: Context): Boolean { Features.init(ctx); return available(ctx) && Features.value.penReading != "off" }
 
-    private fun component(ctx: Context) = ComponentName(ctx, "app.mauri.sukrara.pen.PenReadActivity")
+    private fun component(ctx: Context) = ComponentName(ctx, "app.mauri.sukrara.pen.PenTapActivity")
 
     /** The background reader (manifest TECH_DISCOVERED) is enabled exactly while pen reading is on. */
     fun syncComponent(ctx: Context) = runCatching {

@@ -458,7 +458,7 @@ its now-outdated pairing. After `am force-stop tk.glucodata` the next connection
 app's texts now say to *Pause app* **and** *Force stop* Juggluco before a takeover.
 
 **Open on scan (v0.11.2).** Like LibreLink, holding the phone against a Libre sensor now opens Sukrara when it isn't
-already in front. It's an NfcV `TECH_DISCOVERED` filter on an activity alias (`.ui.NfcLaunch` → `MainActivity`), so
+already in front. It's an NfcV `TECH_DISCOVERED` filter on a no-UI trampoline (`.ui.SensorTapActivity` → `MainActivity`; until 0.11.46 an activity alias, which Android 17 stopped dispatching to: NFC filters must sit on an activity protected by `DISPATCH_NFC_MESSAGE`), so
 it only opens the app: it never starts or takes over a sensor (that still needs the Sensor screen, whose reader mode
 takes the tap first while it's open). The switch *Open Sukrara when you scan a sensor* on the Sensor screen is the
 alias' enabled state (`PackageManager.setComponentEnabledSetting`), on by default. Juggluco doesn't register for NFC

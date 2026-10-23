@@ -370,6 +370,8 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] Entry sheet: flip a dose → header updates, *Save* → snackbar *Entry changed · Undo*; all priming → *Remove from
       log*; TalkBack reads one node per dose with *Mark as injected / priming*.
 - [ ] Type 8u rapid within 45 min of a pen entry → *Already logged by your pen?*; carbs in the same save are saved.
+- [ ] On Android 17 a pen tap from another app opens the card (no `does not have DISPATCH_NFC_MESSAGE permission` in
+      logcat `NfcDispatcher`); a Libre tap with Sukrara closed opens the New sensor screen (0.11.47).
 - [ ] A bank / transit card or a passport held to the phone (reading on): nothing at all (no card, no vibration, no
       notification); only a pen tap shows the card (the filter is IsoDep + NfcA since 0.11.46).
 - [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.

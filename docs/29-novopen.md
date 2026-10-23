@@ -65,6 +65,16 @@ notification, nothing logged. Only a tag that answered the selection and then br
 Sukrara's own reader modes (treatment dialog, sensor screen) use `FLAG_READER_NFC_A | FLAG_READER_SKIP_NDEF_CHECK`
 and never wait on the NDEF check either.
 
+**Android 17 protects NFC dispatch** (0.11.46 on the user's Pixel, 2026-10-23): with the filter matching, the tap still
+went nowhere: `W/NfcDispatcher: Activity app.mauri.sukrara.pen.PenReadActivity does not have DISPATCH_NFC_MESSAGE
+permission` → `no match`. From Android 17 an app targeting SDK > BAKLAVA only gets NFC intents in activities protected by
+`android:permission="android.permission.DISPATCH_NFC_MESSAGE"`, so only the NFC service can start them
+([NFC basics](https://developer.android.com/develop/connectivity/nfc/nfc)). The Libre tap (an activity alias of
+`MainActivity`) had the same bug. Since 0.11.47 both taps land on tiny protected no-UI trampolines (`pen/PenTapActivity`
+→ `PenReadActivity`, `ui/SensorTapActivity` → `MainActivity`), because Sukrara can't hold that permission and so can't
+start a protected activity itself (its reader modes and debug reads start the unprotected `PenReadActivity`).
+`NfcManifestTest` fails if any activity or alias with an NFC intent filter lacks the permission.
+
 **Juggluco catches it too.** Its manifest lists `NfcV`, `Ndef` and `NdefFormatable` as separate tech lists
 (`Common/src/main/res/xml/nfc_tech_filter.xml`), so a pen tap with both apps installed shows Android's app chooser.
 Settings → Insulin pens shows *Juggluco also reads pens* with a link to its App info; Android 16's per-app *NFC tag
