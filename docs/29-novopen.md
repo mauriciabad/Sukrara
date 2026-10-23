@@ -34,25 +34,36 @@ the log**.
 
 ## 1. The pen over NFC
 
-**Techs** (inferred from the protocol and the code, to be confirmed on the real pen): the pen is a Type 4 tag (NDEF
-application `D2760000850101`, files E103 / E104, the PHD messages inside an NDEF record of type "PHD"), so Android
-reports **IsoDep + NfcA + Ndef**. xDrip reads it with `FLAG_READER_NFC_A | FLAG_READER_SKIP_NDEF_CHECK`
-(`NFControl.java:31`); Juggluco treats any IsoDep tag as a pen (`MainActivity.java:1069`). A well-known "PHD" record
-maps to no MIME type, so background dispatch is `TECH_DISCOVERED`. Sukrara's filter (`res/xml/nfc_tech_pen.xml`)
-requires all three techs:
+**Techs** (confirmed on the user's Pixel with the real NovoPen Echo Plus, 0.11.45, 2026-10-23): the pen is a Type 4 tag
+(NDEF application `D2760000850101`, files E103 / E104, the PHD messages inside an NDEF record of type "PHD"), but
+**Android's own NDEF check times out on it**. The phone's log of the tap:
+
+```
+NfcService: Tag detected            T4T ISO_DEP, tech A
+nativeNfcTag_doCheckNdef ... NFA_NDEF_DETECT_EVT status = 0xB2   → NDEF detection timed out
+findAndReadNdef: Check NDEF Failed
+NfcDispatcher: dispatchTag: TAG: Tech [android.nfc.tech.IsoDep, android.nfc.tech.NfcA] message: null
+activities.size() = 0 → no match
+```
+
+So the tag is dispatched as **IsoDep + NfcA without Ndef**, and 0.11.45's filter (which also required `Ndef`) never
+matched: a background tap did nothing. xDrip reads with `FLAG_READER_NFC_A | FLAG_READER_SKIP_NDEF_CHECK`
+(`NFControl.java:31`), which never hits the check; Juggluco treats any IsoDep tag as a pen (`MainActivity.java:1069`).
+Since 0.11.46 Sukrara's filter (`res/xml/nfc_tech_pen.xml`) is:
 
 ```xml
 <tech-list>
     <tech>android.nfc.tech.IsoDep</tech>
     <tech>android.nfc.tech.NfcA</tech>
-    <tech>android.nfc.tech.Ndef</tech>
 </tech-list>
 ```
 
-EMV bank and transit cards are IsoDep + NfcA/NfcB **without** Ndef; the Libre sensor is NfcV only: neither matches.
-Other Type 4 NDEF tags (stickers, a phone emulating a tag) would match, so `PenTag.isPen` checks the Type 4 NDEF tag
-again and the reader's PHD selection fails silently on anything else (no card, no word). Fallback if the pen turns
-out not to expose Ndef: `IsoDep + NfcA`, which also matches bank cards (the in-activity gate then rejects them).
+It also matches EMV bank and transit cards and passports (IsoDep + NfcA); the Libre sensor (NfcV) never matches. So
+`PenReadActivity` shows nothing until the tag answers the pen's application / PHD file selection: a tag that doesn't
+(`NotAPenException`, `PenTag.outcome` = `NOT_PEN`, `PenTagTest`) is finished silently: no card, no vibration, no
+notification, nothing logged. Only a tag that answered the selection and then broke off gets the failure card.
+Sukrara's own reader modes (treatment dialog, sensor screen) use `FLAG_READER_NFC_A | FLAG_READER_SKIP_NDEF_CHECK`
+and never wait on the NDEF check either.
 
 **Juggluco catches it too.** Its manifest lists `NfcV`, `Ndef` and `NdefFormatable` as separate tech lists
 (`Common/src/main/res/xml/nfc_tech_filter.xml`), so a pen tap with both apps installed shows Android's app chooser.
@@ -162,7 +173,7 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 |---|---|
 | The OpenNov reader and the dose engine, copies of the spike's (package renamed; `PenCopyTest` fails when they drift); the spike's scenarios run in the app's unit tests | `pen/opennov/`, `pen/PenEngine.kt`, test `pen/PenScenarioTest`, `PenCopyTest` |
 | The ledger `pens.json` (phone only, never synced), applying outcomes (ledger first, then the entries), the read pipeline, untested gating, the treatment-dialog read | `pen/Pens.kt`, `pen/PenProfiles.kt`, `pen/PenTag.kt` |
-| Background read from any app: `TECH_DISCOVERED` filter (IsoDep + NfcA + Ndef) on a translucent no-history activity, enabled only while reading isn't *Off*; a card at the bottom (no scrim, the app behind stays usable) that closes by itself after the accessibility timeout | `pen/PenReadActivity.kt`, `ui/PenUi.kt` `PenReadCard`, manifest, `res/xml/nfc_tech_pen.xml` |
+| Background read from any app: `TECH_DISCOVERED` filter (IsoDep + NfcA; 0.11.45 also required Ndef, which the pen never shows: Android's NDEF check times out) with a silent finish for tags that aren't a pen on a translucent no-history activity, enabled only while reading isn't *Off*; a card at the bottom (no scrim, the app behind stays usable) that closes by itself after the accessibility timeout | `pen/PenReadActivity.kt`, `ui/PenUi.kt` `PenReadCard`, manifest, `res/xml/nfc_tech_pen.xml` |
 | Treatment keys `pr`, `pen`, `pd` through store, merge, BLE/Nostr publish, writer merges; malformed ones reject the entry (negative `pr`, `pen` > 32 bytes, `pd` > 20 items / bad items / out of order) | `treatments/Treatments.kt`, `wearer/WearerExtras.kt`, `TreatmentPenKeysTest` |
 | LibreView, Nightscout, Tidepool, CSV, graph and the insulin mute use `a` only; the cloud uploads of a pen entry wait until its session closes (10 min after its last dose), so a top-up isn't a retraction + re-upload | `Treatment.heldUntil`, `LibreViewUploader`, `NightscoutQueue`, `TidepoolQueue`, `pen/PenWork.kt` |
 | Questions: home card above the glucose card, silent notification with *Log 1.5u* / *All priming*, sheets *Priming or injected?* / *Same injection?* | `ui/PenUi.kt`, `pen/PenNotifier.kt` |
@@ -195,8 +206,7 @@ Compose layout and, from StrictMode, main-thread disk I/O in pen code (`Pens.sav
 now runs on one worker thread. The other StrictMode hits are older code on the main thread (`OwnerEngine` init
 `SecureStore.read`, `sourceSummary`, `LocalServers`), present on `main` too.
 
-**Open risks for the first real scan**: the tech list (if the pen doesn't expose Ndef, no background dispatch: the
-in-app reader still works and the filter falls back to IsoDep + NfcA); Juggluco's chooser; the flag bits; the model's
+**Open risks for the first real scan**: the tech list (confirmed: no Ndef, fixed in 0.11.46); Juggluco's chooser; the flag bits; the model's
 part number; the read time of a full memory; whether a cap / case blocks the read.
 
 ## Run it

@@ -96,23 +96,33 @@ class PenReadActivity : ComponentActivity() {
         val tag = i.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java) ?: return
         if (!Pens.enabled(this)) { finish(); return }
         if (!PenTag.isPen(tag)) { finish(); return }   // a sticker or another phone: not a pen, not a word
-        Pens.reading()
+        // Nothing shows until the tag answers the pen's selection: every IsoDep tag (bank / transit cards, passports)
+        // reaches this activity (Android's NDEF check times out on the pen, so the filter can't ask for Ndef).
+        Pens.readState.value = null
         val view = window.decorView
-        PenHaptics.play(view, PenHaptics.Moment.TAP)
         lifecycleScope.launch {
-            val st = withContext(Dispatchers.IO) {
-                runCatching { PenTag.read(tag, progress = { p ->
-                    // a tick per segment that arrived (PenHaptics keeps them ≥ 80 ms apart)
-                    if (p > (Pens.readProgress.value ?: 0f)) view.post { PenHaptics.play(view, PenHaptics.Moment.SEGMENT) }
-                    Pens.readProgress.value = p
-                }) { Pens.stopBefore(it) }
-                    ?.let { Pens.onRead(this@PenReadActivity, it) } }.getOrNull()
+            var selected = false
+            val res = withContext(Dispatchers.IO) {
+                runCatching {
+                    PenTag.read(tag, onSelected = {
+                        selected = true
+                        view.post { Pens.reading(); PenHaptics.play(view, PenHaptics.Moment.TAP) }
+                    }, progress = { p ->
+                        // a tick per segment that arrived (PenHaptics keeps them ≥ 80 ms apart)
+                        if (p > (Pens.readProgress.value ?: 0f)) view.post { PenHaptics.play(view, PenHaptics.Moment.SEGMENT) }
+                        Pens.readProgress.value = p
+                    }) { Pens.stopBefore(it) }?.let { Pens.onRead(this@PenReadActivity, it) }
+                }
             }
-            if (st == null) { Pens.failed(null); haptic(false) }
-            else {
-                val nothing = st.report?.let { it.created.isEmpty() && it.merged.isEmpty() && it.updated.isEmpty() && it.asked.isEmpty() } == true && !st.report.first
-                PenHaptics.play(view, if (nothing) PenHaptics.Moment.NOTHING else PenHaptics.Moment.SUCCESS)
-                notify(this@PenReadActivity, st)
+            val st = res.getOrNull()
+            when (PenTag.outcome(selected, res.exceptionOrNull() ?: if (st == null) app.mauri.sukrara.pen.opennov.NotAPenException() else null)) {
+                PenTag.Outcome.NOT_PEN -> finish()   // not a pen: no card, no vibration, no notification, nothing logged
+                PenTag.Outcome.FAILED -> { Pens.failed(null); haptic(false) }
+                PenTag.Outcome.PEN -> {
+                    val nothing = st!!.report?.let { it.created.isEmpty() && it.merged.isEmpty() && it.updated.isEmpty() && it.asked.isEmpty() } == true && !st.report.first
+                    PenHaptics.play(view, if (nothing) PenHaptics.Moment.NOTHING else PenHaptics.Moment.SUCCESS)
+                    notify(this@PenReadActivity, st)
+                }
             }
         }
     }

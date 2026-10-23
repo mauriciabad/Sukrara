@@ -2,13 +2,13 @@
 <!-- CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later
-     NovoPen 6 / Echo Plus (inv. 29, docs/29-novopen.md): an NFC Forum Type 4 tag, so Android reports IsoDep + NfcA + Ndef.
-     All three must match: EMV bank and transit cards are IsoDep + NfcA/NfcB without Ndef, the Libre sensor is NfcV only.
-     pen/PenTag checks the Type 4 tag again before reading. -->
+     NovoPen 6 / Echo Plus (inv. 29, docs/29-novopen.md): an NFC Forum Type 4 tag, but Android's NDEF check times out on
+     it (NFA_NDEF_DETECT_EVT 0xB2 on the user's Pixel, 0.11.45), so it is dispatched as IsoDep + NfcA without Ndef. This
+     list therefore also matches bank / transit cards and passports: pen/PenReadActivity finishes silently for any tag
+     that doesn't answer the pen's application selection (no card, no vibration). The Libre sensor (NfcV) never matches. -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <tech-list>
         <tech>android.nfc.tech.IsoDep</tech>
         <tech>android.nfc.tech.NfcA</tech>
-        <tech>android.nfc.tech.Ndef</tech>
     </tech-list>
 </resources>

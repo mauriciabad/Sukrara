@@ -45,6 +45,13 @@ data class PenRead(
     val part: String = "",      // the pen's part number (specification), how its model is told apart (docs/29)
 )
 
+/**
+ * The tag didn't answer the pen's NDEF application / PHD file selection: a bank or transit card, a passport, a phone, a
+ * sticker. Not a failed pen read (the caller says nothing about it). Any other [IOException] after [OpenNovReader.read]'s
+ * `onSelected` is a pen that broke off.
+ */
+class NotAPenException : IOException("not an OpenNov pen (Type 4 PHD selection failed)")
+
 object OpenNovReader {
     private const val MAX_ERRORS = 3
     private const val MAX_TRANSACTIONS = 200 // a full 800-dose pen is ~45 chunks
@@ -52,18 +59,19 @@ object OpenNovReader {
     /**
      * Reads the pen's identity and its whole dose history. [stopBefore] (epoch s), when set, ends the transfer once a
      * chunk reaches a dose older than it (the pen sends newest first) — a rescan then takes one chunk instead of ~45.
-     * [progress] gets the share of the records transferred so far (0–1) after each message, once the pen said how
+     * [onSelected] runs once the tag answered the pen's selection (it is a pen: show the reading card). [progress] gets the share of the records transferred so far (0–1) after each message, once the pen said how
      * many it holds (the read card's ring). [stopBeforeFor] does the same with a limit chosen from the pen's serial (null = read everything).
      * Throws [IOException] when the pen can't be selected, the session breaks off, or no serial arrived.
      */
     fun read(t: Transceiver, nowEpochS: Long = System.currentTimeMillis() / 1000, log: (String) -> Unit = {}, stopBefore: Long? = null,
-             stopBeforeFor: ((serial: String) -> Long?)? = null, progress: (Float) -> Unit = {}): PenRead =
+             stopBeforeFor: ((serial: String) -> Long?)? = null, progress: (Float) -> Unit = {}, onSelected: () -> Unit = {}): PenRead =
         OpenNovLog.with(log) {
             val started = System.nanoTime()
             val now = { nowEpochS + (System.nanoTime() - started) / 1_000_000_000L }
             val ts = T4Transceiver(t)
             val ph = PHDllHelper(ts)
-            if (!ts.doNeededSelection()) throw IOException("not an OpenNov pen (Type 4 PHD selection failed)")
+            if (!ts.doNeededSelection()) throw NotAPenException()
+            onSelected()
             // [stopBeforeFor]: the limit for the serial the pen just reported (a pen seen before reads only its new part)
             val limitFor = { c: OpContext -> stopBefore ?: c.specification?.serial?.let { s -> stopBeforeFor?.invoke(s) } }
             val stop = if (stopBefore == null && stopBeforeFor == null) null
