@@ -1,4 +1,44 @@
-# QA review: pen29-android against PRODUCT.md §9 (round 1)
+# QA review: pen29-android against PRODUCT.md §9
+
+## Round 2 (be855b34 + e607418b): verdict **not release-ready: one must-fix left**
+
+Every round-1 must-fix and should-fix is resolved on screen or in code: no ANR in 08 / 09 / 18; the card announces
+title + lines with spoken units (`clearAndSetSemantics`, `w.spoken`); distinct pen names (32: `·K1`, `·K2`…);
+display check without *Listo* (36c) and the not-used state with *Enviar comentarios* (37, 37b); *Pen taps are
+blocked* row; emphasis (06/08: *Añadir tratamiento* tonal, *Deshacer* text; 04: *Registrar 8.5u* filled); *Pluma sin
+probar*; question card with suggestion pill, end-aligned (13, 13b); *3 entradas tuyas cerca* (21); Doses read in
+group cards (09b, 27b, 30); setup with the two sentences and the NFC-spot phone (33b, 36c); priming row icon (02).
+Feel: R54 shows the 0.5u ghost travelling and the totals changing; R51 only shows the reading state in the frames I
+could extract (no success frames), so the count-up / peel stays unverified.
+
+**Must-fix**
+1. **Clock reset vs. a growing entry** (known engine edge): after a pen clock reset a dose that joins an existing
+   entry's session is still added to it, while the card says *No se ha registrado nada nuevo* (27). The card then
+   states something false about insulin, and LibreView gets a changed amount from a dose whose time is suspect. Fix:
+   in a read where the clock changed, hold **every** new dose, session growth included: don't touch existing entries;
+   the dose shows *No registrada* in Doses read with *Registrar esta inyección* (for growth: *Añadir a la entrada de
+   las 3:43* / *Add to the 3:43 entry*). Add the scenario (reset + a dose 2 min after an existing session) to the
+   fixture.
+
+**Should-fix**
+2. **Incomplete dose row (29)**: the *Incompleta* label sits between amount and buttons and squeezes the segmented
+   button so *Inyección* wraps to *Inyecció / n*. Fix: put *Incompleta* as a labelSmall line under the amount and set
+   `maxLines = 1` on segment labels (verify at 360 dp, es).
+3. **Retakes to close rows**: 30b (the *dosis anteriores* pill and *Antes de Sukrara* rows: the shot shows an empty
+   page), R51 success frames (count-up, chips peeling), 38 (an untested pen's entry on home: no red tag on the row),
+   37's *Comprobar de nuevo* on the pen row. Still not shown: 14, 20, 22, 23, 39, 43, 46, 50 (engine tests cover 14, 20,
+   22, 23, 43; 39 / 46 / 50 need one shot each before the release notes claim them).
+
+| Row | Round 2 |
+|---|---|
+| 1, 2, 3, 4, 5, 5b, 6, 6b, 7, 8, 9, 9b, 10, 11, 12, 13, 13b, 13c, 15, 16, 17, 18, 18b, 19, 21, 21b, 24, 25, 25b, 26, 26b, 27, 28, 30, 31, 32, 33, 33b, 34, 35, 36, 36b, 36c, 37, 37b, 44, 45, 47 | PASS |
+| 27b | PASS with must-fix 1 (growth case) |
+| 29 | FAIL (should-fix 2) |
+| 30b, 38, 51 | PARTIAL (retake) |
+| 54 | PASS (R54) |
+| 14, 20, 22, 23, 39, 43, 46, 50 | NOT SHOWN |
+
+## Round 1
 
 Branch `pen29-android` at 29bbe766. Emulator screenshots, Spanish, synthetic (`pen29-shots/`). English copy checked
 in `values/strings.xml`; code read in `ui/PenUi.kt`, `ui/PenSettings.kt`, `ui/PenDialog.kt`, `pen/*`.
