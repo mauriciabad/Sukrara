@@ -182,10 +182,18 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | Movable start date | replaced by *Doses read* with *Log this injection* per session: one place, no date picker, no bulk import of years |
 | Holding a big read (> 72 h) for review | the user: a pen read is never confirmed and nothing blocks; it logs and is flagged with *Review* + *Undo* |
 | Merging into a writer's entry in place | a writer may later edit its own entry, and a third-party writer drops unknown keys: tombstone + a new wearer entry |
-| A determinate read-progress ring, per-chunk ticks from the protocol, primed chips peeling off, the correction ghost, the dialog count-up | the reader has no progress callback yet (ticks follow every 5th APDU, the ring stays indeterminate); the rest of §4.11 is a follow-up |
+| Feel (§4.11) as specified | built: the reader reports progress (records transferred / records held), so the wavy ring fills per segment with a tick each; check pop, count-up, primed chips peeling, failure shake, correction ghost with counting totals, dialog count-up + icon pulse; *Remove animations* turns motion off. Simplified: the setup reuses the sensor scan's antenna drawing (a sensor on the spot) |
 | Lock-screen read | Android doesn't dispatch tags locked (above) |
 | The success notification heads-up | low-importance *Pen reads* channel, replaced per read, 2 h timeout, private on the lock screen (*Pen read*) |
 | Bluetooth pens and caps (InPen, Tempo, Mallya) | a different protocol each; out of scope |
+
+**Main thread (ANR A/B, 2026-10-23).** The emulator showed "Sukrara isn't responding" (*executing service
+OwnerService*, *No response to onStartJob*) while the host was loaded (load ~12, several Gradle builds). A/B on the same
+emulator at load 2–7, a cold start and 3 minutes of use each: `main` 00a5fb64 and this branch, no ANR either. A debug
+watchdog (`core/MainWatchdog`: StrictMode + the main thread's stack when it stalls > 1 s) found one 1 s stall in
+Compose layout and, from StrictMode, main-thread disk I/O in pen code (`Pens.save` from UI clicks): every pen change
+now runs on one worker thread. The other StrictMode hits are older code on the main thread (`OwnerEngine` init
+`SecureStore.read`, `sourceSummary`, `LocalServers`), present on `main` too.
 
 **Open risks for the first real scan**: the tech list (if the pen doesn't expose Ndef, no background dispatch: the
 in-app reader still works and the filter falls back to IsoDep + NfcA); Juggluco's chooser; the flag bits; the model's

@@ -196,6 +196,7 @@ private object FakePen {
                 val model6 = i.getStringExtra("model") == "novopen6"; val slowMs = i.getIntExtra("slowMs", 0)
                 // off the main thread, like a real read; `slowMs` plays the ring filling segment by segment
                 Thread {
+                    P.drain()
                     if (knownDays > 0 && P.ledger.value.pens[serial] == null) P.debugKnown(serial, now - knownDays * 86400L, now - base + m.offset - 60)
                     if (slowMs > 0) for (k in 1..8) { Thread.sleep(slowMs / 8L); P.readProgress.value = k / 8f }
                     if (fail) P.failed(serial)

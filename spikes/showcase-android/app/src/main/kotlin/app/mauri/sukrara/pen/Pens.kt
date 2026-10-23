@@ -32,6 +32,9 @@ object Pens {
      * returns at once and the flows ([ledger], [readState], Treat.store.items) update when it's done.
      */
     private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "pens") }
+    /** Waits until every queued change ran (debug fake reads, so they see the state the commands before them made). */
+    fun drain() { worker.submit { }.get() }
+
     private fun offMain(block: () -> Unit) {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) worker.execute { runCatching(block).onFailure { Log.e(TAG, "pen change failed", it) } }
         else block()
@@ -237,8 +240,12 @@ object Pens {
     /** A writer's name for an entry a pen read replaced (the card: *Replaced Ana's 8u entry*), in memory for the read. */
     val writerNames = MutableStateFlow<Map<String, String>>(emptyMap())
 
+    /**
+     * The engine's input. `Pen.model` holds Sukrara's profile id (PenProfiles), not the pen's model string (the same for
+     * both models), so the scan carries none: a pen keeps the model it was first identified as.
+     */
     fun scanOf(r: PenRead) = PenScan(r.serial, r.scanTime, r.penRelNow,
-        r.doses.map { ReadDose(it.relTime, it.time, it.units, it.incomplete) }, r.model)
+        r.doses.map { ReadDose(it.relTime, it.time, it.units, it.incomplete) }, "")
 
 
     private var lastFail = 0L
