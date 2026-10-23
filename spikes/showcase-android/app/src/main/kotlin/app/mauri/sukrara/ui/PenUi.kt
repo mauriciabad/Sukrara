@@ -412,13 +412,17 @@ fun DoseRow(t: Long, a: Double, primed: Boolean, incomplete: Boolean, readOnly: 
         if (!readOnly) customActions = listOf(CustomAccessibilityAction(flip) { onChange(!primed); true })
     }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(Clock.time(t), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(56.dp))
-        Text(w.u(a), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, modifier = Modifier.width(48.dp))
-        if (incomplete) Text(stringResource(R.string.pen_incomplete), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.width(72.dp)) {
+            Text(w.u(a), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            // a small line under the amount (QA round 2)
+            if (incomplete) Text(stringResource(R.string.pen_incomplete), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
         Box(Modifier.weight(1f))
         if (readOnly) Text(stringResource(if (primed) R.string.pen_seg_priming else R.string.pen_seg_injected), style = MaterialTheme.typography.labelLarge)
         else SingleChoiceSegmentedButtonRow {
-            SegmentedButton(primed, { onChange(true) }, SegmentedButtonDefaults.itemShape(0, 2)) { Text(stringResource(R.string.pen_seg_priming)) }
-            SegmentedButton(!primed, { onChange(false) }, SegmentedButtonDefaults.itemShape(1, 2)) { Text(stringResource(R.string.pen_seg_injected)) }
+            // one line each at 360 dp in Spanish: no check icon (the fill shows the choice), labels never wrap
+            SegmentedButton(primed, { onChange(true) }, SegmentedButtonDefaults.itemShape(0, 2), icon = {}) { Text(stringResource(R.string.pen_seg_priming), maxLines = 1, softWrap = false) }
+            SegmentedButton(!primed, { onChange(false) }, SegmentedButtonDefaults.itemShape(1, 2), icon = {}) { Text(stringResource(R.string.pen_seg_injected), maxLines = 1, softWrap = false) }
         }
     }
 }

@@ -123,6 +123,10 @@ class PenScenarioTest {
                     apply(engine.logDoses(ledger, serial, doses, entries.values.toList(), at, ms))
                 }
                 "logOffer" in st -> apply(engine.logDoses(ledger, "P1", offer!!.doses, entries.values.toList(), at, ms))
+                "join" in st -> {
+                    val e = ref(st.getValue("into").jsonPrimitive.content)
+                    apply(engine.joinEntry(ledger, e.pen!!, mapOf(keyAt(e.pen!!, st.getValue("join").jsonPrimitive.content) to false), e.id, entries.values.toList(), ms))
+                }
                 "logReview" in st -> apply(engine.logReview(ledger, st.getValue("logReview").jsonPrimitive.content, entries.values.toList(), at, ms))
                 "skipReview" in st -> apply(engine.skipReview(ledger, st.getValue("skipReview").jsonPrimitive.content, ms))
                 "remove" in st -> { val e = ref(st.getValue("remove").jsonPrimitive.content); removed = e; apply(engine.removeEntry(ledger, e.pen!!, e.id, entries.values.toList(), ms)) }

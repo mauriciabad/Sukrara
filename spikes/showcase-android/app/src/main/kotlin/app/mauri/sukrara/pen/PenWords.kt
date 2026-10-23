@@ -85,7 +85,12 @@ class PenWords(private val ctx: Context) {
             val matches = r.offer?.let { Pens.offerMatch(it) }?.let { s(R.string.pen_matches_short, u(it.a)) }
             return Card(s(R.string.pen_new_added), listOfNotNull(parts.joinToString(" · "), matches))
         }
-        if (r.clockChanged && entries.isEmpty()) return Card(s(R.string.pen_read_clock), listOf(s(R.string.pen_read_clock_text)))
+        if (r.clockChanged && entries.isEmpty()) {
+            // say what was held (QA round 2), not "nothing new"
+            val held = pen?.doses?.values?.filter { it.role == PenEngine.REVIEW }?.sortedBy { it.t }.orEmpty()
+            return Card(s(R.string.pen_read_clock), listOf(if (held.isEmpty()) s(R.string.pen_read_clock_text)
+                else s(R.string.pen_read_clock_held, list(held.map { u(it.a) }))))
+        }
         val merged = r.merged.size
         if (entries.isNotEmpty()) {
             val lines = mutableListOf<String>()

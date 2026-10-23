@@ -2832,4 +2832,8 @@
         <item quantity="one">%1$d of your entries nearby</item>
         <item quantity="other">%1$d of your entries nearby</item>
     </plurals>
+    <!-- Doses read: add a held dose to the entry of its session, e.g. Add to the 3:43 entry [CHAR LIMIT=40] -->
+    <string name="pen_add_to_entry">Add to the %1$s entry</string>
+    <!-- Clock changed card: the doses held, not logged [CHAR LIMIT=NONE] -->
+    <string name="pen_read_clock_held">Not logged: %1$s. Check its doses.</string>
 </resources>

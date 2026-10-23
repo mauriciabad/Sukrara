@@ -224,6 +224,14 @@
         { "expect": { "entries": [{ "a": 8 }, { "a": 4 }] } },
         { "scan": "P1", "at": "15:00", "add": [["14:30", 3]] },
         { "expect": { "entries": [{ "a": 8 }, { "a": 4 }, { "t": "14:30", "a": 3 }], "report": { "clockChanged": false, "created": 1 } } } ] },
+    { "name": "clock reset with a dose 2 min after an existing session: held, the entry untouched; Add to the entry joins it",
+      "steps": [
+        { "scan": "P1", "at": "13:05", "add": [["13:00", 1], ["13:02", 8]] },
+        { "scan": "P1", "at": "13:10", "reset": true, "add": [["13:04", 0.5]] },
+        { "expect": { "entries": [{ "t": "13:02", "a": 8, "pr": 1 }], "writes": 0, "questions": [], "report": { "clockChanged": true, "review": 1, "updated": 0 },
+          "history": [{ "status": "review", "a": 0.5 }, { "status": "logged", "a": 8 }] } },
+        { "join": "13:04", "into": "@1", "at": "13:11" },
+        { "expect": { "entries": [{ "t": "13:02", "a": 8.5, "pr": 1 }] } } ] },
     { "name": "big read: pen not scanned for 5 days logs at once (merges included) and is flagged for Review",
       "entries": [{ "id": "h1", "k": "rapid", "a": 8, "t": "D-4 13:05" }],
       "steps": [

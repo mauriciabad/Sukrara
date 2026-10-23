@@ -363,6 +363,24 @@ class PenEngine(
         return w.outcome(serial)
     }
 
+    /**
+     * *Add to the 3:43 entry* (Doses read, a dose held after a pen clock reset that belongs to an entry's session): the
+     * doses join entry [id] with their roles, as a later read would have added them.
+     */
+    fun joinEntry(l: Ledger, serial: String, doses: Map<String, Boolean>, id: String, entries: List<PenEntry>, nowMs: Long): Outcome {
+        val w = Work(l, entries, nowMs)
+        val e = w.entries[id]
+        if (w.pens[serial] == null || e == null || e.del) return w.outcome(serial)
+        doses.forEach { (k, p) -> if (w.pen(serial).doses[k] != null) w.final(serial, k, p, id) }
+        w.write(serial, w.build(serial, id, e), user = w.edited(serial, e)); w.updated += id
+        cleanQuestions(w, serial)
+        return w.outcome(serial)
+    }
+
+    /** The live pen entry whose session doses [t] (epoch s) would have joined (≤ 10 min from one of its doses), if any. */
+    fun sessionEntry(entries: List<PenEntry>, serial: String, t: Long): PenEntry? =
+        entries.filter { !it.del && it.pen == serial }.firstOrNull { e -> e.pd.orEmpty().any { abs(it.t - t) <= rules.cluster } }
+
     /** After a pen clock reset: the waiting injections become *Not logged* (one at a time later). */
     fun skipReview(l: Ledger, serial: String, nowMs: Long): Outcome {
         val w = Work(l, emptyList(), nowMs)
@@ -524,6 +542,13 @@ class PenEngine(
             val openMatch = items.mapNotNull { w.q(w.seen(s, it.d.key).q) }.firstOrNull { it.type == MATCH_Q && it.answer == null }
             if (openMatch != null) { ask(w, s, openMatch, fresh); continue }
             val target = items.map { w.seen(s, it.d.key) }.firstOrNull { (it.role == INJECTED || it.role == PRIMED) && it.e != null }?.e
+            if (target != null && holdAll) {
+                fresh.forEach { w.setDose(s, it.d.key, w.seen(s, it.d.key).copy(role = REVIEW, p = it.p, q = null)) }
+                w.review++
+                val t = fresh.minOf { it.d.t }
+                w.reviewSince = minOf(w.reviewSince ?: t, t)
+                continue
+            }
             if (target != null) {
                 val e = w.entries[target]
                 val inEntry = items.count { w.seen(s, it.d.key).e == target }
@@ -532,6 +557,7 @@ class PenEngine(
                 w.write(s, w.build(s, target, e)); w.updated += target
                 continue
             }
+            // a pen clock reset holds every new dose, also one that would grow an existing entry (never touched then)
             if (holdAll) {
                 fresh.forEach { w.setDose(s, it.d.key, w.seen(s, it.d.key).copy(role = REVIEW, p = it.p, q = null)) }
                 w.review++

@@ -2203,4 +2203,8 @@
         <item quantity="one">%1$d entrada tuya cerca</item>
         <item quantity="other">%1$d entradas tuyas cerca</item>
     </plurals>
+    <!-- Doses read: add a held dose to the entry of its session, e.g. Add to the 3:43 entry [CHAR LIMIT=40] -->
+    <string name="pen_add_to_entry">Añadir a la entrada de las %1$s</string>
+    <!-- Clock changed card: the doses held, not logged [CHAR LIMIT=NONE] -->
+    <string name="pen_read_clock_held">Sin registrar: %1$s. Revisa sus dosis.</string>
 </resources>

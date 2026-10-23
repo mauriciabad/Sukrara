@@ -339,8 +339,13 @@ fun LogSessionSheet(s: Session, onDismiss: () -> Unit) {
             HorizontalDivider()
             match?.let { Text(stringResource(R.string.pen_new_matches, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            // a dose held after a pen clock reset that belongs to an entry's session: add it to that entry
+            val joins = if (s.status == Session.REVIEW || s.status == Session.NOT_LOGGED) t?.let { Pens.sessionEntry(s.serial, it) } else null
             Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
+                if (joins != null) FilledTonalButton(onClick = { Pens.joinEntry(ctx, s.serial, keys.mapIndexed { i, k -> k to roles[i] }.toMap(), joins.id); onDismiss() }) {
+                    Text(stringResource(R.string.pen_add_to_entry, Clock.time(joins.t)))
+                }
                 Button(enabled = inj.isNotEmpty(), onClick = { Pens.logDoses(ctx, s.serial, keys.mapIndexed { i, k -> k to roles[i] }.toMap()); onDismiss() }) {
                     Text(stringResource(if (s.status == Session.PRIMING) R.string.pen_log_as_injection else R.string.pen_log_injection))
                 }

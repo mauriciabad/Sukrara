@@ -322,6 +322,14 @@ object Pens {
         apply(ctx, engine().restore(ledger.value, serial, toEntry(was), entries(), now()))
     } }
 
+    /** *Add to the 3:43 entry* for doses held after a clock reset. */
+    fun joinEntry(ctx: Context, serial: String, doses: Map<String, Boolean>, id: String) = offMain { synchronized(this) {
+        apply(ctx, engine().joinEntry(ledger.value, serial, doses, id, entries(), now()))
+    } }
+
+    /** The live pen entry whose session a held dose at [t] belongs to. */
+    fun sessionEntry(serial: String, t: Long): Treatment? = engine().sessionEntry(entries(), serial, t)?.let { Treat.store.entry(it.id)?.second }
+
     fun history(serial: String): List<Session> = engine().history(ledger.value, serial, entries())
 
     fun offerMatch(o: Offer): Treatment? = o.match?.let { Treat.store.entry(it)?.second }
