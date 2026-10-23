@@ -2587,12 +2587,8 @@
     <string name="pen_at">%1$s at %2$s</string>
     <!-- Action: save the hand-typed insulin anyway [CHAR LIMIT=20] -->
     <string name="pen_dup_log">Log anyway</string>
-    <!-- First scan of a pen: title [CHAR LIMIT=30] -->
-    <string name="pen_new_title">New pen</string>
     <!-- The pen's serial number [CHAR LIMIT=30] -->
     <string name="pen_serial">Serial %1$s</string>
-    <!-- Group: the insulin in this pen [CHAR LIMIT=40] -->
-    <string name="pen_insulin_in">Insulin in this pen</string>
     <!-- New pen: its last injection: amount, time, how long ago [CHAR LIMIT=NONE] -->
     <string name="pen_new_last">Last injection: %1$s at %2$s (%3$s ago)</string>
     <!-- New pen: the last injection matches a hand-typed entry [CHAR LIMIT=NONE] -->
@@ -2854,6 +2850,6 @@
     <string name="tags_allowed_toast">Pen taps are allowed</string>
     <!-- Toast after returning from Android's screen, still blocked [CHAR LIMIT=40] -->
     <string name="tags_still_blocked_toast">Pen taps are still blocked</string>
-    <!-- Insulin pens list: open a pen's setup until it was seen [CHAR LIMIT=40] -->
-    <string name="pen_set_up_named">Set up %1$s</string>
+    <!-- Insulin pens list: a pen whose page was never opened [CHAR LIMIT=30] -->
+    <string name="pen_review_hint">Review its settings</string>
 </resources>
