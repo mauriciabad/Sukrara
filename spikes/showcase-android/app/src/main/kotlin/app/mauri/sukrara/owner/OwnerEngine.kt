@@ -419,6 +419,9 @@ class OwnerEngine(private val ctx: Context) {
      * Treatment from a follower (any transport): accepted only if signed by a roster writer, decryptable with a known
      * epoch, and for an id that is new or that this writer created (P4, ogs-nostr N§9.2).
      */
+    /** The name of the writer (follower) who created entry [id], if it came from one (inv. 29: *Replaced Ana's 8u entry*). Off the main thread (db). */
+    fun writerName(id: String): String? = db.treatmentAuthor(id)?.let { a -> st?.followers?.lastOrNull { it.f == a }?.name }
+
     private fun onTreatment(ev: JSONObject, via: String) {
         val s = st ?: return
         val author = ev.optString("pubkey")

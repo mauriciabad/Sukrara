@@ -141,6 +141,13 @@ by the app's icon code.</sub>
   Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
   (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
   followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
+- **Insulin pens** (NovoPen Echo Plus; NovoPen 6 untested): unlock the phone and hold the pen to it, from any app.
+  The injected insulin is logged at the pen's own time, priming ("air shots") kept apart and never counted, without
+  opening Sukrara: a small card says *8.5u logged · 1.5u primed* with *Add treatment* and *Undo*. Doses you already
+  typed by hand are replaced, never doubled; the pen's older history stays out of your log (one tap logs the last
+  injection if it's recent); only genuinely unclear doses ask (*Priming or injected?*). Every dose of a pen entry can be
+  set to priming or injected later, and *Doses read* lists everything the pen holds. LibreView, Nightscout, Tidepool,
+  the graph and the quiet-after-insulin alerts use the injected amount only. [29](docs/29-novopen.md)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*; tap it to log
   carbs or insulin right away, on the phone and the Mac), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time

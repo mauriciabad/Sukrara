@@ -3,6 +3,13 @@
 The shared interface for the round `n-pen29`, written before dispatch. The Android agent (spike + app) and the Mac
 agent both build against it. Change it only through the orchestrator.
 
+**As built (2026-10-23)**: PRODUCT.md overrides this contract where they differ, and the engine follows PRODUCT
+§3. The rules below are updated to what `PenEngine` does (scenarios.json is the executable form); the changes and their
+reasons are in docs/29-novopen.md ("Discarded or changed"). In short: priming = small doses before the **last** large
+dose (small = below `penPrimeBelow`, default 2u); no top-up across sessions (asked instead, with a suggestion); no
+movable `since` (Doses read logs one session at a time); big reads (> 72 h) log at once and are flagged; only a pen
+clock reset holds a read; a writer's matched entry is tombstoned and recreated as the wearer's; `pd` ≤ 20 doses.
+
 ## 1. What the user has and wants
 
 - **NovoPen Echo Plus** (NFC, 0.5 u steps, stores ~800 doses with its own clock), rapid insulin. Used for a long time,
@@ -38,8 +45,8 @@ every dose key seen and what it became (entry id + role, or `before-since`, `que
 - **First scan of a serial**: `since` = that scan time. Nothing older is ever imported automatically. The first scan
   opens a short setup in Sukrara (kind, what happened: "412 earlier doses in the pen weren't imported") — the only
   read that brings the app forward.
-- Moving `since` earlier is possible from the pen's settings page, behind a preview (how many entries it would add,
-  which hand-typed entries it would merge) and a warning that doses typed straight into LibreView can't be checked.
+- No movable `since`: *Doses read* lists every session the pen holds; an earlier one is logged one at a time with
+  *Log this injection* (through rule 5). A lost ledger is rebuilt from the pen entries in the synced log.
 - Every dose key is processed once. Deleting a pen entry leaves its keys consumed (never re-imported). Rescanning the
   same pen changes nothing unless new doses appeared or a session grew.
 - Pen clock sanity: drop doses later than scan time + 2 min (log it); if the pen clock went backwards (reset), match
@@ -50,12 +57,12 @@ every dose key seen and what it became (entry id + role, or `before-since`, `que
 Doses of one pen, sorted by time, below `since` dropped, 0 u dropped.
 
 1. **Cluster**: consecutive doses ≤ 10 min apart.
-2. A cluster with a dose ≥ **threshold** (setting `penPrimeBelow`, default 2.0 u) is an **injection**: the doses before
-   the first ≥ threshold dose are priming, that dose and **every later one** in the cluster are injected.
+2. A cluster with a dose ≥ **threshold** (setting `penPrimeBelow`, default 2.0 u) is an **injection**: the small doses
+   before the **last** large dose are priming, every other dose is injected (PRODUCT §3.2).
    `1 u, 0.5 u, 8 u, 0.5 u` → injected 8.5 u, primed 1.5 u. Entry time `t` = time of the first injected dose.
 3. A cluster with every dose below the threshold:
    - an injection cluster starts ≤ 30 min after it ends → it is that injection's priming;
-   - else it starts ≤ 60 min after an injection cluster ended → a **top-up**: injected, added to that entry;
+   - (no top-up across sessions: PRODUCT §3.4)
    - else → a **question** to the user ("What were 1 u and 1.5 u at 13:02?": priming / injected / some of each, per
      dose). Not logged until answered. If it's the newest cluster and < 30 min old at scan time it is **pending**
      (an injection may follow); it becomes a question 30 min after its last dose if no scan resolved it.
@@ -70,12 +77,20 @@ Doses of one pen, sorted by time, below `since` dropped, 0 u dropped.
    ("Your pen already logged 8.5 u at 13:12") with *Log anyway* / *Cancel*.
 7. User edits win: an entry the user edited after import isn't rewritten by later scans; doses that would join it
    become a question.
+8. **Dose roles are correctable** (user, 2026-10-23): the engine keeps deciding automatically, but a pen entry's detail
+   has *Edit doses*, a per-dose priming / injected choice (TalkBack-reachable). Saving recomputes `a` (injected sum),
+   `pr` (primed sum), `pd[].p` and `t` (first injected dose), new `u`; if every dose is priming the app offers to delete
+   the entry instead. A correction is a user edit (rule 7). **Edited** is explicit: the entry's `u` differs from the
+   `u` the engine last wrote, **or** its `pd` roles differ from the ledger's (a correction made on the other device).
+   Answered questions stay changeable through the same per-dose edit (an all-priming answer, which made no entry,
+   is reopened from the pen's settings page).
 
 Every rule above is a scenario in a JSON fixture (doses + existing entries → entries + questions) run by the Android
 unit tests, like `spikes/alerts` timeline scenarios. Include at least: the user's examples, top-up, priming then
 distraction, two injections 40 min apart, all-small isolated, open session growing between two scans, pending → question,
 first scan with 400 old doses, rescan idempotence, delete then rescan, manual entry merge, two candidates, amount
-mismatch, edit then grow, clock reset, future dose, long pen, two pens.
+mismatch, edit then grow, clock reset, future dose, long pen, two pens, role correction then rescan, role correction
+on the other device then rescan.
 
 ## 5. Treatment format additions (SPEC §1, PROTOCOL-v2 content) — both platforms
 
@@ -99,7 +114,8 @@ every other output use `a` only. Priming alone never makes an entry.
 
 Android: pen reading switch, pen list (serial, kind, since, last read, counts; change kind; move `since`; forget
 pen), threshold setting, questions (notification **and** an in-app card on Home/treatments; answer, change the answer
-afterwards via the entry), the first-scan setup, the reverse-duplicate warning, a pen entry's detail. Mac: the pen
-entry's detail and list row. Settings in `spikes/settings/settings.json` (`only: android` + reason). Strings en+es,
+afterwards via the entry), the first-scan setup, the reverse-duplicate warning, a pen entry's detail with *Edit doses*
+(§4.8). Mac: the pen
+entry's detail (with the same per-dose correction) and list row. Settings in `spikes/settings/settings.json` (`only: android` + reason). Strings en+es,
 FEATURES.md (States and exits), README, QA.md, docs/10 + docs/29 "In Sukrara". Debug-only fake pen read through
 `DebugFakes.run` (emulator screenshots of every state).

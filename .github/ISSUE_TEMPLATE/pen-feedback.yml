@@ -1,0 +1,47 @@
+# Opened from Sukrara's untested insulin pen page (investigation 29, docs/29-novopen.md).
+# The app pre-fills `pen`, `app-version`, `android` and `phone` through the URL (field ids = query keys); nothing else.
+name: Pen feedback
+description: Tell us how Sukrara works with an insulin pen model it hasn't been tested with yet.
+title: "Pen feedback: "
+labels: ["pen-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Sukrara reads this pen with the open NovoPen protocol, but nobody has tried this model with it yet.
+        **Please don't paste doses, screenshots of your log, serial numbers or anything else about your health or
+        identity.** "The display check matched" or "it didn't" is all we need.
+  - type: input
+    id: pen
+    attributes:
+      label: Pen model
+      description: As Sukrara names it (pre-filled).
+    validations:
+      required: true
+  - type: dropdown
+    id: check
+    attributes:
+      label: Did the newest dose and the hours since it match the pen's display?
+      options:
+        - "Yes"
+        - "No"
+        - "The pen didn't read at all"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: What happened, without doses or personal data.
+  - type: input
+    id: app-version
+    attributes:
+      label: Sukrara version
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+  - type: input
+    id: phone
+    attributes:
+      label: Phone

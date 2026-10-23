@@ -65,6 +65,8 @@ class MainActivity : ComponentActivity() {
     private var deepLink by mutableStateOf<String?>(null)
     /** A screen a notification asked for (alert notifications open "alerts"). */
     private var openScreen by mutableStateOf<String?>(null)
+    /** A pen sheet a read card or notification asked for: ("entry" | "question", id) (inv. 29). */
+    private var penSheet by mutableStateOf<Pair<String, String>?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,6 +74,7 @@ class MainActivity : ComponentActivity() {
         takeLink(intent)
         openScreen = intent?.getStringExtra("screen")
         takeSensorTag(intent)
+        takePen(intent)
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN), 1)
         startServiceIfReady()
@@ -84,6 +87,12 @@ class MainActivity : ComponentActivity() {
                     Root()
                     // a closed tip's Undo, over whichever screen it was closed on (home, the settings overview)
                     TipUndoSnackbar()
+                    PenUndoSnackbar()
+                    penSheet?.let { (what, id) ->
+                        if (what == "question") PenQuestionSheet(id) { penSheet = null }
+                        else app.mauri.sukrara.treatments.Treat.store.entry(id)?.second?.takeIf { !it.del }?.let { PenEntrySheet(it) { penSheet = null } }
+                            ?: run { penSheet = null }
+                    }
                 }
             }
         }
@@ -99,6 +108,19 @@ class MainActivity : ComponentActivity() {
         takeLink(intent)
         intent.getStringExtra("screen")?.let { openScreen = it }
         takeSensorTag(intent)
+        takePen(intent)
+    }
+
+    /** The pen card's and notifications' ways in: an entry's or a question's sheet, or a pen's pages (inv. 29). */
+    private fun takePen(i: Intent?) {
+        if (i == null || role != "owner") return
+        val serial = { id: String -> id.ifEmpty { app.mauri.sukrara.pen.Pens.readState.value?.serial ?: "" } }
+        i.getStringExtra("penEntry")?.let { penSheet = "entry" to it }
+        i.getStringExtra("penQuestion")?.let { penSheet = "question" to it }
+        i.getStringExtra("penHistory")?.let { openScreen = PEN_DOSES_ROUTE + serial(it) }
+        i.getStringExtra("penReview")?.let { openScreen = PEN_REVIEW_ROUTE + serial(it) }
+        i.getStringExtra("penSetup")?.let { openScreen = PEN_SETUP_ROUTE + serial(it) }
+        i.getStringExtra("penPage")?.let { openScreen = PEN_ROUTE + serial(it) }
     }
 
     /** A sensor tapped while Sukrara wasn't reading NFC (the NfcLaunch alias): the New sensor screen reads that tap. */
@@ -287,6 +309,7 @@ class MainActivity : ComponentActivity() {
                 "source" -> SettingsRoute { SourceSettings(back) }
                 "newsensor" -> NewSensorScreen(back)
                 "sensorend" -> SettingsRoute { SensorEndSettings(back) }
+                "pens" -> SettingsRoute { PensSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
                 "graph" -> SettingsRoute { GraphScreen(follower = false, back) }
                 GRAPH_MARKS_ROUTE -> SettingsRoute { GraphMarksScreen(back) }
@@ -302,6 +325,10 @@ class MainActivity : ComponentActivity() {
                 "log" -> SettingsRoute { LogPage(log, back) }
                 "about" -> SettingsRoute { AboutSettings(back) }
                 else -> if (s.startsWith(ALERT_ROUTE)) SettingsRoute { AlertKindScreen(s.removePrefix(ALERT_ROUTE), follower = false, back) }
+                    else if (s.startsWith(PEN_ROUTE)) SettingsRoute { PenPageSettings(s.removePrefix(PEN_ROUTE), back) }
+                    else if (s.startsWith(PEN_DOSES_ROUTE)) SettingsRoute { DosesReadSettings(s.removePrefix(PEN_DOSES_ROUTE), review = false, back) }
+                    else if (s.startsWith(PEN_REVIEW_ROUTE)) SettingsRoute { DosesReadSettings(s.removePrefix(PEN_REVIEW_ROUTE), review = true, back) }
+                    else if (s.startsWith(PEN_SETUP_ROUTE)) NewPenScreen(s.removePrefix(PEN_SETUP_ROUTE), back)
                     else Page(homeScroll) { OwnerHome(u, actions) }
             }
         }

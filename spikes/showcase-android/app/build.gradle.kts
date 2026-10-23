@@ -115,6 +115,8 @@ kotlin {
 
 // The shared alert timelines (spikes/alerts/scenarios) are inputs of AlertScenarioTest: editing one re-runs the tests.
 tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").withPropertyName("alertScenarios") }
+// The pen engine's scenarios (spikes/novopen-android, PenScenarioTest + PenCopyTest) likewise.
+tasks.withType<Test>().configureEach { inputs.dir("../../novopen-android/src").withPropertyName("penSpike"); inputs.file("../../novopen-android/scenarios.json").withPropertyName("penScenarios") }
 // The shared graph fixtures and the surface registry likewise (GraphFixtureTest, CardLayoutTest).
 tasks.withType<Test>().configureEach { inputs.dir("../../graph-fixtures").withPropertyName("graphFixtures") }
 
