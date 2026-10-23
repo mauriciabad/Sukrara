@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.layout.offset
@@ -127,7 +128,8 @@ fun PenUndoSnackbar(host: SnackbarHostState = remember { SnackbarHostState() }) 
  * container for a failed read, the only red), the title a polite live region. At most two pills.
  */
 @Composable
-fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String) -> Unit, onInteract: () -> Unit = {}, onA11y: (Boolean) -> Unit = {}) {
+fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String) -> Unit, onInteract: () -> Unit = {}, onA11y: (Boolean) -> Unit = {},
+                closing: Boolean = false) {
     val ctx = LocalContext.current
     val w = remember { PenWords(ctx) }
     Pens.ledger.collectAsState().value
@@ -141,7 +143,10 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
     val still = remember { app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx) }
     // Feel (PRODUCT §4.11): the card springs up from the bottom edge; a failure shakes gently (damped); reduced motion: none
     val rise = remember { androidx.compose.animation.core.Animatable(if (still) 0f else 1f) }
-    LaunchedEffect(Unit) { rise.animateTo(0f, androidx.compose.animation.core.spring(0.6f, 800f)) }
+    LaunchedEffect(closing) {
+        if (closing) rise.animateTo(1f, androidx.compose.animation.core.tween(if (still) 0 else 400))
+        else rise.animateTo(0f, androidx.compose.animation.core.spring(0.6f, 800f))
+    }
     val shake = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(card.error) {
         if (card.error && !still) { shake.snapTo(6f); shake.animateTo(0f, androidx.compose.animation.core.spring(0.3f, 1500f), initialVelocity = -400f) }
@@ -153,6 +158,8 @@ fun PenReadCard(s: Pens.ReadState, onClose: () -> Unit, onOpen: (String, String)
     val shownTitle = if (countTo > 0 && counted < countTo) ctx.getString(R.string.pen_read_logged, w.u(Math.floor(counted * 2.0) / 2.0)) else card.title
     Card(
         Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding().onFocusChanged { onA11y(it.hasFocus) }
+            // every touch on the card (before its children handle it) keeps it open
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) { awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial); onInteract() } } }
             .graphicsLayer { translationY = rise.value * size.height * 1.2f; translationX = shake.value * density },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = if (card.error) cs.errorContainer else cs.surfaceContainerHigh),

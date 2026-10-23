@@ -169,7 +169,7 @@ class DebugReceiver : BroadcastReceiver() {
                 out.put("cmd", "owner ready")
             }
             // made-up sensors and data (DebugFakes): debug builds only, a release build changes nothing and says so
-            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock", "locktest", "treat", "sensorProfile", "penRead", "penReset", "penOpen" -> DebugFakes.run(c, cmd, i, out)
+            "fakeSensor", "sensor", "backfill", "sensorStart", "sensorUnlock", "locktest", "treat", "sensorProfile", "penRead", "penReset", "penOpen", "tagIntents" -> DebugFakes.run(c, cmd, i, out)
             // sensor end in calendar: the calendars and Sukrara's events as the provider has them ([--ez on false] turns it off)
             "calendar" -> {
                 SensorCalendar.init(c)

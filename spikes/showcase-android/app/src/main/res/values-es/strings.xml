@@ -2207,4 +2207,24 @@
     <string name="pen_add_to_entry">Añadir a la entrada de las %1$s</string>
     <!-- Clock changed card: the doses held, not logged [CHAR LIMIT=NONE] -->
     <string name="pen_read_clock_held">Sin registrar: %1$s. Revisa sus dosis.</string>
+    <!-- Banner: Android blocks Sukrara's sensor taps [CHAR LIMIT=40] -->
+    <string name="tags_blocked_sensor">Los toques del sensor están bloqueados</string>
+    <!-- Banner: Android blocks Sukrara's pen and sensor taps [CHAR LIMIT=50] -->
+    <string name="tags_blocked_both">Los toques de la pluma y del sensor están bloqueados</string>
+    <!-- Banner line: what stops working [CHAR LIMIT=NONE] -->
+    <string name="tags_blocked_pen_text">Android no deja que Sukrara se abra al acercar tu pluma.</string>
+    <!-- Banner line: what stops working [CHAR LIMIT=NONE] -->
+    <string name="tags_blocked_sensor_text">Android no deja que Sukrara se abra al escanear tu sensor.</string>
+    <!-- Banner line: what stops working [CHAR LIMIT=NONE] -->
+    <string name="tags_blocked_both_text">Android no deja que Sukrara se abra al acercar tu pluma o escanear tu sensor.</string>
+    <!-- Banner action: open Android's screen to allow tag intents [CHAR LIMIT=15] -->
+    <string name="tags_allow">Permitir</string>
+    <!-- Banner action: turn the blocked tap features off [CHAR LIMIT=15] -->
+    <string name="tags_turn_off">Desactivar</string>
+    <!-- Toast after returning from Android's screen, allowed [CHAR LIMIT=40] -->
+    <string name="tags_allowed_toast">Los toques de la pluma están permitidos</string>
+    <!-- Toast after returning from Android's screen, still blocked [CHAR LIMIT=40] -->
+    <string name="tags_still_blocked_toast">Los toques de la pluma siguen bloqueados</string>
+    <!-- Insulin pens list: open a pen's setup until it was seen [CHAR LIMIT=40] -->
+    <string name="pen_set_up_named">Configurar %1$s</string>
 </resources>

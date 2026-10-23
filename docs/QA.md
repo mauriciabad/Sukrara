@@ -372,6 +372,10 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] Type 8u rapid within 45 min of a pen entry → *Already logged by your pen?*; carbs in the same save are saved.
 - [ ] On Android 17 a pen tap from another app opens the card (no `does not have DISPATCH_NFC_MESSAGE permission` in
       logcat `NfcDispatcher`); a Libre tap with Sukrara closed opens the New sensor screen (0.11.47).
+- [ ] Taps blocked (`DebugReceiver --es cmd tagIntents --ez blocked true` on the emulator; on a phone, Android's own
+      tag-intent screen): home banner names what's blocked (pen / sensor / both) with *Turn off* and *Allow*; the
+      pens and Glucose source pages show the card on top and a warning row; *Allow* opens Android's screen; back
+      allowed → everything gone. Ask state: no home banner, pens page card only. Light and dark.
 - [ ] A bank / transit card or a passport held to the phone (reading on): nothing at all (no card, no vibration, no
       notification); only a pen tap shows the card (the filter is IsoDep + NfcA since 0.11.46).
 - [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.

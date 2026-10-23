@@ -190,7 +190,14 @@ class SettingsGroupScope @PublishedApi internal constructor() {
      */
     fun row(title: String? = null, summary: String? = null, to: String? = null, icon: (@Composable () -> Unit)? = null,
             content: @Composable () -> Unit) {
-        rows += Entry(title, summary, to, icon, content)
+        // every row sits on the group card's surface (AOSP Android 16/17 groups), custom content too: no bare rows
+        rows += Entry(title, summary, to, icon) {
+            // the same surface and corner SPA's BaseLayout gives its own rows in a category (expressive settings)
+            val m = if (com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled) Modifier.fillMaxWidth()
+                .clip(com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraSmall2).background(MaterialTheme.colorScheme.surfaceBright)
+                else Modifier.fillMaxWidth()
+            androidx.compose.foundation.layout.Box(m) { content() }
+        }
     }
 }
 
