@@ -152,7 +152,7 @@ object DebugFakes {
  *   and notification. `fail` = a broken-off read. `reset` = the pen clock went back.
  * - `penReset [--es penReading ask|on|off] [--ez clearInsulin true]`: forget the fake pens and their memory (and delete
  *   every insulin entry: a clean emulator log).
- * - `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview [--es id …]`: Sukrara at that sheet.
+ * - `penOpen --es what penEntry|penQuestion|penHistory|penPage|penReview [--es id …]`: Sukrara at that sheet.
  */
 private object FakePen {
     private class Mem(var offset: Long) { val doses = mutableListOf<Triple<Long, Double, Boolean>>() }

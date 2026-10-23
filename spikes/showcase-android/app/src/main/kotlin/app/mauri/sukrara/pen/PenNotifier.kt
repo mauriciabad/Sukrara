@@ -55,9 +55,9 @@ object PenNotifier {
             .setPublicVersion(Notification.Builder(ctx, READS).setSmallIcon(R.drawable.ic_stat_sukrara)
                 .setContentTitle(ctx.getString(R.string.pen_notif_public)).build())
             .setOnlyAlertOnce(true).setAutoCancel(true)
-            .setContentIntent(if (setup != null) open(ctx, "penSetup", setup, 400) else open(ctx, if (entry != null) "penEntry" else "penHistory", entry?.id ?: "", 400))
+            .setContentIntent(if (setup != null) open(ctx, "penPage", setup, 400) else open(ctx, if (entry != null) "penEntry" else "penHistory", entry?.id ?: "", 400))
         // a new (or untested) pen: *Set up* stays reachable after the card closed
-        if (setup != null) b.addAction(Notification.Action.Builder(null, ctx.getString(R.string.pen_set_up), open(ctx, "penSetup", setup, 403)).build())
+        if (setup != null) b.addAction(Notification.Action.Builder(null, ctx.getString(R.string.pen_set_up), open(ctx, "penPage", setup, 403)).build())
         // an activity straight from the action (a receiver may not start one: Android 12 notification trampolines)
         if (entry != null) b.addAction(Notification.Action.Builder(null, ctx.getString(R.string.pen_add_treatment),
             PendingIntent.getActivity(ctx, 401, PenWords.addTreatment(ctx, entry).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

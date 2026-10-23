@@ -119,7 +119,6 @@ class MainActivity : ComponentActivity() {
         i.getStringExtra("penQuestion")?.let { penSheet = "question" to it }
         i.getStringExtra("penHistory")?.let { openScreen = PEN_DOSES_ROUTE + serial(it) }
         i.getStringExtra("penReview")?.let { openScreen = PEN_REVIEW_ROUTE + serial(it) }
-        i.getStringExtra("penSetup")?.let { openScreen = PEN_SETUP_ROUTE + serial(it) }
         i.getStringExtra("penPage")?.let { openScreen = PEN_ROUTE + serial(it) }
     }
 
@@ -328,7 +327,6 @@ class MainActivity : ComponentActivity() {
                     else if (s.startsWith(PEN_ROUTE)) SettingsRoute { PenPageSettings(s.removePrefix(PEN_ROUTE), back) }
                     else if (s.startsWith(PEN_DOSES_ROUTE)) SettingsRoute { DosesReadSettings(s.removePrefix(PEN_DOSES_ROUTE), review = false, back) }
                     else if (s.startsWith(PEN_REVIEW_ROUTE)) SettingsRoute { DosesReadSettings(s.removePrefix(PEN_REVIEW_ROUTE), review = true, back) }
-                    else if (s.startsWith(PEN_SETUP_ROUTE)) NewPenScreen(s.removePrefix(PEN_SETUP_ROUTE), back)
                     else Page(homeScroll) { OwnerHome(u, actions) }
             }
         }

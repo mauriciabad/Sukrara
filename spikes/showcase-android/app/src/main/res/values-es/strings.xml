@@ -1958,12 +1958,8 @@
     <string name="pen_at">%1$s a las %2$s</string>
     <!-- Action: save the hand-typed insulin anyway [CHAR LIMIT=20] -->
     <string name="pen_dup_log">Registrar igualmente</string>
-    <!-- First scan of a pen: title [CHAR LIMIT=30] -->
-    <string name="pen_new_title">Nueva pluma</string>
     <!-- The pen's serial number [CHAR LIMIT=30] -->
     <string name="pen_serial">N.º de serie %1$s</string>
-    <!-- Group: the insulin in this pen [CHAR LIMIT=40] -->
-    <string name="pen_insulin_in">Insulina de esta pluma</string>
     <!-- New pen: its last injection: amount, time, how long ago [CHAR LIMIT=NONE] -->
     <string name="pen_new_last">Última inyección: %1$s a las %2$s (hace %3$s)</string>
     <!-- New pen: the last injection matches a hand-typed entry [CHAR LIMIT=NONE] -->
@@ -2225,6 +2221,6 @@
     <string name="tags_allowed_toast">Los toques de la pluma están permitidos</string>
     <!-- Toast after returning from Android's screen, still blocked [CHAR LIMIT=40] -->
     <string name="tags_still_blocked_toast">Los toques de la pluma siguen bloqueados</string>
-    <!-- Insulin pens list: open a pen's setup until it was seen [CHAR LIMIT=40] -->
-    <string name="pen_set_up_named">Configurar %1$s</string>
+    <!-- Insulin pens list: a pen whose page was never opened [CHAR LIMIT=30] -->
+    <string name="pen_review_hint">Revisa sus ajustes</string>
 </resources>

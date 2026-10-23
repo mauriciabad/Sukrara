@@ -361,7 +361,7 @@ Emulator only (debug build, synthetic data: `DebugReceiver --es cmd penRead …`
 only on the user's phone, by the user. The full checklist is `spikes/novopen-android/PRODUCT.md` §9 (59 rows).
 
 - [ ] Fresh install (*Ask*): the first tap shows *Log this pen in Sukrara?*; nothing logged; *Turn on* → *New pen
-      added · … · 412 earlier doses left out* with *Log 8.5u* + *Set up*; *No* → later taps do nothing, Settings off.
+      added · … · 412 earlier doses left out* with *Log 8.5u* + *Set up* (opens the pen's page: Name, Insulin, *Log it*; no separate setup screen); *No* → later taps do nothing, Settings off.
 - [ ] `1, 0.5, 8, 0.5` → card *8.5u logged · Rapid · 13:12 · 1.5u primed*, *Add treatment* + *Undo*, no scrim, closes
       by itself; the low-importance notification has the same text; home row `8.5u rapid · from the pen`.
 - [ ] *Undo* → *Undone*; a merged hand entry is back with its note; Doses read *Not logged* → *Log this injection*.
@@ -379,8 +379,9 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] A bank / transit card or a passport held to the phone (reading on): nothing at all (no card, no vibration, no
       notification); only a pen tap shows the card (the filter is IsoDep + NfcA since 0.11.46).
 - [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.
-- [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → red 10 s confirmation → display
+- [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → the pen's page: red 10 s confirmation → display
       check; *It doesn't* → *Sukrara doesn't log this pen*.
+- [ ] *Your pens*: one row per pen (pen icon, not a pencil), *· Revisa sus ajustes* until its page was opened; no extra setup row.
 - [ ] Follower: no Insulin pens row; pen entries open read-only.
 - [ ] LibreView / Nightscout / Tidepool / CSV / graph / insulin mute: `a` only; CSV column 23 *Primed Insulin*.
 - [ ] Spanish: *pluma*, *purgado*, amounts `8.5u`.

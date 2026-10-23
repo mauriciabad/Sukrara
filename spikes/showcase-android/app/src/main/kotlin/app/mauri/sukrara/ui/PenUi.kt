@@ -261,7 +261,7 @@ private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Que
     return when {
         s.undone || s.stage == "reading" || s.stage == "failed" -> emptyList()
         s.stage == "notusable" -> listOf(ctx.getString(R.string.pen_open) to { onOpen("penPage", serial) })
-        s.stage == "check" -> listOf(ctx.getString(R.string.pen_set_up) to { onOpen("penSetup", serial) })
+        s.stage == "check" -> listOf(ctx.getString(R.string.pen_set_up) to { onOpen("penPage", serial) })
         s.stage == "ask" -> listOf(ctx.getString(R.string.pen_no) to { Pens.decline(ctx); onClose() },
             ctx.getString(R.string.pen_turn_on) to { Pens.turnOn(ctx); Unit })
         r == null -> emptyList()
@@ -269,7 +269,7 @@ private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Que
             r.offer?.let { o -> ctx.getString(R.string.pen_log_amount, w.u(o.a)) to {
                 Pens.logDoses(ctx, serial, o.doses) { st -> Pens.readState.value = s.copy(report = st.report.copy(first = false), undo = st.undo) }
             } },
-            ctx.getString(R.string.pen_set_up) to { onOpen("penSetup", serial) })
+            ctx.getString(R.string.pen_set_up) to { onOpen("penPage", serial) })
         r.clockChanged && entry == null -> listOf(ctx.getString(R.string.pen_check) to { onOpen("penHistory", serial) })
         entry != null && asked != null -> listOf(undo, check)
         entry != null && r.bigSince != null -> listOf(ctx.getString(R.string.pen_review) to { onOpen("penReview", serial) }, undo)

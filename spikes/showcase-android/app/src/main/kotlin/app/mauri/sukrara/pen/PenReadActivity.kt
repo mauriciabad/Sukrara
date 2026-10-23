@@ -135,7 +135,7 @@ class PenReadActivity : ComponentActivity() {
 
     private fun haptic(ok: Boolean) = PenHaptics.read(window.decorView, ok)
 
-    /** Sukrara at [what] (`penEntry` / `penHistory` / `penSetup` / `penQuestion`) for [id]. */
+    /** Sukrara at [what] (`penEntry` / `penHistory` / `penQuestion`) for [id]. */
     private fun openInApp(what: String, id: String) {
         startActivity(Intent(this, MainActivity::class.java).putExtra(what, id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         finish()

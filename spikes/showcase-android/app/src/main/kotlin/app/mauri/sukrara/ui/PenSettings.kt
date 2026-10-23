@@ -72,7 +72,6 @@ import app.mauri.sukrara.treatments.Treat
 const val PEN_ROUTE = "pen:"
 const val PEN_DOSES_ROUTE = "pendoses:"
 const val PEN_REVIEW_ROUTE = "penreview:"
-const val PEN_SETUP_ROUTE = "newpen:"
 
 private const val JUGGLUCO = "tk.glucodata"
 
@@ -104,7 +103,9 @@ private fun penRowSummary(p: Pen): String {
     return when {
         untested && p.check == "failed" -> stringResource(R.string.pen_not_used)
         untested && p.check == null -> stringResource(R.string.pen_check_to_start)
-        else -> stringResource(R.string.pens_summary_one, PenWords(LocalContext.current).kind(p.kind), Clock.time(p.lastScan))
+        else -> stringResource(R.string.pens_summary_one, PenWords(LocalContext.current).kind(p.kind), Clock.time(p.lastScan)) +
+            // not opened yet: a quiet hint (the row itself opens the pen's page, AOSP paired-device style)
+            (if (!Pens.isSetUp(LocalContext.current, p.serial)) " · " + stringResource(R.string.pen_review_hint) else "")
     }
 }
 
@@ -127,6 +128,8 @@ fun PensSettings(onBack: () -> Unit) {
     val nav = LocalNav.current
     SettingsPage(stringResource(R.string.pens_title), onBack) {
         SettingsIntro(stringResource(R.string.pens_intro))
+        // where this phone's NFC antenna is (NfcAntennaInfo, as on the sensor scan): hold the pen there
+        SettingsHeader { Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ScanArt(remember { antennaSpot(nfc) }, stringResource(R.string.pens_intro)) } }
         // blocked by Android (pen reading Ask or On): the same card as on home, at the top
         if (f.penReading != "off" && !allowed && (nfc != null || NfcLaunch.fakeBlocked)) SettingsHeader { TagBlockedCard(NfcLaunch.Blocked.PEN, null) }
         SettingsMainSwitch(stringResource(R.string.pens_switch), f.penReading == "on") {
@@ -162,9 +165,6 @@ fun PensSettings(onBack: () -> Unit) {
                         if (PenProfiles.byId(p.model)?.verified == false) UntestedTag()
                     }
                 }
-                    // until its setup was seen: a clear way to it (the card that offered it may have closed)
-                    if (!Pens.isSetUp(ctx, p.serial)) link(stringResource(R.string.pen_set_up_named, Pens.displayName(p.serial, l.pens)),
-                        icon = R.drawable.ic_sym_settings, to = PEN_SETUP_ROUTE + p.serial)
                 }
             }
             SettingsGroup(stringResource(R.string.pens_priming_group)) {
@@ -189,6 +189,12 @@ fun PenPageSettings(serial: String, onBack: () -> Unit) {
     var renaming by remember { mutableStateOf(false) }
     var kind by remember { mutableStateOf(false) }
     var forgetting by remember { mutableStateOf(false) }
+    val untested = profile?.verified == false
+    // an untested pen opened before its check: the red confirmation first (Cancel = back, it stays unchecked)
+    var confirmed by remember { mutableStateOf(!untested || p.check != null) }
+    // opening the page is reviewing the pen: the list's "Review its settings" hint goes away
+    LaunchedEffect(serial) { Pens.markSetUp(ctx, serial) }
+    if (!confirmed) PenUntestedDialog(profile?.name ?: Pens.displayName(serial, l.pens), onCancel = onBack) { confirmed = true }
     SettingsPage(Pens.displayName(serial, l.pens), onBack) {
         SettingsHeader {
             Card(Modifier.fillMaxWidth()) {
@@ -198,16 +204,27 @@ fun PenPageSettings(serial: String, onBack: () -> Unit) {
                     Text(stringResource(R.string.pen_serial, serial), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.pen_started, Clock.dayLabel(p.since)), style = MaterialTheme.typography.bodyMedium)
                     if (p.lastScan > 0) Text(stringResource(R.string.pen_last_read, Clock.dayTime(p.lastScan)), style = MaterialTheme.typography.bodyMedium)
+                    val known = remember(l) { Treat.store.all().filter { it.pen == serial && !it.pd.isNullOrEmpty() }.flatMap { it.pd!! }.maxOfOrNull { it.t } }
+                    if (p.returning && known != null) Text(stringResource(R.string.pen_new_returning, Clock.dayTime(known)), style = MaterialTheme.typography.bodyMedium)
+                    else if (p.older > 0) Text(pluralStringResource(R.plurals.pen_new_older, p.older, p.older), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
+        // the pen's page is its setup (0.11.49): the untested display check, the newest injection to log, then the rows
+        if (untested && p.check == null) SettingsHeader { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (confirmed) DisplayCheck(serial, w) else Text(stringResource(R.string.pen_check_to_start), style = MaterialTheme.typography.bodyLarge)
+        } } }
+        if (untested && p.check == "failed") SettingsHeader { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.pen_read_notusable), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.pen_read_notusable_text), style = MaterialTheme.typography.bodyMedium)
+        } } }
+        if (!untested || p.check == "ok") OfferCard(serial, w)
         SettingsGroup {
             value(stringResource(R.string.pen_name), Pens.displayName(serial, l.pens), icon = R.drawable.ic_sym_edit_note) { renaming = true }
             value(stringResource(R.string.pen_insulin), w.kind(p.kind), icon = if (p.kind == "long") R.drawable.ic_dia_insulin_long else R.drawable.ic_dia_insulin_rapid) { kind = true }
             link(stringResource(R.string.pen_doses_read), icon = R.drawable.ic_sym_history, to = PEN_DOSES_ROUTE + serial)
             if (profile?.verified == false) {
                 if (p.check == "failed") action(stringResource(R.string.pen_check_again), icon = R.drawable.ic_sym_science) { Pens.update(serial) { it.copy(check = null) } }
-                if (p.check == null) link(stringResource(R.string.pen_set_up), icon = R.drawable.ic_sym_science, to = PEN_SETUP_ROUTE + serial)
                 link(stringResource(R.string.pen_send_feedback), icon = R.drawable.ic_sym_open_in_new, external = true) {
                     runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(penFeedbackUrl(profile.name)))) }
                 }
@@ -369,86 +386,31 @@ fun LogSessionSheet(s: Session, onDismiss: () -> Unit) {
     }
 }
 
-/**
- * The pen's setup (PRODUCT §4.7), from the new-pen card's *Set up* or the pen page: the New sensor screen's shape. Model
- * (+ *Untested*), serial, *Insulin in this pen*, the earlier doses left out (or, for a returning pen, how far the log
- * goes), the newest injection under 24 h old with *Log it*; *Done*. An untested model first shows the red *Untested
- * pen* confirmation and then the display check (§6) before anything is logged.
- */
+/** The pen's newest injection under 24 h old that isn't logged (a new pen's one offer, PRODUCT §3.9), with *Log it*. */
 @Composable
-fun NewPenScreen(serial: String, onBack: () -> Unit) {
+private fun OfferCard(serial: String, w: PenWords) {
     val ctx = LocalContext.current
-    val w = remember { PenWords(ctx) }
-    val l by Pens.ledger.collectAsState()
     Treat.store.items.collectAsState().value
-    val p = l.pens[serial]
-    if (p == null) { LaunchedEffect(Unit) { onBack() }; return }
-    val profile = PenProfiles.byId(p.model)
-    val untested = profile?.verified == false
-    var confirmed by remember { mutableStateOf(!untested || p.check != null) }
-    var kind by remember { mutableStateOf(p.kind) }
-    var loggedIt by remember { mutableStateOf(false) }
     val now = System.currentTimeMillis() / 1000
-    val offer = Pens.history(serial).filter { it.status == Session.BEFORE && it.a > 0 && now - it.t < 24 * 3600 }.maxByOrNull { it.t }
-    val known = Treat.store.all().filter { it.pen == serial && !it.pd.isNullOrEmpty() }.flatMap { it.pd!! }.maxOfOrNull { it.t }
-    val done = { Pens.update(serial) { it.copy(kind = kind) }; Pens.markSetUp(ctx, serial); onBack() }
-    Page {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            IconButton(onClick = done) { Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.treatment_cancel)) }
-            // where this phone's NFC antenna is (NfcAntennaInfo, as on the sensor scan) and how to hold the pen (PRODUCT §1b)
-            Box(Modifier.align(Alignment.CenterHorizontally)) { ScanArt(remember { antennaSpot(android.nfc.NfcAdapter.getDefaultAdapter(ctx)) }, stringResource(R.string.pens_intro)) }
-            Text(stringResource(R.string.pen_new_title), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.pens_intro), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(profile?.name ?: p.name, style = MaterialTheme.typography.titleMedium)
-                if (untested) UntestedTag()
-            }
-            Text(stringResource(R.string.pen_serial, serial), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.pen_insulin_in), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                for (k in listOf("rapid", "long")) Row(Modifier.selectable(kind == k, role = Role.RadioButton) { kind = k; Pens.update(serial) { it.copy(kind = k) } },
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(kind == k, onClick = null); Text(w.kind(k), Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-            when {
-                untested && p.check == null && confirmed -> DisplayCheck(serial, w, onPassed = onBack)
-                untested && p.check == "failed" -> {
-                    Text(stringResource(R.string.pen_read_notusable), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.pen_read_notusable_text), style = MaterialTheme.typography.bodyMedium)
-                    FilledTonalButton(onClick = { runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(penFeedbackUrl(profile.name)))) } }) {
-                        Text(stringResource(R.string.pen_send_feedback))
-                    }
-                }
-                else -> {
-                    if (p.returning && known != null) Text(stringResource(R.string.pen_new_returning, Clock.dayTime(known)), style = MaterialTheme.typography.bodyLarge)
-                    else if (p.older > 0) Text(pluralStringResource(R.plurals.pen_new_older, p.older, p.older), style = MaterialTheme.typography.bodyLarge)
-                    if (offer != null || loggedIt) Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            offer?.let { o ->
-                                Text(stringResource(R.string.pen_new_last, w.u(o.a), Clock.time(o.t), app.mauri.sukrara.treatments.TreatmentMarks.duration(now - o.t)),
-                                    style = MaterialTheme.typography.bodyLarge)
-                                Pens.match(serial, o.t, o.a)?.let { Text(stringResource(R.string.pen_new_matches, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium) }
-                            }
-                            if (loggedIt) Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painterResource(R.drawable.ic_sym_check), contentDescription = null, modifier = Modifier.size(18.dp))
-                                Text(stringResource(R.string.pen_logged), Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge)
-                            } else offer?.let { o -> Button(onClick = { Pens.logDoses(ctx, serial, o.keys.associateWith { it in o.primed }); loggedIt = true },
-                                modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.pen_log_it)) } }
-                        }
-                    }
-                }
-            }
-            // no *Done* while the display check is unanswered: *It matches* finishes, ✕ leaves (QA review 4)
-            if (!(untested && p.check == null)) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Button(onClick = done) { Text(stringResource(R.string.pen_done)) } }
+    val offer = Pens.history(serial).filter { it.status == Session.BEFORE && it.a > 0 && now - it.t < 24 * 3600 }.maxByOrNull { it.t } ?: return
+    var loggedIt by remember(offer.t) { mutableStateOf(false) }
+    SettingsHeader { Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.pen_new_last, w.u(offer.a), Clock.time(offer.t), app.mauri.sukrara.treatments.TreatmentMarks.duration(now - offer.t)),
+                style = MaterialTheme.typography.bodyLarge)
+            Pens.match(serial, offer.t, offer.a)?.let { Text(stringResource(R.string.pen_new_matches, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium) }
+            if (loggedIt) Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                Icon(painterResource(R.drawable.ic_sym_check), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.pen_logged), Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge)
+            } else Button(onClick = { Pens.logDoses(ctx, serial, offer.keys.associateWith { it in offer.primed }); loggedIt = true },
+                modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.pen_log_it)) }
         }
-    }
-    if (!confirmed) PenUntestedDialog(profile?.name ?: p.name, onCancel = onBack) { confirmed = true }
+    } }
 }
 
 /** The display check (PRODUCT §6): the newest dose and the whole hours since, as the pen's display shows them. */
 @Composable
-private fun DisplayCheck(serial: String, w: PenWords, onPassed: () -> Unit) {
+private fun DisplayCheck(serial: String, w: PenWords) {
     val ctx = LocalContext.current
     val view = androidx.compose.ui.platform.LocalView.current
     val r = Pens.held?.takeIf { it.serial == serial }
@@ -458,7 +420,7 @@ private fun DisplayCheck(serial: String, w: PenWords, onPassed: () -> Unit) {
     Text(stringResource(R.string.pen_check_q, w.u(newest.units), pluralStringResource(R.plurals.pen_hours, hours, hours)), style = MaterialTheme.typography.bodyLarge)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
         FilledTonalButton(onClick = { Pens.checkFailed(serial) }) { Text(stringResource(R.string.pen_check_no)) }
-        Button(onClick = { Pens.checkPassed(ctx, serial); app.mauri.sukrara.pen.PenHaptics.play(view, app.mauri.sukrara.pen.PenHaptics.Moment.SUCCESS); onPassed() }) {
+        Button(onClick = { Pens.checkPassed(ctx, serial); app.mauri.sukrara.pen.PenHaptics.play(view, app.mauri.sukrara.pen.PenHaptics.Moment.SUCCESS) }) {
             Text(stringResource(R.string.pen_check_yes))
         }
     }
