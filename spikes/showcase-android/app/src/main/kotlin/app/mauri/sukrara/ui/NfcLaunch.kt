@@ -9,11 +9,12 @@ import android.content.pm.PackageManager
 import android.nfc.NfcAdapter
 
 /**
- * "Open Sukrara when you scan a sensor": the manifest's `.ui.NfcLaunch` alias (NfcV TECH_DISCOVERED → MainActivity).
+ * "Open Sukrara when you scan a sensor": the manifest's `.ui.SensorTapActivity` (NfcV TECH_DISCOVERED, protected by
+ * DISPATCH_NFC_MESSAGE → MainActivity).
  * The switch is the component's enabled state itself, so Android's NFC dispatch and the setting can't disagree.
  */
 object NfcLaunch {
-    private fun component(ctx: Context) = ComponentName(ctx, "app.mauri.sukrara.ui.NfcLaunch")
+    private fun component(ctx: Context) = ComponentName(ctx, "app.mauri.sukrara.ui.SensorTapActivity")
 
     fun isOn(ctx: Context): Boolean = when (ctx.packageManager.getComponentEnabledSetting(component(ctx))) {
         PackageManager.COMPONENT_ENABLED_STATE_DISABLED -> false

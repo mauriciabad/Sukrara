@@ -106,30 +106,40 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
-        <!-- Tapping a Libre sensor while Sukrara isn't in front opens it (Sensor screen switch, ui/NfcLaunch). The Sensor
-             screen's reader mode still takes the tap first when it's open. -->
-        <activity-alias
-            android:name=".ui.NfcLaunch"
+        <!-- NFC entry points (Android 17: an app targeting SDK > BAKLAVA only gets NFC intents in an activity protected by
+             DISPATCH_NFC_MESSAGE, so only the NFC service can start it; developer.android.com/develop/connectivity/nfc/nfc).
+             Each is a tiny no-UI trampoline that forwards the tag to an activity of ours that isn't protected (we can't hold
+             the permission, so we couldn't start a protected activity ourselves). NfcManifestTest keeps every NFC filter
+             protected. -->
+        <!-- Tapping a Libre sensor while Sukrara isn't in front opens it (Sensor screen switch, ui/NfcLaunch → MainActivity).
+             The Sensor screen's reader mode still takes the tap first when it's open. -->
+        <activity
+            android:name=".ui.SensorTapActivity"
             android:exported="true"
-            android:targetActivity=".ui.MainActivity">
+            android:permission="android.permission.DISPATCH_NFC_MESSAGE"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.nfc.action.TECH_DISCOVERED" />
             </intent-filter>
             <meta-data
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_libre" />
-        </activity-alias>
-        <!-- Insulin pens (inv. 29, pen/PenReadActivity): tapping a NovoPen reads it from any app and shows a card that closes by
-             itself (translucent, no history, not in recents). Enabled only while Settings → Insulin pens is on (pen/Pens.syncComponent). -->
+        </activity>
+        <!-- Insulin pens (inv. 29): a NovoPen tap → pen/PenTapActivity (enabled only while Settings → Insulin pens isn't
+             Off, pen/Pens.syncComponent) → pen/PenReadActivity, which reads it from any app and shows a card that closes by
+             itself (translucent, no history, not in recents). -->
         <activity
-            android:name=".pen.PenReadActivity"
+            android:name=".pen.PenTapActivity"
             android:enabled="false"
             android:exported="true"
+            android:permission="android.permission.DISPATCH_NFC_MESSAGE"
             android:excludeFromRecents="true"
-            android:launchMode="singleTask"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.Sukrara.Quick">
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.nfc.action.TECH_DISCOVERED" />
             </intent-filter>
@@ -137,6 +147,14 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_pen" />
         </activity>
+        <activity
+            android:name=".pen.PenReadActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Sukrara.Quick" />
         <receiver
             android:name=".pen.PenActionReceiver"
             android:exported="false" />
