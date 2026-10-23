@@ -144,7 +144,8 @@ object DebugFakes {
  *   [--ez fail true] [--ez reset true] [--ei every 30]`: the doses join the fake pen's memory (agoMin minutes ago, `every`
  *   s apart; `older` earlier doses spread over the last months), then the pen is "read": the real engine, ledger, card
  *   and notification. `fail` = a broken-off read. `reset` = the pen clock went back.
- * - `penReset [--es penReading ask|on|off]`: forget the fake pens and their memory.
+ * - `penReset [--es penReading ask|on|off] [--ez clearInsulin true]`: forget the fake pens and their memory (and delete
+ *   every insulin entry: a clean emulator log).
  * - `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview [--es id …]`: Sukrara at that sheet.
  */
 private object FakePen {
@@ -162,11 +163,17 @@ private object FakePen {
                 pens.clear()
                 app.mauri.sukrara.pen.Pens.init(c)
                 app.mauri.sukrara.pen.Pens.ledger.value.pens.keys.toList().forEach { app.mauri.sukrara.pen.Pens.forget(it) }
+                // a clean emulator log for screenshots: every live insulin entry deleted (debug builds only)
+                if (i.getBooleanExtra("clearInsulin", false)) app.mauri.sukrara.treatments.Treat.store.all()
+                    .filter { !it.del && (it.k == "rapid" || it.k == "long") }.forEach { app.mauri.sukrara.treatments.Treat.store.delete(it.id) }
                 i.getStringExtra("penReading")?.let { v -> Features.update { it.copy(penReading = v) }; app.mauri.sukrara.pen.Pens.syncComponent(c) }
                 out.put("cmd", "fake pens forgotten")
             }
             "penOpen" -> {
-                c.startActivity(Intent(c, app.mauri.sukrara.ui.MainActivity::class.java).putExtra(i.getStringExtra("what") ?: "penHistory", i.getStringExtra("id") ?: serial)
+                val what = i.getStringExtra("what") ?: "penHistory"
+                val id = i.getStringExtra("id") ?: if (what == "penEntry") app.mauri.sukrara.treatments.Treat.store.all()
+                    .filter { !it.del && it.pen != null }.maxByOrNull { it.t }?.id ?: "" else if (what == "penQuestion") "" else serial
+                c.startActivity(Intent(c, app.mauri.sukrara.ui.MainActivity::class.java).putExtra(what, id)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 out.put("cmd", "opened")
             }
@@ -181,6 +188,10 @@ private object FakePen {
                     m.doses += Triple(at + k * every, d.trim().removeSuffix("!").toDouble(), d.trim().endsWith("!"))
                 }
                 app.mauri.sukrara.pen.Pens.init(c)
+                // a pen known since N days (skips the first-scan start, so made-up doses minutes ago are new)
+                i.getIntExtra("knownDays", 0).takeIf { it > 0 && app.mauri.sukrara.pen.Pens.ledger.value.pens[serial] == null }?.let { days ->
+                    app.mauri.sukrara.pen.Pens.debugKnown(serial, now - days * 86400L, now - base + m.offset - 60)
+                }
                 if (i.getBooleanExtra("fail", false)) {
                     app.mauri.sukrara.pen.Pens.failed(serial)
                 } else {

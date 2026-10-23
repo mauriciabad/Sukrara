@@ -129,8 +129,9 @@ object Pens {
     @Synchronized
     fun onRead(ctx: Context, r: PenRead, checked: Boolean = false): ReadState {
         init(ctx)
-        val profile = PenProfiles.identify(r)
         val pen = ledger.value.pens[r.serial]
+        // a pen keeps the model it was first identified as (a later read without a half-unit dose is still an Echo Plus)
+        val profile = pen?.model?.let { PenProfiles.byId(it) } ?: PenProfiles.identify(r)
         // a fresh install asks once (PRODUCT §1b): nothing is logged before *Turn on*
         if (Features.value.penReading == "ask") {
             held = r
@@ -161,8 +162,9 @@ object Pens {
     @Synchronized
     fun readForDialog(ctx: Context, r: PenRead): Fill? {
         init(ctx)
-        val profile = PenProfiles.identify(r)
         val pen = ledger.value.pens[r.serial]
+        // a pen keeps the model it was first identified as (a later read without a half-unit dose is still an Echo Plus)
+        val profile = pen?.model?.let { PenProfiles.byId(it) } ?: PenProfiles.identify(r)
         if (Features.value.penReading != "on" || (!profile.verified && pen?.check != "ok")) { onRead(ctx, r); return null }
         val dry = engine().scan(ledger.value, scanOf(r), entries(), now())
         val dl = dry.ledger.pens.getValue(r.serial)
@@ -300,6 +302,12 @@ object Pens {
     }
 
     fun update(serial: String, f: (Pen) -> Pen) = synchronized(this) { save(engine().update(ledger.value, serial, f)) }
+
+    /** Debug builds only (DebugFakes `penRead --ei knownDays`): a pen read before, since [since]. */
+    fun debugKnown(serial: String, since: Long, penNow: Long) = synchronized(this) {
+        save(Ledger(ledger.value.pens + (serial to Pen(serial, model = PenProfiles.ECHO_PLUS.id, name = PenProfiles.ECHO_PLUS.name,
+            since = since, first = since, lastScan = since, lastPenNow = penNow)), ledger.value.questions))
+    }
 
     fun forget(serial: String) = synchronized(this) { save(engine().forget(ledger.value, serial)) }
 
