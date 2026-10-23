@@ -2639,10 +2639,10 @@
     <string name="pens_prime_below">Priming is smaller than</string>
     <!-- Footer: the priming rule [CHAR LIMIT=NONE] -->
     <string name="pens_prime_footer">Smaller doses before a bigger one are priming; after it, they\'re added to it.</string>
-    <!-- Group: the pen models Sukrara reads [CHAR LIMIT=30] -->
-    <string name="pens_supported_group">Supported pens</string>
-    <!-- Footer under Supported pens: what isn't supported [CHAR LIMIT=NONE] -->
-    <string name="pens_supported_footer">Other NFC pens and Bluetooth pens or caps (Tempo, InPen, Mallya…) aren\'t supported.</string>
+    <!-- Settings > Insulin pens footer: which pens work (%1$s: the models joined, e.g. "NovoPen Echo Plus and NovoPen 6 (untested)"), then what doesn't [CHAR LIMIT=NONE] -->
+    <string name="pens_footer">Sukrara reads %1$s. Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or Mallya, aren\'t supported.</string>
+    <!-- One pen model in that footer list that was never tried on a real pen (%1$s: the model) [CHAR LIMIT=40] -->
+    <string name="pens_footer_untested">%1$s (untested)</string>
     <!-- Row: opens the dose detection rules page [CHAR LIMIT=40] -->
     <string name="pens_detection">Automatic detection</string>
     <!-- Automatic detection row summary: priming size and injection window [CHAR LIMIT=NONE] -->

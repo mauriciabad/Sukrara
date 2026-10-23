@@ -148,8 +148,8 @@ by the app's icon code.</sub>
   injection if it's recent); only genuinely unclear doses ask (*Priming or injected?*). Every dose of a pen entry can be
   set to priming or injected later, and *Doses read* lists everything the pen holds. LibreView, Nightscout, Tidepool,
   the graph and the quiet-after-insulin alerts use the injected amount only. **Supported pens: NovoPen Echo Plus;
-  NovoPen 6 (untested).** Other NFC pens and Bluetooth pens or caps (Tempo, InPen, Mallya…) aren't supported; Settings →
-  Insulin pens lists the same, with the red *Untested* tag. *Automatic detection* there tunes the rules (priming size,
+  NovoPen 6 (untested).** Other NFC pens and Bluetooth pens or caps (Tempo, InPen, Mallya…) aren't supported; the
+  footer of Settings → Insulin pens says the same, and searching settings for a model finds that page. *Automatic detection* there tunes the rules (priming size,
   how close doses are one injection, how long small doses wait before asking, when a typed dose is the same injection,
   how recent a new pen's last injection must be to offer it), applied to doses read from then on; when the pen's dose
   matches one you typed, the button says *Replace your entry*. [29](docs/29-novopen.md)

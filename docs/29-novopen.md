@@ -195,7 +195,7 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | Feel: one haptics helper (composition primitives, fallbacks), the card's spring-up, the failure shake, the count-up in 0.5u steps, *Remove animations* respected | `pen/PenHaptics.kt`, `PenReadCard` |
 | Debug-only fake pen (`penRead`, `penReset`, `penOpen`) | `features/DebugFakes.kt` `FakePen` |
 | Strings en + es (pluma, purgado) | `values*/strings.xml` |
-| 0.11.50: *Supported pens* on Settings → Insulin pens, always shown, one row per `PenProfiles.ALL` with the sensor families' red *Untested* tag, and the line that other NFC pens and Bluetooth pens / caps aren't supported; README, site and FEATURES list the same | `ui/PenSettings.kt` `supportedPens`, test `PensPageTest` |
+| 0.11.51: which pens work, in the footer of Settings → Insulin pens (always shown): *Sukrara reads NovoPen Echo Plus and NovoPen 6 (untested). Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or Mallya, aren't supported.*, built from `PenProfiles.ALL` (ICU list join, untested in words); the models are search keywords of the *Insulin pens* row (AOSP `settings:keywords`); README, site and FEATURES list the same | `ui/PenSettings.kt` `pensFooter` / `pensKeywords`, `ui/SettingsUi.kt` `keywords`, test `PensPageTest` |
 | 0.11.50: *Automatic detection* page: the priming size plus the session window, priming ahead of time, the wait before asking, the hand-typed match window and amount (units and share) and the new-pen offer age as schema settings, *Reset to defaults*; 5 new scenarios with changed rules | `ui/PenSettings.kt` `PenDetectionSettings`, `Pens.rules`, `spikes/settings/settings.json`, `scenarios.json` |
 | 0.11.50: *Replace your entry* / *Replace with 8.5u* instead of *Log it* / *Log 8.5u* / *Log this injection* when the dose matches a hand-typed entry (it replaces it, never doubles) | `ui/PenSettings.kt`, `ui/PenUi.kt` |
 
@@ -211,6 +211,7 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | The fixed guards as settings (future doses 2 min, clock-reset matching, 20 doses per entry, the 72 h big read) | safety limits of the engine, not user preferences; tuning them could double or drop doses |
 | The success notification heads-up | low-importance *Pen reads* channel, replaced per read, 2 h timeout, private on the lock screen (*Pen read*) |
 | Bluetooth pens and caps (InPen, Tempo, Mallya) | a different protocol each; out of scope |
+| 0.11.50's *Supported pens* group (one non-tappable row per model, pen icon, red *Untested* tag), deleted in 0.11.51 | it broke the AOSP Settings pattern: rows are things you act on, styled exactly like the tappable *Your pens* rows, so it read as a second list of your own pens; red is for errors; a whole group of static product info on the page. AOSP puts "which devices work" in the page's footer (Hearing devices: `accessibility_hearing_device_footer_summary`, footers `searchable=false`) and makes a page findable by words it doesn't show (`settings:keywords`): that is what replaced it |
 
 **Main thread (ANR A/B, 2026-10-23).** The emulator showed "Sukrara isn't responding" (*executing service
 OwnerService*, *No response to onStartJob*) while the host was loaded (load ~12, several Gradle builds). A/B on the same

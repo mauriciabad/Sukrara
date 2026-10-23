@@ -91,8 +91,12 @@ import com.android.settingslib.spa.widget.ui.SettingsIcon
  * pages skip side effects (NFC, network, database) while [indexing] is true.
  */
 
-/** A row search can find, with its icon (results show it, or else the page's category icon, like AOSP). */
-class IndexedRow(val title: String, val summary: String?, val group: String?, val icon: (@Composable () -> Unit)?, val to: String? = null)
+/**
+ * A row search can find, with its icon (results show it, or else the page's category icon, like AOSP). [keywords]:
+ * words search matches but never shows (AOSP `settings:keywords`), e.g. the pen models on the *Insulin pens* row.
+ */
+class IndexedRow(val title: String, val summary: String?, val group: String?, val icon: (@Composable () -> Unit)?, val to: String? = null,
+                 val keywords: String? = null)
 
 /** What index mode recorded for one page (rows by group + title, so a recomposition doesn't add them twice). */
 class PageIndex(val route: String) {
@@ -182,16 +186,16 @@ private fun Modifier.fullBleed(h: Dp = SettingsSpace.small1) = layout { m, c ->
 /** The rows of one [SettingsGroup]. */
 class SettingsGroupScope @PublishedApi internal constructor() {
     internal class Entry(val title: String?, val summary: String?, val to: String?, val icon: (@Composable () -> Unit)?,
-                         val draw: @Composable () -> Unit)
+                         val keywords: String?, val draw: @Composable () -> Unit)
     internal val rows = mutableListOf<Entry>()
     /**
      * Any row content (a slider, a follower with its avatar…), drawn as one row of the group. [title] makes it
-     * findable by search; [to] is the settings page it opens.
+     * findable by search; [to] is the settings page it opens; [keywords] are found by search but not shown.
      */
     fun row(title: String? = null, summary: String? = null, to: String? = null, icon: (@Composable () -> Unit)? = null,
-            content: @Composable () -> Unit) {
+            keywords: String? = null, content: @Composable () -> Unit) {
         // every row sits on the group card's surface (AOSP Android 16/17 groups), custom content too: no bare rows
-        rows += Entry(title, summary, to, icon) {
+        rows += Entry(title, summary, to, icon, keywords) {
             // the same surface and corner SPA's BaseLayout gives its own rows in a category (expressive settings)
             val m = if (com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled) Modifier.fillMaxWidth()
                 .clip(com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraSmall2).background(MaterialTheme.colorScheme.surfaceBright)
@@ -219,7 +223,7 @@ inline fun SettingsGroup(title: String? = null, noinline titleAction: (@Composab
 fun SettingsGroupRows(title: String?, titleAction: (@Composable () -> Unit)?, scope: SettingsGroupScope) {
     LocalSettingsIndex.current?.let { idx ->
         for (r in scope.rows) {
-            r.title?.let { t -> idx.rows[title to t] = IndexedRow(t, r.summary, title, r.icon, r.to) }
+            r.title?.let { t -> idx.rows[title to t] = IndexedRow(t, r.summary, title, r.icon, r.to, r.keywords) }
             r.to?.let { idx.links += it; r.icon?.let { i -> idx.linkIcons[it] = i } }
         }
         return
@@ -262,13 +266,13 @@ private fun model(title: String, summary: CharSequence?, icon: (@Composable () -
 
 /**
  * Opens another screen (or, [external], a web page or the system settings). Stock rows show no chevron; [leading]
- * replaces the plain icon (category icons, avatars, app icons).
+ * replaces the plain icon (category icons, avatars, app icons). [keywords]: what search also finds the row by.
  */
 fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes icon: Int? = null, enabled: Boolean = true,
                             external: Boolean = false, leading: (@Composable () -> Unit)? = null, to: String? = null,
-                            onClick: (() -> Unit)? = null) {
+                            keywords: String? = null, onClick: (() -> Unit)? = null) {
     val i = iconOf(icon, leading)
-    row(title, summary, to, i) {
+    row(title, summary, to, i, keywords) {
         val nav = LocalNav.current
         Preference(model(title, summary, i, enabled) { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
     }
