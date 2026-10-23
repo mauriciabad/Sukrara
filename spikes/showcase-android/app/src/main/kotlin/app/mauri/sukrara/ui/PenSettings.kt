@@ -115,21 +115,31 @@ fun PensSettings(onBack: () -> Unit) {
     val l by Pens.ledger.collectAsState()
     val nfc = remember { NfcAdapter.getDefaultAdapter(ctx) }
     var nfcOn by remember { mutableStateOf(nfc?.isEnabled == true) }
-    var allowed by remember { mutableStateOf(NfcLaunch.allowed(nfc)) }
+    val allowed = rememberTagIntentsAllowed()
+    var askedAllow by remember { mutableStateOf(false) }
     var prime by remember { mutableStateOf(false) }
-    LifecycleResumeEffect(Unit) { nfcOn = nfc?.isEnabled == true; allowed = NfcLaunch.allowed(nfc); onPauseOrDispose { } }
+    LifecycleResumeEffect(allowed) {
+        nfcOn = nfc?.isEnabled == true
+        // back from Android's allow screen after switching reading on: say how it went
+        if (askedAllow) { askedAllow = false; android.widget.Toast.makeText(ctx, if (allowed) R.string.tags_allowed_toast else R.string.tags_still_blocked_toast, android.widget.Toast.LENGTH_SHORT).show() }
+        onPauseOrDispose { }
+    }
     val nav = LocalNav.current
     SettingsPage(stringResource(R.string.pens_title), onBack) {
         SettingsIntro(stringResource(R.string.pens_intro))
-        SettingsMainSwitch(stringResource(R.string.pens_switch), f.penReading == "on") { Pens.setReading(ctx, it) }
+        // blocked by Android (pen reading Ask or On): the same card as on home, at the top
+        if (f.penReading != "off" && !allowed && (nfc != null || NfcLaunch.fakeBlocked)) SettingsHeader { TagBlockedCard(NfcLaunch.Blocked.PEN, null) }
+        SettingsMainSwitch(stringResource(R.string.pens_switch), f.penReading == "on") {
+            Pens.setReading(ctx, it)
+            // switched on while Android blocks the taps: straight to Android's allow screen, once
+            if (it && !allowed) { askedAllow = true; openTagIntentSettings(ctx) }
+        }
         if (f.penReading == "ask") SettingsFooter(stringResource(R.string.pens_summary_ask))
-        if (f.penReading == "on") {
+        if (f.penReading != "off") {
             SettingsGroup {
+                if (!allowed) tapFeatureRow(stringResource(R.string.pens_blocked), "", on = true, allowed = false) { }
                 if (!nfcOn) action(stringResource(R.string.pens_nfc_off), stringResource(R.string.pens_nfc_on), icon = R.drawable.ic_sym_nfc) {
                     ctx.startActivity(Intent(Settings.ACTION_NFC_SETTINGS))
-                }
-                if (!allowed) action(stringResource(R.string.pens_blocked), stringResource(R.string.sensor_launch_on_scan_blocked), icon = R.drawable.ic_sym_nfc) {
-                    ctx.startActivity(Intent(NfcAdapter.ACTION_CHANGE_TAG_INTENT_PREFERENCE))
                 }
                 if (installed(ctx, JUGGLUCO)) link(stringResource(R.string.pens_juggluco), stringResource(R.string.pens_juggluco_text),
                     leading = { ServiceIcon(Service.JUGGLUCO) }, external = true) {
@@ -139,7 +149,8 @@ fun PensSettings(onBack: () -> Unit) {
             SettingsGroup(stringResource(R.string.pens_group)) {
                 val pens = l.pens.values.sortedBy { it.first }
                 if (pens.isEmpty()) info(stringResource(R.string.pens_empty))
-                for (p in pens) row(Pens.displayName(p.serial, l.pens), null, to = PEN_ROUTE + p.serial) {
+                for (p in pens) {
+                row(Pens.displayName(p.serial, l.pens), null, to = PEN_ROUTE + p.serial) {
                     val summary = penRowSummary(p)
                     Row(Modifier.fillMaxWidth().clickable { nav?.open(PEN_ROUTE + p.serial) }.padding(horizontal = 24.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -150,6 +161,10 @@ fun PensSettings(onBack: () -> Unit) {
                         }
                         if (PenProfiles.byId(p.model)?.verified == false) UntestedTag()
                     }
+                }
+                    // until its setup was seen: a clear way to it (the card that offered it may have closed)
+                    if (!Pens.isSetUp(ctx, p.serial)) link(stringResource(R.string.pen_set_up_named, Pens.displayName(p.serial, l.pens)),
+                        icon = R.drawable.ic_sym_settings, to = PEN_SETUP_ROUTE + p.serial)
                 }
             }
             SettingsGroup(stringResource(R.string.pens_priming_group)) {
@@ -376,7 +391,7 @@ fun NewPenScreen(serial: String, onBack: () -> Unit) {
     val now = System.currentTimeMillis() / 1000
     val offer = Pens.history(serial).filter { it.status == Session.BEFORE && it.a > 0 && now - it.t < 24 * 3600 }.maxByOrNull { it.t }
     val known = Treat.store.all().filter { it.pen == serial && !it.pd.isNullOrEmpty() }.flatMap { it.pd!! }.maxOfOrNull { it.t }
-    val done = { Pens.update(serial) { it.copy(kind = kind) }; onBack() }
+    val done = { Pens.update(serial) { it.copy(kind = kind) }; Pens.markSetUp(ctx, serial); onBack() }
     Page {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             IconButton(onClick = done) { Icon(painterResource(R.drawable.ic_sym_close), contentDescription = stringResource(R.string.treatment_cancel)) }

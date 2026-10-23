@@ -64,18 +64,24 @@ class PenReadActivity : ComponentActivity() {
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)) {
                 val st by Pens.readState.collectAsState()
                 var touched by remember { mutableStateOf(0) }
+                var closing by remember { mutableStateOf(false) }
                 st?.let { s ->
-                    PenReadCard(s, onClose = ::finish, onOpen = ::openInApp, onInteract = { touched++ }, onA11y = { a11yInside = it })
-                    // closes by itself (PRODUCT §4.1): the accessibility timeout, 3 s for "Nothing new", never while reading
+                    // any touch on the card keeps it: it restarts the timer and cancels a close in progress
+                    PenReadCard(s, onClose = ::finish, onOpen = ::openInApp, onInteract = { closing = false; touched++ }, onA11y = { a11yInside = it },
+                        closing = closing)
+                    // closes by itself (PRODUCT §4.1; 0.11.48 after the user missed *Set up*): a card that asks for a
+                    // decision waits 60 s; a plain result at least 6 s, longer with the accessibility timeout. The close
+                    // is a 400 ms slide during which a touch still lands and keeps the card.
                     LaunchedEffect(s, touched) {
                         if (s.stage == "reading" || hold) return@LaunchedEffect
-                        val nothing = PenWords(ctx).card(s).title == ctx.getString(app.mauri.sukrara.R.string.pen_read_nothing)
-                        val base = if (nothing) 3000 else 6000
-                        val ms = ctx.getSystemService(AccessibilityManager::class.java).getRecommendedTimeoutMillis(base,
-                            AccessibilityManager.FLAG_CONTENT_TEXT or AccessibilityManager.FLAG_CONTENT_CONTROLS)
+                        val base = if (PenReadTiming.decision(s)) 60_000 else 6000
+                        val ms = maxOf(6000, ctx.getSystemService(AccessibilityManager::class.java).getRecommendedTimeoutMillis(base,
+                            AccessibilityManager.FLAG_CONTENT_TEXT or AccessibilityManager.FLAG_CONTENT_CONTROLS))
                         delay(ms.toLong())
                         while (a11yInside) delay(1000)
-                        finish()
+                        closing = true
+                        delay(400)
+                        if (closing) finish()
                     }
                 }
             }
@@ -144,7 +150,8 @@ class PenReadActivity : ComponentActivity() {
             val card = PenWords(ctx).card(st)
             val r = st.report
             val entry = r?.let { (it.created + it.merged + it.updated).firstNotNullOfOrNull { id -> Treat.store.entry(id)?.second } }
-            PenNotifier.read(ctx, card.title, card.lines.joinToString(" · "), entry, canUndo = entry != null)
+            val setup = st.serial?.takeIf { (st.stage == "check" || r?.first == true) && !Pens.isSetUp(ctx, it) }
+            PenNotifier.read(ctx, card.title, card.lines.joinToString(" · "), entry, canUndo = entry != null, setup = setup)
         }
 
         /** Sukrara's own reader mode got a pen: the same reader and card. */
@@ -152,5 +159,14 @@ class PenReadActivity : ComponentActivity() {
             if (!Pens.enabled(ctx)) return
             ctx.startActivity(Intent(ctx, PenReadActivity::class.java).putExtra(NfcAdapter.EXTRA_TAG, tag).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
+}
+
+/** Which read cards ask the user for something and so stay (60 s) instead of closing after a few seconds. */
+object PenReadTiming {
+    fun decision(s: Pens.ReadState): Boolean {
+        val r = s.report
+        return s.stage in setOf("ask", "check", "notusable") ||
+            (r != null && !s.undone && (r.first || r.asked.isNotEmpty() || r.merged.isNotEmpty() || r.bigSince != null || r.clockChanged))
     }
 }

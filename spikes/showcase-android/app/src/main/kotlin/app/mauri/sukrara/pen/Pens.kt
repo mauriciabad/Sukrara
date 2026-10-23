@@ -348,6 +348,10 @@ object Pens {
             since = since, first = since, lastScan = since, lastPenNow = penNow)), ledger.value.questions))
     } }
 
+    /** The pen's setup was opened and closed once (Settings → Insulin pens shows *Set up …* until then). App-side. */
+    fun isSetUp(ctx: Context, serial: String) = ctx.getSharedPreferences("pens_setup", Context.MODE_PRIVATE).getBoolean(serial, false)
+    fun markSetUp(ctx: Context, serial: String) = ctx.getSharedPreferences("pens_setup", Context.MODE_PRIVATE).edit().putBoolean(serial, true).apply()
+
     fun forget(serial: String) = offMain { synchronized(this) { save(engine().forget(ledger.value, serial)) } }
 
     /** The display check passed (*It matches*): the pen is used like any other; a held read is applied now. */

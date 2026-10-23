@@ -69,11 +69,10 @@ fun SourceSettings(onBack: () -> Unit) {
     val nfc = remember { NfcAdapter.getDefaultAdapter(ctx) }
     var pairing by remember { mutableStateOf(runCatching { SensorPairing.load(ctx) }.getOrNull()) }
     var launchOnScan by remember { mutableStateOf(NfcLaunch.isOn(ctx)) }
-    var tagIntents by remember { mutableStateOf(NfcLaunch.allowed(nfc)) }
+    val tagIntents = rememberTagIntentsAllowed()   // shared with the pens page and the home banner
     var confirmDirect by remember { mutableStateOf(false) }
     LifecycleResumeEffect(Unit) {
         pairing = runCatching { SensorPairing.load(ctx) }.getOrNull()
-        tagIntents = NfcLaunch.allowed(nfc)
         onPauseOrDispose { }
     }
     val nav = LocalNav.current
@@ -84,6 +83,8 @@ fun SourceSettings(onBack: () -> Unit) {
 
     SettingsPage(stringResource(R.string.source_title), onBack) {
         SettingsIntro(stringResource(R.string.source_intro))
+        // the sensor tap is on but Android blocks it: the same card as on home and the pens page
+        if (direct && launchOnScan && !tagIntents && (nfc != null || NfcLaunch.fakeBlocked)) SettingsHeader { TagBlockedCard(NfcLaunch.Blocked.SENSOR, null) }
         // search: the header's action is a row too (it isn't drawn as one)
         LocalSettingsIndex.current?.let { it.rows[null to pairTitle] = IndexedRow(pairTitle, null, null, null) }
         SettingsHeader { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -136,10 +137,8 @@ fun SourceSettings(onBack: () -> Unit) {
             val launchSummary = stringResource(if (tagIntents) R.string.sensor_launch_on_scan_summary else R.string.sensor_launch_on_scan_blocked)
             val forget = stringResource(R.string.sensor_forget)
             SettingsGroup(stringResource(R.string.sensor_title)) {
-                if (nfc != null) switch(stringResource(R.string.sensor_launch_on_scan), launchOnScan && tagIntents, icon = R.drawable.ic_sym_nfc, summary = launchSummary) {
-                    if (!tagIntents) ctx.startActivity(Intent(NfcAdapter.ACTION_CHANGE_TAG_INTENT_PREFERENCE))
-                    else { NfcLaunch.set(ctx, it); launchOnScan = it }
-                }
+                if (nfc != null || NfcLaunch.fakeBlocked) tapFeatureRow(stringResource(R.string.sensor_launch_on_scan), launchSummary, launchOnScan,
+                    tagIntents || !launchOnScan) { NfcLaunch.set(ctx, it); launchOnScan = it }
                 if (pairing != null) action(forget, icon = R.drawable.ic_sym_link_off) {
                     SensorPairing.forget(ctx)
                     pairing = null

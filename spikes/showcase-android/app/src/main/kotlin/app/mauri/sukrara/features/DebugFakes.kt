@@ -32,7 +32,7 @@ object DebugFakes {
      * shows (2026-10-19): everything that shows or writes made-up data is here.
      */
     val COMMANDS = setOf("fakeSensor", "sensor", "backfill", "sensorEnd", "sensorStart", "sensorUnlock", "alertFeed",
-        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat", "sensorProfile", "penRead", "penReset", "penOpen")
+        "alertTest", "previewSgv", "locktest", "newSensorStage", "treat", "sensorProfile", "penRead", "penReset", "penOpen", "tagIntents")
 
     fun run(c: Context, cmd: String, i: Intent, out: JSONObject, debug: Boolean = BuildConfig.DEBUG) {
         if (!debug) { out.accumulate("debugOnly", "$cmd: debug builds only, nothing changed"); return }
@@ -57,6 +57,12 @@ object DebugFakes {
             }
             "treat" -> treat(c, i, out)
             "penRead", "penReset", "penOpen" -> FakePen.play(c, cmd, i, out)
+            // Android blocking Sukrara's tag intents, made up for the emulator (no NFC there): the banners and rows
+            "tagIntents" -> {
+                app.mauri.sukrara.ui.NfcLaunch.fakeBlocked = i.getBooleanExtra("blocked", true)
+                app.mauri.sukrara.pen.Pens.fakeNfc = true
+                out.put("cmd", "tag intents ${if (app.mauri.sukrara.ui.NfcLaunch.fakeBlocked) "blocked" else "allowed"} (made up)")
+            }
             // the active sensor's family forced (the untested-sensor banner on home; screenshots), until the source restarts
             "sensorProfile" -> {
                 val p = app.mauri.sukrara.core.SensorProfiles.byId(i.getStringExtra("profile") ?: "")

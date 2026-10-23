@@ -167,6 +167,8 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
         UntestedSensorBanner()
         // no graph widget on the launcher yet: offer to add it (the app is meant to be used through it)
         HomeWidgetBanner()
+        // Android blocks Sukrara's NFC taps (pen / sensor) while one of them is on: one banner, Allow / Turn off
+        TagIntentsBanner()
         // The glucose panel (value, rings, chart) is the screen's main content: above the fold, everything else below.
         NewSensorButton(u.source) { a.open("newsensor") }
         GlucoseReport(u.last?.t)

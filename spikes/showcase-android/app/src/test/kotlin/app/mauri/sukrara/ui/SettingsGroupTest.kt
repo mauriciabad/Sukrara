@@ -3,6 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.ui
 
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -32,5 +37,18 @@ class SettingsGroupTest {
         compose.runOnIdle { on.value = true }
         compose.onNodeWithText("On").assertExists()
         compose.onNodeWithText("Off").assertDoesNotExist()
+    }
+
+    /** Custom row content (a pen row, a warning row) sits on the same surface as SPA's own rows: never bare. */
+    @Test fun customRowsSitOnTheGroupSurface() {
+        compose.setContent { SettingsTheme {
+            SettingsGroup {
+                info("spa row")
+                row("Custom") { androidx.compose.material3.Text("bare row", Modifier.testTag("bare")) }
+            }
+        } }
+        val spa = compose.onNodeWithText("spa row").captureToImage().toPixelMap()
+        val custom = compose.onNodeWithTag("bare").captureToImage().toPixelMap()
+        org.junit.Assert.assertEquals(spa[0, 0], custom[0, 0])
     }
 }
