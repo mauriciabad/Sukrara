@@ -435,7 +435,12 @@ Page:
 - Group *Your pens* / *Tus plumas*: one row per pen: name (+ red *Untested* tag), summary *Rapid · read 13:14* /
   *Rápida · leída 13:14*, opens the pen page. Empty: *Hold your pen to the phone to add it.* / *Acerca tu pluma al
   teléfono para añadirla.*
-- Group *Priming* / *Purgado*: number row *Priming is smaller than* / *Purgado: menos de* · *2u* (NumberDialog,
+- (0.11.50) Row *Automatic detection* / *Detección automática* › its own page: groups *Priming* (the row below plus
+  *Priming ahead of time*, §3.3), *Injections* (*One injection* §3.1, *Small doses on their own* §3.5, *Last injection
+  on a new pen* §3.9), *Doses you type* (time apart and amount apart, §3.6), *Reset to defaults*; every value a schema
+  number; changes apply to doses read afterwards. Then group *Supported pens* / *Plumas compatibles* (every
+  `PenProfiles.ALL`, untested tagged; footer: other NFC pens and Bluetooth pens / caps aren't supported), always shown.
+- Group *Priming* / *Purgado* (now on the detection page): number row *Priming is smaller than* / *Purgado: menos de* · *2u* (NumberDialog,
   §3.15); footer *Smaller doses before a bigger one are priming; after it, they're added to it.* / *Las dosis más
   pequeñas antes de una mayor son purgado; después, se suman a ella.*
 

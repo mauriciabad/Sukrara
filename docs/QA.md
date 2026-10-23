@@ -382,6 +382,20 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → the pen's page: red 10 s confirmation → display
       check; *It doesn't* → *Sukrara doesn't log this pen*.
 - [ ] *Your pens*: one row per pen (pen icon, not a pencil), *· Revisa sus ajustes* until its page was opened; no extra setup row.
+- [ ] *Supported pens* (always, also with reading off and no pen): one row per `PenProfiles.ALL` (*NovoPen Echo Plus*
+      plain, *NovoPen 6* with the red *Untested* flask tag), not tappable, footer *Other NFC pens and Bluetooth pens or
+      caps (Tempo, InPen, Mallya…) aren't supported.*; TalkBack reads *NovoPen 6, Untested* as one node. Search finds
+      them: *NovoPen*, *pen*, Spanish *pluma*. Light and dark.
+- [ ] *Automatic detection* (pens page, reading Ask / On): intro (applies from now on), groups *Priming* (priming size,
+      priming ahead of time), *Injections* (one injection, small doses on their own, last injection on a new pen),
+      *Doses you type* (time apart, amount apart, amount apart for big doses); each summary states the rule with its value;
+      each opens the one number input; *Reset to defaults* disabled at the defaults, else a dialog (*Cancel* keeps the
+      values, *Reset* restores them). Changing *One injection* to 15 min and reading `4` then `4` 12 min later logs one 8u
+      entry; entries already logged keep their split. Search finds every row.
+- [ ] A new pen whose last injection matches a hand-typed entry: the pen page's card says *Matches your 8u entry at …*
+      and the button *Replace your entry* (*Sustituir tu entrada*); tapping it replaces the hand entry (pen time and amount) and the card goes; the read card's pill *Replace with
+      8.5u*; Doses read → the session's sheet *Replace your entry*. Without a match: *Log it* / *Log 8.5u* / *Log this
+      injection* as before.
 - [ ] Follower: no Insulin pens row; pen entries open read-only.
 - [ ] LibreView / Nightscout / Tidepool / CSV / graph / insulin mute: `a` only; CSV column 23 *Primed Insulin*.
 - [ ] Spanish: *pluma*, *purgado*, amounts `8.5u`.

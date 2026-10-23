@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -72,6 +73,7 @@ import app.mauri.sukrara.treatments.Treat
 const val PEN_ROUTE = "pen:"
 const val PEN_DOSES_ROUTE = "pendoses:"
 const val PEN_REVIEW_ROUTE = "penreview:"
+const val PEN_DETECTION_ROUTE = "pendetection"
 
 private const val JUGGLUCO = "tk.glucodata"
 
@@ -118,7 +120,6 @@ fun PensSettings(onBack: () -> Unit) {
     var nfcOn by remember { mutableStateOf(nfc?.isEnabled == true) }
     val allowed = rememberTagIntentsAllowed()
     var askedAllow by remember { mutableStateOf(false) }
-    var prime by remember { mutableStateOf(false) }
     LifecycleResumeEffect(allowed) {
         nfcOn = nfc?.isEnabled == true
         // back from Android's allow screen after switching reading on: say how it went
@@ -167,14 +168,102 @@ fun PensSettings(onBack: () -> Unit) {
                 }
                 }
             }
-            SettingsGroup(stringResource(R.string.pens_priming_group)) {
-                value(stringResource(R.string.pens_prime_below), PenWords.number(f.penPrimeBelow) + "u", icon = R.drawable.ic_sym_water_drop) { prime = true }
+            SettingsGroup {
+                link(stringResource(R.string.pens_detection), stringResource(R.string.pens_detection_summary, PenWords.number(f.penPrimeBelow) + "u",
+                    minutes(f.penClusterMin)), icon = R.drawable.ic_sym_tune, to = PEN_DETECTION_ROUTE)
             }
-            SettingsFooter(stringResource(R.string.pens_prime_footer))
+        }
+        // what works, before any pen is added (like the sensor families' brand step): every PenProfile, untested tagged
+        supportedPens()
+        SettingsFooter(stringResource(R.string.pens_supported_footer))
+    }
+}
+
+/**
+ * *Supported pens*: one row per [PenProfiles.ALL] (the one source: a new profile shows here, in search and in the
+ * tests), the red *Untested* tag on the unverified ones (the Glucose source / brand step pattern). Not tappable.
+ */
+@Composable
+internal fun supportedPens() {
+    val untested = stringResource(R.string.newsensor_untested_tag)
+    SettingsGroup(stringResource(R.string.pens_supported_group)) {
+        for (p in PenProfiles.ALL) row(p.name, if (p.verified) null else untested) {
+            Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }.padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(painterResource(R.drawable.ic_dia_pen), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(p.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                if (!p.verified) UntestedTag()
+            }
         }
     }
-    if (prime) NumberDialog(stringResource(R.string.pens_prime_below), SettingsSpec.PEN_PRIME_BELOW, f.penPrimeBelow, { PenWords.number(it) + "u" },
-        onClose = { prime = false }) { v -> Features.update { it.copy(penPrimeBelow = v) } }
+}
+
+@Composable
+private fun minutes(m: Int) = "$m " + stringResource(R.string.unit_min)
+
+/**
+ * Settings → Insulin pens → *Automatic detection*: the dose rules ([app.mauri.sukrara.pen.PenRules], PRODUCT §3) the
+ * user can tune, each with the one number input; each summary states the rule with its value. Fixed guards (future
+ * doses, clock reset, 20 doses per entry, the 72 h big read) aren't here. A change applies to doses read afterwards.
+ */
+@Composable
+fun PenDetectionSettings(onBack: () -> Unit) {
+    val f by Features.state.collectAsState()
+    var editing by remember { mutableStateOf<String?>(null) }
+    var resetting by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    val h = stringResource(R.string.unit_h)
+    val min = stringResource(R.string.unit_min)
+    fun u(v: Double) = PenWords.number(v) + "u"
+    fun minutes(v: Int) = "$v $min"
+    fun mins(v: Double) = minutes(v.toInt())
+    fun pct(v: Double) = ctx.getString(R.string.pens_percent, v.toInt())
+    SettingsPage(stringResource(R.string.pens_detection), onBack) {
+        SettingsIntro(stringResource(R.string.pens_detection_intro))
+        SettingsGroup(stringResource(R.string.pens_priming_group)) {
+            value(stringResource(R.string.pens_prime_below), stringResource(R.string.pens_prime_below_summary, u(f.penPrimeBelow)),
+                icon = R.drawable.ic_sym_water_drop) { editing = "primeBelow" }
+            value(stringResource(R.string.pens_prime_before), stringResource(R.string.pens_prime_before_summary, minutes(f.penPrimeBeforeMin)),
+                icon = R.drawable.ic_sym_schedule) { editing = "primeBefore" }
+        }
+        SettingsFooter(stringResource(R.string.pens_prime_footer))
+        SettingsGroup(stringResource(R.string.pens_injections_group)) {
+            value(stringResource(R.string.pens_cluster), stringResource(R.string.pens_cluster_summary, minutes(f.penClusterMin)),
+                icon = R.drawable.ic_sym_timer) { editing = "cluster" }
+            value(stringResource(R.string.pens_pending), stringResource(R.string.pens_pending_summary, minutes(f.penPendingMin)),
+                icon = R.drawable.ic_sym_hourglass_top) { editing = "pending" }
+            value(stringResource(R.string.pens_offer), stringResource(R.string.pens_offer_summary, "${f.penOfferH} $h"),
+                icon = R.drawable.ic_sym_history) { editing = "offer" }
+        }
+        SettingsGroup(stringResource(R.string.pens_typed_group)) {
+            value(stringResource(R.string.pens_match), stringResource(R.string.pens_match_summary, minutes(f.penMatchMin)),
+                icon = R.drawable.ic_sym_schedule) { editing = "match" }
+            value(stringResource(R.string.pens_match_units), stringResource(R.string.pens_match_units_summary, u(f.penMatchUnits)),
+                icon = R.drawable.ic_sym_edit_note) { editing = "matchUnits" }
+            value(stringResource(R.string.pens_match_share), stringResource(R.string.pens_match_share_summary, pct(f.penMatchPct.toDouble())),
+                icon = R.drawable.ic_sym_edit_note) { editing = "matchShare" }
+        }
+        SettingsGroup {
+            action(stringResource(R.string.pens_detection_reset), icon = R.drawable.ic_sym_restart_alt, enabled = !f.penDetectionIsDefault) { resetting = true }
+        }
+    }
+    val S = SettingsSpec
+    val close = { editing = null }
+    when (editing) {
+        "primeBelow" -> NumberDialog(stringResource(R.string.pens_prime_below), S.PEN_PRIME_BELOW, f.penPrimeBelow, ::u, close) { v -> Features.update { it.copy(penPrimeBelow = v) } }
+        "primeBefore" -> NumberDialog(stringResource(R.string.pens_prime_before), S.PEN_PRIME_BEFORE, f.penPrimeBeforeMin.toDouble(), ::mins, close) { v -> Features.update { it.copy(penPrimeBeforeMin = v.toInt()) } }
+        "cluster" -> NumberDialog(stringResource(R.string.pens_cluster), S.PEN_CLUSTER, f.penClusterMin.toDouble(), ::mins, close) { v -> Features.update { it.copy(penClusterMin = v.toInt()) } }
+        "pending" -> NumberDialog(stringResource(R.string.pens_pending), S.PEN_PENDING, f.penPendingMin.toDouble(), ::mins, close) { v -> Features.update { it.copy(penPendingMin = v.toInt()) } }
+        "offer" -> NumberDialog(stringResource(R.string.pens_offer), S.PEN_OFFER, f.penOfferH.toDouble(), { "${it.toInt()} $h" }, close) { v -> Features.update { it.copy(penOfferH = v.toInt()) } }
+        "match" -> NumberDialog(stringResource(R.string.pens_match), S.PEN_MATCH, f.penMatchMin.toDouble(), ::mins, close) { v -> Features.update { it.copy(penMatchMin = v.toInt()) } }
+        "matchUnits" -> NumberDialog(stringResource(R.string.pens_match_units), S.PEN_MATCH_UNITS, f.penMatchUnits, ::u, close) { v -> Features.update { it.copy(penMatchUnits = v) } }
+        "matchShare" -> NumberDialog(stringResource(R.string.pens_match_share), S.PEN_MATCH_SHARE, f.penMatchPct.toDouble(), ::pct, close) { v -> Features.update { it.copy(penMatchPct = v.toInt()) } }
+    }
+    if (resetting) AlertDialog(onDismissRequest = { resetting = false },
+        title = { Text(stringResource(R.string.pens_detection_reset_title)) },
+        text = { Text(stringResource(R.string.pens_detection_reset_text)) },
+        confirmButton = { Button(onClick = { Features.update { it.penDetectionDefaults() }; resetting = false }) { Text(stringResource(R.string.pens_detection_reset_confirm)) } },
+        dismissButton = { TextButton(onClick = { resetting = false }) { Text(stringResource(R.string.treatment_cancel)) } })
 }
 
 /** One pen (PRODUCT §4.8): header card, *Name*, *Insulin*, *Doses read*, untested: *Send feedback* / *Check again*, *Forget*. */
@@ -379,7 +468,8 @@ fun LogSessionSheet(s: Session, onDismiss: () -> Unit) {
                     Text(stringResource(R.string.pen_add_to_entry, Clock.time(joins.t)))
                 }
                 Button(enabled = inj.isNotEmpty(), onClick = { Pens.logDoses(ctx, s.serial, keys.mapIndexed { i, k -> k to roles[i] }.toMap()); onDismiss() }) {
-                    Text(stringResource(if (s.status == Session.PRIMING) R.string.pen_log_as_injection else R.string.pen_log_injection))
+                    Text(stringResource(when { match != null -> R.string.pen_replace_entry; s.status == Session.PRIMING -> R.string.pen_log_as_injection
+                        else -> R.string.pen_log_injection }))
                 }
             }
         }
@@ -398,12 +488,14 @@ private fun OfferCard(serial: String, w: PenWords) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.pen_new_last, w.u(offer.a), Clock.time(offer.t), app.mauri.sukrara.treatments.TreatmentMarks.duration(now - offer.t)),
                 style = MaterialTheme.typography.bodyLarge)
-            Pens.match(serial, offer.t, offer.a)?.let { Text(stringResource(R.string.pen_new_matches, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium) }
+            // a matching hand-typed entry: logging replaces it (pen time and amount), so the button says so
+            val match = Pens.match(serial, offer.t, offer.a)
+            match?.let { Text(stringResource(R.string.pen_new_matches, w.u(it.a), Clock.time(it.t)), style = MaterialTheme.typography.bodyMedium) }
             if (loggedIt) Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.ic_sym_check), contentDescription = null, modifier = Modifier.size(18.dp))
                 Text(stringResource(R.string.pen_logged), Modifier.padding(start = 6.dp), style = MaterialTheme.typography.labelLarge)
             } else Button(onClick = { Pens.logDoses(ctx, serial, offer.keys.associateWith { it in offer.primed }); loggedIt = true },
-                modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.pen_log_it)) }
+                modifier = Modifier.align(Alignment.End)) { Text(stringResource(if (match != null) R.string.pen_replace_entry else R.string.pen_log_it)) }
         }
     } }
 }

@@ -309,6 +309,7 @@ class MainActivity : ComponentActivity() {
                 "newsensor" -> NewSensorScreen(back)
                 "sensorend" -> SettingsRoute { SensorEndSettings(back) }
                 "pens" -> SettingsRoute { PensSettings(back) }
+                PEN_DETECTION_ROUTE -> SettingsRoute { PenDetectionSettings(back) }
                 "sharing" -> SettingsRoute { SharingSettings(u, actions, back) }
                 "graph" -> SettingsRoute { GraphScreen(follower = false, back) }
                 GRAPH_MARKS_ROUTE -> SettingsRoute { GraphMarksScreen(back) }

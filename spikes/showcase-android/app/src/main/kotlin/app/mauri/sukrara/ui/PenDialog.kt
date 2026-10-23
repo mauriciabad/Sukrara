@@ -69,7 +69,7 @@ object PenDuplicate {
         Treat.init(ctx)
         val entries = Treat.store.all().map(Pens::toEntry)
         return list.filter { it.k == "rapid" || it.k == "long" }
-            .firstNotNullOfOrNull { e -> PenEngine.near(entries, e.k, e.at)?.let { Treat.store.entry(it.id)?.second } }
+            .firstNotNullOfOrNull { e -> PenEngine.near(entries, e.k, e.at, window = Pens.rules().match)?.let { Treat.store.entry(it.id)?.second } }
     }
 }
 

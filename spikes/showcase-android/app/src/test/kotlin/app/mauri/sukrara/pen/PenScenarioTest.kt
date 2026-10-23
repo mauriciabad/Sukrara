@@ -58,7 +58,15 @@ class PenScenarioTest {
 
     private fun run(sc: JsonObject) {
         var n = 0
-        val rules = sc["rules"]?.jsonObject?.get("primeBelow")?.jsonPrimitive?.double?.let { PenRules(primeBelow = it) } ?: PenRules()
+        // the user-tunable rules (Sukrara's Automatic detection settings), seconds and units as in PenRules
+        val rules = sc["rules"]?.jsonObject?.let { r ->
+            fun l(k: String, d: Long) = r[k]?.jsonPrimitive?.long ?: d
+            fun dbl(k: String, d: Double) = r[k]?.jsonPrimitive?.double ?: d
+            val d = PenRules()
+            PenRules(primeBelow = dbl("primeBelow", d.primeBelow), cluster = l("cluster", d.cluster), primeBefore = l("primeBefore", d.primeBefore),
+                pending = l("pending", d.pending), match = l("match", d.match), matchUnits = dbl("matchUnits", d.matchUnits),
+                matchShare = dbl("matchShare", d.matchShare), offer = l("offer", d.offer))
+        } ?: PenRules()
         val engine = PenEngine(rules, newId = { "n${++n}" })
         val first = sc["first"]?.jsonPrimitive?.boolean == true
         val entries = LinkedHashMap<String, PenEntry>()

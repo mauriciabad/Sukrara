@@ -195,6 +195,9 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | Feel: one haptics helper (composition primitives, fallbacks), the card's spring-up, the failure shake, the count-up in 0.5u steps, *Remove animations* respected | `pen/PenHaptics.kt`, `PenReadCard` |
 | Debug-only fake pen (`penRead`, `penReset`, `penOpen`) | `features/DebugFakes.kt` `FakePen` |
 | Strings en + es (pluma, purgado) | `values*/strings.xml` |
+| 0.11.50: *Supported pens* on Settings → Insulin pens, always shown, one row per `PenProfiles.ALL` with the sensor families' red *Untested* tag, and the line that other NFC pens and Bluetooth pens / caps aren't supported; README, site and FEATURES list the same | `ui/PenSettings.kt` `supportedPens`, test `PensPageTest` |
+| 0.11.50: *Automatic detection* page: the priming size plus the session window, priming ahead of time, the wait before asking, the hand-typed match window and amount (units and share) and the new-pen offer age as schema settings, *Reset to defaults*; 5 new scenarios with changed rules | `ui/PenSettings.kt` `PenDetectionSettings`, `Pens.rules`, `spikes/settings/settings.json`, `scenarios.json` |
+| 0.11.50: *Replace your entry* / *Replace with 8.5u* instead of *Log it* / *Log 8.5u* / *Log this injection* when the dose matches a hand-typed entry (it replaces it, never doubles) | `ui/PenSettings.kt`, `ui/PenUi.kt` |
 
 | Discarded or changed | Why |
 |---|---|
@@ -205,6 +208,7 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | Merging into a writer's entry in place | a writer may later edit its own entry, and a third-party writer drops unknown keys: tombstone + a new wearer entry |
 | Feel (§4.11) as specified | built: the reader reports progress (records transferred / records held), so the wavy ring fills per segment with a tick each; check pop, count-up, primed chips peeling, failure shake, correction ghost with counting totals, dialog count-up + icon pulse; *Remove animations* turns motion off. Simplified: the setup reuses the sensor scan's antenna drawing (a sensor on the spot) |
 | Lock-screen read | Android doesn't dispatch tags locked (above) |
+| The fixed guards as settings (future doses 2 min, clock-reset matching, 20 doses per entry, the 72 h big read) | safety limits of the engine, not user preferences; tuning them could double or drop doses |
 | The success notification heads-up | low-importance *Pen reads* channel, replaced per read, 2 h timeout, private on the lock screen (*Pen read*) |
 | Bluetooth pens and caps (InPen, Tempo, Mallya) | a different protocol each; out of scope |
 

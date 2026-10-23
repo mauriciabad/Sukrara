@@ -1,5 +1,5 @@
 {
-  "_doc": "Pen dose engine scenarios (DESIGN.md §3–§4, PRODUCT.md §3). Run by spikes/novopen-android PenScenarioTest and Sukrara's copy of it. Times: 'HH:MM[:SS]' on day D0 (2026-10-20 UTC) or 'D-n HH:MM'. A scan reads the pen's whole memory ('add' = doses dosed since the previous step; a third element \"inc\" = flagged incomplete). Expected entries = the live log sorted by t; '@n' = the n-th live pen entry. Priming size (penPrimeBelow) 2u unless 'rules' says otherwise. Never change an expectation without the user's OK.",
+  "_doc": "Pen dose engine scenarios (DESIGN.md §3–§4, PRODUCT.md §3). Run by spikes/novopen-android PenScenarioTest and Sukrara's copy of it. Times: 'HH:MM[:SS]' on day D0 (2026-10-20 UTC) or 'D-n HH:MM'. A scan reads the pen's whole memory ('add' = doses dosed since the previous step; a third element \"inc\" = flagged incomplete). Expected entries = the live log sorted by t; '@n' = the n-th live pen entry. Rules (PenRules: primeBelow u, cluster / primeBefore / pending / match / offer s, matchUnits u, matchShare 0–1) are the defaults unless 'rules' says otherwise (Sukrara's Automatic detection settings). Never change an expectation without the user's OK.",
   "scenarios": [
     { "name": "user example: 1, 0.5, 8, 0.5 → 8.5u injected, 1.5u primed",
       "steps": [
@@ -338,6 +338,32 @@
         { "scan": "P1", "at": "09:00", "add": [["D-1 13:01", 8]] },
         { "forget": "P1" },
         { "scan": "P1", "at": "14:00", "add": [["13:50", 4]] },
-        { "expect": { "entries": [], "report": { "first": true, "returning": false, "older": 2 } } } ] }
+        { "expect": { "entries": [], "report": { "first": true, "returning": false, "older": 2 } } } ] },
+    { "name": "detection settings: doses 12 min apart are two injections with the default 10 min",
+      "steps": [
+        { "scan": "P1", "at": "13:40", "add": [["13:00", 4], ["13:12", 4]] },
+        { "expect": { "entries": [{ "t": "13:00", "a": 4 }, { "t": "13:12", "a": 4 }] } } ] },
+    { "name": "detection settings: one injection = 15 min makes the same doses one 8u injection",
+      "rules": { "cluster": 900 },
+      "steps": [
+        { "scan": "P1", "at": "13:40", "add": [["13:00", 4], ["13:12", 4]] },
+        { "expect": { "entries": [{ "t": "13:00", "a": 8, "pr": 0 }] } } ] },
+    { "name": "detection settings: a hand-typed 8u 55 min earlier stays apart with the default 45 min",
+      "entries": [{ "id": "h1", "k": "rapid", "a": 8, "t": "12:05" }],
+      "steps": [
+        { "scan": "P1", "at": "13:30", "add": [["13:00", 8]] },
+        { "expect": { "entries": [{ "id": "h1", "t": "12:05", "pen": null }, { "t": "13:00", "a": 8, "pen": "P1" }], "questions": [] } } ] },
+    { "name": "detection settings: time apart = 60 min replaces that hand-typed 8u",
+      "rules": { "match": 3600 },
+      "entries": [{ "id": "h1", "k": "rapid", "a": 8, "t": "12:05" }],
+      "steps": [
+        { "scan": "P1", "at": "13:30", "add": [["13:00", 8]] },
+        { "expect": { "entries": [{ "id": "h1", "t": "13:00", "a": 8, "pen": "P1" }], "report": { "merged": 1 } } } ] },
+    { "name": "detection settings: amount apart = 3u replaces a hand-typed 6u with the pen's 8.5u (the default asks)",
+      "rules": { "matchUnits": 3.0 },
+      "entries": [{ "id": "h1", "k": "rapid", "a": 6, "t": "13:05" }],
+      "steps": [
+        { "scan": "P1", "at": "13:30", "add": [["13:01", 8.5]] },
+        { "expect": { "entries": [{ "id": "h1", "t": "13:01", "a": 8.5, "pen": "P1" }], "questions": [] } } ] }
   ]
 }

@@ -38,8 +38,8 @@ android {
         // Credential Manager *providers* (Proton Pass, Bitwarden, KeePassDX) plug into the framework on Android 14+.
         minSdk = 36
         targetSdk = 37
-        versionCode = 11049
-        versionName = "0.11.49"
+        versionCode = 11050
+        versionName = "0.11.50"
         buildConfigField("String", "HOOK_CODE", "\"${hookCode()}\"")
         // libnostr_sdk_ffi.so is ~7-9 MB per ABI; ship only arm64 (Pixel + Apple-silicon emulators).
         ndk { abiFilters += "arm64-v8a" }
@@ -122,7 +122,7 @@ tasks.withType<Test>().configureEach { inputs.dir("../../graph-fixtures").withPr
 
 // Robolectric's SDK 36 sandbox (the graph/report galleries, CardLayoutTest, ChartScrollPerfTest, FreshnessFixtureTest, AlertNotifierTest, AlertMuteTest, UserErrorsTest, ScreenHostTest, TidepoolScreenTest, WearerSettingsTest, ReorderDragTest) needs Java 21+: run unit tests on
 // GALLERY_JAVA_HOME when set, else leave those out so `testDebugUnitTest` passes on the build's JDK 17.
-if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/CardLayoutTest*", "**/ChartScrollPerfTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/WearerSettingsTest*", "**/ReorderDragTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*", "**/AlertMuteTest*", "**/UserErrorsTest*", "**/TipsTest*") }
+if (System.getenv("GALLERY_JAVA_HOME") == null) tasks.withType<Test>().configureEach { exclude("**/*Gallery*", "**/AlertNotifierTest*", "**/ScreenHostTest*", "**/CardLayoutTest*", "**/ChartScrollPerfTest*", "**/SensorEndNotifyTest*", "**/SettingsGroupTest*", "**/DebugFakesTest*", "**/TidepoolScreenTest*", "**/WearerSettingsTest*", "**/ReorderDragTest*", "**/AppIconsTest*", "**/LibreViewUploaderTest*", "**/FreshnessFixtureTest*", "**/AlertMuteTest*", "**/UserErrorsTest*", "**/TipsTest*", "**/PensPageTest*") }
 System.getenv("GALLERY_JAVA_HOME")?.let { home ->
     tasks.withType<Test>().configureEach { javaLauncher.set(null as JavaLauncher?); executable = "$home/bin/java"
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--enable-native-access=ALL-UNNAMED",

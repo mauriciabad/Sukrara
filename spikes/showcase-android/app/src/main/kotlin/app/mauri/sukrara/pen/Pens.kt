@@ -102,7 +102,11 @@ object Pens {
     /** *No*: reading off and the reader disabled, never asked again (Settings turns it on). */
     fun decline(ctx: Context) = offMain { run { held = null; setReading(ctx, false); readState.value = null } }
 
-    fun rules() = PenRules(primeBelow = Features.value.penPrimeBelow)
+    /** The detection settings (Settings → Insulin pens → Automatic detection) as engine rules; the guards stay fixed. */
+    fun rules() = rules(Features.value)
+    fun rules(f: app.mauri.sukrara.features.FeatureState) = PenRules(primeBelow = f.penPrimeBelow, cluster = f.penClusterMin * 60L,
+        primeBefore = f.penPrimeBeforeMin * 60L, pending = f.penPendingMin * 60L, match = f.penMatchMin * 60L,
+        matchUnits = f.penMatchUnits, matchShare = f.penMatchPct / 100.0, offer = f.penOfferH * 3600L)
     private fun engine() = PenEngine(rules(), origin = "phone", log = { Log.i(TAG, it) })
 
     // ------------------------------------------------------------------------------------------- treatments ↔ engine

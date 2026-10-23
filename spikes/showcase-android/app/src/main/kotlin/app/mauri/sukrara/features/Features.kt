@@ -80,7 +80,31 @@ data class FeatureState(
     val penReading: String = "ask",
     /** A pen dose smaller than this (u) can be priming (`penPrimeBelow`). */
     val penPrimeBelow: Double = 2.0,
+    /** Pen detection (Settings → Insulin pens → Automatic detection; `PenRules`, PRODUCT §3): doses up to this many
+     *  minutes apart are one injection (`penCluster`). */
+    val penClusterMin: Int = 10,
+    /** A small-only session up to this many minutes before an injection is its priming (`penPrimeBefore`). */
+    val penPrimeBeforeMin: Int = 30,
+    /** The newest small-only session waits this long before it's asked about (`penPending`). */
+    val penPendingMin: Int = 30,
+    /** A hand-typed entry up to this many minutes from a pen injection is the same one (`penMatch`). */
+    val penMatchMin: Int = 45,
+    /** … when the amounts differ by at most max(this many units, [penMatchPct] %) (`penMatchUnits`, `penMatchShare`). */
+    val penMatchUnits: Double = 1.0,
+    val penMatchPct: Int = 25,
+    /** A new pen offers its newest injection if it is under this many hours old (`penOffer`). */
+    val penOfferH: Int = 24,
 ) {
+    /** The detection settings back to their defaults (*Reset to defaults* on the detection page); the rest stays. */
+    fun penDetectionDefaults(): FeatureState = FeatureState().let { d ->
+        copy(penPrimeBelow = d.penPrimeBelow, penClusterMin = d.penClusterMin, penPrimeBeforeMin = d.penPrimeBeforeMin,
+            penPendingMin = d.penPendingMin, penMatchMin = d.penMatchMin, penMatchUnits = d.penMatchUnits,
+            penMatchPct = d.penMatchPct, penOfferH = d.penOfferH)
+    }
+
+    /** True while every detection setting has its default (the reset row is disabled then). */
+    val penDetectionIsDefault: Boolean get() = penDetectionDefaults() == this
+
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
         .put("bleFollowers", bleFollowers)
@@ -92,6 +116,8 @@ data class FeatureState(
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
         .put("connPriority", connPriority).put("uploadBanner", uploadBannerDismissed)
         .put("penReading", penReading).put("penPrimeBelow", penPrimeBelow)
+        .put("penCluster", penClusterMin).put("penPrimeBefore", penPrimeBeforeMin).put("penPending", penPendingMin)
+        .put("penMatch", penMatchMin).put("penMatchUnits", penMatchUnits).put("penMatchShare", penMatchPct).put("penOffer", penOfferH)
 
     companion object {
         /** [toJson] back, any missing or malformed key keeps [d]'s value (settings import). */
@@ -109,6 +135,13 @@ data class FeatureState(
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
             penReading = j.optString("penReading", d.penReading).takeIf { it in Features.PEN_READING } ?: d.penReading,
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, j.optDouble("penPrimeBelow", d.penPrimeBelow)),
+            penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, j.optInt("penCluster", d.penClusterMin)),
+            penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, j.optInt("penPrimeBefore", d.penPrimeBeforeMin)),
+            penPendingMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PENDING, j.optInt("penPending", d.penPendingMin)),
+            penMatchMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH, j.optInt("penMatch", d.penMatchMin)),
+            penMatchUnits = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_UNITS, j.optDouble("penMatchUnits", d.penMatchUnits)),
+            penMatchPct = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_SHARE, j.optInt("penMatchShare", d.penMatchPct)),
+            penOfferH = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_OFFER, j.optInt("penOffer", d.penOfferH)),
         )
     }
 }
@@ -148,6 +181,13 @@ object Features {
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
             penReading = p.getString("penReading", d.penReading)!!.takeIf { it in Features.PEN_READING } ?: d.penReading,
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, p.getFloat("penPrimeBelow", d.penPrimeBelow.toFloat()).toDouble()),
+            penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, p.getInt("penCluster", d.penClusterMin)),
+            penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, p.getInt("penPrimeBefore", d.penPrimeBeforeMin)),
+            penPendingMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PENDING, p.getInt("penPending", d.penPendingMin)),
+            penMatchMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH, p.getInt("penMatch", d.penMatchMin)),
+            penMatchUnits = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_UNITS, p.getFloat("penMatchUnits", d.penMatchUnits.toFloat()).toDouble()),
+            penMatchPct = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_SHARE, p.getInt("penMatchShare", d.penMatchPct)),
+            penOfferH = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_OFFER, p.getInt("penOffer", d.penOfferH)),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
 
@@ -162,6 +202,13 @@ object Features {
                 lockBg = LockBackground.valid(it.lockBg),
                 lockLook = LockAppearance.valid(it.lockLook),
                 penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, it.penPrimeBelow),
+                penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, it.penClusterMin),
+                penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, it.penPrimeBeforeMin),
+                penPendingMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PENDING, it.penPendingMin),
+                penMatchMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH, it.penMatchMin),
+                penMatchUnits = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_UNITS, it.penMatchUnits),
+                penMatchPct = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_MATCH_SHARE, it.penMatchPct),
+                penOfferH = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_OFFER, it.penOfferH),
             )
         }
         prefs?.edit()?.apply {
@@ -176,6 +223,9 @@ object Features {
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
             putBoolean("uploadBanner", s.uploadBannerDismissed)
             putString("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
+            putInt("penCluster", s.penClusterMin); putInt("penPrimeBefore", s.penPrimeBeforeMin); putInt("penPending", s.penPendingMin)
+            putInt("penMatch", s.penMatchMin); putFloat("penMatchUnits", s.penMatchUnits.toFloat()); putInt("penMatchShare", s.penMatchPct)
+            putInt("penOffer", s.penOfferH)
         }?.apply()
         _state.value = s
         return s

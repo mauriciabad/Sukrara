@@ -1158,7 +1158,8 @@ app); feature rows (Bluetooth, Nostr, GitHub…) keep 24 dp symbols as in AOSP. 
 
 Tap a NovoPen Echo Plus (NovoPen 6 untested) on the wearer's unlocked phone, from any app: its injections are logged at
 the pen's time with priming kept apart, hand-typed copies replaced, the old history left out, the rare unclear dose
-asked. Research, rules (53 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
+asked. Settings → Insulin pens lists the *Supported pens* (from `PenProfiles`, untested tagged) and its *Automatic
+detection* page tunes the rules (0.11.50). Research, rules (59 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
 `spikes/novopen-android/PRODUCT.md`; contract: `DESIGN.md`. Debug-only fake pen: `DebugReceiver --es cmd penRead --es
 doses "1,0.5,8,0.5" --ei agoMin 3 [--ei older 412] [--ez fail true] [--es model novopen6]`, `penReset [--es penReading
 ask|on|off]`, `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview`.
