@@ -266,7 +266,8 @@ private fun pills(ctx: Context, s: Pens.ReadState, entry: Treatment?, asked: Que
             ctx.getString(R.string.pen_turn_on) to { Pens.turnOn(ctx); Unit })
         r == null -> emptyList()
         r.first && !r.returning && entry == null -> listOfNotNull(
-            r.offer?.let { o -> ctx.getString(R.string.pen_log_amount, w.u(o.a)) to {
+            // a matching hand-typed entry (the card says *Matches your 8u entry*): logging replaces it, the pill says so
+            r.offer?.let { o -> ctx.getString(if (Pens.offerMatch(o) != null) R.string.pen_replace_amount else R.string.pen_log_amount, w.u(o.a)) to {
                 Pens.logDoses(ctx, serial, o.doses) { st -> Pens.readState.value = s.copy(report = st.report.copy(first = false), undo = st.undo) }
             } },
             ctx.getString(R.string.pen_set_up) to { onOpen("penPage", serial) })

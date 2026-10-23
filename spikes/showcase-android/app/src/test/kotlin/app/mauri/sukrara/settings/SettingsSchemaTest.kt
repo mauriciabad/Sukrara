@@ -144,6 +144,14 @@ class SettingsSchemaTest {
         fun features(f: (FeatureState) -> FeatureState) = FeatureState.fromJson(JSONObject(f(FeatureState()).toJson().toString()))
         conforms("nostr interval", S.NOSTR_INTERVAL) { v -> features { it.copy(nostrIntervalMin = v.roundToInt()) }.nostrIntervalMin.toDouble() }
         conforms("libreview interval", S.LIBREVIEW_INTERVAL) { v -> features { it.copy(libreviewIntervalMin = v.roundToInt()) }.libreviewIntervalMin.toDouble() }
+        conforms("pen priming size", S.PEN_PRIME_BELOW) { v -> features { it.copy(penPrimeBelow = v) }.penPrimeBelow }
+        conforms("pen one injection", S.PEN_CLUSTER) { v -> features { it.copy(penClusterMin = v.roundToInt()) }.penClusterMin.toDouble() }
+        conforms("pen priming ahead", S.PEN_PRIME_BEFORE) { v -> features { it.copy(penPrimeBeforeMin = v.roundToInt()) }.penPrimeBeforeMin.toDouble() }
+        conforms("pen small doses wait", S.PEN_PENDING) { v -> features { it.copy(penPendingMin = v.roundToInt()) }.penPendingMin.toDouble() }
+        conforms("pen time apart", S.PEN_MATCH) { v -> features { it.copy(penMatchMin = v.roundToInt()) }.penMatchMin.toDouble() }
+        conforms("pen amount apart", S.PEN_MATCH_UNITS) { v -> features { it.copy(penMatchUnits = v) }.penMatchUnits }
+        conforms("pen amount share", S.PEN_MATCH_SHARE) { v -> features { it.copy(penMatchPct = v.roundToInt()) }.penMatchPct.toDouble() }
+        conforms("pen new-pen offer", S.PEN_OFFER) { v -> features { it.copy(penOfferH = v.roundToInt()) }.penOfferH.toDouble() }
         if (S.COUNTDOWN_HOURS.min.toInt()..S.COUNTDOWN_HOURS.max.toInt() != SensorLife.COUNTDOWN_RANGE) problems += "countdown range ${SensorLife.COUNTDOWN_RANGE}"
         assertEquals("numbers the models don't keep as the schema says", "", problems.joinToString("\n"))
     }

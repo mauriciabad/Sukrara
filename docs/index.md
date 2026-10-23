@@ -73,7 +73,9 @@ steps.</sub></p>
 - **Phone:** value, continuous trend arrow and 12 h chart; the doctor's report; status-bar chip and number icon;
   home-screen widgets; with root + LSPosed, the graph on the lock screen; insulin, carbs and notes (also from the lock
   screen); a CSV export. Source: Juggluco, or the sensor read directly, with a guided *New sensor* screen and sensor-end
-  reminders.
+  reminders. Insulin pens: hold the pen to the phone and its doses are logged, priming kept apart. **Supported pens:
+  NovoPen Echo Plus; NovoPen 6 (untested).** Other NFC pens and Bluetooth pens or caps (Tempo, InPen, Mallya…) aren't
+  supported.
 - **Settings like Android 16/17:** sections, search, the system's page and back-gesture motion, export / import /
   reset, and it tells you when root or the LSPosed module is missing and how to fix it.
 - **Mac (Sukrara for Mac):** number and trend arrow in the menubar, a panel with the same card as the phone and the

@@ -147,7 +147,12 @@ by the app's icon code.</sub>
   typed by hand are replaced, never doubled; the pen's older history stays out of your log (one tap logs the last
   injection if it's recent); only genuinely unclear doses ask (*Priming or injected?*). Every dose of a pen entry can be
   set to priming or injected later, and *Doses read* lists everything the pen holds. LibreView, Nightscout, Tidepool,
-  the graph and the quiet-after-insulin alerts use the injected amount only. [29](docs/29-novopen.md)
+  the graph and the quiet-after-insulin alerts use the injected amount only. **Supported pens: NovoPen Echo Plus;
+  NovoPen 6 (untested).** Other NFC pens and Bluetooth pens or caps (Tempo, InPen, Mallya…) aren't supported; Settings →
+  Insulin pens lists the same, with the red *Untested* tag. *Automatic detection* there tunes the rules (priming size,
+  how close doses are one injection, how long small doses wait before asking, when a typed dose is the same injection,
+  how recent a new pen's last injection must be to offer it), applied to doses read from then on; when the pen's dose
+  matches one you typed, the button says *Replace your entry*. [29](docs/29-novopen.md)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*; tap it to log
   carbs or insulin right away, on the phone and the Mac), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
