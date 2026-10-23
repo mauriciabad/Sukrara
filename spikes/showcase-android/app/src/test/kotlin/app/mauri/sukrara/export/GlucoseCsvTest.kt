@@ -33,8 +33,9 @@ class GlucoseCsvTest {
                 }
                 val ts = c.getJSONArray("treatments")
                 val treatments = (0 until ts.length()).map { ts.getJSONObject(it) }.map {
+                    val (pr, pen, pd) = Treatment.penKeys(it)!!   // the pen keys (inv. 29), as received
                     Treatment(id = it.getString("id"), k = it.getString("k"), a = it.optDouble("a", 0.0), t = it.getLong("t"),
-                        n = it.optString("n"), u = 1, del = it.optBoolean("del"), o = it.getString("o"))
+                        n = it.optString("n"), u = 1, del = it.optBoolean("del"), o = it.getString("o"), pr = pr, pen = pen, pd = pd)
                 }
                 val sensor = c.optJSONObject("sensor")?.let { GlucoseCsv.Sensor(it.getString("serial"), it.getLong("start"), it.getLong("end")) }
                 val got = GlucoseCsv.write(readings, treatments, c.getLong("from"), c.getLong("to"), ZoneId.of(c.getString("zone")),

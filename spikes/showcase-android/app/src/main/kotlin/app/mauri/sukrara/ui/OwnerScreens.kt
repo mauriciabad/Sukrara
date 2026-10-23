@@ -157,6 +157,8 @@ fun OwnerHome(u: OwnerUi, a: OwnerActions) {
                 }
             }
         }
+        // a pen dose waits for the user (inv. 29): above the glucose card, like the backup card
+        PenQuestionCard()
         // the newest of the engine's state and the source's (the engine catches up after publishing; the source at once)
         val liveLast by remember { app.mauri.sukrara.wearer.Live.status.map { it.last }.distinctUntilChanged() }.collectAsState(null)
         val last = listOfNotNull(u.last, liveLast).maxByOrNull { it.t }

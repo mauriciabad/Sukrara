@@ -120,7 +120,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 - [ ] Test build at another path (never over `~/Applications/Sukrara.app`): menubar number + colour; click → panel
       (card in its module, Return opens *Add Treatment*: Tab rapid → long → carbs → note, `4.5u` keeps `4.5`,
       quiet line, limits line at 600g, time chip popover, Return saves all, Escape cancels; Escape / click outside
-      closes the panel); right-click menu; Treatments… (7 days, delete with ⌫ / context menu, ⌘W); Glucose Report (report only, period, Export CSV…); Settings (each pane; ⌘, ⌘W, paste in
+      closes the panel); right-click menu; Treatments… (7 days, delete with ⌫ / context menu, ⌘W; a pen entry from the phone: total as title, *From the pen · 1.5u primed*, the triangle opens the doses with *primed* on air shots, tooltip *Read from the pen on …'s phone* (no serial); Add Treatment with rapid within 45 min of a pen entry → *Already logged by the pen?*, Cancel keeps the insulin typed and saves carbs / note, Log Anyway saves; `-treatmentTimeSnapshot <dir>` → `add-treatment-pen-warning-*.png`; VoiceOver reads the row as one sentence and each dose as *12:37, 1 unit, primed*; a correction on the phone shows here within seconds; chart mark = the total; synthetic: `GlucoseBar -treatmentsSnapshot <dir>`); Glucose Report (report only, period, Export CSV…); Settings (each pane; ⌘, ⌘W, paste in
       the invite field); light and dark, over a bright and a dark window/wallpaper, Increase Contrast and Reduce
       Transparency (System Settings → Accessibility → Display).
 - [ ] Real captures (Screen Recording for the terminal): launch the build with `-openPanel [-appearance dark]`, take
@@ -257,7 +257,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
       This sensor shows only when a sensor is known (`--es cmd fakeSensor`).
 - [ ] *Save file*: the system picker suggests `sukrara-glucose-<from>-to-<to>.csv`; saving shows "File saved";
       `adb shell cat` the file (or open it in Files): line 1 `Glucose Data,…`, 5-minute rows, treatments with
-      `Entered By`.
+      `Entered By`; a pen entry has its priming in `Primed Insulin (units)` (`1.5`, `0.0` without), typed entries leave it empty.
 - [ ] *Share*: the share sheet shows the CSV (a preview line with the file name, no person's name); sending it to an
       app (Drive, Gmail, Files) attaches the file.
 - [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.
@@ -354,3 +354,38 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
       durations everywhere read *1 h* / *2 h*;
       log carbs → *Alert me anyway* in Settings → Alerts › Active now. Mac (test copy, `-panelPreview`): the rows under
       the card and the pill's menu.
+
+## Q21 Insulin pens
+
+Emulator only (debug build, synthetic data: `DebugReceiver --es cmd penRead …`, docs/10 "Insulin pens"); a real pen
+only on the user's phone, by the user. The full checklist is `spikes/novopen-android/PRODUCT.md` §9 (59 rows).
+
+- [ ] Fresh install (*Ask*): the first tap shows *Log this pen in Sukrara?*; nothing logged; *Turn on* → *New pen
+      added · … · 412 earlier doses left out* with *Log 8.5u* + *Set up*; *No* → later taps do nothing, Settings off.
+- [ ] `1, 0.5, 8, 0.5` → card *8.5u logged · Rapid · 13:12 · 1.5u primed*, *Add treatment* + *Undo*, no scrim, closes
+      by itself; the low-importance notification has the same text; home row `8.5u rapid · from the pen`.
+- [ ] *Undo* → *Undone*; a merged hand entry is back with its note; Doses read *Not logged* → *Log this injection*.
+- [ ] Rescan → *Nothing new*; top-up → *Now 8.5u · 0.5u added*; `1, 1.5` 40 min ago → *Priming or injected?* card
+      + home card + notification, *Log 1.5u* clears all three.
+- [ ] Entry sheet: flip a dose → header updates, *Save* → snackbar *Entry changed · Undo*; all priming → *Remove from
+      log*; TalkBack reads one node per dose with *Mark as injected / priming*.
+- [ ] Type 8u rapid within 45 min of a pen entry → *Already logged by your pen?*; carbs in the same save are saved.
+- [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.
+- [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → red 10 s confirmation → display
+      check; *It doesn't* → *Sukrara doesn't log this pen*.
+- [ ] Follower: no Insulin pens row; pen entries open read-only.
+- [ ] LibreView / Nightscout / Tidepool / CSV / graph / insulin mute: `a` only; CSV column 23 *Primed Insulin*.
+- [ ] Spanish: *pluma*, *purgado*, amounts `8.5u`.
+
+## Q20 The person and the feel
+
+Every app change (CLAUDE.md *Design from the person's life first*, *Make it juicy*; user, 2026-10-23).
+
+- [ ] The feature's spec (PRODUCT.md or the round's notes) answers: why the person wants it, the contexts they'll use
+      it in, what it takes off their mind, what triggers the action and whether that can be detected or prompted, how
+      it's discovered, what people say online and what other apps do (judged).
+- [ ] Nothing blocks the person unless a confirmation already existed there or safety demands it.
+- [ ] Every action answers within ~100 ms: a visible change, and a haptic where the platform uses one (confirm /
+      reject); motion shows where things came from and went; numbers that change animate; no jank on a mid-range phone.
+- [ ] With reduced motion / remove animations on, and with TalkBack / VoiceOver, everything still works and reads well.
+

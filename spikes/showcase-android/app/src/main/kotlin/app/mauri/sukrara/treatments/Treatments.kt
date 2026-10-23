@@ -8,6 +8,7 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import app.mauri.sukrara.pen.PdDose
 
 /**
  * One insulin / carbs / note entry. Same JSON on disk, over BLE and (later) on Nostr.
@@ -24,21 +25,63 @@ data class Treatment(
     val del: Boolean = false,
     val o: String,              // phone | mac
     val lv: Long = 0,           // the `u` last confirmed uploaded to LibreView
+    // insulin pen entries only (inv. 29, SPEC §1), absent on hand-typed ones; `a` stays the injected units
+    val pr: Double? = null,     // primed units: never insulin, never uploaded
+    val pen: String? = null,    // the pen's serial
+    val pd: List<PdDose>? = null, // its doses, time order
 ) {
     val needsUpload get() = lv < u
 
-    /** The Nostr/BLE v2 body (SPEC §5): `{"v":1,…}` without `lv`. */
+    /**
+     * A pen entry's session may still grow (a top-up within [PEN_SETTLE_S] of its last dose): outputs that keep a copy
+     * (LibreView, Nightscout, Tidepool) wait until then, so a top-up doesn't mean a retraction + re-upload. The log,
+     * the graph, followers and the insulin mute have it at once. Null = ready.
+     */
+    fun heldUntil(nowS: Long): Long? = pd?.maxOfOrNull { it.t }?.plus(PEN_SETTLE_S)?.takeIf { it > nowS && !del }
+
+    /** The Nostr/BLE v2 body (SPEC §5): `{"v":1,…}` without `lv`; the pen keys only on pen entries. */
     fun wire(): org.json.JSONObject = org.json.JSONObject().put("v", 1).put("id", id).put("k", k).put("a", a).put("t", t)
-        .put("n", n).put("u", u).put("del", del).put("o", o)
+        .put("n", n).put("u", u).put("del", del).put("o", o).also { j ->
+            pr?.let { j.put("pr", it) }
+            pen?.let { j.put("pen", it) }
+            pd?.let { l -> j.put("pd", org.json.JSONArray().apply { l.forEach { d -> put(org.json.JSONObject().put("t", d.t).put("a", d.a).put("p", d.p)) } }) }
+        }
 
     companion object {
         /** Parse a v2 body (SPEC §5); null if it isn't a valid treatment. */
         fun fromWire(j: org.json.JSONObject): Treatment? = runCatching {
             val k = j.getString("k").takeIf { it in KINDS } ?: return null
+            val (pr, pen, pd) = penKeys(j) ?: return null
             Treatment(id = j.getString("id").takeIf { it.isNotEmpty() } ?: return null, k = k, a = j.optDouble("a", 0.0),
                 t = j.getLong("t"), n = clip(j.optString("n")), u = j.getLong("u"), del = j.optBoolean("del", false),
-                o = j.optString("o").ifEmpty { "phone" }.take(16))
+                o = j.optString("o").ifEmpty { "phone" }.take(16), pr = pr, pen = pen, pd = pd)
         }.getOrNull()
+
+        /**
+         * The optional pen keys of a v2 body (SPEC §1). Malformed ones reject the entry (null pair): a negative `pr`, a
+         * `pen` over 32 bytes, a `pd` that isn't ≤ 20 items of `{t: int, a ≥ 0, p?: bool}` in time order.
+         */
+        fun penKeys(j: org.json.JSONObject): Triple<Double?, String?, List<PdDose>?>? {
+            val pr = if (j.has("pr")) j.optDouble("pr", Double.NaN).takeIf { it.isFinite() && it >= 0 } ?: return null else null
+            val pen = if (j.has("pen")) j.optString("pen").takeIf { it.isNotEmpty() && it.toByteArray().size <= 32 } ?: return null else null
+            val pd = if (!j.has("pd")) null else {
+                val a = j.optJSONArray("pd") ?: return null
+                if (a.length() > MAX_PD) return null
+                (0 until a.length()).map { i ->
+                    val d = a.optJSONObject(i) ?: return null
+                    val t = d.opt("t"); val u = d.opt("a")
+                    if (t !is Number || t.toDouble() != t.toLong().toDouble() || u !is Number || u.toDouble() < 0 || !u.toDouble().isFinite()) return null
+                    if (d.has("p") && d.opt("p") !is Boolean) return null
+                    PdDose(t.toLong(), u.toDouble(), d.optBoolean("p", false))
+                }.also { l -> if (l.zipWithNext().any { (x, y) -> y.t < x.t }) return null }
+            }
+            return Triple(pr, pen, pd)
+        }
+
+        const val MAX_PD = 20
+
+        /** A pen entry's session is open this long after its last dose (DESIGN §4.1 cluster gap). */
+        const val PEN_SETTLE_S = 600L
 
         val KINDS = listOf("rapid", "long", "carbs", "note")
 
@@ -59,7 +102,7 @@ data class Treatment(
     }
 }
 
-val TreatmentJson = Json { encodeDefaults = true; ignoreUnknownKeys = true }
+val TreatmentJson = Json { encodeDefaults = true; ignoreUnknownKeys = true; explicitNulls = false }
 
 /**
  * The phone's treatment log. Every accepted change gets the next [seq].
@@ -107,6 +150,12 @@ class TreatmentStore(private val file: File, val origin: String = "phone") {
         apply(tr.id) { tr }
         return tr
     }
+
+    /**
+     * A pen entry written by the pen engine (inv. 29): stored as given (its `u` is the engine's), keeping the
+     * LibreView watermark of the row it replaces.
+     */
+    fun put(tr: Treatment): Treatment? = apply(tr.id) { cur -> tr.copy(lv = maxOf(cur?.lv ?: 0, tr.lv)) }
 
     fun delete(id: String) = apply(id) { cur ->
         if (cur == null || cur.del) cur else cur.copy(del = true, u = maxOf(System.currentTimeMillis(), cur.u + 1))

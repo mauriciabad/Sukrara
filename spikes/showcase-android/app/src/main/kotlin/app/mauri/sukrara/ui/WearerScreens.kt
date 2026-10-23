@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -105,18 +106,31 @@ fun TreatmentsSection() {
     val store = Treat.store
     val f by Features.state.collectAsState()
     var deleting by remember { mutableStateOf<Treatment?>(null) }
+    var penEntry by remember { mutableStateOf<Treatment?>(null) }
     val items by store.items.collectAsState()
     val now = nowSeconds(30_000)
     val since = now - 24 * 3600
     val recent = items.filter { !it.del && it.t >= since }
     val pal = app.mauri.sukrara.treatments.TreatmentMarks.palette(androidx.compose.foundation.isSystemInDarkTheme())
 
-    SectionTitle(stringResource(R.string.treatments_title))
+    // the pen's passive hints (PRODUCT §1b): "Pen read 2d ago" in the title row once it's over a day
+    val pens = app.mauri.sukrara.pen.Pens.ledger.collectAsState().value.pens.values
+    val penOn = f.penReading == "on" && pens.isNotEmpty()
+    val lastRead = pens.maxOfOrNull { it.lastScan } ?: 0
+    val nav = LocalNav.current
+    Row(verticalAlignment = Alignment.Bottom) {
+        Box(Modifier.weight(1f)) { SectionTitle(stringResource(R.string.treatments_title)) }
+        if (penOn && lastRead > 0 && now - lastRead > 24 * 3600) Text(
+            stringResource(R.string.pen_hint_stale, app.mauri.sukrara.treatments.TreatmentMarks.duration(now - lastRead)),
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clickable { pens.maxByOrNull { it.lastScan }?.let { nav?.open(PEN_ROUTE + it.serial) } }.padding(4.dp))
+    }
     Reveal(recent.isEmpty()) { Text(stringResource(R.string.treatments_empty),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
     // new entries (also from followers / the Mac) fade + expand in, deleted ones fade + shrink out
     AnimatedItems(recent, { it.id }) { tr ->
-        Row(Modifier.fillMaxWidth().clickable { deleting = tr }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+        // a pen entry opens its sheet (doses, correction, delete); a hand-typed one the delete dialog
+        Row(Modifier.fillMaxWidth().clickable { if (isPenEntry(tr)) penEntry = tr else deleting = tr }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             KindMark(tr.k, androidx.compose.ui.graphics.Color(app.mauri.sukrara.treatments.TreatmentMarks.color(pal, tr.k)))
             Text(app.mauri.sukrara.graph.Clock.time(tr.t), fontWeight = FontWeight.Medium)
@@ -130,6 +144,12 @@ fun TreatmentsSection() {
         }
     }
 
+    // carbs saved, no rapid insulin within 30 min of them yet: one quiet line for 60 min
+    val carbs = recent.filter { it.k == "carbs" && now - it.t < 3600 }.maxByOrNull { it.t }
+    Reveal(penOn && carbs != null && recent.none { it.k == "rapid" && kotlin.math.abs(it.t - carbs.t) <= 1800 }) {
+        Text(stringResource(R.string.pen_hint_carbs), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+    }
+    penEntry?.let { tr -> items.firstOrNull { it.id == tr.id && !it.del }?.let { PenEntrySheet(it) { penEntry = null } } ?: run { penEntry = null } }
     deleting?.let { tr ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -150,5 +170,6 @@ private fun describe(c: android.content.Context, tr: Treatment): String {
         "long" -> c.getString(R.string.treatments_row_long, amount)
         else -> c.getString(R.string.treatments_row_rapid, amount)
     } + (if (tr.k != "note" && tr.n.isNotEmpty()) " · ${tr.n}" else "") +
-        (if (tr.o != "phone") " · " + c.getString(R.string.treatments_row_from, tr.o) else "")
+        (if (tr.o != "phone") " · " + c.getString(R.string.treatments_row_from, tr.o) else "") +
+        (if (isPenEntry(tr)) " · " + c.getString(R.string.treatments_row_from, c.getString(R.string.pen_row_the_pen)) else "")
 }

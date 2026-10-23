@@ -50,6 +50,20 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   shows it, reachable without a notification and with TalkBack / VoiceOver. List the states and exits in the
   feature's **States and exits** paragraph in `docs/FEATURES.md`. *(check `states`: every FEATURES.md section has
   one or is on `allow.json` `states_pending`; QA.md Q19 walks it by hand)*
+- **Design from the person's life first.** Every feature starts from the person with diabetes outside the app: why
+  they want it, the real contexts they'll use it in (meal out, night, hurry, phone locked, travel), what it can take
+  off their mind, what triggers the action (can it be detected, predicted, automated or prompted at the right moment),
+  how they discover it without stealing attention from glucose and alerts, the newest platform tech that helps, what
+  real people say online (forums, Reddit, reviews, DIY-app issues) and what official and DIY apps do (judged: good or
+  bad for the person). Then the moments before and after, every surface in both directions, and nothing that blocks
+  unless a confirmation already exists or safety demands it. Feature rounds get a product / UX / QA agent that writes
+  this down before UI is built and reviews the screenshots. *(not checked: needs judgement; QA.md Q20)*
+- **Make it juicy.** Every interaction feels snappy, enjoyable and beautiful, like good game feel: immediate response,
+  motion that explains what happened (Material motion / SwiftUI springs, shared transitions, numbers that count),
+  haptics that confirm (Android `HapticFeedbackConstants` / `VibrationEffect` primitives, Mac `NSHapticFeedbackManager`
+  where there's a trackpad), sound only where the platform expects it, polished graphics. Never at the cost of clarity,
+  speed or accessibility: honour reduced motion, TalkBack / VoiceOver and the alert sounds' meaning.
+  *(not checked: needs judgement; QA.md Q20)*
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
   *(check `features`)*
 - **One graph everywhere.** The card (value, arrow, badges, slots, chart and every element in them) is laid out and

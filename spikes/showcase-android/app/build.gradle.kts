@@ -38,8 +38,8 @@ android {
         // Credential Manager *providers* (Proton Pass, Bitwarden, KeePassDX) plug into the framework on Android 14+.
         minSdk = 36
         targetSdk = 37
-        versionCode = 11044
-        versionName = "0.11.44"
+        versionCode = 11045
+        versionName = "0.11.45"
         buildConfigField("String", "HOOK_CODE", "\"${hookCode()}\"")
         // libnostr_sdk_ffi.so is ~7-9 MB per ABI; ship only arm64 (Pixel + Apple-silicon emulators).
         ndk { abiFilters += "arm64-v8a" }
@@ -115,6 +115,8 @@ kotlin {
 
 // The shared alert timelines (spikes/alerts/scenarios) are inputs of AlertScenarioTest: editing one re-runs the tests.
 tasks.withType<Test>().configureEach { inputs.dir("../../alerts/scenarios").withPropertyName("alertScenarios") }
+// The pen engine's scenarios (spikes/novopen-android, PenScenarioTest + PenCopyTest) likewise.
+tasks.withType<Test>().configureEach { inputs.dir("../../novopen-android/src").withPropertyName("penSpike"); inputs.file("../../novopen-android/scenarios.json").withPropertyName("penScenarios") }
 // The shared graph fixtures and the surface registry likewise (GraphFixtureTest, CardLayoutTest).
 tasks.withType<Test>().configureEach { inputs.dir("../../graph-fixtures").withPropertyName("graphFixtures") }
 

@@ -88,6 +88,9 @@ class QuickTreatmentActivity : ComponentActivity() {
                             },
                             onOpenApp = ::openApp,
                             inWindow = true,
+                            // *Add treatment* from a pen read (PRODUCT §4.1): the injection's time, the other insulin focused
+                            focus = intent.getStringExtra("focus"),
+                            initialAt = intent.getLongExtra("at", 0L).takeIf { it > 0 },
                         )
                     }
                 }

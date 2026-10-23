@@ -73,8 +73,14 @@ and writers use it. Same bytes over relays and over BLE (`["EVENT", ev]`, [docs/
 
 | Event | kind | signed by | tags | content (decrypted) |
 |---|---|---|---|---|
-| **treatment** | 30078 | `D` (owner's merged log) or a writer `W` (its own entries) | `["d", H("cgm2:tr:"+sid+":"+id)]`, `["c", H("cgm2:treatments:"+sid)]`, `["gk", gk_n]`, exp `created_at`+30 d | `{"v":1,"id","k","a","t","n","u","del","o"}` (SPEC §1 without `lv`) → `G_n`, NIP-44 from the signer |
+| **treatment** | 30078 | `D` (owner's merged log) or a writer `W` (its own entries) | `["d", H("cgm2:tr:"+sid+":"+id)]`, `["c", H("cgm2:treatments:"+sid)]`, `["gk", gk_n]`, exp `created_at`+30 d | `{"v":1,"id","k","a","t","n","u","del","o"}` + `"pr","pen","pd"` on pen entries (SPEC §1 without `lv`) → `G_n`, NIP-44 from the signer |
 
+- Pen entries (investigation 29) carry `pr` (primed units), `pen` (serial) and `pd` (the doses) as in SPEC §1; `a` is
+  the injected units and the only amount any receiver draws, mutes with or exports. Every publisher and receiver keeps
+  the three keys as received (merge, storage, edits, the owner's echo and republish); a writer's edit of its own entry
+  never adds them. Pen entries are always the wearer's (`o` = `phone`): when a pen injection matches a writer's entry
+  (`o` = `follower`), the owner tombstones that entry and publishes a new pen entry with its `n` (SPEC §1), so a
+  writer never holds a pen entry it could edit. Public spec: [ogs-data D§6](../../spec/ogs-data.md#d6-treatments).
 - `created_at` = publish time, **strictly increasing per (author, `d`)** (relays drop a same-second replacement).
   `u` (ms, inside the content) is the merge version; `created_at` is not.
 - `o` is kept as created: `phone`, `mac` (legacy-link entries) or `follower` (writer entries; **every writer sends

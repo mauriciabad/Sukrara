@@ -111,7 +111,7 @@ Changes from the source spikes:
    while the screen is off.
 8. **LibreView** (off; home and Settings remind you until it's set up): Settings → Share with apps → LibreView → *Account* (email + password) → *Upload to LibreView*. Glucose,
    insulin/carbs/notes and *Use this phone as the account's device* are on by default, so everything uploads.
-   **Uploaded entries can't be deleted from LibreView**, so try a throwaway account first. Using this phone as the
+   Edits and deletes reach LibreView too (a new record number + a delete of the old one, [04](04-libreview.md)); still, try a throwaway account first. Using this phone as the
    account's device logs the Libre app / Juggluco out of LibreView.
 9. **Direct sensor** (the default source): home → *Scan your sensor*, or Settings → Glucose source → *Sensor*, then hold the phone against
    the sensor. A new sensor starts (60 min warm-up); a running one moves over from LibreLink or Juggluco (stop
@@ -484,7 +484,7 @@ functions … create new content").
 |---|---|
 | Default source = Libre 3 directly; Juggluco is the alternative; no "recommended" | `Features.source`, Settings |
 | Source, sensor link priority, Nostr interval, LibreView interval: rows that show the value and open a radio dialog (`ChoiceDialog`) | `ui/WearerScreens.kt` |
-| Settings → LibreView: *Account* row (sign-in dialog, sign out), *Upload to LibreView* as the parent switch, then *Glucose readings*, *Insulin, carbs & notes*, *Use this phone as the account's device*, *Upload every*. Each is disabled with a reason while the upload is off. Footer: the doctor's record, no deletes | `LibreViewSettings` |
+| Settings → LibreView: *Account* row (sign-in dialog, sign out), *Upload to LibreView* as the parent switch, then *Glucose readings*, *Insulin, carbs & notes*, *Use this phone as the account's device*, *Upload every*. Each is disabled with a reason while the upload is off. Footer: the doctor's record; edits and deletes follow | `LibreViewSettings` |
 | Uploader defaults: glucose, treatments and take-over **on**, so switching the upload on uploads everything. Glucose goes up from the moment the upload is switched on, and switching off ends that window. New `treatments` switch | `LibreViewUploader` |
 | `TreatmentDialog`: Rapid U, Long U and Carbs g side by side, a note below, all optional. Each filled field becomes its own entry. A time chip (Now, or an M3 time picker; a later time means yesterday). No helper text: the filled fields say it all (the user removed the hint, the footer and the "Adds …" line); only an out-of-range amount shows a red line. The number pad opens at once; Next goes rapid → long → carbs → note; Done saves | `ui/TreatmentDialog.kt` |
 | `QuickTreatmentActivity`: translucent, not in Recents, draws the M3 scrim and the dialog surface in its own window (a `Dialog` window over a translucent activity got neither the dim nor the keyboard on the emulator). A widget tap and the glucose notification (card and Live Update chip) open the dialog over any app. It has *Open Sukrara*; a phone that can't add entries (no identity, or a follower without *Can add entries*) opens the app instead | `ui/QuickTreatmentActivity.kt`, widgets, `GlucoseNotification` |
@@ -1153,6 +1153,19 @@ phone* with the xDrip+ server's switch (`bridge/ServerReaders.kt`): the user had
 **Left out.** The Abbott mark on the "Libre 3 directly" source stays the 24 dp monochrome symbol (a sensor, not an
 app); feature rows (Bluetooth, Nostr, GitHub…) keep 24 dp symbols as in AOSP. The Mac app shows no service icons
 (its settings are plain SwiftUI forms), so nothing changed there. Screenshots: `docs/img/icons/`.
+
+## Insulin pens (investigation 29)
+
+Tap a NovoPen Echo Plus (NovoPen 6 untested) on the wearer's unlocked phone, from any app: its injections are logged at
+the pen's time with priming kept apart, hand-typed copies replaced, the old history left out, the rare unclear dose
+asked. Research, rules (53 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
+`spikes/novopen-android/PRODUCT.md`; contract: `DESIGN.md`. Debug-only fake pen: `DebugReceiver --es cmd penRead --es
+doses "1,0.5,8,0.5" --ei agoMin 3 [--ei older 412] [--ez fail true] [--es model novopen6]`, `penReset [--es penReading
+ask|on|off]`, `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview`.
+
+The LibreView delete note was stale (since 0.11.13 the dialog said uploaded entries stay in LibreView; the uploader
+has retracted deleted and edited versions since docs/04): the delete dialog now says *It's removed from LibreView
+too.*, the LibreView footer that edits and deletes follow.
 
 ## Next
 

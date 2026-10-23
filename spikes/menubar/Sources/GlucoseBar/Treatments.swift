@@ -13,6 +13,29 @@ struct Treatment: Codable, Equatable {
     var u: Int64            // last modified, epoch ms (last-writer-wins version)
     var del: Bool = false
     var o: String           // phone | mac | follower
+    // Pen entries only (SPEC §1, spikes/novopen-android/DESIGN.md §5); nil on hand-typed ones. `a` stays the injected
+    // units: everything that draws, mutes or uploads reads `a` alone. Kept through merge, storage, edits, re-publish.
+    var pr: Double? = nil   // primed units (air shots), never injected
+    var pen: String? = nil  // serial of the pen the entry was read from
+    var pd: [PenDose]? = nil // the pen's doses for this injection, time order
+
+    /// One dose the pen recorded: when, units, and whether it was priming.
+    struct PenDose: Codable, Equatable {
+        var t: Int64
+        var a: Double
+        var p: Bool = false
+
+        init(t: Int64, a: Double, p: Bool = false) { self.t = t; self.a = a; self.p = p }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            t = try c.decode(Int64.self, forKey: .t)
+            a = try c.decodeIfPresent(Double.self, forKey: .a) ?? 0
+            p = try c.decodeIfPresent(Bool.self, forKey: .p) ?? false
+        }
+    }
+
+    /// Read from an insulin pen (DESIGN §5), not typed by hand.
+    var fromPen: Bool { pen != nil }
 
     static let kinds = ["rapid", "long", "carbs", "note"]
 
@@ -32,13 +55,32 @@ struct Treatment: Codable, Equatable {
         u = try c.decode(Int64.self, forKey: .u)
         del = try c.decodeIfPresent(Bool.self, forKey: .del) ?? false
         o = try c.decode(String.self, forKey: .o)
+        pr = try c.decodeIfPresent(Double.self, forKey: .pr)
+        pen = try c.decodeIfPresent(String.self, forKey: .pen)
+        pd = try c.decodeIfPresent([PenDose].self, forKey: .pd)
+        // OGS D§6.1 receiver rules for the pen keys: the whole entry is rejected (a dose without an integer `t` or a
+        // number `a`, or a `p` that isn't a boolean, already fails to decode above)
+        func bad(_ why: String) -> DecodingError { .dataCorrupted(.init(codingPath: [], debugDescription: why)) }
+        if let pr, pr < 0 { throw bad("negative pr") }
+        if let pen, pen.utf8.count > Self.penMaxBytes { throw bad("pen over 32 bytes") }
+        if let pd {
+            if pd.count > Self.pdMax { throw bad("more than 20 doses") }
+            if pd.contains(where: { $0.a < 0 }) { throw bad("negative dose") }
+            if zip(pd, pd.dropFirst()).contains(where: { $0.t > $1.t }) { throw bad("doses out of time order") }
+        }
     }
+
+    static let penMaxBytes = 32
+    static let pdMax = 20
 
     /// SPEC §1 merge: newer (u, o) wins.
     static func merge(_ cur: Treatment?, _ inc: Treatment) -> Treatment {
         guard let cur else { return inc }
         return (inc.u, inc.o) > (cur.u, cur.o) ? inc : cur
     }
+
+    /// A copy changed by `f` (fixtures, tests).
+    func with(_ f: (inout Treatment) -> Void) -> Treatment { var c = self; f(&c); return c }
 
     static func nowMs() -> Int64 { Int64((Date().timeIntervalSince1970 * 1000).rounded()) }
 
@@ -48,9 +90,14 @@ struct Treatment: Codable, Equatable {
         return out
     }
 
-    /// The JSON dictionary form (keys exactly as in SPEC §1, without the phone's LibreView `lv`).
+    /// The JSON dictionary form (keys exactly as in SPEC §1, without the phone's LibreView `lv`; the pen keys only
+    /// when present).
     var dict: [String: Any] {
-        ["id": id, "k": k, "a": a, "t": t, "n": n, "u": u, "del": del, "o": o]
+        var d: [String: Any] = ["id": id, "k": k, "a": a, "t": t, "n": n, "u": u, "del": del, "o": o]
+        if let pr { d["pr"] = pr }
+        if let pen { d["pen"] = pen }
+        if let pd { d["pd"] = pd.map { ["t": $0.t, "a": $0.a, "p": $0.p] as [String: Any] } }
+        return d
     }
 
     init?(dict: [String: Any]) {
@@ -282,7 +329,7 @@ struct TreatmentPaths {
 
     /// Who made the entry and where it is, for the row's tooltip. `who`: the wearer's name.
     @MainActor static func details(of t: Treatment, store: TreatmentStore, who: String) -> [String] {
-        var out = [t.o == "mac" ? "Logged on this Mac" : t.o == "follower" ? "Logged by someone who follows \(who)" : "Logged on \(who)'s phone"]
+        var out = [PenCopy.origin(t, who: who) ?? (t.o == "mac" ? "Logged on this Mac" : t.o == "follower" ? "Logged by someone who follows \(who)" : "Logged on \(who)'s phone")]
         if let (d, at) = delivery(of: t, store: store) { out.append(d.text(who: who, at: at)) }
         return out
     }

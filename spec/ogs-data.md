@@ -126,11 +126,27 @@ Insulin, carbs and notes, entered by the wearer or by a follower who is allowed 
 | `u` | integer, required | last change, **milliseconds**: the version |
 | `del` | boolean | tombstone. A deleted entry is kept and published so the delete spreads. |
 | `o` | string | where it was created. Draft 1: `phone` or `mac` (the wearer's own entries) or `follower` (a writer's; every writer sends `follower`). It breaks ties (§6.2) and tells the wearer's own entries from writers' (ogs-nostr N§9.1.8). |
+| `pr` | number ≥ 0, optional | *pen entries* (insulin read from a connected pen): units primed (air shots), to 0.1 u. Never injected, never counted. |
+| `pen` | string, optional | *pen entries*: the pen's serial, at most 32 UTF-8 bytes |
+| `pd` | array, optional | *pen entries*: the pen's doses for this injection, at most 20, in time order: `{"t":<integer s>,"a":<number ≥ 0, units>,"p":<boolean, priming; absent = false>}` |
+
+**Pen entries** (added in draft 1 under D§10, optional keys): an insulin entry a phone read from a connected insulin
+pen carries `pr`, `pen` and `pd`; a typed entry has none of them. The producer keeps `a` = the sum of the non-priming
+doses of `pd` and `pr` = the sum of the priming ones. `a` stays the injected amount, so a receiver that ignores the
+three keys is right: displays, alert rules and every export use `a` only. A receiver doesn't check the sums (a later
+edit of `a` alone is the user's correction) and keeps the three keys through merge, storage, edits and republish.
+Pen entries are always the wearer's own (`o` ≠ `follower`): only the wearer's devices create or change them.
+
+```json
+{"v":1,"id":"e1e2e3e4-0000-4000-8000-00000000000e","k":"rapid","a":8.5,"t":1792086780,"n":"","u":1792086900000,"del":false,"o":"phone","pr":1.5,"pen":"SYNTHETIC-PEN-1","pd":[{"t":1792086630,"a":1,"p":true},{"t":1792086690,"a":0.5,"p":true},{"t":1792086780,"a":8,"p":false},{"t":1792086850,"a":0.5,"p":false}]}
+```
 
 ### D§6.1 Rules
 
 - Receivers MUST reject an unknown `k`, an `id` that isn't a lowercase UUID, a negative `a`, and an `n` over 100
-  bytes.
+  bytes; and, when present, a negative `pr`, a `pen` that isn't a string of at most 32 bytes, and a malformed `pd`
+  (not an array, more than 20 doses, a dose without an integer `t` or a number `a` ≥ 0, a `p` that isn't a boolean,
+  doses out of time order).
 - Deletes are tombstones (`"del":true`, newer `u`). They are never dropped from the log while it's published
   (30 days).
 
@@ -151,6 +167,8 @@ deletes only the entries it created.
 | `long` | `{"eventType":"Note","insulin":a,"notes":"long-acting"}` (Nightscout has no long-acting type; xDrip+ uses `insulinInjections`) | `insulin` (injected, long) | `insulinEntries` `LongActing` |
 | `carbs` | `{"eventType":"Carb Correction","carbs":a}` | `food` (`nutrition.carbohydrate.net`) | `foodEntries` |
 | `note` | `{"eventType":"Note","notes":n}` | — | `genericEntries` `customnote` |
+
+| pen entry (`pr`, `pen`, `pd`) | as its `k`, `insulin` = `a`; no priming field | `bolus`/`normal` (`rapid`) or `insulin` (`long`) = `a`; `deviceEvent`/`prime` is for pumps (tubing, cannula), so it isn't used | `units` = `a` only; `pr` / `pd` never sent |
 
 `_id`/`identifier` = `id`, `created_at` = ISO 8601 of `t`.
 

@@ -5,9 +5,9 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.44/Sukrara-0.11.44.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.45/Sukrara-0.11.45.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.44/Sukrara-0.11.44.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.45/Sukrara-0.11.45.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
   &nbsp;·&nbsp;
@@ -141,6 +141,13 @@ by the app's icon code.</sub>
   Android and Mac. For each kind you choose what the graphs show: the point, the mute line, the amount and the time
   (Settings → Graph → Treatments on the graph; carbs show only their point by default), on every graph and for
   followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
+- **Insulin pens** (NovoPen Echo Plus; NovoPen 6 untested): unlock the phone and hold the pen to it, from any app.
+  The injected insulin is logged at the pen's own time, priming ("air shots") kept apart and never counted, without
+  opening Sukrara: a small card says *8.5u logged · 1.5u primed* with *Add treatment* and *Undo*. Doses you already
+  typed by hand are replaced, never doubled; the pen's older history stays out of your log (one tap logs the last
+  injection if it's recent); only genuinely unclear doses ask (*Priming or injected?*). Every dose of a pen entry can be
+  set to priming or injected later, and *Doses read* lists everything the pen holds. LibreView, Nightscout, Tidepool,
+  the graph and the quiet-after-insulin alerts use the injected amount only. [29](docs/29-novopen.md)
 - Under the number, a badge says what to do when you're out of range (*Eat carbs*, *Take insulin*; tap it to log
   carbs or insulin right away, on the phone and the Mac), or that alerts
   are paused while a logged treatment works (and for how long). Beside it, your last insulin or carbs with the time
@@ -190,7 +197,8 @@ by the app's icon code.</sub>
   *Eat carbs* / *Take insulin* badge and the last-treatment slot; swipe the chart sideways with two fingers to go back
   in time, pinch or ⌘-scroll to zoom, *Now* to return) on the system material, then **Add Treatment…** (or Return),
   which opens the same form as the phone's dialog: rapid, long, carbs and a note at once, the time, Return saves. **Treatments…** opens the last 7
-  days of treatments (delete there), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
+  days of treatments (delete there; doses read from an insulin pen on the phone show their total, the priming and each
+  dose), **Glucose Report…** the 1/7/14/30-day report (with *Export CSV…*: the same file
   and periods as the phone's, this sensor, 7, 14 or 30 days or all time); right-click for Settings and Quit.
   [01](docs/01-connectivity.md), [16](docs/16-graph.md)
 - A macOS Settings window (General, Graph, Rings, Alerts, Following) laid out after Apple's guidelines, reopening on the
@@ -361,12 +369,12 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 
 ## Try it
 
-Downloads: [v0.11.44](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.44) (Android and Mac)
+Downloads: [v0.11.45](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.45) (Android and Mac)
 ([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
 
 ### Install on Android
 
-Android 16+, arm64. Download `Sukrara-0.11.44.apk` on the phone and open it. Android asks to allow installs from your
+Android 16+, arm64. Download `Sukrara-0.11.45.apk` on the phone and open it. Android asks to allow installs from your
 browser (or file manager) the first time: tap **Settings**, turn on **Allow from this source**, go back and tap
 **Install** ([Android: install unknown apps](https://developer.android.com/distribute/marketing-tools/alternative-distribution#unknown-sources)). Updates
 install over the old version and keep your data. Optional: [Obtainium](https://obtainium.imranr.dev/) with this repo's
@@ -376,10 +384,10 @@ URL picks up new releases automatically.
 
 Apple Silicon, macOS 14+. Either way works:
 
-- **Download** `Sukrara-0.11.44.dmg`, open it and drag **Sukrara** onto **Applications**.
+- **Download** `Sukrara-0.11.45.dmg`, open it and drag **Sukrara** onto **Applications**.
 - **Homebrew**: `brew install --cask mauriciabad/tap/sukrara` ([tap](https://github.com/mauriciabad/homebrew-tap);
   `brew upgrade` gets new releases).
-- **Scripts**: the release also has `Sukrara-mac-0.11.44.zip` (same app); after unzipping, `xattr -dr
+- **Scripts**: the release also has `Sukrara-mac-0.11.45.zip` (same app); after unzipping, `xattr -dr
   com.apple.quarantine Sukrara.app` skips the first-open step below.
 
 **First open (once).** The app isn't notarized by Apple yet, so macOS stops the first launch with *"Sukrara" Not

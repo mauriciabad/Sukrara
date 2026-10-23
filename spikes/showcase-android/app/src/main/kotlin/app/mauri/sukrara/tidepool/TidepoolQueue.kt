@@ -86,6 +86,7 @@ object TidepoolQueue {
         if (withTreatments) for (tr in treatments) {
             val had = state.treatments[tr.id]
             if (had != null && had.u == tr.u) continue
+            if (tr.heldUntil(nowS) != null) continue    // a pen session that may still grow (Treatment.heldUntil)
             if (had == null && (tr.del || tr.t < from)) { if (tr.del) settled += tr; continue }   // never sent: nothing to undo
             val wasDatum = had != null && had.kind in DATUM_KINDS
             val wasNote = tr.id in state.notes

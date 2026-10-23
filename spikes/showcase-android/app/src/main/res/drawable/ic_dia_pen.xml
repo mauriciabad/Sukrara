@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara custom icon: an insulin pen (inv. 29): cap, body with the dose window, dose button, needle. Material Symbols
+     grid (960 units = 24 dp, 80-unit strokes = weight 400, round caps), diagonal like the Symbols "edit" pencil; tinted by Compose Icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="false">
+    <path android:fillColor="#00000000" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M640,180 L780,320 L380,720 L240,580 Z M560,260 L700,400 M240,580 L170,650 L310,790 L380,720 M170,790 L120,840 M720,120 L840,240"/>
+</vector>

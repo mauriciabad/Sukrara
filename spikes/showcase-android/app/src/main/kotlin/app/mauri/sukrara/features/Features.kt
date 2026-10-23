@@ -73,6 +73,13 @@ data class FeatureState(
     val connPriority: String = "default",
     /** The "share with your clinic" banner (LibreView or Tidepool, home + settings) was dismissed. */
     val uploadBannerDismissed: Boolean = false,
+    /**
+     * Insulin pens (inv. 29): "ask" (fresh install: the first pen tap asks *Log this pen in Sukrara?*), "on", "off"
+     * (after *No* or turning it off: taps do nothing). PRODUCT §1b.
+     */
+    val penReading: String = "ask",
+    /** A pen dose smaller than this (u) can be priming (`penPrimeBelow`). */
+    val penPrimeBelow: Double = 2.0,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("source", source).put("nostr", nostr).put("nostrInterval", nostrIntervalMin)
@@ -84,6 +91,7 @@ data class FeatureState(
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
         .put("connPriority", connPriority).put("uploadBanner", uploadBannerDismissed)
+        .put("penReading", penReading).put("penPrimeBelow", penPrimeBelow)
 
     companion object {
         /** [toJson] back, any missing or malformed key keeps [d]'s value (settings import). */
@@ -99,6 +107,8 @@ data class FeatureState(
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, j.optInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = j.optString("connPriority", d.connPriority),
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
+            penReading = j.optString("penReading", d.penReading).takeIf { it in Features.PEN_READING } ?: d.penReading,
+            penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, j.optDouble("penPrimeBelow", d.penPrimeBelow)),
         )
     }
 }
@@ -136,6 +146,8 @@ object Features {
             libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, p.getInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = p.getString("connPriority", d.connPriority)!!,
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
+            penReading = p.getString("penReading", d.penReading)!!.takeIf { it in Features.PEN_READING } ?: d.penReading,
+            penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, p.getFloat("penPrimeBelow", d.penPrimeBelow.toFloat()).toDouble()),
         ).let { it.copy(systemIcons = it.hook && it.hookPosition.startsWith(HookPosition.SLOT_PREFIX)) }
     }
 
@@ -149,6 +161,7 @@ object Features {
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
                 lockBg = LockBackground.valid(it.lockBg),
                 lockLook = LockAppearance.valid(it.lockLook),
+                penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, it.penPrimeBelow),
             )
         }
         prefs?.edit()?.apply {
@@ -162,12 +175,14 @@ object Features {
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
             putBoolean("uploadBanner", s.uploadBannerDismissed)
+            putString("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
         }?.apply()
         _state.value = s
         return s
     }
 
     val PRIORITIES = listOf("default", "low", "balanced", "high")
+    val PEN_READING = listOf("ask", "on", "off")
 
     /** Placements offered in Settings (their words: ui/SettingsLabels.kt). All need root; all but "System icons" need the LSPosed module. */
     val HOOK_POSITIONS = listOf(
@@ -267,3 +282,4 @@ object HookPosition {
 
 /** [v] minutes as [spec] accepts them (spikes/settings/settings.json): itself when valid, else the nearest valid value. */
 internal fun specMin(spec: app.mauri.sukrara.settings.NumberSpec, v: Int): Int = Math.round(spec.coerce(v.toDouble())).toInt()
+internal fun specD(spec: app.mauri.sukrara.settings.NumberSpec, v: Double): Double = Math.round(spec.coerce(v) * 10) / 10.0
