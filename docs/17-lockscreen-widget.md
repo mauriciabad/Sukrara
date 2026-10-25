@@ -182,6 +182,8 @@ so the last-treatment slot shows there too.
 | *Background* (none, shadow, dim, card, frosted glass; `lockBg`, default `frosted`) and *Appearance* (automatic, light, dark; `lockLook`, default `auto`) | `features/Features.kt` (`LockBackground`), `ui/WearerScreens.kt`, `widgets/LockscreenWidget.kt`, `hook/LockscreenWidgetHost.kt` |
 | Exact widget size (default padding added back) and direct updates of the SystemUI-hosted widget id | `hook/LockscreenWidgetHost.kt`, `LockscreenWidget.ids/updateAll`, `RootStatusBar.HelloReceiver` |
 | DebugReceiver `cmd locktest` (square + circle to measure distortion), `--es lockBg`, `--es lockLook` | `features/DebugReceiver.kt` |
+| 0.11.52: the lock-screen countdown: over the keyguard the dialog closes unsaved after *Time to save* (`lockTreatmentTime`, 10–120 s, default 20 s; Android's *Time to take action* and ≥ 60 s with TalkBack win), counted from the first frame; a ring with the seconds left on *Cancel* (and on the *When?* / *Already logged by your pen?* Cancel), pulse + one haptic tick at 5 s with input, *Treatment not saved* toast with input, screen off closes; *Unlock* in *Open Sukrara*'s place pauses it for the bouncer and keeps every input on success (≥ 5 s left after a cancel); touches never add time | `treatments/LockCountdown.kt` (`LockCountdownTest`), `ui/LockCountdownUi.kt`, `ui/QuickTreatmentActivity.kt`, `ui/TreatmentDialog.kt`, Settings → Lock screen group *Add treatment on the lock screen* (enabled without the module) |
+| DebugReceiver `cmd quickDialog` (opens the quick dialog; needs a background-activity-start exemption, so on the emulator the glucose notification on the lock screen is the way in) and `--ei lockTreatmentTime` | `features/DebugReceiver.kt` |
 
 | Discarded | Why |
 |---|---|
@@ -192,6 +194,10 @@ so the last-treatment slot shows there too.
 | Lock screen wallpaper, Notes-role shortcut | Not interactive / takes over the user's wallpaper or notes app (table above) |
 | *In range in white* (`lockWhite`, 2026-10-18) | a dark-only contrast trick (white is invisible on the light look); the appearance option and the frosted tint replace it |
 | Glance `updateAll` for the lock screen widget | it never reaches a SystemUI-hosted id (see above) |
+| An *Off* for the countdown, and touches that add time | pocket logs would come back; in a pocket touches type too and could keep the dialog open until Save; *Unlock* is the way to take longer |
+| No digits in the countdown ring (the spec: a ticking number may stress someone who is low) | the user asked to see the seconds count (2026-10-25); the digits are hidden from TalkBack, which hears 5 s steps |
+| Starting the countdown in `onResume` | a slow first frame (18 s on a loaded emulator) ate the time; it counts from the first frame |
+| Closing on the `ACTION_SCREEN_OFF` broadcast alone | a late broadcast after the screen came back on closed a fresh dialog; `onStop` with `!isInteractive` closes it, the broadcast is ignored while the screen is on |
 
 ## Code
 

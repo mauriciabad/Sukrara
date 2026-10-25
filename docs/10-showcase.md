@@ -684,6 +684,7 @@ Sukrara widget inside SystemUI. Full report, rootless options and the fingerprin
 | The notification shelf must fit above the fingerprint icon while the widget is on | `computeMaxKeyguardNotifications` hook |
 | *Settings → Lock screen → Glucose on the lock screen* (`lockWidget`, default on; DebugReceiver `--ez lockWidget`) | `Features`, `WearerScreens`, `RootStatusBar` broadcast |
 | The treatment dialog shows over the lock screen without unlocking (manifest `showWhenLocked`); *Open Sukrara* asks to unlock first | `AndroidManifest.xml`, `QuickTreatmentActivity` |
+| 0.11.52: over the lock screen the dialog closes unsaved after *Time to save* (default 20 s; a ring with the seconds on *Cancel*; *Unlock* keeps every input); details, added and discarded: [docs/17](17-lockscreen-widget.md#in-sukrara) | `treatments/LockCountdown.kt`, `ui/LockCountdownUi.kt`, `QuickTreatmentActivity` |
 | Quick Settings tile *Add treatment* with the current value | `ui/TreatmentTile.kt` |
 | *Background* for busy wallpapers: none, shadow, dim, card, blur (default); *In range in white* | `LockBackground`, `LockscreenWidget`, `LockscreenWidgetHost` |
 | Exact size (a 100 dp test square: 311 × 343 px before, 262 × 262 after) and direct updates of the SystemUI-hosted widget id (Glance's `updateAll` never reached it) | `LockscreenWidgetHost.place`, `LockscreenWidget.updateAll` |
@@ -1160,7 +1161,9 @@ Tap a NovoPen Echo Plus (NovoPen 6 untested) on the wearer's unlocked phone, fro
 the pen's time with priming kept apart, hand-typed copies replaced, the old history left out, the rare unclear dose
 asked. Settings → Insulin pens says which pens work in its footer (from `PenProfiles`, untested ones in words; 0.11.51
 replaced 0.11.50's *Supported pens* rows, which looked like the user's own pens) and its *Automatic detection* page
-tunes the rules (0.11.50). Research, rules (59 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
+tunes the rules (0.11.50). 0.11.52: the per-read notification is an opt-in (*Notification after each read*, off by
+default; own group, so Android 16+ never bundles it with the glucose card or an alert) and the treatment dialog has no
+pen icon any more (it still reads a held pen; *Nothing new* / *Couldn't read the pen* under the fields). Research, rules (59 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
 `spikes/novopen-android/PRODUCT.md`; contract: `DESIGN.md`. Debug-only fake pen: `DebugReceiver --es cmd penRead --es
 doses "1,0.5,8,0.5" --ei agoMin 3 [--ei older 412] [--ez fail true] [--es model novopen6]`, `penReset [--es penReading
 ask|on|off]`, `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview`.

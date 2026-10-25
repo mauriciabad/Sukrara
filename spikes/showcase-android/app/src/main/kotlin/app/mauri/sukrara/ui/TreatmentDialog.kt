@@ -55,6 +55,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -161,6 +164,16 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
     val first = remember { FocusRequester() }
     val carbsFocus = remember { FocusRequester() }
     val longFocus = remember { FocusRequester() }
+    val noteFocus = remember { FocusRequester() }
+    // lock mode (QuickTreatmentActivity): what was typed decides the warning tick and the *Treatment not saved*
+    // toast; after an unlock the field that had the focus gets it and the number pad back
+    val lock = LocalLockSession.current
+    var lastFocus by remember { mutableStateOf<FocusRequester?>(null) }
+    androidx.compose.runtime.SideEffect { lock?.hasInput = rapid.isNotBlank() || long.isNotBlank() || carbs.isNotBlank() || note.isNotBlank() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(lock?.unlocks) {
+        if ((lock?.unlocks ?: 0) > 0) { kotlinx.coroutines.delay(250); runCatching { (lastFocus ?: first).requestFocus() }; keyboard?.show() }
+    }
     // low now (the latest reading, the alert rules' low thresholds): the carbs field takes the focus
     val low = remember {
         AlertStatus.level(RecentHistory.readings(ctx).lastOrNull(), Alerts.settings.value, nowS) in Kind.LOW_SIDE
@@ -194,17 +207,16 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    PenReaderSign()
                     AssistChip(onClick = { pickTime = true }, label = { Swap(at to ago) { (a, g) -> Text(timeLabel(a, g)) } })
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AmountField(stringResource(R.string.treatment_rapid), "u", rapidState, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first).testTag("treatment_rapid"))
-                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).focusRequester(longFocus).testTag("treatment_long"))
-                    AmountField(stringResource(R.string.treatment_carbs), "g", carbsState, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus).testTag("treatment_carbs"))
+                    AmountField(stringResource(R.string.treatment_rapid), "u", rapidState, r, Color(pal.rapid), "rapid", Modifier.weight(1f).focusRequester(first).onFocusChanged { if (it.isFocused) lastFocus = first }.testTag("treatment_rapid"))
+                    AmountField(stringResource(R.string.treatment_long), "u", longState, l, Color(pal.long), "long", Modifier.weight(1f).focusRequester(longFocus).onFocusChanged { if (it.isFocused) lastFocus = longFocus }.testTag("treatment_long"))
+                    AmountField(stringResource(R.string.treatment_carbs), "g", carbsState, c, Color(pal.carbs), "carbs", Modifier.weight(1f).focusRequester(carbsFocus).onFocusChanged { if (it.isFocused) lastFocus = carbsFocus }.testTag("treatment_carbs"))
                 }
                 OutlinedTextField(
                     // one line of text that wraps (a hardware Enter mustn't add a line break)
-                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth().testTag("treatment_note"),
+                    note, { v -> v.replace("\n", " ").let { if (it.toByteArray().size <= NOTE_BYTES) note = it } }, Modifier.fillMaxWidth().focusRequester(noteFocus).onFocusChanged { if (it.isFocused) lastFocus = noteFocus }.testTag("treatment_note"),
                     label = { Row(verticalAlignment = Alignment.CenterVertically) { KindMark("note", Color(pal.note)); Spacer(Modifier.size(6.dp)); Text(stringResource(R.string.treatment_note)) } },
                     placeholder = { Text(stringResource(R.string.treatment_note_placeholder)) },
                     maxLines = 3,
@@ -215,6 +227,8 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                 // the pen's supporting line slides in (expandVertically)
                 androidx.compose.animation.AnimatedVisibility(fill != null && penActive, enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
                     exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()) { fill?.let { f -> PenFillLine(f, fillRoles) } }
+                // a pen held to the dialog that gave nothing new, or couldn't be read: its word for 3 s
+                PenReadWord()
                 Reveal(quiet != null) {
                     Text(shownQuiet, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -222,10 +236,20 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
                     Text(stringResource(R.string.treatment_limits, MAX_UNITS.toInt(), MAX_GRAMS.toInt()),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    onOpenApp?.let { TextButton(onClick = it) { Text(stringResource(R.string.treatment_open_app)) } }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
+                // over the lock screen (round 52): *Unlock* takes *Open Sukrara*'s place (that one unlocks and drops the
+                // input), and Cancel carries the countdown ring
+                val startAction: (@Composable () -> Unit)? = if (onOpenApp == null && lock?.countdown == null) null else ({
+                    androidx.compose.animation.Crossfade(lock?.countdown != null, label = "unlock") { locked ->
+                        if (locked) {
+                            val a11y = stringResource(R.string.lock_unlock_a11y)
+                            TextButton(onClick = { lock?.onUnlock?.invoke() }, modifier = Modifier.semantics { contentDescription = a11y }) {
+                                Text(stringResource(R.string.lock_unlock))
+                            }
+                        } else onOpenApp?.let { TextButton(onClick = it) { Text(stringResource(R.string.treatment_open_app)) } }
+                    }
+                })
+                DialogActionRow(startAction) {
+                    CountdownCancel(stringResource(R.string.treatment_cancel), onDismiss)
                     Spacer(Modifier.size(8.dp))
                     Button(onClick = save, enabled = canSave) { Text(stringResource(R.string.treatment_save)) }
                 }
@@ -243,7 +267,7 @@ fun TreatmentDialog(onDismiss: () -> Unit, onSave: (List<NewEntry>) -> Unit, onO
             text = { Text(stringResource(R.string.pen_at, ctx0.getString(if (hit.k == "long") R.string.treatments_row_long else R.string.treatments_row_rapid, w.u(hit.a)),
                 app.mauri.sukrara.graph.Clock.time(hit.t))) },
             confirmButton = { Button(onClick = { onSave(ins); dup = null; onDismiss() }) { Text(stringResource(R.string.pen_dup_log)) } },
-            dismissButton = { TextButton(onClick = { dup = null }) { Text(stringResource(R.string.treatment_cancel)) } },
+            dismissButton = { CountdownCancel(stringResource(R.string.treatment_cancel)) { dup = null } },
         )
     }
 }
@@ -358,7 +382,7 @@ private fun TimeDialog(at: Long?, ago: Int?, onDismiss: () -> Unit, onPick: (Lon
         dismissButton = {
             Row {
                 TextButton(onClick = { onPick(null, null) }) { Text(stringResource(R.string.treatment_time_now)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.treatment_cancel)) }
+                CountdownCancel(stringResource(R.string.treatment_cancel), onDismiss)
             }
         },
     )

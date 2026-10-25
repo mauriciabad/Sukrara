@@ -14,19 +14,30 @@ import app.mauri.sukrara.R
 import app.mauri.sukrara.ui.MainActivity
 
 /**
- * The pen's notifications (PRODUCT §4.1): *Pen reads* (low importance: no sound, no heads-up; the card and the haptic
- * already told the user) carries each read's result, replaced by the next read, gone after 2 h; *Pen doses to check*
- * (default importance, silent) carries only what waits for the user (a question) and stays until it's answered.
+ * The pen's notifications (PRODUCT §4.1): *Pen reads* carries each read's result, replaced by the next read, gone
+ * after 2 h, only while *Notification after each read* is on; *Pen doses to check* carries only what waits for the
+ * user (a question) and stays until it's answered. Both are default importance with no sound and no vibration (the
+ * card and the haptic already told the user; default importance never peeks as heads-up). Round 52: *Pen reads* was
+ * low importance (`pen_reads`), which put it in Android 16+'s silent section with the low-importance glucose card,
+ * and two ungrouped silent notifications are autogrouped into one bundle (the "weird grouping"); the alerts (high
+ * importance, alerting section) never were. Default importance moves it to the alerting section; the old channel is
+ * deleted (a channel's importance can't be changed in code once created).
  */
 object PenNotifier {
-    const val READS = "pen_reads"
+    const val READS = "pen_read_results"
     const val CHECK = "pen_check"
     private const val ID_READ = 40
     private const val ID_CHECK = 41
+    private const val ID_READ_GROUP = 42
+    /** The read's own group (with its summary), so Android 16+ doesn't autogroup it with an alert. */
+    private const val GROUP_READS = "app.mauri.sukrara.pen.READS"
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(READS, ctx.getString(R.string.channel_pen_reads), NotificationManager.IMPORTANCE_LOW))
+        nm.deleteNotificationChannel("pen_reads")   // the low-importance channel before round 52
+        nm.createNotificationChannel(NotificationChannel(READS, ctx.getString(R.string.channel_pen_reads), NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setSound(null, null); enableVibration(false)   // the read already vibrated
+        })
         nm.createNotificationChannel(NotificationChannel(CHECK, ctx.getString(R.string.channel_pen_check), NotificationManager.IMPORTANCE_DEFAULT).apply {
             setSound(null, null); enableVibration(false)   // the read already vibrated
         })
@@ -43,8 +54,14 @@ object PenNotifier {
         PendingIntent.getBroadcast(ctx, code, Intent(ctx, PenActionReceiver::class.java).setAction(what).putExtra("id", extra),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build()
 
-    /** One read's result: the card's title and line, *Add treatment* and *Undo*; tap = the entry's sheet. */
+    /**
+     * One read's result: the card's title and line, *Add treatment* and *Undo*; tap = the entry's sheet. Only while
+     * Settings → Insulin pens → *Notification after each read* is on (`penNotify`, off by default: the read card and
+     * the haptic already said it, and on Android 16+ a second silent notification gets the glucose card autogrouped).
+     */
     fun read(ctx: Context, title: String, line: String, entry: app.mauri.sukrara.treatments.Treatment?, canUndo: Boolean, setup: String? = null) {
+        app.mauri.sukrara.features.Features.init(ctx)
+        if (!app.mauri.sukrara.features.Features.value.penNotify) return
         channels(ctx)
         val b = Notification.Builder(ctx, READS)
             .setSmallIcon(R.drawable.ic_stat_sukrara)
@@ -63,10 +80,30 @@ object PenNotifier {
             PendingIntent.getActivity(ctx, 401, PenWords.addTreatment(ctx, entry).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build())
         if (canUndo) b.addAction(action(ctx, PenActionReceiver.UNDO, null, ctx.getString(R.string.pen_undo), 402))
-        runCatching { nm(ctx).notify(ID_READ, b.build()) }
+        b.setGroup(GROUP_READS)
+        runCatching {
+            nm(ctx).notify(ID_READ_GROUP, Notification.Builder(ctx, READS).setSmallIcon(R.drawable.ic_stat_sukrara)
+                .setGroup(GROUP_READS).setGroupSummary(true).setGroupAlertBehavior(Notification.GROUP_ALERT_CHILDREN)
+                .setTimeoutAfter(2 * 3600_000L).setVisibility(Notification.VISIBILITY_PRIVATE).setAutoCancel(true)
+                .setContentTitle(title).build())
+            nm(ctx).notify(ID_READ, b.build())
+        }
     }
 
-    fun cancelRead(ctx: Context) = runCatching { nm(ctx).cancel(ID_READ) }
+    fun cancelRead(ctx: Context) = runCatching { nm(ctx).cancel(ID_READ); nm(ctx).cancel(ID_READ_GROUP) }
+
+    /** *Pen reads* can't show: the app's notifications or that channel are blocked in Android settings. */
+    fun readBlocked(ctx: Context): Boolean {
+        channels(ctx)
+        val nm = nm(ctx)
+        return !nm.areNotificationsEnabled() || nm.getNotificationChannel(READS)?.importance == NotificationManager.IMPORTANCE_NONE
+    }
+
+    /** Android's settings page of the *Pen reads* channel. */
+    fun readChannelSettings(ctx: Context): Intent = Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+        .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, READS)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** The questions still open: one notification for the oldest (with the suggestion and *All priming*), or a count. */
     fun sync(ctx: Context) {

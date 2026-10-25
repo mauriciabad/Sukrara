@@ -71,6 +71,7 @@ class DebugReceiver : BroadcastReceiver() {
                 hookPosition = i.getStringExtra("hookPosition") ?: s.hookPosition, hookColor = b("hookColor", s.hookColor),
                 hideNotifIcon = b("hideNotifIcon", s.hideNotifIcon), lockWidget = b("lockWidget", s.lockWidget),
                 lockBg = i.getStringExtra("lockBg") ?: s.lockBg, lockLook = i.getStringExtra("lockLook") ?: s.lockLook,
+                lockTreatmentS = n("lockTreatmentTime", s.lockTreatmentS), penNotify = b("penNotify", s.penNotify),
                 screenOffSkip = b("screenOffSkip", s.screenOffSkip), garmin = b("garmin", s.garmin),
                 nightscout = b("nightscout", s.nightscout), nightscoutLan = b("nightscoutLan", s.nightscoutLan),
                 connPriority = i.getStringExtra("connPriority") ?: s.connPriority,
@@ -209,6 +210,11 @@ class DebugReceiver : BroadcastReceiver() {
             // root (adb shell's su is refused on the phone)
             "hookLog" -> out.put("cmd", app.mauri.sukrara.status.RootStatusBar.hookLog(i.getIntExtra("lines", 80)))
             "widgetprobe" -> { app.mauri.sukrara.widgets.SukraraHooks.remeasureAll(c); out.put("cmd", "measuring graph widgets (logcat Sukrara.widgets)") }
+            // the quick treatment dialog, as the widget / notification / tile open it (lock-screen countdown tests)
+            "quickDialog" -> {
+                c.startActivity(Intent(c, app.mauri.sukrara.ui.QuickTreatmentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                out.put("cmd", "quick dialog opened")
+            }
             "pair" -> { App.owner(c).nearbyPairing(); out.put("cmd", "nearby pairing open 10 min") }
             // sensor end: without extras only the state (nothing changes). Settings: --ei countdownHours H; --ez countdown B;
             // --es reminders '1@540,0@540' (daysBefore@minuteOfDay); --ez unlock B (first-unlock reminders); --ez evening B;

@@ -95,10 +95,6 @@
   ],
   "states_pending": [
     {
-      "section": "Treatments",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Readings and backfill",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },

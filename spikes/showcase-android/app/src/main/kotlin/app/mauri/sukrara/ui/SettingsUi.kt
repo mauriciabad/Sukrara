@@ -280,9 +280,9 @@ fun SettingsGroupScope.link(title: String, summary: String? = null, @DrawableRes
 
 /** Opens a dialog (a choice, an editor): the current value below the title (SPA ListPreference's summary). */
 fun SettingsGroupScope.value(title: String, value: String, enabled: Boolean = true, @DrawableRes icon: Int? = null,
-                             leading: (@Composable () -> Unit)? = null, onClick: () -> Unit) {
+                             leading: (@Composable () -> Unit)? = null, keywords: String? = null, onClick: () -> Unit) {
     val i = iconOf(icon, leading)
-    row(title, value, icon = i) { Preference(model(title, value, i, enabled, onClick)) }
+    row(title, value, icon = i, keywords = keywords) { Preference(model(title, value, i, enabled, onClick)) }
 }
 
 /** Does something now (pair, save, copy…). */
@@ -310,9 +310,9 @@ private fun switchModel(title: String, summary: String?, icon: (@Composable () -
 
 /** SPA SwitchPreference: the whole row toggles; disabled rows are greyed out with the reason as the summary. */
 fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean = true, summary: String? = null,
-                              @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
+                              @DrawableRes icon: Int? = null, leading: (@Composable () -> Unit)? = null, keywords: String? = null, onChange: (Boolean) -> Unit) {
     val i = iconOf(icon, leading)
-    row(title, summary, icon = i) { SwitchPreference(switchModel(title, summary, i, checked, enabled, onChange)) }
+    row(title, summary, icon = i, keywords = keywords) { SwitchPreference(switchModel(title, summary, i, checked, enabled, onChange)) }
 }
 
 /**
@@ -321,9 +321,9 @@ fun SettingsGroupScope.switch(title: String, checked: Boolean, enabled: Boolean 
  */
 fun SettingsGroupScope.splitSwitch(title: String, summary: String?, checked: Boolean, rowEnabled: Boolean = true,
                                    switchEnabled: Boolean = rowEnabled, @DrawableRes icon: Int? = null, to: String? = null,
-                                   onClick: (() -> Unit)? = null, onChange: (Boolean) -> Unit) {
+                                   onClick: (() -> Unit)? = null, keywords: String? = null, onChange: (Boolean) -> Unit) {
     val i = iconOf(icon, null)
-    row(title, summary, to, i) {
+    row(title, summary, to, i, keywords) {
         val nav = LocalNav.current
         TwoTargetSwitchPreference(switchModel(title, summary, i, checked, switchEnabled, onChange), primaryEnabled = { rowEnabled },
             primaryOnClick = { if (onClick != null) onClick() else to?.let { nav?.open(it) } })
