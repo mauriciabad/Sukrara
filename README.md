@@ -188,6 +188,8 @@ by the app's icon code.</sub>
   when that window ends if still low ("Low glucose · eat more"; highs say "still high after insulin", never "take more").
   A short dip back into range doesn't restart the alert. Insulin never quiets extremely high. Every alert notification
   has two buttons: *Mute…* (pick 15 min, 30 min, 1 h, 2 h or type a length) and *Remind less* (every 30 min instead).
+  On Android an alert is never bundled with *Sensor ready*, a reminder or a pen read (Android 16 groups an app's
+  notifications by itself): alerts have their own group, everything else Sukrara's info group.
   They cover only that side (a high's mute never silences a low, very low and extremely high included) and end at their
   time or once glucose is back in range with a margin (10 mg/dL for 10 min, so hovering at the edge doesn't end them).
   *Mute alerts* on the home screen and in the Mac menu silences every alert for 30 min to 8 h or until you turn them back

@@ -222,6 +222,10 @@
         <receiver
             android:name=".owner.RequestActionReceiver"
             android:exported="false" />
+        <!-- a grouped notification timed out or was swiped: its group's summary goes with the last child (core/NotifGroups) -->
+        <receiver
+            android:name=".core.NotifGroups$TidyReceiver"
+            android:exported="false" />
         <!-- adb-only feature switches (battery lab, investigation 11): DUMP is held by the shell, not by apps -->
         <receiver
             android:name=".features.DebugReceiver"

@@ -14,6 +14,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import app.mauri.sukrara.R
 import app.mauri.sukrara.core.Durations
+import app.mauri.sukrara.core.NotifGroups
 import app.mauri.sukrara.core.Range
 import app.mauri.sukrara.core.Trend
 import app.mauri.sukrara.ui.MainActivity
@@ -35,7 +36,6 @@ object AlertNotifier {
     private const val GROUP = "alerts"
     private const val GROUP_ALARM = "alerts_alarm"
     private const val ID_BASE = 100
-    const val SILENT_GROUP = "alert_silent"
 
     fun channelId(kind: String, alarm: Boolean) = if (alarm) "alert_a_$kind" else "alert_n_$kind"
 
@@ -119,8 +119,8 @@ object AlertNotifier {
      */
     fun post(ctx: Context, kind: String, sgv: Int?, rate: Double?, th: Double, at: Long, who: String?, alarm: Boolean, treated: Int,
              silent: Boolean = false, actions: Actions? = null) {
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind),
-            build(ctx, kind, sgv, rate, th, at, who, alarm, treated, silent, actions)) }
+        runCatching { NotifGroups.post(ctx, notificationId(kind), build(ctx, kind, sgv, rate, th, at, who, alarm, treated, silent, actions),
+            NotifGroups.Group.ALERTS) }
     }
 
     /**
@@ -196,9 +196,13 @@ object AlertNotifier {
             .setWhen(at * 1000)
             .setShowWhen(true)
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
-        // silent: what NotificationCompat.setSilent does: a group member that defers alerting to a summary that never
-        // exists (NotificationRecord: suppressAlertingDueToGrouping); the channel's sound and vibration are skipped
-        if (silent) b.setGroup(SILENT_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
+        // Sukrara's alert group (round 53, core/NotifGroups): on Android 16+ an ungrouped alert was force-grouped with
+        // "Sensor ready"; in its own group with a summary it's never bundled with anything but another alert
+        b.setGroup(NotifGroups.Group.ALERTS.key)
+        // silent: what NotificationCompat.setSilent does: a group child that defers alerting to the summary
+        // (Notification#suppressAlertingDueToGrouping), and the summary never alerts (GROUP_ALERT_CHILDREN); the
+        // channel's sound and vibration are skipped. A ringing alert keeps GROUP_ALERT_ALL: it alerts as a child.
+        if (silent) b.setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
         // the follower's "who", and the interval of an alert that reminds less ("Reminders every 30 min"): secondary text, not the button
         val relaxed = actions?.relaxedMin?.takeIf { it > 0 }?.let { ctx.getString(R.string.alert_relaxed_subtext, Durations.text(it)) }
         listOfNotNull(who, relaxed).takeIf { it.isNotEmpty() }?.let { b.setSubText(it.joinToString(" · ")) }
@@ -206,7 +210,7 @@ object AlertNotifier {
         return b.build()
     }
 
-    fun cancel(ctx: Context, kind: String) = ctx.getSystemService(NotificationManager::class.java).cancel(notificationId(kind))
+    fun cancel(ctx: Context, kind: String) = NotifGroups.cancel(ctx, notificationId(kind))
 
     /**
      * After *Mute…*: the alert's notification becomes "Low alerts muted" / "Until 10:42" with a count-down chronometer
@@ -241,6 +245,6 @@ object AlertNotifier {
                 action(ctx, kind, AlertActionReceiver.UNMUTE, 3)).build())
             .muteFor(ctx, kind, ctx.getString(R.string.alert_action_change), choices)
             .build()
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(notificationId(kind), n) }
+        runCatching { NotifGroups.post(ctx, notificationId(kind), n, NotifGroups.Group.ALERTS) }
     }
 }

@@ -156,6 +156,13 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 
 - [ ] New/changed rule: a scenario in `spikes/alerts/scenarios` covers it (the checks enforce this).
 - [ ] Emulator: `--es alertFeed` a reading over and under the thresholds; notification text, channel, sound, repeat.
+- [ ] Grouping (Android 16 / 17 emulators, chip on and off): `--es cmd sensorStart --ei agoMin 50` + `--es alertTest
+      high`, then `--es cmd backfill` + `--es cmd sensorStart --ez firstReading true` (*Sensor ready*), then `--es
+      alertTest rising_fast`. `dumpsys notification --noredact`: alerts only in `g:app.mauri.sukrara.ALERTS` (summary
+      id 119), *Sensor ready* in `g:app.mauri.sukrara.INFO` (summary 19), the countdown and the glucose card
+      ungrouped, nothing in `g:Aggregate_…`; the alert is the one that sounded (`mSoundNotificationKey` = id 101). In
+      the shade *High glucose* never inside a bundle with *Sensor ready*; an in-range `alertFeed` removes the alert and
+      its group's summary.
 - [ ] Mac: no fake-reading hook yet; follow the emulator wearer (or check `-alerts-selftest` output) and compare the
       headline and timing with Android.
 - [ ] Never on the user's phone with real alarms unless the user asked.
@@ -388,7 +395,7 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.
 - [ ] *Notification after each read* off (default): a read posts no *Pen reads* notification (*Pen doses to check*
       still posts). On: the read's notification, silent, no heads-up; `dumpsys notification --noredact` shows it in
-      its own group (`g:app.mauri.sukrara.pen.READS`), never in `g:Aggregate_…` with the glucose card or an alert
+      Sukrara's info group (`g:app.mauri.sukrara.INFO`), never in `g:Aggregate_…` with the glucose card or an alert
       (`--es alertTest high`), chip on and off. Switching it off removes the shown one. Notifications blocked: the row
       says *Blocked in Android settings* and opens the channel page.
 - [ ] Treatment dialog with pen reading on: no pen icon in the title row; a pen with nothing new → *Nothing new* under

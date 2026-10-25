@@ -11,6 +11,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import app.mauri.sukrara.R
+import app.mauri.sukrara.core.NotifGroups
 import app.mauri.sukrara.ui.MainActivity
 
 /**
@@ -21,16 +22,15 @@ import app.mauri.sukrara.ui.MainActivity
  * low importance (`pen_reads`), which put it in Android 16+'s silent section with the low-importance glucose card,
  * and two ungrouped silent notifications are autogrouped into one bundle (the "weird grouping"); the alerts (high
  * importance, alerting section) never were. Default importance moves it to the alerting section; the old channel is
- * deleted (a channel's importance can't be changed in code once created).
+ * deleted (a channel's importance can't be changed in code once created). Round 53: both go in Sukrara's info group
+ * (core/NotifGroups, with the sensor reminders and the other non-alert notifications) instead of a group of their own:
+ * three groups with 1–2 children each in one section are force-grouped too (AOSP GroupHelper's sparse groups).
  */
 object PenNotifier {
     const val READS = "pen_read_results"
     const val CHECK = "pen_check"
     private const val ID_READ = 40
     private const val ID_CHECK = 41
-    private const val ID_READ_GROUP = 42
-    /** The read's own group (with its summary), so Android 16+ doesn't autogroup it with an alert. */
-    private const val GROUP_READS = "app.mauri.sukrara.pen.READS"
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -80,17 +80,11 @@ object PenNotifier {
             PendingIntent.getActivity(ctx, 401, PenWords.addTreatment(ctx, entry).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)).build())
         if (canUndo) b.addAction(action(ctx, PenActionReceiver.UNDO, null, ctx.getString(R.string.pen_undo), 402))
-        b.setGroup(GROUP_READS)
-        runCatching {
-            nm(ctx).notify(ID_READ_GROUP, Notification.Builder(ctx, READS).setSmallIcon(R.drawable.ic_stat_sukrara)
-                .setGroup(GROUP_READS).setGroupSummary(true).setGroupAlertBehavior(Notification.GROUP_ALERT_CHILDREN)
-                .setTimeoutAfter(2 * 3600_000L).setVisibility(Notification.VISIBILITY_PRIVATE).setAutoCancel(true)
-                .setContentTitle(title).build())
-            nm(ctx).notify(ID_READ, b.build())
-        }
+        b.setGroup(NotifGroups.Group.INFO.key)
+        NotifGroups.post(ctx, ID_READ, b.build(), NotifGroups.Group.INFO)
     }
 
-    fun cancelRead(ctx: Context) = runCatching { nm(ctx).cancel(ID_READ); nm(ctx).cancel(ID_READ_GROUP) }
+    fun cancelRead(ctx: Context) = NotifGroups.cancel(ctx, ID_READ)
 
     /** *Pen reads* can't show: the app's notifications or that channel are blocked in Android settings. */
     fun readBlocked(ctx: Context): Boolean {
@@ -108,11 +102,12 @@ object PenNotifier {
     /** The questions still open: one notification for the oldest (with the suggestion and *All priming*), or a count. */
     fun sync(ctx: Context) {
         val open = Pens.ledger.value.open().sortedBy { it.at }
-        if (open.isEmpty()) { runCatching { nm(ctx).cancel(ID_CHECK) }; return }
+        if (open.isEmpty()) { NotifGroups.cancel(ctx, ID_CHECK); return }
         channels(ctx)
         val q = open.first()
         val words = PenWords(ctx)
         val b = Notification.Builder(ctx, CHECK).setSmallIcon(R.drawable.ic_stat_sukrara).setOnlyAlertOnce(true)
+            .setGroup(NotifGroups.Group.INFO.key)
             .setContentIntent(open(ctx, "penQuestion", q.id, 410))
         if (open.size > 1) {
             b.setContentTitle(ctx.resources.getQuantityString(R.plurals.pen_q_several, open.size, open.size))
@@ -124,7 +119,7 @@ object PenNotifier {
         } else {
             b.setContentTitle(ctx.getString(R.string.pen_q_same_title)).setContentText(words.matchLine(q))
         }
-        runCatching { nm(ctx).notify(ID_CHECK, b.build()) }
+        NotifGroups.post(ctx, ID_CHECK, b.build(), NotifGroups.Group.INFO)
     }
 }
 

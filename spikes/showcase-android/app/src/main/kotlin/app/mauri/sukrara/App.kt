@@ -24,6 +24,7 @@ class App : Application() {
         app.mauri.sukrara.graph.Clock.hour24Source = { android.text.format.DateFormat.is24HourFormat(this) }
         app.mauri.sukrara.graph.RoundedFont.init(this)   // the card's rounded numbers (Google Sans Flex, ROND 100)
         Notifications.channels(this)
+        app.mauri.sukrara.core.NotifGroups.tidy(this)   // a summary left without children (or the reverse) by a killed process
         // a follower's Settings from (Default / Wearer / Custom) and the wearer's settings: the stores below read it
         app.mauri.sukrara.settings.WearerSettings.init(this)
         app.mauri.sukrara.alerts.Alerts.init(this)   // alert channels + settings (investigation 15)
