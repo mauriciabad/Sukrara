@@ -75,6 +75,13 @@ Cheap tools:
 - [ ] Needs root/LSPosed: the phone only, after install. Check light and dark lock screens, frosted glass on/off,
       appearance Light / Dark / Automatic.
 - [ ] Treatment buttons work without unlocking; the value updates while locked.
+- [ ] Lock-screen countdown (emulator: `adb shell locksettings set-pin 1234`, keyevent 26 then 224, open the quick
+      dialog from the glucose notification on the lock screen): the ring with the seconds on *Cancel* counts from 20;
+      typing doesn't add time; one tick at 5 s with input; at 0 it closes and toasts *Treatment not saved* (only with
+      input); screen off closes it at once; *Unlock* → PIN → the same dialog with amounts, note, *16 min ago* and the
+      keyboard, *Open Sukrara* back, no ring; cancelling the bouncer resumes with ≥ 5 s; the *When?* picker's Cancel
+      shows the ring; Spanish at 360 dp wraps *Desbloquear* above Cancel / Save. TalkBack on: ≥ 60 s, Cancel says
+      *Closes in N seconds*, one announcement at 10 s. *Remove animations*: the ring steps per second.
 - [ ] No other app's notifications in the screenshots.
 
 ## Q5 Glucose notification
@@ -379,6 +386,13 @@ only on the user's phone, by the user. The full checklist is `spikes/novopen-and
 - [ ] A bank / transit card or a passport held to the phone (reading on): nothing at all (no card, no vibration, no
       notification); only a pen tap shows the card (the filter is IsoDep + NfcA since 0.11.46).
 - [ ] Failed read → red card, REJECT haptic, nothing logged; a second one within 2 min adds the tips.
+- [ ] *Notification after each read* off (default): a read posts no *Pen reads* notification (*Pen doses to check*
+      still posts). On: the read's notification, silent, no heads-up; `dumpsys notification --noredact` shows it in
+      its own group (`g:app.mauri.sukrara.pen.READS`), never in `g:Aggregate_…` with the glucose card or an alert
+      (`--es alertTest high`), chip on and off. Switching it off removes the shown one. Notifications blocked: the row
+      says *Blocked in Android settings* and opens the channel page.
+- [ ] Treatment dialog with pen reading on: no pen icon in the title row; a pen with nothing new → *Nothing new* under
+      the fields for 3 s; a failed read → red *Couldn't read the pen* for 3 s.
 - [ ] Untested NovoPen 6 (`--es model novopen6`) → *Untested pen added*; *Set up* → the pen's page: red 10 s confirmation → display
       check; *It doesn't* → *Sukrara doesn't log this pen*.
 - [ ] *Your pens*: one row per pen (pen icon, not a pencil), *· Revisa sus ajustes* until its page was opened; no extra setup row.

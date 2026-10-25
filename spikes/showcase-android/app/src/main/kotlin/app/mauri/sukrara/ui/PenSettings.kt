@@ -120,8 +120,10 @@ fun PensSettings(onBack: () -> Unit) {
     var nfcOn by remember { mutableStateOf(nfc?.isEnabled == true) }
     val allowed = rememberTagIntentsAllowed()
     var askedAllow by remember { mutableStateOf(false) }
+    var notifBlocked by remember { mutableStateOf(app.mauri.sukrara.pen.PenNotifier.readBlocked(ctx)) }
     LifecycleResumeEffect(allowed) {
         nfcOn = nfc?.isEnabled == true
+        notifBlocked = app.mauri.sukrara.pen.PenNotifier.readBlocked(ctx)
         // back from Android's allow screen after switching reading on: say how it went
         if (askedAllow) { askedAllow = false; android.widget.Toast.makeText(ctx, if (allowed) R.string.tags_allowed_toast else R.string.tags_still_blocked_toast, android.widget.Toast.LENGTH_SHORT).show() }
         onPauseOrDispose { }
@@ -169,6 +171,13 @@ fun PensSettings(onBack: () -> Unit) {
                 }
             }
             SettingsGroup {
+                // the per-read *Pen reads* notification (off by default); on but blocked in Android: the row opens
+                // that channel's settings, the switch still turns it off
+                if (f.penNotify && notifBlocked) splitSwitch(stringResource(R.string.pens_notify), stringResource(R.string.pens_notify_blocked), true,
+                    icon = R.drawable.ic_sym_notifications, keywords = stringResource(R.string.pens_notify_keywords),
+                    onClick = { ctx.startActivity(app.mauri.sukrara.pen.PenNotifier.readChannelSettings(ctx)) }) { v -> setPenNotify(ctx, v) }
+                else switch(stringResource(R.string.pens_notify), f.penNotify, summary = stringResource(R.string.pens_notify_summary),
+                    icon = R.drawable.ic_sym_notifications, keywords = stringResource(R.string.pens_notify_keywords)) { v -> setPenNotify(ctx, v) }
                 link(stringResource(R.string.pens_detection), stringResource(R.string.pens_detection_summary, PenWords.number(f.penPrimeBelow) + "u",
                     minutes(f.penClusterMin)), icon = R.drawable.ic_sym_tune, to = PEN_DETECTION_ROUTE)
             }
@@ -176,6 +185,12 @@ fun PensSettings(onBack: () -> Unit) {
         // which pens work: the page's footer (AOSP Hearing devices says what isn't supported in its footer), always shown
         SettingsFooter(pensFooter(LocalContext.current))
     }
+}
+
+/** *Notification after each read*: off also takes away the read notification that is showing. */
+internal fun setPenNotify(ctx: android.content.Context, on: Boolean) {
+    Features.update { it.copy(penNotify = on) }
+    if (!on) app.mauri.sukrara.pen.PenNotifier.cancelRead(ctx)
 }
 
 /**

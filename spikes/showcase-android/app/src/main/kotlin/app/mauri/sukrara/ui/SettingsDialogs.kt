@@ -134,6 +134,7 @@ fun unitText(spec: NumberSpec): String = when (spec.unit) {
     "h" -> stringResource(R.string.unit_h)
     "d" -> stringResource(R.string.unit_d)
     "min" -> stringResource(R.string.unit_min)
+    "s" -> stringResource(R.string.unit_s)
     else -> spec.unit
 }
 

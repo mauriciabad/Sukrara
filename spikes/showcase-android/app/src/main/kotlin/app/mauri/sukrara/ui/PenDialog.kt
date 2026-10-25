@@ -10,14 +10,10 @@ import android.nfc.NfcAdapter
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,17 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.graphicsLayer
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
 import app.mauri.sukrara.features.Features
@@ -59,7 +53,8 @@ import kotlinx.coroutines.withContext
 
 /*
  * The pen in the treatment dialog (PRODUCT §4.6/§4.6b): the duplicate warning on Save, and reading the pen into the
- * dialog (reader mode while it is open, without the system sound; a small pen icon in the title row is the sign).
+ * dialog (reader mode while it is open, without the system sound and without an icon: the fill is the sign, and
+ * *Nothing new* / *Couldn't read the pen* shows under the fields).
  */
 
 /** §4.6: a pen entry of the same kind within 45 min of a typed rapid / long amount (the wearer's own log only). */
@@ -73,9 +68,9 @@ object PenDuplicate {
     }
 }
 
-/** What the dialog's pen icon shows: idle, reading (spins), or a 3 s word (*Nothing new* / red *Couldn't read the pen*). */
+/** The last read's 3 s word under the dialog's fields: null = none, false = *Nothing new*, true = *Couldn't read the pen*. */
 private object PenDialogRead {
-    val state = MutableStateFlow("idle")
+    val state = MutableStateFlow<Boolean?>(null)
 }
 
 private fun Context.activity(): Activity? = when (this) { is Activity -> this; is ContextWrapper -> baseContext.activity(); else -> null }
@@ -104,40 +99,31 @@ fun PenReaderEffect(onFill: (Pens.Fill) -> Unit) {
             scope.launch {
                 // a card or passport near the phone isn't a pen: nothing shows (only an answered selection reads)
                 var selected = false
-                val res = withContext(Dispatchers.IO) { runCatching { PenTag.read(tag, onSelected = { selected = true; PenDialogRead.state.value = "reading" }) { Pens.stopBefore(it) } } }
+                val res = withContext(Dispatchers.IO) { runCatching { PenTag.read(tag, onSelected = { selected = true }) { Pens.stopBefore(it) } } }
                 val r = res.getOrNull()
                 if (PenTag.outcome(selected, res.exceptionOrNull() ?: if (r == null) app.mauri.sukrara.pen.opennov.NotAPenException() else null) == PenTag.Outcome.NOT_PEN) return@launch
-                if (r == null) { app.mauri.sukrara.pen.PenHaptics.read(view, false); PenDialogRead.state.value = "failed"; return@launch }
+                if (r == null) { app.mauri.sukrara.pen.PenHaptics.read(view, false); PenDialogRead.state.value = true; return@launch }
                 app.mauri.sukrara.pen.PenHaptics.read(view, true)
                 val f = withContext(Dispatchers.IO) { Pens.readForDialog(ctx, r) }
-                if (f == null) PenDialogRead.state.value = "nothing" else { PenDialogRead.state.value = "idle"; onFill(f) }
+                if (f == null) PenDialogRead.state.value = false else { PenDialogRead.state.value = null; onFill(f) }
             }
         }, NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS, null)
         onDispose { if (on && act != null) runCatching { nfc?.disableReaderMode(act) } }
     }
 }
 
-/** The sign at the end of the title row: a 20 dp contactless pen, or the read's word for 3 s. */
+/**
+ * The read's word under the fields for 3 s (round 52: the title-row pen icon is gone): *Nothing new*, or red
+ * *Couldn't read the pen*, so a REJECT buzz isn't a mystery. A polite live region says it to TalkBack.
+ */
 @Composable
-fun PenReaderSign() {
-    if (!penReadable()) return
+fun PenReadWord() {
     val st by PenDialogRead.state.collectAsState()
-    LaunchedEffect(st) { if (st == "nothing" || st == "failed") { delay(3000); PenDialogRead.state.value = "idle" } }
-    val label = stringResource(R.string.pen_dialog_read_a11y)
-    // the icon pulses once (1 → 1.15 → 1) as a read starts; reduced motion: no pulse
-    val ctx = LocalContext.current
-    val pulse = remember { androidx.compose.animation.core.Animatable(1f) }
-    LaunchedEffect(st) { if (st == "reading" && !app.mauri.sukrara.pen.PenHaptics.reducedMotion(ctx)) { pulse.animateTo(1.15f, androidx.compose.animation.core.tween(120)); pulse.animateTo(1f, androidx.compose.animation.core.spring(0.6f, 800f)) } }
-    when (st) {
-        "nothing" -> Text(stringResource(R.string.pen_read_nothing), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 8.dp))
-        "failed" -> Text(stringResource(R.string.pen_read_failed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(end = 8.dp))
-        else -> Box(Modifier.padding(end = 8.dp).size(28.dp).semantics { contentDescription = label }.graphicsLayer { scaleX = pulse.value; scaleY = pulse.value },
-            contentAlignment = Alignment.Center) {
-            if (st == "reading") CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
-            Icon(painterResource(R.drawable.ic_dia_pen_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-        }
+    LaunchedEffect(st) { if (st != null) { delay(3000); PenDialogRead.state.value = null } }
+    RevealValue(st) { failed ->
+        Text(stringResource(if (failed) R.string.pen_read_failed else R.string.pen_read_nothing), style = MaterialTheme.typography.bodyMedium,
+            color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
 }
 

@@ -141,8 +141,10 @@ fun WearerSettings(u: OwnerUi, onBack: () -> Unit) {
                 R.string.settings_statusbar_summary_value.takeIf { f.hook }).map { stringResource(it) }
             link(stringResource(R.string.statusbar_title), bar.joinToString(" · ").ifEmpty { stringResource(R.string.settings_off) }.replaceFirstChar { it.uppercase() },
                 leading = { CategoryIcon(R.drawable.ic_sym_smartphone, Category.INDIGO) }, to = "statusbar")
-            link(stringResource(R.string.lock_title), if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) stringResource(R.string.settings_needs_module)
-                else if (f.lockWidget) stringResource(R.string.settings_on_with, stringResource(lockBackgroundLabel(f.lockBg))) else stringResource(R.string.settings_off),
+            link(stringResource(R.string.lock_title), (if (!access.active && access.module != app.mauri.sukrara.features.SystemAccess.Module.CHECKING) stringResource(R.string.settings_needs_module)
+                else if (f.lockWidget) stringResource(R.string.settings_on_with, stringResource(lockBackgroundLabel(f.lockBg))) else stringResource(R.string.settings_off)) +
+                    // the countdown works without the module: worth opening the page for
+                    " · " + stringResource(R.string.settings_lock_to_save, f.lockTreatmentS),
                 leading = { CategoryIcon(R.drawable.ic_sym_screen_lock_portrait, Category.TEAL) }, to = "lockscreen")
         }
         SettingsGroup {
@@ -462,8 +464,18 @@ fun LockscreenSettings(onBack: () -> Unit) {
             value(stringResource(R.string.lock_appearance), if (on) stringResource(lockAppearanceLabel(f.lockLook)) else off, enabled = on, icon = R.drawable.ic_sym_palette) { choosing = "look" }
         }
         SettingsFooter(stringResource(R.string.lock_footer))
+        // the treatment dialog's countdown over the lock screen (round 52): also for the rootless entry points (the
+        // glucose notification, the Quick Settings tile, a pen notification), so enabled with or without the module
+        SettingsGroup(stringResource(R.string.lock_treatment_group)) {
+            value(stringResource(R.string.lock_treatment_time), pluralStringResource(R.plurals.lock_treatment_time_summary, f.lockTreatmentS, f.lockTreatmentS),
+                icon = R.drawable.ic_sym_timer, keywords = stringResource(R.string.lock_treatment_keywords)) { choosing = "time" }
+        }
+        SettingsFooter(stringResource(R.string.lock_treatment_footer))
     }
+    val sec = stringResource(R.string.unit_s)
     when (choosing) {
+        "time" -> IntNumberDialog(stringResource(R.string.lock_treatment_time), SettingsSpec.LOCK_TREATMENT_TIME, f.lockTreatmentS, { "$it $sec" },
+            { choosing = null }) { v -> set { it.copy(lockTreatmentS = v) } }
         "bg" -> ChoiceDialog(stringResource(R.string.lock_background), bg.ALL.map { Choice(stringResource(lockBackgroundLabel(it)), it, stringResource(lockBackgroundSummary(it))) },
             f.lockBg, { choosing = null }) { v -> change { it.copy(lockBg = v) } }
         "look" -> ChoiceDialog(stringResource(R.string.lock_appearance), look.ALL.map { Choice(stringResource(lockAppearanceLabel(it)), it, stringResource(lockAppearanceSummary(it))) },

@@ -134,7 +134,9 @@ by the app's icon code.</sub>
   [16](docs/16-graph.md)
 - Log rapid and long-acting insulin, carbs and a note in one dialog (carbs first when you're low), now or earlier: pick
   the time, or type how many minutes ago (or tap 5 / 15 / 30 / 60), on Android and Mac. Tapping a widget or the glucose notification
-  opens it on top of whatever app you're in, and over the lock screen without unlocking. Also a Quick Settings tile,
+  opens it on top of whatever app you're in, and over the lock screen without unlocking; there it closes by itself
+  after 20 s (Settings → Lock screen → *Time to save*; a ring with the seconds on *Cancel*, *Unlock* keeps what you
+  typed) so a touch in your pocket can't log anything. Also a Quick Settings tile,
   *Add treatment*. The charts and lists show how long ago each was (`4.5u 12m`), and a line on the chart shows how long
   it keeps alerts quiet. On the charts the labels sit under their markers, in the time axis' row, never over the
   line; a meal shares one label (`4.5u · 45g 1h 35m`), and close ones slide or take a second row, the same way on
@@ -143,7 +145,8 @@ by the app's icon code.</sub>
   followers that use the wearer's settings. [10](docs/10-showcase.md), [16](docs/16-graph.md#treatment-labels-under-the-markers-2026-10-18)
 - **Insulin pens** (NovoPen Echo Plus; NovoPen 6 untested): unlock the phone and hold the pen to it, from any app.
   The injected insulin is logged at the pen's own time, priming ("air shots") kept apart and never counted, without
-  opening Sukrara: a small card says *8.5u logged · 1.5u primed* with *Add treatment* and *Undo*. Doses you already
+  opening Sukrara: a small card says *8.5u logged · 1.5u primed* with *Add treatment* and *Undo* (a notification
+  with the same, for 2 hours, if you turn on *Notification after each read*). Doses you already
   typed by hand are replaced, never doubled; the pen's older history stays out of your log (one tap logs the last
   injection if it's recent); only genuinely unclear doses ask (*Priming or injected?*). Every dose of a pen entry can be
   set to priming or injected later, and *Doses read* lists everything the pen holds. LibreView, Nightscout, Tidepool,

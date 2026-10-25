@@ -624,6 +624,17 @@
     <string name="treatment_open_app">Open Sukrara</string>
     <!-- Treatment dialog: cancel [CHAR LIMIT=15] -->
     <string name="treatment_cancel">Cancel</string>
+    <!-- Treatment dialog over the lock screen: unlock the phone and keep the dialog with what was typed [CHAR LIMIT=15] -->
+    <string name="lock_unlock">Unlock</string>
+    <!-- TalkBack label of that Unlock button [CHAR LIMIT=NONE] -->
+    <string name="lock_unlock_a11y">Unlock to keep editing</string>
+    <!-- TalkBack state of Cancel while the dialog counts down over the lock screen; %d = seconds, in 5 s steps [CHAR LIMIT=NONE] -->
+    <plurals name="lock_closes_in">
+        <item quantity="one">Closes in %d second</item>
+        <item quantity="other">Closes in %d seconds</item>
+    </plurals>
+    <!-- Toast over the lock screen after the dialog closed by itself with something typed in it [CHAR LIMIT=40] -->
+    <string name="lock_not_saved">Treatment not saved</string>
     <!-- Treatment dialog: save [CHAR LIMIT=15] -->
     <string name="treatment_save">Save</string>
     <!-- Treatment dialog: time chip and picker button for the current time [CHAR LIMIT=12] -->
@@ -1438,6 +1449,23 @@
     <string name="lock_appearance">Appearance</string>
     <!-- Lock screen page footer [CHAR LIMIT=NONE] -->
     <string name="lock_footer">Needs root and the Sukrara module enabled in LSPosed (scope System UI). Anyone holding the locked phone can add an entry; turn this off if you don\'t want that.</string>
+    <!-- Lock screen page: group of the treatment dialog's countdown (works without the module) [CHAR LIMIT=50] -->
+    <string name="lock_treatment_group">Add treatment on the lock screen</string>
+    <!-- Row and number dialog: how long the dialog stays open over the lock screen [CHAR LIMIT=30] -->
+    <string name="lock_treatment_time">Time to save</string>
+    <!-- Its summary; %d = seconds [CHAR LIMIT=NONE] -->
+    <plurals name="lock_treatment_time_summary">
+        <item quantity="one">%d second, then it closes without saving</item>
+        <item quantity="other">%d seconds, then it closes without saving</item>
+    </plurals>
+    <!-- Footer of that group [CHAR LIMIT=NONE] -->
+    <string name="lock_treatment_footer">On the lock screen, the dialog closes by itself so a touch in your pocket can\'t log anything. Unlock to keep editing.</string>
+    <!-- Words settings search also finds Time to save by, never shown [CHAR LIMIT=NONE] -->
+    <string name="lock_treatment_keywords">countdown, timer, discard, pocket, close</string>
+    <!-- Settings overview, Lock screen row: appended after a middle dot; %d = seconds [CHAR LIMIT=30] -->
+    <string name="settings_lock_to_save">%d s to save</string>
+    <!-- Unit: seconds, after a number. [CHAR LIMIT=10] -->
+    <string name="unit_s">s</string>
     <!-- ========== Settings → Sensor end (reminders + live countdown) ========== -->
     <!-- Page title and overview row [CHAR LIMIT=30] -->
     <string name="sensorend_title">Sensor end</string>
@@ -2643,6 +2671,14 @@
     <string name="pens_footer">Sukrara reads %1$s. Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or Mallya, aren\'t supported.</string>
     <!-- One pen model in that footer list that was never tried on a real pen (%1$s: the model) [CHAR LIMIT=40] -->
     <string name="pens_footer_untested">%1$s (untested)</string>
+    <!-- Insulin pens page switch: the Pen reads notification after every read [CHAR LIMIT=40] -->
+    <string name="pens_notify">Notification after each read</string>
+    <!-- Its summary: what the notification holds and how long it stays [CHAR LIMIT=NONE] -->
+    <string name="pens_notify_summary">The result, Add treatment and Undo, for 2 hours</string>
+    <!-- Its summary while it is on but Android blocks the app's notifications or the Pen reads channel; tapping opens those settings [CHAR LIMIT=NONE] -->
+    <string name="pens_notify_blocked">Blocked in Android settings</string>
+    <!-- Words settings search also finds the switch by, never shown [CHAR LIMIT=NONE] -->
+    <string name="pens_notify_keywords">notification, pen read</string>
     <!-- Row: opens the dose detection rules page [CHAR LIMIT=40] -->
     <string name="pens_detection">Automatic detection</string>
     <!-- Automatic detection row summary: priming size and injection window [CHAR LIMIT=NONE] -->
@@ -2835,8 +2871,6 @@
     <string name="pen_kind_rapid_lower">rapid</string>
     <!-- Pen insulin kind inside a line [CHAR LIMIT=12] -->
     <string name="pen_kind_long_lower">long</string>
-    <!-- TalkBack: the pen icon in the treatment dialog [CHAR LIMIT=NONE] -->
-    <string name="pen_dialog_read_a11y">Hold your pen to the phone to fill this in</string>
     <!-- Treatment dialog: a field filled by the pen [CHAR LIMIT=40] -->
     <string name="pen_dialog_from">From the pen · %1$s</string>
     <!-- Treatment dialog: a field filled by the pen, no priming [CHAR LIMIT=30] -->

@@ -611,6 +611,13 @@
     <string name="treatment_open_app">Abrir Sukrara</string>
     <!-- Treatment dialog: cancel [CHAR LIMIT=15] -->
     <string name="treatment_cancel">Cancelar</string>
+    <string name="lock_unlock">Desbloquear</string>
+    <string name="lock_unlock_a11y">Desbloquear para seguir editando</string>
+    <plurals name="lock_closes_in">
+        <item quantity="one">Se cierra en %d segundo</item>
+        <item quantity="other">Se cierra en %d segundos</item>
+    </plurals>
+    <string name="lock_not_saved">Tratamiento no guardado</string>
     <!-- Treatment dialog: save [CHAR LIMIT=15] -->
     <string name="treatment_save">Guardar</string>
     <!-- Treatment dialog: time chip and picker button for the current time [CHAR LIMIT=12] -->
@@ -1219,6 +1226,16 @@
     <string name="lock_background">Fondo</string>
     <string name="lock_appearance">Aspecto</string>
     <string name="lock_footer">Necesita root y el módulo de Sukrara activado en LSPosed (ámbito System UI). Cualquiera que tenga el teléfono bloqueado puede añadir un registro; desactívalo si no quieres que pase.</string>
+    <string name="lock_treatment_group">Añadir tratamiento en la pantalla de bloqueo</string>
+    <string name="lock_treatment_time">Tiempo para guardar</string>
+    <plurals name="lock_treatment_time_summary">
+        <item quantity="one">%d segundo; después se cierra sin guardar</item>
+        <item quantity="other">%d segundos; después se cierra sin guardar</item>
+    </plurals>
+    <string name="lock_treatment_footer">En la pantalla de bloqueo, el cuadro se cierra solo para que un toque en el bolsillo no registre nada. Desbloquea para seguir editando.</string>
+    <string name="lock_treatment_keywords">cuenta atrás, temporizador, descartar, bolsillo, cerrar</string>
+    <string name="settings_lock_to_save">%d s para guardar</string>
+    <string name="unit_s">s</string>
     <!-- ========== Ajustes → Fin del sensor ========== -->
     <string name="sensorend_title">Fin del sensor</string>
     <string name="sensorend_intro">Recordatorios antes de que termine el sensor y cuentas atrás en directo en sus últimas horas y mientras se calienta uno nuevo.</string>
@@ -2015,6 +2032,10 @@
     <!-- One pen model in that footer list that was never tried on a real pen (%1$s: the model) [CHAR LIMIT=40] -->
     <string name="pens_footer_untested">%1$s (sin probar)</string>
     <!-- Row: opens the dose detection rules page [CHAR LIMIT=40] -->
+    <string name="pens_notify">Notificación tras cada lectura</string>
+    <string name="pens_notify_summary">El resultado, Añadir tratamiento y Deshacer, durante 2 horas</string>
+    <string name="pens_notify_blocked">Bloqueada en los ajustes de Android</string>
+    <string name="pens_notify_keywords">notificación, lectura, pluma</string>
     <string name="pens_detection">Detección automática</string>
     <!-- Automatic detection row summary: priming size and injection window [CHAR LIMIT=NONE] -->
     <string name="pens_detection_summary">Purgado: menos de %1$s · una inyección en %2$s</string>
@@ -2207,7 +2228,6 @@
     <!-- Pen insulin kind inside a line [CHAR LIMIT=12] -->
     <string name="pen_kind_long_lower">lenta</string>
     <!-- TalkBack: the pen icon in the treatment dialog [CHAR LIMIT=NONE] -->
-    <string name="pen_dialog_read_a11y">Acerca tu pluma al teléfono para rellenarlo</string>
     <!-- Treatment dialog: a field filled by the pen [CHAR LIMIT=40] -->
     <string name="pen_dialog_from">De la pluma · %1$s</string>
     <!-- Treatment dialog: a field filled by the pen, no priming [CHAR LIMIT=30] -->

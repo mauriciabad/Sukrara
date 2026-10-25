@@ -57,6 +57,11 @@ data class FeatureState(
     val lockBg: String = LockBackground.FROSTED,
     /** Lock screen widget light or dark, or following the system's dark theme ([LockAppearance]). */
     val lockLook: String = LockAppearance.AUTO,
+    /**
+     * Seconds the treatment dialog stays open over the lock screen before it closes unsaved (`lockTreatmentTime`;
+     * [app.mauri.sukrara.treatments.LockCountdown]): a touch in a pocket can't log anything.
+     */
+    val lockTreatmentS: Int = 20,
     /** Don't re-post the glucose notification while the screen is off; catch up on screen on. */
     val screenOffSkip: Boolean = false,
     /** xDrip+-compatible local server on 127.0.0.1:17580, what Garmin watch apps read (only binds if the port is free). Off until wanted. */
@@ -78,6 +83,8 @@ data class FeatureState(
      * (after *No* or turning it off: taps do nothing). PRODUCT §1b.
      */
     val penReading: String = "ask",
+    /** The *Pen reads* notification after each read (`penNotify`); off by default (the read card already showed it). */
+    val penNotify: Boolean = false,
     /** A pen dose smaller than this (u) can be priming (`penPrimeBelow`). */
     val penPrimeBelow: Double = 2.0,
     /** Pen detection (Settings → Insulin pens → Automatic detection; `PenRules`, PRODUCT §3): doses up to this many
@@ -110,12 +117,12 @@ data class FeatureState(
         .put("bleFollowers", bleFollowers)
         .put("chip", chip).put("icon", icon).put("systemIcons", systemIcons).put("hook", hook).put("hookPosition", hookPosition).put("hookColor", hookColor)
         .put("hideNotifIcon", hideNotifIcon).put("lockWidget", lockWidget)
-        .put("lockBg", lockBg).put("lockLook", lockLook)
+        .put("lockBg", lockBg).put("lockLook", lockLook).put("lockTreatmentTime", lockTreatmentS)
         .put("screenOffSkip", screenOffSkip).put("garmin", garmin)
         .put("nightscout", nightscout).put("nightscoutLan", nightscoutLan)
         .put("libreview", libreview).put("libreviewInterval", libreviewIntervalMin)
         .put("connPriority", connPriority).put("uploadBanner", uploadBannerDismissed)
-        .put("penReading", penReading).put("penPrimeBelow", penPrimeBelow)
+        .put("penReading", penReading).put("penNotify", penNotify).put("penPrimeBelow", penPrimeBelow)
         .put("penCluster", penClusterMin).put("penPrimeBefore", penPrimeBeforeMin).put("penPending", penPendingMin)
         .put("penMatch", penMatchMin).put("penMatchUnits", penMatchUnits).put("penMatchShare", penMatchPct).put("penOffer", penOfferH)
 
@@ -128,12 +135,14 @@ data class FeatureState(
             hookPosition = j.optString("hookPosition", d.hookPosition), hookColor = j.optBoolean("hookColor", d.hookColor),
             hideNotifIcon = j.optBoolean("hideNotifIcon", d.hideNotifIcon), lockWidget = j.optBoolean("lockWidget", d.lockWidget),
             lockBg = j.optString("lockBg", d.lockBg), lockLook = j.optString("lockLook", d.lockLook),
+            lockTreatmentS = specMin(app.mauri.sukrara.settings.SettingsSpec.LOCK_TREATMENT_TIME, j.optInt("lockTreatmentTime", d.lockTreatmentS)),
             screenOffSkip = j.optBoolean("screenOffSkip", d.screenOffSkip), garmin = j.optBoolean("garmin", d.garmin),
             nightscout = j.optBoolean("nightscout", d.nightscout), nightscoutLan = j.optBoolean("nightscoutLan", d.nightscoutLan),
             libreview = j.optBoolean("libreview", d.libreview), libreviewIntervalMin = specMin(app.mauri.sukrara.settings.SettingsSpec.LIBREVIEW_INTERVAL, j.optInt("libreviewInterval", d.libreviewIntervalMin)),
             connPriority = j.optString("connPriority", d.connPriority),
             uploadBannerDismissed = j.optBoolean("uploadBanner", d.uploadBannerDismissed),
             penReading = j.optString("penReading", d.penReading).takeIf { it in Features.PEN_READING } ?: d.penReading,
+            penNotify = j.optBoolean("penNotify", d.penNotify),
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, j.optDouble("penPrimeBelow", d.penPrimeBelow)),
             penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, j.optInt("penCluster", d.penClusterMin)),
             penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, j.optInt("penPrimeBefore", d.penPrimeBeforeMin)),
@@ -171,6 +180,7 @@ object Features {
             lockWidget = p.getBoolean("lockWidget", d.lockWidget),
             lockBg = LockBackground.valid(p.getString("lockBg", d.lockBg)),
             lockLook = LockAppearance.valid(p.getString("lockLook", d.lockLook)),
+            lockTreatmentS = specMin(app.mauri.sukrara.settings.SettingsSpec.LOCK_TREATMENT_TIME, p.getInt("lockTreatmentTime", d.lockTreatmentS)),
             screenOffSkip = p.getBoolean("screenOffSkip", d.screenOffSkip),
             garmin = p.getBoolean("garmin", d.garmin),
             nightscout = p.getBoolean("nightscout", d.nightscout),
@@ -180,6 +190,7 @@ object Features {
             connPriority = p.getString("connPriority", d.connPriority)!!,
             uploadBannerDismissed = p.getBoolean("uploadBanner", d.uploadBannerDismissed),
             penReading = p.getString("penReading", d.penReading)!!.takeIf { it in Features.PEN_READING } ?: d.penReading,
+            penNotify = p.getBoolean("penNotify", d.penNotify),
             penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, p.getFloat("penPrimeBelow", d.penPrimeBelow.toFloat()).toDouble()),
             penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, p.getInt("penCluster", d.penClusterMin)),
             penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, p.getInt("penPrimeBefore", d.penPrimeBeforeMin)),
@@ -201,6 +212,7 @@ object Features {
                 connPriority = it.connPriority.takeIf { p -> p in PRIORITIES } ?: "default",
                 lockBg = LockBackground.valid(it.lockBg),
                 lockLook = LockAppearance.valid(it.lockLook),
+                lockTreatmentS = specMin(app.mauri.sukrara.settings.SettingsSpec.LOCK_TREATMENT_TIME, it.lockTreatmentS),
                 penPrimeBelow = specD(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BELOW, it.penPrimeBelow),
                 penClusterMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_CLUSTER, it.penClusterMin),
                 penPrimeBeforeMin = specMin(app.mauri.sukrara.settings.SettingsSpec.PEN_PRIME_BEFORE, it.penPrimeBeforeMin),
@@ -217,12 +229,12 @@ object Features {
             putBoolean("chip", s.chip); putBoolean("icon", s.icon); putBoolean("screenOffSkip", s.screenOffSkip)
             putBoolean("hook", s.hook); putString("hookPosition", s.hookPosition); putBoolean("hookColor", s.hookColor)
             putBoolean("hideNotifIcon", s.hideNotifIcon); putBoolean("lockWidget", s.lockWidget)
-            putString("lockBg", s.lockBg); putString("lockLook", s.lockLook)
+            putString("lockBg", s.lockBg); putString("lockLook", s.lockLook); putInt("lockTreatmentTime", s.lockTreatmentS)
             putBoolean("garmin", s.garmin); putBoolean("nightscout", s.nightscout); putBoolean("nightscoutLan", s.nightscoutLan)
             putBoolean("libreview", s.libreview)
             putInt("libreviewInterval", s.libreviewIntervalMin); putString("connPriority", s.connPriority)
             putBoolean("uploadBanner", s.uploadBannerDismissed)
-            putString("penReading", s.penReading); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
+            putString("penReading", s.penReading); putBoolean("penNotify", s.penNotify); putFloat("penPrimeBelow", s.penPrimeBelow.toFloat())
             putInt("penCluster", s.penClusterMin); putInt("penPrimeBefore", s.penPrimeBeforeMin); putInt("penPending", s.penPendingMin)
             putInt("penMatch", s.penMatchMin); putFloat("penMatchUnits", s.penMatchUnits.toFloat()); putInt("penMatchShare", s.penMatchPct)
             putInt("penOffer", s.penOfferH)
