@@ -13,17 +13,16 @@ import android.content.Intent
 import app.mauri.sukrara.ui.MainActivity
 
 object Notifications {
-    const val SERVICE = "service"
     const val REQUESTS = "requests"
     const val STATUS = "status"
 
-    const val ID_SERVICE = 1
     const val ID_REQUEST = 2
     const val ID_STATUS = 5
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(SERVICE, ctx.getString(R.string.channel_service), NotificationManager.IMPORTANCE_LOW))
+        // the unused low-importance "service" channel: anything posted there would share the silent section with the glucose card
+        nm.deleteNotificationChannel("service")
         nm.createNotificationChannel(NotificationChannel(REQUESTS, ctx.getString(R.string.channel_requests), NotificationManager.IMPORTANCE_HIGH))
         nm.deleteNotificationChannel("alarms")   // replaced by one channel per alert kind (alerts/AlertNotifier)
         nm.createNotificationChannel(NotificationChannel(STATUS, ctx.getString(R.string.channel_status), NotificationManager.IMPORTANCE_DEFAULT))
@@ -42,15 +41,14 @@ object Notifications {
             .setOngoing(ongoing)
             .setOnlyAlertOnce(ongoing)
             .setAutoCancel(!ongoing)
+            .setGroup(NotifGroups.Group.INFO.key)
             .build()
 
     fun post(ctx: Context, id: Int, channel: String, title: String, text: String, ongoing: Boolean = false) {
-        runCatching {
-            ctx.getSystemService(NotificationManager::class.java).notify(id, build(ctx, channel, title, text, ongoing))
-        }
+        runCatching { NotifGroups.post(ctx, id, build(ctx, channel, title, text, ongoing), NotifGroups.Group.INFO) }
     }
 
-    fun cancel(ctx: Context, id: Int) = ctx.getSystemService(NotificationManager::class.java).cancel(id)
+    fun cancel(ctx: Context, id: Int) = NotifGroups.cancel(ctx, id)
 
     /**
      * An access request: "Mom wants to see your glucose · Asked with your invite for Mom · 14:02". A link request gets
@@ -77,9 +75,10 @@ object Notifications {
             .setContentIntent(open(ctx))
             .setCategory(Notification.CATEGORY_SOCIAL)
             .setAutoCancel(true)
+            .setGroup(NotifGroups.Group.INFO.key)
         p.avatar?.let { b.setLargeIcon(android.graphics.drawable.Icon.createWithBitmap(it.render(p.name, 192).circle())) }
         if (!p.nearby && p.others == 0) b.addAction(action(ACTION_DENY, ctx.getString(R.string.approve_deny), false)).addAction(action(ACTION_ALLOW, ctx.getString(R.string.approve_allow), true))
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(ID_REQUEST, b.build()) }
+        runCatching { NotifGroups.post(ctx, ID_REQUEST, b.build(), NotifGroups.Group.INFO) }
     }
 
     const val ACTION_ALLOW = "app.mauri.sukrara.ALLOW_REQUEST"

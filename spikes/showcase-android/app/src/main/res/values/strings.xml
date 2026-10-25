@@ -237,8 +237,6 @@
     <string name="follower_notif_revoked_text">The wearer stopped sharing glucose with this phone</string>
 
     <!-- ========== Notification channels and the access request ========== -->
-    <!-- Notification channel: the ongoing service notification [CHAR LIMIT=40] -->
-    <string name="channel_service">Running in background</string>
     <!-- Notification channel: requests to follow the wearer [CHAR LIMIT=40] -->
     <string name="channel_requests">Access requests</string>
     <!-- Notification channel: invite used, request denied, access removed [CHAR LIMIT=40] -->

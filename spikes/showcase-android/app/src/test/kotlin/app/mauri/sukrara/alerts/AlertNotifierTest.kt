@@ -19,7 +19,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Guards against two sounds for one alert (docs/15): every alert channel rings only its own Sukrara sound, an alert
- * notification adds no sound or group of its own, and a re-shown alert (after a restart) is silent.
+ * notification adds no sound of its own and rings as a child of Sukrara's alert group (round 53: GROUP_ALERT_ALL, the
+ * summary never alerts), and a re-shown alert (after a restart) is silent.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -40,13 +41,14 @@ class AlertNotifierTest {
         val n = AlertNotifier.build(ctx, Kind.HIGH, 200, 0.0, 180.0, 1_760_000_000L, null, alarm = false, treated = 0)
         assertNull(n.sound)
         assertEquals(0, n.defaults and Notification.DEFAULT_SOUND)
-        assertNull(n.group)
+        assertEquals(app.mauri.sukrara.core.NotifGroups.Group.ALERTS.key, n.group)
+        assertEquals(Notification.GROUP_ALERT_ALL, n.groupAlertBehavior)
         assertFalse(n.flags and Notification.FLAG_GROUP_SUMMARY != 0)
     }
 
     @Test fun reShownAlertIsSilent() {
         val quiet = AlertNotifier.build(ctx, Kind.HIGH, 200, 0.0, 180.0, 1_760_000_000L, null, alarm = false, treated = 0, silent = true)
-        assertEquals(AlertNotifier.SILENT_GROUP, quiet.group)
+        assertEquals(app.mauri.sukrara.core.NotifGroups.Group.ALERTS.key, quiet.group)
         assertEquals(Notification.GROUP_ALERT_SUMMARY, quiet.groupAlertBehavior)
         assertFalse(quiet.flags and Notification.FLAG_GROUP_SUMMARY != 0)
     }

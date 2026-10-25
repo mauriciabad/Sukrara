@@ -54,7 +54,7 @@ class AlertKit(val ctx: Application) {
     fun buttons(kind: String) = notification(kind)?.actions?.map { it.title.toString() } ?: emptyList()
     fun input(kind: String, button: String): RemoteInput = notification(kind)!!.actions.single { it.title.toString() == button }.remoteInputs.single()
     fun choices(kind: String, button: String) = input(kind, button).choices.map { it.toString() }
-    fun silent(kind: String) = notification(kind)?.group == AlertNotifier.SILENT_GROUP
+    fun silent(kind: String) = notification(kind)?.groupAlertBehavior == Notification.GROUP_ALERT_SUMMARY
 
     /** Taps [button] on [kind]'s notification (its own PendingIntent), or replies [typed] to it. */
     fun tap(kind: String, button: String, typed: String? = null) {

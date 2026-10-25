@@ -14,6 +14,7 @@ import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.App
 import app.mauri.sukrara.R
+import app.mauri.sukrara.core.NotifGroups
 import app.mauri.sukrara.core.SensorInfo
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.features.Features
@@ -179,15 +180,15 @@ object SensorEnd {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         val info = SensorLife.current.value
         if (App.role(ctx) != "owner" || info == null) {   // only the wearer gets these
-            nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP); nm.cancel(ID_READY)
-            if (App.role(ctx) != "owner") nm.cancel(ID_ENDED)
+            NotifGroups.cancel(ctx, ID_REMIND, ID_COUNTDOWN, ID_WARMUP, ID_READY)
+            if (App.role(ctx) != "owner") NotifGroups.cancel(ctx, ID_ENDED)
             alarms(ctx).cancel(alarmIntent(ctx))
             return
         }
         var mem = memory(ctx)
         if (mem.key != keyOf(info)) {   // a new sensor: start fresh, past slots don't fire
             mem = PlanMemory(keyOf(info), now)
-            nm.cancel(ID_ENDED); nm.cancel(ID_REMIND); nm.cancel(ID_COUNTDOWN); nm.cancel(ID_WARMUP); nm.cancel(ID_READY)
+            NotifGroups.cancel(ctx, ID_ENDED, ID_REMIND, ID_COUNTDOWN, ID_WARMUP, ID_READY)
         }
         val hours = SensorLife.countdownHours(ctx)
         val zone = ZoneId.systemDefault()
@@ -209,7 +210,7 @@ object SensorEnd {
         }
         if (p.countdown) post(ctx, ID_COUNTDOWN) { countdown(ctx, info, hours, now) } else nm.cancel(ID_COUNTDOWN)
         if (p.ended) {
-            nm.cancel(ID_REMIND)
+            NotifGroups.cancel(ctx, ID_REMIND)
             post(ctx, ID_ENDED) { ended(ctx) }
             mem = mem.copy(endedShown = true)
         }
@@ -270,9 +271,16 @@ object SensorEnd {
 
     // ------------------------------------------------------------------------------------------- notifications
 
-    /** Builds and posts; a failure (building included) is logged, never thrown into sync / App.onCreate. */
+    /**
+     * Builds and posts; a failure (building included) is logged, never thrown into sync / App.onCreate. Reminders,
+     * *Sensor ready* and *Sensor ended* go in Sukrara's info group; the countdowns (one at a time, a Live Update)
+     * stay ungrouped (core/NotifGroups).
+     */
     private fun post(ctx: Context, id: Int, build: () -> Notification) {
-        runCatching { ctx.getSystemService(NotificationManager::class.java).notify(id, build()) }.onFailure { Log.w(TAG, "post $id: $it") }
+        runCatching {
+            val n = build()
+            if (n.group == null) NotifGroups.postUngrouped(ctx, id, n) else NotifGroups.post(ctx, id, n, NotifGroups.Group.INFO)
+        }.onFailure { Log.w(TAG, "post $id: $it") }
     }
 
     /**
@@ -325,6 +333,7 @@ object SensorEnd {
             .setCategory(Notification.CATEGORY_REMINDER)
             .setContentIntent(open(ctx))
             .setAutoCancel(true)
+            .setGroup(NotifGroups.Group.INFO.key)
             .build()
 
     /**
@@ -399,6 +408,7 @@ object SensorEnd {
             .setContentIntent(open(ctx))
             .setTimeoutAfter(10 * 60_000L)
             .setAutoCancel(true)
+            .setGroup(NotifGroups.Group.INFO.key)
             .build()
 
     private fun ended(ctx: Context): Notification =
@@ -411,6 +421,7 @@ object SensorEnd {
             .addAction(Notification.Action.Builder(null, ctx.getString(R.string.badge_replace_sensor),
                 MainActivity.sensorPendingIntent(ctx)).build())
             .setAutoCancel(true)
+            .setGroup(NotifGroups.Group.INFO.key)
             .build()
 
     /** Debug (DebugReceiver `cmd sensorEnd`): a made-up sensor that ends in [minutes]; the next real one replaces it. */
