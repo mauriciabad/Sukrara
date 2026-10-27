@@ -218,7 +218,7 @@ class Libre3DriverTest {
         }
     }
 
-    private fun reading(epochSec: Long, mgdl: Int, rate: Float?) = Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Libre3)
+    private fun reading(epochSec: Long, mgdl: Int, rate: Double?) = Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Libre3)
 
     /** The 40-byte challenge reply as three 20-byte frames: LE16 offset + 18 bytes, zero padded. */
     private val replyFrames = listOf(
@@ -296,7 +296,7 @@ class Libre3DriverTest {
         assertEquals(listOf("cancel"), s.link.take())
         assertEquals(LinkStatus.Live, s.events.lastStatus())
         val now = nowMs / 1000
-        assertEquals(listOf(reading(now, 121, 0.5f)), s.events.readings)
+        assertEquals(listOf(reading(now, 121, 0.5)), s.events.readings)
         assertEquals(listOf(listOf(reading(start + 60L * 996, 118, null))), s.events.history)
         assertEquals(
             listOf(SensorGlucose(1000, 121, now, 0.5) to listOf(SensorGlucose(995, 118, start + 60L * 996))),

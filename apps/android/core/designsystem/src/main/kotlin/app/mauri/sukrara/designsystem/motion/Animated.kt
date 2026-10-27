@@ -21,10 +21,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 
 /** An optional part of a column: fades and expands in, fades and shrinks out (snaps with reduced motion). */
@@ -82,9 +85,9 @@ fun RollingNumber(
     }
     val value = text.toIntOrNull()
     val dir = remember { RollDirection(value) }
-    dir.update(value)
-    val up = dir.up
-    Row(modifier.clipToBounds()) {
+    val up = dir.directionTo(value)
+    SideEffect { dir.last = value }
+    Row(modifier.clipToBounds().clearAndSetSemantics { contentDescription = text }) {
         text.forEachIndexed { i, ch ->
             key(text.length - i) {
                 AnimatedContent(ch, transitionSpec = { digitRoll(up) }, label = "digit") { c ->
@@ -95,17 +98,17 @@ fun RollingNumber(
     }
 }
 
-/** The direction of the last change; a plain holder so recompositions without a new value keep it. */
+/** The last committed value and direction, so recompositions without a new value keep rolling the same way. */
 private class RollDirection(
     var last: Int?,
 ) {
-    var up = true
+    private var up = true
 
-    fun update(value: Int?) {
-        if (value == last) return
+    /** The direction towards [value] (unchanged when there's nothing to compare). */
+    fun directionTo(value: Int?): Boolean {
         val previous = last
-        if (value != null && previous != null) up = value > previous
-        last = value
+        if (value != null && previous != null && value != previous) up = value > previous
+        return up
     }
 }
 

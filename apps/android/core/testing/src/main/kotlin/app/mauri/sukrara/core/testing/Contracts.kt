@@ -14,8 +14,9 @@ object Contracts {
 
     val root: File
         get() {
-            val path = System.getProperty(PROPERTY)
-                ?: error("System property '$PROPERTY' is not set: apply id(\"sukrara.contracts\") in this module's build file.")
+            val path =
+                System.getProperty(PROPERTY)
+                    ?: error("System property '$PROPERTY' is not set: apply id(\"sukrara.contracts\") in this module's build file.")
             return File(path).also { check(it.isDirectory) { "contracts folder $it does not exist" } }
         }
 

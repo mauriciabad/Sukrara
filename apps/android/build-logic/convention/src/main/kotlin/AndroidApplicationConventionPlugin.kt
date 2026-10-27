@@ -79,6 +79,6 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             }
         }
         // pre<Variant>Build is the root of every release output (assemble, bundle, install).
-        tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifySigning) }
+        tasks.named { it == "preReleaseBuild" }.configureEach { dependsOn(verifySigning) }
     }
 }

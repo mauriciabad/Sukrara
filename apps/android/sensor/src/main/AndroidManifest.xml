@@ -18,4 +18,25 @@
     <queries>
         <package android:name="app.mauri.sukrara.poc" />
     </queries>
+
+    <application>
+        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 18
+             adds the activity (it hands the tag to NfcPairing). -->
+        <activity
+            android:name=".SensorTapActivity"
+            android:enabled="false"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:permission="android.permission.DISPATCH_NFC_MESSAGE"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_libre" />
+        </activity>
+    </application>
 </manifest>

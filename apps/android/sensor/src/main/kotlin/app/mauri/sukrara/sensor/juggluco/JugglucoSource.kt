@@ -102,7 +102,7 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
         private fun JsonObject.str(key: String) = this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull
 
         private fun reading(epochSec: Long, mgdl: Int, rate: Double?) =
-            Reading(Instant.ofEpochSecond(epochSec), mgdl, rate?.toFloat(), SourceId.Juggluco)
+            Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Juggluco)
     }
 
     private val http = http.newBuilder()

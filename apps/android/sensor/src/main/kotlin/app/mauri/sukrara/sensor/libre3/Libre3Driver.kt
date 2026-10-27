@@ -411,5 +411,5 @@ internal class Libre3Driver(
     }
 
     private fun reading(epochSec: Long, mgdl: Int, rate: Double?) =
-        Reading(Instant.ofEpochSecond(epochSec), mgdl, rate?.toFloat(), SourceId.Libre3)
+        Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Libre3)
 }

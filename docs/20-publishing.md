@@ -226,6 +226,28 @@ Play requires an upload key. The plan:
 4. (Alternative if the package were kept: APK Signature Scheme v3 key rotation can move an install from the debug key
    to a new key in place. Not worth it given the rename.)
 
+### The V1 Android release key
+
+Done for V1 (0.90.0, 2026-10-27), steps 1–2 above; step 3's migration is dropped (owner decision: V1 starts clean,
+the showcase stays installed next to it until the owner uninstalls it).
+
+- **Where:** `~/.android/sukrara-release.jks` (PKCS12, RSA 4096, valid 30 years, alias `sukrara`), outside the repo,
+  made once by `tools/release/make-keystore.sh` (it refuses to overwrite an existing key). Its random password is in
+  the macOS Keychain item **`sukrara-android-release`** (account `sukrara`). Public fingerprint:
+  `tools/release/android-cert.sha256` (also in `docs/.well-known/assetlinks.json` for `app.mauri.sukrara`, with the
+  debug key's for debug builds).
+- **How a release build finds it:** the keystore from `SUKRARA_KEYSTORE` (default the path above), the password from
+  the environment variable `SUKRARA_KEYSTORE_PASSWORD` only (Gradle never reads the Keychain); `tools/install.sh` and the
+  release scripts fill it from the Keychain item (`security find-generic-password -s sukrara-android-release -w`).
+  `tools/release/verify-apk.sh` refuses an APK signed by anything else.
+- **Back it up now** (once, and after any change): copy the `.jks` file and the password
+  (`security find-generic-password -s sukrara-android-release -w`) into the password manager, plus one offline copy.
+  **Losing either = no more updates** for every installed copy: Android only installs an update signed by the same
+  key, so users would have to uninstall (losing their data) and install a new app.
+- **Restore on a new Mac:** put the file back at `~/.android/sukrara-release.jks` (`chmod 600`) and recreate the
+  Keychain item: `security add-generic-password -s sukrara-android-release -a sukrara -w` (it prompts for the
+  password, so it stays out of the shell history).
+
 ### Alternatives to Play
 
 | Channel | Fit | Requirements / notes |

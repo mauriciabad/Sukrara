@@ -46,7 +46,7 @@ class JugglucoSourceTest {
             {"date":1760776740000,"sgv":118,"delta":null,"direction":"","device":"Juggluco"}]"""
         assertEquals(
             listOf(
-                Reading(Instant.ofEpochSecond(1760776800), 120, 1.0f, SourceId.Juggluco),
+                Reading(Instant.ofEpochSecond(1760776800), 120, 1.0, SourceId.Juggluco),
                 Reading(Instant.ofEpochSecond(1760776740), 118, null, SourceId.Juggluco),
             ),
             JugglucoSource.parseEntries(body),
@@ -119,7 +119,7 @@ class JugglucoSourceTest {
             server.stop(0)
         }
         assertEquals(listOf(120, 121), readings.take(2).map { it.mgdl })
-        assertEquals(0.5f, readings[1].rateMgdlPerMin)
+        assertEquals(0.5, readings[1].rateMgdlPerMin)
         assertEquals("3MH00ABCDE", sensor?.serial)
         assertEquals(listOf(JugglucoStatus.FetchingHistory, JugglucoStatus.Live), statuses.take(2))
     }
