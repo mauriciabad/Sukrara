@@ -9,6 +9,7 @@ import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.UnsignedEvent
 import app.mauri.sukrara.protocol.Wire
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 import kotlin.math.pow
 import kotlinx.coroutines.CoroutineDispatcher
@@ -177,8 +178,15 @@ class RelayPool(
     private suspend fun run(url: String, connection: Connection) {
         var attempt = 0
         while (true) {
-            val events = Channel<SocketEvent>(Channel.UNLIMITED)
-            val socket = sockets.connect(url) { events.trySend(it) }
+            // Bounded: a relay that floods faster than we handle loses its socket instead of filling memory.
+            val events = Channel<SocketEvent>(INBOUND_QUEUE)
+            val flooded = AtomicBoolean(false)
+            val socket = sockets.connect(url) {
+                if (events.trySend(it).isFailure && !events.isClosedForSend) {
+                    flooded.set(true)
+                    events.close()
+                }
+            }
             connection.socket = socket
             connection.open = false
             connection.challenge = null
@@ -187,8 +195,13 @@ class RelayPool(
             resend(socket)
             var reason = "closed"
             for (e in events) {
+                if (flooded.get()) break
                 when (e) {
                     is SocketEvent.Message -> {
+                        if (e.text.length > MAX_MESSAGE_CHARS) {
+                            reason = TOO_BIG
+                            break
+                        }
                         if (!connection.open) {
                             connection.open = true
                             attempt = 0
@@ -202,6 +215,8 @@ class RelayPool(
                     }
                 }
             }
+            if (flooded.get()) reason = FLOODED
+            events.close()
             socket.cancel()
             connection.socket = null
             connection.open = false
@@ -282,9 +297,23 @@ class RelayPool(
 
     private fun host(url: String) = url.removePrefix("wss://").substringBefore('/')
 
-    private companion object {
-        const val KIND_AUTH = 22242
-        const val OUTBOX_SECONDS = 3600L
-        const val INBOUND_BUFFER = 1024
+    internal companion object {
+        private const val KIND_AUTH = 22242
+        private const val OUTBOX_SECONDS = 3600L
+        private const val INBOUND_BUFFER = 1024
+
+        /** Socket events waiting for [run]; more than this means the relay floods us and its socket is dropped. */
+        const val INBOUND_QUEUE = 4096
+
+        /**
+         * The longest relay message kept (in chars, so at least 1 MiB of UTF-8, like the Mac's URLSession default).
+         * Our events are a few KB; anything this big is a broken or hostile relay and its socket is dropped. OkHttp
+         * has already buffered the message by then (it has no incoming limit); this stops the repeat, not the first.
+         */
+        const val MAX_MESSAGE_CHARS = 1 shl 20
+
+        /** Status-line reasons (never relay content). */
+        const val TOO_BIG = "message too big"
+        const val FLOODED = "too many messages"
     }
 }

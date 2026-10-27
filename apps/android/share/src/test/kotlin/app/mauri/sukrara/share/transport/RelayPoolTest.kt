@@ -7,6 +7,7 @@ import app.mauri.sukrara.protocol.UnsignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.share.OwnerFixtures.crypto
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -150,6 +151,39 @@ class RelayPoolTest {
         advanceTimeBy(2_001)
         assertFalse(sockets[1].sent.any { it.contains(first.id) })
         assertTrue(sockets[1].sent.any { it.contains(second.id) })
+        p.close()
+    }
+
+    @Test fun anOversizedMessageDropsTheSocketAndNothingReachesInbound() = runTest {
+        val p = pool()
+        val inbound = mutableListOf<RelayInbound>()
+        backgroundScope.launch { p.inbound.collect { inbound += it } }
+        p.start()
+        p.subscribe("inbox", listOf(RelayFilter(kinds = listOf(Wire.KIND_WRAP))))
+        runCurrent()
+        val huge = "[\"EOSE\",\"" + "x".repeat(RelayPool.MAX_MESSAGE_CHARS) + "\"]"
+        sockets[0].onEvent(SocketEvent.Message(huge))
+        runCurrent()
+        assertTrue(sockets[0].cancelled)
+        val status = p.status.value.getValue("wss://a.example")
+        assertFalse(status.connected)
+        assertEquals(RelayPool.TOO_BIG, status.lastError)
+        assertTrue(inbound.isEmpty())
+        advanceTimeBy(2_001)
+        assertEquals("it reconnects after the backoff like any failure", 2, sockets.size)
+        p.close()
+    }
+
+    @Test fun aFloodFasterThanTheQueueDropsTheSocket() = runTest {
+        val p = pool()
+        p.start()
+        runCurrent()
+        // the pool's dispatcher doesn't run while we push: the queue fills and the next push trips it
+        repeat(RelayPool.INBOUND_QUEUE + 1) { sockets[0].onEvent(SocketEvent.Message("[\"EOSE\",\"s$it\"]")) }
+        sockets[0].onEvent(SocketEvent.Message("[\"EOSE\",\"late\"]"))
+        runCurrent()
+        assertTrue(sockets[0].cancelled)
+        assertEquals(RelayPool.FLOODED, p.status.value.getValue("wss://a.example").lastError)
         p.close()
     }
 }
