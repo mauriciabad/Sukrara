@@ -1273,7 +1273,8 @@ not copied.
 - **Restore is gated**: identity restore only once the sensor runs in V1 and the showcase is gone or its sharing off;
   a second app publishing as the same identity gets a blocking state. Reason: otherwise followers are cut off from
   the app that has the readings, or the two apps fight over the roster.
-- **Every number from the stores is explicit**: alert thresholds are confirmed by the person, never silently defaulted.
+- **Alert thresholds are confirmed** by the person in setup, never silently defaulted. Reason: V1 starts fresh, and a
+  default the person didn't choose is a silent safety change.
 
 ### Left out, with the reason
 
@@ -1295,5 +1296,5 @@ not copied.
 | Home-screen widgets (Android) and desktop widgets (Mac) ([12](12-android-widgets.md), [13](13-macos-widgets.md)) | P1: built on free slots and shipped in 0.90.0 only if merged and reviewed in time, else in a 0.90.x release |
 | Sparkle updates and notarization | no Developer ID; the Mac build stays Apple Development signed, as in 0.11.x. Both apps check GitHub releases instead |
 
-Every item above has an issue so it can come back. FEATURES.md lists what V1 doesn't do yet under
+Every item above is filed as a GitHub issue so it can come back. FEATURES.md lists what V1 doesn't do yet under
 [*Not in V1*](FEATURES.md#not-in-v1).
