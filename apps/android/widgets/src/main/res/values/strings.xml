@@ -2,4 +2,32 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="widget_value_label">Glucose</string>
+    <string name="widget_value_description">Your glucose value, trend and time in range</string>
+    <string name="widget_graph_label">Glucose graph</string>
+    <string name="widget_graph_description">The last hours of glucose</string>
+    <string name="widget_combined_label">Glucose and graph</string>
+    <string name="widget_combined_description">Your glucose value with the graph. Tap to log a treatment</string>
+    <string name="widget_desc_follower">%1$s: %2$s</string>
+    <string name="widget_config_title">Widget settings</string>
+    <string name="widget_config_preview">Preview of the widget: %1$s</string>
+    <string name="widget_config_same">Same as the app</string>
+    <string name="widget_config_on">On</string>
+    <string name="widget_config_off">Off</string>
+    <string name="widget_config_hours">Time shown</string>
+    <plurals name="widget_config_hours_n">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <string name="widget_config_side">Distribution beside the graph</string>
+    <string name="widget_config_rings">Rings</string>
+    <string name="widget_config_ring_range">Rings count</string>
+    <string name="widget_config_range_in">In range</string>
+    <string name="widget_config_range_tight">Tight range</string>
+    <string name="widget_config_sensor">Sensor time left</string>
+    <string name="widget_config_reset">Reset</string>
+    <string name="widget_config_save">Save</string>
+    <!-- the widget picker's static synthetic preview (not a reading) -->
+    <string name="widget_preview_value" translatable="false">112 →</string>
+</resources>

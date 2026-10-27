@@ -32,6 +32,9 @@ class ThemeContrastTest {
                 s.error to s.surfaceBright,
                 s.onPrimary to s.primary,
                 s.onSecondaryContainer to s.secondaryContainer,
+                // safety banners (BannerSeverity.Safety): words on the container, the filled action button
+                s.onErrorContainer to s.errorContainer,
+                s.onError to s.error,
             )
         for ((fg, bg) in pairs) assertTrue("$fg on $bg = ${ratio(fg, bg)}", ratio(fg, bg) >= 4.5)
     }

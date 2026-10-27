@@ -45,6 +45,8 @@ class HomeModule(
     /** First-run setup's first unfinished row (chunk 24), for the Finish-setup banner; null = done. */
     nextSetupStep: Flow<String?>,
     private val refreshSetup: () -> Unit,
+    /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
+    private val widgetPlaced: () -> Boolean? = { null },
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -71,7 +73,7 @@ class HomeModule(
     fun refresh() {
         readinessSource?.refresh()
         refreshSetup()
-        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager)) }
+        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager), widgetPlaced = widgetPlaced()) }
     }
 
     override fun acknowledge(problem: DataProblem) {

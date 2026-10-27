@@ -20,9 +20,17 @@ import java.time.Instant
 sealed interface NoDataReason {
     val action: HomeAction?
 
+    /**
+     * True = there is nothing for the card to draw yet (never a reading, or no way to read one), so the reason takes the
+     * card's place. Otherwise the card stays (its chart keeps the last trajectory; the renderer draws "No reading
+     * since", the warm-up or "Sensor ended") and the reason sits under it, compact.
+     */
+    val fullPage: Boolean get() = false
+
     /** First-run setup hasn't chosen a role yet. */
     data object SetupIncomplete : NoDataReason {
         override val action = HomeAction.OpenSetup
+        override val fullPage = true
     }
 
     /**
@@ -31,10 +39,12 @@ sealed interface NoDataReason {
      */
     data class NoSensorYet(val follower: Boolean) : NoDataReason {
         override val action = if (follower) HomeAction.OpenSetup else HomeAction.PairSensor
+        override val fullPage = true
     }
 
     data object CoreMissing : NoDataReason {
         override val action: HomeAction? = null
+        override val fullPage = true
     }
 
     data object BluetoothOff : NoDataReason {
@@ -88,7 +98,7 @@ sealed interface NoDataReason {
                 state.link?.revoked == true -> LinkRevoked
                 state.sensor == SensorState.CoreMissing -> CoreMissing
                 state.sensor == SensorState.Ended -> SensorEnded
-                sensor is SensorState.WarmingUp -> WarmingUp(sensor.readyAt)
+                sensor is SensorState.WarmingUp && look.state == GlucoseLook.State.WARMING_UP -> WarmingUp(sensor.readyAt)
                 valueShown -> null
                 state.service is ServiceState.Stopped -> MonitoringStopped
                 state.sensor == SensorState.BluetoothOff && !follower -> BluetoothOff

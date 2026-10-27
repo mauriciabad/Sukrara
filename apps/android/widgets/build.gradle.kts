@@ -6,12 +6,31 @@
 plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("sukrara.contracts")
+    alias(libs.plugins.roborazzi)
+}
+
+android {
+    testOptions.unitTests.isIncludeAndroidResources = true
 }
 
 dependencies {
     api(project(":core:model"))
     implementation(project(":core:graph"))
+    implementation(project(":core:designsystem"))
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
-    implementation(libs.androidx.work.runtime)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.activity.compose)
+    testImplementation(project(":core:testing"))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.roborazzi)
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("roborazzi.test.record", "true")
+    // Robolectric on SDK 36 reaches into FileDescriptor internals
+    jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
 }
