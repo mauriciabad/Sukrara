@@ -88,5 +88,7 @@ class HomeModule(
         treatmentLog().undo(previous)
     }
 
+    override suspend fun mayChangeTreatment(id: String): Boolean = treatmentLog().mayChange(id)
+
     private fun CorruptFile.toProblem() = DataProblem(store = store, reason = reason, keptAs = quarantinedTo?.name, at = at)
 }

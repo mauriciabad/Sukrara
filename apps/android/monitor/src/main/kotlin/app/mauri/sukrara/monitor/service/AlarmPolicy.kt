@@ -42,7 +42,8 @@ enum class AlarmCall {
  * `setAlarmClock` is deliberately not used: it would show an alarm icon and become the phone's "next alarm" on the lock
  * screen and clock widgets (hiding the person's wake-up alarm) for a deadline that moves with every reading, and it
  * needs the same exact-alarm permission. If exact alarms are ever refused, the checks fall back to inexact while-idle
- * alarms (late by minutes rather than missed) and the alert checklist names the exact-alarm permission.
+ * alarms (late by minutes rather than missed; they then share the compat quota of 7 an hour, so the health check and
+ * the alert check can delay each other) and the alert checklist names the exact-alarm permission.
  */
 object AlarmPolicy {
     fun call(

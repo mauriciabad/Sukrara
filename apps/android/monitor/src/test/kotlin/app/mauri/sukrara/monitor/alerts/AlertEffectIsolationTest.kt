@@ -125,6 +125,14 @@ class AlertEffectIsolationTest {
         assertTrue(logged.contains("publish failed: IllegalStateException"))
     }
 
+    @Test fun aBrokenFollowerLinkIsLoggedAndTheAlertStillPosts() = runTest {
+        mirrorFails = true
+        runtime().onState(low)
+        assertEquals("low", rig.presenter.slots[AlertKind.LOW.group])
+        assertNotNull(alarm.at)
+        assertTrue(logged.contains("mirror failed: IllegalStateException"))
+    }
+
     @Test fun theProblemGoesWhenTheStepWorksAgain() = runTest {
         val runtime = runtime()
         presenter.failing = true
@@ -133,7 +141,7 @@ class AlertEffectIsolationTest {
         presenter.failing = false
         rig.clock.instant = rig.clock.now().plusSeconds(60)
         runtime.onState(rig.wearerState(latest = rig.reading(58)))
-        assertEquals("the refused alert is shown on the next try", "low", rig.presenter.slots[AlertKind.LOW.group])
+        assertEquals("the refused alert is posted on the next input, with its sound", listOf("show low"), rig.presenter.log)
         assertFalse(AlertDeliveryProblem.AlertStepFailed in published.deliveryProblems)
     }
 

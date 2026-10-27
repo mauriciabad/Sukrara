@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.monitor.service.StartReason
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -40,7 +41,14 @@ abstract class MonitorReceiver : BroadcastReceiver() {
         action: String,
     ) = coroutineScope {
         if (action in SYSTEM_EVENTS) launch { checkAlerts(context) }
-        handleMonitor(context, action)
+        // a failing start or health check must not cancel the alert check running alongside
+        try {
+            handleMonitor(context, action)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "$action failed: ${e.javaClass.simpleName}")
+        }
     }
 
     private suspend fun handleMonitor(

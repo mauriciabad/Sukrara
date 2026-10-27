@@ -71,6 +71,8 @@ class HomeViewModelTest {
             return stored.treatment
         }
 
+        override suspend fun mayChangeTreatment(id: String) = mayChange
+
         override suspend fun undoTreatment(previous: Treatment) {
             writes += "undo ${previous.id}"
             treatments.upsertIfNewer(TreatmentRecord(previous.copy(modifiedAt = clock.now().plusSeconds(1))))
@@ -120,6 +122,7 @@ class HomeViewModelTest {
             backgroundScope.launch { vm.state.collect {} }
             vm.delete(t)
             runCurrent()
+            assertEquals(setOf(t.id), vm.state.value.readOnly)
             assertEquals(listOf("delete ${t.id}"), deps.writes)
             assertNull(vm.state.value.undo)
             assertEquals(listOf(t.id), vm.state.value.treatments.map { it.id })
