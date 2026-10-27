@@ -27,13 +27,17 @@ import Testing
         #expect(s.quietedBy(.extremelyHigh) == nil)
         #expect(s.quietedBy(.noData) == nil)
         var e = AlertEngine(context: AlertContext(treatments: [AlertTreatment(kind: .rapidInsulin, at: at(0))]))
-        #expect(kinds(e.handle(.reading(GlucoseSample(at: at(1), mgdl: 320, rate: 0)), at: at(1))) == ["fire extremely_high"])
+        #expect(
+            kinds(e.handle(.reading(GlucoseSample(at: at(1), mgdl: 320, rate: 0)), at: at(1))) == [
+                "fire extremely_high"
+            ])
     }
 
     @Test func scheduleIsAlwaysTheLastEffect() {
         var e = AlertEngine(context: AlertContext())
         let inputs: [AlertInput] = [
-            .reading(GlucoseSample(at: at(0), mgdl: 60, rate: -3)), .tick, .mute(.low, minutes: 5), .unmute(.low), .unmuteAll,
+            .reading(GlucoseSample(at: at(0), mgdl: 60, rate: -3)), .tick, .mute(.low, minutes: 5), .unmute(.low),
+            .unmuteAll,
             .muteAll(until: at(30)), .settings(AlertSettings()),
         ]
         for input in inputs {
@@ -48,7 +52,8 @@ import Testing
 
     @Test func everyKindHasAHeadline() {
         let expected = [
-            "Very low glucose", "Low glucose", "High glucose", "Very high glucose", "Extremely high glucose", "Falling fast",
+            "Very low glucose", "Low glucose", "High glucose", "Very high glucose", "Extremely high glucose",
+            "Falling fast",
             "Rising fast", "No glucose data",
         ]
         #expect(AlertKind.allCases.map { $0.headline() } == expected)
@@ -111,9 +116,12 @@ import Testing
     @Test func uiStateListsQuietSides() {
         var e = AlertEngine(context: AlertContext())
         _ = e.handle(.reading(GlucoseSample(at: at(0), mgdl: 60, rate: 0)), at: at(0))
+        #expect(AlertUIState.idle.isAlerting == false)
+        #expect(e.uiState(at: at(0)).isAlerting)
         _ = e.handle(.mute(.low, minutes: 30), at: at(1))
         _ = e.handle(.remindLess(.high), at: at(1))
         let ui = e.uiState(at: at(2))
+        #expect(!ui.isAlerting)
         #expect(ui.active[.level]?.kind == .low)
         #expect(ui.active[.level]?.quiet == .sideMuted(until: at(31)))
         #expect(ui.quiets.map(\.side) == [.low, .high])

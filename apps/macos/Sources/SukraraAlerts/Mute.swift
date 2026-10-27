@@ -159,10 +159,14 @@ public func isBackByMargin(_ side: AlertSide, _ reading: GlucoseSample, _ s: Ale
     let m = Double(s.notificationActions.backMgdl)
     switch side {
     case .low:
-        guard let edge = [AlertKind.veryLow, .low].filter({ s[$0].on }).map({ s[$0].threshold }).max() else { return true }
+        guard let edge = [AlertKind.veryLow, .low].filter({ s[$0].on }).map({ s[$0].threshold }).max() else {
+            return true
+        }
         return reading.mgdl >= edge + m
     case .high:
-        guard let edge = [AlertKind.high, .veryHigh, .extremelyHigh].filter({ s[$0].on }).map({ s[$0].threshold }).min() else {
+        guard
+            let edge = [AlertKind.high, .veryHigh, .extremelyHigh].filter({ s[$0].on }).map({ s[$0].threshold }).min()
+        else {
             return true
         }
         return reading.mgdl < edge - m

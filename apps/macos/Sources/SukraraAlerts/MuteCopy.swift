@@ -29,7 +29,9 @@ public enum MuteCopy {
     }
 
     /// "High alerts muted while falling back into range" (no end of its own).
-    public static func sideFalling(_ side: AlertSide) -> String { "\(sideName(side)) alerts muted while falling back into range" }
+    public static func sideFalling(_ side: AlertSide) -> String {
+        "\(sideName(side)) alerts muted while falling back into range"
+    }
 
     /// "Low reminders every 30 min".
     public static func sideLess(_ side: AlertSide, intervalMin: Int) -> String {
@@ -56,7 +58,8 @@ public enum MuteCopy {
     /// The line for Mute all ending at `until` (`muteAllForever` = indefinite), nil once it is over.
     public static func allLine(until: Date, now: Date) -> String? {
         guard until > now else { return nil }
-        return until >= muteAllForever ? allForever : allTimed(leftMin: Durations.minutesLeft(until.timeIntervalSince(now)))
+        return until >= muteAllForever
+            ? allForever : allTimed(leftMin: Durations.minutesLeft(until.timeIntervalSince(now)))
     }
 
     /// The line for a quiet reason on `side`, counting down at `now`.

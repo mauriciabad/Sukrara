@@ -76,7 +76,8 @@ import Testing
         #expect(try #require(restored.snoozes[.high]?.until) <= minute(40 + 720))
         #expect(try #require(restored.muteAllUntil) <= minute(40 + 1440))
         let (forever, _) = AlertEngine.restore(
-            AlertEngine.Snapshot(episodes: [], snoozes: SideSnoozes(), muteAllUntil: muteAllForever), context: AlertContext(),
+            AlertEngine.Snapshot(episodes: [], snoozes: SideSnoozes(), muteAllUntil: muteAllForever),
+            context: AlertContext(),
             at: minute(0))
         #expect(forever.muteAllUntil == muteAllForever)
     }

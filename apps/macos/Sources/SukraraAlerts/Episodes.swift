@@ -76,21 +76,25 @@ extension AlertEngine {
     }
 
     public var snapshot: Snapshot {
-        Snapshot(episodes: AlertGroup.allCases.compactMap { episodes[$0] }, snoozes: snoozes, muteAllUntil: muteAllUntil)
+        Snapshot(
+            episodes: AlertGroup.allCases.compactMap { episodes[$0] }, snoozes: snoozes, muteAllUntil: muteAllUntil)
     }
 
     /// An engine back in the `snapshot` state at `t` (no evaluation, so nothing rings). Episodes over by `t` are dropped,
     /// untrustworthy mutes sanitized. The effects are the firings whose notification was up (`.resume`: show again
     /// silently, same id and n, never republish) and the next timer (`.schedule`).
-    public static func restore(_ snapshot: Snapshot?, context: AlertContext, at t: Date) -> (AlertEngine, [AlertEffect]) {
+    public static func restore(_ snapshot: Snapshot?, context: AlertContext, at t: Date) -> (AlertEngine, [AlertEffect])
+    {
         var e = AlertEngine(context: context)
         guard let snapshot else { return (e, [.schedule(e.nextCheck(after: t))]) }
         e.snoozes = snapshot.snoozes
         e.snoozes.sanitize(at: t)
         if let all = snapshot.muteAllUntil, all > t {
-            e.muteAllUntil = all >= muteAllForever ? muteAllForever : min(all, t.addingTimeInterval(AlertLimits.muteAll.max * 60))
+            e.muteAllUntil =
+                all >= muteAllForever ? muteAllForever : min(all, t.addingTimeInterval(AlertLimits.muteAll.max * 60))
         }
-        for ep in snapshot.episodes where ep.lastIn <= t && t.timeIntervalSince(ep.lastIn) < ep.holdTime(context.settings) {
+        for ep in snapshot.episodes
+        where ep.lastIn <= t && t.timeIntervalSince(ep.lastIn) < ep.holdTime(context.settings) {
             e.episodes[ep.kind.group] = ep
         }
         let resumed = AlertGroup.allCases.compactMap { e.episodes[$0]?.shown }.map(AlertEffect.resume)

@@ -37,7 +37,9 @@ import Testing
             case "side_muted": side.map { MuteCopy.sideMuted($0, leftMin: c.leftMin ?? -1) }
             case "side_after":
                 side.flatMap { s in
-                    c.treatment.flatMap(TreatmentKind.init(rawValue:)).map { MuteCopy.sideAfter(s, treatment: $0, leftMin: c.leftMin ?? -1) }
+                    c.treatment.flatMap(TreatmentKind.init(rawValue:)).map {
+                        MuteCopy.sideAfter(s, treatment: $0, leftMin: c.leftMin ?? -1)
+                    }
                 }
             case "side_falling": side.map(MuteCopy.sideFalling)
             case "side_less": side.map { MuteCopy.sideLess($0, intervalMin: c.intervalMin ?? -1) }
@@ -66,8 +68,12 @@ import Testing
     @Test func quietReasonLines() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let in12 = now.addingTimeInterval(12 * 60)
-        #expect(MuteCopy.line(.treatment(.carbs, at: now, until: in12), side: .low, now: now) == "Low alerts muted after carbs · 12 min left")
-        #expect(MuteCopy.line(.fallingBack(inMinutes: 8), side: .high, now: now) == "High alerts muted while falling back into range")
+        #expect(
+            MuteCopy.line(.treatment(.carbs, at: now, until: in12), side: .low, now: now)
+                == "Low alerts muted after carbs · 12 min left")
+        #expect(
+            MuteCopy.line(.fallingBack(inMinutes: 8), side: .high, now: now)
+                == "High alerts muted while falling back into range")
         #expect(MuteCopy.line(.sideMuted(until: in12), side: .noData, now: now) == "No data alerts muted · 12 min left")
     }
 }

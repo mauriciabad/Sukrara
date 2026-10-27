@@ -90,7 +90,9 @@ public struct AlertEngine: Sendable {
     public var settings: AlertSettings { context.settings }
 
     /// Handles `input` at `now`; firing ids come from `rng`.
-    public mutating func handle(_ input: AlertInput, at now: Date, using rng: inout some RandomNumberGenerator) -> [AlertEffect] {
+    public mutating func handle(_ input: AlertInput, at now: Date, using rng: inout some RandomNumberGenerator)
+        -> [AlertEffect]
+    {
         var out: [AlertEffect] = []
         apply(input, at: now)
         evaluate(at: now, rng: &rng, out: &out)
@@ -178,7 +180,8 @@ public struct AlertEngine: Sendable {
             }
         }
         let nd = s[.noData]
-        let noData = (r.map { nd.on && t.timeIntervalSince($0.at) >= nd.threshold * 60 } ?? false) && !expectsNoReading(at: t)
+        let noData =
+            (r.map { nd.on && t.timeIntervalSince($0.at) >= nd.threshold * 60 } ?? false) && !expectsNoReading(at: t)
         let backSides = snoozes.advance(at: t, backMin: s.notificationActions.backMin) { side -> Bool? in
             switch side {
             case .noData: return !noData
@@ -256,7 +259,8 @@ public struct AlertEngine: Sendable {
         e.firedKind = want
         e.liftPending = false
         let f = AlertFiring(
-            id: AlertFiring.newID(using: &rng), kind: want, at: t, reading: context.latest, threshold: s[want].threshold,
+            id: AlertFiring.newID(using: &rng), kind: want, at: t, reading: context.latest,
+            threshold: s[want].threshold,
             n: e.n, treated: treated(e, want, at: t))
         e.shown = f
         e.next = due(e, want, at: t)
@@ -306,7 +310,9 @@ public struct AlertEngine: Sendable {
     /// Minutes until back below the high threshold, if the current fall gets there within the falling rule's window.
     private func fallingBackMinutes(_ k: AlertKind) -> Int? {
         let s = settings
-        guard let r = context.latest, let v = r.rate, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0 else { return nil }
+        guard let r = context.latest, let v = r.rate, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0 else {
+            return nil
+        }
         let high = s[.high].threshold
         guard r.mgdl + v * s.muteFallingHigh.min < high else { return nil }
         return max(1, Int(((r.mgdl - high) / -v).rounded(.up)))

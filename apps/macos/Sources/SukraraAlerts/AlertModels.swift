@@ -69,7 +69,8 @@ public struct AlertFiring: Codable, Equatable, Sendable {
     /// Answering treatments acknowledged in the headline: 0, 1, or 2 for two or more.
     public var treated: Int
 
-    public init(id: String, kind: AlertKind, at: Date, reading: GlucoseSample?, threshold: Double, n: Int, treated: Int) {
+    public init(id: String, kind: AlertKind, at: Date, reading: GlucoseSample?, threshold: Double, n: Int, treated: Int)
+    {
         self.id = id
         self.kind = kind
         self.at = at

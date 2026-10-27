@@ -68,7 +68,8 @@ struct Scenario: CustomTestStringConvertible, Sendable {
             } else if l == "mirror" {
                 mirror = true
             } else {
-                let (left, right) = l.range(of: "=>").map { (trim(l[..<$0.lowerBound]), String(l[$0.upperBound...])) } ?? (l, "")
+                let (left, right) =
+                    l.range(of: "=>").map { (trim(l[..<$0.lowerBound]), String(l[$0.upperBound...])) } ?? (l, "")
                 let time = String(left.prefix { $0 != " " })
                 let ms = time.split(separator: ":").map { Int($0) ?? 0 }
                 let at = ms[0] * 60 + (ms.count > 1 ? ms[1] : 0)
@@ -85,7 +86,9 @@ struct Scenario: CustomTestStringConvertible, Sendable {
 enum ScenarioError: Error, CustomStringConvertible {
     case bad(String)
     var description: String {
-        switch self { case .bad(let s): s }
+        switch self {
+        case .bad(let s): s
+        }
     }
 }
 
@@ -145,7 +148,9 @@ func runScenario(_ sc: Scenario) throws -> [String] {
     var published: [String: AlertFiring] = [:]
 
     func record(_ what: String) { got[Int(clock.timeIntervalSince1970) / 60 - t0 / 60, default: []].append(what) }
-    func live() -> [AlertTreatment] { treatments.filter { !$0.deleted }.map { AlertTreatment(kind: $0.kind, at: $0.at) } }
+    func live() -> [AlertTreatment] {
+        treatments.filter { !$0.deleted }.map { AlertTreatment(kind: $0.kind, at: $0.at) }
+    }
 
     func wearerEffects(_ effects: [AlertEffect]) {
         for e in effects {
@@ -197,7 +202,9 @@ func runScenario(_ sc: Scenario) throws -> [String] {
         guard let k = AlertKind(rawValue: name) else { throw ScenarioError.bad("unknown kind \(name)") }
         return k.side
     }
-    func newestKind(_ g: AlertGroup) -> AlertKind? { published.values.filter { $0.kind.group == g }.max { $0.at < $1.at }?.kind }
+    func newestKind(_ g: AlertGroup) -> AlertKind? {
+        published.values.filter { $0.kind.group == g }.max { $0.at < $1.at }?.kind
+    }
 
     var glucose = 0.0
     var rate = 0.0
@@ -213,7 +220,9 @@ func runScenario(_ sc: Scenario) throws -> [String] {
         clock = Date(timeIntervalSince1970: TimeInterval(t))
         for ev in byTime[t]?.events ?? [] {
             let w = ev.split(whereSeparator: \.isWhitespace).map(String.init)
-            func after(_ key: String) -> String? { w.firstIndex(of: key).flatMap { $0 > 0 && $0 + 1 < w.count ? w[$0 + 1] : nil } }
+            func after(_ key: String) -> String? {
+                w.firstIndex(of: key).flatMap { $0 > 0 && $0 + 1 < w.count ? w[$0 + 1] : nil }
+            }
             switch w[0] {
             case "glucose":
                 glucose = Double(w[1]) ?? 0
@@ -225,7 +234,9 @@ func runScenario(_ sc: Scenario) throws -> [String] {
                 switch w[1] {
                 case "ended":
                     sensorOn = false
-                    both(.sensor(SensorWindow(start: clock - 15 * 86400, end: clock, warmupEnd: clock - 15 * 86400 + 3600)))
+                    both(
+                        .sensor(
+                            SensorWindow(start: clock - 15 * 86400, end: clock, warmupEnd: clock - 15 * 86400 + 3600)))
                 case "started":
                     sensorOn = false
                     both(.sensor(SensorWindow(start: clock, end: clock + 15 * 86400, warmupEnd: clock + 3600)))
@@ -279,7 +290,10 @@ func runScenario(_ sc: Scenario) throws -> [String] {
                 wearer = restarted
                 wearerEffects(resumed)
                 // the followers' alerts stay as they are
-                shared = AlertEngine.restore(AlertEngine.Snapshot.decode(shared.snapshot.encoded()), context: shared.context, at: clock).0
+                shared =
+                    AlertEngine.restore(
+                        AlertEngine.Snapshot.decode(shared.snapshot.encoded()), context: shared.context, at: clock
+                    ).0
             default: throw ScenarioError.bad("unknown event: \(ev)")
             }
         }
@@ -292,15 +306,21 @@ func runScenario(_ sc: Scenario) throws -> [String] {
             both(.tick)
             followerReading(wearer.context.latest)
         }
-        timer = [wearer.nextCheck(after: clock), sc.mirror ? shared.nextCheck(after: clock) : nil].compactMap { $0 }.min()
+        timer = [wearer.nextCheck(after: clock), sc.mirror ? shared.nextCheck(after: clock) : nil].compactMap { $0 }
+            .min()
             .map { Int($0.timeIntervalSince1970.rounded(.up)) }
-        guard let next = [byTime.keys.filter({ $0 > t }).min(), sensorOn ? nextReading : nil, timer].compactMap({ $0 }).min() else {
+        guard
+            let next = [byTime.keys.filter({ $0 > t }).min(), sensorOn ? nextReading : nil, timer].compactMap({ $0 })
+                .min()
+        else {
             break
         }
         t = next
     }
     // the wearer's and the follower's actions are compared apart (their order within a minute is free)
-    func split(_ l: [String]) -> [String] { l.filter { !$0.hasPrefix("follower ") } + l.filter { $0.hasPrefix("follower ") } }
+    func split(_ l: [String]) -> [String] {
+        l.filter { !$0.hasPrefix("follower ") } + l.filter { $0.hasPrefix("follower ") }
+    }
     let expected = Dictionary(sc.lines.map { ($0.minute, $0.expect) }, uniquingKeysWith: { a, _ in a })
     return (0...sc.end).compactMap { m in
         let want = split(expected[m] ?? [])

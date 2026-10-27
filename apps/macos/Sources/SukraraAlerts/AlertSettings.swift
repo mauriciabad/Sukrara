@@ -81,7 +81,8 @@ public struct AlertSettings: Equatable, Sendable {
     public static let formatVersion = 1
 
     public var on = true
-    public var rules: [AlertKind: AlertRule] = Dictionary(uniqueKeysWithValues: AlertKind.allCases.map { ($0, .defaults($0)) })
+    public var rules: [AlertKind: AlertRule] = Dictionary(
+        uniqueKeysWithValues: AlertKind.allCases.map { ($0, .defaults($0)) })
     public var muteAfterInsulin = QuietRule(on: true, min: 60)
     public var muteFallingHigh = QuietRule(on: true, min: 20)
     public var muteAfterCarbs = QuietRule(on: true, min: 15)
@@ -219,11 +220,14 @@ extension AlertSettings: Codable {
         muteFallingHigh = quiet(.muteFallingHigh, muteFallingHigh, AlertLimits.muteFalling)
         muteAfterCarbs = quiet(.muteAfterCarbs, muteAfterCarbs, AlertLimits.muteCarbs)
         if let p = try? c.decode(PartialSounds.self, forKey: .sounds) {
-            sounds = AlertSoundSettings(pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
+            sounds = AlertSoundSettings(
+                pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
         }
         if let p = try? c.decode(PartialActions.self, forKey: .notificationActions) {
             let d = notificationActions
-            func int(_ x: Double?, _ limits: AlertLimits.Number, _ fallback: Int) -> Int { x.map { Int(limits.coerce($0)) } ?? fallback }
+            func int(_ x: Double?, _ limits: AlertLimits.Number, _ fallback: Int) -> Int {
+                x.map { Int(limits.coerce($0)) } ?? fallback
+            }
             notificationActions = NotificationActionSettings(
                 muteMin: int(p.muteMin, AlertLimits.actionMute, d.muteMin),
                 relaxMin: int(p.relaxMin, AlertLimits.actionRelax, d.relaxMin),

@@ -15,10 +15,14 @@ import Testing
         let wrong = Scenario.parse("t.txt", "scenario wrong\n 0 glucose 69 => High glucose\n 5")
         #expect(
             try runScenario(wrong[0]) == [
-                "minute 0: expected [High glucose], got [Low glucose]", "minute 5: expected [nothing], got [Low glucose]",
+                "minute 0: expected [High glucose], got [Low glucose]",
+                "minute 5: expected [nothing], got [Low glucose]",
             ])
         let missing = Scenario.parse("t.txt", "scenario missing\n 0 glucose 69\n 5")
-        #expect(try runScenario(missing[0]) == ["minute 0: expected [nothing], got [Low glucose]", "minute 5: expected [nothing], got [Low glucose]"])
+        #expect(
+            try runScenario(missing[0]) == [
+                "minute 0: expected [nothing], got [Low glucose]", "minute 5: expected [nothing], got [Low glucose]",
+            ])
     }
 
     @Test(arguments: Scenario.all())

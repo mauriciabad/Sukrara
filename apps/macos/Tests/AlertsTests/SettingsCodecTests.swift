@@ -49,11 +49,13 @@ import Testing
         #expect(s.muteFallingHigh == QuietRule(on: true, min: 20))
         #expect(s.muteAfterCarbs == QuietRule(on: true, min: 15))
         #expect(s.sounds == AlertSoundSettings(pack: "quest", kinds: [:], shuffle: true))
-        #expect(s.notificationActions == NotificationActionSettings(muteMin: 30, relaxMin: 30, backMgdl: 10, backMin: 10))
+        #expect(
+            s.notificationActions == NotificationActionSettings(muteMin: 30, relaxMin: 30, backMgdl: 10, backMin: 10))
     }
 
     @Test func partialAndJunkKeepDefaults() {
-        let json = #"{"on":false,"alerts":{"high":{"mgdl":200},"urgent_low":{"mgdl":40}},"source":"bogus","sounds":7,"extra":{"x":1}}"#
+        let json =
+            #"{"on":false,"alerts":{"high":{"mgdl":200},"urgent_low":{"mgdl":40}},"source":"bogus","sounds":7,"extra":{"x":1}}"#
         let s = AlertSettings.decode(Data(json.utf8))
         #expect(!s.on)
         #expect(s[.high] == AlertRule(on: true, threshold: 200, repeatMin: 15))
@@ -68,7 +70,8 @@ import Testing
     }
 
     @Test func numbersAreCoercedIntoTheSchema() {
-        let json = #"{"alerts":{"low":{"mgdl":10},"high":{"mgdl":180.4},"falling_fast":{"rate":2.04},"no_data":{"repeatMin":0}},"notificationActions":{"muteMin":9999}}"#
+        let json =
+            #"{"alerts":{"low":{"mgdl":10},"high":{"mgdl":180.4},"falling_fast":{"rate":2.04},"no_data":{"repeatMin":0}},"notificationActions":{"muteMin":9999}}"#
         let s = AlertSettings.decode(Data(json.utf8))
         #expect(s[.low].threshold == 50)
         #expect(s[.high].threshold == 180)
@@ -85,7 +88,10 @@ import Testing
     @Test func writtenJSONHasTheSpecKeys() throws {
         let out = try #require(try JSONSerialization.jsonObject(with: AlertSettings().encoded()) as? [String: Any])
         #expect(
-            Set(out.keys) == ["v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds", "notificationActions", "source"])
+            Set(out.keys) == [
+                "v", "on", "alerts", "muteAfterInsulin", "muteFallingHigh", "muteAfterCarbs", "sounds",
+                "notificationActions", "source",
+            ])
         let alerts = try #require(out["alerts"] as? [String: [String: Any]])
         #expect(Set(alerts.keys) == Set(AlertKind.allCases.map(\.rawValue)))
         #expect(Set(alerts["no_data"]?.keys ?? [:].keys) == ["on", "min", "repeatMin", "alarm"])

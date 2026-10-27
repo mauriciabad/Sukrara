@@ -47,7 +47,9 @@ public enum Durations {
             guard let h = Int(m.1), let mm = Int(m.2), mm < 60 else { return nil }
             return h * 60 + mm
         }
-        guard let m = s.wholeMatch(of: /(?:(\d{1,3}(?:[.,]\d+)?)\s*h)?\s*(?:(\d{1,4})\s*(?:min|m)?)?/) else { return nil }
+        guard let m = s.wholeMatch(of: /(?:(\d{1,3}(?:[.,]\d+)?)\s*h)?\s*(?:(\d{1,4})\s*(?:min|m)?)?/) else {
+            return nil
+        }
         let hours = m.1.map(String.init)
         let mins = m.2.map(String.init)
         if hours == nil && mins == nil { return nil }

@@ -31,7 +31,11 @@ public struct AlertUIState: Equatable, Sendable {
     /// Mute all's end (nil = off, `muteAllForever` = until turned off).
     public var muteAllUntil: Date?
 
-    public static let empty = AlertUIState(active: [:], quiets: [], muteAllUntil: nil)
+    /// Nothing active, nothing quiet.
+    public static let idle = AlertUIState(active: [:], quiets: [], muteAllUntil: nil)
+
+    /// An alert is up now (it fired in its episode and nothing quiets it).
+    public var isAlerting: Bool { active.values.contains { $0.quiet == nil && $0.firedAt != nil } }
 }
 
 extension AlertEngine {
@@ -50,14 +54,17 @@ extension AlertEngine {
             let relax = snoozes.relaxMin(e.side)
             var why: QuietReason?
             if let by = s.quietedBy(e.kind), let tc = cover(e, e.kind, at: t) {
-                why = .treatment(by, at: tc, until: max(tc.addingTimeInterval(s.quietDuration(by)), sideMute ?? .distantPast))
+                why = .treatment(
+                    by, at: tc, until: max(tc.addingTimeInterval(s.quietDuration(by)), sideMute ?? .distantPast))
             } else if let sideMute {
                 why = .sideMuted(until: sideMute)
             } else if e.isOn, case .fallingBack = e.quiet {
                 why = e.quiet
             }
             guard why != nil || relax > 0 else { continue }
-            quiets.append(AlertUIState.Quiet(kind: e.kind, isOn: e.isOn, quiet: why, relaxMin: relax, canRelax: canRelax(e.kind, relax)))
+            quiets.append(
+                AlertUIState.Quiet(
+                    kind: e.kind, isOn: e.isOn, quiet: why, relaxMin: relax, canRelax: canRelax(e.kind, relax)))
         }
         for (side, sn) in snoozes.all.sorted(by: { $0.key < $1.key }) where !seen.contains(side) {
             let until = sn.until.flatMap { $0 > t ? $0 : nil }
