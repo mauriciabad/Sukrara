@@ -9,7 +9,10 @@ import app.mauri.sukrara.settings.NumberSpec
 import app.mauri.sukrara.settings.SettingsSpec
 import kotlinx.coroutines.flow.Flow
 
-/** The values the alert step shows and the person confirms (P4). Levels in mg/dL, no data in minutes. */
+/**
+ * The values the alert step shows and the person confirms (P4), the same kinds and order as Settings › Review alert
+ * thresholds. Levels in mg/dL, no data in minutes.
+ */
 enum class ThresholdField(
     val kind: AlertKind,
     val spec: NumberSpec,
@@ -18,6 +21,7 @@ enum class ThresholdField(
     Low(AlertKind.LOW, SettingsSpec.THRESHOLD_LOW),
     High(AlertKind.HIGH, SettingsSpec.THRESHOLD_HIGH),
     VeryHigh(AlertKind.VERY_HIGH, SettingsSpec.THRESHOLD_VERY_HIGH),
+    ExtremelyHigh(AlertKind.EXTREMELY_HIGH, SettingsSpec.THRESHOLD_EXTREMELY_HIGH),
     NoData(AlertKind.NO_DATA, SettingsSpec.THRESHOLD_NO_DATA),
 }
 
@@ -33,11 +37,13 @@ data class AlertThresholds(val settings: AlertSettings) {
         value: Double,
     ): AlertThresholds = AlertThresholds(settings.withRule(field.kind, settings.rule(field.kind).copy(threshold = field.spec.coerce(value))))
 
-    /** Levels must stay in order (very low < low < high < very high), or a low could ring as a high. */
+    /** Levels must stay in order (very low < low < high < very high < extremely high), or a low could ring as a high. */
     val ordered: Boolean
-        get() = value(ThresholdField.VeryLow) < value(ThresholdField.Low) &&
-            value(ThresholdField.Low) < value(ThresholdField.High) &&
-            value(ThresholdField.High) < value(ThresholdField.VeryHigh)
+        get() = LEVELS.zipWithNext().all { (lower, higher) -> value(lower) < value(higher) }
+
+    private companion object {
+        val LEVELS = listOf(ThresholdField.VeryLow, ThresholdField.Low, ThresholdField.High, ThresholdField.VeryHigh, ThresholdField.ExtremelyHigh)
+    }
 }
 
 /**

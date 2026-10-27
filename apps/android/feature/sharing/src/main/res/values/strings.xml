@@ -88,21 +88,24 @@
     <!-- Setup alerts step: explanation -->
     <string name="sh_setup_alerts_body">Sukrara alerts you at these values. Tap one to change it. Nothing changes until you confirm.</string>
     <!-- Alert threshold name -->
-    <string name="sh_setup_alerts_very_low">Urgent low below</string>
+    <string name="sh_setup_alerts_very_low">Very low</string>
     <!-- Alert threshold name -->
-    <string name="sh_setup_alerts_low">Low below</string>
+    <string name="sh_setup_alerts_low">Low</string>
     <!-- Alert threshold name -->
-    <string name="sh_setup_alerts_high">High from</string>
+    <string name="sh_setup_alerts_high">High</string>
     <!-- Alert threshold name -->
-    <string name="sh_setup_alerts_very_high">Very high from</string>
+    <string name="sh_setup_alerts_very_high">Very high</string>
     <!-- Alert threshold name -->
-    <string name="sh_setup_alerts_no_data">No data after</string>
+    <string name="sh_setup_alerts_no_data">No data</string>
     <!-- Threshold value; %1$s = number, %2$s = unit -->
     <string name="sh_setup_alerts_value">%1$s %2$s</string>
-    <!-- Threshold value of an alert that is off; %1$s = number, %2$s = unit -->
-    <string name="sh_setup_alerts_value_off">%1$s %2$s · off</string>
+    <string name="sh_setup_alerts_off">Off (%1$s)</string>
+    <string name="sh_setup_alerts_no_reading_for">No reading for %1$s</string>
+    <string name="sh_setup_alerts_at_or_above">At or above %1$s</string>
+    <string name="sh_setup_alerts_below">Below %1$s</string>
+    <string name="sh_setup_alerts_extremely_high">Extremely high</string>
     <!-- Error: thresholds out of order -->
-    <string name="sh_setup_alerts_order">Keep the order: urgent low below low, low below high, high below very high.</string>
+    <string name="sh_setup_alerts_order">Keep the order: very low below low, low below high, high below very high, very high below extremely high.</string>
     <!-- Button: confirm the alert thresholds -->
     <string name="sh_setup_alerts_confirm">Confirm these alerts</string>
     <!-- Setup identity step: title -->

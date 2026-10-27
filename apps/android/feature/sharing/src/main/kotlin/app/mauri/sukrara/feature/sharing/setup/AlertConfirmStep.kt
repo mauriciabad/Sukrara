@@ -32,14 +32,9 @@ internal fun ColumnScope.AlertConfirmStep(
     StepHeader(stringResource(R.string.sh_setup_alerts_title), stringResource(R.string.sh_setup_alerts_body))
     SettingsGroup {
         for (field in ThresholdField.entries) {
-            val value = u.alerts.value(field)
-            val unit = unitText(field.spec)
-            val shown =
-                if (u.alerts.isOn(field)) {
-                    stringResource(R.string.sh_setup_alerts_value, field.spec.text(value), unit)
-                } else {
-                    stringResource(R.string.sh_setup_alerts_value_off, field.spec.text(value), unit)
-                }
+            // the same row as Settings › Review alert thresholds: the kind's name, then "Below 54 mg/dL" / "Off (…)"
+            val sentence = thresholdSentence(field, stringResource(R.string.sh_setup_alerts_value, field.spec.text(u.alerts.value(field)), unitText(field.spec)))
+            val shown = if (u.alerts.isOn(field)) sentence else stringResource(R.string.sh_setup_alerts_off, sentence)
             ValueRow(title = thresholdTitle(field), value = shown, onClick = { editing = field })
         }
     }
@@ -73,6 +68,19 @@ private fun thresholdTitle(field: ThresholdField): String =
             ThresholdField.Low -> R.string.sh_setup_alerts_low
             ThresholdField.High -> R.string.sh_setup_alerts_high
             ThresholdField.VeryHigh -> R.string.sh_setup_alerts_very_high
+            ThresholdField.ExtremelyHigh -> R.string.sh_setup_alerts_extremely_high
             ThresholdField.NoData -> R.string.sh_setup_alerts_no_data
         },
     )
+
+/** Settings' threshold sentence: "Below 54 mg/dL", "At or above 300 mg/dL", "No reading for 20 min". */
+@Composable
+private fun thresholdSentence(
+    field: ThresholdField,
+    value: String,
+): String =
+    when {
+        field == ThresholdField.NoData -> stringResource(R.string.sh_setup_alerts_no_reading_for, value)
+        field.kind.isBelowThreshold -> stringResource(R.string.sh_setup_alerts_below, value)
+        else -> stringResource(R.string.sh_setup_alerts_at_or_above, value)
+    }

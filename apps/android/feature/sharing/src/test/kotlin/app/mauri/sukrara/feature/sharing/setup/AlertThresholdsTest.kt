@@ -19,6 +19,7 @@ class AlertThresholdsTest {
         assertEquals(70.0, t.value(ThresholdField.Low), 0.0)
         assertEquals(180.0, t.value(ThresholdField.High), 0.0)
         assertEquals(250.0, t.value(ThresholdField.VeryHigh), 0.0)
+        assertEquals(300.0, t.value(ThresholdField.ExtremelyHigh), 0.0)
         assertEquals(AlertSettings().rule(AlertKind.NO_DATA).threshold, t.value(ThresholdField.NoData), 0.0)
         assertTrue(t.ordered)
     }
@@ -40,5 +41,14 @@ class AlertThresholdsTest {
     fun `levels out of order are flagged`() {
         assertFalse(t.with(ThresholdField.Low, 50.0).with(ThresholdField.VeryLow, 60.0).ordered)
         assertFalse(t.with(ThresholdField.High, 260.0).ordered)
+        assertFalse(t.with(ThresholdField.VeryHigh, 300.0).ordered)
+    }
+
+    @Test
+    fun `the step reviews the same kinds as Settings, in its order`() {
+        assertEquals(
+            listOf(AlertKind.VERY_LOW, AlertKind.LOW, AlertKind.HIGH, AlertKind.VERY_HIGH, AlertKind.EXTREMELY_HIGH, AlertKind.NO_DATA),
+            ThresholdField.entries.map { it.kind },
+        )
     }
 }
