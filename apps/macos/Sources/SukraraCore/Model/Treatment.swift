@@ -101,7 +101,7 @@ public struct Treatment: Sendable, Hashable, Codable, Identifiable {
         k = try c.decode(TreatmentKind.self, forKey: .k)
         a = try c.decodeIfPresent(Double.self, forKey: .a) ?? 0
         t = try c.decode(Int64.self, forKey: .t)
-        n = try c.decodeIfPresent(String.self, forKey: .n) ?? ""
+        n = Self.truncated(try c.decodeIfPresent(String.self, forKey: .n) ?? "")
         u = try c.decode(Int64.self, forKey: .u)
         del = try c.decodeIfPresent(Bool.self, forKey: .del) ?? false
         o = try c.decode(TreatmentOrigin.self, forKey: .o)

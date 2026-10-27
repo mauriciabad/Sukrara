@@ -5,6 +5,7 @@
     import CoreGraphics
     import Foundation
     import ImageIO
+    import SukraraCore
     import SukraraGraph
     import UniformTypeIdentifiers
 
@@ -32,11 +33,18 @@
             for (state, data) in states(now: now) {
                 for (surface, sizes) in sizes {
                     for size in sizes {
-                        for dark in [false, true] {
-                            let name =
-                                "\(surface.rawValue)-\(Int(size.width))x\(Int(size.height))-\(state)-\(dark ? "dark" : "light").png"
-                            try write(surface, size: size, data: data, dark: dark, to: dir.appending(path: name))
-                            count += 1
+                        // mmol/L for the states with a value worth comparing; mg/dL for all
+                        let units: [GlucoseUnit] = ["live", "low", "stale"].contains(state) ? [.mgdl, .mmol] : [.mgdl]
+                        for unit in units {
+                            for dark in [false, true] {
+                                let name =
+                                    "\(surface.rawValue)-\(Int(size.width))x\(Int(size.height))-\(state)-\(unit.rawValue)-"
+                                    + "\(dark ? "dark" : "light").png"
+                                try write(
+                                    surface, size: size, data: data, unit: unit, dark: dark,
+                                    to: dir.appending(path: name))
+                                count += 1
+                            }
                         }
                     }
                 }
@@ -82,12 +90,13 @@
             ]
         }
 
-        private static func write(_ surface: CardSurface, size: CGSize, data: CardData, dark: Bool, to url: URL) throws
-        {
+        private static func write(
+            _ surface: CardSurface, size: CGSize, data: CardData, unit: GlucoseUnit, dark: Bool, to url: URL
+        ) throws {
             // the widget's own background around the card, as the system draws it
             guard
                 let card = GlucoseCard.image(
-                    surface, size: size, config: GraphConfig(), data: data, dark: dark, overflow: 12),
+                    surface, size: size, config: GraphConfig(), data: data, unit: unit, dark: dark, overflow: 12),
                 let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
             else { throw SnapError.render(url.lastPathComponent) }
             let w = card.width, h = card.height

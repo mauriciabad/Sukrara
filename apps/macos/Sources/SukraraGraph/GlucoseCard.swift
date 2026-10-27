@@ -72,7 +72,9 @@ public enum GlucoseCard {
         }
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
-            drawValue(ctx, chart, latest, fr, now, bands, pal, d: d, look: nil, sensor: sl, hour24: st.hour24, rec: rec)
+            drawValue(
+                ctx, chart, latest, fr, now, bands, pal, d: d, look: nil, sensor: sl, hour24: st.hour24, unit: st.unit,
+                rec: rec)
         }
         if st.value && part != .graph {
             let box = CGRect(x: 0, y: 0, width: valueRight, height: sideBySide ? h : headerH)
@@ -86,7 +88,7 @@ public enum GlucoseCard {
             drawValue(
                 ctx, stacked ? chart : CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height),
                 latest, fr, now,
-                bands, pal, d: d, look: look, sensor: sl, hour24: st.hour24, rec: rec)
+                bands, pal, d: d, look: look, sensor: sl, hour24: st.hour24, unit: st.unit, rec: rec)
         }
         return rec
     }
@@ -181,10 +183,10 @@ public enum GlucoseCard {
     private static func drawValue(
         _ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
         _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,
-        sensor: SensorBadge.Look?, hour24: Bool, rec: CardLayout
+        sensor: SensorBadge.Look?, hour24: Bool, unit: GlucoseUnit, rec: CardLayout
     ) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
-        let face = face(r, now: now, sensor: sensor)
+        let face = face(r, now: now, sensor: sensor, format: unit.format)
         if face.state == .warmingUp, let sensor {
             return drawWarmup(ctx, box, sensor, small, now, pal, d: d, hour24: hour24, rec: rec)
         }
@@ -462,29 +464,33 @@ extension GlucoseCard {
     /// around the card for what overflows it (a ring's laurel or crown).
     public static func image(
         _ surface: CardSurface, size: CGSize, config: GraphConfig, overrides: PlaceOverrides = PlaceOverrides(),
-        data: CardData, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0
+        data: CardData, unit: GlucoseUnit, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0
     ) -> CGImage? {
         let palette = GraphPalette.of(dark: dark)
+        var style = surface.style(config, overrides, sensor: data.sensor)
+        style.unit = unit
         return image(
-            size: size, scale: scale, readings: data.readings, marks: data.marks, now: data.now,
-            surface.style(config, overrides, sensor: data.sensor), tinted ? palette.tinted() : palette,
+            size: size, scale: scale, readings: data.readings, marks: data.marks, now: data.now, style,
+            tinted ? palette.tinted() : palette,
             surface: surface, alerts: data.alerts, overflow: overflow)
     }
 
     /// Draws `part` of `surface`'s card into `ctx` (y-down, points) at `size`: for surfaces that paint into a view.
     public static func draw(
         _ surface: CardSurface, in ctx: CGContext, size: CGSize, part: CardPart = .all, config: GraphConfig,
-        overrides: PlaceOverrides = PlaceOverrides(), data: CardData, dark: Bool
+        overrides: PlaceOverrides = PlaceOverrides(), data: CardData, unit: GlucoseUnit, dark: Bool
     ) {
+        var style = surface.style(config, overrides, sensor: data.sensor)
+        style.unit = unit
         draw(
-            ctx, size: size, readings: data.readings, marks: data.marks, now: data.now,
-            surface.style(config, overrides, sensor: data.sensor), GraphPalette.of(dark: dark), surface: surface,
+            ctx, size: size, readings: data.readings, marks: data.marks, now: data.now, style,
+            GraphPalette.of(dark: dark), surface: surface,
             part: part, alerts: data.alerts)
     }
 
     /// The value's decision for text places (the menu bar title, notifications): the state, the value in `unit`, the
     /// strike and the trend mark, from the same rule the card draws with.
-    public static func face(_ data: CardData, unit: GlucoseUnit = .mgdl) -> GlucoseLook {
+    public static func face(_ data: CardData, unit: GlucoseUnit) -> GlucoseLook {
         let latest = data.latest
         return face(
             latest, now: data.now, sensor: SensorBadge.look(data.sensor, now: data.now, latest: latest?.t),
@@ -495,7 +501,7 @@ extension GlucoseCard {
     /// time once the reading is late), "Glucose 141 milligrams per decilitre (old), trend unknown, at 14:05", "Glucose:
     /// no reading since 14:05", "Glucose: no readings yet", "Warming up", "Sensor ended. Replace sensor"; then the
     /// alert badge's sentence when there is one.
-    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit = .mgdl) -> String {
+    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit) -> String {
         let look = face(data, unit: unit)
         let value: String
         switch look.state {
@@ -510,7 +516,8 @@ extension GlucoseCard {
             let time = look.fresh.showTime ? data.latest.map { ", " + ago($0.t, now: data.now) } ?? "" : ""
             value = "Glucose \(number) \(unit.spoken), \(trend)\(time)"
         }
-        let badge = StatusBadge.describe(data.alerts.status, now: data.now)
+        // the card draws the badge only under a shown value
+        let badge = look.state == .value ? StatusBadge.describe(data.alerts.status, now: data.now) : nil
         return value + (badge.map { ". " + $0 } ?? "")
     }
 

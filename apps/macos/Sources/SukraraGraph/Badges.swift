@@ -20,7 +20,7 @@ enum StatusBadge {
     static let backToNow = Look(kind: "now", text: "Now", short: "Now", tonal: false)
 
     static func look(_ s: AlertStatus, now: TimeInterval) -> Look? {
-        switch s {
+        switch s.current(at: now) {
         case .none: return nil
         case .needed(let k):
             return k == .low
@@ -47,7 +47,7 @@ enum StatusBadge {
 
     /// For screen readers (the mute lines are MuteCopy's: "Low alerts muted · 12 min left").
     static func describe(_ s: AlertStatus, now: TimeInterval) -> String? {
-        switch s {
+        switch s.current(at: now) {
         case .none: nil
         case .needed: look(s, now: now)?.text
         // only Mute all has no end

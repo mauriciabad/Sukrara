@@ -4,6 +4,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import SukraraCore
 
 // MARK: - Style
 
@@ -311,6 +312,9 @@ struct CardStyle {
     var bands = Bands()
     /// The clock times' cycle (a late reading's time, "No reading since"): the Mac's 24-hour setting.
     var hour24 = TimeText.hour24
+    /// The unit the value is written in (the user's setting). The chart's axis and range lines stay mg/dL on both
+    /// platforms for now (OPS issue c14: mmol/L chart labels).
+    var unit: GlucoseUnit = .mgdl
 }
 
 /// Everything the graph settings decide (UserDefaults on the Mac; the widget gets it in its snapshot).

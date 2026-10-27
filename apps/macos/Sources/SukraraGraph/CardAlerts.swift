@@ -32,6 +32,18 @@ public enum AlertStatus: Sendable, Equatable, Codable {
 
     /// Mute all without an end: far in the future, finite so it encodes in JSON (the alert engine's NEVER).
     public static let never: TimeInterval = Date.distantFuture.timeIntervalSince1970
+
+    /// When the decision's mute ends, for the kinds that have one.
+    var until: TimeInterval? {
+        switch self {
+        case .none, .needed: nil
+        case .taken(_, _, let until), .paused(_, let until), .muted(let until): until
+        }
+    }
+
+    /// Whether this decision still holds at `now`: a mute that has run out (an old widget snapshot drawn later) no
+    /// longer says anything, rather than counting "0m left" or guessing what the alert engine would say now.
+    func current(at now: TimeInterval) -> AlertStatus { until.map { $0 > now } == false ? .none : self }
 }
 
 /// The entry in the last-treatment slot beside the value.

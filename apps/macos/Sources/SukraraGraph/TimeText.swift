@@ -9,17 +9,17 @@ import Foundation
 /// Every clock time Sukrara shows on the Mac ("21:08" / "9:08 PM"): the menubar tooltip and dropdown, the widgets, the
 /// treatments, the report, the graph's hour labels. They follow System Settings → General → Date & Time → 24-hour
 /// time, not the locale's default (Android: graph/Clock.kt; shared cases in contracts/graph/clock).
-enum TimeText {
+public enum TimeText {
     /// The Mac's 24-hour setting: the ONE place it is read. Every surface (dropdown card, hour labels, widgets, menubar
     /// tooltips, settings, reports) formats through `TimeText` with it (cards get it in `CardStyle.hour24` / `GraphStyle.hour24`), never a flag of its own (2026-10-21: Android's value
     /// widget and chart cards read it from different places). The explicit-cycle functions are for the clock fixtures.
-    static var hour24: Bool {
+    public static var hour24: Bool {
         !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
     }
 
     /// What tells that the clock's look changed while Sukrara runs: System Settings › Date & Time › 24-hour time posts
     /// the current locale's change, and the time zone: the app redraws and re-publishes to the widget on them.
-    static let changeNotifications: [Notification.Name] = [
+    public static let changeNotifications: [Notification.Name] = [
         NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange,
     ]
 

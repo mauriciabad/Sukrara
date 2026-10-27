@@ -173,6 +173,8 @@ enum DefaultAlertRules {
             hour24Of[o["id"] as? String ?? "?"] = o["hour24"] as? Bool ?? true
             return (o["id"] as? String ?? "?", Self.config(o))
         }
+        // an empty or moved scenes file must fail, not pass with nothing rendered
+        try #require(!scenes.isEmpty && !settings.isEmpty && !entries.isEmpty)
         func sizes(_ s: CardSurface) -> [CGSize] {
             let e = entries.first { $0["id"] as? String == s.rawValue }
             guard let a = e?["sizes"] as? [[NSNumber]] else { return [.zero] }
@@ -201,7 +203,7 @@ enum DefaultAlertRules {
                         renders.append(
                             Render(
                                 surface: s, size: "-", scene: sc.id, settings: sid, layouts: [],
-                                faces: sc.readings.isEmpty ? [] : [GlucoseCard.face(data)]))
+                                faces: sc.readings.isEmpty ? [] : [GlucoseCard.face(data, unit: .mgdl)]))
                         continue
                     }
                     for size in sizes(s) {

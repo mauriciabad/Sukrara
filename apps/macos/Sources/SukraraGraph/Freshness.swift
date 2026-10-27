@@ -30,7 +30,7 @@ public enum Freshness: Sendable {
     }
 
     /// When the step of a reading taken at `t` changes next, seen at `now`; nil = never again / no reading.
-    static func nextChangeAt(_ t: TimeInterval?, now: TimeInterval) -> TimeInterval? {
+    public static func nextChangeAt(_ t: TimeInterval?, now: TimeInterval) -> TimeInterval? {
         guard let t else { return nil }
         return nextChange(age: now - t).map { t + $0 }
     }
