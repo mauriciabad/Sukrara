@@ -13,6 +13,8 @@ final class StatusItemController {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private let menu: ContextMenu
+    /// Called each time the panel opens (re-check notification permission).
+    var onOpen: (() -> Void)?
 
     init(model: AppModel, menu: ContextMenu) {
         self.model = model
@@ -69,9 +71,20 @@ final class StatusItemController {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            model.alerts?.refreshUI()
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            showPanel(from: button)
         }
+    }
+
+    func showPanel() {
+        guard let button = item.button, !popover.isShown else { return }
+        showPanel(from: button)
+    }
+
+    private func showPanel(from button: NSStatusBarButton) {
+        model.alerts?.refreshUI()
+        onOpen?()
+        NSApp.activate()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
     }
 }

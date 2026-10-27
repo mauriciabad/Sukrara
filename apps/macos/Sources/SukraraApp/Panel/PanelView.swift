@@ -118,8 +118,11 @@ private struct UpdateRow: View {
                 Label("Sukrara \(version.description) is available", systemImage: "arrow.down.circle")
                 Spacer()
                 Button("Later") { updates.later() }
-                Button("Download") { NSWorkspace.shared.open(release.htmlURL) }
-                    .keyboardShortcut(.defaultAction)
+                Button("Download") {
+                    // only the project's own release page
+                    if release.htmlURL.host() == "github.com" { NSWorkspace.shared.open(release.htmlURL) }
+                }
+                .keyboardShortcut(.defaultAction)
             }
         case .failed:
             HStack {

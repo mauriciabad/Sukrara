@@ -22,6 +22,10 @@ final class AppServices: ServiceStarting {
     /// The follower runtime (relays, and Bluetooth when the plan allows it). Created here, started by `AppModel`.
     private(set) var follower: FollowerRuntime?
     let responder = NotificationResponder()
+    /// Re-read what notifications may do (after the authorization prompt).
+    var permissionChanged: (() -> Void)?
+    /// A tap on a notification's body: open the panel.
+    var openPanel: (() -> Void)?
     private let defaults: UserDefaults
 
     init(plan: LaunchPlan) {
@@ -33,6 +37,16 @@ final class AppServices: ServiceStarting {
         defaults.data(forKey: SettingsSpec.Keys.alerts).map(AlertSettings.decode) ?? AlertSettings()
     }
 
+    /// The alert settings changed (Settings window, a mirrored wearer setting): the rules and the copied sounds follow
+    /// at once. Called on every defaults change; does nothing when the alert settings are the same.
+    func settingsChanged() {
+        guard let alerts else { return }
+        let s = alertSettings
+        guard s != alerts.settings else { return }
+        alerts.settings(s)
+        sounds?.sync(s)
+    }
+
     func start(_ service: Service) {
         switch service {
         case .notifications:
@@ -41,7 +55,9 @@ final class AppServices: ServiceStarting {
             let un = UNUserNotificationCenter.current()
             un.delegate = responder
             un.setNotificationCategories(Notifier.categories(.preferred()))
-            un.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+            un.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] _, _ in
+                Task { @MainActor in self?.permissionChanged?() }
+            }
         case .alerts:
             let sounds = Bundle.main.resourceURL.map {
                 SoundLibrary(source: $0.appending(path: "Sounds"), paths: plan.data.paths)
@@ -54,11 +70,16 @@ final class AppServices: ServiceStarting {
             let notifier = Notifier(center: posting, sounds: sounds, clock: SystemClock()) {
                 controller?.settings ?? settings
             }
+            notifier.eventLog = RotatingFileLog(directory: plan.data.paths.logs)
             controller = AlertController(
                 settings: settings, clock: SystemClock(), store: AlertStateFile(paths: plan.data.paths),
                 notifier: notifier, wake: TaskWake())
             alerts = controller
             responder.handle = { [weak self] actionID, side, typed in
+                if actionID == UNNotificationDefaultActionIdentifier {
+                    self?.openPanel?()
+                    return
+                }
                 guard let alerts = self?.alerts,
                     let action = Notifier.action(
                         actionID: actionID, side: side, typed: typed, settings: alerts.settings)

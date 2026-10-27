@@ -13,6 +13,8 @@ struct AlertState: Codable, Equatable {
     var v = AlertState.formatVersion
     var engine: AlertEngine.Snapshot
     var mirror: AlertMirror
+    /// The wearer's newest firing per group (Unmute / Remind as usual shows it again after a relaunch).
+    var mirrored: [AlertGroup: AlertFiring] = [:]
 }
 
 /// Loads and saves `AlertState` (tests use an in-memory one).

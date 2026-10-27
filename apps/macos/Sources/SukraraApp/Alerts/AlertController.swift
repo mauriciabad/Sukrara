@@ -55,6 +55,7 @@ final class AlertController {
         if var m = saved?.mirror {
             m.sanitize(at: clock.now)
             mirror = m
+            mirrored = saved?.mirrored ?? [:]
         }
         run(effects)
     }
@@ -87,6 +88,7 @@ final class AlertController {
         if !on {
             for g in AlertGroup.allCases where mirror.isShowing(g) && g != .noData { notifier.clear(g) }
             mirror.forgetShown()
+            mirrored = [:]
         }
         handle(.scope(on ? .noDataOnly : .all))
     }
@@ -184,7 +186,7 @@ final class AlertController {
     }
 
     private func showAgain(_ id: String?) {
-        guard let id, let f = mirrored.values.first(where: { $0.id == id }) else { return }
+        guard mirroring, let id, let f = mirrored.values.first(where: { $0.id == id }) else { return }
         notifier.post(f, sound: true, category: category(f.kind))
     }
 
@@ -201,7 +203,7 @@ final class AlertController {
     }
 
     private func save() {
-        store.save(AlertState(engine: engine.snapshot, mirror: mirror))
+        store.save(AlertState(engine: engine.snapshot, mirror: mirror, mirrored: mirrored))
     }
 }
 

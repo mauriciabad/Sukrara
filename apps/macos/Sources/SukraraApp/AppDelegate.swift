@@ -31,7 +31,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if let updates = model.updates {
             contextMenu.checkForUpdates = { Task { await updates.check(userAsked: true) } }
         }
-        statusItem = StatusItemController(model: model, menu: contextMenu)
+        let statusItem = StatusItemController(model: model, menu: contextMenu)
+        statusItem.onOpen = { [weak self] in self?.refreshNotificationPermission() }
+        self.statusItem = statusItem
+        services.openPanel = { [weak statusItem] in statusItem?.showPanel() }
+        services.permissionChanged = { [weak self] in self?.refreshNotificationPermission() }
         observeSystemTime()
         observeNetwork()
         refreshNotificationPermission()
@@ -44,6 +48,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        network.cancel()
         model.stop()
     }
 
@@ -65,6 +70,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) {
                 [weak self] _ in
                 Task { @MainActor in self?.model.systemTimeChanged() }
+            })
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.services.settingsChanged() }
             })
         observers.append(
             NotificationCenter.default.addObserver(forName: .NSSystemClockDidChange, object: nil, queue: .main) {

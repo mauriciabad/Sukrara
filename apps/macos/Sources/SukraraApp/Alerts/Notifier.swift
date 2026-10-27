@@ -36,6 +36,8 @@ final class Notifier: AlertNotifying {
     private let clock: any TimeSource
     private let settings: () -> AlertSettings
     private var lastVariant: [AlertKind: Int] = [:]
+    /// The bug-report log: which alert was posted or cleared, never a value.
+    var eventLog: RotatingFileLog?
 
     init(
         center: any NotificationPosting, sounds: SoundLibrary?, text: AlertText = .preferred(), clock: any TimeSource,
@@ -61,9 +63,11 @@ final class Notifier: AlertNotifying {
         center.add(
             UNNotificationRequest(
                 identifier: AlertNotificationIDs.notificationID(f.kind.group), content: content, trigger: nil))
+        eventLog?.write("alert \(f.kind.rawValue) n=\(f.n) \(sound ? "posted" : "resumed silently")")
     }
 
     func clear(_ group: AlertGroup) {
+        eventLog?.write("alert \(group.rawValue) cleared")
         center.removeDelivered(ids: [AlertNotificationIDs.notificationID(group)])
     }
 
