@@ -52,6 +52,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
   Settings tile *Add treatment* or home), with a short countdown when opened on the lock screen.
+- **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
+  widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
 - **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
   checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
   graph basics, sensor, and About with an update check against this repo's releases.
@@ -80,8 +82,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
-Android and Bluetooth sharing from the phone, the Mac's Juggluco-over-Wi-Fi source, and home-screen widgets
-until they land in a 0.90.x release.
+Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
 ## Install
 
@@ -93,7 +94,7 @@ Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releas
   browser when asked. Updates install over the old version and keep your data. With
   [Obtainium](https://obtainium.imranr.dev/), turn on *Include prereleases*. V1 is signed with its own key, so it
   can't update the showcase and the showcase can't update it.
-- **Mac** (Apple Silicon, macOS 14+): download `Sukrara-0.90.x.dmg` and drag **Sukrara** onto **Applications**. The app
+- **Mac** (Apple Silicon, macOS 15+): download `Sukrara-0.90.x.dmg` and drag **Sukrara** onto **Applications**. The app
   isn't notarized yet: the first open is stopped; click **Done**, then **System Settings → Privacy & Security → Open
   Anyway** ([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
   Sukrara lives in the menu bar (no Dock icon). Homebrew only installs stable releases, so it keeps the showcase.
