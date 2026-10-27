@@ -154,10 +154,37 @@ class NewSensorMachineTest {
             NewSensorStep.TakeoverFailed(showcaseInstalled = true),
             step(*paired, Source(SensorStatus.OwnedByAnotherApp(true), SensorState.None)),
         )
-        assertEquals(
-            NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
-            step(*paired, live("ABC", LinkStatus.SensorEnded)),
-        )
+    }
+
+    // SourceManager publishes an ended link as SensorStatus.Ended (no serial) and keeps the previous sensor's detail
+    // after a restart: Ended counts only once this sensor was seen warming up
+    @Test fun `an ended sensor after its warm-up was seen, never the previous sensor's stale Ended`() {
+        val warming = live("ABC", LinkStatus.WarmingUp(40))
+        val ended = Source(SensorStatus.Ended, SensorState.Ended)
+        assertEquals(NewSensorStep.NfcFailed(NfcFailure.SensorEnded), step(*paired, warming, ended))
+        assertEquals(NewSensorStep.ConnectingBle("ABC", t0, true), step(*paired, ended))
+    }
+
+    @Test fun `a bluetooth failure recovers by itself when the link comes back`() {
+        val off = live("ABC", LinkStatus.WaitingForBluetooth)
+        assertEquals(NewSensorStep.ConnectingBle("ABC", t0, activated = false), step(*paired, off, live("ABC", LinkStatus.Connecting)))
+        assertEquals(NewSensorStep.Ready, step(*paired, off, live("ABC", LinkStatus.Live)))
+        val noPermission = Source(SensorStatus.BluetoothPermissionMissing, SensorState.None)
+        assertEquals(NewSensorStep.Ready, step(*paired, noPermission, live("ABC", LinkStatus.Live)))
+    }
+
+    @Test fun `the warm-up page keeps its end while the source repeats the status`() {
+        val first = run(*paired, live("ABC", LinkStatus.WarmingUp(40)))
+        val again = NewSensorMachine.reduce(first, live("ABC", LinkStatus.WarmingUp(39)), t0.plusSeconds(90))
+        assertEquals(first.step, again.step)
+    }
+
+    @Test fun `the tap page re-checks the gates on return, and try again goes through them`() {
+        assertEquals(NewSensorStep.NfcOff, step(Start(ok), Start(ok.copy(nfcOn = false))))
+        assertEquals(NewSensorStep.NeedsLibreViewSignIn, step(Start(ok), Start(ok.copy(signedIn = false))))
+        val failed = run(Start(ok), TagFound, Tapped(PairOutcome.Failed("x")))
+        val signedOut = failed.copy(env = ok.copy(signedIn = false))
+        assertEquals(NewSensorStep.NeedsLibreViewSignIn, NewSensorMachine.reduce(signedOut, Retry, t0).step)
     }
 
     @Test fun `bluetooth times out after two minutes and retry connects again`() {

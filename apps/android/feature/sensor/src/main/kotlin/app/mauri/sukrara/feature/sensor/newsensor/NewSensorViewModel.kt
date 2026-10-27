@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 /** What the new-sensor flow needs from the sensor side (SensorUiModule implements it over chunk 12's SensorModule). */
 interface NewSensorPort {
@@ -38,6 +40,12 @@ interface NewSensorPort {
 
     /** Make Juggluco the glucose source (Sukrara stops reading the sensor directly). */
     suspend fun useJuggluco()
+
+    /**
+     * A sensor was just paired: make the Libre 3 the glucose source (Juggluco may have been it) and start monitoring
+     * (before the first pairing nothing was set up to monitor, so the service wasn't running).
+     */
+    suspend fun onPaired()
 }
 
 /** One-shot effects the screen plays (one haptic each). */
@@ -75,6 +83,9 @@ class NewSensorViewModel(
         }
     }
 
+    /** The time the countdown is drawn against (the same clock the machine uses). */
+    fun now(): Instant = clock.now()
+
     /** (Re)check the gates: on first show and every time the screen resumes. */
     fun start() {
         viewModelScope.launch { send(NewSensorEvent.Start(port.env())) }
@@ -103,7 +114,15 @@ class NewSensorViewModel(
         if (!_state.value.step.acceptsTap) return
         send(NewSensorEvent.TagFound)
         appScope.launch {
-            val outcome = read()
+            // a failing read (storage, the sensor gone) must still end the tap page: it has no other way out
+            val outcome = try {
+                read()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PairOutcome.Failed(e.javaClass.simpleName)
+            }
+            if (outcome is PairOutcome.Paired) port.onPaired()
             send(NewSensorEvent.Tapped(outcome))
         }
     }

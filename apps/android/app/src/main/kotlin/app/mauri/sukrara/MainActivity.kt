@@ -24,14 +24,20 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private var deepLink by mutableStateOf<Uri?>(null)
 
+    /** A request to open the new-sensor flow, until the navigation has opened it. */
+    private var openNewSensor by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) deepLink = intent?.data
+        if (savedInstanceState == null) {
+            deepLink = intent?.data
+            openNewSensor = opensNewSensor(intent?.action)
+        }
         val graph = graph
         setContent {
             SukraraTheme {
-                SukraraNavigation(graph, deepLink, Modifier.fillMaxSize())
+                SukraraNavigation(graph, deepLink, openNewSensor, { openNewSensor = false }, Modifier.fillMaxSize())
             }
         }
     }
@@ -39,6 +45,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         deepLink = intent.data
+        if (opensNewSensor(intent.action)) openNewSensor = true
     }
 
     override fun onResume() {
