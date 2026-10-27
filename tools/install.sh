@@ -72,8 +72,7 @@ else
   run tools/release/verify-app.sh "$BUILT"
   id_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$1/Contents/Info.plist" 2>/dev/null || true; }
   # The showcase must not alert next to V1 (double alarms): quit it, keep it as the fallback under another name.
-  if pgrep -f 'Sukrara.app/Contents/MacOS/' >/dev/null && [ "$(id_of "$DEST")" = app.mauri.sukrara.poc ] || \
-     osascript -e 'application id "app.mauri.sukrara.poc" is running' 2>/dev/null | grep -q true; then
+  if osascript -e 'application id "app.mauri.sukrara.poc" is running' 2>/dev/null | grep -q true; then
     run osascript -e 'tell application id "app.mauri.sukrara.poc" to quit'
   fi
   if [ -d "$DEST" ] && [ "$(id_of "$DEST")" = app.mauri.sukrara.poc ]; then
