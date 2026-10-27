@@ -14,6 +14,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import app.mauri.sukrara.monitor.service.StartReason
+import kotlinx.coroutines.launch
 
 /** The one activity: launcher, invite links (`sukrara:` / `https://sukrara.mauri.app/join`). */
 class MainActivity : ComponentActivity() {
@@ -28,6 +31,15 @@ class MainActivity : ComponentActivity() {
                     SukraraNavigation(graph, Modifier.fillMaxSize(), padding)
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // opening the app is an allowed foreground-service start: (re)start monitoring if something is set up
+        lifecycleScope.launch {
+            graph.ready.await()
+            graph.monitor.starter.start(StartReason.App)
         }
     }
 }

@@ -5,10 +5,19 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import app.mauri.sukrara.monitor.MonitorHost
+import app.mauri.sukrara.monitor.MonitorModule
 
-class App : Application() {
+/** Builds the [AppGraph] and hands the runtime modules to their Android components (service, receivers). */
+class App :
+    Application(),
+    MonitorHost {
     lateinit var graph: AppGraph
         private set
+
+    override val monitor: MonitorModule get() = graph.monitor
+
+    override suspend fun awaitReady() = graph.ready.await()
 
     override fun onCreate() {
         super.onCreate()
@@ -17,5 +26,4 @@ class App : Application() {
     }
 }
 
-/** The graph from any Android component of the app (activities, services, receivers). */
 val Context.graph: AppGraph get() = (applicationContext as App).graph
