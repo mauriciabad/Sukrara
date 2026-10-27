@@ -7,10 +7,10 @@ import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.content.Context
-import android.media.AudioAttributes
-import android.net.Uri
 import androidx.annotation.StringRes
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.monitor.R
+import app.mauri.sukrara.monitor.alerts.AlertChannels
 
 /**
  * Every notification channel and group of the app, in one table.
@@ -78,15 +78,13 @@ object Channels {
 
     /**
      * Creates every group and channel (idempotent: Android keeps the person's edits of an existing channel and only
-     * updates its name). [alertSound] gives an alert channel's sound (chunk 11's provider); null = the default sound.
+     * updates its name). Alert channels always get their full setup ([AlertChannels]: the Sukrara sound, the volume's
+     * usage, the kind's vibration, Do Not Disturb for alarms): Android fixes it at creation, so it is never optional.
      */
-    fun create(
-        context: Context,
-        alertSound: (kind: String, alarm: Boolean) -> Uri? = { _, _ -> null },
-    ) {
+    fun create(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannelGroups(Group.entries.map { NotificationChannelGroup(it.id, context.getString(it.nameRes)) })
-        nm.createNotificationChannels(ALL.map { channel(context, it, alertSound) })
+        nm.createNotificationChannels(ALL.map { channel(context, it) })
     }
 
     /**
@@ -96,13 +94,12 @@ object Channels {
     fun createCore(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannelGroup(NotificationChannelGroup(Group.INFO.id, context.getString(Group.INFO.nameRes)))
-        nm.createNotificationChannels(ALL.filter { it.id == GLUCOSE || it.id == STATUS }.map { channel(context, it) { _, _ -> null } })
+        nm.createNotificationChannels(ALL.filter { it.id == GLUCOSE || it.id == STATUS }.map { channel(context, it) })
     }
 
     private fun channel(
         context: Context,
         spec: Spec,
-        alertSound: (String, Boolean) -> Uri?,
     ) = NotificationChannel(spec.id, context.getString(spec.nameRes), spec.importance).apply {
         group = spec.group.id
         when (spec.kind) {
@@ -110,22 +107,7 @@ object Channels {
                 setShowBadge(spec.id != GLUCOSE && spec.id != SENSOR_COUNTDOWN)
             }
 
-            Kind.ALERT, Kind.ALARM -> {
-                val alarm = spec.kind == Kind.ALARM
-                val usage = if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION
-                alertSound(spec.alertKind!!, alarm)?.let { uri ->
-                    setSound(
-                        uri,
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(usage)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build(),
-                    )
-                }
-                enableVibration(true)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-            }
+            Kind.ALERT, Kind.ALARM -> AlertChannels.configure(this, context, AlertKind.fromWire(spec.alertKind!!)!!, spec.kind == Kind.ALARM)
         }
     }
 
@@ -171,8 +153,10 @@ object NotificationIds {
     const val PEN_CHECK = 21
     const val REQUESTS = 30
 
-    /** Alerts: `ALERTS_BASE + index of the kind in Channels.ALERT_KINDS` (chunk 11). */
-    const val ALERTS_BASE = 1000
+    /** Alerts (chunk 11): the `alerts` notification group's summary, then one slot per alert group (level, rate, no data). */
+    const val ALERTS_SUMMARY = 1000
+    const val ALERTS_BASE = 1001
 
-    fun alert(kind: String): Int = ALERTS_BASE + Channels.ALERT_KINDS.indexOf(kind).also { require(it >= 0) { kind } }
+    /** The `info` notification group's summary. */
+    const val INFO_SUMMARY = 1100
 }

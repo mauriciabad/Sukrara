@@ -58,7 +58,7 @@ import Testing
         await store.merge([Reading(t: t0, mgdl: 100), Reading(t: t0.addingTimeInterval(60), mgdl: 110)])
         await store.merge([Reading(t: t0, mgdl: 101)])
         let all = await store.load(since: .distantPast)
-        #expect(all.map(\.mgdl) == [101, 110])
+        #expect(all.map(\.mgdl) == [100, 110])  // the first reading per t is kept
         #expect(await store.load(since: t0.addingTimeInterval(1)).map(\.mgdl) == [110])
     }
 
