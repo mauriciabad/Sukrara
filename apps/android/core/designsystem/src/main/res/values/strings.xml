@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="ds_ok">OK</string>
+    <string name="ds_cancel">Cancel</string>
+    <string name="ds_dismiss">Dismiss</string>
+    <string name="ds_custom">Custom</string>
+    <string name="ds_custom_label">Value</string>
+    <!-- %1$s lowest value, %2$s highest value, %3$s unit -->
+    <string name="ds_custom_range">From %1$s to %2$s %3$s</string>
+    <string name="ds_unit_h">h</string>
+    <string name="ds_unit_d">days</string>
+    <string name="ds_unit_min">min</string>
+    <string name="ds_unit_s">s</string>
+</resources>
