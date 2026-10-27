@@ -7,6 +7,7 @@ import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import app.mauri.sukrara.alerts.AlertLimits
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -30,7 +31,10 @@ private fun BroadcastReceiver.runAsync(block: suspend () -> Unit) {
     val pending = goAsync()
     receiverScope.launch {
         try {
-            withTimeoutOrNull(BUDGET_MS) { block() }
+            withTimeoutOrNull(BUDGET_MS) { block() } ?: Log.w(TAG, "receiver timed out")
+        } catch (e: Exception) {
+            // an alert action or check that failed must not take the process (and the monitoring service) down
+            Log.w(TAG, "receiver failed: ${e.javaClass.simpleName}")
         } finally {
             pending.finish()
         }
@@ -39,6 +43,11 @@ private fun BroadcastReceiver.runAsync(block: suspend () -> Unit) {
 
 private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 private const val BUDGET_MS = 9_000L
+
+/** The alert check's own share of [BUDGET_MS]: the service restart after it always gets the rest. */
+private const val CHECK_BUDGET_MS = 6_000L
+private const val TAG = "Sukrara.alerts"
+
 
 /**
  * The alert notification's buttons (non-exported; immutable PendingIntents except the direct reply's): *Mute…* /
@@ -90,11 +99,14 @@ class AlertCheckReceiver : BroadcastReceiver() {
         val module = context.alertsModule ?: return
         runAsync {
             try {
-                module.runtime.tick()
-                module.sensorEnd.check()
-            } finally {
-                module.restarter.restart()
+                withTimeoutOrNull(CHECK_BUDGET_MS) {
+                    module.runtime.tick()
+                    module.sensorEnd.check()
+                } ?: Log.w(TAG, "alert check timed out")
+            } catch (e: Exception) {
+                Log.w(TAG, "alert check failed: ${e.javaClass.simpleName}")
             }
+            module.restarter.restart()
         }
     }
 

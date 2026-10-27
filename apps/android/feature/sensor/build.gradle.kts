@@ -2,19 +2,36 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// New-sensor flow and sensor end UI (chunk 18).
+// New-sensor flow, LibreView sign-in (chunk 18). The sensor-end notices are the alert runtime's (:monitor, chunk 11).
 plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
+    // the one duration formatter's words (CardWords.durations)
+    implementation(project(":core:graph"))
     implementation(project(":sensor"))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(project(":core:testing"))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// The screenshot gallery records into build/outputs/roborazzi (synthetic data, for the UX review; no goldens are
+// committed: images live only under docs/img or evidence folders).
+tasks.withType<Test>().configureEach {
+    systemProperty("roborazzi.test.record", "true")
+    // Robolectric on SDK 36 reaches into FileDescriptor internals
+    jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
 }

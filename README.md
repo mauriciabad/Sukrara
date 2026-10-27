@@ -117,6 +117,7 @@ by the app's icon code.</sub>
   LSPosed's own service) and says what's missing: grant root, add System UI to the scope, restart System UI. After an
   update, home asks for a System UI restart only when the code System UI runs has changed (not on every install).
   [05](docs/05-android-status-bar.md)
+- V1 (0.90.x, Android): settings pages for alerts (thresholds, reminders, like an alarm, sounds, Mute all with Unmute, quiet rules), a *Review alert thresholds* step you confirm, ranges, graph basics, an alert reliability checklist with *Fix* buttons, and About with an update check against this project's GitHub releases.
 - Settings drawn with Android's own settings library (AOSP SettingsLib SPA, as the Settings app uses): an overview
   with sections, large titles that collapse into the top bar, search (the index is built from the pages themselves,
   so it never goes out of date), the system's page and back-gesture motion, one number input everywhere (presets plus

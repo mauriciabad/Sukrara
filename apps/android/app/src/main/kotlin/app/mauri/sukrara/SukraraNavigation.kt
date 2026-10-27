@@ -34,7 +34,10 @@ import app.mauri.sukrara.feature.home.HomeAction
 import app.mauri.sukrara.feature.home.HomeScreen
 import app.mauri.sukrara.feature.home.HomeViewModel
 import app.mauri.sukrara.feature.home.banners.Showcase
+import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
+import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
 import app.mauri.sukrara.feature.sharing.SetupScreen
+import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.serialization.Serializable
 
 /** The app's screens. Each is a key on the back stack (Navigation 3); predictive back comes with NavDisplay. */
@@ -47,6 +50,17 @@ data object SetupRoute : NavKey
 @Serializable
 data object DataProblemsRoute : NavKey
 
+/** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
+@Serializable
+data object NewSensorKey : NavKey
+
+@Serializable
+data object LibreViewSignInKey : NavKey
+
+/** Intent actions that open the new-sensor flow: the sensor-end notification's Pair new sensor, other modules' links. */
+fun opensNewSensor(action: String?): Boolean =
+    action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
+
 /** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step (chunk 24). */
 fun isInviteLink(uri: Uri?): Boolean =
     uri != null &&
@@ -56,9 +70,18 @@ fun isInviteLink(uri: Uri?): Boolean =
 fun SukraraNavigation(
     graph: AppGraph,
     deepLink: Uri?,
+    openNewSensor: Boolean,
+    onNewSensorOpened: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
+    // a request (a notification tap, also while the app is open) opens the flow once, on top of home
+    LaunchedEffect(openNewSensor) {
+        if (openNewSensor) {
+            if (backStack.last() != NewSensorKey) backStack.add(NewSensorKey)
+            onNewSensorOpened()
+        }
+    }
     // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
     var handledLink by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(deepLink) {
@@ -86,6 +109,19 @@ fun SukraraNavigation(
                 entry<SetupRoute> {
                     SetupScreen(onDone = { backStack.removeLastOrNull() })
                 }
+                entry<NewSensorKey> {
+                    NewSensorRoute(
+                        viewModel = viewModel(factory = graph.sensorUi.newSensorViewModels),
+                        onSignIn = { backStack.add(LibreViewSignInKey) },
+                        onDone = { backStack.remove(NewSensorKey) },
+                    )
+                }
+                entry<LibreViewSignInKey> {
+                    LibreViewSignInRoute(
+                        viewModel = viewModel(factory = graph.sensorUi.libreViewViewModels),
+                        onBack = { backStack.remove(LibreViewSignInKey) },
+                    )
+                }
                 entry<DataProblemsRoute> {
                     val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
                     LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
@@ -108,42 +144,23 @@ private fun route(
     home: HomeModule,
 ) {
     when (action) {
-        HomeAction.OpenSetup -> {
-            backStack.add(SetupRoute)
-        }
+        HomeAction.OpenSetup -> backStack.add(SetupRoute)
 
-        HomeAction.PairSensor, HomeAction.OpenSensor -> {
-            open(context, Intent(NavTargets.ACTION_SENSOR_SETUP)) { backStack.add(SetupRoute) }
-        }
+        HomeAction.PairSensor, HomeAction.OpenSensor -> backStack.add(NewSensorKey)
 
-        HomeAction.AddTreatment -> {
-            open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
-        }
+        HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
 
-        HomeAction.EnableBluetooth -> {
-            open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
-        }
+        HomeAction.EnableBluetooth -> open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
 
-        HomeAction.OpenShowcaseInfo -> {
-            open(context, Showcase.appInfo()) {}
-        }
+        HomeAction.OpenShowcaseInfo -> open(context, Showcase.appInfo()) {}
 
-        HomeAction.ResumeMonitoring -> {
-            home.resumeMonitoring()
-        }
+        HomeAction.ResumeMonitoring -> home.resumeMonitoring()
 
         // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback
-        HomeAction.AddWidget -> {
-            (context as? Activity)?.let {
-                context.graph.widgets.presence
-                    .pin(it)
-            }
-        }
+        HomeAction.AddWidget -> (context as? Activity)?.let { context.graph.widgets.presence.pin(it) }
 
         // their banners stay hidden until the owning chunks (13, integrations) provide the inputs and the route
-        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> {
-            Unit
-        }
+        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
     }
 }
 
