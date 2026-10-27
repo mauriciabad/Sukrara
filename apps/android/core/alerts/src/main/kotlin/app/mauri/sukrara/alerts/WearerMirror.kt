@@ -112,6 +112,11 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
         return shown.keys.toList().mapNotNull(::takeShown)
     }
 
+    /** Alerts turned off on this device: the firings showing here go (the wearer's state is kept). */
+    fun hideAll(): List<Firing> = shown.keys.toList().mapNotNull(::takeShown)
+
+    fun showing(group: AlertGroup): Boolean = group in shown
+
     /** *Unmute* [kind]'s side: the wearer's newest firing to show again at once, or null. */
     fun unmute(kind: AlertKind, now: Long): Firing? {
         val sn = snoozes[kind.side] ?: return null

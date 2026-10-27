@@ -8,7 +8,7 @@ import kotlin.math.roundToLong
 
 /**
  * One number format of contracts/settings/settings.json (`numbers`), the range a decoded alert setting is coerced into.
- * Pure copy of the schema's values so this JVM module needs no Android settings code; `AlertLimitsTest` fails when they
+ * Pure copy of the schema's values so this JVM module needs no Android settings code; `AlertSettingsCodecTest.limitsMatchTheSettingsSchema` fails when they
  * drift from the schema. [specials]: values outside the range that mean something (0 = once / until turned off).
  */
 data class NumberLimit(

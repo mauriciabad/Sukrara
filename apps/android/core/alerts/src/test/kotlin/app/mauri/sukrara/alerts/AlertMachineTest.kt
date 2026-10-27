@@ -125,4 +125,39 @@ class AlertMachineTest {
         val treated = AlertStatus.of(AlertReading(t0, 60), m.settings, Doses(carbs = listOf(t0)), t0 + 60, ui)
         assertEquals(AlertStatus.Taken(AlertKind.LOW, TreatmentKind.CARBS, t0, t0 + 15 * 60), treated)
     }
+
+    /** A restart after the no-data deadline alerts at once (nothing else would wake it: no readings come). */
+    @Test fun restartAfterADeadlineAlertsAtOnce() {
+        val m = machine()
+        m.start(null, null, null, t0)
+        m.handle(AlertInput.Reading(AlertReading(t0, 120)), t0)
+        val saved = AlertStateCodec.decode(AlertStateCodec.encode(m.snapshot()))
+        val out = machine().start(saved, null, null, t0 + 25 * 60)
+        assertEquals(listOf(AlertKind.NO_DATA), out.fires())
+        assertTrue(out.last() is AlertEffect.Schedule)
+    }
+
+    @Test fun followerWithAlertsOffShowsNothingAndClearsWhatShowed() {
+        val f = machine(AlertRole.FOLLOWER_MIRROR)
+        f.start(null, null, null, t0)
+        val fire = AlertEvent(id = "a", k = AlertKind.LOW, state = AlertEvent.State.FIRE, at = t0, t = t0, sgv = 65, th = 70.0, n = 1)
+        f.handle(AlertInput.Remote(fire), t0)
+        val off = f.handle(AlertInput.Settings(AlertSettings(on = false)), t0)
+        assertTrue(off.contains(AlertEffect.Clear(AlertKind.LOW, "a")))
+        assertEquals(emptyList<AlertKind>(), f.handle(AlertInput.Remote(fire.copy(id = "b")), t0).fires())
+    }
+
+    @Test fun followerMuteShowsInUiStateAndZeroMinutesChangesNothing() {
+        val f = machine(AlertRole.FOLLOWER_MIRROR)
+        f.start(null, null, null, t0)
+        val fire = AlertEvent(id = "a", k = AlertKind.HIGH, state = AlertEvent.State.FIRE, at = t0, t = t0, sgv = 200, th = 180.0, n = 1)
+        f.handle(AlertInput.Remote(fire), t0)
+        assertTrue(f.handle(AlertInput.Mute(AlertKind.HIGH, 0), t0).none { it is AlertEffect.Clear })
+        assertTrue(f.handle(AlertInput.Mute(AlertKind.HIGH, 30), t0).contains(AlertEffect.Clear(AlertKind.HIGH, "a")))
+        assertEquals(QuietSide(AlertKind.HIGH, false, QuietReason.NOTIFICATION, t0 + 30 * 60, 0, true), f.uiState(t0).quiet.single())
+        // the mirror's state survives a restart
+        val again = machine(AlertRole.FOLLOWER_MIRROR)
+        again.start(AlertStateCodec.decode(AlertStateCodec.encode(f.snapshot())), null, null, t0 + 60)
+        assertEquals(t0 + 30 * 60, again.uiState(t0 + 60).quiet.single().until)
+    }
 }

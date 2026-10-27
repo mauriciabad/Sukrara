@@ -84,7 +84,8 @@ class AlertMachine(
 
     /**
      * Restores [saved] (ignored when it belongs to another role) and seeds the newest stored reading [seed], sensor
-     * [sensor]; no evaluation, so old news never alerts. Returns the notifications to show again silently + the timer.
+     * [sensor], then evaluates once (whatever came due while the process was down; a stale reading never alerts).
+     * Returns the notifications to show again silently, what alerts now, and the timer.
      */
     fun start(saved: AlertState?, seed: AlertReading?, sensor: SensorWindow?, now: Long): List<AlertEffect> {
         val state = saved?.takeIf { it.role == role }
@@ -95,7 +96,18 @@ class AlertMachine(
         state?.mirror?.let { if (role == AlertRole.FOLLOWER_MIRROR) mirror = WearerMirror(it) }
         local.seed(seed)
         shared?.seed(seed)
-        return shown.map { AlertEffect.Fire(it, silent = true) } + schedule(now)
+        // what came due while the process was down (no data, a repeat, a mute's end) alerts now; stale readings can't
+        return shown.map { AlertEffect.Fire(it, silent = true) } + reevaluate(now) + schedule(now)
+    }
+
+    /** What every surface shows about this device's alerts (the mirror's mutes on a mirroring follower). */
+    fun uiState(now: Long): AlertUiState {
+        val own = AlertUiState.of(local, localSettings, doses, now)
+        val m = mirror ?: return own
+        return AlertUiState(
+            own.quiet + AlertUiState.ofMirror(m, settings, now).quiet,
+            maxOf(own.muteAllUntil, m.muteAllUntil.takeIf { it > now } ?: 0),
+        )
     }
 
     fun snapshot(): AlertState = AlertState(role = role, local = local.snapshot(), shared = shared?.snapshot(), mirror = mirror?.snapshot())
@@ -120,6 +132,7 @@ class AlertMachine(
             }
             is AlertInput.Settings -> {
                 settings = input.settings
+                if (!settings.on) mirror?.let { m -> m.hideAll().forEach { out += AlertEffect.Clear(it.kind, it.id) } }
                 out += reevaluate(now)
             }
             is AlertInput.Sensor -> {
@@ -143,7 +156,9 @@ class AlertMachine(
         val m = mirror
         return when (input) {
             is AlertInput.Mute ->
-                if (m != null && mirrorsKind(input.kind)) {
+                if (input.minutes <= 0) {
+                    emptyList()
+                } else if (m != null && mirrorsKind(input.kind)) {
                     listOfNotNull(m.mute(input.kind, now + input.minutes * 60L)?.let { AlertEffect.Clear(it.kind, it.id) })
                 } else {
                     own(local.mute(input.kind, input.minutes, s, doses, now))
@@ -168,7 +183,7 @@ class AlertMachine(
 
     private fun remote(e: AlertEvent, now: Long): List<AlertEffect> {
         val m = mirror ?: return emptyList()
-        if (now - e.at > AlertEvent.MAX_AGE_S || e.k == AlertKind.NO_DATA) return emptyList()
+        if (!settings.on || now - e.at > AlertEvent.MAX_AGE_S || e.k == AlertKind.NO_DATA) return emptyList()
         return when (e.state) {
             AlertEvent.State.FIRE -> e.toFiring().let { f -> if (m.fire(f)) listOf(AlertEffect.Fire(f)) else emptyList() }
             AlertEvent.State.CLEAR -> if (m.clear(e.k, e.id)) listOf(AlertEffect.Clear(e.k, e.id)) else emptyList()

@@ -74,6 +74,8 @@ class AlertSettingsCodecTest {
             assertEquals(name, n["step"]!!.jsonPrimitive.double, limit.step, 1e-9)
             assertEquals(name, n["default"]!!.jsonPrimitive.double, limit.default, 1e-9)
             assertEquals(name, n["presets"]!!.jsonArray.map { it.jsonPrimitive.double }, limit.presets)
+            val specials = n["special"]?.jsonObject?.keys?.map { it.toDouble() }?.toSet().orEmpty()
+            assertEquals(name, specials, limit.specials)
         }
     }
 

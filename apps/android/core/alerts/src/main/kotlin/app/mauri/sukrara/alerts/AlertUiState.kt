@@ -32,6 +32,17 @@ data class AlertUiState(val quiet: List<QuietSide> = emptyList(), val muteAllUnt
     }
 
     companion object {
+        /** The UI state of a mirroring follower's own actions ([WearerMirror]; the wearer's rules are not here). */
+        fun ofMirror(m: WearerMirror, s: AlertSettings, now: Long): AlertUiState = AlertUiState(
+            m.snoozes(now).filterKeys { it != Side.NO_DATA }.map { (side, sn) ->
+                QuietSide(
+                    side.mainKind, m.showing(side.mainKind.group), if (sn.until > 0) QuietReason.NOTIFICATION else null,
+                    sn.until, sn.relaxMin, sn.relaxMin == 0 && s.canRelax(side.mainKind),
+                )
+            },
+            m.muteAllUntil.takeIf { it > now } ?: 0,
+        )
+
         /** The UI state of [engine] at [now] (the local rules of a wearer or an own-rules follower). */
         fun of(engine: AlertEngine, s: AlertSettings, d: Doses, now: Long): AlertUiState {
             val out = mutableListOf<QuietSide>()
