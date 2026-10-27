@@ -97,14 +97,23 @@ object GlucoseGraph {
         val b = st.bands.sane()
         val pts = GlucoseStats.window(input.readings, from - 60, end)
         val tir = GlucoseStats.timeInRange(pts, from, end, b)
-        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; textSize = 10 * d }
+        val text =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = pal.inkSoft
+                textSize = 10 * d
+            }
         val pctBig =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = pal.ink
                 textSize = 13 * d
                 typeface = Typeface.create(Typeface.DEFAULT, 700, false)
             }
-        val pctSmall = Paint(pctBig).apply { textSize = 8.5f * d; color = pal.inkSoft; typeface = Typeface.DEFAULT }
+        val pctSmall =
+            Paint(pctBig).apply {
+                textSize = 8.5f * d
+                color = pal.inkSoft
+                typeface = Typeface.DEFAULT
+            }
         val labels = st.axisLabels
         val (lo, inr, hi) = pct3(tir.below, tir.inRange, tir.above)
 
@@ -120,13 +129,13 @@ object GlucoseGraph {
                 input.treatments.filter {
                     !it.deleted && it.t in from..end && show.any(it.k) &&
                         (
-                            show.has(it.k, MarkShow.POINT) || show.label(it.k) && TreatmentMarks.amount(it) != null ||
-                                show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null
+                            show.has(it.k, MarkShow.POINT) || (show.label(it.k) && TreatmentMarks.amount(it) != null) ||
+                                (show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null)
                         )
                 }
             }
         val marks = shown.isNotEmpty()
-        val lane = shown.any { show.has(it.k, MarkShow.POINT) || show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null }
+        val lane = shown.any { show.has(it.k, MarkShow.POINT) || (show.has(it.k, MarkShow.LINE) && muteUntil?.invoke(it) != null) }
         val natural = yRange(pts, from, b)
         val (yMin, yMax) = view?.y ?: natural
         rec.add("chart.y", info = "${natural.first.roundToInt()}-${natural.second.roundToInt()}", exact = true)
@@ -136,8 +145,10 @@ object GlucoseGraph {
             if (!labels) {
                 emptyList()
             } else {
-                (listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) + st.lines)
-                    .filter { it > yMin && it < yMax }
+                (
+                    listOf(b.low, b.high) + listOfNotNull(b.tight.takeIf { it < b.high }) + listOf(b.veryLow, b.veryHigh, b.extremelyHigh) +
+                        st.lines
+                ).filter { it > yMin && it < yMax }
             }
 
         fun axisValues(
@@ -159,8 +170,15 @@ object GlucoseGraph {
             val layout =
                 if (marks) {
                     TreatmentMarks.layout(
-                        shown, { t -> left + (t - from).toFloat() / st.windowS * (right - left) }, nowS,
-                        area.left, area.right, lanes(area.height(), d), d, input.words, show,
+                        shown,
+                        { t -> left + (t - from).toFloat() / st.windowS * (right - left) },
+                        nowS,
+                        area.left,
+                        area.right,
+                        lanes(area.height(), d),
+                        d,
+                        input.words,
+                        show,
                     )
                 } else {
                     null
@@ -192,9 +210,19 @@ object GlucoseGraph {
             if (!eased) {
                 g.lane1
             } else {
-                (area.bottom - (if (g.textRow) 14 * d else 0f) - (if (lane) 12 * d else 0f) - plotBottom).coerceIn(0f, TreatmentMarks.LANE_DP * d)
+                (area.bottom - (if (g.textRow) 14 * d else 0f) - (if (lane) 12 * d else 0f) - plotBottom).coerceIn(
+                    0f,
+                    TreatmentMarks.LANE_DP * d,
+                )
             }
-        val bottom = if (!eased) g.bottom else if (lane) plotBottom + 12 * d else plotBottom
+        val bottom =
+            if (!eased) {
+                g.bottom
+            } else if (lane) {
+                plotBottom + 12 * d
+            } else {
+                plotBottom
+            }
         val values = if (plotBottom == g.plotBottom) g.values else axisValues(top, plotBottom)
         rec.add("chart", area, "${st.windowS / 3600}h", exact = true)
         if (end < nowS) rec.add("chart.window", info = "${(from - nowS) / 60}m..${(end - nowS) / 60}m", exact = true)
@@ -237,13 +265,26 @@ object GlucoseGraph {
         }
         // everything the distribution cuts goes into one layer: the dashed level lines and the glucose line
         val layer = cv.saveLayer(area, null)
-        for (v in listOf(b.veryLow, b.veryHigh, b.extremelyHigh)) if (v > yMin && v < yMax) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
+        for (v in listOf(b.veryLow, b.veryHigh, b.extremelyHigh)) {
+            if (v > yMin &&
+                v < yMax
+            ) {
+                cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), grid)
+            }
+        }
         val userLine = Paint(grid).apply { color = ColorUtils.setAlphaComponent(pal.inkSoft, 0x66) }
         val lines = st.lines.filter { it > yMin && it < yMax }
         for (v in lines) cv.drawLine(left, y(v.toFloat()), right, y(v.toFloat()), userLine)
         if (lines.isNotEmpty()) rec.add("chart.lines", info = lines.joinToString(","), exact = true)
         drawLine(cv, pts, from, b, pal, d, left, right, input.latestT, rec, ::x, ::y)
-        val rows = if (sideW > 0) profileRows(GlucoseStats.profile(pts, from, end, b, tir), b, pal, left, sideW, top, plotBottom, yMin, yMax, d) else emptyList()
+        val rows =
+            if (sideW >
+                0
+            ) {
+                profileRows(GlucoseStats.profile(pts, from, end, b, tir), b, pal, left, sideW, top, plotBottom, yMin, yMax, d)
+            } else {
+                emptyList()
+            }
         if (rows.isNotEmpty()) {
             val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.DST_OUT }
             val h = PROFILE_R * d + PROFILE_CUT * d
@@ -266,7 +307,28 @@ object GlucoseGraph {
             dot.color = row.color
             for (k in 0 until row.n) cv.drawCircle(left + PROFILE_PITCH * d * (k + 0.5f), row.cy, PROFILE_R * d, dot)
         }
-        if (pctCol > 0) drawPct(cv, lo, inr, hi, tir.let { TirMark.column(it) } && st.crown, b, pctBig, pctSmall, pal, area, left, top, plotBottom, d, rec, ::y)
+        if (pctCol >
+            0
+        ) {
+            drawPct(
+                cv,
+                lo,
+                inr,
+                hi,
+                tir.let { TirMark.column(it) } && st.crown,
+                b,
+                pctBig,
+                pctSmall,
+                pal,
+                area,
+                left,
+                top,
+                plotBottom,
+                d,
+                rec,
+                ::y,
+            )
+        }
         if (marks) {
             rec.add("chart.markers", info = "${shown.count { show.has(it.k, MarkShow.POINT) }}", exact = true)
             rec.add(
@@ -274,21 +336,40 @@ object GlucoseGraph {
                 info =
                     shown.sortedBy { it.id }.joinToString(" ") { tr ->
                         tr.id + ":" +
-                            MarkShow.parts(tr.k).filter { p ->
-                                show.has(tr.k, p) && (p != MarkShow.LINE || muteUntil?.invoke(tr) != null) &&
-                                    (p != MarkShow.AMOUNT && p != MarkShow.TIME || TreatmentMarks.amount(tr) != null)
-                            }.joinToString("+")
+                            MarkShow
+                                .parts(tr.k)
+                                .filter { p ->
+                                    show.has(tr.k, p) && (p != MarkShow.LINE || muteUntil?.invoke(tr) != null) &&
+                                        ((p != MarkShow.AMOUNT && p != MarkShow.TIME) || TreatmentMarks.amount(tr) != null)
+                                }.joinToString("+")
                     },
                 exact = true,
             )
             layout?.labels?.forEach { l ->
                 val labelBottom = if (l.lane == 0) area.bottom - lane1 else area.bottom
-                rec.add("chart.label", RectF(l.left, labelBottom - 14 * d, l.left + l.w, labelBottom), "${l.text} lane${l.lane}", exact = true)
+                rec.add(
+                    "chart.label",
+                    RectF(l.left, labelBottom - 14 * d, l.left + l.w, labelBottom),
+                    "${l.text} lane${l.lane}",
+                    exact = true,
+                )
             }
             TreatmentMarks.draw(
-                cv, shown, ::x, left, right, bottom, d, pal.dark, layout,
-                base0 = area.bottom - 2 * d - lane1, base1 = area.bottom - 2 * d, sep = pal.inkSoft,
-                nowS = nowS, muteUntil = muteUntil, show = show,
+                cv,
+                shown,
+                ::x,
+                left,
+                right,
+                bottom,
+                d,
+                pal.dark,
+                layout,
+                base0 = area.bottom - 2 * d - lane1,
+                base1 = area.bottom - 2 * d,
+                sep = pal.inkSoft,
+                nowS = nowS,
+                muteUntil = muteUntil,
+                show = show,
             )
         }
         if (view != null && view.now > 0f) drawNowPill(cv, view.now, right, top, pal, d, input.words, rec)
@@ -410,7 +491,11 @@ object GlucoseGraph {
         y: (Float) -> Float,
     ) {
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
-        val seg = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 1.6f * d; strokeCap = Paint.Cap.ROUND }
+        val seg =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                strokeWidth = 1.6f * d
+                strokeCap = Paint.Cap.ROUND
+            }
         val spacing = if (pts.size > 1) (right - left) / max(1f, pts.size.toFloat()) else 99f
         val r = (spacing * 0.55f).coerceIn(1.3f * d, 2.2f * d)
         val dense = pts.size > DENSE_PER_DP * (right - left) / d
@@ -506,7 +591,12 @@ object GlucoseGraph {
         label(hi, cHi)
         label(inr, cIn)
         label(lo, cLo)
-        rec.add("chart.pct", RectF(area.left, top, left, plotBottom), "$lo/$inr/$hi [w" + CardLayout.dp(left - area.left, d) + "]", exact = true)
+        rec.add(
+            "chart.pct",
+            RectF(area.left, top, left, plotBottom),
+            "$lo/$inr/$hi [w" + CardLayout.dp(left - area.left, d) + "]",
+            exact = true,
+        )
         if (!crown) return
         val numW = pctBig.measureText("100")
         val cw = numW * 0.62f
@@ -554,12 +644,25 @@ object GlucoseGraph {
         step: Int,
     ): Boolean =
         when {
-            step < 24 -> c.get(Calendar.HOUR_OF_DAY) % step == 0
-            c.get(Calendar.HOUR_OF_DAY) != 0 -> false
-            step == 168 -> c.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY
-            step > 24 ->
+            step < 24 -> {
+                c.get(Calendar.HOUR_OF_DAY) % step == 0
+            }
+
+            c.get(Calendar.HOUR_OF_DAY) != 0 -> {
+                false
+            }
+
+            step == 168 -> {
+                c.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY
+            }
+
+            step > 24 -> {
                 Math.floorDiv(c.timeInMillis + c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET), 86_400_000L) % (step / 24) == 0L
-            else -> true
+            }
+
+            else -> {
+                true
+            }
         }
 
     /**

@@ -415,6 +415,14 @@ developer](https://support.apple.com/guide/mac-help/mh40616/mac), [Safely open a
 Mac](https://support.apple.com/en-us/102445)). Sukrara lives in the **menu bar** (no Dock icon): click the value for
 the panel, **⌘,** for Settings.
 
+**Sukrara V1 next to the Showcase (0.90 release candidates).** V1 (`app.mauri.sukrara`) keeps its own settings,
+Keychain item, files (`~/Library/Application Support/app.mauri.sukrara/`) and alert sounds
+(`~/Library/Sounds/app.mauri.sukrara.*.caf`), so it can run beside Sukrara Showcase without touching it; follow the
+wearer again once from V1. `tools/install.sh mac` quits the Showcase and removes its login item so you never get two
+alarms; the Showcase can be removed after switching. V1 checks GitHub for newer releases once a day and offers
+*Download* / *Later* (no auto-install). Before the first reading arrives it says *Not monitoring* and arms no no-data
+alarm.
+
 ### Set up on Android
 
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Pair a sensor* and hold the back of the

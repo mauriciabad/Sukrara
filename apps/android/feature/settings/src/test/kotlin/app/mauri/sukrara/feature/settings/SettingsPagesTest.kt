@@ -55,6 +55,8 @@ class SettingsPagesTest {
             "graph.lastElse", "graph.sensorTime.place", "follower.settingsFrom", "alerts.source", "alerts.v",
             "statusbar.systemIcons", "statusbar.hook", "statusbar.hookPosition", "statusbar.hookColor", "statusbar.hideNotifIcon",
             "lock.widget", "lock.background", "lock.appearance", "lock.treatmentTime",
+            // mmol/L in these pages: issue c17 (thresholds and ranges stay mg/dL here)
+            "general.unit",
         )
 
     @Before fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
