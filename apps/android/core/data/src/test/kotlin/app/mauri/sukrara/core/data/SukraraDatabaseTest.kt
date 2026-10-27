@@ -46,7 +46,7 @@ class SukraraDatabaseTest {
         minutes: Long,
         mgdl: Int,
         source: SourceId = SourceId.Libre3,
-    ) = Reading(t0.plus(Duration.ofMinutes(minutes)), mgdl, 0.5f, source)
+    ) = Reading(t0.plus(Duration.ofMinutes(minutes)), mgdl, 0.5, source)
 
     @Test
     fun `window returns readings from a time, oldest first`() = runTest {

@@ -19,7 +19,11 @@ class Libre3CryptoTest {
         val symbols = Regex("""\bJava_\w+(?=\s*\()""").findAll(jni).map { it.value }.toSet()
         assertTrue("no JNI symbols found in jni.c", symbols.isNotEmpty())
         symbols.forEach { assertTrue("$it isn't a Libre3Crypto function", it.startsWith(prefix)) }
-        val natives = Libre3Crypto::class.java.declaredMethods.filter { Modifier.isNative(it.modifiers) }.map { prefix + it.name }.toSet()
+        val natives =
+            Libre3Crypto::class.java.declaredMethods
+                .filter { Modifier.isNative(it.modifiers) }
+                .map { prefix + it.name }
+                .toSet()
         assertEquals(natives, symbols)
     }
 }

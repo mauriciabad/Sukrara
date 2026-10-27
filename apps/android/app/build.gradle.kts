@@ -46,35 +46,59 @@ dependencies {
 /*
  * A release APK must carry the Libre 3 core from the pinned Juggluco revision: the owner's sensor depends on it.
  * The checkout is checked before anything is built (pre<Variant>Build roots assemble, bundle and install); the
- * finished APK is checked for the library before assemble/install complete.
+ * finished APK / bundle is checked for the library before assemble, install or bundle complete.
  */
 val jugglucoProblem = NativeCore.problem(project, NativeCore.locate(project))
-val verifyJuggluco = tasks.register("verifyJuggluco") {
+val verifyJuggluco =
+    tasks.register("verifyJuggluco") {
+        group = "verification"
+        description = "Fails a release build without the pinned, clean Juggluco checkout."
+        val problem = jugglucoProblem // a plain String: the configuration cache can't hold script references
+        doLast { problem?.let { throw GradleException("Release build without the Libre 3 core: $it") } }
+    }
+tasks.named { it == "preReleaseBuild" }.configureEach { dependsOn(verifyJuggluco) }
+
+/** Fails unless every archive with [extension] in [outputs] contains [entry]. */
+fun registerLibraryCheck(
+    taskName: String,
+    outputs: Provider<out FileSystemLocation>,
+    extension: String,
+    entry: String,
+) = tasks.register(taskName) {
     group = "verification"
-    description = "Fails a release build without the pinned, clean Juggluco checkout."
-    doLast { jugglucoProblem?.let { throw GradleException("Release build without the Libre 3 core: $it") } }
+    description = "Fails when the release .$extension lacks $entry."
+    inputs.files(outputs)
+    doLast {
+        val root = outputs.get().asFile
+        val archives = root.walk().filter { it.extension == extension }.toList()
+        if (archives.isEmpty()) throw GradleException("no .$extension in $root")
+        archives.forEach { archive ->
+            ZipFile(archive).use { zip -> if (zip.getEntry(entry) == null) throw GradleException("$archive has no $entry") }
+        }
+    }
 }
-tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyJuggluco) }
 
 androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
-        val apkDir = variant.artifacts.get(SingleArtifact.APK)
-        val name = variant.name.replaceFirstChar { it.uppercase() }
-        val verify = tasks.register("verify${name}NativeCore") {
-            group = "verification"
-            description = "Fails when the ${variant.name} APK lacks ${NativeCore.LIBRARY}."
-            inputs.files(apkDir)
-            doLast {
-                val apks = apkDir.get().asFile.walk().filter { it.extension == "apk" }.toList()
-                if (apks.isEmpty()) throw GradleException("no APK in ${apkDir.get()}")
-                apks.forEach { apk ->
-                    ZipFile(apk).use { zip ->
-                        if (zip.getEntry(NativeCore.LIBRARY) == null) throw GradleException("$apk has no ${NativeCore.LIBRARY}")
-                    }
-                }
-            }
+    // ManifestTest reads the merged debug manifest (every module's components) through the public artifact API.
+    onVariants(selector().withBuildType("debug")) { variant ->
+        val manifest = variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
+        tasks.withType<Test>().configureEach {
+            inputs.file(manifest).withPropertyName("mergedManifest")
+            jvmArgumentProviders += CommandLineArgumentProvider { listOf("-Dsukrara.mergedManifest=${manifest.get().asFile}") }
         }
-        tasks.matching { it.name == "assemble$name" || it.name == "install$name" }.configureEach { dependsOn(verify) }
+    }
+    onVariants(selector().withBuildType("release")) { variant ->
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val apk = registerLibraryCheck("verify${name}ApkNativeCore", variant.artifacts.get(SingleArtifact.APK), "apk", NativeCore.LIBRARY)
+        val bundle =
+            registerLibraryCheck(
+                "verify${name}BundleNativeCore",
+                variant.artifacts.get(SingleArtifact.BUNDLE),
+                "aab",
+                "base/${NativeCore.LIBRARY}",
+            )
+        tasks.named { it == "assemble$name" || it == "install$name" }.configureEach { dependsOn(apk) }
+        tasks.named { it == "bundle$name" }.configureEach { dependsOn(bundle) }
     }
     // Release unit tests would compile the release variant (and its guards) in `./gradlew check`; the debug unit
     // tests cover the same code.

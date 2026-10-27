@@ -538,7 +538,8 @@ def check_card(ch, rep):
                         "path to the test's runner." % (s["id"], plat, plat))
 
 
-CLOCK_KT = KT_MODEL + "Clock.kt"
+# Android: the card renderer owns clock formatting (brief 08); the time *source* interface is :core:model Clock
+CLOCK_KT = ANDROID + "core/graph/src/main/kotlin/app/mauri/sukrara/graph/Clock.kt"
 CLOCK_SWIFT = MAC_SOURCES + "SukraraCore/Clock.swift"
 # files that write times as data or log text (not the user's clock): path -> why. Each V1 chunk adds its own.
 CLOCK_OK = {}
@@ -561,7 +562,7 @@ SWIFT_TIME_FMT = re.compile(r"time:\s*\.(shortened|standard|complete)|\.timeStyl
 def check_clock(ch, rep):
     """clock: every clock time goes through Clock with the one 24-hour setting (the user, 2026-10-21: the value widget
     wrote "08:59" beside the chart cards' "8:59 AM"). No own hour24 flag, is24HourFormat or time formatter outside
-    Clock (Android :core:model Clock.kt, Mac SukraraCore Clock.swift; the app injects the system setting into Clock on a
+    Clock (Android :core:graph Clock.kt, Mac SukraraCore Clock.swift; the app injects the system setting into Clock on a
     line that names Clock.hour24Source). Whole V1 tree; data / log formats are listed in CLOCK_OK."""
     for p in tree_files(ch):
         lang = v1_code(p)
