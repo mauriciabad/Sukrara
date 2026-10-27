@@ -1,7 +1,7 @@
 # 24c — Independent review of Open Glucose Stream draft 3
 
-*2026-10-19 · review report · reviews [24b](24b-open-standard-draft3.md) and [`spec/draft3/`](../spec/draft3) ·
-reference: [`spec/reference/ogs/d3`](../spec/reference/ogs/d3) · evidence:
+*2026-10-19 · review report · reviews [24b](24b-open-standard-draft3.md) and [`poc/spec/draft3/`](../poc/spec/draft3) ·
+reference: [`poc/spec/reference/ogs/d3`](../poc/spec/reference/ogs/d3) · evidence:
 [`evidence/24c-draft3-review-e2e.log`](evidence/24c-draft3-review-e2e.log)*
 
 ## Scope and method
@@ -333,11 +333,11 @@ m14 counts as rejected: it was deferred in the review and then decided against (
 | Nostr | N§1 honest linkability; N§4.1 edit window, `since`, author limits, inbox `since` |
 | Bluetooth | `INFO.challenge` + `AUTH`; nothing before `AUTH`; pairing service carries no envelope; wrap forwarding; B§9 |
 | Security | S§2, S§3, S§4, S§6, S§7, S§8, S§12 |
-| Others | conformance, rationale (D3 limit, open item), README, migration, `spec/drafts/standalone-README.md` and `outreach.md` (counts), 24b (figures, comparison rows) |
+| Others | conformance, rationale (D3 limit, open item), README, migration, `poc/spec/drafts/standalone-README.md` and `outreach.md` (counts), 24b (figures, comparison rows) |
 | Reference | `core.Epoch.clip`; `member` (epoch end, grant format, ordering, ties); `owner` (`end_epoch`, frozen memberships, grants, history cap, auto invites, `days`); `control` (invite sizes); `ble` (`AUTH`); `vectors`; `e2e` (removed writer) |
 | Vectors | regenerated: 44 events, 10 wraps, a 42-step scenario, BLE `AUTH` |
 
-The site pages (`spec/drafts/site-page.md`, `docs/ogs.md`) make no claim that changed ("the keys that relays see
+The site pages (`poc/spec/drafts/site-page.md`, `docs/ogs.md`) make no claim that changed ("the keys that relays see
 change every day" is still true), so they are unchanged.
 
 ## Status

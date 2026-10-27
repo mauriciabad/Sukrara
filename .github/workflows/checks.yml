@@ -1,4 +1,4 @@
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/Sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # The repo's guards (CLAUDE.md → tools/check) plus the cross-platform tests: Android unit tests (alert scenarios,
@@ -44,7 +44,7 @@ jobs:
           java-version: '17'
           cache: gradle
       - name: Unit tests (alert scenarios, graph fixtures, every surface's layout and freshness, strings parity, stats; Robolectric + galleries on JDK 21)
-        working-directory: spikes/showcase-android
+        working-directory: poc/spikes/showcase-android
         env:
           GALLERY_JAVA_HOME: ${{ steps.jdk21.outputs.path }}
         run: ./gradlew --no-daemon :app:testDebugUnitTest
@@ -55,16 +55,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: swift build
-        working-directory: spikes/menubar
+        working-directory: poc/spikes/menubar
         run: swift build
       - name: Type-check the widget extension and the evidence renderer (they draw the card through CardSurfaces.swift)
-        working-directory: spikes/widgets-macos
+        working-directory: poc/spikes/widgets-macos
         run: |
           SDK=$(xcrun --show-sdk-path --sdk macosx)
           swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -application-extension -module-name GlucoseWidget Shared/*.swift Widget/GlucoseWidgets.swift
           swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -module-name Render Shared/*.swift Render/RenderMain.swift
       - name: Self-tests (alert scenarios, graph math + fixtures + every surface's layout, CSV export, treatments merge, Bluetooth limits + INFO vectors)
-        working-directory: spikes/menubar
+        working-directory: poc/spikes/menubar
         run: |
           .build/debug/GlucoseBar -alerts-selftest
           .build/debug/GlucoseBar -graphselftest
@@ -76,7 +76,7 @@ jobs:
           .build/debug/GlucoseBar -settingsselftest
           .build/debug/GlucoseBar -panelselftest
       - name: Launch guard (unknown flags and dev builds never start the full app)
-        working-directory: spikes/menubar
+        working-directory: poc/spikes/menubar
         run: |
           set +e
           for args in "-nosuchselftest" "-nosuchflag" ""; do

@@ -1,7 +1,7 @@
 # 29 — NovoPen Echo Plus: tap the pen, the insulin is logged
 
-*2026-10-23 · investigation report · standalone PoC `spikes/novopen-android` (Kotlin JVM: the OpenNov reader ported
-from xDrip+, the pen dose engine, 50+ JSON scenarios) · contract `spikes/novopen-android/DESIGN.md`, product spec
+*2026-10-23 · investigation report · standalone PoC `poc/spikes/novopen-android` (Kotlin JVM: the OpenNov reader ported
+from xDrip+, the pen dose engine, 50+ JSON scenarios) · contract `poc/spikes/novopen-android/DESIGN.md`, product spec
 `PRODUCT.md` · source read from the local checkouts in `third_party/`: xDrip+ (`insulin/opennov`, `PrimeDetection`),
 Juggluco (`NovoPen/`, `javasettings.cpp`, `novopens.hpp`), nov-open-reader (lcacheux, cloned to scratch) · no real
 pen read yet: every number below comes from xDrip's recorded transcripts and an emulated pen*
@@ -17,7 +17,7 @@ the log**.
 
 - **The protocol is solved upstream.** NovoPen 6 and Echo Plus speak IEEE 11073-20601 (PHD) over an NFC Forum Type 4
   tag ("OpenNov"). xDrip+'s implementation, with Juggluco's fixes, is now plain Kotlin with a `Transceiver` interface
-  (`spikes/novopen-android/src/main/kotlin/app/mauri/novopen/opennov`), and all of xDrip's tests and transcripts pass
+  (`poc/spikes/novopen-android/src/main/kotlin/app/mauri/novopen/opennov`), and all of xDrip's tests and transcripts pass
   on it (37 JVM tests, plus an emulated pen that replays the recordings end to end).
 - **The hard part is the rules, not the radio.** A pen records every press: priming ("air shots", 0.5–2u, often
   several), the injection, a top-up, a split dose across a cartridge change. A pure engine (`PenEngine`) turns a read
@@ -163,7 +163,7 @@ All in `PenEngine` / `PenRules` (every window in one place), all scenario-tested
 
 ## 4. The PoC
 
-`spikes/novopen-android`: `./gradlew test` (JDK 17) runs the OpenNov port's 37 tests (xDrip's MessageTest, the link
+`poc/spikes/novopen-android`: `./gradlew test` (JDK 17) runs the OpenNov port's 37 tests (xDrip's MessageTest, the link
 layer tests, the emulated pen) and `PenScenarioTest` over `scenarios.json` (53 scenarios: the user's examples,
 cartridge split, Novo's 2u flow checks with the size at 2.5, xDrip #4770's run of primes, top-up, priming then
 distraction, two injections 40 min apart, all-small, a growing session, pending → question, folding a timed-out
@@ -189,14 +189,14 @@ Android (Kotlin, `app/src/main/kotlin/app/mauri/sukrara/pen/`, `ui/Pen*.kt`); th
 | Questions: home card above the glucose card, silent notification with *Log 1.5u* / *All priming*, sheets *Priming or injected?* / *Same injection?* | `ui/PenUi.kt`, `pen/PenNotifier.kt` |
 | The pen entry's sheet: doses with *Priming* / *Injected* (TalkBack custom actions), *Save* / *Remove from log* with an undo snackbar, *Delete*, *Add treatment*; read-only on followers | `ui/PenUi.kt` `PenEntrySheet`, `DoseRow` |
 | *Already logged by your pen?* on Save; the pen read into the treatment dialog (reader mode, no system sound) | `ui/PenDialog.kt`, `ui/TreatmentDialog.kt` |
-| Settings → Insulin pens (Ask / On / Off, NFC off / blocked / Juggluco rows, pens, priming size), pen page, *Doses read* (30-day totals, statuses, earlier doses folded, *Log this injection*, *Review* of a big read with *Undo this read*), setup with the untested confirmation and the display check | `ui/PenSettings.kt`, `spikes/settings/settings.json` (`pens.*`, `penPrimeBelow`) |
+| Settings → Insulin pens (Ask / On / Off, NFC off / blocked / Juggluco rows, pens, priming size), pen page, *Doses read* (30-day totals, statuses, earlier doses folded, *Log this injection*, *Review* of a big read with *Undo this read*), setup with the untested confirmation and the display check | `ui/PenSettings.kt`, `poc/spikes/settings/settings.json` (`pens.*`, `penPrimeBelow`) |
 | *Add treatment* from a read: the quick dialog at the pen's time, the other insulin focused | `QuickTreatmentActivity` extras, `PenWords.addTreatment` |
 | Passive hints: *Injected? Hold your pen to the phone.*, *Next time, just tap your pen* (≤ 1/day, 3 ever), *Pen read 2d ago* | `ui/WearerScreens.kt`, `PenSnack.typedRapid` |
 | Feel: one haptics helper (composition primitives, fallbacks), the card's spring-up, the failure shake, the count-up in 0.5u steps, *Remove animations* respected | `pen/PenHaptics.kt`, `PenReadCard` |
 | Debug-only fake pen (`penRead`, `penReset`, `penOpen`) | `features/DebugFakes.kt` `FakePen` |
 | Strings en + es (pluma, purgado) | `values*/strings.xml` |
 | 0.11.51: which pens work, in the footer of Settings → Insulin pens (always shown): *Sukrara reads NovoPen Echo Plus and NovoPen 6 (untested). Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or Mallya, aren't supported.*, built from `PenProfiles.ALL` (ICU list join, untested in words); the models are search keywords of the *Insulin pens* row (AOSP `settings:keywords`); README, site and FEATURES list the same | `ui/PenSettings.kt` `pensFooter` / `pensKeywords`, `ui/SettingsUi.kt` `keywords`, test `PensPageTest` |
-| 0.11.50: *Automatic detection* page: the priming size plus the session window, priming ahead of time, the wait before asking, the hand-typed match window and amount (units and share) and the new-pen offer age as schema settings, *Reset to defaults*; 5 new scenarios with changed rules | `ui/PenSettings.kt` `PenDetectionSettings`, `Pens.rules`, `spikes/settings/settings.json`, `scenarios.json` |
+| 0.11.50: *Automatic detection* page: the priming size plus the session window, priming ahead of time, the wait before asking, the hand-typed match window and amount (units and share) and the new-pen offer age as schema settings, *Reset to defaults*; 5 new scenarios with changed rules | `ui/PenSettings.kt` `PenDetectionSettings`, `Pens.rules`, `poc/spikes/settings/settings.json`, `scenarios.json` |
 | 0.11.53: *Pen reads* and *Pen doses to check* post in Sukrara's info group (`core/NotifGroups`, with the sensor reminders and the other non-alert notifications) instead of a pen group of its own: one group per feature would add sparse groups, and Android 16's GroupHelper merges three groups with 1–2 children each in one section (the alerts would join them) | `pen/PenNotifier.kt`, `core/NotifGroups.kt`, test `core/NotifGroupsTest` |
 | 0.11.52: *Notification after each read* (Settings → Insulin pens, `penNotify`, off by default): only the per-read *Pen reads* notification; *Pen doses to check* posts either way; off cancels the shown one; on but blocked → *Blocked in Android settings*, the row opens the channel page. The channel is now `pen_read_results`, default importance with no sound / vibration (no heads-up), and the read posts in its own group with a summary (the old low-importance `pen_reads` is deleted) | `pen/PenNotifier.kt`, `ui/PenSettings.kt`, test `pen/PenNotifyTest` |
 | 0.11.52: the treatment dialog's pen icon is gone (title row back to *Add treatment* + *When?*); the dialog still reads a held pen, and *Nothing new* / red *Couldn't read the pen* show under the fields for 3 s (polite live region) | `ui/PenDialog.kt` `PenReadWord`, `ui/TreatmentDialog.kt`; deleted `ic_dia_pen_nfc.xml`, `pen_dialog_read_a11y` |
@@ -234,7 +234,7 @@ part number; the read time of a full memory; whether a cap / case blocks the rea
 ## Run it
 
 ```
-cd spikes/novopen-android
+cd poc/spikes/novopen-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew test
 ```

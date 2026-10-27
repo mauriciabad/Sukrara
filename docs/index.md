@@ -2,7 +2,7 @@
 title: Sukrara (alpha)
 ---
 
-<img src="https://raw.githubusercontent.com/mauriciabad/cgm-reading-mac-spike/main/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="96">
+<img src="https://raw.githubusercontent.com/mauriciabad/Sukrara/main/poc/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="96">
 
 # Sukrara — your sugar, now
 
@@ -10,10 +10,10 @@ Live glucose from a **FreeStyle Libre 3** on your **Mac menubar**, **Android sta
 watch** and your **family's devices**. End-to-end encrypted, over Bluetooth nearby or public Nostr relays from
 anywhere. **No cloud account, nothing to host.** The name: *sucre* (sugar) + *ara* (Catalan: now).
 
-**[Download for Android](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.52/Sukrara-0.11.52.apk)**
-· **[Download for Mac](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.52/Sukrara-0.11.52.dmg)**
-· [All releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)
-· [Source and install steps](https://github.com/mauriciabad/cgm-reading-mac-spike#try-it)
+**[Download for Android](https://github.com/mauriciabad/Sukrara/releases/download/v0.11.52/Sukrara-0.11.52.apk)**
+· **[Download for Mac](https://github.com/mauriciabad/Sukrara/releases/download/v0.11.52/Sukrara-0.11.52.dmg)**
+· [All releases](https://github.com/mauriciabad/Sukrara/releases)
+· [Source and install steps](https://github.com/mauriciabad/Sukrara#try-it)
 
 **Mac** (Apple Silicon, macOS 14+): open the dmg and drag Sukrara onto Applications, or
 `brew install --cask mauriciabad/tap/sukrara`. The app isn't notarized yet, so the first launch says *"Sukrara" Not
@@ -141,5 +141,5 @@ steps.</sub></p>
 | [26](26-agp-report) | The full AGP report | Percentile profile and daily profiles, checked against pandas and d3; the in-app report will be its own investigation |
 | [27](27-tidepool) | Tidepool upload | Glucose, insulin, carbs and notes to your Tidepool account |
 
-Code, numbers and the full overview: [github.com/mauriciabad/cgm-reading-mac-spike](https://github.com/mauriciabad/cgm-reading-mac-spike)
+Code, numbers and the full overview: [github.com/mauriciabad/Sukrara](https://github.com/mauriciabad/Sukrara)
 (GPL-3.0-or-later). FreeStyle Libre is a trademark of Abbott; this project isn't affiliated with Abbott or Juggluco.

@@ -201,7 +201,7 @@ so the last-treatment slot shows there too.
 
 ## Code
 
-- `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/LockscreenWidgetHost.kt` — host, placement,
+- `poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/LockscreenWidgetHost.kt` — host, placement,
   scene alpha, filtered touches.
 - `…/hook/SystemUiHook.kt` — captures `LegacySceneInteractorImpl` and `AuthController` when Dagger creates them,
   hooks `WindowRootView.onAttachedToWindow`, `SceneWindowRootView.dispatchTouchEvent` and

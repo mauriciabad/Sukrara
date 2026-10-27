@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="120">
+  <img src="poc/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="120">
 </p>
 
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.52/Sukrara-0.11.52.apk"><b>Download for Android</b></a>
+  <a href="https://github.com/mauriciabad/Sukrara/releases/download/v0.11.52/Sukrara-0.11.52.apk"><b>Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases/download/v0.11.52/Sukrara-0.11.52.dmg"><b>Download for Mac</b></a>
+  <a href="https://github.com/mauriciabad/Sukrara/releases/download/v0.11.52/Sukrara-0.11.52.dmg"><b>Download for Mac</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/mauriciabad/cgm-reading-mac-spike/releases">All releases</a>
+  <a href="https://github.com/mauriciabad/Sukrara/releases">All releases</a>
   &nbsp;·&nbsp;
   <a href="https://sukrara.mauri.app">sukrara.mauri.app</a>
 </p>
@@ -335,9 +335,9 @@ Libre 3 ──BLE──▶ phone (Sukrara) ───┤                         
 - Relays keep one live event per reading (expires in an hour) and one replaceable chunk per hour (expires in a week).
   Bluetooth carries exactly the same events, so a follower checks them the same way whichever path they came by.
 
-The protocol is written down in [`spikes/nostr/PROTOCOL-v2.md`](spikes/nostr/PROTOCOL-v2.md), and as a vendor-neutral
-open standard, the Open Glucose Stream, in [`spec/`](spec) ([24](docs/24-open-standard.md)). A clean-sheet draft 3,
-reviewed ([24c](docs/24c-draft3-review.md)) and not yet in the apps, is in [`spec/draft3/`](spec/draft3)
+The protocol is written down in [`poc/spikes/nostr/PROTOCOL-v2.md`](poc/spikes/nostr/PROTOCOL-v2.md), and as a vendor-neutral
+open standard, the Open Glucose Stream, in [`poc/spec/`](poc/spec) ([24](docs/24-open-standard.md)). A clean-sheet draft 3,
+reviewed ([24c](docs/24c-draft3-review.md)) and not yet in the apps, is in [`poc/spec/draft3/`](poc/spec/draft3)
 ([24b](docs/24b-open-standard-draft3.md)); Sukrara moves to it next. The spec is published (CC0) at
 [github.com/mauriciabad/open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream). It is a work in
 progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts are deleted and the numbering restarts.
@@ -356,7 +356,7 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 | 08 | Glucose on a Garmin watch | Existing watch apps work with our server; the watch polls every 5 min | [docs/08](docs/08-garmin.md) |
 | 09 | Name, icon and style | **Sukrara**, the sugar cube with a live dot | [docs/09](docs/09-brand.md) |
 | 10 | Sukrara, the showcase app | Every feature in one Android app, running daily as the wearer | [docs/10](docs/10-showcase.md) |
-| 11 | Battery cost, with and without root | Harness ready ([spikes/power](spikes/power)); the run waits for the app to settle | — |
+| 11 | Battery cost, with and without root | Harness ready ([poc/spikes/power](poc/spikes/power)); the run waits for the app to settle | — |
 | 12 | Android home-screen widgets | Value, graph, graph + value; ~0.4 s CPU per update | [docs/12](docs/12-android-widgets.md) |
 | 13 | macOS widgets | Built without Xcode; run in Sukrara for Mac with a free Apple ID certificate; every 1/min reload honoured | [docs/13](docs/13-macos-widgets.md) |
 | 14 | Nostr identity: profiles, short invites, Nostr login | Kind 0 on a separate profile key, Blossom pictures (EXIF removed), 241 → 63-char invites, derived accounts from an nsec and via Amber. **In Sukrara 0.11:** the short invites and private names + generated pictures; public profiles, Blossom and Nostr login left out ([why](docs/14-nostr-identity.md#in-sukrara-what-was-added-and-what-was-left-out)) | [docs/14](docs/14-nostr-identity.md) |
@@ -368,19 +368,19 @@ progress: when Sukrara 1.0 ships, only the latest version is kept, older drafts 
 | 20 | Publishing on every platform | Research; since v0.11.14 the own Homebrew tap is live. Mac: notarized dmg + Sparkle, own Homebrew tap (unsigned casks were disabled upstream on 2026-09-01). Android: new Play account (12 testers × 14 days) for a flavor without root features, GitHub/Obtainium + IzzyOnDroid for the full one, one release key registered for developer verification. Garmin: Connect IQ Store. 99 USD/year + 25 USD once | [docs/20](docs/20-publishing.md) |
 | 21 | Starting a new sensor | One guided screen from home's *Pair new sensor* to the first reading: waits for the tap on this phone's antenna spot, Bluetooth steps, warm-up countdown, every detour on the same screen; a tap that opens Sukrara is used. **In Sukrara 0.11.16** ([added / discarded](docs/21-new-sensor-flow.md#in-sukrara)) | [docs/21](docs/21-new-sensor-flow.md) |
 | 22 | Sukrara in the diabetes-tech ecosystem | Spike emits the three local broadcasts Juggluco has (xDrip+ `BgEstimate`, patched-LibreLink, `glucodata.Minute`) plus Health Connect: GlucoDataHandler 2.5 accepts all three, AAPS's own test classes give a `Libre3` label advanced filtering, 36 Health Connect records written. Dexcom BYODA from a Libre discarded. Top gap: Nightscout upload. **In Sukrara**: the three broadcasts per allowed app (wearer only) and Health Connect ([in Sukrara](docs/22-ecosystem-outputs.md#in-sukrara)) | [docs/22](docs/22-ecosystem-outputs.md) |
-| 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([spikes/sensors-android](spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **In Sukrara**: step 1, the `SensorDriver` abstraction and per-brand `SensorProfile`s with the Libre 3 moved behind them unchanged; steps 2–5, the four other families as **untested** (a brand step, a 5-second confirmation and a feedback banner under the graph until each is verified on real sensors) ([added / discarded](docs/23-sensors.md#in-sukrara)); step 6 (Lingo) not yet ([shopping list](docs/23-sensors.md#hardware-to-buy-if-the-user-wants-these-verified)) | [docs/23](docs/23-sensors.md) |
-| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`spec/`](spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with an acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes. Published (CC0, work in progress) at [open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream). **In Sukrara: the security fixes** (writers edit only their own entries, Bluetooth privacy and limits, Mac wrap expiry / stream id / chunk checks); the draft-2 wire changes wait for v1 ([added / open](docs/24-open-standard.md#in-sukrara), [proposals](spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
+| 23 | More sensors, more brands | Matrix of every sensor the open projects can read, with the same yardstick as the Libre 2 decision. **Ported as a PoC** ([poc/spikes/sensors-android](poc/spikes/sensors-android)): Dexcom G7 / ONE+ / Stelo (reads along with the official Dexcom app, writing nothing — its own pairing needs a Dexcom app certificate, refused), Dexcom G6 / ONE, Accu-Chek SmartGuide (standard Bluetooth CGM Service), Aidex X; 36 tests against traces from LoopKit / DiaBLE / Juggluco, none on hardware. Discarded: CareSens Air, Sibionics, Libre 2 / 1, Medtrum (vendor algorithm or finger-sticks), Eversense / iCan / Ottai / Syai (no open implementation). **In Sukrara**: step 1, the `SensorDriver` abstraction and per-brand `SensorProfile`s with the Libre 3 moved behind them unchanged; steps 2–5, the four other families as **untested** (a brand step, a 5-second confirmation and a feedback banner under the graph until each is verified on real sensors) ([added / discarded](docs/23-sensors.md#in-sukrara)); step 6 (Lingo) not yet ([shopping list](docs/23-sensors.md#hardware-to-buy-if-the-user-wants-these-verified)) | [docs/23](docs/23-sensors.md) |
+| 24 | An open standard for CGM sharing | **Open Glucose Stream (OGS) draft 1** in [`poc/spec/`](poc/spec): data model, a NIP-style Nostr spec, a Bluetooth GATT spec, conformance checklist, deterministic test vectors with an acceptance scenario; an independent Python reference (stdlib crypto) interoperates with the repo's v2 code and rust-nostr, also live on public relays. Bluetooth SIG CGMS: an optional read-only bridge, not the sharing protocol. 15 proposed changes. Published (CC0, work in progress) at [open-glucose-stream](https://github.com/mauriciabad/open-glucose-stream). **In Sukrara: the security fixes** (writers edit only their own entries, Bluetooth privacy and limits, Mac wrap expiry / stream id / chunk checks); the draft-2 wire changes wait for v1 ([added / open](docs/24-open-standard.md#in-sukrara), [proposals](poc/spec/PROPOSALS.md)) | [docs/24](docs/24-open-standard.md) |
 | 24b | Open Glucose Stream draft 3 | A clean-sheet redesign from requirements and a fresh state-of-the-art review: records signed by their authors, a day-key tree so a grant is exactly the agreed days (history start and end enforced by keys), envelope keys blinded per day, rotating inboxes, invites with an offer, contributors without echo, emergency invites, HI/LO and quality flags, sensor sessions, carers' alert acks, no constant Bluetooth UUID. MLS rejected. Python reference with deterministic vectors (42-step scenario) and a live run on 3 public relays (9/9). **In Sukrara: next** (decided 2026-10-19; about 30 agent-days, every follower re-invited) | [docs/24b](docs/24b-open-standard-draft3.md) |
 | 24c | Independent review of OGS draft 3 | A skeptical review (cryptography, Nostr, BLE, health data). Sound core (GGM tree, BIP-340 tweaking, NIP-44/59 reuse), but 2 critical holes, both fixed and tested: a removed carer or a lost phone could keep writing into the old epoch (false insulin, false glucose) and members accepted it; any stranger who connected over Bluetooth got the envelopes. Also fixed: overclaimed unlinkability, `ended`/grant ordering, emergency invites could acknowledge alerts, 96-bit invite fingerprint, merge ties, re-subscription cost, grants carry each epoch's membership. 26 findings: 22 accepted, 3 rejected, 1 deferred; third-party publishers decided out of draft 3. **In Sukrara: nothing** (spec only) | [docs/24c](docs/24c-draft3-review.md) |
-| 25 | Nightscout upload | PoC uploader library + CLI ([spikes/nightscout-upload](spikes/nightscout-upload)): queue, backoff, backfill by diffing the server, dedupe, API v1 + v3, API secret or least-privilege access token. Against a local Nightscout 15.0.8: 48 h backfilled in 6 requests, an outage + 20 lost entries healed with 0 gaps / 0 duplicates; LoopFollow / nightguard / Trio / Home Assistant 24/24, Trio's and LoopFollow's own decoders, stock Home Assistant and the Nightscout web client read it. Upload only, wearer only, long-acting insulin kept out of IOB. **In Sukrara (Android)** ([added / discarded](docs/25-nightscout-upload.md#in-sukrara)) | [docs/25](docs/25-nightscout-upload.md) |
+| 25 | Nightscout upload | PoC uploader library + CLI ([poc/spikes/nightscout-upload](poc/spikes/nightscout-upload)): queue, backoff, backfill by diffing the server, dedupe, API v1 + v3, API secret or least-privilege access token. Against a local Nightscout 15.0.8: 48 h backfilled in 6 requests, an outage + 20 lost entries healed with 0 gaps / 0 duplicates; LoopFollow / nightguard / Trio / Home Assistant 24/24, Trio's and LoopFollow's own decoders, stock Home Assistant and the Nightscout web client read it. Upload only, wearer only, long-acting insulin kept out of IOB. **In Sukrara (Android)** ([added / discarded](docs/25-nightscout-upload.md#in-sukrara)) | [docs/25](docs/25-nightscout-upload.md) |
 | 26 | The full AGP report: percentile profile, daily profiles, a page for the doctor | The IDC AGP layout and goals (2019/2023 consensus, 2025 tight range); method as Tidepool's IDC-licensed print view (1 h bins, type-7 percentiles, 1-4-1 smoothing) on a 5-minute grid so 1-minute live data can't outweigh history (up to ~20 mg/dL otherwise). Kotlin engine + Swift port + pandas/numpy and d3-array checks agree to 0.0000 mg/dL on 3 synthetic 14-day fixtures (DST both ways, sensor change, gaps, sparse); one display list painted by Java2D and CoreGraphics (vector PDF). **Not in Sukrara:** the in-app AGP report will be its own investigation, reusing this engine and fixtures (no PNG/PDF export as the experience) | [docs/26](docs/26-agp-report.md) |
 | 27 | Tidepool upload | How apps upload to Tidepool: OAuth needs a client id registered with Tidepool (Loop, xDrip+, AAPS have their own), so Sukrara uses Tidepool's own session login (`/auth/login`, no client id, password never stored); platform data model (`cbg` per 5-minute slot, `food`, `insulin` for injections, notes as Tidepool notes), deduplicated by origin id. Verified against production with a synthetic night across a DST change, then deleted. **In Sukrara (Android)** ([added / discarded](docs/27-tidepool.md#in-sukrara)) | [docs/27](docs/27-tidepool.md) |
 | 28 | Choosing an insulin pump: Tandem Mobi, t:slim X2 or MiniMed 780G | Research for the user's own pump choice at Hospital Trueta (ICS). In Spain all three come with their own sensor (Tandem: Dexcom G7; 780G: Guardian 4 / Simplera / Abbott Instinct = pump-locked Libre 3 Plus, supplied at Trueta). A DIY loop is possible only on the Mobi; 100 % in range is not reachable on any system. **Most DIY freedom: Mobi**: pumpX2's open protocol, keyed by the pump's own 6-digit code, has bolus + temp basal + suspend + profiles (AAPS/Trio drivers in testing); t:slim X2 = read + bolus only; 780G = closed, cloud-only, MiniMed Mobile refuses root. Recommended: Mobi (iPhone app until Android in 2027). Sketch of what Sukrara needs: cloud read → local pumpX2 read → commands, with the data model, UI and uploads per step | [docs/28](docs/28-insulin-pump.md) |
 
 ## Try it
 
-Downloads: [v0.11.52](https://github.com/mauriciabad/cgm-reading-mac-spike/releases/tag/v0.11.52) (Android and Mac)
-([all releases](https://github.com/mauriciabad/cgm-reading-mac-spike/releases)).
+Downloads: [v0.11.52](https://github.com/mauriciabad/Sukrara/releases/tag/v0.11.52) (Android and Mac)
+([all releases](https://github.com/mauriciabad/Sukrara/releases)).
 
 ### Install on Android
 
@@ -449,30 +449,37 @@ Android (Juggluco's web server on the same network also works).
 ## Repository layout
 
 ```
+apps/
+  android/                Sukrara V1 for Android (starts here; empty for now)
+  macos/                  Sukrara V1 for Mac (starts here; empty for now)
+contracts/                cross-platform specs, schemas and fixtures V1 consumes (empty for now)
 docs/                     reports (one per investigation), images, evidence; also the sukrara.mauri.app site
-spec/                     Open Glucose Stream: the open sharing standard, test vectors, independent Python reference
-spikes/
-  showcase-android/       Sukrara — the alpha Android app (Kotlin), bundles everything below
-  menubar/                Sukrara for Mac (formerly GlucoseBar) — menubar app and follower (Swift, AppKit, CoreBluetooth)
-  nostr/                  Nostr transport, protocol v2 (Python reference + tests), Android sharing app, Nightscout adapter
-  glucobridge-android/    phone companion: Juggluco or direct sensor → Bluetooth, LibreView, Garmin server
-  libreview/              LibreView upload spec + reference tool
-  statusbar-android/      status-bar experiments (app + LSPosed module)
-  widgets-android/        Android widgets (Jetpack Glance)
-  widgets-macos/          macOS WidgetKit widgets built without Xcode
-  brand/                  name and icon candidates, asset exporter
-  ble-scan/               tiny BLE advertisement scanner
-  alerts/                 alert rules spec, timeline scenarios, sound packs
-  graph-fixtures/         shared graph test cases (Android + Mac)
-  outputs-android/        broadcasts and Health Connect PoC (22)
-  export-fixtures/        CSV export fixtures
-  sensors-android/        more sensor brands PoC (23)
-  nightscout-upload/      Nightscout uploader PoC (25)
-  agp-report/             AGP report engine (26)
-  notification-android/   notification templates (19)
-  power/                  battery harness (11)
+tools/                    checks, git hooks, install.sh, settings code generator
+third_party/              local only (gitignored): Juggluco (the Libre 3 core both apps build from) and references
+poc/                      the frozen PoC of Sukrara (showcase 0.11.x): reference and emergency fixes only
+  spec/                   Open Glucose Stream: the open sharing standard, test vectors, independent Python reference
+  spikes/
+    showcase-android/     Sukrara — the alpha Android app (Kotlin), bundles everything below
+    menubar/              Sukrara for Mac (formerly GlucoseBar) — menubar app and follower (Swift, AppKit, CoreBluetooth)
+    nostr/                Nostr transport, protocol v2 (Python reference + tests), Android sharing app, Nightscout adapter
+    glucobridge-android/  phone companion: Juggluco or direct sensor → Bluetooth, LibreView, Garmin server
+    libreview/            LibreView upload spec + reference tool
+    statusbar-android/    status-bar experiments (app + LSPosed module)
+    widgets-android/      Android widgets (Jetpack Glance)
+    widgets-macos/        macOS WidgetKit widgets built without Xcode
+    brand/                name and icon candidates, asset exporter
+    ble-scan/             tiny BLE advertisement scanner
+    alerts/               alert rules spec, timeline scenarios, sound packs
+    graph-fixtures/       shared graph test cases (Android + Mac)
+    outputs-android/      broadcasts and Health Connect PoC (22)
+    export-fixtures/      CSV export fixtures
+    sensors-android/      more sensor brands PoC (23)
+    nightscout-upload/    Nightscout uploader PoC (25)
+    agp-report/           AGP report engine (26)
+    notification-android/ notification templates (19)
+    power/                battery harness (11)
 ```
-Build instructions per spike: [spikes/README.md](spikes/README.md).
+Build instructions per spike: [poc/spikes/README.md](poc/spikes/README.md).
 
 ## The real app
 

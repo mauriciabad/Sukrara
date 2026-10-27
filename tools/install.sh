@@ -1,5 +1,5 @@
 #!/bin/sh
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/Sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Put Sukrara on the user's phone or Mac without losing anyone's merged work (NEXT.md section 5, "One build line").
@@ -41,10 +41,10 @@ tools/check/run.sh --range origin/main..HEAD || die "tools/check/run.sh failed (
 HEAD=$(git rev-parse --short HEAD)
 if [ "$TARGET" = phone ]; then
   # 2a. Release APK, in-place update (keeps identity, followers, settings).
-  VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' spikes/showcase-android/app/build.gradle.kts)
+  VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' poc/spikes/showcase-android/app/build.gradle.kts)
   : "${JAVA_HOME:=$(brew --prefix openjdk@17 2>/dev/null)/libexec/openjdk.jdk/Contents/Home}"; export JAVA_HOME
-  APK=spikes/showcase-android/app/build/outputs/apk/release/app-release.apk
-  run sh -c "cd spikes/showcase-android && ./gradlew -q :app:assembleRelease"
+  APK=poc/spikes/showcase-android/app/build/outputs/apk/release/app-release.apk
+  run sh -c "cd poc/spikes/showcase-android && ./gradlew -q :app:assembleRelease"
   run adb -s "$SERIAL" install -r "$APK"
   if [ $DRY = 1 ]; then GOT="$VERSION (dry run)"; else
     GOT=$(adb -s "$SERIAL" shell dumpsys package app.mauri.sukrara.poc | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
@@ -52,17 +52,17 @@ if [ "$TARGET" = phone ]; then
   fi
 else
   # 2b. Team-signed bundle with widgets, replace the user's copy, restart the widget extension (NEXT.md section 5).
-  VERSION=$(sed -n 's/.*CFBundleShortVersionString<\/key><string>\([^<]*\)<.*/\1/p' spikes/menubar/bundle.sh)
+  VERSION=$(sed -n 's/.*CFBundleShortVersionString<\/key><string>\([^<]*\)<.*/\1/p' poc/spikes/menubar/bundle.sh)
   DEST="$HOME/Applications/Sukrara.app"
-  run sh -c "cd spikes/menubar && ./bundle.sh"
+  run sh -c "cd poc/spikes/menubar && ./bundle.sh"
   if [ $DRY = 0 ]; then   # the user's copy is team-signed with the widget; an ad hoc build would drop the widgets
-    codesign -dv spikes/menubar/build/Sukrara.app 2>&1 | grep -q '^TeamIdentifier=[A-Z0-9]' &&
-      [ -d spikes/menubar/build/Sukrara.app/Contents/PlugIns/SukraraWidget.appex ] ||
+    codesign -dv poc/spikes/menubar/build/Sukrara.app 2>&1 | grep -q '^TeamIdentifier=[A-Z0-9]' &&
+      [ -d poc/spikes/menubar/build/Sukrara.app/Contents/PlugIns/SukraraWidget.appex ] ||
       die "the build is not team-signed with the widget (bundle.sh found no Apple Development identity?)."
   fi
   run pkill -x Sukrara || true
   run rm -rf "$DEST"
-  run ditto spikes/menubar/build/Sukrara.app "$DEST"
+  run ditto poc/spikes/menubar/build/Sukrara.app "$DEST"
   run open "$DEST"
   run pkill -f SukraraWidget.appex || true
   # Unregister every other registered copy (worktree / test builds), or chronod may run their stale extension.

@@ -1,6 +1,6 @@
 # 03 — Nostr as the backbone of a no-hosting Nightscout alternative
 
-*2026-10-15 · investigation report · code in [`spikes/nostr/`](../spikes/nostr)*
+*2026-10-15 · investigation report · code in [`poc/spikes/nostr/`](../poc/spikes/nostr)*
 
 ## Goal
 
@@ -44,7 +44,7 @@ followers: Mac menubar · Android/iOS follower apps · Home Assistant add-on · 
 each follower can expose the Nightscout v1 API (localhost / LAN) → existing Nightscout clients plug in
 ```
 
-Spec: [`spikes/nostr/PROTOCOL.md`](../spikes/nostr/PROTOCOL.md). Key points:
+Spec: [`poc/spikes/nostr/PROTOCOL.md`](../poc/spikes/nostr/PROTOCOL.md). Key points:
 
 - **Two keys.** The uploader's *source key* signs; a shared *read key* is the NIP-44 v2 encryption target, so one
   event serves any number of followers. Followers get `npub(source)` + `nsec(read)` + relays as a link / QR
@@ -56,7 +56,7 @@ Spec: [`spikes/nostr/PROTOCOL.md`](../spikes/nostr/PROTOCOL.md). Key points:
 
 ## Relay survey (2026-10-15)
 
-Probe: [`relay_survey.py`](../spikes/nostr/relay_survey.py), raw: [`results/`](../spikes/nostr/results).
+Probe: [`relay_survey.py`](../poc/spikes/nostr/relay_survey.py), raw: [`results/`](../poc/spikes/nostr/results).
 
 | Relay | Live (ephemeral) delivery | Chunk stored + replaced | 10-event burst | Stores "ephemeral" kinds | NIP-40 expiry honored |
 |---|---|---|---|---|---|
@@ -83,7 +83,7 @@ Lessons:
 
 ## Data volume
 
-Measured with [`sizes.py`](../spikes/nostr/sizes.py): live event **574 B**, hourly chunk **1.9 KB** (60 readings).
+Measured with [`sizes.py`](../poc/spikes/nostr/sizes.py): live event **574 B**, hourly chunk **1.9 KB** (60 readings).
 
 | | per relay | 4 relays |
 |---|---|---|
@@ -105,11 +105,11 @@ A research pass read the source of the main clients to find the API surface they
 then falls back to v1). Gotchas baked in: lists newest-first, `date` as integer ms, `delta` never null (py-nightscout
 crashes), numeric `trend` matching `direction`, 24-hex `_id`, mount at `/`.
 
-[`api_check.py`](../spikes/nostr/api_check.py) replays each client's request shapes — **17/17 pass**.
+[`api_check.py`](../poc/spikes/nostr/api_check.py) replays each client's request shapes — **17/17 pass**.
 *Update 2026-10-16:* the same tier 1 now runs inside Sukrara on the phone (`127.0.0.1:17581`, both roles, LAN
 optional with an API secret). It passes 17/17 against the real phone and against a follower: see
 [10](10-showcase.md#gap-audit-2026-10-16).
-[`ha_check.py`](../spikes/nostr/ha_check.py) runs **stock Home Assistant** in Docker, onboards it through its API
+[`ha_check.py`](../poc/spikes/nostr/ha_check.py) runs **stock Home Assistant** in Docker, onboards it through its API
 and adds the built-in Nightscout integration via the normal config flow:
 
 ```
@@ -139,7 +139,7 @@ Where the adapter runs decides which clients can reach it:
 
 ## Android publisher
 
-[`spikes/nostr/android-publisher`](../spikes/nostr/android-publisher) — "CGM Nostr" (`dev.spike.cgmnostr`), Kotlin,
+[`poc/spikes/nostr/android-publisher`](../poc/spikes/nostr/android-publisher) — "CGM Nostr" (`dev.spike.cgmnostr`), Kotlin,
 a separate app so it couldn't disturb GlucoBridge during PoC 2. Reads Juggluco on `127.0.0.1:17580` ("Local only"
 stays on), publishes per the protocol to **4 relays** (nos.lol, relay.primal.net, nostr.mom, relay.nostr.net —
 damus and offchain.pub dropped), shows the follower link as a **QR code** plus the NIP-49 `ncryptsec`.
@@ -170,7 +170,7 @@ permissions (GlucoBridge already runs as `connectedDevice` with INTERNET).
 
 ## Mac follower
 
-GlucoseBar got a third transport, [`NostrSource.swift`](../spikes/menubar/Sources/GlucoseBar/NostrSource.swift)
+GlucoseBar got a third transport, [`NostrSource.swift`](../poc/spikes/menubar/Sources/GlucoseBar/NostrSource.swift)
 (`swift run GlucoseBar -nostr-file <link file>`, or `defaults write dev.spike.GlucoseBar nostr 'cgmnostr:1?…'`):
 one `URLSessionWebSocketTask` per relay, REQ for the 12 hourly chunks + live events, dedupe by event id *before*
 crypto, signature check, NIP-44 decrypt, merge into the existing store. Crypto: rust-nostr's
@@ -228,7 +228,7 @@ Side findings:
 ## Reproduce
 
 ```sh
-cd spikes/nostr
+cd poc/spikes/nostr
 uv run relay_survey.py --expiry-wait                     # relay survey
 uv run keys.py new --password '…'                        # test identity → secrets/ (gitignored)
 uv run publisher.py --synthetic                          # or --juggluco http://127.0.0.1:17580

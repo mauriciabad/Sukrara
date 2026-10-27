@@ -1,7 +1,7 @@
-# Project rules (cgm-reading-mac-spike)
+# Project rules (Sukrara)
 
 Rules every session follows in this repo. The detailed know-how (phone, Mac, signing, orchestration) is in
-[`spikes/showcase-android/NEXT.md` §5](spikes/showcase-android/NEXT.md).
+[`poc/spikes/showcase-android/NEXT.md` §5](poc/spikes/showcase-android/NEXT.md).
 
 **Run `tools/check/run.sh` before committing and before merging** (`--help` lists the checks). The git hooks run it
 automatically once `tools/hooks/install.sh` has been run in the clone (worktrees share it): `pre-commit` fails on the
@@ -27,7 +27,7 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
   *(check `strings`: new hardcoded `Text("…")` etc., en/es keys; `StringsParityTest`)*
 - **Never commit secrets** (`nsec1…`, `secrets/`, keys, keystores, APKs/dmgs, build dirs) **or the user's health
   screenshots** (synthetic/emulator data, cropped). *(checks `secrets`, `large`, `images`: images only under
-  `docs/img/` or `spikes/*/evidence/`, full-phone captures flagged)*
+  `docs/img/` or `poc/spikes/*/evidence/`, full-phone captures flagged)*
 - **Phone / Mac installs contain all merged work:** install only with `tools/install.sh phone|mac` (refuses a dirty
   tree, a HEAD without origin/main / the integration branches / the last installed commit, or failing checks).
 - **Cleartext only where it's validated:** the app permits cleartext so a home-network Nightscout works; every
@@ -67,17 +67,17 @@ surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the sections your cha
 - **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same commit.
   *(check `features`)*
 - **One graph everywhere.** The card (value, arrow, badges, slots, chart and every element in them) is laid out and
-  drawn only by the renderer: Android `GlucoseCard` (graph/), Mac `GlucoseCard` (`spikes/widgets-macos/Shared/SukraraGraph.swift`).
-  Every place that shows the card or its value is registered in `spikes/graph-fixtures/surfaces/surfaces.json` (and the
+  drawn only by the renderer: Android `GlucoseCard` (graph/), Mac `GlucoseCard` (`poc/spikes/widgets-macos/Shared/SukraraGraph.swift`).
+  Every place that shows the card or its value is registered in `poc/spikes/graph-fixtures/surfaces/surfaces.json` (and the
   `CardSurface` enums); a card surface only chooses its size, its place's settings and the `CardPart`, a text / icon
   place takes its value from `GlucoseCard.face`. A change to the card lands on Android AND Mac in the same round; a new
   surface is registered and rendered by the cross-surface tests. *(checks `card-surface`, `card-api`, `card-text`;
-  `CardLayoutTest`, `FreshnessFixtureTest`, `GraphFixtureTest` and `-graphselftest` over `spikes/graph-fixtures`, incl.
+  `CardLayoutTest`, `FreshnessFixtureTest`, `GraphFixtureTest` and `-graphselftest` over `poc/spikes/graph-fixtures`, incl.
   `layout/rules.json` + `expect.json`; `tools/check/run.sh --layout` runs them locally; parity group `graph`)*
 - **Settings never diverge across platforms.** Every setting of both apps is in THE schema
-  `spikes/settings/settings.json` (store + key per platform, or the one platform with `only` + reason; its number
+  `poc/spikes/settings/settings.json` (store + key per platform, or the one platform with `only` + reason; its number
   format; whether followers mirror it from the wearer). Number settings use the one number input (Android
   `NumberDialog`, Mac `NumberSettingRow`) with the generated `SettingsSpec` (`python3 tools/settings/gen.py` after a
   schema change). *(check `settings`; `SettingsSchemaTest` + `-settingsselftest` in CI)*
-- **Protocols** (`spikes/nostr/PROTOCOL-*.md`, `spikes/alerts/SPEC.md`): a spec change lands with both
+- **Protocols** (`poc/spikes/nostr/PROTOCOL-*.md`, `poc/spikes/alerts/SPEC.md`): a spec change lands with both
   implementations. *(parity groups `protocol-v2`, `identity`, `alert-spec`, `treatments`)*

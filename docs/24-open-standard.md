@@ -1,8 +1,8 @@
 # 24 — An open standard for CGM sharing over Nostr and Bluetooth
 
 *2026-10-18 · investigation report · builds on [03](03-nostr.md), [06](06-sharing-and-keys.md),
-[07](07-bluetooth-followers.md), [14](14-nostr-identity.md), [15](15-alerts.md) · spec: [`spec/`](../spec) ·
-reference: [`spec/reference`](../spec/reference) · evidence: [`evidence/24-interop.log`](evidence/24-interop.log)*
+[07](07-bluetooth-followers.md), [14](14-nostr-identity.md), [15](15-alerts.md) · spec: [`poc/spec/`](../poc/spec) ·
+reference: [`poc/spec/reference`](../poc/spec/reference) · evidence: [`evidence/24-interop.log`](evidence/24-interop.log)*
 
 ## Goal
 
@@ -13,17 +13,17 @@ would be cool"*. The biggest privacy worry stays the same: a public Nostr identi
 
 | | Result |
 |---|---|
-| Spec set | **Open Glucose Stream (OGS) draft 1**, in `spec/`, vendor-neutral, written in RFC 2119 language: a data model, a NIP-style Nostr spec, a Bluetooth GATT spec, a conformance checklist, a list of 15 proposed changes, and test vectors |
-| Draft 1 = today's wire | Sukrara 0.11.17 already speaks it, so third parties can interoperate **now**. The cleanups are proposals for draft 2 ([PROPOSALS](../spec/PROPOSALS.md)). |
-| Independent implementation | `spec/reference`: Python with **standard-library crypto** (BIP-340, NIP-44 v2, NIP-59, HKDF, ChaCha20, bech32), a follower that applies every acceptance rule, vector generation, and a live relay follower |
+| Spec set | **Open Glucose Stream (OGS) draft 1**, in `poc/spec/`, vendor-neutral, written in RFC 2119 language: a data model, a NIP-style Nostr spec, a Bluetooth GATT spec, a conformance checklist, a list of 15 proposed changes, and test vectors |
+| Draft 1 = today's wire | Sukrara 0.11.17 already speaks it, so third parties can interoperate **now**. The cleanups are proposals for draft 2 ([PROPOSALS](../poc/spec/PROPOSALS.md)). |
+| Independent implementation | `poc/spec/reference`: Python with **standard-library crypto** (BIP-340, NIP-44 v2, NIP-59, HKDF, ChaCha20, bech32), a follower that applies every acceptance rule, vector generation, and a live relay follower |
 | Crypto correctness | all 101 valid and 20 invalid official NIP-44 vectors, all 19 BIP-340 vectors, RFC 5869 A.1; 14 unit tests |
-| Test vectors | `spec/test-vectors/ogs-draft1.json`: throwaway keys from public strings, 28 signed events (nonces, timestamps and aux pinned, so they're reproducible byte for byte), plaintexts, 3 invite checks, a **25-step acceptance scenario**, Bluetooth frames at 3 MTUs, CGMS packets |
+| Test vectors | `poc/spec/test-vectors/ogs-draft1.json`: throwaway keys from public strings, 28 signed events (nonces, timestamps and aux pinned, so they're reproducible byte for byte), plaintexts, 3 invite checks, a **25-step acceptance scenario**, Bluetooth frames at 3 MTUs, CGMS packets |
 | Interop, Sukrara side → reference | events from the repo's v2 code and rust-nostr 0.45.1 (the NIP-44/59 library both Sukrara apps use), plus the 0.11 additions (alerts, treatments, sensor life, v3 invite with a profile): **all accepted** by the reference follower |
 | Interop, reference → Sukrara side | **63/63 checks**: rust-nostr verifies, decrypts and unwraps every reference vector; the repo's `cgm2`/`ident` code derives the same tags, invite key, link and match code |
-| Interop with the apps' own vectors | the reference reproduces `spikes/nostr/identity/vectors.json`, which Android `InviteTest.kt` and Mac `-qrselftest` pin (invite key, short link, derived account) |
+| Interop with the apps' own vectors | the reference reproduces `poc/spikes/nostr/identity/vectors.json`, which Android `InviteTest.kt` and Mac `-qrselftest` pin (invite key, short link, derived account) |
 | Live, public relays | repo v2 owner ↔ reference follower on nos.lol, relay.primal.net and nostr.mom: invite found, request, match code 1141, Allow, key, roster, 2 hour chunks, treatment, alert, then live every 30 s. **All accepted, 0 rejected.** |
 | CGMS (0x181F) | **Not the sharing protocol** (no consent, no end-to-end encryption, no treatments, one collector per bond). It's worth having as an **optional read-only bridge** so xDrip+'s GluPro collector can show a stream (P14). The encoder and vectors are written; no app has it yet. |
-| Publishing | Nothing sent. Drafts for the NIP PR, a site page and 5 outreach messages are in [`spec/drafts/`](../spec/drafts). The path is [below](#publishing). |
+| Publishing | Nothing sent. Drafts for the NIP PR, a site page and 5 outreach messages are in [`poc/spec/drafts/`](../poc/spec/drafts). The path is [below](#publishing). |
 
 ## Audit: specs vs. the apps
 
@@ -32,7 +32,7 @@ Android (`core/Proto.kt`, `Ble*.kt`, `owner/`, `follower/`, `alerts/`, `treatmen
 (`NostrV2.swift`, `BLEV2Central.swift`, `Treatments.swift`, `Alerts.swift`). The wire format is solid and the two
 apps agree on almost everything. What a third party could **not** have implemented from the repo's specs alone:
 
-| Kind of gap | Examples (details and file:line refs in [PROPOSALS](../spec/PROPOSALS.md)) |
+| Kind of gap | Examples (details and file:line refs in [PROPOSALS](../poc/spec/PROPOSALS.md)) |
 |---|---|
 | Undocumented | Gift-wrap TTLs. Tag order. `gk` hashes raw key bytes, not hex. The `clear` alert's fields. The owner backup's `writers`, and its invites' `label`/`nearby`/`claimedBy`/`done`. The `sukrara:join#` scheme both apps accept. Backlog order and limits (40 entries, 200 treatments, 10 wraps). Reassembly behaviour. The phone's own Bluetooth name in the scan response. |
 | Wrong in the spec | The match code is `sha256 mod 10000`; PROTOCOL-v2 says "first 4 digits". docs/07's `INFO` lacks `pair.profile`. The alert sits before the treatments in the backlog, not "next to live", and chunks go newest first. |
@@ -77,7 +77,7 @@ offset". But CGMS is a sensor-to-one-collector link:
 - history counts in uint16 minutes since the session started.
 
 So OGS keeps its own service, and CGMS becomes an **optional, bonded, read-only bridge**, off by default and never for
-insulin dosing. ogs-ble Annex B has the mapping, and `spec/reference/ogs/cgms.py` the encoder and vectors. The next
+insulin dosing. ogs-ble Annex B has the mapping, and `poc/spec/reference/ogs/cgms.py` the encoder and vectors. The next
 step would be a PoC against xDrip+ GluPro on an emulator. The octet order of the annunciation field follows Nordic's
 parser and still has to be checked against the CGMS 1.0.2 text.
 
@@ -102,7 +102,7 @@ parser and still has to be checked against the CGMS 1.0.2 text.
 9. **Test vectors are deterministic** and come with a *scenario* (events → expected verdicts → final state), the way
    the repo already pins alert rules with timelines.
 10. **The reference is independent:** standard-library crypto, no rust-nostr, no Sukrara import. The interop harness
-    lives apart (`spec/reference/interop/`) and runs in the `spikes/nostr` environment.
+    lives apart (`poc/spec/reference/interop/`) and runs in the `poc/spikes/nostr` environment.
 
 | Reused | New in OGS |
 |---|---|
@@ -110,7 +110,7 @@ parser and still has to be checked against the CGMS 1.0.2 text.
 
 ## Proposed changes to Sukrara (for an integration step)
 
-All 15 are in [`spec/PROPOSALS.md`](../spec/PROPOSALS.md) with evidence. In priority order:
+All 15 are in [`poc/spec/PROPOSALS.md`](../poc/spec/PROPOSALS.md) with evidence. In priority order:
 1. **P4 writer scope** (security): writers may only edit their own entries.
 2. **P1 dedicated kinds** and **P2 neutral invite and namespace**: the two breaking changes a NIP needs. Do them together
    with P7 (one version number).
@@ -132,15 +132,15 @@ Nothing has been published, and no PR, issue or post has been made. This is the 
 1. **Integrate draft 2 in Sukrara** (the proposals above) and regenerate the vectors. Until then, a NIP would carry
    `sukrara/...` constants.
 2. **A versioned spec repository**, for example `github.com/<owner>/open-glucose-stream`:
-   - `spec/` and `test-vectors/` (semver tags: `draft-2`, `1.0.0`), the reference as a package;
+   - `poc/spec/` and `test-vectors/` (semver tags: `draft-2`, `1.0.0`), the reference as a package;
    - a **permissive licence** for the text and vectors (CC0 or CC-BY-4.0), so closed apps can implement it too. The
      reference can stay GPL or move to MIT. That's the user's call.
-3. **A page on sukrara.mauri.app**: [`drafts/site-page.md`](../spec/drafts/site-page.md) → `docs/ogs.md`, built by
+3. **A page on sukrara.mauri.app**: [`drafts/site-page.md`](../poc/spec/drafts/site-page.md) → `docs/ogs.md`, built by
    the existing site workflow.
-4. **A NIP PR to nostr-protocol/nips**: [`drafts/nip-pr.md`](../spec/drafts/nip-pr.md) (the Nostr part only; the
+4. **A NIP PR to nostr-protocol/nips**: [`drafts/nip-pr.md`](../poc/spec/drafts/nip-pr.md) (the Nostr part only; the
    Bluetooth companion stays in the spec repo). Open questions for reviewers: kind numbers, a generic "private stream"
    NIP, the gift-wrapped invite.
-5. **Outreach**, after 2–4, on each project's public channel: [`drafts/outreach.md`](../spec/drafts/outreach.md) has
+5. **Outreach**, after 2–4, on each project's public channel: [`drafts/outreach.md`](../poc/spec/drafts/outreach.md) has
    texts for xDrip+ (follower source, and the GluPro bridge), Juggluco, GlucoDataHandler, Nightscout (mapping review)
    and LoopFollow/nightguard.
 6. Post from a project account, never from stream keys.
@@ -185,7 +185,7 @@ bridge). Not covered by P12: a *connected* central can still read the phone's na
 ## Draft 3
 
 On 2026-10-19 the user asked for a draft 3 that isn't biased towards what Sukrara implemented, with the state of
-the art checked again. It is a clean-sheet redesign in [`spec/draft3/`](../spec/draft3):
+the art checked again. It is a clean-sheet redesign in [`poc/spec/draft3/`](../poc/spec/draft3):
 - grants as ranges of days from a key tree;
 - records signed by their authors;
 - envelope keys blinded per day;
@@ -200,10 +200,10 @@ format, and the draft-2 proposals P1, P2, P7–P9 and P11 are superseded by draf
 
 | Path | What |
 |---|---|
-| `spec/README.md`, `ogs-data.md`, `ogs-nostr.md`, `ogs-ble.md`, `conformance.md`, `PROPOSALS.md` | the spec set |
-| `spec/test-vectors/ogs-draft1.json` | vectors (throwaway keys; listed in `tools/check/allow.json` `secret_ok` because key deliveries contain an `nsec` by design) |
-| `spec/reference/ogs/` | `crypto.py`, `nostr.py`, `model.py`, `events.py`, `follower.py`, `ble.py`, `cgms.py`, `vectors.py`, `relay.py`, `cli.py` |
-| `spec/reference/tests/test_ogs.py` | 14 offline tests |
-| `spec/reference/interop/sukrara_side.py` | the Sukrara side: `oracle`, `fixture`, `serve` (runs in the `spikes/nostr` environment) |
-| `spec/drafts/` | NIP PR, site page, outreach (unsent) |
+| `poc/spec/README.md`, `ogs-data.md`, `ogs-nostr.md`, `ogs-ble.md`, `conformance.md`, `PROPOSALS.md` | the spec set |
+| `poc/spec/test-vectors/ogs-draft1.json` | vectors (throwaway keys; listed in `tools/check/allow.json` `secret_ok` because key deliveries contain an `nsec` by design) |
+| `poc/spec/reference/ogs/` | `crypto.py`, `nostr.py`, `model.py`, `events.py`, `follower.py`, `ble.py`, `cgms.py`, `vectors.py`, `relay.py`, `cli.py` |
+| `poc/spec/reference/tests/test_ogs.py` | 14 offline tests |
+| `poc/spec/reference/interop/sukrara_side.py` | the Sukrara side: `oracle`, `fixture`, `serve` (runs in the `poc/spikes/nostr` environment) |
+| `poc/spec/drafts/` | NIP PR, site page, outreach (unsent) |
 | `docs/evidence/24-interop.log` | the oracle, fixture decode, live relay run and self-checks |

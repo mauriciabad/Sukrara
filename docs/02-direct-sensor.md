@@ -184,7 +184,7 @@ Libre 3 command (`Libre3Nfc.chip`, `Libre3NfcTest.chipGate`).
 ## Reproducing
 
 ```sh
-cd spikes/glucobridge-android
+cd poc/spikes/glucobridge-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.local/bin:$PATH"
 ./gradlew assembleDirectDebug
 android install --apks=app/build/outputs/apk/direct/debug/app-direct-debug.apk --install-options=-g
