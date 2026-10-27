@@ -14,9 +14,6 @@ public enum AlertStatus: Sendable, Equatable, Codable {
     /// The side of a level alert, which decides the badge's colour (carbs answer lows, insulin highs).
     public enum Side: String, Sendable, Equatable, Codable {
         case low, high
-
-        /// "Low" / "High" (the mute lines' wording).
-        var title: String { self == .low ? "Low" : "High" }
     }
 
     /// In range, stale, or alerts off: no badge.
@@ -100,28 +97,13 @@ public struct CardAlerts: Sendable, Equatable, Codable {
     func muteUntil(_ m: GraphMark) -> TimeInterval? { muteEnds[m.id] }
 }
 
-/// The badge's and screen readers' mute wording (contracts/alerts/copy.json, English).
+/// The badge's mute wording (contracts/alerts/copy.json, English; the screen reader's is `CardWords`).
 enum BadgeCopy {
     /// Whole minutes left of `seconds`, partial minutes rounded up ("1 min" until it is over).
     static func leftMin(_ seconds: TimeInterval) -> Int { (Int(max(0, seconds).rounded(.down)) + 59) / 60 }
-    /// "Low alerts muted · 12 min left".
-    static func sideMuted(_ side: AlertStatus.Side, leftMin: Int) -> String {
-        "\(side.title) alerts muted · \(Durations.text(leftMin)) left"
-    }
-    /// "Low alerts muted after carbs · 12 min left".
-    static func sideAfter(_ side: AlertStatus.Side, treatment: String, leftMin: Int) -> String {
-        "\(side.title) alerts muted after \(treatment == "carbs" ? "carbs" : "insulin") · \(Durations.text(leftMin)) left"
-    }
-    static let allForever = "Alerts muted until you turn it off"
     /// The pill while Mute all runs in range: "Muted · 1h 12m".
     static func pill(leftMin: Int) -> String { "Muted · \(Durations.compact(leftMin))" }
     static let pillForever = "Muted"
-    /// The line for Mute all ending at `until`, nil when it is over.
-    static func allLine(until: TimeInterval, now: TimeInterval) -> String? {
-        guard until > now else { return nil }
-        return until >= AlertStatus.never
-            ? allForever : "Alerts muted · \(Durations.text(leftMin(until - now))) left"
-    }
 }
 
 /// The treatment-mark options of the settings schema (`contracts/settings/settings.json` "options": markKind,

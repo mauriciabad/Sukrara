@@ -11,6 +11,8 @@ import SwiftUI
 /// notifications off → Open Notification Settings; an update → Download / Later.
 struct PanelView: View {
     let model: AppModel
+    /// The window layer's entry points (nil in a render without windows).
+    var links: PanelLinks?
     @Environment(\.colorScheme) private var scheme
 
     static let cardSize = CGSize(width: 340, height: 196)
@@ -18,6 +20,13 @@ struct PanelView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             VStack(alignment: .leading, spacing: 10) {
+                #if DEBUG
+                    if model.plan.mode == .fixture {
+                        Label(L10n.t("Synthetic data (dev build)"), systemImage: "flask")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                #endif
                 if let reason = model.notMonitoringReason {
                     Label(reason, systemImage: "antenna.radiowaves.left.and.right.slash")
                         .font(.callout)
@@ -25,6 +34,7 @@ struct PanelView: View {
                 } else {
                     card
                 }
+                if let links { SetupRows(links: links, needsFollow: model.needsFollow) }
                 if model.notificationPermission.needsAttention { notificationsWarning }
                 if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date) }
                 if let updates = model.updates { UpdateRow(updates: updates) }
@@ -37,12 +47,13 @@ struct PanelView: View {
     @ViewBuilder private var card: some View {
         let data = model.cardData
         if let image = GlucoseCard.image(
-            surface: .menubarCard, size: Self.cardSize, config: GraphConfig(), data: data, unit: model.unit,
+            surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit,
             dark: scheme == .dark)
         {
             Image(decorative: image, scale: 2)
                 .accessibilityElement()
-                .accessibilityLabel(GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: GraphConfig()))
+                .accessibilityLabel(
+                    GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: model.graph))
         }
     }
 
@@ -50,16 +61,38 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 6) {
             Label(
                 model.notificationPermission == .denied
-                    ? "Notifications are off: alerts can't reach you."
-                    : "Alert banners or sounds are off: alerts may go unnoticed.",
+                    ? L10n.t("Notifications are off: alerts can't reach you.")
+                    : L10n.t("Alert banners or sounds are off: alerts may go unnoticed."),
                 systemImage: "exclamationmark.triangle.fill"
             )
             .foregroundStyle(.orange)
-            Button("Open Notification Settings") {
+            Button(L10n.t("Open Notification Settings")) {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
                     NSWorkspace.shared.open(url)
                 }
             }
+        }
+    }
+}
+
+/// What the window layer opens from the panel.
+struct PanelLinks {
+    let setup: SetupModel
+    let openSetup: () -> Void
+    let openFollow: () -> Void
+}
+
+/// "Finish setup…" while a setup step is skipped or not reached; "Follow Someone…" when the walk is done but this
+/// Mac follows nobody (after Stop following, a decline, a revoke).
+private struct SetupRows: View {
+    let links: PanelLinks
+    let needsFollow: Bool
+
+    var body: some View {
+        if !links.setup.flow.isComplete {
+            Button(L10n.t("Finish Setup…"), systemImage: "checklist", action: links.openSetup)
+        } else if needsFollow {
+            Button(L10n.t("Follow Someone…"), systemImage: "person.badge.plus", action: links.openFollow)
         }
     }
 }
@@ -75,7 +108,7 @@ private struct AlertBlocks: View {
             HStack {
                 Label(line, systemImage: "bell.slash.fill")
                 Spacer()
-                Button("Unmute") { alerts.perform(.unmuteAll) }
+                Button(L10n.t("Unmute")) { alerts.perform(.unmuteAll) }
             }
         }
         ForEach(ui.quiets, id: \.kind) { q in
@@ -83,19 +116,19 @@ private struct AlertBlocks: View {
                 HStack {
                     Text(line)
                     Spacer()
-                    if case .sideMuted = reason { Button("Unmute") { alerts.perform(.unmute(q.side)) } }
+                    if case .sideMuted = reason { Button(L10n.t("Unmute")) { alerts.perform(.unmute(q.side)) } }
                 }
             }
             if q.relaxMin > 0 {
                 HStack {
                     Text(MuteCopy.sideLess(q.side, intervalMin: q.relaxMin))
                     Spacer()
-                    Button("Remind as Usual") { alerts.perform(.remindAsUsual(q.side)) }
+                    Button(L10n.t("Remind as Usual")) { alerts.perform(.remindAsUsual(q.side)) }
                 }
             }
         }
         if ui.muteAllUntil == nil {
-            Menu("Mute All Alerts") {
+            Menu(L10n.t("Mute All Alerts")) {
                 ForEach(AlertLimits.muteAllPresets, id: \.self) { minutes in
                     Button(MuteCopy.choice(minutes)) {
                         alerts.perform(.muteAll(until: now.addingTimeInterval(TimeInterval(minutes * 60))))
@@ -115,10 +148,10 @@ private struct UpdateRow: View {
         switch updates.state {
         case .available(let release, let version):
             HStack {
-                Label("Sukrara \(version.description) is available", systemImage: "arrow.down.circle")
+                Label(L10n.t("Sukrara \(version.description) is available"), systemImage: "arrow.down.circle")
                 Spacer()
-                Button("Later") { updates.later() }
-                Button("Download") {
+                Button(L10n.t("Later")) { updates.later() }
+                Button(L10n.t("Download")) {
                     // only the project's own release page
                     if release.htmlURL.host() == "github.com" { NSWorkspace.shared.open(release.htmlURL) }
                 }
@@ -126,15 +159,15 @@ private struct UpdateRow: View {
             }
         case .failed:
             HStack {
-                Text("Couldn't check for updates.")
+                Text(L10n.t("Couldn't check for updates."))
                 Spacer()
-                Button("OK") { updates.dismiss() }
+                Button(L10n.t("OK")) { updates.dismiss() }
             }
         case .upToDate:
             HStack {
-                Text("Sukrara is up to date.")
+                Text(L10n.t("Sukrara is up to date."))
                 Spacer()
-                Button("OK") { updates.dismiss() }
+                Button(L10n.t("OK")) { updates.dismiss() }
             }
         case .idle:
             EmptyView()
