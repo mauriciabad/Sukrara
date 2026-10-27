@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 import java.time.Instant
@@ -68,7 +69,7 @@ class FakesTest {
         val saved = System.clearProperty(Contracts.PROPERTY)
         try {
             val e = assertThrows(IllegalStateException::class.java) { Contracts.file("x.json") }
-            assert("sukrara.contracts" in e.message!!)
+            assertTrue("sukrara.contracts" in e.message!!)
         } finally {
             saved?.let { System.setProperty(Contracts.PROPERTY, it) }
         }

@@ -11,8 +11,10 @@ import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 
 /**
  * The app's object graph (manual DI, docs/ARCHITECTURE.md §Android DI).
@@ -33,9 +35,12 @@ class AppGraph(
 
     override val appVersion: String = BuildConfig.VERSION_NAME
 
-    /** Loads what the modules need from disk, off the main thread. Call before reading state. */
-    suspend fun ready() =
-        withContext(dispatchers.io) {
-            // modules' ready() calls go here, in dependency order
+    /**
+     * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
+     * first does `graph.ready.await()` (cheap once done).
+     */
+    val ready: Deferred<Unit> =
+        scope.async(dispatchers.io, CoroutineStart.LAZY) {
+            // modules' load calls go here, in dependency order
         }
 }

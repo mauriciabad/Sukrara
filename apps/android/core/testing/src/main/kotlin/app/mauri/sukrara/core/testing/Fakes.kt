@@ -22,6 +22,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.ConcurrentHashMap
 
 /** A clock tests move by hand; the zone is settable to test travel and DST. */
 class FakeClock(
@@ -67,7 +68,7 @@ class InMemoryStateStore<T>(initial: T) : StateStore<T> {
 }
 
 class InMemorySecureStore : SecureStore {
-    private val entries = mutableMapOf<String, ByteArray>()
+    private val entries = ConcurrentHashMap<String, ByteArray>()
 
     override suspend fun read(name: String): ByteArray? = entries[name]?.copyOf()
 

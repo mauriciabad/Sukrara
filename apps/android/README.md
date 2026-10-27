@@ -52,8 +52,9 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
   depend on each other or on `:app`; they declare what they need as an `XxxDeps` interface (see `HomeDeps`).
 - **DI**: your area gets ONE module class in your module (e.g. `class MonitorModule(…)`) that builds its objects
   from constructor parameters. Add one `val monitor by lazy { MonitorModule(…) }` line to `AppGraph` and implement
-  the feature `XxxDeps` members by delegating to it. No I/O in constructors: disk work goes in a `suspend fun
-  ready()` that `AppGraph.ready()` calls on the IO dispatcher. ViewModels are created with
+  the feature `XxxDeps` members by delegating to it. No I/O in constructors: disk work goes in a load function
+  called from `AppGraph.ready` (a lazy `Deferred` on the IO dispatcher; `await()` it before reading state).
+  ViewModels are created with
   `viewModelFactory { initializer { … } }` from the deps.
 - **Manifest**: a module declares its own components in its `src/main/AndroidManifest.xml`. Exported components
   need a permission (ManifestTest lists the allowed exceptions). Debug-only tools live in `app/src/debug`.

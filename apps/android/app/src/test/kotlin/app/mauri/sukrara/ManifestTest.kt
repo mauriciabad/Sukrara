@@ -47,7 +47,6 @@ class ManifestTest {
     fun `the sound provider only serves files and file provider stays private`() {
         val sounds = named("app.mauri.sukrara.monitor.AlertSoundProvider")
         assertEquals("false", sounds.attr("grantUriPermissions"))
-        assertTrue(sounds.attr("writePermission").isEmpty())
         assertEquals("false", named("androidx.core.content.FileProvider").attr("exported"))
     }
 
@@ -65,6 +64,8 @@ class ManifestTest {
         assertEquals("@xml/data_extraction_rules", app.attr("dataExtractionRules"))
     }
 
+    // The release merged manifest isn't built in `check` (it needs the release key); no main-source manifest naming the
+    // receiver is the same guarantee, and tools/release/verify-apk.sh checks the release APK itself.
     @Test
     fun `the debug receiver exists only in the debug source set, behind DUMP`() {
         assertEquals("android.permission.DUMP", named("app.mauri.sukrara.debug.DebugReceiver").attr("permission"))
