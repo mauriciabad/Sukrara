@@ -62,6 +62,10 @@ if [ "$TARGET" = phone ]; then
     SUKRARA_KEYSTORE_PASSWORD=$(release_password) || die "no release key password (Keychain item sukrara-android-release, docs/20-publishing.md)."
     export SUKRARA_KEYSTORE_PASSWORD
   fi
+  # Gradle needs JDK 21 and the SDK (a worktree has no local.properties).
+  JAVA_HOME="$(dirname "$(dirname "$(jdk_tool java)")")"
+  ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+  export JAVA_HOME ANDROID_HOME
   run sh -c "cd apps/android && ./gradlew -q :app:assembleRelease"
   run tools/release/verify-apk.sh "$APK" "$MAPPING"
   run adb -s "$SERIAL" install -r "$APK"

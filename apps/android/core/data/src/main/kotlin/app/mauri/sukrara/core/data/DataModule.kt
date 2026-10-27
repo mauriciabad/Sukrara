@@ -5,6 +5,7 @@ package app.mauri.sukrara.core.data
 
 import android.content.Context
 import androidx.room.Room
+import app.mauri.sukrara.core.data.db.QuarantiningOpenHelperFactory
 import app.mauri.sukrara.core.data.db.RoomReadingsRepository
 import app.mauri.sukrara.core.data.db.RoomTreatmentsRepository
 import app.mauri.sukrara.core.data.db.SukraraDatabase
@@ -70,12 +71,14 @@ class DataModule(
 
     val json: Json = SukraraJson
 
+    private val datastoreDir: File get() = File(context.filesDir.parentFile, "datastore")
+
     val http: OkHttpClient by lazy { Http.client(appVersion) }
 
     val diagLog: DiagLog by lazy { DiagLog(File(context.filesDir, "diag"), clock, dispatchers.io, scope) }
 
     val settings: SettingsRepository by lazy {
-        DataStoreSettingsRepository(PreferenceStores(File(context.filesDir.parentFile, "datastore"), corruption, clock, scope))
+        DataStoreSettingsRepository(PreferenceStores(datastoreDir, corruption, clock, scope))
     }
 
     val secureStore: SecureStore by lazy {
@@ -84,6 +87,7 @@ class DataModule(
 
     val database: SukraraDatabase by lazy {
         Room.databaseBuilder(context, SukraraDatabase::class.java, SukraraDatabase.FILE)
+            .openHelperFactory(QuarantiningOpenHelperFactory(::quarantineDatabase))
             .setQueryCoroutineContext(dispatchers.io)
             .build()
     }
@@ -115,13 +119,25 @@ class DataModule(
         codec: FileCodec<T>,
     ): FileStore<T> = FileStore(File(context.filesDir, relativePath), codec, corruption, clock, dispatchers.io)
 
-    /** Opens the database and applies retention, off the main thread. Call from `AppGraph.ready()`. */
+    /**
+     * Re-reports damaged files earlier runs kept and nobody acknowledged, opens the database and applies retention,
+     * off the main thread. Call from `AppGraph.ready()`.
+     */
     suspend fun ready() = withContext(dispatchers.io) {
+        corruption.rescan(listOf(context.filesDir, datastoreDir, context.getDatabasePath(SukraraDatabase.FILE).parentFile!!))
         database.openHelper.writableDatabase
         prune()
     }
 
-    /** Deletes history older than [retention]. */
+    /** SQLite found the database damaged and is about to recreate it: keep a copy (and its WAL) and report it. */
+    private fun quarantineDatabase(db: File) {
+        val now = clock.now()
+        val kept = listOf(db, File(db.path + "-wal")).filter { it.exists() }
+            .map { it.copyTo(FileStore.quarantineTarget(it, now.toEpochMilli()), overwrite = true) }
+        corruption.report(CorruptFile("database:${db.name}", kept.firstOrNull(), now, "sqlite corruption"))
+    }
+
+    /** Deletes history older than [retention]; pending outbox entries are never deleted. */
     suspend fun prune() {
         val now = clock.now()
         database.readings().deleteBefore((now - retention.readings).toEpochMilli())
