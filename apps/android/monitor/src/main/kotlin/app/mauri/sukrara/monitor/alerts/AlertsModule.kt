@@ -4,6 +4,7 @@
 package app.mauri.sukrara.monitor.alerts
 
 import android.content.Context
+import android.util.Log
 import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertControls
@@ -13,8 +14,10 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
+import app.mauri.sukrara.monitor.service.AndroidAlarms
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -41,22 +44,54 @@ class AlertsModule(
     events: AlertEventSink = AlertEventSink { },
     private val wearerSettings: Flow<AlertSettings?> = flowOf(null),
     private val remoteEvents: Flow<AlertEvent> = emptyFlow(),
+    /** The diagnostic log (`DiagLog`): what failed and its exception class, never values. */
+    private val log: (String) -> Unit = { Log.w(TAG, it) },
 ) {
     private val ctx = context.applicationContext
+    private val alarms = AndroidAlarms(ctx)
     val store = AlertStateStore(alertSettings, alertRecord)
     val soundPicker = AlertSoundPicker()
     val notifier = AlertNotifier(ctx)
 
     /** THE alert runtime of this process; also every surface's [AlertControls]. */
-    val runtime = AlertRuntime(store, treatments, notifier, AlertScheduler(ctx, clock), events, hub::setAlerts, clock)
+    val runtime = AlertRuntime(
+        store,
+        treatments,
+        notifier,
+        alarms.alertCheck(AndroidAlarms.ALERT_CHECK, clock),
+        events,
+        hub::setAlerts,
+        clock,
+        log = log,
+    )
     val controls: AlertControls get() = runtime
 
     val sensorEnd = SensorEndNotifier(
         sensorEndRecord,
         AndroidSensorEndPresenter(ctx),
-        AlertScheduler(ctx, clock, requestCode = 2),
+        alarms.alertCheck(AndroidAlarms.SENSOR_END_CHECK, clock),
         clock,
     )
+
+    /**
+     * Evaluates alerts and the sensor end now, from the saved state (the alert alarm, boot, app update, clock change):
+     * also with the monitoring service dead. Each part runs on its own, so a broken sensor-end store never costs the
+     * no-data alarm; a failure is logged.
+     */
+    suspend fun check() {
+        step("alert check") { runtime.tick() }
+        step("sensor end check") { sensorEnd.check() }
+    }
+
+    private suspend fun step(name: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log("$name failed: ${e.javaClass.simpleName}")
+        }
+    }
 
     /** "Start fresh" / leaving a role (chunk 24): alerts and their saved state go, the sensor-end notices too. */
     suspend fun reset() {
@@ -71,3 +106,5 @@ class AlertsModule(
         scope.launch { hub.state.map { it.sensor }.distinctUntilChanged().collect { sensorEnd.onSensor(it) } }
     }
 }
+
+private const val TAG = "Sukrara.alerts"

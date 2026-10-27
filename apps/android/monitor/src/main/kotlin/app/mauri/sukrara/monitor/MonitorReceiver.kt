@@ -9,15 +9,14 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.monitor.service.StartReason
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The monitor's broadcasts (not exported; system broadcasts still arrive):
- *  - boot, app update, time / time-zone change → start the service (each is an allowed background start) and
- *    reschedule the health check;
+ *  - boot, app update, time / time-zone change → evaluate alerts and the sensor end from the saved state, reschedule
+ *    the health check, start the service once (each is an allowed background start);
  *  - exact-alarm permission changed → reschedule;
  *  - the health check alarm → start the service if it should run, schedule the next check;
  *  - the freshness step → redraw the glucose surfaces;
@@ -29,19 +28,22 @@ abstract class MonitorReceiver : BroadcastReceiver() {
         intent: Intent,
     ) {
         val action = intent.action ?: return
-        val pending = goAsync()
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                withTimeoutOrNull(TIMEOUT_MS) { handle(context, action) } ?: Log.w(TAG, "$action timed out")
-            } catch (e: Exception) {
-                Log.w(TAG, "$action failed: ${e.javaClass.simpleName}")
-            } finally {
-                pending.finish()
-            }
-        }
+        runAsync(action) { handle(context, action) }
     }
 
+    /**
+     * Boot, update and clock changes check alerts alongside the rest (the alert runtime is one object under a mutex, so
+     * the service starting meanwhile can't post twice): a slow check never costs the health check or the start.
+     */
     private suspend fun handle(
+        context: Context,
+        action: String,
+    ) = coroutineScope {
+        if (action in SYSTEM_EVENTS) launch { checkAlerts(context) }
+        handleMonitor(context, action)
+    }
+
+    private suspend fun handleMonitor(
         context: Context,
         action: String,
     ) {
@@ -86,6 +88,12 @@ abstract class MonitorReceiver : BroadcastReceiver() {
         }
     }
 
+    /** Alerts first (they don't wait for the graph): no data, a mute ending or a sensor end while the phone was off. */
+    private suspend fun checkAlerts(context: Context) {
+        val alerts = context.alertsModule ?: return
+        withTimeoutOrNull(ALERT_CHECK_BUDGET_MS) { alerts.check() } ?: Log.w(TAG, "alert check timed out")
+    }
+
     private suspend fun restart(
         monitor: MonitorModule,
         reason: StartReason,
@@ -97,8 +105,14 @@ abstract class MonitorReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "Sukrara.monitor"
 
-        /** Below the 10 s a receiver may run after goAsync. */
-        private const val TIMEOUT_MS = 9_000L
+        /** Boot, app update, clock and time-zone changes: the alert check's other triggers besides its own alarm. */
+        private val SYSTEM_EVENTS =
+            setOf(
+                Intent.ACTION_BOOT_COMPLETED,
+                Intent.ACTION_MY_PACKAGE_REPLACED,
+                Intent.ACTION_TIME_CHANGED,
+                Intent.ACTION_TIMEZONE_CHANGED,
+            )
 
         const val ACTION_HEALTH_CHECK = "app.mauri.sukrara.monitor.HEALTH_CHECK"
         const val ACTION_FRESHNESS_STEP = "app.mauri.sukrara.monitor.FRESHNESS_STEP"

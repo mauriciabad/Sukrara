@@ -119,6 +119,7 @@ class AppGraph(
             // the alert alarm found the service dead: bring it back (a refusal shows "Monitoring stopped")
             restarter = { startMonitoring(StartReason.AlertCheck) },
             clock = clock,
+            log = { data.diagLog.log("alerts", it) },
         )
     }
 
@@ -148,6 +149,7 @@ class AppGraph(
                 widgets.presence.refresh()
                 widgets.presence.placed.value
             },
+            treatmentLog = { treatments.log },
         )
     }
 
@@ -177,7 +179,7 @@ class AppGraph(
         monitor.starter.start(reason)
     }
 
-    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
+    val treatments: TreatmentsModule by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
