@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -107,20 +108,42 @@ private fun route(
     home: HomeModule,
 ) {
     when (action) {
-        HomeAction.OpenSetup -> backStack.add(SetupRoute)
+        HomeAction.OpenSetup -> {
+            backStack.add(SetupRoute)
+        }
 
-        HomeAction.PairSensor, HomeAction.OpenSensor -> open(context, Intent(NavTargets.ACTION_SENSOR_SETUP)) { backStack.add(SetupRoute) }
+        HomeAction.PairSensor, HomeAction.OpenSensor -> {
+            open(context, Intent(NavTargets.ACTION_SENSOR_SETUP)) { backStack.add(SetupRoute) }
+        }
 
-        HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+        HomeAction.AddTreatment -> {
+            open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+        }
 
-        HomeAction.EnableBluetooth -> open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
+        HomeAction.EnableBluetooth -> {
+            open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
+        }
 
-        HomeAction.OpenShowcaseInfo -> open(context, Showcase.appInfo()) {}
+        HomeAction.OpenShowcaseInfo -> {
+            open(context, Showcase.appInfo()) {}
+        }
 
-        HomeAction.ResumeMonitoring -> home.resumeMonitoring()
+        HomeAction.ResumeMonitoring -> {
+            home.resumeMonitoring()
+        }
 
-        // their banners stay hidden until the owning chunks (13, 20, integrations) provide the inputs and the route
-        HomeAction.AddWidget, HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
+        // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback
+        HomeAction.AddWidget -> {
+            (context as? Activity)?.let {
+                context.graph.widgets.presence
+                    .pin(it)
+            }
+        }
+
+        // their banners stay hidden until the owning chunks (13, integrations) provide the inputs and the route
+        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> {
+            Unit
+        }
     }
 }
 

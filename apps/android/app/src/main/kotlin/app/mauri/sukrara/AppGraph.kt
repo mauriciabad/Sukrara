@@ -47,7 +47,19 @@ class AppGraph(
 
     // the hub's state and the alert checklist come from :monitor / the alert runtime once they are composed here
     val home by lazy {
-        HomeModule(app, data, clock, scope, MutableStateFlow(GlucoseState.Initial), readinessSource = null, unmuteAlerts = {}, resume = {})
+        HomeModule(
+            app,
+            data,
+            clock,
+            scope,
+            MutableStateFlow(GlucoseState.Initial),
+            readinessSource = null,
+            unmuteAlerts = {},
+            resume = {},
+        ) {
+            widgets.presence.refresh()
+            widgets.presence.placed.value
+        }
     }
 
     // the hub's state, the graph settings and monitor's freshness ticks join when :monitor / settings are composed here
