@@ -46,9 +46,9 @@ import app.mauri.sukrara.graph.RoundedFont
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.cardModelOf
 import app.mauri.sukrara.graph.widgetCardStyle
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /*
  * The three home-screen widgets: registered card surfaces (contracts/graph/surfaces/surfaces.json) that draw the one
@@ -78,10 +78,10 @@ enum class WidgetKind(
 private const val MARGIN_DP = 10f
 
 /**
- * The longest side of a widget picture: Glance keeps one bitmap per reported size (portrait + landscape), and their
- * sum must stay under the RemoteViews limit (screen width × height × 4 × 1.5 bytes) with room to spare.
+ * The share of the RemoteViews bitmap limit (screen width × height × 4 × 1.5 bytes) one picture may use: Glance keeps
+ * one bitmap per reported size (portrait + landscape), so each stays under a third with room to spare.
  */
-private const val MAX_SIDE_PX = 1400f
+private const val SHARE_OF_LIMIT = 1.5f / 3f
 
 /** The card's model for [frame] (the phone's language). */
 fun widgetModel(
@@ -98,7 +98,7 @@ fun widgetStyle(
 
 /**
  * A widget's picture, the one entry every home-screen widget draws through: the card for [kind] at [wDp] × [hDp] dp of
- * widget (margins included), drawn at the screen's density unless that would pass [MAX_SIDE_PX].
+ * widget (margins included), drawn at the screen's density unless that would pass [SHARE_OF_LIMIT] of the limit.
  */
 fun renderWidget(
     context: Context,
@@ -109,8 +109,10 @@ fun renderWidget(
     overrides: WidgetOverrides,
 ): Bitmap {
     RoundedFont.init(context)
-    val density = context.resources.displayMetrics.density
-    val d = density * min(1f, MAX_SIDE_PX / (max(wDp, hDp) * density))
+    val metrics = context.resources.displayMetrics
+    val density = metrics.density
+    val maxPixels = metrics.widthPixels.toFloat() * metrics.heightPixels * SHARE_OF_LIMIT
+    val d = density * min(1f, sqrt(maxPixels / (wDp * density * hDp * density)))
     val pad = MARGIN_DP * d
     val bmp =
         Bitmap.createBitmap(
@@ -240,7 +242,9 @@ abstract class CardWidgetReceiver(
         appWidgetIds: IntArray,
     ) {
         super.onDeleted(context, appWidgetIds)
-        context.widgetsHost.widgets.onRemoved(appWidgetIds)
+        val pending = goAsync()
+        val host = context.widgetsHost
+        host.widgets.forget(appWidgetIds) { host.awaitReady() }.invokeOnCompletion { pending.finish() }
     }
 
     override fun onUpdate(

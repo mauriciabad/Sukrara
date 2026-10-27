@@ -34,7 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -58,8 +58,9 @@ class WidgetConfigActivity : ComponentActivity() {
         val appWidgetId =
             intent?.extras?.getInt(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
                 ?: AppWidgetManager.INVALID_APPWIDGET_ID
-        // the launcher's contract: canceled until the person saves
-        setResult(RESULT_CANCELED, result(appWidgetId))
+        // OK from the start: the app's settings are valid, so leaving without saving keeps a just-placed widget (a
+        // launcher that ignores configuration_optional would remove it on CANCELED)
+        setResult(RESULT_OK, result(appWidgetId))
         val kind = kindOf(appWidgetId)
         if (kind == null) {
             finish()
@@ -78,6 +79,7 @@ class WidgetConfigActivity : ComponentActivity() {
                         kind = kind,
                         initial = start,
                         preview = { o -> previewOf(kind, o) },
+                        describe = { o -> describeCard(this, kind, host.widgets.updater.current(), o) },
                         onCancel = { finish() },
                         onSave = { o -> save(appWidgetId, kind, o) },
                     )
@@ -138,11 +140,13 @@ private fun WidgetSettingsScreen(
     kind: WidgetKind,
     initial: WidgetOverrides,
     preview: suspend (WidgetOverrides) -> android.graphics.Bitmap,
+    describe: suspend (WidgetOverrides) -> String,
     onCancel: () -> Unit,
     onSave: (WidgetOverrides) -> Unit,
 ) {
     var o by rememberSaveable(stateSaver = OverridesSaver) { mutableStateOf(initial) }
     val render by rememberUpdatedState(preview)
+    val words by rememberUpdatedState(describe)
     var open by rememberSaveable { mutableStateOf<String?>(null) }
     val same = stringResource(R.string.widget_config_same)
     val on = stringResource(R.string.widget_config_on)
@@ -152,10 +156,11 @@ private fun WidgetSettingsScreen(
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.widget_config_title)) }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             val bitmap by produceState<android.graphics.Bitmap?>(null, o) { value = render(o) }
+            val spoken by produceState("", o) { value = words(o) }
             bitmap?.let {
                 Image(
                     it.asImageBitmap(),
-                    contentDescription = stringResource(R.string.widget_config_preview),
+                    contentDescription = stringResource(R.string.widget_config_preview, spoken),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -252,7 +257,7 @@ private fun OnOffDialog(
 private val HOURS = listOf(3, 6, 12, 24)
 
 @Composable
-private fun hoursLabel(h: Int) = LocalContext.current.resources.getQuantityString(R.plurals.widget_config_hours_n, h, h)
+private fun hoursLabel(h: Int) = pluralStringResource(R.plurals.widget_config_hours_n, h, h)
 
 private fun onOff(
     v: Boolean?,

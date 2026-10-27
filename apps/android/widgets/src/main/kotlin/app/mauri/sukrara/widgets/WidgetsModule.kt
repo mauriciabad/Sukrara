@@ -17,6 +17,7 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -62,10 +63,16 @@ class WidgetsModule(
         updater.start()
     }
 
-    /** A placement was removed: forget its settings and recheck the banner. */
-    fun onRemoved(appWidgetIds: IntArray) {
+    /** Placements were removed: once storage is [ready], forget their settings; recheck the banner. */
+    fun forget(
+        appWidgetIds: IntArray,
+        ready: suspend () -> Unit,
+    ): Job {
         presence.refresh()
-        scope.launch { settings.forget(appWidgetIds) }
+        return scope.launch {
+            ready()
+            settings.forget(appWidgetIds)
+        }
     }
 
     /** One placement's settings changed (Reconfigure): save them, then the updater redraws it. */
