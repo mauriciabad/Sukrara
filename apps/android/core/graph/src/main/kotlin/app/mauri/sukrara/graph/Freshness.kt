@@ -6,7 +6,6 @@ package app.mauri.sukrara.graph
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
@@ -119,12 +118,6 @@ enum class Freshness(
                 else -> "${at.dayOfMonth} ${at.month.getDisplayName(TextStyle.SHORT, locale)}"
             }
         }
-
-        /** Whole minutes since [t] (for "3 min ago" words); never negative. */
-        fun minutesAgo(
-            t: Long,
-            nowS: Long,
-        ): Long = ChronoUnit.MINUTES.between(Instant.ofEpochSecond(t), Instant.ofEpochSecond(maxOf(t, nowS)))
     }
 }
 

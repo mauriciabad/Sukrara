@@ -125,7 +125,10 @@ object Clock {
     private fun formatter(
         hour24: Boolean,
         locale: Locale,
-    ): DateTimeFormatter = DateTimeFormatter.ofPattern(pattern(hour24, locale), locale)
+    ): DateTimeFormatter = formatters.getOrPut(hour24 to locale) { DateTimeFormatter.ofPattern(pattern(hour24, locale), locale) }
+
+    /** Built once per hour cycle and locale (every hour label of every chart frame formats through here). */
+    private val formatters = java.util.concurrent.ConcurrentHashMap<Pair<Boolean, Locale>, DateTimeFormatter>()
 
     private fun localePattern(locale: Locale): String =
         DateTimeFormatterBuilder.getLocalizedDateTimePattern(null, FormatStyle.SHORT, IsoChronology.INSTANCE, locale)
