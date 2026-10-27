@@ -41,8 +41,23 @@
     "apps/android/*/src/main/kotlin/*.kt"
   ],
   "strings_warn_only": [],
-  "cleartext_ok": [],
-  "network_ok": [],
+  "cleartext_ok": [
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "contains": "http://127.0.0.1:17580",
+      "reason": "local Juggluco on this phone: its web server listens on loopback only (127.0.0.1:17580); nothing leaves the device"
+    }
+  ],
+  "network_ok": [
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "reason": "local Juggluco on this phone: the fixed loopback base URL (LOCAL_URL); no user-entered host"
+    },
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/libreview/LibreViewAccount.kt",
+      "reason": "LibreView receiver-ID sign-in: https only, fixed host api.libreview.io or api-<region>.libreview.io (region validated as 2-3 lower-case letters)"
+    }
+  ],
   "durations_ok": {},
   "states_pending": [
     {

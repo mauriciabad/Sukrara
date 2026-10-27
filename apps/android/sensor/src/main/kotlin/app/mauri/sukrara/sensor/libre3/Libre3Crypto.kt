@@ -11,7 +11,7 @@ package app.mauri.sukrara.sensor.libre3
  * A debug build made without Juggluco has no library: [isAvailable] is false and the sensor shows
  * [app.mauri.sukrara.core.model.SensorState.CoreMissing] instead of crashing. Release builds can't be made without it.
  */
-object Libre3Crypto {
+internal object Libre3Crypto : Libre3Security {
     val isAvailable: Boolean =
         try {
             System.loadLibrary("sukrara_libre3")
@@ -20,46 +20,46 @@ object Libre3Crypto {
             false
         }
 
-    external fun begin(
+    external override fun begin(
         kAuth: ByteArray?,
         securityVersion: Int,
     ): Long
 
-    external fun setPatchCertificate(
+    external override fun setPatchCertificate(
         ctx: Long,
         cert140: ByteArray,
     ): Boolean
 
-    external fun createEphemeralPublicKey(ctx: Long): ByteArray?
+    external override fun createEphemeralPublicKey(ctx: Long): ByteArray?
 
-    external fun deriveAuthorizationRoot(
+    external override fun deriveAuthorizationRoot(
         ctx: Long,
         patchEphemeral65: ByteArray,
     ): Boolean
 
-    external fun exportSavedAuthorization(ctx: Long): ByteArray?
+    external override fun exportSavedAuthorization(ctx: Long): ByteArray?
 
-    external fun encryptChallengeReply(
+    external override fun encryptChallengeReply(
         ctx: Long,
         nonce7: ByteArray,
         plain36: ByteArray,
     ): ByteArray?
 
-    external fun decryptChallengeResponse(
+    external override fun decryptChallengeResponse(
         ctx: Long,
         nonce7: ByteArray,
         cipher60: ByteArray,
     ): ByteArray?
 
-    external fun free(ctx: Long)
+    external override fun free(ctx: Long)
 
-    external fun ccmEncrypt(
+    external override fun ccmEncrypt(
         key16: ByteArray,
         nonce13: ByteArray,
         plain: ByteArray,
     ): ByteArray?
 
-    external fun ccmDecrypt(
+    external override fun ccmDecrypt(
         key16: ByteArray,
         nonce13: ByteArray,
         cipherAndTag: ByteArray,

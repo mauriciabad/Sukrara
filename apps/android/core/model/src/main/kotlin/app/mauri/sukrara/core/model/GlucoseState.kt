@@ -51,6 +51,24 @@ sealed interface SensorState {
     data object CoreMissing : SensorState
 
     data object BluetoothOff : SensorState
+
+    /** The sensor can't be read until the person does something (added by chunk 12; the UI words live in chunk 18). */
+    data class ActionNeeded(val action: SensorAction) : SensorState
+}
+
+/** What the person has to do so the sensor can be read again. */
+enum class SensorAction {
+    /** Scan the sensor with the phone (NFC): a new sensor, a lost or unreadable pairing, or taking it over. */
+    ScanSensor,
+
+    /** Sign in to LibreView so V1 can start / take over the sensor with the account's receiver ID. */
+    SignInLibreView,
+
+    /** Another app (the Sukrara showcase) owns the sensor: stop it there or uninstall it, then scan again. */
+    StopOtherApp,
+
+    /** Grant the Nearby devices (Bluetooth) permission. */
+    GrantBluetooth,
 }
 
 /** Whether readings are arriving from the current source. */
