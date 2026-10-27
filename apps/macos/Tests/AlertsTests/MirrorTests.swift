@@ -39,4 +39,26 @@ import Testing
         let sameSide = m.remindAsUsual(.low, at: at(6))
         #expect(first && !repeatShown && otherSide == nil && sameSide == "l2")
     }
+
+    @Test func muteSurvivesARelaunch() throws {
+        var m = AlertMirror()
+        _ = m.fire(.low, id: "l1", at: at(0))
+        _ = m.mute(.low, until: at(30))
+        _ = m.muteAll(until: at(45))
+        let data = try JSONEncoder().encode(m)
+        var back = try JSONDecoder().decode(AlertMirror.self, from: data)
+        back.sanitize(at: at(10))
+        #expect(back == m)
+        #expect(back.muteAllEnd(at: at(10)) == at(45))
+        // still muted after the relaunch: the wearer's repeat doesn't show
+        let repeatShown = back.fire(.low, id: "l2", at: at(11))
+        #expect(!repeatShown)
+    }
+
+    @Test func sanitizeDropsAnEndedMuteAll() {
+        var m = AlertMirror()
+        _ = m.muteAll(until: at(5))
+        m.sanitize(at: at(10))
+        #expect(m.muteAllUntil == nil)
+    }
 }

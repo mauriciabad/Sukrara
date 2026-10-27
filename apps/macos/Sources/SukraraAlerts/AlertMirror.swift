@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import SukraraCore
 
 /// A follower that mirrors the wearer's alerts (SPEC §2, §4, source "wearer"): which of the wearer's `alert` events
 /// show on this device, and this device's own notification actions on them. Strictly local: the wearer never hears of
@@ -11,13 +12,16 @@ import Foundation
 ///   the side always shows);
 /// - both end at their time or back by the margin on the readings this device gets (`reading`);
 /// - *Unmute*, *Remind as usual* and *Unmute all* show the wearer's newest firing still up (dropped or skipped here).
-public struct AlertMirror: Sendable {
-    private struct Shown: Sendable {
+///
+/// Codable so this device's Mute / Mute all survive a relaunch (the app stores it next to the engine snapshot and
+/// calls `sanitize(at:)` after decoding).
+public struct AlertMirror: Codable, Equatable, Sendable {
+    private struct Shown: Codable, Equatable, Sendable {
         var at: Date
         var kind: AlertKind
     }
 
-    private struct Newest: Sendable {
+    private struct Newest: Codable, Equatable, Sendable {
         var id: String
         var kind: AlertKind
     }
@@ -119,6 +123,18 @@ public struct AlertMirror: Sendable {
         return AlertGroup.allCases.compactMap { g in
             guard let n = newest[g], snoozes[n.kind.side]?.isMuted(at: t) != true else { return nil }
             return showAgain(g, side: n.kind.side, at: t)
+        }
+    }
+
+    /// After a restore at `t`: drops mutes that ended or reach implausibly far (clock changes, a damaged file), like
+    /// `AlertEngine.restore` does for the engine's own.
+    public mutating func sanitize(at t: Date) {
+        snoozes.sanitize(at: t)
+        if let all = muteAllUntil {
+            muteAllUntil =
+                all <= t
+                ? nil
+                : all >= muteAllForever ? muteAllForever : min(all, t.addingTimeInterval(SettingsSpec.muteAll.max * 60))
         }
     }
 
