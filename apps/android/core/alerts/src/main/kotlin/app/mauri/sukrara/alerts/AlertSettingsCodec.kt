@@ -4,7 +4,6 @@
 package app.mauri.sukrara.alerts
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -126,7 +125,4 @@ object AlertSettingsCodec {
     private fun JsonObject.bool(key: String): Boolean? = prim(key)?.takeIf { !it.isString }?.booleanOrNull
     private fun JsonObject.num(key: String): Double? = prim(key)?.takeIf { !it.isString }?.doubleOrNull
     private fun JsonObject.str(key: String): String? = prim(key)?.takeIf { it.isString }?.content
-
-    @Suppress("unused")
-    private fun JsonElement.asObject(): JsonObject? = this as? JsonObject
 }

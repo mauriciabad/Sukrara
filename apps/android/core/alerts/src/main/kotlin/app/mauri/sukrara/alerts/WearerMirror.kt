@@ -46,6 +46,7 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
     fun fire(f: Firing): Boolean {
         val side = f.kind.side
         val group = f.kind.group
+        if (newest[group]?.id == f.id) return false // the same firing again (BLE and several relays)
         newest[group] = f
         newestCleared.remove(group)
         val sn = snoozes[side]
