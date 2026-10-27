@@ -248,6 +248,18 @@ the showcase stays installed next to it until the owner uninstalls it).
   Keychain item: `security add-generic-password -s sukrara-android-release -a sukrara -w` (it prompts for the
   password, so it stays out of the shell history).
 
+### Before every Android release: the release smoke
+
+Run `tools/release/android-smoke.sh --final` on the commit you're about to release (emulator only; it never
+touches a phone). It builds the APK with the release key (no key or no pinned Juggluco → the build stops; it never
+falls back to the debug key), runs `verify-apk.sh` (signer = `android-cert.sha256`, package / version from `VERSION`,
+not debuggable, Libre 3 core inside, R8 full mode with the mapping that belongs to this APK, no debug classes or
+debug-tool strings, no exported component without a permission beyond the launcher and the alert sound provider,
+`POST_PROMOTED_NOTIFICATIONS` declared), then installs it beside the showcase and launches it (see `docs/QA.md` Q10
+for every assertion). Keep the mapping (`apps/android/app/build/outputs/mapping/release/mapping.txt`) with the
+release: crash stack traces from the owner's phone are unreadable without it. Keep-rule fixes go to the owning
+module's `consumer-rules.pro` (the module that uses the reflective / JNI library), never to a blanket `-keep`.
+
 ### Alternatives to Play
 
 | Channel | Fit | Requirements / notes |

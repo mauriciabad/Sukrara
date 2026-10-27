@@ -82,7 +82,10 @@ class OwnerEngine(
     val state: StateFlow<OwnerShareState> = _state.asStateFlow()
 
     @Volatile private var owner: OwnerState? = null
-    private var jobs = emptyList<Job>()
+    @Volatile private var jobs = emptyList<Job>()
+
+    /** Whether sharing runs (started with an identity). */
+    val running: Boolean get() = jobs.isNotEmpty()
     private var historyRepublishedAt = 0L
 
     private fun now() = clock.now().epochSecond
@@ -260,12 +263,22 @@ class OwnerEngine(
         created.link.link
     }
 
-    suspend fun approve(follower: String) = act { ApproveRequest(ctx)(it, follower, now()) }?.let { s ->
+    /**
+     * Allow: true only when [follower] is now an active follower (false for an expired / used invite, a request no
+     * longer waiting, or during a conflict), so the caller can say it didn't work.
+     */
+    suspend fun approve(follower: String): Boolean {
+        val s = act { ApproveRequest(ctx)(it, follower, now()) } ?: return false
+        if (s.activeFollowers().none { it.key == follower }) return false
         locked {
             publish(readings.republish(s, now()))
             owner?.let { apply(treatments.republish(it, now())) }
         }
+        return true
     }
+
+    /** The request [follower] has waiting, if any. */
+    fun pendingRequest(follower: String): PendingRequest? = owner?.pending?.firstOrNull { it.follower == follower }
 
     /** "Can add entries" for an active follower (writer scope); refused during a conflict (it publishes a roster). */
     suspend fun setWriter(follower: String, allowed: Boolean) = act { SetWriter(ctx)(it, follower, allowed, now()) }

@@ -15,6 +15,7 @@ import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.owner.IdentityCheck
 import app.mauri.sukrara.protocol.owner.IdentityConflict
+import app.mauri.sukrara.share.FakeHub
 import app.mauri.sukrara.share.FakeRelayTransport
 import app.mauri.sukrara.share.OwnerFixtures
 import app.mauri.sukrara.share.OwnerFixtures.crypto
@@ -107,25 +108,6 @@ class IdentityConflictTest {
         runCurrent()
         assertTrue(engine.state.value is OwnerShareState.Sharing)
         engine.stop()
-    }
-
-    /** The hub as a wearer's phone sees it; readings appear in `recent`. */
-    private class FakeHub : GlucoseHub {
-        override val state = MutableStateFlow(GlucoseState.Initial.copy(role = app.mauri.sukrara.core.model.Role.Wearer))
-
-        fun push(r: Reading) {
-            state.value = state.value.copy(latest = r, recent = state.value.recent + r)
-        }
-
-        override suspend fun ingest(readings: List<Reading>, from: SourceId) = Unit
-
-        override fun setSource(status: SourceStatus) = Unit
-
-        override fun setSensor(sensor: app.mauri.sukrara.core.model.SensorState) = Unit
-
-        override fun setAlerts(alerts: app.mauri.sukrara.core.model.AlertUiState) = Unit
-
-        override fun setLink(link: app.mauri.sukrara.core.model.LinkState?) = Unit
     }
 
     private companion object {

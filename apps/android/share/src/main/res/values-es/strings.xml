@@ -10,4 +10,6 @@
     <string name="share_request_others">Otro teléfono también ha probado esta invitación. Abre Sukrara y compruébalo antes de permitirlo.</string>
     <string name="share_request_allow">Permitir</string>
     <string name="share_request_deny">Denegar</string>
+    <string name="share_request_failed_title">No se ha podido dar acceso</string>
+    <string name="share_request_failed_text">La invitación ha caducado, la petición ya no está pendiente o compartir está en pausa. Abre Sukrara para enviar una invitación nueva.</string>
 </resources>

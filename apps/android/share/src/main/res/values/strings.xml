@@ -10,4 +10,6 @@
     <string name="share_request_others">Another phone also tried this invite. Open Sukrara and check before allowing.</string>
     <string name="share_request_allow">Allow</string>
     <string name="share_request_deny">Deny</string>
+    <string name="share_request_failed_title">Couldn\'t give access</string>
+    <string name="share_request_failed_text">The invite expired, the request is no longer waiting or sharing is paused. Open Sukrara to send a new invite.</string>
 </resources>

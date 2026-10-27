@@ -15,6 +15,9 @@ import app.mauri.sukrara.share.owner.PendingRequest
 interface RequestNotifications {
     fun show(request: PendingRequest)
 
+    /** Allow didn't work (the invite expired, the request is gone, sharing is paused): replaces the request. */
+    fun showNotAllowed()
+
     fun cancel()
 }
 
@@ -25,11 +28,13 @@ interface RequestNotifications {
 class RequestNotifier(private val notifications: RequestNotifications) {
     private var shown: String? = null
 
+    @Synchronized
     fun onRequest(request: PendingRequest) {
         notifications.show(request)
         shown = request.follower
     }
 
+    @Synchronized
     fun onState(state: OwnerShareState) {
         val follower = shown ?: return
         if (state is OwnerShareState.Loading) return
@@ -61,17 +66,10 @@ class AndroidRequestNotifications(
             request.label.isNotBlank() -> context.getString(R.string.share_request_for, request.label, time)
             else -> context.getString(R.string.share_request_from, time)
         }
-        val builder = Notification.Builder(context, channel)
-            .setSmallIcon(context.applicationInfo.icon)
+        val builder = base()
             .setContentTitle(context.getString(R.string.share_request_title, request.name))
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
-            .setCategory(Notification.CATEGORY_SOCIAL)
-            .setAutoCancel(true)
-            .setGroup(group)
-        context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
-            builder.setContentIntent(PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE))
-        }
         if (request.others == 0) {
             builder.addAction(action(RequestActionReceiver.ACTION_DENY, R.string.share_request_deny, request.follower, auth = false))
             builder.addAction(action(RequestActionReceiver.ACTION_ALLOW, R.string.share_request_allow, request.follower, auth = true))
@@ -79,11 +77,36 @@ class AndroidRequestNotifications(
         post(builder.build())
     }
 
+    override fun showNotAllowed() {
+        val text = context.getString(R.string.share_request_failed_text)
+        val builder = base()
+            .setContentTitle(context.getString(R.string.share_request_failed_title))
+            .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
+        post(builder.build())
+    }
+
     override fun cancel() = remove()
 
+    private fun base(): Notification.Builder {
+        val builder = Notification.Builder(context, channel)
+            .setSmallIcon(context.applicationInfo.icon)
+            .setCategory(Notification.CATEGORY_SOCIAL)
+            .setAutoCancel(true)
+            .setGroup(group)
+        context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            builder.setContentIntent(PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE))
+        }
+        return builder
+    }
+
     private fun action(what: String, label: Int, follower: String, auth: Boolean): Notification.Action {
-        val intent = Intent(context, RequestActionReceiver::class.java).setAction(what).putExtra(RequestActionReceiver.EXTRA_FOLLOWER, follower)
-        val pending = PendingIntent.getBroadcast(context, what.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        // one PendingIntent per follower and action: a newer request can never retarget an Allow being unlocked
+        val intent = Intent(context, RequestActionReceiver::class.java)
+            .setAction(what)
+            .setIdentifier("$what:$follower")
+            .putExtra(RequestActionReceiver.EXTRA_FOLLOWER, follower)
+        val pending = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         return Notification.Action.Builder(null, context.getString(label), pending).setAuthenticationRequired(auth).build()
     }
 }

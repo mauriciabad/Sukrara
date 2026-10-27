@@ -70,10 +70,22 @@ class ShareOwnerModule(
         }
     }
 
-    /** Allow / Deny from the notification: the engine is started first if the process was asleep. */
-    suspend fun answer(follower: String, allow: Boolean) {
-        ownerEngine.start(scope)
-        if (allow) ownerEngine.approve(follower) else ownerEngine.deny(follower)
+    /**
+     * Allow / Deny from the notification; false when it didn't happen (the request isn't waiting any more, its invite
+     * expired, another phone also tried it, sharing is paused). An engine started here because the process was asleep
+     * is stopped again: the saved key delivery goes out on the next start (the sharing service owns relays).
+     */
+    suspend fun answer(follower: String, allow: Boolean): Boolean {
+        val engine = ownerEngine
+        val wasRunning = engine.running
+        engine.start(scope)
+        try {
+            val request = engine.pendingRequest(follower) ?: return false
+            if (!allow) return true.also { engine.deny(follower) }
+            return request.others == 0 && engine.approve(follower)
+        } finally {
+            if (!wasRunning) engine.stop()
+        }
     }
 
     /** The network came back: reconnect relays now instead of waiting out the backoff. */

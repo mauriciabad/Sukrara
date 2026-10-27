@@ -2,4 +2,31 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The official Libre apps (OfficialApps.PACKAGES, keep both lists equal): one running next to Sukrara can make
+         the sensor stop working, so the new-sensor flow warns first. -->
+    <queries>
+        <package android:name="com.freestylelibre3.app" />
+        <package android:name="com.freestylelibre3.app.de" />
+        <package android:name="com.freestylelibre3.app.gb" />
+        <package android:name="com.freestylelibre3.app.fr" />
+        <package android:name="com.freestylelibre3.app.it" />
+        <package android:name="com.freestylelibre3.app.es" />
+        <package android:name="com.freestylelibre3.app.nl" />
+        <package android:name="com.freestylelibre3.app.at" />
+        <package android:name="com.freestylelibre3.app.ch" />
+        <package android:name="com.freestylelibre3.app.au" />
+        <package android:name="com.freestylelibre.app" />
+        <package android:name="com.freestylelibre.app.de" />
+        <package android:name="com.freestylelibre.app.gb" />
+        <package android:name="com.freestylelibre.app.fr" />
+        <package android:name="com.freestylelibre.app.it" />
+        <package android:name="com.freestylelibre.app.es" />
+        <package android:name="com.freestylelibre.app.nl" />
+        <package android:name="com.freestylelibre.app.at" />
+        <package android:name="com.freestylelibre.app.ch" />
+        <package android:name="com.freestylelibre.app.au" />
+        <package android:name="com.librelink.app" />
+    </queries>
+</manifest>

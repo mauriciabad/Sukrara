@@ -7,8 +7,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import app.mauri.sukrara.share.ShareOwnerModule
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 
 /** The `Application` gives the receiver the wearer's sharing graph (A4: AppGraph composes it). */
 interface ShareOwnerHost {
@@ -17,9 +18,9 @@ interface ShareOwnerHost {
 
 /**
  * Allow / Deny from the access-request notification. Not exported: only the notification's explicit PendingIntents
- * reach it; Allow arrives only from an unlocked phone (the action requires authentication). Starts the engine if the
- * process was asleep (idempotent), answers within the broadcast's time budget; the key delivery is saved before it
- * is published, so a process killed right after still sends it on the next start.
+ * reach it (one PendingIntent per follower); Allow arrives only from an unlocked phone (the action requires
+ * authentication). The key delivery is saved before it is published, so a process killed right after still sends it
+ * on the next start. An Allow that didn't happen (expired invite, request gone, sharing paused) is said in its place.
  */
 class RequestActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -33,9 +34,11 @@ class RequestActionReceiver : BroadcastReceiver() {
         val result = goAsync()
         module.scope.launch {
             try {
-                withTimeoutOrNull(ANSWER_BUDGET_MS) { module.answer(follower, allow) }
+                // never cancelled half-way: the answer is saved before anything is published
+                val done = withContext(NonCancellable) { module.answer(follower, allow) }
+                // done: the notification leaves with its request (RequestNotifier); not done: say so instead
+                if (!done && allow) module.requestNotifications.showNotAllowed()
             } finally {
-                module.requestNotifications.cancel()
                 result.finish()
             }
         }
@@ -45,8 +48,5 @@ class RequestActionReceiver : BroadcastReceiver() {
         const val ACTION_ALLOW = "app.mauri.sukrara.share.ALLOW_REQUEST"
         const val ACTION_DENY = "app.mauri.sukrara.share.DENY_REQUEST"
         const val EXTRA_FOLLOWER = "follower"
-
-        /** goAsync allows ~10 s before an ANR; the answer is saved locally well within it. */
-        private const val ANSWER_BUDGET_MS = 8_000L
     }
 }

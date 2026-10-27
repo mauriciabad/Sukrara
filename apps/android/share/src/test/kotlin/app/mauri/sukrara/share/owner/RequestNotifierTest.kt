@@ -19,6 +19,8 @@ class RequestNotifierTest {
                 shown += request.follower
             }
 
+            override fun showNotAllowed() = Unit
+
             override fun cancel() {
                 cancels++
             }

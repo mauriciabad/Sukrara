@@ -13,6 +13,8 @@ import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.owner.requests.ShareOwnerHost
+import app.mauri.sukrara.widgets.WidgetsHost
+import app.mauri.sukrara.widgets.WidgetsModule
 
 /**
  * Builds the [AppGraph] and hands the runtime modules to their Android components (service, receivers): one `XxxHost`
@@ -23,7 +25,8 @@ class App :
     MonitorHost,
     AlertsHost,
     TreatmentsHost,
-    ShareOwnerHost {
+    ShareOwnerHost,
+    WidgetsHost {
     lateinit var graph: AppGraph
         private set
 
@@ -42,6 +45,8 @@ class App :
     override val treatments: TreatmentsModule get() = graph.treatments
 
     override val shareOwner: ShareOwnerModule get() = graph.shareOwner
+
+    override val widgets: WidgetsModule get() = graph.widgets
 }
 
 val Context.graph: AppGraph get() = (applicationContext as App).graph

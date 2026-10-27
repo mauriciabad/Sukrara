@@ -9,6 +9,7 @@ import app.mauri.sukrara.feature.treatments.TreatmentWriter
 import app.mauri.sukrara.share.ShareOwnerModule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /**
  * The treatment log's hand-off to sharing (chunk 19 ⇄ 13). The wearer writes as itself (no creator key: an entry
@@ -19,5 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 class ShareTreatmentSync(private val share: ShareOwnerModule) : TreatmentSync {
     override val writer: StateFlow<TreatmentWriter?> = MutableStateFlow(TreatmentWriter(key = null, throughOutbox = false))
 
-    override suspend fun publish(record: TreatmentRecord) = share.ownerEngine.publishTreatment(record)
+    /** Hands [record] over without waiting: a save never waits behind a restore or a republish (failures stay in sharing). */
+    override suspend fun publish(record: TreatmentRecord) {
+        share.scope.launch { runCatching { share.ownerEngine.publishTreatment(record) } }
+    }
 }
