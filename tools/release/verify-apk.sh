@@ -18,6 +18,9 @@ fail=0
 bad() { echo "FAIL $*"; fail=1; }
 ok() { echo "ok   $*"; }
 
+[ -f "$apk" ] || { echo "FAIL no APK at $apk"; exit 1; }
+JAVA_HOME="$(dirname "$(dirname "$(jdk_tool java)")")"  # apksigner is a Java tool; macOS's stub has no JRE
+export JAVA_HOME
 apksigner="$(sdk_tool apksigner)"
 aapt2="$(sdk_tool aapt2)"
 want_cert="$(cat "$here/android-cert.sha256")"
@@ -26,7 +29,7 @@ set -- $VI
 want_name="$1" want_code="$2"
 
 certs="$("$apksigner" verify --print-certs "$apk" 2>&1)" || { bad "signature doesn't verify: $certs"; certs=""; }
-signers="$(printf '%s\n' "$certs" | sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p' | tr 'a-f' 'A-F' | sort -u)"
+signers="$(printf '%s\n' "$certs" | grep -v 'Stamp' | sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' | tr 'a-f' 'A-F' | sort -u)"
 if [ "$signers" = "$want_cert" ]; then ok "signed by the release key"; else bad "signer '$signers' is not the release key $want_cert"; fi
 
 badging="$("$aapt2" dump badging "$apk")"
