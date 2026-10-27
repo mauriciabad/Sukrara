@@ -23,6 +23,12 @@ if [ -n "${NOTARY_PROFILE:-}" ]; then
   xcrun stapler validate -q "$APP" || die "$APP is not notarized: run NOTARY_PROFILE=$NOTARY_PROFILE Bundle/bundle.sh"
 fi
 VER=$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")
+BUILD=$(plutil -extract CFBundleVersion raw "$APP/Contents/Info.plist")
+# Only a signed release build becomes an installer (DMG_FORCE=1 packages an ad hoc / --dev build for testing).
+if [ "${DMG_FORCE:-}" != 1 ]; then
+  [ -n "$ID" ] || die "$APP is ad hoc signed (bundle.sh --unsigned): widgets would not load; set DMG_FORCE=1 to package it"
+  case "$BUILD" in *.*) die "$APP is a --dev build ($BUILD); set DMG_FORCE=1 to package it" ;; esac
+fi
 DMG=$OUT/Sukrara-$VER.dmg
 W=$OUT/dmg
 rm -rf "$W" "$DMG"
@@ -41,11 +47,14 @@ fi
 [ -n "$ID" ] && codesign --force --sign "$ID" $TS "$DMG"
 # The app as the user gets it: mount read-only and verify the copy inside.
 MNT=$(mktemp -d "$OUT/mnt.XXXXXX")
+# Never leave the image mounted or the mount point behind, whatever fails.
+trap 'hdiutil detach "$MNT" >/dev/null 2>&1 || true; rmdir "$MNT" 2>/dev/null || true' EXIT
 hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$MNT" "$DMG" >/dev/null
 OK=1
 codesign --verify --deep --strict "$MNT/Sukrara.app" || OK=0
 hdiutil detach "$MNT" >/dev/null
 rmdir "$MNT"
+trap - EXIT
 [ "$OK" = 1 ] || die "the app inside $DMG fails codesign --verify --deep --strict"
 if [ -n "${NOTARY_PROFILE:-}" ]; then
   xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait | tee "$OUT/notary-dmg.log"

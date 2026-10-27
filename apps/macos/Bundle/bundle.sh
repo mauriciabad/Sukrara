@@ -43,20 +43,28 @@ BUILD=$CODE
 # Identity (before building, so a missing one fails fast)
 SIGN=-; TS=--timestamp=none
 if [ "$UNSIGNED" = 0 ]; then
-  IDS=$(security find-identity -v -p codesigning)
-  if [ -z "${SIGN_ID:-}" ]; then
+  # Valid identities as `<sha1> "<name>"`. Everything below works on the SHA-1: after a certificate renewal two
+  # valid identities share a name and signing by name is ambiguous.
+  IDS=$(security find-identity -v -p codesigning | awk '/"/ {print $2, substr($0, index($0, "\""))}')
+  if [ -n "${SIGN_ID:-}" ]; then
+    LINE=$(echo "$IDS" | grep -F "$SIGN_ID" | head -1)
+    [ -n "$LINE" ] || die "SIGN_ID '$SIGN_ID' is not a valid code-signing identity"
+  else
     # The name's "(…)" is the personal id, not the team: the team is checked on the certificate below.
-    SIGN_ID=$(echo "$IDS" | awk -F'"' '/Apple Development/ {print $2; exit}')
-  fi
-  [ -n "$SIGN_ID" ] || die "no \"Apple Development\" identity in the keychain (Xcode → Settings → Accounts → Manage
+    LINE=$(echo "$IDS" | grep -F '"Apple Development:' | head -1)
+    [ -n "$LINE" ] || die "no \"Apple Development\" identity in the keychain (Xcode → Settings → Accounts → Manage
   Certificates), or pass --unsigned"
-  echo "$IDS" | grep -qF "$SIGN_ID" || die "SIGN_ID '$SIGN_ID' is not a valid code-signing identity"
-  CERT_TEAM=$(security find-certificate -c "$SIGN_ID" -p 2>/dev/null \
+  fi
+  SHA=${LINE%% *}
+  NAME=${LINE#* }
+  # The certificate with exactly this SHA-1 (find-certificate -Z prints "SHA-1 hash: …" before each PEM).
+  CERT_TEAM=$(security find-certificate -a -Z -p 2>/dev/null \
+    | awk -v sha="$SHA" '/^SHA-1 hash:/ {keep = ($3 == sha)} keep && !/^SHA-1 hash:|^SHA-256 hash:/' \
     | openssl x509 -noout -subject -nameopt multiline 2>/dev/null | awk -F' = ' '/organizationalUnitName/{print $2; exit}')
-  [ "$CERT_TEAM" = "$TEAM" ] || die "identity '$SIGN_ID' belongs to team '${CERT_TEAM:-none}', not $TEAM: the App Group
+  [ "$CERT_TEAM" = "$TEAM" ] || die "identity $NAME belongs to team '${CERT_TEAM:-none}', not $TEAM: the App Group
   $GROUP would not be granted"
-  SIGN=$SIGN_ID
-  case "$SIGN_ID" in "Developer ID Application:"*) TS=--timestamp ;; esac
+  SIGN=$SHA
+  case "$NAME" in '"Developer ID Application:'*) TS=--timestamp ;; esac
 fi
 
 # Resources: V1 locations, PoC fallbacks until chunk 01 moves them
@@ -112,5 +120,5 @@ if [ -n "${NOTARY_PROFILE:-}" ]; then
   xcrun stapler staple "$APP"
 fi
 
-if [ "$SIGN" = - ]; then SIGNED_BY="ad hoc, widgets won't load"; else SIGNED_BY="$SIGN"; fi
+if [ "$SIGN" = - ]; then SIGNED_BY="ad hoc, widgets won't load"; else SIGNED_BY="$NAME"; fi
 echo "built $APP $VERSION ($BUILD), signed: $SIGNED_BY"

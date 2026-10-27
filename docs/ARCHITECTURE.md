@@ -83,7 +83,7 @@ public enum LinkState { case notLinked }                                        
 // SukraraAlerts
 public struct AlertUIState { var isAlerting: Bool }                             // chunk 05 replaces
 // SukraraGraph
-public enum GlucoseCard { static let noValueText = "—" }                        // chunk 14 brings the renderer
+public enum GlucoseCard { static let noValueText = "—"; static func face(_: GlucoseSnapshot?) -> String } // chunk 14: renderer + freshness
 // SukraraApp
 @Observable public final class AppModel { let plan: LaunchPlan; var glucose: GlucoseSnapshot?; var alerts: AlertUIState
     var link: LinkState; var statusTitle: String; var notMonitoringReason: String? }
