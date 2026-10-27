@@ -7,6 +7,12 @@ plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
     id("sukrara.contracts")
+    alias(libs.plugins.roborazzi)
+}
+
+android {
+    // Robolectric's resource loader reads FileDescriptor internals on JDK 21
+    testOptions.unitTests.all { it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
 }
 
 dependencies {
@@ -17,4 +23,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     testImplementation(project(":core:testing"))
     testImplementation(libs.kotlinx.serialization.json)
+    // Robolectric resources (CardWords en + es) and Roborazzi card screenshots
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
 }

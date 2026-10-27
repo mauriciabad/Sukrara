@@ -199,6 +199,33 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
 
+## Android sensor (`apps/android/sensor`, chunk 12)
+
+The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManager` as its one `ReadingSource`
+(`:core:model`).
+
+- **Threading**: one serial dispatcher (`Dispatchers.Default.limitedParallelism(1)`) runs the source switch, the
+  Libre 3 driver, the GATT queue and every timer; Binder callbacks are queued into an unlimited channel and handled
+  there. Juggluco's blocking HTTP runs on IO. A switch, a restart (new pairing, *Try again*, Bluetooth on, watchdog)
+  cancels the running source, whose `finally` closes the gatt, before the next one starts.
+- **Layers**: `libre3/Libre3Driver` (protocol only, no Android; ported byte for byte from the PoC) → `ble/BleLink` →
+  `ble/GattLink` (queue, 10 s per-operation and discovery timeouts, close-now + new connection with 1–30 s backoff,
+  Bluetooth off/on, generation-tagged callbacks) → `ble/GattConnector` (`AndroidGatt` on the phone, fakes in tests).
+  `libre3/Libre3Crypto` is the JNI core (`libsukrara_libre3.so`, from Juggluco at the pinned revision); a build
+  without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
+- **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
+  (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
+  Receiver IDs (V1's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
+  token is stored.
+- **Takeover and receiver IDs** (verified from code and docs/02; device test pending): a Libre 3 is bound for life to
+  the receiver ID it was started with; NFC takeover (`A8`) succeeds only with that ID and a wrong one changes nothing
+  (`B1`). V1 starts sensors only with the LibreView account's ID (nothing sent without it) and tries account → own ID
+  for a takeover (nothing sent without the account ID). A showcase-started sensor (showcase ≥ 2026-10-18 starts with
+  the same account ID) is taken over by V1 signed in to the same account, and can be taken back by the showcase. A
+  takeover gives a new BLE PIN, so V1 pairs afresh and the previous owner's Bluetooth session fails; if the sensor is
+  taken away from V1, 3 rejected authorizations in a row stop the link with *another app has the sensor*.
+- **Juggluco**: `juggluco/JugglucoSource` reads `http://127.0.0.1:17580` (loopback, allow-listed): history, then SSE.
+
 ## Android storage (`apps/android/core/data`)
 
 Ports live in `:core:model` (`storage/Storage.kt`, in-memory fakes in `:core:testing`); `:core:data` implements them
@@ -278,29 +305,3 @@ both apps). Alert scenario expectations change only with the owner's OK.
 `VERSION` → both apps. Android: `tools/release/android-release.sh` (assembleRelease with the release key +
 `verify-apk.sh`); Mac: `tools/release/mac-release.sh` (bundle + dmg + `verify-app.sh`). 0.x versions are GitHub
 prereleases; both apps' update checks include prereleases only on a prerelease build.
-## Android sensor (`apps/android/sensor`, chunk 12)
-
-The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManager` as its one `ReadingSource`
-(`:core:model`).
-
-- **Threading**: one serial dispatcher (`Dispatchers.Default.limitedParallelism(1)`) runs the source switch, the
-  Libre 3 driver, the GATT queue and every timer; Binder callbacks are queued into an unlimited channel and handled
-  there. Juggluco's blocking HTTP runs on IO. A switch, a restart (new pairing, *Try again*, Bluetooth on, watchdog)
-  cancels the running source, whose `finally` closes the gatt, before the next one starts.
-- **Layers**: `libre3/Libre3Driver` (protocol only, no Android; ported byte for byte from the PoC) → `ble/BleLink` →
-  `ble/GattLink` (queue, 10 s per-operation and discovery timeouts, close-now + new connection with 1–30 s backoff,
-  Bluetooth off/on, generation-tagged callbacks) → `ble/GattConnector` (`AndroidGatt` on the phone, fakes in tests).
-  `libre3/Libre3Crypto` is the JNI core (`libsukrara_libre3.so`, from Juggluco at the pinned revision); a build
-  without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
-- **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
-  (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
-  Receiver IDs (V1's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
-  token is stored.
-- **Takeover and receiver IDs** (verified from code and docs/02; device test pending): a Libre 3 is bound for life to
-  the receiver ID it was started with; NFC takeover (`A8`) succeeds only with that ID and a wrong one changes nothing
-  (`B1`). V1 starts sensors only with the LibreView account's ID (nothing sent without it) and tries account → own ID
-  for a takeover (nothing sent without the account ID). A showcase-started sensor (showcase ≥ 2026-10-18 starts with
-  the same account ID) is taken over by V1 signed in to the same account, and can be taken back by the showcase. A
-  takeover gives a new BLE PIN, so V1 pairs afresh and the previous owner's Bluetooth session fails; if the sensor is
-  taken away from V1, 3 rejected authorizations in a row stop the link with *another app has the sensor*.
-- **Juggluco**: `juggluco/JugglucoSource` reads `http://127.0.0.1:17580` (loopback, allow-listed): history, then SSE.

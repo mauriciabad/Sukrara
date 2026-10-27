@@ -21,7 +21,23 @@ data class GlucoseState(
     val alerts: AlertUiState,
     /** The follower's link to the wearer; null on a wearer phone. */
     val link: LinkState?,
+    /**
+     * When monitoring started: the first reading from the current source (persisted; cleared only when the person
+     * removes the sensor or changes the role). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
+     */
+    val monitoringStartedAt: Instant? = null,
+    /** Whether the monitoring service runs. */
+    val service: ServiceState = ServiceState.NotRunning,
 ) {
+    /** Why nothing is monitored yet ("Not monitoring: no sensor yet"), or null while monitoring. */
+    val notMonitoring: NotMonitoringReason?
+        get() =
+            when {
+                role == null -> NotMonitoringReason.SetupIncomplete
+                monitoringStartedAt == null -> NotMonitoringReason.NoSensorYet
+                else -> null
+            }
+
     companion object {
         /** Before anything is known: nothing is shown as a value and no data alarm can fire. */
         val Initial =
@@ -72,6 +88,31 @@ enum class SensorAction {
     GrantBluetooth,
 }
 
+/** Why the app isn't monitoring yet. Shown as "Not monitoring: no sensor yet" with the action "Set up sensor". */
+enum class NotMonitoringReason {
+    /** First-run setup hasn't chosen a role. */
+    SetupIncomplete,
+
+    /** A role is set but no reading has come from a source yet (no sensor paired / not joined, or waiting). */
+    NoSensorYet,
+}
+
+/** The monitoring foreground service, as the person needs to see it. */
+sealed interface ServiceState {
+    data object Running : ServiceState
+
+    /** Not started (yet), or nothing to monitor. */
+    data object NotRunning : ServiceState
+
+    /** Android refused or ended it; shown as "Monitoring stopped — tap to resume". */
+    data class Stopped(val reason: StopReason) : ServiceState
+}
+
+enum class StopReason {
+    /** Android didn't allow starting it from the background (ForegroundServiceStartNotAllowedException). */
+    StartDenied,
+}
+
 /** Whether readings are arriving from the current source. */
 sealed interface SourceStatus {
     /** Monitoring hasn't started (no alarm about missing data in this state). */
@@ -110,4 +151,13 @@ interface GlucoseHub {
     )
 
     fun setSource(status: SourceStatus)
+
+    /** The sensor as shown (a follower mirrors the wearer's). */
+    fun setSensor(sensor: SensorState)
+
+    /** The alert runtime's summary (firing kinds, mute) for every surface. */
+    fun setAlerts(alerts: AlertUiState)
+
+    /** The follower's link to the wearer. */
+    fun setLink(link: LinkState?)
 }

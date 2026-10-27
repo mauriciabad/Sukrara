@@ -336,21 +336,58 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 
 ## Live notification
 
-<p>
-  <img src="img/notification/glucose.png" alt="The glucose notification: a colorized card in the range colour with the value, arrow and the time-in-range slots, and the 12 h chart with the sensor's 12d" width="400">
-</p>
+Android V1 (`:monitor`, `LiveNotification` = registered surface `notification-text`; content decided by the pure
+`LiveNotificationContent` from the hub state and the card's face rule, tests `LiveNotificationContentTest`).
+- One ongoing notification on channel `glucose` (silent, no badge), which is also the monitoring service's foreground
+  notification. Title `138 mg/dL ↗` (value struck through from 5 min, the "no trend" ring instead of an arrow); text
+  *Reading at 14:05* once the reading is late; *No readings since 14:05* from 20 min (no value, the no-readings icon).
+  Small icon = the renderer's trend arrow (`ValueGlyphs.trendIcon`), the ring, no-readings, sensor-ended or Sukrara's drop.
+- **Live Update chip** (Android 16 QPR2+ / 17, `canPostPromotedNotifications`): promoted ongoing, BigText style, never
+  colorized, no custom view; chip = the arrow icon + `setShortCriticalText("↗ 138")`. From 5 min the chip shows the
+  reading's time instead of a number (the chip can't strike text through, and a bare old number reads as current);
+  from 20 min the chip is the icon only. **Fallback** when Live Updates are off for Sukrara (system setting) or the
+  person demoted it: the same notification unpromoted (title, text, arrow icon in the shade; no chip).
+- States: *Waiting for glucose…*; *Not monitoring: no sensor yet* with *Set up sensor* (followers: *Open Sukrara*) before
+  the first reading or while setup isn't done; *Sensor ended* (wearer: tap / *Replace sensor* → sensor setup); *Sensor
+  warming up · ready at 14:05*; *Bluetooth is off: turn it on to get readings* under the value on a wearer.
+- **Tap → quick Add treatment** (`NavTargets.ACTION_QUICK_TREATMENT`, Carbs focused while a low / very-low alert fires;
+  CHANGES P9); action *Open Sukrara*. Until the quick-treatment dialog is in the build the tap opens the app.
+- Swiped away (Android 14+ lets the person dismiss a foreground notification): it is posted again (delete intent).
+- One post path (`PostGate`): the same content is never posted twice; at most one post per second, the first change
+  after a quiet second at once, a burst folded into its latest content; monotonic clock.
+- **Freshness ticker**: one exact non-waking alarm at the latest reading's next freshness step (90 s, 5 min, 20 min,
+  3 h; none when nothing will change) redraws the notification without a new reading; the widgets can listen to the same ticks.
+- Not yet in V1 (issues): the renderer's colorized card with the graph (chip off; waits for `GlucoseCard`), MetricStyle
+  slots on Android 17, mmol/L.
+- **States and exits**: *Live Update chip* → turn off in Android's per-app Live Updates setting (or demote it from the
+  chip) → plain notification; back on in the same setting. *Notification swiped away* → it comes back (it is the
+  monitoring service's; turning off the `glucose` channel in Android's settings hides it, the app's home still shows
+  the value). *Not monitoring* → *Set up sensor* (notification action, home) → sensor setup; leaves on the first reading.
+  *Sensor ended* → *Replace sensor*. *Bluetooth off* → turn Bluetooth on (Quick Settings) → readings resume on their
+  own. TalkBack reads the title (value, unit, arrow) and the text.
 
+## Monitoring (service, restarts, stopped)
 
-- Chip off (or Live Updates unavailable): a colorized foreground-service card (background = range colour, grey once the value is struck through; ink black or white by contrast) with a custom layout inside the system's decoration.
-- The value row is the card's header as the one renderer draws it on every card (`GlucoseCard`, `CardPart.HEADER`; registered surface `notification`, parts header + graph): value, arrow or "no trend" ring, the late reading's time, the status pill (`Eat carbs`, `Take insulin`, the mute's `45m left`; the same pill as the widgets and the app, 2026-10-21: the notification used to have its own value row without it) and the slots (same choice as the home widgets: `GraphConfig.slots`, ring count, last-treatment slot and fallback) right-aligned. On the card's colour the value, trend and time are drawn in the card's ink (black or white) instead of the range colour.
-- Collapsed (≤ 48 dp): that row 48 dp tall. Expanded: the row 64 dp tall; below it the graph (notification window, default 12 h) at the content column's full width, 96 dp tall, on a rounded surface (surface container high, light/dark), scaled uniformly (never stretched).
-- Slot discs: each slot on a disc of the light surface (surface container high, light) with the light palette in both themes, as the card's colour doesn't follow the theme either (2026-10-21: dark discs looked heavy on the bright card); as many as fit beside the value (≤ 4).
-- The follower/state line ("1 follower · 1 nearby") is the header's sub text beside "Sukrara", not a row of its own.
-- Android 12+ keeps custom content in the column right of the icon and clips it there (a −52 dp margin was cut off on API 36; Android 17's column starts at 72 dp): nothing can be drawn under the icon, so the card is kept short instead.
-- One post path (`GlucoseNotification.post`, `PostGate`): the same content (reading, detail line, switches, minute, sensor life, treatments, graph / alert settings, theme, locale) is never posted again; at most one post per second, the first change after a quiet second at once (a new value is never late), a burst (a BLE backfill sends a history packet every few ms) conflated into its latest content at the end of the second. Screen on and SystemUI's re-post bypass the dedupe, not the rate. Keeps Android's ~5 posts/s per app limit ("enqueue rate … Shedding") out of reach. The gate runs on the monotonic clock (`elapsedRealtime`) and never waits longer than its second: on the wall clock a time set back (round 22) held every later post, so the notification stayed at *waiting for glucose…*. At the service's start the role's state takes the newest stored reading (`Live.seed`), so after a restart the notification shows *No reading since …* / the struck value, not *waiting for glucose…*; a treatment logged, deleted or received, and a mute from an alert notification, redraw it at once (its marks and slots; the status pill), not at the next reading.
-- Pictures (graph + slots) are cached per reading / 5-min tick / theme / treatments / graph and alert settings, and not redrawn while the screen is off.
-- Grouping (rounds 52–53, `core/NotifGroups`, checked with `dumpsys notification --noredact` on the API 36 and API 37 emulators, chip on and off): Android 16+ bundles an app's ungrouped notifications once two share a shade section (alerting = importance ≥ default, silent = below; `g:Aggregate_AlertingSection` / `g:Aggregate_SilentSection`), and (AOSP `GroupHelper`, flag `notification_force_group_singletons`, not active on either emulator image) three app groups with 1–2 children each in one section. Until 0.11.52 *High glucose* sat in a `2` / `3` bundle with *Sensor ready* or the warm-up countdown. Since 0.11.53 every notification goes through `NotifGroups`: **all glucose alerts in Sukrara's alert group** (`app.mauri.sukrara.ALERTS`, its own summary that never alerts: each alert still rings, vibrates and peeks as itself), **everything else in the alerting section in the info group** (`app.mauri.sukrara.INFO`: sensor reminders, *Sensor ready*, *Sensor ended*, *Pen reads*, *Pen doses to check*, access requests, a follower's status), and only two ungrouped: this card (alone in the silent section; not groupable at all while colorized) and the sensor countdown Live Update (warm-up or end, never both). So no alert is ever bundled with anything but another alert: two alerts at once (high + rising fast) show as one Sukrara group of 2 with both titles and values readable (expand for the buttons); one alert shows alone. A summary goes with its last child (cancel, tap, swipe, or a child's timeout through its delete intent). The unused low-importance `service` channel is deleted. Pinned by `NotifGroupsTest` (every channel's importance, every notification's group, summaries, and that nothing calls `notify` around `NotifGroups`).
-- Chip on (Android 17 Live Update, MetricStyle): metrics = value (mg/dL, semantic colour by range), then the slots as text (`86%` · `in range 1d`, `6.7%` · `GMI 14d`, `4.5u` · `12m ago`), three metrics in all; once the reading is late its time takes the last one. The trend is the chip's arrow and the title's word.
+Android V1 (`:monitor`: `GlucoseHubImpl`, `MonitoringService`, `MonitorStarter`, `MonitorReceiver`, `HealthCheck`;
+tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
+- One `connectedDevice` foreground service for both roles hosts the role's one reading source; START_STICKY.
+- Started from: opening the app, boot, app update, time / time-zone change, the **health check** (an exact wake-up
+  every 15 min on the monotonic clock that restarts the service when there is something to monitor), the alert check
+  (chunk 11), and the *Resume* notice. Nothing starts when setup isn't done or nothing is set up to monitor.
+- **Monitoring starts at the first reading** of the current source (remembered across restarts). Before that every
+  surface says *Not monitoring: no sensor yet* and no "no data" alarm can be armed (CHANGES P3). Only removing the
+  sensor or changing the role (explicit actions) go back to *Not monitoring*.
+- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock is dropped
+  (it would look fresh for too long); the gap then shows and alarms as no data. The hub keeps the last 24 h for every surface.
+- Bluetooth off → the wearer sees *Bluetooth is off*; on → the source reconnects with a fresh connection.
+- **Monitoring stopped**: when Android refuses to start the service (background start not allowed, permission) the
+  hub says Stopped and a notification on `status` says *Monitoring stopped* · *No glucose readings or alerts until it
+  runs again. Tap to resume.* with *Resume*.
+- **States and exits**: *Running* → (Android kills it) → START_STICKY / the health check bring it back within 15 min.
+  *Stopped* → tap the notice or *Resume* (starts it; a notification tap is an allowed start), or open the app; the
+  notice goes away once it runs. The in-app banner for Stopped / Not monitoring (visible without notifications) is the
+  home screen's (chunk 16). *Not monitoring* → *Set up sensor* / finish setup → first reading.
+- Not yet: Direct Boot (after a reboot nothing runs until the first unlock; issue).
 
 ## Lock screen widget
 

@@ -24,7 +24,9 @@ import app.mauri.sukrara.sensor.libre3.Libre3Security
 import app.mauri.sukrara.sensor.pairing.Pairing
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.PairingStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -43,7 +45,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.Instant
 
 /**
@@ -72,9 +73,12 @@ class SourceManager internal constructor(
         /** No reading for this long on a running (not warming, not ended) Libre 3 → restart the link. */
         const val WATCHDOG_MS = 10 * 60_000L
         private const val WATCHDOG_TICK_MS = 60_000L
+
+        /** A source that failed unexpectedly, or a secure store that was busy, is started again after this long. */
+        const val RECOVERY_MS = 30_000L
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher + CoroutineExceptionHandler { _, e -> log("sensor task failed: $e") })
     private val readingsOut = Channel<List<Reading>>(Channel.UNLIMITED)
     private val restarts = MutableStateFlow(0)
     private val _detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
@@ -85,6 +89,9 @@ class SourceManager internal constructor(
     private var latestReading: Instant? = null
     private var link: GattLink? = null
     private var started: Job? = null
+
+    /** The newest live life count per sensor serial: a restarted driver never reports it again as a new reading. */
+    private var lastLifeCount: Pair<String, Int>? = null
 
     override val readings: Flow<List<Reading>> = readingsOut.receiveAsFlow()
     override val sensor: StateFlow<SensorState> = _sensor.asStateFlow()
@@ -102,9 +109,19 @@ class SourceManager internal constructor(
         started = scope.launch {
             combine(kind.distinctUntilChanged(), restarts) { k, _ -> k }.collectLatest { k ->
                 resetState()
-                when (k) {
-                    SensorSourceKind.Libre3 -> runLibre3()
-                    SensorSourceKind.Juggluco -> runJuggluco()
+                try {
+                    when (k) {
+                        SensorSourceKind.Libre3 -> runLibre3()
+                        SensorSourceKind.Juggluco -> runJuggluco()
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // never leave the person without a source because of an unexpected failure: say so, start again
+                    log("source failed: ${e.javaClass.simpleName}")
+                    interrupted()
+                    delay(RECOVERY_MS)
+                    retry()
                 }
             }
         }
@@ -137,7 +154,14 @@ class SourceManager internal constructor(
         val core = security ?: return publish(SensorStatus.CoreMissing)
         val pairing = when (val load = pairings.load()) {
             PairingLoad.None -> return publish(SensorStatus.NoSensor)
-            is PairingLoad.Corrupt -> return publish(SensorStatus.PairingUnreadable(load.reason))
+            is PairingLoad.Corrupt -> {
+                publish(SensorStatus.PairingUnreadable(load.reason))
+                if (load.transient) {
+                    delay(RECOVERY_MS) // the Keystore was busy: try again by itself
+                    retry()
+                }
+                return
+            }
             is PairingLoad.Ok -> load.pairing
         }
         info = pairing.info
@@ -147,7 +171,8 @@ class SourceManager internal constructor(
         _status.value = SourceStatus.Connecting
         coroutineScope {
             val events = Libre3Events(pairing)
-            val driver = Libre3Driver(pairing, events, core, clockMs = { clock.now().toEpochMilli() }, log = log)
+            val known = lastLifeCount?.takeIf { it.first == pairing.serial }?.second ?: -1
+            val driver = Libre3Driver(pairing, events, core, clockMs = { clock.now().toEpochMilli() }, log = log, lastLifeCount = known)
             val l = GattLink(connector, pairing.address, driver, events, this, log = log)
             link = l
             val startedAt = clock.now()
@@ -190,11 +215,12 @@ class SourceManager internal constructor(
             if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor) interrupted()
         }
 
-        override fun onReading(reading: Reading) = deliver(listOf(reading))
+        override fun onReading(reading: Reading) = deliver(listOf(reading), live = true)
 
-        override fun onHistory(readings: List<Reading>) = deliver(readings)
+        override fun onHistory(readings: List<Reading>) = deliver(readings, live = false)
 
         override fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {
+            current?.let { lastLifeCount = pairing.serial to it.lifeCount }
             _sensorGlucose.tryEmit(current to history)
         }
 
@@ -209,7 +235,7 @@ class SourceManager internal constructor(
         }
 
         override fun onPairingState(state: ByteArray) {
-            scope.launch { pairings.setAuthorization(pairing.serial, state) }
+            scope.launch { pairings.setAuthorization(pairing, state) }
         }
 
         override fun onOwnershipLost(serial: String) = publish(SensorStatus.OwnedByAnotherApp(showcaseInstalled()))
@@ -222,8 +248,8 @@ class SourceManager internal constructor(
         _status.value = SourceStatus.Connecting
         val source = juggluco()
         val sink = object : JugglucoSink {
-            override fun onReadings(readings: List<Reading>) {
-                scope.launch { deliver(readings) }
+            override fun onReadings(readings: List<Reading>, live: Boolean) {
+                scope.launch { deliver(readings, live) }
             }
 
             override fun onStatus(status: JugglucoStatus) {
@@ -240,10 +266,16 @@ class SourceManager internal constructor(
                 }
             }
         }
-        try {
-            withContext(io) { source.run(sink) }
-        } finally {
-            source.cancelCall()
+        // The blocking SSE read only ends when its call is cancelled: run it in its own job and cancel the call as soon
+        // as this source is cancelled (a switch, a restart, stop), so the next source never waits for it.
+        coroutineScope {
+            val reader = launch(io) { source.run(sink) }
+            try {
+                reader.join()
+            } finally {
+                source.cancelCall()
+                reader.cancel()
+            }
         }
     }
 
@@ -255,12 +287,13 @@ class SourceManager internal constructor(
         _status.value = SourceStatus.NotStarted
     }
 
-    private fun deliver(readings: List<Reading>) {
+    /** [live] = the sensor's current value (marks the source live); otherwise history / backfill. */
+    private fun deliver(readings: List<Reading>, live: Boolean) {
         if (readings.isEmpty()) return
         readingsOut.trySend(readings)
         val newest = readings.maxOf { it.t }
         if (latestReading == null || newest > latestReading) latestReading = newest
-        if (readings.size == 1) _status.value = SourceStatus.Live(newest)
+        if (live) _status.value = SourceStatus.Live(newest)
         refreshSensor()
     }
 

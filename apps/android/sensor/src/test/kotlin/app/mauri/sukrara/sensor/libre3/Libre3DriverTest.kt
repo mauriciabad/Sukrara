@@ -183,12 +183,14 @@ class Libre3DriverTest {
         }
     }
 
-    private inner class Session(kAuth: ByteArray? = savedAuth) {
+    private inner class Session(kAuth: ByteArray? = savedAuth, lastLifeCount: Int = -1) {
         val link = FakeLink()
         val events = FakeEvents()
         val security = FakeSecurity()
         var clockMs = nowMs
-        val driver = Libre3Driver(pairing(kAuth), events, security, clockMs = { clockMs }, random = { it.fill(0xAB.toByte()) })
+        val driver = Libre3Driver(
+            pairing(kAuth), events, security, clockMs = { clockMs }, random = { it.fill(0xAB.toByte()) }, lastLifeCount = lastLifeCount,
+        )
         val allChars = setOf(
             CH_COMMAND, CH_CHALLENGE, CH_CERT, Libre3Protocol.CH_PATCH_CONTROL, CH_PATCH_STATUS, Libre3Protocol.CH_EVENT_LOG,
             CH_GLUCOSE, CH_HISTORIC, Libre3Protocol.CH_CLINICAL, Libre3Protocol.CH_FACTORY,
@@ -218,7 +220,7 @@ class Libre3DriverTest {
         }
     }
 
-    private fun reading(epochSec: Long, mgdl: Int, rate: Float?) = Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Libre3)
+    private fun reading(epochSec: Long, mgdl: Int, rate: Double?) = Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Libre3)
 
     /** The 40-byte challenge reply as three 20-byte frames: LE16 offset + 18 bytes, zero padded. */
     private val replyFrames = listOf(
@@ -296,7 +298,7 @@ class Libre3DriverTest {
         assertEquals(listOf("cancel"), s.link.take())
         assertEquals(LinkStatus.Live, s.events.lastStatus())
         val now = nowMs / 1000
-        assertEquals(listOf(reading(now, 121, 0.5f)), s.events.readings)
+        assertEquals(listOf(reading(now, 121, 0.5)), s.events.readings)
         assertEquals(listOf(listOf(reading(start + 60L * 996, 118, null))), s.events.history)
         assertEquals(
             listOf(SensorGlucose(1000, 121, now, 0.5) to listOf(SensorGlucose(995, 118, start + 60L * 996))),
@@ -310,6 +312,18 @@ class Libre3DriverTest {
         s.packet(CH_GLUCOSE, hex("e903" + "7800" + "0080" + "00000000" + "0000" + "0000" + "00" + "0000") + ByteArray(12), 33, 7)
         assertNull(s.events.readings.last().rateMgdlPerMin)
         assertEquals(120, s.events.readings.last().mgdl)
+    }
+
+    /** A restarted driver (watchdog, Bluetooth on) doesn't report the last life count again as a new reading. */
+    @Test
+    fun aRestartedDriverDoesNotRepeatTheLastValue() {
+        val s = Session(lastLifeCount = 1000)
+        s.connect()
+        s.challenge()
+        s.packet(CH_GLUCOSE, hex("e803" + "7800" + "3200" + "00000000" + "e303" + "7600" + "00" + "7900") + ByteArray(12), 33, 5)
+        assertTrue(s.events.readings.isEmpty())
+        s.packet(CH_GLUCOSE, hex("e903" + "7800" + "3200" + "00000000" + "e303" + "7600" + "00" + "7900") + ByteArray(12), 33, 6)
+        assertEquals(1, s.events.readings.size)
     }
 
     /** Out-of-range values are dropped and do NOT stop the glucose timer: a stream of them ends in a reconnect, not silence. */

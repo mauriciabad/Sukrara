@@ -20,7 +20,8 @@
     </queries>
 
     <application>
-        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 12/18. -->
+        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 18
+             adds the activity (it hands the tag to NfcPairing). -->
         <activity
             android:name=".SensorTapActivity"
             android:enabled="false"

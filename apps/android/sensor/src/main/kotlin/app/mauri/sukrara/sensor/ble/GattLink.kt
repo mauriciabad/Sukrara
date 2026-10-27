@@ -18,9 +18,11 @@ import java.util.UUID
  * - every operation and the service discovery time out after [opTimeoutMs] → the driver is told and drops the link;
  * - a dropped link is closed at once and a NEW connection is made after a backoff (1 s, doubling to 30 s, reset when
  *   the sensor sends data) — never `connect()` on a stale `BluetoothGatt`;
- * - Bluetooth off → everything closed, [LinkStatus.WaitingForBluetooth], no retries; [bluetoothOn] → a new connection;
+ * - Bluetooth off → everything closed, [LinkStatus.WaitingForBluetooth], no retries (Bluetooth on: the source starts a
+ *   new link and driver);
  * - callbacks of a closed connection (late or duplicated by the stack) are ignored by their generation;
- * - a revoked Nearby devices permission → [LinkStatus.PermissionMissing], no retry loop.
+ * - a revoked Nearby devices permission → [LinkStatus.PermissionMissing], no retry loop; any other exception from the
+ *   stack (adapter gone, Bluetooth turning off mid-call) → treated as a dropped link, never a crash.
  *
  * Threading: [scope] runs on ONE serial dispatcher; callbacks from Binder threads are queued into an unlimited channel
  * and handled there, as are the driver and its timers. Call every public method from that dispatcher.
@@ -63,21 +65,13 @@ internal class GattLink(
 
     fun start() = connectNow()
 
-    // MARK: Bluetooth on / off (chunk 10's BluetoothStateReceiver, via the source)
-
+    /** Bluetooth went off (chunk 10's BluetoothStateReceiver, via the source): close now, no retries. */
     fun bluetoothOff() {
         if (closed) return
         bluetoothOff = true
+        reconnect?.cancel()
         drop(reconnectAfter = false)
         events.onStatus(LinkStatus.WaitingForBluetooth)
-    }
-
-    fun bluetoothOn() {
-        if (closed || connection != null) return
-        bluetoothOff = false
-        reconnect?.cancel()
-        backoffMs = FIRST_BACKOFF_MS
-        connectNow()
     }
 
     // MARK: BleLink
@@ -129,12 +123,7 @@ internal class GattLink(
         }
     }
 
-    /** Close the current connection now; reconnect with a new one after the backoff unless closing / Bluetooth off. */
-    private fun drop(reconnectAfter: Boolean) {
-        val hadConnection = connection != null
-        teardown()
-        if (hadConnection) driver.onDisconnected()
-        if (!reconnectAfter || closed || bluetoothOff) return
+    private fun scheduleReconnect() {
         events.onStatus(LinkStatus.WaitingForSensor)
         val wait = backoffMs
         backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
@@ -143,6 +132,15 @@ internal class GattLink(
             delay(wait)
             connectNow()
         }
+    }
+
+    /** Close the current connection now; reconnect with a new one after the backoff unless closing / Bluetooth off. */
+    private fun drop(reconnectAfter: Boolean) {
+        val hadConnection = connection != null
+        teardown()
+        if (hadConnection) driver.onDisconnected()
+        if (!reconnectAfter || closed || bluetoothOff) return
+        scheduleReconnect()
     }
 
     private fun teardown() {
@@ -220,17 +218,20 @@ internal class GattLink(
         }
     }
 
-    /** Runs a Bluetooth call; a revoked permission stops the link with a state the person can act on. */
+    /**
+     * Runs a Bluetooth call. A revoked permission stops the link with a state the person can act on; anything else
+     * the stack throws is a dropped link (reconnect with backoff), never an exception that would stop the source.
+     */
     private inline fun guarded(block: () -> Unit) {
         try {
             block()
-        } catch (e: SecurityException) {
+        } catch (_: SecurityException) {
             log("Bluetooth permission missing")
-            closed = true
-            reconnect?.cancel()
-            teardown()
-            driver.onClosed()
+            close()
             events.onStatus(LinkStatus.PermissionMissing)
+        } catch (e: Exception) {
+            log("Bluetooth call failed: ${e.javaClass.simpleName}")
+            if (connection != null) drop(reconnectAfter = true) else if (!closed && !bluetoothOff) scheduleReconnect()
         }
     }
 }

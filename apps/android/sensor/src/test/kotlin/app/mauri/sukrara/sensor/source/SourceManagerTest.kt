@@ -16,7 +16,15 @@ import app.mauri.sukrara.sensor.juggluco.JugglucoStatus
 import app.mauri.sukrara.sensor.libre3.Libre3Security
 import app.mauri.sukrara.sensor.pairing.Pairing
 import app.mauri.sukrara.sensor.pairing.PairingStore
+import com.sun.net.httpserver.HttpServer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import java.net.InetSocketAddress
+import java.time.ZoneOffset
+import java.util.concurrent.Executors
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -193,6 +201,40 @@ class SourceManagerTest {
         assertTrue((r.manager.detail.value as SensorStatus.Juggluco).status !is JugglucoStatus.Live)
         r.manager.stop()
         runCurrent()
+    }
+
+    /** A switch away from Juggluco must not wait for its open live stream (it never ends by itself). Real threads. */
+    @Test
+    fun switchingAwayFromAnOpenJugglucoStreamIsImmediate(): Unit = runBlocking {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        fun respond(path: String, body: String, holdOpen: Boolean = false) = server.createContext(path) { ex ->
+            val out = body.encodeToByteArray()
+            ex.sendResponseHeaders(200, if (holdOpen) 0 else out.size.toLong())
+            ex.responseBody.write(out)
+            ex.responseBody.flush()
+            if (holdOpen) runCatching { Thread.sleep(60_000) }
+            ex.responseBody.close()
+        }
+        respond("/api/v1/entries.json", "[]")
+        respond("/sgv.json", "[]")
+        respond("/x/live", "event: glucose\ndata: {\"timestamp\":1760776860,\"glucoseMgDl\":121,\"sensorId\":1}\n\n", holdOpen = true)
+        server.executor = Executors.newCachedThreadPool()
+        server.start()
+        val kind = MutableStateFlow(SensorSourceKind.Juggluco)
+        val manager = SourceManager(
+            kind, PairingStore(InMemorySecureStore()), NoSecurity, FakeConnector(),
+            juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { ZoneOffset.UTC } },
+            showcaseInstalled = { false }, clock = FakeClock(), dispatcher = Dispatchers.Default.limitedParallelism(1), io = Dispatchers.IO,
+        )
+        try {
+            manager.start()
+            withTimeout(10_000) { manager.status.first { it is SourceStatus.Live } }
+            kind.value = SensorSourceKind.Libre3
+            withTimeout(5_000) { manager.detail.first { it == SensorStatus.NoSensor } }
+        } finally {
+            manager.stop()
+            server.stop(0)
+        }
     }
 
     @Test
