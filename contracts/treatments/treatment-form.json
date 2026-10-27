@@ -1,0 +1,53 @@
+{
+ "about": "The Add treatment dialog's form → the SPEC §1 entries it saves (Android TreatmentForm.kt + TreatmentFormTest, Mac TreatmentForm in TreatmentDialog.swift + -treatmentsselftest). forms: the four fields as typed (after the input filter) → entries in save order [k, a, n]; [] = nothing to save; null = an invalid amount (Save disabled, the limits line shows). filters: what the amount fields keep of a typed text. times: the time picker on a fixed day (2026-06-15, local zone) at now → the picked time; ago_s = now − entry time in seconds, null = now (within the current minute); a time later than now is yesterday. minutes: the picker's minutes-ago mode, the field as typed (after the minute filter) → ago_s = how long before the moment of saving the entries are, null = now; invalid = OK disabled (empty, or a day or more: the same under-a-day limit as the time picker). minute_filters: what the minutes field keeps.",
+ "limits": {"units": 100, "grams": 500, "noteBytes": 100},
+ "forms": [
+  {"name": "all four at once", "rapid": "4.5", "long": "12", "carbs": "30", "note": "  Pizza ", "entries": [["rapid", 4.5, ""], ["long", 12, ""], ["carbs", 30, ""], ["note", 0, "Pizza"]]},
+  {"name": "rapid only", "rapid": "4", "long": "", "carbs": "", "note": "", "entries": [["rapid", 4, ""]]},
+  {"name": "decimal comma", "rapid": "4,5", "long": "", "carbs": "", "note": "", "entries": [["rapid", 4.5, ""]]},
+  {"name": "insulin rounds to 0.1u", "rapid": "1.25", "long": "7.04", "carbs": "", "note": "", "entries": [["rapid", 1.3, ""], ["long", 7, ""]]},
+  {"name": "carbs round to whole grams", "rapid": "", "long": "", "carbs": "30.6", "note": "", "entries": [["carbs", 31, ""]]},
+  {"name": "leading and trailing dot", "rapid": ".5", "long": "5.", "carbs": "", "note": "", "entries": [["rapid", 0.5, ""], ["long", 5, ""]]},
+  {"name": "the limits themselves", "rapid": "100", "long": "", "carbs": "500", "note": "", "entries": [["rapid", 100, ""], ["carbs", 500, ""]]},
+  {"name": "over the insulin limit", "rapid": "100.1", "long": "", "carbs": "", "note": "", "entries": null},
+  {"name": "over the carbs limit", "rapid": "", "long": "", "carbs": "501", "note": "pasta", "entries": null},
+  {"name": "zero", "rapid": "0", "long": "", "carbs": "", "note": "", "entries": null},
+  {"name": "rounds to zero", "rapid": "", "long": "", "carbs": "0.4", "note": "", "entries": null},
+  {"name": "two dots", "rapid": "1.2.3", "long": "", "carbs": "", "note": "", "entries": null},
+  {"name": "one invalid field blocks the rest", "rapid": "4", "long": "", "carbs": "0", "note": "", "entries": null},
+  {"name": "note only", "rapid": "", "long": "", "carbs": "", "note": "walk", "entries": [["note", 0, "walk"]]},
+  {"name": "blank note", "rapid": "", "long": "", "carbs": "", "note": "   ", "entries": []},
+  {"name": "empty", "rapid": "", "long": "", "carbs": "", "note": "", "entries": []},
+  {"name": "note clipped to 100 bytes", "rapid": "", "long": "", "carbs": "", "note": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé", "entries": [["note", 0, "éééééééééééééééééééééééééééééééééééééééééééééééééé"]]}
+ ],
+ "filters": [
+  {"in": "4.5u", "out": "4.5"},
+  {"in": "1,5 g", "out": "1,5"},
+  {"in": "123456", "out": "12345"},
+  {"in": "-3", "out": "3"}
+ ],
+ "minutes": [
+  {"typed": "16", "ago_s": 960},
+  {"typed": "1", "ago_s": 60},
+  {"typed": "0", "ago_s": null},
+  {"typed": "0016", "ago_s": 960},
+  {"typed": "60", "ago_s": 3600},
+  {"typed": "1439", "ago_s": 86340},
+  {"typed": "1440", "invalid": true},
+  {"typed": "", "invalid": true}
+ ],
+ "minute_filters": [
+  {"in": "16 min", "out": "16"},
+  {"in": "-5", "out": "5"},
+  {"in": "1.5", "out": "15"},
+  {"in": "12345", "out": "1234"}
+ ],
+ "times": [
+  {"now": "14:30:20", "pick": "14:30", "ago_s": null},
+  {"now": "14:30:20", "pick": "14:29", "ago_s": 80},
+  {"now": "14:30:20", "pick": "14:00", "ago_s": 1820},
+  {"now": "14:30:20", "pick": "00:00", "ago_s": 52220},
+  {"now": "14:30:20", "pick": "14:31", "ago_s": 86360},
+  {"now": "14:30:20", "pick": "23:59", "ago_s": 52280}
+ ]
+}

@@ -1,0 +1,28 @@
+# Alert scenarios: the alert rules as timelines, run on the real engines (Android AlertScenarioTest, Mac
+# -alerts-selftest). Format and driver: spikes/alerts/SPEC.md §7. Every change to the alert rules adds or updates one.
+
+scenario The user's timeline (2026-10-18): carbs during a low, brief exits keep the episode
+settings low.repeat=5 carbs.mute=5
+ 0  glucose 69   => Low glucose
+ 3  carbs 5      => clear low                 # logging carbs removes the alert
+ 5               => nothing                   # would have been the repeat: the count starts at the carbs now
+ 8               => Low glucose · eat more    # their window ends, still low: at once
+10               => nothing
+13               => Low glucose · eat more
+14  carbs 5      => clear low
+15  glucose 70   => nothing                   # 70 is in range (lows are strictly below), same episode
+16  glucose 69   => nothing                   # quiet until the second carbs' window ends
+19               => Low glucose · eat more again
+20  glucose 70   => clear low
+21  glucose 69   => nothing                   # out for a minute: the repeat still counts from 19
+24               => Low glucose · eat more again
+25
+
+scenario The user's settings with a reading every 5 min: the timer alerts when the carbs' window ends
+ 0  readings every 5, glucose 65  => Low glucose
+ 3  carbs 15                      => clear low
+18                                => Low glucose · eat more   # between the readings at 15 and 20
+23                                => Low glucose · eat more
+28                                => Low glucose · eat more
+30  glucose 90                    => clear low
+40
