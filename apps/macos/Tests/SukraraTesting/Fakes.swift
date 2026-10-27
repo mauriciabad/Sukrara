@@ -6,7 +6,7 @@ import SukraraCore
 import Synchronization
 
 /// A clock tests set and advance.
-public final class FakeClock: Clock {
+public final class FakeClock: TimeSource {
     private let current: Mutex<Date>
 
     public init(_ start: Date = Date(timeIntervalSince1970: 1_800_000_000)) {
@@ -41,15 +41,15 @@ public actor InMemoryReadingsStore: ReadingsStoring {
 }
 
 public actor InMemoryTreatmentStore: TreatmentStoring {
-    private var log: TreatmentLog
+    private var log: FollowedTreatments
 
-    public init(_ log: TreatmentLog = TreatmentLog()) {
+    public init(_ log: FollowedTreatments = FollowedTreatments()) {
         self.log = log
     }
 
-    public func load() -> TreatmentLog { log }
-    public func save(_ log: TreatmentLog) { self.log = log }
-    public func removeAll() { log = TreatmentLog() }
+    public func load() -> FollowedTreatments { log }
+    public func save(_ log: FollowedTreatments) { self.log = log }
+    public func removeAll() { log = FollowedTreatments() }
     public var issue: StoreIssue? { nil }
 }
 

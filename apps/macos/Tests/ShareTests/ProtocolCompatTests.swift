@@ -69,7 +69,7 @@ struct ProtocolCompatTests {
 
         let log = try await h.stores.treatments.load()
         let gotTreatments = log.entries.values.map(\.treatment).sorted { $0.id < $1.id }.map {
-            JSONText.encode(["id": $0.id, "k": $0.kind, "a": $0.amount, "u": $0.u, "o": $0.origin, "del": $0.deleted])
+            JSONText.encode(["id": $0.id, "k": $0.k.rawValue, "a": $0.a, "u": $0.u, "o": $0.o.rawValue, "del": $0.del])
         }
         let wantTreatments = (expected["treatments"] as! [[String: Any]]).map {
             JSONText.encode($0.merging(["a": JSONNumber.double($0["a"]) ?? 0]) { $1 })

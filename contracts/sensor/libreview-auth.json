@@ -1,0 +1,35 @@
+{
+  "_about": "Synthetic LibreLinkUp login answers (POST /llu/auth/login) and what they mean, for the receiver-ID sign-in (Android LibreViewAccount). No real account: the user id is the PoC's test GUID; the receiver ID is Juggluco's getlibreaccountidnumber() of it.",
+  "cases": [
+    {
+      "name": "signed in",
+      "body": {"status": 0, "data": {"user": {"id": "01234567-89ab-cdef-0123-456789abcdef", "firstName": "Test", "country": "ES"}, "authTicket": {"token": "SYNTHETIC", "expires": 1800000000, "duration": 15552000000}}},
+      "expect": {"kind": "account", "accountId": "01234567-89ab-cdef-0123-456789abcdef", "receiverId": 3078366504}
+    },
+    {
+      "name": "regional redirect",
+      "body": {"status": 0, "data": {"redirect": true, "region": "eu"}},
+      "expect": {"kind": "redirect", "region": "eu"}
+    },
+    {
+      "name": "wrong email or password",
+      "body": {"status": 2, "error": {"message": "notAuthenticated"}},
+      "expect": {"kind": "badCredentials"}
+    },
+    {
+      "name": "terms to accept",
+      "body": {"status": 4, "data": {"step": {"type": "tou", "componentName": "AcceptDocument"}}},
+      "expect": {"kind": "acceptTerms"}
+    },
+    {
+      "name": "user id of the wrong length",
+      "body": {"status": 0, "data": {"user": {"id": "short"}}},
+      "expect": {"kind": "failed"}
+    },
+    {
+      "name": "redirect to a host that isn't a region",
+      "body": {"status": 0, "data": {"redirect": true, "region": "evil.example.com/"}},
+      "expect": {"kind": "failed"}
+    }
+  ]
+}

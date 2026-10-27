@@ -4,6 +4,7 @@
 import Foundation
 import SukraraApp
 import SukraraCore
+import SukraraGraph
 import SukraraTesting
 import Testing
 
@@ -31,10 +32,13 @@ struct WidgetFeedTests {
         let clock = FakeClock(start)
         var reloaded: [[String]] = []
         let feed = WidgetFeed(file: file, clock: clock, reload: { reloaded.append($0) })
-        let snapshot = GlucoseSnapshot(readings: [Reading(t: start, mgdl: 120)])
+        let data = CardData(
+            readings: [GraphReading(t: start.timeIntervalSince1970, v: 120)], now: start.timeIntervalSince1970)
+        let snapshot = WidgetSnapshot(
+            writtenAt: start.timeIntervalSince1970, data: data, config: GraphConfig(), unit: .mgdl)
         feed.update(snapshot, shown: .init(value: "120", state: following))
         feed.update(snapshot, shown: .init(value: "120", state: following))
-        #expect(try JSONDecoder().decode(GlucoseSnapshot.self, from: Data(contentsOf: file)) == snapshot)
+        #expect(WidgetSnapshot.decode(try Data(contentsOf: file)) == snapshot)
         #expect(reloaded == [SukraraIDs.WidgetKind.all])
         #expect(feed.reloadCount == 1)
     }

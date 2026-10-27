@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import SukraraCore
+import SukraraGraph
 import WidgetKit
 import os
 
@@ -60,7 +61,7 @@ public final class WidgetFeed {
 
     private static let log = Logger(subsystem: SukraraIDs.appBundleID, category: "widget")
     private let file: URL?
-    private let clock: any Clock
+    private let clock: any TimeSource
     private let reload: Reloader
     private var policy = WidgetReloadPolicy()
     private var pending: Task<Void, Never>?
@@ -70,7 +71,7 @@ public final class WidgetFeed {
 
     /// `file`: the snapshot file (default: the App Group container from Info.plist `SukraraAppGroup`).
     public init(
-        file: URL? = WidgetFeed.appGroupFile(), clock: any Clock = SystemClock(),
+        file: URL? = WidgetFeed.appGroupFile(), clock: any TimeSource = SystemClock(),
         reload: @escaping Reloader = { kinds in kinds.forEach { WidgetCenter.shared.reloadTimelines(ofKind: $0) } }
     ) {
         self.file = file
@@ -85,12 +86,12 @@ public final class WidgetFeed {
     }
 
     /// The app's current card data and what the widget would show for it.
-    public func update(_ snapshot: GlucoseSnapshot, shown: WidgetReloadPolicy.Shown) {
+    public func update(_ snapshot: WidgetSnapshot, shown: WidgetReloadPolicy.Shown) {
         guard let file else { return }
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(snapshot).write(to: file, options: [.atomic])
+            try snapshot.encoded().write(to: file, options: [.atomic])
         } catch {
             issue = "Can't write the widget data"
             Self.log.error("widget snapshot not written: \(error.localizedDescription, privacy: .public)")

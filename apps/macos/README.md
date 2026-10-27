@@ -24,8 +24,8 @@ Install only with `tools/install.sh mac` (never copy `build/Sukrara.app` into `~
 
 | Target | What | Notes |
 |---|---|---|
-| `SukraraCore` | ids, paths, models, store protocols, settings spec | nonisolated, extension-safe |
-| `SukraraGraph` | the one card renderer | extension-safe |
+| `SukraraCore` | ids, paths, models (reading, unit, trend, treatment + merge), durations, CSV export, store protocols, settings spec | nonisolated, extension-safe |
+| `SukraraGraph` | the one card renderer: `GlucoseCard.image` / `draw` / `face` / `accessibilityLabel` over `CardData`, `CardSurface.style`, `WidgetSnapshot` | extension-safe; tested over `contracts/graph` |
 | `SukraraAlerts` | the alert engine (pure, `contracts/alerts`) | |
 | `SukraraShare` | protocol v2, relays, nearby (NostrSDK 0.45.1) | every transport behind a protocol |
 | `SukraraApp` | AppDelegate, `AppModel`, windows, `LaunchPlan` | MainActor by default |

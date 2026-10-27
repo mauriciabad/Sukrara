@@ -78,11 +78,10 @@ struct StoreTests {
 
     @Test func treatmentsRoundTripAndCorruption() async throws {
         let store = TreatmentFileStore(directory: directory, clock: clock)
-        let entry = TreatmentLog.Entry(
-            treatment: Treatment(
-                id: "a", kind: "rapid", amount: 2, t: 1_800_000_000, note: "", u: 1, deleted: false, origin: "follower"),
+        let entry = FollowedTreatments.Entry(
+            treatment: Treatment(id: "a", k: .rapid, a: 2, t: 1_800_000_000, u: 1, o: .follower),
             creator: "f", delivery: .sending, sentEventId: "e")
-        try await store.save(TreatmentLog(entries: ["a": entry]))
+        try await store.save(FollowedTreatments(entries: ["a": entry]))
         let reopened = TreatmentFileStore(directory: directory, clock: clock)
         #expect(await reopened.load().entries["a"] == entry)
         #expect(await reopened.load().unsentCount == 1)

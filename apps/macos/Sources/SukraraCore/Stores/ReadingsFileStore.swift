@@ -19,12 +19,12 @@ public actor ReadingsFileStore: ReadingsStoring {
     private static let compactEvery: TimeInterval = 3600
 
     public let url: URL
-    private let clock: any Clock
+    private let clock: any TimeSource
     private var cache: [Reading]?
     private var lastCompaction = Date.distantPast
     public private(set) var issue: StoreIssue?
 
-    public init(directory: URL, clock: any Clock = SystemClock()) {
+    public init(directory: URL, clock: any TimeSource = SystemClock()) {
         url = directory.appending(path: Self.fileName, directoryHint: .notDirectory)
         self.clock = clock
     }
@@ -112,7 +112,8 @@ public actor ReadingsFileStore: ReadingsStoring {
 
     static func encode(_ reading: Reading) -> String {
         let millis = Int64((reading.t.timeIntervalSince1970 * 1000).rounded())
-        return "\(millis),\(reading.mgdl),\(reading.rate.map { String($0) } ?? "")"
+        let rate = reading.rate.map { String($0) } ?? ""
+        return "\(millis),\(reading.mgdl),\(rate)"  // card-ok: readings.csv storage format, never shown
     }
 
     static func decode(_ line: Substring) -> Reading? {

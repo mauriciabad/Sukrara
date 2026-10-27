@@ -22,7 +22,7 @@ public struct FollowerStores: Sendable {
         self.settings = settings
     }
 
-    public static func files(_ paths: SukraraPaths, clock: any Clock) -> FollowerStores {
+    public static func files(_ paths: SukraraPaths, clock: any TimeSource) -> FollowerStores {
         FollowerStores(
             readings: ReadingsFileStore(directory: paths.appSupport, clock: clock),
             treatments: TreatmentFileStore(directory: paths.appSupport, clock: clock),
@@ -50,7 +50,7 @@ public actor FollowerRuntime: FollowerService {
     private let account: String
     private let stores: FollowerStores
     private let crypto: any NostrCrypto
-    private let clock: any Clock
+    private let clock: any TimeSource
     private let me: Profile
     private let makeRelays: RelayFactory
     private let makeNearby: NearbyFactory?
@@ -85,7 +85,7 @@ public actor FollowerRuntime: FollowerService {
 
     public init(
         secrets: any SecretStoring, account: String = KeychainStore.followerAccount, stores: FollowerStores,
-        crypto: any NostrCrypto, clock: any Clock, me: Profile, makeRelays: @escaping RelayFactory,
+        crypto: any NostrCrypto, clock: any TimeSource, me: Profile, makeRelays: @escaping RelayFactory,
         makeNearby: NearbyFactory? = nil,
         sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     ) {
@@ -217,7 +217,7 @@ public actor FollowerRuntime: FollowerService {
     /// Fetches the invite wrap for `link` (`#p` = the invite key) and opens it; waits up to 25 s on a live subscription
     /// (the phone shows the link before its wrap reaches the relays).
     private static func lookUpInvite(
-        _ link: InviteLink, on relays: any RelayLink, crypto: any NostrCrypto, clock: any Clock,
+        _ link: InviteLink, on relays: any RelayLink, crypto: any NostrCrypto, clock: any TimeSource,
         sleep: @escaping @Sendable (Double) async throws -> Void
     ) async -> Result<Invite, FollowerJoinError> {
         guard let invitePub = try? crypto.publicKey(of: link.inviteKey) else { return .failure(.invalidLink) }
@@ -467,12 +467,14 @@ public actor FollowerRuntime: FollowerService {
     private func store(treatment payload: TreatmentPayload, fromWearer: Bool, creator: String, generation started: Int)
         async
     {
-        guard var log = try? await stores.treatments.load(), generation == started else { return }
+        guard var log = try? await stores.treatments.load(), generation == started,
+            let treatment = Self.treatment(payload)
+        else { return }
         let held = log.entries[payload.id]
         var delivery = held?.delivery
         if fromWearer, let held, held.delivery != nil, payload.u >= held.treatment.u { delivery = .accepted }
-        log.entries[payload.id] = TreatmentLog.Entry(
-            treatment: Self.treatment(payload), creator: creator, delivery: delivery, sentEventId: held?.sentEventId)
+        log.entries[payload.id] = FollowedTreatments.Entry(
+            treatment: treatment, creator: creator, delivery: delivery, sentEventId: held?.sentEventId)
         try? await stores.treatments.save(log)
     }
 
@@ -481,11 +483,11 @@ public actor FollowerRuntime: FollowerService {
     public func send(_ treatment: Treatment) async -> TreatmentSendResult {
         guard var session, session.canWrite else { return .notAllowed }
         var entry = treatment
-        entry.origin = "follower"
+        entry.o = .follower
         guard let event = try? session.treatmentEvent(Self.payload(entry), now: now) else { return .notAllowed }
         self.session = session
         guard var log = try? await stores.treatments.load() else { return .notAllowed }
-        log.entries[entry.id] = TreatmentLog.Entry(
+        log.entries[entry.id] = FollowedTreatments.Entry(
             treatment: entry, creator: session.followerPublicKey, delivery: .sending, sentEventId: event.id)
         try? await stores.treatments.save(log)
         await publish(event)
@@ -586,14 +588,14 @@ public actor FollowerRuntime: FollowerService {
             }
         }
         let since = clock.now.addingTimeInterval(-Self.snapshotWindow)
-        let log = (try? await stores.treatments.load()) ?? TreatmentLog()
+        let log = (try? await stores.treatments.load()) ?? FollowedTreatments()
         let issues = [
             await stores.readings.issue, await stores.treatments.issue, await stores.sensor.issue,
             await stores.settings.issue,
         ].compactMap { $0 }
         let snapshot = FollowerSnapshot(
             link: link, readings: (try? await stores.readings.load(since: since)) ?? [],
-            sensor: await stores.sensor.load(), treatments: log.visible, unsentTreatments: log.unsentCount,
+            sensor: await stores.sensor.load(), treatments: log.log.live.reversed(), unsentTreatments: log.unsentCount,
             wearerSettings: await stores.settings.load(), storeIssues: issues, nearby: nearbyState,
             nearbyOffer: session == nil ? nearbyOffer : nil)
         guard snapshot != current else { return }
@@ -607,17 +609,21 @@ public actor FollowerRuntime: FollowerService {
         Reading(t: Date(timeIntervalSince1970: Double(wire.t)), mgdl: wire.sgv, rate: wire.rate)
     }
 
-    static func treatment(_ p: TreatmentPayload) -> Treatment {
-        Treatment(
-            id: p.id, kind: p.kind, amount: p.amount, t: p.t, note: p.note, u: p.u, deleted: p.deleted,
-            origin: p.origin, primed: p.primed, pen: p.pen,
-            doses: p.doses?.map { Treatment.Dose(t: $0.t, a: $0.a, primed: $0.primed) })
+    /// nil for an entry Core's model refuses (unknown kind or origin): it is not stored.
+    static func treatment(_ p: TreatmentPayload) -> Treatment? {
+        guard let kind = Treatment.Kind(rawValue: p.kind), let origin = Treatment.Origin(rawValue: p.origin) else {
+            return nil
+        }
+        return Treatment(
+            id: p.id, k: kind, a: p.amount, t: Int64(p.t), n: p.note, u: Int64(p.u), del: p.deleted, o: origin,
+            pr: p.primed, pen: p.pen,
+            pd: p.doses?.map { Treatment.PenDose(t: Int64($0.t), a: $0.a, p: $0.primed ?? false) })
     }
 
     static func payload(_ t: Treatment) -> TreatmentPayload {
         TreatmentPayload(
-            id: t.id, kind: t.kind, amount: t.amount, t: t.t, note: t.note, u: t.u, deleted: t.deleted,
-            origin: t.origin, primed: t.primed, pen: t.pen,
-            doses: t.doses?.map { TreatmentPayload.Dose(t: $0.t, a: $0.a, primed: $0.primed) })
+            id: t.id, kind: t.k.rawValue, amount: t.a, t: Int(t.t), note: t.n, u: Int(t.u), deleted: t.del,
+            origin: t.o.rawValue, primed: t.pr, pen: t.pen,
+            doses: t.pd?.map { TreatmentPayload.Dose(t: Int($0.t), a: $0.a, primed: $0.p) })
     }
 }

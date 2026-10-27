@@ -161,8 +161,8 @@ struct FollowerRuntimeTests {
         await hub.inject(v.event("roster-1-writer"))
         #expect(await eventually { await runtime.currentLinkIsWriter() })
         let entry = Treatment(
-            id: "0b9e3f52-7c1d-4e8a-9f60-123456789abd", kind: "rapid", amount: 2, t: v.now - 60, note: "",
-            u: v.now * 1000, deleted: false, origin: "follower")
+            id: "0b9e3f52-7c1d-4e8a-9f60-123456789abd", k: .rapid, a: 2, t: Int64(v.now - 60),
+            u: Int64(v.now) * 1000, o: .follower)
         #expect(await runtime.send(entry) == .sending)
         // FakeRelay answers OK true at once → sent.
         #expect(await eventually { (try? await h.stores.treatments.load().entries[entry.id]?.delivery) == .sent })

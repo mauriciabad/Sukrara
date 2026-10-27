@@ -17,8 +17,8 @@ public protocol ReadingsStoring: Sendable {
 
 /// The treatment log under `SukraraPaths.appSupport` (`TreatmentFileStore`).
 public protocol TreatmentStoring: Sendable {
-    func load() async throws -> TreatmentLog
-    func save(_ log: TreatmentLog) async throws
+    func load() async throws -> FollowedTreatments
+    func save(_ log: FollowedTreatments) async throws
     /// Forgets every entry (unfollow).
     func removeAll() async throws
     /// The file was unreadable and moved aside (shown to the person).

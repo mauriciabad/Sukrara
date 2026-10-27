@@ -22,7 +22,7 @@ public final class AppModel {
     }
 
     /// The menu bar title, from the one card renderer.
-    public var statusTitle: String { GlucoseCard.face(glucose) }
+    public var statusTitle: String { GlucoseCard.face(glucose, surface: .menubarTitle) }
 
     /// Why there is no value, in words (the menu's first line and the status item's VoiceOver label), or nil when
     /// a value is shown.

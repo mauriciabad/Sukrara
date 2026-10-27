@@ -24,10 +24,10 @@ enum StoreFiles {
 /// file is quarantined and reported (`issue`), then treated as absent.
 public actor JSONFileStore<Value: Codable & Sendable> {
     public let url: URL
-    private let clock: any Clock
+    private let clock: any TimeSource
     public private(set) var issue: StoreIssue?
 
-    public init(url: URL, clock: any Clock = SystemClock()) {
+    public init(url: URL, clock: any TimeSource = SystemClock()) {
         self.url = url
         self.clock = clock
     }
