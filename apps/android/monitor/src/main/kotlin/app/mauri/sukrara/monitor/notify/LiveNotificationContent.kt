@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.model.NotMonitoringReason
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.monitor.R
 import java.time.Instant
@@ -127,13 +128,14 @@ data class LiveNotificationContent(
         ): LiveNotificationContent {
             val reading = state.latest!!
             val arrow = if (look.trend == TrendMark.ARROW) arrow(look.rate) else TrendMark.RING
-            // The chip can't strike text through: from 5 min it shows the reading's time (with the ring icon) instead
-            // of a bare number that would read as current.
+            // The chip's arrow is its icon (the renderer's), never a text arrow too: two arrows could disagree. It can't
+            // strike text through: from 5 min it shows the reading's time (with the ring icon) instead of a bare number
+            // that would read as current.
             val chip =
                 if (look.strike) {
                     UiText(R.string.monitor_chip_stale, listOf(reading.t))
                 } else {
-                    UiText(R.string.monitor_chip_value, listOf(arrow, look.text!!))
+                    UiText(R.string.monitor_chip_value, listOf(look.text!!))
                 }
             return LiveNotificationContent(
                 title = UiText(R.string.monitor_notif_value, listOf(look.text!!, arrow)),
@@ -179,17 +181,7 @@ data class LiveNotificationContent(
                 focusCarbs = state.alerts.firingKinds.any { it in LOW_KINDS },
             )
 
-        /** The arrow character for a trend rate (mg/dL/min): text places only (icons use the renderer's arrow). */
-        fun arrow(rate: Double?): String =
-            when {
-                rate == null -> TrendMark.RING
-                rate >= 3.0 -> "⇈"
-                rate >= 2.0 -> "↑"
-                rate >= 1.0 -> "↗"
-                rate > -1.0 -> "→"
-                rate > -2.0 -> "↘"
-                rate > -3.0 -> "↓"
-                else -> "⇊"
-            }
+        /** The arrow character for a trend rate (mg/dL/min), the ring without one: text places only. */
+        fun arrow(rate: Double?): String = rate?.let(TrendAngle::symbol) ?: TrendMark.RING
     }
 }

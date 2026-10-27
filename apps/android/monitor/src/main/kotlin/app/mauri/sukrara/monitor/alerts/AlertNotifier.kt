@@ -19,6 +19,7 @@ import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.graph.Clock
+import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.monitor.AlertActionReceiver
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.NotificationGroups
@@ -186,16 +187,7 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
         fun kindLabel(ctx: Context, kind: AlertKind): String =
             ctx.getString(ctx.resources.getIdentifier("alert_kind_${kind.wire}", "string", ctx.packageName))
 
-        /** The trend arrow of a rate in mg/dL/min (the Nightscout direction bands). */
-        fun arrow(rate: Double?): String = when {
-            rate == null -> ""
-            rate <= -3 -> "⇊"
-            rate <= -2 -> "↓"
-            rate <= -1 -> "↘"
-            rate < 1 -> "→"
-            rate < 2 -> "↗"
-            rate < 3 -> "↑"
-            else -> "⇈"
-        }
+        /** The trend arrow of a rate in mg/dL/min (THE text arrow, [TrendAngle.symbol]); none without a rate. */
+        fun arrow(rate: Double?): String = rate?.let(TrendAngle::symbol).orEmpty()
     }
 }

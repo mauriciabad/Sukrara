@@ -82,22 +82,42 @@ class AndroidAlertReadiness(
         val pkg = "package:${ctx.packageName}".toUri()
         val intent =
             when (requirement) {
-                AlertRequirement.Notifications -> appNotificationSettings()
-                AlertRequirement.FullScreenIntent -> Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, pkg)
-                AlertRequirement.ExactAlarm -> Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkg)
-                AlertRequirement.BatteryExemption ->
+                AlertRequirement.Notifications -> {
+                    appNotificationSettings()
+                }
+
+                AlertRequirement.FullScreenIntent -> {
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, pkg)
+                }
+
+                AlertRequirement.ExactAlarm -> {
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkg)
+                }
+
+                AlertRequirement.BatteryExemption -> {
                     if (ctx.getSystemService(ActivityManager::class.java).isBackgroundRestricted) {
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
                     } else {
                         // REQUEST_IGNORE_BATTERY_OPTIMIZATIONS is declared: a CGM's alerts are the accepted use case
                         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg)
                     }
+                }
+
                 // the channel page holds both the importance and "Override Do Not Disturb"
-                AlertRequirement.AlertChannel ->
+                AlertRequirement.AlertChannel -> {
                     channelsInUse(last.settings).firstOrNull { it.silenced() || it.blockedByDnd() }?.let { channelSettings(it.id) }
                         ?: appNotificationSettings()
-                AlertRequirement.Bluetooth ->
-                    if (bluetoothPermitted()) Intent(Settings.ACTION_BLUETOOTH_SETTINGS) else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
+                }
+
+                AlertRequirement.Bluetooth -> {
+                    if (bluetoothPermitted()) {
+                        Intent(
+                            Settings.ACTION_BLUETOOTH_SETTINGS,
+                        )
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
+                    }
+                }
             }
         start(intent) || start(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
     }
@@ -142,10 +162,17 @@ class AndroidAlertReadiness(
     private fun NotificationChannel.blockedByDnd(): Boolean {
         if (id !in ALARM_CHANNELS) return false
         return when (nm.currentInterruptionFilter) {
-            NotificationManager.INTERRUPTION_FILTER_NONE -> true
-            NotificationManager.INTERRUPTION_FILTER_PRIORITY ->
+            NotificationManager.INTERRUPTION_FILTER_NONE -> {
+                true
+            }
+
+            NotificationManager.INTERRUPTION_FILTER_PRIORITY -> {
                 !canBypassDnd() && nm.notificationPolicy.priorityCategories and NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS == 0
-            else -> false
+            }
+
+            else -> {
+                false
+            }
         }
     }
 
@@ -178,7 +205,10 @@ class AndroidAlertReadiness(
             awaitClose { ctx.unregisterReceiver(receiver) }
         }.onStart { emit(Unit) }
 
-    private fun appNotificationSettings() = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+    private fun appNotificationSettings() =
+        Intent(
+            Settings.ACTION_APP_NOTIFICATION_SETTINGS,
+        ).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
 
     private fun channelSettings(id: String) =
         Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)

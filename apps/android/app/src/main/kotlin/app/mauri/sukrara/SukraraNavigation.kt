@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
@@ -35,6 +37,8 @@ import app.mauri.sukrara.feature.home.HomeViewModel
 import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
+import app.mauri.sukrara.feature.settings.SettingsRoute
+import app.mauri.sukrara.feature.settings.SettingsScreen
 import app.mauri.sukrara.feature.sharing.SetupScreen
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.serialization.Serializable
@@ -48,6 +52,39 @@ data object SetupRoute : NavKey
 
 @Serializable
 data object DataProblemsRoute : NavKey
+
+/** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
+@Serializable
+data class SettingsKey(
+    val page: String,
+    val kind: String? = null,
+) : NavKey {
+    fun route(): SettingsRoute =
+        when (page) {
+            "alerts" -> SettingsRoute.Alerts
+            "kind" -> kind?.let(AlertKind::fromWire)?.let(SettingsRoute::AlertKindPage) ?: SettingsRoute.Alerts
+            "ranges" -> SettingsRoute.Ranges
+            "graph" -> SettingsRoute.Graph
+            "reliability" -> SettingsRoute.Reliability
+            "about" -> SettingsRoute.About
+            "review" -> SettingsRoute.ThresholdReview
+            else -> SettingsRoute.Overview
+        }
+
+    companion object {
+        fun of(route: SettingsRoute): SettingsKey =
+            when (route) {
+                SettingsRoute.Overview -> SettingsKey("overview")
+                SettingsRoute.Alerts -> SettingsKey("alerts")
+                is SettingsRoute.AlertKindPage -> SettingsKey("kind", route.kind.wire)
+                SettingsRoute.Ranges -> SettingsKey("ranges")
+                SettingsRoute.Graph -> SettingsKey("graph")
+                SettingsRoute.Reliability -> SettingsKey("reliability")
+                SettingsRoute.About -> SettingsKey("about")
+                SettingsRoute.ThresholdReview -> SettingsKey("review")
+            }
+    }
+}
 
 /** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
 @Serializable
@@ -70,15 +107,16 @@ fun SukraraNavigation(
     graph: AppGraph,
     deepLink: Uri?,
     openNewSensor: Boolean,
-    onNewSensorOpened: () -> Unit,
+    onNewSensorShow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     // a request (a notification tap, also while the app is open) opens the flow once, on top of home
+    val newSensorShown by rememberUpdatedState(onNewSensorShow)
     LaunchedEffect(openNewSensor) {
         if (openNewSensor) {
             if (backStack.last() != NewSensorKey) backStack.add(NewSensorKey)
-            onNewSensorOpened()
+            newSensorShown()
         }
     }
     // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
@@ -121,6 +159,17 @@ fun SukraraNavigation(
                         onBack = { backStack.remove(LibreViewSignInKey) },
                     )
                 }
+                entry<SettingsKey> { key ->
+                    SettingsScreen(
+                        deps = graph.settingsUi.deps,
+                        route = key.route(),
+                        navigate = { backStack.add(SettingsKey.of(it)) },
+                        onBack = { backStack.remove(key) },
+                        openSensor = { backStack.add(NewSensorKey) },
+                        // the sharing pages come with chunk 24; until then setup is where sharing starts
+                        openSharing = { backStack.add(SetupRoute) },
+                    )
+                }
                 entry<DataProblemsRoute> {
                     val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
                     LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
@@ -144,6 +193,8 @@ private fun route(
 ) {
     when (action) {
         HomeAction.OpenSetup -> backStack.add(SetupRoute)
+
+        HomeAction.OpenSettings -> backStack.add(SettingsKey.of(SettingsRoute.Overview))
 
         HomeAction.PairSensor, HomeAction.OpenSensor -> backStack.add(NewSensorKey)
 

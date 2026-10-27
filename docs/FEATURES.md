@@ -290,6 +290,17 @@ the same items and order as setup's permission step) → Fix; (2) *Turn off Sukr
 widget*; (7) *Share with your clinic*. 0–3 can't be dismissed; Finish setup's close = later (back after 24 h until
 done); 5–7 close for good (typed state `home-banners`). A banner whose input isn't known on this build yet is never
 shown. Not in V1 yet: tips, the quiet all-green reliability row, the clinic report card.
+The alert checklist (Android V1, `:monitor` `AndroidAlertReadiness`, ONE instance `AlertsModule.readiness` for home's
+banner, Settings › Alert reliability and the setup step): notifications on; full-screen alerts while a kind rings like an
+alarm; exact alarms; battery exemption and not *Restricted*; the alert channels in use not blocked or below sound, and Do
+Not Disturb not silencing the alarm-level ones (total silence, or Priority without alarms and the channel not overriding
+it; a non-alarm alert in Do Not Disturb is the person's choice); Bluetooth on and allowed for the wearer's own sensor (not
+Juggluco, not followers). Re-read on every resume, on a settings / role / source change and, while a screen shows it, on
+Bluetooth, Do Not Disturb, blocked-channel and exact-alarm broadcasts. *Fix* opens the Android screen for the item (the
+channel's own page for a silenced channel or Do Not Disturb, where *Override Do Not Disturb* is).
+Role kept safe (Android V1): the role is stored twice (`role.json`, `role-backup.json`); a damaged copy is reported in the
+*Some saved data was damaged* banner and the other copy keeps the phone monitoring (never back to setup with the service
+silently stopped); the copies are brought back in line at start.
 
 **Damaged data** screen (from the banner's Review): each damaged file (store, error type, the name the damaged copy was
 kept as), *Copy report* (no content, only what failed), *Got it* (acknowledges it; the banner leaves when none is
@@ -412,7 +423,8 @@ Android V1 (`:monitor`, `LiveNotification` = registered surface `notification-te
   *Reading at 14:05* once the reading is late; *No readings since 14:05* from 20 min (no value, the no-readings icon).
   Small icon = the renderer's trend arrow (`ValueGlyphs.trendIcon`), the ring, no-readings, sensor-ended or Sukrara's drop.
 - **Live Update chip** (Android 16 QPR2+ / 17, `canPostPromotedNotifications`): promoted ongoing, BigText style, never
-  colorized, no custom view; chip = the arrow icon + `setShortCriticalText("↗ 138")`. From 5 min the chip shows the
+  colorized, no custom view; chip = the arrow icon (the renderer's) + `setShortCriticalText("138")`: no text arrow beside the icon, so the chip
+  never shows two arrows that disagree (text-only places use THE text arrow `TrendAngle.symbol`, the Mac menubar's bands). From 5 min the chip shows the
   reading's time instead of a number (the chip can't strike text through, and a bare old number reads as current);
   from 20 min the chip is the icon only. **Fallback** when Live Updates are off for Sukrara (system setting) or the
   person demoted it: the same notification unpromoted (title, text, arrow icon in the shade; no chip).

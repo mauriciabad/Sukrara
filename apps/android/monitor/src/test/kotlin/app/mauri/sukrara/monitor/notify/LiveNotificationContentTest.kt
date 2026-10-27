@@ -53,7 +53,7 @@ class LiveNotificationContentTest {
     fun `a fresh value shows value and arrow in the title and the chip, no time`() {
         val c = content(state())
         assertEquals(UiText(R.string.monitor_notif_value, listOf("138", "↗")), c.title)
-        assertEquals(UiText(R.string.monitor_chip_value, listOf("↗", "138")), c.chip)
+        assertEquals(UiText(R.string.monitor_chip_value, listOf("138")), c.chip)
         assertEquals(Icon.TREND, c.icon)
         assertEquals(1.2, c.trendRate!!, 0.0)
         assertNull(c.readingAt)
