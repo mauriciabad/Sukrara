@@ -61,6 +61,7 @@ public actor NearbyCentral: NearbyTransport {
     private var proxy: Proxy?
     private var peripheral: CBPeripheral?
     private var rxCharacteristic: CBCharacteristic?
+    private var connectedName: String?
     private var skip: [UUID: Date] = [:]
     private var lastData = Date()
     private var lastHello = Date()
@@ -83,7 +84,8 @@ public actor NearbyCentral: NearbyTransport {
         watchdog = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
-                await self?.checkSilence()
+                guard let self else { return }  // freed without stop(): end the loop
+                await self.checkSilence()
             }
         }
     }
@@ -173,7 +175,7 @@ public actor NearbyCentral: NearbyTransport {
 
     fileprivate func notifying(_ p: CBPeripheral, _ c: CBCharacteristic) {
         guard c.uuid == Self.tx, c.isNotifying else { return }
-        continuation.yield(.state(.connected(phone: p.name ?? "phone")))
+        connectedName = p.name ?? "phone"
         lastHello = Date()
         apply(
             link.connected(
@@ -225,6 +227,7 @@ public actor NearbyCentral: NearbyTransport {
         Self.log.info("nearby link dropped: \(why, privacy: .public)")
         peripheral = nil
         rxCharacteristic = nil
+        connectedName = nil
         apply(link.disconnected())
     }
 
@@ -235,7 +238,10 @@ public actor NearbyCentral: NearbyTransport {
                 guard let peripheral, let rxCharacteristic else { continue }
                 peripheral.writeValue(frame, for: rxCharacteristic, type: .withResponse)
             case .event(let event): continuation.yield(.event(event))
-            case .info(let info, let owner): continuation.yield(.info(info, owner))
+            case .info(let info, let owner):
+                // "Connected" only once the phone proved it's our wearer's (never someone else's phone).
+                if owner == .ours, let connectedName { continuation.yield(.state(.connected(phone: connectedName))) }
+                continuation.yield(.info(info, owner))
             case .sent(let token, let ok): sends.removeValue(forKey: token)?.resume(returning: ok)
             }
         }

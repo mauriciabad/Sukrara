@@ -45,6 +45,8 @@ public enum FollowerJoinError: Error, Equatable, Sendable {
     case cancelled
     /// The follower key couldn't be stored in the Keychain.
     case keychain
+    /// This Mac's follower key couldn't be made.
+    case keyFailed
 }
 
 public enum TreatmentSendResult: Equatable, Sendable {
@@ -59,7 +61,8 @@ public enum TreatmentSendResult: Equatable, Sendable {
 public protocol FollowerService: Sendable {
     /// Each call is one subscriber: the current snapshot first, then every change (only the newest is buffered).
     func snapshots() async -> AsyncStream<FollowerSnapshot>
-    /// Alerts the wearer's phone mirrors (PROTOCOL-v2 "Alerts"), deduped across restarts.
+    /// Alerts the wearer's phone mirrors (PROTOCOL-v2 "Alerts"), deduped across restarts. Not buffered for absent
+    /// subscribers: subscribe before `start()`.
     func alerts() async -> AsyncStream<AlertPayload>
     func start() async
     /// Terminal: closes every connection and saves the state.

@@ -57,6 +57,11 @@ public actor FollowerRuntime: FollowerService {
     private let sleep: @Sendable (Double) async throws -> Void
 
     private var session: FollowerSession?
+    /// Bumped when a follow begins or ends: work that awaited across that change drops its writes, so a previous
+    /// wearer's late readings or treatments never land in the next wearer's stores.
+    private var generation = 0
+    /// A join is between its lookup and its Keychain write (a second join is refused).
+    private var beginning = false
     private var link: LinkState = .notFollowing
     private var relays: (any RelayLink)?
     private var relayURLs: [String] = []
@@ -246,6 +251,9 @@ public actor FollowerRuntime: FollowerService {
     }
 
     private func begin(invite: Invite, nearby: Bool) async throws(FollowerJoinError) {
+        guard session == nil, !beginning else { throw .alreadyFollowing }
+        beginning = true
+        defer { beginning = false }
         let joined: FollowerSession
         do {
             joined = try FollowerSession.join(invite: invite, me: me, nearby: nearby, crypto: crypto, now: now)
@@ -256,8 +264,9 @@ public actor FollowerRuntime: FollowerService {
         } catch {
             link = .notFollowing
             await publishSnapshot()
-            throw .keychain
+            throw .keyFailed
         }
+        generation += 1
         await wipeStores()  // never mix a previous person's history in
         do {
             try secrets.write(try joined.state.encoded(), account: account)
@@ -278,6 +287,7 @@ public actor FollowerRuntime: FollowerService {
     // MARK: - unfollowing
 
     public func unfollow() async {
+        generation += 1
         joinTask?.cancel()
         await disconnect()
         session = nil
@@ -384,7 +394,7 @@ public actor FollowerRuntime: FollowerService {
         switch message {
         case .event(let event, _, _): await receive(event)
         case .endOfStored(let subscription, _):
-            if subscription == "chunks", historyTask == nil { scheduleHistoryCheck() }
+            if subscription == "chunks", historyTask == nil { scheduleHistoryCheck() }  // again after a reconnect
         case .ok(let eventId, let accepted, _):
             if accepted { await markSent(eventId: eventId) }
         case .closed, .connection: break
@@ -413,11 +423,13 @@ public actor FollowerRuntime: FollowerService {
 
     private func receive(_ event: SignedEvent) async {
         guard var session else { return }
+        let started = generation
         let before = session.state
         let outcome = session.receive(event, now: now)
         self.session = session
         for event in outcome.publish { await publish(event) }
-        await apply(outcome.deltas)
+        await apply(outcome.deltas, generation: started)
+        guard generation == started else { return }  // unfollowed or joined someone else meanwhile
         if session.state.relays != relayURLs {
             persist(force: true)
             return await reconnect()
@@ -430,8 +442,11 @@ public actor FollowerRuntime: FollowerService {
         if !outcome.deltas.isEmpty { await publishSnapshot() }
     }
 
-    private func apply(_ deltas: [FollowerSession.Delta]) async {
+    /// Store writes are skipped once `generation` moved on (each check runs right before its write is enqueued on the
+    /// store actor, ahead of any later wipe).
+    private func apply(_ deltas: [FollowerSession.Delta], generation started: Int) async {
         for delta in deltas {
+            guard generation == started else { return }
             switch delta {
             case .readings(let readings):
                 try? await stores.readings.merge(readings.map(Self.reading))
@@ -441,7 +456,7 @@ public actor FollowerRuntime: FollowerService {
             case .alert(let alert):
                 for continuation in alertSubscribers.values { continuation.yield(alert) }
             case .treatment(let payload, let fromWearer, let creator, _):
-                await store(treatment: payload, fromWearer: fromWearer, creator: creator)
+                await store(treatment: payload, fromWearer: fromWearer, creator: creator, generation: started)
             case .settings(let settings):
                 try? await stores.settings.save(MirroredSettings(u: settings.u, json: settings.json))
             case .status, .roster: break
@@ -449,8 +464,10 @@ public actor FollowerRuntime: FollowerService {
         }
     }
 
-    private func store(treatment payload: TreatmentPayload, fromWearer: Bool, creator: String) async {
-        guard var log = try? await stores.treatments.load() else { return }
+    private func store(treatment payload: TreatmentPayload, fromWearer: Bool, creator: String, generation started: Int)
+        async
+    {
+        guard var log = try? await stores.treatments.load(), generation == started else { return }
         let held = log.entries[payload.id]
         var delivery = held?.delivery
         if fromWearer, let held, held.delivery != nil, payload.u >= held.treatment.u { delivery = .accepted }
@@ -487,16 +504,21 @@ public actor FollowerRuntime: FollowerService {
 
     /// Entries still `sending` after a restart are signed again (a new `created_at`) and re-sent.
     private func resendUnsentTreatments() async {
-        guard var session, session.canWrite, var log = try? await stores.treatments.load() else { return }
-        var changed = false
+        let started = generation
+        guard var log = try? await stores.treatments.load(), generation == started,
+            var session = self.session, session.canWrite
+        else { return }
+        // Sign everything before the next await, so the session written back is the current one.
+        var events: [SignedEvent] = []
         for (id, entry) in log.entries where entry.delivery == .sending {
             guard let event = try? session.treatmentEvent(Self.payload(entry.treatment), now: now) else { continue }
             log.entries[id]?.sentEventId = event.id
-            changed = true
-            await publish(event)
+            events.append(event)
         }
+        guard !events.isEmpty else { return }
         self.session = session
-        if changed { try? await stores.treatments.save(log) }
+        try? await stores.treatments.save(log)
+        for event in events { await publish(event) }
     }
 
     // MARK: - history
@@ -509,8 +531,11 @@ public actor FollowerRuntime: FollowerService {
                 do { try await sleep(Self.historyDelay) } catch { return }
                 await self?.checkHistory()
             }
+            await self?.historyCheckDone()
         }
     }
+
+    private func historyCheckDone() { historyTask = nil }
 
     private func checkHistory() async {
         guard let session, session.state.status == .active else { return }

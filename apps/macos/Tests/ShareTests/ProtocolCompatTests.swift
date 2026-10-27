@@ -42,6 +42,13 @@ struct ProtocolCompatTests {
             await eventually { (try? await h.stores.readings.load(since: .distantPast).count) == wantReadings },
             "\(name) readings")
 
+        let wantDevices = expected["devices"] as? [String]
+        let wantStatus = expected["status"] as? String
+        #expect(
+            await eventually {
+                let state = try? secrets.read(account: KeychainStore.followerAccount).map(FollowerState.decode)
+                return state?.devices == wantDevices && state?.status.rawValue == wantStatus
+            }, "\(name) saved state")
         let saved = try FollowerState.decode(try #require(try secrets.read(account: KeychainStore.followerAccount)))
         #expect(saved.status.rawValue == expected["status"] as? String, "\(name)")
         #expect(saved.epochs.map(\.n).sorted() == expected["epochs"] as? [Int], "\(name)")
