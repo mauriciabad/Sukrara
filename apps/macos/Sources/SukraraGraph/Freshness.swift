@@ -25,6 +25,26 @@ public enum Freshness: Sendable {
     var strike: Bool { self == .stale }
     var showGraph: Bool { self != .gone }
 
+    /// What a card WITHOUT a value (graph-only) shows of its data's age, so it never looks current when it isn't
+    /// (contracts/graph/freshness `graph_only`; Freshness.kt AgeMark): the same steps as the value's time, strike and
+    /// "no readings".
+    enum AgeMark: String, Sendable {
+        case none, time, dimmed, noReadings = "no_readings", face
+        /// The chart's opacity while dimmed.
+        static let dimAlpha: CGFloat = 0.4
+        var dims: Bool { self == .dimmed || self == .noReadings }
+    }
+
+    var ageMark: AgeMark {
+        switch self {
+        case .fresh: .none
+        case .late: .time
+        case .stale: .dimmed
+        case .old: .noReadings
+        case .gone: .face
+        }
+    }
+
     /// The next age at which `of` changes (for a one-shot timer / timeline entry).
     static func nextChange(age: TimeInterval) -> TimeInterval? {
         [lateS, staleS, oldS, goneS].first { $0 >= age }.map { $0 + 1 }

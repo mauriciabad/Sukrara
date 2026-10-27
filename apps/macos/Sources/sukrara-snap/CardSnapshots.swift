@@ -36,12 +36,12 @@
                         // mmol/L for the states with a value worth comparing; mg/dL for all
                         let units: [GlucoseUnit] = ["live", "low", "stale"].contains(state) ? [.mgdl, .mmol] : [.mgdl]
                         for unit in units {
-                            for dark in [false, true] {
+                            for (dark, tinted) in looks(surface, state: state, unit: unit) {
                                 let name =
                                     "\(surface.rawValue)-\(Int(size.width))x\(Int(size.height))-\(state)-\(unit.rawValue)-"
-                                    + "\(dark ? "dark" : "light").png"
+                                    + "\(dark ? "dark" : "light")\(tinted ? "-tinted" : "").png"
                                 try write(
-                                    surface, size: size, data: data, unit: unit, dark: dark,
+                                    surface, size: size, data: data, unit: unit, dark: dark, tinted: tinted,
                                     to: dir.appending(path: name))
                                 count += 1
                             }
@@ -50,6 +50,16 @@
                 }
             }
             return count
+        }
+
+        /// Light and dark; a widget also in the tinted rendering modes (accented / vibrant: the renderer's tinted
+        /// palette) for the states that matter most at a glance: live, struck through and hidden.
+        private static func looks(_ surface: CardSurface, state: String, unit: GlucoseUnit)
+            -> [(dark: Bool, tinted: Bool)]
+        {
+            let widget = [CardSurface.widgetValue, .widgetGraph, .widgetCombined].contains(surface)
+            let tinted = widget && unit == .mgdl && ["live", "stale", "noreadings"].contains(state)
+            return [(false, false), (true, false)] + (tinted ? [(false, true), (true, true)] : [])
         }
 
         private static func states(now: TimeInterval) -> [(String, CardData)] {
@@ -91,13 +101,14 @@
         }
 
         private static func write(
-            _ surface: CardSurface, size: CGSize, data: CardData, unit: GlucoseUnit, dark: Bool, to url: URL
+            _ surface: CardSurface, size: CGSize, data: CardData, unit: GlucoseUnit, dark: Bool, tinted: Bool,
+            to url: URL
         ) throws {
             // the widget's own background around the card, as the system draws it
             guard
                 let card = GlucoseCard.image(
                     surface: surface, size: size, config: GraphConfig(), data: data, unit: unit, dark: dark,
-                    overflow: 12),
+                    tinted: tinted, overflow: 12),
                 let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
             else { throw SnapError.render(url.lastPathComponent) }
             let w = card.width, h = card.height

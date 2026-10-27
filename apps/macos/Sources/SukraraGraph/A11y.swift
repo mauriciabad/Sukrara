@@ -15,6 +15,8 @@ public struct CardWords: Sendable {
     let band: (veryLow: String, low: String, inRange: String, high: String, veryHigh: String, extremelyHigh: String)
     let noReadings: String
     let noReadingSince: @Sendable (String) -> String
+    /// A card without a value: when its data is from (the graph widgets, `Freshness.AgeMark`).
+    let lastReading: @Sendable (String) -> String
     let chart: @Sendable (_ hours: Int, _ inRange: Int, _ below: Int, _ above: Int) -> String
     let chartEmpty: @Sendable (_ hours: Int) -> String
     let warmingUp, sensorEnded: String
@@ -30,6 +32,7 @@ public struct CardWords: Sendable {
         trend: ("trend unknown", "steady", "rising", "rising fast", "falling", "falling fast"),
         band: ("very low", "low", "in range", "high", "very high", "extremely high"),
         noReadings: "Glucose: no readings yet", noReadingSince: { "Glucose: no reading since \($0)" },
+        lastReading: { "Glucose: last reading \($0)" },
         chart: { "Last \($0) hours: \($1)% in range, \($2)% below, \($3)% above" },
         chartEmpty: { "Last \($0) hours: no data" },
         warmingUp: "Warming up", sensorEnded: "Sensor ended. Replace sensor",
@@ -44,6 +47,7 @@ public struct CardWords: Sendable {
         trend: ("tendencia desconocida", "estable", "subiendo", "subiendo rápido", "bajando", "bajando rápido"),
         band: ("muy baja", "baja", "en rango", "alta", "muy alta", "extremadamente alta"),
         noReadings: "Glucosa: aún no hay lecturas", noReadingSince: { "Glucosa: sin lecturas desde \($0)" },
+        lastReading: { "Glucosa: última lectura \($0)" },
         chart: { "Últimas \($0) horas: \($1)% en rango, \($2)% por debajo, \($3)% por encima" },
         chartEmpty: { "Últimas \($0) horas: sin datos" },
         warmingUp: "Calentando", sensorEnded: "Sensor terminado. Cambiar sensor",
@@ -138,8 +142,24 @@ enum A11y {
     static func card(_ data: CardData, unit: GlucoseUnit, surface: CardSurface, style: CardStyle, words: CardWords)
         -> String
     {
-        let value = style.value || surface.glyph ? value(data, unit: unit, surface: surface, style: style, words: words) : nil
+        let value =
+            style.value || surface.glyph
+            ? value(data, unit: unit, surface: surface, style: style, words: words) : age(data, words: words)
         let chart = surface.glyph ? nil : style.graph.map { chart(data, $0, words: words) }
         return [value, chart].compactMap { $0 }.joined(separator: ". ")
+    }
+
+    /// A card without a value says how old its chart is, as the picture does (`Freshness.AgeMark`): nothing while
+    /// fresh, "last reading 9:50" from 91 s, "old reading" too from 5 min, "no reading since 9:50" from 20 min (and
+    /// once the chart is gone), "no readings yet" without any.
+    static func age(_ data: CardData, words w: CardWords) -> String? {
+        guard let t = data.latest?.t else { return w.noReadings }
+        let time = Freshness.timeText(t, now: data.now)
+        switch Freshness.of(age: data.now - t).ageMark {
+        case .none: return nil
+        case .time: return w.lastReading(time)
+        case .dimmed: return "\(w.lastReading(time)), \(w.old)"
+        case .noReadings, .face: return w.noReadingSince(time)
+        }
     }
 }
