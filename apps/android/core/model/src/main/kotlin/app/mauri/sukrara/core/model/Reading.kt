@@ -12,7 +12,7 @@ import java.time.Instant
 data class Reading(
     val t: Instant,
     val mgdl: Int,
-    val rateMgdlPerMin: Float?,
+    val rateMgdlPerMin: Double?,
     val source: SourceId,
 )
 
