@@ -229,9 +229,10 @@ by the app's icon code.</sub>
 - When Add Treatment isn't available (waiting for approval, or the wearer hasn't let this Mac add entries), the panel
   says why right under it.
 - Treatments sync with the phone in 1–2 s and can go to LibreView too. [04](docs/04-libreview.md)
-- Desktop and Notification Center widgets (value, graph, graph + value) with the same card, redrawn every minute.
-  They need a build signed with an Apple certificate: a free Apple ID works on your own Mac, others need Developer
-  ID. [13](docs/13-macos-widgets.md)
+- Desktop and Notification Center widgets (Glucose, Glucose graph, Glucose + graph) with the same card. They age
+  by themselves (struck through at 5 min, no value at 20 min) and a tap opens Add treatment. They need a build signed
+  with an Apple certificate: a free Apple ID works on your own Mac, others need Developer ID. After switching from
+  the showcase, remove the showcase's widgets and add Sukrara's. [13](docs/13-macos-widgets.md)
 
 **Sharing and family**
 - Share with a short link (63 characters) or a small QR code, optionally labelled with who it's for. Opening it shows

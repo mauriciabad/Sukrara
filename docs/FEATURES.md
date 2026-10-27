@@ -462,6 +462,36 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
 - Slots right of the lock icon use the same choice as the home widgets (`appSlots`: rings, report numbers, last treatment, fallback), main rightmost, as many as fit (≤ 4).
 - The treatment dialog its tap opens counts down while the phone is locked ([Treatments](#treatments), lock-screen countdown); *Time to save* is on the same Settings → Lock screen page, in its own group *Add treatment on the lock screen*, enabled with or without the module (the countdown also covers the rootless entry points). The overview's *Lock screen* row ends with *· 20 s to save*.
 
+## Mac widgets
+
+- Three desktop / Notification Center widgets in `Sukrara.app/Contents/PlugIns/SukraraWidget.appex` (bundle
+  `app.mauri.sukrara.widget`): **Glucose** (`app.mauri.sukrara.widget.value`: value, trend, badge, rings; small,
+  medium), **Glucose graph** (`….graph`: the chart with time in range beside it; small to extra large), **Glucose +
+  graph** (`….combined`: the whole card; small to extra large). Names in English or Spanish by the system language.
+- Each draws the card of its registered surface (`widget-value`, `widget-graph`, `widget-combined`) through the one
+  renderer (`GlucoseCard.image`), with the app's graph settings, unit and the alert decision from the snapshot. Light
+  and dark follow the system; the tinted modes (accented / vibrant) use the renderer's tinted palette; the system's
+  margins and container background.
+- Data: only `glucose.json` in the App Group `QWUV9H4A3G.app.mauri.sukrara` (the group from the appex's Info.plist
+  `SukraraAppGroup`), written by the app (`WidgetFeed`). No network, no other file, no log file. An unreadable file or
+  another format version shows *Open Sukrara* (no number). The gallery shows the real snapshot, or *Open Sukrara*:
+  never a sample value.
+- Honest age without the app: the timeline (`WidgetTimeline`) has an entry at each freshness step of the latest
+  reading (time shown from 91 s, struck through from 5 min, no value from 20 min, no chart from 3 h), at every mute's
+  end with a minute tick in its last hour (the badge counts down), and at the sensor's warm-up end and end; WidgetKit
+  asks again only after the last one. The app reloads the widgets only when the shown value or state changes, at most
+  once every 5 min for a new value; a state change (no data, alert, mute) reloads at once (`WidgetReloadPolicy`).
+- VoiceOver: the card's sentence and chart summary (`GlucoseCard.accessibilityLabel`), or *Glucose: no data. Open
+  Sukrara.*
+- A tap opens quick Add treatment (`sukrara://treatment/new`); with no data it opens the app (`sukrara://open`).
+- The showcase's widgets (`dev.spike.glucose.*`) can stay placed next to these; remove them after switching.
+
+**States and exits**: *showing a value* → ages by itself to struck through / *No reading since* / no chart; a new
+reading from the app brings the value back. *Open Sukrara* (no snapshot) → open the app (tap) and set up or follow;
+the app's first write replaces it. *Muted* badge → counts down and leaves at the mute's end; the ways out are in the
+app (Alerts › States and exits). *Add treatment* (tap) → *Cancel* / Escape closes it with nothing saved. A widget is
+removed or resized from the desktop's *Edit Widgets* (system). No widget state blocks anything.
+
 ## Sensor reminders and countdowns
 
 Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`); followers get none of these. Settings → **Sensor end**.
