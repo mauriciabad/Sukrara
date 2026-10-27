@@ -29,17 +29,33 @@ struct SyncFixtureTests {
             code: "0000", nearby: false, me: Profile(name: "Mac", avatar: nil), wearer: nil,
             relays: Wire.defaultRelays)
         state.status = .requested
-        var session = try FollowerSession(state: state, crypto: NostrSDKCrypto())
+        let crypto = NostrSDKCrypto()
+        var session = try FollowerSession(state: state, crypto: crypto)
+        let identitySecret = try #require(
+            keys.values.first { $0["pub"] == fixture["identity"] as? String }.flatMap { SecretKeyHex($0["sec"]!) })
         let events = fixture["events"] as! [String: Any]
         var readings: [Int: WireReading] = [:]
         var treatments: [String: TreatmentPayload] = [:]
         var sensor: SensorLife?
         var settings: SettingsPayload?
         var alerts = 0
-        for (i, step) in (fixture["steps"] as! [[String: String]]).enumerated() {
-            let event = try #require(SignedEvent.decode(json: JSONText.encode(events[step["event"]!]!)))
+        for (i, step) in (fixture["steps"] as! [[String: Any]]).enumerated() {
+            if step["restart"] as? Bool == true {
+                // A relaunch: the state goes through the Keychain format; seen ids and rekey throttles are forgotten.
+                session = try FollowerSession(state: FollowerState.decode(session.state.encoded()), crypto: crypto)
+                continue
+            }
+            let label = "\(name) step \(i) \(step["event"] as! String)"
+            let event = try #require(SignedEvent.decode(json: JSONText.encode(events[step["event"] as! String]!)))
             let outcome = session.receive(event, now: now)
-            #expect(outcome.verdict.description == step["expect"], "\(name) step \(i) \(step["event"]!)")
+            #expect(outcome.verdict.description == step["expect"] as? String, "\(label)")
+            let have = try outcome.publish.map { wrap in
+                let body = try JSONSerialization.jsonObject(
+                    with: Data(try crypto.unwrap(wrap, with: identitySecret).content.utf8)) as? [String: Any]
+                #expect(body?["type"] as? String == "rekey", "\(label)")
+                return body?["have"] as? String
+            }
+            #expect(have == ((step["rekey"] as? String).map { [$0] } ?? []), "\(label) rekey")
             for delta in outcome.deltas {
                 switch delta {
                 case .readings(let rs): for r in rs where readings[r.t] == nil { readings[r.t] = r }

@@ -16,12 +16,17 @@ struct RuntimeHarness {
     let stores: FollowerStores
     let runtime: FollowerRuntime
 
-    init(now: Int, hub: FakeRelayHub = FakeRelayHub(), secrets: any SecretStoring = InMemorySecretStore()) {
+    /// `directory`: an earlier harness's, to relaunch on the same stores.
+    init(
+        now: Int, hub: FakeRelayHub = FakeRelayHub(), secrets: any SecretStoring = InMemorySecretStore(),
+        directory: URL? = nil
+    ) {
         self.hub = hub
         self.secrets = secrets
         clock = FakeClock(Date(timeIntervalSince1970: Double(now)))
-        directory = FileManager.default.temporaryDirectory.appending(path: "sukrara-runtime-\(UUID().uuidString)")
-        stores = .files(SukraraPaths(home: directory), clock: clock)
+        self.directory =
+            directory ?? FileManager.default.temporaryDirectory.appending(path: "sukrara-runtime-\(UUID().uuidString)")
+        stores = .files(SukraraPaths(home: self.directory), clock: clock)
         runtime = FollowerRuntime(
             secrets: secrets, stores: stores, crypto: NostrSDKCrypto(), clock: clock,
             me: Profile(name: "Mac", avatar: nil), makeRelays: { _, _ in hub.connect() },

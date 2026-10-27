@@ -11,7 +11,8 @@ import Testing
 /// replayed in step order through the `FollowerRuntime` (relay path, Keychain state, real file stores) and the
 /// stores must end as the fixture says. `rotation.json` is also the identity-restore case: a new device key and
 /// epoch delivered to every follower, a roster with only the new device, late rosters from the old one ignored —
-/// the link stays "following" with no action. The 0.11.53 wire format itself is pinned by the OGS vectors (Python
+/// the link stays "following" with no action. `revoke-reapprove.json` relaunches the runtime mid-sequence: a removed
+/// and re-approved Mac keeps following when the relays replay the old revoked notice. The 0.11.53 wire format itself is pinned by the OGS vectors (Python
 /// reference, `FollowerRuntimeTests.joinRequestThenFollowFillsTheStores`).
 struct ProtocolCompatTests {
     @Test(arguments: SyncFixtureTests.followerSequences)
@@ -26,16 +27,24 @@ struct ProtocolCompatTests {
         state.status = .requested
         let secrets = InMemorySecretStore()
         secrets.write(try state.encoded(), account: KeychainStore.followerAccount)
-        let h = RuntimeHarness(now: now, secrets: secrets)
-        await h.runtime.start()
+        var harness = RuntimeHarness(now: now, secrets: secrets)
+        await harness.runtime.start()
 
         let events = fixture["events"] as! [String: Any]
-        for step in fixture["steps"] as! [[String: String]] {
-            let event = try #require(SignedEvent.decode(json: JSONText.encode(events[step["event"]!]!)))
-            await h.hub.push(event)
+        for step in fixture["steps"] as! [[String: Any]] {
+            if step["restart"] as? Bool == true {
+                // A relaunch: a new runtime on the same Keychain item and stores.
+                await harness.runtime.stop()
+                harness = RuntimeHarness(now: now, hub: harness.hub, secrets: secrets, directory: harness.directory)
+                await harness.runtime.start()
+                continue
+            }
+            let event = try #require(SignedEvent.decode(json: JSONText.encode(events[step["event"] as! String]!)))
+            await harness.hub.push(event)
             // One step at a time, in order: wait until the runtime has judged it (state or stores settle).
             try await Task.sleep(for: .milliseconds(30))
         }
+        let h = harness
         let expected = fixture["expected"] as! [String: Any]
         let wantReadings = (expected["readings"] as! [[Any]]).count
         #expect(

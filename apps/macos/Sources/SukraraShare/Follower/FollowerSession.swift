@@ -199,14 +199,19 @@ public struct FollowerSession: Sendable {
         }
     }
 
+    /// Readable later, once the key arrives, so not remembered. A rekey request only when it can mean a missed
+    /// rotation: signed by the identity or a roster device (a stranger can't make us send requests) and newer than our
+    /// latest key (a backfill of old hours isn't a missed rotation), at most one per gk per 5 min. `have` = the newest
+    /// gk we hold.
     private mutating func unknownEpoch(_ event: SignedEvent, gk: String, now: Int) -> Outcome {
-        seen[event.id] = nil  // readable later, once the key arrives
+        seen[event.id] = nil
         var outcome = Outcome(.ignored("unknown-epoch"))
-        // Only the identity or a roster device can mean a missed rotation: a stranger can't make us send requests.
         let fromStream = event.pubkey == state.identity || state.devices.contains(event.pubkey)
-        guard state.status == .active, fromStream, now - (rekeyAskedAt[gk] ?? Int.min / 2) >= Wire.rekeyInterval,
+        guard state.status == .active, fromStream, event.createdAt > (state.lastKeyAt ?? 0),
+            now - (rekeyAskedAt[gk] ?? Int.min / 2) >= Wire.rekeyInterval,
+            let have = epochKeys.max(by: { $0.value.n < $1.value.n })?.key,
             let request = try? messages.toOwner(
-                FollowerMessages.rekeyBody(unknownEpoch: gk), identity: state.identity, ttl: Wire.ttlRequest, now: now)
+                FollowerMessages.rekeyBody(have: have), identity: state.identity, ttl: Wire.ttlRequest, now: now)
         else { return outcome }
         rekeyAskedAt[gk] = now
         outcome.publish = [request]
@@ -337,9 +342,13 @@ public struct FollowerSession: Sendable {
         let message: ToFollowerMessage
         do { message = try ToFollowerMessage.decode(rumor.content) } catch { return Outcome(.rejected("invalid")) }
         switch message {
-        case .key(let delivery): return receiveKey(delivery)
+        case .key(let delivery): return receiveKey(delivery, sentAt: rumor.createdAt)
         case .revoked:
+            // A notice older than the newest key delivery was overtaken by a re-approval (relays replay both).
+            if rumor.createdAt < (state.lastKeyAt ?? 0) { return Outcome(.ignored("revoked-before-latest-key")) }
+            if state.status == .revoked { return Outcome(.ignored("revoked-already")) }
             state.status = .revoked
+            state.revokedAt = rumor.createdAt
             var outcome = Outcome(.accepted("revoked"))
             outcome.deltas = [.status(.revoked)]
             outcome.resubscribe = true
@@ -355,13 +364,22 @@ public struct FollowerSession: Sendable {
         }
     }
 
-    private mutating func receiveKey(_ delivery: KeyDelivery) -> Outcome {
+    /// A key delivery sealed by the identity. One newer than the revoked notice re-approves a removed follower (the
+    /// wearer invited it again), even when it carries a key already held; otherwise a removed follower stays removed.
+    private mutating func receiveKey(_ delivery: KeyDelivery, sentAt: Int) -> Outcome {
         if let sid = state.sid, sid != delivery.sid { return Outcome(.rejected("sid-changed")) }
         guard let g = try? crypto.nsecDecode(delivery.nsec), let gPub = try? crypto.publicKey(of: g) else {
             return Outcome(.rejected("invalid"))
         }
         let gk = Wire.gk(groupPublicKey: gPub)
-        guard epochKeys[gk] == nil else { return Outcome(.ignored("key-known")) }
+        let lastKeyAt = max(state.lastKeyAt ?? 0, sentAt)
+        let stillRevoked = state.status == .revoked && (state.revokedAt ?? 0) >= lastKeyAt
+        if epochKeys[gk] != nil {
+            guard state.status == .revoked, !stillRevoked else { return Outcome(.ignored("key-known")) }
+            state.lastKeyAt = lastKeyAt
+            return activated(Outcome(.accepted("key")))
+        }
+        state.lastKeyAt = lastKeyAt
         let newest = epoch ?? 0
         state.sid = delivery.sid
         state.epochs.append(.init(n: delivery.epoch, g: g))
@@ -377,11 +395,17 @@ public struct FollowerSession: Sendable {
             state.rosterCreatedAt = -1
         }
         var outcome = Outcome(.accepted("key"))
-        if state.status != .revoked && state.status != .active {
-            state.status = .active
-            outcome.deltas = [.status(.active)]
-        }
         outcome.resubscribe = true
+        return stillRevoked ? outcome : activated(outcome)
+    }
+
+    /// Status → active (re-subscribing for the stream); a status delta only when it changed.
+    private mutating func activated(_ outcome: Outcome) -> Outcome {
+        var outcome = outcome
+        outcome.resubscribe = true
+        guard state.status != .active else { return outcome }
+        state.status = .active
+        outcome.deltas.append(.status(.active))
         return outcome
     }
 

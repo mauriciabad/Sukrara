@@ -26,8 +26,9 @@ import kotlinx.serialization.json.put
  * state is written against (chunk 25 does the same into Room): first reading per `t` wins, the newest live event's
  * sensor, treatments merged by `(u, o)` unless overridden, newest settings, every accepted alert.
  */
-class FollowerModel(crypto: NostrCrypto, initial: FollowerState) {
-    val follower = StreamFollower(crypto, initial)
+class FollowerModel(private val crypto: NostrCrypto, initial: FollowerState) {
+    var follower = StreamFollower(crypto, initial)
+        private set
     val readings = sortedMapOf<Long, WireReading>()
     var sensor: SensorLife? = null
     val treatments = linkedMapOf<String, TreatmentPayload>()
@@ -38,6 +39,14 @@ class FollowerModel(crypto: NostrCrypto, initial: FollowerState) {
         val r = follower.onEvent(ev, now)
         if (r is FollowResult.Accepted) apply(r.item)
         return r
+    }
+
+    /**
+     * An app restart: the follower keeps its persisted state and the stored data but not the event ids it has seen nor
+     * its rekey throttle (the Mac keeps those in memory only), so relay replays are judged again by the rules alone.
+     */
+    fun restart() {
+        follower = StreamFollower(crypto, follower.state.copy(seen = emptyMap(), rekeyAt = emptyMap()))
     }
 
     /** The state as the sync fixtures' `expected` JSON (contracts/protocol/sync/README.md; the Mac compares the same). */

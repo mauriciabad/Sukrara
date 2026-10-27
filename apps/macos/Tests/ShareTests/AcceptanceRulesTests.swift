@@ -79,17 +79,26 @@ struct AcceptanceRulesTests {
         var follower = try session()
         _ = follower.receive(v.event("key-1"), now: v.now)
         _ = follower.receive(v.event("roster-1"), now: v.now)
-        let early = v.event("live-epoch-2-early")  // signed by roster device D under unknown epoch 2
-        let first = follower.receive(early, now: v.now)
+        // Signed by roster device D under unknown epoch 2, but older than the key delivery: a backfill, not a missed
+        // rotation.
+        let early = v.event("live-epoch-2-early")
+        #expect(follower.receive(early, now: v.now).verdict == .ignored("unknown-epoch"))
+        #expect(follower.receive(early, now: v.now).publish.isEmpty)
+        let newer = try crypto.sign(
+            kind: Wire.kindLive, content: "x", tags: [["gk", early.tag("gk")!]], createdAt: v.now + 10,
+            with: v.secret("D"))
+        let first = follower.receive(newer, now: v.now)
         #expect(first.publish.count == 1)
         let wrap = try #require(first.publish.first)
         let rumor = try crypto.unwrap(wrap, with: v.secret("I"))
         #expect(rumor.sender == v.pub("F"))
         #expect(rumor.kind == Wire.kindToOwner)
         #expect(rumor.content.contains("\"type\":\"rekey\""))
+        // `have` names the newest gk held (epoch 1), not the unknown one.
+        #expect(rumor.content.contains("\"have\":\"\(Wire.gk(groupPublicKey: v.pub("G1")))\""))
         #expect(wrap.expiration == v.now + Wire.ttlRequest)
-        #expect(follower.receive(early, now: v.now + 60).publish.isEmpty)
-        #expect(follower.receive(early, now: v.now + Wire.rekeyInterval).publish.count == 1)
+        #expect(follower.receive(newer, now: v.now + 60).publish.isEmpty)
+        #expect(follower.receive(newer, now: v.now + Wire.rekeyInterval).publish.count == 1)
     }
 
     @Test func strangersUnknownEpochSendsNothing() throws {
