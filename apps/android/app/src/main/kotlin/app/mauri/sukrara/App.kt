@@ -5,8 +5,12 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import app.mauri.sukrara.feature.treatments.TreatmentsHost
+import app.mauri.sukrara.feature.treatments.TreatmentsModule
 
-class App : Application() {
+class App :
+    Application(),
+    TreatmentsHost {
     lateinit var graph: AppGraph
         private set
 
@@ -15,6 +19,8 @@ class App : Application() {
         graph = AppGraph(this)
         graph.ready.start()
     }
+
+    override val treatments: TreatmentsModule get() = graph.treatments
 }
 
 /** The graph from any Android component of the app (activities, services, receivers). */

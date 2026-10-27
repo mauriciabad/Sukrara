@@ -4,13 +4,15 @@
 package app.mauri.sukrara
 
 import android.app.Application
+import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DefaultDispatchers
 import app.mauri.sukrara.core.model.DispatcherProvider
-import app.mauri.sukrara.core.model.SystemClock
-import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.feature.sharing.SharingDeps
+import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
+import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -43,6 +45,8 @@ class AppGraph(
     val home by lazy {
         HomeModule(app, data, clock, scope, MutableStateFlow(GlucoseState.Initial), readinessSource = null, unmuteAlerts = {}, resume = {})
     }
+
+    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
