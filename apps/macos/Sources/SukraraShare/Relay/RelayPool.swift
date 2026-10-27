@@ -25,7 +25,7 @@ public struct Backoff: Sendable {
 /// every reconnect (gift wraps must reach relays that were down), NIP-42 AUTH as `authKey` when a relay closes a REQ
 /// with `auth-required` (once per connection; REQs re-sent after the relay accepts it), a watchdog that pings a relay
 /// silent for 150 s and reconnects after 270 s. Events are not deduped here: the follower session does that (an
-/// event under a not-yet-known epoch must be seen again later).
+/// event under a not-yet-known epoch must be seen again later). The owner must call `stop()` (terminal) to release it.
 public actor RelayPool: RelayTransport {
     public nonisolated let inbound: AsyncStream<RelayInbound>
     private let continuation: AsyncStream<RelayInbound>.Continuation
@@ -44,6 +44,10 @@ public actor RelayPool: RelayTransport {
         var task: Task<Void, Never>?
         var challenge: String?
         var authEventId: String?
+        /// The relay asked for AUTH before sending its challenge: answer as soon as the challenge arrives.
+        var authPending = false
+        /// The relay has sent something on the current socket.
+        var open = false
         var lastReceived = 0
     }
 
@@ -51,6 +55,7 @@ public actor RelayPool: RelayTransport {
     private var subscriptions: [String: RelayFilter] = [:]
     private var outbox: [(event: SignedEvent, at: Int)] = []
     private var watchdog: Task<Void, Never>?
+    private var stopped = false
 
     /// `urls`: only `wss://` relays are used. `authKey`: the key relays' gift wraps are addressed to (follower `F`, or
     /// the invite key for an invite lookup).
@@ -67,11 +72,13 @@ public actor RelayPool: RelayTransport {
         self.backoff = backoff
         self.sleep = sleep
         self.now = now
-        (inbound, continuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(2000))
+        // Never drop: an alert is ephemeral and can't be fetched again.
+        (inbound, continuation) = AsyncStream.makeStream(bufferingPolicy: .unbounded)
     }
 
-    /// Connects every relay (again: a restart drops the current sockets).
+    /// Connects every relay (again: a restart drops the current sockets). Does nothing after `stop()`.
     public func start() {
+        guard !stopped else { return }
         for url in urls {
             connections[url]?.task?.cancel()
             connections[url]?.socket?.cancel()
@@ -80,8 +87,9 @@ public actor RelayPool: RelayTransport {
         if watchdog == nil { watchdog = Task { await self.watch() } }
     }
 
-    /// Closes every socket and ends `inbound`.
+    /// Closes every socket and ends `inbound`, for good.
     public func stop() {
+        stopped = true
         watchdog?.cancel()
         watchdog = nil
         for (url, connection) in connections {
@@ -110,7 +118,8 @@ public actor RelayPool: RelayTransport {
         await broadcast("[\"EVENT\",\(event.json())]")
     }
 
-    public var connectedCount: Int { connections.values.filter { $0.socket != nil }.count }
+    /// Relays that have sent something on their current socket.
+    public var connectedCount: Int { connections.values.filter(\.open).count }
 
     // MARK: - per relay
 
@@ -121,6 +130,8 @@ public actor RelayPool: RelayTransport {
             connections[url]?.socket = socket
             connections[url]?.challenge = nil
             connections[url]?.authEventId = nil
+            connections[url]?.authPending = false
+            connections[url]?.open = false
             connections[url]?.lastReceived = now()
             for (id, filter) in subscriptions { try? await socket.send(Self.req(id, filter)) }
             for item in outbox { try? await socket.send("[\"EVENT\",\(item.event.json())]") }
@@ -130,6 +141,7 @@ public actor RelayPool: RelayTransport {
                     let text = try await socket.receive()
                     if !announced {
                         announced = true
+                        connections[url]?.open = true
                         continuation.yield(.connection(.connected, relay: Self.host(url)))
                     }
                     attempt = 0
@@ -140,6 +152,7 @@ public actor RelayPool: RelayTransport {
                 socket.cancel()
                 guard !Task.isCancelled else { return }
                 connections[url]?.socket = nil
+                connections[url]?.open = false
                 continuation.yield(.connection(.disconnected, relay: Self.host(url)))
                 Self.log.info("relay \(Self.host(url), privacy: .public) disconnected, attempt \(attempt)")
             }
@@ -164,9 +177,11 @@ public actor RelayPool: RelayTransport {
             if let sub = string(1) { continuation.yield(.endOfStored(subscription: sub, relay: relay)) }
         case "AUTH":
             connections[url]?.challenge = string(1)
+            if connections[url]?.authPending == true { await authenticate(url, socket: socket) }
         case "CLOSED":
             let sub = string(1) ?? "", reason = string(2) ?? ""
-            if reason.hasPrefix("auth-required") {
+            if reason.hasPrefix("auth-required"), authKey != nil {
+                connections[url]?.authPending = true
                 await authenticate(url, socket: socket)
             } else {
                 continuation.yield(.closed(subscription: sub, reason: reason, relay: relay))
@@ -176,7 +191,9 @@ public actor RelayPool: RelayTransport {
             let accepted = message[2] as? Bool ?? false
             if id == connections[url]?.authEventId {
                 Self.log.info("relay \(relay, privacy: .public) AUTH \(accepted ? "accepted" : "refused")")
-                if accepted { for (sub, filter) in subscriptions { try? await socket.send(Self.req(sub, filter)) } }
+                guard accepted else { return }
+                for (sub, filter) in subscriptions { try? await socket.send(Self.req(sub, filter)) }
+                for item in outbox { try? await socket.send("[\"EVENT\",\(item.event.json())]") }
             } else {
                 continuation.yield(.ok(eventId: id, accepted: accepted, relay: relay))
             }
@@ -193,6 +210,7 @@ public actor RelayPool: RelayTransport {
                 createdAt: now(), with: authKey)
         else { return }
         connections[url]?.authEventId = event.id
+        connections[url]?.authPending = false
         try? await socket.send("[\"AUTH\",\(event.json())]")
     }
 

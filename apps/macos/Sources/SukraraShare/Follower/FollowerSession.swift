@@ -45,8 +45,8 @@ public struct FollowerSession: Sendable {
         public var deltas: [Delta] = []
         /// Events to send to the relays and the wearer's phone over Bluetooth (rekey requests).
         public var publish: [SignedEvent] = []
-        /// The filters changed: re-issue `filters(now:)` (and re-fetch: events seen under an unknown epoch are
-        /// readable now).
+        /// The filters changed: re-issue `filters(now:newestStored:)`. Events dropped as `unknown-epoch` are not
+        /// marked seen, so a re-fetch delivers them again; events rejected for another reason stay rejected.
         public var resubscribe = false
 
         init(_ verdict: Verdict) { self.verdict = verdict }

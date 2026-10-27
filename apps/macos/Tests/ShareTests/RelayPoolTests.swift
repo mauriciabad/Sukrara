@@ -15,7 +15,10 @@ struct RelayPoolTests {
     func pool(_ factory: FakeWebSocketFactory, authKey: SecretKeyHex? = nil) -> RelayPool {
         RelayPool(
             relays: [relay, "https://not-a-relay.invalid"], authKey: authKey, crypto: crypto, factory: factory,
-            sleep: { _ in await Task.yield() }, now: { 1_792_087_200 })
+            // reconnect delays pass at once; the watchdog's 60 s tick waits until the test ends (cancelled by stop)
+            sleep: { seconds in
+                if seconds >= 60 { try await Task.sleep(for: .seconds(3600)) } else { await Task.yield() }
+            }, now: { 1_792_087_200 })
     }
 
     @Test func backoffDoublesToTheCapWithJitter() {
@@ -108,15 +111,51 @@ struct RelayPoolTests {
         await pool.stop()
     }
 
-    @Test func stopClosesTheSocketsAndTheStream() async throws {
+    @Test func authRequiredBeforeTheChallengeIsAnsweredWhenItArrives() async throws {
+        let factory = FakeWebSocketFactory()
+        let pool = pool(factory, authKey: v.secret("F"))
+        await pool.subscribe("inbox", RelayFilter(kinds: [Wire.kindWrap], p: [v.pub("F")]))
+        await pool.start()
+        #expect(await factory.waitForConnections(1))
+        let socket = factory.sockets[0]
+        socket.push("[\"CLOSED\",\"inbox\",\"auth-required: who are you\"]")
+        socket.push("[\"AUTH\",\"late-challenge\"]")
+        #expect(
+            await socket.waitUntilSent { $0.contains { $0.hasPrefix("[\"AUTH\"") && $0.contains("late-challenge") } })
+        await pool.stop()
+    }
+
+    @Test func closedWithoutAnAuthKeyReachesInbound() async throws {
         let factory = FakeWebSocketFactory()
         let pool = pool(factory)
         await pool.start()
         #expect(await factory.waitForConnections(1))
+        factory.sockets[0].push("[\"CLOSED\",\"inbox\",\"auth-required: x\"]")
+        var got: [RelayInbound] = []
+        for await message in pool.inbound {
+            got.append(message)
+            if got.count == 2 { break }
+        }
+        #expect(got.last == .closed(subscription: "inbox", reason: "auth-required: x", relay: "relay.test.invalid"))
         await pool.stop()
+    }
+
+    @Test func stopIsTerminalAndClosesTheSockets() async throws {
+        let factory = FakeWebSocketFactory()
+        let pool = pool(factory)
+        await pool.start()
+        #expect(await factory.waitForConnections(1))
+        factory.sockets[0].push("[\"NOTICE\",\"hi\"]")
+        for await message in pool.inbound where message == .connection(.connected, relay: "relay.test.invalid") {
+            break
+        }
+        #expect(await pool.connectedCount == 1)
+        await pool.stop()
+        #expect(factory.sockets[0].isCancelled)
         #expect(await pool.connectedCount == 0)
-        var count = 0
-        for await _ in pool.inbound { count += 1 }  // ends: stop finished the stream
-        #expect(count >= 0)
+        await pool.start()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(factory.sockets.count == 1)  // no reconnect after stop
+        for await _ in pool.inbound {}  // returns: the stream is finished
     }
 }

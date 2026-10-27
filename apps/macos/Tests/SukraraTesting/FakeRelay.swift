@@ -58,6 +58,7 @@ public final class FakeWebSocket: WebSocket, @unchecked Sendable {
     private let lock = NSLock()
     private var sentFrames: [String] = []
     private var pings = 0
+    private var cancelled = false
     private let frames: AsyncThrowingStream<String, any Error>
     private let frameContinuation: AsyncThrowingStream<String, any Error>.Continuation
 
@@ -66,6 +67,8 @@ public final class FakeWebSocket: WebSocket, @unchecked Sendable {
     }
 
     public var sent: [String] { lock.withLock { sentFrames } }
+    public var pingCount: Int { lock.withLock { pings } }
+    public var isCancelled: Bool { lock.withLock { cancelled } }
 
     /// A frame from the relay.
     public func push(_ text: String) { frameContinuation.yield(text) }
@@ -83,7 +86,10 @@ public final class FakeWebSocket: WebSocket, @unchecked Sendable {
 
     public func ping() async throws { lock.withLock { pings += 1 } }
 
-    public func cancel() { frameContinuation.finish(throwing: URLError(.cancelled)) }
+    public func cancel() {
+        lock.withLock { cancelled = true }
+        frameContinuation.finish(throwing: URLError(.cancelled))
+    }
 
     /// Waits (≤ 2 s) until `predicate` holds for the sent frames.
     public func waitUntilSent(_ predicate: @Sendable ([String]) -> Bool) async -> Bool {
