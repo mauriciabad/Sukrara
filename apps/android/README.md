@@ -64,6 +64,15 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
 - **Who starts what**: `App.onCreate` builds the graph and starts `ready`; `MainActivity.onResume` calls
   `monitor.starter.start(StartReason.App)`; the service attaches the role's `ReadingSource` (wearer: the sensor's
   `SourceManager`, run only while attached — `RunWhileAttached`; follower: chunk 25) and the alert runtime.
+- **Alert checklist (one source)**: `graph.alerts.readiness` (`AlertReadinessSource`, `:monitor`
+  `AndroidAlertReadiness`) is THE alert-readiness checklist. Home's banner (`HomeModule`), Settings › Alert reliability
+  (`SettingsModule(readiness = …)`) and the setup permission step (chunk 24: take it in `SetupModule`'s constructor
+  from `alerts.readiness`, don't build a second checker) render the same instance: `readiness` (StateFlow), `refresh()`
+  on resume, `fix(item)` opens the Android screen. Runtime permissions that need an Activity (POST_NOTIFICATIONS,
+  BLUETOOTH_CONNECT) are requested by the screen; the source then re-reads on the next resume.
+- **Role**: `graph.role` (`RoleStore`, a `StateStore<RoleRecord>`) keeps the role in `role.json` + `role-backup.json`;
+  setup writes it with `graph.role.update { it.copy(role = …) }` (never the typed store directly), so a damaged file
+  never stops monitoring.
 - **Debug fakes**: `app/src/debug` has `DebugReceiver` / `DebugFakes` and `BuildVariant` (the release copy in
   `app/src/release` returns no test source). `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver
   -a app.mauri.sukrara.debug.SYNTHETIC --ez on true [--ei cycle 135] [--ez frozen true]` replaces the sensor with a

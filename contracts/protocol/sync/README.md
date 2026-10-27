@@ -12,7 +12,7 @@ test keys (the OGS draft-1 vector keys plus `D2` = sha256("sukrara/sync/D2")); a
 |---|---|
 | `join-readings.json` | key delivery → roster → hour chunk → live (reading + sensor) → reading-less sensor update → outsider rejected |
 | `treatments-writer.json` | writer scope: wearer entry, writer's own entry and edit, writer hijack rejected, wearer tombstone, older `(u,o)` ignored |
-| `settings-mirror.json` | mirrored settings: newest `u` wins, only from a roster device |
+| `settings-mirror.json` | mirrored settings: newest `u` wins, only from a roster device; the payload holds every mirrored setting (graph + alerts) |
 | `rotation.json` | phone change / revoke: epoch 2 with a new device, old device and old epoch rejected, late epoch-1 roster ignored. Also the identity-restore case (same wire sequence: new device key, new epoch delivered to every follower, roster with only the new device); Mac `ProtocolCompatTests` replays it through the runtime |
 | `revoke-reapprove.json` | the wearer removes the follower, then re-approves the same follower key; across app restarts the relays replay the old revoked notice and both key deliveries: the older notice is ignored, a newer one removes it again. Also: no rekey for an old backfill under an unknown epoch, a rekey with `have` = newest held gk (throttled), a writer's entry rejected before the roster lists it and accepted after |
 | `poc-0.11.53-wearer.json` | CHANGES P2: what a **Sukrara Showcase 0.11.53** wearer publishes (made by the showcase's own `Proto.kt`, compiled from `poc/`): key → roster with profile + writer → chunk → live + sensor → sensor-only → alert → treatment → settings → its own phone change (epoch 2, D2) → stale epoch-1 roster ignored. V1 followers must accept it so they follow a not-yet-switched wearer |
@@ -33,7 +33,8 @@ ids and rekey throttles forgotten), `expected`:
 - `readings`: `[t, sgv, rate|null]` sorted by `t`, first reading per `t` kept;
 - `sensor`: `{ss, se, sw}` from the newest live event (`null` when none or cleared);
 - `treatments`: `[{id, k, a, u, o, del}]` sorted by `id`, merged by `(u, o)` (a wearer entry overrides a forged writer copy);
-- `settings`: `{u, graph}` of the newest accepted settings, or `null`; `alerts`: count accepted.
+- `settings`: `{u, graph, alerts}` of the newest accepted settings (`settings-mirror.json` carries every `"mirror": true`
+  setting of contracts/settings, checked by Android `SyncFixturesTest`), or `null`; `alerts`: count accepted.
 
 `owner-conflict.json`: `marks` (what the wearer's phone persists: its identity, its device key, the epochs it holds,
 `lastRosterAt` / `lastBackupAt` = `created_at` of the last roster / backup it published), `events`, `checks`

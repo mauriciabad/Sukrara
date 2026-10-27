@@ -98,6 +98,9 @@ class LibreViewAccount internal constructor(
     /** The signed-in email, or null. */
     val email: Flow<String?> = state.data.map { it.accountEmail }
 
+    /** The signed-in account's receiver ID (shown in Settings › Sensor to compare with other apps), or null. */
+    val receiverId: Flow<Long?> = state.data.map { it.account }
+
     suspend fun signIn(email: String, password: String): SignInResult = withContext(io) {
         val body = buildJsonObject {
             put("email", email.trim())

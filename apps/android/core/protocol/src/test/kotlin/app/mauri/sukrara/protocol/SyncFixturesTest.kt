@@ -27,6 +27,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -178,8 +179,37 @@ class SyncFixturesTest {
         )
     }
 
-    private fun settings(dev: KeyPair, u: Long, low: Int) =
-        f.settings(dev, g1.public, v.sid, SettingsPayload(u, JsonObject(mapOf("low" to JsonPrimitive(low))), JsonObject(emptyMap())), now - 100 + u / 10)
+    /** Every `"mirror": true` row of contracts/settings/settings.json, at its wire key (checked by [everyMirroredSettingIsInTheFixture]). */
+    private fun settings(dev: KeyPair, u: Long, low: Int): SignedEvent {
+        val graph = Json.parseToJsonElement(
+            """{"veryLow":54,"low":$low,"tight":140,"high":180,"veryHigh":250,"extremelyHigh":300,"defaultHours":12,"ringCount":2,
+               "slots":"TIR:86400:1,TIR:604800:1,GMI:1209600:1","ringRange":"TIGHT","ringOrder":"TIGHT,TARGET,HIGH,VERY_HIGH,VERY_LOW,LOW",
+               "ringMarks":true,"side":false,"marks":"rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point",
+               "columnCrown":true,"lines":"100,120","gridHours":3,"lastPlace":"END","lastElse":"GMI:1209600:1","countdownHours":8}""",
+        ).jsonObject
+        val alerts = Json.parseToJsonElement(
+            """{"alerts":{"very_low":{"on":true,"mgdl":55,"repeatMin":5},"low":{"on":true,"mgdl":$low,"repeatMin":15},
+               "high":{"on":true,"mgdl":180,"repeatMin":30},"very_high":{"on":true,"mgdl":250,"repeatMin":15},
+               "extremely_high":{"on":false,"mgdl":300,"repeatMin":0},"falling_fast":{"on":true,"rate":2.5,"repeatMin":10},
+               "rising_fast":{"on":false,"rate":2.0,"repeatMin":0}},
+               "muteAfterInsulin":{"on":true,"min":60},"muteFallingHigh":{"on":false,"min":20},"muteAfterCarbs":{"on":true,"min":15}}""",
+        ).jsonObject
+        return f.settings(dev, g1.public, v.sid, SettingsPayload(u, graph, alerts), now - 100 + u / 10)
+    }
+
+    /** parity D2: the settings fixture carries every mirrored setting, so both platforms check each one wearer → follower. */
+    @Test fun everyMirroredSettingIsInTheFixture() {
+        val got = ContractFiles.json("protocol/sync/settings-mirror.json").getValue("expected").jsonObject.getValue("settings").jsonObject
+        val kinds = listOf("very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast")
+        val paths = ContractFiles.json("settings/settings.json").getValue("settings").jsonArray.map { it.jsonObject }
+            .filter { it["mirror"]?.jsonPrimitive?.content == "true" }
+            .map { it.str("wire") }
+            .flatMap { w -> if ("{kind}" in w) kinds.map { w.replace("{kind}", it) } else listOf(w) }
+        val missing = paths.filter { path ->
+            path.split('.').fold(got as JsonElement?) { cur, key -> (cur as? JsonObject)?.get(key) } == null
+        }
+        assertEquals(emptyList<String>(), missing)
+    }
 
     private fun follower() = FollowerModel(crypto, FollowerState(follower = fol, identity = i.public))
 

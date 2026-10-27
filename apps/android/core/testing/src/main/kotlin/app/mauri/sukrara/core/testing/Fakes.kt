@@ -59,6 +59,14 @@ class InMemorySettingsRepository : SettingsRepository {
     ) {
         values.update { it + (spec.key to value) }
     }
+
+    @Suppress("UNCHECKED_CAST")
+    override suspend fun <T> update(
+        spec: SettingSpec<T>,
+        transform: (T) -> T,
+    ) {
+        values.update { it + (spec.key to transform(if (spec.key in it) it[spec.key] as T else spec.default)) }
+    }
 }
 
 class InMemoryStateStore<T>(initial: T) : StateStore<T> {

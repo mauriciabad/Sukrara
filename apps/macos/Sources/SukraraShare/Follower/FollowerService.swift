@@ -14,6 +14,8 @@ public struct FollowerSnapshot: Sendable, Equatable {
     public var treatments: [Treatment]
     /// Treatments this Mac wrote that no relay confirmed yet (warn before "Stop following").
     public var unsentTreatments: Int
+    /// How far each treatment this Mac wrote has got, by id (the Treatments window's per-entry state).
+    public var deliveries: [String: TreatmentDelivery] = [:]
     public var wearerSettings: MirroredSettings?
     /// Files that were unreadable and moved aside.
     public var storeIssues: [StoreIssue]
@@ -23,7 +25,8 @@ public struct FollowerSnapshot: Sendable, Equatable {
     public var nearbyOffer: NearbyOffer?
 
     public static let empty = FollowerSnapshot(
-        link: .notFollowing, readings: [], sensor: nil, treatments: [], unsentTreatments: 0, wearerSettings: nil,
+        link: .notFollowing, readings: [], sensor: nil, treatments: [], unsentTreatments: 0, deliveries: [:],
+        wearerSettings: nil,
         storeIssues: [], nearby: nil, nearbyOffer: nil)
 }
 

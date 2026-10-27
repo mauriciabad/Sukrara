@@ -65,10 +65,25 @@ public enum GlucoseCard {
                 ? CGRect(x: 0, y: 0, width: w, height: h)
                 : CGRect(
                     x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
+        // a card without a value still shows how old its data is (Freshness.AgeMark)
+        let age: Freshness.AgeMark = !st.value && part == .all && graph != nil ? fr.ageMark : .none
         if part == .all || part == .graph, let graph {
+            if age.dims {
+                ctx.saveGState()
+                ctx.setAlpha(Freshness.AgeMark.dimAlpha)
+                ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+            }
             GlucoseGraph.draw(
                 ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
                 sensor: spot == .graph ? sl : nil, rec: rec, view: view, latestT: latest?.t)
+            if age.dims {
+                ctx.endTransparencyLayer()
+                ctx.restoreGState()
+            }
+        }
+        if age != .none, let latest {
+            // over the plot itself, clear of the % column and the y axis labels
+            drawAgeLabel(ctx, rec.first("chart.plot")?.box ?? chart, latest, now, age, pal, d: d, rec: rec)
         }
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
@@ -175,6 +190,40 @@ public enum GlucoseCard {
         rec.add("slots.box", box)
         // a laurel on the leftmost slot reaches past its ring: what is left of the slots keeps clear of it too
         return cx.last.map { x - ($0 - size / 2) + gap + Slots.leftInset(items, r: size / 2) } ?? 0
+    }
+
+    /// A card without a value: the reading's time centred over the top of the chart's `plot` on a background pill,
+    /// after the "no readings" icon from 20 min (`age`, freshness.json `graph_only`; GlucoseCard.kt `drawAgeLabel`).
+    /// The text shrinks to fit the plot's width.
+    private static func drawAgeLabel(
+        _ ctx: CGContext, _ plot: CGRect, _ r: GraphReading, _ now: TimeInterval, _ age: Freshness.AgeMark,
+        _ pal: GraphPalette, d: CGFloat, rec: CardLayout
+    ) {
+        let text = Freshness.timeText(r.t, now: now)
+        var size = min(max(10 * d, plot.height * 0.12), 16 * d)
+        func width(_ s: CGFloat) -> CGFloat {
+            (age == .noReadings ? s * 1.45 : 0) + Ink.width(text, Ink.font(s, .semibold)) + s
+        }
+        if width(size) > plot.width { size *= max(0.6, plot.width / width(size)) }
+        let font = Ink.font(size, .semibold)
+        let icon = age == .noReadings ? size * 1.15 : 0
+        let gap = icon > 0 ? size * 0.3 : 0
+        let padX = size * 0.5, padY = size * 0.25
+        let w = icon + gap + Ink.width(text, font) + 2 * padX, h = size * 1.2 + 2 * padY
+        let box = CGRect(x: plot.midX - w / 2, y: plot.minY + 2 * d, width: w, height: h)
+        if !pal.knockout {
+            ctx.setFillColor(pal.bg.copy(alpha: 0.9) ?? pal.bg)
+            ctx.addPath(CGPath(roundedRect: box, cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
+            ctx.fillPath()
+        }
+        if icon > 0 {
+            _ = SensorBadge.symbol(
+                ctx, GlucoseLook.noReadingsSymbol, x: box.minX + padX, y: box.midY - icon / 2, size: icon,
+                color: pal.inkSoft)
+        }
+        Ink.draw(ctx, text, x: box.minX + padX + icon + gap, y: box.midY + size * 0.36, font, pal.inkSoft)
+        rec.add("graph.age", box, age.rawValue)
+        rec.add("time.text", nil, text)
     }
 
     /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a

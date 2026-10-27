@@ -4,6 +4,7 @@
 package app.mauri.sukrara
 
 import android.app.Application
+import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
@@ -14,19 +15,30 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
+import app.mauri.sukrara.feature.settings.AlertSettingsStore
+import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
-import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
+import app.mauri.sukrara.graph.Clock as ClockText
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.monitor.hub.MonitorRecord
+import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.NotificationGroups
+import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.share.ShareOwnerModule
+import app.mauri.sukrara.share.owner.followRole
+import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
+import app.mauri.sukrara.widgets.WidgetPlacements
+import app.mauri.sukrara.widgets.WidgetsModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -36,9 +48,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -66,8 +80,16 @@ class AppGraph(
 
     val data by lazy { DataModule(app, appVersion, dispatchers, clock) }
 
-    /** The phone's role, chosen in first-run setup (chunk 24 writes it); null = setup not done. */
-    val role by lazy { data.typedStore("role", RoleRecord.serializer(), RoleRecord(), whenCorrupt = RoleRecord()) }
+    /**
+     * The phone's role, chosen in first-run setup (chunk 24 writes it with `role.update`); null = setup not done. Two
+     * copies, so one damaged file (reported on home) never stops monitoring ([RoleStore]).
+     */
+    val role by lazy {
+        RoleStore(
+            primary = data.typedStore("role", RoleRecord.serializer(), RoleRecord(), whenCorrupt = RoleRecord()),
+            backup = data.typedStore("role-backup", RoleRecord.serializer(), RoleRecord(), whenCorrupt = RoleRecord()),
+        )
+    }
 
     val sensor by lazy {
         SensorModule(
@@ -115,10 +137,44 @@ class AppGraph(
             // the alert alarm found the service dead: bring it back (a refusal shows "Monitoring stopped")
             restarter = { startMonitoring(StartReason.AlertCheck) },
             clock = clock,
+            scope = scope,
+            dispatchers = dispatchers,
+            needsBluetooth = needsBluetooth(),
         )
     }
 
-    val sensorUi by lazy { SensorUiModule(app, sensor, data.settings, clock, scope, startMonitoring = { startMonitoring(StartReason.App) }) }
+    val settingsUi by lazy {
+        SettingsModule(
+            settings = data.settings,
+            alertSettings =
+                object : AlertSettingsStore {
+                    override val settings = alerts.store.settings
+
+                    override suspend fun update(transform: (AlertSettings) -> AlertSettings) = alerts.store.updateSettings(transform)
+                },
+            alertControls = alerts.controls,
+            alertState = monitor.hub.state.map { it.alerts },
+            readiness = alerts.readiness,
+            appVersion = appVersion,
+            prerelease = BuildConfig.PRERELEASE,
+            http = data.http,
+            dispatchers = dispatchers,
+            clock = clock,
+        )
+    }
+
+    val sensorUi by lazy {
+        SensorUiModule(
+            app,
+            sensor,
+            data.settings,
+            clock,
+            scope,
+            startMonitoring = { startMonitoring(StartReason.App) },
+        )
+    }
+
+    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
 
     val home by lazy {
         HomeModule(
@@ -127,10 +183,27 @@ class AppGraph(
             clock = clock,
             scope = scope,
             glucose = monitor.hub.state,
-            // the reliability checklist has no implementation yet (OPS issue cW): null = the row claims nothing
-            readinessSource = null,
+            readinessSource = alerts.readiness,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
+            widgetPlaced = {
+                widgets.presence.refresh()
+                widgets.presence.placed.value
+            },
+        )
+    }
+
+    // the graph settings join when the settings repository builds GraphConfig (OPS issue c20)
+    val widgets by lazy {
+        WidgetsModule(
+            context = app,
+            scope = scope,
+            clock = clock,
+            glucose = monitor.hub.state,
+            treatments = recentTreatments(),
+            graphConfig = flowOf(GraphConfig()),
+            freshnessTicks = monitor.freshnessTicks,
+            store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
     }
 
@@ -146,7 +219,29 @@ class AppGraph(
         monitor.starter.start(reason)
     }
 
-    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
+    /** The wearer's sharing (relays, followers, treatments and settings to them); started by the sharing UI / service. */
+    val shareOwner by lazy {
+        val info = NotificationGroups.Group.INFO
+        ShareOwnerModule(
+            context = app,
+            data = data,
+            hub = monitor.hub,
+            clock = clock,
+            dispatchers = dispatchers,
+            scope = scope,
+            requestNotifications =
+                AndroidRequestNotifications(
+                    context = app,
+                    channel = Channels.REQUESTS,
+                    group = info.key,
+                    time = { ClockText.time(it) },
+                    post = { NotificationGroups.post(app, NotificationIds.REQUESTS, it, info, Channels.REQUESTS) },
+                    remove = { NotificationGroups.cancel(app, NotificationIds.REQUESTS, info) },
+                ),
+        )
+    }
+
+    val treatments by lazy { TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
@@ -157,7 +252,11 @@ class AppGraph(
             // a step that fails is logged and the next one still runs: a damaged database must not keep the hub
             // (and so the service, the notification and the alerts) from starting
             step("data") { data.ready() }
+            step("role") { role.heal() }
             step("monitor") { monitor.ready() }
+            step("widgets") { widgets.start() }
+            // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
+            step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
         }
 
     /**
@@ -169,6 +268,12 @@ class AppGraph(
         when (role) {
             Role.Wearer -> BuildVariant.wearerSource(this) ?: sensorSource()
             Role.Follower -> null
+        }
+
+    /** Whether the role's source talks to the sensor over Bluetooth: the wearer's own sensor (not Juggluco). */
+    private fun needsBluetooth(): Flow<Boolean> =
+        combine(role.data, data.settings.flow(SensorSource)) { r, source ->
+            r.role == Role.Wearer && SensorSourceKind.fromId(source) != SensorSourceKind.Juggluco
         }
 
     /** Treatments of the last [TREATMENTS_WINDOW] (and any later), the window moving forward every hour. */

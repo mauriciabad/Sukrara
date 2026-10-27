@@ -64,6 +64,13 @@ applies them.
 ### Card, widgets and UI
 <!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
 
+**Widgets: `:widgets`** (Glance). `WidgetsModule` (one line in `AppGraph`; the `Application` is its `WidgetsHost`)
+combines the hub's state, treatments, `GraphConfig`, per-placement `WidgetOverrides` and monitor's freshness ticks in
+`WidgetUpdater`, which publishes a `WidgetFrame` and calls `GlanceAppWidget.update` per placed id when the draw key
+changes (screen on only). Each `CardWidget` composes that frame at `LocalSize` through `renderWidget` →
+`GlucoseCard.draw` with `widgetCardStyle` (in `:core:graph`, shared with `CardLayoutTest`) and `cardModelOf`
+(`GlucoseState` → `CardModel`).
+
 **The one card renderer: `:core:graph`** (package `app.mauri.sukrara.graph`, flat so `tools/check` card-api matches
 the `api` names in `contracts/graph/surfaces/surfaces.json`).
 
@@ -223,7 +230,15 @@ AppModel (21, @MainActor) ── snapshots()/alerts() ──► FollowerService 
                                       └─ NearbyTransport (NearbyCentral | fake) ─ NearbyLink (pure BLE protocol)
           stores: ReadingsFileStore · TreatmentFileStore · SensorStateStore · WearerSettingsStore (actors)
 WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolicy (≤ 1 value reload / 5 min)
+   └──► SukraraWidget.appex: SnapshotProvider (reads only glucose.json) → WidgetTimeline → WidgetEntryView
 ```
+
+- **Widget reloads**: the reload budget is about 40–70 a day, so the app never reloads per reading or per minute.
+  `WidgetReloadPolicy` reloads all three kinds when the shown state changes (at once) or the shown value changes (at
+  most once per 5 min; a deferred reload carries the last value). Ageing needs no reload: `WidgetTimeline`
+  (SukraraGraph, pure, `TimelineTests`) gives the timeline an entry at each future freshness step, mute end (and the
+  countdown's minutes in its last hour) and sensor warm-up / end, each drawing the same snapshot with `now` = the
+  entry's date; the policy is `.after(last entry)`, `.never` when there is nothing to age.
 
 - **Stores** (`SukraraCore/Stores`): `readings.csv` (`t_ms,mgdl,rate`, appended, atomic rewrite for backfill,
   31 days, first reading per `t` kept), `treatments.json` (`TreatmentLog` v1: entry + creator + delivery),

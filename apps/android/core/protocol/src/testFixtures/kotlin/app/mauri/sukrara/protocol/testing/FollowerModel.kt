@@ -67,7 +67,7 @@ class FollowerModel(private val crypto: NostrCrypto, initial: FollowerState) {
                     }
                 },
             )
-            put("settings", settings?.let { buildJsonObject { put("u", it.u); put("graph", it.graph) } } ?: JsonNull)
+            put("settings", settings?.let { buildJsonObject { put("u", it.u); put("graph", it.graph); put("alerts", it.alerts) } } ?: JsonNull)
             put("alerts", alerts.size)
         }
     }

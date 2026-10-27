@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(project(":core:testing"))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }
 
 /*
@@ -76,6 +78,11 @@ fun registerLibraryCheck(
             ZipFile(archive).use { zip -> if (zip.getEntry(entry) == null) throw GradleException("$archive has no $entry") }
         }
     }
+}
+
+tasks.withType<Test>().configureEach {
+    // Robolectric on SDK 36 reaches into FileDescriptor internals (AppGraphTest)
+    jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
 }
 
 androidComponents {

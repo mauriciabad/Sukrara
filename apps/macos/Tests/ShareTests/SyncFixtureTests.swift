@@ -93,6 +93,7 @@ struct SyncFixtureTests {
             #expect(settings?.u == s["u"] as? Int, "\(name)")
             let body = try JSONSerialization.jsonObject(with: Data((settings?.json ?? "{}").utf8)) as? [String: Any]
             #expect(JSONText.encode(body?["graph"] ?? [:]) == JSONText.encode(s["graph"] ?? [:]), "\(name)")
+            #expect(JSONText.encode(body?["alerts"] ?? [:]) == JSONText.encode(s["alerts"] ?? [:]), "\(name)")
         } else {
             #expect(settings == nil, "\(name)")
         }

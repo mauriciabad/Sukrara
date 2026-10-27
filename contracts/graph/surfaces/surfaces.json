@@ -411,7 +411,7 @@
       {
         "id": "widget-value",
         "kind": "card",
-        "entry": "MacWidget.image",
+        "entry": "WidgetEntryView.card",
         "parts": [
           "all"
         ],
@@ -427,13 +427,13 @@
           ]
         ],
         "files": [
-          "apps/macos/Sources/SukraraWidget/WidgetViews.swift"
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
         ]
       },
       {
         "id": "widget-graph",
         "kind": "card",
-        "entry": "MacWidget.image",
+        "entry": "WidgetEntryView.card",
         "parts": [
           "all"
         ],
@@ -457,13 +457,13 @@
           ]
         ],
         "files": [
-          "apps/macos/Sources/SukraraWidget/WidgetViews.swift"
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
         ]
       },
       {
         "id": "widget-combined",
         "kind": "card",
-        "entry": "MacWidget.image",
+        "entry": "WidgetEntryView.card",
         "parts": [
           "all"
         ],
@@ -487,7 +487,7 @@
           ]
         ],
         "files": [
-          "apps/macos/Sources/SukraraWidget/WidgetViews.swift"
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
         ]
       }
     ]
