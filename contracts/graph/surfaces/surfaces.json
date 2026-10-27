@@ -377,25 +377,13 @@
       {
         "path": "apps/macos/Sources/SukraraApp/Alerts/AlertText.swift",
         "why": "an alert's notification says the reading that fired it; log lines"
-      },
-      {
-        "path": "apps/macos/Sources/SukraraShare/FollowerSession.swift",
-        "why": "a log line"
-      },
-      {
-        "path": "apps/macos/Sources/SukraraShare/ProtocolV2.swift",
-        "why": "a log line"
-      },
-      {
-        "path": "apps/macos/Sources/SukraraCore/Log.swift",
-        "why": "log lines and the -dump CSV"
       }
     ],
     "surfaces": [
       {
         "id": "menubar-card",
         "kind": "card",
-        "entry": "CardView.paint",
+        "entry": "PanelView (GlucoseCard.image)",
         "parts": [
           "all"
         ],
@@ -413,7 +401,7 @@
       {
         "id": "menubar-title",
         "kind": "glyph",
-        "entry": "StatusController.title",
+        "entry": "AppModel.look → MenubarTitle",
         "what": "the status item's value, strike and arrow",
         "files": [
           "apps/macos/Sources/SukraraApp/AppModel.swift",

@@ -17,6 +17,8 @@ Modes
 Checks
   parity      path groups that must change together (parity.json), skip: 'Parity-skip: <group>: <reason>'
   features    app code changes need docs/FEATURES.md, skip: 'Features-skip: <reason>'
+  parity-globs  every glob in parity.json (group sides, features) matches a tracked file: a dead glob turns its group
+              off without a word. Whole V1 tree.
   java        no .java source (Android is Kotlin only)
   header      new source files carry the GPL SPDX header (a file moved out of poc/ counts as new)
   secrets     nsec/private keys/tokens in added lines; secrets/, keys, APKs, build dirs as paths
@@ -241,6 +243,19 @@ def check_parity(ch, messages, strict, rep):
         lines.append("Port the change, or add a commit-message trailer:  Parity-skip: %s: <reason>" % g["name"])
         level = "FAIL" if strict and g.get("level") == "fail" else "WARN"
         rep.add(level, "parity:" + g["name"], "\n".join(lines))
+
+
+def check_parity_globs(ch, rep):
+    """A glob that matches no tracked file never fires: the group looks guarded and isn't (r-parity: three such groups)."""
+    cfg = load("parity.json")
+    files = tree_files(ch)
+    named = [(g["name"] + " " + side, globs) for g in cfg["groups"] for side, globs in g["sides"].items()]
+    named += [("features " + k, v) for k, v in cfg["features"].items() if not k.startswith("_")]
+    for where, globs in named:
+        for glob in globs:
+            if not any(fnmatch.fnmatchcase(p, glob) for p in files):
+                rep.add("FAIL", "parity-globs", "tools/check/parity.json %s: '%s' matches no tracked file. Point it at the\n"
+                        "real files, or drop the side / group (say why in _about) when that platform has no such code." % (where, glob))
 
 
 def check_features(ch, messages, strict, rep):
@@ -938,6 +953,7 @@ def main(argv):
         check_features(ch, messages, strict, rep)
     if only in (None, "static"):
         check_static(ch, rep)
+        check_parity_globs(ch, rep)
         check_debug(ch, rep)
         check_cleartext(ch, rep)
         check_card(ch, rep)
