@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara -->
+<!-- Copyright (C) 2026 Maurici Abad -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SukraraWidget.appex's Info.plist. bundle.sh fills @VERSION@, @BUILD@ and @GROUP@ (same values as the app). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleIdentifier</key><string>app.mauri.sukrara.widget</string>
+	<key>CFBundleName</key><string>SukraraWidget</string>
+	<key>CFBundleDisplayName</key><string>Sukrara</string>
+	<key>CFBundleExecutable</key><string>SukraraWidget</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundlePackageType</key><string>XPC!</string>
+	<key>CFBundleShortVersionString</key><string>@VERSION@</string>
+	<key>CFBundleVersion</key><string>@BUILD@</string>
+	<key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
+	<key>LSMinimumSystemVersion</key><string>15.0</string>
+	<key>SukraraAppGroup</key><string>@GROUP@</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
+	</dict>
+</dict>
+</plist>

@@ -60,6 +60,7 @@ let v = UserDefaults.standard.integer(forKey: \"graphHours\")"
 case_ "a cleartext URL in V1 Kotlin fails" fail cleartext apps/android/integrations/src/main/kotlin/app/mauri/sukrara/N.kt "$HDR
 val u = \"http://example.org\""
 case_ "an image outside the allowed folders fails" fail images apps/android/x/shot.png 'not really a png'
+case_ "an image in the frozen PoC passes" pass "" poc/spikes/brand/assets/x/icon.png 'not really a png'
 case_ "an nsec in V1 code fails" fail secrets apps/android/x/src/main/kotlin/K.kt "$HDR
 val k = \"nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\""
 
