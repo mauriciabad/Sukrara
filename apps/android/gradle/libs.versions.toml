@@ -31,6 +31,7 @@ jna = "5.17.0"
 zxing = "3.5.3"
 zxingCpp = "3.1.1"
 junit = "4.13.2"
+orgJson = "20250517"
 robolectric = "4.17"
 roborazzi = "1.77.0"
 turbine = "1.2.1"
@@ -80,6 +81,8 @@ jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 zxing-cpp = { module = "io.github.zxing-cpp:android", version.ref = "zxingCpp" }
 junit = { module = "junit:junit", version.ref = "junit" }
+# real org.json for JVM tests that run the showcase's protocol code (Android's org.json is a stub there)
+org-json = { module = "org.json:json", version.ref = "orgJson" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
