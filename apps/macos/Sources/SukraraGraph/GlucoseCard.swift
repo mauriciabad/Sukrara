@@ -528,10 +528,4 @@ extension GlucoseCard {
         if minutes < 60 { return "\(Durations.text(minutes)) ago" }
         return "at \(Freshness.timeText(t, now: now))"
     }
-
-    /// Scaffold (03a) for `AppModel.statusTitle` until the app composes `face(_:unit:)` with the user's unit and the
-    /// clock (chunk 21; OPS issue c14). Not for new callers: it knows no unit and no freshness.
-    public static func face(_ snapshot: GlucoseSnapshot?, surface: CardSurface) -> String {
-        snapshot?.latest.map { String($0.mgdl) } ?? noValueText
-    }
 }

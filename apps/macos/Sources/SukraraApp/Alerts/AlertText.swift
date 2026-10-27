@@ -24,7 +24,7 @@ struct AlertText: Equatable {
     /// "Low · 62 mg/dL ↓" (no reading: just the meaning).
     func title(_ f: AlertFiring) -> String {
         guard let r = f.reading, f.kind != .noData else { return headline(f) }
-        return "\(headline(f)) · \(Int(r.mgdl.rounded())) mg/dL \(Self.arrow(r.rate))"
+        return "\(headline(f)) · \(Int(r.mgdl.rounded())) mg/dL \(TrendGlyph.of(r.rate))"
     }
 
     /// "Falling slowly. Below 70 mg/dL since 14:05." / "No reading for 20 min."
@@ -112,10 +112,4 @@ struct AlertText: Equatable {
     var remindAsUsual: String { language == .en ? "Remind as Usual" : "Recordar como siempre" }
     var unmute: String { language == .en ? "Unmute" : "Reactivar" }
     var changeTime: String { language == .en ? "Change Time…" : "Cambiar hora…" }
-
-    /// The trend arrow of a rate (mg/dL per minute), the card's thresholds; no rate = the hollow ring.
-    static func arrow(_ rate: Double?) -> String {
-        guard let r = rate else { return "○" }
-        return r >= 3 ? "⇈" : r >= 2 ? "↑" : r >= 1 ? "↗" : r > -1 ? "→" : r > -2 ? "↘" : r > -3 ? "↓" : "⇊"
-    }
 }

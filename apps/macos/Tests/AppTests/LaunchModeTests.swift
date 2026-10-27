@@ -161,15 +161,15 @@ import Testing
 
     @Test func offlineRunsSayTheyAreOfflineEvenWithAValue() {
         let model = AppModel(plan: LaunchPlan(mode: .normal, services: .none, data: .isolated(root: home)))
-        model.glucose = GlucoseSnapshot(readings: [Reading(t: Date(timeIntervalSince1970: 0), mgdl: 120)])
-        #expect(model.statusTitle == "120")
+        model.apply(readings: [Reading(t: Date(), mgdl: 120, rate: 0)])
+        #expect(model.statusTitle == "120 →")
         #expect(model.notMonitoringReason?.hasPrefix("Not monitoring: offline") == true)
     }
 
     @Test func aValueNeedsNoReason() {
         let model = AppModel(plan: LaunchPlan(mode: .normal, services: .all, data: .user(home: home)))
-        model.glucose = GlucoseSnapshot(readings: [Reading(t: Date(timeIntervalSince1970: 0), mgdl: 98)])
-        #expect(model.statusTitle == "98")
+        model.apply(readings: [Reading(t: Date(), mgdl: 98, rate: -1.5)])
+        #expect(model.statusTitle == "98 ↘")
         #expect(model.notMonitoringReason == nil)
     }
 }

@@ -407,7 +407,7 @@
           ]
         ],
         "files": [
-          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift"
+          "apps/macos/Sources/SukraraApp/Panel/PanelView.swift"
         ]
       },
       {
@@ -416,8 +416,8 @@
         "entry": "StatusController.title",
         "what": "the status item's value, strike and arrow",
         "files": [
-          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift",
-          "apps/macos/Sources/SukraraApp/AppModel.swift"
+          "apps/macos/Sources/SukraraApp/AppModel.swift",
+          "apps/macos/Sources/SukraraApp/StatusItem/MenubarTitle.swift"
         ]
       },
       {

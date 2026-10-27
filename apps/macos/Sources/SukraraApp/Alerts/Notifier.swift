@@ -27,8 +27,8 @@ protocol NotificationPosting {
 /// Builds the alert notifications: self-contained text in the user's language, the pack sound (copied where
 /// Notification Center finds it), the actions' category, Time Sensitive for alarms when allowed.
 final class Notifier: AlertNotifying {
-    static let sideKey = "side"
-    static let firingKey = "firing"
+    nonisolated static let sideKey = "side"
+    nonisolated static let firingKey = "firing"
 
     private let center: any NotificationPosting
     private let sounds: SoundLibrary?
