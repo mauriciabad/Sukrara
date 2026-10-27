@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import SukraraShare
+import Synchronization
 
 /// An in-memory relay: keeps what is published, delivers stored then live events to matching subscriptions (with
 /// `endOfStored` after the stored ones), answers publishes with `ok`. Tests use it instead of real relays.
@@ -50,6 +51,11 @@ public actor FakeRelay: RelayLink {
         deliver(event)
     }
 
+    /// An event delivered whatever the subscriptions (like the Bluetooth path, which sends unasked); not stored.
+    public func push(_ event: SignedEvent) {
+        continuation.yield(.event(event, subscription: "push", relay: host))
+    }
+
     /// An event arriving from elsewhere (the wearer's phone publishing).
     public func inject(_ event: SignedEvent) {
         published.append(event)
@@ -64,32 +70,45 @@ public actor FakeRelay: RelayLink {
 }
 
 /// The relays as a whole for runtime tests: every connection the runtime makes is a new `FakeRelay` that starts with
-/// everything published so far; `inject` reaches the stored list and every open connection.
-public actor FakeRelayHub {
-    public private(set) var stored: [SignedEvent] = []
-    public private(set) var relays: [FakeRelay] = []
+/// everything stored so far; `inject` reaches the stored list and every open connection. `connect` is synchronous
+/// (the runtime's relay factory is).
+public final class FakeRelayHub: Sendable {
+    private let state: Mutex<(stored: [SignedEvent], relays: [FakeRelay])>
 
     public init(stored: [SignedEvent] = []) {
-        self.stored = stored
+        state = Mutex((stored, []))
     }
 
     /// A new connection (the runtime's `makeRelays`).
     public func connect() -> FakeRelay {
-        let relay = FakeRelay(stored: stored)
-        relays.append(relay)
-        return relay
+        state.withLock { state in
+            let relay = FakeRelay(stored: state.stored)
+            state.relays.append(relay)
+            return relay
+        }
     }
 
+    public var relays: [FakeRelay] { state.withLock { $0.relays } }
+
     public func inject(_ event: SignedEvent) async {
-        stored.append(event)
+        let relays = state.withLock { state in
+            state.stored.append(event)
+            return state.relays
+        }
         for relay in relays where await !relay.isStopped { await relay.inject(event) }
     }
 
-    /// Everything the runtime published on any connection.
+    /// Delivers `event` on every open connection whatever the subscriptions (fixture replay in step order).
+    public func push(_ event: SignedEvent) async {
+        for relay in relays where await !relay.isStopped { await relay.push(event) }
+    }
+
+    /// Everything the runtime published on any connection (events it sent, not the stored / injected ones).
     public func published() async -> [SignedEvent] {
+        let (stored, relays) = state.withLock { ($0.stored, $0.relays) }
         var out: [SignedEvent] = []
         for relay in relays { out += await relay.published }
-        return out.filter { event in !stored.contains(event) }
+        return out.filter { !stored.contains($0) }
     }
 }
 

@@ -75,8 +75,9 @@ public struct TreatmentLog: Sendable, Codable, Hashable {
         /// The event id of the last version this Mac sent (matches a relay's `OK`).
         public var sentEventId: String?
 
-        public init(treatment: Treatment, creator: String, delivery: TreatmentDelivery? = nil, sentEventId: String? = nil)
-        {
+        public init(
+            treatment: Treatment, creator: String, delivery: TreatmentDelivery? = nil, sentEventId: String? = nil
+        ) {
             self.treatment = treatment
             self.creator = creator
             self.delivery = delivery

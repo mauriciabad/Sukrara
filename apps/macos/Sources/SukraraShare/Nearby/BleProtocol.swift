@@ -33,7 +33,9 @@ public enum BleFraming {
         precondition(count <= Int(UInt16.max), "BLE message too large")
         return (0..<count).map { idx in
             var frame = Data(capacity: header + per)
-            for value in [msgId, UInt16(idx), UInt16(count)] { frame.append(contentsOf: [UInt8(value >> 8), UInt8(value & 0xff)]) }
+            for value in [msgId, UInt16(idx), UInt16(count)] {
+                frame.append(contentsOf: [UInt8(value >> 8), UInt8(value & 0xff)])
+            }
             frame.append(contentsOf: bytes[min(bytes.count, idx * per)..<min(bytes.count, (idx + 1) * per)])
             return frame
         }
@@ -122,6 +124,14 @@ public struct BleInfo: Equatable, Sendable {
     public let identity: String?
     public let relays: [String]
     public let pairing: Pairing?
+
+    public init(nonce: String?, m: String?, identity: String?, relays: [String], pairing: Pairing?) {
+        self.nonce = nonce
+        self.m = m
+        self.identity = identity
+        self.relays = relays
+        self.pairing = pairing
+    }
 
     /// Whose phone sent this INFO (B§6).
     public enum Owner: Equatable, Sendable {

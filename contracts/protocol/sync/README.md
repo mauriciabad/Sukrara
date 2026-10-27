@@ -13,7 +13,7 @@ test keys (the OGS draft-1 vector keys plus `D2` = sha256("sukrara/sync/D2")); a
 | `join-readings.json` | key delivery → roster → hour chunk → live (reading + sensor) → reading-less sensor update → outsider rejected |
 | `treatments-writer.json` | writer scope: wearer entry, writer's own entry and edit, writer hijack rejected, wearer tombstone, older `(u,o)` ignored |
 | `settings-mirror.json` | mirrored settings: newest `u` wins, only from a roster device |
-| `rotation.json` | phone change / revoke: epoch 2 with a new device, old device and old epoch rejected, late epoch-1 roster ignored |
+| `rotation.json` | phone change / revoke: epoch 2 with a new device, old device and old epoch rejected, late epoch-1 roster ignored. Also the identity-restore case (same wire sequence: new device key, new epoch delivered to every follower, roster with only the new device); Mac `ProtocolCompatTests` replays it through the runtime |
 | `owner-conflict.json` | A3, owner side: the wearer's own echoes, its own rotation and late old events are `fine`; a newer roster or backup from another app publishing as the same identity is a `conflict` |
 
 ## Format (`v` 1)

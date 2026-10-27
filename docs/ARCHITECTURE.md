@@ -123,6 +123,35 @@ NostrCrypto (protocol) ◄── NostrSDKCrypto     RelayTransport (protocol) �
   Android tests: Mac passes them unchanged → both followers agree), fake-relay end-to-end, RelayPool over scripted
   sockets. Nothing opens a network connection.
 
+## Mac runtime (follower, stores, nearby, widget feed)
+
+```
+AppModel (21, @MainActor) ── snapshots()/alerts() ──► FollowerService (protocol) ◄── FollowerRuntime (actor)
+                                                        │ owns
+          FollowerSession ◄─ receive ─┬─ RelayLink (RelayPool | FakeRelay)   KeychainStore (SecretStoring)
+                                      └─ NearbyTransport (NearbyCentral | fake) ─ NearbyLink (pure BLE protocol)
+          stores: ReadingsFileStore · TreatmentFileStore · SensorStateStore · WearerSettingsStore (actors)
+WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolicy (≤ 1 value reload / 5 min)
+```
+
+- **Stores** (`SukraraCore/Stores`): `readings.csv` (`t_ms,mgdl,rate`, appended, atomic rewrite for backfill,
+  31 days, first reading per `t` kept), `treatments.json` (`TreatmentLog` v1: entry + creator + delivery),
+  `sensor.json`, `wearer-settings.json`. An unreadable file is copied to `<name>.corrupt-<unix s>` and reported as a
+  `StoreIssue` (never silent "no data"). `KeychainStore` uses the login keychain: the Apple Development signature has
+  no provisioning profile, so the data-protection keychain answers -34018 (TN3137); that error is tested to surface.
+- **FollowerRuntime**: start reads the Keychain (missing item → wipe leftovers, not following; read error → keep
+  data, `broken`), connects relays (+ Bluetooth when allowed), resubscribes when the session asks, persists trust
+  changes at once and the rest ≤ every 5 min, re-sends unsent treatments, runs the missing-history check 90 s after
+  the backfill. `reconnect()` is for wake / network-up (21 wires `NSWorkspace.didWakeNotification` and
+  NWPathMonitor). Join = invite lookup pool (invite key, `#p`) → `FollowerSession.join` → Keychain → request.
+- **Nearby** (`SukraraShare/Nearby`): `BleFraming` / `BleReassembler` / `BleMessage` / `HelloProof` pinned by the
+  OGS `ble` vectors; `NearbyLink` is the per-connection protocol (HELLO, INFO proof, one write in flight, nothing
+  written before the phone proved it's the wearer's); `NearbyCentral` is the CoreBluetooth adapter, an actor whose
+  executor is the CB queue (delegate callbacks enter with `assumeIsolated`).
+- Tests: `FollowerRuntimeTests` (join over a fake relay hub with the OGS invite and key, outbox, unfollow, Keychain
+  errors), `ProtocolCompatTests` (every sync fixture through the runtime into file stores, incl. `rotation.json` =
+  restore), `NearbyTests`, `StoreTests`, `KeychainStoreTests` (temp service), `WidgetFeedTests`.
+
 ## Mac alerts (`apps/macos/Sources/SukraraAlerts`)
 
 The alert rules of [`contracts/alerts/SPEC.md`](../contracts/alerts/SPEC.md) as a pure Swift 6 library (functional

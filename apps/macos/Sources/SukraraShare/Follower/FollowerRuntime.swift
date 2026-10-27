@@ -100,7 +100,8 @@ public actor FollowerRuntime: FollowerService {
     // MARK: - subscribers
 
     public func snapshots() -> AsyncStream<FollowerSnapshot> {
-        let (stream, continuation) = AsyncStream.makeStream(of: FollowerSnapshot.self, bufferingPolicy: .bufferingNewest(1))
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: FollowerSnapshot.self, bufferingPolicy: .bufferingNewest(1))
         let id = UUID()
         snapshotSubscribers[id] = continuation
         continuation.onTermination = { [weak self] _ in Task { await self?.removeSubscriber(id) } }
@@ -561,8 +562,10 @@ public actor FollowerRuntime: FollowerService {
         }
         let since = clock.now.addingTimeInterval(-Self.snapshotWindow)
         let log = (try? await stores.treatments.load()) ?? TreatmentLog()
-        let issues = [await stores.readings.issue, await stores.treatments.issue, await stores.sensor.issue,
-            await stores.settings.issue].compactMap { $0 }
+        let issues = [
+            await stores.readings.issue, await stores.treatments.issue, await stores.sensor.issue,
+            await stores.settings.issue,
+        ].compactMap { $0 }
         let snapshot = FollowerSnapshot(
             link: link, readings: (try? await stores.readings.load(since: since)) ?? [],
             sensor: await stores.sensor.load(), treatments: log.visible, unsentTreatments: log.unsentCount,

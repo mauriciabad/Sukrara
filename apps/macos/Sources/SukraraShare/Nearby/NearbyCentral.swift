@@ -175,7 +175,9 @@ public actor NearbyCentral: NearbyTransport {
         guard c.uuid == Self.tx, c.isNotifying else { return }
         continuation.yield(.state(.connected(phone: p.name ?? "phone")))
         lastHello = Date()
-        apply(link.connected(perFrame: p.maximumWriteValueLength(for: .withResponse) - BleFraming.header, nonce: Self.nonce()))
+        apply(
+            link.connected(
+                perFrame: p.maximumWriteValueLength(for: .withResponse) - BleFraming.header, nonce: Self.nonce()))
     }
 
     fileprivate func received(_ c: CBCharacteristic) {
@@ -296,8 +298,9 @@ public actor NearbyCentral: NearbyTransport {
             owner?.assumeIsolated { $0.received(characteristic) }
         }
 
-        func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: (any Error)?)
-        {
+        func peripheral(
+            _ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: (any Error)?
+        ) {
             owner?.assumeIsolated { $0.wrote(error: error) }
         }
 
