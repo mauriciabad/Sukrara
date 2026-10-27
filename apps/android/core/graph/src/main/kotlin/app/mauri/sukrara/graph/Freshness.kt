@@ -38,15 +38,17 @@ enum class Freshness(
 
     /**
      * What a card WITHOUT a value (graph-only: the graph widget) shows of its data's age, so it never looks current
-     * when it isn't (contracts/graph/freshness `graph_only`; Freshness.swift `AgeMark`): the value's own steps.
+     * when it isn't (contracts/graph/freshness `graph_only`; Freshness.swift `AgeMark`): the reading's time at every
+     * age, fresh too (a widget the launcher stops redrawing still says when its data is from), then the value's steps.
      */
     enum class AgeMark(
         /** The contract's name. */
         val key: String,
     ) {
+        /** No label: only a card WITH a value (its own time and strike say the age). */
         NONE("none"),
 
-        /** The reading's time on a pill over the chart. */
+        /** The reading's time on a pill over the chart (from the first reading). */
         TIME("time"),
 
         /** The time pill and the chart at [DIM_ALPHA]. */
@@ -70,8 +72,7 @@ enum class Freshness(
     val ageMark: AgeMark
         get() =
             when (this) {
-                FRESH -> AgeMark.NONE
-                LATE -> AgeMark.TIME
+                FRESH, LATE -> AgeMark.TIME
                 STALE -> AgeMark.DIMMED
                 OLD -> AgeMark.NO_READINGS
                 GONE -> AgeMark.FACE

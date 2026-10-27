@@ -130,12 +130,30 @@ func fixtureSetHasCases(_ set: String) {
             #expect(lay.first("graph.age")?.info == want)
             #expect(lay.first("chart") != nil)
         }
-        // VoiceOver hears the same age (nothing extra while fresh)
+        // VoiceOver hears the same age (the time at every age)
         let spoken = GlucoseCard.accessibilityLabel(
             CardData(readings: readings, now: now), unit: .mgdl, surface: .widgetGraph, config: GraphConfig(),
             words: .en)
         #expect(spoken.hasPrefix("Glucose:") == (want != "none"), "\(spoken)")
         #expect(spoken.contains("old reading") == (want == "dimmed"), "\(spoken)")
+    }
+
+    /// The age pill never grows past the chart, however narrow the widget (GraphOnlyAgeTest.pillStaysInsideTheChart).
+    @Test(arguments: [40.0, 60.0, 90.0, 140.0, 332.0])
+    func agePillStaysInsideTheChart(_ w: Double) {
+        for age in [10.0, 400.0, 1500.0] {
+            var readings = (1...60).reversed().map { GraphReading(t: now - age - Double($0) * 60, v: 120, rate: 0) }
+            readings.append(GraphReading(t: now - age, v: 118, rate: 0.2))
+            let st = CardStyle(graph: GraphStyle(), rings: [], value: false, sensorTime: false)
+            let size = CGSize(width: w, height: 60)
+            let lay = GlucoseCard.draw(
+                cardContext(size), size: size, readings: readings, marks: [], now: now, st, GraphPalette.of(dark: false),
+                surface: .widgetGraph, part: .all)
+            guard let chart = lay.first("chart")?.box, let pill = lay.first("graph.age")?.box else {
+                Issue.record("w=\(w) age=\(age): no chart or pill"); continue
+            }
+            #expect(pill.minX >= chart.minX - 0.01 && pill.maxX <= chart.maxX + 0.01, "w=\(w) age=\(age): \(pill) in \(chart)")
+        }
     }
 }
 

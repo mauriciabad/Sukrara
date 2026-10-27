@@ -121,7 +121,8 @@ object GlucoseCard {
 
     /**
      * A card without a value: the reading's time centred over the top of [chart] on a background pill, after the
-     * "no readings" icon from 20 min ([age], freshness.json `graph_only`; GlucoseCard.swift `drawAgeLabel`).
+     * "no readings" icon from 20 min ([age], freshness.json `graph_only`; GlucoseCard.swift `drawAgeLabel`). The text
+     * shrinks to fit the chart's width (down to 60 %) and the pill never grows past it.
      */
     private fun drawAgeLabel(
         cv: Canvas,
@@ -134,24 +135,36 @@ object GlucoseCard {
         rec: CardLayout,
     ) {
         val text = Freshness.timeText(t, nowS)
-        val size = (chart.height() * 0.11f).coerceIn(11 * d, 18 * d)
         val ink =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = pal.inkSoft
                 typeface = RoundedFont.typeface(600)
-                textSize = size
             }
-        val icon = if (age == Freshness.AgeMark.NO_READINGS) size * 1.15f else 0f
-        val gap = if (icon > 0) size * 0.3f else 0f
+        val hasIcon = age == Freshness.AgeMark.NO_READINGS
+
+        // the pill's width at text size s: icon + gap + text + padding (the same proportions as below)
+        fun width(s: Float): Float {
+            ink.textSize = s
+            return (if (hasIcon) s * 1.45f else 0f) + ink.measureText(text) + s
+        }
+        var size = (chart.height() * 0.11f).coerceIn(11 * d, 18 * d)
+        val room = chart.width() - 4 * d
+        if (width(size) > room) size *= (room / width(size)).coerceAtLeast(0.6f)
+        ink.textSize = size
+        val icon = if (hasIcon) size * 1.15f else 0f
+        val gap = if (hasIcon) size * 0.3f else 0f
         val padX = size * 0.5f
         val padY = size * 0.25f
-        val bw = icon + gap + ink.measureText(text) + 2 * padX
+        val bw = min(icon + gap + ink.measureText(text) + 2 * padX, room.coerceAtLeast(0f))
         val bh = size * 1.2f + 2 * padY
         val box = RectF(chart.centerX() - bw / 2, chart.top + 2 * d, chart.centerX() + bw / 2, chart.top + 2 * d + bh)
         val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ColorUtils.setAlphaComponent(pal.bg, (255 * 0.9f).toInt()) }
         cv.drawRoundRect(box, bh / 2, bh / 2, bg)
+        val clip = cv.save()
+        cv.clipRect(box)
         if (icon > 0) Glyphs.drawSymbol(cv, Glyphs.noReadings, box.left + padX, box.centerY() - icon / 2, icon, pal.inkSoft)
         cv.drawText(text, box.left + padX + icon + gap, box.centerY() + size * 0.36f, ink)
+        cv.restoreToCount(clip)
         rec.add("graph.age", box, age.key)
         rec.add("time.text", info = text)
     }

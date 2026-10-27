@@ -194,7 +194,7 @@ public enum GlucoseCard {
 
     /// A card without a value: the reading's time centred over the top of the chart's `plot` on a background pill,
     /// after the "no readings" icon from 20 min (`age`, freshness.json `graph_only`; GlucoseCard.kt `drawAgeLabel`).
-    /// The text shrinks to fit the plot's width.
+    /// The text shrinks to fit the plot's width (down to 60 %) and the pill never grows past it.
     private static func drawAgeLabel(
         _ ctx: CGContext, _ plot: CGRect, _ r: GraphReading, _ now: TimeInterval, _ age: Freshness.AgeMark,
         _ pal: GraphPalette, d: CGFloat, rec: CardLayout
@@ -204,24 +204,28 @@ public enum GlucoseCard {
         func width(_ s: CGFloat) -> CGFloat {
             (age == .noReadings ? s * 1.45 : 0) + Ink.width(text, Ink.font(s, .semibold)) + s
         }
-        if width(size) > plot.width { size *= max(0.6, plot.width / width(size)) }
+        let room = max(0, plot.width - 4 * d)
+        if width(size) > room { size *= max(0.6, room / width(size)) }
         let font = Ink.font(size, .semibold)
         let icon = age == .noReadings ? size * 1.15 : 0
         let gap = icon > 0 ? size * 0.3 : 0
         let padX = size * 0.5, padY = size * 0.25
-        let w = icon + gap + Ink.width(text, font) + 2 * padX, h = size * 1.2 + 2 * padY
+        let w = min(icon + gap + Ink.width(text, font) + 2 * padX, room), h = size * 1.2 + 2 * padY
         let box = CGRect(x: plot.midX - w / 2, y: plot.minY + 2 * d, width: w, height: h)
         if !pal.knockout {
             ctx.setFillColor(pal.bg.copy(alpha: 0.9) ?? pal.bg)
             ctx.addPath(CGPath(roundedRect: box, cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
             ctx.fillPath()
         }
+        ctx.saveGState()
+        ctx.clip(to: box)
         if icon > 0 {
             _ = SensorBadge.symbol(
                 ctx, GlucoseLook.noReadingsSymbol, x: box.minX + padX, y: box.midY - icon / 2, size: icon,
                 color: pal.inkSoft)
         }
         Ink.draw(ctx, text, x: box.minX + padX + icon + gap, y: box.midY + size * 0.36, font, pal.inkSoft)
+        ctx.restoreGState()
         rec.add("graph.age", box, age.rawValue)
         rec.add("time.text", nil, text)
     }

@@ -26,8 +26,9 @@ public enum Freshness: Sendable {
     var showGraph: Bool { self != .gone }
 
     /// What a card WITHOUT a value (graph-only) shows of its data's age, so it never looks current when it isn't
-    /// (contracts/graph/freshness `graph_only`; Freshness.kt AgeMark): the same steps as the value's time, strike and
-    /// "no readings".
+    /// (contracts/graph/freshness `graph_only`; Freshness.kt AgeMark): the reading's time at every age, fresh too (a
+    /// widget that stops redrawing still says when its data is from), then the value's strike and "no readings" steps.
+    /// `none` = no label: only a card WITH a value.
     enum AgeMark: String, Sendable {
         case none, time, dimmed, noReadings = "no_readings", face
         /// The chart's opacity while dimmed.
@@ -37,8 +38,7 @@ public enum Freshness: Sendable {
 
     var ageMark: AgeMark {
         switch self {
-        case .fresh: .none
-        case .late: .time
+        case .fresh, .late: .time
         case .stale: .dimmed
         case .old: .noReadings
         case .gone: .face

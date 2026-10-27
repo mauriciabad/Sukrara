@@ -10,8 +10,9 @@
     "expect: state value|no_readings|none|ended, text (null = no value), strike (also grey), trend arrow|none|null",
     "(none = the 'no trend' ring), time (the reading's time shown), graph (the chart shown).",
     "graph_only: what a card WITHOUT a value (graph-only: the graph widgets) shows, so its age is never hidden (the",
-    "user's safety review 2026-10-27, Android widgets major #1): none = the chart as is; time = the reading's time in a",
-    "label over the chart's top (from 91 s); dimmed = the chart dimmed (grey) plus the time label (from 5 min, the step",
+    "user's safety review 2026-10-27, Android widgets major #1): time = the reading's time in a label over the chart's",
+    "top at EVERY age, fresh too (G2 review 2026-10-27: a widget drawn while fresh that the launcher stops redrawing must",
+    "still say when its data is from); none = no label (only a card WITH a value); dimmed = the chart dimmed (grey) plus the time label (from 5 min, the step",
     "where a value is struck through); no_readings = dimmed plus the 'no readings' icon before the time (from 20 min, the",
     "step where a value is hidden); face = no chart, the value's face takes its place (from 3 h / no reading)."
   ],
@@ -22,9 +23,9 @@
   },
   "cases": [
     {"name": "fresh", "age": 30, "sgv": 123, "rate": 1.2,
-     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "none"}},
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "time"}},
     {"name": "fresh at 90 s", "age": 90, "sgv": 123, "rate": -0.4,
-     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "none"}},
+     "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "time"}},
     {"name": "late from 91 s", "age": 91, "sgv": 123, "rate": -0.4,
      "expect": {"state": "value", "text": "123", "strike": false, "trend": "arrow", "time": true, "graph": true, "graph_only": "time"}},
     {"name": "late at 5 min", "age": 300, "sgv": 123, "rate": 2.5,
@@ -40,16 +41,16 @@
     {"name": "no chart from 3 h", "age": 10801, "sgv": 77, "rate": -1.0,
      "expect": {"state": "no_readings", "text": null, "strike": false, "trend": null, "time": true, "graph": false, "graph_only": "face"}},
     {"name": "no trend (fresh)", "age": 30, "sgv": 95, "rate": null,
-     "expect": {"state": "value", "text": "95", "strike": false, "trend": "none", "time": false, "graph": true, "graph_only": "none"}},
+     "expect": {"state": "value", "text": "95", "strike": false, "trend": "none", "time": false, "graph": true, "graph_only": "time"}},
     {"name": "no trend (late)", "age": 200, "sgv": 95, "rate": null,
      "expect": {"state": "value", "text": "95", "strike": false, "trend": "none", "time": true, "graph": true, "graph_only": "time"}},
     {"name": "LO", "age": 30, "sgv": 39, "rate": -2.0,
-     "expect": {"state": "value", "text": "LO", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "none"}},
+     "expect": {"state": "value", "text": "LO", "strike": false, "trend": "arrow", "time": false, "graph": true, "graph_only": "time"}},
     {"name": "HI struck", "age": 600, "sgv": 401, "rate": 1.0,
      "expect": {"state": "value", "text": "HI", "strike": true, "trend": "none", "time": true, "graph": true, "graph_only": "dimmed"}},
     {"name": "no reading yet", "age": null, "sgv": null, "rate": null,
      "expect": {"state": "none", "text": null, "strike": false, "trend": null, "time": true, "graph": false, "graph_only": "face"}},
     {"name": "sensor ended", "age": 30, "sgv": 123, "rate": 1.0, "ended": true,
-     "expect": {"state": "ended", "text": null, "strike": false, "trend": null, "time": false, "graph": true, "graph_only": "none"}}
+     "expect": {"state": "ended", "text": null, "strike": false, "trend": null, "time": false, "graph": true, "graph_only": "time"}}
   ]
 }

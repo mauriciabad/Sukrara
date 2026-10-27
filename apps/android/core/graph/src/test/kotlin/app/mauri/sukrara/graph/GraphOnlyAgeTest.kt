@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -76,5 +77,36 @@ class GraphOnlyAgeTest {
                 if (ok) null else "${c["name"].str()}: want $want, got mark=$mark chart=$chart"
             }
         assertTrue(fails.joinToString("\n"), fails.isEmpty())
+    }
+
+    private fun graphOnly(
+        age: Long,
+        w: Float,
+        h: Float = 138f,
+    ): CardLayout {
+        val readings = (60 downTo 1).map { GlucosePoint(now - age - it * 60L, 120, 0.0) } + GlucosePoint(now - age, 118, 0.2)
+        val st = CardStyle(graph = GraphStyle(), rings = emptyList(), value = false, sensorTime = false)
+        val model = CardModel(readings, emptyList(), now, Scenes.words())
+        return GlucoseCard.draw(Canvas(), w, h, model, st, GraphPalette.of(false), 1f, CardSurface.WIDGET_GRAPH, CardPart.ALL)
+    }
+
+    /** G2 review: a widget drawn while fresh that the launcher stops redrawing still says when its data is from. */
+    @Test fun freshChartShowsTheReadingTime() {
+        val lay = graphOnly(age = 10, w = 332f)
+        assertEquals("time", lay.first("graph.age")?.info)
+        val time = Freshness.timeText(now - 10, now)
+        assertTrue("$time in ${lay.all("time.text").map { it.info }}", lay.all("time.text").any { it.info == time })
+    }
+
+    /** The pill never grows past the chart, however narrow the widget (the widest label: icon + time). */
+    @Test fun pillStaysInsideTheChart() {
+        for (w in listOf(40f, 60f, 90f, 140f, 332f)) {
+            for (age in listOf(10L, 400L, 1500L)) {
+                val lay = graphOnly(age, w, h = 60f)
+                val chart = checkNotNull(lay.first("chart")?.box) { "w=$w age=$age: no chart" }
+                val pill = checkNotNull(lay.first("graph.age")?.box) { "w=$w age=$age: no pill" }
+                assertTrue("w=$w age=$age: $pill outside $chart", pill.left >= chart.left && pill.right <= chart.right)
+            }
+        }
     }
 }
