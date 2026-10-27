@@ -58,21 +58,24 @@
     <!-- Setup: turn off the showcase app, title -->
     <string name="sh_setup_showcase_title">Turn off Sukrara Showcase</string>
     <!-- Setup: turn off the showcase app, explanation -->
-    <string name="sh_setup_showcase_body">Stop alerts and the sensor in Sukrara Showcase, or uninstall it, so you don\'t get double alarms.</string>
+    <string name="sh_setup_showcase_body">Do these in Sukrara Showcase, in this order. Keep it installed until the end of setup: you\'ll paste its recovery code there.</string>
+    <string name="sh_setup_showcase_step_code">Save its recovery code: Settings › Backup › Recovery code, then copy it to your password manager.</string>
+    <string name="sh_setup_showcase_step_alerts">Turn its alerts off: Settings › Alerts › Glucose alerts. Otherwise its no-data alarm rings once Sukrara has the sensor.</string>
+    <string name="sh_setup_showcase_step_sensor">Free the sensor: Settings › Glucose source › Forget this sensor.</string>
     <!-- Setup: showcase step note about followers -->
     <string name="sh_setup_showcase_followers">Your followers keep seeing you through the Showcase until you restore them here, at the end of setup.</string>
     <!-- Button: open the showcase app -->
     <string name="sh_setup_showcase_open">Open Showcase</string>
+    <!-- Button: the person turned the showcase off -->
     <!-- Button: uninstall the showcase app -->
     <string name="sh_setup_showcase_uninstall">Uninstall Showcase</string>
-    <!-- Button: the person turned the showcase off -->
-    <string name="sh_setup_showcase_done">I\'ve turned it off</string>
+    <string name="sh_setup_showcase_done">I\'ve done these</string>
     <!-- Confirmation title -->
-    <string name="sh_setup_showcase_confirm_title">Sukrara Showcase is off?</string>
+    <string name="sh_setup_showcase_confirm_title">Sukrara Showcase is ready?</string>
     <!-- Confirmation text -->
-    <string name="sh_setup_showcase_confirm_text">Its alerts and its sensor connection are stopped. Otherwise both apps ring for the same low.</string>
+    <string name="sh_setup_showcase_confirm_text">Its recovery code is saved, its alerts are off and it forgot the sensor. Otherwise both apps ring for the same low, and without the code every follower needs a new invite.</string>
     <!-- Confirmation button -->
-    <string name="sh_setup_showcase_confirm">Yes, it\'s off</string>
+    <string name="sh_setup_showcase_confirm">Yes, all done</string>
     <!-- Setup sensor step: title -->
     <string name="sh_setup_sensor_title">Connect your sensor</string>
     <!-- Setup sensor step: explanation -->
@@ -121,11 +124,13 @@
     <!-- Restore warning (always shown) -->
     <string name="sh_restore_warning">Sukrara Showcase will stop sharing with your followers. Do this when this app has your sensor.</string>
     <!-- Where the recovery code is -->
-    <string name="sh_restore_where">Find it in Sukrara Showcase › Settings › Backup › Recovery code. Paste the code (ncryptsec… with its password, or nsec…).</string>
+    <string name="sh_restore_where">Paste the code you saved from Sukrara Showcase › Settings › Backup › Recovery code (ncryptsec… with its password, or nsec…).</string>
     <!-- Restore blocked: no reading yet -->
     <string name="sh_restore_block_no_reading">Connect your sensor first: restore becomes available once this app receives a reading.</string>
     <!-- Restore blocked: showcase may still be sharing -->
-    <string name="sh_restore_block_showcase">Turn sharing off in Sukrara Showcase (or uninstall it) and tick the box below.</string>
+    <string name="sh_restore_block_showcase">Turn sharing off in Sukrara Showcase, then tick this.</string>
+    <string name="sh_restore_step_sensor">Sensor running in Sukrara</string>
+    <string name="sh_restore_step_code">Paste your recovery code</string>
     <!-- Checkbox: showcase sharing is off -->
     <string name="sh_restore_showcase_sharing_off">Sharing is off in Sukrara Showcase</string>
     <!-- Field: recovery code -->

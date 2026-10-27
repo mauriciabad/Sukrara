@@ -68,7 +68,7 @@ public struct SetupView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.t("Welcome to Sukrara")).font(.largeTitle.bold())
             Text(L10n.t("Sukrara shows the glucose of someone you follow in the menu bar and alerts you when it's out of range."))
-            Text(L10n.t("Following the Showcase works too — you can follow the phone's Sukrara Showcase today and re-follow when the phone switches."))
+            Text(L10n.t("Following the Showcase works too — follow the phone's Sukrara Showcase today. It keeps working after the phone switches to Sukrara, as long as the recovery code is restored there."))
                 .foregroundStyle(.secondary)
             HStack {
                 Spacer()

@@ -16,10 +16,10 @@
     <string name="newsensor_nfc_off_text">The sensor is started by holding the phone to it. NFC has to be on for that.</string>
     <string name="newsensor_signin_title">Sign in to LibreView</string>
     <string name="newsensor_signin_text">Sukrara starts the sensor with your LibreView account, like the Libre app does. Then the Libre app or the showcase can take it back later. Sukrara uploads nothing.</string>
-    <string name="newsensor_showcase_title">Stop the sensor in Sukrara Showcase first</string>
-    <string name="newsensor_showcase_text">Only one app can read the sensor. In the showcase open Settings › Sensor › Stop, then come back.</string>
-    <string name="newsensor_official_title">Close the Libre app first</string>
-    <string name="newsensor_official_text">If the Libre app and Sukrara both read the sensor, it can stop working. Close the Libre app (or uninstall it) before you go on.</string>
+    <string name="newsensor_showcase_title">Free the sensor in Sukrara Showcase first</string>
+    <string name="newsensor_showcase_text">Only one app can read the sensor. In the showcase open Settings › Glucose source › Forget this sensor, and turn off Settings › Alerts › Glucose alerts so its no-data alarm doesn\'t ring. Then come back.</string>
+    <string name="newsensor_official_title">Stop the Libre app first</string>
+    <string name="newsensor_official_text">If the Libre app and Sukrara both read the sensor, it can stop working. Swiping it away isn\'t enough: force-stop it (App info › Force stop) or uninstall it before you go on.</string>
     <string name="newsensor_bt_permission_title">Allow nearby devices</string>
     <string name="newsensor_bt_permission_text">Sukrara reads the sensor over Bluetooth. It needs the Nearby devices permission for that.</string>
     <string name="newsensor_bt_off_title">Turn on Bluetooth</string>
@@ -39,7 +39,7 @@
     <string name="newsensor_failed_ended_title">This sensor has ended</string>
     <string name="newsensor_failed_ended_text">Put on a new sensor, then hold the phone to it.</string>
     <string name="newsensor_takeover_title">Another app has this sensor</string>
-    <string name="newsensor_takeover_showcase_text">Sukrara Showcase still reads it. In the showcase open Settings › Sensor › Stop, then try again. Nothing changed on the sensor.</string>
+    <string name="newsensor_takeover_showcase_text">Sukrara Showcase still reads it. In the showcase open Settings › Glucose source › Forget this sensor (or App info › Force stop), then try again. Nothing changed on the sensor.</string>
     <string name="newsensor_takeover_other_text">Another app or LibreView account reads it. Stop it there, then try again. Nothing changed on the sensor.</string>
 
     <string name="newsensor_connecting_title">Connecting over Bluetooth…</string>

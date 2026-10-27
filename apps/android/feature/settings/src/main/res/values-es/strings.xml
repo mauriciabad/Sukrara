@@ -200,7 +200,7 @@
     <string name="st_sensor_status_permission">Falta el permiso de Dispositivos cercanos</string>
     <string name="st_sensor_juggluco_unreachable_text">Juggluco no responde, así que Sukrara no recibe lecturas. Abre Juggluco y activa su servidor web (Ajustes › Servidor web), o elige Libre 3 directamente abajo.</string>
     <string name="st_sensor_open_juggluco">Abrir Juggluco</string>
-    <string name="st_sensor_showcase_app_text">Sukrara Showcase lee el sensor, así que Sukrara no recibe lecturas. En la showcase abre Ajustes › Sensor › Detener y vuelve a escanear el sensor.</string>
+    <string name="st_sensor_showcase_app_text">Sukrara Showcase lee el sensor, así que Sukrara no recibe lecturas. En la showcase abre Ajustes › Fuente de glucosa › Olvidar este sensor y desactiva sus Alertas de glucosa; luego vuelve a escanear el sensor.</string>
     <string name="st_sensor_bluetooth_off_text">El Bluetooth está apagado, así que Sukrara no recibe lecturas. Enciéndelo y se reconecta enseguida.</string>
     <string name="st_sensor_open_bluetooth">Abrir ajustes de Bluetooth</string>
     <string name="st_sensor_core_missing_text">Esta versión no puede leer el Libre 3 por sí misma. Juggluco puede leerlo para Sukrara.</string>

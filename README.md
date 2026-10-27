@@ -90,6 +90,10 @@ server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
+**Garmin watch:** V1 has no watch server. The watch keeps working only while **Juggluco** reads the sensor (Juggluco
+serves it): keep Juggluco and pick it as V1's source (*Settings › Sensor › Juggluco*). If V1 takes the sensor over
+directly, the watch goes blank until 0.90.x.
+
 ## Install
 
 Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releases) (0.90.x are marked
@@ -115,18 +119,27 @@ V1 too early cuts your followers off from the app that still has the readings. V
 steps in this order; any step you skip comes back from home's *Finish setup* banner.
 
 1. **Install V1 next to the showcase** (above). Open it, choose *I wear the sensor* (confirmed: one role per
-   install) and allow what alerts need (notifications, full-screen alerts, alarms, battery unrestricted, alert sound,
-   nearby devices).
-2. **Turn off the showcase's sensor use and alerts before anything else**: in the showcase, *Settings › Sensor ›
-   Stop* and turn its alerts off, or uninstall it. V1's setup asks you to confirm, and home shows *Turn off Sukrara
-   Showcase* for as long as the showcase is installed.
+   install) and allow what alerts need (*Notifications*, *Full-screen alerts*, *Alarms and reminders*, *No battery
+   restrictions*, *Alert sound and Do Not Disturb*, *Bluetooth*: the names Settings › Alert reliability uses).
+2. **Get the showcase ready before anything else**, in this order (V1's setup shows the same list and asks you to
+   confirm; home shows *Turn off Sukrara Showcase* for as long as the showcase is installed). **Don't uninstall the
+   showcase yet**: you need its recovery code at step 5.
+   1. **Save its recovery code**: *Settings › Backup › Recovery code*, copied to your password manager.
+   2. **Turn its alerts off**: *Settings › Alerts › Glucose alerts*. Otherwise, once V1 has the sensor, the
+      showcase's no-data alarm rings every 20 minutes, at night too.
+   3. **Free the sensor**: *Settings › Glucose source › Forget this sensor* (or *App info › Force stop*).
+   4. If you use them, turn off the showcase's **root status-bar icons** and the **LSPosed lock-screen widget**: they
+      would keep showing the showcase's stale value next to V1's.
+
+   If the official Libre app is on the phone, **force-stop it** (*App info › Force stop*) **or uninstall it**: swiping
+   it away doesn't free the sensor.
 3. **Take over the sensor in V1**: sign in to LibreView when asked (needed: the sensor is bound to your LibreView
    account's receiver ID) and hold the phone to the sensor. Setup waits for a real reading; until then V1 says *Not
    monitoring: no sensor yet*.
 4. **Confirm your alert thresholds**: V1 never uses them silently.
-5. **Only then restore your identity**: turn sharing off in the showcase (or uninstall it), then in V1 paste the
-   recovery code from the showcase's *Settings › Backup › Recovery code*. V1 refuses while the showcase is installed
-   unless you confirm its sharing is off. Your followers move to V1 by themselves; nobody needs a new invite. (Or
+5. **Only then restore your identity**: turn sharing off in the showcase, then in V1 paste the recovery code you
+   saved at step 2. V1 shows the three conditions as a checklist (sensor running in V1, sharing off in the showcase,
+   the code) and refuses while the showcase is installed unless you confirm its sharing is off. Your followers move to V1 by themselves; nobody needs a new invite. (Or
    *Start fresh* and invite everyone again.)
 6. **Check your followers**: the Mac (showcase or V1) shows V1's value less than 5 minutes old. To move the Mac to V1
    too, install V1 there and follow your phone from its setup window.
@@ -134,7 +147,7 @@ steps in this order; any step you skip comes back from home's *Finish setup* ban
    Showcase* (`tools/install.sh mac` quits it and flags the item but can't remove it for you). Uninstall the showcase
    on the phone once V1 has run well for a while; until then join links ask which app to open.
 
-**Going back if V1 fails:** stop the sensor in V1 (or uninstall V1), open the showcase and take the sensor back with
+**Going back if V1 fails:** uninstall V1 (it has no stop / forget-sensor action yet), open the showcase and take the sensor back with
 *Pair new sensor* and a tap (it works because both apps use your LibreView account's receiver ID), then turn the
 showcase's alerts back on. If you restored your identity in V1, uninstall V1 before turning the showcase's sharing
 back on, so the two never publish as the same identity. If the takeover doesn't work, keep the showcase on the

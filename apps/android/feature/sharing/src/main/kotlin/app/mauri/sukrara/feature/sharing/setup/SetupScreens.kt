@@ -7,7 +7,9 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -315,6 +318,43 @@ private fun RoleOption(
     }
 }
 
+/**
+ * One step of a numbered checklist: its number, or a tick once [done] (null = the app can't tell, the number stays).
+ * TalkBack reads the number (or "Done"), the text and [content] (a field, a checkbox) as one item.
+ */
+@Composable
+internal fun NumberedItem(
+    number: Int,
+    text: String,
+    done: Boolean? = null,
+    content: @Composable ColumnScope.() -> Unit = {},
+) {
+    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Top) {
+        Box(
+            Modifier.size(28.dp).background(
+                if (done == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                CircleShape,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (done == true) {
+                Icon(
+                    painterResource(R.drawable.sharing_ic_check),
+                    contentDescription = stringResource(R.string.sh_setup_check_ok),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp),
+                )
+            } else {
+                Text("$number", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp, top = 3.dp)) {
+            Text(text, style = MaterialTheme.typography.bodyLarge)
+            content()
+        }
+    }
+}
+
 /** A calm explanatory box (not an error). */
 @Composable
 internal fun NoteCard(
@@ -399,13 +439,16 @@ private fun runtimePermission(r: AlertRequirement): String? =
 private fun ColumnScope.ShowcaseStep(actions: SetupActions) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     StepHeader(stringResource(R.string.sh_setup_showcase_title), stringResource(R.string.sh_setup_showcase_body))
+    // the recovery code first: uninstalling the showcase before it's saved would cost every follower a new invite
+    NumberedItem(1, stringResource(R.string.sh_setup_showcase_step_code))
+    NumberedItem(2, stringResource(R.string.sh_setup_showcase_step_alerts))
+    NumberedItem(3, stringResource(R.string.sh_setup_showcase_step_sensor))
     NoteCard(stringResource(R.string.sh_setup_showcase_followers))
     StepButtons(
         stringResource(R.string.sh_setup_showcase_open),
         actions.openShowcase,
         secondary =
             listOf(
-                stringResource(R.string.sh_setup_showcase_uninstall) to actions.uninstallShowcase,
                 stringResource(R.string.sh_setup_showcase_done) to { confirming = true },
                 stringResource(R.string.sh_setup_skip) to { actions.skip(SetupStep.Showcase) },
             ),
