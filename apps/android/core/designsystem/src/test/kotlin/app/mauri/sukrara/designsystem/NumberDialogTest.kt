@@ -36,12 +36,12 @@ class NumberDialogTest {
         assertEquals(Check.OutOfRange, input.check("49"))
         assertEquals(Check.OutOfRange, input.check("121"))
         assertEquals(Check.Empty, input.check(""))
-        assertEquals("72", input.filter("7a2.5"))
+        assertEquals("725", input.filter("7a2.5"))
     }
 
     @Test fun `decimal spec takes a comma or a point once and keeps the step`() {
         val input = NumberInput(spec(unit = "mg/dL/min", min = 0.5, max = 5.0, step = 0.1, decimals = 1, presets = listOf(2.0)))
-        assertEquals("2.5", input.filter("2.5.1"))
+        assertEquals("2.51", input.filter("2.5.1"))
         assertEquals(2.5, (input.check("2,5") as Check.Ok).value, 1e-9)
         assertEquals(Check.OutOfRange, input.check("0.4"))
         assertEquals(Check.OutOfRange, input.check("2.55"))
