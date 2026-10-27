@@ -75,7 +75,7 @@ internal object ControlEvents {
     }
 
     private fun pending(s: OwnerState, key: String, ev: SignedEvent, follower: String?): Step {
-        val list = s.pendingControl.filter { it.key != key } + PendingControl(key, ev.toJson(), follower)
+        val list = s.pendingControl.filter { it.key != key } + PendingControl(key, ev.id, ev.toJson(), follower)
         return Step(s.copy(pendingControl = list), listOf(ev))
     }
 
@@ -103,7 +103,6 @@ internal object ControlEvents {
             followers = b.followers.map { FollowerRecord(it.key, it.name, it.since, it.revoked, it.avatar?.json?.toString()) },
             invites = b.invites.map { InviteRecord(it.token, it.expiry, it.label, it.sentAt, it.claimedBy, it.done) },
             writers = b.writers.toSet(),
-            relays = b.relays.ifEmpty { Wire.DEFAULT_RELAYS },
             profileJson = b.profile?.toJson()?.toString(),
         )
     }

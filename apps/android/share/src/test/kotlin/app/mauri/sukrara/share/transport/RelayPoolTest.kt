@@ -6,6 +6,7 @@ package app.mauri.sukrara.share.transport
 import app.mauri.sukrara.protocol.UnsignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.share.OwnerFixtures.crypto
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -99,6 +100,40 @@ class RelayPoolTest {
         val auth = s.sent.filter { it.startsWith("[\"AUTH\"") }
         assertEquals(1, auth.size)
         assertTrue(auth.single().contains("challenge-1"))
+        p.close()
+    }
+
+    @Test fun fetchWaitsForEveryRelayBeforeEnding() = runTest {
+        val p = pool(listOf("wss://a.example", "wss://b.example"))
+        p.start()
+        runCurrent()
+        val ev = crypto.sign(identity, UnsignedEvent(Wire.KIND_DATA, "x", listOf(listOf("d", "z")), 1_000))
+        val result = async { p.fetch(listOf(RelayFilter(authors = listOf(identity.public.hex))), 10_000) }
+        runCurrent()
+        val sub = Regex("\\[\"REQ\",\"([^\"]+)\"").find(sockets[0].sent.last())!!.groupValues[1]
+        sockets[0].onEvent(SocketEvent.Message("[\"EOSE\",\"$sub\"]"))
+        runCurrent()
+        assertFalse("one quick relay doesn't end the query", result.isCompleted)
+        sockets[1].onEvent(SocketEvent.Message("[\"EVENT\",\"$sub\",${ev.toJson()}]"))
+        sockets[1].onEvent(SocketEvent.Message("[\"EOSE\",\"$sub\"]"))
+        runCurrent()
+        val r = result.await()
+        assertEquals(2, r.answered)
+        assertEquals(listOf(ev.id), r.events.map { it.id })
+        p.close()
+    }
+
+    @Test fun aFailedRelaySettlesTheFetch() = runTest {
+        val p = pool(listOf("wss://a.example", "wss://b.example"))
+        p.start()
+        runCurrent()
+        val result = async { p.fetch(listOf(RelayFilter(kinds = listOf(1))), 10_000) }
+        runCurrent()
+        val sub = Regex("\\[\"REQ\",\"([^\"]+)\"").find(sockets[0].sent.last())!!.groupValues[1]
+        sockets[0].onEvent(SocketEvent.Message("[\"EOSE\",\"$sub\"]"))
+        sockets[1].onEvent(SocketEvent.Closed("refused"))
+        runCurrent()
+        assertEquals(1, result.await().answered)
         p.close()
     }
 

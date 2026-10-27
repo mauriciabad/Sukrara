@@ -111,9 +111,15 @@ class IdentityConflictDetector(private val ctx: OwnerContext) {
      * app's event, so relays keep ours. If the other app is still running, its next event blocks again.
      */
     fun retry(s: OwnerState, now: Long): Step {
-        if (s.conflict == null) return Step(s)
-        // the conflict's created_at is the floor for this publish (ControlEvents.nextAt), then it is forgotten
-        val step = ControlEvents.roster(ctx, s, now) + { ControlEvents.backup(ctx, it, now) }
+        val conflict = s.conflict ?: return Step(s)
+        // the conflict's created_at is the floor for this publish (ControlEvents.nextAt), then it is forgotten. After
+        // the other app rotated (unknown epoch) a plain roster would be older than its epoch: rotate instead, so our
+        // followers get a newer key naming this phone.
+        val step = if (conflict.reason == IdentityCheck.Reason.RosterUnknownEpoch) {
+            Rotate(ctx)(s, now)
+        } else {
+            ControlEvents.roster(ctx, s, now) + { ControlEvents.backup(ctx, it, now) }
+        }
         return Step(step.state.copy(conflict = null), step.publish)
     }
 

@@ -67,6 +67,16 @@ class RestoreIdentity(private val ctx: OwnerContext) {
         data class NoBackupFound(val npub: String) : Result
 
         data object BackupUnreadable : Result
+
+        /**
+         * The newest roster names an epoch the newest backup doesn't hold: another device is still publishing as this
+         * identity (e.g. the showcase rotated after its last backup). Rotating now could reuse its epoch number.
+         * Turn the other app's sharing off, wait a minute, retry.
+         */
+        data object BackupOutdated : Result
+
+        /** This phone already shares with an identity: restoring replaces it only when the person confirmed. */
+        data object AlreadySharing : Result
     }
 
     /** Step 1: the identity in [code] (`nsec1…`, `ncryptsec1…` + [password], or hex). */
@@ -92,7 +102,11 @@ class RestoreIdentity(private val ctx: OwnerContext) {
         val restored = ControlEvents.fromBackup(ctx.crypto, identity.secret.revealHex(), ctx.crypto.generate().secret.revealHex(), backup)
             ?: return Result.BackupUnreadable
         // relays keep the newest (author, d): our roster / backup must be newer than the old device's
-        val lastRoster = found.filter { it.pubkey == identity.public.hex && it.tag("d") == Wire.rosterD(backup.sid) }.maxOfOrNull { it.createdAt } ?: 0
+        val rosters = found.filter { it.pubkey == identity.public.hex && it.tag("d") == Wire.rosterD(backup.sid) && ctx.crypto.verify(it) }
+        val newestRoster = rosters.maxByOrNull { it.createdAt }
+        val knownGks = restored.epochs.map { Wire.gk(restored.readKey(ctx.crypto, it).public) }.toSet()
+        if (newestRoster != null && newestRoster.tag("gk") !in knownGks) return Result.BackupOutdated
+        val lastRoster = newestRoster?.createdAt ?: 0
         val seeded = restored.copy(rosterPublishedAt = lastRoster, backupPublishedAt = newest.createdAt)
         return Result.Restored(Rotate(ctx)(seeded, now), restored.activeFollowers().size)
     }

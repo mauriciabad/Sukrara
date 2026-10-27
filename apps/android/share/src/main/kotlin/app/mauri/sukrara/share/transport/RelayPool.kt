@@ -146,16 +146,26 @@ class RelayPool(
                     m is RelayInbound.EndOfStored && m.subscription == id -> answered += m.relay
                     m is RelayInbound.Closed && m.subscription == id -> answered += m.relay
                 }
-                val open = connections.count { it.value.open }
-                if (open > 0 && answered.size >= open) done.trySend(Unit)
+                if (settled(answered)) done.trySend(Unit)
             }
         }
+        // a relay that fails also settles the query (its status changes, not inbound)
+        val failures = scope.launch { status.collect { if (settled(answered)) done.trySend(Unit) } }
         withTimeoutOrNull(timeoutMs) { done.receive() }
         return withContext(serial) {
             collector.cancel()
+            failures.cancel()
             close(id)
             FetchResult(events.values.toList(), answered.size)
         }
+    }
+
+    /**
+     * Every relay has answered the query (EOSE / CLOSED) or has failed since it was asked: the newest copy may sit on
+     * a relay that connects late, so one quick relay never ends a query alone.
+     */
+    private fun settled(answered: Set<String>): Boolean = urls.all { url ->
+        host(url) in answered || status.value[url]?.let { !it.connected && it.lastError != null } == true
     }
 
     private fun launchRelay(url: String) {

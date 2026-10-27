@@ -63,7 +63,7 @@ data class ConflictRecord(val reason: IdentityCheck.Reason, val seenAt: Long, va
  * backup only); [follower] lets a removed follower's deliveries be dropped.
  */
 @Serializable
-data class PendingControl(val key: String, val eventJson: String, val follower: String? = null)
+data class PendingControl(val key: String, val eventId: String, val eventJson: String, val follower: String? = null)
 
 /**
  * Everything the wearer's phone knows about sharing (V1 format, new app id: no migration from the showcase — a
@@ -80,7 +80,6 @@ data class OwnerState(
     val invites: List<InviteRecord> = emptyList(),
     val pending: List<PendingRequest> = emptyList(),
     val writers: Set<String> = emptySet(),
-    val relays: List<String> = Wire.DEFAULT_RELAYS,
     /** The wearer's profile JSON (name + picture), sent only to followers. */
     val profileJson: String? = null,
     val rosterPublishedAt: Long = 0,
@@ -90,6 +89,12 @@ data class OwnerState(
     val pendingControl: List<PendingControl> = emptyList(),
 ) {
     val current: EpochKey get() = epochs.maxBy { it.n }
+
+    /**
+     * Always the current default set (as in the PoC; not stored, not taken from a backup), so the relays the roster,
+     * key deliveries and invites announce are the ones the pool talks to.
+     */
+    val relays: List<String> get() = Wire.DEFAULT_RELAYS
 
     fun activeFollowers(): List<FollowerRecord> = followers.filter { it.active }
 
