@@ -99,18 +99,43 @@ final class WindowCoordinator {
         }
     }
 
-    /// `sukrara:` links: `sukrara://treatment/new` opens Add treatment; an invite link opens Follow and starts
-    /// following (nothing reaches the relays unless it parses as an invite).
+    /// Opens the menu bar panel (set by `AppDelegate`; `sukrara://open`).
+    var openPanel: () -> Void = {}
+
+    /// `sukrara:` links: `sukrara://treatment/new` opens Add treatment, `sukrara://open` (a widget click with no
+    /// data) the panel; anything else is treated as an invite link: it opens Follow and starts following (nothing
+    /// reaches the relays unless it parses as an invite).
     func open(_ url: URL) {
-        if url.host() == "treatment" && url.path() == "/new" {
+        switch AppLink(url) {
+        case .newTreatment:
             if treatments.canWrite { openAddTreatment() } else { openTreatments() }
-            return
+        case .panel:
+            openPanel()
+        case .invite(let text):
+            follow.linkText = text
+            openFollow()
+            Task { await follow.follow() }
         }
-        follow.linkText = url.absoluteString
-        openFollow()
-        Task { await follow.follow() }
     }
 
+}
+
+/// Where a `sukrara:` link goes (`WindowCoordinator.open`).
+enum AppLink: Equatable {
+    /// `sukrara://treatment/new`: the widget's quick Add treatment.
+    case newTreatment
+    /// `sukrara://open`: the widget with no data asks for the app.
+    case panel
+    /// Anything else: an invite link (`sukrara:join#…`), checked by the follow step before it reaches the relays.
+    case invite(String)
+
+    init(_ url: URL) {
+        switch (url.host(), url.path()) {
+        case ("treatment", "/new"): self = .newTreatment
+        case ("open", ""), ("open", "/"): self = .panel
+        default: self = .invite(url.absoluteString)
+        }
+    }
 }
 
 /// The settings window with the app's live parts: open at login (the login item), the update check's result.

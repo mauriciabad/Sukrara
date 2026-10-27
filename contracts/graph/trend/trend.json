@@ -1,0 +1,185 @@
+{
+  "_about": [
+    "The trend arrow, one decision per platform (Android graph/CardModel.kt TrendAngle, Mac SukraraGraph TrendAngle):",
+    "rate (mg/dL/min) -> the text arrow every text place writes (alert title, Live Update notification title, Mac menu bar,",
+    "Mac alert title: GlucoseLook.arrowText / TrendAngle.symbol) and the drawn arrow's angle (deg, y-down canvas: negative",
+    "= up; +-3 = straight up / down) and whether it's doubled. No rate = the 'no trend' ring. Text places never map a rate",
+    "themselves: the cross-surface tests (Android TrendFixtureTest + LiveNotificationContentTest + AlertNotifierTest, Mac",
+    "GraphTests TrendFixtureTests + AppTests MenubarTitleTests) assert every place against these cases.",
+    "The text bands (Nightscout's +-1 / 2 / 3) are not where the drawn arrow starts to tilt (it rotates continuously):",
+    "-0.6 draws 18 deg down while the text says steady. Changing that is an owner decision (OPS issues fx-arrow)."
+  ],
+  "cases": [
+    {
+      "name": "rate +5",
+      "rate": 5.0,
+      "expect": {
+        "text": "⇈",
+        "deg": -90.0,
+        "double": true
+      }
+    },
+    {
+      "name": "rate +3",
+      "rate": 3.0,
+      "expect": {
+        "text": "⇈",
+        "deg": -90.0,
+        "double": true
+      }
+    },
+    {
+      "name": "rate +2.9",
+      "rate": 2.9,
+      "expect": {
+        "text": "↑",
+        "deg": -87.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +2",
+      "rate": 2.0,
+      "expect": {
+        "text": "↑",
+        "deg": -60.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +1.99",
+      "rate": 1.99,
+      "expect": {
+        "text": "↗",
+        "deg": -59.7,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +1.5",
+      "rate": 1.5,
+      "expect": {
+        "text": "↗",
+        "deg": -45.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +1",
+      "rate": 1.0,
+      "expect": {
+        "text": "↗",
+        "deg": -30.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +0.99",
+      "rate": 0.99,
+      "expect": {
+        "text": "→",
+        "deg": -29.7,
+        "double": false
+      }
+    },
+    {
+      "name": "rate +0",
+      "rate": 0.0,
+      "expect": {
+        "text": "→",
+        "deg": 0.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -0.6",
+      "rate": -0.6,
+      "expect": {
+        "text": "→",
+        "deg": 18.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -0.99",
+      "rate": -0.99,
+      "expect": {
+        "text": "→",
+        "deg": 29.7,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -1",
+      "rate": -1.0,
+      "expect": {
+        "text": "↘",
+        "deg": 30.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -1.5",
+      "rate": -1.5,
+      "expect": {
+        "text": "↘",
+        "deg": 45.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -1.99",
+      "rate": -1.99,
+      "expect": {
+        "text": "↘",
+        "deg": 59.7,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -2",
+      "rate": -2.0,
+      "expect": {
+        "text": "↓",
+        "deg": 60.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -2.9",
+      "rate": -2.9,
+      "expect": {
+        "text": "↓",
+        "deg": 87.0,
+        "double": false
+      }
+    },
+    {
+      "name": "rate -3",
+      "rate": -3.0,
+      "expect": {
+        "text": "⇊",
+        "deg": 90.0,
+        "double": true
+      }
+    },
+    {
+      "name": "rate -5",
+      "rate": -5.0,
+      "expect": {
+        "text": "⇊",
+        "deg": 90.0,
+        "double": true
+      }
+    },
+    {
+      "name": "no rate",
+      "rate": null,
+      "expect": {
+        "text": "○",
+        "deg": null,
+        "double": null
+      }
+    }
+  ]
+}

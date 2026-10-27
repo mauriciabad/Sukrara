@@ -72,6 +72,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         services.openPanel = { [weak statusItem] in statusItem?.showPanel() }
+        windows.openPanel = { [weak statusItem] in statusItem?.showPanel() }
         services.permissionChanged = { [weak self] in self?.refreshNotificationPermission() }
         observeSystemTime()
         observeNetwork()
@@ -91,7 +92,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `sukrara:` links (Info.plist CFBundleURLTypes): invite links go to the follow step, `sukrara://treatment/new`
-    /// to Add treatment. A link that launched the app arrives after `applicationDidFinishLaunching`.
+    /// to Add treatment, `sukrara://open` to the panel. A link that launched the app arrives after
+    /// `applicationDidFinishLaunching`.
     public func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == SukraraIDs.urlScheme { windows?.open(url) }
     }
