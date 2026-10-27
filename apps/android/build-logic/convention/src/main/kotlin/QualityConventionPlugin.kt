@@ -1,30 +1,54 @@
 // Sukrara — https://github.com/mauriciabad/Sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
+import app.mauri.sukrara.buildlogic.lib
+import app.mauri.sukrara.buildlogic.libs
 import com.android.build.api.dsl.CommonExtension
+import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 
 /**
  * Static checks every module runs in `./gradlew check`. Android Lint aborts on errors and treats a curated set of
  * warnings as errors (the ones that hurt the person using the app: untranslated or hardcoded text, exported
- * components, API levels); everything else stays a warning. Pre-existing findings live in `lint-baseline.xml`.
+ * components, API levels); everything else stays a warning. Spotless runs ktlint (+ the Compose rules, style in
+ * `.editorconfig`) and keeps the GPL header on every Kotlin file: `./gradlew spotlessApply` fixes both.
  */
 class QualityConventionPlugin : Plugin<Project> {
     override fun apply(target: Project): Unit = with(target) {
+        pluginManager.apply("com.diffplug.spotless")
+        val ktlint = libs.findVersion("ktlint").get().requiredVersion
+        val composeRules = libs.lib("compose-rules-ktlint").get().toString()
+        extensions.configure<SpotlessExtension> {
+            kotlin {
+                target("src/**/*.kt")
+                ktlint(ktlint).customRuleSets(listOf(composeRules))
+                licenseHeader(HEADER, "(package|import|@file) ")
+            }
+            kotlinGradle {
+                target("*.gradle.kts")
+                ktlint(ktlint)
+            }
+        }
         pluginManager.withPlugin("com.android.base") {
             extensions.getByType<CommonExtension>().lint.apply {
                 abortOnError = true
                 checkReleaseBuilds = true
                 checkDependencies = false
-                baseline = file("lint-baseline.xml")
+                // modules start without findings; a baseline is only used where one was deliberately committed
+                baseline = file("lint-baseline.xml").takeIf { it.isFile }
                 error += LINT_ERRORS
             }
         }
     }
 
     private companion object {
+        const val HEADER = "// Sukrara — https://github.com/mauriciabad/Sukrara\n" +
+            "// Copyright (C) 2026 Maurici Abad\n" +
+            "// SPDX-License-Identifier: GPL-3.0-or-later\n"
+
         val LINT_ERRORS = setOf(
             "HardcodedText",
             "MissingTranslation",

@@ -23,33 +23,36 @@ class FakesTest {
     }
 
     @Test
-    fun `settings read the default until set`() = runTest {
-        val settings = InMemorySettingsRepository()
-        assertEquals(180, settings.flow(HighThreshold).first())
-        settings.set(HighThreshold, 200)
-        assertEquals(200, settings.flow(HighThreshold).first())
-    }
+    fun `settings read the default until set`() =
+        runTest {
+            val settings = InMemorySettingsRepository()
+            assertEquals(180, settings.flow(HighThreshold).first())
+            settings.set(HighThreshold, 200)
+            assertEquals(200, settings.flow(HighThreshold).first())
+        }
 
     @Test
-    fun `readings upsert replaces the same time and source and keeps time order`() = runTest {
-        val repo = InMemoryReadingsRepository()
-        val t0 = Instant.parse("2026-01-15T12:00:00Z")
-        repo.upsert(listOf(Reading(t0.plusSeconds(60), 110, null, SourceId.Libre3), Reading(t0, 100, null, SourceId.Libre3)))
-        repo.upsert(listOf(Reading(t0, 105, null, SourceId.Libre3)))
-        assertEquals(listOf(105, 110), repo.window(t0).first().map { it.mgdl })
-        assertEquals(listOf(110), repo.window(t0.plusSeconds(1)).first().map { it.mgdl })
-    }
+    fun `readings upsert replaces the same time and source and keeps time order`() =
+        runTest {
+            val repo = InMemoryReadingsRepository()
+            val t0 = Instant.parse("2026-01-15T12:00:00Z")
+            repo.upsert(listOf(Reading(t0.plusSeconds(60), 110, null, SourceId.Libre3), Reading(t0, 100, null, SourceId.Libre3)))
+            repo.upsert(listOf(Reading(t0, 105, null, SourceId.Libre3)))
+            assertEquals(listOf(105, 110), repo.window(t0).first().map { it.mgdl })
+            assertEquals(listOf(110), repo.window(t0.plusSeconds(1)).first().map { it.mgdl })
+        }
 
     @Test
-    fun `secure store copies bytes and deletes`() = runTest {
-        val store = InMemorySecureStore()
-        val secret = byteArrayOf(1, 2, 3)
-        store.write("identity", secret)
-        secret[0] = 9
-        assertEquals(1, store.read("identity")!![0].toInt())
-        store.delete("identity")
-        assertNull(store.read("identity"))
-    }
+    fun `secure store copies bytes and deletes`() =
+        runTest {
+            val store = InMemorySecureStore()
+            val secret = byteArrayOf(1, 2, 3)
+            store.write("identity", secret)
+            secret[0] = 9
+            assertEquals(1, store.read("identity")!![0].toInt())
+            store.delete("identity")
+            assertNull(store.read("identity"))
+        }
 
     @Test
     fun `fake clock moves and changes zone`() {

@@ -34,7 +34,8 @@ class AppGraph(
     override val appVersion: String = BuildConfig.VERSION_NAME
 
     /** Loads what the modules need from disk, off the main thread. Call before reading state. */
-    suspend fun ready() = withContext(dispatchers.io) {
-        // modules' ready() calls go here, in dependency order
-    }
+    suspend fun ready() =
+        withContext(dispatchers.io) {
+            // modules' ready() calls go here, in dependency order
+        }
 }
