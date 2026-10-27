@@ -53,6 +53,8 @@ data class SetupFacts(
     val ownSensorLive: Boolean,
     /** This phone already has a sharing identity (restored or started fresh). */
     val hasIdentity: Boolean,
+    /** The alert thresholds were confirmed (here or in Settings › Alerts: `alerts.thresholdsConfirmedAt`). */
+    val alertsConfirmed: Boolean = false,
 )
 
 /** One line of the home "Finish setup" card: a skipped step that still matters; tapping reopens [step]. */
@@ -98,7 +100,8 @@ object SetupMachine {
         facts: SetupFacts,
     ): Boolean =
         step in record.completed ||
-            (facts.role != null && (step == SetupStep.Welcome || step == SetupStep.Role))
+            (facts.role != null && (step == SetupStep.Welcome || step == SetupStep.Role)) ||
+            (step == SetupStep.Alerts && facts.alertsConfirmed)
 
     fun completeWelcome(record: SetupRecord): SetupRecord = record.done(SetupStep.Welcome)
 
@@ -165,6 +168,7 @@ object SetupMachine {
                     FinishItem.TurnOffShowcase -> facts.showcaseInstalled && !record.showcaseOffConfirmed
                     FinishItem.ConnectSensor -> !facts.ownSensorLive
                     FinishItem.RestoreFollowers -> !facts.hasIdentity
+                    FinishItem.AlertsNotConfirmed -> !facts.alertsConfirmed
                     else -> true
                 }
         }

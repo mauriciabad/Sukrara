@@ -126,6 +126,14 @@ class SetupMachineTest {
     }
 
     @Test
+    fun `thresholds confirmed in Settings complete the alert step and its Finish-setup item`() {
+        val confirmed = facts.copy(alertsConfirmed = true)
+        val r = m.skip(m.skip(m.confirmShowcaseOff(m.completePermissions(wearer())), Sensor), Alerts)
+        assertTrue(FinishItem.AlertsNotConfirmed !in m.finishItems(r, confirmed))
+        assertEquals(Identity, m.next(m.reopen(r, Alerts), confirmed))
+    }
+
+    @Test
     fun `no Finish-setup items before a role`() {
         assertEquals(emptyList<FinishItem>(), m.finishItems(SetupRecord(skipped = setOf(Alerts)), none))
     }

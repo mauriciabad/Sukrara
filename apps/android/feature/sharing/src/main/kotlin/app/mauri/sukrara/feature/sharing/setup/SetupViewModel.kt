@@ -68,8 +68,14 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
     private val editing = MutableStateFlow<AlertSettings?>(null)
 
     private val inputs =
-        combine(m.setupStore.data, m.roles.role, m.hub.state, m.sharing.state, m.alertSettings.settings) { record, role, glucose, share, alerts ->
-            Inputs(record, role, glucose, share, alerts)
+        combine(m.setupStore.data, m.roles.role, m.hub.state, m.sharing.state, combine(m.alertSettings.settings, m.alertsConfirmedAt, ::Pair)) {
+                record,
+                role,
+                glucose,
+                share,
+                (alerts, confirmedAt),
+            ->
+            Inputs(record, role, glucose, share, alerts, confirmedAt != null)
         }
 
     val ui: StateFlow<SetupUi?> =
@@ -82,6 +88,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                     followerAvailable = m.followerAvailable,
                     ownSensorLive = RestoreGate.ownSensorLive(i.glucose, now),
                     hasIdentity = i.share is OwnerShareState.Sharing || i.share is OwnerShareState.AnotherAppSharingAsYou,
+                    alertsConfirmed = i.alertsConfirmed,
                 )
             val steps = SetupMachine.steps(facts)
             val step = override?.takeIf { it in steps } ?: SetupMachine.next(i.record, facts)
@@ -164,7 +171,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         act {
             val shownAlerts = ui.value?.alerts ?: return@act
             if (!shownAlerts.ordered) return@act
-            m.alertSettings.save(shownAlerts.settings)
+            m.confirmAlerts(shownAlerts.settings)
             editing.value = null
             m.setupStore.update(SetupMachine::confirmAlerts)
         }
@@ -231,6 +238,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         val glucose: app.mauri.sukrara.core.model.GlucoseState,
         val share: OwnerShareState,
         val alerts: AlertSettings,
+        val alertsConfirmed: Boolean,
     )
 
     private data class Locals(

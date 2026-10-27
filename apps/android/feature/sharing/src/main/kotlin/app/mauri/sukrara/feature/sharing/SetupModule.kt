@@ -21,6 +21,11 @@ import app.mauri.sukrara.share.owner.OwnerShareState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import java.time.Instant
+import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.core.data.settings.SchemaSettings
+import app.mauri.sukrara.core.model.storage.SettingsRepository
 
 /** The phone's role (`AppGraph`'s own `role` store, read by the hub and the alert runtime). */
 interface RoleStore {
@@ -54,6 +59,8 @@ class SetupModule(
     val hub: GlucoseHub,
     val sharing: OwnerSharing,
     val alertSettings: AlertSettingsAccess,
+    /** The app's schema settings: setup records `alerts.thresholdsConfirmedAt` (shared with Settings › Alerts). */
+    private val settings: SettingsRepository,
     val resetAlerts: suspend () -> Unit,
     alertChannels: () -> List<String>,
     val clock: Clock,
@@ -69,6 +76,17 @@ class SetupModule(
 
     private val showcaseInstalled = MutableStateFlow(false)
 
+    /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never (CHANGES P4). */
+    val alertsConfirmedAt: Flow<Instant?> by lazy {
+        settings.flow(THRESHOLDS_CONFIRMED_AT).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+    }
+
+    /** P4: the shown thresholds become the runtime's, then the confirmation is recorded. */
+    suspend fun confirmAlerts(shown: AlertSettings) {
+        alertSettings.save(shown)
+        settings.set(THRESHOLDS_CONFIRMED_AT, clock.now().toString())
+    }
+
     fun phoneNow(): PhoneFacts {
         readiness.refresh()
         return PhoneFacts(showcase.installed().also { showcaseInstalled.value = it }, readiness.readiness.value)
@@ -81,7 +99,7 @@ class SetupModule(
 
     /** The home "Finish setup" card's items ([FinishSetupCard]); empty before a role and once nothing is left. */
     val finishItems: Flow<List<FinishItem>> by lazy {
-        combine(setupStore.data, roles.role, hub.state, sharing.state, showcaseInstalled) { record, role, glucose, share, installed ->
+        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(showcaseInstalled, alertsConfirmedAt, ::Pair)) { record, role, glucose, share, (installed, confirmed) ->
             val facts =
                 SetupFacts(
                     role = role,
@@ -89,8 +107,13 @@ class SetupModule(
                     followerAvailable = followerAvailable,
                     ownSensorLive = RestoreGate.ownSensorLive(glucose, clock.now()),
                     hasIdentity = share is OwnerShareState.Sharing || share is OwnerShareState.AnotherAppSharingAsYou,
+                    alertsConfirmed = confirmed != null,
                 )
             SetupMachine.finishItems(record, facts)
         }
+    }
+
+    private companion object {
+        val THRESHOLDS_CONFIRMED_AT = SchemaSettings.text("alerts.thresholdsConfirmedAt", default = "")
     }
 }

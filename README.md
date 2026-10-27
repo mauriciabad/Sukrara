@@ -422,6 +422,20 @@ alarms; the Showcase can be removed after switching. V1 checks GitHub for newer 
 *Download* / *Later* (no auto-install). Before the first reading arrives it says *Not monitoring* and arms no no-data
 alarm.
 
+**Switching from Sukrara Showcase to V1 on Android (0.90 release candidates)** — V1 (`app.mauri.sukrara`) installs
+beside the Showcase (`app.mauri.sukrara.poc`); its first-run setup walks you through the switch in this order:
+
+1. Choose *I wear the sensor* (confirmed: one role per install).
+2. Allow what alerts need (notifications, full-screen alerts, alarms, battery unrestricted, alert sound, nearby devices).
+3. Turn off Sukrara Showcase: stop its alerts and its sensor connection (or uninstall it), so you never get double alarms.
+4. Connect your sensor: take over the one you wear with your LibreView account (or start a new Libre 3, or use Juggluco).
+   Setup waits for a real reading; until then it says *Not monitoring: no sensor yet*.
+5. Confirm your alert thresholds (nothing is used silently).
+6. Bring your followers: only once V1 has your sensor, turn sharing off in the Showcase (or uninstall it) and restore
+   from the Showcase's recovery code (Settings › Backup › Recovery code). Your followers and your Mac keep following
+   without a new invite. Or *Start fresh* and invite them again.
+7. Uninstall the Showcase when you're happy. Any step you skip stays on the home *Finish setup* card.
+
 ### Set up on Android
 
 1. If you wear the sensor, Sukrara reads it directly: after step 3, tap *Pair a sensor* and hold the back of the

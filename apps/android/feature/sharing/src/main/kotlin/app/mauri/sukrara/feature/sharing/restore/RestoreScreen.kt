@@ -99,7 +99,7 @@ private fun ColumnScope.RestoreForm(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = u.record.showcaseSharingOffConfirmed, onCheckedChange = null)
-            Text(stringResource(R.string.restore_showcase_sharing_off), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.restore_showcase_sharing_off), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
         }
     }
     val restoring = u.restore is RestoreUi.Busy

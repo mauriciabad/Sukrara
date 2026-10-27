@@ -61,6 +61,20 @@ applies them.
 ### Sharing
 <!-- Chunks 06 / 13 / 24 / 25: protocol, owner / follower engines, nearby share, first-run setup. -->
 
+**First-run setup and wearer sharing screens: `:feature:sharing`** (chunk 24, package `app.mauri.sukrara.feature.sharing`).
+
+- `setup/SetupMachine` (pure): the binding step order, what completes / skips each step, the Finish-setup items.
+  `SetupRecord` persists in the typed store `setup`; the role is a separate store owned by `AppGraph` (`RoleStore`).
+- `setup/RestoreGate` (pure): restore only with a live own-sensor reading (≤ 15 min, Libre 3 / Juggluco) and the
+  Showcase uninstalled or its sharing confirmed off (`RestoreIdentity.restoreAllowed`, chunk 13).
+- `setup/AndroidAlertReadiness` implements `:core:model`'s `AlertReadinessSource` (the checklist home's reliability
+  row shows too); `setup/ShowcaseDetector` (package query, `<queries>` in the module manifest).
+- Ports from the app: `OwnerSharing` (adapter `EngineOwnerSharing` over chunk 13's `OwnerEngine`), `AlertSettingsAccess`
+  (chunk 11's alert settings store), `RoleStore`, `resetAlerts` (`AlertsModule.reset`, on a role change only — at the
+  identity step the sensor already runs and a reset would pause alerts), the alert channel ids.
+- `SetupModule` (A4) is composed by `AppGraph` (`SharingDeps.setup`); screens get callbacks for other features
+  (the sensor flow) instead of depending on them.
+
 ### Card, widgets and UI
 <!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
 
