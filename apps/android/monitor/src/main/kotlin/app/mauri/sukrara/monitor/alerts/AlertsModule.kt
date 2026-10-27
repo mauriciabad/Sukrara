@@ -58,6 +58,12 @@ class AlertsModule(
         clock,
     )
 
+    /** "Start fresh" / leaving a role (chunk 24): alerts and their saved state go, the sensor-end notices too. */
+    suspend fun reset() {
+        runtime.reset()
+        sensorEnd.onSensor(app.mauri.sukrara.core.model.SensorState.None)
+    }
+
     /** Called by the monitoring service once it runs (cancelled with its [scope]). */
     fun attach(scope: CoroutineScope) {
         AlertChannels.ensure(ctx)

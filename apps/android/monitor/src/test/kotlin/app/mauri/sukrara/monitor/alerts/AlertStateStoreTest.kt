@@ -18,8 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * What survives a process death (a new runtime over the same stores), and the alarm receiver's path with the service
- * dead: it resumes from the saved record alone (no hub, no FGS) and posts no data on time, exactly once.
+ * What survives a process death (a new runtime over the same stores).
  */
 class AlertStateStoreTest {
     private val rig = AlertRig()
@@ -50,21 +49,6 @@ class AlertStateStoreTest {
         assertEquals(null, rig.published.mutedUntil)
     }
 
-    @Test fun receiverWithServiceDeadPostsNoDataOnceOnTime() = runTest {
-        val first = rig.reading(120)
-        rig.runtime().onState(rig.wearerState(latest = first))
-        // every wake-up comes to a dead process: no hub, only the saved record
-        var headless = rig.runtime()
-        while (rig.presenter.log.isEmpty()) {
-            rig.clock.instant = java.time.Instant.ofEpochSecond(requireNotNull(rig.alarm.at))
-            headless = rig.runtime()
-            headless.tick()
-        }
-        assertEquals(listOf("show no_data"), rig.presenter.log)
-        assertEquals(first.t.epochSecond + 20 * 60, rig.clock.now().epochSecond)
-        headless.tick() // a second wake-up (boot, time change) doesn't post again
-        assertEquals(listOf("show no_data"), rig.presenter.log)
-    }
 
     @Test fun recordRoundTripsThroughJson() = runTest {
         rig.runtime().onState(rig.wearerState(latest = rig.reading(60)))

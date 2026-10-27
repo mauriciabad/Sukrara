@@ -37,7 +37,8 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     private val words = object : AlertWords {
         override fun get(name: String) = ctx.getString(ctx.resources.getIdentifier(name, "string", ctx.packageName))
 
-        override val durations = DurationWords(
+        // read each time: the app's language may have changed since this notifier was made
+        override val durations: DurationWords get() = DurationWords(
             minutes = get("duration_minutes"),
             hours = get("duration_hours"),
             hoursMinutes = get("duration_hours_minutes"),

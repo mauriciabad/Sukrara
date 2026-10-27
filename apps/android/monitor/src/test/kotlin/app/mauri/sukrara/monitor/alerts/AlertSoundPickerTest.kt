@@ -28,6 +28,11 @@ class AlertSoundPickerTest {
         assertEquals(AlertSoundPicker.SILENCE, p.pick(AlertKind.NO_DATA, SoundSettings(pack = "none"), 0))
     }
 
+    @Test fun anUnknownPackNeverMeansSilence() {
+        val name = AlertSoundPicker().pick(AlertKind.VERY_LOW, SoundSettings(pack = "from-a-newer-app", shuffle = false), 0)
+        assertEquals("quest_very_low_1", name)
+    }
+
     @Test fun everyPickableFileExists() {
         val raw = Contracts.root.resolve("alerts/sounds/android/raw")
         val names = raw.listFiles().orEmpty().map { it.nameWithoutExtension }.toSet()

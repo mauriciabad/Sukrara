@@ -17,7 +17,7 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
     private val lastVariant = HashMap<AlertKind, Int>()
 
     /**
-     * The raw resource name for [kind] now, [SYSTEM] or [SILENCE]. One notification opens the URI more than once (the
+     * The raw resource name for [kind] now, [SYSTEM] or [SILENCE] (only when the person chose [NONE]). One notification opens the URI more than once (the
      * haptics probe, then playback): one pick per kind is kept for [HOLD_MS] so both get the same file, and a shuffle
      * never repeats the previous variant.
      */
@@ -27,11 +27,13 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
         val pack = s.soundOf(kind)
         val name = when (pack) {
             SYSTEM -> SYSTEM
-            !in PACKS -> SILENCE
+            NONE -> SILENCE
             else -> {
+                // an unknown pack (a newer peer's, a bad value) plays the default pack: never silence by accident
+                val known = pack.takeIf { it in PACKS } ?: DEFAULT_PACK
                 val n = if (!s.shuffle) 1 else (1..VARIANTS).filter { it != lastVariant[kind] }.let { it[random(it.indices)] }
                 lastVariant[kind] = n
-                "${pack}_${kind.wire}_$n"
+                "${known}_${kind.wire}_$n"
             }
         }
         picks[kind] = Pick(name, nowMs)
@@ -40,7 +42,11 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
 
     companion object {
         val PACKS = listOf("arcade", "kart", "quest", "soft")
+        const val DEFAULT_PACK = "quest"
         const val SYSTEM = "system"
+
+        /** The pack value that means "no sound" (the person chose it). */
+        const val NONE = "none"
         const val SILENCE = "silence"
         const val VARIANTS = 3
         const val HOLD_MS = 5_000L

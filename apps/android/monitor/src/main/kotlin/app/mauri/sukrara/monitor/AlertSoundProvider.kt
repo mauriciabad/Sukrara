@@ -36,7 +36,8 @@ class AlertSoundProvider : ContentProvider() {
         val module = ctx.alertsModule
         val sounds = module?.let { m -> runBlocking { withTimeoutOrNull(1_000) { m.store.settings.first().sounds } } } ?: SoundSettings()
         val picker = module?.soundPicker ?: AlertSoundPicker()
-        return open(ctx, picker.pick(kind, sounds, System.currentTimeMillis())) ?: open(ctx, AlertSoundPicker.SILENCE)
+        // a file that can't be opened falls back to the system sound, never to silence
+        return open(ctx, picker.pick(kind, sounds, System.currentTimeMillis())) ?: open(ctx, AlertSoundPicker.SYSTEM)
     }
 
     private fun open(ctx: Context, name: String): AssetFileDescriptor? =

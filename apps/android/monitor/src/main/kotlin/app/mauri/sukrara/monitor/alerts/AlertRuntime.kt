@@ -33,6 +33,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -91,11 +92,50 @@ class AlertRuntime(
         wearerSettings: Flow<AlertSettings?>,
         remoteEvents: Flow<AlertEvent>,
     ) {
-        scope.launch { store.settings.collect { onSettings(it) } }
-        scope.launch { wearerSettings.collect { onWearerSettings(it) } }
-        scope.launch { treatments.collect { onDoses(dosesOf(it)) } }
-        scope.launch { state.collect { onState(it) } }
-        scope.launch { remoteEvents.collect { process(AlertInput.Remote(it)) } }
+        scope.launch { store.settings.collect { safely { onSettings(it) } } }
+        scope.launch { wearerSettings.collect { safely { onWearerSettings(it) } } }
+        scope.launch { treatments.collect { safely { onDoses(dosesOf(it)) } } }
+        scope.launch { state.collect { safely { onState(it) } } }
+        scope.launch { remoteEvents.collect { safely { process(AlertInput.Remote(it)) } } }
+    }
+
+    /** One failing input (a store write, a notification Android refused) never stops the collectors that follow. */
+    private suspend fun safely(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // nothing to log here without health data; the next input or the exact alarm tries again
+        }
+    }
+
+    /**
+     * "Start fresh" / leaving a role (chunk 24): every alert notification goes, the alarm is cancelled, the saved state
+     * is dropped and nothing runs until the hub reports a role again.
+     */
+    suspend fun reset() {
+        mutex.withLock {
+            started = true
+            firing.keys.forEach { presenter.clear(it) }
+            mutedCards.keys.forEach { presenter.clear(it) }
+            firing.clear()
+            mutedCards.clear()
+            shownRelax.clear()
+            machine = null
+            role = null
+            monitoring = false
+            sensor = null
+            fedReadingAt = null
+            alarm.set(null)
+            store.save { AlertRecord() }
+            publishUi(now())
+        }
+    }
+
+    /** Publishes the alert state again (home on resume: delivery problems the person may just have fixed). */
+    suspend fun refreshUi() {
+        mutex.withLock { publishUi(now()) }
     }
 
     /** The exact alarm fired (or a boot / clock change): evaluate now, also with the service dead. */
@@ -207,10 +247,13 @@ class AlertRuntime(
 
     private suspend fun ensureStarted(): List<AlertEffect> {
         if (started) return emptyList()
-        started = true
-        own = store.settings.first()
-        doses = dosesOf(treatments.first())
+        // everything is read before the runtime counts as started: a failed or cancelled load is tried again next time
+        val settings = store.settings.first()
+        val loadedDoses = dosesOf(treatments.first())
         val record = store.load()
+        own = settings
+        doses = loadedDoses
+        started = true
         monitoring = record.monitoring
         who = record.who
         sensor = record.sensor?.window
