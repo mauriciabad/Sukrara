@@ -538,7 +538,8 @@ def check_card(ch, rep):
                         "path to the test's runner." % (s["id"], plat, plat))
 
 
-CLOCK_KT = KT_MODEL + "Clock.kt"
+# Android: the card renderer owns clock formatting (brief 08); the time *source* interface is :core:model Clock
+CLOCK_KT = ANDROID + "core/graph/src/main/kotlin/app/mauri/sukrara/graph/Clock.kt"
 CLOCK_SWIFT = MAC_SOURCES + "SukraraCore/Clock.swift"
 # files that write times as data or log text (not the user's clock): path -> why. Each V1 chunk adds its own.
 CLOCK_OK = {}
