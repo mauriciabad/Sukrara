@@ -7,6 +7,7 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSettingsCodec
 import app.mauri.sukrara.alerts.AlertState
 import app.mauri.sukrara.alerts.SensorWindow
+import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.storage.SettingSpec
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
@@ -56,10 +57,10 @@ class AlertStateStore(
     suspend fun save(transform: (AlertRecord) -> AlertRecord) = record.update(transform)
 
     companion object {
-        /** contracts/settings/settings.json `alerts.*` → Android store `alerts`, key `alerts`. */
-        val SETTINGS = object : SettingSpec<String> {
-            override val key = "alerts"
-            override val default = ""
-        }
+        /**
+         * contracts/settings/settings.json `alerts.*` → Android store `alerts`, key `alerts`: every `alerts.*` entry is a
+         * path inside that one JSON value, so any of them resolves the key (the repository only accepts schema settings).
+         */
+        val SETTINGS: SettingSpec<String> = SchemaSettings.text("alerts.on", default = "")
     }
 }
