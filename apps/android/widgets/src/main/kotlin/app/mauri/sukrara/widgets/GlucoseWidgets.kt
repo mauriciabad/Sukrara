@@ -194,6 +194,19 @@ abstract class CardWidget(
             WidgetContent(kind, frame ?: first, appWidgetId)
         }
     }
+
+    /**
+     * A placement was removed: forget its settings and recheck the home banner. Glance runs this inside the
+     * receiver's own `goAsync`, so the process stays up until it's done (the receiver must not call `goAsync` again).
+     */
+    override suspend fun onDelete(
+        context: Context,
+        glanceId: GlanceId,
+    ) {
+        val host = context.widgetsHost
+        host.awaitReady()
+        host.widgets.forget(GlanceAppWidgetManager(context).getAppWidgetId(glanceId))
+    }
 }
 
 @Composable
@@ -231,21 +244,11 @@ class GraphWidget : CardWidget(WidgetKind.GRAPH)
 
 class CombinedWidget : CardWidget(WidgetKind.COMBINED)
 
-/** A widget kind's receiver: forgets a removed placement's settings and tells the home banner what's placed. */
+/** A widget kind's receiver: tells the home banner what's placed (a removed placement: [CardWidget.onDelete]). */
 abstract class CardWidgetReceiver(
     kind: WidgetKind,
 ) : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = kind.widget()
-
-    override fun onDeleted(
-        context: Context,
-        appWidgetIds: IntArray,
-    ) {
-        super.onDeleted(context, appWidgetIds)
-        val pending = goAsync()
-        val host = context.widgetsHost
-        host.widgets.forget(appWidgetIds) { host.awaitReady() }.invokeOnCompletion { pending.finish() }
-    }
 
     override fun onUpdate(
         context: Context,

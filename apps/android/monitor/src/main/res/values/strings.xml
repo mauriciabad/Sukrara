@@ -33,6 +33,7 @@
     <string name="alert_text_value">%1$d mg/dL %2$s</string>
     <string name="alert_text_falling">%1$s · falling %2$s mg/dL/min</string>
     <string name="alert_text_rising">%1$s · rising %2$s mg/dL/min</string>
+    <string name="alert_text_no_reading">No recent reading</string>
     <string name="alert_text_no_data">No reading for %1$s</string>
     <string name="alert_text_no_data_last">No reading for %1$s · last %2$d mg/dL</string>
     <string name="alert_relaxed_subtext">Reminders every %1$s</string>

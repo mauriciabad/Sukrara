@@ -61,6 +61,13 @@ class TreatmentLog(
     /** Deletes [id] (kept as a tombstone for sync); returns the deleted version, for undo. */
     suspend fun delete(id: String): Treatment? = rewrite(id) { it.copy(deleted = true) }
 
+    /** Whether this phone may edit or delete [id] (see [WriterScope.mayChange]); false when it isn't stored. */
+    suspend fun mayChange(id: String): Boolean {
+        val writer = sync.writer.value ?: return false
+        val stored = repository.get(id) ?: return false
+        return WriterScope.mayChange(writer, stored.creator)
+    }
+
     /** Brings [previous] (what [edit] or [delete] returned) back as the newest version. */
     suspend fun undo(previous: Treatment): Boolean = rewrite(previous.id) { previous } != null
 

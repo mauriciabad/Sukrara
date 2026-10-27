@@ -12,10 +12,6 @@ import app.mauri.sukrara.alerts.AlertLimits
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.monitor.notify.NotificationGroups
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** The Application implements this (chunk 02 wires it), so receivers and the provider reach the one [AlertsModule]. */
@@ -26,28 +22,7 @@ interface AlertsHost {
 internal val Context.alertsModule: AlertsModule?
     get() = (applicationContext as? AlertsHost)?.alerts
 
-/** Runs [block] off the main thread within the broadcast's time ([goAsync], 10 s budget), then finishes it. */
-private fun BroadcastReceiver.runAsync(block: suspend () -> Unit) {
-    val pending = goAsync()
-    receiverScope.launch {
-        try {
-            withTimeoutOrNull(BUDGET_MS) { block() } ?: Log.w(TAG, "receiver timed out")
-        } catch (e: Exception) {
-            // an alert action or check that failed must not take the process (and the monitoring service) down
-            Log.w(TAG, "receiver failed: ${e.javaClass.simpleName}")
-        } finally {
-            pending.finish()
-        }
-    }
-}
-
-private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-private const val BUDGET_MS = 9_000L
-
-/** The alert check's own share of [BUDGET_MS]: the service restart after it always gets the rest. */
-private const val CHECK_BUDGET_MS = 6_000L
 private const val TAG = "Sukrara.alerts"
-
 
 /**
  * The alert notification's buttons (non-exported; immutable PendingIntents except the direct reply's): *Mute…* /
@@ -59,7 +34,7 @@ class AlertActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val module = context.alertsModule ?: return
         val kind = intent.getStringExtra(KIND) ?: return
-        runAsync {
+        runAsync("alert action") {
             val runtime = module.runtime
             when (intent.action) {
                 MUTE -> {
@@ -88,37 +63,23 @@ class AlertActionReceiver : BroadcastReceiver() {
 }
 
 /**
- * The alert runtime's exact alarm, and boot / app update / clock or time zone change (non-exported: only the system
- * and [AlertScheduler] send these). Evaluates from the saved record **without** the monitoring service (no data still
- * alerts on time when Android killed it), re-arms the next alarm, checks the sensor end, then asks chunk 10's starter
- * to bring the service back (it shows "Monitoring stopped — tap to resume" when Android refuses).
+ * The alert checks' exact alarms (non-exported: only `AndroidAlarms.alertCheck` sets them). Evaluates from the saved
+ * record **without** the monitoring service (no data still alerts on time when Android killed it), re-arms the next
+ * alarm, checks the sensor end, then asks chunk 10's starter to bring the service back (it shows "Monitoring stopped —
+ * tap to resume" when Android refuses). Boot, app update and clock changes reach the same check through
+ * [BootReceiver], which starts the service once.
  */
 class AlertCheckReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action !in TRIGGERS) return
+        if (intent.action != ACTION_CHECK) return
         val module = context.alertsModule ?: return
-        runAsync {
-            try {
-                withTimeoutOrNull(CHECK_BUDGET_MS) {
-                    module.runtime.tick()
-                    module.sensorEnd.check()
-                } ?: Log.w(TAG, "alert check timed out")
-            } catch (e: Exception) {
-                Log.w(TAG, "alert check failed: ${e.javaClass.simpleName}")
-            }
+        runAsync(ACTION_CHECK) {
+            withTimeoutOrNull(ALERT_CHECK_BUDGET_MS) { module.check() } ?: Log.w(TAG, "alert check timed out")
             module.restarter.restart()
         }
     }
 
     companion object {
         const val ACTION_CHECK = "app.mauri.sukrara.alert.CHECK"
-
-        private val TRIGGERS = setOf(
-            ACTION_CHECK,
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_MY_PACKAGE_REPLACED,
-            Intent.ACTION_TIME_CHANGED,
-            Intent.ACTION_TIMEZONE_CHANGED,
-        )
     }
 }
