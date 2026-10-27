@@ -23,6 +23,10 @@ public struct FollowerSnapshot: Sendable, Equatable {
     public var nearby: NearbyState?
     /// A phone nearby offering to pair (while not following).
     public var nearbyOffer: NearbyOffer?
+    /// The Keychain wouldn't read the follower key (`link` is `.broken` with the reason) and the runtime keeps trying.
+    /// This Mac still follows the wearer: `readings` are still theirs, and the app keeps alerting on them (the
+    /// no-data alarm fires if it doesn't recover) instead of treating it as "not following".
+    public var keychainUnreadable = false
 
     public static let empty = FollowerSnapshot(
         link: .notFollowing, readings: [], sensor: nil, treatments: [], unsentTreatments: 0, deliveries: [:],

@@ -85,6 +85,11 @@ public actor FollowerRuntime: FollowerService {
     private var lifecycle: Task<Void, Never>?
     /// A reconnect is queued and hasn't started: more triggers (wake, network, clock) join it instead of adding one.
     private var reconnectQueued = false
+    private var loading = false
+    /// The Keychain refused to read the follower item: retrying (`load()`).
+    private var keychainUnreadable = false
+    private var keychainRetry: Task<Void, Never>?
+    static let keychainBackoff = Backoff(base: 5, cap: 300)
     private var snapshotSubscribers: [UUID: AsyncStream<FollowerSnapshot>.Continuation] = [:]
     private var alertSubscribers: [UUID: AsyncStream<AlertPayload>.Continuation] = [:]
     private var current = FollowerSnapshot.empty
@@ -138,15 +143,31 @@ public actor FollowerRuntime: FollowerService {
     public func start() async {
         guard !started, !stopped else { return }
         started = true
+        await load()
+    }
+
+    /// Reads the follower state from the Keychain and starts following.
+    ///
+    /// A read error (the login keychain not unlocked yet at a login-item launch, a denied access prompt after the app
+    /// was re-signed) is usually temporary: never wipe, keep the wearer's stored data as theirs (the snapshot says
+    /// `keychainUnreadable`, so the app keeps alerting on it, the no-data alarm included), and try again with backoff
+    /// and on every `reconnect()` (wake, network back, panel opened). A damaged state is final: stop following, join
+    /// again.
+    private func load() async {
+        guard !loading else { return }
+        loading = true
+        defer { loading = false }
         let data: Data?
         do {
             data = try secrets.read(account: account)
         } catch {
-            // Never wipe on a read error (locked or unreadable Keychain): the history stays, the state says why.
             Self.log.error("follower state unreadable: \(String(describing: error), privacy: .public)")
             link = .broken("Can't read the follower key from the Keychain")
+            keychainUnreadable = true
+            if keychainRetry == nil { keychainRetry = Task { await self.retryKeychain() } }
             return await publishSnapshot()
         }
+        endKeychainRetry()
         guard let data else {
             await wipeStores()  // a crash between the wipe and the key removal in `unfollow` left data behind
             return await publishSnapshot()
@@ -163,9 +184,28 @@ public actor FollowerRuntime: FollowerService {
         await serially(.connect)
     }
 
+    /// Reads the Keychain again after 5 s, doubling to 5 min, until it answers or something else ended the wait.
+    private func retryKeychain() async {
+        var attempt = 0
+        while keychainUnreadable, !stopped {
+            do { try await sleep(Self.keychainBackoff.delay(attempt: attempt, jitter: 1)) } catch { return }
+            attempt += 1
+            guard keychainUnreadable, !stopped, session == nil, !beginning else { return }
+            await load()
+        }
+    }
+
+    /// The Keychain answered, or the person joined / stopped following meanwhile: no more retries.
+    private func endKeychainRetry() {
+        keychainUnreadable = false
+        keychainRetry?.cancel()
+        keychainRetry = nil
+    }
+
     public func stop() async {
         guard !stopped else { return }
         stopped = true
+        endKeychainRetry()
         joinTask?.cancel()
         await serially(.disconnect)
         persist(force: true)
@@ -176,6 +216,7 @@ public actor FollowerRuntime: FollowerService {
     }
 
     public func reconnect() async {
+        if keychainUnreadable, !stopped, session == nil, !beginning { return await load() }  // try the Keychain now
         guard !stopped, session != nil, !reconnectQueued else { return }
         reconnectQueued = true
         await serially(.reconnect)
@@ -280,6 +321,7 @@ public actor FollowerRuntime: FollowerService {
         guard session == nil, !beginning else { throw .alreadyFollowing }
         beginning = true
         defer { beginning = false }
+        endKeychainRetry()  // following someone new: the unreadable item is overwritten
         let joined: FollowerSession
         do {
             joined = try FollowerSession.join(invite: invite, me: me, nearby: nearby, crypto: crypto, now: now)
@@ -312,6 +354,7 @@ public actor FollowerRuntime: FollowerService {
     // MARK: - unfollowing
 
     public func unfollow() async {
+        endKeychainRetry()
         generation += 1
         joinTask?.cancel()
         await serially(.disconnect)
@@ -623,7 +666,7 @@ public actor FollowerRuntime: FollowerService {
             sensor: await stores.sensor.load(), treatments: log.log.live.reversed(), unsentTreatments: log.unsentCount,
             deliveries: log.entries.compactMapValues(\.delivery), wearerSettings: await stores.settings.load(),
             storeIssues: issues, nearby: nearbyState,
-            nearbyOffer: session == nil ? nearbyOffer : nil)
+            nearbyOffer: session == nil ? nearbyOffer : nil, keychainUnreadable: keychainUnreadable)
         guard snapshot != current else { return }
         current = snapshot
         for continuation in snapshotSubscribers.values { continuation.yield(snapshot) }
