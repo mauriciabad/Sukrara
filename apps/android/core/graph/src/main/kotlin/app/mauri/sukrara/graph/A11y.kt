@@ -33,10 +33,18 @@ object A11y {
         val face = GlucoseCard.face(r, now, sensor, surface)
         val parts =
             when (face.state) {
-                GlucoseLook.State.WARMING_UP, GlucoseLook.State.ENDED -> listOf(SensorBadge.describe(checkNotNull(sensor), now, w))
-                GlucoseLook.State.NONE -> listOf(w.string(R.string.a11y_no_readings))
-                GlucoseLook.State.NO_READINGS ->
+                GlucoseLook.State.WARMING_UP, GlucoseLook.State.ENDED -> {
+                    listOf(SensorBadge.describe(checkNotNull(sensor), now, w))
+                }
+
+                GlucoseLook.State.NONE -> {
+                    listOf(w.string(R.string.a11y_no_readings))
+                }
+
+                GlucoseLook.State.NO_READINGS -> {
                     listOf(w.string(R.string.a11y_no_reading_since, Freshness.timeText(checkNotNull(r).t, now)))
+                }
+
                 GlucoseLook.State.VALUE -> {
                     val p = checkNotNull(r)
                     listOfNotNull(
@@ -92,8 +100,11 @@ object A11y {
     ): String =
         w.string(
             when {
-                sgv >= b.extremelyHigh -> R.string.a11y_band_extremely_high
-                else ->
+                sgv >= b.extremelyHigh -> {
+                    R.string.a11y_band_extremely_high
+                }
+
+                else -> {
                     when (b.of(sgv)) {
                         Band.VERY_LOW -> R.string.a11y_band_very_low
                         Band.LOW -> R.string.a11y_band_low
@@ -101,6 +112,7 @@ object A11y {
                         Band.HIGH -> R.string.a11y_band_high
                         Band.VERY_HIGH -> R.string.a11y_band_very_high
                     }
+                }
             },
         )
 

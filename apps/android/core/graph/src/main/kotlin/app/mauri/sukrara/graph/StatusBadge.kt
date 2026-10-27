@@ -37,23 +37,42 @@ object StatusBadge {
         w: CardWords,
     ): Look? =
         when (s) {
-            is CardStatus.Taken if s.until <= now -> null
-            is CardStatus.Paused if s.until <= now -> null
-            is CardStatus.Muted if s.until <= now -> null
-            CardStatus.None -> null
-            is CardStatus.Needed ->
+            is CardStatus.Taken if s.until <= now -> {
+                null
+            }
+
+            is CardStatus.Paused if s.until <= now -> {
+                null
+            }
+
+            is CardStatus.Muted if s.until <= now -> {
+                null
+            }
+
+            CardStatus.None -> {
+                null
+            }
+
+            is CardStatus.Needed -> {
                 if (s.lowSide) Look("carbs", w.eatCarbs, w.carbsShort, false) else Look("rapid", w.takeInsulin, w.insulinShort, false)
-            is CardStatus.Taken -> left(s.treatment.id, s.until, now, w)
+            }
+
+            is CardStatus.Taken -> {
+                left(s.treatment.id, s.until, now, w)
+            }
+
             is CardStatus.Paused -> {
                 val kind = if (s.lowSide) "carbs" else "rapid"
                 if (s.until >= CardStatus.NEVER) Look(kind, w.muted, w.muted, true) else left(kind, s.until, now, w)
             }
-            is CardStatus.Muted ->
+
+            is CardStatus.Muted -> {
                 if (s.until >= CardStatus.NEVER) {
                     Look(MUTED, w.muted, w.muted, true)
                 } else {
                     Look(MUTED, w.mutedFor(leftMin(s.until, now)), w.muted, true)
                 }
+            }
         }
 
     /** The action pill on an ended sensor. */
@@ -108,7 +127,13 @@ object StatusBadge {
         off: Boolean,
     ) {
         val p = Path(if (off) bellOff else bellPaused)
-        p.transform(Matrix().apply { setTranslate(0f, 960f); postScale(size / 960f, size / 960f); postTranslate(x, y) })
+        p.transform(
+            Matrix().apply {
+                setTranslate(0f, 960f)
+                postScale(size / 960f, size / 960f)
+                postTranslate(x, y)
+            },
+        )
         cv.drawPath(p, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
     }
 

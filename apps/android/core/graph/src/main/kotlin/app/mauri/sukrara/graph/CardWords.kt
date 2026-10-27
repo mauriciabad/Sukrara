@@ -4,9 +4,9 @@
 package app.mauri.sukrara.graph
 
 import android.content.res.Resources
+import app.mauri.sukrara.core.graph.R
 import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.model.Durations
-import app.mauri.sukrara.core.graph.R
 
 /**
  * Every word the card draws, read once from the graph's strings (en + es) so the renderer itself needs no Context:

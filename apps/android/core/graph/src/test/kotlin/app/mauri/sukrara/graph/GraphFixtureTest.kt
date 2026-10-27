@@ -63,6 +63,7 @@ class GraphFixtureTest {
     fun mark() {
         for (c in cases("mark/mark.json")) {
             val t = c["tir"]!!.jsonObject
+
             fun v(k: String) = t[k].double() ?: 0.0
             val tir = TimeInRange(v("veryLow"), v("low"), v("tight"), v("target"), v("high"), v("veryHigh"), v("coverage"))
             val range = if (c["range"].str() == "tight") TirRange.TIGHT else TirRange.IN_RANGE

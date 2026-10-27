@@ -58,7 +58,10 @@ class A11ySentenceTest {
     fun pillIsSpokenOnlyWhenDrawn() {
         val w = Scenes.words()
         val needed = Scenes.model(one(60, 60, null), w, status = CardStatus.Needed(lowSide = true), sensor = null)
-        assertEquals("60 milligrams per decilitre, trend unknown, low, 1 min ago", A11y.value(needed, Bands(), CardSurface.TEST, badge = false))
+        assertEquals(
+            "60 milligrams per decilitre, trend unknown, low, 1 min ago",
+            A11y.value(needed, Bands(), CardSurface.TEST, badge = false),
+        )
         val noValue = Scenes.model(emptyList(), w, status = CardStatus.Muted(CardStatus.NEVER), sensor = null)
         assertEquals("Glucose: no readings yet", A11y.value(noValue, Bands(), CardSurface.TEST))
     }

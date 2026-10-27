@@ -97,8 +97,11 @@ object Clock {
         val p = localePattern(locale)
         val is24 = unquoted(p).none { it == 'h' || it == 'K' }
         return when {
-            hour24 == is24 -> p
-            hour24 ->
+            hour24 == is24 -> {
+                p
+            }
+
+            hour24 -> {
                 collapseHour(
                     mapUnquoted(p) { c ->
                         when (c) {
@@ -109,7 +112,9 @@ object Clock {
                     },
                     "HH",
                 ).trim(' ', '\u00A0', '\u202F')
-            else ->
+            }
+
+            else -> {
                 collapseHour(
                     mapUnquoted(p) { c ->
                         when (c) {
@@ -119,6 +124,7 @@ object Clock {
                     },
                     "h",
                 ) + " a"
+            }
         }
     }
 
@@ -138,7 +144,11 @@ object Clock {
         buildString {
             var q = false
             for (c in p) {
-                if (c == '\'') q = !q else if (!q) append(c)
+                if (c == '\'') {
+                    q = !q
+                } else if (!q) {
+                    append(c)
+                }
             }
         }
 
@@ -155,8 +165,14 @@ object Clock {
                         q = !q
                         append(c)
                     }
-                    q -> append(c)
-                    else -> f(c)?.let { append(it) } ?: run { while (isNotEmpty() && last() in " \u00A0\u202F") deleteCharAt(length - 1) }
+
+                    q -> {
+                        append(c)
+                    }
+
+                    else -> {
+                        f(c)?.let { append(it) } ?: run { while (isNotEmpty() && last() in " \u00A0\u202F") deleteCharAt(length - 1) }
+                    }
                 }
             }
         }

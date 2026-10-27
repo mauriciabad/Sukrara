@@ -62,8 +62,10 @@ class CardScreenshotTest {
             "stale-6min" to Scenes.model(Scenes.day(140, ageS = 6 * 60), w),
             "stale-25min" to Scenes.model(Scenes.day(140, ageS = 25 * 60), w),
             "no-data" to Scenes.model(emptyList<GlucosePoint>(), w),
-            "warm-up" to Scenes.model(Scenes.day(140, ageS = 3 * 3600), w, sensor = SensorInfo(Scenes.NOW - 18 * 60, Scenes.NOW + 15 * 86_400)),
-            "sensor-ended" to Scenes.model(Scenes.day(140, ageS = 30 * 60), w, sensor = SensorInfo(Scenes.NOW - 15 * 86_400, Scenes.NOW - 20 * 60)),
+            "warm-up" to
+                Scenes.model(Scenes.day(140, ageS = 3 * 3600), w, sensor = SensorInfo(Scenes.NOW - 18 * 60, Scenes.NOW + 15 * 86_400)),
+            "sensor-ended" to
+                Scenes.model(Scenes.day(140, ageS = 30 * 60), w, sensor = SensorInfo(Scenes.NOW - 15 * 86_400, Scenes.NOW - 20 * 60)),
         )
     }
 

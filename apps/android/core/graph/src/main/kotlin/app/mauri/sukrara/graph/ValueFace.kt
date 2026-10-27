@@ -36,13 +36,20 @@ internal class ValueFace(
         look: StatusBadge.Look?,
         ink: Int?,
     ) {
-        val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ink ?: pal.inkSoft; textSize = max(11 * d, box.height() * 0.17f) }
+        val small =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = ink ?: pal.inkSoft
+                textSize = max(11 * d, box.height() * 0.17f)
+            }
         val face = GlucoseCard.face(model.latest, nowS, sensor, rec.surface)
         when (face.state) {
             GlucoseLook.State.WARMING_UP -> drawWarmup(cv, box, checkNotNull(sensor), small)
+
             // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
             GlucoseLook.State.ENDED -> drawEnded(cv, box)
+
             GlucoseLook.State.NO_READINGS, GlucoseLook.State.NONE -> drawNone(cv, box, face, small)
+
             GlucoseLook.State.VALUE -> drawNumber(cv, box, face, look, ink, small)
         }
     }
@@ -99,7 +106,13 @@ internal class ValueFace(
         val s = look.warmup ?: return
         val line = look.warmupLine(nowS, w)
         val numBox = RectF(box.left, box.top, box.right, box.bottom - small.textSize * 1.25f)
-        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.inkSoft; typeface = RoundedFont.typeface(700); textSize = numBox.height() * 1.18f }
+        val num =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = pal.inkSoft
+                typeface = RoundedFont.typeface(700)
+                textSize =
+                    numBox.height() * 1.18f
+            }
         val need = num.measureText(s) + num.textSize * 0.6f
         if (need > box.width()) num.textSize *= box.width() / need
         val capH = num.textSize * ValueGlyphs.CAP
@@ -123,7 +136,12 @@ internal class ValueFace(
         small: Paint,
     ) {
         val r = model.latest
-        val big = Paint(small).apply { textSize = min(box.height() * 0.26f, 20 * d); typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
+        val big =
+            Paint(small).apply {
+                textSize = min(box.height() * 0.26f, 20 * d)
+                typeface =
+                    Typeface.create(Typeface.DEFAULT, 600, false)
+            }
         val line1 = if (r == null) w.noReadingsYet else w.noReadingSince
         val line2 = r?.let { Freshness.timeText(it.t, nowS) }
 
@@ -139,7 +157,24 @@ internal class ValueFace(
             cv.drawText(line2, x, y + big.textSize * 1.25f, big)
             rec.add("time.text", info = line2)
         }
-        rec.add("value.none", RectF(box.left, y - big.textSize, box.right, y + (if (line2 != null) big.textSize * 1.25f else 0f)), face.state.name)
+        rec.add(
+            "value.none",
+            RectF(
+                box.left,
+                y - big.textSize,
+                box.right,
+                y + (
+                    if (line2 !=
+                        null
+                    ) {
+                        big.textSize * 1.25f
+                    } else {
+                        0f
+                    }
+                ),
+            ),
+            face.state.name,
+        )
     }
 
     /**
@@ -169,7 +204,14 @@ internal class ValueFace(
         )
         val badgeH = (box.height() * 0.24f).coerceIn(14 * d, 24 * d)
         val badgeRow = look != null && box.height() - badgeH * 1.25f - (if (fr.showTime) small.textSize * 1.25f else 0f) >= 26 * d
-        val timeH = if (badgeRow) badgeH * 1.25f else if (fr.showTime) small.textSize * 1.25f else 0f
+        val timeH =
+            if (badgeRow) {
+                badgeH * 1.25f
+            } else if (fr.showTime) {
+                small.textSize * 1.25f
+            } else {
+                0f
+            }
         val numBox = RectF(box.left, box.top, box.right, box.bottom - timeH)
         val num =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -191,8 +233,18 @@ internal class ValueFace(
         val baseY = cy + capH / 2
         val x0 = box.left - num.textSize * 0.04f
         val prev = motion?.prev
-        if (prev != null && prev != s && motion.roll < 1f) rollNumber(cv, s, prev, motion, x0, baseY, capH, num) else cv.drawText(s, x0, baseY, num)
-        rec.add("value.number", RectF(box.left, cy - capH / 2, box.left + num.measureText(s), cy + capH / 2), if (fr.strike) "$s struck" else s)
+        if (prev != null && prev != s &&
+            motion.roll < 1f
+        ) {
+            rollNumber(cv, s, prev, motion, x0, baseY, capH, num)
+        } else {
+            cv.drawText(s, x0, baseY, num)
+        }
+        rec.add(
+            "value.number",
+            RectF(box.left, cy - capH / 2, box.left + num.measureText(s), cy + capH / 2),
+            if (fr.strike) "$s struck" else s,
+        )
         val x = box.left + num.measureText(s) + num.textSize * ValueGlyphs.MARK_GAP
         val arrowSize = num.textSize * ValueGlyphs.MARK_BOX
         val markBox = RectF(x, cy - arrowSize / 2, x + arrowSize, cy + arrowSize / 2)
@@ -201,7 +253,14 @@ internal class ValueFace(
             cv.save()
             cv.translate(x + arrowSize / 2, cy)
             cv.rotate(motion?.arrowDeg ?: TrendAngle.deg(rate))
-            ValueGlyphs.arrow(cv, arrowSize * ValueGlyphs.ARROW_IN_BOX, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }, TrendAngle.isDouble(rate))
+            ValueGlyphs.arrow(
+                cv,
+                arrowSize * ValueGlyphs.ARROW_IN_BOX,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    this.color = color
+                },
+                TrendAngle.isDouble(rate),
+            )
             cv.restore()
             rec.add("value.trend", markBox, if (TrendAngle.isDouble(rate)) "arrow double" else "arrow single")
         } else {
