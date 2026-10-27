@@ -34,11 +34,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.core.designsystem.R
 import app.mauri.sukrara.designsystem.motion.Reveal
+import app.mauri.sukrara.designsystem.motion.Swap
 
 /**
- * One non-glucose banner (set up X, permission missing, the showcase still installed). [id] keys the slot's
- * animation; [onDismiss] null = it can't be dismissed (it goes away only when fixed, e.g. a missing permission
- * that makes alerts unreliable).
+ * One non-glucose banner (set up X, permission missing, the showcase still installed). [id] keys the cross-fade
+ * from one banner to the next; [onDismiss] null = it can't be dismissed (it goes away only when fixed through
+ * [action], e.g. a missing permission that makes alerts unreliable) — so every banner has an action or a dismiss.
  */
 data class Banner(
     val id: String,
@@ -48,7 +49,11 @@ data class Banner(
     val action: String?,
     val onAction: () -> Unit,
     val onDismiss: (() -> Unit)?,
-)
+) {
+    init {
+        require(action != null || onDismiss != null) { "banner $id has no way out: give it an action or a dismiss" }
+    }
+}
 
 /**
  * The single banner place above the content: shows at most one banner — the caller passes the highest-priority one
@@ -64,7 +69,7 @@ fun BannerSlot(
     var shown by remember { mutableStateOf(banner) }
     if (banner != null) shown = banner
     Reveal(banner != null, modifier) {
-        shown?.let { BannerCard(it) }
+        shown?.let { b -> Swap(b.id) { _ -> BannerCard(b) } }
     }
 }
 

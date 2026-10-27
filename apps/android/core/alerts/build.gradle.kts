@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The pure alert engine (chunk 04).
+// The pure alert engine (chunk 04): no Android, no clock, no :core:model (the runtime maps its Reading to AlertReading).
 plugins {
     id("sukrara.jvm.library")
     id("sukrara.contracts")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
-    api(project(":core:model"))
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(project(":core:testing"))
 }

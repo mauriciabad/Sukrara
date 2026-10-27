@@ -76,9 +76,9 @@ public struct SettingSpec<Value: SettingValue> { let key: String; let defaultVal
 public struct GlucoseSnapshot: Codable { var v: Int; var readings: [Reading] }   // placeholder, chunk 14 owns it
 public struct TreatmentLog: Codable { var v: Int }                              // placeholder, treatments chunk owns it
 // SukraraShare
-public struct SignedEvent; public struct EventFilter { func matches(_:) -> Bool }
-public protocol RelayTransport: Sendable { func connect(_: [URL]) async; func publish(_: SignedEvent) async throws
-    func subscribe(_: EventFilter) -> AsyncThrowingStream<SignedEvent, Error>; func close() async }  // FakeRelay in tests
+public struct SignedEvent; public struct RelayFilter { func matches(_:) -> Bool }      // see "Mac share" below
+public protocol RelayTransport: Sendable { func subscribe(_: String, _: RelayFilter) async; func close(_: String) async
+    func publish(_: SignedEvent) async; var inbound: AsyncStream<RelayInbound> { get } }  // RelayPool; FakeRelay in tests
 public enum LinkState { case notLinked }                                        // chunk 15 adds states
 // SukraraAlerts
 public struct AlertUIState { var isAlerting: Bool }                             // chunk 05 replaces
@@ -91,6 +91,37 @@ public enum GlucoseCard { static let noValueText = "—"; static func face(_: Gl
 
 Test fixtures: `Contracts.url("alerts/scenarios")` (`SukraraTesting`) resolves `SUKRARA_CONTRACTS` or walks up from
 the test source to `contracts/`.
+
+## Mac share (`apps/macos/Sources/SukraraShare`)
+
+```
+FollowerSession (pure struct)  ──receive(event, now)──► Outcome { verdict, deltas, publish, resubscribe }
+   │ uses                                     ▲
+   ▼                                          │ events (relays or BLE, same rules)
+NostrCrypto (protocol) ◄── NostrSDKCrypto     RelayTransport (protocol) ◄── RelayPool (actor) ── WebSocketFactory
+   (only file importing NostrSDK 0.45.1)                                 ◄── FakeRelay (SukraraTesting)
+```
+
+- **Protocol/** — `Wire` (kinds, TTLs, tag derivations, match code, `Wire.defaultRelays` = the only `wss://` hosts),
+  `Derive` (HKDF invite key, CryptoKit), `SignedEvent` (NIP-01 JSON; engines never see NostrSDK types),
+  `SecretKeyHex` (redacted in `description`, `debugDescription` and `Mirror`), typed payload decoders with the
+  reference's strict rules (`Payloads.swift`), `Profile`/`Avatar` (wire + v1 normalisation; drawing is UI),
+  `InviteLink` + `InviteOpener` (v3 short link, fingerprint / expiry checks), `FollowerMessages` (request, profile,
+  rekey, history gift wraps with absolute expiration; writer treatment events).
+- **Follower/** — `FollowerSession`: port of `poc/spec/reference/ogs/follower.py` plus the settings rule; verdict
+  strings are the OGS vector codes shared with Android's `StreamFollower`. `FollowerState` (`v` 1) holds F, the read
+  keys, roster, writer-scope records (creator, held `(u, o)` per treatment id), settings `u`, sensor/roster ordering
+  and recent alert keys: everything trust depends on, so a restart can't be used to slip a forged entry in. It is
+  stored by chunk 15 in the Keychain (service `app.mauri.sukrara`, account `follower`). Readings/treatments go out as
+  deltas to 15's stores. Unfollow = discard the state.
+- **Relay/** — `RelayPool` actor: socket per `wss://` relay, jittered backoff 2 s→5 min, subscriptions (deduped by
+  filter) and a 1 h outbox re-sent on reconnect, NIP-42 AUTH as the pool's key (F, or the invite key for an invite
+  lookup pool), EOSE/OK/CLOSED/connection status on a single-consumer `inbound` stream, ping at 150 s silence,
+  reconnect at 270 s. It does not dedupe events (the session does; an unknown-epoch event must be re-processable).
+- **Tests** (`ShareTests`): OGS vectors (derivations, every event verifies/opens, 27-step acceptance scenario,
+  invite checks, treatment payloads), identity vectors, profile fixture, `contracts/protocol/sync/*.json` (made by the
+  Android tests: Mac passes them unchanged → both followers agree), fake-relay end-to-end, RelayPool over scripted
+  sockets. Nothing opens a network connection.
 
 ## Mac alerts (`apps/macos/Sources/SukraraAlerts`)
 
