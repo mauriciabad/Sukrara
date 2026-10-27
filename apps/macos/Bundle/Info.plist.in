@@ -20,6 +20,8 @@
 	<key>LSMinimumSystemVersion</key><string>15.0</string>
 	<key>LSUIElement</key><true/>
 	<key>LSApplicationCategoryType</key><string>public.app-category.medical</string>
+	<key>CFBundleLocalizations</key>
+	<array><string>en</string><string>es</string></array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

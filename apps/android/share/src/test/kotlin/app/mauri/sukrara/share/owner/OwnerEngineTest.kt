@@ -11,8 +11,13 @@ import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.SourceStatus
+import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.core.model.TreatmentKind
+import app.mauri.sukrara.core.model.TreatmentOrigin
+import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySecureStore
+import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import app.mauri.sukrara.protocol.event.Rumor
 import app.mauri.sukrara.share.FakeRelayTransport
 import app.mauri.sukrara.share.OwnerFixtures
@@ -37,7 +42,7 @@ class OwnerEngineTest {
     private val store = OwnerIdentityStore(InMemorySecureStore())
 
     private fun TestScope.engine() = OwnerEngine(
-        ctx, store, relay, NoHub, { _, _ -> true }, FakeClock(Instant.ofEpochSecond(NOW)), StandardTestDispatcher(testScheduler),
+        ctx, store, relay, NoHub, { _, _ -> true }, InMemoryTreatmentsRepository(), FakeClock(Instant.ofEpochSecond(NOW)), StandardTestDispatcher(testScheduler),
     )
 
     @Test fun aRotationInterruptedByACrashIsResentOnStartUntilARelayAccepts() = runTest {
@@ -73,11 +78,36 @@ class OwnerEngineTest {
 
     @Test fun anUnreadableIdentityIsABlockingStateAndCreateIsRefused() = runTest {
         val secure = InMemorySecureStore().also { it.write(OwnerIdentityStore.NAME, "garbage".encodeToByteArray()) }
-        val e = OwnerEngine(ctx, OwnerIdentityStore(secure), relay, NoHub, { _, _ -> true }, FakeClock(), StandardTestDispatcher(testScheduler))
+        val e = OwnerEngine(ctx, OwnerIdentityStore(secure), relay, NoHub, { _, _ -> true }, InMemoryTreatmentsRepository(), FakeClock(), StandardTestDispatcher(testScheduler))
         e.start(backgroundScope)
         runCurrent()
         assertEquals(OwnerShareState.IdentityUnreadable(transient = false), e.state.value)
         assertEquals(false, e.createIdentity(backgroundScope, null))
+        e.stop()
+    }
+
+    @Test fun theTreatmentLogFollowsEveryNewEpochAndWritersGetASubscription() = runTest {
+        val repo = InMemoryTreatmentsRepository()
+        repo.upsertIfNewer(
+            TreatmentRecord(Treatment("a0000000-0000-4000-8000-00000000000a", TreatmentKind.Carbs, 20.0, Instant.ofEpochSecond(NOW - 600), modifiedAt = Instant.ofEpochSecond(NOW - 600), origin = TreatmentOrigin.Phone)),
+        )
+        val ana = crypto.generate().public.hex
+        val bob = crypto.generate().public.hex
+        store.save(CreateIdentity(ctx)(null, NOW).state.copy(followers = listOf(FollowerRecord(ana, "Ana", NOW), FollowerRecord(bob, "Bob", NOW))))
+        val e = OwnerEngine(ctx, store, relay, NoHub, { _, _ -> true }, repo, FakeClock(Instant.ofEpochSecond(NOW)), StandardTestDispatcher(testScheduler))
+        e.start(backgroundScope)
+        runCurrent()
+        fun treatmentGks() = relay.published.filter { it.tag("c") != null && it.kind == app.mauri.sukrara.protocol.Wire.KIND_DATA }.map { it.tag("gk") }
+        assertEquals(1, treatmentGks().size)
+
+        e.setWriter(ana, allowed = true)
+        assertEquals(listOf(ana), relay.subscriptions.getValue("writers").single().authors)
+        e.remove(bob)
+        runCurrent()
+        // republished under the new epoch's key
+        assertEquals(2, treatmentGks().distinct().size)
+        e.remove(ana)
+        assertTrue("writers" !in relay.subscriptions)
         e.stop()
     }
 

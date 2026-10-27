@@ -70,6 +70,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
 - **Settings**: General (following, unit, open at login, update check) and Alerts (per alert, quiet times, sounds,
   ranges); it can mirror the wearer's alert settings.
+- **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
+  through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
+  After switching from the showcase, remove the showcase's widgets and add Sukrara's.
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not in 0.90.0** (keep the showcase if you rely on these; see
@@ -77,8 +80,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
-Android and Bluetooth sharing from the phone, the Mac's Juggluco-over-Wi-Fi source, and home-screen and desktop
-widgets until they land in a 0.90.x release.
+Android and Bluetooth sharing from the phone, the Mac's Juggluco-over-Wi-Fi source, and home-screen widgets
+until they land in a 0.90.x release.
 
 ## Install
 

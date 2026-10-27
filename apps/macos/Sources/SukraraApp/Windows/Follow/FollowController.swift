@@ -80,13 +80,18 @@ public final class FollowModel {
             failure = .invalidLink
             return
         }
+        // following or waiting: a new link changes nothing and the status stays what it is
+        guard canFollow else {
+            failure = .alreadyFollowing
+            return
+        }
+        let before = status
         status = .joining
         do {
             try await actions?.join(link: link)
         } catch {
             failure = error
-            // already following: the link changes nothing, the status stays what it is
-            if error != .alreadyFollowing { status = .notFollowing }
+            status = error == .alreadyFollowing ? before : .notFollowing
         }
     }
 

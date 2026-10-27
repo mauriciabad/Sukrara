@@ -142,3 +142,13 @@ class RemoveFollower(private val ctx: OwnerContext) {
         return ControlEvents.notice(ctx, next, follower, Rumor.Revoked, now) + { Rotate(ctx)(it, now) }
     }
 }
+
+/** "Can add entries" (writer scope): the roster tells followers at once, the backup keeps it. Only active followers. */
+class SetWriter(private val ctx: OwnerContext) {
+    operator fun invoke(s: OwnerState, follower: String, allowed: Boolean, now: Long): Step? {
+        if (s.followers.none { it.key == follower && it.active }) return null
+        val writers = if (allowed) s.writers + follower else s.writers - follower
+        if (writers == s.writers) return null
+        return ControlEvents.roster(ctx, s.copy(writers = writers), now) + { ControlEvents.backup(ctx, it, now) }
+    }
+}

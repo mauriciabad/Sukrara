@@ -36,6 +36,8 @@ public final class TreatmentsModel {
     public private(set) var undo: (row: Row, until: Date)?
     /// The wearer allowed this Mac to add treatments.
     public var canWrite: Bool
+    /// This Mac follows someone (else there is nobody to add treatments for).
+    public var isFollowing = false
     @ObservationIgnored private weak var actions: (any TreatmentActions)?
     @ObservationIgnored private let now: () -> Date
 

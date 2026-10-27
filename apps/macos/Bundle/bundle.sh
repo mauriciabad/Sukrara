@@ -94,11 +94,15 @@ cp "$BIN/SukraraWidget" "$APPEX/Contents/MacOS/SukraraWidget"
 # and traps when the bundle is missing, so a missing copy is a crash on the first localized text.
 [ -d "$BIN/Sukrara_SukraraApp.bundle" ] || die "no Sukrara_SukraraApp.bundle in $BIN"
 cp -R "$BIN/Sukrara_SukraraApp.bundle" "$APP/Contents/Resources/"
+[ -d "$APP/Contents/Resources/Sukrara_SukraraApp.bundle/Contents/Resources/es.lproj" ] || die "no es.lproj in the resource bundle"
 [ -n "$ICON" ] && cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
 [ -n "$SOUNDS" ] && cp "$SOUNDS"/*.caf "$APP/Contents/Resources/Sounds/" 2>/dev/null || true
 
 fill() { sed -e "s/@VERSION@/$VERSION/g" -e "s/@BUILD@/$BUILD/g" -e "s/@GROUP@/$GROUP/g" "$1" > "$2"; plutil -lint -s "$2"; }
 fill "$HERE/Info.plist.in" "$APP/Contents/Info.plist"
+# without CFBundleLocalizations the app's nested bundles resolve to English only: Spanish would never show
+plutil -extract CFBundleLocalizations json -o - "$APP/Contents/Info.plist" | grep -q '"es"' \
+  || die "Info.plist has no CFBundleLocalizations with es"
 fill "$HERE/Widget-Info.plist.in" "$APPEX/Contents/Info.plist"
 fill "$HERE/app.entitlements.in" "$OUT/entitlements/app.plist"
 fill "$HERE/widget.entitlements.in" "$OUT/entitlements/widget.plist"
