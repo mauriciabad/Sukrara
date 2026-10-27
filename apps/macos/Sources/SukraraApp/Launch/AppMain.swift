@@ -42,12 +42,13 @@ public enum AppMain {
         )
     }
 
-    /// A refused launch never exits silently: stderr, the system log and, when started from a bundle (Finder /
-    /// Dock / login item, where nobody sees stderr), an alert. A silent exit would look like a running CGM app.
+    /// A refused launch never exits silently: stderr, the system log and, when LaunchServices started it (Finder,
+    /// Dock, login item: parent is launchd, nobody sees stderr), an alert. A silent exit would look like a running
+    /// CGM app.
     private static func refuse(_ error: LaunchError) -> Never {
         FileHandle.standardError.write(Data("Sukrara: \(error.message)\n".utf8))
         log.error("launch refused (exit \(error.exitCode)): \(error.message, privacy: .public)")
-        if Bundle.main.bundleIdentifier != nil {
+        if Bundle.main.bundleIdentifier != nil && getppid() == 1 {
             NSApplication.shared.setActivationPolicy(.regular)
             let alert = NSAlert()
             alert.alertStyle = .critical

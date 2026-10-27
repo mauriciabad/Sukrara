@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="home_placeholder_title">Sukrara %1$s</string>
+    <string name="home_placeholder_body">No glucose is shown yet: this build is the app\'s skeleton.</string>
+    <string name="home_open_setup">Set up</string>
+</resources>

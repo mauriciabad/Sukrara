@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Cleartext is permitted app-wide because Android can't list IP ranges here, and two validated uses need it:
+  Juggluco's web server on 127.0.0.1 and a Nightscout site on the home network. The one client that may use http://
+  decides (the Nightscout site parser lets http:// through only for loopback, RFC 1918, link-local, unique-local and
+  .local hosts); every other client builds https:// / wss:// URLs only. tools/check/allow.json lists each use.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
