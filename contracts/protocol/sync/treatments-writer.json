@@ -1,0 +1,304 @@
+{
+    "v": 1,
+    "about": "Owner → follower sequence 'treatments-writer' (contracts/protocol/sync/README.md). Throwaway keys, synthetic data.",
+    "keys": {
+        "I": {
+            "sec": "49c56efe45711db397cc7aae0bf6b5a0de5f2bbe65e4272f2acd29f514111409",
+            "pub": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972"
+        },
+        "D": {
+            "sec": "1f517459ffeec1872c8ed3db3b9b944533f4d67f411070ed8e979c0a8f32dc6a",
+            "pub": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974"
+        },
+        "D2": {
+            "sec": "0b53a61ae9954d98bc11b6aa238fa0fd22b3f87f80ff421c7132d492b367a86c",
+            "pub": "e8f25d35bc09ed61bc669fa9f33d96bad3c31db5f2a20703f6191cf83d0b49e1"
+        },
+        "W": {
+            "sec": "97f4fcce9ec27ea64bf770c61f60347e2fc8e9cec36500a83135a76888d8c802",
+            "pub": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        },
+        "F": {
+            "sec": "1d7252c5c2323b79cab7e9cb2dbe8f6724d98f23ab50e52e23ce359098389387",
+            "pub": "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+        },
+        "G1": {
+            "sec": "37beb56c0fb3f501b7fe8bab3ce768956c2ec4fcc0bcbb9bbdec8a5e80fd71d8",
+            "pub": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a"
+        },
+        "G2": {
+            "sec": "9abad26e11e08f9b96958c9e25981670dfe849b19feeef1f3cef1bd4a25aa84d",
+            "pub": "c2421f3256af8ec9fc5dd5fdc94dab1f6f4d01609df5410d2837bb3cc321767b"
+        }
+    },
+    "sid": "74767bf125c92e2efb705d29cb173f5bafda20bce46bf81e1a0a603e854c913a",
+    "follower": "F",
+    "identity": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+    "now": 1792087200,
+    "events": {
+        "key-1": {
+            "id": "0866c1cb18d01167a7aede0c3912a6f45f24aca70f0483b877d5b04dbb935d2f",
+            "pubkey": "8edfe8f39b5e2f1c4395f1fcf0dbfa07fb2863b17e089093b349836d3dce2008",
+            "created_at": 1792910750,
+            "kind": 1059,
+            "tags": [
+                [
+                    "expiration",
+                    "1794679200"
+                ],
+                [
+                    "p",
+                    "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+                ]
+            ],
+            "content": "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",
+            "sig": "101c99708d3474af494b3ae18dc883df6ade6697c04579a7badad77754bc2599348afb89d7469b7cf6ecc047d74edc033cfbc5ff89e7ba2d2e02a5b156c9f81d"
+        },
+        "roster-writer": {
+            "id": "383f334d567c90605ed1e88051e8b36e68a001057d4623d12ab527be6247f5db",
+            "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+            "created_at": 1792087100,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "011e14378379a46c5944f25e5f183239"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679100"
+                ]
+            ],
+            "content": "ApL4PTHC/oWWZv5dMXT+2q543XHQQcgfCsiiMuvxteza/IkSHEAeUaxjulXhWTM2wRtmYkQ1kqFHQUEvsl8ZrU7dFiBIwXU57PCERZk4YgVj5V1bvPeq8Uo7vna8oMf6u7unSehruMmnoHjeKX+YHAYa2pv6rewz84IdKCqzo4RhES0K83UceC2K7CF5Evs1a4sRX+Oi1yKtWJmUxDhN603uQHtqqxQGrlBXHZ/iQBalcZNt7KejZRpQ03DjXbOFu5sAfe33aYlz+4md3diNPu4Eg6CsUWMZKrXrijYa7pFjEQzrY/j4jvw/8kLrY9IQbkAz5VS1yAYXGC1H7Q462citYr5cxKJNtEJqCR5qdVvKQWcFw8kFJ06s2vQQawC1MG4k",
+            "sig": "2510c871d246428d9a8ff543607a5757e79fa4326af908440e6ada06f9c1061175e8d5d79d5b2e6884fff766e05d90e13ec2a0de7b5c575b91c48edd477dc765"
+        },
+        "owner-carbs": {
+            "id": "0e83979ba5174a6275baa4a85d3fd93c2c6f51944e102e8e9ad36821fe19f677",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087110,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "0af4368b0b94cd1c5277cf66335e8e76"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679110"
+                ]
+            ],
+            "content": "An7lLJgZLf5OQsBwPOBzumr08Om5dcy6iMJamvqeIlO4n7477h28deOiPOxJXGJKvcjRZaPok6wVB+6lJdBndOrcjKop6RzzEDZ3n/R1PKu61KVNeeJ8FJFbTrFJomhcugj39A7wV/cFYuLGeO1e7hNKBsNycSco+pl7SX1qLuFNkhTv+bXSgchxy6PNQRW3tL8q5kmzBv4EkGtHST3j3v+kcNQMoq/Nq5BLzTcHNpJyJD00ub3tHOk+kRUkK4fUC3FJ",
+            "sig": "f44b1c690d2157dc8b58b39e642d914edd071fdcbc67704d1479099f9a5a23bef24e9f92c018df61de4e1d02e4bc1045a29198f51f467d7d2f5c3773efd51cae"
+        },
+        "writer-rapid": {
+            "id": "aed71979eeeffff735fa3153e73fb2d3ba043d7e67f80da924865a7353df68e6",
+            "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+            "created_at": 1792087120,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "f21ed1b1f0121e04fb812ced15cc5f1d"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679120"
+                ]
+            ],
+            "content": "AiMa+gC57f5BFEr8NTBnX/OrGsO2cVhUrl+6Z/hPPr9YcDBIzIWa4CbuMtwh/ChOjv6YUFDn8w74i26kIqFE2S9RzZ16Fu0D3z3g8S/sl4YoUDt+OnLHm+cZyxcBTUCNVjEcwN7z7QquDyVvkL7qn6d5LCtNCV4jOHeGP8PkwZd/GMZEnRhSwn7ATp3bYWKiXEL2DqHIvuxe3sAoORFe304Oroi15/lxuDp47P85ox+memo9Eq/kAoi179MAKAFqp+LcRaHook4bsBpoJcWg7y5MhXb0Cn8BN/Wmgzt37G+gQPs=",
+            "sig": "9e009825e816cd71ad4942730482d81675878208ba61f95ecabe58bb2724ee867a3235b7e098e8a6c2cd44157147699f2c03ac93de1123a883c40599adb914d6"
+        },
+        "writer-edit": {
+            "id": "36ef9fd1a6b0da2106cfa9a260627dd5c3480490f55a6f3b8d2b1b6d6e735c65",
+            "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+            "created_at": 1792087130,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "f21ed1b1f0121e04fb812ced15cc5f1d"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679130"
+                ]
+            ],
+            "content": "AlFjwkX9BJKfKK/KaJ3KAU7pzai4TPHnXLyXpGmI2SgaAS+uIOnbLtIT1cfKOOlp8ktYv9xLbryWDpI0v4laE1yDDRJSF6UPJD9SaLIQUZ9dNclYeQ6elAwxIkaLnFCMVPp/jNmWEBTdz43HDm5ZW07oxx313iPaolYzWW0Ua/JSuYGksmFZcRZjj8/AnzKKE3czjdptF/OM/Jhk4798d50sIkLOkFpnPNmONcrK1HZYgRVB7ewP8bP3uvKeDmz2AjDJ",
+            "sig": "dc1a8bdf683d6c9c9b45b966b8adca79870f7ce1a245162794657e79558bffb163ebb36ab8eee1bfbe113386e6ceaa538362f938272d2a2a5768d39ee347629e"
+        },
+        "writer-hijack": {
+            "id": "8a2e2785cfc78fc3d5594f6eff479f8b32f2fe755e39f65160ae389134865c7e",
+            "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+            "created_at": 1792087140,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "0af4368b0b94cd1c5277cf66335e8e76"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679140"
+                ]
+            ],
+            "content": "Ao3HcPU+ILRFSC4f+tZOYFRaP0uCHUD+Pvdv8kkZgVzjxzoMsfUT7Zn1J9+deGeXJ1GYM1iXY9az6T0kXzYUDoKxF6u9bAfuJixrRZGBOHpdFcWL74MUz1kYM0Jw580qiFzVecVJk7Rso7LQ+3kSCd+KqIEOi6cpdki077bLdD/9D+HrkW3YikmADDJIPDHSSpicFBYdQek5vmapTJyfYZxej7/XAlNCe486b2Dj3vt2gn2to3lIEukyy4b7NtB2kEWF",
+            "sig": "ae8629e4a854fb9990fdc9bca6ddf34070eab2837f78836ff9188b2601b0a42cb2a53b7f329f08275557920031deafb7e83a6a22ec8c45a97f5662c161628569"
+        },
+        "owner-delete": {
+            "id": "0b024dc948b2d1ed3d3b43cd1f056d34be66aec8112aca4ae87a25ca98418601",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087150,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "0af4368b0b94cd1c5277cf66335e8e76"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679150"
+                ]
+            ],
+            "content": "AtwSFEhnn3kDt+TZLB7uK8R56aqvDjqCmypc2ywllkA6xs3F8VAYJVuB3se1twPjJmpLBV3y98N/V/AyQcK8yrSadS+7m70KLxg9FCDPwcGxxpdJCyp7YSRTQ4zBrVyQ993hZD6/+qiV9VpGUOEqlKi27W9zkTQYMzZqve5dot+2O02c21pWbvqWVuDFW4OAmkWXS8otzTJ4XKlJfUpEiGoYh77lLMju1Av95GDfkXc66YMzQ+UdJyoZ9fegvCRfZ7pC",
+            "sig": "f441374260e345079acd2e0fedfa38035222cec4f1316986ab9e349ceefe9e44a4ec81c4ce67d3c96b9e292d068ca49027d2661d3d635fa4ba350c95031227e3"
+        },
+        "owner-older": {
+            "id": "b097b3b772cf91d32e15a34c703729bc8de34d8d0efdef791df3bc02413018e1",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087160,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "0af4368b0b94cd1c5277cf66335e8e76"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679160"
+                ]
+            ],
+            "content": "AlW46XaHcwQ7skR1QQYcQtrRTMvJyS61tACg1ETEISja7BBBs/Q0XXGNjXdqaEStgXNkcS6bO5GZcoH3t607A9NTGBVTd4AR1M1XwndCj1g2cXS2g0Dac4ScOAzoWjHl/3BkpRoI/2Jo/X6MTDv3aTJsmC04SXH1l3aZ2pGaW+Z/6twJb8PbKDu9l3364UTjRupUZrrNgUBzZB8YdOhBaLLHQpc1HGV7iVFl1/GiCauq+ipfl985mRd4zugXFXPwHTlL",
+            "sig": "6b310de5236d987c0e04c34f7d083b5d1d42c7ab475ffcdecbeef71cd1a264f36247d904e53096caeccd4c953f3f2ba3021e766d85c13ffcd74bc32e10c4e696"
+        }
+    },
+    "steps": [
+        {
+            "event": "key-1",
+            "expect": "accepted:key"
+        },
+        {
+            "event": "roster-writer",
+            "expect": "accepted:roster"
+        },
+        {
+            "event": "owner-carbs",
+            "expect": "accepted:treatment"
+        },
+        {
+            "event": "writer-rapid",
+            "expect": "accepted:treatment"
+        },
+        {
+            "event": "writer-edit",
+            "expect": "accepted:treatment"
+        },
+        {
+            "event": "writer-hijack",
+            "expect": "rejected:writer-not-creator"
+        },
+        {
+            "event": "owner-delete",
+            "expect": "accepted:treatment"
+        },
+        {
+            "event": "owner-older",
+            "expect": "ignored:treatment-older"
+        }
+    ],
+    "expected": {
+        "status": "active",
+        "epochs": [
+            1
+        ],
+        "devices": [
+            "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974"
+        ],
+        "writers": [
+            "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        ],
+        "readings": [],
+        "sensor": null,
+        "treatments": [
+            {
+                "id": "a0000000-0000-4000-8000-00000000000a",
+                "k": "carbs",
+                "a": 30.0,
+                "u": 5000,
+                "o": "phone",
+                "del": true
+            },
+            {
+                "id": "b0000000-0000-4000-8000-00000000000b",
+                "k": "rapid",
+                "a": 5.0,
+                "u": 3000,
+                "o": "follower",
+                "del": false
+            }
+        ],
+        "settings": null,
+        "alerts": 0
+    }
+}

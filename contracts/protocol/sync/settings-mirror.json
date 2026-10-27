@@ -1,0 +1,216 @@
+{
+    "v": 1,
+    "about": "Owner → follower sequence 'settings-mirror' (contracts/protocol/sync/README.md). Throwaway keys, synthetic data.",
+    "keys": {
+        "I": {
+            "sec": "49c56efe45711db397cc7aae0bf6b5a0de5f2bbe65e4272f2acd29f514111409",
+            "pub": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972"
+        },
+        "D": {
+            "sec": "1f517459ffeec1872c8ed3db3b9b944533f4d67f411070ed8e979c0a8f32dc6a",
+            "pub": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974"
+        },
+        "D2": {
+            "sec": "0b53a61ae9954d98bc11b6aa238fa0fd22b3f87f80ff421c7132d492b367a86c",
+            "pub": "e8f25d35bc09ed61bc669fa9f33d96bad3c31db5f2a20703f6191cf83d0b49e1"
+        },
+        "W": {
+            "sec": "97f4fcce9ec27ea64bf770c61f60347e2fc8e9cec36500a83135a76888d8c802",
+            "pub": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        },
+        "F": {
+            "sec": "1d7252c5c2323b79cab7e9cb2dbe8f6724d98f23ab50e52e23ce359098389387",
+            "pub": "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+        },
+        "G1": {
+            "sec": "37beb56c0fb3f501b7fe8bab3ce768956c2ec4fcc0bcbb9bbdec8a5e80fd71d8",
+            "pub": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a"
+        },
+        "G2": {
+            "sec": "9abad26e11e08f9b96958c9e25981670dfe849b19feeef1f3cef1bd4a25aa84d",
+            "pub": "c2421f3256af8ec9fc5dd5fdc94dab1f6f4d01609df5410d2837bb3cc321767b"
+        }
+    },
+    "sid": "74767bf125c92e2efb705d29cb173f5bafda20bce46bf81e1a0a603e854c913a",
+    "follower": "F",
+    "identity": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+    "now": 1792087200,
+    "events": {
+        "key-1": {
+            "id": "59c4f82d96308818bdb172b78666ebc1f534621851c8a9f1c6201ef54289872b",
+            "pubkey": "c788d9271c86e23f0fe567da78398599611192c0a4b7020d3baa8315b0673816",
+            "created_at": 1793000187,
+            "kind": 1059,
+            "tags": [
+                [
+                    "expiration",
+                    "1794679200"
+                ],
+                [
+                    "p",
+                    "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+                ]
+            ],
+            "content": "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",
+            "sig": "1840785437b1563d999352b8ecf1dbc1a081c039d1a3db612c92c7dea68b1283ab6e3a9fa84ecff1c58fc25d351eea9c4095c2178f9817817ebb6ae1a02cccee"
+        },
+        "roster-1": {
+            "id": "184b9bc908ec1e742eafd756e26baff3f1822b6aaec270b568db7af96339806a",
+            "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+            "created_at": 1792087100,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "011e14378379a46c5944f25e5f183239"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679100"
+                ]
+            ],
+            "content": "Aq3Feg6IvKVPopTmz+tzGAE/dJ0lJdW7skQ0W8w5Fwq700+1hBaMFARacIm08npj6Fnn8FlxT57yzCQMCC57AL4Fkb0qXvKlxj8Hx4zgweZxF6Riq1f/mewSEa3F0dBY0Hl2sMZenOE4tIuDezuLDn0G7IuLer7GpmRcYR1HzBJRMXuLsrn+fEfkcqVsCZNvCCPICnqrRPTI8oM+l4vMl0JTE5uOkXIhujF1lRuozsQ0sChcFQpeSwyFFovYe4FMmEACiQhSuoRybd1KrL6uFLxqpcu6s/exlSJ3fhuBdi1I0BF5lZoYT9LzHlafzm87c4u01OaPiRVelr5ZXzKmUj4rY6baBU6HeDvpXAnKj2k/SO24nxznQADT4FEDq6pAcMYE",
+            "sig": "757494572692ac2f7efd413de1ea5b937381948c8d83dee81d58dfe770b82be624acf17b345e1d3cd69bedd83defd5784fecd32f85e12e8f15727cda43c261cb"
+        },
+        "settings-100": {
+            "id": "93698bd37d37772b5db4431fc741d351aad0ed5be68e3e6ae1a0abcee5dfef93",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087110,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9f7526cdd02534c7b107b87daebfbb3d"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679110"
+                ]
+            ],
+            "content": "ArF2XlQj3AYwy03KnBNPlXEV/A6nQu6FGk1zM0XKUhoDhZ5xsf/eIyZ82aXZPrlsYKOVFt4I4pWg0BPx9NRdfKXSVkGj/3LJYdWupVFhU6tiFle+xeDxE3yx3IvXdsnUMkig29INNQJ51BRQOT8tRxW8tyUxGBrOFrTy5oy6nb54Ac4=",
+            "sig": "cc5526d82e969d6b01411e6b4ad5f623359e022af195972f8868132589a6ee8c95f447ca7350d83384ca584becd4170c4d41851071265eb643d0276cbba5dafa"
+        },
+        "settings-90": {
+            "id": "300848ee6a7fc9390c49c6098f035005c85213614c036ce95c127fbeac49ac6f",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087109,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9f7526cdd02534c7b107b87daebfbb3d"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679109"
+                ]
+            ],
+            "content": "AoXGVCrsr6F94uNne02ybgKbTZzQYVv+HfBN6vyhSpIXduJz73vMi8Omb+OEGS6SWRhTx0Kbb5fOOnPmMfed24/GB3pkc2gnhiCp6JRqtrGKC9TYZ2urboimbidMiKfN27alpUbCectcnPze7fdPB+Gfd48Upnh2m5BSeaCba6nwWNo=",
+            "sig": "0aa93bd38305c5832081ff710915f23903c16c7fe043439ff9d5acbdc6b391cd8497c6636618ec9bd6188573907bf8d872450265df8af1e953243d4c533641ea"
+        },
+        "settings-writer": {
+            "id": "1dfcd4e978511882a2cff77005431796b63f0044cc623df6c63813e0d737d0a2",
+            "pubkey": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489",
+            "created_at": 1792087150,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9f7526cdd02534c7b107b87daebfbb3d"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679150"
+                ]
+            ],
+            "content": "AskDbohiODdyS1JOImJ464C5k35zbF2mq8wbmMlVretTLKjL8wk+54EQubcHxoJ3iutWQfHiUiBkNw/+8RnQzqCWOlvGjQGNoOXfzhTpHtIU8PXHMubUXj8tsF3mGSLuhZOm1XPVtbarwi7WQaHI1D5/XuLPBe8cganPXNQw8kmlbkc=",
+            "sig": "4b50056b2c143543906d67e5f17955aa8793a8ddf59523ea49199ab1ef63c30dc1af1d886e1836367a45f1596b3818e18fff6655c70ce265e971925f244e4cb6"
+        },
+        "settings-120": {
+            "id": "08f2bb6df940375210422c6c74bbaa0f83e5aed26e53889f2937910f72946117",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1792087112,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9f7526cdd02534c7b107b87daebfbb3d"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1794679112"
+                ]
+            ],
+            "content": "ApPzwL5rIURCcO6oTBJmn0+IJ8YPqB4TcDirXTpKSzjDqZcVAIsWAKZTwf8i/d5DG1oSgeih57tvg+BAMIKH3N0GSzmX9aqrW+aetVbNilySB5W2kc7vWyBNLYzws8ebvgy+3FPiN3xFnjE7aysqHEEaVzHKe6yPCnpUid/A1nEKO+w=",
+            "sig": "f0a88742223506b35dc566f67ecac29c8750477566a4e3cd33022d16dfc943e7133f1f6a8f21920e820b6291a0d5dc76261962f996d29df8a43701b963cc0159"
+        }
+    },
+    "steps": [
+        {
+            "event": "key-1",
+            "expect": "accepted:key"
+        },
+        {
+            "event": "roster-1",
+            "expect": "accepted:roster"
+        },
+        {
+            "event": "settings-100",
+            "expect": "accepted:settings"
+        },
+        {
+            "event": "settings-90",
+            "expect": "ignored:settings-older"
+        },
+        {
+            "event": "settings-writer",
+            "expect": "rejected:author-not-device"
+        },
+        {
+            "event": "settings-120",
+            "expect": "accepted:settings"
+        }
+    ],
+    "expected": {
+        "status": "active",
+        "epochs": [
+            1
+        ],
+        "devices": [
+            "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974"
+        ],
+        "writers": [
+            "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        ],
+        "readings": [],
+        "sensor": null,
+        "treatments": [],
+        "settings": {
+            "u": 120,
+            "graph": {
+                "low": 75
+            }
+        },
+        "alerts": 0
+    }
+}
