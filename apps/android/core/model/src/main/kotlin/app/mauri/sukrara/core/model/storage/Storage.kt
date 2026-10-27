@@ -28,6 +28,12 @@ interface SettingsRepository {
         spec: SettingSpec<T>,
         value: T,
     )
+
+    /** Applies [transform] to the stored value in one atomic edit (two quick edits from different screens both land). */
+    suspend fun <T> update(
+        spec: SettingSpec<T>,
+        transform: (T) -> T,
+    )
 }
 
 /** One typed state file (typed DataStore with kotlinx.serialization). Updates are atomic. */

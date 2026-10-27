@@ -4,6 +4,7 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
     <string name="home_title">Sukrara</string>
+    <string name="home_settings">Ajustes</string>
     <string name="home_add_treatment">Añadir tratamiento</string>
     <string name="home_chart_now">Ahora</string>
 
