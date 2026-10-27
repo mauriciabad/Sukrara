@@ -43,7 +43,11 @@ fun interface AlertEventSink {
     fun publish(event: AlertEvent)
 }
 
-/** Restarts the monitoring service after a check found it dead (chunk 10's `MonitorStarter`; it surfaces a denial). */
+/**
+ * Restarts the monitoring service after a check found it dead (chunk 10's `MonitorStarter`; it surfaces a denial).
+ * Suspends until the start was tried, so the alarm's broadcast (and its foreground-service start exemption) is still
+ * alive when it happens.
+ */
 fun interface MonitorRestarter {
-    fun restart()
+    suspend fun restart()
 }
