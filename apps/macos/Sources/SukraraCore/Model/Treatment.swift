@@ -108,7 +108,9 @@ public struct Treatment: Sendable, Hashable, Codable, Identifiable {
         pr = try c.decodeIfPresent(Double.self, forKey: .pr)
         pen = try c.decodeIfPresent(String.self, forKey: .pen)
         pd = try c.decodeIfPresent([PenDose].self, forKey: .pd)
-        func bad(_ why: String) -> DecodingError { .dataCorrupted(.init(codingPath: c.codingPath, debugDescription: why)) }
+        func bad(_ why: String) -> DecodingError {
+            .dataCorrupted(.init(codingPath: c.codingPath, debugDescription: why))
+        }
         if let pr, pr < 0 { throw bad("negative pr") }
         if let pen, pen.utf8.count > Self.penMaxBytes { throw bad("pen over \(Self.penMaxBytes) bytes") }
         if let pd {

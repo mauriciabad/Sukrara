@@ -37,7 +37,9 @@ final class CardLayout {
     init(_ surface: CardSurface, _ part: CardPart, _ style: CardStyle, w: CGFloat, h: CGFloat, d: CGFloat) {
         self.surface = surface; self.part = part; self.style = style; self.w = w; self.h = h; self.d = d
     }
-    func add(_ name: String, _ box: CGRect? = nil, _ info: String = "") { elements.append(El(name: name, box: box, info: info)) }
+    func add(_ name: String, _ box: CGRect? = nil, _ info: String = "") {
+        elements.append(El(name: name, box: box, info: info))
+    }
     func first(_ name: String) -> El? { elements.first { $0.name == name } }
     func all(_ name: String) -> [El] { elements.filter { $0.name == name } }
     /// `px` in dp to the nearest 0.5, as the report writes it on both platforms ("33.5", "40").
@@ -46,7 +48,6 @@ final class CardLayout {
         return v == v.rounded(.down) ? "\(Int64(v))" : "\(v)"
     }
 }
-
 
 /// Where the sensor's time left goes on a card (`GlucoseCard.sensorSpot`; SensorSpot in GlucoseCard.kt).
 enum SensorSpot: String { case graph, none }
@@ -58,7 +59,9 @@ public struct PlaceOverrides: Equatable, Sendable {
     public var ringRange: TirRange?
     public var side: Bool?
     public var sensor: Bool?
-    public init(hours: Int? = nil, rings: Int? = nil, ringRange: TirRange? = nil, side: Bool? = nil, sensor: Bool? = nil) {
+    public init(
+        hours: Int? = nil, rings: Int? = nil, ringRange: TirRange? = nil, side: Bool? = nil, sensor: Bool? = nil
+    ) {
         self.hours = hours
         self.rings = rings
         self.ringRange = ringRange
@@ -82,7 +85,8 @@ extension CardSurface {
         switch self {
         case .menubarCard, .menubarTitle, .test: st = cfg.cardStyle(graph: cfg.graphStyle())
         case .widgetValue: st = rc.cardStyle(graph: nil)
-        case .widgetGraph: st = CardStyle(graph: g, rings: [], value: false, sensorTime: rc.sensorTime, bands: cfg.bands)
+        case .widgetGraph:
+            st = CardStyle(graph: g, rings: [], value: false, sensorTime: rc.sensorTime, bands: cfg.bands)
         case .widgetCombined: st = rc.cardStyle(graph: g)
         }
         st.sensor = sensor

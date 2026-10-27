@@ -41,7 +41,9 @@ enum TreatmentMarks {
 
     /// One marker of kind `k` centred on (`x`, `y`), `r` = its half-size (4.5 on the chart). `hole` fills the
     /// outlined long-acting drop (the background colour, or nil for none).
-    static func marker(_ ctx: CGContext, _ k: String, x: CGFloat, y: CGFloat, r: CGFloat, color c: CGColor, hole: CGColor? = nil) {
+    static func marker(
+        _ ctx: CGContext, _ k: String, x: CGFloat, y: CGFloat, r: CGFloat, color c: CGColor, hole: CGColor? = nil
+    ) {
         ctx.saveGState()
         defer { ctx.restoreGState() }
         switch k {
@@ -53,12 +55,16 @@ enum TreatmentMarks {
             if let hole { ctx.addPath(p); ctx.setFillColor(hole); ctx.fillPath() }
             ctx.addPath(p); ctx.setStrokeColor(c); ctx.setLineWidth(r / 3); ctx.setLineJoin(.round); ctx.strokePath()
         case "carbs":
-            ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: x - r * 0.8, y: y - r * 0.8, width: r * 1.6, height: r * 1.6))
-        case "sensor":   // the "Replace sensor" pill (StatusBadge.replaceSensor): the Libre sensor disc, a ring with a centre dot
+            ctx.setFillColor(c)
+            ctx.fillEllipse(in: CGRect(x: x - r * 0.8, y: y - r * 0.8, width: r * 1.6, height: r * 1.6))
+        // the "Replace sensor" pill (StatusBadge.replaceSensor): the Libre sensor disc, a ring with a centre dot
+        case "sensor":
             ctx.setStrokeColor(c); ctx.setLineWidth(r * 0.26)
             ctx.strokeEllipse(in: CGRect(x: x - r * 0.8, y: y - r * 0.8, width: r * 1.6, height: r * 1.6))
-            ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: x - r * 0.3, y: y - r * 0.3, width: r * 0.6, height: r * 0.6))
-        case "now":   // the "Now" pill over a scrolled chart (StatusBadge.backToNow): SF Symbol arrow.right (Android: Material arrow_forward)
+            ctx.setFillColor(c)
+            ctx.fillEllipse(in: CGRect(x: x - r * 0.3, y: y - r * 0.3, width: r * 0.6, height: r * 0.6))
+        // the "Now" pill over a scrolled chart (StatusBadge.backToNow): SF Symbol arrow.right (Android: Material arrow_forward)
+        case "now":
             let size = r * 2.2
             _ = SensorBadge.symbol(ctx, "arrow.right", x: x - size / 2, y: y - size / 2, size: size, color: c)
         default:
@@ -78,7 +84,7 @@ enum TreatmentMarks {
     static let twoLanesH: CGFloat = 90, laneH: CGFloat = 11, inset: CGFloat = 3
     static let sep = " · "
 
-    /// One label: `members` in label order (kind, then time), the entries with a label part shown (`MarkShow.label`);
+    /// One label: `members` in label order (kind, then time), the entries with a label part shown (`MarkShow.label`)
     /// `shownAmounts` = those whose amount shows; `time` = since `timeOf`, the newest member whose time shows (nil = none
     /// wants it, or left out for room); `lane` 0 (the axis row) or 1 (under it), `left` + `w` = its modelled box (TextModel).
     struct Label {
@@ -98,7 +104,9 @@ enum TreatmentMarks {
         var labels: [Label]; var dropped: [[GraphMark]]
         var twoLanes: Bool { labels.contains { $0.lane == 1 } }
         /// Whether `a`…`b` touches a lane-0 label: an hour label there gives way.
-        func blocks(_ a: CGFloat, _ b: CGFloat) -> Bool { labels.contains { $0.lane == 0 && $0.left < b && a < $0.left + $0.w } }
+        func blocks(_ a: CGFloat, _ b: CGFloat) -> Bool {
+            labels.contains { $0.lane == 0 && $0.left < b && a < $0.left + $0.w }
+        }
     }
 
     /// The label layout (TreatmentMarks.kt `layout`, same steps): group (≤ `mergeS` after the group's last entry,
@@ -106,14 +114,19 @@ enum TreatmentMarks {
     /// anchored mid-group; newest group first, each in the first of lane 0 / lane 1 with the time, lane 0 / lane 1
     /// without it that has a free place (`place`), else no label.
     /// Nothing else takes room in the lanes: the sensor badge is drawn over the row, masking what passes under it.
-    static func layout(_ marks: [GraphMark], x: (TimeInterval) -> CGFloat, now: TimeInterval?, minX: CGFloat, maxX: CGFloat,
-                       lanes: Int, d: CGFloat, show: MarkShow = .defaults) -> Layout {
+    static func layout(
+        _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, now: TimeInterval?, minX: CGFloat, maxX: CGFloat,
+        lanes: Int, d: CGFloat, show: MarkShow = .defaults
+    ) -> Layout {
         let items = marks.filter { amount($0) != nil && order[$0.k] != nil && show.label($0.k) }
             .sorted { ($0.t, order[$0.k]!, $0.a, $0.id) < ($1.t, order[$1.k]!, $1.a, $1.id) }
         var groups: [[GraphMark]] = []
         for m in items {
-            if let g = groups.last, m.t - g.last!.t <= mergeS || x(m.t) - x(g.first!.t) < mergeDp * d { groups[groups.count - 1].append(m) }
-            else { groups.append([m]) }
+            if let g = groups.last, m.t - g.last!.t <= mergeS || x(m.t) - x(g.first!.t) < mergeDp * d {
+                groups[groups.count - 1].append(m)
+            } else {
+                groups.append([m])
+            }
         }
         let size = labelSize * d, gap = labelGap * d
         var taken: [[(CGFloat, CGFloat)]] = [[], []]
@@ -128,14 +141,17 @@ enum TreatmentMarks {
             let cx = (x(g.first!.t) + x(g.last!.t)) / 2
             var placed: Label?
             var tries: [(Int, String?)] = []
-            for (lane, t) in [(0, time), (1, time), (0, nil), (1, nil)] where lane < lanes && (!amounts.isEmpty || t != nil) {
+            for (lane, t) in [(0, time), (1, time), (0, nil), (1, nil)]
+            where lane < lanes && (!amounts.isEmpty || t != nil) {
                 if !tries.contains(where: { $0.0 == lane && $0.1 == t }) { tries.append((lane, t)) }
             }
             for (lane, t) in tries {
                 let w = TextModel.width(text(amounts, t), size)
                 if let left = place(cx, w, taken[lane], minX: minX, maxX: maxX, gap: gap, inset: inset * d) {
                     taken[lane].append((left - gap / 2, left + w + gap / 2))
-                    placed = Label(members: members, shownAmounts: shownAmounts, timeOf: timeOf, time: t, lane: lane, left: left, w: w)
+                    placed = Label(
+                        members: members, shownAmounts: shownAmounts, timeOf: timeOf, time: t, lane: lane, left: left,
+                        w: w)
                     break
                 }
             }
@@ -147,13 +163,17 @@ enum TreatmentMarks {
     /// The left edge for a box `w` wide anchored at `cx` in a lane holding `taken`, or nil (TreatmentMarks.kt `place`):
     /// centred if free, else slid while the anchor stays `inset` inside the box; candidates in order: preferred, the
     /// slide's two ends, then right of / left of each taken box; the free one nearest the preferred wins (first on a tie).
-    static func place(_ cx: CGFloat, _ w: CGFloat, _ taken: [(CGFloat, CGFloat)], minX: CGFloat, maxX: CGFloat,
-                      gap: CGFloat, inset: CGFloat) -> CGFloat? {
+    static func place(
+        _ cx: CGFloat, _ w: CGFloat, _ taken: [(CGFloat, CGFloat)], minX: CGFloat, maxX: CGFloat,
+        gap: CGFloat, inset: CGFloat
+    ) -> CGFloat? {
         if w > maxX - minX { return nil }
         let pref = min(max(cx - w / 2, minX), max(maxX - w, minX))
         var lo = max(minX, cx - w + inset), hi = min(maxX - w, cx - inset)
         if lo > hi { lo = pref; hi = pref }
-        func free(_ l: CGFloat) -> Bool { !taken.contains { l - gap / 2 < $0.1 - 0.01 && $0.0 + 0.01 < l + w + gap / 2 } }
+        func free(_ l: CGFloat) -> Bool {
+            !taken.contains { l - gap / 2 < $0.1 - 0.01 && $0.0 + 0.01 < l + w + gap / 2 }
+        }
         let cands = [min(max(pref, lo), hi), lo, hi] + taken.flatMap { [$0.1 + gap / 2, $0.0 - w - gap / 2] }
         var best: CGFloat?
         for c in cands where c >= lo && c <= hi && free(c) {
@@ -166,13 +186,17 @@ enum TreatmentMarks {
     /// none; `now` = the plot's right edge), then `layout`'s labels with baselines `base0` / `base1`. Each label's
     /// outline (3 dp) is first erased (`.destinationOut`) from what is under it, so it reads over anything on any
     /// background (the caller draws the chart in its own transparency layer).
-    static func draw(_ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
-                     bottom: CGFloat, dark: Bool, d: CGFloat, layout: Layout?, base0: CGFloat, base1: CGFloat, sep sepColor: CGColor,
-                     now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil, show: MarkShow = .defaults) {
-        let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter { $0.1 >= left - 1 && $0.1 <= right + 1 }
+    static func draw(
+        _ ctx: CGContext, _ marks: [GraphMark], x: (TimeInterval) -> CGFloat, left: CGFloat, right: CGFloat,
+        bottom: CGFloat, dark: Bool, d: CGFloat, layout: Layout?, base0: CGFloat, base1: CGFloat, sep sepColor: CGColor,
+        now: TimeInterval? = nil, muteUntil: ((GraphMark) -> TimeInterval?)? = nil, show: MarkShow = .defaults
+    ) {
+        let items = marks.filter { order[$0.k] != nil }.map { ($0, x($0.t)) }.filter {
+            $0.1 >= left - 1 && $0.1 <= right + 1
+        }
         guard !items.isEmpty else { return }
         let cy = bottom - 5 * d
-        let back = items.sorted { order[$0.0.k]! > order[$1.0.k]! }   // notes at the back, insulin in front
+        let back = items.sorted { order[$0.0.k]! > order[$1.0.k]! }  // notes at the back, insulin in front
 
         if let muteUntil {
             ctx.saveGState()
@@ -187,17 +211,20 @@ enum TreatmentMarks {
                 ctx.setStrokeColor(color(m.k, dark: dark).copy(alpha: 0xB0 / 255.0)!)
                 ctx.strokeLineSegments(between: [CGPoint(x: px, y: ly), CGPoint(x: ex, y: ly)])
                 if running {
-                    if ex - px > 8 * d {   // still muting: a chevron at the edge
+                    if ex - px > 8 * d {  // still muting: a chevron at the edge
                         ctx.move(to: CGPoint(x: ex - 3 * d, y: ly - 3 * d)); ctx.addLine(to: CGPoint(x: ex, y: ly))
                         ctx.addLine(to: CGPoint(x: ex - 3 * d, y: ly + 3 * d)); ctx.strokePath()
                     }
                 } else {
-                    ctx.strokeLineSegments(between: [CGPoint(x: ex, y: ly - 3 * d), CGPoint(x: ex, y: ly + 3 * d)])   // over: a tick
+                    // over: a tick
+                    ctx.strokeLineSegments(between: [CGPoint(x: ex, y: ly - 3 * d), CGPoint(x: ex, y: ly + 3 * d)])
                 }
             }
             ctx.restoreGState()
         }
-        for (m, px) in back where show.has(m.k, MarkShow.point) { marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark)) }
+        for (m, px) in back where show.has(m.k, MarkShow.point) {
+            marker(ctx, m.k, x: px, y: cy, r: 4.5 * d, color: color(m.k, dark: dark))
+        }
 
         guard let layout, !layout.labels.isEmpty else { return }
         let bold = Ink.font(labelSize * d, .bold), medium = Ink.font(labelSize * d, .medium)
@@ -209,7 +236,8 @@ enum TreatmentMarks {
                 pieces.append((amount(m)!, bold, color(m.k, dark: dark)))
             }
             if let t = l.time, let of = l.timeOf {
-                pieces.append(((pieces.isEmpty ? "" : " ") + t, medium, color(of.k, dark: dark).copy(alpha: 0xC0 / 255.0)!))
+                pieces.append(
+                    ((pieces.isEmpty ? "" : " ") + t, medium, color(of.k, dark: dark).copy(alpha: 0xC0 / 255.0)!))
             }
             let w = pieces.reduce(0) { $0 + Ink.width($1.0, $1.1) }
             return (l, pieces, l.left + (l.w - w) / 2)
@@ -228,4 +256,3 @@ enum TreatmentMarks {
         each { s, font, c, px, base in Ink.draw(ctx, s, x: px, y: base, font, c) }
     }
 }
-

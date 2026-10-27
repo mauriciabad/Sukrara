@@ -25,8 +25,10 @@ enum Ink {
     /// The outline of `s` (`width` wide, round joins) in the context's blend mode: a label's halo (drawn with
     /// `.destinationOut` to erase what is under the label).
     static func halo(_ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, width: CGFloat) {
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .strokeColor: GraphPalette.hex(0),
-                                                    .strokeWidth: width / CTFontGetSize(font) * 100]
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font, .strokeColor: GraphPalette.hex(0),
+            .strokeWidth: width / CTFontGetSize(font) * 100,
+        ]
         let l = CTLineCreateWithAttributedString(NSAttributedString(string: s, attributes: attrs))
         ctx.saveGState()
         ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
@@ -35,8 +37,10 @@ enum Ink {
         ctx.restoreGState()
     }
     /// Draws with the baseline at `y` (y-down context). Strikethrough is drawn by hand (CTLineDraw doesn't).
-    static func draw(_ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, _ color: CGColor,
-                     align: CGFloat = 0, strike: Bool = false) {
+    static func draw(
+        _ ctx: CGContext, _ s: String, x: CGFloat, y: CGFloat, _ font: CTFont, _ color: CGColor,
+        align: CGFloat = 0, strike: Bool = false
+    ) {
         let l = line(s, font, color)
         let w = CGFloat(CTLineGetTypographicBounds(l, nil, nil, nil))
         let x0 = x - w * align
@@ -82,4 +86,3 @@ extension CGColor {
     func a(_ alpha: Int) -> CGColor { copy(alpha: CGFloat(alpha) / 255) ?? self }
     func a(_ alpha: CGFloat) -> CGColor { copy(alpha: alpha) ?? self }
 }
-

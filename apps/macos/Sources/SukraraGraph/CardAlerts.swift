@@ -10,7 +10,7 @@ import SukraraCore
 // library needs no alert settings.
 
 /// The side of a level alert, which decides the badge's colour (carbs answer lows, insulin highs).
-public enum AlertSide: String, Sendable, Equatable {
+public enum AlertSide: String, Sendable, Equatable, Codable {
     case low, high
 
     /// "Low" / "High" (the mute lines' wording).
@@ -18,7 +18,7 @@ public enum AlertSide: String, Sendable, Equatable {
 }
 
 /// What the alert rules say about the latest reading, for the badge under the value.
-public enum AlertStatus: Sendable, Equatable {
+public enum AlertStatus: Sendable, Equatable, Codable {
     /// In range, stale, or alerts off: no badge.
     case none
     /// Out of range and nothing logged that covers it: tell the user what to do.
@@ -36,7 +36,7 @@ public enum AlertStatus: Sendable, Equatable {
 
 /// The entry in the last-treatment slot beside the value.
 public enum LastTreatment {
-    public struct Info: Sendable, Equatable {
+    public struct Info: Sendable, Equatable, Codable {
         public var tr: GraphMark
         /// Its mute's end (epoch s); nil = its kind mutes nothing in the settings.
         public var until: TimeInterval?
@@ -57,7 +57,7 @@ public enum LastTreatment {
     }
 
     /// The carbs drawn with running insulin (an `Info` without a companion of its own).
-    public struct Companion: Sendable, Equatable {
+    public struct Companion: Sendable, Equatable, Codable {
         public var tr: GraphMark
         public var until: TimeInterval?
 
@@ -71,7 +71,7 @@ public enum LastTreatment {
 }
 
 /// Everything alert-related a card draws. `none` = alerts off or not known yet: no badge, no slot entry, no mute lines.
-public struct CardAlerts: Sendable, Equatable {
+public struct CardAlerts: Sendable, Equatable, Codable {
     public var status: AlertStatus
     public var last: LastTreatment.Info?
     /// Each treatment's mute end (epoch s) by `GraphMark.id`; a treatment missing here mutes nothing (no mute line).

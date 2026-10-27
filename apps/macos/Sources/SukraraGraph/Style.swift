@@ -25,7 +25,12 @@ struct GraphPalette {
 
     func of(_ b: Band) -> CGColor {
         switch b {
-        case .veryLow: veryLow; case .low: low; case .tight: tight; case .target: target; case .high: high; case .veryHigh: veryHigh
+        case .veryLow: veryLow
+        case .low: low
+        case .tight: tight
+        case .target: target
+        case .high: high
+        case .veryHigh: veryHigh
         }
     }
 
@@ -33,14 +38,18 @@ struct GraphPalette {
     func at(_ b: Bands, _ mgdl: Double) -> CGColor { mgdl >= Double(b.extremelyHigh) ? extremelyHigh : of(b.of(mgdl)) }
 
     static func hex(_ v: UInt32) -> CGColor {
-        CGColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+        CGColor(
+            srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
+            blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
-    static let darkPalette = GraphPalette(dark: true, bg: hex(0x1C1C1E), ink: hex(0xF2F2F2), inkSoft: hex(0xA3A3A8), grid: hex(0x3A3A3E),
-                                          veryLow: hex(0xC2413B), low: hex(0xF0524F), tight: hex(0x3DD47A), target: hex(0x8CC63F),
-                                          high: hex(0xF5A524), veryHigh: hex(0xFF7A45), extremelyHigh: hex(0xE35BD0))
-    static let lightPalette = GraphPalette(dark: false, bg: hex(0xFFFFFF), ink: hex(0x1C1C1E), inkSoft: hex(0x6B6B70), grid: hex(0xDADADF),
-                                           veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
-                                           high: hex(0xD97706), veryHigh: hex(0xC2410C), extremelyHigh: hex(0xA3238F))
+    static let darkPalette = GraphPalette(
+        dark: true, bg: hex(0x1C1C1E), ink: hex(0xF2F2F2), inkSoft: hex(0xA3A3A8), grid: hex(0x3A3A3E),
+        veryLow: hex(0xC2413B), low: hex(0xF0524F), tight: hex(0x3DD47A), target: hex(0x8CC63F),
+        high: hex(0xF5A524), veryHigh: hex(0xFF7A45), extremelyHigh: hex(0xE35BD0))
+    static let lightPalette = GraphPalette(
+        dark: false, bg: hex(0xFFFFFF), ink: hex(0x1C1C1E), inkSoft: hex(0x6B6B70), grid: hex(0xDADADF),
+        veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
+        high: hex(0xD97706), veryHigh: hex(0xC2410C), extremelyHigh: hex(0xA3238F))
     static func of(dark: Bool) -> GraphPalette { dark ? darkPalette : lightPalette }
 }
 
@@ -90,9 +99,13 @@ public struct MarkShow: Codable, Equatable, Sendable {
     static func parts(_ k: String) -> [String] { MarkSchema.partsOf[k] ?? [] }
     private var on: [String: Set<String>]
     private init(_ m: [String: Set<String>]) {
-        on = Dictionary(uniqueKeysWithValues: MarkShow.kinds.map { k in (k, Set(MarkShow.parts(k).filter { m[k]?.contains($0) == true })) })
+        on = Dictionary(
+            uniqueKeysWithValues: MarkShow.kinds.map { k in
+                (k, Set(MarkShow.parts(k).filter { m[k]?.contains($0) == true }))
+            })
     }
-    public static let defaults = MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { ($0, MarkSchema.defaultsOf[$0] ?? []) }))
+    public static let defaults = MarkShow(
+        Dictionary(uniqueKeysWithValues: kinds.map { ($0, MarkSchema.defaultsOf[$0] ?? []) }))
     /// Every part of every kind (the look before the setting existed).
     public static let all = MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { ($0, Set(parts($0))) }))
 
@@ -102,7 +115,9 @@ public struct MarkShow: Codable, Equatable, Sendable {
     /// A label part (amount or time) of `k` shows.
     func label(_ k: String) -> Bool { has(k, MarkShow.amount) || has(k, MarkShow.time) }
     /// The same without any label (a chart too long for them: `GlucoseGraph.labelsMaxS`).
-    func withoutLabels() -> MarkShow { MarkShow.kinds.reduce(self) { $0.with($1, MarkShow.amount, false).with($1, MarkShow.time, false) } }
+    func withoutLabels() -> MarkShow {
+        MarkShow.kinds.reduce(self) { $0.with($1, MarkShow.amount, false).with($1, MarkShow.time, false) }
+    }
     func with(_ k: String, _ part: String, _ v: Bool) -> MarkShow {
         var m = on; var p = m[k] ?? []
         if v { p.insert(part) } else { p.remove(part) }
@@ -110,7 +125,10 @@ public struct MarkShow: Codable, Equatable, Sendable {
         return MarkShow(m)
     }
     /// "rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point" (the stored and wire form).
-    var text: String { MarkShow.kinds.map { k in "\(k):" + MarkShow.parts(k).filter { has(k, $0) }.joined(separator: "+") }.joined(separator: ",") }
+    var text: String {
+        MarkShow.kinds.map { k in "\(k):" + MarkShow.parts(k).filter { has(k, $0) }.joined(separator: "+") }.joined(
+            separator: ",")
+    }
     /// `text` back; a kind missing from it (or nil) keeps its default, unknown parts are dropped.
     static func parse(_ text: String?) -> MarkShow {
         guard let text, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return defaults }
@@ -118,12 +136,16 @@ public struct MarkShow: Codable, Equatable, Sendable {
         for e in text.split(separator: ",") {
             let kv = e.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             guard kv.count == 2 else { continue }
-            got[kv[0].trimmingCharacters(in: .whitespaces)] = Set(kv[1].split(separator: "+").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+            got[kv[0].trimmingCharacters(in: .whitespaces)] = Set(
+                kv[1].split(separator: "+").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
         }
-        return MarkShow(Dictionary(uniqueKeysWithValues: kinds.map { k in (k, got[k] ?? MarkSchema.defaultsOf[k] ?? []) }))
+        return MarkShow(
+            Dictionary(uniqueKeysWithValues: kinds.map { k in (k, got[k] ?? MarkSchema.defaultsOf[k] ?? []) }))
     }
     // stored as its text (the widget snapshot too)
-    public init(from decoder: Decoder) throws { self = MarkShow.parse(try decoder.singleValueContainer().decode(String.self)) }
+    public init(from decoder: Decoder) throws {
+        self = MarkShow.parse(try decoder.singleValueContainer().decode(String.self))
+    }
     public func encode(to encoder: Encoder) throws { var c = encoder.singleValueContainer(); try c.encode(text) }
 }
 
@@ -131,9 +153,21 @@ public struct MarkShow: Codable, Equatable, Sendable {
 public enum SlotKind: String, Codable, CaseIterable, Sendable {
     case tir = "TIR", gmi = "GMI", average = "AVERAGE", cv = "CV"
     var label: String {
-        switch self { case .tir: "Time in range"; case .gmi: "GMI"; case .average: "Average glucose"; case .cv: "Variability (CV)" }
+        switch self {
+        case .tir: "Time in range"
+        case .gmi: "GMI"
+        case .average: "Average glucose"
+        case .cv: "Variability (CV)"
+        }
     }
-    var short: String { switch self { case .tir: ""; case .gmi: "GMI"; case .average: "avg"; case .cv: "CV" } }
+    var short: String {
+        switch self {
+        case .tir: ""
+        case .gmi: "GMI"
+        case .average: "avg"
+        case .cv: "CV"
+        }
+    }
 }
 
 /// One slot beside the value: its kind, window and, for a ring, which range its centre counts. `faded` = drawn
@@ -148,8 +182,10 @@ public struct RingSpec: Codable, Equatable, Sendable {
     /// Whether the ring wears its `TirMark` (`GraphConfig.ringMarks`).
     public var marks = true
     public var period: String { periodLabel(window) }
-    public init(window: TimeInterval, range: TirRange = .inRange, kind: SlotKind = .tir, faded: Bool = true,
-                order: [Band] = DEFAULT_RING_ORDER, marks: Bool = true) {
+    public init(
+        window: TimeInterval, range: TirRange = .inRange, kind: SlotKind = .tir, faded: Bool = true,
+        order: [Band] = DEFAULT_RING_ORDER, marks: Bool = true
+    ) {
         self.window = window
         self.range = range
         self.kind = kind
@@ -179,7 +215,10 @@ struct GlucoseMetrics: Codable, Equatable {
         let tir = GlucoseStats.timeInRange(all, from: from, to: to, bands: b)
         guard total > 0 else { return GlucoseMetrics(tir: tir, mean: 0, sd: 0, readings: 0) }
         let mean = rs.indices.reduce(0.0) { $0 + Double(rs[$1].sgv) * w[$1] } / total
-        let variance = rs.indices.reduce(0.0) { let d = Double(rs[$1].sgv) - mean; return $0 + d * d * w[$1] } / total
+        let variance =
+            rs.indices.reduce(0.0) {
+                let d = Double(rs[$1].sgv) - mean; return $0 + d * d * w[$1]
+            } / total
         return GlucoseMetrics(tir: tir, mean: mean, sd: variance.squareRoot(), readings: rs.count)
     }
 }
@@ -190,8 +229,14 @@ enum Goal: CaseIterable {
     static let minCoverage = 0.70
     var text: String {
         switch self {
-        case .veryHigh: "< 5%"; case .above: "< 25%"; case .inRange: "> 70%"; case .below: "< 4%"; case .veryLow: "< 1%"
-        case .average: "< 154 mg/dL"; case .gmi: "< 7%"; case .cv: "≤ 36%"
+        case .veryHigh: "< 5%"
+        case .above: "< 25%"
+        case .inRange: "> 70%"
+        case .below: "< 4%"
+        case .veryLow: "< 1%"
+        case .average: "< 154 mg/dL"
+        case .gmi: "< 7%"
+        case .cv: "≤ 36%"
         }
     }
     func met(_ m: GlucoseMetrics) -> Bool {
@@ -296,23 +341,37 @@ public struct GraphConfig: Codable, Equatable, Sendable {
 
     static let defaultLastElse = RingSpec(window: 30 * 86400)
     /// `lastElse` with the ring settings applied.
-    public var lastElseRing: RingSpec? { lastElse.map { var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r } }
+    public var lastElseRing: RingSpec? {
+        lastElse.map {
+            var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r
+        }
+    }
     /// The card style of a surface with a value: the rings, the last-treatment slot and its fallback.
     func cardStyle(graph g: GraphStyle?, rings: [RingSpec]? = nil) -> CardStyle {
-        CardStyle(graph: g, rings: rings ?? self.rings, value: true, last: lastPlace, lastElse: lastElseRing, countdownHours: countdownHours,
-                  sensorTime: sensorTime, bands: bands)
+        CardStyle(
+            graph: g, rings: rings ?? self.rings, value: true, last: lastPlace, lastElse: lastElseRing,
+            countdownHours: countdownHours,
+            sensorTime: sensorTime, bands: bands)
     }
 
     static let defaultLines = [100]
 
     /// Today and the last week as time in range; the third slot (off by default) the 14-day GMI, as on the report.
-    static let defaultSlots = [RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi)]
+    static let defaultSlots = [
+        RingSpec(window: 86400), RingSpec(window: 7 * 86400), RingSpec(window: 14 * 86400, kind: .gmi),
+    ]
 
-    public var rings: [RingSpec] { slots.prefix(max(0, min(3, ringCount))).map { var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r } }
+    public var rings: [RingSpec] {
+        slots.prefix(max(0, min(3, ringCount))).map {
+            var r = $0; r.range = ringRange; r.order = ringOrder; r.marks = ringMarks; return r
+        }
+    }
 
     func graphStyle(hours h: Int? = nil) -> GraphStyle {
-        GraphStyle(window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines, gridHours: gridHours,
-                   marks: marks)
+        GraphStyle(
+            window: TimeInterval((h ?? hours) * 3600), bands: bands, side: side, crown: columnCrown, lines: lines,
+            gridHours: gridHours,
+            marks: marks)
     }
     public init() {}
 }

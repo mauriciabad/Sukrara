@@ -16,9 +16,11 @@ enum GlucoseGraph {
     /// `alerts` = the rules behind the treatments' mute lines (nil = no lines). `sensor` = the life badge to put in the
     /// hour-label row (`sensorTop`); only `GlucoseCard` decides that (`GlucoseCard.sensorSpot`), so only it calls this
     /// (tools/check `graph-surface`).
-    static func draw(_ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
-                     _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat, alerts: CardAlerts,
-                     sensor: SensorBadge.Look?, rec: CardLayout, view: ChartView? = nil, latestT: TimeInterval? = nil) {
+    static func draw(
+        _ ctx: CGContext, _ area: CGRect, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
+        _ st: GraphStyle, _ pal: GraphPalette, d: CGFloat, alerts: CardAlerts,
+        sensor: SensorBadge.Look?, rec: CardLayout, view: ChartView? = nil, latestT: TimeInterval? = nil
+    ) {
         // The window drawn: the view's (a scrolled chart) or the last `st.window` up to now. Everything the chart shows
         // (line, distribution, %, y range, treatments, hour labels) is about this window only.
         let end = min(view?.end ?? now, now)
@@ -42,10 +44,12 @@ enum GlucoseGraph {
         let show = st.window > Self.labelsMaxS ? st.marks.withoutLabels() : st.marks
         let muteUntil: ((GraphMark) -> TimeInterval?)? = alerts.muteUntil
         func mutes(_ m: GraphMark) -> Bool { show.has(m.k, MarkShow.line) && muteUntil?(m) != nil }
-        let shownMarks = st.treatments ? marks.filter { m in
-            m.t >= from && m.t <= end && show.any(m.k) &&
-                (show.has(m.k, MarkShow.point) || show.label(m.k) && TreatmentMarks.amount(m) != nil || mutes(m))
-        } : []
+        let shownMarks =
+            st.treatments
+            ? marks.filter { m in
+                m.t >= from && m.t <= end && show.any(m.k)
+                    && (show.has(m.k, MarkShow.point) || show.label(m.k) && TreatmentMarks.amount(m) != nil || mutes(m))
+            } : []
         let lane = shownMarks.contains { show.has($0.k, MarkShow.point) || mutes($0) }
         // The y range of the window (`yRange`); a scrolling surface animates it towards that and passes the current one.
         let own = yRange(pts, bands: b)
@@ -54,8 +58,11 @@ enum GlucoseGraph {
         let split = b.tight < b.high
         // The values on the right: low and high always, then very good, very low / very high and the extra lines,
         // each only where it doesn't touch one already written (in the plot from `top` to `plotBottom`).
-        let candidates = !labels ? [] : ([b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines)
-            .filter { Double($0) > yMin && Double($0) < yMax }
+        let candidates =
+            !labels
+            ? []
+            : ([b.low, b.high] + (split ? [b.tight] : []) + [b.veryLow, b.veryHigh, b.extremelyHigh] + st.lines)
+                .filter { Double($0) > yMin && Double($0) < yMax }
         func axisValues(_ top: CGFloat, _ plotBottom: CGFloat) -> [(Int, CGFloat)] {
             var out: [(Int, CGFloat)] = []
             for v in candidates {
@@ -68,20 +75,28 @@ enum GlucoseGraph {
         // The plot's sides: the % column and the values column, each its widest drawn label + `sideGap` on each side.
         // Which values show depends on the plot's height, which depends (second treatment lane) on its width: start from
         // every candidate and settle on the values actually written (GlucoseGraph.kt).
-        struct Geo { var valW: CGFloat; var left: CGFloat; var right: CGFloat; var layout: TreatmentMarks.Layout?
-                     var lane1: CGFloat; var top: CGFloat; var bottom: CGFloat; var plotBottom: CGFloat; var values: [(Int, CGFloat)] }
+        struct Geo {
+            var valW: CGFloat; var left: CGFloat; var right: CGFloat; var layout: TreatmentMarks.Layout?
+            var lane1: CGFloat; var top: CGFloat; var bottom: CGFloat; var plotBottom: CGFloat
+            var values: [(Int, CGFloat)]
+        }
         func geo(_ valW: CGFloat) -> Geo {
-            let (left, right) = plotX(area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d, pctW: pctLabelW, valW: valW)
-            let layout = shownMarks.isEmpty ? nil
-                : TreatmentMarks.layout(shownMarks, x: { left + CGFloat(($0 - from) / st.window) * (right - left) }, now: now,
-                                        minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, show: show)
+            let (left, right) = plotX(
+                area.minX, area.maxX, pct: st.side && !tir.empty, labels: labels, d: d, pctW: pctLabelW, valW: valW)
+            let layout =
+                shownMarks.isEmpty
+                ? nil
+                : TreatmentMarks.layout(
+                    shownMarks, x: { left + CGFloat(($0 - from) / st.window) * (right - left) }, now: now,
+                    minX: area.minX, maxX: area.maxX, lanes: lanes(area.height, d: d), d: d, show: show)
             let lane1: CGFloat = layout?.twoLanes == true ? TreatmentMarks.laneH * d : 0
             let textRow = labels || !(layout?.labels.isEmpty ?? true)
             let top = area.minY + 3 * d
             let bottom = area.maxY - (textRow ? 10 * d + 4 * d : 0) - lane1
             let plotBottom = lane ? bottom - 12 * d : bottom
-            return Geo(valW: valW, left: left, right: right, layout: layout, lane1: lane1, top: top, bottom: bottom,
-                       plotBottom: plotBottom, values: axisValues(top, plotBottom))
+            return Geo(
+                valW: valW, left: left, right: right, layout: layout, lane1: lane1, top: top, bottom: bottom,
+                plotBottom: plotBottom, values: axisValues(top, plotBottom))
         }
         var g = geo(valuesW(candidates))
         for _ in 0..<3 {
@@ -96,8 +111,11 @@ enum GlucoseGraph {
         let plotBottom = view?.plotInset.map { min(max(area.maxY - $0, top + 20 * d), area.maxY) } ?? g.plotBottom
         let eased = view?.plotInset != nil
         let textRow = labels || !(layout?.labels.isEmpty ?? true)
-        let lane1: CGFloat = !eased ? g.lane1
-            : min(max(area.maxY - (textRow ? 14 * d : 0) - (lane ? 12 * d : 0) - plotBottom, 0), TreatmentMarks.laneH * d)
+        let lane1: CGFloat =
+            !eased
+            ? g.lane1
+            : min(
+                max(area.maxY - (textRow ? 14 * d : 0) - (lane ? 12 * d : 0) - plotBottom, 0), TreatmentMarks.laneH * d)
         let bottom: CGFloat = !eased ? g.bottom : lane ? plotBottom + 12 * d : plotBottom
         let values = plotBottom == g.plotBottom ? g.values : axisValues(top, plotBottom)
         let pctCol = left - area.minX
@@ -118,13 +136,16 @@ enum GlucoseGraph {
         ctx.beginTransparencyLayer(in: area.insetBy(dx: -6 * d, dy: 0), auxiliaryInfo: nil)
         defer { ctx.endTransparencyLayer() }
 
-        func y(_ v: Double) -> CGFloat { plotBottom - CGFloat((min(max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (plotBottom - top) }
+        func y(_ v: Double) -> CGFloat {
+            plotBottom - CGFloat((min(max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (plotBottom - top)
+        }
         let sideW: CGFloat = st.side && !tir.empty ? min((right - left) * 0.26, 130 * d) : 0
 
         // The in-range band across the whole plot; its very good part (low…tight) a little stronger, in its own colour.
         let tightTop = y(Double(split ? b.tight : b.high))
         let bandDecor: CGFloat = pal.decor < 1 ? 0.5 : 1
-        ctx.setFillColor(pal.tight.a(CGFloat(split ? (pal.dark ? 0x2A : 0x24) : (pal.dark ? 0x1E : 0x18)) / 255 * bandDecor))
+        ctx.setFillColor(
+            pal.tight.a(CGFloat(split ? (pal.dark ? 0x2A : 0x24) : (pal.dark ? 0x1E : 0x18)) / 255 * bandDecor))
         ctx.fill(CGRect(x: left, y: tightTop, width: right - left, height: y(Double(b.low)) - tightTop))
         if split {
             ctx.setFillColor(pal.target.a(CGFloat(pal.dark ? 0x16 : 0x14) / 255 * bandDecor))
@@ -147,9 +168,13 @@ enum GlucoseGraph {
         while hour.timeIntervalSince1970 <= end {
             let gx = x(hour.timeIntervalSince1970)
             if gx > left + sideW * 0.6 {
-                if st.gridHours > 0 { ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)]) }
+                if st.gridHours > 0 {
+                    ctx.strokeLineSegments(between: [CGPoint(x: gx, y: top), CGPoint(x: gx, y: plotBottom)])
+                }
                 if labels {
-                    let s = step >= 24 ? TimeText.dayLabel(hour) : TimeText.hourLabel(cal.component(.hour, from: hour), st.hour24)
+                    let s =
+                        step >= 24
+                        ? TimeText.dayLabel(hour) : TimeText.hourLabel(cal.component(.hour, from: hour), st.hour24)
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins
@@ -163,7 +188,9 @@ enum GlucoseGraph {
             }
             if step >= 24 {
                 repeat { hour = cal.date(byAdding: .day, value: 1, to: hour)! } while !Self.onStep(hour, step, cal)
-            } else { hour.addTimeInterval(TimeInterval(step * 3600)) }
+            } else {
+                hour.addTimeInterval(TimeInterval(step * 3600))
+            }
         }
         ctx.restoreGState()
         if labels && rec.first("chart.hours") == nil { rec.add("chart.hours", nil, "(no room)") }
@@ -173,11 +200,14 @@ enum GlucoseGraph {
             let s = "\(v)", base = ly + 10 * d / 3, w = Ink.width(s, text)
             Ink.draw(ctx, s, x: right + Self.sideGap * d, y: base, text, pal.inkSoft)
             // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
-            rec.add("chart.values.label", CGRect(x: right + Self.sideGap * d, y: base - 10 * d * 0.72, width: w, height: 10 * d * 0.72), s)
+            rec.add(
+                "chart.values.label",
+                CGRect(x: right + Self.sideGap * d, y: base - 10 * d * 0.72, width: w, height: 10 * d * 0.72), s)
         }
         if !values.isEmpty {
-            rec.add("chart.values", CGRect(x: right, y: top, width: area.maxX - right, height: plotBottom - top),
-                    values.map { String($0.0) }.joined(separator: ",") + " [w" + CardLayout.dp(area.maxX - right, d) + "]")
+            rec.add(
+                "chart.values", CGRect(x: right, y: top, width: area.maxX - right, height: plotBottom - top),
+                values.map { String($0.0) }.joined(separator: ",") + " [w" + CardLayout.dp(area.maxX - right, d) + "]")
         }
 
         // Everything the distribution cuts goes into one layer: the dashed level lines and the glucose line.
@@ -187,7 +217,10 @@ enum GlucoseGraph {
         ctx.saveGState()
         ctx.setLineWidth(1 * d)
         ctx.setLineDash(phase: 0, lengths: [4 * d, 4 * d])
-        for (vs, color) in [([b.veryLow, b.veryHigh, b.extremelyHigh], pal.grid.a(pal.decor)), (st.lines, pal.inkSoft.a(0.4 * pal.decor))] {
+        for (vs, color) in [
+            ([b.veryLow, b.veryHigh, b.extremelyHigh], pal.grid.a(pal.decor)),
+            (st.lines, pal.inkSoft.a(0.4 * pal.decor)),
+        ] {
             ctx.setStrokeColor(color)
             for v in vs where Double(v) > yMin && Double(v) < yMax {
                 ctx.strokeLineSegments(between: [CGPoint(x: left, y: y(Double(v))), CGPoint(x: right, y: y(Double(v)))])
@@ -206,13 +239,15 @@ enum GlucoseGraph {
         let dense = CGFloat(pts.count) > Self.densePerDp * (right - left) / d
         if dense {
             rec.add("chart.line", nil, "columns")
-            ctx.setLineWidth(1.2 * d)   // the columns just touch: an envelope, not bars
+            ctx.setLineWidth(1.2 * d)  // the columns just touch: an envelope, not bars
             let edges = [b.veryLow, b.low, b.tight, b.high, b.veryHigh, b.extremelyHigh]
             var k = pts.firstIndex { $0.t >= from } ?? 0
             while k < pts.count {
                 let col = floor((x(pts[k].t) - left) / d)
                 var lo = pts[k].sgv, hi = lo, j = k + 1
-                while j < pts.count, floor((x(pts[j].t) - left) / d) == col, pts[j].t - pts[j - 1].t <= GlucoseStats.maxGap {
+                while j < pts.count, floor((x(pts[j].t) - left) / d) == col,
+                    pts[j].t - pts[j - 1].t <= GlucoseStats.maxGap
+                {
                     lo = min(lo, pts[j].sgv); hi = max(hi, pts[j].sgv); j += 1
                 }
                 let cx = left + (col + 0.5) * d
@@ -233,16 +268,23 @@ enum GlucoseGraph {
             let c = pal.at(b, Double(p.sgv))
             if spacing > 5 * d, i > 0, p.t - pts[i - 1].t <= GlucoseStats.maxGap {
                 ctx.setStrokeColor(c.a(0.75))
-                ctx.strokeLineSegments(between: [CGPoint(x: x(pts[i - 1].t), y: y(Double(pts[i - 1].sgv))), CGPoint(x: px, y: py)])
+                ctx.strokeLineSegments(between: [
+                    CGPoint(x: x(pts[i - 1].t), y: y(Double(pts[i - 1].sgv))), CGPoint(x: px, y: py),
+                ])
             }
             if i == pts.count - 1 && p.t >= (latestT ?? -.infinity) {
                 // the gap around the latest dot: background-coloured, or (tinted) cut out of the lines and band below
                 ctx.saveGState()
                 if pal.knockout { ctx.setBlendMode(.destinationOut) }
                 ctx.setFillColor(pal.knockout ? GraphPalette.hex(0) : pal.bg)
-                ctx.fillEllipse(in: CGRect(x: px - r - 2.6 * d, y: py - r - 2.6 * d, width: 2 * (r + 2.6 * d), height: 2 * (r + 2.6 * d)))
+                ctx.fillEllipse(
+                    in: CGRect(
+                        x: px - r - 2.6 * d, y: py - r - 2.6 * d, width: 2 * (r + 2.6 * d), height: 2 * (r + 2.6 * d)))
                 ctx.restoreGState()
-                ctx.setFillColor(c); ctx.fillEllipse(in: CGRect(x: px - r - 1.4 * d, y: py - r - 1.4 * d, width: 2 * (r + 1.4 * d), height: 2 * (r + 1.4 * d)))
+                ctx.setFillColor(c)
+                ctx.fillEllipse(
+                    in: CGRect(
+                        x: px - r - 1.4 * d, y: py - r - 1.4 * d, width: 2 * (r + 1.4 * d), height: 2 * (r + 1.4 * d)))
             } else {
                 ctx.setFillColor(c)
                 ctx.fillEllipse(in: CGRect(x: px - r, y: py - r, width: 2 * r, height: 2 * r))
@@ -251,25 +293,42 @@ enum GlucoseGraph {
 
         // The distribution: its outline erased from the lines (the widgets are transparent, so no background-colour
         // stroke), then its dots.
-        let rows = sideW > 0 ? profileRows(GlucoseStats.timeAtLevel(pts, from: from, to: end, bands: b, tir: tir), b, pal,
-                                           left: left, sideW: sideW, top: top, bottom: plotBottom, yMin: yMin, yMax: yMax, d: d) : []
+        let rows =
+            sideW > 0
+            ? profileRows(
+                GlucoseStats.timeAtLevel(pts, from: from, to: end, bands: b, tir: tir), b, pal,
+                left: left, sideW: sideW, top: top, bottom: plotBottom, yMin: yMin, yMax: yMax, d: d) : []
         if !rows.isEmpty {
             ctx.saveGState()
             ctx.setBlendMode(.destinationOut)
             let h = (Self.profileR + Self.profileCut) * d
             for row in rows {
-                ctx.addPath(CGPath(roundedRect: CGRect(x: area.minX, y: row.cy - h, width: row.endX + Self.profileCut * d - area.minX, height: 2 * h),
-                                   cornerWidth: h, cornerHeight: h, transform: nil))
+                ctx.addPath(
+                    CGPath(
+                        roundedRect: CGRect(
+                            x: area.minX, y: row.cy - h, width: row.endX + Self.profileCut * d - area.minX,
+                            height: 2 * h),
+                        cornerWidth: h, cornerHeight: h, transform: nil))
             }
             ctx.fillPath()
             ctx.restoreGState()
             // the outline as erased and the dots it surrounds (LayoutSelfTest checks the margin: layout/rules.json "distribution")
             let top0 = rows.map(\.cy).min()!, bottom0 = rows.map(\.cy).max()!, endX = rows.map(\.endX).max()!
-            rec.add("chart.distribution.cut", CGRect(x: area.minX, y: top0 - h, width: endX + Self.profileCut * d - area.minX, height: bottom0 - top0 + 2 * h))
-            rec.add("chart.distribution.dots", CGRect(x: left, y: top0 - Self.profileR * d, width: endX - left, height: bottom0 - top0 + 2 * Self.profileR * d))
+            rec.add(
+                "chart.distribution.cut",
+                CGRect(
+                    x: area.minX, y: top0 - h, width: endX + Self.profileCut * d - area.minX,
+                    height: bottom0 - top0 + 2 * h))
+            rec.add(
+                "chart.distribution.dots",
+                CGRect(
+                    x: left, y: top0 - Self.profileR * d, width: endX - left,
+                    height: bottom0 - top0 + 2 * Self.profileR * d))
         }
         ctx.endTransparencyLayer()
-        if !rows.isEmpty { rec.add("chart.distribution", CGRect(x: left, y: top, width: sideW, height: plotBottom - top)) }
+        if !rows.isEmpty {
+            rec.add("chart.distribution", CGRect(x: left, y: top, width: sideW, height: plotBottom - top))
+        }
         for row in rows {
             ctx.setFillColor(row.color)
             for k in 0..<row.n {
@@ -282,7 +341,10 @@ enum GlucoseGraph {
         // it outwards so the three never overlap, and it may hang a little past the plot.
         if pctCol > 0 {
             let lh = 13 * d * 0.95
-            var c = [(top + y(Double(b.high))) / 2, (y(Double(b.high)) + y(Double(b.low))) / 2, (y(Double(b.low)) + plotBottom) / 2]
+            var c = [
+                (top + y(Double(b.high))) / 2, (y(Double(b.high)) + y(Double(b.low))) / 2,
+                (y(Double(b.low)) + plotBottom) / 2,
+            ]
             c[0] = min(c[0], c[1] - lh)
             c[2] = max(c[2], c[1] + lh)
             c[0] = max(c[0], area.minY + lh * 0.5)
@@ -296,34 +358,49 @@ enum GlucoseGraph {
                 // the drawn label's box (LayoutSelfTest checks the column's gaps against it: layout/rules.json "gaps")
                 rec.add("chart.pct.label", CGRect(x: x0, y: base - 13 * d * 0.72, width: w, height: 13 * d * 0.72), s)
             }
-            rec.add("chart.pct", CGRect(x: area.minX, y: top, width: pctCol, height: plotBottom - top), "\(p.0)/\(p.1)/\(p.2) [w" + CardLayout.dp(pctCol, d) + "]")
+            rec.add(
+                "chart.pct", CGRect(x: area.minX, y: top, width: pctCol, height: plotBottom - top),
+                "\(p.0)/\(p.1)/\(p.2) [w" + CardLayout.dp(pctCol, d) + "]")
             // The crown over a perfect 100 (TirMark.column), where it clears the label above.
             if st.crown, TirMark.column(tir) {
                 let numW = Ink.width("100", pctBig), cw = numW * 0.62
                 let bottom = c[1] + 13 * d * (0.36 - 0.72) - 1.5 * d
                 if bottom - cw * Crown.h >= c[0] + 13 * d * 0.36 + 2 * d {
-                    Crown.fill(ctx, x: left - Self.sideGap * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
-                               pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
+                    Crown.fill(
+                        ctx, x: left - Self.sideGap * d - Ink.width("%", pctSmall) - numW / 2, bottom: bottom, w: cw,
+                        pal.knockout ? CGColor(gray: 1, alpha: 1) : pal.tight)
                     rec.add("chart.pct.crown")
-                } else { rec.add("chart.pct.crown", nil, "(no room)") }
+                } else {
+                    rec.add("chart.pct.crown", nil, "(no room)")
+                }
             }
         }
 
         if !shownMarks.isEmpty {
-            rec.add("chart.markers", nil, "\(shownMarks.filter { ["rapid", "long", "carbs", "note"].contains($0.k) && show.has($0.k, MarkShow.point) }.count)")
+            rec.add(
+                "chart.markers", nil,
+                "\(shownMarks.filter { ["rapid", "long", "carbs", "note"].contains($0.k) && show.has($0.k, MarkShow.point) }.count)"
+            )
             // what each entry shows (layout/rules.json "marks": the same on every surface)
-            rec.add("chart.marks", nil, shownMarks.sorted { $0.id < $1.id }.map { m in
-                m.id + ":" + MarkShow.parts(m.k).filter { p in
-                    show.has(m.k, p) && (p != MarkShow.line || muteUntil?(m) != nil) && (p != MarkShow.amount && p != MarkShow.time || TreatmentMarks.amount(m) != nil)
-                }.joined(separator: "+")
-            }.joined(separator: " "))
+            rec.add(
+                "chart.marks", nil,
+                shownMarks.sorted { $0.id < $1.id }.map { m in
+                    m.id + ":"
+                        + MarkShow.parts(m.k).filter { p in
+                            show.has(m.k, p) && (p != MarkShow.line || muteUntil?(m) != nil)
+                                && (p != MarkShow.amount && p != MarkShow.time || TreatmentMarks.amount(m) != nil)
+                        }.joined(separator: "+")
+                }.joined(separator: " "))
             for l in layout?.labels ?? [] {
                 let lb = l.lane == 0 ? area.maxY - lane1 : area.maxY
-                rec.add("chart.label", CGRect(x: l.left, y: lb - 14 * d, width: l.w, height: 14 * d), "\(l.text) lane\(l.lane)")
+                rec.add(
+                    "chart.label", CGRect(x: l.left, y: lb - 14 * d, width: l.w, height: 14 * d),
+                    "\(l.text) lane\(l.lane)")
             }
-            TreatmentMarks.draw(ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d,
-                                layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
-                                now: now, muteUntil: muteUntil, show: show)
+            TreatmentMarks.draw(
+                ctx, shownMarks, x: x, left: left, right: right, bottom: bottom, dark: pal.dark, d: d,
+                layout: layout, base0: area.maxY - 2 * d - lane1, base1: area.maxY - 2 * d, sep: pal.inkSoft,
+                now: now, muteUntil: muteUntil, show: show)
         }
         // The "Now" pill of a scrolled chart (the action pill, StatusBadge): top right in the plot, fading in and out
         // with `view.now`; the surface makes its box (chart.now) clickable.
@@ -349,7 +426,8 @@ enum GlucoseGraph {
             let c = Self.badgeCut * d, cut = box.insetBy(dx: -c, dy: -c)
             ctx.saveGState()
             ctx.setBlendMode(.destinationOut)
-            ctx.addPath(CGPath(roundedRect: cut, cornerWidth: cut.height / 2, cornerHeight: cut.height / 2, transform: nil))
+            ctx.addPath(
+                CGPath(roundedRect: cut, cornerWidth: cut.height / 2, cornerHeight: cut.height / 2, transform: nil))
             ctx.fillPath()
             ctx.restoreGState()
             SensorBadge.draw(ctx, x: area.minX, y: sy, h: sensorDp * d, sensor, pal)
@@ -366,7 +444,8 @@ enum GlucoseGraph {
     /// The step (hours) between the vertical lines and their labels: the user's step at least, else the first whose
     /// labels are ≥ 44 pt apart: 1, 2, 3, 4, 6, 12 h, then 1, 2, 3 days, a week (GlucoseGraph.kt `gridStep`).
     static func gridStep(_ pxPerHour: CGFloat, gridHours: Int, d: CGFloat) -> Int {
-        [1, 2, 3, 4, 6, 12, 24, 48, 72, 168].filter { $0 >= gridHours }.first { CGFloat($0) * pxPerHour >= 44 * d } ?? 168
+        [1, 2, 3, 4, 6, 12, 24, 48, 72, 168].filter { $0 >= gridHours }.first { CGFloat($0) * pxPerHour >= 44 * d }
+            ?? 168
     }
 
     /// Is `t` (on the hour) a line of `step`? Hours: the hour divides by it; days: a midnight whose day number divides by
@@ -394,30 +473,37 @@ enum GlucoseGraph {
     /// the range isn't drawn. GlucoseGraph.kt `yRange`.
     static func yRange(_ pts: [GraphReading], bands b: Bands) -> ClosedRange<Double> {
         let dMin = pts.map(\.sgv).min() ?? b.low, dMax = pts.map(\.sgv).max() ?? b.high
-        return max(Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))
-            ... min(Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
+        return max(
+            Double(GlucoseStats.minMg), Double(min(b.low - 22, b.veryLow - 6, dMin - 6)))...min(
+                Double(GlucoseStats.maxMg), Double(max(b.high + 40, b.veryHigh + 8, dMax + 8)))
     }
 
     /// Height of the sensor badge in the hour-label row (GlucoseGraph.kt `SENSOR_DP`).
     static let sensorDp: CGFloat = 10
     /// The top of the sensor badge (at the chart's left edge, `sensorDp` tall) in a chart ending at `bottom` with `lane1`
     /// of second label lane: centred on the hour labels' x-height (GlucoseGraph.kt `sensorTop`; fixtures graph-fixtures/place).
-    static func sensorTop(_ bottom: CGFloat, lane1: CGFloat, d: CGFloat) -> CGFloat { bottom - 2 * d - lane1 - 3.6 * d - sensorDp * d / 2 }
+    static func sensorTop(_ bottom: CGFloat, lane1: CGFloat, d: CGFloat) -> CGFloat {
+        bottom - 2 * d - lane1 - 3.6 * d - sensorDp * d / 2
+    }
     /// The badge's width in the `TextModel`: the room kept free of treatment labels (GlucoseGraph.kt `sensorWidth`).
-    static func sensorWidth(_ label: String, d: CGFloat) -> CGFloat { sensorDp * d * 1.3 + TextModel.width(label, sensorDp * d * 0.95) }
+    static func sensorWidth(_ label: String, d: CGFloat) -> CGFloat {
+        sensorDp * d * 1.3 + TextModel.width(label, sensorDp * d * 0.95)
+    }
 
     /// The plot's left and right edge in `areaLeft`…`areaRight` (GlucoseGraph.kt `plotX`): the % column (`pct`: time
     /// in range shown and with data; only from `pctMinWidth`) and the values on the right (`labels`). Each column is its
     /// widest label actually drawn (`pctW`, `valW`: measured with the fonts that draw them) plus `sideGap` on each side,
     /// whatever the surface, size or font (the user, 2026-10-21: "it should depend on the longest text width"; the
     /// TextModel's worst-case widths had left extra margin beside the labels).
-    static func plotX(_ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat,
-                      pctW: CGFloat, valW: CGFloat) -> (CGFloat, CGFloat) {
+    static func plotX(
+        _ areaLeft: CGFloat, _ areaRight: CGFloat, pct: Bool, labels: Bool, d: CGFloat,
+        pctW: CGFloat, valW: CGFloat
+    ) -> (CGFloat, CGFloat) {
         let pctCol = pct && labels && areaRight - areaLeft >= pctMinWidth * d ? pctW + 2 * sideGap * d : 0
         return (areaLeft + pctCol, areaRight - (labels ? valW + 2 * sideGap * d : 0))
     }
 
-    /// The side columns' margin (pt) on each side of their widest label: one constant (layout/rules.json "gaps";
+    /// The side columns' margin (pt) on each side of their widest label: one constant (layout/rules.json "gaps"
     /// GlucoseGraph.kt `SIDE_GAP_DP`).
     static let sideGap: CGFloat = 3
 
@@ -432,8 +518,10 @@ enum GlucoseGraph {
     /// One row of the distribution: `n` dots centred on `cy`, the last one ending at `endX`.
     private struct ProfileRow { var cy: CGFloat; var n: Int; var color: CGColor; var endX: CGFloat }
 
-    private static func profileRows(_ prof: [Double], _ b: Bands, _ pal: GraphPalette, left: CGFloat, sideW: CGFloat,
-                                    top: CGFloat, bottom: CGFloat, yMin: Double, yMax: Double, d: CGFloat) -> [ProfileRow] {
+    private static func profileRows(
+        _ prof: [Double], _ b: Bands, _ pal: GraphPalette, left: CGFloat, sideW: CGFloat,
+        top: CGFloat, bottom: CGFloat, yMin: Double, yMax: Double, d: CGFloat
+    ) -> [ProfileRow] {
         let pxPerMg = Double(bottom - top) / (yMax - yMin)
         func massBetween(_ g0: Double, _ g1: Double) -> Double {
             var s = 0.0
@@ -452,7 +540,8 @@ enum GlucoseGraph {
         guard rows > 0 else { return [] }
         let mass = (0..<rows).map { i -> Double in
             let yb = Double(bottom - CGFloat(i) * pitch)
-            return massBetween(yMin + (Double(bottom) - yb) / pxPerMg, yMin + (Double(bottom) - yb + Double(pitch)) / pxPerMg)
+            return massBetween(
+                yMin + (Double(bottom) - yb) / pxPerMg, yMin + (Double(bottom) - yb + Double(pitch)) / pxPerMg)
         }
         guard let peak = mass.max(), peak > 0 else { return [] }
         let maxDots = Int(floor(sideW * 0.9 / pitch))

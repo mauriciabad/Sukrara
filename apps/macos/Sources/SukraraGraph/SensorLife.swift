@@ -30,7 +30,6 @@ enum SensorLife {
 
     static func ended(end: TimeInterval, now: TimeInterval) -> Bool { now >= end }
 
-
     /// ≥ 24 h left → whole days ("13d"), ≥ 1 h → hours ("20h"), else minutes ("45m", "0m" once ended); floor.
     static func label(end: TimeInterval, now: TimeInterval) -> String {
         Durations.whole(Int(max(0, (end - now).rounded(.down))) / 60)
@@ -96,9 +95,10 @@ enum SensorBadge {
     static func look(_ s: SensorInfo?, now: TimeInterval, latest: TimeInterval?) -> Look? {
         guard let s else { return nil }
         let warm = SensorLife.warming(s, latest: latest, now: now)
-        return Look(label: SensorLife.label(end: s.end, now: now), life: SensorLife.lifeFraction(s, now: now),
-                    ended: SensorLife.ended(end: s.end, now: now), warmup: warm ? SensorLife.warmupLabel(s, now: now) : nil,
-                    fill: SensorLife.warmupFraction(s, now: now), readyAt: s.warmupEnd, end: s.end)
+        return Look(
+            label: SensorLife.label(end: s.end, now: now), life: SensorLife.lifeFraction(s, now: now),
+            ended: SensorLife.ended(end: s.end, now: now), warmup: warm ? SensorLife.warmupLabel(s, now: now) : nil,
+            fill: SensorLife.warmupFraction(s, now: now), readyAt: s.warmupEnd, end: s.end)
     }
 
     /// The ring over the main ring: the warm-up filling up, else the end countdown draining (nil = none).
@@ -114,7 +114,9 @@ enum SensorBadge {
 
     /// The badge `h` tall, top-left at (`x`, `y`); `label: false` = the disc alone (warm-up). Returns its width.
     @discardableResult
-    static func draw(_ ctx: CGContext, x: CGFloat, y: CGFloat, h: CGFloat, _ look: Look, _ pal: GraphPalette, label: Bool = true) -> CGFloat {
+    static func draw(
+        _ ctx: CGContext, x: CGFloat, y: CGFloat, h: CGFloat, _ look: Look, _ pal: GraphPalette, label: Bool = true
+    ) -> CGFloat {
         let c = color(look, pal), sw = h * 0.14, r = h / 2 - sw / 2
         let center = CGPoint(x: x + h / 2, y: y + h / 2)
         ctx.saveGState()
@@ -145,9 +147,13 @@ enum SensorBadge {
     }
 
     /// An SF Symbol `name` `size` tall in `color`, top-left at (`x`, `y`) of a y-down context; returns its width.
-    static func symbol(_ ctx: CGContext, _ name: String, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor) -> CGFloat {
-        guard let sym = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)) else { return 0 }
+    static func symbol(_ ctx: CGContext, _ name: String, x: CGFloat, y: CGFloat, size: CGFloat, color: CGColor)
+        -> CGFloat
+    {
+        guard
+            let sym = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .semibold))
+        else { return 0 }
         let k = size / max(sym.size.height, 1)
         let rect = NSRect(x: x, y: y, width: sym.size.width * k, height: size)
         let tinted = NSImage(size: sym.size, flipped: false) { r in
@@ -165,11 +171,15 @@ enum SensorBadge {
 
     /// The ring over a slot of `radius` (the slot rings' stroke is radius × 0.2): ink on a background-coloured halo
     /// (black / white where the background is transparent; cut out in tinted widgets).
-    static func drawCountdown(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, _ fraction: Double?, _ pal: GraphPalette) {
+    static func drawCountdown(
+        _ ctx: CGContext, center c: CGPoint, radius: CGFloat, _ fraction: Double?, _ pal: GraphPalette
+    ) {
         guard let fraction else { return }
         let ringSw = radius * 0.2, mid = radius - ringSw / 2
         let sweep = max(3, 360 * CGFloat(fraction)) * .pi / 180
-        func arc() { ctx.addArc(center: c, radius: mid, startAngle: -.pi / 2, endAngle: -.pi / 2 + sweep, clockwise: false) }
+        func arc() {
+            ctx.addArc(center: c, radius: mid, startAngle: -.pi / 2, endAngle: -.pi / 2 + sweep, clockwise: false)
+        }
         ctx.saveGState()
         ctx.setLineCap(.round)
         ctx.setLineWidth(ringSw * 0.62)
@@ -183,4 +193,3 @@ enum SensorBadge {
         ctx.restoreGState()
     }
 }
-

@@ -31,7 +31,8 @@ func cardContext(_ size: CGSize) -> CGContext {
     @Test func noReadingDrawsNoValue() {
         let st = CardSurface.test.style(GraphConfig(), sensor: nil)
         let lay = GlucoseCard.draw(
-            cardContext(CGSize(width: 340, height: 196)), size: CGSize(width: 340, height: 196), readings: [], marks: [],
+            cardContext(CGSize(width: 340, height: 196)), size: CGSize(width: 340, height: 196), readings: [],
+            marks: [],
             now: now, st, GraphPalette.of(dark: false), surface: .test, part: .all)
         #expect(lay.all("value.number").isEmpty)
         #expect(lay.first("value.none")?.info == "NONE")
@@ -39,7 +40,9 @@ func cardContext(_ size: CGSize) -> CGContext {
 }
 
 /// Every fixture set has cases (a moved or emptied folder would let the parameterized tests pass with none).
-@Test(arguments: ["freshness/freshness.json", "clock", "sensor", "place/place.json", "mark", "share", "status.json", "labels"])
+@Test(arguments: [
+    "freshness/freshness.json", "clock", "sensor", "place/place.json", "mark", "share", "status.json", "labels",
+])
 func fixtureSetHasCases(_ set: String) {
     #expect(!GraphFixtures.cases(set).isEmpty, "\(set) under \(GraphFixtures.dir.path)")
 }
@@ -124,7 +127,8 @@ func fixtureSetHasCases(_ set: String) {
     func badgeWarmupAndRing(_ c: JSON) throws {
         let start = now + (c.number("start") ?? 0)
         let info = SensorInfo(
-            start: start, end: now + (c.number("end") ?? 0), warmupEnd: c.number("warmup").map { now + $0 } ?? start + 3600)
+            start: start, end: now + (c.number("end") ?? 0),
+            warmupEnd: c.number("warmup").map { now + $0 } ?? start + 3600)
         let e = c.expect
         let look = try #require(SensorBadge.look(info, now: now, latest: c.number("latest").map { now + $0 }))
         let ring = SensorBadge.ring(look, info, now: now, hours: Int(c.number("countdownHours") ?? 8))
@@ -235,7 +239,8 @@ func fixtureSetHasCases(_ set: String) {
 @Suite struct LabelFixtureTests {
     static let files: [String: (pct: CGFloat, value: CGFloat)] = {
         let names =
-            (try? FileManager.default.contentsOfDirectory(atPath: GraphFixtures.dir.appending(path: "labels").path)) ?? []
+            (try? FileManager.default.contentsOfDirectory(atPath: GraphFixtures.dir.appending(path: "labels").path))
+            ?? []
         return Dictionary(
             uniqueKeysWithValues: names.filter { $0.hasSuffix(".json") }.map { f in
                 let o = GraphFixtures.object("labels/\(f)")
@@ -253,7 +258,9 @@ func fixtureSetHasCases(_ set: String) {
     @Test(arguments: GraphFixtures.cases("labels"))
     func layout(_ c: JSON) throws {
         func r(_ v: CGFloat) -> Double { (Double(v) * 2).rounded() / 2 }
-        func near(_ a: Any?, _ b: Double) -> Bool { ((a as? NSNumber)?.doubleValue).map { abs($0 - b) <= 0.5 } ?? false }
+        func near(_ a: Any?, _ b: Double) -> Bool {
+            ((a as? NSNumber)?.doubleValue).map { abs($0 - b) <= 0.5 } ?? false
+        }
         let file = try #require(c.testDescription.components(separatedBy: ": ").first)
         let widths = try #require(Self.files[file])
         let chart = c.child("chart")
@@ -269,7 +276,8 @@ func fixtureSetHasCases(_ set: String) {
         }.filter { $0.t >= from && $0.t <= now }
         let lanes = GlucoseGraph.lanes(h, d: 1)
         let lay = TreatmentMarks.layout(
-            marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now, minX: 0, maxX: w, lanes: lanes,
+            marks, x: { left + CGFloat(($0 - from) / window) * (right - left) }, now: now, minX: 0, maxX: w,
+            lanes: lanes,
             d: 1, show: Self.marksOf(c["marks"]))
         let got = lay.labels.sorted { $0.left + $0.w / 2 < $1.left + $1.w / 2 }
         // the width model holds the real text (SF Pro) of every label

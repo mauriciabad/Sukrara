@@ -8,7 +8,8 @@ import Foundation
 /// How old the latest reading is decides what a surface shows (see Freshness.kt for the table).
 public enum Freshness: Sendable {
     case fresh, late, stale, old, gone
-    static let lateS: TimeInterval = 90, staleS: TimeInterval = 5 * 60, oldS: TimeInterval = 20 * 60, goneS: TimeInterval = 3 * 3600
+    static let lateS: TimeInterval = 90, staleS: TimeInterval = 5 * 60, oldS: TimeInterval = 20 * 60,
+        goneS: TimeInterval = 3 * 3600
 
     static func of(age: TimeInterval?) -> Freshness {
         guard let a = age else { return .gone }
@@ -24,7 +25,9 @@ public enum Freshness: Sendable {
     var showGraph: Bool { self != .gone }
 
     /// The next age at which `of` changes (for a one-shot timer / timeline entry).
-    static func nextChange(age: TimeInterval) -> TimeInterval? { [lateS, staleS, oldS, goneS].first { $0 >= age }.map { $0 + 1 } }
+    static func nextChange(age: TimeInterval) -> TimeInterval? {
+        [lateS, staleS, oldS, goneS].first { $0 >= age }.map { $0 + 1 }
+    }
 
     /// When the step of a reading taken at `t` changes next, seen at `now`; nil = never again / no reading.
     static func nextChangeAt(_ t: TimeInterval?, now: TimeInterval) -> TimeInterval? {
@@ -37,15 +40,24 @@ public enum Freshness: Sendable {
     /// (graph/Freshness.kt) is the same rule; both run spikes/graph-fixtures/freshness. `ended` = the sensor has ended,
     /// `warmup` = a new sensor's warm-up time left: their own states, before any value. Surfaces ask `GlucoseCard.face`.
     /// `format` writes a value in the user's unit (mg/dL by default); LO / HI outside 40–400 mg/dL.
-    static func look(sgv: Int?, t: TimeInterval?, rate: Double?, now: TimeInterval, ended: Bool = false, warmup: String? = nil,
-                     format: (Int) -> String = { "\($0)" }) -> GlucoseLook {
+    static func look(
+        sgv: Int?, t: TimeInterval?, rate: Double?, now: TimeInterval, ended: Bool = false, warmup: String? = nil,
+        format: (Int) -> String = { "\($0)" }
+    ) -> GlucoseLook {
         let fr = of(age: t.map { now - $0 })
-        if let warmup { return GlucoseLook(state: .warmingUp, fresh: fr, text: nil, strike: false, trend: nil, warmup: warmup) }
+        if let warmup {
+            return GlucoseLook(state: .warmingUp, fresh: fr, text: nil, strike: false, trend: nil, warmup: warmup)
+        }
         if ended { return GlucoseLook(state: .ended, fresh: fr, text: nil, strike: false, trend: nil) }
-        guard let sgv, t != nil else { return GlucoseLook(state: .none, fresh: fr, text: nil, strike: false, trend: nil) }
-        guard fr.showValue else { return GlucoseLook(state: .noReadings, fresh: fr, text: nil, strike: false, trend: nil) }
-        return GlucoseLook(state: .value, fresh: fr, text: sgv < 40 ? "LO" : sgv > 400 ? "HI" : format(sgv), strike: fr.strike,
-                           trend: rate != nil && !fr.strike ? TrendMark.arrow : TrendMark.noTrend, rate: rate)
+        guard let sgv, t != nil else {
+            return GlucoseLook(state: .none, fresh: fr, text: nil, strike: false, trend: nil)
+        }
+        guard fr.showValue else {
+            return GlucoseLook(state: .noReadings, fresh: fr, text: nil, strike: false, trend: nil)
+        }
+        return GlucoseLook(
+            state: .value, fresh: fr, text: sgv < 40 ? "LO" : sgv > 400 ? "HI" : format(sgv), strike: fr.strike,
+            trend: rate != nil && !fr.strike ? TrendMark.arrow : TrendMark.noTrend, rate: rate)
     }
 
     /// "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the 12/24-hour cycle `hour24` (the
@@ -90,4 +102,3 @@ public struct GlucoseLook: Equatable, Sendable {
     /// SF Symbol for "no readings for 20 min" (Android: Material Symbols sensors_off): the menubar and the card.
     static let noReadingsSymbol = "antenna.radiowaves.left.and.right.slash"
 }
-

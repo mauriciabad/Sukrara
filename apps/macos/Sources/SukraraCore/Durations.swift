@@ -38,7 +38,6 @@ public enum Durations {
         return "\(m)m"
     }
 
-
     /// Typed minutes (Mute…, a custom value): "45", "45 min", "1h", "1 h 30", "1h 30m", "1:30", "1,5 h" → minutes; nil
     /// when it isn't a duration. The caller checks the range.
     public static func parse(_ input: String) -> Int? {
@@ -49,7 +48,9 @@ public enum Durations {
         let hm = try! Regex(#"(?:(\d{1,3}(?:[.,]\d+)?)\s*h)?\s*(?:(\d{1,4})\s*(?:min|m)?)?"#)
         func group(_ m: Regex<AnyRegexOutput>.Match, _ i: Int) -> String? { m.output[i].substring.map(String.init) }
         if let m = try? hmm.wholeMatch(in: s) {
-            guard let h = group(m, 1).flatMap(Int.init), let mm = group(m, 2).flatMap(Int.init), mm < 60 else { return nil }
+            guard let h = group(m, 1).flatMap(Int.init), let mm = group(m, 2).flatMap(Int.init), mm < 60 else {
+                return nil
+            }
             return h * 60 + mm
         }
         guard let m = try? hm.wholeMatch(in: s) else { return nil }

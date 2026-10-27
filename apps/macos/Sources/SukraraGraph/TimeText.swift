@@ -19,7 +19,9 @@ enum TimeText {
 
     /// What tells that the clock's look changed while Sukrara runs: System Settings › Date & Time › 24-hour time posts
     /// the current locale's change, and the time zone: the app redraws and re-publishes to the widget on them.
-    static let changeNotifications: [Notification.Name] = [NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange]
+    static let changeNotifications: [Notification.Name] = [
+        NSLocale.currentLocaleDidChangeNotification, .NSSystemTimeZoneDidChange,
+    ]
 
     /// "21:08" / "9:08 PM" in the Mac's setting.
     static func time(_ d: Date) -> String { time(d, hour24: hour24, locale: .autoupdatingCurrent) }
@@ -40,7 +42,9 @@ enum TimeText {
 
     /// A minute of the day (0–1439) as a clock time (the fixtures).
     static func minuteOfDay(_ m: Int, hour24: Bool, locale: Locale) -> String {
-        time(Date(timeIntervalSince1970: TimeInterval(m * 60)), hour24: hour24, locale: locale, zone: TimeZone(identifier: "UTC")!)
+        time(
+            Date(timeIntervalSince1970: TimeInterval(m * 60)), hour24: hour24, locale: locale,
+            zone: TimeZone(identifier: "UTC")!)
     }
 
     /// The graph's day label (a zoomed-out chart): "17 Oct" (TimeText.kt `dayLabel`).
@@ -52,8 +56,8 @@ enum TimeText {
     /// The graph's hour label: "21:00" / "9 PM" (the locale's day period).
     static func hourLabel(_ h: Int, _ hour24: Bool, locale: Locale = .autoupdatingCurrent) -> String {
         let f = DateFormatter(); f.locale = locale
-        let s = hour24 ? String(format: "%02d:00", h) : "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? f.amSymbol! : f.pmSymbol!)"
+        let s =
+            hour24 ? String(format: "%02d:00", h) : "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? f.amSymbol! : f.pmSymbol!)"
         return s
     }
 }
-

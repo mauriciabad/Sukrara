@@ -90,11 +90,13 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
             return try JSONDecoder().decode(Treatment.self, from: JSONSerialization.data(withJSONObject: j))
         }
         let sensor = (o["sensor"] as? [String: Any]).map {
-            GlucoseCsv.Sensor(serial: $0["serial"] as? String ?? "", start: Self.i64($0["start"]), end: Self.i64($0["end"]))
+            GlucoseCsv.Sensor(
+                serial: $0["serial"] as? String ?? "", start: Self.i64($0["start"]), end: Self.i64($0["end"]))
         }
         let got = GlucoseCsv.write(
             readings: readings, treatments: treatments, from: Self.i64(o["from"]), to: Self.i64(o["to"]),
-            zone: try #require(TimeZone(identifier: o["zone"] as? String ?? "UTC")), generatedAt: Self.i64(o["generated"]),
+            zone: try #require(TimeZone(identifier: o["zone"] as? String ?? "UTC")),
+            generatedAt: Self.i64(o["generated"]),
             sensor: sensor, unit: (o["mmol"] as? Bool) == true ? .mmol : .mgdl)
         let want = (o["expect"] as? [String] ?? []).map { $0 + "\r\n" }.joined()
         #expect(got == want)
@@ -109,9 +111,18 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
         #expect(GlucoseCsv.Period.sensor.range(now: now, sensor: nil, oldest: nil) == nil)
         #expect(GlucoseCsv.Period.offered(sensor: nil) == [.d7, .d14, .d30, .all])
         let ended = GlucoseCsv.Sensor(serial: "", start: 1_758_000_000, end: 1_759_000_000)
-        #expect(try #require(GlucoseCsv.Period.sensor.range(now: now, sensor: ended, oldest: nil)) == (1_758_000_000, 1_759_000_001))
-        #expect(try #require(GlucoseCsv.Period.d14.range(now: now, sensor: nil, oldest: nil)) == (now + 1 - 14 * 86400, now + 1))
-        #expect(try #require(GlucoseCsv.Period.all.range(now: now, sensor: nil, oldest: 1_757_000_000)) == (1_757_000_000, now + 1))
+        #expect(
+            try #require(GlucoseCsv.Period.sensor.range(now: now, sensor: ended, oldest: nil)) == (
+                1_758_000_000, 1_759_000_001
+            ))
+        #expect(
+            try #require(GlucoseCsv.Period.d14.range(now: now, sensor: nil, oldest: nil)) == (
+                now + 1 - 14 * 86400, now + 1
+            ))
+        #expect(
+            try #require(GlucoseCsv.Period.all.range(now: now, sensor: nil, oldest: 1_757_000_000)) == (
+                1_757_000_000, now + 1
+            ))
     }
 }
 

@@ -9,7 +9,7 @@ import Testing
 
 // "One graph everywhere", tested (Android's twin: CardLayoutTest.kt): every registered Mac card surface
 // (contracts/graph/surfaces/surfaces.json) is rendered through its style decision (`CardSurface.style`) at each of its
-// sizes with every scene and settings variant of layout/scenes.json. The card reports what it laid out (`CardLayout`);
+// sizes with every scene and settings variant of layout/scenes.json. The card reports what it laid out (`CardLayout`)
 // layout/rules.json says what each element may depend on (never the surface), and the shared rules' answers must match
 // layout/expect.json, which Android generates from its own surfaces. Disagreements are never fixed by editing
 // expect.json: they are a renderer bug on one side.
@@ -121,7 +121,8 @@ enum DefaultAlertRules {
                 rs.append(GraphReading(t: TimeInterval(t), v: Double(lo + (hi - lo) * tri / half)))
                 t += 300
             }
-            rs.append(GraphReading(t: TimeInterval(last), v: num(o["last"]), rate: (o["rate"] as? NSNumber)?.doubleValue))
+            rs.append(
+                GraphReading(t: TimeInterval(last), v: num(o["last"]), rate: (o["rate"] as? NSNumber)?.doubleValue))
         }
         let marks = (o["treatments"] as? [[String: Any]] ?? []).map {
             GraphMark(
@@ -179,7 +180,9 @@ enum DefaultAlertRules {
         }
         /// Is a drawn clock time 24-hour? nil = no hour in it (a date).
         func cycleOf(_ t: String) -> Bool? {
-            if t.range(of: "(?i)\\b(am|pm|a\\.\\s?m\\.|p\\.\\s?m\\.)", options: .regularExpression) != nil { return false }
+            if t.range(of: "(?i)\\b(am|pm|a\\.\\s?m\\.|p\\.\\s?m\\.)", options: .regularExpression) != nil {
+                return false
+            }
             return t.range(of: "\\d{1,2}:\\d{2}", options: .regularExpression) != nil ? true : nil
         }
         let pal = GraphPalette.of(dark: false)
@@ -206,13 +209,16 @@ enum DefaultAlertRules {
                         st.hour24 = hour24
                         st.graph?.hour24 = hour24
                         let lay = GlucoseCard.draw(
-                            cardContext(size), size: size, readings: data.readings, marks: data.marks, now: now, st, pal,
+                            cardContext(size), size: size, readings: data.readings, marks: data.marks, now: now, st,
+                            pal,
                             surface: s, part: .all, alerts: data.alerts)
                         let r = Render(
                             surface: s, size: "\(Int(size.width))x\(Int(size.height))", scene: sc.id, settings: sid,
                             layouts: [lay], faces: [])
                         // one clock: every time drawn is in that variant's 24-hour setting
-                        if let bad = lay.all("time.text").first(where: { cycleOf($0.info).map { $0 != hour24 } ?? false }),
+                        if let bad = lay.all("time.text").first(where: {
+                            cycleOf($0.info).map { $0 != hour24 } ?? false
+                        }),
                             clockShown < 10
                         {
                             fail("clock: \(r) shows \"\(bad.info)\", want \(hour24 ? 24 : 12)-hour time")
@@ -401,7 +407,9 @@ enum DefaultAlertRules {
                         (alignRight ? ls.map(\.1.minX).min()! - col.minX : col.maxX - ls.map(\.1.maxX).max()!) / l.d)
                     let sides = ls.map { Double((alignRight ? col.maxX - $0.1.maxX : $0.1.minX - col.minX) / l.d) }
                     if abs(widest - gap) > 0.05 || sides.contains(where: { abs($0 - gap) > 0.05 }) {
-                        fail("\(colName) gaps on \(r): widest label's free side \(widest), aligned sides \(sides); want \(gap)")
+                        fail(
+                            "\(colName) gaps on \(r): widest label's free side \(widest), aligned sides \(sides); want \(gap)"
+                        )
                     }
                 }
             }
@@ -412,7 +420,9 @@ enum DefaultAlertRules {
     /// The sensor badge never moves a label: with and without it, the same layout.
     private func checkBadge(_ renders: [Render], _ root: JSON, _ fail: (String) -> Void) {
         let badge = root.child("badge")
-        guard let cmp = badge["compare"] as? [String], cmp.count == 2 else { return fail("rules.json has no \"badge\"") }
+        guard let cmp = badge["compare"] as? [String], cmp.count == 2 else {
+            return fail("rules.json has no \"badge\"")
+        }
         let els = Set(badge["elements"] as? [String] ?? [])
         func desc(_ r: Render) -> [String] {
             r.layouts.flatMap { l in
@@ -438,7 +448,9 @@ enum DefaultAlertRules {
             compared += 1
             let a = desc(r), b = desc(o)
             if a != b {
-                fail("badge on \(r): the layout changes: with \(a.filter { !b.contains($0) }), without \(b.filter { !a.contains($0) })")
+                fail(
+                    "badge on \(r): the layout changes: with \(a.filter { !b.contains($0) }), without \(b.filter { !a.contains($0) })"
+                )
             }
         }
         if compared == 0 { fail("badge: no render shows the sensor badge (rule untested)") }
@@ -452,7 +464,9 @@ enum DefaultAlertRules {
             || abs(Double(GlucoseGraph.profileR) - (dist.number("dot") ?? 0)) > 1e-4
             || abs(Double(GlucoseGraph.profileCut) - cut) > 1e-4
         {
-            fail("distribution: GlucoseGraph \(GlucoseGraph.profilePitch)/\(GlucoseGraph.profileR)/\(GlucoseGraph.profileCut)")
+            fail(
+                "distribution: GlucoseGraph \(GlucoseGraph.profilePitch)/\(GlucoseGraph.profileR)/\(GlucoseGraph.profileCut)"
+            )
         }
         var cuts = 0
         for r in renders {

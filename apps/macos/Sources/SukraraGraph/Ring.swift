@@ -55,7 +55,10 @@ enum Blooms {
     private static func hex(_ v: UInt32) -> CGColor { GraphPalette.hex(v) }
     private static let white = CGColor(gray: 1, alpha: 1)
 
-    static func tip(_ ctx: CGContext, _ b: Bloom, cx: CGFloat, cy: CGFloat, r: CGFloat, isLeft: Bool, _ pal: GraphPalette, alpha: CGFloat) {
+    static func tip(
+        _ ctx: CGContext, _ b: Bloom, cx: CGFloat, cy: CGFloat, r: CGFloat, isLeft: Bool, _ pal: GraphPalette,
+        alpha: CGFloat
+    ) {
         faded(ctx, alpha) {
             if b == .lavender {
                 spike(ctx, at(cx, cy, r * 1.25, isLeft ? 214 : -34), r, isLeft ? -56 : -124, pal)
@@ -67,8 +70,10 @@ enum Blooms {
 
     /// Where two flowered laurels meet (rings at `lx`, `rx`): lavender grows a spike from each meeting branch, in its
     /// own ring's fade; the others draw one centre piece between the two inner tips.
-    static func center(_ ctx: CGContext, _ b: Bloom, lx: CGFloat, rx: CGFloat, cy: CGFloat, r: CGFloat, _ pal: GraphPalette,
-                       la: CGFloat, ra: CGFloat) {
+    static func center(
+        _ ctx: CGContext, _ b: Bloom, lx: CGFloat, rx: CGFloat, cy: CGFloat, r: CGFloat, _ pal: GraphPalette,
+        la: CGFloat, ra: CGFloat
+    ) {
         if b == .lavender {
             tip(ctx, b, cx: lx, cy: cy, r: r, isLeft: false, pal, alpha: la)
             tip(ctx, b, cx: rx, cy: cy, r: r, isLeft: true, pal, alpha: ra)
@@ -90,7 +95,9 @@ enum Blooms {
     private static func c(_ pal: GraphPalette, _ v: UInt32) -> CGColor { pal.knockout ? white : hex(v) }
     /// Tinted widgets keep only the opacity: there the flowers are white with their details cut out (`cut`) or half
     /// see-through, so they read as flowers rather than one solid shape.
-    private static func half(_ pal: GraphPalette, _ v: UInt32) -> CGColor { pal.knockout ? CGColor(gray: 1, alpha: 0.5) : hex(v) }
+    private static func half(_ pal: GraphPalette, _ v: UInt32) -> CGColor {
+        pal.knockout ? CGColor(gray: 1, alpha: 0.5) : hex(v)
+    }
     private static func cut(_ ctx: CGContext, _ pal: GraphPalette, _ block: () -> Void) {
         guard pal.knockout else { return }
         ctx.saveGState(); ctx.setBlendMode(.clear); block(); ctx.restoreGState()
@@ -99,10 +106,13 @@ enum Blooms {
         pal.dark ? (pal.bg.alpha > 0 ? pal.bg : CGColor(gray: 0, alpha: 1)) : hex(0xC9D3CB)
     }
     private static func circle(_ ctx: CGContext, _ p: CGPoint, _ rad: CGFloat, _ color: CGColor) {
-        ctx.setFillColor(color); ctx.fillEllipse(in: CGRect(x: p.x - rad, y: p.y - rad, width: 2 * rad, height: 2 * rad))
+        ctx.setFillColor(color)
+        ctx.fillEllipse(in: CGRect(x: p.x - rad, y: p.y - rad, width: 2 * rad, height: 2 * rad))
     }
-    private static func ellipse(_ ctx: CGContext, _ p: CGPoint, _ rx: CGFloat, _ ry: CGFloat, _ rot: CGFloat,
-                                fill: CGColor, stroke: CGColor? = nil, lineW: CGFloat = 0) {
+    private static func ellipse(
+        _ ctx: CGContext, _ p: CGPoint, _ rx: CGFloat, _ ry: CGFloat, _ rot: CGFloat,
+        fill: CGColor, stroke: CGColor? = nil, lineW: CGFloat = 0
+    ) {
         ctx.saveGState()
         ctx.translateBy(x: p.x, y: p.y); ctx.rotate(by: rot * .pi / 180)
         let rect = CGRect(x: -rx, y: -ry, width: 2 * rx, height: 2 * ry)
@@ -112,8 +122,9 @@ enum Blooms {
     }
     private static func leafPair(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
         for s: CGFloat in [-1, 1] {
-            ellipse(ctx, CGPoint(x: p.x + s * u * 1.55, y: p.y + u * 0.95), u * 1.3, u * 0.5, s * 28,
-                    fill: pal.knockout ? CGColor(gray: 1, alpha: 0.5) : pal.tight)
+            ellipse(
+                ctx, CGPoint(x: p.x + s * u * 1.55, y: p.y + u * 0.95), u * 1.3, u * 0.5, s * 28,
+                fill: pal.knockout ? CGColor(gray: 1, alpha: 0.5) : pal.tight)
         }
     }
 
@@ -131,12 +142,15 @@ enum Blooms {
         switch b {
         case .forgetMeNot:
             leafPair(ctx, p, u, pal)
-            for (a, bb) in [(-1.45, 0.55), (1.45, 0.55), (-0.75, -0.7), (0.75, -0.7), (0, 0.25)] as [(CGFloat, CGFloat)] {
+            for (a, bb) in [(-1.45, 0.55), (1.45, 0.55), (-0.75, -0.7), (0.75, -0.7), (0, 0.25)] as [(CGFloat, CGFloat)]
+            {
                 forgetMeNot(ctx, CGPoint(x: p.x + a * u, y: p.y + bb * u), u * 0.6, pal)
             }
         case .daisy:
             leafPair(ctx, p, u, pal)
-            for (a, bb, s) in [(-1.85, 0.55, 0.5), (1.85, 0.55, 0.5), (-1.2, -1.25, 0.34), (1.2, -1.25, 0.34)] as [(CGFloat, CGFloat, CGFloat)] {
+            for (a, bb, s) in [(-1.85, 0.55, 0.5), (1.85, 0.55, 0.5), (-1.2, -1.25, 0.34), (1.2, -1.25, 0.34)]
+                as [(CGFloat, CGFloat, CGFloat)]
+            {
                 daisy(ctx, CGPoint(x: p.x + a * u, y: p.y + bb * u), u * s, double: false, pal)
             }
             daisy(ctx, p, u * 0.85, double: true, pal)
@@ -171,7 +185,9 @@ enum Blooms {
         for i in 0..<5 {
             let bp = at(p.x, p.y, u * (0.9 + CGFloat(i) * 0.68), dir), sz = u * (0.58 - CGFloat(i) * 0.07)
             for side: CGFloat in [-1, 1] {
-                ellipse(ctx, at(bp.x, bp.y, sz * 0.55, dir + side * 90), sz, sz * 0.62, dir + side * 35, fill: i % 2 == 1 ? half(pal, 0xA98BE0) : c(pal, 0x8E6CD4))
+                ellipse(
+                    ctx, at(bp.x, bp.y, sz * 0.55, dir + side * 90), sz, sz * 0.62, dir + side * 35,
+                    fill: i % 2 == 1 ? half(pal, 0xA98BE0) : c(pal, 0x8E6CD4))
             }
         }
     }
@@ -181,7 +197,9 @@ enum Blooms {
         if pal.knockout {
             // the white ring becomes a hole, the yellow dot stays
             cut(ctx, pal) { circle(ctx, p, u * 0.55, white) }
-        } else { circle(ctx, p, u * 0.55, white) }
+        } else {
+            circle(ctx, p, u * 0.55, white)
+        }
         circle(ctx, p, u * 0.28, c(pal, 0xF2C230))
     }
 
@@ -189,10 +207,14 @@ enum Blooms {
         let n = double ? 16 : 10
         for i in 0..<n {
             let a = -90 + CGFloat(i) * 360 / CGFloat(n)
-            ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: white, stroke: pal.knockout ? nil : edge(pal), lineW: u * 0.12)
-            if pal.knockout {   // tinted: each petal's edge cut, so the petals stay apart
+            ellipse(
+                ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: white,
+                stroke: pal.knockout ? nil : edge(pal), lineW: u * 0.12)
+            if pal.knockout {  // tinted: each petal's edge cut, so the petals stay apart
                 ctx.saveGState(); ctx.setBlendMode(.clear)
-                ellipse(ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: CGColor(gray: 1, alpha: 0), stroke: white, lineW: u * 0.14)
+                ellipse(
+                    ctx, at(p.x, p.y, u * 1.15, a), u, u * (double ? 0.3 : 0.38), a, fill: CGColor(gray: 1, alpha: 0),
+                    stroke: white, lineW: u * 0.14)
                 ctx.restoreGState()
                 ellipse(ctx, at(p.x, p.y, u * 1.15, a), u * 0.9, u * (double ? 0.22 : 0.29), a, fill: white)
             }
@@ -200,14 +222,20 @@ enum Blooms {
         if double {
             for i in 0..<10 {
                 let a = -72 + CGFloat(i) * 36
-                ellipse(ctx, at(p.x, p.y, u * 0.78, a), u * 0.62, u * 0.26, a, fill: pal.knockout ? white : hex(0xFFFDF4), stroke: edge(pal), lineW: u * 0.12)
+                ellipse(
+                    ctx, at(p.x, p.y, u * 0.78, a), u * 0.62, u * 0.26, a, fill: pal.knockout ? white : hex(0xFFFDF4),
+                    stroke: edge(pal), lineW: u * 0.12)
             }
         }
         // tinted: a gap between the petals and the heart, and the seeds cut out of it
         cut(ctx, pal) { circle(ctx, p, u * 0.8, white) }
         circle(ctx, p, u * 0.62, c(pal, 0xF2C230))
-        if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, c(pal, 0xC9940F)) } }
-        cut(ctx, pal) { if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, white) } } }
+        if double {
+            for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, c(pal, 0xC9940F)) }
+        }
+        cut(ctx, pal) {
+            if double { for i in 0..<6 { circle(ctx, at(p.x, p.y, u * 0.3, -90 + CGFloat(i) * 60), u * 0.09, white) } }
+        }
     }
 
     private static func blossom(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ rot: CGFloat, _ pal: GraphPalette) {
@@ -217,9 +245,12 @@ enum Blooms {
             ctx.translateBy(x: p.x, y: p.y); ctx.rotate(by: (CGFloat(i) * 72 + rot) * .pi / 180)
             ctx.beginPath()
             ctx.move(to: .zero)
-            ctx.addCurve(to: CGPoint(x: w * 0.35, y: -l), control1: CGPoint(x: w, y: -l * 0.25), control2: CGPoint(x: w * 1.05, y: -l * 0.9))
+            ctx.addCurve(
+                to: CGPoint(x: w * 0.35, y: -l), control1: CGPoint(x: w, y: -l * 0.25),
+                control2: CGPoint(x: w * 1.05, y: -l * 0.9))
             ctx.addLine(to: CGPoint(x: 0, y: -l * 0.82)); ctx.addLine(to: CGPoint(x: -w * 0.35, y: -l))
-            ctx.addCurve(to: .zero, control1: CGPoint(x: -w * 1.05, y: -l * 0.9), control2: CGPoint(x: -w, y: -l * 0.25))
+            ctx.addCurve(
+                to: .zero, control1: CGPoint(x: -w * 1.05, y: -l * 0.9), control2: CGPoint(x: -w, y: -l * 0.25))
             ctx.closePath(); ctx.setFillColor(c(pal, 0xF7A9C4)); ctx.fillPath()
             ctx.restoreGState()
         }
@@ -228,7 +259,7 @@ enum Blooms {
             cut(ctx, pal) {
                 circle(ctx, p, u * 0.42, white)
                 for i in 0..<5 { circle(ctx, at(p.x, p.y, u * 0.55, -90 + rot + CGFloat(i) * 72), u * 0.12, white) }
-                for i in 0..<5 {   // a thin line between the petals
+                for i in 0..<5 {  // a thin line between the petals
                     let a = at(p.x, p.y, u * 2.2, -90 + rot + 36 + CGFloat(i) * 72)
                     ctx.setLineWidth(u * 0.12); ctx.move(to: p); ctx.addLine(to: a); ctx.strokePath()
                 }
@@ -243,8 +274,13 @@ enum Blooms {
     private static func rosette(_ ctx: CGContext, _ p: CGPoint, _ u: CGFloat, _ pal: GraphPalette) {
         for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 1.1, -90 + CGFloat(i) * 45), u * 0.62, c(pal, 0xE7B53C)) }
         // tinted: the inner row as outlined petals and a ring round the heart
-        cut(ctx, pal) { for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * 0.48, white) } }
-        for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * (pal.knockout ? 0.3 : 0.42), c(pal, 0xF6D576)) }
+        cut(ctx, pal) {
+            for i in 0..<8 { circle(ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * 0.48, white) }
+        }
+        for i in 0..<8 {
+            circle(
+                ctx, at(p.x, p.y, u * 0.62, -67.5 + CGFloat(i) * 45), u * (pal.knockout ? 0.3 : 0.42), c(pal, 0xF6D576))
+        }
         cut(ctx, pal) { circle(ctx, p, u * 0.5, white) }
         circle(ctx, p, u * (pal.knockout ? 0.3 : 0.42), c(pal, 0xC98A12))
     }
@@ -252,7 +288,9 @@ enum Blooms {
 
 /// The crown (Crown in GlucoseCard.kt): a 12 × 7.4 outline with rounded joins, `w` wide, bottom centre at (`x`, `bottom`).
 enum Crown {
-    private static let pts: [(CGFloat, CGFloat)] = [(0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4)]
+    private static let pts: [(CGFloat, CGFloat)] = [
+        (0.7, 7.4), (0, 1.7), (3.3, 4.3), (6, 0), (8.7, 4.3), (12, 1.7), (11.3, 7.4),
+    ]
     static let h: CGFloat = 7.4 / 12
 
     /// `grow` > 0: the outline widened by that much on every side (a cut-out's margin).
@@ -281,7 +319,9 @@ enum Crown {
 enum Laurel {
     enum Side { case full, merged }
 
-    static func draw(_ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full) {
+    static func draw(
+        _ ctx: CGContext, center c: CGPoint, r: CGFloat, _ color: CGColor, left: Side = .full, right: Side = .full
+    ) {
         ctx.saveGState()
         ctx.setAlpha(color.alpha)
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -295,12 +335,15 @@ enum Laurel {
     /// One side's branch: climbing from below the middle (135° / 45°) to above it (210° / -30°), an outer and an inner
     /// leaf per step leaning up it, the inner ones clear of the ring; a merged side keeps only its two lowest and its
     /// highest outer leaves. The flowers are `Blooms`'.
-    private static func branch(_ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side) {
+    private static func branch(
+        _ ctx: CGContext, _ c: CGPoint, _ r: CGFloat, _ color: CGColor, isLeft: Bool, _ side: Side
+    ) {
         ctx.saveGState()
         ctx.setStrokeColor(color); ctx.setFillColor(color)
         ctx.setLineWidth(r * 0.032); ctx.setLineCap(.round)
         let a0: CGFloat = isLeft ? 131 : -34
-        ctx.addArc(center: c, radius: r * 1.25, startAngle: a0 * .pi / 180, endAngle: (a0 + 83) * .pi / 180, clockwise: false)
+        ctx.addArc(
+            center: c, radius: r * 1.25, startAngle: a0 * .pi / 180, endAngle: (a0 + 83) * .pi / 180, clockwise: false)
         ctx.strokePath()
         func at(_ rad: CGFloat, _ deg: CGFloat, _ rot: CGFloat) {
             let a = deg * .pi / 180
@@ -325,8 +368,10 @@ enum Laurel {
 /// 100 %; `Slots.drawUnder`, drawn for every slot before the rings, so what is next to it covers it), and at 100 % the crown
 /// in the text colour set into 12 o'clock like a cap, cut out of the ring and the countdown.
 enum TirRing {
-    static func draw(_ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
-                     _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil) {
+    static func draw(
+        _ ctx: CGContext, center c: CGPoint, radius r: CGFloat, tir: TimeInRange, spec: RingSpec,
+        _ pal: GraphPalette, emphasis: CGFloat, countdown: Double? = nil
+    ) {
         let mark = mark(tir, spec)
         let sw = r * 0.2
         let rr = r - sw / 2
@@ -355,7 +400,9 @@ enum TirRing {
                 let sweep = max(1.5, (360 - gaps) * CGFloat(s.1))
                 ctx.setStrokeColor(pal.of(s.0).a(emphasis))
                 // y-down: increasing angle runs clockwise on screen, like Android's drawArc.
-                ctx.addArc(center: c, radius: rr, startAngle: a * .pi / 180, endAngle: (a + sweep) * .pi / 180, clockwise: false)
+                ctx.addArc(
+                    center: c, radius: rr, startAngle: a * .pi / 180, endAngle: (a + sweep) * .pi / 180,
+                    clockwise: false)
                 ctx.strokePath()
                 a += sweep + (gapAfter(i) ? gap : 0)
             }
@@ -382,31 +429,51 @@ enum TirRing {
         let base = c.y + r * 0.78 * 0.28
         // "69.7", "<0.1": the decimals fit inside the ring (TirRing.draw on Android)
         var size = v.count > 3 ? r * 0.78 * 0.7 : r * 0.78
-        size = min(size, size * (r - sw) * 1.5 / max(Ink.width(v, Ink.font(size, .heavy, rounded: true)), 1)) // "100" too
-        Ink.draw(ctx, v, x: c.x, y: base, size == r * 0.78 ? num : Ink.font(size, .heavy, rounded: true), pal.ink.a(emphasis), align: 0.5)
-        Ink.draw(ctx, spec.period, x: c.x, y: base + r * 0.34 * 1.1, sub,
-                 (spec.range == .tight ? pal.tight : pal.inkSoft).a(emphasis), align: 0.5)
+        // "100" too
+        size = min(size, size * (r - sw) * 1.5 / max(Ink.width(v, Ink.font(size, .heavy, rounded: true)), 1))
+        Ink.draw(
+            ctx, v, x: c.x, y: base, size == r * 0.78 ? num : Ink.font(size, .heavy, rounded: true),
+            pal.ink.a(emphasis), align: 0.5)
+        Ink.draw(
+            ctx, spec.period, x: c.x, y: base + r * 0.34 * 1.1, sub,
+            (spec.range == .tight ? pal.tight : pal.inkSoft).a(emphasis), align: 0.5)
     }
 }
 
 extension TirRing {
     /// The ring's `TirMark` (none without data).
-    static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark { tir.empty || !spec.marks ? .none : TirMark.of(tir, spec.range) }
+    static func mark(_ tir: TimeInRange, _ spec: RingSpec) -> TirMark {
+        tir.empty || !spec.marks ? .none : TirMark.of(tir, spec.range)
+    }
     /// The number in the middle: in range against its > 70 % goal, very good on its own (TirRing.text).
-    static func text(_ tir: TimeInRange, _ spec: RingSpec) -> String { ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil) }
+    static func text(_ tir: TimeInRange, _ spec: RingSpec) -> String {
+        ShareText.of(tir.of(spec.range), spec.range == .inRange ? .inRange : nil)
+    }
 }
 
 /// A report number in a slot (MetricGauge in GlucoseCard.kt): the value in the middle, kind + window under it, an arc
 /// on the number's scale (green = consensus goal met, orange = not) and a tick at the goal.
 enum MetricGauge {
     static func scale(_ k: SlotKind) -> (Double, Double, Double) {
-        switch k { case .gmi: (5, 10, 7); case .average: (70, 250, 154); default: (0, 60, 36) }
+        switch k {
+        case .gmi: (5, 10, 7)
+        case .average: (70, 250, 154)
+        default: (0, 60, 36)
+        }
     }
     static func value(_ k: SlotKind, _ m: GlucoseMetrics) -> Double {
-        switch k { case .gmi: m.gmi; case .average: m.mean; default: m.cv }
+        switch k {
+        case .gmi: m.gmi
+        case .average: m.mean
+        default: m.cv
+        }
     }
     static func met(_ k: SlotKind, _ m: GlucoseMetrics) -> Bool {
-        switch k { case .gmi: Goal.gmi.met(m); case .average: Goal.average.met(m); default: Goal.cv.met(m) }
+        switch k {
+        case .gmi: Goal.gmi.met(m)
+        case .average: Goal.average.met(m)
+        default: Goal.cv.met(m)
+        }
     }
     static func text(_ k: SlotKind, _ m: GlucoseMetrics) -> (String, String) {
         switch k {
@@ -416,8 +483,10 @@ enum MetricGauge {
         }
     }
 
-    static func draw(_ ctx: CGContext, center c: CGPoint, radius: CGFloat, m: GlucoseMetrics, spec: RingSpec,
-                     _ pal: GraphPalette, emphasis: CGFloat, d: CGFloat) {
+    static func draw(
+        _ ctx: CGContext, center c: CGPoint, radius: CGFloat, m: GlucoseMetrics, spec: RingSpec,
+        _ pal: GraphPalette, emphasis: CGFloat, d: CGFloat
+    ) {
         let sw = radius * 0.2, rr = radius - sw / 2
         ctx.saveGState()
         ctx.setLineWidth(sw)
@@ -428,7 +497,9 @@ enum MetricGauge {
         if !m.empty {
             let f = min(max((value(spec.kind, m) - lo) / (hi - lo), 0.02), 1)
             ctx.setStrokeColor((met(spec.kind, m) ? pal.tight : pal.high).a(emphasis))
-            ctx.addArc(center: c, radius: rr, startAngle: -.pi / 2, endAngle: -.pi / 2 + 2 * .pi * CGFloat(f), clockwise: false)
+            ctx.addArc(
+                center: c, radius: rr, startAngle: -.pi / 2, endAngle: -.pi / 2 + 2 * .pi * CGFloat(f), clockwise: false
+            )
             ctx.strokePath()
         }
         // goal tick across the track
@@ -437,8 +508,10 @@ enum MetricGauge {
         ctx.setLineCap(.butt)
         ctx.setLineWidth(1.6 * d)
         ctx.setStrokeColor(pal.ink.a(emphasis))
-        ctx.strokeLineSegments(between: [CGPoint(x: c.x + r0 * CGFloat(cos(ga)), y: c.y + r0 * CGFloat(sin(ga))),
-                                         CGPoint(x: c.x + r1 * CGFloat(cos(ga)), y: c.y + r1 * CGFloat(sin(ga)))])
+        ctx.strokeLineSegments(between: [
+            CGPoint(x: c.x + r0 * CGFloat(cos(ga)), y: c.y + r0 * CGFloat(sin(ga))),
+            CGPoint(x: c.x + r1 * CGFloat(cos(ga)), y: c.y + r1 * CGFloat(sin(ga))),
+        ])
         ctx.restoreGState()
         let num = Ink.font(radius * 0.62, .heavy, rounded: true)
         let unit = Ink.font(radius * 0.3, .semibold, rounded: true)
@@ -447,7 +520,8 @@ enum MetricGauge {
         let base = c.y + radius * 0.62 * 0.3
         Ink.draw(ctx, v, x: c.x - w / 2, y: base, num, pal.ink.a(emphasis))
         Ink.draw(ctx, u, x: c.x - w / 2 + Ink.width(v, num), y: base, unit, pal.ink.a(emphasis))
-        Ink.draw(ctx, "\(spec.kind.short) \(spec.period)", x: c.x, y: base + radius * 0.3 * 1.25, unit, pal.inkSoft.a(emphasis), align: 0.5)
+        Ink.draw(
+            ctx, "\(spec.kind.short) \(spec.period)", x: c.x, y: base + radius * 0.3 * 1.25, unit,
+            pal.inkSoft.a(emphasis), align: 0.5)
     }
 }
-
