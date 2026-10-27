@@ -7,3 +7,9 @@ plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
 }
+
+dependencies {
+    // NumberDialog takes the generated NumberSpec (the one number input, CLAUDE.md "Settings never diverge")
+    api(project(":core:data"))
+    testImplementation(libs.junit)
+}

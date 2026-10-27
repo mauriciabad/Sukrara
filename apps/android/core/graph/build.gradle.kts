@@ -11,5 +11,8 @@ plugins {
 
 dependencies {
     api(project(":core:model"))
+    // the generated SettingsSpec (band limits, graph defaults)
+    implementation(project(":core:data"))
     testImplementation(project(":core:testing"))
+    testImplementation(libs.kotlinx.serialization.json)
 }
