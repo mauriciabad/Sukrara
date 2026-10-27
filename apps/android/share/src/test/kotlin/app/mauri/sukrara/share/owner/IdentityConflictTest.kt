@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.testing.Contracts
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySecureStore
+import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.owner.IdentityCheck
 import app.mauri.sukrara.protocol.owner.IdentityConflict
@@ -81,7 +82,7 @@ class IdentityConflictTest {
         store.save(state.copy(rosterPublishedAt = NOW, backupPublishedAt = NOW))
         val hub = FakeHub()
         val clock = FakeClock(Instant.ofEpochSecond(NOW))
-        val engine = OwnerEngine(OwnerFixtures.context(), store, relay, hub, { _, _ -> true }, clock, dispatcher)
+        val engine = OwnerEngine(OwnerFixtures.context(), store, relay, hub, { _, _ -> true }, InMemoryTreatmentsRepository(), clock, dispatcher)
         engine.start(backgroundScope)
         runCurrent()
         assertTrue(engine.state.value is OwnerShareState.Sharing)

@@ -2,4 +2,12 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <!-- access-request notification (a follower used an invite) -->
+    <string name="share_request_title">%1$s quiere ver tu glucosa</string>
+    <string name="share_request_for">Pedido con tu invitación para %1$s · %2$s</string>
+    <string name="share_request_from">Pedido con tu invitación · %1$s</string>
+    <string name="share_request_others">Otro teléfono también ha probado esta invitación. Abre Sukrara y compruébalo antes de permitirlo.</string>
+    <string name="share_request_allow">Permitir</string>
+    <string name="share_request_deny">Denegar</string>
+</resources>

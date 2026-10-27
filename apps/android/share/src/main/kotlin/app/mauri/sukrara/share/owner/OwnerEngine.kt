@@ -6,6 +6,8 @@ package app.mauri.sukrara.share.owner
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.storage.TreatmentRecord
+import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.protocol.event.AlertPayload
@@ -19,11 +21,15 @@ import app.mauri.sukrara.share.owner.usecase.ExportRecovery
 import app.mauri.sukrara.share.owner.usecase.HandleInbox
 import app.mauri.sukrara.share.owner.usecase.IdentityConflictDetector
 import app.mauri.sukrara.share.owner.usecase.InboxSignal
+import app.mauri.sukrara.share.owner.usecase.MirroredSettingsSource
 import app.mauri.sukrara.share.owner.usecase.OwnerContext
 import app.mauri.sukrara.share.owner.usecase.PublishReadings
+import app.mauri.sukrara.share.owner.usecase.PublishSettingsMirror
 import app.mauri.sukrara.share.owner.usecase.RemoveFollower
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
+import app.mauri.sukrara.share.owner.usecase.SetWriter
 import app.mauri.sukrara.share.owner.usecase.Step
+import app.mauri.sukrara.share.owner.usecase.SyncTreatments
 import app.mauri.sukrara.share.transport.RelayFilter
 import app.mauri.sukrara.share.transport.RelayInbound
 import app.mauri.sukrara.share.transport.RelayTransport
@@ -35,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -45,19 +52,22 @@ import kotlinx.coroutines.withContext
 
 /**
  * The wearer's sharing coordinator: loads the identity, keeps the relay subscriptions, feeds readings from the
- * [GlucoseHub] to [PublishReadings], runs every use-case one at a time (serial dispatcher + one lock held across the
+ * [GlucoseHub] to [PublishReadings], the treatment log and the mirrored settings to followers ([SyncTreatments],
+ * [PublishSettingsMirror]), runs every use-case one at a time (serial dispatcher + one lock held across the
  * suspending store / ledger calls, so no update overwrites another), persists before publishing, and
  * exposes [state]. Relay failures stay in the per-relay status. Logs nothing that holds keys or glucose values.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class OwnerEngine(
     private val ctx: OwnerContext,
     private val store: OwnerIdentityStore,
     private val transport: RelayTransport,
     private val hub: GlucoseHub,
     private val seen: SeenWraps,
+    treatmentLog: TreatmentsRepository,
     private val clock: Clock,
     dispatcher: CoroutineDispatcher,
+    private val settings: MirroredSettingsSource = MirroredSettingsSource.None,
     private val nearby: OwnerNearby = OwnerNearby.None,
     /** Called for a new access request (the notification with Allow / Deny lives in the app layer). */
     private val onRequest: (PendingRequest) -> Unit = {},
@@ -66,6 +76,8 @@ class OwnerEngine(
     private val lock = Mutex()
     private val readings = PublishReadings(ctx)
     private val conflicts = IdentityConflictDetector(ctx)
+    private val treatments = SyncTreatments(ctx, treatmentLog)
+    private val settingsMirror = PublishSettingsMirror(ctx)
     private val _state = MutableStateFlow<OwnerShareState>(OwnerShareState.Loading)
     val state: StateFlow<OwnerShareState> = _state.asStateFlow()
 
@@ -112,7 +124,13 @@ class OwnerEngine(
                     locked {
                         owner?.let { publish(readings.tick(it, now())) }
                         refreshControl()
+                        refreshShared()
                     }
+                }
+            },
+            scope.launch(serial) {
+                settings.settings().debounce(SETTINGS_DEBOUNCE_MS).collect { w ->
+                    locked { owner?.let { apply(settingsMirror.onChange(it, w, now())) } }
                 }
             },
         )
@@ -121,6 +139,8 @@ class OwnerEngine(
         transport.start()
         s.pendingControl.mapNotNull { SignedEvent.parse(it.eventJson) }.forEach(::send)
         publish(readings.republish(s, now()))
+        subscribeWriters(s)
+        republishShared()
         refreshControl()
         render()
     }
@@ -142,6 +162,7 @@ class OwnerEngine(
             is RelayInbound.Event -> when (m.subscription) {
                 OWN -> conflicts.check(s, m.event, now())?.let { commit(it) }
                 INBOX -> if (s.conflict == null && seen.markSeen(m.event.id, now())) inbox(owner ?: s, m.event)
+                WRITERS -> treatments.receive(s, m.event, now(), m.relay).echo?.let(::send)
             }
             else -> Unit
         }
@@ -170,7 +191,30 @@ class OwnerEngine(
         if (step.publish.isNotEmpty()) apply(step)
     }
 
+    /** The treatment log and the settings again under the current epoch (start, new epoch, weekly). */
+    private suspend fun republishShared() {
+        val s = owner ?: return
+        val log = treatments.republish(s, now())
+        val mirrored = settingsMirror.republish(log.state, now())
+        apply(Step(mirrored.state, log.publish + mirrored.publish))
+    }
+
+    private suspend fun refreshShared() {
+        val s = owner ?: return
+        if (treatments.republishDue(s, now()) || settingsMirror.republishDue(s, now())) republishShared()
+    }
+
+    /** Writers' entries: one subscription for the current writers, closed when there are none. */
+    private fun subscribeWriters(s: OwnerState) {
+        treatments.writerFilter(s, now())?.let { transport.subscribe(WRITERS, listOf(it)) } ?: transport.close(WRITERS)
+    }
+
     // ---------------------------------------------------------------------------------------------- actions
+
+    /** A version of the treatment log stored on this phone (add, edit, delete, undo, pens) → followers at once. */
+    suspend fun publishTreatment(record: TreatmentRecord) {
+        locked { owner?.let { send(treatments.publish(it, record, now())) } }
+    }
 
     /** First-run "share with followers": a new identity. Refuses while an identity exists or is unreadable. */
     suspend fun createIdentity(scope: CoroutineScope, profile: Profile?): Boolean = locked {
@@ -217,8 +261,14 @@ class OwnerEngine(
     }
 
     suspend fun approve(follower: String) = act { ApproveRequest(ctx)(it, follower, now()) }?.let { s ->
-        locked { publish(readings.republish(s, now())) }
+        locked {
+            publish(readings.republish(s, now()))
+            owner?.let { apply(treatments.republish(it, now())) }
+        }
     }
+
+    /** "Can add entries" for an active follower (writer scope); refused during a conflict (it publishes a roster). */
+    suspend fun setWriter(follower: String, allowed: Boolean) = act { SetWriter(ctx)(it, follower, allowed, now()) }
 
     suspend fun deny(follower: String) = act { DenyRequest(ctx)(it, follower, now()) }
 
@@ -244,8 +294,12 @@ class OwnerEngine(
 
     /** Persist first, then publish: a crash in between re-sends the saved control events on the next start. */
     private suspend fun apply(step: Step) {
+        val before = owner
         commit(step.state)
         step.publish.forEach(::send)
+        // a new epoch (rotation, conflict retry): the log and the settings again, encrypted to the new read key
+        if (before != null && before.current.n != step.state.current.n) republishShared()
+        if (before != null && before.activeWriters() != step.state.activeWriters()) subscribeWriters(step.state)
     }
 
     private suspend fun commit(s: OwnerState) {
@@ -273,6 +327,8 @@ class OwnerEngine(
     private companion object {
         const val INBOX = "inbox"
         const val OWN = "own"
+        const val WRITERS = "writers"
+        const val SETTINGS_DEBOUNCE_MS = 3_000L
         const val CONTROL_REFRESH = 6 * Wire.DAY
         const val HISTORY_MIN_GAP = 600L
         const val FETCH_TIMEOUT_MS = 12_000L

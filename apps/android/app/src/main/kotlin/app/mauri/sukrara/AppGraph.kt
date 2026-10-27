@@ -14,18 +14,23 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sharing.SharingDeps
-import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
+import app.mauri.sukrara.graph.Clock as ClockText
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.monitor.hub.MonitorRecord
+import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.NotificationGroups
+import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.share.ShareOwnerModule
+import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -143,7 +148,29 @@ class AppGraph(
         monitor.starter.start(reason)
     }
 
-    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
+    /** The wearer's sharing (relays, followers, treatments and settings to them); started by the sharing UI / service. */
+    val shareOwner by lazy {
+        val info = NotificationGroups.Group.INFO
+        ShareOwnerModule(
+            context = app,
+            data = data,
+            hub = monitor.hub,
+            clock = clock,
+            dispatchers = dispatchers,
+            scope = scope,
+            requestNotifications =
+                AndroidRequestNotifications(
+                    context = app,
+                    channel = Channels.REQUESTS,
+                    group = info.key,
+                    time = { ClockText.time(it) },
+                    post = { NotificationGroups.post(app, NotificationIds.REQUESTS, it, info, Channels.REQUESTS) },
+                    remove = { NotificationGroups.cancel(app, NotificationIds.REQUESTS, info) },
+                ),
+        )
+    }
+
+    val treatments by lazy { TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
