@@ -37,6 +37,8 @@ import app.mauri.sukrara.feature.home.HomeViewModel
 import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
+import app.mauri.sukrara.feature.settings.sensor.SensorSettingsScreen
+import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
 import app.mauri.sukrara.feature.sharing.SetupScreen
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.serialization.Serializable
@@ -57,6 +59,10 @@ data object NewSensorKey : NavKey
 
 @Serializable
 data object LibreViewSignInKey : NavKey
+
+/** Settings › Sensor (the settings overview's Sensor row; the new-sensor flow's "change it in Settings › Sensor"). */
+@Serializable
+data object SensorSettingsKey : NavKey
 
 /** Intent actions that open the new-sensor flow: the sensor-end notification's Pair new sensor, other modules' links. */
 fun opensNewSensor(action: String?): Boolean =
@@ -123,6 +129,15 @@ fun SukraraNavigation(
                         onBack = { backStack.remove(LibreViewSignInKey) },
                     )
                 }
+                entry<SensorSettingsKey> {
+                    SensorSettingsScreen(
+                        viewModel = viewModel(factory = SensorSettingsViewModel.factory(graph.sensorSettings)),
+                        clock = graph.clock,
+                        onPairNewSensor = { backStack.add(NewSensorKey) },
+                        onSignIn = { backStack.add(LibreViewSignInKey) },
+                        onBack = { backStack.remove(SensorSettingsKey) },
+                    )
+                }
                 entry<DataProblemsRoute> {
                     val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
                     LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
@@ -150,7 +165,10 @@ private fun route(
     when (action) {
         HomeAction.OpenSetup -> backStack.add(SetupRoute)
 
-        HomeAction.PairSensor, HomeAction.OpenSensor -> backStack.add(NewSensorKey)
+        HomeAction.PairSensor -> backStack.add(NewSensorKey)
+
+        // no readings from a running sensor: its state, source and account, not a new pairing
+        HomeAction.OpenSensor -> backStack.add(SensorSettingsKey)
 
         HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
 

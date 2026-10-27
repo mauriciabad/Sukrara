@@ -95,6 +95,23 @@ public final class TreatmentsModel {
         rows[i].delivery = state
     }
 
+    /// The runtime's newest list (visible entries) and the delivery of each entry this Mac wrote. A row marked
+    /// failed here stays failed while the runtime still holds it as sending (Retry is its exit); the entry just
+    /// deleted (undo offered) stays hidden until the runtime's tombstone arrives.
+    public func sync(_ treatments: [Treatment], deliveries: [String: TreatmentDeliveryState], canWrite: Bool) {
+        self.canWrite = canWrite
+        let failedRows = rows.filter { $0.delivery == .failed }
+        let failed = Set(failedRows.map(\.id))
+        let synced = treatments.filter { !$0.del && $0.id != undo?.row.id }
+            .map { t in
+                let d = deliveries[t.id]
+                return Row(treatment: t, delivery: failed.contains(t.id) && d == .sending ? .failed : d)
+            }
+        // an entry the runtime refused never reached it: keep it on screen with Retry instead of dropping it
+        let ids = Set(synced.map(\.id))
+        rows = (synced + failedRows.filter { !ids.contains($0.id) }).sorted { $0.treatment.t > $1.treatment.t }
+    }
+
     public func dismissUndo() { undo = nil }
 
     private func send(_ t: Treatment) async {

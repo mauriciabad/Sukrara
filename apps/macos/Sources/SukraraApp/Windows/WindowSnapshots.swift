@@ -9,6 +9,9 @@
     /// `sukrara-snap windows <dir>`: every window state with synthetic data, light + dark, default + large text.
     /// Offline: a scratch defaults suite, no runtime behind the models (actions nil).
     public enum WindowSnapshots {
+        /// Renders the windows' text in one language (`es`), whatever the Mac's.
+        public static func useLanguage(_ language: String) { L10n.use(language: language) }
+
         public static func render(to dir: URL) throws -> Int {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             var n = 0
@@ -82,12 +85,26 @@
             return out
         }
 
-        private static func png(_ view: some View, appearance: NSAppearance.Name) throws -> Data {
+        /// Renders `view` inside an off-screen window: lists (NSTableView), tab strips and toolbars only draw their
+        /// content once they're in a window.
+        static func png(_ view: some View, appearance: NSAppearance.Name) throws -> Data {
             let host = NSHostingView(rootView: view)
             host.appearance = NSAppearance(named: appearance)
-            host.frame = CGRect(origin: .zero, size: host.fittingSize)
-            host.layoutSubtreeIfNeeded()
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            let size = host.fittingSize
+            let window = NSWindow(
+                contentRect: CGRect(origin: CGPoint(x: -20_000, y: -20_000), size: size), styleMask: [.borderless],
+                backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.appearance = host.appearance
+            window.contentView = host
+            host.frame = CGRect(origin: .zero, size: size)
+            window.orderFrontRegardless()
+            for _ in 0..<4 {
+                host.layoutSubtreeIfNeeded()
+                host.displayIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            }
+            defer { window.orderOut(nil) }
             guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { throw SnapError.render }
             host.cacheDisplay(in: host.bounds, to: rep)
             guard let data = rep.representation(using: .png, properties: [:]) else { throw SnapError.render }

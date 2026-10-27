@@ -35,6 +35,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Sukrara, the showcase and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
   (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
+- **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
+  directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
+  password is never stored) and *Pair new sensor*.
 - **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring, turn off Sukrara Showcase,
   damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
