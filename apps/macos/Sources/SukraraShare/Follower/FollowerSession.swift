@@ -188,7 +188,7 @@ public struct FollowerSession: Sendable {
             switch event.kind {
             case Wire.kindData: return try receiveData(event, epoch: n, key: g, sid: sid)
             case Wire.kindLive, Wire.kindAlert:
-                guard state.devices.contains(event.pubkey) else { return Outcome(.rejected("author-not-device")) }
+                guard state.devices.contains(event.pubkey) else { return notInRosterYet(event, "author-not-device") }
                 let plain = try decrypt(event, key: g)
                 return event.kind == Wire.kindLive
                     ? try receiveLive(event, plain: plain, now: now) : try receiveAlert(plain: plain, now: now)
@@ -213,6 +213,13 @@ public struct FollowerSession: Sendable {
         return outcome
     }
 
+    /// The author isn't in the roster held now: rejected but not remembered, because the roster that adds it (a new
+    /// phone after a restore, a new writer) may still be on its way; the event is judged again when it comes back.
+    private mutating func notInRosterYet(_ event: SignedEvent, _ reason: String) -> Outcome {
+        seen[event.id] = nil
+        return Outcome(.rejected(reason))
+    }
+
     private mutating func receiveData(_ event: SignedEvent, epoch n: Int, key g: SecretKeyHex, sid: String)
         throws(PayloadError) -> Outcome
     {
@@ -223,14 +230,14 @@ public struct FollowerSession: Sendable {
         }
         if c == Wire.treatmentsC(sid: sid) {
             guard state.devices.contains(author) || state.writers.contains(author) else {
-                return Outcome(.rejected("author-not-in-roster"))
+                return notInRosterYet(event, "author-not-in-roster")
             }
             let entry = try TreatmentPayload.decode(try decrypt(event, key: g))
             guard d == Wire.treatmentD(sid: sid, id: entry.id) else { return Outcome(.rejected("d-mismatch")) }
             return receiveTreatment(entry, author: author)
         }
         if c == Wire.glucoseC(sid: sid) {
-            guard state.devices.contains(author) else { return Outcome(.rejected("author-not-device")) }
+            guard state.devices.contains(author) else { return notInRosterYet(event, "author-not-device") }
             let chunk = try ChunkPayload.decode(try decrypt(event, key: g))
             guard d == Wire.chunkD(sid: sid, hour: chunk.hour) else { return Outcome(.rejected("d-mismatch")) }
             var outcome = Outcome(.accepted("chunk"))
@@ -238,7 +245,7 @@ public struct FollowerSession: Sendable {
             return outcome
         }
         if d == Wire.settingsD(sid: sid) {
-            guard state.devices.contains(author) else { return Outcome(.rejected("author-not-device")) }
+            guard state.devices.contains(author) else { return notInRosterYet(event, "author-not-device") }
             let settings = try SettingsPayload.decode(try decrypt(event, key: g))
             guard settings.u > (state.settingsU ?? Int.min) else { return Outcome(.ignored("settings-older")) }
             state.settingsU = settings.u
@@ -362,6 +369,12 @@ public struct FollowerSession: Sendable {
         if delivery.epoch >= newest {
             if !delivery.devices.isEmpty { state.devices = delivery.devices }
             if !delivery.relays.isEmpty { state.relays = delivery.relays }
+        }
+        // A newer epoch's key outranks every roster of older epochs (phone change, identity restore): a refreshed or
+        // late roster from the replaced device can't bring its devices back before the new epoch's roster arrives.
+        if delivery.epoch > state.rosterEpoch {
+            state.rosterEpoch = delivery.epoch
+            state.rosterCreatedAt = -1
         }
         var outcome = Outcome(.accepted("key"))
         if state.status != .revoked && state.status != .active {

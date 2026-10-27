@@ -33,8 +33,11 @@ public actor InMemoryReadingsStore: ReadingsStoring {
     }
 
     public func merge(_ readings: [Reading]) {
-        for reading in readings { byTime[reading.t] = reading }
+        for reading in readings where byTime[reading.t] == nil { byTime[reading.t] = reading }
     }
+
+    public func removeAll() { byTime = [:] }
+    public var issue: StoreIssue? { nil }
 }
 
 public actor InMemoryTreatmentStore: TreatmentStoring {
@@ -46,6 +49,8 @@ public actor InMemoryTreatmentStore: TreatmentStoring {
 
     public func load() -> TreatmentLog { log }
     public func save(_ log: TreatmentLog) { self.log = log }
+    public func removeAll() { log = TreatmentLog() }
+    public var issue: StoreIssue? { nil }
 }
 
 public final class InMemorySecretStore: SecretStoring {

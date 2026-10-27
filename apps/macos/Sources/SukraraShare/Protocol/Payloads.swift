@@ -216,6 +216,12 @@ public struct TreatmentPayload: Equatable, Sendable {
         public let t: Int
         public let a: Double
         public let primed: Bool?
+
+        public init(t: Int, a: Double, primed: Bool?) {
+            self.t = t
+            self.a = a
+            self.primed = primed
+        }
     }
 
     public var id: String
