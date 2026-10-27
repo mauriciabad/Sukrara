@@ -108,6 +108,15 @@ import Testing
             spoken(low, surface: .widgetCombined, words: .es)
                 == "64 miligramos por decilitro, bajando rápido, baja, hace 2 min. Últimas 12 horas: 0% en rango, 100% por debajo, 0% por encima")
         #expect(spoken(CardData(readings: [], now: now), words: .es) == "Glucosa: aún no hay lecturas")
+        // the status pill's sentence too
+        let bolus = GraphMark(t: now - 600, k: "carbs", a: 30, id: "c1")
+        let taken = CardData(
+            readings: low.readings, alerts: CardAlerts(status: .taken(.low, treatment: bolus, until: now + 600)),
+            now: now)
+        #expect(
+            spoken(taken, words: .es).hasSuffix("Alertas de glucosa baja silenciadas tras los hidratos · quedan 10 min"))
+        let needed = CardData(readings: low.readings, alerts: CardAlerts(status: .needed(.low)), now: now)
+        #expect(spoken(needed, words: .es).hasSuffix(". Come hidratos"))
     }
 
     @Test func anExpiredMuteSaysNothing() {

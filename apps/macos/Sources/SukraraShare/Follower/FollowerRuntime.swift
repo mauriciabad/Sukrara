@@ -596,7 +596,8 @@ public actor FollowerRuntime: FollowerService {
         let snapshot = FollowerSnapshot(
             link: link, readings: (try? await stores.readings.load(since: since)) ?? [],
             sensor: await stores.sensor.load(), treatments: log.log.live.reversed(), unsentTreatments: log.unsentCount,
-            wearerSettings: await stores.settings.load(), storeIssues: issues, nearby: nearbyState,
+            deliveries: log.entries.compactMapValues(\.delivery), wearerSettings: await stores.settings.load(),
+            storeIssues: issues, nearby: nearbyState,
             nearbyOffer: session == nil ? nearbyOffer : nil)
         guard snapshot != current else { return }
         current = snapshot

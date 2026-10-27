@@ -26,25 +26,47 @@ final class AppServices: ServiceStarting {
     var permissionChanged: (() -> Void)?
     /// A tap on a notification's body: open the panel.
     var openPanel: (() -> Void)?
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
 
     init(plan: LaunchPlan) {
         self.plan = plan
         defaults = plan.data.defaultsSuite.flatMap(UserDefaults.init(suiteName:)) ?? .standard
     }
 
+    /// The wearer's mirrored settings while following (from the follower snapshots), nil otherwise.
+    private var wearer: WearerSettings?
+
+    /// The rules this Mac runs: its own alert settings, with the wearer's mirrored values in "Settings from: Wearer".
     var alertSettings: AlertSettings {
-        defaults.data(forKey: SettingsSpec.Keys.alerts).map(AlertSettings.decode) ?? AlertSettings()
+        let own = defaults.data(forKey: SettingsSpec.Keys.alerts).map(AlertSettings.decode) ?? AlertSettings()
+        guard own.source == .wearer, let wearer else { return own }
+        return own.mirroring(wearer)
     }
 
     /// The alert settings changed (Settings window, a mirrored wearer setting): the rules and the copied sounds follow
-    /// at once. Called on every defaults change; does nothing when the alert settings are the same.
+    /// at once. Called on every defaults change and snapshot; does nothing when the alert settings are the same.
     func settingsChanged() {
         guard let alerts else { return }
         let s = alertSettings
         guard s != alerts.settings else { return }
         alerts.settings(s)
         sounds?.sync(s)
+    }
+
+    func wearerSettings(_ settings: WearerSettings?) {
+        guard settings != wearer else { return }
+        wearer = settings
+        settingsChanged()
+    }
+
+    /// The setup walk's "Allow…": asks (or re-reads) the notification permission. False when this run posts none.
+    func requestNotifications() async -> Bool {
+        guard center != nil else { return false }
+        let granted =
+            (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]))
+            ?? false
+        permissionChanged?()
+        return granted
     }
 
     func start(_ service: Service) {

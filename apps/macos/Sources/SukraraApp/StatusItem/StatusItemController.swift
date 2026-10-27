@@ -16,12 +16,12 @@ final class StatusItemController {
     /// Called each time the panel opens (re-check notification permission).
     var onOpen: (() -> Void)?
 
-    init(model: AppModel, menu: ContextMenu) {
+    init(model: AppModel, menu: ContextMenu, links: PanelLinks?) {
         self.model = model
         self.menu = menu
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        popover.contentViewController = NSHostingController(rootView: PanelView(model: model))
+        popover.contentViewController = NSHostingController(rootView: PanelView(model: model, links: links))
         if let button = item.button {
             button.target = self
             button.action = #selector(clicked(_:))
@@ -74,6 +74,8 @@ final class StatusItemController {
             showPanel(from: button)
         }
     }
+
+    func closePanel() { popover.performClose(nil) }
 
     func showPanel() {
         guard let button = item.button, !popover.isShown else { return }

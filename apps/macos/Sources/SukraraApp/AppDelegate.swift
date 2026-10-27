@@ -4,6 +4,8 @@
 import AppKit
 import Network
 import SukraraCore
+import SukraraGraph
+import SukraraShare
 
 /// The menu bar app shell. Services start only through `plan.services.start(using:)` (`AppServices`), before the
 /// model and UI exist, so a notification answer that launched the app finds the alert engine already restored.
@@ -14,32 +16,66 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
     private var observers: [NSObjectProtocol] = []
     private let network = NWPathMonitor()
-    /// Join links (`sukrara:` / web) handed to the follow window (chunk 23 / follower runtime 15 set this).
-    var openJoinLink: ((URL) -> Void)?
+    private let store: DefaultsSettingsStore
+    private var windows: WindowCoordinator?
+    /// The wearer's mirrored settings while following (nil otherwise).
+    private var wearer: WearerSettings?
 
     public init(plan: LaunchPlan) {
         let services = AppServices(plan: plan)
         plan.services.start(using: services)
         self.services = services
+        store = DefaultsSettingsStore(defaults: services.defaults)
+        var follower: (any FollowerService)? = services.follower
+        #if DEBUG
+            if plan.mode == .fixture { follower = FixtureFollower() }
+        #endif
         model = AppModel(
             plan: plan, alerts: services.alerts, updates: services.updates, loginItem: services.loginItem,
-            follower: services.follower)
+            follower: follower)
+        model.unit = store.unit
+        model.graph = GraphConfig.load(from: store, wearer: nil)
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.make()
-        if let updates = model.updates {
-            contextMenu.checkForUpdates = { Task { await updates.check(userAsked: true) } }
+        let windows = WindowCoordinator(model: model, store: store) { [services] in
+            await services.requestNotifications()
         }
-        let statusItem = StatusItemController(model: model, menu: contextMenu)
+        self.windows = windows
+        model.onSnapshot = { [weak self, weak windows] snapshot in
+            windows?.apply(snapshot)
+            self?.wearerChanged(WindowCoordinator.wearerSettings(snapshot))
+        }
+        contextMenu.openSettings = { [weak windows] in windows?.openSettings() }
+        contextMenu.openTreatments = { [weak windows] in windows?.openTreatments() }
+        let links = PanelLinks(
+            setup: windows.setup,
+            openSetup: { [weak self] in
+                self?.statusItem?.closePanel(); self?.windows?.openSetup()
+            },
+            openFollow: { [weak self] in
+                self?.statusItem?.closePanel(); self?.windows?.openFollow()
+            })
+        let statusItem = StatusItemController(model: model, menu: contextMenu, links: links)
         statusItem.onOpen = { [weak self] in self?.refreshNotificationPermission() }
         self.statusItem = statusItem
+        if let updates = model.updates {
+            // the result shows in the panel: open it once the check is done
+            contextMenu.checkForUpdates = { [weak statusItem] in
+                Task {
+                    await updates.check(userAsked: true)
+                    statusItem?.showPanel()
+                }
+            }
+        }
         services.openPanel = { [weak statusItem] in statusItem?.showPanel() }
         services.permissionChanged = { [weak self] in self?.refreshNotificationPermission() }
         observeSystemTime()
         observeNetwork()
         refreshNotificationPermission()
         model.run()
+        if case .snapshot = model.plan.mode {} else { windows.showSetupIfFirstRun() }
         AppLog.app.info("launched (offline: \(self.model.plan.isOffline, privacy: .public))")
     }
 
@@ -52,15 +88,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         model.stop()
     }
 
-    /// `sukrara:` links (Info.plist CFBundleURLTypes): join links go to the follow flow.
+    /// `sukrara:` links (Info.plist CFBundleURLTypes): invite links go to the follow step, `sukrara://treatment/new`
+    /// to Add treatment. A link that launched the app arrives after `applicationDidFinishLaunching`.
     public func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.scheme == SukraraIDs.urlScheme {
-            if let open = openJoinLink {
-                open(url)
-            } else {
-                AppLog.app.info("join link received before the follow window exists")
-            }
-        }
+        for url in urls where url.scheme == SukraraIDs.urlScheme { windows?.open(url) }
     }
 
     /// Timers don't run while the Mac sleeps and a clock change moves every deadline: re-check alerts and freshness.
@@ -75,7 +106,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification, object: nil, queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in self?.services.settingsChanged() }
+                Task { @MainActor in self?.settingsChanged() }
             })
         observers.append(
             NotificationCenter.default.addObserver(forName: .NSSystemClockDidChange, object: nil, queue: .main) {
@@ -92,6 +123,22 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.model.networkCameBack() }
         }
         network.start(queue: .main)
+    }
+
+    /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
+    private func settingsChanged() {
+        services.settingsChanged()
+        if model.unit != store.unit { model.unit = store.unit }
+        let graph = GraphConfig.load(from: store, wearer: wearer)
+        if model.graph != graph { model.graph = graph }
+    }
+
+    /// The wearer's mirrored settings arrived, changed or went away (stopped following).
+    private func wearerChanged(_ settings: WearerSettings?) {
+        guard settings != wearer else { return }
+        wearer = settings
+        services.wearerSettings(settings)
+        settingsChanged()
     }
 
     private func refreshNotificationPermission() {
