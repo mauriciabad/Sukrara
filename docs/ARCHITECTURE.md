@@ -125,9 +125,9 @@ public struct SettingSpec<Value: SettingValue> { let key: String; let defaultVal
 public struct GlucoseSnapshot: Codable { var v: Int; var readings: [Reading] }   // placeholder, chunk 14 owns it
 public struct TreatmentLog: Codable { var v: Int }                              // placeholder, treatments chunk owns it
 // SukraraShare
-public struct SignedEvent; public struct EventFilter { func matches(_:) -> Bool }
-public protocol RelayTransport: Sendable { func connect(_: [URL]) async; func publish(_: SignedEvent) async throws
-    func subscribe(_: EventFilter) -> AsyncThrowingStream<SignedEvent, Error>; func close() async }  // FakeRelay in tests
+public struct SignedEvent; public struct RelayFilter { func matches(_:) -> Bool }      // see "Mac share" below
+public protocol RelayTransport: Sendable { func subscribe(_: String, _: RelayFilter) async; func close(_: String) async
+    func publish(_: SignedEvent) async; var inbound: AsyncStream<RelayInbound> { get } }  // RelayPool; FakeRelay in tests
 public enum LinkState { case notLinked }                                        // chunk 15 adds states
 // SukraraAlerts
 public struct AlertUIState { var isAlerting: Bool }                             // chunk 05 replaces
@@ -140,6 +140,37 @@ public enum GlucoseCard { static let noValueText = "—"; static func face(_: Gl
 
 Test fixtures: `Contracts.url("alerts/scenarios")` (`SukraraTesting`) resolves `SUKRARA_CONTRACTS` or walks up from
 the test source to `contracts/`.
+
+## Mac share (`apps/macos/Sources/SukraraShare`)
+
+```
+FollowerSession (pure struct)  ──receive(event, now)──► Outcome { verdict, deltas, publish, resubscribe }
+   │ uses                                     ▲
+   ▼                                          │ events (relays or BLE, same rules)
+NostrCrypto (protocol) ◄── NostrSDKCrypto     RelayTransport (protocol) ◄── RelayPool (actor) ── WebSocketFactory
+   (only file importing NostrSDK 0.45.1)                                 ◄── FakeRelay (SukraraTesting)
+```
+
+- **Protocol/** — `Wire` (kinds, TTLs, tag derivations, match code, `Wire.defaultRelays` = the only `wss://` hosts),
+  `Derive` (HKDF invite key, CryptoKit), `SignedEvent` (NIP-01 JSON; engines never see NostrSDK types),
+  `SecretKeyHex` (redacted in `description`, `debugDescription` and `Mirror`), typed payload decoders with the
+  reference's strict rules (`Payloads.swift`), `Profile`/`Avatar` (wire + v1 normalisation; drawing is UI),
+  `InviteLink` + `InviteOpener` (v3 short link, fingerprint / expiry checks), `FollowerMessages` (request, profile,
+  rekey, history gift wraps with absolute expiration; writer treatment events).
+- **Follower/** — `FollowerSession`: port of `poc/spec/reference/ogs/follower.py` plus the settings rule; verdict
+  strings are the OGS vector codes shared with Android's `StreamFollower`. `FollowerState` (`v` 1) holds F, the read
+  keys, roster, writer-scope records (creator, held `(u, o)` per treatment id), settings `u`, sensor/roster ordering
+  and recent alert keys: everything trust depends on, so a restart can't be used to slip a forged entry in. It is
+  stored by chunk 15 in the Keychain (service `app.mauri.sukrara`, account `follower`). Readings/treatments go out as
+  deltas to 15's stores. Unfollow = discard the state.
+- **Relay/** — `RelayPool` actor: socket per `wss://` relay, jittered backoff 2 s→5 min, subscriptions (deduped by
+  filter) and a 1 h outbox re-sent on reconnect, NIP-42 AUTH as the pool's key (F, or the invite key for an invite
+  lookup pool), EOSE/OK/CLOSED/connection status on a single-consumer `inbound` stream, ping at 150 s silence,
+  reconnect at 270 s. It does not dedupe events (the session does; an unknown-epoch event must be re-processable).
+- **Tests** (`ShareTests`): OGS vectors (derivations, every event verifies/opens, 27-step acceptance scenario,
+  invite checks, treatment payloads), identity vectors, profile fixture, `contracts/protocol/sync/*.json` (made by the
+  Android tests: Mac passes them unchanged → both followers agree), fake-relay end-to-end, RelayPool over scripted
+  sockets. Nothing opens a network connection.
 
 ## Mac alerts (`apps/macos/Sources/SukraraAlerts`)
 
@@ -167,6 +198,44 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   the SPEC §7 driver; also run with an `AlertMirror` for `mirror` scenarios), `SettingsCodecTests`,
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
+
+## Android protocol (`apps/android/core/protocol`)
+
+Nostr protocol v2 + identity ([`contracts/protocol`](../contracts/protocol/)) as one pure-JVM module: no Android, no
+I/O, no clock (time is a parameter), no nostr-sdk. The wire formats are the PoC's byte for byte (kinds, tag order,
+TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/join#…`, BLE framing), so a restored
+identity keeps working with followers on Sukrara 0.11 (Android and Mac).
+
+- **Crypto seam**: `NostrCrypto` (sign / verify, NIP-44 v2, NIP-59 gift wraps, nsec / npub, NIP-49). `:share`
+  implements it with `org.nostrdevkit:nostr-sdk` (AAR, chunk 13). The module's tests use the JVM build of the same
+  library (`nostr-sdk-jvm`, test classpath only). `testFixtures` ships `NostrCryptoContractTest` (OGS vectors: every
+  event verifies / decrypts, wraps open to their rumor and its `created_at`, a rumor whose author isn't the seal signer
+  is refused, NIP-49 and nsec round trips, the BLE HELLO proof); every implementation subclasses it. The PoC's
+  hand-written BIP-340 verifier is gone: the HELLO proof is checked by the library's `Event.verify()`. HKDF is RFC 5869
+  over the JCA's HMAC, pinned by RFC 5869 case 1 and `identity/vectors.json`.
+- **Keys**: `PublicKeyHex`, `SecretKey` (redacted `toString`, hex only via `revealHex()`), `KeyPair`, `Derive.inviteKey`.
+- **Events** (`event/`): payload codecs per family (`ReadingsCodec` live / sensor / chunk, `AlertCodec`,
+  `TreatmentCodec` + `WriterScope`, `SettingsCodec`, `RosterCodec`, `BackupCodec` — reads what the showcase writes,
+  `RumorCodec` for 30500 / 30501 / 30502, `Profile` / `Avatar`) and `EventFactory`, which signs every event the
+  wearer and writers publish. Decoders throw only `InvalidPayload`; health payloads redact `toString`.
+- **Follower acceptance** (`follow/StreamFollower`): the transport-independent judge for relays and Bluetooth: verdict
+  `Accepted(item) | Rejected(reason) | Ignored(reason, rekey?)` with the codes of the OGS / sync fixtures. It keeps only
+  trust and dedupe state (`FollowerState`: status, sid, epochs, roster, writer-scope creators, settings `u`, seen ids
+  pruned at their expiry, rekey throttle); storing readings / treatments / settings is the follower engine's (25).
+  A port of the reference follower plus, from the PoC `FollowerEngine`: the settings rule, a key delivery newer than
+  the revoked notice re-approves (older notices ignored), a newer epoch's key outranks older-epoch rosters, rekey only
+  for events newer than the latest key with `have` = newest held `gk`. Events rejected only because the author isn't
+  in the roster yet aren't remembered, so they're judged again after the roster arrives. Dropped from the PoC engine:
+  the 24 h treatment window and the `via` tag (UI / engine concerns).
+- **Owner side** (`owner/`): `IdentityConflict.check` (A3: a newer roster without this device, under an epoch we
+  don't hold, or a newer backup with other epochs = another app publishing as this identity → `Conflict`; our own
+  echoes, our own rotation and late old events are `Fine`; the engine persists `OwnerMarks`), `RecoveryCode` (NIP-49
+  export log_n 18 / key_security 0x01; import of ncryptsec, nsec or hex for the first-run restore).
+- **Invites** (`invite/`): `InviteLink` parse / build, `Invites.create` / `open` (fingerprint, expiry, typed failure),
+  match code. **BLE** (`ble/`): UUIDs, framing, `Reassembler` and `RateLimit` (limits of B§4.3 / B§8), HELLO / INFO
+  messages, `HelloProof`.
+- **Fixtures**: `contracts/protocol/{identity,ogs}` vectors and `contracts/protocol/sync/*.json` (owner → follower
+  sequences and the owner-conflict cases, generated here with `-Psukrara.regen=true`, replayed by the Mac too).
 
 ## Contracts and tests
 

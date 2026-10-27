@@ -17,13 +17,19 @@ class NumberInput(
     private val reject: (Double) -> String? = { null },
 ) {
     /** The radio options: special values (sorted, e.g. 0 = "Off") first, then the presets. */
-    val options: List<Double> = (spec.special.keys.filter { k -> presets.none { it == k } }.sorted() + presets).distinct()
+    val options: List<Double> = (spec.special.keys.filter { k -> presets.none { same(it, k) } }.sorted() + presets).distinct()
 
     /** Whether the dialog shows a "Custom" choice with a number field. */
     val hasCustom: Boolean get() = spec.custom
 
     /** Whether [value] is one of the radio options (else "Custom" starts selected with [value] in the field). */
-    fun isOption(value: Double): Boolean = options.any { it == value }
+    fun isOption(value: Double): Boolean = options.any { same(it, value) }
+
+    /** Whether two stored values are the same option (doubles from storage never compare exactly). */
+    fun same(
+        a: Double,
+        b: Double,
+    ): Boolean = kotlin.math.abs(a - b) < EPS
 
     /** The text the field starts with for the current [value]. */
     fun initialText(value: Double): String = if (isOption(value)) "" else spec.text(value)

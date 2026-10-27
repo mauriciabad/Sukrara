@@ -70,4 +70,12 @@ class FreshnessFixtureTest {
             }
         assertTrue(fails.joinToString("\n"), fails.isEmpty())
     }
+
+    /** A new sensor's warm-up comes before any value, even with a reading (not in the shared fixture yet). */
+    @Test fun warmupWinsOverValue() {
+        val look = Freshness.look(sgv = 120, t = 0, rate = 1.0, nowS = 30, warmup = "42m")
+        assertEquals(GlucoseLook.State.WARMING_UP, look.state)
+        assertEquals(null, look.text)
+        assertEquals("42m", look.warmup)
+    }
 }

@@ -154,7 +154,7 @@ fun NumberDialog(
         text = {
             Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
                 for (p in input.options) {
-                    RadioRow(label(p), sub(p), !custom && p == selected, true) {
+                    RadioRow(label(p), sub(p), !custom && input.same(p, selected), true) {
                         haptics.confirm()
                         onChoose(p)
                         onClose()

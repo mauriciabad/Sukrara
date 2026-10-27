@@ -6,11 +6,14 @@ package app.mauri.sukrara.core.testing
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.SettingSpec
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.core.model.storage.TreatmentRecord
+import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -88,9 +91,45 @@ class InMemoryReadingsRepository : ReadingsRepository {
 
     override fun window(from: Instant): Flow<List<Reading>> = readings.map { all -> all.filter { it.t >= from } }
 
+    override fun latest(): Flow<Reading?> = readings.map { it.lastOrNull() }
+
+    override suspend fun range(
+        from: Instant,
+        to: Instant,
+    ): List<Reading> = readings.value.filter { it.t >= from && it.t < to }
+
     override suspend fun upsert(readings: List<Reading>) {
         this.readings.update { current ->
             (current + readings).associateBy { it.t to it.source }.values.sortedBy { it.t }
         }
     }
+
+    override suspend fun deleteBefore(cutoff: Instant): Int {
+        val before = readings.value.size
+        readings.update { all -> all.filter { it.t >= cutoff } }
+        return before - readings.value.size
+    }
+}
+
+class InMemoryTreatmentsRepository : TreatmentsRepository {
+    private val records = MutableStateFlow<Map<String, TreatmentRecord>>(emptyMap())
+
+    override fun between(
+        from: Instant,
+        to: Instant,
+    ): Flow<List<Treatment>> = records.map { all ->
+        all.values.map { it.treatment }.filter { !it.deleted && it.at >= from && it.at < to }.sortedBy { it.at }
+    }
+
+    override suspend fun get(id: String): TreatmentRecord? = records.value[id]
+
+    override suspend fun upsertIfNewer(record: TreatmentRecord): Boolean {
+        val stored = records.value[record.treatment.id]
+        if (stored != null && stored.treatment.modifiedAt >= record.treatment.modifiedAt) return false
+        records.update { it + (record.treatment.id to record) }
+        return true
+    }
+
+    override suspend fun changedSince(since: Instant): List<TreatmentRecord> =
+        records.value.values.filter { it.treatment.modifiedAt > since }.sortedBy { it.treatment.modifiedAt }
 }
