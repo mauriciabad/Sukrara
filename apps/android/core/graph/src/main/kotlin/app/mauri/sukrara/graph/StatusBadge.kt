@@ -30,12 +30,16 @@ object StatusBadge {
     /** Kind of the Mute all pill (neutral colour, the "notifications off" bell). */
     const val MUTED = "muted"
 
+    /** The pill for [s] at [now]; null for none, and for a mute that has already ended (never "0m left"). */
     fun look(
         s: CardStatus,
         now: Long,
         w: CardWords,
     ): Look? =
         when (s) {
+            is CardStatus.Taken if s.until <= now -> null
+            is CardStatus.Paused if s.until <= now -> null
+            is CardStatus.Muted if s.until <= now -> null
             CardStatus.None -> null
             is CardStatus.Needed ->
                 if (s.lowSide) Look("carbs", w.eatCarbs, w.carbsShort, false) else Look("rapid", w.takeInsulin, w.insulinShort, false)

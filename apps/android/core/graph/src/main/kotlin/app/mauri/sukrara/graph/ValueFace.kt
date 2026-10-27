@@ -155,7 +155,8 @@ internal class ValueFace(
         small: Paint,
     ) {
         val r = checkNotNull(model.latest)
-        val color = ink ?: motion?.color ?: if (fr.strike) pal.inkSoft else pal.at(bands, r.sgv)
+        // an old value is always grey: no surface ink or animation colour can make it look current
+        val color = if (fr.strike) pal.inkSoft else ink ?: motion?.color ?: pal.at(bands, r.sgv)
         rec.add(
             "value.color",
             info =
