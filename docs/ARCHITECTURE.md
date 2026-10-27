@@ -294,6 +294,24 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
 - **Fixtures**: `contracts/protocol/{identity,ogs}` vectors and `contracts/protocol/sync/*.json` (owner → follower
   sequences and the owner-conflict cases, generated here with `-Psukrara.regen=true`, replayed by the Mac too).
 
+## Android sharing, wearer side (`apps/android/share`)
+
+- `crypto/SdkNostrCrypto` — the `:core:protocol` `NostrCrypto` over `org.nostrdevkit:nostr-sdk` 0.45.1 (+ JNA AAR;
+  R8 keeps in `consumer-rules.pro`). Host tests run it on `nostr-sdk-jvm` and subclass `NostrCryptoContractTest`.
+- `transport/` — `RelayTransport` (inbound flow, per-relay status, subscribe / publish / fetch, `reconnectNow`) and
+  `RelayPool`, the Kotlin twin of the Mac `RelayPool`: one OkHttp WebSocket per relay (`OkHttpWebSockets`, wss only,
+  pings every 60 s), backoff 2 s → 5 min × jitter, subscriptions + a 1-hour outbox re-sent after reconnects (a newer
+  live / addressable event replaces the older), NIP-42 AUTH as the identity. nostr-sdk's Client isn't used: one relay
+  behaviour on both platforms, and the pool is unit-tested against fake sockets. Tests use `FakeRelayTransport`.
+- `owner/` — `OwnerState` (V1 typed state, `@Serializable`, redacted) in `OwnerIdentityStore` (SecureStore
+  `identity.owner`; unreadable ≠ missing). Use-cases in `owner/usecase` are pure `(state, input, now) → Step(state,
+  events)`: `CreateIdentity`, `RestoreIdentity` (+ `restoreAllowed` gate), `ExportRecovery`, `CreateInvite`,
+  `HandleInbox`, `ApproveRequest`, `DenyRequest`, `RemoveFollower`, `Rotate`, `PublishReadings`,
+  `IdentityConflictDetector`; control events (deliveries, notices, roster, backup) wait in `pendingControl` until a
+  relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
+  serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
+  builds it for `AppGraph`.
+
 ## Contracts and tests
 
 Both apps' tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;
