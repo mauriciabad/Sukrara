@@ -363,6 +363,12 @@ public struct FollowerSession: Sendable {
             if !delivery.devices.isEmpty { state.devices = delivery.devices }
             if !delivery.relays.isEmpty { state.relays = delivery.relays }
         }
+        // A newer epoch's key outranks every roster of older epochs (PoC FollowerEngine; sync/rotation.json): a late
+        // or refreshed roster from the replaced device can't bring its devices back before the new roster arrives.
+        if delivery.epoch > state.rosterEpoch {
+            state.rosterEpoch = delivery.epoch
+            state.rosterCreatedAt = -1
+        }
         var outcome = Outcome(.accepted("key"))
         if state.status != .revoked && state.status != .active {
             state.status = .active
