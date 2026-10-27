@@ -53,7 +53,7 @@ class SyncFixturesTest {
     private fun throwaway(seed: String) = crypto.keyPair(SecretKey.ofBytes(Hex.sha256(seed.toByteArray()))!!)!!
 
     private fun keyTo(epoch: Int, g: KeyPair, devices: List<KeyPair>) =
-        f.gift(i, fol.public, Rumor.KeyDelivery(v.sid, epoch, crypto.nsec(g.secret), devices.map { it.public.hex }, relays), now + Wire.TTL_KEY_DELIVERY)
+        f.gift(i, fol.public, Rumor.KeyDelivery(v.sid, epoch, crypto.nsec(g.secret), devices.map { it.public.hex }, relays), now - 200 + epoch, now + Wire.TTL_KEY_DELIVERY)
 
     private fun roster(epoch: Int, g: KeyPair, devices: List<KeyPair>, writers: List<KeyPair> = emptyList(), at: Long = now - 100) =
         f.roster(i, g.public, v.sid, RosterPayload(epoch, devices.map { it.public.hex }, writers.map { it.public.hex }, relays, null), at)

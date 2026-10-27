@@ -92,7 +92,7 @@ class InviteVectorsTest {
     @Test fun createdInvitesOpenWithTheirOwnLink() {
         val i = ogs.key("I")
         val secret = ByteArray(16) { it.toByte() }
-        val (link, wrap) = Invites.create(crypto, i, secret, ogs.now + 86_400, listOf("wss://nos.lol", "ws://bad"), Profile("Alex", null))
+        val (link, wrap) = Invites.create(crypto, i, secret, ogs.now, ogs.now + 86_400, listOf("wss://nos.lol", "ws://bad"), Profile("Alex", null))
         val opened = Invites.open(crypto, InviteLink.parse(link.link)!!, listOf(wrap), ogs.now) as Invites.Result.Opened
         assertEquals(listOf("wss://nos.lol"), opened.invite.relays)
         assertEquals("Alex", opened.invite.profile?.name)

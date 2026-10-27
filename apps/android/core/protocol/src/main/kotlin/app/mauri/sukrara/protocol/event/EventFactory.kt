@@ -64,9 +64,9 @@ class EventFactory(private val crypto: NostrCrypto) {
         return data(identity, Wire.KIND_DATA, identity.public, BackupCodec.encode(b), tags, createdAt)
     }
 
-    /** A gift-wrapped [rumor] from [sender] to [recipient] expiring at the absolute [expiration] (PROTOCOL-v2 TTLs). */
-    fun gift(sender: KeyPair, recipient: PublicKeyHex, rumor: Rumor, expiration: Long): SignedEvent =
-        crypto.giftWrap(sender, recipient, rumor.kind, RumorCodec.encode(rumor), expiration)
+    /** A gift-wrapped [rumor] from [sender] to [recipient], written [now], expiring at the absolute [expiration] (PROTOCOL-v2 TTLs). */
+    fun gift(sender: KeyPair, recipient: PublicKeyHex, rumor: Rumor, now: Long, expiration: Long): SignedEvent =
+        crypto.giftWrap(sender, recipient, rumor.kind, RumorCodec.encode(rumor), now, expiration)
 
     private fun data(signer: KeyPair, kind: Int, readKey: PublicKeyHex, plaintext: String, tags: List<List<String>>, createdAt: Long): SignedEvent =
         crypto.sign(signer, UnsignedEvent(kind, crypto.encrypt(signer.secret, readKey, plaintext), tags, createdAt))

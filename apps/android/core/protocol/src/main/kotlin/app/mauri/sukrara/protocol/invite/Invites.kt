@@ -72,10 +72,18 @@ object Invites {
      * The owner's side: a new link and the invite wrap to publish (sealed by [identity], addressed to the invite key,
      * expiring with the invite). [secret] = 16 random bytes from the caller's SecureRandom.
      */
-    fun create(crypto: NostrCrypto, identity: KeyPair, secret: ByteArray, expiry: Long, relays: List<String>, profile: Profile): Pair<InviteLink, SignedEvent> {
+    fun create(
+        crypto: NostrCrypto,
+        identity: KeyPair,
+        secret: ByteArray,
+        now: Long,
+        expiry: Long,
+        relays: List<String>,
+        profile: Profile,
+    ): Pair<InviteLink, SignedEvent> {
         val link = InviteLink.of(identity.public, secret)
         val recipient = crypto.keyPair(Derive.inviteKey(secret))!!.public
-        val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), expiry)
+        val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), now, expiry)
         return link to wrap
     }
 

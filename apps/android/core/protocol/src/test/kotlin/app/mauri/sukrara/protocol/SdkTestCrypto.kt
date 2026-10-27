@@ -49,9 +49,11 @@ class SdkTestCrypto : NostrCrypto {
     override fun decrypt(recipient: SecretKey, sender: PublicKeyHex, payload: String): String? =
         runCatching { nip44Decrypt(SdkSecretKey.parse(recipient.revealHex()), PublicKey.parse(sender.hex), payload) }.getOrNull()
 
-    override fun giftWrap(sender: KeyPair, recipient: PublicKeyHex, rumorKind: Int, rumorContent: String, expiration: Long): SignedEvent =
+    override fun giftWrap(sender: KeyPair, recipient: PublicKeyHex, rumorKind: Int, rumorContent: String, rumorCreatedAt: Long, expiration: Long): SignedEvent =
         keys(sender.secret).use { k ->
-            val rumor = EventBuilder(Kind(rumorKind.toUShort()), rumorContent).finalizeUnsigned(k.publicKey())
+            val rumor = EventBuilder(Kind(rumorKind.toUShort()), rumorContent)
+                .customCreatedAt(Timestamp.fromSecs(rumorCreatedAt.toULong()))
+                .finalizeUnsigned(k.publicKey())
             val wrap = nip59MakeGiftWrap(k, PublicKey.parse(recipient.hex), rumor, null, listOf(Tag.parse(listOf("expiration", expiration.toString()))))
             SignedEvent.parse(wrap.asJson())!!
         }

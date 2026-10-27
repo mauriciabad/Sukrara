@@ -59,6 +59,9 @@ data class FollowerState(
     /** Event id → expiration (or created_at + 31 d when it has none), pruned once passed. */
     val seen: Map<String, Long> = emptyMap(),
     val rekeyAt: Map<String, Long> = emptyMap(),
+    /** Rumor `created_at` of the newest key delivery / revoked notice: a re-approval after a revoke wins by time. */
+    val lastKeyAt: Long = 0,
+    val revokedAt: Long = 0,
 ) {
     override fun toString() = "FollowerState(status=$status, epochs=${epochs.values.map { it.n }}, devices=${devices.size})"
 }
@@ -180,14 +183,20 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         }
     }
 
-    /** Readable later once the key arrives, so not marked seen; a rekey only for I or a roster device, throttled. */
+    /**
+     * Readable later once the key arrives, so not marked seen. A rekey request only for an event signed by I or a roster
+     * device that is newer than our latest key (a backfill of old hours isn't a missed rotation), ≤ 1 per `gk` per
+     * 5 min. Its `have` names the newest epoch we hold, as the PoC sends it.
+     */
     private fun unknownEpoch(ev: SignedEvent, gk: String, now: Long): FollowResult {
         state = state.copy(seen = state.seen - ev.id)
         val s = state
         val trusted = ev.pubkey == s.identity?.hex || ev.pubkey in s.devices
-        if (s.status == FollowStatus.Active && trusted && now - (s.rekeyAt[gk] ?: Long.MIN_VALUE / 2) >= Wire.REKEY_THROTTLE) {
+        val throttled = now - (s.rekeyAt[gk] ?: Long.MIN_VALUE / 2) < Wire.REKEY_THROTTLE
+        if (s.status == FollowStatus.Active && trusted && ev.createdAt > s.lastKeyAt && !throttled) {
             state = s.copy(rekeyAt = s.rekeyAt + (gk to now))
-            return FollowResult.Ignored("unknown-epoch", Rumor.Rekey(gk))
+            val have = s.epochs.maxByOrNull { it.value.n }?.key.orEmpty()
+            return FollowResult.Ignored("unknown-epoch", Rumor.Rekey(have))
         }
         return FollowResult.Ignored("unknown-epoch")
     }
@@ -287,10 +296,14 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         val u = crypto.unwrap(s.follower.secret, ev) ?: return FollowResult.Rejected("unwrap")
         if (u.kind != Wire.KIND_TO_FOLLOWER || u.sender != s.identity) return FollowResult.Rejected("wrap-not-from-identity")
         return when (val rumor = RumorCodec.decode(u.kind, u.content)) {
-            is Rumor.KeyDelivery -> onKey(rumor)
-            Rumor.Revoked -> {
-                state = s.copy(status = FollowStatus.Revoked)
-                FollowResult.Accepted(Item.Revoked)
+            is Rumor.KeyDelivery -> onKey(rumor, u.createdAt)
+            Rumor.Revoked -> when {
+                u.createdAt < s.lastKeyAt -> FollowResult.Ignored("revoked-before-latest-key")
+                s.status == FollowStatus.Revoked -> FollowResult.Ignored("revoked-already")
+                else -> {
+                    state = s.copy(status = FollowStatus.Revoked, revokedAt = u.createdAt)
+                    FollowResult.Accepted(Item.Revoked)
+                }
             }
             Rumor.InviteUsed, Rumor.Declined -> {
                 val item = if (rumor == Rumor.InviteUsed) Item.InviteUsed else Item.Declined
@@ -302,13 +315,23 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         }
     }
 
-    private fun onKey(k: Rumor.KeyDelivery): FollowResult {
+    /**
+     * A key delivery sealed by I. A delivery newer than the revoked notice re-approves a removed follower (the wearer
+     * invited it again), as in the PoC; otherwise a revoked follower stays revoked.
+     */
+    private fun onKey(k: Rumor.KeyDelivery, sentAt: Long): FollowResult {
         val s = state
         if (s.sid != null && k.sid != s.sid) return FollowResult.Rejected("sid-changed")
         val secret: SecretKey = crypto.parseNsec(k.readKeyNsec) ?: throw InvalidPayload("bad read key")
         val key = crypto.keyPair(secret) ?: throw InvalidPayload("bad read key")
         val gk = Wire.gk(key.public)
-        if (gk in s.epochs) return FollowResult.Ignored("key-known")
+        val lastKeyAt = maxOf(s.lastKeyAt, sentAt)
+        val status = if (s.status == FollowStatus.Revoked && s.revokedAt >= lastKeyAt) FollowStatus.Revoked else FollowStatus.Active
+        if (gk in s.epochs) {
+            if (s.status != FollowStatus.Revoked || status == FollowStatus.Revoked) return FollowResult.Ignored("key-known")
+            state = s.copy(status = status, lastKeyAt = lastKeyAt)
+            return FollowResult.Accepted(Item.Key(k.epoch))
+        }
         val newest = s.epochs.values.maxOfOrNull { it.n } ?: 0
         val latest = k.epoch >= newest
         state = s.copy(
@@ -316,7 +339,8 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
             epochs = s.epochs + (gk to Epoch(k.epoch, key)),
             devices = if (latest && k.devices.isNotEmpty()) k.devices else s.devices,
             relays = if (latest && k.relays.isNotEmpty()) k.relays else s.relays,
-            status = if (s.status == FollowStatus.Revoked) FollowStatus.Revoked else FollowStatus.Active,
+            status = status,
+            lastKeyAt = lastKeyAt,
         )
         return FollowResult.Accepted(Item.Key(k.epoch))
     }

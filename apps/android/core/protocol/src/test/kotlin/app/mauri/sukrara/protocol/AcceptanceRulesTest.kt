@@ -96,22 +96,37 @@ class AcceptanceRulesTest {
         val m = joined()
         val g3 = crypto.generate()
         val live = { at: Long -> factory.live(d, g3.public, LivePayload(WireReading(at, 120, null), null), at) }
-        val first = m.feed(live(v.now), v.now) as FollowResult.Ignored
-        assertEquals(Rumor.Rekey(Wire.gk(g3.public)), first.rekey)
-        assertNull((m.feed(live(v.now + 1), v.now + 60) as FollowResult.Ignored).rekey)
-        assertNotNull((m.feed(live(v.now + 2), v.now + 301) as FollowResult.Ignored).rekey)
-        val stranger = factory.live(v.key("X"), crypto.generate().public, LivePayload(WireReading(v.now, 120, null), null), v.now)
+        // older than the key we hold: a backfill, not a missed rotation
+        assertNull((m.feed(live(v.now - 60), v.now) as FollowResult.Ignored).rekey)
+        val first = m.feed(live(v.now + 10), v.now + 10) as FollowResult.Ignored
+        assertEquals(Rumor.Rekey(Wire.gk(g1.public)), first.rekey)
+        assertNull((m.feed(live(v.now + 11), v.now + 60) as FollowResult.Ignored).rekey)
+        assertNotNull((m.feed(live(v.now + 12), v.now + 311) as FollowResult.Ignored).rekey)
+        val stranger = factory.live(v.key("X"), crypto.generate().public, LivePayload(WireReading(v.now + 20, 120, null), null), v.now + 20)
         assertNull((m.feed(stranger, v.now + 400) as FollowResult.Ignored).rekey)
+    }
+
+    @Test fun aKeyNewerThanTheRevokeReApprovesAndAnOldRevokeIsIgnored() {
+        val f = v.key("F").public
+        val m = joined()
+        val key = { at: Long -> factory.gift(i, f, Rumor.KeyDelivery(v.sid, 1, crypto.nsec(g1.secret), listOf(d.public.hex), emptyList()), at, at + Wire.TTL_KEY_DELIVERY) }
+        assertEquals("ignored:revoked-before-latest-key", m.feed(factory.gift(i, f, Rumor.Revoked, v.now - 10, v.now + 600), v.now).code)
+        assertEquals("accepted:revoked", m.feed(factory.gift(i, f, Rumor.Revoked, v.now + 10, v.now + 600), v.now + 10).code)
+        assertEquals("ignored:revoked", m.feed(v.events.getValue("live"), v.now + 10).code)
+        assertEquals("ignored:key-known", m.feed(key(v.now + 5), v.now + 20).code)
+        assertEquals(FollowStatus.Revoked, m.follower.state.status)
+        assertEquals("accepted:key", m.feed(key(v.now + 30), v.now + 30).code)
+        assertEquals(FollowStatus.Active, m.follower.state.status)
     }
 
     @Test fun inviteUsedAndDeclinedOnlyWhileRequested() {
         val f = v.key("F").public
         val m = model()
-        assertEquals("ignored:declined", m.feed(factory.gift(i, f, Rumor.Declined, v.now + 600), v.now).code)
+        assertEquals("ignored:declined", m.feed(factory.gift(i, f, Rumor.Declined, v.now, v.now + 600), v.now).code)
         m.follower.requested()
-        assertEquals("accepted:invite-used", m.feed(factory.gift(i, f, Rumor.InviteUsed, v.now + 600), v.now).code)
+        assertEquals("accepted:invite-used", m.feed(factory.gift(i, f, Rumor.InviteUsed, v.now, v.now + 600), v.now).code)
         assertEquals(FollowStatus.InviteUsed, m.follower.state.status)
-        val forged = factory.gift(v.key("X"), f, Rumor.Revoked, v.now + 600)
+        val forged = factory.gift(v.key("X"), f, Rumor.Revoked, v.now, v.now + 600)
         assertEquals("rejected:wrap-not-from-identity", m.feed(forged, v.now).code)
     }
 
