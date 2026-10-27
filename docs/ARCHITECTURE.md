@@ -64,6 +64,13 @@ applies them.
 ### Card, widgets and UI
 <!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
 
+**Widgets: `:widgets`** (Glance). `WidgetsModule` (one line in `AppGraph`; the `Application` is its `WidgetsHost`)
+combines the hub's state, treatments, `GraphConfig`, per-placement `WidgetOverrides` and monitor's freshness ticks in
+`WidgetUpdater`, which publishes a `WidgetFrame` and calls `GlanceAppWidget.update` per placed id when the draw key
+changes (screen on only). Each `CardWidget` composes that frame at `LocalSize` through `renderWidget` →
+`GlucoseCard.draw` with `widgetCardStyle` (in `:core:graph`, shared with `CardLayoutTest`) and `cardModelOf`
+(`GlucoseState` → `CardModel`).
+
 **The one card renderer: `:core:graph`** (package `app.mauri.sukrara.graph`, flat so `tools/check` card-api matches
 the `api` names in `contracts/graph/surfaces/surfaces.json`).
 

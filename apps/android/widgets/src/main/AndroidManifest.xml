@@ -2,4 +2,55 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Exported without a permission on purpose: the launcher (any home app) sends the widget broadcasts and
+             opens the settings screen; they only redraw / edit this placement and show nothing beyond the widget. -->
+        <receiver
+            android:name="app.mauri.sukrara.widgets.ValueWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_value_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_value_info" />
+        </receiver>
+        <receiver
+            android:name="app.mauri.sukrara.widgets.GraphWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_graph_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_graph_info" />
+        </receiver>
+        <receiver
+            android:name="app.mauri.sukrara.widgets.CombinedWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_combined_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_combined_info" />
+        </receiver>
+        <activity
+            android:name="app.mauri.sukrara.widgets.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/widget_config_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <!-- requestPinAppWidget's success callback (explicit PendingIntent from this app) -->
+        <receiver
+            android:name="app.mauri.sukrara.widgets.WidgetPresence$PinnedReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

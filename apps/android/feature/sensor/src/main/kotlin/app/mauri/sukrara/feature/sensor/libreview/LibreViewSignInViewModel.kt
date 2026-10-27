@@ -21,9 +21,12 @@ interface LibreViewPort {
     suspend fun signOut()
 }
 
-enum class SignInError { WrongPassword, AcceptTerms, Offline }
+enum class SignInError { WrongPassword, AcceptTerms, Failed }
 
 sealed interface SignInUi {
+    /** The saved account is being read (no form flashes for a signed-in person). */
+    data object Loading : SignInUi
+
     data class SignedOut(val error: SignInError? = null) : SignInUi
 
     data object Working : SignInUi
@@ -36,7 +39,7 @@ sealed interface SignInUi {
  * call; nothing is uploaded. Signing out keeps a running sensor going; the next start needs a sign-in again.
  */
 class LibreViewSignInViewModel(private val port: LibreViewPort) : ViewModel() {
-    private val _ui = MutableStateFlow<SignInUi>(SignInUi.SignedOut())
+    private val _ui = MutableStateFlow<SignInUi>(SignInUi.Loading)
     val ui: StateFlow<SignInUi> = _ui.asStateFlow()
 
     init {
@@ -57,7 +60,8 @@ class LibreViewSignInViewModel(private val port: LibreViewPort) : ViewModel() {
                 is SignInResult.SignedIn -> SignInUi.SignedIn(email.trim())
                 SignInResult.BadCredentials -> SignInUi.SignedOut(SignInError.WrongPassword)
                 SignInResult.AcceptTerms -> SignInUi.SignedOut(SignInError.AcceptTerms)
-                is SignInResult.Failed -> SignInUi.SignedOut(SignInError.Offline)
+                // offline, a server error, an answer it can't read: "couldn't sign in", never a guess at why
+                is SignInResult.Failed -> SignInUi.SignedOut(SignInError.Failed)
             }
         }
     }
