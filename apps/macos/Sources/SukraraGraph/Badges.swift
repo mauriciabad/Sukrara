@@ -4,6 +4,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import SukraraCore
 
 // MARK: - Status badge and last-treatment slot (CardStatus.kt)
 
@@ -45,17 +46,18 @@ enum StatusBadge {
         }
     }
 
-    /// For screen readers (the mute lines are MuteCopy's: "Low alerts muted · 12 min left").
-    static func describe(_ s: AlertStatus, now: TimeInterval) -> String? {
+    /// For screen readers, in `w`'s language (the mute lines read like MuteCopy's: "Low alerts muted · 12 min left").
+    static func describe(_ s: AlertStatus, now: TimeInterval, words w: CardWords) -> String? {
+        func left(_ until: TimeInterval) -> String { Durations.text(BadgeCopy.leftMin(until - now)) }
         switch s.current(at: now) {
-        case .none: nil
-        case .needed: look(s, now: now)?.text
+        case .none: return nil
+        case .needed(let k): return k == .low ? w.eatCarbs : w.takeInsulin
         // only Mute all has no end
-        case .paused(_, let until) where until >= AlertStatus.never: BadgeCopy.allForever
-        case .paused(let k, let until): BadgeCopy.sideMuted(k, leftMin: BadgeCopy.leftMin(until - now))
-        case .taken(let k, let tr, let until):
-            BadgeCopy.sideAfter(k, treatment: tr.k, leftMin: BadgeCopy.leftMin(until - now))
-        case .muted(let until): BadgeCopy.allLine(until: until, now: now) ?? BadgeCopy.allForever
+        case .paused(_, let until) where until >= AlertStatus.never: return w.mutedForever
+        case .paused(let k, let until): return w.sideMuted(k == .low, left(until))
+        case .taken(let k, let tr, let until): return w.sideAfter(k == .low, tr.k == "carbs", left(until))
+        case .muted(let until):
+            return until > now && until < AlertStatus.never ? w.mutedLeft(left(until)) : w.mutedForever
         }
     }
 

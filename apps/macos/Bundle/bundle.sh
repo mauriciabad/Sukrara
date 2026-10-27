@@ -90,6 +90,10 @@ rm -rf "$APP" "$OUT/entitlements"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Sounds" "$APPEX/Contents/MacOS" "$OUT/entitlements"
 cp "$BIN/Sukrara" "$APP/Contents/MacOS/Sukrara"
 cp "$BIN/SukraraWidget" "$APPEX/Contents/MacOS/SukraraWidget"
+# SwiftPM resource bundles (the windows' String Catalog): a release `Bundle.module` looks only in Contents/Resources
+# and traps when the bundle is missing, so a missing copy is a crash on the first localized text.
+[ -d "$BIN/Sukrara_SukraraApp.bundle" ] || die "no Sukrara_SukraraApp.bundle in $BIN"
+cp -R "$BIN/Sukrara_SukraraApp.bundle" "$APP/Contents/Resources/"
 [ -n "$ICON" ] && cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
 [ -n "$SOUNDS" ] && cp "$SOUNDS"/*.caf "$APP/Contents/Resources/Sounds/" 2>/dev/null || true
 

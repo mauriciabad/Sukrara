@@ -87,6 +87,12 @@ data class OwnerState(
     val recoveryExportedAt: Long = 0,
     val conflict: ConflictRecord? = null,
     val pendingControl: List<PendingControl> = emptyList(),
+    /** When the whole treatment log (last 30 days) went out last (republished at least weekly: 30-day expiry). */
+    val treatmentsPublishedAt: Long = 0,
+    /** The mirrored settings last published (PROTOCOL-v2 §Settings): their content, its `u` and the event's `created_at`. */
+    val settingsJson: String? = null,
+    val settingsU: Long = 0,
+    val settingsPublishedAt: Long = 0,
 ) {
     val current: EpochKey get() = epochs.maxBy { it.n }
 
