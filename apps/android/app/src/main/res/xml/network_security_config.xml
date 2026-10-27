@@ -3,11 +3,14 @@
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
-  Cleartext is permitted app-wide because Android can't list IP ranges here, and two validated uses need it:
-  Juggluco's web server on 127.0.0.1 and a Nightscout site on the home network. The one client that may use http://
-  decides (the Nightscout site parser lets http:// through only for loopback, RFC 1918, link-local, unique-local and
-  .local hosts); every other client builds https:// / wss:// URLs only. tools/check/allow.json lists each use.
+  Cleartext only to this phone: Juggluco's web server listens on 127.0.0.1:17580. Every other client builds
+  https:// / wss:// URLs, and the platform refuses any http:// that slips through. A future home-network Nightscout
+  client widens this here, with its tools/check/allow.json entry (tools/check/allow.json lists each cleartext use).
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
 </network-security-config>

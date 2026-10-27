@@ -260,6 +260,20 @@ for every assertion). Keep the mapping (`apps/android/app/build/outputs/mapping/
 release: crash stack traces from the owner's phone are unreadable without it. Keep-rule fixes go to the owning
 module's `consumer-rules.pro` (the module that uses the reflective / JNI library), never to a blanket `-keep`.
 
+### Cutting a V1 release
+
+On `main` (clean, pushed), with `tools/check/v1-complete` committed: `tools/release/android-release.sh` (signed APK →
+`apps/android/app/build/dist/Sukrara-<version>.apk`, verified; the R8 mapping is archived in
+`~/.android/sukrara-mappings/`, not uploaded, because About lists every non-APK asset as a download) and
+`tools/release/mac-release.sh` (bundle → `verify-app.sh` → dmg + zip in `apps/macos/build/`). Then tag `v<version>`
+on `main` and `gh release create v<version> --verify-tag --prerelease --latest=false` with the three files while the
+version is 0.x (`Sukrara-<version>.apk`, `Sukrara-<version>.dmg`, `Sukrara-mac-<version>.zip`). A prerelease never
+bumps the Homebrew cask (`homebrew-tap.yml` skips it, also when dispatched by hand) and never becomes *Latest*, so
+the showcase's update check (`/releases/latest`) doesn't offer it. **0.90.x is not notarized**: there is no Developer
+ID identity or notarytool profile on the release Mac (checked 2026-10-27), so the dmg is Apple Development signed and
+the first open needs *Open Anyway* (README › Install). `NOTARY_PROFILE` in `bundle.sh` / `dmg.sh` / `mac-release.sh`
+takes over once a Developer ID exists.
+
 ### Alternatives to Play
 
 | Channel | Fit | Requirements / notes |
