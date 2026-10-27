@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.testing.Contracts
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -20,7 +21,7 @@ import org.junit.Test
  * resources and are checked against the same file by chunk 11's Robolectric test.
  */
 class MuteCopyTest {
-    private val cases = Json.parseToJsonElement(TestContracts.file("alerts/copy.json").readText()).jsonObject["cases"]!!.jsonArray
+    private val cases = Json.parseToJsonElement(Contracts.file("alerts/copy.json").readText()).jsonObject["cases"]!!.jsonArray
 
     private fun side(c: JsonObject) = Side.entries.single { it.wire == c["side"]!!.jsonPrimitive.content }
 

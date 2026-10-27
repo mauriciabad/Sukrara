@@ -12,8 +12,8 @@ data class MirrorMemory(
     val muteAllUntil: Long = 0,
     /** group → when and which kind this device last showed (Remind less spaces the wearer's repeats). */
     val lastShown: Map<AlertGroup, ShownAt> = emptyMap(),
-    /** group → id of the wearer's firing whose notification is up here. */
-    val shown: Map<AlertGroup, String> = emptyMap(),
+    /** group → the wearer's firing whose notification is up here. */
+    val shown: Map<AlertGroup, Firing> = emptyMap(),
     /** group → the wearer's newest firing, shown here or not. */
     val newest: Map<AlertGroup, Firing> = emptyMap(),
     /** groups whose newest firing the wearer cleared. */
@@ -29,7 +29,8 @@ data class ShownAt(val at: Long, val kind: AlertKind)
  * *Mute* drops the side's alerts while it lasts, *Mute all* every alert; *Remind less* shows a repeat only once
  * `relaxMin` has passed since the last one shown here (a more severe kind always shows). They end at their time or
  * once back by the margin on the readings this device gets ([reading]). The ways out show the wearer's newest firing
- * at once if the wearer still has it up.
+ * at once if the wearer still has it up. Every action is scoped to its **side**: low and high share the level group
+ * (one notification), so a high's Mute never hides a showing low and a high's Unmute never re-shows a low.
  */
 class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
     private val snoozes = memory.snoozes.toMutableMap()
@@ -55,22 +56,22 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
             lk.side == side && f.kind.severity <= lk.severity && f.at - t < sn.relaxMin * 60L
         } == true
         if (muted || relaxed) return false
-        shown[group] = f.id
+        shown[group] = f
         lastShown[group] = ShownAt(f.at, f.kind)
         return true
     }
 
     /**
-     * The wearer cleared firing [id] of [kind]'s group: true = the notification shown here goes (the one shown, or —
-     * when this device skipped a relaxed repeat — the wearer's newest). A late clear of an older firing changes nothing.
+     * The wearer cleared firing [id] of [kind]'s group: the notification shown here that goes (the one shown, or —
+     * when this device skipped a relaxed repeat — the earlier one still up), or null. A late clear of an older firing
+     * changes nothing.
      */
-    fun clear(kind: AlertKind, id: String): Boolean {
+    fun clear(kind: AlertKind, id: String): Firing? {
         val g = kind.group
         if (newest[g]?.id == id) newestCleared += g
-        val cur = shown[g] ?: return false
-        if (cur != id && newest[g]?.id != id) return false
-        shown.remove(g)
-        return true
+        val cur = shown[g] ?: return null
+        if (cur.id != id && newest[g]?.id != id) return null
+        return shown.remove(g)
     }
 
     /** A reading this device got at [now] (null = none recent): sides whose Mute / Remind less end by the margin. */
@@ -96,10 +97,10 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
         return out
     }
 
-    /** *Mute* [kind]'s side until [until]: the firing that was showing (it goes), or null. */
+    /** *Mute* [kind]'s side until [until]: the firing of that side that was showing (it goes), or null. */
     fun mute(kind: AlertKind, until: Long): Firing? {
         snoozes[kind.side] = (snoozes[kind.side] ?: Snooze()).copy(until = until, backSince = 0)
-        return takeShown(kind.group)
+        return shown[kind.group]?.takeIf { it.kind.side == kind.side }?.let { shown.remove(kind.group) }
     }
 
     fun relax(kind: AlertKind, relaxMin: Int) {
@@ -109,11 +110,11 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
     /** *Mute all* until [until]: the firings that were showing (they go). */
     fun muteAll(until: Long): List<Firing> {
         muteAllUntil = until
-        return shown.keys.toList().mapNotNull(::takeShown)
+        return hideAll()
     }
 
     /** Alerts turned off on this device: the firings showing here go (the wearer's state is kept). */
-    fun hideAll(): List<Firing> = shown.keys.toList().mapNotNull(::takeShown)
+    fun hideAll(): List<Firing> = shown.values.toList().also { shown.clear() }
 
     fun showing(group: AlertGroup): Boolean = group in shown
 
@@ -122,7 +123,7 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
         val sn = snoozes[kind.side] ?: return null
         if (sn.until <= now) return null
         putSnooze(kind.side, sn.copy(until = 0))
-        return if (muteAllUntil > now) null else again(kind.group, now)
+        return if (muteAllUntil > now) null else again(kind.side, now)
     }
 
     /** *Remind as usual*: like [unmute], a skipped repeat still up shows at once. */
@@ -130,17 +131,14 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
         val sn = snoozes[kind.side] ?: return null
         if (sn.relaxMin == 0) return null
         putSnooze(kind.side, sn.copy(relaxMin = 0))
-        return if (sn.until > now || muteAllUntil > now) null else again(kind.group, now)
+        return if (sn.until > now || muteAllUntil > now) null else again(kind.side, now)
     }
 
     /** *Unmute* (Mute all): the wearer's newest firings still up and not muted otherwise, to show at once. */
     fun unmuteAll(now: Long): List<Firing> {
         if (muteAllUntil <= now) return emptyList()
         muteAllUntil = 0
-        return newest.keys.toList().mapNotNull { g ->
-            val k = newest.getValue(g).kind
-            if ((snoozes[k.side]?.until ?: 0) > now) null else again(g, now)
-        }
+        return newest.values.toList().mapNotNull { f -> if ((snoozes[f.kind.side]?.until ?: 0) > now) null else again(f.kind.side, now) }
     }
 
     /** Mute all's time is over at [now] (the timer): like [unmuteAll]; nothing while it lasts or when off. */
@@ -159,19 +157,23 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
 
     fun relaxed(kind: AlertKind): Boolean = (snoozes[kind.side]?.relaxMin ?: 0) > 0
 
-    private fun takeShown(g: AlertGroup): Firing? {
-        shown.remove(g) ?: return null
-        return newest[g]
+    /** The clock was set back by [delta] seconds: every time kept here moves with it, so mutes keep their length. */
+    fun shiftBack(delta: Long) {
+        snoozes.replaceAll { _, sn -> sn.copy(until = sn.until.shiftedBack(delta), backSince = sn.backSince.shiftedBack(delta)) }
+        muteAllUntil = muteAllUntil.shiftedBack(delta)
+        lastShown.replaceAll { _, sa -> sa.copy(at = sa.at - delta) }
     }
 
     private fun putSnooze(side: Side, sn: Snooze) {
         if (sn.isEmpty) snoozes.remove(side) else snoozes[side] = sn
     }
 
-    private fun again(g: AlertGroup, now: Long): Firing? {
-        val f = newest[g] ?: return null
-        if (g in newestCleared || shown[g] == f.id) return null
-        shown[g] = f.id
+    /** The wearer's newest firing of [side]'s group, if it is of [side], still up and not showing here: it shows now. */
+    private fun again(side: Side, now: Long): Firing? {
+        val g = side.mainKind.group
+        val f = newest[g]?.takeIf { it.kind.side == side } ?: return null
+        if (g in newestCleared || shown[g]?.id == f.id) return null
+        shown[g] = f
         lastShown[g] = ShownAt(now, f.kind)
         return f
     }

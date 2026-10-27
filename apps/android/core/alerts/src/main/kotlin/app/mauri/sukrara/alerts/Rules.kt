@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
  * Double on purpose: the falling-high prediction `mgdl + rate × min` must match the Mac and the scenarios exactly.
  */
 @Serializable
-data class AlertReading(val t: Long, val mgdl: Int, val rate: Double? = null)
+data class AlertReading(val t: Long, val mgdl: Int, val rate: Double? = null) {
+    /** This reading, dated no later than [now]. */
+    fun notAfter(now: Long): AlertReading = if (t > now) copy(t = now) else this
+}
 
 /** Times (epoch s) of the logged, not deleted, carbs and rapid insulin: the treatment quiet rules (SPEC §2). */
 data class Doses(val carbs: List<Long> = emptyList(), val rapid: List<Long> = emptyList()) {
@@ -41,6 +44,9 @@ data class SensorWindow(val startEpoch: Long, val endEpoch: Long, val warmupEndE
     }
 }
 
+/** This time moved back by [delta] (a clock set back); 0 = none and [Rules.NEVER] stay. */
+internal fun Long.shiftedBack(delta: Long): Long = if (this <= 0 || this == Long.MAX_VALUE) this else this - delta
+
 /** The pure predicates shared by [AlertEngine], [WearerMirror] and [AlertStatus]. */
 object Rules {
     /** Readings older than this never alert (backfill, a late chunk). */
@@ -51,6 +57,9 @@ object Rules {
 
     /** A *Mute all* without an end: until the user turns alerts back on. */
     const val NEVER = Long.MAX_VALUE
+
+    /** A backward clock jump smaller than this (NTP corrections) is ignored. */
+    const val CLOCK_BACK_TOLERANCE_S = 60L
 
     fun fresh(r: AlertReading?, now: Long): Boolean = r != null && now - r.t <= FRESH_S
 

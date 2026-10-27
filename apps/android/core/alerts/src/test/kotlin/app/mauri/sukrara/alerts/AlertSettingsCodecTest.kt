@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.testing.Contracts
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonArray
@@ -15,7 +16,7 @@ import org.junit.Test
 
 class AlertSettingsCodecTest {
     /** The JSON block of contracts/alerts/SPEC.md §3: the defaults, written by hand in the spec. */
-    private val specJson: String = TestContracts.file("alerts/SPEC.md").readText()
+    private val specJson: String = Contracts.file("alerts/SPEC.md").readText()
         .substringAfter("## 3. Settings").substringAfter("```json").substringBefore("```")
 
     @Test fun defaultsAreTheSpecsDefaults() {
@@ -66,7 +67,7 @@ class AlertSettingsCodecTest {
     }
 
     @Test fun limitsMatchTheSettingsSchema() {
-        val numbers = Json.parseToJsonElement(TestContracts.file("settings/settings.json").readText()).jsonObject["numbers"]!!.jsonObject
+        val numbers = Json.parseToJsonElement(Contracts.file("settings/settings.json").readText()).jsonObject["numbers"]!!.jsonObject
         for ((name, limit) in AlertLimits.BY_SCHEMA_NAME) {
             val n = numbers[name]?.jsonObject ?: error("$name missing in settings.json")
             assertEquals(name, n["min"]!!.jsonPrimitive.double, limit.min, 1e-9)

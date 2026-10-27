@@ -135,10 +135,25 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
     /** The open episodes (a read-only copy, for [AlertUiState]). */
     fun episodes(): Map<AlertGroup, Episode> = episodes.mapValues { it.value.copy() }
 
-    /** A new reading (an older one than [last] only re-evaluates), then [evaluate]. */
+    /**
+     * A new reading (an older one than [last] only re-evaluates), then [evaluate]. A reading dated after [now] (a
+     * sensor or phone clock ahead) counts as taken now: otherwise it would hide every reading until the clock caught up.
+     */
     fun reading(r: AlertReading, s: AlertSettings, d: Doses, now: Long): List<RuleAction> {
-        seed(r)
+        seed(r.notAfter(now))
         return evaluate(s, d, now)
+    }
+
+    /**
+     * The clock was set back by [delta] seconds: every time this engine keeps moves back with it, so a repeat, a
+     * window, a Mute or Mute all stays as far away as it was, the last reading keeps its age, and nothing goes quiet
+     * for the length of the jump (a forward jump needs nothing: what came due alerts at once).
+     */
+    fun shiftBack(delta: Long) {
+        episodes.values.forEach { it.shiftBack(delta) }
+        snoozes.replaceAll { _, sn -> sn.copy(until = sn.until.shiftedBack(delta), backSince = sn.backSince.shiftedBack(delta)) }
+        muteAllUntil = muteAllUntil.shiftedBack(delta)
+        last = last?.let { it.copy(t = it.t - delta) }
     }
 
     /** Re-check everything against the newest reading at [now]: no data, repeats, windows ending, the margin. */

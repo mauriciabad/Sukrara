@@ -72,6 +72,7 @@ class AlertMachine(
     private val local = AlertEngine(newId)
     private val shared = if (role == AlertRole.WEARER) AlertEngine(newId) else null
     private var mirror = if (role == AlertRole.FOLLOWER_MIRROR) WearerMirror() else null
+    private var lastNow = 0L
 
     /** The rules [local] runs: a mirroring follower checks only `no_data` itself. */
     private val localSettings: AlertSettings
@@ -94,8 +95,10 @@ class AlertMachine(
         val shown = state?.let { local.restore(it.local, localSettings, now) }.orEmpty()
         state?.shared?.let { shared?.restore(it, settings, now) }
         state?.mirror?.let { if (role == AlertRole.FOLLOWER_MIRROR) mirror = WearerMirror(it) }
-        local.seed(seed)
-        shared?.seed(seed)
+        lastNow = state?.lastNow ?: 0
+        observe(now) // a clock set back while the process was down
+        local.seed(seed?.notAfter(now))
+        shared?.seed(seed?.notAfter(now))
         // what came due while the process was down (no data, a repeat, a mute's end) alerts now; stale readings can't
         return shown.map { AlertEffect.Fire(it, silent = true) } + reevaluate(now) + schedule(now)
     }
@@ -110,9 +113,22 @@ class AlertMachine(
         )
     }
 
-    fun snapshot(): AlertState = AlertState(role = role, local = local.snapshot(), shared = shared?.snapshot(), mirror = mirror?.snapshot())
+    fun snapshot(): AlertState =
+        AlertState(role = role, local = local.snapshot(), shared = shared?.snapshot(), mirror = mirror?.snapshot(), lastNow = lastNow)
+
+    /** Notes [now]; a clock set back (beyond NTP noise) moves every kept time back with it ([AlertEngine.shiftBack]). */
+    private fun observe(now: Long) {
+        val delta = lastNow - now
+        if (delta > Rules.CLOCK_BACK_TOLERANCE_S) {
+            local.shiftBack(delta)
+            shared?.shiftBack(delta)
+            mirror?.shiftBack(delta)
+        }
+        if (delta > Rules.CLOCK_BACK_TOLERANCE_S || now > lastNow) lastNow = now
+    }
 
     fun handle(input: AlertInput, now: Long): List<AlertEffect> {
+        observe(now)
         val out = mutableListOf<AlertEffect>()
         when (input) {
             is AlertInput.Reading -> {
@@ -186,7 +202,7 @@ class AlertMachine(
         if (!settings.on || now - e.at > AlertEvent.MAX_AGE_S || e.k == AlertKind.NO_DATA) return emptyList()
         return when (e.state) {
             AlertEvent.State.FIRE -> e.toFiring().let { f -> if (m.fire(f)) listOf(AlertEffect.Fire(f)) else emptyList() }
-            AlertEvent.State.CLEAR -> if (m.clear(e.k, e.id)) listOf(AlertEffect.Clear(e.k, e.id)) else emptyList()
+            AlertEvent.State.CLEAR -> listOfNotNull(m.clear(e.k, e.id)?.let { AlertEffect.Clear(it.kind, it.id) })
         }
     }
 

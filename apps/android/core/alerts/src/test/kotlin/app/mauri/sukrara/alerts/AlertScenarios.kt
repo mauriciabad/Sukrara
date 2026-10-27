@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
+import app.mauri.sukrara.core.testing.Contracts
 import java.io.File
 
 /**
@@ -25,7 +26,7 @@ object AlertScenarios {
     /** A whole minute. */
     private const val T0 = 1_760_000_040L
 
-    fun dir(): File = TestContracts.file("alerts/scenarios")
+    fun dir(): File = Contracts.root.resolve("alerts/scenarios")
 
     fun load(): List<Scenario> {
         val files = dir().listFiles { f -> f.name.endsWith(".txt") }.orEmpty().sortedBy { it.name }

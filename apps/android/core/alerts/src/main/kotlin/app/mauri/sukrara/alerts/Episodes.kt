@@ -39,7 +39,7 @@ enum class EpisodeQuiet { TREATMENT, FALLING, NOTIFICATION, ALL }
  * One episode (SPEC §1): a stretch of time on one [side]. Mutable, owned by one [AlertEngine]; [copy] for snapshots.
  */
 @Serializable
-class Episode(val side: Side, val start: Long, var kind: AlertKind) {
+class Episode(val side: Side, var start: Long, var kind: AlertKind) {
     /** The condition held at the last evaluation, and when it last did. */
     var on: Boolean = true
     var lastIn: Long = start
@@ -60,6 +60,16 @@ class Episode(val side: Side, val start: Long, var kind: AlertKind) {
 
     /** Lifted since the last alert: the next match alerts at once. */
     var liftPending: Boolean = false
+
+    /** The clock was set back by [delta] s: every time moves with it (what is due stays as far away as it was). */
+    fun shiftBack(delta: Long) {
+        start = start.shiftedBack(delta)
+        lastIn = lastIn.shiftedBack(delta)
+        firedAt = firedAt?.shiftedBack(delta)
+        quietUntil = quietUntil.shiftedBack(delta)
+        next = next.shiftedBack(delta)
+        lifted = lifted.shiftedBack(delta)
+    }
 
     fun copy(): Episode = Episode(side, start, kind).also {
         it.on = on; it.lastIn = lastIn; it.shown = shown; it.n = n; it.firedAt = firedAt; it.firedKind = firedKind
@@ -97,6 +107,8 @@ data class AlertState(
     val local: AlertMemory = AlertMemory(),
     val shared: AlertMemory? = null,
     val mirror: MirrorMemory? = null,
+    /** The newest `now` the machine has seen: a later `now` before it means the clock was set back. */
+    val lastNow: Long = 0,
 ) {
     companion object {
         const val VERSION = 1
