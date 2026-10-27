@@ -1,0 +1,363 @@
+// Sukrara — https://github.com/mauriciabad/Sukrara
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara.monitor.alerts
+
+import app.mauri.sukrara.alerts.AlertEffect
+import app.mauri.sukrara.alerts.AlertEngine
+import app.mauri.sukrara.alerts.AlertEvent
+import app.mauri.sukrara.alerts.AlertGroup
+import app.mauri.sukrara.alerts.AlertInput
+import app.mauri.sukrara.alerts.AlertKind
+import app.mauri.sukrara.alerts.AlertMachine
+import app.mauri.sukrara.alerts.AlertReading
+import app.mauri.sukrara.alerts.AlertRole
+import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertSource
+import app.mauri.sukrara.alerts.AlertState
+import app.mauri.sukrara.alerts.Doses
+import app.mauri.sukrara.alerts.QuietReason
+import app.mauri.sukrara.alerts.Rules
+import app.mauri.sukrara.alerts.SensorWindow
+import app.mauri.sukrara.alerts.Side
+import app.mauri.sukrara.alerts.AlertUiState as EngineUiState
+import app.mauri.sukrara.core.model.AlertControls
+import app.mauri.sukrara.core.model.AlertQuietReason
+import app.mauri.sukrara.core.model.AlertQuietSide
+import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.core.model.TreatmentKind
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.time.Duration
+import java.time.Instant
+
+/**
+ * THE alert runtime of this process: the one owner of the [AlertMachine] (the rules, chunk 04). The monitoring service
+ * feeds it ([observe]: hub state, settings, treatments, the wearer's mirrored settings and `alert` events), the alarm
+ * receiver ticks it with the service dead ([tick]: it resumes from the saved [AlertRecord]), and every surface acts on
+ * it ([AlertControls]). Because both paths go through this one object, an alert can't post twice.
+ *
+ * Every input runs under one [Mutex], in this order: the machine decides → the effects are applied (notifications,
+ * followers, the one exact alarm) → the state is saved → the summary is published to the hub. Applying before saving
+ * means a process death in between rings again after the restart (the safe failure) instead of resuming silently.
+ *
+ * No phantom alarms (CHANGES P3): until the hub says monitoring started, `no_data` is off; without a role (setup not
+ * done, or the hub still loading) nothing runs.
+ */
+class AlertRuntime(
+    private val store: AlertStateStore,
+    private val treatments: Flow<List<Treatment>>,
+    private val presenter: AlertPresenter,
+    private val alarm: AlertAlarm,
+    private val events: AlertEventSink,
+    private val publish: (AlertUiState) -> Unit,
+    private val clock: Clock,
+    private val newId: () -> String = AlertEngine::randomId,
+) : AlertControls {
+    private val mutex = Mutex()
+    private var started = false
+    private var machine: AlertMachine? = null
+    private var own = AlertSettings()
+    private var wearer: AlertSettings? = null
+    private var role: Role? = null
+    private var monitoring = false
+    private var doses = Doses()
+    private var sensor: SensorWindow? = null
+    private var who: String? = null
+    private var fedReadingAt: Long? = null
+
+    /** Which alert each group's notification shows (from the effects), and the muted cards up. */
+    private val firing = HashMap<AlertGroup, AlertKind>()
+    private val mutedCards = HashMap<AlertGroup, Pair<Side, Long>>()
+
+    private fun now(): Long = clock.now().epochSecond
+
+    /** Feeds the runtime while the monitoring service runs (cancelled with [scope]). */
+    fun observe(
+        scope: CoroutineScope,
+        state: Flow<GlucoseState>,
+        wearerSettings: Flow<AlertSettings?>,
+        remoteEvents: Flow<AlertEvent>,
+    ) {
+        scope.launch { store.settings.collect { onSettings(it) } }
+        scope.launch { wearerSettings.collect { onWearerSettings(it) } }
+        scope.launch { treatments.collect { onDoses(dosesOf(it)) } }
+        scope.launch { state.collect { onState(it) } }
+        scope.launch { remoteEvents.collect { process(AlertInput.Remote(it)) } }
+    }
+
+    /** The exact alarm fired (or a boot / clock change): evaluate now, also with the service dead. */
+    suspend fun tick() {
+        process(AlertInput.Tick)
+    }
+
+    override suspend fun mute(kind: String, minutes: Int) = action(kind) { AlertInput.Mute(it, minutes) }
+
+    override suspend fun unmute(kind: String) = action(kind) { AlertInput.Unmute(it) }
+
+    override suspend fun remindLess(kind: String) = action(kind) { AlertInput.RemindLess(it) }
+
+    override suspend fun remindAsUsual(kind: String) = action(kind) { AlertInput.RemindAsUsual(it) }
+
+    override suspend fun muteAll(minutes: Int?) {
+        process(AlertInput.MuteAll(if (minutes == null) Rules.NEVER else now() + minutes * 60L))
+    }
+
+    override suspend fun unmuteAll() {
+        process(AlertInput.UnmuteAll)
+    }
+
+    /** Shows the group's notification again without sound (a *Mute…* reply that wasn't a length). */
+    suspend fun reshow(kind: String) {
+        mutex.withLock {
+            val k = AlertKind.fromWire(kind) ?: return
+            mutedCards.remove(k.group)
+            reconcileMutedCards(now())
+        }
+    }
+
+    private suspend fun action(kind: String, input: (AlertKind) -> AlertInput) {
+        AlertKind.fromWire(kind)?.let { process(input(it)) }
+    }
+
+    internal suspend fun onState(state: GlucoseState) {
+        val r = state.role ?: return // setup not done, or the hub hasn't loaded yet: never act on that
+        mutex.withLock {
+            ensureStarted()
+            val now = now()
+            who = state.link?.wearerName
+            val monitoringNow = state.monitoringStartedAt != null
+            val window = windowOf(state.sensor)
+            if (r != role || monitoringNow != monitoring) {
+                monitoring = monitoringNow
+                rebuildOrUpdate(r, now)
+            }
+            if (window != sensor) {
+                sensor = window
+                run(AlertInput.Sensor(window), now)
+            }
+            val latest = state.latest
+            if (latest != null && latest.t.epochSecond != fedReadingAt) {
+                fedReadingAt = latest.t.epochSecond
+                run(AlertInput.Reading(readingOf(latest)), now)
+            }
+        }
+    }
+
+    internal suspend fun onSettings(settings: AlertSettings) {
+        mutex.withLock {
+            ensureStarted()
+            val sourceChanged = settings.source != own.source
+            own = settings
+            if (sourceChanged) rebuildOrUpdate(role, now()) else run(AlertInput.Settings(effectiveSettings()), now())
+        }
+    }
+
+    internal suspend fun onWearerSettings(settings: AlertSettings?) {
+        mutex.withLock {
+            ensureStarted()
+            wearer = settings
+            run(AlertInput.Settings(effectiveSettings()), now())
+        }
+    }
+
+    internal suspend fun onDoses(d: Doses) {
+        mutex.withLock {
+            ensureStarted()
+            doses = d
+            run(AlertInput.Treatments(d), now())
+        }
+    }
+
+    /** Runs [input] and returns the effects applied (the scenario tests read them). */
+    internal suspend fun process(input: AlertInput): List<AlertEffect> = mutex.withLock {
+        ensureStarted()
+        when (input) {
+            is AlertInput.Settings -> own = input.settings
+            is AlertInput.Treatments -> doses = input.doses
+            is AlertInput.Sensor -> sensor = input.sensor
+            else -> Unit
+        }
+        run(input, now())
+    }
+
+    /** Resumes from the saved record (first input of this process); returns what resuming applied. */
+    internal suspend fun start(): List<AlertEffect> = mutex.withLock { ensureStarted() }
+
+    private suspend fun ensureStarted(): List<AlertEffect> {
+        if (started) return emptyList()
+        started = true
+        own = store.settings.first()
+        doses = dosesOf(treatments.first())
+        val record = store.load()
+        monitoring = record.monitoring
+        who = record.who
+        sensor = record.sensor?.window
+        val saved = record.machine ?: return emptyList()
+        role = if (saved.role == AlertRole.WEARER) Role.Wearer else Role.Follower
+        return startMachine(saved.role, saved, now())
+    }
+
+    private suspend fun rebuildOrUpdate(newRole: Role?, now: Long) {
+        val alertRole = newRole?.let(::alertRoleOf)
+        role = newRole
+        val m = machine
+        if (m != null && m.role == alertRole) {
+            run(AlertInput.Settings(effectiveSettings()), now)
+            return
+        }
+        // a new role: the old role's notifications go; the machine drops a saved state of another role
+        firing.keys.toList().forEach { presenter.clear(it) }
+        firing.clear()
+        mutedCards.clear()
+        if (alertRole == null) {
+            machine = null
+            alarm.set(null)
+            save()
+            publishUi(now)
+        } else {
+            startMachine(alertRole, m?.snapshot(), now)
+        }
+    }
+
+    private suspend fun startMachine(alertRole: AlertRole, saved: AlertState?, now: Long): List<AlertEffect> {
+        val m = AlertMachine(alertRole, effectiveSettings(alertRole), doses, newId)
+        machine = m
+        val effects = m.start(saved, saved?.local?.last, sensor, now)
+        fedReadingAt = saved?.local?.last?.t
+        return applyAndSave(m, effects, now)
+    }
+
+    private suspend fun run(input: AlertInput, now: Long): List<AlertEffect> {
+        val m = machine ?: return emptyList()
+        val effective = if (input is AlertInput.Settings) AlertInput.Settings(effectiveSettings()) else input
+        return applyAndSave(m, m.handle(effective, now), now)
+    }
+
+    private suspend fun applyAndSave(m: AlertMachine, effects: List<AlertEffect>, now: Long): List<AlertEffect> {
+        for (e in effects) {
+            when (e) {
+                is AlertEffect.Fire -> {
+                    firing[e.firing.kind.group] = e.firing.kind
+                    mutedCards.remove(e.firing.kind.group)
+                    presenter.show(e.firing, m.settings, e.silent, who.takeIf { m.role != AlertRole.WEARER })
+                }
+                is AlertEffect.Clear -> if (firing[e.kind.group] == e.kind || firing[e.kind.group] == null) {
+                    firing.remove(e.kind.group)
+                    presenter.clear(e.kind.group)
+                }
+                is AlertEffect.Back -> Unit // the history line is chunk 16's (it reads the state)
+                is AlertEffect.Mirror -> events.publish(e.event)
+                is AlertEffect.Schedule -> alarm.set(e.at)
+            }
+        }
+        reconcileMutedCards(now)
+        save()
+        publishUi(now)
+        return effects
+    }
+
+    /**
+     * A side muted by this device (from the notification or the app) shows "… alerts muted" with its count-down and
+     * the ways out in its group's slot, unless an alert of that group is up; it goes when the mute ends.
+     */
+    private fun reconcileMutedCards(now: Long) {
+        val m = machine ?: return
+        val want = m.uiState(now).quiet
+            .filter { it.reason == QuietReason.NOTIFICATION && it.until in (now + 1) until Rules.NEVER }
+            .associateBy { it.kind.group }
+            .filterKeys { it !in firing }
+        for (group in mutedCards.keys - want.keys) presenter.clear(group)
+        mutedCards.keys.retainAll(want.keys)
+        for ((group, q) in want) {
+            val card = q.kind.side to q.until
+            if (mutedCards[group] == card) continue
+            mutedCards[group] = card
+            presenter.showMuted(group, q.kind.side, q.kind, q.until, m.settings, now)
+        }
+    }
+
+    private suspend fun save() {
+        val snapshot = machine?.snapshot()
+        store.save { it.copy(machine = snapshot, monitoring = monitoring, who = who, sensor = sensor?.let(::SavedSensor)) }
+    }
+
+    private fun publishUi(now: Long) {
+        val m = machine
+        val ui = m?.uiState(now) ?: EngineUiState()
+        val settings = m?.settings ?: own
+        val alarmKinds = AlertKind.entries.filter { settings.on && settings.rule(it).on && settings.rule(it).alarm }.toSet()
+        publish(
+            AlertUiState(
+                firingKinds = firing.values.map { it.wire }.toSet(),
+                mutedUntil = instantOf(ui.muteAllUntil),
+                quiet = ui.quiet.map { q ->
+                    AlertQuietSide(
+                        kind = q.kind.wire,
+                        matching = q.matching,
+                        reason = when (q.reason) {
+                            QuietReason.NOTIFICATION -> AlertQuietReason.Muted
+                            QuietReason.CARBS -> AlertQuietReason.AfterCarbs
+                            QuietReason.INSULIN -> AlertQuietReason.AfterInsulin
+                            QuietReason.FALLING -> AlertQuietReason.FallingBack
+                            null -> null
+                        },
+                        until = q.until.takeIf { it in 1 until Rules.NEVER }?.let(Instant::ofEpochSecond),
+                        relaxMin = q.relaxMin,
+                        canRemindLess = q.canRelax,
+                    )
+                },
+                deliveryProblems = if (m == null) emptySet() else presenter.deliveryProblems(alarmKinds),
+            ),
+        )
+    }
+
+    private fun alertRoleOf(r: Role): AlertRole = when {
+        r == Role.Wearer -> AlertRole.WEARER
+        own.source == AlertSource.WEARER -> AlertRole.FOLLOWER_MIRROR
+        else -> AlertRole.FOLLOWER_OWN
+    }
+
+    private fun effectiveSettings(alertRole: AlertRole? = machine?.role): AlertSettings {
+        val base = if (alertRole == null || alertRole == AlertRole.WEARER) own else AlertMirror.effective(own, wearer)
+        if (monitoring) return base
+        return base.withRule(AlertKind.NO_DATA, base.rule(AlertKind.NO_DATA).copy(on = false))
+    }
+
+    companion object {
+        fun readingOf(r: Reading) = AlertReading(r.t.epochSecond, r.mgdl, r.rateMgdlPerMin?.toDouble())
+
+        fun dosesOf(treatments: List<Treatment>) = Doses(
+            carbs = treatments.filter { !it.deleted && it.kind == TreatmentKind.Carbs }.map { it.at.epochSecond }.sorted(),
+            rapid = treatments.filter { !it.deleted && it.kind == TreatmentKind.RapidInsulin }.map { it.at.epochSecond }.sorted(),
+        )
+
+        /** The engine's sensor life from what the hub shows (null: no window known, no data counts as usual). */
+        fun windowOf(s: SensorState): SensorWindow? = when (s) {
+            is SensorState.Active -> s.endsAt?.let { SensorWindow(startEpoch = 0, endEpoch = it.epochSecond, warmupEndEpoch = 0) }
+            is SensorState.WarmingUp -> s.readyAt.epochSecond.let { ready ->
+                SensorWindow(ready - SensorWindow.DEFAULT_WARMUP_MIN * 60L, ready + WEAR_S, ready)
+            }
+            SensorState.Ended -> SensorWindow(startEpoch = 0, endEpoch = 1, warmupEndEpoch = 0)
+            else -> null
+        }
+
+        private val WEAR_S = Duration.ofDays(15).seconds
+
+        fun instantOf(muteAllUntil: Long): Instant? = when {
+            muteAllUntil <= 0 -> null
+            muteAllUntil >= Rules.NEVER -> AlertUiState.UNTIL_TURNED_OFF
+            else -> Instant.ofEpochSecond(muteAllUntil)
+        }
+    }
+}

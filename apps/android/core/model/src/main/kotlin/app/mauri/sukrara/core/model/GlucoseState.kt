@@ -21,7 +21,23 @@ data class GlucoseState(
     val alerts: AlertUiState,
     /** The follower's link to the wearer; null on a wearer phone. */
     val link: LinkState?,
+    /**
+     * When monitoring started: the first reading from the current source (persisted; cleared when the source reports
+     * no sensor). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
+     */
+    val monitoringStartedAt: Instant? = null,
+    /** Whether the monitoring service runs. */
+    val service: ServiceState = ServiceState.NotRunning,
 ) {
+    /** Why nothing is monitored yet ("Not monitoring: no sensor yet"), or null while monitoring. */
+    val notMonitoring: NotMonitoringReason?
+        get() =
+            when {
+                role == null -> NotMonitoringReason.SetupIncomplete
+                monitoringStartedAt == null -> NotMonitoringReason.NoSensorYet
+                else -> null
+            }
+
     companion object {
         /** Before anything is known: nothing is shown as a value and no data alarm can fire. */
         val Initial = GlucoseState(
@@ -53,6 +69,31 @@ sealed interface SensorState {
     data object BluetoothOff : SensorState
 }
 
+/** Why the app isn't monitoring yet. Shown as "Not monitoring: no sensor yet" with the action "Set up sensor". */
+enum class NotMonitoringReason {
+    /** First-run setup hasn't chosen a role. */
+    SetupIncomplete,
+
+    /** A role is set but no reading has come from a source yet (no sensor paired / not joined, or waiting). */
+    NoSensorYet,
+}
+
+/** The monitoring foreground service, as the person needs to see it. */
+sealed interface ServiceState {
+    data object Running : ServiceState
+
+    /** Not started (yet), or nothing to monitor. */
+    data object NotRunning : ServiceState
+
+    /** Android refused or ended it; shown as "Monitoring stopped — tap to resume". */
+    data class Stopped(val reason: StopReason) : ServiceState
+}
+
+enum class StopReason {
+    /** Android didn't allow starting it from the background (ForegroundServiceStartNotAllowedException). */
+    StartDenied,
+}
+
 /** Whether readings are arriving from the current source. */
 sealed interface SourceStatus {
     /** Monitoring hasn't started (no alarm about missing data in this state). */
@@ -65,10 +106,65 @@ sealed interface SourceStatus {
     data class Interrupted(val since: Instant) : SourceStatus
 }
 
-/** What the alert runtime shows: which alert kinds are firing (contract kind ids) and the global mute. */
+/**
+ * What the alert runtime shows: which alert kinds are firing (contract kind ids), *Mute all* ([mutedUntil] null = off,
+ * [UNTIL_TURNED_OFF] = until the person turns it off) and the sides that are quiet or remind less ([quiet]), each with
+ * its way out ([AlertControls]).
+ */
 data class AlertUiState(
     val firingKinds: Set<String> = emptySet(),
     val mutedUntil: Instant? = null,
+    val quiet: List<AlertQuietSide> = emptyList(),
+    /** What stops alerts from ringing as set up right now (home shows a banner with the fix). */
+    val deliveryProblems: Set<AlertDeliveryProblem> = emptySet(),
+) {
+    val mutedUntilTurnedOff: Boolean get() = mutedUntil == UNTIL_TURNED_OFF
+
+    companion object {
+        /** *Mute all* with no end. */
+        val UNTIL_TURNED_OFF: Instant = Instant.ofEpochSecond(Long.MAX_VALUE / 1000)
+    }
+}
+
+/** A reason an alert would not reach the person as set up; each has a fix in the reliability row. */
+enum class AlertDeliveryProblem {
+    /** The app's notifications are off. */
+    NotificationsOff,
+
+    /** An alert channel is blocked in the system settings. */
+    AlertChannelBlocked,
+
+    /** Alarm-level alerts can't open over the lock screen (full-screen intent not allowed). */
+    FullScreenDenied,
+}
+
+/** Why a side is quiet (contracts/alerts/SPEC.md §2 "States and exits"). */
+enum class AlertQuietReason {
+    /** Muted from a notification or the app ("Unmute", "Change time"). */
+    Muted,
+
+    /** Carbs logged in the window ("Alert me anyway"). */
+    AfterCarbs,
+
+    /** Rapid insulin logged in the window ("Alert me anyway"). */
+    AfterInsulin,
+
+    /** A high falling back into range ("Alert me anyway"). */
+    FallingBack,
+}
+
+/**
+ * One side the person can act on now. [kind] = the episode's kind (contract id; the side's main kind without one);
+ * [matching] = it still matches; [reason] null = not quiet but reminding less every [relaxMin] minutes; [until] the
+ * quiet's end (null = no fixed end); [canRemindLess] = *Remind less* would slow it down.
+ */
+data class AlertQuietSide(
+    val kind: String,
+    val matching: Boolean,
+    val reason: AlertQuietReason?,
+    val until: Instant?,
+    val relaxMin: Int,
+    val canRemindLess: Boolean,
 )
 
 /** A follower's link to the wearer it follows. */
@@ -91,4 +187,13 @@ interface GlucoseHub {
     )
 
     fun setSource(status: SourceStatus)
+
+    /** The sensor as shown (a follower mirrors the wearer's). */
+    fun setSensor(sensor: SensorState)
+
+    /** The alert runtime's summary (firing kinds, mute) for every surface. */
+    fun setAlerts(alerts: AlertUiState)
+
+    /** The follower's link to the wearer. */
+    fun setLink(link: LinkState?)
 }
