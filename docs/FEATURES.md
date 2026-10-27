@@ -16,7 +16,9 @@ Rule: every change that adds or changes a behaviour updates this file in the sam
 Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [poc/spikes/alerts/scenarios](../poc/spikes/alerts/scenarios/).
 
 - Every change to the alert rules adds or updates a scenario in `poc/spikes/alerts/scenarios/*.txt`; Android
-  `AlertScenarioTest` and the Mac `-alerts-selftest` both run all of them and must pass (SPEC §7).
+  `AlertScenarioTest` and the Mac `-alerts-selftest` both run all of them and must pass (SPEC §7). Mac V1: the pure
+  `SukraraAlerts` engine runs them in `AlertsTests` (`cd apps/macos && swift test --filter AlertsTests`, one test case
+  per scenario from `contracts/alerts/scenarios`).
 - Kinds and defaults (the user's settings): very low < 55 every 5 min (alarm volume), low < 70 every 5 min, high ≥ 180
   every 15 min, very high ≥ 250 every 10 min, extremely high ≥ 300 every 5 min (alarm volume), falling/rising fast
   2 mg/dL/min every 30 min (off), no data after 20 min every 60 min; other kinds at notification volume.
@@ -74,7 +76,10 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - One sound per alert: each channel rings only its Sukrara sound; the app restores its episodes after a restart (an
   update kills it) and shows the alerts that were up again without sound; the next sound is the normal repeat
   (Android + Mac: Mac UserDefaults `alertEpisodes`, restored at launch with the last stored reading; history/log line
-  "resumed High (no sound)"; scenario event `restart`, SPEC §7).
+  "resumed High (no sound)"; scenario event `restart`, SPEC §7). Mac V1: the engine snapshot (open episodes, the sides'
+  Mute / Remind less, Mute all; format `v` 1) is stored apart from the settings (SPEC §3 JSON under the schema key
+  `alerts`); an unreadable or other-version snapshot starts fresh (alerts on, nothing muted), Mutes already over are
+  dropped and Mutes longer than the longest choice are cut to it; a clock set back never stalls the repeats.
 - Default sound pack: Quest, a different variant each time, no per-kind packs; followers mirror the wearer by default.
 
 ## Treatments

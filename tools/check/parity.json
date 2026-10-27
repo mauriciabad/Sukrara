@@ -6,7 +6,7 @@
       "level": "fail",
       "why": "One graph everywhere: the Android renderer (:core:graph) and the Mac renderer (SukraraGraph) lay out and draw the same card",
       "sides": {
-        "android": ["apps/android/core/graph/src/main/*"],
+        "android": ["apps/android/core/graph/src/main/kotlin/*"],
         "mac": ["apps/macos/Sources/SukraraGraph/*"]
       }
     },
@@ -16,7 +16,7 @@
       "trigger": ["code"],
       "why": "Graph decisions (badges, slots, labels, what every surface lays out) are pinned by contracts/graph fixtures: add or update a case",
       "sides": {
-        "code": ["apps/android/core/graph/src/main/*", "apps/macos/Sources/SukraraGraph/*"],
+        "code": ["apps/android/core/graph/src/main/kotlin/*", "apps/macos/Sources/SukraraGraph/*"],
         "fixtures": ["contracts/graph/*"]
       }
     },
@@ -25,7 +25,7 @@
       "level": "fail",
       "why": "One alert engine: Android :core:alerts and Mac SukraraAlerts implement the same rules (contracts/alerts/SPEC.md)",
       "sides": {
-        "android": ["apps/android/core/alerts/src/main/*"],
+        "android": ["apps/android/core/alerts/src/main/kotlin/*"],
         "mac": ["apps/macos/Sources/SukraraAlerts/*"]
       }
     },
@@ -35,7 +35,7 @@
       "trigger": ["engine"],
       "why": "Every alert-rule change adds or updates a timeline scenario (contracts/alerts/scenarios); never change a scenario's expectations without the owner's OK",
       "sides": {
-        "engine": ["apps/android/core/alerts/src/main/*", "apps/macos/Sources/SukraraAlerts/*"],
+        "engine": ["apps/android/core/alerts/src/main/kotlin/*", "apps/macos/Sources/SukraraAlerts/*"],
         "scenarios": ["contracts/alerts/scenarios/*"]
       }
     },
@@ -77,7 +77,7 @@
       "level": "warn",
       "why": "Wire code changed on one platform only: check PROTOCOL-v2.md and the other platform",
       "sides": {
-        "android": ["apps/android/core/protocol/src/main/*"],
+        "android": ["apps/android/core/protocol/src/main/kotlin/*"],
         "mac": ["apps/macos/Sources/SukraraShare/*"]
       }
     },
