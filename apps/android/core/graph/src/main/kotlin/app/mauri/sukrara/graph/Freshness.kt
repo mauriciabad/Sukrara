@@ -227,6 +227,18 @@ data class GlucoseLook(
 
     val shown: Boolean get() = state == State.VALUE
 
+    /**
+     * The trend as text for places that can only write text (notification titles): the arrow of [rate]
+     * ([TrendAngle.symbol]) when the card draws one, the ring when it draws the "no trend" ring, null without a value.
+     */
+    val arrowText: String?
+        get() =
+            when (trend) {
+                TrendMark.ARROW -> TrendAngle.text(rate)
+                TrendMark.NONE -> TrendMark.RING
+                null -> null
+            }
+
     /** [text] for places that can't draw a line through it (the Live Update chip): every character struck (U+0336). */
     val plain: String? get() = text?.let { t -> if (strike) t.map { "$it\u0336" }.joinToString("") else t }
 }

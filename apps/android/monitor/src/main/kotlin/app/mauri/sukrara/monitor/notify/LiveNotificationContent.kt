@@ -9,7 +9,6 @@ import app.mauri.sukrara.core.model.NotMonitoringReason
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.GlucoseLook
-import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.monitor.R
 import java.time.Instant
@@ -127,7 +126,6 @@ data class LiveNotificationContent(
             detail: UiText?,
         ): LiveNotificationContent {
             val reading = state.latest!!
-            val arrow = if (look.trend == TrendMark.ARROW) arrow(look.rate) else TrendMark.RING
             // The chip's arrow is its icon (the renderer's), never a text arrow too: two arrows could disagree. It can't
             // strike text through: from 5 min it shows the reading's time (with the ring icon) instead of a bare number
             // that would read as current.
@@ -138,7 +136,7 @@ data class LiveNotificationContent(
                     UiText(R.string.monitor_chip_value, listOf(look.text!!))
                 }
             return LiveNotificationContent(
-                title = UiText(R.string.monitor_notif_value, listOf(look.text!!, arrow)),
+                title = UiText(R.string.monitor_notif_value, listOf(look.text!!, look.arrowText!!)),
                 text = if (look.fresh.showTime) UiText(R.string.monitor_notif_reading_at, listOf(reading.t)) else detail,
                 strike = look.strike,
                 chip = chip,
@@ -180,8 +178,5 @@ data class LiveNotificationContent(
             Target.QuickTreatment(
                 focusCarbs = state.alerts.firingKinds.any { it in LOW_KINDS },
             )
-
-        /** The arrow character for a trend rate (mg/dL/min), the ring without one: text places only. */
-        fun arrow(rate: Double?): String = rate?.let(TrendAngle::symbol) ?: TrendMark.RING
     }
 }

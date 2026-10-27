@@ -43,9 +43,30 @@ func cardContext(_ size: CGSize) -> CGContext {
 /// Every fixture set has cases (a moved or emptied folder would let the parameterized tests pass with none).
 @Test(arguments: [
     "freshness/freshness.json", "clock", "sensor", "place/place.json", "mark", "share", "status.json", "labels",
+    "trend/trend.json",
 ])
 func fixtureSetHasCases(_ set: String) {
     #expect(!GraphFixtures.cases(set).isEmpty, "\(set) under \(GraphFixtures.dir.path)")
+}
+
+/// contracts/graph/trend: the one trend arrow (Android TrendFixtureTest): the drawn angle and double, the text arrow,
+/// and the face's `arrowText` every text place writes (a stale value writes the ring, as the card draws it).
+@Suite struct TrendFixtureTests {
+    @Test(arguments: GraphFixtures.cases("trend/trend.json"))
+    func arrow(_ c: JSON) {
+        let e = c.expect, rate = c.number("rate")
+        #expect(TrendAngle.text(rate) == e.string("text"))
+        if let rate, let deg = e.number("deg") {
+            #expect(abs(TrendAngle.deg(rate) - deg) < 1e-3)
+            #expect(TrendAngle.isDouble(rate) == e.bool("double"))
+        } else {
+            #expect(rate == nil && e.number("deg") == nil)
+        }
+        let fresh = Freshness.look(sgv: 100, t: now - 30, rate: rate, now: now, ended: false)
+        #expect(fresh.arrowText == e.string("text"))
+        let stale = Freshness.look(sgv: 100, t: now - 6 * 60, rate: rate, now: now, ended: false)
+        #expect(stale.arrowText == "○")
+    }
 }
 
 @Suite struct FreshnessFixtureTests {

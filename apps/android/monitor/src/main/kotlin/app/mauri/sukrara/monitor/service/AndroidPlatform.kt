@@ -13,10 +13,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.monitor.AlertCheckReceiver
 import app.mauri.sukrara.monitor.HealthCheckReceiver
 import app.mauri.sukrara.monitor.MonitorReceiver
 import app.mauri.sukrara.monitor.MonitoringService
 import app.mauri.sukrara.monitor.R
+import app.mauri.sukrara.monitor.alerts.AlertAlarm
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import java.time.Duration
@@ -74,47 +77,83 @@ class AndroidStoppedNotice(
     override fun cancel() = nm.cancel(NotificationIds.MONITORING_STOPPED)
 }
 
-/** The monitor's alarms on AlarmManager (`USE_EXACT_ALARM`; inexact fallback if exact alarms are ever refused). */
+/**
+ * THE monitor's alarms on AlarmManager: the health check, the freshness step and the alert checks ([alertCheck]), all
+ * through [AlarmPolicy]. The health check and the freshness step log a refusal (they are retried on the next fire,
+ * boot or reading); an alert check throws it, so the alert runtime counts and shows it.
+ */
 class AndroidAlarms(
     private val context: Context,
 ) : Alarms {
     private val am = context.getSystemService(AlarmManager::class.java)
 
     override fun scheduleHealthCheck(after: Duration) {
-        val at = SystemClock.elapsedRealtime() + after.toMillis()
-        val pi = broadcast(MonitorReceiver.ACTION_HEALTH_CHECK)
         runCatching {
-            if (am.canScheduleExactAlarms()) {
-                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi)
-            } else {
-                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi)
-            }
+            set(Wakeup.HealthCheck, SystemClock.elapsedRealtime() + after.toMillis(), monitorIntent(MonitorReceiver.ACTION_HEALTH_CHECK))
         }.onFailure { Log.w(TAG, "health check not scheduled: ${it.javaClass.simpleName}") }
     }
 
     override fun scheduleFreshnessStep(at: Instant?) {
-        val pi = broadcast(MonitorReceiver.ACTION_FRESHNESS_STEP)
-        if (at == null) {
-            am.cancel(pi)
-            return
-        }
-        // RTC: with the screen off nobody sees the shade; the alarm is delivered when the phone wakes
+        val pi = monitorIntent(MonitorReceiver.ACTION_FRESHNESS_STEP)
         runCatching {
-            if (am.canScheduleExactAlarms()) {
-                am.setExact(AlarmManager.RTC, at.toEpochMilli(), pi)
-            } else {
-                am.setWindow(AlarmManager.RTC, at.toEpochMilli(), Duration.ofMinutes(1).toMillis(), pi)
-            }
+            if (at == null) am.cancel(pi) else set(Wakeup.FreshnessStep, at.toEpochMilli(), pi)
         }.onFailure { Log.w(TAG, "freshness step not scheduled: ${it.javaClass.simpleName}") }
     }
 
-    private fun broadcast(action: String): PendingIntent =
+    /**
+     * One exact wake-up of [AlertCheckReceiver] at an epoch second the caller asks for; each call replaces the previous
+     * one of [requestCode], null cancels it. On the elapsed clock, so a wall-clock change doesn't move it (TIME_SET
+     * re-evaluates anyway). [requestCode]: [ALERT_CHECK] (the alert runtime) or [SENSOR_END_CHECK].
+     */
+    fun alertCheck(
+        requestCode: Int,
+        clock: Clock,
+    ): AlertAlarm =
+        AlertAlarm { at ->
+            val pi = alertIntent(requestCode)
+            if (at == null) {
+                am.cancel(pi)
+            } else {
+                val inMs = ((at - clock.now().epochSecond) * 1000).coerceAtLeast(0)
+                set(Wakeup.AlertCheck, SystemClock.elapsedRealtime() + inMs, pi)
+            }
+        }
+
+    private fun set(
+        wakeup: Wakeup,
+        at: Long,
+        pi: PendingIntent,
+    ) {
+        val canExact = am.canScheduleExactAlarms()
+        if (!canExact) Log.w(TAG, "exact alarms refused: ${wakeup.name} inexact")
+        when (AlarmPolicy.call(wakeup, canExact)) {
+            AlarmCall.ExactWhileIdle -> am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi)
+            AlarmCall.InexactWhileIdle -> am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi)
+            AlarmCall.ExactRtc -> am.setExact(AlarmManager.RTC, at, pi)
+            AlarmCall.WindowRtc -> am.setWindow(AlarmManager.RTC, at, Duration.ofMinutes(1).toMillis(), pi)
+        }
+    }
+
+    private fun monitorIntent(action: String): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             action.hashCode(),
             Intent(context, HealthCheckReceiver::class.java).setAction(action),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+
+    private fun alertIntent(requestCode: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            Intent(context, AlertCheckReceiver::class.java).setAction(AlertCheckReceiver.ACTION_CHECK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+    companion object {
+        const val ALERT_CHECK = 1
+        const val SENSOR_END_CHECK = 2
+    }
 }
 
 /** Bluetooth adapter power from `BluetoothAdapter.ACTION_STATE_CHANGED`'s state; null = in between (ignored). */

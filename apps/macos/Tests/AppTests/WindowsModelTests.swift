@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import ServiceManagement
 import SukraraAlerts
 import SukraraCore
 import SukraraGraph
@@ -17,6 +18,63 @@ func scratchStore() -> DefaultsSettingsStore {
     let d = UserDefaults(suiteName: name)!
     d.removePersistentDomain(forName: name)
     return DefaultsSettingsStore(defaults: d)
+}
+
+/// `sukrara:` links (`AppLink`): the widget's two clicks never reach the follow step as a bad invite.
+@Suite struct AppLinkTests {
+    @Test func widgetLinksRouteToTheirPlace() {
+        // the exact links the widget sets (`.widgetURL`)
+        #expect(AppLink(URL(string: SukraraIDs.Link.newTreatment)!) == .newTreatment)
+        #expect(AppLink(URL(string: SukraraIDs.Link.panel)!) == .panel)
+        #expect(AppLink(URL(string: "sukrara://open/")!) == .panel)
+    }
+
+    @Test func everythingElseIsAnInviteForTheFollowStep() {
+        let invite = "sukrara:join#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        #expect(AppLink(URL(string: invite)!) == .invite(invite))
+        #expect(AppLink(URL(string: "sukrara://treatment/old")!) == .invite("sukrara://treatment/old"))
+    }
+}
+
+/// Open at login over a fake `SMAppService` (never the real login items).
+@Suite struct LoginItemTests {
+    final class FakeLogin: LoginService {
+        var status: SMAppService.Status = .notRegistered
+        var next: SMAppService.Status = .enabled
+        var fail = false
+        var calls: [String] = []
+        struct Refused: Error {}
+        func register() throws {
+            calls.append("register")
+            if fail { throw Refused() }
+            status = next
+        }
+        func unregister() throws {
+            calls.append("unregister")
+            status = .notRegistered
+        }
+    }
+
+    @Test func onOffAndApprovalFollowTheService() {
+        let fake = FakeLogin()
+        let item = LoginItem(service: fake)
+        #expect(item.status == .off)
+        item.set(true)
+        #expect(item.status == .on && fake.calls == ["register"])
+        item.set(false)
+        #expect(item.status == .off && fake.calls == ["register", "unregister"])
+        fake.next = .requiresApproval
+        item.set(true)
+        #expect(item.status == .needsApproval)
+    }
+
+    @Test func aRefusedRegistrationSaysWhy() {
+        let fake = FakeLogin()
+        fake.fail = true
+        let item = LoginItem(service: fake)
+        item.set(true)
+        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
+    }
 }
 
 @Suite struct SetupFlowTests {

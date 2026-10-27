@@ -309,12 +309,12 @@ public enum GlucoseCard {
         if face.trend == .arrow, let rate = r.rate {
             ctx.saveGState()
             ctx.translateBy(x: x + arrowSize / 2, y: numBox.midY)
-            ctx.rotate(by: CGFloat(-max(-1, min(1, rate / 3))) * .pi / 2)
-            drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: abs(rate) >= 3)
+            ctx.rotate(by: CGFloat(TrendAngle.deg(rate)) * .pi / 180)
+            drawArrow(ctx, scale: arrowSize * 1.05, color: color, double: TrendAngle.isDouble(rate))
             ctx.restoreGState()
             rec.add(
                 "value.trend", CGRect(x: x, y: numBox.midY - arrowSize / 2, width: arrowSize, height: arrowSize),
-                abs(rate) >= 3 ? "arrow double" : "arrow single")
+                TrendAngle.isDouble(rate) ? "arrow double" : "arrow single")
         } else {
             // no trend (no rate, or the value is struck through): the hollow ring in the arrow's place
             ctx.setStrokeColor(color)

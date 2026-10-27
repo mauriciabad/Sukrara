@@ -43,11 +43,18 @@ applies them.
   reading, `monitoringStartedAt`, sensor), alert settings (store `alerts`, key `alerts`, SPEC §3 JSON via
   `AlertStateStore`), treatments (→ `Doses`), the wearer's mirrored settings and `alert` events (25), this device's
   actions (`AlertControls` in `:core:model`, also the notification buttons). Per input: machine → effects applied
-  (`AlertPresenter`, `AlertEventSink`, `AlertAlarm`) → `AlertRecord` saved (typed store) → `AlertUiState` published to
-  the hub. Role `null` is ignored (setup / hub loading); `monitoringStartedAt == null` switches `no_data` off.
-- `AlertCheckReceiver` (exact alarm, boot, update, clock / zone change) → `runtime.tick()` from the saved record with
-  the service dead → `sensorEnd.check()` → `MonitorRestarter.restart()` (10's starter). `AlertActionReceiver` (Mute… /
-  Change time direct reply, Remind less / as usual, Unmute, swipe tidy). Both non-exported, `goAsync` with a 9 s budget.
+  (`AlertAlarm` first, then `AlertPresenter`, `AlertEventSink`) → `AlertRecord` saved (typed store) → `AlertUiState`
+  published to the hub. Every step is attempted on its own: a failure is logged to `DiagLog` (step + exception class)
+  and listed as `AlertDeliveryProblem.AlertStepFailed` until that step works again. Role `null` is ignored (setup / hub
+  loading); `monitoringStartedAt == null` switches `no_data` off.
+- Alarms: one `AndroidAlarms` (`monitor/service/`) sets every alarm (health check, freshness step, alert check, sensor
+  end) through `AlarmPolicy`: protective checks `setExactAndAllowWhileIdle` (72 / h Doze quota with `USE_EXACT_ALARM`;
+  inexact while-idle if exact alarms are refused), never `setAlarmClock` (it would become the phone's "next alarm").
+- `AlertCheckReceiver` (the exact alarms only) → `AlertsModule.check()` (`runtime.tick()` from the saved record with
+  the service dead, then `sensorEnd.check()`, each on its own) → `MonitorRestarter.restart()` (10's starter). Boot,
+  update, clock / zone change reach the same check through `BootReceiver`, which starts the service once.
+  `AlertActionReceiver` (Mute… / Change time direct reply, Remind less / as usual, Unmute, swipe tidy). All
+  non-exported, through one `runAsync` (`goAsync`, 9 s budget).
 - `AlertNotifier` + `AlertChannels` (`alert.<kind>` / `alert_alarm.<kind>`) + `NotificationGroups` (`notify/`: the
   `alerts` and `info` notification groups with summaries; every alerting notification of the app belongs to one) +
   `AlertSoundProvider` (`${applicationId}.alertsound`, exported read-only for System UI) + `AlertHaptics`.

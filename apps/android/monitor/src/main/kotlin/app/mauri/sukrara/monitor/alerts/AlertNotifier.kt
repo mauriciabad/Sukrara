@@ -136,7 +136,7 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
             return if (r == null) ctx.getString(R.string.alert_text_no_data, since)
             else ctx.getString(R.string.alert_text_no_data_last, since, r.mgdl)
         }
-        val value = ctx.getString(R.string.alert_text_value, r?.mgdl ?: 0, arrow(r?.rate))
+        val value = ctx.getString(R.string.alert_text_value, r?.mgdl ?: 0, TrendAngle.text(r?.rate))
         val rate = String.format(Locale.getDefault(), "%.1f", kotlin.math.abs(r?.rate ?: 0.0))
         return when (f.kind) {
             AlertKind.FALLING_FAST -> ctx.getString(R.string.alert_text_falling, value, rate)
@@ -186,8 +186,5 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
 
         fun kindLabel(ctx: Context, kind: AlertKind): String =
             ctx.getString(ctx.resources.getIdentifier("alert_kind_${kind.wire}", "string", ctx.packageName))
-
-        /** The trend arrow of a rate in mg/dL/min (THE text arrow, [TrendAngle.symbol]); none without a rate. */
-        fun arrow(rate: Double?): String = rate?.let(TrendAngle::symbol).orEmpty()
     }
 }

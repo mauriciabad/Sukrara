@@ -51,10 +51,15 @@ else ok "manifest has no debug components"; fi
 
 # Exported components without a permission (the merged manifest: libraries' components too). Allowed, by exact name:
 # the launcher / App Link activity, and the alert sound provider (System UI reads channel sounds from it and can hold
-# no permission; it serves only bundled sounds). Home-screen widget receivers join this list by name when they land
-# (they must be exported for the launcher to bind them). Anything else exported needs a permission.
+# no permission; it serves only bundled sounds), and the home-screen widgets' receivers + configure activity (any home
+# app sends the widget broadcasts and opens the configure screen, so they can't require a permission; they only redraw
+# or edit that placement). Anything else exported needs a permission.
 allowed_open='app.mauri.sukrara.MainActivity
-app.mauri.sukrara.monitor.AlertSoundProvider'
+app.mauri.sukrara.monitor.AlertSoundProvider
+app.mauri.sukrara.widgets.ValueWidgetReceiver
+app.mauri.sukrara.widgets.GraphWidgetReceiver
+app.mauri.sukrara.widgets.CombinedWidgetReceiver
+app.mauri.sukrara.widgets.WidgetConfigActivity'
 open_components="$(printf '%s\n' "$manifest" | awk '
   function flush() { if (comp != "" && exported && !perm) print comp; comp = "" }
   /E: (activity|activity-alias|service|receiver|provider) / { flush(); depth = index($0, "E:"); exported = perm = 0; comp = "?"; next }

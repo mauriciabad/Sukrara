@@ -23,6 +23,7 @@ import app.mauri.sukrara.alerts.SensorWindow
 import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.alerts.AlertUiState as EngineUiState
 import app.mauri.sukrara.core.model.AlertControls
+import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.AlertQuietReason
 import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
@@ -65,6 +66,8 @@ class AlertRuntime(
     private val publish: (AlertUiState) -> Unit,
     private val clock: Clock,
     private val newId: () -> String = AlertEngine::randomId,
+    /** The diagnostic log (`DiagLog`): step names and exception classes only, never values. */
+    private val log: (String) -> Unit = {},
 ) : AlertControls {
     private val mutex = Mutex()
     private var started = false
@@ -83,6 +86,15 @@ class AlertRuntime(
     private val mutedCards = HashMap<AlertGroup, Pair<Side, Long>>()
     private val shownRelax = HashMap<AlertGroup, Int>()
 
+    /**
+     * What failed on its last attempt (a step, or a step for one group's notification): listed in the hub's alert state
+     * until that same thing works again.
+     */
+    private val failed = HashSet<String>()
+
+    /** Alerts whose post Android refused, with the sound they should have had: posted again, as loud, next time. */
+    private val unposted = HashMap<AlertGroup, Boolean>()
+
     private fun now(): Long = clock.now().epochSecond
 
     /** Feeds the runtime while the monitoring service runs (cancelled with [scope]). */
@@ -99,14 +111,17 @@ class AlertRuntime(
         scope.launch { remoteEvents.collect { safely { process(AlertInput.Remote(it)) } } }
     }
 
-    /** One failing input (a store write, a notification Android refused) never stops the collectors that follow. */
+    /**
+     * One failing input (a load that failed, a broken store) never stops the collectors that follow: it is logged and
+     * the next input or the exact alarm tries again. Effect failures don't reach here ([applyAndSave] isolates them).
+     */
     private suspend fun safely(block: suspend () -> Unit) {
         try {
             block()
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            // nothing to log here without health data; the next input or the exact alarm tries again
+        } catch (e: Exception) {
+            log("input failed: ${e.javaClass.simpleName}")
         }
     }
 
@@ -117,8 +132,7 @@ class AlertRuntime(
     suspend fun reset() {
         mutex.withLock {
             started = true
-            firing.keys.forEach { presenter.clear(it) }
-            mutedCards.keys.forEach { presenter.clear(it) }
+            (firing.keys + mutedCards.keys).forEach { g -> attempt(Step.Notify, g) { presenter.clear(g) } }
             firing.clear()
             mutedCards.clear()
             shownRelax.clear()
@@ -127,9 +141,11 @@ class AlertRuntime(
             monitoring = false
             sensor = null
             fedReadingAt = null
-            alarm.set(null)
-            store.save { AlertRecord() }
-            publishUi(now())
+            failed.clear()
+            unposted.clear()
+            attempt(Step.Alarm) { alarm.set(null) }
+            attempt(Step.Save) { store.save { AlertRecord() } }
+            attempt(Step.Publish) { publishUi(now()) }
         }
     }
 
@@ -271,14 +287,15 @@ class AlertRuntime(
             return
         }
         // a new role: the old role's notifications go; the machine drops a saved state of another role
-        firing.keys.toList().forEach { presenter.clear(it) }
+        firing.keys.toList().forEach { g -> attempt(Step.Notify, g) { presenter.clear(g) } }
         firing.clear()
         mutedCards.clear()
+        unposted.clear()
         if (alertRole == null) {
             machine = null
-            alarm.set(null)
-            save()
-            publishUi(now)
+            attempt(Step.Alarm) { alarm.set(null) }
+            attempt(Step.Save) { save() }
+            attempt(Step.Publish) { publishUi(now) }
         } else {
             startMachine(alertRole, m?.snapshot(), now)
         }
@@ -298,59 +315,119 @@ class AlertRuntime(
         return applyAndSave(m, m.handle(effective, now), now)
     }
 
+    /**
+     * Applies [effects], then saves and publishes. Every step is attempted on its own: a notification Android refused
+     * never costs the exact alarm (the only thing that re-checks with the service dead), the saved state or the other
+     * notifications. The alarm goes first for the same reason. A failed step is logged and listed in the hub's alert
+     * state ([AlertDeliveryProblem.AlertStepFailed]) until it works again; a refused alert is posted again, with its
+     * sound, on the next input.
+     */
     private suspend fun applyAndSave(m: AlertMachine, effects: List<AlertEffect>, now: Long): List<AlertEffect> {
+        effects.filterIsInstance<AlertEffect.Schedule>().forEach { e -> attempt(Step.Alarm) { alarm.set(e.at) } }
+        val firedNow = effects.filterIsInstance<AlertEffect.Fire>().map { it.firing.kind.group }.toSet()
+        retryUnposted(m, now, skip = firedNow)
         for (e in effects) {
             when (e) {
                 is AlertEffect.Fire -> {
-                    firing[e.firing.kind.group] = e.firing
-                    mutedCards.remove(e.firing.kind.group)
-                    val relax = relaxedMin(m, e.firing.kind.group, now)
-                    shownRelax[e.firing.kind.group] = relax
-                    presenter.show(e.firing, m.settings, e.silent, whoFor(m), relax)
+                    val group = e.firing.kind.group
+                    firing[group] = e.firing
+                    mutedCards.remove(group)
+                    val relax = relaxedMin(m, group, now)
+                    shownRelax[group] = relax
+                    post(m, group, e.firing, e.silent, relax)
                 }
                 is AlertEffect.Clear -> if (firing[e.kind.group].let { it == null || it.id == e.id }) {
                     firing.remove(e.kind.group)
-                    presenter.clear(e.kind.group)
+                    unposted.remove(e.kind.group)
+                    attempt(Step.Notify, e.kind.group) { presenter.clear(e.kind.group) }
                 }
                 is AlertEffect.Back -> Unit // the history line is chunk 16's (it reads the state)
-                is AlertEffect.Mirror -> events.publish(e.event)
-                is AlertEffect.Schedule -> alarm.set(e.at)
+                is AlertEffect.Mirror -> attempt(Step.Mirror) { events.publish(e.event) }
+                is AlertEffect.Schedule -> Unit // applied first, above
             }
         }
         refreshRelaxed(m, now)
         reconcileMutedCards(now)
-        save()
-        publishUi(now)
+        attempt(Step.Save) { save() }
+        attempt(Step.Publish) { publishUi(now) }
         return effects
     }
+
+    /** Posts [f] in [group]'s slot; a refusal is remembered with its sound, for [retryUnposted]. */
+    private suspend fun post(m: AlertMachine, group: AlertGroup, f: Firing, silent: Boolean, relax: Int) {
+        if (attempt(Step.Notify, group) { presenter.show(f, m.settings, silent, whoFor(m), relax) }) {
+            unposted.remove(group)
+        } else {
+            unposted[group] = silent && unposted[group] != false // a loud post that failed stays loud
+        }
+    }
+
+    /** Posts the alerts Android refused earlier again, as loud as they were meant to be (unless [skip]: posted now). */
+    private suspend fun retryUnposted(m: AlertMachine, now: Long, skip: Set<AlertGroup>) {
+        for ((group, silent) in unposted.toMap()) {
+            if (group in skip) continue
+            val f = firing[group]
+            if (f == null) {
+                unposted.remove(group) // gone meanwhile
+                continue
+            }
+            post(m, group, f, silent, relaxedMin(m, group, now))
+        }
+    }
+
+    /**
+     * Runs one effect step (one real call; [group] for a notification slot); a failure is logged (step + exception
+     * class, no health data) and remembered until the same step (for the same group) works again.
+     */
+    private suspend fun attempt(step: Step, group: AlertGroup? = null, block: suspend () -> Unit): Boolean {
+        val key = if (group == null) step.name else "${step.name}:${group.wire}"
+        return try {
+            block()
+            failed.remove(key)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failed.add(key)
+            log("${step.name.lowercase()} failed: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    /** The kinds of effect step [attempt] tracks. */
+    internal enum class Step { Alarm, Notify, Mirror, Save, Publish }
 
     /**
      * A side muted by this device (from the notification or the app) shows "… alerts muted" with its count-down and
      * the ways out in its group's slot, unless an alert of that group is up; it goes when the mute ends.
      */
-    private fun reconcileMutedCards(now: Long) {
+    private suspend fun reconcileMutedCards(now: Long) {
         val m = machine ?: return
         val want = m.uiState(now).quiet
             .filter { it.reason == QuietReason.NOTIFICATION && it.until in (now + 1) until Rules.NEVER }
             .associateBy { it.kind.group }
             .filterKeys { it !in firing }
-        for (group in mutedCards.keys - want.keys) presenter.clear(group)
+        for (group in mutedCards.keys - want.keys) attempt(Step.Notify, group) { presenter.clear(group) }
         mutedCards.keys.retainAll(want.keys)
         for ((group, q) in want) {
             val card = q.kind.side to q.until
             if (mutedCards[group] == card) continue
-            mutedCards[group] = card
-            presenter.showMuted(group, q.kind.side, q.kind, q.until, m.settings, now)
+            attempt(Step.Notify, group) {
+                presenter.showMuted(group, q.kind.side, q.kind, q.until, m.settings, now)
+                mutedCards[group] = card // only once shown: a refused post is tried again next time
+            }
         }
     }
 
     /** *Remind less* / *as usual* swaps the alert's button and interval line: shown again silently. */
-    private fun refreshRelaxed(m: AlertMachine, now: Long) {
+    private suspend fun refreshRelaxed(m: AlertMachine, now: Long) {
         for ((group, f) in firing) {
             val relax = relaxedMin(m, group, now)
-            if (shownRelax[group] == relax) continue
-            shownRelax[group] = relax
-            presenter.show(f, m.settings, silent = true, who = whoFor(m), relaxedMin = relax)
+            if (shownRelax[group] == relax || group in unposted) continue
+            attempt(Step.Notify, group) {
+                presenter.show(f, m.settings, silent = true, who = whoFor(m), relaxedMin = relax)
+                shownRelax[group] = relax
+            }
         }
     }
 
@@ -389,7 +466,11 @@ class AlertRuntime(
                         canRemindLess = q.canRelax,
                     )
                 },
-                deliveryProblems = if (m == null) emptySet() else presenter.deliveryProblems(alarmKinds),
+                deliveryProblems = when {
+                    m == null -> emptySet()
+                    failed.isEmpty() -> presenter.deliveryProblems(alarmKinds)
+                    else -> presenter.deliveryProblems(alarmKinds) + AlertDeliveryProblem.AlertStepFailed
+                },
             ),
         )
     }

@@ -40,10 +40,12 @@ if [ "$unsigned" != --unsigned ]; then
   done
 fi
 
+# The snapshot renderer's own strings ("sukrara-snap: …", "usage: sukrara-snap <…", its "sukrara-snap-<uuid>" scratch
+# dir), not the app's launch error that only names it ("… are rendered by sukrara-snap.").
 found=""
 for bin in "$app"/Contents/MacOS/* "$appex"/Contents/MacOS/*; do
   [ -f "$bin" ] || continue
-  if strings -a "$bin" | grep -Eq 'debugsend|DebugFakes|Synthetic[A-Z]|sukrara-snap'; then found="$found $(basename "$bin")"; fi
+  if strings -a "$bin" | grep -Eq 'debugsend|DebugFakes|Synthetic[A-Z]|sukrara-snap[ :-]'; then found="$found $(basename "$bin")"; fi
 done
 [ -z "$found" ] && ok "no debug entry points in the binaries" || bad "debug code compiled into:$found (build with -c release)"
 exit $fail

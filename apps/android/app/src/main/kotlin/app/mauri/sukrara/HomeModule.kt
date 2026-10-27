@@ -8,6 +8,8 @@ import app.mauri.sukrara.core.data.CorruptFile
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertReadinessSource
+import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.feature.treatments.TreatmentLog
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
@@ -44,6 +46,8 @@ class HomeModule(
     private val resume: () -> Unit,
     /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
     private val widgetPlaced: () -> Boolean? = { null },
+    /** The phone's treatment writes (writer check, versioning, sync); a function: the treatments module needs home. */
+    private val treatmentLog: () -> TreatmentLog,
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -80,6 +84,14 @@ class HomeModule(
     override fun fix(requirement: AlertRequirement) {
         readinessSource.fix(requirement)
     }
+
+    override suspend fun deleteTreatment(id: String): Treatment? = treatmentLog().delete(id)
+
+    override suspend fun undoTreatment(previous: Treatment) {
+        treatmentLog().undo(previous)
+    }
+
+    override suspend fun mayChangeTreatment(id: String): Boolean = treatmentLog().mayChange(id)
 
     private fun CorruptFile.toProblem() = DataProblem(store = store, reason = reason, keptAs = quarantinedTo?.name, at = at)
 }

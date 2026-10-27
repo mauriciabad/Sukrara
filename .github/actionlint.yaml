@@ -1,0 +1,7 @@
+# Sukrara — https://github.com/mauriciabad/Sukrara
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
+# `xcode-27` is a GitHub-hosted runner label (public preview, actions/runner-images) newer than actionlint's list.
+self-hosted-runner:
+  labels:
+    - xcode-27

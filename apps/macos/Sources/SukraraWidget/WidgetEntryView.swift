@@ -40,10 +40,10 @@ struct WidgetEntryView: View {
                     .accessibilityLabel(
                         GlucoseCard.accessibilityLabel(
                             data, unit: snapshot.unit, surface: kind.surface, config: snapshot.config))
-                    .widgetURL(SukraraLinks.newTreatment)
+                    .widgetURL(URL(string: SukraraIDs.Link.newTreatment))
             } else {
                 openApp
-                    .widgetURL(SukraraLinks.open)
+                    .widgetURL(URL(string: SukraraIDs.Link.panel))
             }
         }
         // the card is one image: redacted (placeholder, gallery) it would come out blank
@@ -82,12 +82,4 @@ struct WidgetEntryView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(words.openAppSpoken)
     }
-}
-
-/// The app links a widget tap opens (`sukrara:` is the app's URL scheme, Info.plist CFBundleURLTypes).
-enum SukraraLinks {
-    /// Quick Add treatment (chunk 23's dialog; it focuses carbs while low).
-    static let newTreatment = URL(string: "\(SukraraIDs.urlScheme)://treatment/new")
-    /// The app's panel.
-    static let open = URL(string: "\(SukraraIDs.urlScheme)://open")
 }

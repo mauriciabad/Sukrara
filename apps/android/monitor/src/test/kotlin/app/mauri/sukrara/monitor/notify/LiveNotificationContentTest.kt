@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
+import app.mauri.sukrara.core.testing.Contracts
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.stats.toPoint
@@ -16,6 +17,11 @@ import app.mauri.sukrara.monitor.LiveNotification
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Icon
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Target
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -144,12 +150,18 @@ class LiveNotificationContentTest {
         )
     }
 
+    /** Same rate, same arrow: the title writes the fixture's arrow (contracts/graph/trend), the chip's icon draws it. */
     @Test
-    fun `arrows follow the trend steps`() {
-        assertEquals("⇈", LiveNotificationContent.arrow(3.0))
-        assertEquals("→", LiveNotificationContent.arrow(0.0))
-        assertEquals("↘", LiveNotificationContent.arrow(-1.5))
-        assertEquals("⇊", LiveNotificationContent.arrow(-3.5))
-        assertEquals("○", LiveNotificationContent.arrow(null))
+    fun `the title's arrow is the renderer's for every rate of the trend fixture`() {
+        val cases = Json.parseToJsonElement(Contracts.file("graph/trend/trend.json").readText()).jsonObject.getValue("cases").jsonArray
+        assertTrue(cases.isNotEmpty())
+        cases.map { it.jsonObject }.forEach { c ->
+            val rate = c.getValue("rate").jsonPrimitive.doubleOrNull
+            val want = c.getValue("expect").jsonObject.getValue("text").jsonPrimitive.content
+            val name = c.getValue("name").jsonPrimitive.content
+            val content = content(state(rate = rate))
+            assertEquals(name, UiText(R.string.monitor_notif_value, listOf("138", want)), content.title)
+            assertEquals(name, rate, content.trendRate)
+        }
     }
 }

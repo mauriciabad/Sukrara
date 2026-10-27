@@ -155,6 +155,12 @@ enum class AlertDeliveryProblem {
 
     /** Alarm-level alerts can't open over the lock screen (full-screen intent not allowed). */
     FullScreenDenied,
+
+    /**
+     * The last attempt to post an alert, arm the alert check, tell the followers or save the alert state failed (the
+     * diagnostic log names the step). Goes when that step next works; "Copy report" carries the details.
+     */
+    AlertStepFailed,
 }
 
 /** Why a side is quiet (contracts/alerts/SPEC.md §2 "States and exits"). */
