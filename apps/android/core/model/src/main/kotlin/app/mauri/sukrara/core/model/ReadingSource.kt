@@ -7,21 +7,21 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The one input of [GlucoseHub] for the phone's role: the wearer's sensor source (`:sensor` SourceManager) or the
- * follower engine. The monitoring service attaches exactly one at a time.
+ * One role's glucose input as the hub consumes it (wearer: the sensor's `SourceManager`, chunk 12; follower: chunk 25).
+ * Readings are only ever what the sensor or the followed wearer sent: a source never invents, repeats as new or
+ * extrapolates a value.
  */
 interface ReadingSource {
-    /** New readings as they arrive (a backfill comes as one list). Cold: collecting it runs the source. */
+    /** Batches of readings: one live value or a backfill (may repeat values the hub already has; it upserts). */
     val readings: Flow<List<Reading>>
 
-    /** The sensor as the person needs to see it; [SensorState.None] = nothing set up to monitor. */
     val sensor: StateFlow<SensorState>
 
     val status: StateFlow<SourceStatus>
 
-    /** Bluetooth came back on: reconnect with a fresh connection. */
+    /** Bluetooth came back on (`BluetoothAdapter.ACTION_STATE_CHANGED`): reopen links with new connections. */
     fun onBluetoothOn()
 
-    /** Bluetooth went off: close links, don't retry until [onBluetoothOn]. */
+    /** Bluetooth went off: close links now (no retries until [onBluetoothOn]). */
     fun onBluetoothOff()
 }
