@@ -18,6 +18,7 @@ import app.mauri.sukrara.feature.sharing.SharingDeps
 import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -39,11 +40,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import java.time.Duration
 
@@ -133,6 +135,11 @@ class AppGraph(
         )
     }
 
+    /** The person's graph settings: THE [GraphConfig] every card surface draws with (home, widgets). */
+    val graphConfig: Flow<GraphConfig> by lazy {
+        GraphSettings.config(data.settings).shareIn(scope, SharingStarted.WhileSubscribed(SHARE_STOP_MS), replay = 1)
+    }
+
     val home by lazy {
         HomeModule(
             context = app,
@@ -140,6 +147,7 @@ class AppGraph(
             clock = clock,
             scope = scope,
             glucose = monitor.hub.state,
+            graphConfig = graphConfig,
             // the reliability checklist has no implementation yet (OPS issue cW): null = the row claims nothing
             readinessSource = null,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
@@ -151,7 +159,6 @@ class AppGraph(
         )
     }
 
-    // the graph settings join when the settings repository builds GraphConfig (OPS issue c20)
     val widgets by lazy {
         WidgetsModule(
             context = app,
@@ -159,7 +166,7 @@ class AppGraph(
             clock = clock,
             glucose = monitor.hub.state,
             treatments = recentTreatments(),
-            graphConfig = flowOf(GraphConfig()),
+            graphConfig = graphConfig,
             freshnessTicks = monitor.freshnessTicks,
             store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
@@ -235,6 +242,9 @@ class AppGraph(
 
     private companion object {
         val TREATMENTS_WINDOW: Duration = Duration.ofHours(25)
+
+        /** A config nobody draws with stops being read after this (a screen rotation keeps it). */
+        const val SHARE_STOP_MS = 5_000L
         val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }

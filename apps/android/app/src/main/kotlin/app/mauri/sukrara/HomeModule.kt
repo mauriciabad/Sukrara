@@ -18,7 +18,9 @@ import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.feature.home.banners.Showcase
+import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +39,7 @@ class HomeModule(
     override val clock: Clock,
     scope: CoroutineScope,
     override val glucose: StateFlow<GlucoseState>,
+    override val graphConfig: Flow<GraphConfig>,
     private val readinessSource: AlertReadinessSource?,
     private val unmuteAlerts: () -> Unit,
     private val resume: () -> Unit,

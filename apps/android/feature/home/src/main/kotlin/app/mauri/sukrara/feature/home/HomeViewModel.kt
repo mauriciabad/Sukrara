@@ -21,6 +21,7 @@ import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeBanners
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -46,6 +47,9 @@ interface HomeDeps {
     /** THE glucose state (`GlucoseHub.state`). */
     val glucose: StateFlow<GlucoseState>
     val treatments: TreatmentsRepository
+
+    /** The person's graph settings (`GraphSettings.config`): the card's ranges, time shown, rings… */
+    val graphConfig: Flow<GraphConfig>
 
     /** The alert checklist; null = not known on this build yet (no warning is claimed either way). */
     val readiness: StateFlow<AlertReadiness?>
@@ -87,6 +91,8 @@ data class HomeUiState(
     val treatments: List<Treatment>,
     /** A just-deleted treatment the snackbar offers to bring back. */
     val undo: Treatment?,
+    /** The graph settings the card draws with. */
+    val config: GraphConfig = GraphConfig(),
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -117,8 +123,8 @@ class HomeViewModel(
             minutes,
             deps.readiness,
             deps.environment,
-            combine(deps.bannerMemory.data, recentTreatments, undo, deps.dataProblems, ::Extras),
-        ) { glucose, tick, readiness, env, (memory, treatments, pendingUndo, problems) ->
+            combine(deps.bannerMemory.data, recentTreatments, undo, deps.dataProblems, deps.graphConfig, ::Extras),
+        ) { glucose, tick, readiness, env, (memory, treatments, pendingUndo, problems, config) ->
             val now = maxOf(tick, deps.clock.now())
             val look = homeLook(glucose, now)
             HomeUiState(
@@ -132,6 +138,7 @@ class HomeViewModel(
                 dataProblems = problems,
                 treatments = treatments.sortedByDescending { it.at },
                 undo = pendingUndo,
+                config = config,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial())
 
@@ -199,6 +206,7 @@ class HomeViewModel(
         val treatments: List<Treatment>,
         val undo: Treatment?,
         val problems: List<DataProblem>,
+        val config: GraphConfig,
     )
 
     companion object {

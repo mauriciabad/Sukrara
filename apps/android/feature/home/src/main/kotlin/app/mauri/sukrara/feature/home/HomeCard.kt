@@ -41,20 +41,19 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.CardModel
 import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardStatus
-import app.mauri.sukrara.graph.CardStyle
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.ChartView
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPalette
-import app.mauri.sukrara.graph.GraphStyle
+import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.SensorInfo
 import app.mauri.sukrara.graph.SensorLife
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.stats.Band
-import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.toPoint
 import java.time.Duration
 import java.time.Instant
@@ -110,6 +109,7 @@ fun PanelCard(
     glucose: GlucoseState,
     treatments: List<Treatment>,
     now: Instant,
+    config: GraphConfig,
     description: String,
     modifier: Modifier = Modifier,
     actions: List<CustomAccessibilityAction> = emptyList(),
@@ -130,7 +130,8 @@ fun PanelCard(
                 sensor = glucose.sensor.info(now),
             )
         }
-    val style = remember { CardStyle(graph = GraphStyle(windowS = DEFAULT_SPAN_S), sensorTime = true) }
+    val style = remember(config) { config.appPanelStyle() }
+    val spanS by rememberUpdatedState(config.hours(GraphPlace.APP) * 3600L)
     // null = following now; otherwise the end of the scrolled window
     var endS by rememberSaveable { mutableStateOf<Long?>(null) }
     val currentNow by rememberUpdatedState(nowS)
@@ -147,7 +148,7 @@ fun PanelCard(
                     // horizontal only, so a vertical swipe that starts on the card still scrolls the page
                     detectHorizontalDragGestures { _, dx ->
                         val now = currentNow
-                        val shifted = ((endS ?: now) - (dx / size.width * DEFAULT_SPAN_S).toLong()).coerceAtMost(now)
+                        val shifted = ((endS ?: now) - (dx / size.width * spanS).toLong()).coerceAtMost(now)
                         endS = shifted.takeIf { it < now - NOW_SNAP_S }
                     }
                 },
@@ -166,8 +167,6 @@ fun PanelCard(
     }
 }
 
-private const val DEFAULT_SPAN_S = 6 * 3600L
-
 /** A scroll that ends within a minute of now follows now again. */
 private const val NOW_SNAP_S = 60L
 private val CARD_HEIGHT = 300.dp
@@ -181,14 +180,15 @@ fun cardDescription(
     state: HomeUiState,
     resources: Resources,
 ): String {
-    val bands = Bands()
-    val window = state.glucose.recent.filter { it.t >= state.now.minusSeconds(DEFAULT_SPAN_S) }
+    val bands = state.config.bands
+    val hours = state.config.hours(GraphPlace.APP)
+    val window = state.glucose.recent.filter { it.t >= state.now.minusSeconds(hours * 3600L) }
     val chart =
         if (window.isEmpty()) {
             null
         } else {
             val inRange = window.count { bands.of(it.mgdl).group == 0 } * 100 / window.size
-            resources.getString(R.string.home_a11y_chart, (DEFAULT_SPAN_S / 3600).toInt(), inRange)
+            resources.getString(R.string.home_a11y_chart, hours, inRange)
         }
     val reading = state.glucose.latest
     val text = state.look.text

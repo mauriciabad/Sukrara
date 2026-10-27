@@ -36,6 +36,47 @@ enum class Freshness(
     GONE(false, true, false, false),
     ;
 
+    /**
+     * What a card WITHOUT a value (graph-only: the graph widget) shows of its data's age, so it never looks current
+     * when it isn't (contracts/graph/freshness `graph_only`; Freshness.swift `AgeMark`): the value's own steps.
+     */
+    enum class AgeMark(
+        /** The contract's name. */
+        val key: String,
+    ) {
+        NONE("none"),
+
+        /** The reading's time on a pill over the chart. */
+        TIME("time"),
+
+        /** The time pill and the chart at [DIM_ALPHA]. */
+        DIMMED("dimmed"),
+
+        /** Dimmed, and the "no readings" icon before the time. */
+        NO_READINGS("no_readings"),
+
+        /** No chart: the value's face takes its place. */
+        FACE("face"),
+        ;
+
+        val dims: Boolean get() = this == DIMMED || this == NO_READINGS
+
+        companion object {
+            /** The chart's opacity while dimmed. */
+            const val DIM_ALPHA = 0.4f
+        }
+    }
+
+    val ageMark: AgeMark
+        get() =
+            when (this) {
+                FRESH -> AgeMark.NONE
+                LATE -> AgeMark.TIME
+                STALE -> AgeMark.DIMMED
+                OLD -> AgeMark.NO_READINGS
+                GONE -> AgeMark.FACE
+            }
+
     companion object {
         const val LATE_S = 90L
         const val STALE_S = 5 * 60L
