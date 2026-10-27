@@ -5,6 +5,8 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import app.mauri.sukrara.feature.treatments.TreatmentsHost
+import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.monitor.AlertsHost
 import app.mauri.sukrara.monitor.MonitorHost
 import app.mauri.sukrara.monitor.MonitorModule
@@ -17,7 +19,8 @@ import app.mauri.sukrara.monitor.alerts.AlertsModule
 class App :
     Application(),
     MonitorHost,
-    AlertsHost {
+    AlertsHost,
+    TreatmentsHost {
     lateinit var graph: AppGraph
         private set
 
@@ -32,6 +35,8 @@ class App :
         graph = AppGraph(this)
         graph.ready.start()
     }
+
+    override val treatments: TreatmentsModule get() = graph.treatments
 }
 
 val Context.graph: AppGraph get() = (applicationContext as App).graph

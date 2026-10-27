@@ -11,8 +11,21 @@ enum TreatmentMarks {
         switch k {
         case "rapid": GraphPalette.hex(dark ? 0x8AB4FF : 0x1A62D6)
         case "long": GraphPalette.hex(dark ? 0xC9B0FF : 0x6D45C4)
-        case "carbs": GraphPalette.hex(dark ? 0xFFB74D : 0xC86E00)
+        // light #A65A00: white on it 5.1:1 (#C86E00 was 3.7:1, UX review F5; Android TreatmentMarks.palette)
+        case "carbs": GraphPalette.hex(dark ? 0xFFB74D : 0xA65A00)
         default: GraphPalette.hex(dark ? 0xB4B4B4 : 0x707070)
+        }
+    }
+
+    /// Words and marker on a kind's tonal pill (its colour at 18 % over the light card): a deeper shade, ≥ 4.5:1 on
+    /// that tint (the kind's own colour is 4.3:1 or less there, UX review F5). Dark theme: the kind's colour (≥ 5.6:1).
+    static func tonalInk(_ k: String, dark: Bool) -> CGColor {
+        if dark { return color(k, dark: true) }
+        return switch k {
+        case "rapid": GraphPalette.hex(0x1550B4)
+        case "long": GraphPalette.hex(0x5A32A8)
+        case "carbs": GraphPalette.hex(0x8A4A00)
+        default: GraphPalette.hex(0x555555)
         }
     }
 

@@ -5,26 +5,36 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
-        <!-- disabled until chunk 19 implements it -->
+        <!-- an action tile ("Add treatment"), not a toggle; System UI binds it with the permission below -->
         <service
             android:name=".TreatmentTileService"
-            android:enabled="false"
             android:exported="true"
+            android:icon="@drawable/treatment_ic_tile"
             android:label="@string/tile_add_treatment"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="false" />
         </service>
-        <!-- disabled until chunk 19 implements it -->
+        <!-- the quick dialog over any app and the lock screen; opened only by the app's own explicit intents
+             (notification, widgets, tile), never by other apps -->
         <activity
             android:name=".QuickTreatmentActivity"
-            android:enabled="false"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
             android:noHistory="true"
             android:showWhenLocked="true"
-            android:taskAffinity="" />
+            android:taskAffinity=""
+            android:theme="@style/Theme.Sukrara.QuickTreatment"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="app.mauri.sukrara.action.QUICK_TREATMENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
