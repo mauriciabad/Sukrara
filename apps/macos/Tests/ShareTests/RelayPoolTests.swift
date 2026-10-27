@@ -140,6 +140,38 @@ struct RelayPoolTests {
         await pool.stop()
     }
 
+    /// r-code-mac H3: a relay whose ping is never answered (half-open after sleep / a Wi-Fi roam) is dropped at the
+    /// ping deadline and doesn't hold up the other relay's ping.
+    @Test func aHungPingIsDroppedAndDoesNotHoldUpTheOtherRelays() async throws {
+        let factory = FakeWebSocketFactory()
+        let clock = TestClock(1_792_087_200)
+        let (ticks, tick) = AsyncStream.makeStream(of: Void.self)
+        let pool = RelayPool(
+            relays: [relay, "wss://second.test.invalid"], authKey: nil, crypto: crypto, factory: factory,
+            sleep: { seconds in
+                if seconds >= 60 {  // the watchdog's minute: one per tick
+                    for await _ in ticks { return }
+                    throw CancellationError()
+                } else if seconds == RelayPool.pingTimeout {
+                    try await Task.sleep(for: .milliseconds(200))
+                } else {
+                    await Task.yield()  // reconnect delays pass at once
+                }
+            }, now: { clock.now })
+        await pool.start()
+        #expect(await factory.waitForConnections(2))
+        let (hung, healthy) = (factory.sockets[0], factory.sockets[1])
+        hung.push("[\"NOTICE\",\"hi\"]")
+        healthy.push("[\"NOTICE\",\"hi\"]")
+        #expect(await eventually { await pool.connectedCount == 2 })
+        hung.pingHangs = true
+        clock.now += 200  // both silent for 200 s: pinged, not yet dropped
+        tick.yield()
+        #expect(await eventually { hung.isCancelled && healthy.pingCount == 1 })
+        #expect(!healthy.isCancelled)
+        await pool.stop()
+    }
+
     @Test func stopIsTerminalAndClosesTheSockets() async throws {
         let factory = FakeWebSocketFactory()
         let pool = pool(factory)
@@ -157,5 +189,19 @@ struct RelayPoolTests {
         try await Task.sleep(for: .milliseconds(50))
         #expect(factory.sockets.count == 1)  // no reconnect after stop
         for await _ in pool.inbound {}  // returns: the stream is finished
+    }
+}
+
+/// A wall clock the test moves by hand.
+private final class TestClock: @unchecked Sendable {
+    // Guarded by `lock`.
+    private let lock = NSLock()
+    private var seconds: Int
+
+    init(_ seconds: Int) { self.seconds = seconds }
+
+    var now: Int {
+        get { lock.withLock { seconds } }
+        set { lock.withLock { seconds = newValue } }
     }
 }

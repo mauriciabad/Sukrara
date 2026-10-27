@@ -119,6 +119,7 @@ public final class FakeWebSocket: WebSocket, @unchecked Sendable {
     private var sentFrames: [String] = []
     private var pings = 0
     private var cancelled = false
+    private var hangs = false
     private let frames: AsyncThrowingStream<String, any Error>
     private let frameContinuation: AsyncThrowingStream<String, any Error>.Continuation
 
@@ -144,7 +145,19 @@ public final class FakeWebSocket: WebSocket, @unchecked Sendable {
         return next
     }
 
-    public func ping() async throws { lock.withLock { pings += 1 } }
+    /// A half-open connection: pings are never answered (the ping returns only when the test process ends).
+    public var pingHangs: Bool {
+        get { lock.withLock { hangs } }
+        set { lock.withLock { hangs = newValue } }
+    }
+
+    public func ping() async throws {
+        let hang = lock.withLock { () -> Bool in
+            pings += 1
+            return hangs
+        }
+        if hang { try? await Task.sleep(for: .seconds(86_400)) }
+    }
 
     public func cancel() {
         lock.withLock { cancelled = true }
