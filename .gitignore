@@ -21,6 +21,7 @@ sensor.json
 # Swift / macOS builds
 .build/
 /poc/spikes/*/build/
+/apps/macos/build/
 /poc/spikes/ble-scan/blescan
 *.o
 *.a
