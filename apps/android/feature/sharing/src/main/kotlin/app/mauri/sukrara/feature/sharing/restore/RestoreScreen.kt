@@ -57,24 +57,24 @@ fun ColumnScope.IdentityStep(
     u: SetupUi,
     actions: SetupActions,
 ) {
-    StepHeader(stringResource(R.string.identity_title), stringResource(R.string.identity_body))
+    StepHeader(stringResource(R.string.sh_identity_title), stringResource(R.string.sh_identity_body))
     when (val share = u.share) {
         is OwnerShareState.Sharing -> {
-            NoteCard(stringResource(R.string.identity_sharing, share.followers.count { it.active }))
-            StepButtons(stringResource(R.string.setup_continue), actions.completeIdentity)
+            NoteCard(stringResource(R.string.sh_identity_sharing, share.followers.count { it.active }))
+            StepButtons(stringResource(R.string.sh_setup_continue), actions.completeIdentity)
         }
         is OwnerShareState.AnotherAppSharingAsYou -> {
             ConflictContent(share, onRetry = actions.retryConflict, onOpenShowcase = actions.openShowcase, onUninstallShowcase = actions.uninstallShowcase)
-            StepButtons(null, {}, secondary = listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Identity) }))
+            StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Identity) }))
         }
         else -> {
-            if (share is OwnerShareState.IdentityUnreadable) NoteCard(stringResource(R.string.identity_unreadable), error = true)
+            if (share is OwnerShareState.IdentityUnreadable) NoteCard(stringResource(R.string.sh_identity_unreadable), error = true)
             RestoreForm(u, actions)
             if (share is OwnerShareState.NoIdentity) {
                 HorizontalDivider()
                 StartFresh(enabled = !u.busy, actions)
             }
-            StepButtons(null, {}, secondary = listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Identity) }))
+            StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Identity) }))
         }
     }
 }
@@ -87,9 +87,9 @@ private fun ColumnScope.RestoreForm(
     // the secret stays in this composition only: never saved state, cleared once restored
     var code by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    Text(stringResource(R.string.restore_title), style = MaterialTheme.typography.titleMedium)
-    NoteCard(stringResource(R.string.restore_warning))
-    Text(stringResource(R.string.restore_where), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.sh_restore_title), style = MaterialTheme.typography.titleMedium)
+    NoteCard(stringResource(R.string.sh_restore_warning))
+    Text(stringResource(R.string.sh_restore_where), style = MaterialTheme.typography.bodyMedium)
     for (block in u.gate.blocks) NoteCard(blockText(block))
     if (u.facts.showcaseInstalled) {
         Row(
@@ -101,7 +101,7 @@ private fun ColumnScope.RestoreForm(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = u.record.showcaseSharingOffConfirmed, onCheckedChange = null)
-            Text(stringResource(R.string.restore_showcase_sharing_off), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
+            Text(stringResource(R.string.sh_restore_showcase_sharing_off), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
         }
     }
     val restoring = u.restore is RestoreUi.Busy
@@ -111,7 +111,7 @@ private fun ColumnScope.RestoreForm(
             code = it
             actions.clearRestoreError()
         },
-        label = { Text(stringResource(R.string.restore_code)) },
+        label = { Text(stringResource(R.string.sh_restore_code)) },
         singleLine = true,
         enabled = !restoring,
         modifier = Modifier.fillMaxWidth(),
@@ -125,7 +125,7 @@ private fun ColumnScope.RestoreForm(
                 password = it
                 actions.clearRestoreError()
             },
-            label = { Text(stringResource(R.string.restore_password)) },
+            label = { Text(stringResource(R.string.sh_restore_password)) },
             singleLine = true,
             enabled = !restoring,
             modifier = Modifier.fillMaxWidth(),
@@ -137,7 +137,7 @@ private fun ColumnScope.RestoreForm(
         RestoreUi.Busy ->
             Row(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.heightIn(max = 24.dp))
-                Text(stringResource(R.string.restore_busy), modifier = Modifier.padding(start = 12.dp))
+                Text(stringResource(R.string.sh_restore_busy), modifier = Modifier.padding(start = 12.dp))
             }
         is RestoreUi.Failed ->
             Text(
@@ -151,12 +151,12 @@ private fun ColumnScope.RestoreForm(
                 code = ""
                 password = ""
             }
-            NoteCard(stringResource(R.string.restore_done, r.followers))
+            NoteCard(stringResource(R.string.sh_restore_done, r.followers))
         }
         RestoreUi.Idle -> Unit
     }
     StepButtons(
-        stringResource(R.string.restore_action),
+        stringResource(R.string.sh_restore_action),
         onPrimary = { actions.restore(code, password) },
         enabled = u.gate.open && code.isNotBlank() && !restoring && !u.busy,
     )
@@ -168,14 +168,14 @@ private fun ColumnScope.StartFresh(
     actions: SetupActions,
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
-    Text(stringResource(R.string.fresh_title), style = MaterialTheme.typography.titleMedium)
-    Text(stringResource(R.string.fresh_body), style = MaterialTheme.typography.bodyMedium)
-    StepButtons(null, {}, secondary = listOf(stringResource(R.string.fresh_action) to { if (enabled) confirming = true }))
+    Text(stringResource(R.string.sh_fresh_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.sh_fresh_body), style = MaterialTheme.typography.bodyMedium)
+    StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_fresh_action) to { if (enabled) confirming = true }))
     if (confirming) {
         ConfirmDialog(
-            title = stringResource(R.string.fresh_confirm_title),
-            text = stringResource(R.string.fresh_confirm_text),
-            confirm = stringResource(R.string.fresh_confirm),
+            title = stringResource(R.string.sh_fresh_confirm_title),
+            text = stringResource(R.string.sh_fresh_confirm_text),
+            confirm = stringResource(R.string.sh_fresh_confirm),
             onConfirm = actions.startFresh,
             onDismiss = { confirming = false },
         )
@@ -186,8 +186,8 @@ private fun ColumnScope.StartFresh(
 private fun blockText(block: RestoreBlock): String =
     stringResource(
         when (block) {
-            RestoreBlock.NoLiveReading -> R.string.restore_block_no_reading
-            RestoreBlock.ShowcaseMayBeSharing -> R.string.restore_block_showcase
+            RestoreBlock.NoLiveReading -> R.string.sh_restore_block_no_reading
+            RestoreBlock.ShowcaseMayBeSharing -> R.string.sh_restore_block_showcase
         },
     )
 
@@ -195,13 +195,13 @@ private fun blockText(block: RestoreBlock): String =
 @Composable
 fun restoreError(result: RestoreIdentity.Result): String =
     when (result) {
-        RestoreIdentity.Result.NeedsPassword -> stringResource(R.string.restore_err_needs_password)
-        RestoreIdentity.Result.WrongPassword -> stringResource(R.string.restore_err_wrong_password)
-        RestoreIdentity.Result.NotAKey -> stringResource(R.string.restore_err_not_a_key)
-        RestoreIdentity.Result.RelaysUnreachable -> stringResource(R.string.restore_err_offline)
-        is RestoreIdentity.Result.NoBackupFound -> stringResource(R.string.restore_err_no_backup)
-        RestoreIdentity.Result.BackupUnreadable -> stringResource(R.string.restore_err_unreadable)
-        RestoreIdentity.Result.BackupOutdated -> stringResource(R.string.restore_err_outdated)
-        RestoreIdentity.Result.AlreadySharing -> stringResource(R.string.restore_err_already)
+        RestoreIdentity.Result.NeedsPassword -> stringResource(R.string.sh_restore_err_needs_password)
+        RestoreIdentity.Result.WrongPassword -> stringResource(R.string.sh_restore_err_wrong_password)
+        RestoreIdentity.Result.NotAKey -> stringResource(R.string.sh_restore_err_not_a_key)
+        RestoreIdentity.Result.RelaysUnreachable -> stringResource(R.string.sh_restore_err_offline)
+        is RestoreIdentity.Result.NoBackupFound -> stringResource(R.string.sh_restore_err_no_backup)
+        RestoreIdentity.Result.BackupUnreadable -> stringResource(R.string.sh_restore_err_unreadable)
+        RestoreIdentity.Result.BackupOutdated -> stringResource(R.string.sh_restore_err_outdated)
+        RestoreIdentity.Result.AlreadySharing -> stringResource(R.string.sh_restore_err_already)
         is RestoreIdentity.Result.Restored -> ""
     }

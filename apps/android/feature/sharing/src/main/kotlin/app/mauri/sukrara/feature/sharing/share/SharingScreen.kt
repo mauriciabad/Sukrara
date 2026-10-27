@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,15 +39,15 @@ fun SharingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var reviewing by rememberSaveable { mutableStateOf<String?>(null) }
-    Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier.fillMaxSize().safeDrawingPadding(), color = MaterialTheme.colorScheme.surface) {
         when (val s = state) {
             OwnerShareState.Loading -> CircularProgressIndicator()
             OwnerShareState.NoIdentity, is OwnerShareState.IdentityUnreadable ->
                 StateScreen(
                     kind = if (s is OwnerShareState.IdentityUnreadable) StateKind.Error else StateKind.Empty,
-                    title = stringResource(R.string.identity_title),
-                    reason = stringResource(if (s is OwnerShareState.IdentityUnreadable) R.string.identity_unreadable else R.string.identity_body),
-                    action = stringResource(R.string.sharing_set_up),
+                    title = stringResource(R.string.sh_identity_title),
+                    reason = stringResource(if (s is OwnerShareState.IdentityUnreadable) R.string.sh_identity_unreadable else R.string.sh_identity_body),
+                    action = stringResource(R.string.sh_sharing_set_up),
                     onAction = onSetUpSharing,
                 )
             is OwnerShareState.AnotherAppSharingAsYou ->

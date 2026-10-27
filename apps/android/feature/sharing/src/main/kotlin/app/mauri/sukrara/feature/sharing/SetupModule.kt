@@ -104,7 +104,13 @@ class SetupModule(
 
     /** The home "Finish setup" card's items ([FinishSetupCard]); empty before a role and once nothing is left. */
     val finishItems: Flow<List<FinishItem>> by lazy {
-        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(showcaseInstalled, alertsConfirmedAt, ::Pair)) { record, role, glucose, share, (installed, confirmed) ->
+        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(showcaseInstalled, alertsConfirmedAt, readiness.readiness, ::Triple)) {
+                record,
+                role,
+                glucose,
+                share,
+                (installed, confirmed, checklist),
+            ->
             val facts =
                 SetupFacts(
                     role = role,
@@ -113,7 +119,7 @@ class SetupModule(
                     ownSensorLive = RestoreGate.ownSensorLive(glucose, clock.now()),
                     hasIdentity = share is OwnerShareState.Sharing || share is OwnerShareState.AnotherAppSharingAsYou,
                     alertsConfirmed = confirmed != null,
-                    alertsReady = readiness.readiness.value.ready,
+                    alertsReady = checklist.ready,
                 )
             SetupMachine.finishItems(record, facts)
         }

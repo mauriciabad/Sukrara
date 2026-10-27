@@ -32,14 +32,14 @@ fun ApproveDialog(
     onLater: () -> Unit,
 ) {
     val haptics = rememberHaptics()
-    val name = request.name.ifBlank { stringResource(R.string.approve_unnamed) }
+    val name = request.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }
     AlertDialog(
         onDismissRequest = onLater,
-        title = { Text(stringResource(R.string.approve_title, name)) },
+        title = { Text(stringResource(R.string.sh_approve_title, name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (request.label.isNotBlank()) Text(stringResource(R.string.approve_invite_for, request.label))
-                Text(stringResource(R.string.approve_code_intro))
+                if (request.label.isNotBlank()) Text(stringResource(R.string.sh_approve_invite_for, request.label))
+                Text(stringResource(R.string.sh_approve_code_intro))
                 val spaced = request.code.toList().joinToString(" ")
                 Text(
                     request.code,
@@ -48,24 +48,24 @@ fun ApproveDialog(
                 )
                 if (request.others > 0) {
                     Text(
-                        pluralStringResource(R.plurals.approve_others, request.others, request.others),
+                        pluralStringResource(R.plurals.sh_approve_others, request.others, request.others),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                Text(stringResource(R.string.approve_they_see), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.sh_approve_they_see), style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 haptics.confirm()
                 onAllow()
-            }) { Text(stringResource(R.string.approve_allow)) }
+            }) { Text(stringResource(R.string.sh_approve_allow)) }
         },
         dismissButton = {
             TextButton(onClick = {
                 haptics.reject()
                 onDeny()
-            }) { Text(stringResource(R.string.approve_deny)) }
+            }) { Text(stringResource(R.string.sh_approve_deny)) }
         },
     )
 }

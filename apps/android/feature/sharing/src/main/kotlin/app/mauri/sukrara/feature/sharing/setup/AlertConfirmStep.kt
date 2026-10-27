@@ -29,26 +29,26 @@ internal fun ColumnScope.AlertConfirmStep(
     actions: SetupActions,
 ) {
     var editing by rememberSaveable { mutableStateOf<ThresholdField?>(null) }
-    StepHeader(stringResource(R.string.setup_alerts_title), stringResource(R.string.setup_alerts_body))
+    StepHeader(stringResource(R.string.sh_setup_alerts_title), stringResource(R.string.sh_setup_alerts_body))
     SettingsGroup {
         for (field in ThresholdField.entries) {
             val value = u.alerts.value(field)
             val unit = unitText(field.spec)
             val shown =
                 if (u.alerts.isOn(field)) {
-                    stringResource(R.string.setup_alerts_value, field.spec.text(value), unit)
+                    stringResource(R.string.sh_setup_alerts_value, field.spec.text(value), unit)
                 } else {
-                    stringResource(R.string.setup_alerts_value_off, field.spec.text(value), unit)
+                    stringResource(R.string.sh_setup_alerts_value_off, field.spec.text(value), unit)
                 }
             ValueRow(title = thresholdTitle(field), value = shown, onClick = { editing = field })
         }
     }
-    if (!u.alerts.ordered) NoteCard(stringResource(R.string.setup_alerts_order), error = true)
+    if (!u.alerts.ordered) NoteCard(stringResource(R.string.sh_setup_alerts_order), error = true)
     StepButtons(
-        stringResource(R.string.setup_alerts_confirm),
+        stringResource(R.string.sh_setup_alerts_confirm),
         actions.confirmAlerts,
         enabled = u.alerts.ordered && !u.busy,
-        secondary = listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Alerts) }),
+        secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Alerts) }),
     )
     val field = editing
     if (field != null) {
@@ -58,7 +58,7 @@ internal fun ColumnScope.AlertConfirmStep(
             title = thresholdTitle(field),
             input = NumberInput(field.spec),
             selected = u.alerts.value(field),
-            label = { res.getString(R.string.setup_alerts_value, field.spec.text(it), unit) },
+            label = { res.getString(R.string.sh_setup_alerts_value, field.spec.text(it), unit) },
             onClose = { editing = null },
             onChoose = { actions.editThreshold(field, it) },
         )
@@ -69,10 +69,10 @@ internal fun ColumnScope.AlertConfirmStep(
 private fun thresholdTitle(field: ThresholdField): String =
     stringResource(
         when (field) {
-            ThresholdField.VeryLow -> R.string.setup_alerts_very_low
-            ThresholdField.Low -> R.string.setup_alerts_low
-            ThresholdField.High -> R.string.setup_alerts_high
-            ThresholdField.VeryHigh -> R.string.setup_alerts_very_high
-            ThresholdField.NoData -> R.string.setup_alerts_no_data
+            ThresholdField.VeryLow -> R.string.sh_setup_alerts_very_low
+            ThresholdField.Low -> R.string.sh_setup_alerts_low
+            ThresholdField.High -> R.string.sh_setup_alerts_high
+            ThresholdField.VeryHigh -> R.string.sh_setup_alerts_very_high
+            ThresholdField.NoData -> R.string.sh_setup_alerts_no_data
         },
     )

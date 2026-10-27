@@ -51,9 +51,9 @@ fun FollowersPage(
     if (active.isEmpty() && pending.isEmpty()) {
         StateScreen(
             kind = StateKind.Empty,
-            title = stringResource(R.string.followers_empty_title),
-            reason = stringResource(R.string.followers_empty_body),
-            action = stringResource(R.string.followers_share),
+            title = stringResource(R.string.sh_followers_empty_title),
+            reason = stringResource(R.string.sh_followers_empty_body),
+            action = stringResource(R.string.sh_followers_share),
             onAction = onShare,
             modifier = modifier,
         )
@@ -61,19 +61,19 @@ fun FollowersPage(
     }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (pending.isNotEmpty()) {
-            SettingsGroup(title = stringResource(R.string.followers_waiting)) {
+            SettingsGroup(title = stringResource(R.string.sh_followers_waiting)) {
                 for (p in pending) {
-                    NavigationRow(title = p.name.ifBlank { stringResource(R.string.approve_unnamed) }, summary = stringResource(R.string.followers_review), onClick = { onReview(p) })
+                    NavigationRow(title = p.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }, summary = stringResource(R.string.sh_followers_review), onClick = { onReview(p) })
                 }
             }
         }
-        SettingsGroup(title = pluralStringResource(R.plurals.followers_count, active.size, active.size)) {
+        SettingsGroup(title = pluralStringResource(R.plurals.sh_followers_count, active.size, active.size)) {
             for (f in active) {
-                NavigationRow(title = f.name.ifBlank { stringResource(R.string.approve_unnamed) }, summary = stringResource(R.string.followers_since, date(f.since)), onClick = { open = f.key })
+                NavigationRow(title = f.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }, summary = stringResource(R.string.sh_followers_since, date(f.since)), onClick = { open = f.key })
             }
         }
-        NavigationRow(title = stringResource(R.string.followers_share), onClick = onShare)
-        FooterText(stringResource(R.string.followers_footer))
+        NavigationRow(title = stringResource(R.string.sh_followers_share), onClick = onShare)
+        FooterText(stringResource(R.string.sh_followers_footer))
     }
     active.firstOrNull { it.key == open }?.let { f ->
         FollowerDialog(f, onRemove = { onRemove(f) }, onClose = { open = null })
@@ -89,30 +89,30 @@ fun FollowerDialog(
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     val haptics = rememberHaptics()
-    val name = follower.name.ifBlank { stringResource(R.string.approve_unnamed) }
+    val name = follower.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }
     if (!confirming) {
         AlertDialog(
             onDismissRequest = onClose,
             title = { Text(name) },
-            text = { Text(stringResource(R.string.followers_since, date(follower.since))) },
-            confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.followers_close)) } },
+            text = { Text(stringResource(R.string.sh_followers_since, date(follower.since))) },
+            confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.sh_followers_close)) } },
             dismissButton = {
-                TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.followers_remove), color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.sh_followers_remove), color = MaterialTheme.colorScheme.error) }
             },
         )
     } else {
         AlertDialog(
             onDismissRequest = onClose,
-            title = { Text(stringResource(R.string.followers_remove_title, name)) },
-            text = { Text(stringResource(R.string.followers_remove_text)) },
+            title = { Text(stringResource(R.string.sh_followers_remove_title, name)) },
+            text = { Text(stringResource(R.string.sh_followers_remove_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     haptics.confirm()
                     onRemove()
                     onClose()
-                }) { Text(stringResource(R.string.followers_remove), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.sh_followers_remove), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.setup_cancel)) } },
+            dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.sh_setup_cancel)) } },
         )
     }
 }

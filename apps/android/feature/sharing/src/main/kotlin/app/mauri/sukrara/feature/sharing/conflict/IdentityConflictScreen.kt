@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -36,12 +37,12 @@ fun IdentityConflictScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        StepHeader(stringResource(R.string.conflict_title), null)
+        StepHeader(stringResource(R.string.sh_conflict_title), null)
         ConflictContent(state, onRetry, onOpenShowcase, onUninstallShowcase)
-        StepButtons(null, {}, secondary = listOf(stringResource(R.string.conflict_close) to onClose))
+        StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_conflict_close) to onClose))
     }
 }
 
@@ -53,16 +54,16 @@ fun ColumnScope.ConflictContent(
     onOpenShowcase: () -> Unit,
     onUninstallShowcase: () -> Unit,
 ) {
-    Text(stringResource(R.string.conflict_body))
-    NoteCard(stringResource(if (state.followersReceiving) R.string.conflict_followers_receiving else R.string.conflict_followers_not_receiving))
-    Text(stringResource(R.string.conflict_what_to_do))
+    Text(stringResource(R.string.sh_conflict_body))
+    NoteCard(stringResource(if (state.followersReceiving) R.string.sh_conflict_followers_receiving else R.string.sh_conflict_followers_not_receiving))
+    Text(stringResource(R.string.sh_conflict_what_to_do))
     StepButtons(
-        stringResource(R.string.conflict_retry),
+        stringResource(R.string.sh_conflict_retry),
         onRetry,
         secondary =
             listOf(
-                stringResource(R.string.setup_showcase_open) to onOpenShowcase,
-                stringResource(R.string.setup_showcase_uninstall) to onUninstallShowcase,
+                stringResource(R.string.sh_setup_showcase_open) to onOpenShowcase,
+                stringResource(R.string.sh_setup_showcase_uninstall) to onUninstallShowcase,
             ),
     )
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -82,9 +83,11 @@ fun SetupScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val u = ui ?: return
     val haptics = rememberHaptics()
+    // opened from home after setup was finished: show the first Finish-setup row's step; finishing setup goes home
+    val openedFinished = remember { u.step == null }
     if (u.step == null) {
         LaunchedEffect(Unit) {
-            if (!viewModel.reopenFirstUnfinished()) {
+            if (!openedFinished || !viewModel.reopenFirstUnfinished()) {
                 haptics.confirm()
                 onDone()
             }
@@ -159,17 +162,17 @@ fun SetupContent(
     val step = u.step ?: return
     val reduced = LocalReducedMotion.current
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (u.canBack || u.single) {
                 IconButton(onClick = actions.back) {
-                    Icon(painterResource(R.drawable.sharing_ic_back), contentDescription = stringResource(R.string.setup_back))
+                    Icon(painterResource(R.drawable.sharing_ic_back), contentDescription = stringResource(R.string.sh_setup_back))
                 }
             } else {
                 Spacer(Modifier.size(48.dp))
             }
             Text(
-                stringResource(R.string.setup_step_of, u.index, u.count),
+                stringResource(R.string.sh_setup_step_of, u.index, u.count),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
@@ -243,15 +246,15 @@ internal fun ConfirmDialog(
                 onConfirm()
             }) { Text(confirm) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.setup_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.sh_setup_cancel)) } },
     )
 }
 
 @Composable
 private fun ColumnScope.WelcomeStep(actions: SetupActions) {
-    StepHeader(stringResource(R.string.setup_welcome_title), stringResource(R.string.setup_welcome_body))
-    Text(stringResource(R.string.setup_welcome_steps), style = MaterialTheme.typography.bodyLarge)
-    StepButtons(stringResource(R.string.setup_start), actions.continueWelcome)
+    StepHeader(stringResource(R.string.sh_setup_welcome_title), stringResource(R.string.sh_setup_welcome_body))
+    Text(stringResource(R.string.sh_setup_welcome_steps), style = MaterialTheme.typography.bodyLarge)
+    StepButtons(stringResource(R.string.sh_setup_start), actions.continueWelcome)
 }
 
 @Composable
@@ -261,28 +264,28 @@ private fun ColumnScope.RoleStep(
 ) {
     var selected by rememberSaveable { mutableStateOf<Role?>(null) }
     var confirming by rememberSaveable { mutableStateOf(false) }
-    StepHeader(stringResource(R.string.setup_role_title), stringResource(R.string.setup_role_body))
+    StepHeader(stringResource(R.string.sh_setup_role_title), stringResource(R.string.sh_setup_role_body))
     Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RoleOption(stringResource(R.string.setup_role_wearer), stringResource(R.string.setup_role_wearer_means), selected == Role.Wearer) { selected = Role.Wearer }
-        RoleOption(stringResource(R.string.setup_role_follower), stringResource(R.string.setup_role_follower_means), selected == Role.Follower) {
+        RoleOption(stringResource(R.string.sh_setup_role_wearer), stringResource(R.string.sh_setup_role_wearer_means), selected == Role.Wearer) { selected = Role.Wearer }
+        RoleOption(stringResource(R.string.sh_setup_role_follower), stringResource(R.string.sh_setup_role_follower_means), selected == Role.Follower) {
             selected = Role.Follower
         }
     }
     if (selected == Role.Follower && !u.facts.followerAvailable) {
-        NoteCard(stringResource(R.string.setup_role_follower_later))
+        NoteCard(stringResource(R.string.sh_setup_role_follower_later))
     }
     StepButtons(
-        stringResource(R.string.setup_continue),
+        stringResource(R.string.sh_setup_continue),
         onPrimary = { confirming = true },
         enabled = selected == Role.Wearer || (selected == Role.Follower && u.facts.followerAvailable),
     )
     val role = selected
     if (confirming && role != null) {
-        val name = stringResource(if (role == Role.Wearer) R.string.setup_role_wearer else R.string.setup_role_follower)
+        val name = stringResource(if (role == Role.Wearer) R.string.sh_setup_role_wearer else R.string.sh_setup_role_follower)
         ConfirmDialog(
-            title = stringResource(R.string.setup_role_confirm_title, name),
-            text = stringResource(R.string.setup_role_confirm_text),
-            confirm = stringResource(R.string.setup_role_confirm),
+            title = stringResource(R.string.sh_setup_role_confirm_title, name),
+            text = stringResource(R.string.sh_setup_role_confirm_text),
+            confirm = stringResource(R.string.sh_setup_role_confirm),
             onConfirm = { actions.chooseRole(role) },
             onDismiss = { confirming = false },
         )
@@ -333,7 +336,7 @@ private fun ColumnScope.PermissionsStep(
     u: SetupUi,
     actions: SetupActions,
 ) {
-    StepHeader(stringResource(R.string.setup_permissions_title), stringResource(R.string.setup_permissions_body))
+    StepHeader(stringResource(R.string.sh_setup_permissions_title), stringResource(R.string.sh_setup_permissions_body))
     // runtime permissions are asked in context, the first time; after a "don't ask again" the settings page opens
     val asked = remember { mutableStateOf(setOf<AlertRequirement>()) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -352,9 +355,9 @@ private fun ColumnScope.PermissionsStep(
     }
     val allOk = items.none { it in u.readiness.missing }
     StepButtons(
-        stringResource(if (allOk) R.string.setup_continue else R.string.setup_permissions_continue_anyway),
+        stringResource(if (allOk) R.string.sh_setup_continue else R.string.sh_setup_permissions_continue_anyway),
         actions.completePermissions,
-        secondary = if (allOk) emptyList() else listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Permissions) }),
+        secondary = if (allOk) emptyList() else listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Permissions) }),
     )
 }
 
@@ -369,14 +372,14 @@ private fun ChecklistRow(
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painterResource(if (ok) R.drawable.sharing_ic_check else R.drawable.sharing_ic_todo),
-                contentDescription = stringResource(if (ok) R.string.setup_check_ok else R.string.setup_check_missing),
+                contentDescription = stringResource(if (ok) R.string.sh_setup_check_ok else R.string.sh_setup_check_missing),
                 tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!ok) OutlinedButton(onClick = onFix, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.setup_allow)) }
+            if (!ok) OutlinedButton(onClick = onFix, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.sh_setup_allow)) }
         }
     }
 }
@@ -392,34 +395,34 @@ private fun runtimePermission(r: AlertRequirement): String? =
 @Composable
 private fun requirementText(r: AlertRequirement): Pair<String, String> =
     when (r) {
-        AlertRequirement.Notifications -> stringResource(R.string.req_notifications) to stringResource(R.string.req_notifications_why)
-        AlertRequirement.FullScreenIntent -> stringResource(R.string.req_full_screen) to stringResource(R.string.req_full_screen_why)
-        AlertRequirement.ExactAlarm -> stringResource(R.string.req_exact_alarm) to stringResource(R.string.req_exact_alarm_why)
-        AlertRequirement.BatteryExemption -> stringResource(R.string.req_battery) to stringResource(R.string.req_battery_why)
-        AlertRequirement.AlertChannel -> stringResource(R.string.req_channel) to stringResource(R.string.req_channel_why)
-        AlertRequirement.Bluetooth -> stringResource(R.string.req_bluetooth) to stringResource(R.string.req_bluetooth_why)
+        AlertRequirement.Notifications -> stringResource(R.string.sh_req_notifications) to stringResource(R.string.sh_req_notifications_why)
+        AlertRequirement.FullScreenIntent -> stringResource(R.string.sh_req_full_screen) to stringResource(R.string.sh_req_full_screen_why)
+        AlertRequirement.ExactAlarm -> stringResource(R.string.sh_req_exact_alarm) to stringResource(R.string.sh_req_exact_alarm_why)
+        AlertRequirement.BatteryExemption -> stringResource(R.string.sh_req_battery) to stringResource(R.string.sh_req_battery_why)
+        AlertRequirement.AlertChannel -> stringResource(R.string.sh_req_channel) to stringResource(R.string.sh_req_channel_why)
+        AlertRequirement.Bluetooth -> stringResource(R.string.sh_req_bluetooth) to stringResource(R.string.sh_req_bluetooth_why)
     }
 
 @Composable
 private fun ColumnScope.ShowcaseStep(actions: SetupActions) {
     var confirming by rememberSaveable { mutableStateOf(false) }
-    StepHeader(stringResource(R.string.setup_showcase_title), stringResource(R.string.setup_showcase_body))
-    NoteCard(stringResource(R.string.setup_showcase_followers))
+    StepHeader(stringResource(R.string.sh_setup_showcase_title), stringResource(R.string.sh_setup_showcase_body))
+    NoteCard(stringResource(R.string.sh_setup_showcase_followers))
     StepButtons(
-        stringResource(R.string.setup_showcase_open),
+        stringResource(R.string.sh_setup_showcase_open),
         actions.openShowcase,
         secondary =
             listOf(
-                stringResource(R.string.setup_showcase_uninstall) to actions.uninstallShowcase,
-                stringResource(R.string.setup_showcase_done) to { confirming = true },
-                stringResource(R.string.setup_skip) to { actions.skip(SetupStep.Showcase) },
+                stringResource(R.string.sh_setup_showcase_uninstall) to actions.uninstallShowcase,
+                stringResource(R.string.sh_setup_showcase_done) to { confirming = true },
+                stringResource(R.string.sh_setup_skip) to { actions.skip(SetupStep.Showcase) },
             ),
     )
     if (confirming) {
         ConfirmDialog(
-            title = stringResource(R.string.setup_showcase_confirm_title),
-            text = stringResource(R.string.setup_showcase_confirm_text),
-            confirm = stringResource(R.string.setup_showcase_confirm),
+            title = stringResource(R.string.sh_setup_showcase_confirm_title),
+            text = stringResource(R.string.sh_setup_showcase_confirm_text),
+            confirm = stringResource(R.string.sh_setup_showcase_confirm),
             onConfirm = actions.confirmShowcaseOff,
             onDismiss = { confirming = false },
         )
@@ -431,16 +434,16 @@ private fun ColumnScope.SensorStep(
     u: SetupUi,
     actions: SetupActions,
 ) {
-    StepHeader(stringResource(R.string.setup_sensor_title), stringResource(R.string.setup_sensor_body))
+    StepHeader(stringResource(R.string.sh_setup_sensor_title), stringResource(R.string.sh_setup_sensor_body))
     if (u.facts.ownSensorLive) {
-        NoteCard(stringResource(R.string.setup_sensor_live))
-        StepButtons(stringResource(R.string.setup_continue), actions.completeSensor)
+        NoteCard(stringResource(R.string.sh_setup_sensor_live))
+        StepButtons(stringResource(R.string.sh_setup_continue), actions.completeSensor)
     } else {
-        NoteCard(stringResource(R.string.setup_sensor_not_monitoring))
+        NoteCard(stringResource(R.string.sh_setup_sensor_not_monitoring))
         StepButtons(
-            stringResource(R.string.setup_sensor_open),
+            stringResource(R.string.sh_setup_sensor_open),
             actions.openSensorSetup,
-            secondary = listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Sensor) }),
+            secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Sensor) }),
         )
     }
 }

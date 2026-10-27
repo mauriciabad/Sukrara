@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,31 +77,31 @@ fun ShareScreen(
 ) {
     var label by rememberSaveable { mutableStateOf("") }
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        StepHeader(stringResource(R.string.share_title), stringResource(R.string.share_body))
+        StepHeader(stringResource(R.string.sh_share_title), stringResource(R.string.sh_share_body))
         when (invite) {
             InviteUi.None, InviteUi.Creating, InviteUi.Failed -> {
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it.take(LABEL_MAX) },
-                    label = { Text(stringResource(R.string.share_label)) },
-                    supportingText = { Text(stringResource(R.string.share_label_support)) },
+                    label = { Text(stringResource(R.string.sh_share_label)) },
+                    supportingText = { Text(stringResource(R.string.sh_share_label_support)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (invite is InviteUi.Failed) NoteCard(stringResource(R.string.share_failed), error = true)
+                if (invite is InviteUi.Failed) NoteCard(stringResource(R.string.sh_share_failed), error = true)
                 Button(
                     onClick = { onCreate(label) },
                     enabled = invite !is InviteUi.Creating,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                ) { Text(stringResource(if (invite is InviteUi.Failed) R.string.share_try_again else R.string.share_create)) }
+                ) { Text(stringResource(if (invite is InviteUi.Failed) R.string.sh_share_try_again else R.string.sh_share_create)) }
             }
             is InviteUi.Ready -> ReadyInvite(invite.invite, onAnother)
         }
-        Text(stringResource(R.string.share_they_see), style = MaterialTheme.typography.titleSmall)
-        Text(stringResource(R.string.share_they_see_body), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.sh_share_they_see), style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.sh_share_they_see_body), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -120,7 +121,7 @@ private fun ColumnScope.ReadyInvite(
         haptics.confirm()
         scale.animateTo(1f, Motion.defaultSpatial(reduced))
     }
-    val qrLabel = stringResource(R.string.share_qr_label)
+    val qrLabel = stringResource(R.string.sh_share_qr_label)
     Image(
         qr.asImageBitmap(),
         contentDescription = null,
@@ -134,19 +135,19 @@ private fun ColumnScope.ReadyInvite(
                 .padding(12.dp)
                 .semantics { contentDescription = qrLabel },
     )
-    Text(stringResource(R.string.share_scan), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.sh_share_scan), style = MaterialTheme.typography.bodyMedium)
     val expiry = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(invite.expiresAt * 1000))
     NoteCard(
         if (invite.label.isEmpty()) {
-            stringResource(R.string.share_note_unnamed, expiry)
+            stringResource(R.string.sh_share_note_unnamed, expiry)
         } else {
-            stringResource(R.string.share_note, expiry, invite.label)
+            stringResource(R.string.sh_share_note, expiry, invite.label)
         },
     )
     // the link as selectable text too, so TalkBack users and any app can copy it
     SelectionContainer { Text(invite.link, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    val chooser = stringResource(R.string.share_send_chooser)
-    val message = stringResource(R.string.share_send_message, invite.link)
+    val chooser = stringResource(R.string.sh_share_send_chooser)
+    val message = stringResource(R.string.sh_share_send_message, invite.link)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         Button(
             onClick = {
@@ -154,16 +155,16 @@ private fun ColumnScope.ReadyInvite(
                 context.startSafely(Intent.createChooser(send, chooser))
             },
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-        ) { Text(stringResource(R.string.share_send)) }
+        ) { Text(stringResource(R.string.sh_share_send)) }
         OutlinedButton(
             onClick = {
                 haptics.confirm()
                 scope.launch { clipboard.setClipEntry(ClipData.newPlainText(chooser, invite.link).toClipEntry()) }
             },
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-        ) { Text(stringResource(R.string.share_copy)) }
+        ) { Text(stringResource(R.string.sh_share_copy)) }
     }
-    OutlinedButton(onClick = onAnother, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.share_another)) }
+    OutlinedButton(onClick = onAnother, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.sh_share_another)) }
 }
 
 private const val LABEL_MAX = 40
