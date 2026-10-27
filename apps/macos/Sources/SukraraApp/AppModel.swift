@@ -19,6 +19,8 @@ public final class AppModel {
     private(set) var sensor: SensorInfo?
     private(set) var link: LinkState = .notFollowing
     var unit: GlucoseUnit = .mgdl
+    /// The card's settings (bands, hours…): this Mac's, or the wearer's mirrored ones (`GraphConfig.load`).
+    var graph = GraphConfig()
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
     var notificationPermission: NotificationPermission = .allowed
@@ -30,6 +32,8 @@ public final class AppModel {
     @ObservationIgnored private let clock: any TimeSource
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var feeds: [Task<Void, Never>] = []
+    /// Every follower snapshot, after the model took its part (the windows and the mirrored alert settings).
+    @ObservationIgnored var onSnapshot: ((FollowerSnapshot) -> Void)?
 
     init(
         plan: LaunchPlan, clock: any TimeSource = SystemClock(), alerts: AlertController? = nil,
@@ -84,6 +88,7 @@ public final class AppModel {
         }
         // only a followed wearer's readings are shown or alerted on
         apply(readings: link.isFollowing ? snapshot.readings : [])
+        onSnapshot?(snapshot)
     }
 
     public convenience init(plan: LaunchPlan) { self.init(plan: plan, clock: SystemClock()) }
@@ -111,11 +116,23 @@ public final class AppModel {
             now: now.timeIntervalSince1970)
     }
 
+    /// Nobody is followed and nothing is on its way (not following, declined, revoked, invite used, broken).
+    var needsFollow: Bool {
+        switch link {
+        case .following, .requested, .joining: false
+        default: true
+        }
+    }
+
+    /// A low alert is up (Add treatment then puts the focus on Carbs).
+    var isLow: Bool { alerts?.ui.active[.level]?.kind.isBelowThreshold == true }
+
     var look: GlucoseLook { GlucoseCard.face(cardData, unit: unit, surface: .menubarTitle) }
 
     var menubarTitle: MenubarTitle {
         MenubarTitle.of(
-            look: look, spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: GraphConfig()),
+            look: look,
+            spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: graph),
             alerts: alerts?.ui ?? .idle, reason: notMonitoringReason)
     }
 
@@ -125,16 +142,18 @@ public final class AppModel {
     /// Why nothing is monitored, in words (the panel's first line), or nil while a value can be shown. Before the
     /// first reading the app says so instead of "no data" — and no no-data alarm is armed (CHANGES P3).
     public var notMonitoringReason: String? {
-        if plan.isOffline { return "Not monitoring: offline dev build (no sensor, relays or alerts)" }
+        if plan.isOffline && plan.mode != .fixture {
+            return L10n.t("Not monitoring: offline dev build (no sensor, relays or alerts)")
+        }
         guard readings.isEmpty else { return nil }
         switch link {
-        case .notFollowing, .joining: return "Not monitoring: not following anyone yet"
-        case .requested: return "Not monitoring: waiting for the wearer to allow this Mac"
-        case .following: return "Waiting for the first reading from the wearer"
-        case .declined: return "Not monitoring: the wearer declined"
-        case .inviteUsed: return "Not monitoring: the invite was used by another device"
-        case .revoked: return "Not monitoring: the wearer stopped sharing"
-        case .broken(let why): return "Not monitoring: \(why)"
+        case .notFollowing, .joining: return L10n.t("Not monitoring: not following anyone yet")
+        case .requested: return L10n.t("Not monitoring: waiting for the wearer to allow this Mac")
+        case .following: return L10n.t("Waiting for the first reading from the wearer")
+        case .declined: return L10n.t("Not monitoring: the wearer declined")
+        case .inviteUsed: return L10n.t("Not monitoring: the invite was used by another device")
+        case .revoked: return L10n.t("Not monitoring: the wearer stopped sharing")
+        case .broken(let why): return L10n.t("Not monitoring: \(why)")
         }
     }
 

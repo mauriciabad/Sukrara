@@ -90,6 +90,13 @@ public struct TreatmentsView: View {
             } else {
                 List(model.rows) { row in rowView(row) }
             }
+            if !model.canWrite {
+                Label(L10n.t("The wearer hasn't allowed this Mac to add treatments"), systemImage: "lock")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+            }
             if model.undoAvailable, let u = model.undo {
                 HStack {
                     Text(L10n.t("Deleted \(Self.title(u.row.treatment))"))
