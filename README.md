@@ -98,30 +98,35 @@ Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releas
 ## Switching from the showcase
 
 Order matters: two apps can't own one sensor, two apps alerting means double alarms, and restoring your identity in
-V1 too early cuts your followers off from the app that still has the readings. Do the steps one at a time.
+V1 too early cuts your followers off from the app that still has the readings. V1's first-run setup walks the phone
+steps in this order; any step you skip stays on home's *Finish setup* card.
 
-1. **Install V1 next to the showcase** (above). Open it, choose *I wear the sensor*, and allow what the permissions
-   checklist asks for (notifications, nearby devices, alarms, full-screen alerts, battery, Bluetooth).
-2. **Turn off the showcase's sensor use and sharing before anything else**: in the showcase, *Settings › Sensor ›
-   Stop*, and turn its alerts off (or simply uninstall the showcase). V1's home shows *Turn off Sukrara Showcase* for
-   as long as the showcase is installed.
-3. **Take over the sensor in V1**: *Pair sensor*, sign in to LibreView when asked (needed: the sensor is bound to
-   your LibreView account's receiver ID), hold the phone to the sensor. Wait until a reading shows on V1's home.
-4. **Only then restore your identity**: paste the recovery code from the showcase's *Backup* page (`ncryptsec…`) in
-   V1's setup. V1 refuses while the showcase is installed unless you confirm its sharing is off. Your followers move
-   to V1 by themselves; nobody has to re-join. (Or *Start fresh* and invite everyone again.)
-5. **Confirm your alert thresholds** in V1's *Review alert thresholds* step: V1 never assumes them silently.
+1. **Install V1 next to the showcase** (above). Open it, choose *I wear the sensor* (confirmed: one role per
+   install) and allow what alerts need (notifications, full-screen alerts, alarms, battery unrestricted, alert sound,
+   nearby devices).
+2. **Turn off the showcase's sensor use and alerts before anything else**: in the showcase, *Settings › Sensor ›
+   Stop* and turn its alerts off, or uninstall it. V1's setup asks you to confirm, and home shows *Turn off Sukrara
+   Showcase* for as long as the showcase is installed.
+3. **Take over the sensor in V1**: sign in to LibreView when asked (needed: the sensor is bound to your LibreView
+   account's receiver ID) and hold the phone to the sensor. Setup waits for a real reading; until then V1 says *Not
+   monitoring: no sensor yet*.
+4. **Confirm your alert thresholds**: V1 never uses them silently.
+5. **Only then restore your identity**: turn sharing off in the showcase (or uninstall it), then in V1 paste the
+   recovery code from the showcase's *Settings › Backup › Recovery code*. V1 refuses while the showcase is installed
+   unless you confirm its sharing is off. Your followers move to V1 by themselves; nobody needs a new invite. (Or
+   *Start fresh* and invite everyone again.)
 6. **Check your followers**: the Mac (showcase or V1) shows V1's value less than 5 minutes old. To move the Mac to V1
-   too, install V1 there and follow your phone again from its setup window.
+   too, install V1 there and follow your phone from its setup window.
 7. **Turn off the showcase's Mac login item by hand**: System Settings › General › Login Items, remove *Sukrara
    Showcase* (`tools/install.sh mac` quits it and flags the item but can't remove it for you). Uninstall the showcase
    on the phone once V1 has run well for a while; until then join links ask which app to open.
 
 **Going back if V1 fails:** stop the sensor in V1 (or uninstall V1), open the showcase and take the sensor back with
-*Pair new sensor* and a tap (it works because both apps use your LibreView account's receiver ID). If you restored
-your identity in V1, uninstall V1 before the showcase shares again, so the two don't publish as the same identity.
-If the takeover doesn't work, keep the showcase on the current sensor and switch at the next sensor change. Nothing
-is copied between the apps, so the showcase's data is as you left it.
+*Pair new sensor* and a tap (it works because both apps use your LibreView account's receiver ID), then turn the
+showcase's alerts back on. If you restored your identity in V1, uninstall V1 before turning the showcase's sharing
+back on, so the two never publish as the same identity. If the takeover doesn't work, keep the showcase on the
+current sensor and switch at the next sensor change. Nothing is copied between the apps, so the showcase's data is
+as you left it.
 
 ## Repository layout
 
