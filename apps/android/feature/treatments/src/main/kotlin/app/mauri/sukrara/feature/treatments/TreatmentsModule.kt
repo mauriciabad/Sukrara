@@ -10,8 +10,9 @@ import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -30,7 +31,7 @@ class TreatmentsModule(
     val log = TreatmentLog(repository, sync, clock)
 
     /** Seconds the quick dialog stays over the lock screen (schema `lock.treatmentTime`). */
-    val lockSeconds: Flow<Double> = settings.flow(LockTreatmentTime)
+    val lockSeconds: StateFlow<Double> = settings.flow(LockTreatmentTime).stateIn(scope, SharingStarted.Eagerly, LockTreatmentTime.default)
 
     /**
      * Saves [entries] at [at] (null = now) in the app's scope, so it completes after the quick dialog has closed.
@@ -41,7 +42,8 @@ class TreatmentsModule(
         at: Instant?,
     ): Boolean {
         if (!canAdd()) return false
-        scope.launch { log.add(entries, at) }
+        // a failed write must not crash the app: the entry simply isn't in the list (diagnosable there)
+        scope.launch { runCatching { log.add(entries, at) } }
         return true
     }
 

@@ -72,7 +72,7 @@ class TreatmentGallery {
                             now = { now },
                             onSave = { _, _ -> },
                             onCancel = {},
-                            onOpenApp = {},
+                            onOpenApp = if (current.third == null) ({}) else null,
                             lock = current.third,
                         )
                     }

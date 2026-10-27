@@ -17,7 +17,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
@@ -52,8 +53,11 @@ class QuickTreatmentActivity : ComponentActivity() {
     private var countdown by mutableStateOf<LockCountdown?>(null)
     private var now by mutableLongStateOf(0L)
     private var unlocking = false
-    private val form = TreatmentFormState()
-    private var lockSeconds = TreatmentsModule.LockTreatmentTime.default.toInt()
+    private var form = TreatmentFormState()
+
+    /** The countdown left before a configuration change: a recreated activity never gets more time. */
+    private var carriedMs: Long? = null
+    private var saved = false
 
     private val screen =
         object : BroadcastReceiver() {
@@ -85,10 +89,11 @@ class QuickTreatmentActivity : ComponentActivity() {
             },
             RECEIVER_NOT_EXPORTED,
         )
-        lifecycleScope.launch { module.lockSeconds.collect { lockSeconds = it.toInt() } }
         enableEdgeToEdge()
         val focusCarbs = QuickTreatmentIntents.focusCarbs(intent) || module.lowNow()
+        carriedMs = savedInstanceState?.getLong(KEY_LEFT, -1L)?.takeIf { it >= 0 }
         setContent {
+            form = rememberTreatmentFormState()
             SukraraTheme {
                 val cd = countdown
                 LaunchedEffect(cd) { if (cd != null) runCountdown(cd) }
@@ -97,7 +102,8 @@ class QuickTreatmentActivity : ComponentActivity() {
                     Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
-                        .clickable(interactionSource = null, indication = null, onClick = ::finish)
+                        // a tap outside dismisses (TalkBack users have Cancel and back; no unlabeled node)
+                        .pointerInput(Unit) { detectTapGestures { finish() } }
                         .safeDrawingPadding()
                         .imePadding()
                         .padding(16.dp),
@@ -110,10 +116,11 @@ class QuickTreatmentActivity : ComponentActivity() {
                         now = module.clock::now,
                         onSave = ::save,
                         onCancel = ::finish,
-                        onOpenApp = ::openApp,
+                        // over the lock screen Unlock takes Open Sukrara's place
+                        onOpenApp = if (cd == null) ::openApp else null,
                         lock = cd?.let { LockInfo(it.wholeSeconds(now), ::unlock) },
                         // the card swallows taps so they don't reach the scrim
-                        modifier = Modifier.clickable(interactionSource = null, indication = null) {},
+                        modifier = Modifier.pointerInput(Unit) { detectTapGestures { } },
                     )
                 }
             }
@@ -128,6 +135,11 @@ class QuickTreatmentActivity : ComponentActivity() {
         } else if (!keyguard.isKeyguardLocked) {
             endLock()
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        countdown?.let { outState.putLong(KEY_LEFT, it.remaining(SystemClock.elapsedRealtime())) }
     }
 
     override fun onStop() {
@@ -145,6 +157,8 @@ class QuickTreatmentActivity : ComponentActivity() {
         entries: List<NewEntry>,
         at: java.time.Instant?,
     ) {
+        if (saved) return
+        saved = true
         if (module.save(entries, at)) {
             val pending =
                 module.sync.writer.value
@@ -170,7 +184,7 @@ class QuickTreatmentActivity : ComponentActivity() {
     }
 
     private fun startLock() {
-        val seconds = lockSeconds
+        val seconds = module.lockSeconds.value.toInt()
         val a11y = getSystemService(AccessibilityManager::class.java)
         val recommended =
             a11y.getRecommendedTimeoutMillis(
@@ -179,7 +193,10 @@ class QuickTreatmentActivity : ComponentActivity() {
             )
         val start = SystemClock.elapsedRealtime()
         now = start
-        countdown = LockCountdown(LockCountdown.duration(seconds, recommended.toLong(), a11y.isTouchExplorationEnabled), start)
+        val full = LockCountdown.duration(seconds, recommended.toLong(), a11y.isTouchExplorationEnabled)
+        val left = carriedMs?.coerceAtMost(full) ?: full
+        carriedMs = null
+        countdown = LockCountdown(full, start - (full - left)).also { if (left < full) it.firstFrame(start - (full - left)) }
     }
 
     private fun endLock() {
@@ -239,5 +256,6 @@ class QuickTreatmentActivity : ComponentActivity() {
 
     private companion object {
         const val TICK_MS = 250L
+        const val KEY_LEFT = "lock_left_ms"
     }
 }

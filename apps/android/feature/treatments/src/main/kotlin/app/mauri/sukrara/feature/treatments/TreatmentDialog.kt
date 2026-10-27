@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -146,18 +147,25 @@ fun TreatmentDialogContent(
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(stringResource(R.string.treatment_title), style = MaterialTheme.typography.headlineSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // side by side; stacked at large font sizes so labels and units never truncate
+            val stacked = LocalDensity.current.fontScale > STACK_FONT_SCALE
+            val fields: @Composable (Modifier) -> Unit = { fieldModifier ->
                 AmountField(
                     form.rapid,
                     { form.rapid = it },
                     R.string.treatment_rapid,
                     R.string.treatment_unit_u,
-                    Modifier.weight(1f).focusRequester(first),
+                    fieldModifier.focusRequester(first),
                 )
-                AmountField(form.long, { form.long = it }, R.string.treatment_long, R.string.treatment_unit_u, Modifier.weight(1f))
+                AmountField(form.long, { form.long = it }, R.string.treatment_long, R.string.treatment_unit_u, fieldModifier)
                 AmountField(form.carbs, {
                     form.carbs = it
-                }, R.string.treatment_carbs, R.string.treatment_unit_g, Modifier.weight(1f).focusRequester(carbsFocus))
+                }, R.string.treatment_carbs, R.string.treatment_unit_g, fieldModifier.focusRequester(carbsFocus))
+            }
+            if (stacked) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { fields(Modifier.fillMaxWidth()) }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { fields(Modifier.weight(1f)) }
             }
             OutlinedTextField(
                 value = form.note,
@@ -280,3 +288,5 @@ private fun TimePickDialog(
         modifier = Modifier.testTag("treatment-time"),
     )
 }
+
+private const val STACK_FONT_SCALE = 1.3f

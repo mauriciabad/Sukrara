@@ -30,8 +30,8 @@
         <item quantity="other">%1$d entradas guardadas</item>
     </plurals>
     <plurals name="treatment_sent">
-        <item quantity="one">%1$d entrada enviada a quien lleva el sensor</item>
-        <item quantity="many">%1$d entradas enviadas a quien lleva el sensor</item>
-        <item quantity="other">%1$d entradas enviadas a quien lleva el sensor</item>
+        <item quantity="one">%1$d entrada se enviará a quien lleva el sensor</item>
+        <item quantity="many">%1$d entradas se enviarán a quien lleva el sensor</item>
+        <item quantity="other">%1$d entradas se enviarán a quien lleva el sensor</item>
     </plurals>
 </resources>

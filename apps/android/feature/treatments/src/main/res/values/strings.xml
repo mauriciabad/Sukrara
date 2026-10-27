@@ -29,7 +29,7 @@
         <item quantity="other">%1$d entries saved</item>
     </plurals>
     <plurals name="treatment_sent">
-        <item quantity="one">%1$d entry sent to the wearer</item>
-        <item quantity="other">%1$d entries sent to the wearer</item>
+        <item quantity="one">%1$d entry will be sent to the wearer</item>
+        <item quantity="other">%1$d entries will be sent to the wearer</item>
     </plurals>
 </resources>
