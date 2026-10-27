@@ -14,7 +14,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.monitor.service.StartReason
+import kotlinx.coroutines.launch
 
 /** The one activity: launcher, invite links (`sukrara:` / `https://sukrara.mauri.app/join`). */
 class MainActivity : ComponentActivity() {
@@ -41,5 +45,11 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // permissions, the showcase app and the checklist change outside the app
         graph.home.refresh()
+        // opening the app is an allowed foreground-service start: (re)start monitoring if something is set up; not
+        // once the app has gone to the background again (Android would refuse and "Monitoring stopped" would show)
+        lifecycleScope.launch {
+            graph.ready.await()
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) graph.startMonitoring(StartReason.App)
+        }
     }
 }

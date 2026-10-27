@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
 
-import android.content.ClipData
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -108,11 +108,17 @@ private fun route(
 ) {
     when (action) {
         HomeAction.OpenSetup -> backStack.add(SetupRoute)
+
         HomeAction.PairSensor, HomeAction.OpenSensor -> open(context, Intent(NavTargets.ACTION_SENSOR_SETUP)) { backStack.add(SetupRoute) }
+
         HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+
         HomeAction.EnableBluetooth -> open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
+
         HomeAction.OpenShowcaseInfo -> open(context, Showcase.appInfo()) {}
+
         HomeAction.ResumeMonitoring -> home.resumeMonitoring()
+
         // their banners stay hidden until the owning chunks (13, 20, integrations) provide the inputs and the route
         HomeAction.AddWidget, HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
     }
