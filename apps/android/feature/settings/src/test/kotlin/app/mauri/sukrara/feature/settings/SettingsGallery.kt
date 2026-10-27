@@ -27,6 +27,7 @@ import app.mauri.sukrara.feature.settings.sensor.SensorSettingsContent
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
 import app.mauri.sukrara.feature.settings.sensor.SensorSummary
 import app.mauri.sukrara.feature.settings.sensor.SourceChoice
+import app.mauri.sukrara.feature.settings.sensor.SourceLink
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -90,6 +91,9 @@ class SettingsGallery {
             "sensor-juggluco-signed-out" to {
                 SensorSettingsContent(sensorWorking.copy(source = SourceChoice.Juggluco, sensor = null, account = null), now, zone, SensorSettingsActions()) {}
             },
+            "sensor-juggluco-unreachable" to {
+                SensorSettingsContent(sensorWorking.copy(source = SourceChoice.Juggluco, link = SourceLink.JugglucoUnreachable), now, zone, SensorSettingsActions()) {}
+            },
             "sensor-none" to {
                 SensorSettingsContent(SensorSettingsState(SourceChoice.Libre3Direct, SensorState.None, null, null), now, zone, SensorSettingsActions()) {}
             },
@@ -126,5 +130,5 @@ class SettingsGallery {
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
     @Test @Config(qualifiers = "es")
-    fun spanish() = gallery(dark = true, fontScale = 1f, prefix = "es-", only = setOf("alerts", "alert-kind-low-muted", "threshold-review", "about-update", "sensor", "sensor-juggluco-signed-out"))
+    fun spanish() = gallery(dark = true, fontScale = 1f, prefix = "es-", only = setOf("alerts", "alert-kind-low-muted", "threshold-review", "about-update", "sensor", "sensor-juggluco-signed-out", "sensor-juggluco-unreachable"))
 }

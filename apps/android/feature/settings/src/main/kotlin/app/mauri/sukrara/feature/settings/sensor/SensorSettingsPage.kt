@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings.sensor
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.core.model.SensorAction
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
@@ -95,7 +98,7 @@ fun SensorSettingsContent(
     SettingsPage(stringResource(R.string.st_sensor), onBack) {
         if (state == null) return@SettingsPage
         var confirming by rememberSaveable { mutableStateOf<SourceChoice?>(null) }
-        StateNotice(state, actions)
+        StateNotice(state, actions) { confirming = SourceChoice.Juggluco }
         SensorGroup(state, now, zone, actions)
         SourceGroup(state.source) { confirming = it }
         AccountGroup(state.account, actions)
@@ -113,13 +116,21 @@ fun SensorSettingsContent(
     }
 }
 
-/** A state that needs the person: what's wrong and the button that fixes it. */
+/** A state that needs the person: what's wrong and the button that fixes it ([useJuggluco] asks to switch first). */
 @Composable
 private fun StateNotice(
     state: SensorSettingsState,
     actions: SensorSettingsActions,
+    useJuggluco: () -> Unit,
 ) {
+    val context = LocalContext.current
     val pair = stringResource(R.string.st_sensor_pair_new) to actions.pairNewSensor
+    if (state.link == SourceLink.JugglucoUnreachable) {
+        val open = context.packageManager.getLaunchIntentForPackage(JUGGLUCO_PACKAGE)
+        val openJuggluco = stringResource(R.string.st_sensor_open_juggluco) to { open?.let(context::startActivity) ?: Unit }
+        StateStrip(stringResource(R.string.st_sensor_juggluco_unreachable_text), listOfNotNull(openJuggluco.takeIf { open != null }))
+        return
+    }
     when (val s = state.state) {
         SensorState.None ->
             if (state.source == SourceChoice.Libre3Direct) StateStrip(stringResource(R.string.st_sensor_none_text), listOf(pair))
@@ -129,14 +140,32 @@ private fun StateNotice(
         is SensorState.ActionNeeded ->
             when (s.action) {
                 SensorAction.SignInLibreView -> StateStrip(stringResource(R.string.st_sensor_sign_in_needed), listOf(stringResource(R.string.st_sensor_sign_in) to actions.signIn))
-                SensorAction.StopOtherApp -> StateStrip(stringResource(R.string.st_sensor_other_app_text), listOf(pair))
+                SensorAction.StopOtherApp ->
+                    StateStrip(
+                        stringResource(if (state.otherAppIsShowcase) R.string.st_sensor_showcase_app_text else R.string.st_sensor_other_app_text),
+                        listOf(pair),
+                    )
                 SensorAction.GrantBluetooth -> StateStrip(stringResource(R.string.st_sensor_bluetooth_permission_text), listOf(pair))
                 SensorAction.ScanSensor -> StateStrip(stringResource(R.string.st_sensor_scan_again_text), listOf(pair))
             }
 
-        else -> Unit
+        SensorState.BluetoothOff ->
+            StateStrip(
+                stringResource(R.string.st_sensor_bluetooth_off_text),
+                listOf(stringResource(R.string.st_sensor_open_bluetooth) to { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }),
+            )
+
+        SensorState.CoreMissing ->
+            if (state.source == SourceChoice.Libre3Direct) {
+                StateStrip(stringResource(R.string.st_sensor_core_missing_text), listOf(stringResource(R.string.st_sensor_to_juggluco_confirm) to useJuggluco))
+            }
+
+        is SensorState.WarmingUp, is SensorState.Active -> Unit
     }
 }
+
+/** Juggluco's package (its launcher opens it so the person can turn its web server on). */
+private const val JUGGLUCO_PACKAGE = "tk.glucodata"
 
 @Composable
 private fun SensorGroup(
@@ -151,11 +180,13 @@ private fun SensorGroup(
             InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial)
             InfoRow(stringResource(R.string.st_sensor_started), summary = ClockText.dateTime(sensor.startedAt.epochSecond, zone = zone))
             val endsAt = ClockText.dateTime(sensor.endsAt.epochSecond, zone = zone)
+            // time left only for a running sensor: an ended one (also ended early) has none
             val left = Duration.between(now, sensor.endsAt).toMinutes()
-            val words = CardWords.of(LocalContext.current.resources)
+            val running = state.state is SensorState.Active || state.state is SensorState.WarmingUp
+            val words = CardWords.of(LocalContext.current.resources).durations
             InfoRow(
                 stringResource(R.string.st_sensor_ends),
-                summary = if (left > 0) stringResource(R.string.st_sensor_ends_in, endsAt, words.sensorLeft(left)) else endsAt,
+                summary = if (running && left > 0) stringResource(R.string.st_sensor_ends_in, endsAt, Durations.whole(left, words)) else endsAt,
             )
         }
         NavigationRow(
@@ -178,11 +209,26 @@ private fun statusText(
     when (val s = state.state) {
         SensorState.None -> stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_waiting_juggluco else R.string.st_sensor_status_none)
         is SensorState.WarmingUp -> stringResource(R.string.st_sensor_status_warming, ClockText.time(s.readyAt.epochSecond, zone = zone))
-        is SensorState.Active -> stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_juggluco else R.string.st_sensor_status_active)
+        is SensorState.Active ->
+            when (state.link) {
+                SourceLink.JugglucoUnreachable -> stringResource(R.string.st_sensor_status_juggluco_unreachable)
+                SourceLink.Connecting ->
+                    stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_connecting_juggluco else R.string.st_sensor_status_connecting)
+                SourceLink.Receiving ->
+                    stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_juggluco else R.string.st_sensor_status_active)
+            }
         SensorState.Ended -> stringResource(R.string.st_sensor_status_ended)
         SensorState.CoreMissing -> stringResource(R.string.st_sensor_status_core_missing)
         SensorState.BluetoothOff -> stringResource(R.string.st_sensor_status_bluetooth_off)
-        is SensorState.ActionNeeded -> stringResource(R.string.st_sensor_status_action)
+        is SensorState.ActionNeeded ->
+            stringResource(
+                when (s.action) {
+                    SensorAction.ScanSensor -> R.string.st_sensor_status_scan_again
+                    SensorAction.SignInLibreView -> R.string.st_sensor_status_sign_in
+                    SensorAction.StopOtherApp -> R.string.st_sensor_status_other_app
+                    SensorAction.GrantBluetooth -> R.string.st_sensor_status_permission
+                },
+            )
     }
 
 /** Libre 3 direct ↔ Juggluco: tapping the other one asks first ([onChoose]); the current one does nothing. */
@@ -195,15 +241,15 @@ private fun SourceGroup(
     SettingsGroup(Modifier.selectableGroup(), title = stringResource(R.string.st_sensor_source)) {
         for (source in SourceChoice.entries) {
             val selected = source == current
-            CardRow(
-                Modifier.selectable(selected, role = Role.RadioButton) {
-                    if (!selected) {
-                        haptics.toggle(true)
-                        onChoose(source)
-                    }
-                },
-            ) {
-                Row {
+            CardRow {
+                Row(
+                    Modifier.selectable(selected, role = Role.RadioButton) {
+                        if (!selected) {
+                            haptics.toggle(true)
+                            onChoose(source)
+                        }
+                    },
+                ) {
                     RadioButton(selected = selected, onClick = null)
                     Column(Modifier.padding(start = 16.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(

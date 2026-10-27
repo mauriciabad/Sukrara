@@ -49,7 +49,7 @@ class SensorSettingsTest {
         val sources = mutableListOf<SourceChoice>()
         var signedOut = false
 
-        override suspend fun setSource(source: SourceChoice) {
+        override fun setSource(source: SourceChoice) {
             sources += source
             state.value = state.value.copy(source = source)
         }
@@ -107,6 +107,39 @@ class SensorSettingsTest {
         compose.onNodeWithText("This sensor has ended", substring = true).assertExists()
         compose.onAllNodesWithTextFirst("Pair new sensor").performClick()
         assertEquals(1, paired)
+    }
+
+    @Test
+    fun `an ended sensor shows no time left`() {
+        show(working.copy(state = SensorState.Ended))
+        compose.onNodeWithText(" · in ", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a silent Juggluco is never shown as working`() {
+        show(working.copy(source = SourceChoice.Juggluco, link = SourceLink.JugglucoUnreachable))
+        compose.onNodeWithText("Juggluco isn’t answering: no readings").assertExists()
+        compose.onNodeWithText("Working", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Juggluco doesn’t answer", substring = true).assertExists()
+    }
+
+    @Test
+    fun `a connecting sensor is not shown as working`() {
+        show(working.copy(link = SourceLink.Connecting))
+        compose.onNodeWithText("Connecting to the sensor: no readings yet").assertExists()
+    }
+
+    @Test
+    fun `sign out asks first, Cancel keeps the account`() {
+        var signedOut = 0
+        show(working, SensorSettingsActions(signOut = { signedOut++ }))
+        compose.onAllNodesWithTextFirst("Sign out").performClick()
+        compose.onNodeWithText("Sign out of LibreView?").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(0, signedOut)
+        compose.onAllNodesWithTextFirst("Sign out").performClick()
+        compose.onAllNodes(hasText("Sign out"))[1].performClick()
+        assertEquals(1, signedOut)
     }
 
     @Test

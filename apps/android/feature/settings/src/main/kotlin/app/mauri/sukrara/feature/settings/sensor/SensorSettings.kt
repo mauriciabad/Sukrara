@@ -31,12 +31,32 @@ data class SensorSummary(val serial: String, val startedAt: Instant, val endsAt:
 /** The signed-in LibreView account: only the email and the receiver ID are kept (never the password). */
 data class LibreViewSummary(val email: String, val receiverId: Long?)
 
-/** Everything Settings › Sensor shows. [sensor] is null until a sensor is known; [account] null = not signed in. */
+/**
+ * Whether glucose is actually arriving: the hub's [SensorState] says Active while the link is still connecting or
+ * Juggluco doesn't answer, and the page must never say "Working" then.
+ */
+enum class SourceLink {
+    /** Readings arrive (or the [SensorState] alone tells the story: warming up, ended, needs the person). */
+    Receiving,
+
+    /** Connecting / reconnecting to the sensor, or Juggluco is sending its history. Leaves by itself. */
+    Connecting,
+
+    /** Juggluco's web server doesn't answer: no readings until Juggluco runs with it on. */
+    JugglucoUnreachable,
+}
+
+/**
+ * Everything Settings › Sensor shows. [sensor] is null until a sensor is known; [account] null = not signed in;
+ * [otherAppIsShowcase]: the app holding the sensor (StopOtherApp) is Sukrara Showcase.
+ */
 data class SensorSettingsState(
     val source: SourceChoice,
     val state: SensorState,
     val sensor: SensorSummary?,
     val account: LibreViewSummary?,
+    val link: SourceLink = SourceLink.Receiving,
+    val otherAppIsShowcase: Boolean = false,
 )
 
 /**
@@ -46,8 +66,11 @@ data class SensorSettingsState(
 interface SensorSettingsPort {
     val state: Flow<SensorSettingsState>
 
-    /** Changes the glucose source (the source manager follows the setting) and makes sure monitoring runs. */
-    suspend fun setSource(source: SourceChoice)
+    /**
+     * Changes the glucose source (the source manager follows the setting) and makes sure monitoring runs. Runs to the
+     * end in the app's scope even if the page closes right after.
+     */
+    fun setSource(source: SourceChoice)
 
     /** Forgets the LibreView account's email and receiver ID; a running sensor keeps working. */
     suspend fun signOut()
@@ -58,7 +81,7 @@ class SensorSettingsViewModel(private val port: SensorSettingsPort) : ViewModel(
 
     fun setSource(source: SourceChoice) {
         if (state.value?.source == source) return
-        viewModelScope.launch { port.setSource(source) }
+        port.setSource(source)
     }
 
     fun signOut() {

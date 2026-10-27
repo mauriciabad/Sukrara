@@ -133,7 +133,7 @@ class AppGraph(
         )
     }
 
-    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource) { startMonitoring(StartReason.App) } }
+    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
 
     val home by lazy {
         HomeModule(
