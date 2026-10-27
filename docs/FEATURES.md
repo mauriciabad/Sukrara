@@ -238,6 +238,45 @@ Wearer only (`ui/NewSensorScreen.kt`; rules in `ui/NewSensorFlow.kt`, tests `New
 - Settings → Glucose source, one page (`ui/SourceScreen.kt`, 0.11.28; was a Source choice "Libre 3 directly" / Juggluco plus a nested Sensor page). Laid out like AOSP's device details (`bluetooth_device_details_fragment.xml`: header, action button, categories): a header card with the current sensor (family name, the red *Untested* tag when unverified, serial, *Started …*, *Ends …*, *Now: <source status>*; *No sensor yet* · *Pair your sensor to start reading it here*; under Juggluco: *Juggluco* · *Now: …*) and *Pair a sensor* / *Pair new sensor* (the New sensor screen; from Juggluco it asks first). Group *Read glucose from*: an inline radio choice (SPA `RadioPreferences`) *This phone* (*Sukrara reads the sensor itself: FreeStyle Libre 3 / 3 Plus, or an untested Dexcom, Accu-Chek or Aidex sensor*; with a sensor: *Reads your Dexcom G7 / ONE+*) or *Juggluco* (its web server; Juggluco keeps the sensor and its alarms). Choosing *This phone* from Juggluco asks *Read the sensor directly?* → *Pair a sensor*. Group *Sensor* (this phone only): *Open Sukrara when you scan a sensor* (on Android 16+ when the user blocked Sukrara's tag intents: *Blocked in Android settings. Tap to allow* → `ACTION_CHANGE_TAG_INTENT_PREFERENCE`), *Forget this sensor*. Footer: only one app can read a sensor at a time. The Settings overview's row says *This phone · Dexcom G7 / ONE+ · live* / *Juggluco · …*. Search finds every row, *Pair new sensor* included.
 - Debug builds: `DebugReceiver --es cmd newSensor [--es stage waiting|reading|signin|pairing|slow|warmup|ready|ended|libre2|failed|bluetooth|nfcoff|choose|untested|pairfailed|setup-<profile id>]` forces a stage while the screen is open (cleared when it closes; `untested` = the brand step with the G7 selected and its confirmation open).
 
+## Home screen (V1)
+
+Android (`:feature:home`: `HomeScreen`, `HomeViewModel`, `NoDataReason`, `banners/HomeBanners`, `HomeCard` = the
+registered `app-panel` card surface; tests `NoDataReasonTest`, `BannerSlotTest`, `HomeViewModelTest`, `HomeGallery`).
+Glucose first: the card (value, arrow, slots, 6 h chart through the one renderer; drag to scroll back, pinch to zoom,
+*Now* to return) with the sensor's end date under it; then at most **one** non-glucose banner; the Mute alerts strip
+(time left + *Unmute*); the last 24 h of treatments (delete → *Treatment deleted* snackbar with *Undo* for 5 s; the
+delete is a tombstone version so sync carries it, Undo a newer version); *Add treatment* (floating pill, opens chunk
+19's quick dialog). Follower: the header says *Following <name>* and *Connected · last heard …*. TalkBack reads the
+card as one sentence (*112 milligrams per decilitre, falling, in range, 2 minutes ago*, *Old reading: …* when struck)
+plus the chart summary (*Chart of the last 6 hours: 80% in range*); Unmute is a custom action. Haptics only on the
+person's actions (dismiss, delete, undo, unmute); passive updates never vibrate or bounce; reduced motion snaps.
+
+**No data reasons** (never a bare "---"; the first match wins, and a reason only replaces the card when the card itself
+hides the number): *Sukrara isn't set up yet* → Set up; *Not monitoring: no sensor yet* before the first reading ever
+(no "no data" alarm is armed in this state; follower: *not following anyone yet* → Join) → Pair sensor; *This build
+can't read Libre 3 sensors* (no action); *Sensor ended* → Pair new sensor; *Sensor warming up* (first reading at …);
+*You no longer follow this person* → Join with a new invite; *Monitoring stopped* → Resume monitoring; *Bluetooth is
+off* → Turn on Bluetooth; follower *No readings from the wearer's phone* (last heard …); wearer *No readings from the
+sensor* (last reading …) → Sensor details. Not in V1 yet: "sensor owned by Sukrara Showcase" and "NFC scan needed"
+(the hub has no such states yet).
+
+**One banner slot**, by priority: (1) *Alerts may not ring* + the alert checklist's first problem (`AlertReadiness`,
+the same items and order as setup's permission step) → Fix; (2) *Turn off Sukrara Showcase* while
+`app.mauri.sukrara.poc` is installed (re-checked on resume) → Open its app info; (3) *Some saved data was damaged*
+(`DataModule.corruption`) → Review; (4) *Finish setup* (next step) → Continue; (5) *Not backed up*; (6) *Add the glucose
+widget*; (7) *Share with your clinic*. 1–3 can't be dismissed; Finish setup's close = later (back after 24 h until
+done); 5–7 close for good (typed state `home-banners`). A banner whose input isn't known on this build yet is never
+shown. Not in V1 yet: tips, the quiet all-green reliability row, the clinic report card.
+
+**Damaged data** screen (from the banner's Review): each damaged file (store, error type, the name the damaged copy was
+kept as), *Copy report* (no content, only what failed), *Got it* (acknowledges it; the banner leaves when none is
+left), Back.
+
+**States and exits**: *value* → scroll/zoom the chart → *Now*; *no data* → the reason's action (or wait: warming up,
+core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
+Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
+Back; *first launch* (no role) → setup opens over home and Back returns home; invite links open setup's join step.
+
 ## Untested sensor banner
 
 Wearer only (`ui/SensorFeedback.kt`, tests `SensorFeedbackTest`). While the direct source runs with a sensor whose profile isn't verified (`core/ActiveSensor`), home shows a permanent card directly under the glucose panel: a flask icon, *<family> support is untested. Tell us how it works.* and the pill *Send feedback*. Not dismissible, not red (surface container). The pill opens a pre-filled GitHub issue (`.github/ISSUE_TEMPLATE/sensor-feedback.yml`, label `sensor-feedback`): title *Sensor feedback: <family>*, fields sensor model, Sukrara version, Android version (`16 (API 36)`), phone model — no glucose values, serials or anything personal. Followers and the Mac never show it (it is about the wearer's own sensor). Setting the family's `SensorProfile.verified` to true removes it. Debug builds: `DebugReceiver --es cmd sensorProfile --es profile <id>` forces the active family (screenshots).
