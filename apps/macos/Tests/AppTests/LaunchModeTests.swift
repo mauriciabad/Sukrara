@@ -54,11 +54,29 @@ import Testing
     }
 
     @Test func devBuildsAreRecognised() {
-        #expect(!installed.isDevBuild(exists: exists))
-        #expect(!downloaded.isDevBuild(exists: exists))
-        #expect(repoBundle.isDevBuild(exists: exists))
-        #expect(bareRelease.isDevBuild(exists: exists))
-        #expect(debugBundle.isDevBuild(exists: exists))
+        #expect(!installed.isDevBuild(home: home, exists: exists))
+        #expect(!downloaded.isDevBuild(home: home, exists: exists))
+        #expect(repoBundle.isDevBuild(home: home, exists: exists))
+        #expect(bareRelease.isDevBuild(home: home, exists: exists))
+        #expect(debugBundle.isDevBuild(home: home, exists: exists))
+    }
+
+    @Test func aDotfilesRepoInHomeDoesNotMakeTheInstalledAppADevBuild() throws {
+        let dotfiles: (String) -> Bool = { $0 == "/Users/u/.git" || $0 == "/Users/u/repo/.git" }
+        #expect(!installed.isDevBuild(home: home, exists: dotfiles))
+        #expect(repoBundle.isDevBuild(home: home, exists: dotfiles))
+        let systemApp = BuildInfo(isDebugBuild: false, bundlePath: "/Applications/Sukrara.app", isBundle: true)
+        #expect(!systemApp.isDevBuild(home: home, exists: dotfiles))
+        #expect(try LaunchPlan.parse([], build: installed, env: [:], home: home, exists: dotfiles).services == .all)
+    }
+
+    @Test func devHomeMustNotBeTheRealHome() {
+        for path in ["/Users/u", "/Users/u/", "/Users/u/./"] {
+            #expect(throws: LaunchError.devHomeIsUserHome) {
+                try plan(repoBundle, env: ["SUKRARA_DEV": "1", "SUKRARA_DEV_HOME": path])
+            }
+        }
+        #expect(LaunchError.devHomeIsUserHome.exitCode == 2)
     }
 
     @Test(arguments: ["repo", "bare", "debug"])

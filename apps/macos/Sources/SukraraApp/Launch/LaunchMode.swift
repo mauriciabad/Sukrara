@@ -121,11 +121,13 @@ public struct BuildInfo: Equatable, Sendable {
     }
 
     /// A dev build: a debug build, a bare executable, or a bundle inside a git checkout (`build/Sukrara.app`).
-    /// Copies outside a repo (`~/Applications`, a release unzipped in Downloads) are the user's app.
-    public func isDevBuild(exists: (String) -> Bool) -> Bool {
+    /// Copies outside a repo (`~/Applications`, a release unzipped in Downloads) are the user's app. The search
+    /// stops below `home`, so a dotfiles repo in `~/.git` doesn't turn the installed app into a dev build.
+    public func isDevBuild(home: URL, exists: (String) -> Bool) -> Bool {
         if isDebugBuild || !isBundle { return true }
+        let stop = home.standardizedFileURL.path
         var dir = URL(fileURLWithPath: bundlePath).standardizedFileURL.deletingLastPathComponent()
-        while dir.path != "/" && !dir.path.isEmpty {
+        while dir.path != "/" && !dir.path.isEmpty && dir.path != stop {
             if exists(dir.appending(path: ".git").path) { return true }
             dir = dir.deletingLastPathComponent()
         }
@@ -140,10 +142,12 @@ public enum LaunchError: Error, Equatable {
     case devBuildNeedsOptIn(bundlePath: String)
     /// A debug-only mode in a release build.
     case debugOnly
+    /// `SUKRARA_DEV_HOME` points at the user's real home: a dev run would use the installed app's files.
+    case devHomeIsUserHome
 
     public var exitCode: Int32 {
         switch self {
-        case .unknownArgument, .debugOnly: 2
+        case .unknownArgument, .debugOnly, .devHomeIsUserHome: 2
         case .devBuildNeedsOptIn: 3
         }
     }
@@ -157,6 +161,8 @@ public enum LaunchError: Error, Equatable {
                 + "with separate data (no sensor, relays or alerts)."
         case .debugOnly:
             "Snapshots are only available in debug builds."
+        case .devHomeIsUserHome:
+            "SUKRARA_DEV_HOME is your real home folder: a dev run must use separate data. Choose another folder."
         }
     }
 }
@@ -187,7 +193,7 @@ public struct LaunchPlan: Equatable, Sendable {
         if let unknown = args.first(where: { !$0.hasPrefix("-psn_") }) {
             throw .unknownArgument(unknown)
         }
-        guard build.isDevBuild(exists: exists) else {
+        guard build.isDevBuild(home: home, exists: exists) else {
             return LaunchPlan(mode: .normal, services: .all, data: .user(home: home))
         }
         guard env["SUKRARA_DEV"] == "1" else {
@@ -197,6 +203,7 @@ public struct LaunchPlan: Equatable, Sendable {
             env["SUKRARA_DEV_HOME"].map { URL(fileURLWithPath: $0, isDirectory: true) }
             ?? home.appending(
                 path: "Library/Application Support/\(SukraraIDs.appBundleID).dev", directoryHint: .isDirectory)
+        guard devHome.standardizedFileURL.path != home.standardizedFileURL.path else { throw .devHomeIsUserHome }
         return LaunchPlan(mode: .normal, services: .none, data: .isolated(root: devHome))
     }
 
