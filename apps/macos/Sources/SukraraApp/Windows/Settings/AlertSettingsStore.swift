@@ -46,5 +46,11 @@ public final class AlertSettingsStore {
     }
 
     /// The exit from the read error, and "Defaults": the SPEC §3 defaults (alerts ON).
-    public func resetToDefaults() { update { $0 = AlertSettings() } }
+    public func resetToDefaults() {
+        let source = settings.source
+        update {
+            $0 = AlertSettings()
+            $0.source = source
+        }
+    }
 }

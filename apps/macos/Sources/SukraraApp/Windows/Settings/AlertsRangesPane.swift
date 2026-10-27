@@ -60,14 +60,17 @@ struct AlertsRangesPane: View {
                     label: L10n.t("Threshold"), format: format,
                     value: Binding(
                         get: { (mirrored ? model.wearer?.number(id) : nil) ?? model.alerts.settings[kind].threshold },
-                        set: { v in model.alerts.update { $0.rules[kind]?.threshold = v } }),
+                        set: { v in model.alerts.update { $0[kind].threshold = v } }),
                     readOnly: mirrored)
             }
             NumberSettingRow(
                 label: L10n.t("Repeat"), format: SettingsSpec.alertRepeat,
                 value: Binding(
-                    get: { Double(model.alerts.settings[kind].repeatMin) },
-                    set: { v in model.alerts.update { $0.rules[kind]?.repeatMin = Int(v) } }),
+                    get: {
+                        (mirrored ? model.wearerNumber("alerts.kind.repeat", kind: kind) : nil)
+                            ?? Double(model.alerts.settings[kind].repeatMin)
+                    },
+                    set: { v in model.alerts.update { $0[kind].repeatMin = Int(v) } }),
                 readOnly: mirrored)
         } label: {
             Toggle(Self.kindName(kind), isOn: Binding(
@@ -75,19 +78,23 @@ struct AlertsRangesPane: View {
                     (mirrored ? model.wearer?.bool("alerts.kind.on", kind: kind.rawValue) : nil)
                         ?? model.alerts.settings[kind].on
                 },
-                set: { v in model.alerts.update { $0.rules[kind]?.on = v } }))
+                set: { v in model.alerts.update { $0[kind].on = v } }))
             .disabled(mirrored)
         }
     }
 
     private func quiet(_ label: String, _ path: WritableKeyPath<AlertSettings, QuietRule>, _ id: String) -> some View {
         let name = SettingsSpec.settings.first { $0.id == id }?.number ?? ""
+        let onId = id.replacingOccurrences(of: ".min", with: ".on")
+        let isOn = model.wearerBool(onId) ?? model.alerts.settings[keyPath: path].on
+        let on = Binding(get: { isOn }, set: { v in model.alerts.update { $0[keyPath: path].on = v } })
+        let minutes = Binding(
+            get: { model.wearerNumber(id) ?? model.alerts.settings[keyPath: path].min },
+            set: { v in model.alerts.update { $0[keyPath: path].min = v } })
         return VStack(alignment: .leading) {
-            Toggle(label, isOn: alertBinding(path.appending(path: \.on))).disabled(model.mirrors)
-            if let format = SettingsSpec.numbers[name], model.alerts.settings[keyPath: path].on {
-                NumberSettingRow(
-                    label: L10n.t("For"), format: format, value: alertBinding(path.appending(path: \.min)),
-                    readOnly: model.mirrors)
+            Toggle(label, isOn: on).disabled(model.mirrors)
+            if let format = SettingsSpec.numbers[name], isOn {
+                NumberSettingRow(label: L10n.t("For"), format: format, value: minutes, readOnly: model.mirrors)
             }
         }
     }
@@ -141,7 +148,15 @@ struct MirroredSection: View {
                         systemImage: "iphone")
                     HStack {
                         Button(L10n.t("Use my own settings")) { model.useOwn() }
-                        Button(L10n.t("Defaults")) { model.useDefaults() }
+                        Button(L10n.t("Defaults…")) { model.confirmingDefaults = true }
+                            .confirmationDialog(
+                                L10n.t("Use the default alerts and ranges?"), isPresented: $model.confirmingDefaults
+                            ) {
+                                Button(L10n.t("Use defaults")) { model.useDefaults() }
+                                Button(L10n.t("Cancel"), role: .cancel) {}
+                            } message: {
+                                Text(L10n.t("This Mac's own thresholds and ranges are replaced by the defaults."))
+                            }
                     }
                 } else {
                     Button(L10n.t("Use \(model.wearer?.wearer ?? L10n.t("the wearer"))'s settings")) {

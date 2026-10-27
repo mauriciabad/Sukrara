@@ -7,8 +7,10 @@ import SwiftUI
 /// General: Following (wearer, data age, link state, Unfollow confirmed), units, open at login, updates, version.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
-    var checkForUpdates: () -> Void = {}
-    var openFollow: () -> Void = {}
+    @Binding var openAtLogin: Bool
+    var updateResult: String?
+    var checkForUpdates: () -> Void
+    var openFollow: () -> Void
 
     var body: some View {
         Form {
@@ -21,7 +23,7 @@ struct GeneralPane: View {
                 .pickerStyle(.segmented)
             }
             Section(L10n.t("Startup")) {
-                Toggle(L10n.t("Open at login"), isOn: $model.openAtLogin)
+                Toggle(L10n.t("Open at login"), isOn: $openAtLogin)
             }
             Section(L10n.t("Updates")) {
                 HStack {
@@ -29,7 +31,7 @@ struct GeneralPane: View {
                     Spacer()
                     Button(L10n.t("Check now"), action: checkForUpdates)
                 }
-                if let r = model.updateResult { Text(r).foregroundStyle(.secondary) }
+                if let r = updateResult { Text(r).foregroundStyle(.secondary) }
             }
         }
         .formStyle(.grouped)
@@ -93,16 +95,29 @@ struct FollowingRows: View {
 /// The settings window's content: two panes, the last one chosen is remembered.
 public struct SettingsView: View {
     @Bindable var model: SettingsModel
-    var openFollow: () -> Void = {}
+    /// Open at login (chunk 21's LoginItem over SMAppService.mainApp, schema `general.openAtLogin`).
+    @Binding var openAtLogin: Bool
+    /// The last update check's result in words (chunk 21's UpdateCheck), nil before one ran.
+    var updateResult: String?
+    var checkForUpdates: () -> Void
+    var openFollow: () -> Void
 
-    public init(model: SettingsModel, openFollow: @escaping () -> Void = {}) {
+    public init(
+        model: SettingsModel, openAtLogin: Binding<Bool>, updateResult: String?,
+        checkForUpdates: @escaping () -> Void, openFollow: @escaping () -> Void
+    ) {
         self.model = model
+        self._openAtLogin = openAtLogin
+        self.updateResult = updateResult
+        self.checkForUpdates = checkForUpdates
         self.openFollow = openFollow
     }
 
     public var body: some View {
         TabView(selection: $model.pane) {
-            GeneralPane(model: model, openFollow: openFollow)
+            GeneralPane(
+                model: model, openAtLogin: $openAtLogin, updateResult: updateResult, checkForUpdates: checkForUpdates,
+                openFollow: openFollow)
                 .tabItem { Label(L10n.t("General"), systemImage: "gearshape") }
                 .tag(SettingsModel.Pane.general)
             AlertsRangesPane(model: model)

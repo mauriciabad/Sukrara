@@ -99,7 +99,7 @@ public struct TreatmentsView: View {
                 }
                 .padding(10)
                 .background(.thinMaterial)
-                .task {
+                .task(id: u.row.id) {
                     try? await Task.sleep(for: .seconds(TreatmentsModel.undoSeconds))
                     model.dismissUndo()
                 }

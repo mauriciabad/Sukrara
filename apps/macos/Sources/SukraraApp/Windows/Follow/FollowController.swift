@@ -71,13 +71,14 @@ public final class FollowModel {
     /// Paste or `sukrara:` link: nothing goes to the relays until the text parses as an invite.
     public func follow() async {
         failure = nil
-        guard InviteLink.parse(linkText.trimmingCharacters(in: .whitespacesAndNewlines)) != nil else {
+        let link = linkText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard InviteLink.parse(link) != nil else {
             failure = .invalidLink
             return
         }
         status = .joining
         do {
-            try await actions?.join(link: linkText)
+            try await actions?.join(link: link)
         } catch {
             failure = error
             status = .notFollowing

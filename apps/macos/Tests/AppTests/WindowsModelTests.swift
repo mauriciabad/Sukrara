@@ -105,8 +105,9 @@ final class RecordingSender: TreatmentActions {
 
     @Test func undoEndsAfterTenSeconds() async {
         var clock = Date(timeIntervalSince1970: 2000)
+        let sender = RecordingSender()  // the model holds its actions weakly
         let m = TreatmentsModel(
-            rows: [.init(treatment: Self.mine, delivery: nil)], canWrite: true, actions: RecordingSender(),
+            rows: [.init(treatment: Self.mine, delivery: nil)], canWrite: true, actions: sender,
             now: { clock })
         await m.delete(m.rows[0])
         clock += TreatmentsModel.undoSeconds + 0.1

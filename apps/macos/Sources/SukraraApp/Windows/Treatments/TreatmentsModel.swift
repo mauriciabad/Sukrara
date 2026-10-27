@@ -58,7 +58,11 @@ public final class TreatmentsModel {
         var t = row.treatment
         t.del = true
         t.u = Self.millis(now())
-        _ = await actions?.send(t)
+        // Not sent = not deleted: the entry comes back (the phone still has it) instead of vanishing only here.
+        if await actions?.send(t) != true {
+            undo = nil
+            insert(row)
+        }
     }
 
     /// Brings the last deleted entry back (a newer version wins over the tombstone).

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import Observation
+import SukraraAlerts
 import SukraraCore
 
 /// The settings window's state over the store: bands, unit, "Settings from", the wearer's mirrored values.
@@ -16,8 +17,8 @@ public final class SettingsModel {
     /// The wearer's mirrored settings (nil while not following or none arrived yet).
     public var wearer: WearerSettings?
     public var pane: Pane = .general
-    public var openAtLogin = false
-    public var updateResult: String?
+    /// "Defaults" replaces this Mac's own thresholds and bands: asked first.
+    public var confirmingDefaults = false
     public let version: String
     private var revision = 0
 
@@ -34,7 +35,13 @@ public final class SettingsModel {
 
     public var settingsFrom: SettingsFrom {
         get { _ = revision; return store.settingsFrom }
-        set { store.set(newValue.rawValue, for: MacSettings.settingsFrom); revision += 1 }
+        set {
+            store.set(newValue.rawValue, for: MacSettings.settingsFrom)
+            // `alerts.source` is derived from `follower.settingsFrom` (schema): wearer = mirror, else own rules.
+            let source: AlertSource = newValue == .wearer ? .wearer : .own
+            if alerts.settings.source != source { alerts.update { $0.source = source } }
+            revision += 1
+        }
     }
 
     public var unit: GlucoseUnit {
@@ -57,11 +64,20 @@ public final class SettingsModel {
     /// "Use my own settings": this Mac's values, editable.
     public func useOwn() { settingsFrom = .custom }
 
-    /// "Defaults": the schema defaults for the bands and the SPEC defaults for the alerts.
+    /// "Defaults" (after the confirmation): the schema defaults for the bands and the SPEC defaults for the alerts.
     public func useDefaults() {
-        settingsFrom = .default
         for n in MacSettings.bands { store.set(n.format.default, for: n.spec) }
         alerts.resetToDefaults()
+        settingsFrom = .default
         revision += 1
+    }
+
+    /// A mirrored number (`alerts.kind.repeat` …) while mirroring, else nil.
+    func wearerNumber(_ id: String, kind: AlertKind? = nil) -> Double? {
+        mirrors ? wearer?.number(id, kind: kind?.rawValue) : nil
+    }
+
+    func wearerBool(_ id: String, kind: AlertKind? = nil) -> Bool? {
+        mirrors ? wearer?.bool(id, kind: kind?.rawValue) : nil
     }
 }
