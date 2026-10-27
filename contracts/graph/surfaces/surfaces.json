@@ -260,7 +260,7 @@
           ]
         ],
         "files": [
-          "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/LiveNotification.kt"
+          "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/NotificationCard.kt"
         ]
       },
       {
@@ -337,7 +337,8 @@
         "draw",
         "image",
         "face",
-        "observer",
+        "accessibilityLabel",
+        "noValueText",
         "yRange"
       ],
       "SensorBadge": [
@@ -415,7 +416,8 @@
         "entry": "StatusController.title",
         "what": "the status item's value, strike and arrow",
         "files": [
-          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift"
+          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift",
+          "apps/macos/Sources/SukraraApp/AppModel.swift"
         ]
       },
       {
