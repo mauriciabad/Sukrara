@@ -9,7 +9,7 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- relays (wss), uploads (https), Juggluco's web server on 127.0.0.1, a home-network Nightscout -->
+    <!-- relays (wss), uploads (https), Juggluco's web server on 127.0.0.1 (the only cleartext: network_security_config) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- connectedDevice, not dataSync: a dataSync FGS is capped at 6 h per 24 h on Android 15+. Its prerequisite
