@@ -27,9 +27,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 /**
- * The home screen's ports, built from the modules `AppGraph` composes. [glucose] is the hub's state and [readiness]
- * the alert checklist (`:monitor` / the alert runtime implement them; until they are composed into `AppGraph` the
- * hub's initial state and an unknown checklist are passed — home then shows "not set up" and claims nothing).
+ * The home screen's ports, built from the modules `AppGraph` composes: [glucose] is the hub's state and [readiness]
+ * THE alert checklist (`AlertsModule.readiness`, the same instance settings and setup render).
  */
 class HomeModule(
     private val context: Context,
@@ -37,7 +36,7 @@ class HomeModule(
     override val clock: Clock,
     scope: CoroutineScope,
     override val glucose: StateFlow<GlucoseState>,
-    private val readinessSource: AlertReadinessSource?,
+    private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
     private val resume: () -> Unit,
     /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
@@ -45,8 +44,7 @@ class HomeModule(
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
-    override val readiness: StateFlow<AlertReadiness?> =
-        readinessSource?.readiness ?: MutableStateFlow(null)
+    override val readiness: StateFlow<AlertReadiness?> get() = readinessSource.readiness
 
     private val env = MutableStateFlow(HomeEnvironment())
     override val environment: StateFlow<HomeEnvironment> = env
@@ -62,7 +60,7 @@ class HomeModule(
 
     /** Re-reads what can change outside the app (the activity calls it on every resume). */
     fun refresh() {
-        readinessSource?.refresh()
+        readinessSource.refresh()
         env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager), widgetPlaced = widgetPlaced()) }
     }
 
@@ -77,7 +75,7 @@ class HomeModule(
     override fun resumeMonitoring() = resume()
 
     override fun fix(requirement: AlertRequirement) {
-        readinessSource?.fix(requirement)
+        readinessSource.fix(requirement)
     }
 
     private fun CorruptFile.toProblem() = DataProblem(store = store, reason = reason, keptAs = quarantinedTo?.name, at = at)

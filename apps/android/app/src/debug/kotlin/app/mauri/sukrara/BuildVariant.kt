@@ -12,9 +12,12 @@ internal object BuildVariant {
     suspend fun wearerSource(graph: AppGraph): ReadingSource? =
         withContext(graph.dispatchers.io) {
             if (SyntheticSource.isOn(graph.app)) {
-                SyntheticSource(graph.clock, SyntheticSource.shift(graph.app)) {
-                    SyntheticSource.isFrozen(graph.app)
-                }
+                SyntheticSource(
+                    graph.clock,
+                    SyntheticSource.shift(graph.app),
+                    frozen = { SyntheticSource.isFrozen(graph.app) },
+                    endsAt = SyntheticSource.endsAt(graph.app) ?: (graph.clock.now() + java.time.Duration.ofDays(10)),
+                )
             } else {
                 null
             }

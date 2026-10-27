@@ -7,11 +7,14 @@ import android.content.Context
 import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertControls
+import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.monitor.readiness.AndroidAlertReadiness
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
@@ -38,6 +41,11 @@ class AlertsModule(
     treatments: Flow<List<Treatment>>,
     val restarter: MonitorRestarter,
     clock: Clock,
+    /** The process scope: the readiness checklist shares its state there while a screen collects it. */
+    scope: CoroutineScope,
+    dispatchers: DispatcherProvider,
+    /** Whether the role's source talks to the sensor over Bluetooth (the checklist's Bluetooth item). */
+    needsBluetooth: Flow<Boolean>,
     events: AlertEventSink = AlertEventSink { },
     private val wearerSettings: Flow<AlertSettings?> = flowOf(null),
     private val remoteEvents: Flow<AlertEvent> = emptyFlow(),
@@ -50,6 +58,12 @@ class AlertsModule(
     /** THE alert runtime of this process; also every surface's [AlertControls]. */
     val runtime = AlertRuntime(store, treatments, notifier, AlertScheduler(ctx, clock), events, hub::setAlerts, clock)
     val controls: AlertControls get() = runtime
+
+    /**
+     * THE alert checklist (home's reliability row, the settings Reliability page, the setup permission step): one
+     * instance so every surface agrees.
+     */
+    val readiness: AlertReadinessSource = AndroidAlertReadiness(ctx, scope, dispatchers, store.settings, needsBluetooth)
 
     val sensorEnd = SensorEndNotifier(
         sensorEndRecord,

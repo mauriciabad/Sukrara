@@ -34,12 +34,14 @@ class SyntheticSource(
     /** Minutes added to the time before it goes into the curve (puts a low or a high "now" for a screenshot). */
     private val shiftMinutes: Long,
     private val frozen: () -> Boolean,
+    /** When the made-up sensor ends (the sensor-end warning and countdown can be shot with a near end). */
+    endsAt: Instant = clock.now() + Duration.ofDays(10),
 ) : ReadingSource {
     private val bluetooth = MutableStateFlow(true)
     private val mutableStatus = MutableStateFlow<SourceStatus>(SourceStatus.Connecting)
 
     override val sensor: StateFlow<SensorState> =
-        MutableStateFlow<SensorState>(SensorState.Active(endsAt = clock.now() + Duration.ofDays(10))).asStateFlow()
+        MutableStateFlow<SensorState>(SensorState.Active(endsAt = endsAt)).asStateFlow()
 
     override val status: StateFlow<SourceStatus> = mutableStatus.asStateFlow()
 
@@ -79,6 +81,7 @@ class SyntheticSource(
         private const val KEY_ON = "synthetic"
         private const val KEY_FROZEN = "syntheticFrozen"
         private const val KEY_SHIFT = "syntheticShift"
+        private const val KEY_ENDS_AT = "syntheticEndsAt"
 
         /** The curve's lowest point is this many minutes into its cycle. */
         const val TROUGH_MINUTE = 135
@@ -98,6 +101,9 @@ class SyntheticSource(
 
         fun shift(context: Context) = prefs(context).getLong(KEY_SHIFT, 0)
 
+        /** The made-up sensor's end, or null = 10 days from when the source starts. */
+        fun endsAt(context: Context): Instant? = prefs(context).getLong(KEY_ENDS_AT, 0).takeIf { it > 0 }?.let(Instant::ofEpochMilli)
+
         /** The shift that puts [now] at [cycleMinute] of the curve's 180-minute cycle (135 = the lowest point). */
         fun shiftFor(
             now: Instant,
@@ -109,11 +115,13 @@ class SyntheticSource(
             on: Boolean,
             frozen: Boolean,
             shift: Long,
+            endsAt: Instant?,
         ) = prefs(context)
             .edit()
             .putBoolean(KEY_ON, on)
             .putBoolean(KEY_FROZEN, frozen)
             .putLong(KEY_SHIFT, shift)
+            .putLong(KEY_ENDS_AT, endsAt?.toEpochMilli() ?: 0)
             .commit()
 
         private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

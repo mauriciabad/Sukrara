@@ -114,6 +114,8 @@ sealed interface NoDataReason {
 sealed interface HomeAction {
     data object OpenSetup : HomeAction
 
+    data object OpenSettings : HomeAction
+
     data object PairSensor : HomeAction
 
     data object OpenSensor : HomeAction
