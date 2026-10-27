@@ -1,0 +1,7 @@
+# Dexcom G6 / ONE transmitter frames (CRC-16/XMODEM little-endian trailer on each).
+# Origin: DiaBLE DiaBLE/Dexcom.swift comments (MIT) — :353 backfill reply 0x51, :404 version 0x4b,
+# :333 calibration bounds 0x33, :423 0x53.
+backfill-reply 5100010 17e8636005a8c36003a0000004528 2247
+version 4b001ec06722ba3100008c00036e006d013cef
+bounds 33003250004401140058020000000000000 18ba4
+serial 53000a0f0000000000303235302d50726f771a

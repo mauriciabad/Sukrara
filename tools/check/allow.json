@@ -26,6 +26,8 @@
   "large_bytes": 2000000,
   "large_ok": [],
   "secret_ok": [
+    "contracts/protocol/identity/vectors.json",
+    "contracts/protocol/ogs/*",
     "poc/spikes/nostr/identity/vectors.json",
     "poc/spec/test-vectors/*",
     "tools/check/check.py"
