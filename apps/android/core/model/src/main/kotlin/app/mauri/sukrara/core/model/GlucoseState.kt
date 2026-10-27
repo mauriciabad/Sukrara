@@ -22,8 +22,8 @@ data class GlucoseState(
     /** The follower's link to the wearer; null on a wearer phone. */
     val link: LinkState?,
     /**
-     * When monitoring started: the first reading from the current source (persisted; cleared when the source reports
-     * no sensor). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
+     * When monitoring started: the first reading from the current source (persisted; cleared only when the person
+     * removes the sensor or changes the role). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
      */
     val monitoringStartedAt: Instant? = null,
     /** Whether the monitoring service runs. */

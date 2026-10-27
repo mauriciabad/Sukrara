@@ -63,8 +63,14 @@ class GlucoseHubTest {
 
     private fun TestScope.hub(): GlucoseHubImpl {
         val dispatchers = TestDispatchers(StandardTestDispatcher(testScheduler))
-        return GlucoseHubImpl(CoroutineScope(backgroundScope.coroutineContext + dispatchers.dispatcher), dispatchers, clock, repo, record, role)
-            .also { it.start() }
+        return GlucoseHubImpl(
+            CoroutineScope(backgroundScope.coroutineContext + dispatchers.dispatcher),
+            dispatchers,
+            clock,
+            repo,
+            record,
+            role,
+        ).also { it.start() }
     }
 
     @Test
@@ -83,7 +89,11 @@ class GlucoseHubTest {
 
             assertNull(hub.state.value.notMonitoring)
             assertEquals(clock.now(), hub.state.value.monitoringStartedAt)
-            assertEquals(120, hub.state.value.latest?.mgdl)
+            assertEquals(
+                120,
+                hub.state.value.latest
+                    ?.mgdl,
+            )
             assertEquals(clock.now().toEpochMilli(), record.data.first().startedAtEpochMs)
         }
 
@@ -102,7 +112,11 @@ class GlucoseHubTest {
             repo.upsert(listOf(reading(100, agoMin = 3)))
             val hub = hub()
             runCurrent()
-            assertEquals(100, hub.state.value.latest?.mgdl)
+            assertEquals(
+                100,
+                hub.state.value.latest
+                    ?.mgdl,
+            )
 
             val source = FakeSource()
             backgroundScope.launch { hub.attach(source) }
@@ -110,7 +124,11 @@ class GlucoseHubTest {
             source.emitted.emit(listOf(reading(110)))
             runCurrent()
             assertEquals(listOf(100, 110), repo.window(Instant.EPOCH).first().map { it.mgdl })
-            assertEquals(listOf(100, 110), hub.state.value.recent.map { it.mgdl })
+            assertEquals(
+                listOf(100, 110),
+                hub.state.value.recent
+                    .map { it.mgdl },
+            )
         }
 
     @Test
@@ -139,11 +157,15 @@ class GlucoseHubTest {
             assertNull("the detached source no longer feeds the hub", hub.state.value.latest)
             second.emitted.emit(listOf(reading(95)))
             runCurrent()
-            assertEquals(95, hub.state.value.latest?.mgdl)
+            assertEquals(
+                95,
+                hub.state.value.latest
+                    ?.mgdl,
+            )
         }
 
     @Test
-    fun `LO and HI readings are kept, malformed ones dropped, future ones taken as now`() =
+    fun `LO and HI readings are kept, malformed and far-future ones dropped`() =
         runTest {
             val hub = hub()
             val source = FakeSource()
@@ -152,8 +174,11 @@ class GlucoseHubTest {
             val future = Reading(clock.now() + Duration.ofHours(1), 130, null, SourceId.Libre3)
             source.emitted.emit(listOf(reading(0, agoMin = 3), reading(38, agoMin = 2), reading(450, agoMin = 1), future))
             runCurrent()
-            assertEquals(listOf(38, 450, 130), hub.state.value.recent.map { it.mgdl })
-            assertEquals(clock.now(), hub.state.value.latest?.t)
+            assertEquals(
+                listOf(38, 450),
+                hub.state.value.recent
+                    .map { it.mgdl },
+            )
         }
 
     @Test
@@ -198,7 +223,14 @@ class GlucoseHubTest {
             repo.upsert(listOf(reading(80, agoMin = 25 * 60), reading(90, agoMin = 23 * 60)))
             val hub = hub()
             runCurrent()
-            assertEquals(listOf(90), hub.state.value.recent.map { it.mgdl })
-            assertTrue(hub.state.value.latest?.mgdl == 90)
+            assertEquals(
+                listOf(90),
+                hub.state.value.recent
+                    .map { it.mgdl },
+            )
+            assertTrue(
+                hub.state.value.latest
+                    ?.mgdl == 90,
+            )
         }
 }

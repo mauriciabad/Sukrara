@@ -56,7 +56,8 @@ class AndroidStoppedNotice(
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         val notification =
-            Notification.Builder(context, Channels.STATUS)
+            Notification
+                .Builder(context, Channels.STATUS)
                 .setSmallIcon(R.drawable.monitor_ic_no_readings)
                 .setContentTitle(context.getString(R.string.monitor_stopped_title))
                 .setContentText(context.getString(R.string.monitor_stopped_text))

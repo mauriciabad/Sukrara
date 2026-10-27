@@ -64,8 +64,12 @@ class MonitorServiceLogicTest {
         val dispatchers = TestDispatchers(StandardTestDispatcher(testScheduler))
         val hub =
             GlucoseHubImpl(
-                CoroutineScope(backgroundScope.coroutineContext + dispatchers.dispatcher), dispatchers, FakeClock(),
-                InMemoryReadingsRepository(), InMemoryStateStore(MonitorRecord()), role,
+                CoroutineScope(backgroundScope.coroutineContext + dispatchers.dispatcher),
+                dispatchers,
+                FakeClock(),
+                InMemoryReadingsRepository(),
+                InMemoryStateStore(MonitorRecord()),
+                role,
             )
         hub.start()
         runCurrent()

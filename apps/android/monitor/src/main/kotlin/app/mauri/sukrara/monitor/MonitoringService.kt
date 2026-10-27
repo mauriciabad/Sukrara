@@ -20,7 +20,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
@@ -52,8 +55,9 @@ class MonitoringService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        // every startForegroundService must be answered with startForeground, also for a running service
-        goForeground()
+        // every startForegroundService must be answered with startForeground, also for a running service; a service
+        // refused in onCreate is already stopping (and has said so once)
+        if (isRunning) goForeground()
         return START_STICKY
     }
 
@@ -62,6 +66,8 @@ class MonitoringService : Service() {
         bluetoothReceiver?.let { runCatching { unregisterReceiver(it) } }
         bluetoothReceiver = null
         scope.cancel()
+        // a post still waiting in the gate must not bring back a notification nothing updates any more
+        monitor.notification.cancelPending()
         monitor.hubImpl.setService(ServiceState.NotRunning)
         super.onDestroy()
     }
@@ -70,7 +76,8 @@ class MonitoringService : Service() {
     private fun goForeground(): Boolean {
         val m = monitor
         return try {
-            Channels.create(this)
+            // only the channels this needs: alert channels get their sounds once, from MonitorModule.ready
+            Channels.createCore(this)
             val now = m.clock.now()
             val notification = m.notification.build(m.notification.content(m.hubImpl.state.value, now), now)
             startForeground(NotificationIds.GLUCOSE, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
@@ -92,21 +99,25 @@ class MonitoringService : Service() {
     private suspend fun run() {
         monitorHost.awaitReady()
         val m = monitor
-        val role = m.hubImpl.state.value.role
-        val source = role?.let { m.source(it) }
-        if (source == null) {
-            // nothing to monitor (setup not done, no sensor, not following): no service; the app shows why
-            stopSelf()
-            return
-        }
         m.hubImpl.setService(ServiceState.Running)
         m.healthCheck.schedule()
         watchBluetooth(m)
-        scope.launch { m.hubImpl.attach(source) }
-        combine(m.hubImpl.state, m.freshnessTicks.onStart { emit(Unit) }) { state, _ -> state }.collect { state ->
-            val now = m.clock.now()
-            m.freshnessTicker.plan(state.latest?.t, now)
-            m.notification.post(m.notification.content(state, now), now)
+        scope.launch {
+            combine(m.hubImpl.state, m.freshnessTicks.onStart { emit(Unit) }) { state, _ -> state }.collect { state ->
+                val now = m.clock.now()
+                m.freshnessTicker.plan(state.latest?.t, now)
+                m.notification.post(m.notification.content(state, now), now)
+            }
+        }
+        // the role's source, swapped when the role changes (wearer ↔ follower)
+        m.hubImpl.state.map { it.role }.distinctUntilChanged().collectLatest { role ->
+            val source = role?.let { m.source(it) }
+            if (source == null) {
+                // nothing to monitor (setup not done, no sensor, not following): no service; the app shows why
+                stopSelf()
+            } else {
+                m.hubImpl.attach(source)
+            }
         }
     }
 

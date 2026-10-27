@@ -54,7 +54,8 @@ class LiveNotificationContentTest {
         val c = content(state())
         assertEquals(UiText(R.string.monitor_notif_value, listOf("138", "↗")), c.title)
         assertEquals(UiText(R.string.monitor_chip_value, listOf("↗", "138")), c.chip)
-        assertEquals(Icon.TREND_UP_SLIGHT, c.icon)
+        assertEquals(Icon.TREND, c.icon)
+        assertEquals(1.2, c.trendRate!!, 0.0)
         assertNull(c.readingAt)
         assertEquals(false, c.strike)
     }
@@ -93,7 +94,12 @@ class LiveNotificationContentTest {
         val c = content(state(mgdl = null, started = false))
         assertEquals(UiText(R.string.monitor_notif_not_monitoring), c.title)
         assertEquals(Target.SensorSetup, c.tap)
-        assertEquals(R.string.monitor_action_set_up_sensor, c.actions.single().label.res)
+        assertEquals(
+            R.string.monitor_action_set_up_sensor,
+            c.actions
+                .single()
+                .label.res,
+        )
         assertNull(c.chip)
     }
 
@@ -132,7 +138,10 @@ class LiveNotificationContentTest {
     @Test
     fun `the notification takes the renderer's face for its surface`() {
         val s = state(ageS = 10 * 60)
-        assertEquals(GlucoseCard.face(s.latest?.toPoint(), now.epochSecond, null, CardSurface.NOTIFICATION_TEXT), LiveNotification.face(s, now))
+        assertEquals(
+            GlucoseCard.face(s.latest?.toPoint(), now.epochSecond, null, CardSurface.NOTIFICATION_TEXT),
+            LiveNotification.face(s, now),
+        )
     }
 
     @Test

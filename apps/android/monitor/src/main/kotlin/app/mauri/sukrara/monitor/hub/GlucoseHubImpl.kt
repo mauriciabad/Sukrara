@@ -170,12 +170,9 @@ class GlucoseHubImpl(
 
     private suspend fun accept(batch: List<Reading>) {
         val now = clock.now()
-        val valid =
-            batch
-                .filter { it.mgdl in PLAUSIBLE_MGDL }
-                // a phone clock behind the sensor's / wearer's must not hide readings (silent "no data"): a reading
-                // stamped too far ahead counts as now
-                .map { if (it.t.isAfter(now + FUTURE_TOLERANCE)) it.copy(t = now) else it }
+        // a reading stamped ahead of the phone's clock would look fresh for too long (and the same reading delivered
+        // again can't be stored under a substitute time): dropped; the missing data then shows and alarms as no data
+        val valid = batch.filter { it.mgdl in PLAUSIBLE_MGDL && !it.t.isAfter(now + FUTURE_TOLERANCE) }
         if (valid.isEmpty()) return
         readings.upsert(valid)
         val startedAt = now.toEpochMilli()
@@ -212,7 +209,7 @@ class GlucoseHubImpl(
          */
         val PLAUSIBLE_MGDL = 1..1000
 
-        /** A reading stamped further ahead of the phone's clock than this is taken as now. */
+        /** A reading stamped further ahead of the phone's clock than this is dropped. */
         val FUTURE_TOLERANCE: Duration = Duration.ofMinutes(5)
     }
 }

@@ -32,12 +32,15 @@ data class LiveNotificationContent(
     /** The Live Update chip's text ("↗ 138"); null = icon only. */
     val chip: UiText?,
     val icon: Icon,
+    /** The rate (mg/dL/min) the [Icon.TREND] arrow points for. */
+    val trendRate: Double? = null,
     /** The reading's time, shown once it's late. */
     val readingAt: Instant?,
     val tap: Target,
     val actions: List<Action>,
 ) {
-    enum class Icon { TREND_DOUBLE_UP, TREND_UP, TREND_UP_SLIGHT, TREND_FLAT, TREND_DOWN_SLIGHT, TREND_DOWN, TREND_DOUBLE_DOWN, NO_TREND, NO_READINGS, SENSOR_ENDED, APP }
+    /** [TREND] = the renderer's arrow for [trendRate]; the others are the states' icons. */
+    enum class Icon { TREND, NO_TREND, NO_READINGS, SENSOR_ENDED, APP }
 
     sealed interface Target {
         /** The quick "Add treatment" dialog; Carbs focused while a low is going on (CHANGES P9). */
@@ -67,23 +70,35 @@ data class LiveNotificationContent(
             val look = face(state, now)
             val detail = detail(state)
             return when (look.state) {
-                GlucoseLook.State.ENDED ->
+                GlucoseLook.State.ENDED -> {
                     plain(
                         UiText(R.string.monitor_notif_sensor_ended),
                         detail,
                         Icon.SENSOR_ENDED,
                         if (state.role == Role.Wearer) Target.SensorSetup else Target.OpenApp,
                         actions =
-                            if (state.role == Role.Wearer) listOf(Action(UiText(R.string.monitor_action_replace_sensor), Target.SensorSetup)) else emptyList(),
+                            if (state.role ==
+                                Role.Wearer
+                            ) {
+                                listOf(Action(UiText(R.string.monitor_action_replace_sensor), Target.SensorSetup))
+                            } else {
+                                emptyList()
+                            },
                     )
-                GlucoseLook.State.WARMING_UP ->
+                }
+
+                GlucoseLook.State.WARMING_UP -> {
                     plain(UiText(R.string.monitor_notif_warming_up, listOf(look.warmup.orEmpty())), detail, Icon.APP, Target.OpenApp)
-                GlucoseLook.State.NONE ->
+                }
+
+                GlucoseLook.State.NONE -> {
                     if (state.notMonitoring != null) {
                         notMonitoring(state)
                     } else {
                         plain(UiText(R.string.monitor_notif_waiting), detail, Icon.APP, quickTreatment(state), listOf(OPEN_APP))
                     }
+                }
+
                 GlucoseLook.State.NO_READINGS -> {
                     val at = state.latest!!.t
                     LiveNotificationContent(
@@ -97,7 +112,10 @@ data class LiveNotificationContent(
                         actions = listOf(OPEN_APP),
                     )
                 }
-                GlucoseLook.State.VALUE -> value(state, look, now, detail)
+
+                GlucoseLook.State.VALUE -> {
+                    value(state, look, now, detail)
+                }
             }
         }
 
@@ -122,7 +140,8 @@ data class LiveNotificationContent(
                 text = if (look.fresh.showTime) UiText(R.string.monitor_notif_reading_at, listOf(reading.t)) else detail,
                 strike = look.strike,
                 chip = chip,
-                icon = if (look.trend == TrendMark.ARROW) trendIcon(look.rate) else Icon.NO_TREND,
+                icon = if (look.trend == TrendMark.ARROW) Icon.TREND else Icon.NO_TREND,
+                trendRate = look.rate.takeIf { look.trend == TrendMark.ARROW },
                 readingAt = if (look.fresh.showTime) reading.t else null,
                 tap = quickTreatment(state),
                 actions = listOf(OPEN_APP),
@@ -145,7 +164,7 @@ data class LiveNotificationContent(
             icon: Icon,
             tap: Target,
             actions: List<Action> = emptyList(),
-        ) = LiveNotificationContent(title, text, false, null, icon, null, tap, actions)
+        ) = LiveNotificationContent(title, text, strike = false, chip = null, icon = icon, readingAt = null, tap = tap, actions = actions)
 
         /** The second line for a sensor that needs something (shown under the value or state). */
         private fun detail(state: GlucoseState): UiText? =
@@ -155,9 +174,12 @@ data class LiveNotificationContent(
                 else -> null
             }
 
-        private fun quickTreatment(state: GlucoseState) = Target.QuickTreatment(focusCarbs = state.alerts.firingKinds.any { it in LOW_KINDS })
+        private fun quickTreatment(state: GlucoseState) =
+            Target.QuickTreatment(
+                focusCarbs = state.alerts.firingKinds.any { it in LOW_KINDS },
+            )
 
-        /** The arrow for a trend rate (mg/dL/min), the same steps as every card. */
+        /** The arrow character for a trend rate (mg/dL/min): text places only (icons use the renderer's arrow). */
         fun arrow(rate: Double?): String =
             when {
                 rate == null -> TrendMark.RING
@@ -168,18 +190,6 @@ data class LiveNotificationContent(
                 rate > -2.0 -> "↘"
                 rate > -3.0 -> "↓"
                 else -> "⇊"
-            }
-
-        fun trendIcon(rate: Double?): Icon =
-            when {
-                rate == null -> Icon.NO_TREND
-                rate >= 3.0 -> Icon.TREND_DOUBLE_UP
-                rate >= 2.0 -> Icon.TREND_UP
-                rate >= 1.0 -> Icon.TREND_UP_SLIGHT
-                rate > -1.0 -> Icon.TREND_FLAT
-                rate > -2.0 -> Icon.TREND_DOWN_SLIGHT
-                rate > -3.0 -> Icon.TREND_DOWN
-                else -> Icon.TREND_DOUBLE_DOWN
             }
     }
 }

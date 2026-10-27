@@ -58,7 +58,10 @@ class MonitorModule(
     val starter =
         MonitorStarter(
             hub = hubImpl,
-            hasSomethingToMonitor = { hubImpl.state.value.role?.let { source(it) } != null },
+            hasSomethingToMonitor = {
+                hubImpl.state.value.role
+                    ?.let { source(it) } != null
+            },
             launcher = AndroidServiceLauncher(context),
             notice = AndroidStoppedNotice(context),
             log = { android.util.Log.i("Sukrara.monitor", it) },

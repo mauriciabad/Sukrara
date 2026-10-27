@@ -339,7 +339,7 @@ Android V1 (`:monitor`, `LiveNotification` = registered surface `notification-te
 - One ongoing notification on channel `glucose` (silent, no badge), which is also the monitoring service's foreground
   notification. Title `138 mg/dL ↗` (value struck through from 5 min, the "no trend" ring instead of an arrow); text
   *Reading at 14:05* once the reading is late; *No readings since 14:05* from 20 min (no value, the no-readings icon).
-  Small icon = the trend arrow (7 steps), the ring, no-readings, sensor-ended or Sukrara's drop.
+  Small icon = the renderer's trend arrow (`ValueGlyphs.trendIcon`), the ring, no-readings, sensor-ended or Sukrara's drop.
 - **Live Update chip** (Android 16 QPR2+ / 17, `canPostPromotedNotifications`): promoted ongoing, BigText style, never
   colorized, no custom view; chip = the arrow icon + `setShortCriticalText("↗ 138")`. From 5 min the chip shows the
   reading's time instead of a number (the chip can't strike text through, and a bare old number reads as current);
@@ -375,8 +375,8 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
 - **Monitoring starts at the first reading** of the current source (remembered across restarts). Before that every
   surface says *Not monitoring: no sensor yet* and no "no data" alarm can be armed (CHANGES P3). Only removing the
   sensor or changing the role (explicit actions) go back to *Not monitoring*.
-- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock counts as now
-  (a clock behind the sensor never hides readings). The hub keeps the last 24 h for every surface.
+- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock is dropped
+  (it would look fresh for too long); the gap then shows and alarms as no data. The hub keeps the last 24 h for every surface.
 - Bluetooth off → the wearer sees *Bluetooth is off*; on → the source reconnects with a fresh connection.
 - **Monitoring stopped**: when Android refuses to start the service (background start not allowed, permission) the
   hub says Stopped and a notification on `status` says *Monitoring stopped* · *No glucose readings or alerts until it

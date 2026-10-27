@@ -45,7 +45,12 @@ class MonitorStarter(
     private val log: (String) -> Unit = {},
 ) {
     suspend fun start(reason: StartReason): StartResult {
-        if (hub.state.value.role == null || !hasSomethingToMonitor()) return StartResult.NotNeeded
+        if (hub.state.value.role == null || !hasSomethingToMonitor()) {
+            // nothing to resume any more: an earlier "stopped" goes away
+            if (hub.state.value.service is ServiceState.Stopped) hub.setService(ServiceState.NotRunning)
+            notice.cancel()
+            return StartResult.NotNeeded
+        }
         return if (launcher.launch()) {
             notice.cancel()
             StartResult.Started

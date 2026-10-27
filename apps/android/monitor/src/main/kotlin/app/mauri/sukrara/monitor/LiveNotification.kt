@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.SystemClock
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
@@ -20,6 +21,7 @@ import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.SensorBadge
+import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.stats.toPoint
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent
@@ -49,7 +51,11 @@ class LiveNotification(
     private val poster = Executors.newSingleThreadScheduledExecutor { Thread(it, "Sukrara.notify").apply { isDaemon = true } }
     private val gate =
         PostGate<LiveNotificationContent>(MIN_GAP_MS, SystemClock::elapsedRealtime) { delay, run ->
-            poster.schedule({ runCatching(run).onFailure { Log.w(TAG, "post failed: ${it.javaClass.simpleName}") } }, delay, TimeUnit.MILLISECONDS)
+            poster.schedule(
+                { runCatching(run).onFailure { Log.w(TAG, "post failed: ${it.javaClass.simpleName}") } },
+                delay,
+                TimeUnit.MILLISECONDS,
+            )
         }
 
     /** The content for [state] now. */
@@ -77,8 +83,9 @@ class LiveNotification(
         val title = resolve(content.title, now)
         val text = content.text?.let { resolve(it, now) }
         val builder =
-            Notification.Builder(context, Channels.GLUCOSE)
-                .setSmallIcon(iconRes(content.icon))
+            Notification
+                .Builder(context, Channels.GLUCOSE)
+                .setSmallIcon(smallIcon(content))
                 .setContentTitle(if (content.strike) struck(title) else title)
                 .setContentText(text)
                 .setOngoing(true)
@@ -93,14 +100,29 @@ class LiveNotification(
         content.readingAt?.let { builder.setWhen(it.toEpochMilli()) }
         content.actions.forEach { builder.addAction(Notification.Action.Builder(null, resolve(it.label, now), pending(it.target)).build()) }
         val chip = content.chip
-        if (chip != null && promotionAllowed()) {
+        if (chip != null && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1 && promotionAllowed()) {
             builder.setRequestPromotedOngoing(true).setShortCriticalText(resolve(chip, now))
         }
         return builder.build()
     }
 
+    /** Drops a post still waiting in the gate (the service is going away). */
+    fun cancelPending() = gate.cancelPending()
+
+    /** The trend arrow as the renderer draws it (its continuous angle), or the state's icon. */
+    private fun smallIcon(content: LiveNotificationContent): android.graphics.drawable.Icon =
+        if (content.icon == Icon.TREND) {
+            android.graphics.drawable.Icon
+                .createWithBitmap(ValueGlyphs.trendIcon(content.trendRate))
+        } else {
+            android.graphics.drawable.Icon
+                .createWithResource(context, iconRes(content.icon))
+        }
+
     /** Whether Android lets the app post Live Updates now (the person can turn them off per app). */
-    fun promotionAllowed(): Boolean = runCatching { nm.canPostPromotedNotifications() }.getOrDefault(false)
+    fun promotionAllowed(): Boolean =
+        Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1 &&
+            runCatching { nm.canPostPromotedNotifications() }.getOrDefault(false)
 
     private fun resolve(
         text: UiText,
@@ -121,24 +143,38 @@ class LiveNotification(
                         .setPackage(context.packageName)
                         .putExtra(NavTargets.EXTRA_FOCUS_CARBS, target.focusCarbs)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                // until the quick treatment dialog is installed in this build, the tap opens the app
-                val intent = if (quick.resolveActivity(context.packageManager) != null) quick else launchIntent()
+                // until the quick treatment dialog is in this build, the tap opens the app
+                val intent = if (hasQuickTreatment) quick else launchIntent()
                 PendingIntent.getActivity(context, REQUEST_QUICK + if (target.focusCarbs) 1 else 0, intent, IMMUTABLE)
             }
-            Target.OpenApp -> PendingIntent.getActivity(context, REQUEST_OPEN, launchIntent(), IMMUTABLE)
+
+            Target.OpenApp -> {
+                PendingIntent.getActivity(context, REQUEST_OPEN, launchIntent(), IMMUTABLE)
+            }
+
             Target.SensorSetup -> {
                 val setup = Intent(NavTargets.ACTION_SENSOR_SETUP).setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                val intent = if (setup.resolveActivity(context.packageManager) != null) setup else launchIntent()
-                PendingIntent.getActivity(context, REQUEST_SENSOR, intent, IMMUTABLE)
+                PendingIntent.getActivity(context, REQUEST_SENSOR, if (hasSensorSetup) setup else launchIntent(), IMMUTABLE)
             }
         }
+
+    // the app's activities are fixed at build time: resolved once, not on every post
+    private val hasQuickTreatment by lazy { resolves(NavTargets.ACTION_QUICK_TREATMENT) }
+    private val hasSensorSetup by lazy { resolves(NavTargets.ACTION_SENSOR_SETUP) }
+
+    private fun resolves(action: String) = Intent(action).setPackage(context.packageName).resolveActivity(context.packageManager) != null
 
     private fun launchIntent(): Intent =
         context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
 
     private fun dismissedIntent(): PendingIntent =
-        PendingIntent.getBroadcast(context, REQUEST_DISMISSED, Intent(context, HealthCheckReceiver::class.java).setAction(MonitorReceiver.ACTION_GLUCOSE_DISMISSED), IMMUTABLE)
+        PendingIntent.getBroadcast(
+            context,
+            REQUEST_DISMISSED,
+            Intent(context, HealthCheckReceiver::class.java).setAction(MonitorReceiver.ACTION_GLUCOSE_DISMISSED),
+            IMMUTABLE,
+        )
 
     companion object {
         private const val TAG = "Sukrara.notify"
@@ -153,7 +189,13 @@ class LiveNotification(
         fun face(
             state: GlucoseState,
             now: Instant,
-        ): GlucoseLook = GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensorLook(state.sensor, now), CardSurface.NOTIFICATION_TEXT)
+        ): GlucoseLook =
+            GlucoseCard.face(
+                state.latest?.toPoint(),
+                now.epochSecond,
+                sensorLook(state.sensor, now),
+                CardSurface.NOTIFICATION_TEXT,
+            )
 
         /**
          * The sensor states the face decides on (ended; warming up with its ready time where the number goes). The
@@ -164,8 +206,11 @@ class LiveNotification(
             now: Instant,
         ): SensorBadge.Look? =
             when (sensor) {
-                SensorState.Ended -> SensorBadge.Look(label = "", life = 0f, ended = true)
-                is SensorState.WarmingUp ->
+                SensorState.Ended -> {
+                    SensorBadge.Look(label = "", life = 0f, ended = true)
+                }
+
+                is SensorState.WarmingUp -> {
                     SensorBadge.Look(
                         label = "",
                         life = 0f,
@@ -173,19 +218,17 @@ class LiveNotification(
                         warmup = Freshness.timeText(sensor.readyAt.epochSecond, now.epochSecond),
                         readyAt = sensor.readyAt.epochSecond,
                     )
-                else -> null
+                }
+
+                else -> {
+                    null
+                }
             }
 
+        /** A state's icon resource ([Icon.TREND] is drawn by the renderer instead). */
         fun iconRes(icon: Icon): Int =
             when (icon) {
-                Icon.TREND_DOUBLE_UP -> R.drawable.monitor_ic_trend_double_up
-                Icon.TREND_UP -> R.drawable.monitor_ic_trend_up
-                Icon.TREND_UP_SLIGHT -> R.drawable.monitor_ic_trend_up_slight
-                Icon.TREND_FLAT -> R.drawable.monitor_ic_trend_flat
-                Icon.TREND_DOWN_SLIGHT -> R.drawable.monitor_ic_trend_down_slight
-                Icon.TREND_DOWN -> R.drawable.monitor_ic_trend_down
-                Icon.TREND_DOUBLE_DOWN -> R.drawable.monitor_ic_trend_double_down
-                Icon.NO_TREND -> R.drawable.monitor_ic_no_trend
+                Icon.TREND, Icon.NO_TREND -> R.drawable.monitor_ic_no_trend
                 Icon.NO_READINGS -> R.drawable.monitor_ic_no_readings
                 Icon.SENSOR_ENDED -> R.drawable.monitor_ic_sensor_ended
                 Icon.APP -> R.drawable.monitor_ic_app

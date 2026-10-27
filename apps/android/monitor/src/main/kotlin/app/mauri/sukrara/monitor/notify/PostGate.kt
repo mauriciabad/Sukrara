@@ -24,6 +24,12 @@ class PostGate<K>(
     private var lastAt = Long.MIN_VALUE / 2
     private var pending: Pending<K>? = null
 
+    /** Drops the post waiting for the end of the gap, if any (its flush then does nothing). */
+    @Synchronized
+    fun cancelPending() {
+        pending = null
+    }
+
     /** Posts now, later (folded) or not at all; [post] runs under the gate's lock, so posts never overlap. */
     @Synchronized
     fun submit(

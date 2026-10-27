@@ -51,8 +51,13 @@ class ChannelsTest {
         assertEquals((1000..1007).toList(), alertIds)
         val fixed =
             listOf(
-                NotificationIds.GLUCOSE, NotificationIds.MONITORING_STOPPED, NotificationIds.SENSOR, NotificationIds.SENSOR_COUNTDOWN,
-                NotificationIds.PEN_RESULTS, NotificationIds.PEN_CHECK, NotificationIds.REQUESTS,
+                NotificationIds.GLUCOSE,
+                NotificationIds.MONITORING_STOPPED,
+                NotificationIds.SENSOR,
+                NotificationIds.SENSOR_COUNTDOWN,
+                NotificationIds.PEN_RESULTS,
+                NotificationIds.PEN_CHECK,
+                NotificationIds.REQUESTS,
             )
         assertEquals(fixed.size, fixed.toSet().size)
         assertTrue(fixed.all { it < NotificationIds.ALERTS_BASE })

@@ -49,15 +49,39 @@ abstract class MonitorReceiver : BroadcastReceiver() {
         host.awaitReady()
         val monitor = host.monitor
         when (action) {
-            Intent.ACTION_BOOT_COMPLETED -> restart(monitor, StartReason.Boot)
-            Intent.ACTION_MY_PACKAGE_REPLACED -> restart(monitor, StartReason.PackageReplaced)
-            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> restart(monitor, StartReason.TimeChanged)
-            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> monitor.healthCheck.schedule()
-            ACTION_HEALTH_CHECK -> monitor.healthCheck.onFire()
-            ACTION_FRESHNESS_STEP -> monitor.onFreshnessStep()
+            Intent.ACTION_BOOT_COMPLETED -> {
+                restart(monitor, StartReason.Boot)
+            }
+
+            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                restart(monitor, StartReason.PackageReplaced)
+            }
+
+            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
+                restart(monitor, StartReason.TimeChanged)
+            }
+
+            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> {
+                monitor.healthCheck.schedule()
+            }
+
+            ACTION_HEALTH_CHECK -> {
+                monitor.healthCheck.onFire()
+            }
+
+            ACTION_FRESHNESS_STEP -> {
+                monitor.onFreshnessStep()
+            }
+
             ACTION_GLUCOSE_DISMISSED -> {
                 val now = monitor.clock.now()
-                if (MonitoringService.isRunning) monitor.notification.post(monitor.notification.content(monitor.hubImpl.state.value, now), now, force = true)
+                if (MonitoringService.isRunning) {
+                    monitor.notification.post(
+                        monitor.notification.content(monitor.hubImpl.state.value, now),
+                        now,
+                        force = true,
+                    )
+                }
             }
         }
     }

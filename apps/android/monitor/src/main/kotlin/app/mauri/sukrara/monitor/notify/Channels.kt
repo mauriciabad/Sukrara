@@ -89,6 +89,16 @@ object Channels {
         nm.createNotificationChannels(ALL.map { channel(context, it, alertSound) })
     }
 
+    /**
+     * Only the `glucose` and `status` channels (the service's start, before the app is ready). Never the alert
+     * channels: Android fixes a channel's sound at creation, so they are created once, with their sounds, by [create].
+     */
+    fun createCore(context: Context) {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannelGroup(NotificationChannelGroup(Group.INFO.id, context.getString(Group.INFO.nameRes)))
+        nm.createNotificationChannels(ALL.filter { it.id == GLUCOSE || it.id == STATUS }.map { channel(context, it) { _, _ -> null } })
+    }
+
     private fun channel(
         context: Context,
         spec: Spec,
@@ -96,12 +106,22 @@ object Channels {
     ) = NotificationChannel(spec.id, context.getString(spec.nameRes), spec.importance).apply {
         group = spec.group.id
         when (spec.kind) {
-            Kind.INFO -> setShowBadge(spec.id != GLUCOSE && spec.id != SENSOR_COUNTDOWN)
+            Kind.INFO -> {
+                setShowBadge(spec.id != GLUCOSE && spec.id != SENSOR_COUNTDOWN)
+            }
+
             Kind.ALERT, Kind.ALARM -> {
                 val alarm = spec.kind == Kind.ALARM
                 val usage = if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION
                 alertSound(spec.alertKind!!, alarm)?.let { uri ->
-                    setSound(uri, AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                    setSound(
+                        uri,
+                        AudioAttributes
+                            .Builder()
+                            .setUsage(usage)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
                 }
                 enableVibration(true)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC

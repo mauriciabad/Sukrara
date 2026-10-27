@@ -43,6 +43,17 @@ class PostGateTest {
     }
 
     @Test
+    fun `a cancelled pending post never lands`() {
+        submit("a")
+        now += 100
+        submit("b")
+        gate.cancelPending()
+        now += 900
+        runDue()
+        assertEquals(listOf("a"), posts)
+    }
+
+    @Test
     fun `forced posts repeat the same content`() {
         submit("a")
         now += 2_000
